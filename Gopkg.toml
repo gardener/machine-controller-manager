@@ -23,24 +23,31 @@
 
 [[constraint]]
   name = "github.com/go-openapi/spec"
+  revision = "6aced65f8501fe1217321abf0749d354824ba2ff"
 
 [[constraint]]
   name = "github.com/golang/glog"
+  revision = "44145f04b68cf362d9c4df2182967c2275eaefed"
 
 [[constraint]]
   name = "github.com/prometheus/client_golang"
+  revision = "e7e903064f5e9eb5da98208bae10b475d4db0f8c"
 
 [[constraint]]
   name = "github.com/spf13/pflag"
+  version = "v1.0.0"
 
 [[constraint]]
   name = "k8s.io/api"
+  version = "kubernetes-1.8.0"
 
 [[constraint]]
   name = "k8s.io/apimachinery"
+  version = "kubernetes-1.8.0-rc.1"
 
 [[constraint]]
   name = "k8s.io/apiserver"
+  version = "kubernetes-1.8.0-rc.1"
 
 [[constraint]]
   branch = "release-5.0"
@@ -48,12 +55,15 @@
 
 [[constraint]]
   name = "k8s.io/code-generator"
+  version = "kubernetes-1.8.0"
 
 [[constraint]]
   name = "k8s.io/gengo"
+  revision = "9e661e9308f078838e266cca1c673922088c0ea4"
 
 [[constraint]]
   name = "k8s.io/kube-openapi"
+  revision = "868f2f29720b192240e18284659231b440f9cda5"
 
 [[constraint]]
   branch = "release-1.8"
