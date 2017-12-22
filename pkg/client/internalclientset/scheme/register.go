@@ -1,7 +1,7 @@
 package scheme
 
 import (
-	node "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/install"
+	node "github.com/gardener/node-controller-manager/pkg/apis/node/install"
 	announced "k8s.io/apimachinery/pkg/apimachinery/announced"
 	registered "k8s.io/apimachinery/pkg/apimachinery/registered"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

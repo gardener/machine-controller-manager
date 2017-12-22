@@ -1,7 +1,7 @@
 package fake
 
 import (
-	v1alpha1 "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
+	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

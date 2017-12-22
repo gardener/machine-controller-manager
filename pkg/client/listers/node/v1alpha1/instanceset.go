@@ -3,7 +3,7 @@
 package v1alpha1
 
 import (
-	v1alpha1 "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
+	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"

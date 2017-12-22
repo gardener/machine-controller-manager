@@ -25,9 +25,9 @@ import (
 
 	"github.com/golang/glog"
 
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/validation"
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node"
+	"github.com/gardener/node-controller-manager/pkg/apis/node/validation"
+	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/node"
 )
 
 func (c *controller) awsInstanceClassAdd(obj interface{}) {

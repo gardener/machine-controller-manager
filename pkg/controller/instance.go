@@ -32,10 +32,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/driver"
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/validation"
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node"
+	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/driver"
+	"github.com/gardener/node-controller-manager/pkg/apis/node/validation"
+	"github.com/gardener/node-controller-manager/pkg/apis/node"
 )
 
 /* 

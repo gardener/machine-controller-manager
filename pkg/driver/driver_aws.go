@@ -19,7 +19,7 @@ import (
     "errors"
     "encoding/base64"
 
-	v1alpha1 "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
+	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	
     "github.com/aws/aws-sdk-go/service/ec2"

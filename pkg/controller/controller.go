@@ -23,9 +23,9 @@ import (
 	"k8s.io/api/core/v1"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 
-	nodeclientset "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
-	nodeinformers "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/informers/externalversions/node/v1alpha1"
-	nodelisters "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/listers/node/v1alpha1"
+	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
+	nodeinformers "github.com/gardener/node-controller-manager/pkg/client/informers/externalversions/node/v1alpha1"
+	nodelisters "github.com/gardener/node-controller-manager/pkg/client/listers/node/v1alpha1"
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	coreinformers "k8s.io/client-go/informers/core/v1"
@@ -37,7 +37,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	nodescheme "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/clientset/scheme"
+	nodescheme "github.com/gardener/node-controller-manager/pkg/client/clientset/scheme"
 
 )
 

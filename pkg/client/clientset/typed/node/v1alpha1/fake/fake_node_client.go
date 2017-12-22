@@ -1,7 +1,7 @@
 package fake
 
 import (
-	v1alpha1 "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
+	v1alpha1 "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

@@ -35,7 +35,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/rand"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
 )
 
 

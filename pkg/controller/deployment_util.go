@@ -42,10 +42,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/integer"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
-	v1alpha1client "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
+	v1alpha1client "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
 
-	v1alpha1listers "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/listers/node/v1alpha1"
+	v1alpha1listers "github.com/gardener/node-controller-manager/pkg/client/listers/node/v1alpha1"
 )
 
 // DeploymentListerExpansion allows custom methods to be added to

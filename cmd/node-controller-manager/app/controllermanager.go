@@ -33,13 +33,13 @@ import (
 
 	coreinformers "k8s.io/client-go/informers"
 
-	nodeinformers "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/informers/externalversions"
+	nodeinformers "github.com/gardener/node-controller-manager/pkg/client/informers/externalversions"
 
 	corecontroller "k8s.io/kubernetes/pkg/controller"
 
-	nodecontroller "code.sapcloud.io/kubernetes/node-controller-manager/pkg/controller"
+	nodecontroller "github.com/gardener/node-controller-manager/pkg/controller"
 
-	"code.sapcloud.io/kubernetes/node-controller-manager/cmd/node-controller-manager/app/options"
+	"github.com/gardener/node-controller-manager/cmd/node-controller-manager/app/options"
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/api/core/v1"

@@ -29,8 +29,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
-	nodeclientset "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
+	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
 )
 
 // updateInstanceSetStatus attempts to update the Status.Replicas of the given InstanceSet, with a single GET/PUT retry.

@@ -1,9 +1,9 @@
 package fake
 
 import (
-	clientset "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/internalclientset"
-	nodeinternalversion "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/internalclientset/typed/node/internalversion"
-	fakenodeinternalversion "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/internalclientset/typed/node/internalversion/fake"
+	clientset "github.com/gardener/node-controller-manager/pkg/client/internalclientset"
+	nodeinternalversion "github.com/gardener/node-controller-manager/pkg/client/internalclientset/typed/node/internalversion"
+	fakenodeinternalversion "github.com/gardener/node-controller-manager/pkg/client/internalclientset/typed/node/internalversion/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

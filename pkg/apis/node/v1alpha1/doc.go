@@ -1,5 +1,5 @@
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node
+// +k8s:conversion-gen=github.com/gardener/node-controller-manager/pkg/apis/node
 // +k8s:openapi-gen=true
 // +k8s:defaulter-gen=TypeMeta
 

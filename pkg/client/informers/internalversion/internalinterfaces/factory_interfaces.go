@@ -3,7 +3,7 @@
 package internalinterfaces
 
 import (
-	internalclientset "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/internalclientset"
+	internalclientset "github.com/gardener/node-controller-manager/pkg/client/internalclientset"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	cache "k8s.io/client-go/tools/cache"
 	time "time"

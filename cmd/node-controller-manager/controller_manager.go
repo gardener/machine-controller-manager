@@ -25,8 +25,8 @@ import (
 	"fmt"
 	"os"
 
-	"code.sapcloud.io/kubernetes/node-controller-manager/cmd/node-controller-manager/app"
-	"code.sapcloud.io/kubernetes/node-controller-manager/cmd/node-controller-manager/app/options"
+	"github.com/gardener/node-controller-manager/cmd/node-controller-manager/app"
+	"github.com/gardener/node-controller-manager/cmd/node-controller-manager/app/options"
 	"github.com/spf13/pflag"
 	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/apiserver/pkg/util/flag"

@@ -1,7 +1,7 @@
 package internalclientset
 
 import (
-	nodeinternalversion "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/internalclientset/typed/node/internalversion"
+	nodeinternalversion "github.com/gardener/node-controller-manager/pkg/client/internalclientset/typed/node/internalversion"
 	glog "github.com/golang/glog"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"

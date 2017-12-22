@@ -12,7 +12,7 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSBlockDeviceMappingSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSBlockDeviceMappingSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Properties: map[string]spec.Schema{
@@ -26,7 +26,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"ebs": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Parameters used to automatically set up EBS volumes when the instance is launched.",
-								Ref:         ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSEbsBlockDeviceSpec"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSEbsBlockDeviceSpec"),
 							},
 						},
 						"noDevice": {
@@ -47,9 +47,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSEbsBlockDeviceSpec"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSEbsBlockDeviceSpec"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSEbsBlockDeviceSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSEbsBlockDeviceSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "Describes a block device for an EBS volume. Please also see https://docs.aws.amazon.com/goto/WebAPI/ec2-2016-11-15/EbsBlockDevice",
@@ -94,7 +94,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSIAMProfileSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSIAMProfileSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "Describes an IAM instance profile.",
@@ -118,7 +118,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClass": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClass": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AWSInstanceClass TODO",
@@ -144,16 +144,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClassSpec"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClassSpec"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClassList": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClassList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AWSInstanceClassList is a collection of AWSInstanceClasses.",
@@ -183,7 +183,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClass"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClass"),
 										},
 									},
 								},
@@ -194,9 +194,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClassSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClassSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AWSInstanceClassSpec is the specification of a Shoot cluster.",
@@ -219,7 +219,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSBlockDeviceMappingSpec"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSBlockDeviceMappingSpec"),
 										},
 									},
 								},
@@ -233,7 +233,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"iam": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSIAMProfileSpec"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSIAMProfileSpec"),
 							},
 						},
 						"instanceType": {
@@ -260,7 +260,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSNetworkInterfaceSpec"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSNetworkInterfaceSpec"),
 										},
 									},
 								},
@@ -288,9 +288,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSBlockDeviceMappingSpec", "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSIAMProfileSpec", "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSNetworkInterfaceSpec", "k8s.io/api/core/v1.SecretReference"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSBlockDeviceMappingSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSIAMProfileSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSNetworkInterfaceSpec", "k8s.io/api/core/v1.SecretReference"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.AWSNetworkInterfaceSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSNetworkInterfaceSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "Describes a network interface. Please also see https://docs.aws.amazon.com/goto/WebAPI/ec2-2016-11-15/InstanceAWSNetworkInterfaceSpecification",
@@ -342,7 +342,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.ClassSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ClassSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "ClassSpec is the class specification of instance",
@@ -373,7 +373,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.CurrentStatus": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.CurrentStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "type CurrentStatus",
@@ -404,7 +404,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.Instance": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.Instance": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "Instance TODO",
@@ -430,21 +430,21 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSpec"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSpec"),
 							},
 						},
 						"status": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceStatus"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceStatus"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSpec", "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeployment": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeployment": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DEPRECATED - This group version of Deployment is deprecated by apps/v1beta2/Deployment. See the release notes for more information. Deployment enables declarative updates for Pods and ReplicaSets.",
@@ -472,22 +472,22 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"spec": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Specification of the desired behavior of the Deployment.",
-								Ref:         ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentSpec"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentSpec"),
 							},
 						},
 						"status": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Most recently observed status of the Deployment.",
-								Ref:         ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStatus"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStatus"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentSpec", "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentCondition": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentCondition": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DeploymentCondition describes the state of a deployment at a certain point.",
@@ -539,7 +539,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentList": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DeploymentList is a list of Deployments.",
@@ -571,7 +571,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeployment"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeployment"),
 										},
 									},
 								},
@@ -582,9 +582,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeployment", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeployment", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentRollback": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentRollback": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DEPRECATED. DeploymentRollback stores the information required to rollback a deployment.",
@@ -627,7 +627,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"rollbackTo": {
 							SchemaProps: spec.SchemaProps{
 								Description: "The config of this deployment rollback.",
-								Ref:         ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.RollbackConfig"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollbackConfig"),
 							},
 						},
 					},
@@ -635,9 +635,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.RollbackConfig"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollbackConfig"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DeploymentSpec is the specification of the desired behavior of the Deployment.",
@@ -658,7 +658,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"template": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Template describes the pods that will be created.",
-								Ref:         ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec"),
 							},
 						},
 						"strategy": {
@@ -669,7 +669,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 							},
 							SchemaProps: spec.SchemaProps{
 								Description: "The deployment strategy to use to replace existing pods with new ones.",
-								Ref:         ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStrategy"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStrategy"),
 							},
 						},
 						"minReadySeconds": {
@@ -696,7 +696,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"rollbackTo": {
 							SchemaProps: spec.SchemaProps{
 								Description: "DEPRECATED. The config this deployment is rolling back to. Will be cleared after rollback is done.",
-								Ref:         ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.RollbackConfig"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollbackConfig"),
 							},
 						},
 						"progressDeadlineSeconds": {
@@ -711,9 +711,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStrategy", "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec", "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.RollbackConfig", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStrategy", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollbackConfig", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStatus": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DeploymentStatus is the most recently observed status of the Deployment.",
@@ -773,7 +773,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentCondition"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentCondition"),
 										},
 									},
 								},
@@ -790,9 +790,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentCondition"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentCondition"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStrategy": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStrategy": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DeploymentStrategy describes how to replace existing pods with new ones.",
@@ -807,16 +807,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"rollingUpdate": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Rolling update config params. Present only if DeploymentStrategyType = RollingUpdate.",
-								Ref:         ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.RollingUpdateInstanceDeployment"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollingUpdateInstanceDeployment"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.RollingUpdateInstanceDeployment"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollingUpdateInstanceDeployment"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceList": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "InstanceList is a collection of Instances.",
@@ -846,7 +846,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.Instance"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.Instance"),
 										},
 									},
 								},
@@ -857,9 +857,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.Instance", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.Instance", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSet": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSet": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "InstanceSet TODO",
@@ -885,28 +885,28 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetSpec"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetSpec"),
 							},
 						},
 						"status": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetStatus"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetStatus"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetSpec", "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetCondition": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetCondition": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "ReplicaSetCondition describes the state of a replica set at a certain point.",
+					Description: "ReplicaSetCondition describes the state of a instance set at a certain point.",
 					Properties: map[string]spec.Schema{
 						"type": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Type of replica set condition.",
+								Description: "Type of instance set condition.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -945,7 +945,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetList": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "InstanceSetList is a collection of InstanceSet.",
@@ -975,7 +975,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSet"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSet"),
 										},
 									},
 								},
@@ -986,9 +986,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSet", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSet", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "InstanceSetSpec is the specification of a Shoot cluster.",
@@ -1000,21 +1000,21 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"instanceClass": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.ClassSpec"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ClassSpec"),
 							},
 						},
 						"template": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.ClassSpec", "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ClassSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetStatus": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "InstanceSetStatus TODO",
@@ -1022,23 +1022,23 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"lastOperation": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Conditions of this instance, same as node",
-								Ref:         ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.LastOperation"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.LastOperation"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.LastOperation"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.LastOperation"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "InstanceSpec is the specification of a Shoot cluster.",
 					Properties: map[string]spec.Schema{
 						"class": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.ClassSpec"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ClassSpec"),
 							},
 						},
 						"providerID": {
@@ -1051,9 +1051,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.ClassSpec"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ClassSpec"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceStatus": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "InstanceStatus TODO",
@@ -1081,22 +1081,22 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"lastOperation": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Last operation refers to the status of the last operation performed",
-								Ref:         ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.LastOperation"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.LastOperation"),
 							},
 						},
 						"currentStatus": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Current status of the instance object",
-								Ref:         ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.CurrentStatus"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.CurrentStatus"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.CurrentStatus", "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.LastOperation", "k8s.io/api/core/v1.NodeCondition"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.CurrentStatus", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.LastOperation", "k8s.io/api/core/v1.NodeCondition"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplate": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplate": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "PodTemplate describes a template for creating copies of a predefined pod.",
@@ -1124,16 +1124,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"template": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Template defines the pods that will be created from this pod template. https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status",
-								Ref:         ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateList": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "PodTemplateList is a list of PodTemplates.",
@@ -1165,7 +1165,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplate"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplate"),
 										},
 									},
 								},
@@ -1176,9 +1176,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "PodTemplateSpec describes the data a pod should have when created from a template",
@@ -1192,16 +1192,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"spec": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Specification of the desired behavior of the pod. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status",
-								Ref:         ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSpec"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSpec"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.LastOperation": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.LastOperation": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "LastOperation",
@@ -1239,7 +1239,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.RollbackConfig": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollbackConfig": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DEPRECATED.",
@@ -1256,7 +1256,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.RollingUpdateInstanceDeployment": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollingUpdateInstanceDeployment": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "Spec to control the desired behavior of rolling update.",
@@ -1279,7 +1279,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.Scale": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.Scale": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "represents a scaling request for a resource.",
@@ -1307,22 +1307,22 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"spec": {
 							SchemaProps: spec.SchemaProps{
 								Description: "defines the behavior of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status.",
-								Ref:         ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.ScaleSpec"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ScaleSpec"),
 							},
 						},
 						"status": {
 							SchemaProps: spec.SchemaProps{
 								Description: "current status of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status. Read-only.",
-								Ref:         ref("code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.ScaleStatus"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ScaleStatus"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.ScaleSpec", "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.ScaleStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ScaleSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ScaleStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.ScaleSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ScaleSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "describes the attributes of a scale subresource",
@@ -1339,7 +1339,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1.ScaleStatus": {
+		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ScaleStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "represents the current status of a scale subresource.",

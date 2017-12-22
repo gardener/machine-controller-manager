@@ -22,8 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node"
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/node"
+	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
 )
 
 // Install registers the API group and adds types to a scheme

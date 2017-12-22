@@ -1,7 +1,7 @@
 package internalversion
 
 import (
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/internalclientset/scheme"
+	"github.com/gardener/node-controller-manager/pkg/client/internalclientset/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

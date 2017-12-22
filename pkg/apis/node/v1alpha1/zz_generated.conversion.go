@@ -5,7 +5,7 @@
 package v1alpha1
 
 import (
-	node "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node"
+	node "github.com/gardener/node-controller-manager/pkg/apis/node"
 	v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	conversion "k8s.io/apimachinery/pkg/conversion"

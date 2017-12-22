@@ -3,7 +3,7 @@
 package internalversion
 
 import (
-	node "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node"
+	node "github.com/gardener/node-controller-manager/pkg/apis/node"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"

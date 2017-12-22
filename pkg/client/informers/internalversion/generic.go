@@ -3,8 +3,8 @@
 package internalversion
 
 import (
-	node "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node"
 	"fmt"
+	node "github.com/gardener/node-controller-manager/pkg/apis/node"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )

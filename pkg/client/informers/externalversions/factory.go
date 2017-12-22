@@ -3,9 +3,9 @@
 package externalversions
 
 import (
-	clientset "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/clientset"
-	internalinterfaces "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/informers/externalversions/internalinterfaces"
-	node "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/informers/externalversions/node"
+	clientset "github.com/gardener/node-controller-manager/pkg/client/clientset"
+	internalinterfaces "github.com/gardener/node-controller-manager/pkg/client/informers/externalversions/internalinterfaces"
+	node "github.com/gardener/node-controller-manager/pkg/client/informers/externalversions/node"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"

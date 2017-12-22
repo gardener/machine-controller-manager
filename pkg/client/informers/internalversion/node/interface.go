@@ -3,8 +3,8 @@
 package node
 
 import (
-	internalinterfaces "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
-	internalversion "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/informers/internalversion/node/internalversion"
+	internalinterfaces "github.com/gardener/node-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
+	internalversion "github.com/gardener/node-controller-manager/pkg/client/informers/internalversion/node/internalversion"
 )
 
 // Interface provides access to each of this group's versions.

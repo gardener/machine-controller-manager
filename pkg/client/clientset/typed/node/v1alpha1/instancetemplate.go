@@ -1,8 +1,8 @@
 package v1alpha1
 
 import (
-	v1alpha1 "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
-	scheme "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/clientset/scheme"
+	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
+	scheme "github.com/gardener/node-controller-manager/pkg/client/clientset/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"

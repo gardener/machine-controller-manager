@@ -16,7 +16,7 @@ limitations under the License.
 package validation
 
 import (
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node"
+	"github.com/gardener/node-controller-manager/pkg/apis/node"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 

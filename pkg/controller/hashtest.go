@@ -29,7 +29,7 @@ import (
     "testing"
 
     hashutil "k8s.io/kubernetes/pkg/util/hash"
-    "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
+    "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
 )
 
 var instanceSpec string = `

@@ -39,7 +39,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
 )
 
 // controllerKind contains the schema.GroupVersionKind for this controller type.

@@ -30,9 +30,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	nodeclientset "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
-	nodescheme "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/clientset/scheme"
+	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
+	nodescheme "github.com/gardener/node-controller-manager/pkg/client/clientset/scheme"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -3,8 +3,8 @@
 package externalversions
 
 import (
-	v1alpha1 "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
 	"fmt"
+	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )

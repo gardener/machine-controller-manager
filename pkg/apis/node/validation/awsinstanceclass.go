@@ -25,7 +25,7 @@ import (
 	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node"
+	"github.com/gardener/node-controller-manager/pkg/apis/node"
 )
 
 const nameFmt string = `[-a-z0-9]+`

@@ -22,7 +22,7 @@ Modifications Copyright 2017 The Gardener Authors.
 package controller
 
 import (
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
 )
 

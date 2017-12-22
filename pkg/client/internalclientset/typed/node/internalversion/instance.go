@@ -1,8 +1,8 @@
 package internalversion
 
 import (
-	node "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node"
-	scheme "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/internalclientset/scheme"
+	node "github.com/gardener/node-controller-manager/pkg/apis/node"
+	scheme "github.com/gardener/node-controller-manager/pkg/client/internalclientset/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"

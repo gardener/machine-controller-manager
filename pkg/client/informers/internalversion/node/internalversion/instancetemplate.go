@@ -3,10 +3,10 @@
 package internalversion
 
 import (
-	node "code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node"
-	internalinterfaces "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
-	internalclientset "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/internalclientset"
-	internalversion "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/listers/node/internalversion"
+	node "github.com/gardener/node-controller-manager/pkg/apis/node"
+	internalinterfaces "github.com/gardener/node-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
+	internalclientset "github.com/gardener/node-controller-manager/pkg/client/internalclientset"
+	internalversion "github.com/gardener/node-controller-manager/pkg/client/listers/node/internalversion"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

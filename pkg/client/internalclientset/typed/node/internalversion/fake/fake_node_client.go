@@ -1,7 +1,7 @@
 package fake
 
 import (
-	internalversion "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/internalclientset/typed/node/internalversion"
+	internalversion "github.com/gardener/node-controller-manager/pkg/client/internalclientset/typed/node/internalversion"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

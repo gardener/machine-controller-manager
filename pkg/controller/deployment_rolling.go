@@ -26,7 +26,7 @@ import (
 	"sort"
 
 	"github.com/golang/glog"
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/integer"
 )

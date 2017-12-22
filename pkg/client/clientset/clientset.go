@@ -1,7 +1,7 @@
 package clientset
 
 import (
-	nodev1alpha1 "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
+	nodev1alpha1 "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
 	glog "github.com/golang/glog"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"

@@ -24,7 +24,7 @@ package options
 import (
 	"time"
 
-	nodeconfig "code.sapcloud.io/kubernetes/node-controller-manager/pkg/options"
+	nodeconfig "github.com/gardener/node-controller-manager/pkg/options"
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -33,7 +33,7 @@ import (
 	"k8s.io/kubernetes/pkg/client/leaderelectionconfig"
 
 	// add the node feature gates
-	_ "code.sapcloud.io/kubernetes/node-controller-manager/pkg/features"
+	_ "github.com/gardener/node-controller-manager/pkg/features"
 )
 
 // NCMServer is the main context object for the controller manager.

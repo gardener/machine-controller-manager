@@ -26,9 +26,9 @@ import (
 
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
-	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
-	v1alpha1client "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
-	v1alpha1listers "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/listers/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
+	v1alpha1client "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
+	v1alpha1listers "github.com/gardener/node-controller-manager/pkg/client/listers/node/v1alpha1"
 )
 
 // TODO: use client library instead when it starts to support update retries
