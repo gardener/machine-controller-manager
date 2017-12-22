@@ -13,11 +13,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-This file was copied from the kubernetes/kubernetes project
-https://github.com/kubernetes/kubernetes/blob/release-1.8/pkg/controller/deployment/rollback.go
+This file was copied and modified from the kubernetes/kubernetes project
+https://github.com/kubernetes/kubernetes/release-1.8/pkg/controller/deployment/rollback.go
+
+Modifications Copyright 2017 The Gardener Authors.
 */
 
-package deployment
+package controller
 
 import (
 	"fmt"
@@ -25,64 +27,59 @@ import (
 	"github.com/golang/glog"
 
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
-	deploymentutil "k8s.io/kubernetes/pkg/controller/deployment/util"
 )
 
 // rollback the deployment to the specified revision. In any case cleanup the rollback spec.
-func (dc *DeploymentController) rollback(d *extensions.Deployment, rsList []*extensions.ReplicaSet, podMap map[types.UID]*v1.PodList) error {
-	newRS, allOldRSs, err := dc.getAllReplicaSetsAndSyncRevision(d, rsList, podMap, true)
+func (dc *controller) rollback(d *v1alpha1.InstanceDeployment, isList []*v1alpha1.InstanceSet, instanceMap map[types.UID]*v1alpha1.InstanceList) error {
+	newIS, allOldISs, err := dc.getAllInstanceSetsAndSyncRevision(d, isList, instanceMap, true)
 	if err != nil {
 		return err
 	}
 
-	allRSs := append(allOldRSs, newRS)
+	allISs := append(allOldISs, newIS)
 	toRevision := &d.Spec.RollbackTo.Revision
 	// If rollback revision is 0, rollback to the last revision
 	if *toRevision == 0 {
-		if *toRevision = deploymentutil.LastRevision(allRSs); *toRevision == 0 {
+		if *toRevision = LastRevision(allISs); *toRevision == 0 {
 			// If we still can't find the last revision, gives up rollback
-			dc.emitRollbackWarningEvent(d, deploymentutil.RollbackRevisionNotFound, "Unable to find last revision.")
+			dc.emitRollbackWarningEvent(d, RollbackRevisionNotFound, "Unable to find last revision.")
 			// Gives up rollback
-			return dc.updateDeploymentAndClearRollbackTo(d)
+			return dc.updateInstanceDeploymentAndClearRollbackTo(d)
 		}
 	}
-	for _, rs := range allRSs {
-		v, err := deploymentutil.Revision(rs)
+	for _, is := range allISs {
+		v, err := Revision(is)
 		if err != nil {
-			glog.V(4).Infof("Unable to extract revision from deployment's replica set %q: %v", rs.Name, err)
+			glog.V(4).Infof("Unable to extract revision from deployment's instance set %q: %v", is.Name, err)
 			continue
 		}
 		if v == *toRevision {
-			glog.V(4).Infof("Found replica set %q with desired revision %d", rs.Name, v)
+			glog.V(4).Infof("Found instance set %q with desired revision %d", is.Name, v)
 			// rollback by copying podTemplate.Spec from the replica set
-			// revision number will be incremented during the next getAllReplicaSetsAndSyncRevision call
-			// no-op if the the spec matches current deployment's podTemplate.Spec
-			performedRollback, err := dc.rollbackToTemplate(d, rs)
+			// revision number will be incremented during the next getAllInstanceSetsAndSyncRevision call
+			// no-op if the spec matches current deployment's podTemplate.Spec
+			performedRollback, err := dc.rollbackToTemplate(d, is)
 			if performedRollback && err == nil {
 				dc.emitRollbackNormalEvent(d, fmt.Sprintf("Rolled back deployment %q to revision %d", d.Name, *toRevision))
 			}
 			return err
 		}
 	}
-	dc.emitRollbackWarningEvent(d, deploymentutil.RollbackRevisionNotFound, "Unable to find the revision to rollback to.")
+	dc.emitRollbackWarningEvent(d, RollbackRevisionNotFound, "Unable to find the revision to rollback to.")
 	// Gives up rollback
-	return dc.updateDeploymentAndClearRollbackTo(d)
+	return dc.updateInstanceDeploymentAndClearRollbackTo(d)
 }
 
 // rollbackToTemplate compares the templates of the provided deployment and replica set and
 // updates the deployment with the replica set template in case they are different. It also
 // cleans up the rollback spec so subsequent requeues of the deployment won't end up in here.
-func (dc *DeploymentController) rollbackToTemplate(d *extensions.Deployment, rs *extensions.ReplicaSet) (bool, error) {
+func (dc *controller) rollbackToTemplate(d *v1alpha1.InstanceDeployment, is *v1alpha1.InstanceSet) (bool, error) {
 	performedRollback := false
-	isEqual, err := deploymentutil.EqualIgnoreHash(&d.Spec.Template, &rs.Spec.Template)
-	if err != nil {
-		return false, err
-	}
-	if !isEqual {
-		glog.V(4).Infof("Rolling back deployment %q to template spec %+v", d.Name, rs.Spec.Template.Spec)
-		deploymentutil.SetFromReplicaSetTemplate(d, rs.Spec.Template)
+	if !EqualIgnoreHash(&d.Spec.Template, &is.Spec.Template) {
+		glog.V(4).Infof("Rolling back deployment %q to template spec %+v", d.Name, is.Spec.Template.Spec)
+		SetFromInstanceSetTemplate(d, is.Spec.Template)
 		// set RS (the old RS we'll rolling back to) annotations back to the deployment;
 		// otherwise, the deployment's current annotations (should be the same as current new RS) will be copied to the RS after the rollback.
 		//
@@ -94,31 +91,31 @@ func (dc *DeploymentController) rollbackToTemplate(d *extensions.Deployment, rs 
 		//
 		// If we don't copy the annotations back from RS to deployment on rollback, the Deployment will stay as {change-cause:edit},
 		// and new RS1 becomes {change-cause:edit} (copied from deployment after rollback), old RS2 {change-cause:edit}, which is not correct.
-		deploymentutil.SetDeploymentAnnotationsTo(d, rs)
+		SetInstanceDeploymentAnnotationsTo(d, is)
 		performedRollback = true
 	} else {
 		glog.V(4).Infof("Rolling back to a revision that contains the same template as current deployment %q, skipping rollback...", d.Name)
 		eventMsg := fmt.Sprintf("The rollback revision contains the same template as current deployment %q", d.Name)
-		dc.emitRollbackWarningEvent(d, deploymentutil.RollbackTemplateUnchanged, eventMsg)
+		dc.emitRollbackWarningEvent(d, RollbackTemplateUnchanged, eventMsg)
 	}
 
-	return performedRollback, dc.updateDeploymentAndClearRollbackTo(d)
+	return performedRollback, dc.updateInstanceDeploymentAndClearRollbackTo(d)
 }
 
-func (dc *DeploymentController) emitRollbackWarningEvent(d *extensions.Deployment, reason, message string) {
-	dc.eventRecorder.Eventf(d, v1.EventTypeWarning, reason, message)
+func (dc *controller) emitRollbackWarningEvent(d *v1alpha1.InstanceDeployment, reason, message string) {
+	dc.recorder.Eventf(d, v1.EventTypeWarning, reason, message)
 }
 
-func (dc *DeploymentController) emitRollbackNormalEvent(d *extensions.Deployment, message string) {
-	dc.eventRecorder.Eventf(d, v1.EventTypeNormal, deploymentutil.RollbackDone, message)
+func (dc *controller) emitRollbackNormalEvent(d *v1alpha1.InstanceDeployment, message string) {
+	dc.recorder.Eventf(d, v1.EventTypeNormal, RollbackDone, message)
 }
 
 // updateDeploymentAndClearRollbackTo sets .spec.rollbackTo to nil and update the input deployment
 // It is assumed that the caller will have updated the deployment template appropriately (in case
 // we want to rollback).
-func (dc *DeploymentController) updateDeploymentAndClearRollbackTo(d *extensions.Deployment) error {
-	glog.V(4).Infof("Cleans up rollbackTo of deployment %q", d.Name)
+func (dc *controller) updateInstanceDeploymentAndClearRollbackTo(d *v1alpha1.InstanceDeployment) error {
+	glog.V(4).Infof("Cleans up rollbackTo of instance deployment %q", d.Name)
 	d.Spec.RollbackTo = nil
-	_, err := dc.client.Extensions().Deployments(d.Namespace).Update(d)
+	_, err := dc.nodeClient.InstanceDeployments().Update(d)
 	return err
 }

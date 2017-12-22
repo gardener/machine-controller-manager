@@ -13,8 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-This file was copied from the kubernetes/kubernetes project
-https://github.com/kubernetes/kubernetes/blob/release-1.8/pkg/controller/controller_utils.go
+This file was copied and modified from the kubernetes/kubernetes project
+https://github.com/kubernetes/kubernetes/release-1.8/pkg/controller/controller_utils.go
+
+Modifications Copyright 2017 The Gardener Authors.
 */
 
 package controller
@@ -28,8 +30,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	nodeclientset "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
+	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
+	nodescheme "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/clientset/scheme"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -45,30 +49,28 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	ref "k8s.io/client-go/tools/reference"
-	"k8s.io/client-go/util/integer"
 	clientretry "k8s.io/client-go/util/retry"
 	_ "k8s.io/kubernetes/pkg/api/install"
-	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/api/validation"
-	hashutil "k8s.io/kubernetes/pkg/util/hash"
 	taintutils "k8s.io/kubernetes/pkg/util/taints"
+	hashutil "k8s.io/kubernetes/pkg/util/hash"
 
 	"github.com/golang/glog"
 )
 
 const (
-	// If a watch drops a delete event for a pod, it'll take this long
+	// If a watch drops a delete event for a instance, it'll take this long
 	// before a dormant controller waiting for those packets is woken up anyway. It is
 	// specifically targeted at the case where some problem prevents an update
 	// of expectations, without it the controller could stay asleep forever. This should
 	// be set based on the expected latency of watch events.
 	//
 	// Currently a controller can service (create *and* observe the watch events for said
-	// creation) about 10 pods a second, so it takes about 1 min to service
-	// 500 pods. Just creation is limited to 20qps, and watching happens with ~10-30s
-	// latency/pod at the scale of 3000 pods over 100 nodes.
+	// creation) about 10 instances a second, so it takes about 1 min to service
+	// 500 instances. Just creation is limited to 20qps, and watching happens with ~10-30s
+	// latency/instance at the scale of 3000 instances over 100 nodes.
 	ExpectationsTimeout = 5 * time.Minute
-	// When batching pod creates, SlowStartInitialBatchSize is the size of the
+	// When batching instance creates, SlowStartInitialBatchSize is the size of the
 	// inital batch.  The size of each successive batch is twice the size of
 	// the previous batch.  For example, for a value of 1, batch sizes would be
 	// 1, 2, 4, 8, ...  and for a value of 10, batch sizes would be
@@ -77,7 +79,7 @@ const (
 	// the value lower will result in more API call round trip periods for
 	// large batches.
 	//
-	// Given a number of pods to start "N":
+	// Given a number of instances to start "N":
 	// The number of doomed calls per sync once quota is exceeded is given by:
 	//      min(N,SlowStartInitialBatchSize)
 	// The number of batches is given by:
@@ -305,7 +307,7 @@ type UIDSet struct {
 	key string
 }
 
-// UIDTrackingControllerExpectations tracks the UID of the pods it deletes.
+// UIDTrackingControllerExpectations tracks the UID of the instances it deletes.
 // This cache is needed over plain old expectations to safely handle graceful
 // deletion. The desired behavior is to treat an update that sets the
 // DeletionTimestamp on an object as a delete. To do so consistently, one needs
@@ -357,7 +359,7 @@ func (u *UIDTrackingControllerExpectations) DeletionObserved(rcKey, deleteKey st
 
 	uids := u.GetUIDs(rcKey)
 	if uids != nil && uids.Has(deleteKey) {
-		glog.V(4).Infof("Controller %v received delete for pod %v", rcKey, deleteKey)
+		glog.V(4).Infof("Controller %v received delete for instance %v", rcKey, deleteKey)
 		u.ControllerExpectationsInterface.DeletionObserved(rcKey)
 		uids.Delete(deleteKey)
 	}
@@ -383,39 +385,40 @@ func NewUIDTrackingControllerExpectations(ce ControllerExpectationsInterface) *U
 	return &UIDTrackingControllerExpectations{ControllerExpectationsInterface: ce, uidStore: cache.NewStore(UIDSetKeyFunc)}
 }
 
-// Reasons for pod events
+// Reasons for instance events
 const (
-	// FailedCreatePodReason is added in an event and in a replica set condition
-	// when a pod for a replica set is failed to be created.
-	FailedCreatePodReason = "FailedCreate"
-	// SuccessfulCreatePodReason is added in an event when a pod for a replica set
+	// FailedCreateInstanceReason is added in an event and in a replica set condition
+	// when a instance for a replica set is failed to be created.
+	FailedCreateInstanceReason = "FailedCreate"
+	// SuccessfulCreateInstanceReason is added in an event when a instance for a replica set
 	// is successfully created.
-	SuccessfulCreatePodReason = "SuccessfulCreate"
-	// FailedDeletePodReason is added in an event and in a replica set condition
-	// when a pod for a replica set is failed to be deleted.
-	FailedDeletePodReason = "FailedDelete"
-	// SuccessfulDeletePodReason is added in an event when a pod for a replica set
+	SuccessfulCreateInstanceReason = "SuccessfulCreate"
+	// FailedDeleteInstanceReason is added in an event and in a replica set condition
+	// when a instance for a replica set is failed to be deleted.
+	FailedDeleteInstanceReason = "FailedDelete"
+	// SuccessfulDeleteinstanceReason is added in an event when a instance for a replica set
 	// is successfully deleted.
-	SuccessfulDeletePodReason = "SuccessfulDelete"
+	SuccessfulDeleteInstanceReason = "SuccessfulDelete"
 )
 
+
 // RSControlInterface is an interface that knows how to add or delete
-// ReplicaSets, as well as increment or decrement them. It is used
+// InstanceSets, as well as increment or decrement them. It is used
 // by the deployment controller to ease testing of actions that it takes.
-type RSControlInterface interface {
-	PatchReplicaSet(namespace, name string, data []byte) error
+type ISControlInterface interface {
+	PatchInstanceSet(namespace, name string, data []byte) error
 }
 
 // RealRSControl is the default implementation of RSControllerInterface.
-type RealRSControl struct {
-	KubeClient clientset.Interface
+type RealISControl struct {
+	NodeClient nodeclientset.NodeV1alpha1Interface
 	Recorder   record.EventRecorder
 }
 
-var _ RSControlInterface = &RealRSControl{}
+var _ ISControlInterface = &RealISControl{}
 
-func (r RealRSControl) PatchReplicaSet(namespace, name string, data []byte) error {
-	_, err := r.KubeClient.Extensions().ReplicaSets(namespace).Patch(name, types.StrategicMergePatchType, data)
+func (r RealISControl) PatchInstanceSet(namespace, name string, data []byte) error {
+	_, err := r.NodeClient.InstanceSets().Patch(name, types.MergePatchType, data)
 	return err
 }
 
@@ -439,78 +442,6 @@ func (r RealControllerRevisionControl) PatchControllerRevision(namespace, name s
 	return err
 }
 
-// PodControlInterface is an interface that knows how to add or delete pods
-// created as an interface to allow testing.
-type PodControlInterface interface {
-	// CreatePods creates new pods according to the spec.
-	CreatePods(namespace string, template *v1.PodTemplateSpec, object runtime.Object) error
-	// CreatePodsOnNode creates a new pod according to the spec on the specified node,
-	// and sets the ControllerRef.
-	CreatePodsOnNode(nodeName, namespace string, template *v1.PodTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error
-	// CreatePodsWithControllerRef creates new pods according to the spec, and sets object as the pod's controller.
-	CreatePodsWithControllerRef(namespace string, template *v1.PodTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error
-	// DeletePod deletes the pod identified by podID.
-	DeletePod(namespace string, podID string, object runtime.Object) error
-	// PatchPod patches the pod.
-	PatchPod(namespace, name string, data []byte) error
-}
-
-// RealPodControl is the default implementation of PodControlInterface.
-type RealPodControl struct {
-	KubeClient clientset.Interface
-	Recorder   record.EventRecorder
-}
-
-var _ PodControlInterface = &RealPodControl{}
-
-func getPodsLabelSet(template *v1.PodTemplateSpec) labels.Set {
-	desiredLabels := make(labels.Set)
-	for k, v := range template.Labels {
-		desiredLabels[k] = v
-	}
-	return desiredLabels
-}
-
-func getPodsFinalizers(template *v1.PodTemplateSpec) []string {
-	desiredFinalizers := make([]string, len(template.Finalizers))
-	copy(desiredFinalizers, template.Finalizers)
-	return desiredFinalizers
-}
-
-func getPodsAnnotationSet(template *v1.PodTemplateSpec, object runtime.Object) (labels.Set, error) {
-	desiredAnnotations := make(labels.Set)
-	for k, v := range template.Annotations {
-		desiredAnnotations[k] = v
-	}
-	createdByRef, err := ref.GetReference(scheme.Scheme, object)
-	if err != nil {
-		return desiredAnnotations, fmt.Errorf("unable to get controller reference: %v", err)
-	}
-
-	// TODO: this code was not safe previously - as soon as new code came along that switched to v2, old clients
-	//   would be broken upon reading it. This is explicitly hardcoded to v1 to guarantee predictable deployment.
-	//   We need to consistently handle this case of annotation versioning.
-	codec := scheme.Codecs.LegacyCodec(v1.SchemeGroupVersion)
-
-	createdByRefJson, err := runtime.Encode(codec, &v1.SerializedReference{
-		Reference: *createdByRef,
-	})
-	if err != nil {
-		return desiredAnnotations, fmt.Errorf("unable to serialize controller reference: %v", err)
-	}
-	desiredAnnotations[v1.CreatedByAnnotation] = string(createdByRefJson)
-	return desiredAnnotations, nil
-}
-
-func getPodsPrefix(controllerName string) string {
-	// use the dash (if the name isn't too long) to make the pod name a bit prettier
-	prefix := fmt.Sprintf("%s-", controllerName)
-	if len(validation.ValidatePodName(prefix, true)) != 0 {
-		prefix = controllerName
-	}
-	return prefix
-}
-
 func validateControllerRef(controllerRef *metav1.OwnerReference) error {
 	if controllerRef == nil {
 		return fmt.Errorf("controllerRef is nil")
@@ -530,33 +461,89 @@ func validateControllerRef(controllerRef *metav1.OwnerReference) error {
 	return nil
 }
 
-func (r RealPodControl) CreatePods(namespace string, template *v1.PodTemplateSpec, object runtime.Object) error {
-	return r.createPods("", namespace, template, object, nil)
+//--- For Instances ---//
+// RealinstanceControl is the default implementation of instanceControlInterface.
+type RealInstanceControl struct {
+	NodeClient nodeclientset.NodeV1alpha1Interface
+	Recorder   record.EventRecorder
 }
 
-func (r RealPodControl) CreatePodsWithControllerRef(namespace string, template *v1.PodTemplateSpec, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
+var _ InstanceControlInterface = &RealInstanceControl{}
+
+
+type InstanceControlInterface interface {
+	// Createinstances creates new instances according to the spec.
+	CreateInstances(template *v1alpha1.InstanceTemplateSpec, object runtime.Object) error
+	// CreateinstancesWithControllerRef creates new instances according to the spec, and sets object as the instance's controller.
+	CreateInstancesWithControllerRef(template *v1alpha1.InstanceTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error
+	// Deleteinstance deletes the instance identified by instanceID.
+	DeleteInstance(instanceID string, object runtime.Object) error
+	// Patchinstance patches the instance.
+	PatchInstance(name string, data []byte) error
+}
+
+func getInstancesLabelSet(template *v1alpha1.InstanceTemplateSpec) labels.Set {
+	desiredLabels := make(labels.Set)
+	for k, v := range template.Labels {
+		desiredLabels[k] = v
+	}
+	return desiredLabels
+}
+
+func getInstancesFinalizers(template *v1alpha1.InstanceTemplateSpec) []string {
+	desiredFinalizers := make([]string, len(template.Finalizers))
+	copy(desiredFinalizers, template.Finalizers)
+	return desiredFinalizers
+}
+
+func getInstancesAnnotationSet(template *v1alpha1.InstanceTemplateSpec, object runtime.Object) (labels.Set, error) {
+	desiredAnnotations := make(labels.Set)
+	for k, v := range template.Annotations {
+		desiredAnnotations[k] = v
+	}
+	createdByRef, err := ref.GetReference(nodescheme.Scheme, object)
+	if err != nil {
+		return desiredAnnotations, fmt.Errorf("unable to get controller reference: %v", err)
+	}
+
+	// TODO: this code was not safe previously - as soon as new code came along that switched to v2, old clients
+	//   would be broken upon reading it. This is explicitly hardcoded to v1 to guarantee predictable deployment.
+	//   We need to consistently handle this case of annotation versioning.
+	codec := scheme.Codecs.LegacyCodec(v1.SchemeGroupVersion)
+
+	createdByRefJson, err := runtime.Encode(codec, &v1.SerializedReference{
+		Reference: *createdByRef,
+	})
+	if err != nil {
+		return desiredAnnotations, fmt.Errorf("unable to serialize controller reference: %v", err)
+	}
+	desiredAnnotations[v1.CreatedByAnnotation] = string(createdByRefJson)
+	return desiredAnnotations, nil
+}
+
+func getInstancesPrefix(controllerName string) string {
+	// use the dash (if the name isn't too long) to make the instance name a bit prettier
+	prefix := fmt.Sprintf("%s-", controllerName)
+	if len(validation.ValidatePodName(prefix, true)) != 0 { // #ToCheck
+		prefix = controllerName
+	}
+	return prefix
+}
+
+func (r RealInstanceControl) CreateInstancesWithControllerRef(template *v1alpha1.InstanceTemplateSpec, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
 	if err := validateControllerRef(controllerRef); err != nil {
 		return err
 	}
-	return r.createPods("", namespace, template, controllerObject, controllerRef)
+	return r.createInstances(template, controllerObject, controllerRef)
 }
 
-func (r RealPodControl) CreatePodsOnNode(nodeName, namespace string, template *v1.PodTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
-	if err := validateControllerRef(controllerRef); err != nil {
-		return err
-	}
-	return r.createPods(nodeName, namespace, template, object, controllerRef)
-}
-
-func (r RealPodControl) PatchPod(namespace, name string, data []byte) error {
-	_, err := r.KubeClient.Core().Pods(namespace).Patch(name, types.StrategicMergePatchType, data)
-	return err
-}
-
-func GetPodFromTemplate(template *v1.PodTemplateSpec, parentObject runtime.Object, controllerRef *metav1.OwnerReference) (*v1.Pod, error) {
-	desiredLabels := getPodsLabelSet(template)
-	desiredFinalizers := getPodsFinalizers(template)
-	desiredAnnotations, err := getPodsAnnotationSet(template, parentObject)
+func GetInstanceFromTemplate(template *v1alpha1.InstanceTemplateSpec, parentObject runtime.Object, controllerRef *metav1.OwnerReference) (*v1alpha1.Instance, error) {
+	
+	//glog.Info("Template details \n", template.Spec.Class)
+	desiredLabels := getInstancesLabelSet(template)
+	//glog.Info(desiredLabels)
+	desiredFinalizers := getInstancesFinalizers(template)
+	desiredAnnotations, err := getInstancesAnnotationSet(template, parentObject)
 	if err != nil {
 		return nil, err
 	}
@@ -564,36 +551,49 @@ func GetPodFromTemplate(template *v1.PodTemplateSpec, parentObject runtime.Objec
 	if err != nil {
 		return nil, fmt.Errorf("parentObject does not have ObjectMeta, %v", err)
 	}
-	prefix := getPodsPrefix(accessor.GetName())
-
-	pod := &v1.Pod{
+	prefix := getInstancesPrefix(accessor.GetName())
+	//glog.Info("2")
+	instance := &v1alpha1.Instance{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:       desiredLabels,
 			Annotations:  desiredAnnotations,
 			GenerateName: prefix,
 			Finalizers:   desiredFinalizers,
 		},
+		Spec: v1alpha1.InstanceSpec{
+			Class:		template.Spec.Class,
+		},
 	}
 	if controllerRef != nil {
-		pod.OwnerReferences = append(pod.OwnerReferences, *controllerRef)
+		instance.OwnerReferences = append(instance.OwnerReferences, *controllerRef)
 	}
-	pod.Spec = *template.Spec.DeepCopy()
-	return pod, nil
+	instance.Spec = *template.Spec.DeepCopy()
+	//glog.Info("3")
+	return instance, nil
 }
 
-func (r RealPodControl) createPods(nodeName, namespace string, template *v1.PodTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
-	pod, err := GetPodFromTemplate(template, object, controllerRef)
+func (r RealInstanceControl) CreateInstances(template *v1alpha1.InstanceTemplateSpec, object runtime.Object) error {
+	return r.createInstances(template, object, nil)
+}
+
+func (r RealInstanceControl) createInstances(template *v1alpha1.InstanceTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
+	instance, err := GetInstanceFromTemplate(template, object, controllerRef)
 	if err != nil {
 		return err
 	}
-	if len(nodeName) != 0 {
-		pod.Spec.NodeName = nodeName
+	//glog.Infof("1a %v", instance.Labels)
+
+	if labels.Set(instance.Labels).AsSelectorPreValidated().Empty() {
+		//glog.Infof("1b")
+		return fmt.Errorf("unable to create instances, no labels")
 	}
-	if labels.Set(pod.Labels).AsSelectorPreValidated().Empty() {
-		return fmt.Errorf("unable to create pods, no labels")
-	}
-	if newPod, err := r.KubeClient.Core().Pods(namespace).Create(pod); err != nil {
-		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedCreatePodReason, "Error creating: %v", err)
+
+	//glog.Infof("2 : Printing Instance details : %+v", instance)
+
+	if newInstance, err := r.NodeClient.Instances().Create(instance); err != nil {
+		glog.Error(err)
+		//glog.Infof("3")
+		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedCreateInstanceReason, "Error creating: %v", err)
 		return err
 	} else {
 		accessor, err := meta.Accessor(object)
@@ -601,191 +601,54 @@ func (r RealPodControl) createPods(nodeName, namespace string, template *v1.PodT
 			glog.Errorf("parentObject does not have ObjectMeta, %v", err)
 			return nil
 		}
-		glog.V(4).Infof("Controller %v created pod %v", accessor.GetName(), newPod.Name)
-		r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulCreatePodReason, "Created pod: %v", newPod.Name)
+		//glog.Infof("4")
+		glog.V(2).Infof("Controller %v created instance %v", accessor.GetName(), newInstance.Name)
+		r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulCreateInstanceReason, "Created Instance: %v", newInstance.Name)
 	}
+	//glog.Infof("5")
 	return nil
 }
 
-func (r RealPodControl) DeletePod(namespace string, podID string, object runtime.Object) error {
+
+func (r RealInstanceControl) PatchInstance(name string, data []byte) error {
+	_, err := r.NodeClient.Instances().Patch(name, types.MergePatchType, data)
+	return err
+}
+
+func (r RealInstanceControl) DeleteInstance(instanceID string, object runtime.Object) error {
 	accessor, err := meta.Accessor(object)
 	if err != nil {
 		return fmt.Errorf("object does not have ObjectMeta, %v", err)
 	}
-	glog.V(2).Infof("Controller %v deleting pod %v/%v", accessor.GetName(), namespace, podID)
-	if err := r.KubeClient.Core().Pods(namespace).Delete(podID, nil); err != nil {
-		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeletePodReason, "Error deleting: %v", err)
-		return fmt.Errorf("unable to delete pods: %v", err)
+	glog.V(2).Infof("Controller %v deleting instance %v", accessor.GetName(), instanceID)
+
+	if err := r.NodeClient.Instances().Delete(instanceID, nil); err != nil {
+		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeleteInstanceReason, "Error deleting: %v", err)
+		return fmt.Errorf("unable to delete instances: %v", err)
 	} else {
-		r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulDeletePodReason, "Deleted pod: %v", podID)
+		r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulDeleteInstanceReason, "Deleted instance: %v", instanceID)
 	}
 	return nil
 }
 
-type FakePodControl struct {
-	sync.Mutex
-	Templates       []v1.PodTemplateSpec
-	ControllerRefs  []metav1.OwnerReference
-	DeletePodName   []string
-	Patches         [][]byte
-	Err             error
-	CreateLimit     int
-	CreateCallCount int
-}
+// --- //
 
-var _ PodControlInterface = &FakePodControl{}
+// Activeinstances type allows custom sorting of instances so a controller can pick the best ones to delete.
+type ActiveInstances []*v1alpha1.Instance
 
-func (f *FakePodControl) PatchPod(namespace, name string, data []byte) error {
-	f.Lock()
-	defer f.Unlock()
-	f.Patches = append(f.Patches, data)
-	if f.Err != nil {
-		return f.Err
-	}
-	return nil
-}
+func (s ActiveInstances) Len() int      { return len(s) }
+func (s ActiveInstances) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
-func (f *FakePodControl) CreatePods(namespace string, spec *v1.PodTemplateSpec, object runtime.Object) error {
-	f.Lock()
-	defer f.Unlock()
-	f.CreateCallCount++
-	if f.CreateLimit != 0 && f.CreateCallCount > f.CreateLimit {
-		return fmt.Errorf("Not creating pod, limit %d already reached (create call %d)", f.CreateLimit, f.CreateCallCount)
-	}
-	f.Templates = append(f.Templates, *spec)
-	if f.Err != nil {
-		return f.Err
-	}
-	return nil
-}
+func (s ActiveInstances) Less(i, j int) bool {
 
-func (f *FakePodControl) CreatePodsWithControllerRef(namespace string, spec *v1.PodTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
-	f.Lock()
-	defer f.Unlock()
-	f.CreateCallCount++
-	if f.CreateLimit != 0 && f.CreateCallCount > f.CreateLimit {
-		return fmt.Errorf("Not creating pod, limit %d already reached (create call %d)", f.CreateLimit, f.CreateCallCount)
+	m := map[v1alpha1.InstanceState]int{v1alpha1.InstanceStateFailed: 0, v1alpha1.InstanceStateProcessing: 1, v1alpha1.InstanceStateSuccessful: 2}
+	if m[s[i].Status.LastOperation.State] != m[s[j].Status.LastOperation.State] {
+		return m[s[i].Status.LastOperation.State] < m[s[j].Status.LastOperation.State]
 	}
-	f.Templates = append(f.Templates, *spec)
-	f.ControllerRefs = append(f.ControllerRefs, *controllerRef)
-	if f.Err != nil {
-		return f.Err
-	}
-	return nil
-}
 
-func (f *FakePodControl) CreatePodsOnNode(nodeName, namespace string, template *v1.PodTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
-	f.Lock()
-	defer f.Unlock()
-	f.CreateCallCount++
-	if f.CreateLimit != 0 && f.CreateCallCount > f.CreateLimit {
-		return fmt.Errorf("Not creating pod, limit %d already reached (create call %d)", f.CreateLimit, f.CreateCallCount)
-	}
-	f.Templates = append(f.Templates, *template)
-	f.ControllerRefs = append(f.ControllerRefs, *controllerRef)
-	if f.Err != nil {
-		return f.Err
-	}
-	return nil
-}
-
-func (f *FakePodControl) DeletePod(namespace string, podID string, object runtime.Object) error {
-	f.Lock()
-	defer f.Unlock()
-	f.DeletePodName = append(f.DeletePodName, podID)
-	if f.Err != nil {
-		return f.Err
-	}
-	return nil
-}
-
-func (f *FakePodControl) Clear() {
-	f.Lock()
-	defer f.Unlock()
-	f.DeletePodName = []string{}
-	f.Templates = []v1.PodTemplateSpec{}
-	f.ControllerRefs = []metav1.OwnerReference{}
-	f.Patches = [][]byte{}
-	f.CreateLimit = 0
-	f.CreateCallCount = 0
-}
-
-// ByLogging allows custom sorting of pods so the best one can be picked for getting its logs.
-type ByLogging []*v1.Pod
-
-func (s ByLogging) Len() int      { return len(s) }
-func (s ByLogging) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
-func (s ByLogging) Less(i, j int) bool {
-	// 1. assigned < unassigned
-	if s[i].Spec.NodeName != s[j].Spec.NodeName && (len(s[i].Spec.NodeName) == 0 || len(s[j].Spec.NodeName) == 0) {
-		return len(s[i].Spec.NodeName) > 0
-	}
-	// 2. PodRunning < PodUnknown < PodPending
-	m := map[v1.PodPhase]int{v1.PodRunning: 0, v1.PodUnknown: 1, v1.PodPending: 2}
-	if m[s[i].Status.Phase] != m[s[j].Status.Phase] {
-		return m[s[i].Status.Phase] < m[s[j].Status.Phase]
-	}
-	// 3. ready < not ready
-	if podutil.IsPodReady(s[i]) != podutil.IsPodReady(s[j]) {
-		return podutil.IsPodReady(s[i])
-	}
-	// TODO: take availability into account when we push minReadySeconds information from deployment into pods,
-	//       see https://github.com/kubernetes/kubernetes/issues/22065
-	// 4. Been ready for more time < less time < empty time
-	if podutil.IsPodReady(s[i]) && podutil.IsPodReady(s[j]) && !podReadyTime(s[i]).Equal(podReadyTime(s[j])) {
-		return afterOrZero(podReadyTime(s[j]), podReadyTime(s[i]))
-	}
-	// 5. Pods with containers with higher restart counts < lower restart counts
-	if maxContainerRestarts(s[i]) != maxContainerRestarts(s[j]) {
-		return maxContainerRestarts(s[i]) > maxContainerRestarts(s[j])
-	}
-	// 6. older pods < newer pods < empty timestamp pods
-	if !s[i].CreationTimestamp.Equal(&s[j].CreationTimestamp) {
-		return afterOrZero(&s[j].CreationTimestamp, &s[i].CreationTimestamp)
-	}
 	return false
 }
 
-// ActivePods type allows custom sorting of pods so a controller can pick the best ones to delete.
-type ActivePods []*v1.Pod
-
-func (s ActivePods) Len() int      { return len(s) }
-func (s ActivePods) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
-func (s ActivePods) Less(i, j int) bool {
-	// 1. Unassigned < assigned
-	// If only one of the pods is unassigned, the unassigned one is smaller
-	if s[i].Spec.NodeName != s[j].Spec.NodeName && (len(s[i].Spec.NodeName) == 0 || len(s[j].Spec.NodeName) == 0) {
-		return len(s[i].Spec.NodeName) == 0
-	}
-	// 2. PodPending < PodUnknown < PodRunning
-	m := map[v1.PodPhase]int{v1.PodPending: 0, v1.PodUnknown: 1, v1.PodRunning: 2}
-	if m[s[i].Status.Phase] != m[s[j].Status.Phase] {
-		return m[s[i].Status.Phase] < m[s[j].Status.Phase]
-	}
-	// 3. Not ready < ready
-	// If only one of the pods is not ready, the not ready one is smaller
-	if podutil.IsPodReady(s[i]) != podutil.IsPodReady(s[j]) {
-		return !podutil.IsPodReady(s[i])
-	}
-	// TODO: take availability into account when we push minReadySeconds information from deployment into pods,
-	//       see https://github.com/kubernetes/kubernetes/issues/22065
-	// 4. Been ready for empty time < less time < more time
-	// If both pods are ready, the latest ready one is smaller
-	if podutil.IsPodReady(s[i]) && podutil.IsPodReady(s[j]) && !podReadyTime(s[i]).Equal(podReadyTime(s[j])) {
-		return afterOrZero(podReadyTime(s[i]), podReadyTime(s[j]))
-	}
-	// 5. Pods with containers with higher restart counts < lower restart counts
-	if maxContainerRestarts(s[i]) != maxContainerRestarts(s[j]) {
-		return maxContainerRestarts(s[i]) > maxContainerRestarts(s[j])
-	}
-	// 6. Empty creation time pods < newer pods < older pods
-	if !s[i].CreationTimestamp.Equal(&s[j].CreationTimestamp) {
-		return afterOrZero(&s[i].CreationTimestamp, &s[j].CreationTimestamp)
-	}
-	return false
-}
 
 // afterOrZero checks if time t1 is after time t2; if one of them
 // is zero, the zero time is seen as after non-zero time.
@@ -796,73 +659,27 @@ func afterOrZero(t1, t2 *metav1.Time) bool {
 	return t1.After(t2.Time)
 }
 
-func podReadyTime(pod *v1.Pod) *metav1.Time {
-	if podutil.IsPodReady(pod) {
-		for _, c := range pod.Status.Conditions {
-			// we only care about pod ready conditions
-			if c.Type == v1.PodReady && c.Status == v1.ConditionTrue {
-				return &c.LastTransitionTime
-			}
-		}
+func IsInstanceActive(p *v1alpha1.Instance) bool {
+	if p.Status.CurrentStatus.Phase == v1alpha1.InstanceFailed {
+		return false
+	} else if p.Status.CurrentStatus.Phase == v1alpha1.InstanceTerminating {
+		return false
 	}
-	return &metav1.Time{}
+
+	return true
 }
 
-func maxContainerRestarts(pod *v1.Pod) int {
-	maxRestarts := 0
-	for _, c := range pod.Status.ContainerStatuses {
-		maxRestarts = integer.IntMax(maxRestarts, int(c.RestartCount))
-	}
-	return maxRestarts
+func IsInstanceFailed(p *v1alpha1.Instance) bool {
+	if p.Status.CurrentStatus.Phase == v1alpha1.InstanceFailed {
+		return true
+	} 
+
+	return false
 }
 
-// FilterActivePods returns pods that have not terminated.
-func FilterActivePods(pods []*v1.Pod) []*v1.Pod {
-	var result []*v1.Pod
-	for _, p := range pods {
-		if IsPodActive(p) {
-			result = append(result, p)
-		} else {
-			glog.V(4).Infof("Ignoring inactive pod %v/%v in state %v, deletion time %v",
-				p.Namespace, p.Name, p.Status.Phase, p.DeletionTimestamp)
-		}
-	}
-	return result
-}
 
-func IsPodActive(p *v1.Pod) bool {
-	return v1.PodSucceeded != p.Status.Phase &&
-		v1.PodFailed != p.Status.Phase &&
-		p.DeletionTimestamp == nil
-}
-
-// FilterActiveReplicaSets returns replica sets that have (or at least ought to have) pods.
-func FilterActiveReplicaSets(replicaSets []*extensions.ReplicaSet) []*extensions.ReplicaSet {
-	activeFilter := func(rs *extensions.ReplicaSet) bool {
-		return rs != nil && *(rs.Spec.Replicas) > 0
-	}
-	return FilterReplicaSets(replicaSets, activeFilter)
-}
-
-type filterRS func(rs *extensions.ReplicaSet) bool
-
-// FilterReplicaSets returns replica sets that are filtered by filterFn (all returned ones should match filterFn).
-func FilterReplicaSets(RSes []*extensions.ReplicaSet, filterFn filterRS) []*extensions.ReplicaSet {
-	var filtered []*extensions.ReplicaSet
-	for i := range RSes {
-		if filterFn(RSes[i]) {
-			filtered = append(filtered, RSes[i])
-		}
-	}
-	return filtered
-}
-
-// PodKey returns a key unique to the given pod within a cluster.
-// It's used so we consistently use the same key scheme in this module.
-// It does exactly what cache.MetaNamespaceKeyFunc would have done
-// except there's not possibility for error since we know the exact type.
-func PodKey(pod *v1.Pod) string {
-	return fmt.Sprintf("%v/%v", pod.Namespace, pod.Name)
+func InstanceKey(instance *v1alpha1.Instance) string { //ToCheck : as instance-namespace does not matter
+	return fmt.Sprintf("%v/%v", instance.Name)
 }
 
 // ControllersByCreationTimestamp sorts a list of ReplicationControllers by creation timestamp, using their names as a tie breaker.
@@ -877,42 +694,64 @@ func (o ControllersByCreationTimestamp) Less(i, j int) bool {
 	return o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
 }
 
-// ReplicaSetsByCreationTimestamp sorts a list of ReplicaSet by creation timestamp, using their names as a tie breaker.
-type ReplicaSetsByCreationTimestamp []*extensions.ReplicaSet
+/****************** For InstanceSet **********************/
+// InstanceSetsByCreationTimestamp sorts a list of InstanceSet by creation timestamp, using their names as a tie breaker.
+type InstanceSetsByCreationTimestamp []*v1alpha1.InstanceSet
 
-func (o ReplicaSetsByCreationTimestamp) Len() int      { return len(o) }
-func (o ReplicaSetsByCreationTimestamp) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
-func (o ReplicaSetsByCreationTimestamp) Less(i, j int) bool {
+func (o InstanceSetsByCreationTimestamp) Len() int      { return int(len(o)) }
+func (o InstanceSetsByCreationTimestamp) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+func (o InstanceSetsByCreationTimestamp) Less(i, j int) bool {
 	if o[i].CreationTimestamp.Equal(&o[j].CreationTimestamp) {
 		return o[i].Name < o[j].Name
 	}
 	return o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
 }
 
-// ReplicaSetsBySizeOlder sorts a list of ReplicaSet by size in descending order, using their creation timestamp or name as a tie breaker.
+// InstanceSetsBySizeOlder sorts a list of InstanceSet by size in descending order, using their creation timestamp or name as a tie breaker.
 // By using the creation timestamp, this sorts from old to new replica sets.
-type ReplicaSetsBySizeOlder []*extensions.ReplicaSet
+type InstanceSetsBySizeOlder []*v1alpha1.InstanceSet
 
-func (o ReplicaSetsBySizeOlder) Len() int      { return len(o) }
-func (o ReplicaSetsBySizeOlder) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
-func (o ReplicaSetsBySizeOlder) Less(i, j int) bool {
-	if *(o[i].Spec.Replicas) == *(o[j].Spec.Replicas) {
-		return ReplicaSetsByCreationTimestamp(o).Less(i, j)
+func (o InstanceSetsBySizeOlder) Len() int      { return int(len(o)) }
+func (o InstanceSetsBySizeOlder) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+func (o InstanceSetsBySizeOlder) Less(i, j int) bool {
+	if (o[i].Spec.Replicas) == (o[j].Spec.Replicas) {
+		return InstanceSetsByCreationTimestamp(o).Less(int(i), int(j))
 	}
-	return *(o[i].Spec.Replicas) > *(o[j].Spec.Replicas)
+	return (o[i].Spec.Replicas) > (o[j].Spec.Replicas)
 }
 
-// ReplicaSetsBySizeNewer sorts a list of ReplicaSet by size in descending order, using their creation timestamp or name as a tie breaker.
+// InstanceSetsBySizeNewer sorts a list of InstanceSet by size in descending order, using their creation timestamp or name as a tie breaker.
 // By using the creation timestamp, this sorts from new to old replica sets.
-type ReplicaSetsBySizeNewer []*extensions.ReplicaSet
+type InstanceSetsBySizeNewer []*v1alpha1.InstanceSet
 
-func (o ReplicaSetsBySizeNewer) Len() int      { return len(o) }
-func (o ReplicaSetsBySizeNewer) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
-func (o ReplicaSetsBySizeNewer) Less(i, j int) bool {
-	if *(o[i].Spec.Replicas) == *(o[j].Spec.Replicas) {
-		return ReplicaSetsByCreationTimestamp(o).Less(j, i)
+func (o InstanceSetsBySizeNewer) Len() int      { return int(len(o)) }
+func (o InstanceSetsBySizeNewer) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+func (o InstanceSetsBySizeNewer) Less(i, j int) bool {
+	if (o[i].Spec.Replicas) == (o[j].Spec.Replicas) {
+		return InstanceSetsByCreationTimestamp(o).Less(j, i)
 	}
-	return *(o[i].Spec.Replicas) > *(o[j].Spec.Replicas)
+	return (o[i].Spec.Replicas) > (o[j].Spec.Replicas)
+}
+
+// FilterActiveInstanceSets returns replica sets that have (or at least ought to have) instances.
+func FilterActiveInstanceSets(instanceSets []*v1alpha1.InstanceSet) []*v1alpha1.InstanceSet {
+	activeFilter := func(is *v1alpha1.InstanceSet) bool {
+		return is != nil && (is.Spec.Replicas) > 0
+	}
+	return FilterInstanceSets(instanceSets, activeFilter)
+}
+
+type filterIS func(is *v1alpha1.InstanceSet) bool
+
+// FilterInstanceSets returns replica sets that are filtered by filterFn (all returned ones should match filterFn).
+func FilterInstanceSets(ISes []*v1alpha1.InstanceSet, filterFn filterIS) []*v1alpha1.InstanceSet {
+	var filtered []*v1alpha1.InstanceSet
+	for i := range ISes {
+		if filterFn(ISes[i]) {
+			filtered = append(filtered, ISes[i])
+		}
+	}
+	return filtered
 }
 
 // AddOrUpdateTaintOnNode add taints to the node. If taint was added into node, it'll issue API calls
@@ -1052,17 +891,17 @@ func WaitForCacheSync(controllerName string, stopCh <-chan struct{}, cacheSyncs 
 	return true
 }
 
-// ComputeHash returns a hash value calculated from pod template and a collisionCount to avoid hash collision
-func ComputeHash(template *v1.PodTemplateSpec, collisionCount *int32) uint32 {
-	podTemplateSpecHasher := fnv.New32a()
-	hashutil.DeepHashObject(podTemplateSpecHasher, *template)
+// ComputeHash returns a hash value calculated from instance template and a collisionCount to avoid hash collision
+func ComputeHash(template *v1alpha1.InstanceTemplateSpec, collisionCount *int32) uint32 {
+	instanceTemplateSpecHasher := fnv.New32a()
+	hashutil.DeepHashObject(instanceTemplateSpecHasher, *template)
 
 	// Add collisionCount in the hash if it exists.
 	if collisionCount != nil {
 		collisionCountBytes := make([]byte, 8)
 		binary.LittleEndian.PutUint32(collisionCountBytes, uint32(*collisionCount))
-		podTemplateSpecHasher.Write(collisionCountBytes)
+		instanceTemplateSpecHasher.Write(collisionCountBytes)
 	}
 
-	return podTemplateSpecHasher.Sum32()
+	return instanceTemplateSpecHasher.Sum32()
 }

@@ -13,32 +13,29 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-This file was copied from the kubernetes/kubernetes project
-https://github.com/kubernetes/kubernetes/blob/release-1.8/cmd/kube-controller-manager/controller_manager.go
+This file was copied and modified from the kubernetes/kubernetes project
+https://github.com/kubernetes/kubernetes/release-1.8/cmd/kube-controller-manager/controller_manager.go
+
+Modifications Copyright 2017 The Gardener Authors.
 */
 
-// The controller manager is responsible for monitoring replication
-// controllers, and creating corresponding pods to achieve the desired
-// state.  It uses the API to listen for new controllers and to create/delete
-// pods.
 package main
 
 import (
 	"fmt"
 	"os"
 
+	"code.sapcloud.io/kubernetes/node-controller-manager/cmd/node-controller-manager/app"
+	"code.sapcloud.io/kubernetes/node-controller-manager/cmd/node-controller-manager/app/options"
+	"github.com/spf13/pflag"
 	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/apiserver/pkg/util/flag"
 	"k8s.io/apiserver/pkg/util/logs"
-	"k8s.io/kubernetes/cmd/kube-controller-manager/app"
-	"k8s.io/kubernetes/cmd/kube-controller-manager/app/options"
 	_ "k8s.io/kubernetes/pkg/client/metrics/prometheus" // for client metric registration
 	_ "k8s.io/kubernetes/pkg/util/reflector/prometheus" // for reflector metric registration
 	_ "k8s.io/kubernetes/pkg/util/workqueue/prometheus" // for workqueue metric registration
 	_ "k8s.io/kubernetes/pkg/version/prometheus"        // for version metric registration
 	"k8s.io/kubernetes/pkg/version/verflag"
-
-	"github.com/spf13/pflag"
 )
 
 func init() {
@@ -46,8 +43,9 @@ func init() {
 }
 
 func main() {
-	s := options.NewCMServer()
-	s.AddFlags(pflag.CommandLine, app.KnownControllers(), app.ControllersDisabledByDefault.List())
+
+	s := options.NewNCMServer()
+	s.AddFlags(pflag.CommandLine)
 
 	flag.InitFlags()
 	logs.InitLogs()
@@ -59,4 +57,5 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
+
 }

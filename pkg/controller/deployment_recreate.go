@@ -13,109 +13,108 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-This file was copied from the kubernetes/kubernetes project
-https://github.com/kubernetes/kubernetes/blob/release-1.8/pkg/controller/deployment/recreate.go
+This file was copied and modified from the kubernetes/kubernetes project
+https://github.com/kubernetes/kubernetes/release-1.8/pkg/controller/deployment/recreate.go
+
+Modifications Copyright 2017 The Gardener Authors.
 */
 
-package deployment
+package controller
 
 import (
-	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/kubernetes/pkg/controller/deployment/util"
 )
 
 // rolloutRecreate implements the logic for recreating a replica set.
-func (dc *DeploymentController) rolloutRecreate(d *extensions.Deployment, rsList []*extensions.ReplicaSet, podMap map[types.UID]*v1.PodList) error {
+func (dc *controller) rolloutRecreate(d *v1alpha1.InstanceDeployment, isList []*v1alpha1.InstanceSet, instanceMap map[types.UID]*v1alpha1.InstanceList) error {
 	// Don't create a new RS if not already existed, so that we avoid scaling up before scaling down.
-	newRS, oldRSs, err := dc.getAllReplicaSetsAndSyncRevision(d, rsList, podMap, false)
+	newIS, oldISs, err := dc.getAllInstanceSetsAndSyncRevision(d, isList, instanceMap, false)
 	if err != nil {
 		return err
 	}
-	allRSs := append(oldRSs, newRS)
-	activeOldRSs := controller.FilterActiveReplicaSets(oldRSs)
+	allISs := append(oldISs, newIS)
+	activeOldISs := FilterActiveInstanceSets(oldISs)
 
 	// scale down old replica sets.
-	scaledDown, err := dc.scaleDownOldReplicaSetsForRecreate(activeOldRSs, d)
+	scaledDown, err := dc.scaleDownOldInstanceSetsForRecreate(activeOldISs, d)
 	if err != nil {
 		return err
 	}
 	if scaledDown {
 		// Update DeploymentStatus.
-		return dc.syncRolloutStatus(allRSs, newRS, d)
+		return dc.syncRolloutStatus(allISs, newIS, d)
 	}
 
-	// Do not process a deployment when it has old pods running.
-	if oldPodsRunning(newRS, oldRSs, podMap) {
-		return dc.syncRolloutStatus(allRSs, newRS, d)
+	// Do not process a deployment when it has old instances running.
+	if oldInstancesRunning(newIS, oldISs, instanceMap) {
+		return dc.syncRolloutStatus(allISs, newIS, d)
 	}
 
 	// If we need to create a new RS, create it now.
-	if newRS == nil {
-		newRS, oldRSs, err = dc.getAllReplicaSetsAndSyncRevision(d, rsList, podMap, true)
+	if newIS == nil {
+		newIS, oldISs, err = dc.getAllInstanceSetsAndSyncRevision(d, isList, instanceMap, true)
 		if err != nil {
 			return err
 		}
-		allRSs = append(oldRSs, newRS)
+		allISs = append(oldISs, newIS)
 	}
 
 	// scale up new replica set.
-	if _, err := dc.scaleUpNewReplicaSetForRecreate(newRS, d); err != nil {
+	if _, err := dc.scaleUpNewInstanceSetForRecreate(newIS, d); err != nil {
 		return err
 	}
 
-	if util.DeploymentComplete(d, &d.Status) {
-		if err := dc.cleanupDeployment(oldRSs, d); err != nil {
+	if InstanceDeploymentComplete(d, &d.Status) {
+		if err := dc.cleanupInstanceDeployment(oldISs, d); err != nil {
 			return err
 		}
 	}
 
 	// Sync deployment status.
-	return dc.syncRolloutStatus(allRSs, newRS, d)
+	return dc.syncRolloutStatus(allISs, newIS, d)
 }
 
-// scaleDownOldReplicaSetsForRecreate scales down old replica sets when deployment strategy is "Recreate".
-func (dc *DeploymentController) scaleDownOldReplicaSetsForRecreate(oldRSs []*extensions.ReplicaSet, deployment *extensions.Deployment) (bool, error) {
+// scaleDownOldInstanceSetsForRecreate scales down old replica sets when deployment strategy is "Recreate".
+func (dc *controller) scaleDownOldInstanceSetsForRecreate(oldISs []*v1alpha1.InstanceSet, deployment *v1alpha1.InstanceDeployment) (bool, error) {
 	scaled := false
-	for i := range oldRSs {
-		rs := oldRSs[i]
+	for i := range oldISs {
+		is := oldISs[i]
 		// Scaling not required.
-		if *(rs.Spec.Replicas) == 0 {
+		if (is.Spec.Replicas) == 0 {
 			continue
 		}
-		scaledRS, updatedRS, err := dc.scaleReplicaSetAndRecordEvent(rs, 0, deployment)
+		scaledIS, updatedIS, err := dc.scaleInstanceSetAndRecordEvent(is, 0, deployment)
 		if err != nil {
 			return false, err
 		}
-		if scaledRS {
-			oldRSs[i] = updatedRS
+		if scaledIS {
+			oldISs[i] = updatedIS
 			scaled = true
 		}
 	}
 	return scaled, nil
 }
 
-// oldPodsRunning returns whether there are old pods running or any of the old ReplicaSets thinks that it runs pods.
-func oldPodsRunning(newRS *extensions.ReplicaSet, oldRSs []*extensions.ReplicaSet, podMap map[types.UID]*v1.PodList) bool {
-	if oldPods := util.GetActualReplicaCountForReplicaSets(oldRSs); oldPods > 0 {
+// oldinstancesRunning returns whether there are old instances running or any of the old InstanceSets thinks that it runs instances.
+func oldInstancesRunning(newIS *v1alpha1.InstanceSet, oldISs []*v1alpha1.InstanceSet, instanceMap map[types.UID]*v1alpha1.InstanceList) bool {
+	if oldInstances := GetActualReplicaCountForInstanceSets(oldISs); oldInstances > 0 {
 		return true
 	}
-	for rsUID, podList := range podMap {
-		// If the pods belong to the new ReplicaSet, ignore.
-		if newRS != nil && newRS.UID == rsUID {
+	for isUID, instanceList := range instanceMap {
+		// If the instances belong to the new InstanceSet, ignore.
+		if newIS != nil && newIS.UID == isUID {
 			continue
 		}
-		if len(podList.Items) > 0 {
+		if len(instanceList.Items) > 0 {
 			return true
 		}
 	}
 	return false
 }
 
-// scaleUpNewReplicaSetForRecreate scales up new replica set when deployment strategy is "Recreate".
-func (dc *DeploymentController) scaleUpNewReplicaSetForRecreate(newRS *extensions.ReplicaSet, deployment *extensions.Deployment) (bool, error) {
-	scaled, _, err := dc.scaleReplicaSetAndRecordEvent(newRS, *(deployment.Spec.Replicas), deployment)
+// scaleUpNewInstanceSetForRecreate scales up new replica set when deployment strategy is "Recreate".
+func (dc *controller) scaleUpNewInstanceSetForRecreate(newIS *v1alpha1.InstanceSet, deployment *v1alpha1.InstanceDeployment) (bool, error) {
+	scaled, _, err := dc.scaleInstanceSetAndRecordEvent(newIS, (deployment.Spec.Replicas), deployment)
 	return scaled, err
 }

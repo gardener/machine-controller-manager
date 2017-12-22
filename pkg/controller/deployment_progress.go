@@ -13,11 +13,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-This file was copied from the kubernetes/kubernetes project
-https://github.com/kubernetes/kubernetes/blob/release-1.8/pkg/controller/deployment/progress.go
+This file was copied and modified from the kubernetes/kubernetes project
+https://github.com/kubernetes/kubernetes/release-1.8/pkg/controller/deployment/progress.go
+
+Modifications Copyright 2017 The Gardener Authors.
 */
 
-package deployment
+package controller
 
 import (
 	"fmt"
@@ -26,47 +28,49 @@ import (
 
 	"github.com/golang/glog"
 
-	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
-	"k8s.io/kubernetes/pkg/controller/deployment/util"
+	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
+
 )
 
 // syncRolloutStatus updates the status of a deployment during a rollout. There are
 // cases this helper will run that cannot be prevented from the scaling detection,
 // for example a resync of the deployment after it was scaled up. In those cases,
 // we shouldn't try to estimate any progress.
-func (dc *DeploymentController) syncRolloutStatus(allRSs []*extensions.ReplicaSet, newRS *extensions.ReplicaSet, d *extensions.Deployment) error {
-	newStatus := calculateStatus(allRSs, newRS, d)
+func (dc *controller) syncRolloutStatus(allISs []*v1alpha1.InstanceSet, newIS *v1alpha1.InstanceSet, d *v1alpha1.InstanceDeployment) error {
+	newStatus := calculateDeploymentStatus(allISs, newIS, d)
 
 	// If there is no progressDeadlineSeconds set, remove any Progressing condition.
 	if d.Spec.ProgressDeadlineSeconds == nil {
-		util.RemoveDeploymentCondition(&newStatus, extensions.DeploymentProgressing)
+		RemoveInstanceDeploymentCondition(&newStatus, v1alpha1.InstanceDeploymentProgressing)
 	}
 
 	// If there is only one replica set that is active then that means we are not running
 	// a new rollout and this is a resync where we don't need to estimate any progress.
 	// In such a case, we should simply not estimate any progress for this deployment.
-	currentCond := util.GetDeploymentCondition(d.Status, extensions.DeploymentProgressing)
-	isCompleteDeployment := newStatus.Replicas == newStatus.UpdatedReplicas && currentCond != nil && currentCond.Reason == util.NewRSAvailableReason
+	currentCond := GetInstanceDeploymentCondition(d.Status, v1alpha1.InstanceDeploymentProgressing)
+	isCompleteDeployment := newStatus.Replicas == newStatus.UpdatedReplicas && currentCond != nil && currentCond.Reason == NewISAvailableReason
 	// Check for progress only if there is a progress deadline set and the latest rollout
 	// hasn't completed yet.
 	if d.Spec.ProgressDeadlineSeconds != nil && !isCompleteDeployment {
 		switch {
-		case util.DeploymentComplete(d, &newStatus):
+		case InstanceDeploymentComplete(d, &newStatus):
 			// Update the deployment conditions with a message for the new replica set that
 			// was successfully deployed. If the condition already exists, we ignore this update.
-			msg := fmt.Sprintf("ReplicaSet %q has successfully progressed.", newRS.Name)
-			condition := util.NewDeploymentCondition(extensions.DeploymentProgressing, v1.ConditionTrue, util.NewRSAvailableReason, msg)
-			util.SetDeploymentCondition(&newStatus, *condition)
+			msg := fmt.Sprintf("Instance Deployment %q has successfully progressed.", d.Name)
+			if newIS != nil {
+				msg = fmt.Sprintf("InstanceSet %q has successfully progressed.", newIS.Name)
+			}
+			condition := NewInstanceDeploymentCondition(v1alpha1.InstanceDeploymentProgressing, v1alpha1.ConditionTrue, NewISAvailableReason, msg)
+			SetInstanceDeploymentCondition(&newStatus, *condition)
 
-		case util.DeploymentProgressing(d, &newStatus):
+		case InstanceDeploymentProgressing(d, &newStatus):
 			// If there is any progress made, continue by not checking if the deployment failed. This
 			// behavior emulates the rolling updater progressDeadline check.
-			msg := fmt.Sprintf("Deployment %q is progressing.", d.Name)
-			if newRS != nil {
-				msg = fmt.Sprintf("ReplicaSet %q is progressing.", newRS.Name)
+			msg := fmt.Sprintf("Instance Deployment %q is progressing.", d.Name)
+			if newIS != nil {
+				msg = fmt.Sprintf("InstanceSet %q is progressing.", newIS.Name)
 			}
-			condition := util.NewDeploymentCondition(extensions.DeploymentProgressing, v1.ConditionTrue, util.ReplicaSetUpdatedReason, msg)
+			condition := NewInstanceDeploymentCondition(v1alpha1.InstanceDeploymentProgressing, v1alpha1.ConditionTrue, InstanceSetUpdatedReason, msg)
 			// Update the current Progressing condition or add a new one if it doesn't exist.
 			// If a Progressing condition with status=true already exists, we should update
 			// everything but lastTransitionTime. SetDeploymentCondition already does that but
@@ -75,57 +79,57 @@ func (dc *DeploymentController) syncRolloutStatus(allRSs []*extensions.ReplicaSe
 			// update with the same reason and change just lastUpdateTime iff we notice any
 			// progress. That's why we handle it here.
 			if currentCond != nil {
-				if currentCond.Status == v1.ConditionTrue {
+				if currentCond.Status == v1alpha1.ConditionTrue {
 					condition.LastTransitionTime = currentCond.LastTransitionTime
 				}
-				util.RemoveDeploymentCondition(&newStatus, extensions.DeploymentProgressing)
+				RemoveInstanceDeploymentCondition(&newStatus, v1alpha1.InstanceDeploymentProgressing)
 			}
-			util.SetDeploymentCondition(&newStatus, *condition)
+			SetInstanceDeploymentCondition(&newStatus, *condition)
 
-		case util.DeploymentTimedOut(d, &newStatus):
+		case InstanceDeploymentTimedOut(d, &newStatus):
 			// Update the deployment with a timeout condition. If the condition already exists,
 			// we ignore this update.
-			msg := fmt.Sprintf("Deployment %q has timed out progressing.", d.Name)
-			if newRS != nil {
-				msg = fmt.Sprintf("ReplicaSet %q has timed out progressing.", newRS.Name)
+			msg := fmt.Sprintf("Instance Deployment %q has timed out progressing.", d.Name)
+			if newIS != nil {
+				msg = fmt.Sprintf("InstanceSet %q has timed out progressing.", newIS.Name)
 			}
-			condition := util.NewDeploymentCondition(extensions.DeploymentProgressing, v1.ConditionFalse, util.TimedOutReason, msg)
-			util.SetDeploymentCondition(&newStatus, *condition)
+			condition := NewInstanceDeploymentCondition(v1alpha1.InstanceDeploymentProgressing, v1alpha1.ConditionFalse, TimedOutReason, msg)
+			SetInstanceDeploymentCondition(&newStatus, *condition)
 		}
 	}
 
 	// Move failure conditions of all replica sets in deployment conditions. For now,
 	// only one failure condition is returned from getReplicaFailures.
-	if replicaFailureCond := dc.getReplicaFailures(allRSs, newRS); len(replicaFailureCond) > 0 {
+	if replicaFailureCond := dc.getReplicaFailures(allISs, newIS); len(replicaFailureCond) > 0 {
 		// There will be only one ReplicaFailure condition on the replica set.
-		util.SetDeploymentCondition(&newStatus, replicaFailureCond[0])
+		SetInstanceDeploymentCondition(&newStatus, replicaFailureCond[0])
 	} else {
-		util.RemoveDeploymentCondition(&newStatus, extensions.DeploymentReplicaFailure)
+		RemoveInstanceDeploymentCondition(&newStatus, v1alpha1.InstanceDeploymentReplicaFailure)
 	}
 
 	// Do not update if there is nothing new to add.
 	if reflect.DeepEqual(d.Status, newStatus) {
 		// Requeue the deployment if required.
-		dc.requeueStuckDeployment(d, newStatus)
+		dc.requeueStuckInstanceDeployment(d, newStatus)
 		return nil
 	}
 
 	newDeployment := d
 	newDeployment.Status = newStatus
-	_, err := dc.client.Extensions().Deployments(newDeployment.Namespace).UpdateStatus(newDeployment)
+	_, err := dc.nodeClient.InstanceDeployments().Update(newDeployment)
 	return err
 }
 
 // getReplicaFailures will convert replica failure conditions from replica sets
 // to deployment conditions.
-func (dc *DeploymentController) getReplicaFailures(allRSs []*extensions.ReplicaSet, newRS *extensions.ReplicaSet) []extensions.DeploymentCondition {
-	var conditions []extensions.DeploymentCondition
-	if newRS != nil {
-		for _, c := range newRS.Status.Conditions {
-			if c.Type != extensions.ReplicaSetReplicaFailure {
+func (dc *controller) getReplicaFailures(allISs []*v1alpha1.InstanceSet, newIS *v1alpha1.InstanceSet) []v1alpha1.InstanceDeploymentCondition {
+	var conditions []v1alpha1.InstanceDeploymentCondition
+	if newIS != nil {
+		for _, c := range newIS.Status.Conditions {
+			if c.Type != v1alpha1.InstanceSetReplicaFailure {
 				continue
 			}
-			conditions = append(conditions, util.ReplicaSetToDeploymentCondition(c))
+			conditions = append(conditions, InstanceSetToInstanceDeploymentCondition(c))
 		}
 	}
 
@@ -134,36 +138,36 @@ func (dc *DeploymentController) getReplicaFailures(allRSs []*extensions.ReplicaS
 		return conditions
 	}
 
-	for i := range allRSs {
-		rs := allRSs[i]
-		if rs == nil {
+	for i := range allISs {
+		is := allISs[i]
+		if is == nil {
 			continue
 		}
 
-		for _, c := range rs.Status.Conditions {
-			if c.Type != extensions.ReplicaSetReplicaFailure {
+		for _, c := range is.Status.Conditions {
+			if c.Type != v1alpha1.InstanceSetReplicaFailure {
 				continue
 			}
-			conditions = append(conditions, util.ReplicaSetToDeploymentCondition(c))
+			conditions = append(conditions, InstanceSetToInstanceDeploymentCondition(c))
 		}
 	}
 	return conditions
 }
 
-// used for unit testing
-var nowFn = func() time.Time { return time.Now() }
+// // used for unit testing
+// var nowFn = func() time.Time { return time.Now() }
 
 // requeueStuckDeployment checks whether the provided deployment needs to be synced for a progress
 // check. It returns the time after the deployment will be requeued for the progress check, 0 if it
 // will be requeued now, or -1 if it does not need to be requeued.
-func (dc *DeploymentController) requeueStuckDeployment(d *extensions.Deployment, newStatus extensions.DeploymentStatus) time.Duration {
-	currentCond := util.GetDeploymentCondition(d.Status, extensions.DeploymentProgressing)
+func (dc *controller) requeueStuckInstanceDeployment(d *v1alpha1.InstanceDeployment, newStatus v1alpha1.InstanceDeploymentStatus) time.Duration {
+	currentCond := GetInstanceDeploymentCondition(d.Status, v1alpha1.InstanceDeploymentProgressing)
 	// Can't estimate progress if there is no deadline in the spec or progressing condition in the current status.
 	if d.Spec.ProgressDeadlineSeconds == nil || currentCond == nil {
 		return time.Duration(-1)
 	}
 	// No need to estimate progress if the rollout is complete or already timed out.
-	if util.DeploymentComplete(d, &newStatus) || currentCond.Reason == util.TimedOutReason {
+	if InstanceDeploymentComplete(d, &newStatus) || currentCond.Reason == TimedOutReason {
 		return time.Duration(-1)
 	}
 	// If there is no sign of progress at this point then there is a high chance that the
@@ -186,11 +190,11 @@ func (dc *DeploymentController) requeueStuckDeployment(d *extensions.Deployment,
 	// Make it ratelimited so we stay on the safe side, eventually the Deployment should
 	// transition either to a Complete or to a TimedOut condition.
 	if after < time.Second {
-		glog.V(4).Infof("Queueing up deployment %q for a progress check now", d.Name)
+		glog.V(4).Infof("Queueing up instance deployment %q for a progress check now", d.Name)
 		dc.enqueueRateLimited(d)
 		return time.Duration(0)
 	}
-	glog.V(4).Infof("Queueing up deployment %q for a progress check after %ds", d.Name, int(after.Seconds()))
+	glog.V(4).Infof("Queueing up instance deployment %q for a progress check after %ds", d.Name, int(after.Seconds()))
 	// Add a second to avoid milliseconds skew in AddAfter.
 	// See https://github.com/kubernetes/kubernetes/issues/39785#issuecomment-279959133 for more info.
 	dc.enqueueAfter(d, after+time.Second)

@@ -13,62 +13,64 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-This file was copied from the kubernetes/kubernetes project
+This file was copied and modified from the kubernetes/kubernetes project
 https://github.com/kubernetes/kubernetes/blob/release-1.8/pkg/controller/deployment/util/replicaset_util.go
-*/
 
-package util
+Modifications Copyright 2017 The Gardener Authors.
+*/
+package controller
 
 import (
 	"fmt"
 
 	"github.com/golang/glog"
 
-	extensions "k8s.io/api/extensions/v1beta1"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
-	unversionedextensions "k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
-	extensionslisters "k8s.io/client-go/listers/extensions/v1beta1"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/kubernetes/pkg/controller"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
+
+	"code.sapcloud.io/kubernetes/node-controller-manager/pkg/apis/node/v1alpha1"
+	v1alpha1client "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
+	v1alpha1listers "code.sapcloud.io/kubernetes/node-controller-manager/pkg/client/listers/node/v1alpha1"
+
 )
 
 // TODO: use client library instead when it starts to support update retries
 //       see https://github.com/kubernetes/kubernetes/issues/21479
-type updateRSFunc func(rs *extensions.ReplicaSet) error
+type updateISFunc func(is *v1alpha1.InstanceSet) error
 
-// UpdateRSWithRetries updates a RS with given applyUpdate function. Note that RS not found error is ignored.
+// UpdateISWithRetries updates a RS with given applyUpdate function. Note that RS not found error is ignored.
 // The returned bool value can be used to tell if the RS is actually updated.
-func UpdateRSWithRetries(rsClient unversionedextensions.ReplicaSetInterface, rsLister extensionslisters.ReplicaSetLister, namespace, name string, applyUpdate updateRSFunc) (*extensions.ReplicaSet, error) {
-	var rs *extensions.ReplicaSet
+func UpdateISWithRetries(isClient v1alpha1client.InstanceSetInterface, isLister v1alpha1listers.InstanceSetLister, namespace, name string, applyUpdate updateISFunc) (*v1alpha1.InstanceSet, error) {
+	var is *v1alpha1.InstanceSet
 
 	retryErr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		var err error
-		rs, err = rsLister.ReplicaSets(namespace).Get(name)
+		is, err = isLister.Get(name)
 		if err != nil {
 			return err
 		}
-		rs = rs.DeepCopy()
+		is = is.DeepCopy()
 		// Apply the update, then attempt to push it to the apiserver.
-		if applyErr := applyUpdate(rs); applyErr != nil {
+		if applyErr := applyUpdate(is); applyErr != nil {
 			return applyErr
 		}
-		rs, err = rsClient.Update(rs)
+		is, err = isClient.Update(is)
 		return err
 	})
 
 	// Ignore the precondition violated error, but the RS isn't updated.
 	if retryErr == errorsutil.ErrPreconditionViolated {
-		glog.V(4).Infof("Replica set %s/%s precondition doesn't hold, skip updating it.", namespace, name)
+		glog.V(4).Infof("Instance set %s precondition doesn't hold, skip updating it.", name)
 		retryErr = nil
 	}
 
-	return rs, retryErr
+	return is, retryErr
 }
 
-// GetReplicaSetHash returns the pod template hash of a ReplicaSet's pod template space
-func GetReplicaSetHash(rs *extensions.ReplicaSet, uniquifier *int32) (string, error) {
-	rsTemplate := rs.Spec.Template.DeepCopy()
-	rsTemplate.Labels = labelsutil.CloneAndRemoveLabel(rsTemplate.Labels, extensions.DefaultDeploymentUniqueLabelKey)
-	return fmt.Sprintf("%d", controller.ComputeHash(rsTemplate, uniquifier)), nil
+// TODO : Redefine ?
+func GetInstanceSetHash(is *v1alpha1.InstanceSet, uniquifier *int32) (string, error) {
+	isTemplate := is.Spec.Template.DeepCopy()
+	isTemplate.Labels = labelsutil.CloneAndRemoveLabel(isTemplate.Labels, v1alpha1.DefaultInstanceDeploymentUniqueLabelKey)
+	return fmt.Sprintf("%d", ComputeHash(isTemplate, uniquifier)), nil
 }
