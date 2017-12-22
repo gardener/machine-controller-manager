@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// rolloutRecreate implements the logic for recreating a replica set.
+// rolloutRecreate implements the logic for recreating a instance set.
 func (dc *controller) rolloutRecreate(d *v1alpha1.InstanceDeployment, isList []*v1alpha1.InstanceSet, instanceMap map[types.UID]*v1alpha1.InstanceList) error {
 	// Don't create a new RS if not already existed, so that we avoid scaling up before scaling down.
 	newIS, oldISs, err := dc.getAllInstanceSetsAndSyncRevision(d, isList, instanceMap, false)
@@ -36,7 +36,7 @@ func (dc *controller) rolloutRecreate(d *v1alpha1.InstanceDeployment, isList []*
 	allISs := append(oldISs, newIS)
 	activeOldISs := FilterActiveInstanceSets(oldISs)
 
-	// scale down old replica sets.
+	// scale down old instance sets.
 	scaledDown, err := dc.scaleDownOldInstanceSetsForRecreate(activeOldISs, d)
 	if err != nil {
 		return err
@@ -60,7 +60,7 @@ func (dc *controller) rolloutRecreate(d *v1alpha1.InstanceDeployment, isList []*
 		allISs = append(oldISs, newIS)
 	}
 
-	// scale up new replica set.
+	// scale up new instance set.
 	if _, err := dc.scaleUpNewInstanceSetForRecreate(newIS, d); err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (dc *controller) rolloutRecreate(d *v1alpha1.InstanceDeployment, isList []*
 	return dc.syncRolloutStatus(allISs, newIS, d)
 }
 
-// scaleDownOldInstanceSetsForRecreate scales down old replica sets when deployment strategy is "Recreate".
+// scaleDownOldInstanceSetsForRecreate scales down old instance sets when deployment strategy is "Recreate".
 func (dc *controller) scaleDownOldInstanceSetsForRecreate(oldISs []*v1alpha1.InstanceSet, deployment *v1alpha1.InstanceDeployment) (bool, error) {
 	scaled := false
 	for i := range oldISs {
@@ -113,7 +113,7 @@ func oldInstancesRunning(newIS *v1alpha1.InstanceSet, oldISs []*v1alpha1.Instanc
 	return false
 }
 
-// scaleUpNewInstanceSetForRecreate scales up new replica set when deployment strategy is "Recreate".
+// scaleUpNewInstanceSetForRecreate scales up new instance set when deployment strategy is "Recreate".
 func (dc *controller) scaleUpNewInstanceSetForRecreate(newIS *v1alpha1.InstanceSet, deployment *v1alpha1.InstanceDeployment) (bool, error) {
 	scaled, _, err := dc.scaleInstanceSetAndRecordEvent(newIS, (deployment.Spec.Replicas), deployment)
 	return scaled, err

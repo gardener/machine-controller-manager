@@ -57,7 +57,7 @@ func (dc *controller) rollback(d *v1alpha1.InstanceDeployment, isList []*v1alpha
 		}
 		if v == *toRevision {
 			glog.V(4).Infof("Found instance set %q with desired revision %d", is.Name, v)
-			// rollback by copying podTemplate.Spec from the replica set
+			// rollback by copying podTemplate.Spec from the instance set
 			// revision number will be incremented during the next getAllInstanceSetsAndSyncRevision call
 			// no-op if the spec matches current deployment's podTemplate.Spec
 			performedRollback, err := dc.rollbackToTemplate(d, is)
@@ -72,8 +72,8 @@ func (dc *controller) rollback(d *v1alpha1.InstanceDeployment, isList []*v1alpha
 	return dc.updateInstanceDeploymentAndClearRollbackTo(d)
 }
 
-// rollbackToTemplate compares the templates of the provided deployment and replica set and
-// updates the deployment with the replica set template in case they are different. It also
+// rollbackToTemplate compares the templates of the provided deployment and instance set and
+// updates the deployment with the instance set template in case they are different. It also
 // cleans up the rollback spec so subsequent requeues of the deployment won't end up in here.
 func (dc *controller) rollbackToTemplate(d *v1alpha1.InstanceDeployment, is *v1alpha1.InstanceSet) (bool, error) {
 	performedRollback := false

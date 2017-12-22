@@ -45,7 +45,7 @@ import (
 )
 
 const (
-	// Realistic value of the burstReplica field for the replica set manager based off
+	// Realistic value of the burstReplica field for the instance set manager based off
 	// performance requirements for kubernetes 1.0.
 	BurstReplicas = 100
 
@@ -130,12 +130,12 @@ func (c *controller) instanceSetUpdate(old, cur interface{}) {
 	curIS := cur.(*v1alpha1.InstanceSet)
 
 	// You might imagine that we only really need to enqueue the
-	// replica set when Spec changes, but it is safer to sync any
+	// instance set when Spec changes, but it is safer to sync any
 	// time this function is triggered. That way a full informer
-	// resync can requeue any replica set that don't yet have instances
+	// resync can requeue any instance set that don't yet have instances
 	// but whose last attempts at creating a instance have failed (since
 	// we don't block on creation of instances) instead of those
-	// replica sets stalling indefinitely. Enqueueing every time
+	// instance sets stalling indefinitely. Enqueueing every time
 	// does result in some spurious syncs (like when Status.Replica
 	// is updated and the watch notification from it retriggers
 	// this function), but in general extra resyncs shouldn't be
@@ -147,7 +147,7 @@ func (c *controller) instanceSetUpdate(old, cur interface{}) {
 	c.enqueueInstanceSet(curIS)
 }
 
-// When a instance is created, enqueue the replica set that manages it and update its expectations.
+// When a instance is created, enqueue the instance set that manages it and update its expectations.
 func (c *controller) addInstanceToInstanceSet(obj interface{}) {
 	instance := obj.(*v1alpha1.Instance)
 
@@ -191,9 +191,9 @@ func (c *controller) addInstanceToInstanceSet(obj interface{}) {
 	}
 }
 
-// When a instance is updated, figure out what replica set/s manage it and wake them
+// When a instance is updated, figure out what instance set/s manage it and wake them
 // up. If the labels of the instance have changed we need to awaken both the old
-// and new replica set. old and cur must be *v1alpha1.Instance types.
+// and new instance set. old and cur must be *v1alpha1.Instance types.
 func (c *controller) updateInstanceToInstanceSet(old, cur interface{}) {
 	curInst := cur.(*v1alpha1.Instance)
 	oldInst := old.(*v1alpha1.Instance)
@@ -238,12 +238,12 @@ func (c *controller) updateInstanceToInstanceSet(old, cur interface{}) {
 		glog.V(4).Infof("Instance %s updated, objectMeta %+v -> %+v.", curInst.Name, oldInst.ObjectMeta, curInst.ObjectMeta)
 		c.enqueueInstanceSet(is)
 		// TODO: MinReadySeconds in the Instance will generate an Available condition to be added in
-		// the Instance status which in turn will trigger a requeue of the owning replica set thus
+		// the Instance status which in turn will trigger a requeue of the owning instance set thus
 		// having its status updated with the newly available replica. For now, we can fake the
 		// update by resyncing the controller MinReadySeconds after the it is requeued because
 		// a Instance transitioned to Ready.
 		// Note that this still suffers from #29229, we are just moving the problem one level
-		// "closer" to kubelet (from the deployment to the replica set controller).
+		// "closer" to kubelet (from the deployment to the instance set controller).
 		/*
 		if !isInstanceReady(oldInst) && instanceutil.IsInstanceReady(curInst) && is.Spec.MinReadySeconds > 0 {
 			glog.V(2).Infof("%v %q will be enqueued after %ds for availability check", rsc.Kind, rs.Name, rs.Spec.MinReadySeconds)
@@ -271,7 +271,7 @@ func (c *controller) updateInstanceToInstanceSet(old, cur interface{}) {
 
 }
 
-// When a instance is deleted, enqueue the replica set that manages the instance and update its expectations.
+// When a instance is deleted, enqueue the instance set that manages the instance and update its expectations.
 // obj could be an *v1alpha1.Instance, or a DeletionFinalStateUnknown marker item.
 func (c *controller) deleteInstanceToInstanceSet(obj interface{}) {
 	instance, ok := obj.(*v1alpha1.Instance)
@@ -333,7 +333,7 @@ func (c *controller) enqueueInstanceSetAfter(obj interface{}, after time.Duratio
 
 // manageReplicas checks and updates replicas for the given ReplicaSet.
 // Does NOT modify <filteredInstances>.
-// It will requeue the replica set in case of an error while creating/deleting instances.
+// It will requeue the instance set in case of an error while creating/deleting instances.
 func (c *controller) manageReplicas(allInstances []*v1alpha1.Instance, is *v1alpha1.InstanceSet) error {
 	
 	isKey, err := KeyFunc(is)
@@ -538,7 +538,7 @@ func (c *controller) syncInstanceSet(key string) error {
 	// Always updates status as instances come up or die.
 	updatedIS, err := updateInstanceSetStatus(c.nodeClient, is, newStatus)
 	if err != nil {
-		// Multiple things could lead to this update failing. Requeuing the replica set ensures
+		// Multiple things could lead to this update failing. Requeuing the instance set ensures
 		// Returning an error causes a requeue without forcing a hotloop
 		glog.V(2).Infof("update instance failed with : %v ",err) //Remove
 		return err

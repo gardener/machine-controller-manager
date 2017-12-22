@@ -152,8 +152,6 @@ func Run(s *options.NCMServer) error {
 	panic("unreachable")
 }
 
-// StartControllers starts all the controllers in the service-catalog
-// controller manager.
 func StartControllers(s *options.NCMServer,
 	coreKubeconfig *rest.Config,
 	nodeClientBuilder nodecontroller.ClientBuilder,
@@ -161,7 +159,6 @@ func StartControllers(s *options.NCMServer,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) error {
 
-	// Get available service-catalog resources
 	glog.V(5).Info("Getting available resources")
 	availableResources, err := getAvailableResources(coreClientBuilder)
 	if err != nil {
@@ -174,11 +171,9 @@ func StartControllers(s *options.NCMServer,
 		glog.Fatal(err)
 	}
 
-	// Launch service-catalog controller
 	if availableResources[nodeGVR] { 
 		glog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
-		// Build the informer factory for service-catalog resources
 		nodeInformerFactory := nodeinformers.NewSharedInformerFactory(
 			nodeClientBuilder.ClientOrDie("node-shared-informers"),
 			s.MinResyncPeriod.Duration,

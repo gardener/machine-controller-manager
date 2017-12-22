@@ -89,9 +89,9 @@ func updateInstanceSetStatus(nodeClient nodeclientset.NodeV1alpha1Interface, is 
 func calculateInstanceSetStatus(is *v1alpha1.InstanceSet, filteredInstances []*v1alpha1.Instance, manageReplicasErr error) v1alpha1.InstanceSetStatus {
 	newStatus := is.Status
 	// Count the number of instances that have labels matching the labels of the instance
-	// template of the replica set, the matching instances may have more
+	// template of the instance set, the matching instances may have more
 	// labels than are in the template. Because the label of instanceTemplateSpec is
-	// a supeiset of the selector of the replica set, so the possible
+	// a supeiset of the selector of the instance set, so the possible
 	// matching instances must be part of the filteredinstances.
 	fullyLabeledReplicasCount := 0
 	readyReplicasCount := 0

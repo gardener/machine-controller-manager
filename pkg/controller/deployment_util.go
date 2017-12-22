@@ -94,16 +94,16 @@ func (c *controller) GetInstanceDeploymentsForInstanceSet(is *v1alpha1.InstanceS
 }
 
 const (
-	// RevisionAnnotation is the revision annotation of a deployment's replica sets which records its rollout sequence
+	// RevisionAnnotation is the revision annotation of a deployment's instance sets which records its rollout sequence
 	RevisionAnnotation = "deployment.kubernetes.io/revision"
-	// RevisionHistoryAnnotation maintains the history of all old revisions that a replica set has served for a deployment.
+	// RevisionHistoryAnnotation maintains the history of all old revisions that a instance set has served for a deployment.
 	RevisionHistoryAnnotation = "deployment.kubernetes.io/revision-history"
 	// DesiredReplicasAnnotation is the desired replicas for a deployment recorded as an annotation
-	// in its replica sets. Helps in separating scaling events from the rollout process and for
-	// determining if the new replica set for a deployment is really saturated.
+	// in its instance sets. Helps in separating scaling events from the rollout process and for
+	// determining if the new instance set for a deployment is really saturated.
 	DesiredReplicasAnnotation = "deployment.kubernetes.io/desired-replicas"
 	// MaxReplicasAnnotation is the maximum replicas a deployment can have at a given point, which
-	// is deployment.spec.replicas + maxSurge. Used by the underlying replica sets to estimate their
+	// is deployment.spec.replicas + maxSurge. Used by the underlying instance sets to estimate their
 	// proportions in case the deployment has surge replicas.
 	MaxReplicasAnnotation = "deployment.kubernetes.io/max-replicas"
 
@@ -117,20 +117,20 @@ const (
 	//
 	// Progressing:
 	//
-	// InstanceSetUpdatedReason is added in a deployment when one of its replica sets is updated as part
+	// InstanceSetUpdatedReason is added in a deployment when one of its instance sets is updated as part
 	// of the rollout process.
 	InstanceSetUpdatedReason = "InstanceSetUpdated"
-	// FailedRSCreateReason is added in a deployment when it cannot create a new replica set.
+	// FailedRSCreateReason is added in a deployment when it cannot create a new instance set.
 	FailedISCreateReason = "InstanceSetCreateError"
-	// NewInstanceSetReason is added in a deployment when it creates a new replica set.
+	// NewInstanceSetReason is added in a deployment when it creates a new instance set.
 	NewInstanceSetReason = "NewInstanceSetCreated"
-	// FoundNewRSReason is added in a deployment when it adopts an existing replica set.
+	// FoundNewRSReason is added in a deployment when it adopts an existing instance set.
 	FoundNewISReason = "FoundNewInstanceSet"
-	// NewRSAvailableReason is added in a deployment when its newest replica set is made available
+	// NewRSAvailableReason is added in a deployment when its newest instance set is made available
 	// ie. the number of new instances that have passed readiness checks and run for at least minReadySeconds
 	// is at least the minimum available instances that need to run for the deployment.
 	NewISAvailableReason = "NewInstanceSetAvailable"
-	// TimedOutReason is added in a deployment when its newest replica set fails to show any progress
+	// TimedOutReason is added in a deployment when its newest instance set fails to show any progress
 	// within the given deadline (progressDeadlineSeconds).
 	TimedOutReason = "ProgressDeadlineExceeded"
 	// PausedDeployReason is added in a deployment when it is paused. Lack of progress shouldn't be
@@ -217,8 +217,8 @@ func filterOutDeploymentCondition(conditions []v1alpha1.InstanceDeploymentCondit
 	return newConditions
 }
 
-// InstanceSetToInstanceDeploymentCondition converts a replica set condition into a deployment condition.
-// Useful for promoting replica set failure conditions into deployments.
+// InstanceSetToInstanceDeploymentCondition converts a instance set condition into a deployment condition.
+// Useful for promoting instance set failure conditions into deployments.
 func InstanceSetToInstanceDeploymentCondition(cond v1alpha1.InstanceSetCondition) v1alpha1.InstanceDeploymentCondition {
 	return v1alpha1.InstanceDeploymentCondition{
 		Type:               v1alpha1.InstanceDeploymentConditionType(cond.Type),
@@ -250,7 +250,7 @@ func MaxRevision(allISs []*v1alpha1.InstanceSet) int64 {
 	max := int64(0)
 	for _, is := range allISs {
 		if v, err := Revision(is); err != nil {
-			// Skip the replica sets when it failed to parse their revision information
+			// Skip the instance sets when it failed to parse their revision information
 			glog.V(4).Infof("Error: %v. Couldn't parse revision for instance set %#v, instance deployment controller will skip it when reconciling revisions.", err, is)
 		} else if v > max {
 			max = v
@@ -259,12 +259,12 @@ func MaxRevision(allISs []*v1alpha1.InstanceSet) int64 {
 	return max
 }
 
-// LastRevision finds the second max revision number in all replica sets (the last revision)
+// LastRevision finds the second max revision number in all instance sets (the last revision)
 func LastRevision(allISs []*v1alpha1.InstanceSet) int64 {
 	max, secMax := int64(0), int64(0)
 	for _, is := range allISs {
 		if v, err := Revision(is); err != nil {
-			// Skip the replica sets when it failed to parse their revision information
+			// Skip the instance sets when it failed to parse their revision information
 			glog.V(4).Infof("Error: %v. Couldn't parse revision for instance set %#v, instance deployment controller will skip it when reconciling revisions.", err, is)
 		} else if v >= max {
 			secMax = max
@@ -289,12 +289,12 @@ func Revision(obj runtime.Object) (int64, error) {
 	return strconv.ParseInt(v, 10, 64)
 }
 
-// SetNewInstanceSetAnnotations sets new replica set's annotations appropriately by updating its revision and
-// copying required deployment annotations to it; it returns true if replica set's annotation is changed.
+// SetNewInstanceSetAnnotations sets new instance set's annotations appropriately by updating its revision and
+// copying required deployment annotations to it; it returns true if instance set's annotation is changed.
 func SetNewInstanceSetAnnotations(deployment *v1alpha1.InstanceDeployment, newIS *v1alpha1.InstanceSet, newRevision string, exists bool) bool {
 	// First, copy deployment's annotations (except for apply and revision annotations)
 	annotationChanged := copyInstanceDeploymentAnnotationsToInstanceSet(deployment, newIS)
-	// Then, update replica set's revision annotation
+	// Then, update instance set's revision annotation
 	if newIS.Annotations == nil {
 		newIS.Annotations = make(map[string]string)
 	}
@@ -322,8 +322,8 @@ func SetNewInstanceSetAnnotations(deployment *v1alpha1.InstanceDeployment, newIS
 		annotationChanged = true
 		glog.V(4).Infof("Updating instance set %q revision to %s", newIS.Name, newRevision)
 	}
-	// If a revision annotation already existed and this replica set was updated with a new revision
-	// then that means we are rolling back to this replica set. We need to preserve the old revisions
+	// If a revision annotation already existed and this instance set was updated with a new revision
+	// then that means we are rolling back to this instance set. We need to preserve the old revisions
 	// for historical information.
 	if ok && annotationChanged {
 		revisionHistoryAnnotation := newIS.Annotations[RevisionHistoryAnnotation]
@@ -335,7 +335,7 @@ func SetNewInstanceSetAnnotations(deployment *v1alpha1.InstanceDeployment, newIS
 			newIS.Annotations[RevisionHistoryAnnotation] = strings.Join(oldRevisions, ",")
 		}
 	}
-	// If the new replica set is about to be created, we need to add replica annotations to it.
+	// If the new instance set is about to be created, we need to add replica annotations to it.
 	if !exists && SetReplicasAnnotations(newIS, (deployment.Spec.Replicas), (deployment.Spec.Replicas)+MaxSurge(*deployment)) {
 		annotationChanged = true
 	}
@@ -357,8 +357,8 @@ func skipCopyAnnotation(key string) bool {
 	return annotationsToSkip[key]
 }
 
-// copyDeploymentAnnotationsToInstanceSet copies deployment's annotations to replica set's annotations,
-// and returns true if replica set's annotation is changed.
+// copyDeploymentAnnotationsToInstanceSet copies deployment's annotations to instance set's annotations,
+// and returns true if instance set's annotation is changed.
 // Note that apply and revision annotations are not copied.
 func copyInstanceDeploymentAnnotationsToInstanceSet(deployment *v1alpha1.InstanceDeployment, is *v1alpha1.InstanceSet) bool {
 	isAnnotationsChanged := false
@@ -400,8 +400,8 @@ func getSkippedAnnotations(annotations map[string]string) map[string]string {
 	return skippedAnnotations
 }
 
-// FindActiveOrLatest returns the only active or the latest replica set in case there is at most one active
-// replica set. If there are more active replica sets, then we should proportionally scale them.
+// FindActiveOrLatest returns the only active or the latest instance set in case there is at most one active
+// instance set. If there are more active instance sets, then we should proportionally scale them.
 func FindActiveOrLatest(newIS *v1alpha1.InstanceSet, oldISs []*v1alpha1.InstanceSet) *v1alpha1.InstanceSet {
 	if newIS == nil && len(oldISs) == 0 {
 		return nil
@@ -412,7 +412,7 @@ func FindActiveOrLatest(newIS *v1alpha1.InstanceSet, oldISs []*v1alpha1.Instance
 
 	switch len(allISs) {
 	case 0:
-		// If there is no active replica set then we should return the newest.
+		// If there is no active instance set then we should return the newest.
 		if newIS != nil {
 			return newIS
 		}
@@ -496,9 +496,9 @@ func MaxSurge(deployment v1alpha1.InstanceDeployment) int32 {
 	return maxSurge
 }
 
-// GetProportion will estimate the proportion for the provided replica set using 1. the current size
-// of the parent deployment, 2. the replica count that needs be added on the replica sets of the
-// deployment, and 3. the total replicas added in the replica sets of the deployment so far.
+// GetProportion will estimate the proportion for the provided instance set using 1. the current size
+// of the parent deployment, 2. the replica count that needs be added on the instance sets of the
+// deployment, and 3. the total replicas added in the instance sets of the deployment so far.
 func GetProportion(is *v1alpha1.InstanceSet, d v1alpha1.InstanceDeployment, deploymentReplicasToAdd, deploymentReplicasAdded int32) int32 {
 	if is == nil || (is.Spec.Replicas) == 0 || deploymentReplicasToAdd == 0 || deploymentReplicasToAdd == deploymentReplicasAdded {
 		return int32(0)
@@ -508,21 +508,21 @@ func GetProportion(is *v1alpha1.InstanceSet, d v1alpha1.InstanceDeployment, depl
 	allowed := deploymentReplicasToAdd - deploymentReplicasAdded
 
 	if deploymentReplicasToAdd > 0 {
-		// Use the minimum between the replica set fraction and the maximum allowed replicas
+		// Use the minimum between the instance set fraction and the maximum allowed replicas
 		// when scaling up. This way we ensure we will not scale up more than the allowed
 		// replicas we can add.
 		return integer.Int32Min(isFraction, allowed)
 	}
-	// Use the maximum between the replica set fraction and the maximum allowed replicas
+	// Use the maximum between the instance set fraction and the maximum allowed replicas
 	// when scaling down. This way we ensure we will not scale down more than the allowed
 	// replicas we can remove.
 	return integer.Int32Max(isFraction, allowed)
 }
 
-// getInstanceSetFraction estimates the fraction of replicas a replica set can have in
+// getInstanceSetFraction estimates the fraction of replicas a instance set can have in
 // 1. a scaling event during a rollout or 2. when scaling a paused deployment.
 func getInstanceSetFraction(is v1alpha1.InstanceSet, d v1alpha1.InstanceDeployment) int32 {
-	// If we are scaling down to zero then the fraction of this replica set is its whole size (negative)
+	// If we are scaling down to zero then the fraction of this instance set is its whole size (negative)
 	if (d.Spec.Replicas) == int32(0) {
 		return -(is.Spec.Replicas)
 	}
@@ -531,7 +531,7 @@ func getInstanceSetFraction(is v1alpha1.InstanceSet, d v1alpha1.InstanceDeployme
 	annotatedReplicas, ok := getMaxReplicasAnnotation(&is)
 	if !ok {
 		// If we cannot find the annotation then fallback to the current deployment size. Note that this
-		// will not be an accurate proportion estimation in case other replica sets have different values
+		// will not be an accurate proportion estimation in case other instance sets have different values
 		// which means that the deployment was scaled at some point but we at least will stay in limits
 		// due to the min-max comparisons in getProportion.
 		annotatedReplicas = d.Status.Replicas
@@ -543,9 +543,9 @@ func getInstanceSetFraction(is v1alpha1.InstanceSet, d v1alpha1.InstanceDeployme
 	return integer.RoundToInt32(newISsize) - (is.Spec.Replicas)
 }
 
-// GetAllInstanceSets returns the old and new replica sets targeted by the given Deployment. It gets InstanceList and InstanceSetList from client interface.
-// Note that the first set of old replica sets doesn't include the ones with no instances, and the second set of old replica sets include all old replica sets.
-// The third returned value is the new replica set, and it may be nil if it doesn't exist yet.
+// GetAllInstanceSets returns the old and new instance sets targeted by the given Deployment. It gets InstanceList and InstanceSetList from client interface.
+// Note that the first set of old instance sets doesn't include the ones with no instances, and the second set of old instance sets include all old instance sets.
+// The third returned value is the new instance set, and it may be nil if it doesn't exist yet.
 func GetAllInstanceSets(deployment *v1alpha1.InstanceDeployment, c v1alpha1client.NodeV1alpha1Interface) ([]*v1alpha1.InstanceSet, []*v1alpha1.InstanceSet, *v1alpha1.InstanceSet, error) {
 	isList, err := ListInstanceSets(deployment, IsListFromClient(c))
 	if err != nil {
@@ -556,8 +556,8 @@ func GetAllInstanceSets(deployment *v1alpha1.InstanceDeployment, c v1alpha1clien
 	return oldISes, allOldISes, newIS, nil
 }
 
-// GetOldInstanceSets returns the old replica sets targeted by the given Deployment; get InstanceList and InstanceSetList from client interface.
-// Note that the first set of old replica sets doesn't include the ones with no instances, and the second set of old replica sets include all old replica sets.
+// GetOldInstanceSets returns the old instance sets targeted by the given Deployment; get InstanceList and InstanceSetList from client interface.
+// Note that the first set of old instance sets doesn't include the ones with no instances, and the second set of old instance sets include all old instance sets.
 func GetOldInstanceSets(deployment *v1alpha1.InstanceDeployment, c v1alpha1client.NodeV1alpha1Interface) ([]*v1alpha1.InstanceSet, []*v1alpha1.InstanceSet, error) {
 	rsList, err := ListInstanceSets(deployment, IsListFromClient(c))
 	if err != nil {
@@ -567,8 +567,8 @@ func GetOldInstanceSets(deployment *v1alpha1.InstanceDeployment, c v1alpha1clien
 	return oldRSes, allOldRSes, nil
 }
 
-// GetNewInstanceSet returns a replica set that matches the intent of the given deployment; get InstanceSetList from client interface.
-// Returns nil if the new replica set doesn't exist yet.
+// GetNewInstanceSet returns a instance set that matches the intent of the given deployment; get InstanceSetList from client interface.
+// Returns nil if the new instance set doesn't exist yet.
 func GetNewInstanceSet(deployment *v1alpha1.InstanceDeployment, c v1alpha1client.NodeV1alpha1Interface) (*v1alpha1.InstanceSet, error) {
 	rsList, err := ListInstanceSets(deployment, IsListFromClient(c))
 	if err != nil {
@@ -601,7 +601,7 @@ type instanceListFunc func(string, metav1.ListOptions) (*v1alpha1.InstanceList, 
 // because only the controller itself should do that.
 // However, it does filter out anything whose ControllerRef doesn't match.
 func ListInstanceSets(deployment *v1alpha1.InstanceDeployment, getISList IsListFunc) ([]*v1alpha1.InstanceSet, error) {
-	// TODO: Right now we list replica sets by their labels. We should list them by selector, i.e. the replica set's selector
+	// TODO: Right now we list instance sets by their labels. We should list them by selector, i.e. the instance set's selector
 	//       should be a superset of the deployment's selector, see https://github.com/kubernetes/kubernetes/issues/19830.
 	namespace := deployment.Namespace
 	selector, err := metav1.LabelSelectorAsSelector(deployment.Spec.Selector)
@@ -714,14 +714,14 @@ func FindNewInstanceSet(deployment *v1alpha1.InstanceDeployment, isList []*v1alp
 	return nil
 }
 
-// FindOldInstanceSets returns the old replica sets targeted by the given Deployment, with the given slice of RSes.
-// Note that the first set of old replica sets doesn't include the ones with no instances, and the second set of old replica sets include all old replica sets.
+// FindOldInstanceSets returns the old instance sets targeted by the given Deployment, with the given slice of RSes.
+// Note that the first set of old instance sets doesn't include the ones with no instances, and the second set of old instance sets include all old instance sets.
 func FindOldInstanceSets(deployment *v1alpha1.InstanceDeployment, isList []*v1alpha1.InstanceSet) ([]*v1alpha1.InstanceSet, []*v1alpha1.InstanceSet) {
 	var requiredISs []*v1alpha1.InstanceSet
 	var allISs []*v1alpha1.InstanceSet
 	newIS := FindNewInstanceSet(deployment, isList)
 	for _, is := range isList {
-		// Filter out new replica set
+		// Filter out new instance set
 		if newIS != nil && is.UID == newIS.UID {
 			continue
 		}
@@ -733,7 +733,7 @@ func FindOldInstanceSets(deployment *v1alpha1.InstanceDeployment, isList []*v1al
 	return requiredISs, allISs
 }
 
-// WaitForInstanceSetUpdated polls the replica set until it is updated.
+// WaitForInstanceSetUpdated polls the instance set until it is updated.
 func WaitForInstanceSetUpdated(c v1alpha1listers.InstanceSetLister, desiredGeneration int64, namespace, name string) error {
 	return wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
 		is, err := c.Get(name)
@@ -744,7 +744,7 @@ func WaitForInstanceSetUpdated(c v1alpha1listers.InstanceSetLister, desiredGener
 	})
 }
 
-// WaitForInstancesHashPopulated polls the replica set until updated and fully labeled.
+// WaitForInstancesHashPopulated polls the instance set until updated and fully labeled.
 func WaitForInstancesHashPopulated(c v1alpha1listers.InstanceSetLister, desiredGeneration int64, namespace, name string) error {
 	return wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
 		is, err := c.Get(name)
@@ -783,7 +783,7 @@ func LabelInstancesWithHash(instanceList *v1alpha1.InstanceList, c v1alpha1clien
 	return nil
 }
 
-// SetFromInstanceSetTemplate sets the desired InstanceTemplateSpec from a replica set template to the given deployment.
+// SetFromInstanceSetTemplate sets the desired InstanceTemplateSpec from a instance set template to the given deployment.
 func SetFromInstanceSetTemplate(deployment *v1alpha1.InstanceDeployment, template v1alpha1.InstanceTemplateSpec) *v1alpha1.InstanceDeployment {
 	deployment.Spec.Template.ObjectMeta = template.ObjectMeta
 	deployment.Spec.Template.Spec = template.Spec
@@ -793,7 +793,7 @@ func SetFromInstanceSetTemplate(deployment *v1alpha1.InstanceDeployment, templat
 	return deployment
 }
 
-// GetReplicaCountForInstanceSets returns the sum of Replicas of the given replica sets.
+// GetReplicaCountForInstanceSets returns the sum of Replicas of the given instance sets.
 func GetReplicaCountForInstanceSets(InstanceSets []*v1alpha1.InstanceSet) int32 {
 	totalReplicas := int32(0)
 	for _, is := range InstanceSets {
@@ -804,7 +804,7 @@ func GetReplicaCountForInstanceSets(InstanceSets []*v1alpha1.InstanceSet) int32 
 	return totalReplicas
 }
 
-// GetActualReplicaCountForInstanceSets returns the sum of actual replicas of the given replica sets.
+// GetActualReplicaCountForInstanceSets returns the sum of actual replicas of the given instance sets.
 func GetActualReplicaCountForInstanceSets(InstanceSets []*v1alpha1.InstanceSet) int32 {
 	totalActualReplicas := int32(0)
 	for _, is := range InstanceSets {
@@ -815,7 +815,7 @@ func GetActualReplicaCountForInstanceSets(InstanceSets []*v1alpha1.InstanceSet) 
 	return totalActualReplicas
 }
 
-// GetReadyReplicaCountForInstanceSets returns the number of ready instances corresponding to the given replica sets.
+// GetReadyReplicaCountForInstanceSets returns the number of ready instances corresponding to the given instance sets.
 func GetReadyReplicaCountForInstanceSets(InstanceSets []*v1alpha1.InstanceSet) int32 {
 	totalReadyReplicas := int32(0)
 	for _, is := range InstanceSets {
@@ -826,7 +826,7 @@ func GetReadyReplicaCountForInstanceSets(InstanceSets []*v1alpha1.InstanceSet) i
 	return totalReadyReplicas
 }
 
-// GetAvailableReplicaCountForInstanceSets returns the number of available instances corresponding to the given replica sets.
+// GetAvailableReplicaCountForInstanceSets returns the number of available instances corresponding to the given instance sets.
 func GetAvailableReplicaCountForInstanceSets(InstanceSets []*v1alpha1.InstanceSet) int32 {
 	totalAvailableReplicas := int32(0)
 	for _, is := range InstanceSets {
@@ -905,7 +905,7 @@ func InstanceDeploymentTimedOut(deployment *v1alpha1.InstanceDeployment, newStat
 	}
 
 	// Look at the difference in seconds between now and the last time we reported any
-	// progress or tried to create a replica set, or resumed a paused deployment and
+	// progress or tried to create a instance set, or resumed a paused deployment and
 	// compare against progressDeadlineSeconds.
 	from := condition.LastUpdateTime
 	now := nowFn()
@@ -947,8 +947,8 @@ func NewISNewReplicas(deployment *v1alpha1.InstanceDeployment, allISs []*v1alpha
 	}
 }
 
-// IsSaturated checks if the new replica set is saturated by comparing its size with its deployment size.
-// Both the deployment and the replica set have to believe this replica set can own all of the desired
+// IsSaturated checks if the new instance set is saturated by comparing its size with its deployment size.
+// Both the deployment and the instance set have to believe this instance set can own all of the desired
 // replicas in the deployment and the annotation helps in achieving that. All instances of the InstanceSet
 // need to be available.
 func IsSaturated(deployment *v1alpha1.InstanceDeployment, is *v1alpha1.InstanceSet) bool {

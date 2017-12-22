@@ -108,7 +108,7 @@ func (dc *controller) checkPausedConditions(d *v1alpha1.InstanceDeployment) erro
 	return err
 }
 
-// getAllReplicaSetsAndSyncRevision returns all the replica sets for the provided deployment (new and all old), with new RS's and deployment's revision updated.
+// getAllReplicaSetsAndSyncRevision returns all the instance sets for the provided deployment (new and all old), with new RS's and deployment's revision updated.
 //
 // rsList should come from getReplicaSetsForDeployment(d).
 // instanceMap should come from getinstanceMapForDeployment(d, rsList).
@@ -119,7 +119,7 @@ func (dc *controller) checkPausedConditions(d *v1alpha1.InstanceDeployment) erro
 // 3. Copy new RS's revision number to deployment (update deployment's revision). If this step failed, we'll update it in the next deployment sync loop.
 //
 // Note that currently the deployment controller is using caches to avoid querying the server for reads.
-// This may lead to stale reads of replica sets, thus incorrect deployment status.
+// This may lead to stale reads of instance sets, thus incorrect deployment status.
 func (dc *controller) getAllInstanceSetsAndSyncRevision(d *v1alpha1.InstanceDeployment, isList []*v1alpha1.InstanceSet, instanceMap map[types.UID]*v1alpha1.InstanceList, createIfNotExisted bool) (*v1alpha1.InstanceSet, []*v1alpha1.InstanceSet, error) {
 	// List the deployment's RSes & instances and apply instance-template-hash info to deployment's adopted RSes/instances
 	isList, err := dc.isAndInstancesWithHashKeySynced(d, isList, instanceMap)
@@ -128,7 +128,7 @@ func (dc *controller) getAllInstanceSetsAndSyncRevision(d *v1alpha1.InstanceDepl
 	}
 	_, allOldISs := FindOldInstanceSets(d, isList)
 
-	// Get new replica set with the updated revision number
+	// Get new instance set with the updated revision number
 	newIS, err := dc.getNewInstanceSet(d, isList, allOldISs, createIfNotExisted)
 	if err != nil {
 		return nil, nil, err
@@ -230,7 +230,7 @@ func (dc *controller) addHashKeyToISAndInstances(is *v1alpha1.InstanceSet, insta
 	return updatedIS, nil
 }
 
-// Returns a replica set that matches the intent of the given deployment. Returns nil if the new replica set doesn't exist yet.
+// Returns a instance set that matches the intent of the given deployment. Returns nil if the new instance set doesn't exist yet.
 // 1. Get existing new RS (the RS that the given deployment targets, whose instance template is the same as deployment's).
 // 2. If there's existing new RS, update its revision number if it's smaller than (maxOldRevision + 1), where maxOldRevision is the max revision number among all old RSes.
 // 3. If there's no existing new RS and createIfNotExisted is true, create one with appropriate revision number (maxOldRevision + 1) and replicas.
@@ -240,17 +240,17 @@ func (dc *controller) getNewInstanceSet(d *v1alpha1.InstanceDeployment, isList, 
 
 	// Calculate the max revision number among all old RSes
 	maxOldRevision := MaxRevision(oldISs)
-	// Calculate revision number for this new replica set
+	// Calculate revision number for this new instance set
 	newRevision := strconv.FormatInt(maxOldRevision+1, 10)
 
-	// Latest replica set exists. We need to sync its annotations (includes copying all but
+	// Latest instance set exists. We need to sync its annotations (includes copying all but
 	// annotationsToSkip from the parent deployment, and update revision, desiredReplicas,
 	// and maxReplicas) and also update the revision annotation in the deployment with the
 	// latest revision.
 	if existingNewIS != nil {
 		isCopy := existingNewIS.DeepCopy()
 
-		// Set existing new replica set's annotation
+		// Set existing new instance set's annotation
 		annotationsUpdated := SetNewInstanceSetAnnotations(d, isCopy, newRevision, true)
 		minReadySecondsNeedsUpdate := isCopy.Spec.MinReadySeconds != d.Spec.MinReadySeconds
 		if annotationsUpdated || minReadySecondsNeedsUpdate {
@@ -262,7 +262,7 @@ func (dc *controller) getNewInstanceSet(d *v1alpha1.InstanceDeployment, isList, 
 		needsUpdate := SetInstanceDeploymentRevision(d, isCopy.Annotations[RevisionAnnotation])
 		// If no other Progressing condition has been recorded and we need to estimate the progress
 		// of this deployment then it is likely that old users started caring about progress. In that
-		// case we need to take into account the first time we noticed their new replica set.
+		// case we need to take into account the first time we noticed their new instance set.
 		cond := GetInstanceDeploymentCondition(d.Status, v1alpha1.InstanceDeploymentProgressing)
 		if d.Spec.ProgressDeadlineSeconds != nil && cond == nil {
 			msg := fmt.Sprintf("Found new instance set %q", isCopy.Name)
@@ -314,7 +314,7 @@ func (dc *controller) getNewInstanceSet(d *v1alpha1.InstanceDeployment, isList, 
 	}
 
 	(newIS.Spec.Replicas) = newReplicasCount
-	// Set new replica set's annotation
+	// Set new instance set's annotation
 	SetNewInstanceSetAnnotations(d, &newIS, newRevision, false)
 	// Create the new ReplicaSet. If it already exists, then we need to check for possible
 	// hash collisions. If there is any other error, we need to report it in the status of
@@ -385,13 +385,13 @@ func (dc *controller) getNewInstanceSet(d *v1alpha1.InstanceDeployment, isList, 
 }
 
 // scale scales proportionally in order to mitigate risk. Otherwise, scaling up can increase the size
-// of the new replica set and scaling down can decrease the sizes of the old ones, both of which would
+// of the new instance set and scaling down can decrease the sizes of the old ones, both of which would
 // have the effect of hastening the rollout progress, which could produce a higher proportion of unavailable
 // replicas in the event of a problem with the rolled out template. Should run only on scaling events or
 // when a deployment is paused and not during the normal rollout process.
 func (dc *controller) scale(deployment *v1alpha1.InstanceDeployment, newIS *v1alpha1.InstanceSet, oldISs []*v1alpha1.InstanceSet) error {
-	// If there is only one active replica set then we should scale that up to the full count of the
-	// deployment. If there is no active replica set, then we should scale up the newest replica set.
+	// If there is only one active instance set then we should scale that up to the full count of the
+	// deployment. If there is no active instance set, then we should scale up the newest instance set.
 	if activeOrLatest := FindActiveOrLatest(newIS, oldISs); activeOrLatest != nil {
 		if (activeOrLatest.Spec.Replicas) == (deployment.Spec.Replicas) {
 			return nil
@@ -400,8 +400,8 @@ func (dc *controller) scale(deployment *v1alpha1.InstanceDeployment, newIS *v1al
 		return err
 	}
 
-	// If the new replica set is saturated, old replica sets should be fully scaled down.
-	// This case handles replica set adoption during a saturated new replica set.
+	// If the new instance set is saturated, old instance sets should be fully scaled down.
+	// This case handles instance set adoption during a saturated new instance set.
 	if IsSaturated(deployment, newIS) {
 		for _, old := range FilterActiveInstanceSets(oldISs) {
 			if _, _, err := dc.scaleInstanceSetAndRecordEvent(old, 0, deployment); err != nil {
@@ -411,8 +411,8 @@ func (dc *controller) scale(deployment *v1alpha1.InstanceDeployment, newIS *v1al
 		return nil
 	}
 
-	// There are old replica sets with instances and the new replica set is not saturated.
-	// We need to proportionally scale all replica sets (new and old) in case of a
+	// There are old instance sets with instances and the new instance set is not saturated.
+	// We need to proportionally scale all instance sets (new and old) in case of a
 	// rolling deployment.
 	if IsRollingUpdate(deployment) {
 		allISs := FilterActiveInstanceSets(append(oldISs, newIS))
@@ -425,14 +425,14 @@ func (dc *controller) scale(deployment *v1alpha1.InstanceDeployment, newIS *v1al
 
 		// Number of additional replicas that can be either added or removed from the total
 		// replicas count. These replicas should be distributed proportionally to the active
-		// replica sets.
+		// instance sets.
 		deploymentReplicasToAdd := allowedSize - allISsReplicas
 
 		// The additional replicas should be distributed proportionally amongst the active
-		// replica sets from the larger to the smaller in size replica set. Scaling direction
-		// drives what happens in case we are trying to scale replica sets of the same size.
-		// In such a case when scaling up, we should scale up newer replica sets first, and
-		// when scaling down, we should scale down older replica sets first.
+		// instance sets from the larger to the smaller in size instance set. Scaling direction
+		// drives what happens in case we are trying to scale instance sets of the same size.
+		// In such a case when scaling up, we should scale up newer instance sets first, and
+		// when scaling down, we should scale down older instance sets first.
 		var scalingOperation string
 		switch {
 		case deploymentReplicasToAdd > 0:
@@ -444,7 +444,7 @@ func (dc *controller) scale(deployment *v1alpha1.InstanceDeployment, newIS *v1al
 			scalingOperation = "down"
 		}
 
-		// Iterate over all active replica sets and estimate proportions for each of them.
+		// Iterate over all active instance sets and estimate proportions for each of them.
 		// The absolute value of deploymentReplicasAdded should never exceed the absolute
 		// value of deploymentReplicasToAdd.
 		deploymentReplicasAdded := int32(0)
@@ -453,7 +453,7 @@ func (dc *controller) scale(deployment *v1alpha1.InstanceDeployment, newIS *v1al
 			is := allISs[i]
 
 			// Estimate proportions if we have replicas to add, otherwise simply populate
-			// nameToSize with the current sizes for each replica set.
+			// nameToSize with the current sizes for each instance set.
 			if deploymentReplicasToAdd != 0 {
 				proportion := GetProportion(is, *deployment, deploymentReplicasToAdd, deploymentReplicasAdded)
 
@@ -464,11 +464,11 @@ func (dc *controller) scale(deployment *v1alpha1.InstanceDeployment, newIS *v1al
 			}
 		}
 
-		// Update all replica sets
+		// Update all instance sets
 		for i := range allISs {
 			is := allISs[i]
 
-			// Add/remove any leftovers to the largest replica set.
+			// Add/remove any leftovers to the largest instance set.
 			if i == 0 && deploymentReplicasToAdd != 0 {
 				leftover := deploymentReplicasToAdd - deploymentReplicasAdded
 				nameToSize[is.Name] = nameToSize[is.Name] + leftover
@@ -506,7 +506,7 @@ func (dc *controller) scaleInstanceSet(is *v1alpha1.InstanceSet, newScale int32,
 	isCopy := is.DeepCopy()
 
 	sizeNeedsUpdate := (isCopy.Spec.Replicas) != newScale
-	// TODO: Do not mutate the replica set here, instead simply compare the annotation and if they mismatch
+	// TODO: Do not mutate the instance set here, instead simply compare the annotation and if they mismatch
 	// call SetReplicasAnnotations inside the following if clause. Then we can also move the deep-copy from
 	// above inside the if too.
 	annotationsNeedUpdate := SetReplicasAnnotations(isCopy, (deployment.Spec.Replicas), (deployment.Spec.Replicas)+MaxSurge(*deployment))
@@ -524,15 +524,15 @@ func (dc *controller) scaleInstanceSet(is *v1alpha1.InstanceSet, newScale int32,
 	return scaled, is, err
 }
 
-// cleanupDeployment is responsible for cleaning up a deployment ie. retains all but the latest N old replica sets
-// where N=d.Spec.RevisionHistoryLimit. Old replica sets are older versions of the instancetemplate of a deployment kept
+// cleanupDeployment is responsible for cleaning up a deployment ie. retains all but the latest N old instance sets
+// where N=d.Spec.RevisionHistoryLimit. Old instance sets are older versions of the instancetemplate of a deployment kept
 // around by default 1) for historical reasons and 2) for the ability to rollback a deployment.
 func (dc *controller) cleanupInstanceDeployment(oldISs []*v1alpha1.InstanceSet, deployment *v1alpha1.InstanceDeployment) error {
 	if deployment.Spec.RevisionHistoryLimit == nil {
 		return nil
 	}
 
-	// Avoid deleting replica set with deletion timestamp set
+	// Avoid deleting instance set with deletion timestamp set
 	aliveFilter := func(is *v1alpha1.InstanceSet) bool {
 		return is != nil && is.ObjectMeta.DeletionTimestamp == nil
 	}
@@ -548,7 +548,7 @@ func (dc *controller) cleanupInstanceDeployment(oldISs []*v1alpha1.InstanceSet, 
 
 	for i := int32(0); i < diff; i++ {
 		is := cleanableISes[i]
-		// Avoid delete replica set with non-zero replica counts
+		// Avoid delete instance set with non-zero replica counts
 		if is.Status.Replicas != 0 || (is.Spec.Replicas) != 0 || is.Generation > is.Status.ObservedGeneration || is.DeletionTimestamp != nil {
 			continue
 		}
@@ -577,7 +577,7 @@ func (dc *controller) syncInstanceDeploymentStatus(allISs []*v1alpha1.InstanceSe
 	return err
 }
 
-// calculateStatus calculates the latest status for the provided deployment by looking into the provided replica sets.
+// calculateStatus calculates the latest status for the provided deployment by looking into the provided instance sets.
 func calculateDeploymentStatus(allISs []*v1alpha1.InstanceSet, newIS *v1alpha1.InstanceSet, deployment *v1alpha1.InstanceDeployment) v1alpha1.InstanceDeploymentStatus {
 	availableReplicas := GetAvailableReplicaCountForInstanceSets(allISs)
 	totalReplicas := GetReplicaCountForInstanceSets(allISs)
@@ -617,7 +617,7 @@ func calculateDeploymentStatus(allISs []*v1alpha1.InstanceSet, newIS *v1alpha1.I
 }
 
 // isScalingEvent checks whether the provided deployment has been updated with a scaling event
-// by looking at the desired-replicas annotation in the active replica sets of the deployment.
+// by looking at the desired-replicas annotation in the active instance sets of the deployment.
 //
 // rsList should come from getReplicaSetsForDeployment(d).
 // instanceMap should come from getinstanceMapForDeployment(d, rsList).

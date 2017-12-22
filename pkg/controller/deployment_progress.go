@@ -44,7 +44,7 @@ func (dc *controller) syncRolloutStatus(allISs []*v1alpha1.InstanceSet, newIS *v
 		RemoveInstanceDeploymentCondition(&newStatus, v1alpha1.InstanceDeploymentProgressing)
 	}
 
-	// If there is only one replica set that is active then that means we are not running
+	// If there is only one instance set that is active then that means we are not running
 	// a new rollout and this is a resync where we don't need to estimate any progress.
 	// In such a case, we should simply not estimate any progress for this deployment.
 	currentCond := GetInstanceDeploymentCondition(d.Status, v1alpha1.InstanceDeploymentProgressing)
@@ -54,7 +54,7 @@ func (dc *controller) syncRolloutStatus(allISs []*v1alpha1.InstanceSet, newIS *v
 	if d.Spec.ProgressDeadlineSeconds != nil && !isCompleteDeployment {
 		switch {
 		case InstanceDeploymentComplete(d, &newStatus):
-			// Update the deployment conditions with a message for the new replica set that
+			// Update the deployment conditions with a message for the new instance set that
 			// was successfully deployed. If the condition already exists, we ignore this update.
 			msg := fmt.Sprintf("Instance Deployment %q has successfully progressed.", d.Name)
 			if newIS != nil {
@@ -98,10 +98,10 @@ func (dc *controller) syncRolloutStatus(allISs []*v1alpha1.InstanceSet, newIS *v
 		}
 	}
 
-	// Move failure conditions of all replica sets in deployment conditions. For now,
+	// Move failure conditions of all instance sets in deployment conditions. For now,
 	// only one failure condition is returned from getReplicaFailures.
 	if replicaFailureCond := dc.getReplicaFailures(allISs, newIS); len(replicaFailureCond) > 0 {
-		// There will be only one ReplicaFailure condition on the replica set.
+		// There will be only one ReplicaFailure condition on the instance set.
 		SetInstanceDeploymentCondition(&newStatus, replicaFailureCond[0])
 	} else {
 		RemoveInstanceDeploymentCondition(&newStatus, v1alpha1.InstanceDeploymentReplicaFailure)
@@ -120,7 +120,7 @@ func (dc *controller) syncRolloutStatus(allISs []*v1alpha1.InstanceSet, newIS *v
 	return err
 }
 
-// getReplicaFailures will convert replica failure conditions from replica sets
+// getReplicaFailures will convert replica failure conditions from instance sets
 // to deployment conditions.
 func (dc *controller) getReplicaFailures(allISs []*v1alpha1.InstanceSet, newIS *v1alpha1.InstanceSet) []v1alpha1.InstanceDeploymentCondition {
 	var conditions []v1alpha1.InstanceDeploymentCondition
@@ -133,7 +133,7 @@ func (dc *controller) getReplicaFailures(allISs []*v1alpha1.InstanceSet, newIS *
 		}
 	}
 
-	// Return failures for the new replica set over failures from old replica sets.
+	// Return failures for the new instance set over failures from old instance sets.
 	if len(conditions) > 0 {
 		return conditions
 	}

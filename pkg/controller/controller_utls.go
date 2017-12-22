@@ -387,16 +387,16 @@ func NewUIDTrackingControllerExpectations(ce ControllerExpectationsInterface) *U
 
 // Reasons for instance events
 const (
-	// FailedCreateInstanceReason is added in an event and in a replica set condition
-	// when a instance for a replica set is failed to be created.
+	// FailedCreateInstanceReason is added in an event and in a instance set condition
+	// when a instance for a instance set is failed to be created.
 	FailedCreateInstanceReason = "FailedCreate"
-	// SuccessfulCreateInstanceReason is added in an event when a instance for a replica set
+	// SuccessfulCreateInstanceReason is added in an event when a instance for a instance set
 	// is successfully created.
 	SuccessfulCreateInstanceReason = "SuccessfulCreate"
-	// FailedDeleteInstanceReason is added in an event and in a replica set condition
-	// when a instance for a replica set is failed to be deleted.
+	// FailedDeleteInstanceReason is added in an event and in a instance set condition
+	// when a instance for a instance set is failed to be deleted.
 	FailedDeleteInstanceReason = "FailedDelete"
-	// SuccessfulDeleteinstanceReason is added in an event when a instance for a replica set
+	// SuccessfulDeleteinstanceReason is added in an event when a instance for a instance set
 	// is successfully deleted.
 	SuccessfulDeleteInstanceReason = "SuccessfulDelete"
 )
@@ -708,7 +708,7 @@ func (o InstanceSetsByCreationTimestamp) Less(i, j int) bool {
 }
 
 // InstanceSetsBySizeOlder sorts a list of InstanceSet by size in descending order, using their creation timestamp or name as a tie breaker.
-// By using the creation timestamp, this sorts from old to new replica sets.
+// By using the creation timestamp, this sorts from old to new instance sets.
 type InstanceSetsBySizeOlder []*v1alpha1.InstanceSet
 
 func (o InstanceSetsBySizeOlder) Len() int      { return int(len(o)) }
@@ -721,7 +721,7 @@ func (o InstanceSetsBySizeOlder) Less(i, j int) bool {
 }
 
 // InstanceSetsBySizeNewer sorts a list of InstanceSet by size in descending order, using their creation timestamp or name as a tie breaker.
-// By using the creation timestamp, this sorts from new to old replica sets.
+// By using the creation timestamp, this sorts from new to old instance sets.
 type InstanceSetsBySizeNewer []*v1alpha1.InstanceSet
 
 func (o InstanceSetsBySizeNewer) Len() int      { return int(len(o)) }
@@ -733,7 +733,7 @@ func (o InstanceSetsBySizeNewer) Less(i, j int) bool {
 	return (o[i].Spec.Replicas) > (o[j].Spec.Replicas)
 }
 
-// FilterActiveInstanceSets returns replica sets that have (or at least ought to have) instances.
+// FilterActiveInstanceSets returns instance sets that have (or at least ought to have) instances.
 func FilterActiveInstanceSets(instanceSets []*v1alpha1.InstanceSet) []*v1alpha1.InstanceSet {
 	activeFilter := func(is *v1alpha1.InstanceSet) bool {
 		return is != nil && (is.Spec.Replicas) > 0
@@ -743,7 +743,7 @@ func FilterActiveInstanceSets(instanceSets []*v1alpha1.InstanceSet) []*v1alpha1.
 
 type filterIS func(is *v1alpha1.InstanceSet) bool
 
-// FilterInstanceSets returns replica sets that are filtered by filterFn (all returned ones should match filterFn).
+// FilterInstanceSets returns instance sets that are filtered by filterFn (all returned ones should match filterFn).
 func FilterInstanceSets(ISes []*v1alpha1.InstanceSet, filterFn filterIS) []*v1alpha1.InstanceSet {
 	var filtered []*v1alpha1.InstanceSet
 	for i := range ISes {

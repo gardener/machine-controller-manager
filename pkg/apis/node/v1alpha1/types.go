@@ -417,17 +417,17 @@ type InstanceSetSpec struct {
 
 type InstanceSetConditionType string
 
-// These are valid conditions of a replica set.
+// These are valid conditions of a instance set.
 const (
-	// ReplicaSetReplicaFailure is added in a replica set when one of its pods fails to be created
+	// ReplicaSetReplicaFailure is added in a instance set when one of its pods fails to be created
 	// due to insufficient quota, limit ranges, pod security policy, node selectors, etc. or deleted
 	// due to kubelet being down or finalizers are failing.
 	InstanceSetReplicaFailure InstanceSetConditionType = "ReplicaFailure"
 )
 
-// ReplicaSetCondition describes the state of a replica set at a certain point.
+// ReplicaSetCondition describes the state of a instance set at a certain point.
 type InstanceSetCondition struct {
-	// Type of replica set condition.
+	// Type of instance set condition.
 	Type InstanceSetConditionType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=ReplicaSetConditionType"`
 	// Status of the condition, one of True, False, Unknown.
 	Status ConditionStatus `json:"status" protobuf:"bytes,2,opt,name=status,casttype=k8s.io/api/core/v1.ConditionStatus"`
@@ -669,7 +669,7 @@ const (
 	// replicas required are up and running for at least minReadySeconds.
 	InstanceDeploymentAvailable InstanceDeploymentConditionType = "Available"
 	// Progressing means the deployment is progressing. Progress for a deployment is
-	// considered when a new replica set is created or adopted, and when new pods scale
+	// considered when a new instance set is created or adopted, and when new pods scale
 	// up or old pods scale down. Progress is not estimated for paused deployments or
 	// when progressDeadlineSeconds is not specified.
 	InstanceDeploymentProgressing InstanceDeploymentConditionType = "Progressing"

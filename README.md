@@ -14,7 +14,9 @@ It's designed to run in master plane of a kubernetes cluster and follows the bes
 
 ## Build
 
+```bash 
 go build -i cmd/node-controller-manager/controller_manager.go
+```
 
 ## Running
 

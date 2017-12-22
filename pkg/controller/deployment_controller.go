@@ -139,8 +139,8 @@ func (dc *controller) updateInstanceSetToDeployment(old, cur interface{}) {
 	curIS := cur.(*v1alpha1.InstanceSet)
 	oldIS := old.(*v1alpha1.InstanceSet)
 	if curIS.ResourceVersion == oldIS.ResourceVersion {
-		// Periodic resync will send update events for all known replica sets.
-		// Two different versions of the same replica set will always have different RVs.
+		// Periodic resync will send update events for all known instance sets.
+		// Two different versions of the same instance set will always have different RVs.
 		return
 	}
 
@@ -290,7 +290,7 @@ func (dc *controller) enqueueAfter(deployment *v1alpha1.InstanceDeployment, afte
 
 // getDeploymentForInstance returns the deployment managing the given Instance.
 func (dc *controller) getInstanceDeploymentForInstance(instance *v1alpha1.Instance) *v1alpha1.InstanceDeployment {
-	// Find the owning replica set
+	// Find the owning instance set
 	var is *v1alpha1.InstanceSet
 	var err error
 	controllerRef := metav1.GetControllerOf(instance)
@@ -299,7 +299,7 @@ func (dc *controller) getInstanceDeploymentForInstance(instance *v1alpha1.Instan
 		return nil
 	}
 	if controllerRef.Kind != "InstanceDeployment" { //TODO: Remove hardcoded string
- 		// Not a Instance owned by a replica set.
+ 		// Not a Instance owned by a instance set.
 		return nil
 	}
 	is, err = dc.nodeClient.InstanceSets().Get(controllerRef.Name, metav1.GetOptions{})
@@ -486,8 +486,8 @@ func (dc *controller) syncInstanceDeployment(key string) error {
 		return dc.sync(d, isList, instanceMap)
 	}
 
-	// rollback is not re-entrant in case the underlying replica sets are updated with a new
-	// revision so we should ensure that we won't proceed to update replica sets until we
+	// rollback is not re-entrant in case the underlying instance sets are updated with a new
+	// revision so we should ensure that we won't proceed to update instance sets until we
 	// make sure that the deployment has cleaned up its rollback spec in subsequent enqueues.
 	if d.Spec.RollbackTo != nil {
 		return dc.rollback(d, isList, instanceMap)

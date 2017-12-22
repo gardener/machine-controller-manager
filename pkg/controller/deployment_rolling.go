@@ -31,7 +31,7 @@ import (
 	"k8s.io/client-go/util/integer"
 )
 
-// rolloutRolling implements the logic for rolling a new replica set.
+// rolloutRolling implements the logic for rolling a new instance set.
 func (dc *controller) rolloutRolling(d *v1alpha1.InstanceDeployment, isList []*v1alpha1.InstanceSet, instanceMap map[types.UID]*v1alpha1.InstanceList) error {
 	newIS, oldISs, err := dc.getAllInstanceSetsAndSyncRevision(d, isList, instanceMap, true)
 	if err != nil {
@@ -99,13 +99,13 @@ func (dc *controller) reconcileOldInstanceSets(allISs []*v1alpha1.InstanceSet, o
 	maxUnavailable := MaxUnavailable(*deployment)
 
 	// Check if we can scale down. We can scale down in the following 2 cases:
-	// * Some old replica sets have unhealthy replicas, we could safely scale down those unhealthy replicas since that won't further
+	// * Some old instance sets have unhealthy replicas, we could safely scale down those unhealthy replicas since that won't further
 	//  increase unavailability.
-	// * New replica set has scaled up and it's replicas becomes ready, then we can scale down old replica sets in a further step.
+	// * New instance set has scaled up and it's replicas becomes ready, then we can scale down old instance sets in a further step.
 	//
 	// maxScaledDown := allinstancesCount - minAvailable - newReplicaSetinstancesUnavailable
 	// take into account not only maxUnavailable and any surge instances that have been created, but also unavailable instances from
-	// the newRS, so that the unavailable instances from the newRS would not make us scale down old replica sets in a further
+	// the newRS, so that the unavailable instances from the newRS would not make us scale down old instance sets in a further
 	// step(that will increase unavailability).
 	//
 	// Concrete example:
@@ -116,18 +116,18 @@ func (dc *controller) reconcileOldInstanceSets(allISs []*v1alpha1.InstanceSet, o
 	//
 	// case 1:
 	// * Deployment is updated, newRS is created with 3 replicas, oldRS is scaled down to 8, and newRS is scaled up to 5.
-	// * The new replica set instances crashloop and never become available.
+	// * The new instance set instances crashloop and never become available.
 	// * allinstancesCount is 13. minAvailable is 8. newRSinstancesUnavailable is 5.
 	// * A node fails and causes one of the oldRS instances to become unavailable. However, 13 - 8 - 5 = 0, so the oldRS won't be scaled down.
 	// * The user notices the crashloop and does kubectl rollout undo to rollback.
-	// * newRSinstancesUnavailable is 1, since we rolled back to the good replica set, so maxScaledDown = 13 - 8 - 1 = 4. 4 of the crashlooping instances will be scaled down.
+	// * newRSinstancesUnavailable is 1, since we rolled back to the good instance set, so maxScaledDown = 13 - 8 - 1 = 4. 4 of the crashlooping instances will be scaled down.
 	// * The total number of instances will then be 9 and the newRS can be scaled up to 10.
 	//
 	// case 2:
 	// Same example, but pushing a new instance template instead of rolling back (aka "roll over"):
-	// * The new replica set created must start with 0 replicas because allinstancesCount is already at 13.
-	// * However, newRSinstancesUnavailable would also be 0, so the 2 old replica sets could be scaled down by 5 (13 - 8 - 0), which would then
-	// allow the new replica set to be scaled up by 5.
+	// * The new instance set created must start with 0 replicas because allinstancesCount is already at 13.
+	// * However, newRSinstancesUnavailable would also be 0, so the 2 old instance sets could be scaled down by 5 (13 - 8 - 0), which would then
+	// allow the new instance set to be scaled up by 5.
 	minAvailable := (deployment.Spec.Replicas) - maxUnavailable
 	newISUnavailableInstanceCount := (newIS.Spec.Replicas) - newIS.Status.AvailableReplicas
 	maxScaledDown := allInstancesCount - minAvailable - newISUnavailableInstanceCount
@@ -143,7 +143,7 @@ func (dc *controller) reconcileOldInstanceSets(allISs []*v1alpha1.InstanceSet, o
 	}
 	glog.V(4).Infof("Cleaned up unhealthy replicas from old ISes by %d", cleanupCount)
 
-	// Scale down old replica sets, need check maxUnavailable to ensure we can scale down
+	// Scale down old instance sets, need check maxUnavailable to ensure we can scale down
 	allISs = append(oldISs, newIS)
 	scaledDownCount, err := dc.scaleDownOldInstanceSetsForRollingUpdate(allISs, oldISs, deployment)
 	if err != nil {
@@ -155,10 +155,10 @@ func (dc *controller) reconcileOldInstanceSets(allISs []*v1alpha1.InstanceSet, o
 	return totalScaledDown > 0, nil
 }
 
-// cleanupUnhealthyReplicas will scale down old replica sets with unhealthy replicas, so that all unhealthy replicas will be deleted.
+// cleanupUnhealthyReplicas will scale down old instance sets with unhealthy replicas, so that all unhealthy replicas will be deleted.
 func (dc *controller) cleanupUnhealthyReplicas(oldISs []*v1alpha1.InstanceSet, deployment *v1alpha1.InstanceDeployment, maxCleanupCount int32) ([]*v1alpha1.InstanceSet, int32, error) {
 	sort.Sort(InstanceSetsByCreationTimestamp(oldISs))
-	// Safely scale down all old replica sets with unhealthy replicas. Replica set will sort the instances in the order
+	// Safely scale down all old instance sets with unhealthy replicas. instance set will sort the instances in the order
 	// such that not-ready < ready, unscheduled < scheduled, and pending < running. This ensures that unhealthy replicas will
 	// been deleted first and won't increase unavailability.
 	totalScaledDown := int32(0)
@@ -167,7 +167,7 @@ func (dc *controller) cleanupUnhealthyReplicas(oldISs []*v1alpha1.InstanceSet, d
 			break
 		}
 		if (targetIS.Spec.Replicas) == 0 {
-			// cannot scale down this replica set.
+			// cannot scale down this instance set.
 			continue
 		}
 		glog.V(4).Infof("Found %d available instance in old IS %s", targetIS.Status.AvailableReplicas, targetIS.Name)
@@ -191,7 +191,7 @@ func (dc *controller) cleanupUnhealthyReplicas(oldISs []*v1alpha1.InstanceSet, d
 	return oldISs, totalScaledDown, nil
 }
 
-// scaleDownOldReplicaSetsForRollingUpdate scales down old replica sets when deployment strategy is "RollingUpdate".
+// scaleDownOldReplicaSetsForRollingUpdate scales down old instance sets when deployment strategy is "RollingUpdate".
 // Need check maxUnavailable to ensure availability
 func (dc *controller) scaleDownOldInstanceSetsForRollingUpdate(allISs []*v1alpha1.InstanceSet, oldISs []*v1alpha1.InstanceSet, deployment *v1alpha1.InstanceDeployment) (int32, error) {
 	maxUnavailable := MaxUnavailable(*deployment)
