@@ -237,20 +237,6 @@ func (c *controller) updateInstanceToInstanceSet(old, cur interface{}) {
 		}
 		glog.V(4).Infof("Instance %s updated, objectMeta %+v -> %+v.", curInst.Name, oldInst.ObjectMeta, curInst.ObjectMeta)
 		c.enqueueInstanceSet(is)
-		// TODO: MinReadySeconds in the Instance will generate an Available condition to be added in
-		// the Instance status which in turn will trigger a requeue of the owning instance set thus
-		// having its status updated with the newly available replica. For now, we can fake the
-		// update by resyncing the controller MinReadySeconds after the it is requeued because
-		// a Instance transitioned to Ready.
-		// Note that this still suffers from #29229, we are just moving the problem one level
-		// "closer" to kubelet (from the deployment to the instance set controller).
-		/*
-		if !isInstanceReady(oldInst) && instanceutil.IsInstanceReady(curInst) && is.Spec.MinReadySeconds > 0 {
-			glog.V(2).Infof("%v %q will be enqueued after %ds for availability check", rsc.Kind, rs.Name, rs.Spec.MinReadySeconds)
-			// Add a second to avoid milliseconds skew in AddAfter.
-			// See https://github.com/kubernetes/kubernetes/issues/39785#issuecomment-279959133 for more info.
-			c.enqueueReplicaSetAfter(is, (time.Duration(rs.Spec.MinReadySeconds)*time.Second)+time.Second)
-		}*/
 		return
 	}
 
@@ -635,7 +621,10 @@ func (c *controller) prepareInstanceForDeletion (targetInstance *v1alpha1.Instan
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Couldn't get key for %v %#v: %v", is.Kind, is, err))
 		return
-	}
+	} else if targetInstance.Status.CurrentStatus.Phase == "" {
+ 		// Instance is still not created properly
+ 		return
+  	}
 	
 	// Force trigger deletion to reflect in instance status
 	currentStatus := v1alpha1.CurrentStatus {

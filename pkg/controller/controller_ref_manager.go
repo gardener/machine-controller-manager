@@ -186,10 +186,6 @@ func (m *InstanceControllerRefManager) ClaimInstances(instances []*v1alpha1.Inst
 	match := func(obj metav1.Object) bool {
 		instance := obj.(*v1alpha1.Instance)
 		// Check selector first so filters only run on potentially matching Instances.
-		if instance.Status.CurrentStatus.Phase == "" {
-			glog.Info("Instance not yet ready for deletion")
-			return false
-		}
 		if !m.Selector.Matches(labels.Set(instance.Labels)) {
 			return false
 		}

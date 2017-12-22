@@ -1,5 +1,4 @@
 bin
 rel
-./node-controller-manager
-./controller-manager
+controller_manager
 *.DS_Store

@@ -48,14 +48,14 @@ var GroupVersionKind = "node.sapcloud.io/v1alpha1"
 
 func (dc *controller) addInstanceDeployment(obj interface{}) {
 	d := obj.(*v1alpha1.InstanceDeployment)
-	glog.V(2).Infof("Adding instance deployment %s", d.Name)
+	glog.V(3).Infof("Adding instance deployment %s", d.Name)
 	dc.enqueueInstanceDeployment(d)
 }
 
 func (dc *controller) updateInstanceDeployment(old, cur interface{}) {
 	oldD := old.(*v1alpha1.InstanceDeployment)
 	curD := cur.(*v1alpha1.InstanceDeployment)
-	glog.V(2).Infof("Updating instance deployment %s", oldD.Name)
+	glog.V(3).Infof("Updating instance deployment %s", oldD.Name)
 	dc.enqueueInstanceDeployment(curD)
 }
 
@@ -73,7 +73,7 @@ func (dc *controller) deleteInstanceDeployment(obj interface{}) {
 			return
 		}
 	}
-	glog.V(2).Infof("Deleting instance deployment %s", d.Name)
+	glog.V(3).Infof("Deleting instance deployment %s", d.Name)
 	dc.enqueueInstanceDeployment(d)
 }
 
