@@ -1,0 +1,26 @@
+# Sample AWS instance class
+
+apiVersion: node.sapcloud.io/v1alpha1
+kind: AWSInstanceClass
+metadata:
+  name: test-class # Name of aws instance class goes here
+spec:
+  ami: ami-123456 # Amazon machine image name goes here
+  availabilityZone: eu-east-1 # Availability zone in which instance is to be deployed
+  instanceType: t2.large # Type of ec2 instance
+  iam:
+    name: node.test.io # Name of the AWS Identity and Access Management
+  keyName: keyname.test.io # EC2 keypair used to access ec2 instance
+  networkInterfaces:
+    - subnetID: subnet-acbd1234 # The subnetID in which instance is to be deployed
+      securityGroupID: ["sg-xyz12345"] # The security group to which it is attached to
+  tags:
+    tag1: tag1value # A set of tags attached to an instance
+    tag2: tag2value
+  secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig
+    namespace: default  # Namespace
+    name: test-secret # Name of the secret
+  blockDevices:
+    - ebs:
+        volumeSize: 50  # Size of the root block device
+        volumeType: gp2 # Type of the block device

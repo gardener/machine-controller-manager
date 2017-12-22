@@ -1,0 +1,66 @@
+# The set of CRDs used by node-controller-manager
+
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: awsinstanceclasses.node.sapcloud.io
+spec:
+  group: node.sapcloud.io
+  version: v1alpha1
+  scope: Cluster
+  names:
+    kind: AWSInstanceClass
+    plural: awsinstanceclasses
+    singular: awsinstanceclass
+    shortNames:
+    - instcls
+
+---
+
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: instances.node.sapcloud.io
+spec:
+  group: node.sapcloud.io
+  version: v1alpha1
+  scope: Cluster
+  names:
+    kind: Instance
+    plural: instances
+    singular: instance
+    shortNames:
+    - inst
+
+---
+
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: instancesets.node.sapcloud.io
+spec:
+  group: node.sapcloud.io
+  version: v1alpha1
+  scope: Cluster
+  names:
+    kind: InstanceSet
+    plural: instancesets
+    singular: instanceset
+    shortNames:
+    - instset
+---
+
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: instancedeployments.node.sapcloud.io
+spec:
+  group: node.sapcloud.io
+  version: v1alpha1
+  scope: Cluster
+  names:
+    kind: InstanceDeployment
+    plural: instancedeployments
+    singular: instancedeployment
+    shortNames:
+    - instdeploy

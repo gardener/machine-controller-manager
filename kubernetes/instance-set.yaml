@@ -1,0 +1,20 @@
+# Sample instance-set object
+
+apiVersion: node.sapcloud.io/v1alpha1
+kind: InstanceSet
+metadata:
+  name: sample-instance-set # Name of instance-set
+spec:
+  selector:
+    matchLabels:
+      instanceSet: sample-label # Label to match the instance with
+  replicas: 10 # Number of healthy replicas that should always be healthy
+  minReadySeconds: 200 # Minimum time to wait for instance to be ready
+  template:
+    metadata:
+      labels:
+        instanceSet: sample-label # Label of the instance to be created with 
+    spec: 
+      class:
+        kind: AWSInstanceClass
+        name: v1
