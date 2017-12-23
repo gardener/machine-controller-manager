@@ -8,9 +8,10 @@ It's designed to run in master plane of a kubernetes cluster and follows the bes
 - `workqueues` and multiple thread-workers
 - `SharedInformers` that limit to minimum network calls, deserialization and provide helpful create/update/delete events for resources
 - rate-limiting to allow back-off in case of network outages and general instability of other cluster components
-- enabling / disabling bundled controllers
 - sending events to respected resources for easy debugging and overview
 - Prometheus metrics, health and (optional) profiling endpoints
+
+
 
 ## Build
 

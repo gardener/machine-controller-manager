@@ -1,0 +1,1 @@
+Please refer to the [Gardener contributor guide](https://github.com/gardener/gardener-docs/blob/master/CONTRIBUTING.md)

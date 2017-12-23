@@ -1,6 +1,6 @@
 Node controller manager.  
 Copyright 2017 The Gardener Authors.  
-Apache 2 license (https://github.com/gardener/gardener-docs/blob/master/LICENSE ).  
+[Apache 2 license](./LICENSE.md ).   
 
 ## Seed Source
 
