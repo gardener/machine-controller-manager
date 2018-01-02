@@ -4,6 +4,8 @@ apiVersion: node.sapcloud.io/v1alpha1
 kind: Instance
 metadata:
   name: test-instance # Name of the instance to be created
+  labels:
+    test-label: test-label # Label used by instance-set to match (optional)
 spec:
   class:
     kind: AWSInstanceClass # Instance class template used to create instance, could be AWS/GCP/Azure/Other-cloud-providers

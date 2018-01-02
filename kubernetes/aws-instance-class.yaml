@@ -3,7 +3,7 @@
 apiVersion: node.sapcloud.io/v1alpha1
 kind: AWSInstanceClass
 metadata:
-  name: test-class # Name of aws instance class goes here
+  name: test-aws # Name of aws instance class goes here
 spec:
   ami: ami-123456 # Amazon machine image name goes here
   availabilityZone: eu-east-1 # Availability zone in which instance is to be deployed
@@ -23,4 +23,4 @@ spec:
   blockDevices:
     - ebs:
         volumeSize: 50  # Size of the root block device
-        volumeType: gp2 # Type of the block device
+        volumeType: gp2 # Type of the root block device

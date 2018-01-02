@@ -3,18 +3,19 @@
 apiVersion: node.sapcloud.io/v1alpha1
 kind: InstanceSet
 metadata:
-  name: sample-instance-set # Name of instance-set
+  name: test-instance-set # Name of instance-set
+  test-label: test-label # Label used by instance-deployment to match (optional)
 spec:
+  replicas: 3 # Number of healthy replicas that should always be healthy
+  minReadySeconds: 200 # Minimum time to wait for instance to be ready
   selector:
     matchLabels:
-      instanceSet: sample-label # Label to match the instance with
-  replicas: 10 # Number of healthy replicas that should always be healthy
-  minReadySeconds: 200 # Minimum time to wait for instance to be ready
+      test-label: test-label # Label to match the template (XXXXX)
   template:
     metadata:
       labels:
-        instanceSet: sample-label # Label of the instance to be created with 
+        test-label: test-label # Label to match the selector (XXXXX)
     spec: 
       class:
         kind: AWSInstanceClass
-        name: v1
+        name: test-aws
