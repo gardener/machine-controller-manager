@@ -16,6 +16,7 @@ limitations under the License.
 package driver
 
 import (
+    "strings"
     "errors"
     "encoding/base64"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+    "github.com/aws/aws-sdk-go/aws/credentials"
     "github.com/golang/glog"
 )
 
@@ -40,10 +42,31 @@ func NewAWSDriver(create func() (string, error), delete func() error, existing f
 	return &AWSDriver{}
 }
 
+// Helper function to create SVC
+func (d *AWSDriver) createSVC() *ec2.EC2 {
+
+    accessKeyID := strings.TrimSpace(string(d.CloudConfig.Data["providerAccessKeyId"]))
+    secretAccessKey := strings.TrimSpace(string(d.CloudConfig.Data["providerSecretAccessKey"]))
+
+    if accessKeyID != "" && secretAccessKey != "" {
+        return ec2.New(session.New(&aws.Config{
+            Region: aws.String(d.AWSInstanceClass.Spec.AvailabilityZone),
+            Credentials: credentials.NewStaticCredentialsFromCreds(credentials.Value{
+                AccessKeyID: accessKeyID,
+                SecretAccessKey: secretAccessKey,
+            }),
+        }))
+    }
+
+    return ec2.New(session.New(&aws.Config{
+        Region: aws.String(d.AWSInstanceClass.Spec.AvailabilityZone),
+    }))
+}
+
 // Create TODO
 func (d *AWSDriver) Create() (string, string, error) {
 
-    svc := ec2.New(session.New(&aws.Config{Region: aws.String(d.AWSInstanceClass.Spec.AvailabilityZone)}))
+    svc := d.createSVC()
     UserDataEnc := base64.StdEncoding.EncodeToString([]byte(d.UserData))
     
     var imageIds []*string
@@ -119,8 +142,8 @@ func (d *AWSDriver) Delete() error {
 
     var err error
 
-	svc := ec2.New(session.New(&aws.Config{Region: aws.String(d.AWSInstanceClass.Spec.AvailabilityZone)}))
-  	input := &ec2.TerminateInstancesInput{
+    svc := d.createSVC()
+	input := &ec2.TerminateInstancesInput{
         InstanceIds: []*string{
             aws.String(d.InstanceId),
         },
