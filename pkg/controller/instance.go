@@ -56,7 +56,6 @@ func (c *controller) instanceUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *controller) instanceDelete(obj interface{}) {
-	glog.Info("Delete started")
 	c.instanceAdd(obj)
 }
 
