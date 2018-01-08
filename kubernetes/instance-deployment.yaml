@@ -3,25 +3,25 @@
 apiVersion: node.sapcloud.io/v1alpha1
 kind: InstanceDeployment
 metadata:
-  name: test-deploy # Name of the instance deploy
+  name: test-instance-deployment # Name of the instance deploy
 spec:
   #paused: true [uncommment this when you want to pause]
   #rollbackTo:
     #revision: 0 [uncommment this when you want to rollback to previous version]
-  selector:
-    matchLabels:
-      instanceSet: sample-label # Label to match the instance-deploy with instance-set
-  replicas: 10 # Number of healthy replicas that should always be healthy
+  replicas: 3 # Number of healthy replicas that should always be healthy
   minReadySeconds: 200 # Minimum time to wait for instance to be ready
   strategy: 
     type: RollingUpdate # Strategy for update RollingUpdate/Recreate
     rollingUpdate:
       maxSurge: 1 # Maximum addition instances that spawned over the desired replicas during update
       maxUnavailable: 1 # Maximum unavailable instances that the cluster can tolerate
+  selector:
+    matchLabels:
+      test-label: test-label # Label to match the template (XXXXX)
   template:
     metadata:
       labels:
-        instanceSet: sample-label # Label to be given to the instance
+        test-label: test-label # Label to match with selector (XXXXX)
     spec: 
       class:
         kind: AWSInstanceClass # Instance class template used to create instance, could be AWS/GCP/Azure/Other-cloud-providers

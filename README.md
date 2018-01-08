@@ -1,34 +1,25 @@
-# node-controller-manager
+# Node-Controller-Manager
 
-The Node Controller Manager bundles multiple Kubernetes controllers, that help with the creation, maintance and operation of different instance (node) Kubernetes resources. 
+Node Controller Manager (NCM) manages VMs as another kubernetes custom resource. It provides a declarative way to manage VMs. The current implementation only supports AWS but can be (and will be) easily extended to support other cloud providers.
 
-It's designed to run in master plane of a kubernetes cluster and follows the best principles and practices of writing controllers, including, but not limited to:
-
-- leader election to allow HA deployments of the controller
-- `workqueues` and multiple thread-workers
-- `SharedInformers` that limit to minimum network calls, deserialization and provide helpful create/update/delete events for resources
-- rate-limiting to allow back-off in case of network outages and general instability of other cluster components
-- sending events to respected resources for easy debugging and overview
-- Prometheus metrics, health and (optional) profiling endpoints
-
-
-
-## Build
-
-```bash 
-go build -i cmd/node-controller-manager/controller_manager.go
+Example of managing VM:
 ```
+kubectl create/get/delete instance vm1
+``` 
 
-## Running
+### Key terminologies
 
-For testing/development purposes, you can create your own kubernetes cluster and download its kubeconfig file. Use this kubeconfig file to be passed as an argument to your node-controller-manager. You can run the node-controller-manager on your local machine as mentioned below
+Nodes/Instances/Machines/VMs are different terminologies used to represent similar things. We use these terms in the following way
 
-```bash
-go run cmd/node-controller-manager/controller_manager.go --kubeconfig=$KUBECONFIG --v=2
-```
+1. VM: A virtual machine running on any cloud provider.
+1. Node: Native kubernetes node objects. The objects you get to see when you do a *"kubectl get nodes"*. Although nodes can be either physical/virtual machines, for the purposes of our discussions it refers to a VM. 
+1. Instance: A VM that is provisioned/managed by the Node Controller Manager.
+1. Machine: Community's terminology for an Instance. The term instance shall be replaced by machines in the near future.
 
-$KUBECONFIG: Refers to the location to your kubeconfig file
+## Design of Node Controller Manager
 
-## Deploy
+See the design documentation in the `/docs/design` repository, please [find the design doc here](docs/design/README.md).
 
-To deploy your node-controller-manager you would have to create an docker image out of the compiled binary and finally deploy this docker image on your kubernetes cluster. Exact steps to deploy are yet to be finalized on.
+## To start using or developing the Node Controller Manager
+
+See the documentation in the `/docs` repository, please [find the index here](docs/README.md).
