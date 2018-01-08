@@ -21,7 +21,7 @@ spec:
   template:
     metadata:
       labels:
-        test-label: test-label # Label to be match with selector (XXXXX)
+        test-label: test-label # Label to match with selector (XXXXX)
     spec: 
       class:
         kind: AWSInstanceClass # Instance class template used to create instance, could be AWS/GCP/Azure/Other-cloud-providers
