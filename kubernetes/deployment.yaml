@@ -1,0 +1,21 @@
+# Sample deployment file, used to run node controller manager on your cluster
+
+apiVersion: apps/v1beta1 # Version may change based on kubernetes version
+kind: Deployment
+metadata:
+  name: node-controller-manager
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: node-controller-manager
+    spec:
+      containers:
+      - name: node-controller-manager
+        image: kvmprashanth/node-controller-manager:v1
+        imagePullPolicy: Always 
+        command:
+          - ./node-controller-manager
+          - --v=2
+          - --kubeconfig=kubeconfig.yaml #kubeconfig.yaml should be absolute path to the KUBECONFIG file
