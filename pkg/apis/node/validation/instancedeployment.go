@@ -16,28 +16,30 @@ limitations under the License.
 package validation
 
 import (
-	//"strconv"
-
 	"github.com/gardener/node-controller-manager/pkg/apis/node"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-// ValidateInstance and returns a list of errors.
-func ValidateInstanceSet(instanceSet *node.InstanceSet) field.ErrorList {
-	return internalValidateInstanceSet(instanceSet)
+// ValidateInstanceDeployment and returns a list of errors.
+func ValidateInstanceDeployment(instanceDeployment *node.InstanceDeployment) field.ErrorList {
+	return internalValidateInstanceDeployment(instanceDeployment)
 }
 
-func internalValidateInstanceSet(instanceSet *node.InstanceSet) field.ErrorList {
+func internalValidateInstanceDeployment(instanceDeployment *node.InstanceDeployment) field.ErrorList {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, validateInstanceSetSpec(&instanceSet.Spec, field.NewPath("spec"))...)
+	allErrs = append(allErrs, validateInstanceDeploymentSpec(&instanceDeployment.Spec, field.NewPath("spec"))...)
 	return allErrs
 }
 
-func validateInstanceSetSpec(spec *node.InstanceSetSpec, fldPath *field.Path) field.ErrorList {
+func validateInstanceDeploymentSpec(spec *node.InstanceDeploymentSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if spec.Replicas < 0 {
 		allErrs = append(allErrs, field.Required(fldPath.Child("replicas"), "Replicas has to be a whole number"))
+	}
+
+	if spec.Strategy.Type != "RollingUpdate" && spec.Strategy.Type != "Recreate" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("strategy.type"), "Type can either be RollingUpdate or Recreate"))
 	}
 
 	for k, v := range spec.Selector.MatchLabels {
@@ -46,7 +48,7 @@ func validateInstanceSetSpec(spec *node.InstanceSetSpec, fldPath *field.Path) fi
 			break
 		}
 	}
-
+	
 	allErrs = append(allErrs, validateClassReference(&spec.Template.Spec.Class, field.NewPath("spec.template.spec.class"))...)
 	return allErrs
 }

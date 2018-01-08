@@ -32,14 +32,18 @@ import (
 
 	"github.com/golang/glog"
 
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	
 	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/node"
+	"github.com/gardener/node-controller-manager/pkg/apis/node/validation"
 )
 
 // controllerKind contains the schema.GroupVersionKind for this controller type.
@@ -439,6 +443,36 @@ func (dc *controller) syncInstanceDeployment(key string) error {
 	}
 	if err != nil {
 		return err
+	}
+
+	// Validate InstanceDeployment
+	internalInstanceDeployment := &node.InstanceDeployment{}
+	err = api.Scheme.Convert(deployment, internalInstanceDeployment, nil)
+	if err != nil {
+		return err
+	}
+	validationerr := validation.ValidateInstanceDeployment(internalInstanceDeployment)
+	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+		glog.V(2).Infof("Validation of InstanceDeployment failled %s", validationerr.ToAggregate().Error())
+		return nil
+	}
+
+	AWSInstanceClass, err := dc.awsInstanceClassLister.Get(deployment.Spec.Template.Spec.Class.Name)
+	if err != nil {
+		glog.V(2).Infof("AWSInstanceClass for InstanceSet %q not found %q. Skipping. %v", deployment.Name, deployment.Spec.Template.Spec.Class.Name, err)
+		return nil
+	}
+
+	// Validate AWSInstanceClass
+	internalAWSInstanceClass := &node.AWSInstanceClass{}
+	err = api.Scheme.Convert(AWSInstanceClass, internalAWSInstanceClass, nil)
+	if err != nil {
+		return err
+	}
+	validationerr = validation.ValidateAWSInstanceClass(internalAWSInstanceClass)
+	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+		glog.V(2).Infof("Validation of AWSInstanceClass failled %s", validationerr.ToAggregate().Error())
+		return nil
 	}
 
 	// Deep-copy otherwise we are mutating our cache.
