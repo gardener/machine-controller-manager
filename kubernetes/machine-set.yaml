@@ -1,0 +1,21 @@
+# Sample machine-set object
+
+apiVersion: machine.sapcloud.io/v1alpha1
+kind: MachineSet
+metadata:
+  name: test-machine-set # Name of machine-set
+  test-label: test-label # Label used by machine-deployment to match (optional)
+spec:
+  replicas: 3 # Number of healthy replicas that should always be healthy
+  minReadySeconds: 200 # Minimum time to wait for machine to be ready
+  selector:
+    matchLabels:
+      test-label: test-label # Label to match the template (XXXXX)
+  template:
+    metadata:
+      labels:
+        test-label: test-label # Label to match the selector (XXXXX)
+    spec: 
+      class:
+        kind: AWSMachineClass
+        name: test-aws

@@ -3,7 +3,7 @@
 :warning: All paths are relative to the root location of this project repository.
 
 - Run the Node Controller Manager either as described in [Setting up a local development environment](../development/local_setup.md) or [Deploying the Node Controller Manager into a Kubernetes cluster](../deployment/kubernetes.md).
-- Make sure that the following steps are run before managing instances/ instance-sets/ instance-deploys.
+- Make sure that the following steps are run before managing machines/ machine-sets/ machine-deploys.
 
 ## Set KUBECONFIG
 
@@ -15,7 +15,7 @@ $ export KUBECONFIG=$GOPATH/src/github.com/gardener/node-controller-manager/dev/
 
 ## Replace provider credentials and desired VM configurations
 
-Open `kubernetes/aws-instance-class.yaml` and replace required values there with the desired VM configurations. 
+Open `kubernetes/aws-machine-class.yaml` and replace required values there with the desired VM configurations. 
 
 Similarily open `kubernetes/secret.yaml` and replace - *userData, providerAccessKeyId, providerSecretAccessKey* with base64 encoded values of cloudconfig file, AWS access key id, and AWS secret access key respectively. Use the following command to get the base64 encoded value of your details
 
@@ -33,9 +33,9 @@ Create all the required CRDs in the cluster using `kubernetes/crds.yaml`
 $ kubectl apply -f kubernetes/crds.yaml
 ```
 
-Create the class template that will be used as an instance template to create VMs using `kubernetes/aws-instance-class.yaml`
+Create the class template that will be used as an machine template to create VMs using `kubernetes/aws-machine-class.yaml`
 ```bash
-$ kubectl apply -f kubernetes/aws-instance-class.yaml
+$ kubectl apply -f kubernetes/aws-machine-class.yaml
 ```
 
 Create the secret used for the cloud credentials and cloudconfig using `kubernetes/secret.yaml`
@@ -47,11 +47,11 @@ $ kubectl apply -f kubernetes/secret.yaml
 
 Get to know the current cluster state using the following commands,
 
-- Checking aws-instance-class in the cluster
+- Checking aws-machine-class in the cluster
 ```bash
-$ kubectl get awsinstanceclass
+$ kubectl get awsmachineclass
 NAME       KIND
-test-aws   AWSInstanceClass.v1alpha1.node.sapcloud.io
+test-aws   AWSMachineClass.v1alpha1.machine.sapcloud.io
 ```
 
 - Checking kubernetes secrets in the cluster
@@ -67,20 +67,20 @@ $ kubectl get nodes
 ```
 Lists the default set of nodes attached to your cluster
 
-- Checking Node Controller Manager instances in the cluster
+- Checking Node Controller Manager machines in the cluster
 ```bash
-$ kubectl get instance
+$ kubectl get machine
 No resources found.
 ```
 
-- Checking Node Controller Manager instance-sets in the cluster
+- Checking Node Controller Manager machine-sets in the cluster
 ```bash
-$ kubectl get instanceset
+$ kubectl get machineset
 No resources found.
 ```
 
-- Checking Node Controller Manager instance-deploys in the cluster
+- Checking Node Controller Manager machine-deploys in the cluster
 ```bash
-$ kubectl get instancedeployment
+$ kubectl get machinedeployment
 No resources found.
 ```

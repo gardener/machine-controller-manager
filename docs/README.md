@@ -8,9 +8,9 @@
 ## Usage
 
 * [Setting up your usage environment](usage/prerequisite.md)
-* [Creating/Deleting instances (VM)](usage/instance.md)
-* [Maintaining instance replicas using instances-sets](usage/instance_set.md)
-* [Updating instances using instances-deployments](usage/instance_deployment.md)
+* [Creating/Deleting machines (VM)](usage/machine.md)
+* [Maintaining machine replicas using machines-sets](usage/machine_set.md)
+* [Updating machines using machines-deployments](usage/machine_deployment.md)
 
 ## Deployment
 

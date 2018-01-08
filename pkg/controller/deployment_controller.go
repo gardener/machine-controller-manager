@@ -41,54 +41,54 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	
-	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
-	"github.com/gardener/node-controller-manager/pkg/apis/node"
-	"github.com/gardener/node-controller-manager/pkg/apis/node/validation"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
 )
 
 // controllerKind contains the schema.GroupVersionKind for this controller type.
-var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("InstanceDeployment")
-var GroupVersionKind = "node.sapcloud.io/v1alpha1"
+var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("MachineDeployment")
+var GroupVersionKind = "machine.sapcloud.io/v1alpha1"
 
-func (dc *controller) addInstanceDeployment(obj interface{}) {
-	d := obj.(*v1alpha1.InstanceDeployment)
-	glog.V(3).Infof("Adding instance deployment %s", d.Name)
-	dc.enqueueInstanceDeployment(d)
+func (dc *controller) addMachineDeployment(obj interface{}) {
+	d := obj.(*v1alpha1.MachineDeployment)
+	glog.V(3).Infof("Adding machine deployment %s", d.Name)
+	dc.enqueueMachineDeployment(d)
 }
 
-func (dc *controller) updateInstanceDeployment(old, cur interface{}) {
-	oldD := old.(*v1alpha1.InstanceDeployment)
-	curD := cur.(*v1alpha1.InstanceDeployment)
-	glog.V(3).Infof("Updating instance deployment %s", oldD.Name)
-	dc.enqueueInstanceDeployment(curD)
+func (dc *controller) updateMachineDeployment(old, cur interface{}) {
+	oldD := old.(*v1alpha1.MachineDeployment)
+	curD := cur.(*v1alpha1.MachineDeployment)
+	glog.V(3).Infof("Updating machine deployment %s", oldD.Name)
+	dc.enqueueMachineDeployment(curD)
 }
 
-func (dc *controller) deleteInstanceDeployment(obj interface{}) {
-	d, ok := obj.(*v1alpha1.InstanceDeployment)
+func (dc *controller) deleteMachineDeployment(obj interface{}) {
+	d, ok := obj.(*v1alpha1.MachineDeployment)
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
 			//utilruntime.HandleError(fmt.Errorf("Couldn't get object from tombstone %#v", obj))
 			return
 		}
-		d, ok = tombstone.Obj.(*v1alpha1.InstanceDeployment)
+		d, ok = tombstone.Obj.(*v1alpha1.MachineDeployment)
 		if !ok {
-			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a Instance Deployment %#v", obj))
+			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a Machine Deployment %#v", obj))
 			return
 		}
 	}
-	glog.V(3).Infof("Deleting instance deployment %s", d.Name)
-	dc.enqueueInstanceDeployment(d)
+	glog.V(3).Infof("Deleting machine deployment %s", d.Name)
+	dc.enqueueMachineDeployment(d)
 }
 
-// addInstanceSet enqueues the deployment that manages a InstanceSet when the InstanceSet is created.
-func (dc *controller) addInstanceSetToDeployment(obj interface{}) {
-	is := obj.(*v1alpha1.InstanceSet)
+// addMachineSet enqueues the deployment that manages a MachineSet when the MachineSet is created.
+func (dc *controller) addMachineSetToDeployment(obj interface{}) {
+	is := obj.(*v1alpha1.MachineSet)
 
 	if is.DeletionTimestamp != nil {
 		// On a restart of the controller manager, it's possible for an object to
 		// show up in a state that is already pending deletion.
-		dc.deleteInstanceSetToDeployment(is)
+		dc.deleteMachineSetToDeployment(is)
 		return
 	}
 
@@ -98,53 +98,53 @@ func (dc *controller) addInstanceSetToDeployment(obj interface{}) {
 		if d == nil {
 			return
 		}
-		glog.V(4).Infof("InstanceSet %s added.", is.Name)
-		dc.enqueueInstanceDeployment(d)
+		glog.V(4).Infof("MachineSet %s added.", is.Name)
+		dc.enqueueMachineDeployment(d)
 		return
 	}
 
 	// Otherwise, it's an orphan. Get a list of all matching Deployments and sync
 	// them to see if anyone wants to adopt it.
-	ds := dc.getInstanceDeploymentsForInstanceSet(is)
+	ds := dc.getMachineDeploymentsForMachineSet(is)
 	if len(ds) == 0 {
 		return
 	}
-	glog.V(4).Infof("Orphan InstanceSet %s added.", is.Name)
+	glog.V(4).Infof("Orphan MachineSet %s added.", is.Name)
 	for _, d := range ds {
-		dc.enqueueInstanceDeployment(d)
+		dc.enqueueMachineDeployment(d)
 	}
 }
 
-// getDeploymentsForInstanceSet returns a list of Deployments that potentially
-// match a InstanceSet.
-func (dc *controller) getInstanceDeploymentsForInstanceSet(is *v1alpha1.InstanceSet) []*v1alpha1.InstanceDeployment {
-	deployments, err := dc.GetInstanceDeploymentsForInstanceSet(is)
+// getDeploymentsForMachineSet returns a list of Deployments that potentially
+// match a MachineSet.
+func (dc *controller) getMachineDeploymentsForMachineSet(is *v1alpha1.MachineSet) []*v1alpha1.MachineDeployment {
+	deployments, err := dc.GetMachineDeploymentsForMachineSet(is)
 	if err != nil || len(deployments) == 0 {
 		return nil
 	}
-	// Because all InstanceSet's belonging to a deployment should have a unique label key,
+	// Because all MachineSet's belonging to a deployment should have a unique label key,
 	// there should never be more than one deployment returned by the above method.
 	// If that happens we should probably dynamically repair the situation by ultimately
 	// trying to clean up one of the controllers, for now we just return the older one
 	if len(deployments) > 1 {
 		// ControllerRef will ensure we don't do anything crazy, but more than one
 		// item in this list nevertheless constitutes user error.
-		glog.V(4).Infof("user error! more than one deployment is selecting instance set %s with labels: %#v, returning %s",
+		glog.V(4).Infof("user error! more than one deployment is selecting machine set %s with labels: %#v, returning %s",
 			is.Name, is.Labels, deployments[0].Name)
 	}
 	return deployments
 }
 
-// updateInstanceSet figures out what deployment(s) manage a InstanceSet when the InstanceSet
-// is updated and wake them up. If the anything of the InstanceSets have changed, we need to
-// awaken both the old and new deployments. old and cur must be *extensions.InstanceSet
+// updateMachineSet figures out what deployment(s) manage a MachineSet when the MachineSet
+// is updated and wake them up. If the anything of the MachineSets have changed, we need to
+// awaken both the old and new deployments. old and cur must be *extensions.MachineSet
 // types.
-func (dc *controller) updateInstanceSetToDeployment(old, cur interface{}) {
-	curIS := cur.(*v1alpha1.InstanceSet)
-	oldIS := old.(*v1alpha1.InstanceSet)
+func (dc *controller) updateMachineSetToDeployment(old, cur interface{}) {
+	curIS := cur.(*v1alpha1.MachineSet)
+	oldIS := old.(*v1alpha1.MachineSet)
 	if curIS.ResourceVersion == oldIS.ResourceVersion {
-		// Periodic resync will send update events for all known instance sets.
-		// Two different versions of the same instance set will always have different RVs.
+		// Periodic resync will send update events for all known machine sets.
+		// Two different versions of the same machine set will always have different RVs.
 		return
 	}
 
@@ -154,7 +154,7 @@ func (dc *controller) updateInstanceSetToDeployment(old, cur interface{}) {
 	if controllerRefChanged && oldControllerRef != nil {
 		// The ControllerRef was changed. Sync the old controller, if any.
 		if d := dc.resolveDeploymentControllerRef(oldIS.Namespace, oldControllerRef); d != nil {
-			dc.enqueueInstanceDeployment(d)
+			dc.enqueueMachineDeployment(d)
 		}
 	}
 
@@ -164,8 +164,8 @@ func (dc *controller) updateInstanceSetToDeployment(old, cur interface{}) {
 		if d == nil {
 			return
 		}
-		glog.V(4).Infof("InstanceSet %s updated.", curIS.Name)
-		dc.enqueueInstanceDeployment(d)
+		glog.V(4).Infof("MachineSet %s updated.", curIS.Name)
+		dc.enqueueMachineDeployment(d)
 		return
 	}
 
@@ -173,26 +173,26 @@ func (dc *controller) updateInstanceSetToDeployment(old, cur interface{}) {
 	// to see if anyone wants to adopt it now.
 	labelChanged := !reflect.DeepEqual(curIS.Labels, oldIS.Labels)
 	if labelChanged || controllerRefChanged {
-		ds := dc.getInstanceDeploymentsForInstanceSet(curIS)
+		ds := dc.getMachineDeploymentsForMachineSet(curIS)
 		if len(ds) == 0 {
 			return
 		}
-		glog.V(4).Infof("Orphan InstanceSet %s updated.", curIS.Name)
+		glog.V(4).Infof("Orphan MachineSet %s updated.", curIS.Name)
 		for _, d := range ds {
-			dc.enqueueInstanceDeployment(d)
+			dc.enqueueMachineDeployment(d)
 		}
 	}
 }
 
-// deleteInstanceSet enqueues the deployment that manages a InstanceSet when
-// the InstanceSet is deleted. obj could be an *extensions.InstanceSet, or
+// deleteMachineSet enqueues the deployment that manages a MachineSet when
+// the MachineSet is deleted. obj could be an *extensions.MachineSet, or
 // a DeletionFinalStateUnknown marker item.
-func (dc *controller) deleteInstanceSetToDeployment(obj interface{}) {
-	is, ok := obj.(*v1alpha1.InstanceSet)
+func (dc *controller) deleteMachineSetToDeployment(obj interface{}) {
+	is, ok := obj.(*v1alpha1.MachineSet)
 
-	// When a delete is dropped, the relist will notice a Instance in the store not
+	// When a delete is dropped, the relist will notice a Machine in the store not
 	// in the list, leading to the insertion of a tombstone object which contains
-	// the deleted key/value. Note that this value might be stale. If the InstanceSet
+	// the deleted key/value. Note that this value might be stale. If the MachineSet
 	// changed labels the new deployment will not be woken up till the periodic resync.
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
@@ -200,9 +200,9 @@ func (dc *controller) deleteInstanceSetToDeployment(obj interface{}) {
 			utilruntime.HandleError(fmt.Errorf("Couldn't get object from tombstone %#v", obj))
 			return
 		}
-		is, ok = tombstone.Obj.(*v1alpha1.InstanceSet)
+		is, ok = tombstone.Obj.(*v1alpha1.MachineSet)
 		if !ok {
-			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a InstanceSet %#v", obj))
+			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a MachineSet %#v", obj))
 			return
 		}
 	}
@@ -216,17 +216,17 @@ func (dc *controller) deleteInstanceSetToDeployment(obj interface{}) {
 	if d == nil {
 		return
 	}
-	glog.V(4).Infof("InstanceSet %s deleted.", is.Name)
-	dc.enqueueInstanceDeployment(d)
+	glog.V(4).Infof("MachineSet %s deleted.", is.Name)
+	dc.enqueueMachineDeployment(d)
 }
 
-// deleteInstance will enqueue a Recreate Deployment once all of its Instances have stopped running.
-func (dc *controller) deleteInstanceToInstanceDeployment(obj interface{}) {
-	instance, ok := obj.(*v1alpha1.Instance)
+// deleteMachine will enqueue a Recreate Deployment once all of its Machines have stopped running.
+func (dc *controller) deleteMachineToMachineDeployment(obj interface{}) {
+	machine, ok := obj.(*v1alpha1.Machine)
 
-	// When a delete is dropped, the relist will notice a Instance in the store not
+	// When a delete is dropped, the relist will notice a Machine in the store not
 	// in the list, leading to the insertion of a tombstone object which contains
-	// the deleted key/value. Note that this value might be stale. If the Instance
+	// the deleted key/value. Note that this value might be stale. If the Machine
 	// changed labels the new deployment will not be woken up till the periodic resync.
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
@@ -234,85 +234,85 @@ func (dc *controller) deleteInstanceToInstanceDeployment(obj interface{}) {
 			utilruntime.HandleError(fmt.Errorf("Couldn't get object from tombstone %#v", obj))
 			return
 		}
-		instance, ok = tombstone.Obj.(*v1alpha1.Instance)
+		machine, ok = tombstone.Obj.(*v1alpha1.Machine)
 		if !ok {
-			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a instance %#v", obj))
+			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a machine %#v", obj))
 			return
 		}
 	}
-	glog.V(4).Infof("Instance %s deleted.", instance.Name)
-	if d := dc.getInstanceDeploymentForInstance(instance); d != nil && d.Spec.Strategy.Type == v1alpha1.RecreateInstanceDeploymentStrategyType {
-		// Sync if this Deployment now has no more Instances.
-		isList, err := ListInstanceSets(d, IsListFromClient(dc.nodeClient))
+	glog.V(4).Infof("Machine %s deleted.", machine.Name)
+	if d := dc.getMachineDeploymentForMachine(machine); d != nil && d.Spec.Strategy.Type == v1alpha1.RecreateMachineDeploymentStrategyType {
+		// Sync if this Deployment now has no more Machines.
+		isList, err := ListMachineSets(d, IsListFromClient(dc.nodeClient))
 		if err != nil {
 			return
 		}
-		instanceMap, err := dc.getInstanceMapForInstanceDeployment(d, isList)
+		machineMap, err := dc.getMachineMapForMachineDeployment(d, isList)
 		if err != nil {
 			return
 		}
-		numInstances := 0
-		for _, instanceList := range instanceMap {
-			numInstances += len(instanceList.Items)
+		numMachines := 0
+		for _, machineList := range machineMap {
+			numMachines += len(machineList.Items)
 		}
-		if numInstances == 0 {
-			dc.enqueueInstanceDeployment(d)
+		if numMachines == 0 {
+			dc.enqueueMachineDeployment(d)
 		}
 	}
 }
 
-func (dc *controller) enqueueInstanceDeployment(deployment *v1alpha1.InstanceDeployment) {
+func (dc *controller) enqueueMachineDeployment(deployment *v1alpha1.MachineDeployment) {
 	key, err := KeyFunc(deployment)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %#v: %v", deployment, err))
 		return
 	}
 
-	dc.instanceDeploymentQueue.Add(key)
+	dc.machineDeploymentQueue.Add(key)
 }
 
-func (dc *controller) enqueueRateLimited(deployment *v1alpha1.InstanceDeployment) {
+func (dc *controller) enqueueRateLimited(deployment *v1alpha1.MachineDeployment) {
 	key, err := KeyFunc(deployment)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %#v: %v", deployment, err))
 		return
 	}
 
-	dc.instanceDeploymentQueue.AddRateLimited(key)
+	dc.machineDeploymentQueue.AddRateLimited(key)
 }
 
 // enqueueAfter will enqueue a deployment after the provided amount of time.
-func (dc *controller) enqueueAfter(deployment *v1alpha1.InstanceDeployment, after time.Duration) {
+func (dc *controller) enqueueAfter(deployment *v1alpha1.MachineDeployment, after time.Duration) {
 	key, err := KeyFunc(deployment)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %#v: %v", deployment, err))
 		return
 	}
 
-	dc.instanceDeploymentQueue.AddAfter(key, after)
+	dc.machineDeploymentQueue.AddAfter(key, after)
 }
 
-// getDeploymentForInstance returns the deployment managing the given Instance.
-func (dc *controller) getInstanceDeploymentForInstance(instance *v1alpha1.Instance) *v1alpha1.InstanceDeployment {
-	// Find the owning instance set
-	var is *v1alpha1.InstanceSet
+// getDeploymentForMachine returns the deployment managing the given Machine.
+func (dc *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) *v1alpha1.MachineDeployment {
+	// Find the owning machine set
+	var is *v1alpha1.MachineSet
 	var err error
-	controllerRef := metav1.GetControllerOf(instance)
+	controllerRef := metav1.GetControllerOf(machine)
 	if controllerRef == nil {
-		// No controller owns this Instance.
+		// No controller owns this Machine.
 		return nil
 	}
-	if controllerRef.Kind != "InstanceDeployment" { //TODO: Remove hardcoded string
- 		// Not a Instance owned by a instance set.
+	if controllerRef.Kind != "MachineDeployment" { //TODO: Remove hardcoded string
+ 		// Not a Machine owned by a machine set.
 		return nil
 	}
-	is, err = dc.nodeClient.InstanceSets().Get(controllerRef.Name, metav1.GetOptions{})
+	is, err = dc.nodeClient.MachineSets().Get(controllerRef.Name, metav1.GetOptions{})
 	if err != nil || is.UID != controllerRef.UID {
-		glog.V(4).Infof("Cannot get instanceset %q for instance %q: %v", controllerRef.Name, instance.Name, err)
+		glog.V(4).Infof("Cannot get machineset %q for machine %q: %v", controllerRef.Name, machine.Name, err)
 		return nil
 	}
 
-	// Now find the Deployment that owns that InstanceSet.
+	// Now find the Deployment that owns that MachineSet.
 	controllerRef = metav1.GetControllerOf(is)
 	if controllerRef == nil {
 		return nil
@@ -323,13 +323,13 @@ func (dc *controller) getInstanceDeploymentForInstance(instance *v1alpha1.Instan
 // resolveControllerRef returns the controller referenced by a ControllerRef,
 // or nil if the ControllerRef could not be resolved to a matching controller
 // of the correct Kind.
-func (dc *controller) resolveDeploymentControllerRef(namespace string, controllerRef *metav1.OwnerReference) *v1alpha1.InstanceDeployment {
+func (dc *controller) resolveDeploymentControllerRef(namespace string, controllerRef *metav1.OwnerReference) *v1alpha1.MachineDeployment {
 	// We can't look up by UID, so look up by Name and then verify UID.
 	// Don't even try to look up by Name if it's the wrong Kind.
 	if controllerRef.Kind != controllerKind.Kind {
 		return nil
 	}
-	d, err := dc.nodeClient.InstanceDeployments().Get(controllerRef.Name, metav1.GetOptions{})
+	d, err := dc.nodeClient.MachineDeployments().Get(controllerRef.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil
 	}
@@ -343,89 +343,89 @@ func (dc *controller) resolveDeploymentControllerRef(namespace string, controlle
 
 func (dc *controller) handleErr(err error, key interface{}) {
 	if err == nil {
-		dc.instanceDeploymentQueue.Forget(key)
+		dc.machineDeploymentQueue.Forget(key)
 		return
 	}
 
-	if dc.instanceDeploymentQueue.NumRequeues(key) < maxRetries {
+	if dc.machineDeploymentQueue.NumRequeues(key) < maxRetries {
 		glog.V(2).Infof("Error syncing deployment %v: %v", key, err)
-		dc.instanceDeploymentQueue.AddRateLimited(key)
+		dc.machineDeploymentQueue.AddRateLimited(key)
 		return
 	}
 
 	utilruntime.HandleError(err)
 	glog.V(2).Infof("Dropping deployment %q out of the queue: %v", key, err)
-	dc.instanceDeploymentQueue.Forget(key)
+	dc.machineDeploymentQueue.Forget(key)
 }
 
-// getInstanceSetsForDeployment uses ControllerRefManager to reconcile
+// getMachineSetsForDeployment uses ControllerRefManager to reconcile
 // ControllerRef by adopting and orphaning.
-// It returns the list of InstanceSets that this Deployment should manage.
-func (dc *controller) getInstanceSetsForInstanceDeployment(d *v1alpha1.InstanceDeployment) ([]*v1alpha1.InstanceSet, error) {
-	// List all InstanceSets to find those we own but that no longer match our
-	// selector. They will be orphaned by ClaimInstanceSets().
-	isList, err := dc.instanceSetLister.List(labels.Everything())
+// It returns the list of MachineSets that this Deployment should manage.
+func (dc *controller) getMachineSetsForMachineDeployment(d *v1alpha1.MachineDeployment) ([]*v1alpha1.MachineSet, error) {
+	// List all MachineSets to find those we own but that no longer match our
+	// selector. They will be orphaned by ClaimMachineSets().
+	isList, err := dc.machineSetLister.List(labels.Everything())
 	if err != nil {
 		return nil, err
 	}
 	deploymentSelector, err := metav1.LabelSelectorAsSelector(d.Spec.Selector)
 	if err != nil {
-		return nil, fmt.Errorf("instance deployment %s has invalid label selector: %v", d.Name, err)
+		return nil, fmt.Errorf("machine deployment %s has invalid label selector: %v", d.Name, err)
 	}
 	// If any adoptions are attempted, we should first recheck for deletion with
-	// an uncached quorum read sometime after listing InstanceSets (see #42639).
+	// an uncached quorum read sometime after listing MachineSets (see #42639).
 	canAdoptFunc := RecheckDeletionTimestamp(func() (metav1.Object, error) {
-		fresh, err := dc.nodeClient.InstanceDeployments().Get(d.Name, metav1.GetOptions{})
+		fresh, err := dc.nodeClient.MachineDeployments().Get(d.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
 		if fresh.UID != d.UID {
-			return nil, fmt.Errorf("original Instance Deployment %v is gone: got uid %v, wanted %v", d.Name, fresh.UID, d.UID)
+			return nil, fmt.Errorf("original Machine Deployment %v is gone: got uid %v, wanted %v", d.Name, fresh.UID, d.UID)
 		}
 		return fresh, nil
 	})
-	cm := NewInstanceSetControllerRefManager(dc.instanceSetControl, d, deploymentSelector, controllerKind, canAdoptFunc)
-	ISes, err := cm.ClaimInstanceSets(isList)
+	cm := NewMachineSetControllerRefManager(dc.machineSetControl, d, deploymentSelector, controllerKind, canAdoptFunc)
+	ISes, err := cm.ClaimMachineSets(isList)
 	return ISes, err
 }
 
-// getInstanceMapForDeployment returns the Instances managed by a Deployment.
+// getMachineMapForDeployment returns the Machines managed by a Deployment.
 //
-// It returns a map from InstanceSet UID to a list of Instances controlled by that RS,
-// according to the Instance's ControllerRef.
-func (dc *controller) getInstanceMapForInstanceDeployment(d *v1alpha1.InstanceDeployment, isList []*v1alpha1.InstanceSet) (map[types.UID]*v1alpha1.InstanceList, error) {
-	// Get all Instances that potentially belong to this Deployment.
+// It returns a map from MachineSet UID to a list of Machines controlled by that RS,
+// according to the Machine's ControllerRef.
+func (dc *controller) getMachineMapForMachineDeployment(d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet) (map[types.UID]*v1alpha1.MachineList, error) {
+	// Get all Machines that potentially belong to this Deployment.
 	selector, err := metav1.LabelSelectorAsSelector(d.Spec.Selector)
 	if err != nil {
 		return nil, err
 	}
-	instances, err := dc.instanceLister.List(selector)
+	machines, err := dc.machineLister.List(selector)
 	if err != nil {
 		return nil, err
 	}
-	// Group Instances by their controller (if it's in rsList).
-	instanceMap := make(map[types.UID]*v1alpha1.InstanceList, len(isList))
+	// Group Machines by their controller (if it's in rsList).
+	machineMap := make(map[types.UID]*v1alpha1.MachineList, len(isList))
 	for _, is := range isList {
-		instanceMap[is.UID] = &v1alpha1.InstanceList{}
+		machineMap[is.UID] = &v1alpha1.MachineList{}
 	}
-	for _, instance := range instances {
-		// Do not ignore inactive Instances because Recreate Deployments need to verify that no
-		// Instances from older versions are running before spinning up new Instances.
-		controllerRef := metav1.GetControllerOf(instance)
+	for _, machine := range machines {
+		// Do not ignore inactive Machines because Recreate Deployments need to verify that no
+		// Machines from older versions are running before spinning up new Machines.
+		controllerRef := metav1.GetControllerOf(machine)
 		if controllerRef == nil {
 			continue
 		}
 		// Only append if we care about this UID.
-		if instanceList, ok := instanceMap[controllerRef.UID]; ok {
-			instanceList.Items = append(instanceList.Items, *instance)
+		if machineList, ok := machineMap[controllerRef.UID]; ok {
+			machineList.Items = append(machineList.Items, *machine)
 		}
 	}
-	return instanceMap, nil
+	return machineMap, nil
 }
 
 // syncDeployment will sync the deployment with the given key.
 // This function is not meant to be invoked concurrently with the same key.
-func (dc *controller) syncInstanceDeployment(key string) error {
+func (dc *controller) syncMachineDeployment(key string) error {
 	startTime := time.Now()
 	glog.V(4).Infof("Started syncing deployment %q (%v)", key, startTime)
 	defer func() {
@@ -436,7 +436,7 @@ func (dc *controller) syncInstanceDeployment(key string) error {
 	if err != nil {
 		return err
 	}
-	deployment, err := dc.nodeClient.InstanceDeployments().Get(name, metav1.GetOptions{})
+	deployment, err := dc.nodeClient.MachineDeployments().Get(name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		glog.V(2).Infof("Deployment %v has been deleted", key)
 		return nil
@@ -445,33 +445,33 @@ func (dc *controller) syncInstanceDeployment(key string) error {
 		return err
 	}
 
-	// Validate InstanceDeployment
-	internalInstanceDeployment := &node.InstanceDeployment{}
-	err = api.Scheme.Convert(deployment, internalInstanceDeployment, nil)
+	// Validate MachineDeployment
+	internalMachineDeployment := &machine.MachineDeployment{}
+	err = api.Scheme.Convert(deployment, internalMachineDeployment, nil)
 	if err != nil {
 		return err
 	}
-	validationerr := validation.ValidateInstanceDeployment(internalInstanceDeployment)
+	validationerr := validation.ValidateMachineDeployment(internalMachineDeployment)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of InstanceDeployment failled %s", validationerr.ToAggregate().Error())
+		glog.V(2).Infof("Validation of MachineDeployment failled %s", validationerr.ToAggregate().Error())
 		return nil
 	}
 
-	AWSInstanceClass, err := dc.awsInstanceClassLister.Get(deployment.Spec.Template.Spec.Class.Name)
+	AWSMachineClass, err := dc.awsMachineClassLister.Get(deployment.Spec.Template.Spec.Class.Name)
 	if err != nil {
-		glog.V(2).Infof("AWSInstanceClass for InstanceSet %q not found %q. Skipping. %v", deployment.Name, deployment.Spec.Template.Spec.Class.Name, err)
+		glog.V(2).Infof("AWSMachineClass for MachineSet %q not found %q. Skipping. %v", deployment.Name, deployment.Spec.Template.Spec.Class.Name, err)
 		return nil
 	}
 
-	// Validate AWSInstanceClass
-	internalAWSInstanceClass := &node.AWSInstanceClass{}
-	err = api.Scheme.Convert(AWSInstanceClass, internalAWSInstanceClass, nil)
+	// Validate AWSMachineClass
+	internalAWSMachineClass := &machine.AWSMachineClass{}
+	err = api.Scheme.Convert(AWSMachineClass, internalAWSMachineClass, nil)
 	if err != nil {
 		return err
 	}
-	validationerr = validation.ValidateAWSInstanceClass(internalAWSInstanceClass)
+	validationerr = validation.ValidateAWSMachineClass(internalAWSMachineClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of AWSInstanceClass failled %s", validationerr.ToAggregate().Error())
+		glog.V(2).Infof("Validation of AWSMachineClass failled %s", validationerr.ToAggregate().Error())
 		return nil
 	}
 
@@ -481,32 +481,32 @@ func (dc *controller) syncInstanceDeployment(key string) error {
 
 	everything := metav1.LabelSelector{}
 	if reflect.DeepEqual(d.Spec.Selector, &everything) {
-		dc.recorder.Eventf(d, v1.EventTypeWarning, "SelectingAll", "This deployment is selecting all instances. A non-empty selector is required.")
+		dc.recorder.Eventf(d, v1.EventTypeWarning, "SelectingAll", "This deployment is selecting all machines. A non-empty selector is required.")
 		if d.Status.ObservedGeneration < d.Generation {
 			d.Status.ObservedGeneration = d.Generation
-			dc.nodeClient.InstanceDeployments().Update(d)
+			dc.nodeClient.MachineDeployments().Update(d)
 		}
 		return nil
 	}
 
-	// List InstanceSets owned by this Deployment, while reconciling ControllerRef
+	// List MachineSets owned by this Deployment, while reconciling ControllerRef
 	// through adoption/orphaning.
-	isList, err := dc.getInstanceSetsForInstanceDeployment(d)
+	isList, err := dc.getMachineSetsForMachineDeployment(d)
 	if err != nil {
 		return err
 	}
-	// List all Instances owned by this Deployment, grouped by their InstanceSet.
-	// Current uses of the InstanceMap are:
+	// List all Machines owned by this Deployment, grouped by their MachineSet.
+	// Current uses of the MachineMap are:
 	//
-	// * check if a Instance is labeled correctly with the Instance-template-hash label.
-	// * check that no old Instances are running in the middle of Recreate Deployments.
-	instanceMap, err := dc.getInstanceMapForInstanceDeployment(d, isList)
+	// * check if a Machine is labeled correctly with the Machine-template-hash label.
+	// * check that no old Machines are running in the middle of Recreate Deployments.
+	machineMap, err := dc.getMachineMapForMachineDeployment(d, isList)
 	if err != nil {
 		return err
 	}
 
 	if d.DeletionTimestamp != nil {
-		return dc.syncStatusOnly(d, isList, instanceMap)
+		return dc.syncStatusOnly(d, isList, machineMap)
 	}
 
 	// Update deployment conditions with an Unknown condition when pausing/resuming
@@ -517,30 +517,30 @@ func (dc *controller) syncInstanceDeployment(key string) error {
 	}
 
 	if d.Spec.Paused {
-		return dc.sync(d, isList, instanceMap)
+		return dc.sync(d, isList, machineMap)
 	}
 
-	// rollback is not re-entrant in case the underlying instance sets are updated with a new
-	// revision so we should ensure that we won't proceed to update instance sets until we
+	// rollback is not re-entrant in case the underlying machine sets are updated with a new
+	// revision so we should ensure that we won't proceed to update machine sets until we
 	// make sure that the deployment has cleaned up its rollback spec in subsequent enqueues.
 	if d.Spec.RollbackTo != nil {
-		return dc.rollback(d, isList, instanceMap)
+		return dc.rollback(d, isList, machineMap)
 	}
 
-	scalingEvent, err := dc.isScalingEvent(d, isList, instanceMap)
+	scalingEvent, err := dc.isScalingEvent(d, isList, machineMap)
 
 	if err != nil {
 		return err
 	}
 	if scalingEvent {
-		return dc.sync(d, isList, instanceMap)
+		return dc.sync(d, isList, machineMap)
 	}
 
 	switch d.Spec.Strategy.Type {
-	case v1alpha1.RecreateInstanceDeploymentStrategyType:
-		return dc.rolloutRecreate(d, isList, instanceMap)
-	case v1alpha1.RollingUpdateInstanceDeploymentStrategyType:
-		return dc.rolloutRolling(d, isList, instanceMap)
+	case v1alpha1.RecreateMachineDeploymentStrategyType:
+		return dc.rolloutRecreate(d, isList, machineMap)
+	case v1alpha1.RollingUpdateMachineDeploymentStrategyType:
+		return dc.rolloutRolling(d, isList, machineMap)
 	}
 	return fmt.Errorf("unexpected deployment strategy type: %s", d.Spec.Strategy.Type)
 }
