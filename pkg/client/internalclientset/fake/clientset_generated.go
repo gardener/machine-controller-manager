@@ -2,8 +2,8 @@ package fake
 
 import (
 	clientset "github.com/gardener/node-controller-manager/pkg/client/internalclientset"
-	nodeinternalversion "github.com/gardener/node-controller-manager/pkg/client/internalclientset/typed/node/internalversion"
-	fakenodeinternalversion "github.com/gardener/node-controller-manager/pkg/client/internalclientset/typed/node/internalversion/fake"
+	machineinternalversion "github.com/gardener/node-controller-manager/pkg/client/internalclientset/typed/machine/internalversion"
+	fakemachineinternalversion "github.com/gardener/node-controller-manager/pkg/client/internalclientset/typed/machine/internalversion/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -44,7 +44,7 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 
 var _ clientset.Interface = &Clientset{}
 
-// Node retrieves the NodeClient
-func (c *Clientset) Node() nodeinternalversion.NodeInterface {
-	return &fakenodeinternalversion.FakeNode{Fake: &c.Fake}
+// Machine retrieves the MachineClient
+func (c *Clientset) Machine() machineinternalversion.MachineInterface {
+	return &fakemachineinternalversion.FakeMachine{Fake: &c.Fake}
 }

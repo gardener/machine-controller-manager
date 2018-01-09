@@ -16,7 +16,7 @@ limitations under the License.
 package driver
 
 import (
-	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
+	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -27,12 +27,12 @@ type Driver interface {
 	GetExisting() (string, error)
 }
 
-func NewDriver(instanceID string, class *v1alpha1.AWSInstanceClass, secretRef *corev1.Secret, classKind string) Driver {
+func NewDriver(instanceID string, class *v1alpha1.AWSMachineClass, secretRef *corev1.Secret, classKind string) Driver {
 
 	switch classKind {
-	case "AWSInstanceClass":
+	case "AWSMachineClass":
 		return &AWSDriver{
-			AWSInstanceClass: 	class,
+			AWSMachineClass: 	class,
 			CloudConfig: 		secretRef,
 			UserData: 			string(secretRef.Data["userData"]),
 			InstanceId: 		instanceID,

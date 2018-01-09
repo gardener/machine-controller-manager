@@ -30,8 +30,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
-	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
+	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	nodescheme "github.com/gardener/node-controller-manager/pkg/client/clientset/scheme"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -59,18 +59,18 @@ import (
 )
 
 const (
-	// If a watch drops a delete event for a instance, it'll take this long
+	// If a watch drops a delete event for a machine, it'll take this long
 	// before a dormant controller waiting for those packets is woken up anyway. It is
 	// specifically targeted at the case where some problem prevents an update
 	// of expectations, without it the controller could stay asleep forever. This should
 	// be set based on the expected latency of watch events.
 	//
 	// Currently a controller can service (create *and* observe the watch events for said
-	// creation) about 10 instances a second, so it takes about 1 min to service
-	// 500 instances. Just creation is limited to 20qps, and watching happens with ~10-30s
-	// latency/instance at the scale of 3000 instances over 100 nodes.
+	// creation) about 10 machines a second, so it takes about 1 min to service
+	// 500 machines. Just creation is limited to 20qps, and watching happens with ~10-30s
+	// latency/machine at the scale of 3000 machines over 100 nodes.
 	ExpectationsTimeout = 5 * time.Minute
-	// When batching instance creates, SlowStartInitialBatchSize is the size of the
+	// When batching machine creates, SlowStartInitialBatchSize is the size of the
 	// inital batch.  The size of each successive batch is twice the size of
 	// the previous batch.  For example, for a value of 1, batch sizes would be
 	// 1, 2, 4, 8, ...  and for a value of 10, batch sizes would be
@@ -79,7 +79,7 @@ const (
 	// the value lower will result in more API call round trip periods for
 	// large batches.
 	//
-	// Given a number of instances to start "N":
+	// Given a number of machines to start "N":
 	// The number of doomed calls per sync once quota is exceeded is given by:
 	//      min(N,SlowStartInitialBatchSize)
 	// The number of batches is given by:
@@ -307,7 +307,7 @@ type UIDSet struct {
 	key string
 }
 
-// UIDTrackingControllerExpectations tracks the UID of the instances it deletes.
+// UIDTrackingControllerExpectations tracks the UID of the machines it deletes.
 // This cache is needed over plain old expectations to safely handle graceful
 // deletion. The desired behavior is to treat an update that sets the
 // DeletionTimestamp on an object as a delete. To do so consistently, one needs
@@ -359,7 +359,7 @@ func (u *UIDTrackingControllerExpectations) DeletionObserved(rcKey, deleteKey st
 
 	uids := u.GetUIDs(rcKey)
 	if uids != nil && uids.Has(deleteKey) {
-		glog.V(4).Infof("Controller %v received delete for instance %v", rcKey, deleteKey)
+		glog.V(4).Infof("Controller %v received delete for machine %v", rcKey, deleteKey)
 		u.ControllerExpectationsInterface.DeletionObserved(rcKey)
 		uids.Delete(deleteKey)
 	}
@@ -385,40 +385,40 @@ func NewUIDTrackingControllerExpectations(ce ControllerExpectationsInterface) *U
 	return &UIDTrackingControllerExpectations{ControllerExpectationsInterface: ce, uidStore: cache.NewStore(UIDSetKeyFunc)}
 }
 
-// Reasons for instance events
+// Reasons for machine events
 const (
-	// FailedCreateInstanceReason is added in an event and in a instance set condition
-	// when a instance for a instance set is failed to be created.
-	FailedCreateInstanceReason = "FailedCreate"
-	// SuccessfulCreateInstanceReason is added in an event when a instance for a instance set
+	// FailedCreateMachineReason is added in an event and in a machine set condition
+	// when a machine for a machine set is failed to be created.
+	FailedCreateMachineReason = "FailedCreate"
+	// SuccessfulCreateMachineReason is added in an event when a machine for a machine set
 	// is successfully created.
-	SuccessfulCreateInstanceReason = "SuccessfulCreate"
-	// FailedDeleteInstanceReason is added in an event and in a instance set condition
-	// when a instance for a instance set is failed to be deleted.
-	FailedDeleteInstanceReason = "FailedDelete"
-	// SuccessfulDeleteinstanceReason is added in an event when a instance for a instance set
+	SuccessfulCreateMachineReason = "SuccessfulCreate"
+	// FailedDeleteMachineReason is added in an event and in a machine set condition
+	// when a machine for a machine set is failed to be deleted.
+	FailedDeleteMachineReason = "FailedDelete"
+	// SuccessfulDeletemachineReason is added in an event when a machine for a machine set
 	// is successfully deleted.
-	SuccessfulDeleteInstanceReason = "SuccessfulDelete"
+	SuccessfulDeleteMachineReason = "SuccessfulDelete"
 )
 
 
 // RSControlInterface is an interface that knows how to add or delete
-// InstanceSets, as well as increment or decrement them. It is used
+// MachineSets, as well as increment or decrement them. It is used
 // by the deployment controller to ease testing of actions that it takes.
 type ISControlInterface interface {
-	PatchInstanceSet(namespace, name string, data []byte) error
+	PatchMachineSet(namespace, name string, data []byte) error
 }
 
 // RealRSControl is the default implementation of RSControllerInterface.
 type RealISControl struct {
-	NodeClient nodeclientset.NodeV1alpha1Interface
+	NodeClient nodeclientset.MachineV1alpha1Interface
 	Recorder   record.EventRecorder
 }
 
 var _ ISControlInterface = &RealISControl{}
 
-func (r RealISControl) PatchInstanceSet(namespace, name string, data []byte) error {
-	_, err := r.NodeClient.InstanceSets().Patch(name, types.MergePatchType, data)
+func (r RealISControl) PatchMachineSet(namespace, name string, data []byte) error {
+	_, err := r.NodeClient.MachineSets().Patch(name, types.MergePatchType, data)
 	return err
 }
 
@@ -461,28 +461,28 @@ func validateControllerRef(controllerRef *metav1.OwnerReference) error {
 	return nil
 }
 
-//--- For Instances ---//
-// RealinstanceControl is the default implementation of instanceControlInterface.
-type RealInstanceControl struct {
-	NodeClient nodeclientset.NodeV1alpha1Interface
+//--- For Machines ---//
+// RealmachineControl is the default implementation of machineControlInterface.
+type RealMachineControl struct {
+	NodeClient nodeclientset.MachineV1alpha1Interface
 	Recorder   record.EventRecorder
 }
 
-var _ InstanceControlInterface = &RealInstanceControl{}
+var _ MachineControlInterface = &RealMachineControl{}
 
 
-type InstanceControlInterface interface {
-	// Createinstances creates new instances according to the spec.
-	CreateInstances(template *v1alpha1.InstanceTemplateSpec, object runtime.Object) error
-	// CreateinstancesWithControllerRef creates new instances according to the spec, and sets object as the instance's controller.
-	CreateInstancesWithControllerRef(template *v1alpha1.InstanceTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error
-	// Deleteinstance deletes the instance identified by instanceID.
-	DeleteInstance(instanceID string, object runtime.Object) error
-	// Patchinstance patches the instance.
-	PatchInstance(name string, data []byte) error
+type MachineControlInterface interface {
+	// Createmachines creates new machines according to the spec.
+	CreateMachines(template *v1alpha1.MachineTemplateSpec, object runtime.Object) error
+	// CreatemachinesWithControllerRef creates new machines according to the spec, and sets object as the machine's controller.
+	CreateMachinesWithControllerRef(template *v1alpha1.MachineTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error
+	// Deletemachine deletes the machine identified by machineID.
+	DeleteMachine(machineID string, object runtime.Object) error
+	// Patchmachine patches the machine.
+	PatchMachine(name string, data []byte) error
 }
 
-func getInstancesLabelSet(template *v1alpha1.InstanceTemplateSpec) labels.Set {
+func getMachinesLabelSet(template *v1alpha1.MachineTemplateSpec) labels.Set {
 	desiredLabels := make(labels.Set)
 	for k, v := range template.Labels {
 		desiredLabels[k] = v
@@ -490,13 +490,13 @@ func getInstancesLabelSet(template *v1alpha1.InstanceTemplateSpec) labels.Set {
 	return desiredLabels
 }
 
-func getInstancesFinalizers(template *v1alpha1.InstanceTemplateSpec) []string {
+func getMachinesFinalizers(template *v1alpha1.MachineTemplateSpec) []string {
 	desiredFinalizers := make([]string, len(template.Finalizers))
 	copy(desiredFinalizers, template.Finalizers)
 	return desiredFinalizers
 }
 
-func getInstancesAnnotationSet(template *v1alpha1.InstanceTemplateSpec, object runtime.Object) (labels.Set, error) {
+func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, object runtime.Object) (labels.Set, error) {
 	desiredAnnotations := make(labels.Set)
 	for k, v := range template.Annotations {
 		desiredAnnotations[k] = v
@@ -521,8 +521,8 @@ func getInstancesAnnotationSet(template *v1alpha1.InstanceTemplateSpec, object r
 	return desiredAnnotations, nil
 }
 
-func getInstancesPrefix(controllerName string) string {
-	// use the dash (if the name isn't too long) to make the instance name a bit prettier
+func getMachinesPrefix(controllerName string) string {
+	// use the dash (if the name isn't too long) to make the machine name a bit prettier
 	prefix := fmt.Sprintf("%s-", controllerName)
 	if len(validation.ValidatePodName(prefix, true)) != 0 { // #ToCheck
 		prefix = controllerName
@@ -530,20 +530,20 @@ func getInstancesPrefix(controllerName string) string {
 	return prefix
 }
 
-func (r RealInstanceControl) CreateInstancesWithControllerRef(template *v1alpha1.InstanceTemplateSpec, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
+func (r RealMachineControl) CreateMachinesWithControllerRef(template *v1alpha1.MachineTemplateSpec, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
 	if err := validateControllerRef(controllerRef); err != nil {
 		return err
 	}
-	return r.createInstances(template, controllerObject, controllerRef)
+	return r.createMachines(template, controllerObject, controllerRef)
 }
 
-func GetInstanceFromTemplate(template *v1alpha1.InstanceTemplateSpec, parentObject runtime.Object, controllerRef *metav1.OwnerReference) (*v1alpha1.Instance, error) {
+func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject runtime.Object, controllerRef *metav1.OwnerReference) (*v1alpha1.Machine, error) {
 	
 	//glog.Info("Template details \n", template.Spec.Class)
-	desiredLabels := getInstancesLabelSet(template)
+	desiredLabels := getMachinesLabelSet(template)
 	//glog.Info(desiredLabels)
-	desiredFinalizers := getInstancesFinalizers(template)
-	desiredAnnotations, err := getInstancesAnnotationSet(template, parentObject)
+	desiredFinalizers := getMachinesFinalizers(template)
+	desiredAnnotations, err := getMachinesAnnotationSet(template, parentObject)
 	if err != nil {
 		return nil, err
 	}
@@ -551,49 +551,49 @@ func GetInstanceFromTemplate(template *v1alpha1.InstanceTemplateSpec, parentObje
 	if err != nil {
 		return nil, fmt.Errorf("parentObject does not have ObjectMeta, %v", err)
 	}
-	prefix := getInstancesPrefix(accessor.GetName())
+	prefix := getMachinesPrefix(accessor.GetName())
 	//glog.Info("2")
-	instance := &v1alpha1.Instance{
+	machine := &v1alpha1.Machine{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:       desiredLabels,
 			Annotations:  desiredAnnotations,
 			GenerateName: prefix,
 			Finalizers:   desiredFinalizers,
 		},
-		Spec: v1alpha1.InstanceSpec{
+		Spec: v1alpha1.MachineSpec{
 			Class:		template.Spec.Class,
 		},
 	}
 	if controllerRef != nil {
-		instance.OwnerReferences = append(instance.OwnerReferences, *controllerRef)
+		machine.OwnerReferences = append(machine.OwnerReferences, *controllerRef)
 	}
-	instance.Spec = *template.Spec.DeepCopy()
+	machine.Spec = *template.Spec.DeepCopy()
 	//glog.Info("3")
-	return instance, nil
+	return machine, nil
 }
 
-func (r RealInstanceControl) CreateInstances(template *v1alpha1.InstanceTemplateSpec, object runtime.Object) error {
-	return r.createInstances(template, object, nil)
+func (r RealMachineControl) CreateMachines(template *v1alpha1.MachineTemplateSpec, object runtime.Object) error {
+	return r.createMachines(template, object, nil)
 }
 
-func (r RealInstanceControl) createInstances(template *v1alpha1.InstanceTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
-	instance, err := GetInstanceFromTemplate(template, object, controllerRef)
+func (r RealMachineControl) createMachines(template *v1alpha1.MachineTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
+	machine, err := GetMachineFromTemplate(template, object, controllerRef)
 	if err != nil {
 		return err
 	}
-	//glog.Infof("1a %v", instance.Labels)
+	//glog.Infof("1a %v", machine.Labels)
 
-	if labels.Set(instance.Labels).AsSelectorPreValidated().Empty() {
+	if labels.Set(machine.Labels).AsSelectorPreValidated().Empty() {
 		//glog.Infof("1b")
-		return fmt.Errorf("unable to create instances, no labels")
+		return fmt.Errorf("unable to create machines, no labels")
 	}
 
-	//glog.Infof("2 : Printing Instance details : %+v", instance)
+	//glog.Infof("2 : Printing Machine details : %+v", machine)
 
-	if newInstance, err := r.NodeClient.Instances().Create(instance); err != nil {
+	if newMachine, err := r.NodeClient.Machines().Create(machine); err != nil {
 		glog.Error(err)
 		//glog.Infof("3")
-		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedCreateInstanceReason, "Error creating: %v", err)
+		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedCreateMachineReason, "Error creating: %v", err)
 		return err
 	} else {
 		accessor, err := meta.Accessor(object)
@@ -602,46 +602,46 @@ func (r RealInstanceControl) createInstances(template *v1alpha1.InstanceTemplate
 			return nil
 		}
 		//glog.Infof("4")
-		glog.V(2).Infof("Controller %v created instance %v", accessor.GetName(), newInstance.Name)
-		r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulCreateInstanceReason, "Created Instance: %v", newInstance.Name)
+		glog.V(2).Infof("Controller %v created machine %v", accessor.GetName(), newMachine.Name)
+		r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulCreateMachineReason, "Created Machine: %v", newMachine.Name)
 	}
 	//glog.Infof("5")
 	return nil
 }
 
 
-func (r RealInstanceControl) PatchInstance(name string, data []byte) error {
-	_, err := r.NodeClient.Instances().Patch(name, types.MergePatchType, data)
+func (r RealMachineControl) PatchMachine(name string, data []byte) error {
+	_, err := r.NodeClient.Machines().Patch(name, types.MergePatchType, data)
 	return err
 }
 
-func (r RealInstanceControl) DeleteInstance(instanceID string, object runtime.Object) error {
+func (r RealMachineControl) DeleteMachine(machineID string, object runtime.Object) error {
 	accessor, err := meta.Accessor(object)
 	if err != nil {
 		return fmt.Errorf("object does not have ObjectMeta, %v", err)
 	}
-	glog.V(2).Infof("Controller %v deleting instance %v", accessor.GetName(), instanceID)
+	glog.V(2).Infof("Controller %v deleting machine %v", accessor.GetName(), machineID)
 
-	if err := r.NodeClient.Instances().Delete(instanceID, nil); err != nil {
-		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeleteInstanceReason, "Error deleting: %v", err)
-		return fmt.Errorf("unable to delete instances: %v", err)
+	if err := r.NodeClient.Machines().Delete(machineID, nil); err != nil {
+		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeleteMachineReason, "Error deleting: %v", err)
+		return fmt.Errorf("unable to delete machines: %v", err)
 	} else {
-		r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulDeleteInstanceReason, "Deleted instance: %v", instanceID)
+		r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulDeleteMachineReason, "Deleted machine: %v", machineID)
 	}
 	return nil
 }
 
 // --- //
 
-// Activeinstances type allows custom sorting of instances so a controller can pick the best ones to delete.
-type ActiveInstances []*v1alpha1.Instance
+// Activemachines type allows custom sorting of machines so a controller can pick the best ones to delete.
+type ActiveMachines []*v1alpha1.Machine
 
-func (s ActiveInstances) Len() int      { return len(s) }
-func (s ActiveInstances) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s ActiveMachines) Len() int      { return len(s) }
+func (s ActiveMachines) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
-func (s ActiveInstances) Less(i, j int) bool {
+func (s ActiveMachines) Less(i, j int) bool {
 
-	m := map[v1alpha1.InstanceState]int{v1alpha1.InstanceStateFailed: 0, v1alpha1.InstanceStateProcessing: 1, v1alpha1.InstanceStateSuccessful: 2}
+	m := map[v1alpha1.MachineState]int{v1alpha1.MachineStateFailed: 0, v1alpha1.MachineStateProcessing: 1, v1alpha1.MachineStateSuccessful: 2}
 	if m[s[i].Status.LastOperation.State] != m[s[j].Status.LastOperation.State] {
 		return m[s[i].Status.LastOperation.State] < m[s[j].Status.LastOperation.State]
 	}
@@ -659,18 +659,18 @@ func afterOrZero(t1, t2 *metav1.Time) bool {
 	return t1.After(t2.Time)
 }
 
-func IsInstanceActive(p *v1alpha1.Instance) bool {
-	if p.Status.CurrentStatus.Phase == v1alpha1.InstanceFailed {
+func IsMachineActive(p *v1alpha1.Machine) bool {
+	if p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
 		return false
-	} else if p.Status.CurrentStatus.Phase == v1alpha1.InstanceTerminating {
+	} else if p.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating {
 		return false
 	}
 
 	return true
 }
 
-func IsInstanceFailed(p *v1alpha1.Instance) bool {
-	if p.Status.CurrentStatus.Phase == v1alpha1.InstanceFailed {
+func IsMachineFailed(p *v1alpha1.Machine) bool {
+	if p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
 		return true
 	} 
 
@@ -678,8 +678,8 @@ func IsInstanceFailed(p *v1alpha1.Instance) bool {
 }
 
 
-func InstanceKey(instance *v1alpha1.Instance) string { //ToCheck : as instance-namespace does not matter
-	return fmt.Sprintf("%v/%v", instance.Name)
+func MachineKey(machine *v1alpha1.Machine) string { //ToCheck : as machine-namespace does not matter
+	return fmt.Sprintf("%v/%v", machine.Name)
 }
 
 // ControllersByCreationTimestamp sorts a list of ReplicationControllers by creation timestamp, using their names as a tie breaker.
@@ -694,58 +694,58 @@ func (o ControllersByCreationTimestamp) Less(i, j int) bool {
 	return o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
 }
 
-/****************** For InstanceSet **********************/
-// InstanceSetsByCreationTimestamp sorts a list of InstanceSet by creation timestamp, using their names as a tie breaker.
-type InstanceSetsByCreationTimestamp []*v1alpha1.InstanceSet
+/****************** For MachineSet **********************/
+// MachineSetsByCreationTimestamp sorts a list of MachineSet by creation timestamp, using their names as a tie breaker.
+type MachineSetsByCreationTimestamp []*v1alpha1.MachineSet
 
-func (o InstanceSetsByCreationTimestamp) Len() int      { return int(len(o)) }
-func (o InstanceSetsByCreationTimestamp) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
-func (o InstanceSetsByCreationTimestamp) Less(i, j int) bool {
+func (o MachineSetsByCreationTimestamp) Len() int      { return int(len(o)) }
+func (o MachineSetsByCreationTimestamp) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+func (o MachineSetsByCreationTimestamp) Less(i, j int) bool {
 	if o[i].CreationTimestamp.Equal(&o[j].CreationTimestamp) {
 		return o[i].Name < o[j].Name
 	}
 	return o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
 }
 
-// InstanceSetsBySizeOlder sorts a list of InstanceSet by size in descending order, using their creation timestamp or name as a tie breaker.
-// By using the creation timestamp, this sorts from old to new instance sets.
-type InstanceSetsBySizeOlder []*v1alpha1.InstanceSet
+// MachineSetsBySizeOlder sorts a list of MachineSet by size in descending order, using their creation timestamp or name as a tie breaker.
+// By using the creation timestamp, this sorts from old to new machine sets.
+type MachineSetsBySizeOlder []*v1alpha1.MachineSet
 
-func (o InstanceSetsBySizeOlder) Len() int      { return int(len(o)) }
-func (o InstanceSetsBySizeOlder) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
-func (o InstanceSetsBySizeOlder) Less(i, j int) bool {
+func (o MachineSetsBySizeOlder) Len() int      { return int(len(o)) }
+func (o MachineSetsBySizeOlder) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+func (o MachineSetsBySizeOlder) Less(i, j int) bool {
 	if (o[i].Spec.Replicas) == (o[j].Spec.Replicas) {
-		return InstanceSetsByCreationTimestamp(o).Less(int(i), int(j))
+		return MachineSetsByCreationTimestamp(o).Less(int(i), int(j))
 	}
 	return (o[i].Spec.Replicas) > (o[j].Spec.Replicas)
 }
 
-// InstanceSetsBySizeNewer sorts a list of InstanceSet by size in descending order, using their creation timestamp or name as a tie breaker.
-// By using the creation timestamp, this sorts from new to old instance sets.
-type InstanceSetsBySizeNewer []*v1alpha1.InstanceSet
+// MachineSetsBySizeNewer sorts a list of MachineSet by size in descending order, using their creation timestamp or name as a tie breaker.
+// By using the creation timestamp, this sorts from new to old machine sets.
+type MachineSetsBySizeNewer []*v1alpha1.MachineSet
 
-func (o InstanceSetsBySizeNewer) Len() int      { return int(len(o)) }
-func (o InstanceSetsBySizeNewer) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
-func (o InstanceSetsBySizeNewer) Less(i, j int) bool {
+func (o MachineSetsBySizeNewer) Len() int      { return int(len(o)) }
+func (o MachineSetsBySizeNewer) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+func (o MachineSetsBySizeNewer) Less(i, j int) bool {
 	if (o[i].Spec.Replicas) == (o[j].Spec.Replicas) {
-		return InstanceSetsByCreationTimestamp(o).Less(j, i)
+		return MachineSetsByCreationTimestamp(o).Less(j, i)
 	}
 	return (o[i].Spec.Replicas) > (o[j].Spec.Replicas)
 }
 
-// FilterActiveInstanceSets returns instance sets that have (or at least ought to have) instances.
-func FilterActiveInstanceSets(instanceSets []*v1alpha1.InstanceSet) []*v1alpha1.InstanceSet {
-	activeFilter := func(is *v1alpha1.InstanceSet) bool {
+// FilterActiveMachineSets returns machine sets that have (or at least ought to have) machines.
+func FilterActiveMachineSets(machineSets []*v1alpha1.MachineSet) []*v1alpha1.MachineSet {
+	activeFilter := func(is *v1alpha1.MachineSet) bool {
 		return is != nil && (is.Spec.Replicas) > 0
 	}
-	return FilterInstanceSets(instanceSets, activeFilter)
+	return FilterMachineSets(machineSets, activeFilter)
 }
 
-type filterIS func(is *v1alpha1.InstanceSet) bool
+type filterIS func(is *v1alpha1.MachineSet) bool
 
-// FilterInstanceSets returns instance sets that are filtered by filterFn (all returned ones should match filterFn).
-func FilterInstanceSets(ISes []*v1alpha1.InstanceSet, filterFn filterIS) []*v1alpha1.InstanceSet {
-	var filtered []*v1alpha1.InstanceSet
+// FilterMachineSets returns machine sets that are filtered by filterFn (all returned ones should match filterFn).
+func FilterMachineSets(ISes []*v1alpha1.MachineSet, filterFn filterIS) []*v1alpha1.MachineSet {
+	var filtered []*v1alpha1.MachineSet
 	for i := range ISes {
 		if filterFn(ISes[i]) {
 			filtered = append(filtered, ISes[i])
@@ -891,17 +891,17 @@ func WaitForCacheSync(controllerName string, stopCh <-chan struct{}, cacheSyncs 
 	return true
 }
 
-// ComputeHash returns a hash value calculated from instance template and a collisionCount to avoid hash collision
-func ComputeHash(template *v1alpha1.InstanceTemplateSpec, collisionCount *int32) uint32 {
-	instanceTemplateSpecHasher := fnv.New32a()
-	hashutil.DeepHashObject(instanceTemplateSpecHasher, *template)
+// ComputeHash returns a hash value calculated from machine template and a collisionCount to avoid hash collision
+func ComputeHash(template *v1alpha1.MachineTemplateSpec, collisionCount *int32) uint32 {
+	machineTemplateSpecHasher := fnv.New32a()
+	hashutil.DeepHashObject(machineTemplateSpecHasher, *template)
 
 	// Add collisionCount in the hash if it exists.
 	if collisionCount != nil {
 		collisionCountBytes := make([]byte, 8)
 		binary.LittleEndian.PutUint32(collisionCountBytes, uint32(*collisionCount))
-		instanceTemplateSpecHasher.Write(collisionCountBytes)
+		machineTemplateSpecHasher.Write(collisionCountBytes)
 	}
 
-	return instanceTemplateSpecHasher.Sum32()
+	return machineTemplateSpecHasher.Sum32()
 }

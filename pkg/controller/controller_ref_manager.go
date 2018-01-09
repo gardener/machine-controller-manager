@@ -26,7 +26,7 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -89,7 +89,7 @@ func (m *BaseControllerRefManager) ClaimObject(obj metav1.Object, match func(met
 			return false, nil
 		}
 		if err := release(obj); err != nil {
-			// If the Instance no longer exists, ignore the error.
+			// If the Machine no longer exists, ignore the error.
 			if errors.IsNotFound(err) {
 				return false, nil
 			}
@@ -114,7 +114,7 @@ func (m *BaseControllerRefManager) ClaimObject(obj metav1.Object, match func(met
 
 	// Selector matches. Try to adopt.
 	if err := adopt(obj); err != nil {
-		// If the Instance no longer exists, ignore the error.
+		// If the Machine no longer exists, ignore the error.
 		if errors.IsNotFound(err) {
 			return false, nil
 		}
@@ -129,14 +129,14 @@ func (m *BaseControllerRefManager) ClaimObject(obj metav1.Object, match func(met
 
 
 
-type InstanceControllerRefManager struct {
+type MachineControllerRefManager struct {
 	BaseControllerRefManager
 	controllerKind      schema.GroupVersionKind
-	instanceControl     InstanceControlInterface
+	machineControl     MachineControlInterface
 }
 
-// NewInstanceControllerRefManager returns a InstanceControllerRefManager that exposes
-// methods to manage the controllerRef of Instances.
+// NewMachineControllerRefManager returns a MachineControllerRefManager that exposes
+// methods to manage the controllerRef of Machines.
 //
 // The CanAdopt() function can be used to perform a potentially expensive check
 // (such as a live GET from the API server) prior to the first adoption.
@@ -144,33 +144,33 @@ type InstanceControllerRefManager struct {
 // If CanAdopt() returns a non-nil error, all adoptions will fail.
 //
 // NOTE: Once CanAdopt() is called, it will not be called again by the same
-//       InstanceControllerRefManager instance. Create a new instance if it makes
+//       MachineControllerRefManager machine. Create a new machine if it makes
 //       sense to check CanAdopt() again (e.g. in a different sync pass).
-func NewInstanceControllerRefManager(
-	instanceControl InstanceControlInterface,
+func NewMachineControllerRefManager(
+	machineControl MachineControlInterface,
 	controller metav1.Object,
 	selector labels.Selector,
 	controllerKind schema.GroupVersionKind,
 	canAdopt func() error,
-) *InstanceControllerRefManager {
-	return &InstanceControllerRefManager{
+) *MachineControllerRefManager {
+	return &MachineControllerRefManager{
 		BaseControllerRefManager: BaseControllerRefManager{
 			Controller:   controller,
 			Selector:     selector,
 			CanAdoptFunc: canAdopt,
 		},
 		controllerKind: controllerKind,
-		instanceControl: instanceControl,
+		machineControl: machineControl,
 	}
 }
 
-// ClaimInstances tries to take ownership of a list of Instances.
+// ClaimMachines tries to take ownership of a list of Machines.
 //
 // It will reconcile the following:
 //   * Adopt orphans if the selector matches.
 //   * Release owned objects if the selector no longer matches.
 //
-// Optional: If one or more filters are specified, a Instance will only be claimed if
+// Optional: If one or more filters are specified, a Machine will only be claimed if
 // all filters return true.
 //
 // A non-nil error is returned if some form of reconciliation was attempted and
@@ -178,19 +178,19 @@ func NewInstanceControllerRefManager(
 // is still needed.
 //
 // If the error is nil, either the reconciliation succeeded, or no
-// reconciliation was necessary. The list of Instances that you now own is returned.
-func (m *InstanceControllerRefManager) ClaimInstances(instances []*v1alpha1.Instance, filters ...func(*v1alpha1.Instance) bool) ([]*v1alpha1.Instance, error) {
-	var claimed []*v1alpha1.Instance
+// reconciliation was necessary. The list of Machines that you now own is returned.
+func (m *MachineControllerRefManager) ClaimMachines(machines []*v1alpha1.Machine, filters ...func(*v1alpha1.Machine) bool) ([]*v1alpha1.Machine, error) {
+	var claimed []*v1alpha1.Machine
 	var errlist []error
 
 	match := func(obj metav1.Object) bool {
-		instance := obj.(*v1alpha1.Instance)
-		// Check selector first so filters only run on potentially matching Instances.
-		if !m.Selector.Matches(labels.Set(instance.Labels)) {
+		machine := obj.(*v1alpha1.Machine)
+		// Check selector first so filters only run on potentially matching Machines.
+		if !m.Selector.Matches(labels.Set(machine.Labels)) {
 			return false
 		}
 		for _, filter := range filters {
-			if !filter(instance) {
+			if !filter(machine) {
 				return false
 			}
 		}
@@ -198,67 +198,67 @@ func (m *InstanceControllerRefManager) ClaimInstances(instances []*v1alpha1.Inst
 	}
 	
 	adopt := func(obj metav1.Object) error {
-		return m.AdoptInstance(obj.(*v1alpha1.Instance))
+		return m.AdoptMachine(obj.(*v1alpha1.Machine))
 	}
 	release := func(obj metav1.Object) error {
-		return m.ReleaseInstance(obj.(*v1alpha1.Instance))
+		return m.ReleaseMachine(obj.(*v1alpha1.Machine))
 	}
 	
-	for _, instance := range instances {
-		ok, err := m.ClaimObject(instance, match, adopt, release)
+	for _, machine := range machines {
+		ok, err := m.ClaimObject(machine, match, adopt, release)
 
-		//glog.Info(instance.Name, " OK:", ok, " ERR:", err)
+		//glog.Info(machine.Name, " OK:", ok, " ERR:", err)
 
 		if err != nil {
 			errlist = append(errlist, err)
 			continue
 		}
 		if ok {
-			claimed = append(claimed, instance)
+			claimed = append(claimed, machine)
 		}
 	}
 	return claimed, utilerrors.NewAggregate(errlist)
 }
 
-// AdoptInstance sends a patch to take control of the Instance. It returns the error if
+// AdoptMachine sends a patch to take control of the Machine. It returns the error if
 // the patching fails.
-func (m *InstanceControllerRefManager) AdoptInstance(instance *v1alpha1.Instance) error {
+func (m *MachineControllerRefManager) AdoptMachine(machine *v1alpha1.Machine) error {
 	if err := m.CanAdopt(); err != nil {
-		return fmt.Errorf("can't adopt instance %v/%v (%v): %v", instance.Namespace, instance.Name, instance.UID, err)
+		return fmt.Errorf("can't adopt machine %v/%v (%v): %v", machine.Namespace, machine.Name, machine.UID, err)
 	}
 	// Note that ValidateOwnerReferences() will reject this patch if another
 	// OwnerReference exists with controller=true.
 	addControllerPatch := fmt.Sprintf(
-		`{"metadata":{"ownerReferences":[{"apiVersion":"node.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
+		`{"metadata":{"ownerReferences":[{"apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
 		m.controllerKind.Kind,
-		m.Controller.GetName(), m.Controller.GetUID(), instance.UID)
-	err := m.instanceControl.PatchInstance(instance.Name, []byte(addControllerPatch))
+		m.Controller.GetName(), m.Controller.GetUID(), machine.UID)
+	err := m.machineControl.PatchMachine(machine.Name, []byte(addControllerPatch))
 	return err
 }
 
-// ReleaseInstance sends a patch to free the Instance from the control of the controller.
+// ReleaseMachine sends a patch to free the Machine from the control of the controller.
 // It returns the error if the patching fails. 404 and 422 errors are ignored.
-func (m *InstanceControllerRefManager) ReleaseInstance(instance *v1alpha1.Instance) error {
-	glog.V(2).Infof("patching instance %s_%s to remove its controllerRef to %s/%s:%s",
-		instance.Namespace, instance.Name, m.controllerKind.GroupVersion(), m.controllerKind.Kind, m.Controller.GetName())
+func (m *MachineControllerRefManager) ReleaseMachine(machine *v1alpha1.Machine) error {
+	glog.V(2).Infof("patching machine %s_%s to remove its controllerRef to %s/%s:%s",
+		machine.Namespace, machine.Name, m.controllerKind.GroupVersion(), m.controllerKind.Kind, m.Controller.GetName())
 	deleteOwnerRefPatch := fmt.Sprintf(
-		`{"metadata":{"ownerReferences":[{"$patch":"delete", "apiVersion":"node.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
+		`{"metadata":{"ownerReferences":[{"$patch":"delete", "apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
 		m.controllerKind.Kind,
-		m.Controller.GetName(), m.Controller.GetUID(), instance.UID)
+		m.Controller.GetName(), m.Controller.GetUID(), machine.UID)
 
-	err := m.instanceControl.PatchInstance(instance.Name, []byte(deleteOwnerRefPatch))
+	err := m.machineControl.PatchMachine(machine.Name, []byte(deleteOwnerRefPatch))
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// If the Instance no longer exists, ignore it.
+			// If the Machine no longer exists, ignore it.
 			return nil
 		}
 		if errors.IsInvalid(err) {
-			// Invalid error will be returned in two cases: 1. the Instance
-			// has no owner reference, 2. the uid of the Instance doesn't
-			// match, which means the Instance is deleted and then recreated.
+			// Invalid error will be returned in two cases: 1. the Machine
+			// has no owner reference, 2. the uid of the Machine doesn't
+			// match, which means the Machine is deleted and then recreated.
 			// In both cases, the error can be ignored.
 
-			// TODO: If the Instance has owner references, but none of them
+			// TODO: If the Machine has owner references, but none of them
 			// has the owner.UID, server will silently ignore the patch.
 			// Investigate why.
 			return nil
@@ -267,19 +267,19 @@ func (m *InstanceControllerRefManager) ReleaseInstance(instance *v1alpha1.Instan
 	return err
 }
 
-// InstanceSetControllerRefManager is used to manage controllerRef of InstanceSets.
-// Three methods are defined on this object 1: Classify 2: AdoptInstanceSet and
-// 3: ReleaseInstanceSet which are used to classify the InstanceSets into appropriate
+// MachineSetControllerRefManager is used to manage controllerRef of MachineSets.
+// Three methods are defined on this object 1: Classify 2: AdoptMachineSet and
+// 3: ReleaseMachineSet which are used to classify the MachineSets into appropriate
 // categories and accordingly adopt or release them. See comments on these functions
 // for more details.
-type InstanceSetControllerRefManager struct {
+type MachineSetControllerRefManager struct {
 	BaseControllerRefManager
 	controllerKind schema.GroupVersionKind
 	isControl      ISControlInterface
 }
 
-// NewInstanceSetControllerRefManager returns a InstanceSetControllerRefManager that exposes
-// methods to manage the controllerRef of InstanceSets.
+// NewMachineSetControllerRefManager returns a MachineSetControllerRefManager that exposes
+// methods to manage the controllerRef of MachineSets.
 //
 // The CanAdopt() function can be used to perform a potentially expensive check
 // (such as a live GET from the API server) prior to the first adoption.
@@ -287,16 +287,16 @@ type InstanceSetControllerRefManager struct {
 // If CanAdopt() returns a non-nil error, all adoptions will fail.
 //
 // NOTE: Once CanAdopt() is called, it will not be called again by the same
-//       InstanceSetControllerRefManager instance. Create a new instance if it
+//       MachineSetControllerRefManager machine. Create a new machine if it
 //       makes sense to check CanAdopt() again (e.g. in a different sync pass).
-func NewInstanceSetControllerRefManager(
+func NewMachineSetControllerRefManager(
 	isControl ISControlInterface,
 	controller metav1.Object,
 	selector labels.Selector,
 	controllerKind schema.GroupVersionKind,
 	canAdopt func() error,
-) *InstanceSetControllerRefManager {
-	return &InstanceSetControllerRefManager{
+) *MachineSetControllerRefManager {
+	return &MachineSetControllerRefManager{
 		BaseControllerRefManager: BaseControllerRefManager{
 			Controller:   controller,
 			Selector:     selector,
@@ -307,7 +307,7 @@ func NewInstanceSetControllerRefManager(
 	}
 }
 
-// ClaimInstanceSets tries to take ownership of a list of InstanceSets.
+// ClaimMachineSets tries to take ownership of a list of MachineSets.
 //
 // It will reconcile the following:
 //   * Adopt orphans if the selector matches.
@@ -318,23 +318,23 @@ func NewInstanceSetControllerRefManager(
 // is still needed.
 //
 // If the error is nil, either the reconciliation succeeded, or no
-// reconciliation was necessary. The list of InstanceSets that you now own is
+// reconciliation was necessary. The list of MachineSets that you now own is
 // returned.
-func (m *InstanceSetControllerRefManager) ClaimInstanceSets(sets []*v1alpha1.InstanceSet) ([]*v1alpha1.InstanceSet, error) {
-	var claimed []*v1alpha1.InstanceSet
+func (m *MachineSetControllerRefManager) ClaimMachineSets(sets []*v1alpha1.MachineSet) ([]*v1alpha1.MachineSet, error) {
+	var claimed []*v1alpha1.MachineSet
 	var errlist []error
 
 	match := func(obj metav1.Object) bool {
-		instanceSet := obj.(*v1alpha1.InstanceSet)
-		//return m.Selector.Matches(labels.Set(instanceSet.GetLabels()))
-		return m.Selector.Matches(labels.Set(instanceSet.Labels))
+		machineSet := obj.(*v1alpha1.MachineSet)
+		//return m.Selector.Matches(labels.Set(machineSet.GetLabels()))
+		return m.Selector.Matches(labels.Set(machineSet.Labels))
 	}
 
 	adopt := func(obj metav1.Object) error {
-		return m.AdoptInstanceSet(obj.(*v1alpha1.InstanceSet))
+		return m.AdoptMachineSet(obj.(*v1alpha1.MachineSet))
 	}
 	release := func(obj metav1.Object) error {
-		return m.ReleaseInstanceSet(obj.(*v1alpha1.InstanceSet))
+		return m.ReleaseMachineSet(obj.(*v1alpha1.MachineSet))
 	}
 
 	for _, is := range sets {
@@ -350,41 +350,41 @@ func (m *InstanceSetControllerRefManager) ClaimInstanceSets(sets []*v1alpha1.Ins
 	return claimed, utilerrors.NewAggregate(errlist)
 }
 
-// AdoptInstanceSet sends a patch to take control of the InstanceSet. It returns
+// AdoptMachineSet sends a patch to take control of the MachineSet. It returns
 // the error if the patching fails.
-func (m *InstanceSetControllerRefManager) AdoptInstanceSet(is *v1alpha1.InstanceSet) error {
+func (m *MachineSetControllerRefManager) AdoptMachineSet(is *v1alpha1.MachineSet) error {
 	if err := m.CanAdopt(); err != nil {
-		return fmt.Errorf("can't adopt InstanceSet %v (%v): %v", is.Name, is.UID, err)
+		return fmt.Errorf("can't adopt MachineSet %v (%v): %v", is.Name, is.UID, err)
 	}
 	// Note that ValidateOwnerReferences() will reject this patch if another
 	// OwnerReference exists with controller=true.
 	addControllerPatch := fmt.Sprintf(
-		`{"metadata":{"ownerReferences":[{"apiVersion":"node.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
+		`{"metadata":{"ownerReferences":[{"apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
 		m.controllerKind.Kind,
 		m.Controller.GetName(), m.Controller.GetUID(), is.UID)
-	return m.isControl.PatchInstanceSet(is.Namespace, is.Name, []byte(addControllerPatch))
+	return m.isControl.PatchMachineSet(is.Namespace, is.Name, []byte(addControllerPatch))
 }
 
-// ReleaseInstanceSet sends a patch to free the InstanceSet from the control of the InstanceDeployment controller.
+// ReleaseMachineSet sends a patch to free the MachineSet from the control of the MachineDeployment controller.
 // It returns the error if the patching fails. 404 and 422 errors are ignored.
-func (m *InstanceSetControllerRefManager) ReleaseInstanceSet(instanceSet *v1alpha1.InstanceSet) error {
-	glog.V(2).Infof("patching InstanceSet %s_%s to remove its controllerRef to %s:%s",
-		instanceSet.Name, m.controllerKind.GroupVersion(), m.controllerKind.Kind, m.Controller.GetName())
-	//deleteOwnerRefPatch := fmt.Sprintf(`{"metadata":{"ownerReferences":[{"$patch":"delete","uid":"%s"}],"uid":"%s"}}`, m.Controller.GetUID(), instanceSet.UID)
+func (m *MachineSetControllerRefManager) ReleaseMachineSet(machineSet *v1alpha1.MachineSet) error {
+	glog.V(2).Infof("patching MachineSet %s_%s to remove its controllerRef to %s:%s",
+		machineSet.Name, m.controllerKind.GroupVersion(), m.controllerKind.Kind, m.Controller.GetName())
+	//deleteOwnerRefPatch := fmt.Sprintf(`{"metadata":{"ownerReferences":[{"$patch":"delete","uid":"%s"}],"uid":"%s"}}`, m.Controller.GetUID(), machineSet.UID)
 	deleteOwnerRefPatch := fmt.Sprintf(
-		`{"metadata":{"ownerReferences":[{"$patch":"delete", "apiVersion":"node.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
+		`{"metadata":{"ownerReferences":[{"$patch":"delete", "apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
 		m.controllerKind.Kind,
-		m.Controller.GetName(), m.Controller.GetUID(), instanceSet.UID)	
-	err := m.isControl.PatchInstanceSet(instanceSet.Namespace, instanceSet.Name, []byte(deleteOwnerRefPatch))
+		m.Controller.GetName(), m.Controller.GetUID(), machineSet.UID)	
+	err := m.isControl.PatchMachineSet(machineSet.Namespace, machineSet.Name, []byte(deleteOwnerRefPatch))
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// If the InstanceSet no longer exists, ignore it.
+			// If the MachineSet no longer exists, ignore it.
 			return nil
 		}
 		if errors.IsInvalid(err) {
-			// Invalid error will be returned in two cases: 1. the InstanceSet
-			// has no owner reference, 2. the uid of the InstanceSet doesn't
-			// match, which means the InstanceSet is deleted and then recreated.
+			// Invalid error will be returned in two cases: 1. the MachineSet
+			// has no owner reference, 2. the uid of the MachineSet doesn't
+			// match, which means the MachineSet is deleted and then recreated.
 			// In both cases, the error can be ignored.
 			return nil
 		}

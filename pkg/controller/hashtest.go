@@ -29,33 +29,33 @@ import (
     "testing"
 
     hashutil "k8s.io/kubernetes/pkg/util/hash"
-    "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
+    "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 )
 
-var instanceSpec string = `
+var machineSpec string = `
 {
    "metadata": {
       "name": "vm2",
       "labels": {
-         "instanceSet": "is2"
+         "machineSet": "is2"
       }
    },
    "spec": {
       "class": {
-         "apiGroup": "node.sapcloud.io/v1alpha1",
-         "kind": "AWSInstanceClass",
+         "apiGroup": "machine.sapcloud.io/v1alpha1",
+         "kind": "AWSMachineClass",
          "name": "test-aws"
       }
    }
 }
 `
 
-func TestInstanceTemplateSpecHash(t *testing.T) {
+func TestMachineTemplateSpecHash(t *testing.T) {
     seenHashes := make(map[uint32]int)
 
     for i := 0; i < 1000; i++ {
-        specJson := strings.Replace(instanceSpec, "@@VERSION@@", strconv.Itoa(i), 1)
-        spec := v1alpha1.InstanceTemplateSpec{}
+        specJson := strings.Replace(machineSpec, "@@VERSION@@", strconv.Itoa(i), 1)
+        spec := v1alpha1.MachineTemplateSpec{}
         json.Unmarshal([]byte(specJson), &spec)
         hash := ComputeHash(&spec, nil)
         if v, ok := seenHashes[hash]; ok {
@@ -67,23 +67,23 @@ func TestInstanceTemplateSpecHash(t *testing.T) {
 }
 
 func BenchmarkAdler(b *testing.B) {
-    spec := v1alpha1.InstanceTemplateSpec{}
-    json.Unmarshal([]byte(instanceSpec), &spec)
+    spec := v1alpha1.MachineTemplateSpec{}
+    json.Unmarshal([]byte(machineSpec), &spec)
 
     for i := 0; i < b.N; i++ {
-        getInstanceTemplateSpecOldHash(spec)
+        getMachineTemplateSpecOldHash(spec)
     }
 }
 
-func getInstanceTemplateSpecOldHash(template v1alpha1.InstanceTemplateSpec) uint32 {
-    instanceTemplateSpecHasher := adler32.New()
-    hashutil.DeepHashObject(instanceTemplateSpecHasher, template)
-    return instanceTemplateSpecHasher.Sum32()
+func getMachineTemplateSpecOldHash(template v1alpha1.MachineTemplateSpec) uint32 {
+    machineTemplateSpecHasher := adler32.New()
+    hashutil.DeepHashObject(machineTemplateSpecHasher, template)
+    return machineTemplateSpecHasher.Sum32()
 }
 
 func BenchmarkFnv(b *testing.B) {
-    spec := v1alpha1.InstanceTemplateSpec{}
-    json.Unmarshal([]byte(instanceSpec), &spec)
+    spec := v1alpha1.MachineTemplateSpec{}
+    json.Unmarshal([]byte(machineSpec), &spec)
 
     for i := 0; i < b.N; i++ {
         ComputeHash(&spec, nil)

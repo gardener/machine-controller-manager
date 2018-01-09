@@ -26,21 +26,21 @@ import (
 	"sort"
 
 	"github.com/golang/glog"
-	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/integer"
 )
 
-// rolloutRolling implements the logic for rolling a new instance set.
-func (dc *controller) rolloutRolling(d *v1alpha1.InstanceDeployment, isList []*v1alpha1.InstanceSet, instanceMap map[types.UID]*v1alpha1.InstanceList) error {
-	newIS, oldISs, err := dc.getAllInstanceSetsAndSyncRevision(d, isList, instanceMap, true)
+// rolloutRolling implements the logic for rolling a new machine set.
+func (dc *controller) rolloutRolling(d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
+	newIS, oldISs, err := dc.getAllMachineSetsAndSyncRevision(d, isList, machineMap, true)
 	if err != nil {
 		return err
 	}
 	allISs := append(oldISs, newIS)
 
 	// Scale up, if we can.
-	scaledUp, err := dc.reconcileNewInstanceSet(allISs, newIS, d)
+	scaledUp, err := dc.reconcileNewMachineSet(allISs, newIS, d)
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func (dc *controller) rolloutRolling(d *v1alpha1.InstanceDeployment, isList []*v
 	}
 
 	// Scale down, if we can.
-	scaledDown, err := dc.reconcileOldInstanceSets(allISs, FilterActiveInstanceSets(oldISs), newIS, d)
+	scaledDown, err := dc.reconcileOldMachineSets(allISs, FilterActiveMachineSets(oldISs), newIS, d)
 	if err != nil {
 		return err
 	}
@@ -59,8 +59,8 @@ func (dc *controller) rolloutRolling(d *v1alpha1.InstanceDeployment, isList []*v
 		return dc.syncRolloutStatus(allISs, newIS, d)
 	}
 
-	if InstanceDeploymentComplete(d, &d.Status) {
-		if err := dc.cleanupInstanceDeployment(oldISs, d); err != nil {
+	if MachineDeploymentComplete(d, &d.Status) {
+		if err := dc.cleanupMachineDeployment(oldISs, d); err != nil {
 			return err
 		}
 	}
@@ -69,43 +69,43 @@ func (dc *controller) rolloutRolling(d *v1alpha1.InstanceDeployment, isList []*v
 	return dc.syncRolloutStatus(allISs, newIS, d)
 }
 
-func (dc *controller) reconcileNewInstanceSet(allISs []*v1alpha1.InstanceSet, newIS *v1alpha1.InstanceSet, deployment *v1alpha1.InstanceDeployment) (bool, error) {
+func (dc *controller) reconcileNewMachineSet(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
 	if (newIS.Spec.Replicas) == (deployment.Spec.Replicas) {
 		// Scaling not required.
 		return false, nil
 	}
 	if (newIS.Spec.Replicas) > (deployment.Spec.Replicas) {
 		// Scale down.
-		scaled, _, err := dc.scaleInstanceSetAndRecordEvent(newIS, (deployment.Spec.Replicas), deployment)
+		scaled, _, err := dc.scaleMachineSetAndRecordEvent(newIS, (deployment.Spec.Replicas), deployment)
 		return scaled, err
 	}
 	newReplicasCount, err := NewISNewReplicas(deployment, allISs, newIS)
 	if err != nil {
 		return false, err
 	}
-	scaled, _, err := dc.scaleInstanceSetAndRecordEvent(newIS, newReplicasCount, deployment)
+	scaled, _, err := dc.scaleMachineSetAndRecordEvent(newIS, newReplicasCount, deployment)
 	return scaled, err
 }
 
-func (dc *controller) reconcileOldInstanceSets(allISs []*v1alpha1.InstanceSet, oldISs []*v1alpha1.InstanceSet, newIS *v1alpha1.InstanceSet, deployment *v1alpha1.InstanceDeployment) (bool, error) {
-	oldInstancesCount := GetReplicaCountForInstanceSets(oldISs)
-	if oldInstancesCount == 0 {
+func (dc *controller) reconcileOldMachineSets(allISs []*v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
+	oldMachinesCount := GetReplicaCountForMachineSets(oldISs)
+	if oldMachinesCount == 0 {
 		// Can't scale down further
 		return false, nil
 	}
 
-	allInstancesCount := GetReplicaCountForInstanceSets(allISs)
-	glog.V(4).Infof("New instance set %s has %d available instances.", newIS.Name, newIS.Status.AvailableReplicas)
+	allMachinesCount := GetReplicaCountForMachineSets(allISs)
+	glog.V(4).Infof("New machine set %s has %d available machines.", newIS.Name, newIS.Status.AvailableReplicas)
 	maxUnavailable := MaxUnavailable(*deployment)
 
 	// Check if we can scale down. We can scale down in the following 2 cases:
-	// * Some old instance sets have unhealthy replicas, we could safely scale down those unhealthy replicas since that won't further
+	// * Some old machine sets have unhealthy replicas, we could safely scale down those unhealthy replicas since that won't further
 	//  increase unavailability.
-	// * New instance set has scaled up and it's replicas becomes ready, then we can scale down old instance sets in a further step.
+	// * New machine set has scaled up and it's replicas becomes ready, then we can scale down old machine sets in a further step.
 	//
-	// maxScaledDown := allinstancesCount - minAvailable - newReplicaSetinstancesUnavailable
-	// take into account not only maxUnavailable and any surge instances that have been created, but also unavailable instances from
-	// the newRS, so that the unavailable instances from the newRS would not make us scale down old instance sets in a further
+	// maxScaledDown := allmachinesCount - minAvailable - newReplicaSetmachinesUnavailable
+	// take into account not only maxUnavailable and any surge machines that have been created, but also unavailable machines from
+	// the newRS, so that the unavailable machines from the newRS would not make us scale down old machine sets in a further
 	// step(that will increase unavailability).
 	//
 	// Concrete example:
@@ -116,21 +116,21 @@ func (dc *controller) reconcileOldInstanceSets(allISs []*v1alpha1.InstanceSet, o
 	//
 	// case 1:
 	// * Deployment is updated, newRS is created with 3 replicas, oldRS is scaled down to 8, and newRS is scaled up to 5.
-	// * The new instance set instances crashloop and never become available.
-	// * allinstancesCount is 13. minAvailable is 8. newRSinstancesUnavailable is 5.
-	// * A node fails and causes one of the oldRS instances to become unavailable. However, 13 - 8 - 5 = 0, so the oldRS won't be scaled down.
+	// * The new machine set machines crashloop and never become available.
+	// * allmachinesCount is 13. minAvailable is 8. newRSmachinesUnavailable is 5.
+	// * A node fails and causes one of the oldRS machines to become unavailable. However, 13 - 8 - 5 = 0, so the oldRS won't be scaled down.
 	// * The user notices the crashloop and does kubectl rollout undo to rollback.
-	// * newRSinstancesUnavailable is 1, since we rolled back to the good instance set, so maxScaledDown = 13 - 8 - 1 = 4. 4 of the crashlooping instances will be scaled down.
-	// * The total number of instances will then be 9 and the newRS can be scaled up to 10.
+	// * newRSmachinesUnavailable is 1, since we rolled back to the good machine set, so maxScaledDown = 13 - 8 - 1 = 4. 4 of the crashlooping machines will be scaled down.
+	// * The total number of machines will then be 9 and the newRS can be scaled up to 10.
 	//
 	// case 2:
-	// Same example, but pushing a new instance template instead of rolling back (aka "roll over"):
-	// * The new instance set created must start with 0 replicas because allinstancesCount is already at 13.
-	// * However, newRSinstancesUnavailable would also be 0, so the 2 old instance sets could be scaled down by 5 (13 - 8 - 0), which would then
-	// allow the new instance set to be scaled up by 5.
+	// Same example, but pushing a new machine template instead of rolling back (aka "roll over"):
+	// * The new machine set created must start with 0 replicas because allmachinesCount is already at 13.
+	// * However, newRSmachinesUnavailable would also be 0, so the 2 old machine sets could be scaled down by 5 (13 - 8 - 0), which would then
+	// allow the new machine set to be scaled up by 5.
 	minAvailable := (deployment.Spec.Replicas) - maxUnavailable
-	newISUnavailableInstanceCount := (newIS.Spec.Replicas) - newIS.Status.AvailableReplicas
-	maxScaledDown := allInstancesCount - minAvailable - newISUnavailableInstanceCount
+	newISUnavailableMachineCount := (newIS.Spec.Replicas) - newIS.Status.AvailableReplicas
+	maxScaledDown := allMachinesCount - minAvailable - newISUnavailableMachineCount
 	if maxScaledDown <= 0 {
 		return false, nil
 	}
@@ -143,9 +143,9 @@ func (dc *controller) reconcileOldInstanceSets(allISs []*v1alpha1.InstanceSet, o
 	}
 	glog.V(4).Infof("Cleaned up unhealthy replicas from old ISes by %d", cleanupCount)
 
-	// Scale down old instance sets, need check maxUnavailable to ensure we can scale down
+	// Scale down old machine sets, need check maxUnavailable to ensure we can scale down
 	allISs = append(oldISs, newIS)
-	scaledDownCount, err := dc.scaleDownOldInstanceSetsForRollingUpdate(allISs, oldISs, deployment)
+	scaledDownCount, err := dc.scaleDownOldMachineSetsForRollingUpdate(allISs, oldISs, deployment)
 	if err != nil {
 		return false, nil
 	}
@@ -155,10 +155,10 @@ func (dc *controller) reconcileOldInstanceSets(allISs []*v1alpha1.InstanceSet, o
 	return totalScaledDown > 0, nil
 }
 
-// cleanupUnhealthyReplicas will scale down old instance sets with unhealthy replicas, so that all unhealthy replicas will be deleted.
-func (dc *controller) cleanupUnhealthyReplicas(oldISs []*v1alpha1.InstanceSet, deployment *v1alpha1.InstanceDeployment, maxCleanupCount int32) ([]*v1alpha1.InstanceSet, int32, error) {
-	sort.Sort(InstanceSetsByCreationTimestamp(oldISs))
-	// Safely scale down all old instance sets with unhealthy replicas. instance set will sort the instances in the order
+// cleanupUnhealthyReplicas will scale down old machine sets with unhealthy replicas, so that all unhealthy replicas will be deleted.
+func (dc *controller) cleanupUnhealthyReplicas(oldISs []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment, maxCleanupCount int32) ([]*v1alpha1.MachineSet, int32, error) {
+	sort.Sort(MachineSetsByCreationTimestamp(oldISs))
+	// Safely scale down all old machine sets with unhealthy replicas. machine set will sort the machines in the order
 	// such that not-ready < ready, unscheduled < scheduled, and pending < running. This ensures that unhealthy replicas will
 	// been deleted first and won't increase unavailability.
 	totalScaledDown := int32(0)
@@ -167,10 +167,10 @@ func (dc *controller) cleanupUnhealthyReplicas(oldISs []*v1alpha1.InstanceSet, d
 			break
 		}
 		if (targetIS.Spec.Replicas) == 0 {
-			// cannot scale down this instance set.
+			// cannot scale down this machine set.
 			continue
 		}
-		glog.V(4).Infof("Found %d available instance in old IS %s", targetIS.Status.AvailableReplicas, targetIS.Name)
+		glog.V(4).Infof("Found %d available machine in old IS %s", targetIS.Status.AvailableReplicas, targetIS.Name)
 		if (targetIS.Spec.Replicas) == targetIS.Status.AvailableReplicas {
 			// no unhealthy replicas found, no scaling required.
 			continue
@@ -181,7 +181,7 @@ func (dc *controller) cleanupUnhealthyReplicas(oldISs []*v1alpha1.InstanceSet, d
 		if newReplicasCount > (targetIS.Spec.Replicas) {
 			return nil, 0, fmt.Errorf("when cleaning up unhealthy replicas, got invalid request to scale down %s %d -> %d", targetIS.Name, (targetIS.Spec.Replicas), newReplicasCount)
 		}
-		_, updatedOldIS, err := dc.scaleInstanceSetAndRecordEvent(targetIS, newReplicasCount, deployment)
+		_, updatedOldIS, err := dc.scaleMachineSetAndRecordEvent(targetIS, newReplicasCount, deployment)
 		if err != nil {
 			return nil, totalScaledDown, err
 		}
@@ -191,25 +191,25 @@ func (dc *controller) cleanupUnhealthyReplicas(oldISs []*v1alpha1.InstanceSet, d
 	return oldISs, totalScaledDown, nil
 }
 
-// scaleDownOldReplicaSetsForRollingUpdate scales down old instance sets when deployment strategy is "RollingUpdate".
+// scaleDownOldReplicaSetsForRollingUpdate scales down old machine sets when deployment strategy is "RollingUpdate".
 // Need check maxUnavailable to ensure availability
-func (dc *controller) scaleDownOldInstanceSetsForRollingUpdate(allISs []*v1alpha1.InstanceSet, oldISs []*v1alpha1.InstanceSet, deployment *v1alpha1.InstanceDeployment) (int32, error) {
+func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(allISs []*v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (int32, error) {
 	maxUnavailable := MaxUnavailable(*deployment)
 
 	// Check if we can scale down.
 	minAvailable := (deployment.Spec.Replicas) - maxUnavailable
-	// Find the number of available instances.
-	availableInstanceCount := GetAvailableReplicaCountForInstanceSets(allISs)
-	if availableInstanceCount <= minAvailable {
+	// Find the number of available machines.
+	availableMachineCount := GetAvailableReplicaCountForMachineSets(allISs)
+	if availableMachineCount <= minAvailable {
 		// Cannot scale down.
 		return 0, nil
 	}
-	glog.V(4).Infof("Found %d available instances in deployment %s, scaling down old ISes", availableInstanceCount, deployment.Name)
+	glog.V(4).Infof("Found %d available machines in deployment %s, scaling down old ISes", availableMachineCount, deployment.Name)
 
-	sort.Sort(InstanceSetsByCreationTimestamp(oldISs))
+	sort.Sort(MachineSetsByCreationTimestamp(oldISs))
 
 	totalScaledDown := int32(0)
-	totalScaleDownCount := availableInstanceCount - minAvailable
+	totalScaleDownCount := availableMachineCount - minAvailable
 	for _, targetIS := range oldISs {
 		if totalScaledDown >= totalScaleDownCount {
 			// No further scaling required.
@@ -225,7 +225,7 @@ func (dc *controller) scaleDownOldInstanceSetsForRollingUpdate(allISs []*v1alpha
 		if newReplicasCount > (targetIS.Spec.Replicas) {
 			return 0, fmt.Errorf("when scaling down old IS, got invalid request to scale down %s %d -> %d", targetIS.Name, (targetIS.Spec.Replicas), newReplicasCount)
 		}
-		_, _, err := dc.scaleInstanceSetAndRecordEvent(targetIS, newReplicasCount, deployment)
+		_, _, err := dc.scaleMachineSetAndRecordEvent(targetIS, newReplicasCount, deployment)
 		if err != nil {
 			return totalScaledDown, err
 		}

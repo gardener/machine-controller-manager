@@ -22,22 +22,22 @@ Modifications Copyright 2017 The Gardener Authors.
 package controller
 
 import (
-	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// rolloutRecreate implements the logic for recreating a instance set.
-func (dc *controller) rolloutRecreate(d *v1alpha1.InstanceDeployment, isList []*v1alpha1.InstanceSet, instanceMap map[types.UID]*v1alpha1.InstanceList) error {
+// rolloutRecreate implements the logic for recreating a machine set.
+func (dc *controller) rolloutRecreate(d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
 	// Don't create a new RS if not already existed, so that we avoid scaling up before scaling down.
-	newIS, oldISs, err := dc.getAllInstanceSetsAndSyncRevision(d, isList, instanceMap, false)
+	newIS, oldISs, err := dc.getAllMachineSetsAndSyncRevision(d, isList, machineMap, false)
 	if err != nil {
 		return err
 	}
 	allISs := append(oldISs, newIS)
-	activeOldISs := FilterActiveInstanceSets(oldISs)
+	activeOldISs := FilterActiveMachineSets(oldISs)
 
-	// scale down old instance sets.
-	scaledDown, err := dc.scaleDownOldInstanceSetsForRecreate(activeOldISs, d)
+	// scale down old machine sets.
+	scaledDown, err := dc.scaleDownOldMachineSetsForRecreate(activeOldISs, d)
 	if err != nil {
 		return err
 	}
@@ -46,27 +46,27 @@ func (dc *controller) rolloutRecreate(d *v1alpha1.InstanceDeployment, isList []*
 		return dc.syncRolloutStatus(allISs, newIS, d)
 	}
 
-	// Do not process a deployment when it has old instances running.
-	if oldInstancesRunning(newIS, oldISs, instanceMap) {
+	// Do not process a deployment when it has old machines running.
+	if oldMachinesRunning(newIS, oldISs, machineMap) {
 		return dc.syncRolloutStatus(allISs, newIS, d)
 	}
 
 	// If we need to create a new RS, create it now.
 	if newIS == nil {
-		newIS, oldISs, err = dc.getAllInstanceSetsAndSyncRevision(d, isList, instanceMap, true)
+		newIS, oldISs, err = dc.getAllMachineSetsAndSyncRevision(d, isList, machineMap, true)
 		if err != nil {
 			return err
 		}
 		allISs = append(oldISs, newIS)
 	}
 
-	// scale up new instance set.
-	if _, err := dc.scaleUpNewInstanceSetForRecreate(newIS, d); err != nil {
+	// scale up new machine set.
+	if _, err := dc.scaleUpNewMachineSetForRecreate(newIS, d); err != nil {
 		return err
 	}
 
-	if InstanceDeploymentComplete(d, &d.Status) {
-		if err := dc.cleanupInstanceDeployment(oldISs, d); err != nil {
+	if MachineDeploymentComplete(d, &d.Status) {
+		if err := dc.cleanupMachineDeployment(oldISs, d); err != nil {
 			return err
 		}
 	}
@@ -75,8 +75,8 @@ func (dc *controller) rolloutRecreate(d *v1alpha1.InstanceDeployment, isList []*
 	return dc.syncRolloutStatus(allISs, newIS, d)
 }
 
-// scaleDownOldInstanceSetsForRecreate scales down old instance sets when deployment strategy is "Recreate".
-func (dc *controller) scaleDownOldInstanceSetsForRecreate(oldISs []*v1alpha1.InstanceSet, deployment *v1alpha1.InstanceDeployment) (bool, error) {
+// scaleDownOldMachineSetsForRecreate scales down old machine sets when deployment strategy is "Recreate".
+func (dc *controller) scaleDownOldMachineSetsForRecreate(oldISs []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
 	scaled := false
 	for i := range oldISs {
 		is := oldISs[i]
@@ -84,7 +84,7 @@ func (dc *controller) scaleDownOldInstanceSetsForRecreate(oldISs []*v1alpha1.Ins
 		if (is.Spec.Replicas) == 0 {
 			continue
 		}
-		scaledIS, updatedIS, err := dc.scaleInstanceSetAndRecordEvent(is, 0, deployment)
+		scaledIS, updatedIS, err := dc.scaleMachineSetAndRecordEvent(is, 0, deployment)
 		if err != nil {
 			return false, err
 		}
@@ -96,25 +96,25 @@ func (dc *controller) scaleDownOldInstanceSetsForRecreate(oldISs []*v1alpha1.Ins
 	return scaled, nil
 }
 
-// oldinstancesRunning returns whether there are old instances running or any of the old InstanceSets thinks that it runs instances.
-func oldInstancesRunning(newIS *v1alpha1.InstanceSet, oldISs []*v1alpha1.InstanceSet, instanceMap map[types.UID]*v1alpha1.InstanceList) bool {
-	if oldInstances := GetActualReplicaCountForInstanceSets(oldISs); oldInstances > 0 {
+// oldmachinesRunning returns whether there are old machines running or any of the old MachineSets thinks that it runs machines.
+func oldMachinesRunning(newIS *v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) bool {
+	if oldMachines := GetActualReplicaCountForMachineSets(oldISs); oldMachines > 0 {
 		return true
 	}
-	for isUID, instanceList := range instanceMap {
-		// If the instances belong to the new InstanceSet, ignore.
+	for isUID, machineList := range machineMap {
+		// If the machines belong to the new MachineSet, ignore.
 		if newIS != nil && newIS.UID == isUID {
 			continue
 		}
-		if len(instanceList.Items) > 0 {
+		if len(machineList.Items) > 0 {
 			return true
 		}
 	}
 	return false
 }
 
-// scaleUpNewInstanceSetForRecreate scales up new instance set when deployment strategy is "Recreate".
-func (dc *controller) scaleUpNewInstanceSetForRecreate(newIS *v1alpha1.InstanceSet, deployment *v1alpha1.InstanceDeployment) (bool, error) {
-	scaled, _, err := dc.scaleInstanceSetAndRecordEvent(newIS, (deployment.Spec.Replicas), deployment)
+// scaleUpNewMachineSetForRecreate scales up new machine set when deployment strategy is "Recreate".
+func (dc *controller) scaleUpNewMachineSetForRecreate(newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
+	scaled, _, err := dc.scaleMachineSetAndRecordEvent(newIS, (deployment.Spec.Replicas), deployment)
 	return scaled, err
 }

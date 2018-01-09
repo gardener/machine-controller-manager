@@ -20,19 +20,19 @@ import (
     "errors"
     "encoding/base64"
 
-     v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
-     corev1 "k8s.io/api/core/v1"
+	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	
     "github.com/aws/aws-sdk-go/service/ec2"
-    "github.com/aws/aws-sdk-go/aws/session"
-    "github.com/aws/aws-sdk-go/aws"
-    "github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
     "github.com/aws/aws-sdk-go/aws/credentials"
     "github.com/golang/glog"
 )
 
 type AWSDriver struct {
-	AWSInstanceClass   *v1alpha1.AWSInstanceClass
+	AWSMachineClass   *v1alpha1.AWSMachineClass
 	CloudConfig		   *corev1.Secret
 	UserData 		   string
 	InstanceId		   string
@@ -50,7 +50,7 @@ func (d *AWSDriver) createSVC() *ec2.EC2 {
 
     if accessKeyID != "" && secretAccessKey != "" {
         return ec2.New(session.New(&aws.Config{
-            Region: aws.String(d.AWSInstanceClass.Spec.AvailabilityZone),
+            Region: aws.String(d.AWSMachineClass.Spec.AvailabilityZone),
             Credentials: credentials.NewStaticCredentialsFromCreds(credentials.Value{
                 AccessKeyID: accessKeyID,
                 SecretAccessKey: secretAccessKey,
@@ -59,7 +59,7 @@ func (d *AWSDriver) createSVC() *ec2.EC2 {
     }
 
     return ec2.New(session.New(&aws.Config{
-        Region: aws.String(d.AWSInstanceClass.Spec.AvailabilityZone),
+        Region: aws.String(d.AWSMachineClass.Spec.AvailabilityZone),
     }))
 }
 
@@ -70,7 +70,7 @@ func (d *AWSDriver) Create() (string, string, error) {
     UserDataEnc := base64.StdEncoding.EncodeToString([]byte(d.UserData))
     
     var imageIds []*string
-    imageId := aws.String(d.AWSInstanceClass.Spec.AMI)
+    imageId := aws.String(d.AWSMachineClass.Spec.AMI)
     imageIds = append(imageIds, imageId)
 
     describeImagesRequest := ec2.DescribeImagesInput {
@@ -83,8 +83,8 @@ func (d *AWSDriver) Create() (string, string, error) {
     
     var blkDeviceMappings []*ec2.BlockDeviceMapping
     deviceName := output.Images[0].RootDeviceName
-    volumeSize := d.AWSInstanceClass.Spec.BlockDevices[0].Ebs.VolumeSize
-    volumeType := d.AWSInstanceClass.Spec.BlockDevices[0].Ebs.VolumeType
+    volumeSize := d.AWSMachineClass.Spec.BlockDevices[0].Ebs.VolumeSize
+    volumeType := d.AWSMachineClass.Spec.BlockDevices[0].Ebs.VolumeType
     blkDeviceMapping := ec2.BlockDeviceMapping{
         DeviceName: deviceName,
         Ebs: &ec2.EbsBlockDevice{
@@ -94,20 +94,20 @@ func (d *AWSDriver) Create() (string, string, error) {
     }
     blkDeviceMappings = append(blkDeviceMappings, &blkDeviceMapping)
 
-    // Specify the details of the instance that you want to create.
+    // Specify the details of the machine that you want to create.
     inputConfig := ec2.RunInstancesInput{
-        // An Amazon Linux AMI ID for t2.micro instances in the us-west-2 region
-        ImageId:                aws.String(d.AWSInstanceClass.Spec.AMI),
-        InstanceType:           aws.String(d.AWSInstanceClass.Spec.InstanceType),
+        // An Amazon Linux AMI ID for t2.micro machines in the us-west-2 region
+        ImageId:                aws.String(d.AWSMachineClass.Spec.AMI),
+        InstanceType:           aws.String(d.AWSMachineClass.Spec.MachineType),
         MinCount:               aws.Int64(1),
         MaxCount:               aws.Int64(1),
         UserData:               &UserDataEnc,
-        KeyName:                aws.String(d.AWSInstanceClass.Spec.KeyName),
-        SubnetId:               aws.String(d.AWSInstanceClass.Spec.NetworkInterfaces[0].SubnetID), 
+        KeyName:                aws.String(d.AWSMachineClass.Spec.KeyName),
+        SubnetId:               aws.String(d.AWSMachineClass.Spec.NetworkInterfaces[0].SubnetID), 
         IamInstanceProfile:     &ec2.IamInstanceProfileSpecification{
-                                    Name: &(d.AWSInstanceClass.Spec.IAM.Name),
+                                    Name: &(d.AWSMachineClass.Spec.IAM.Name),
                                 },
-        SecurityGroupIds:       []*string{aws.String(d.AWSInstanceClass.Spec.NetworkInterfaces[0].SecurityGroupID[0])},
+        SecurityGroupIds:       []*string{aws.String(d.AWSMachineClass.Spec.NetworkInterfaces[0].SecurityGroupID[0])},
         BlockDeviceMappings:    blkDeviceMappings,
     }
 
@@ -116,9 +116,9 @@ func (d *AWSDriver) Create() (string, string, error) {
         return "Error", "Error", err
     }
     
-    // Add tags to the created instance
+    // Add tags to the created machine
     tagList := []*ec2.Tag{}
-    for idx, element := range d.AWSInstanceClass.Spec.Tags {
+    for idx, element := range d.AWSMachineClass.Spec.Tags {
         newTag := ec2.Tag{
             Key: aws.String(idx),
             Value: aws.String(element),
@@ -155,7 +155,7 @@ func (d *AWSDriver) Delete() error {
         input.DryRun = aws.Bool(false)
         output, err := svc.TerminateInstances(input)
         if err != nil {
-            glog.Errorf("Could not terminate instance: ", err)
+            glog.Errorf("Could not terminate machine: ", err)
             return err
         }
 
@@ -166,16 +166,16 @@ func (d *AWSDriver) Delete() error {
             *vmState.CurrentState.Name == "terminated" {
             return nil
         } else {
-            err = errors.New("Instance already terminated")
+            err = errors.New("Machine already terminated")
         }
     } 
 
-    glog.Errorf("Could not terminate instance: ", err)
+    glog.Errorf("Could not terminate machine: ", err)
     return err
 }
 
 // GetExisting TODO
 func (d *AWSDriver) GetExisting() (string, error) {
-	//var dumbo v1alpha1.InstancePhase
+	//var dumbo v1alpha1.MachinePhase
 	return d.InstanceId, nil
 }

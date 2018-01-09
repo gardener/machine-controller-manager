@@ -1,0 +1,27 @@
+# Sample AWS machine class
+
+apiVersion: machine.sapcloud.io/v1alpha1
+kind: AWSMachineClass
+metadata:
+  name: test-aws # Name of aws machine class goes here
+spec:
+  ami: ami-123456 # Amazon machine image name goes here
+  availabilityZone: eu-east-1 # Region in which machine is to be deployed
+  machineType: t2.large # Type of ec2 machine
+  iam:
+    name: iam-name # Name of the AWS Identity and Access Management
+  keyName: key-value-pair-name # EC2 keypair used to access ec2 machine
+  networkInterfaces:
+    - subnetID: subnet-acbd1234 # The subnetID in which machine is to be deployed
+      securityGroupID: ["sg-xyz12345"] # The security group to which it is attached to
+  tags:
+    Name: sample-machine-name # Name tag that can be used to identify a machine
+    tag1: tag1-value # A set of additional tags attached to a machine (optional)
+    tag2: tag2-value # A set of additional tags attached to a machine (optional)
+  secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig
+    namespace: default  # Namespace
+    name: test-secret # Name of the secret
+  blockDevices:
+    - ebs:
+        volumeSize: 50  # Size of the root block device
+        volumeType: gp2 # Type of the root block device

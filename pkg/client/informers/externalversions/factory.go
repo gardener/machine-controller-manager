@@ -5,7 +5,7 @@ package externalversions
 import (
 	clientset "github.com/gardener/node-controller-manager/pkg/client/clientset"
 	internalinterfaces "github.com/gardener/node-controller-manager/pkg/client/informers/externalversions/internalinterfaces"
-	node "github.com/gardener/node-controller-manager/pkg/client/informers/externalversions/node"
+	machine "github.com/gardener/node-controller-manager/pkg/client/informers/externalversions/machine"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
@@ -94,9 +94,9 @@ type SharedInformerFactory interface {
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
-	Node() node.Interface
+	Machine() machine.Interface
 }
 
-func (f *sharedInformerFactory) Node() node.Interface {
-	return node.New(f)
+func (f *sharedInformerFactory) Machine() machine.Interface {
+	return machine.New(f)
 }
