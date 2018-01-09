@@ -12,21 +12,21 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSBlockDeviceMappingSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSBlockDeviceMappingSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Properties: map[string]spec.Schema{
 						"deviceName": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The device name exposed to the instance (for example, /dev/sdh or xvdh).",
+								Description: "The device name exposed to the machine (for example, /dev/sdh or xvdh).",
 								Type:        []string{"string"},
 								Format:      "",
 							},
 						},
 						"ebs": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Parameters used to automatically set up EBS volumes when the instance is launched.",
-								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSEbsBlockDeviceSpec"),
+								Description: "Parameters used to automatically set up EBS volumes when the machine is launched.",
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSEbsBlockDeviceSpec"),
 							},
 						},
 						"noDevice": {
@@ -38,7 +38,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"virtualName": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The virtual device name (ephemeralN). Instance store volumes are numbered starting from 0. An instance type with 2 available instance store volumes can specify mappings for ephemeral0 and ephemeral1.The number of available instance store volumes depends on the instance type. After you connect to the instance, you must mount the volume.\n\nConstraints: For M3 instances, you must specify instance store volumes in the block device mapping for the instance. When you launch an M3 instance, we ignore any instance store volumes specified in the block device mapping for the AMI.",
+								Description: "The virtual device name (ephemeralN). Machine store volumes are numbered starting from 0. An machine type with 2 available machine store volumes can specify mappings for ephemeral0 and ephemeral1.The number of available machine store volumes depends on the machine type. After you connect to the machine, you must mount the volume.\n\nConstraints: For M3 machines, you must specify machine store volumes in the block device mapping for the machine. When you launch an M3 machine, we ignore any machine store volumes specified in the block device mapping for the AMI.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -47,23 +47,23 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSEbsBlockDeviceSpec"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSEbsBlockDeviceSpec"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSEbsBlockDeviceSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSEbsBlockDeviceSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "Describes a block device for an EBS volume. Please also see https://docs.aws.amazon.com/goto/WebAPI/ec2-2016-11-15/EbsBlockDevice",
 					Properties: map[string]spec.Schema{
 						"deleteOnTermination": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Indicates whether the EBS volume is deleted on instance termination.",
+								Description: "Indicates whether the EBS volume is deleted on machine termination.",
 								Type:        []string{"boolean"},
 								Format:      "",
 							},
 						},
 						"encrypted": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Indicates whether the EBS volume is encrypted. Encrypted Amazon EBS volumes may only be attached to instances that support Amazon EBS encryption.",
+								Description: "Indicates whether the EBS volume is encrypted. Encrypted Amazon EBS volumes may only be attached to machines that support Amazon EBS encryption.",
 								Type:        []string{"boolean"},
 								Format:      "",
 							},
@@ -94,21 +94,21 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSIAMProfileSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSIAMProfileSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "Describes an IAM instance profile.",
+					Description: "Describes an IAM machine profile.",
 					Properties: map[string]spec.Schema{
 						"arn": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The Amazon Resource Name (ARN) of the instance profile.",
+								Description: "The Amazon Resource Name (ARN) of the machine profile.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
 						},
 						"name": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The name of the instance profile.",
+								Description: "The name of the machine profile.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -118,10 +118,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClass": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClass": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "AWSInstanceClass TODO",
+					Description: "AWSMachineClass TODO",
 					Properties: map[string]spec.Schema{
 						"metadata": {
 							SchemaProps: spec.SchemaProps{
@@ -144,19 +144,19 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClassSpec"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClassSpec"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClassList": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClassList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "AWSInstanceClassList is a collection of AWSInstanceClasses.",
+					Description: "AWSMachineClassList is a collection of AWSMachineClasses.",
 					Properties: map[string]spec.Schema{
 						"kind": {
 							SchemaProps: spec.SchemaProps{
@@ -183,7 +183,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClass"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClass"),
 										},
 									},
 								},
@@ -194,12 +194,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSInstanceClassSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClassSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "AWSInstanceClassSpec is the specification of a Shoot cluster.",
+					Description: "AWSMachineClassSpec is the specification of a Shoot cluster.",
 					Properties: map[string]spec.Schema{
 						"ami": {
 							SchemaProps: spec.SchemaProps{
@@ -219,7 +219,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSBlockDeviceMappingSpec"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSBlockDeviceMappingSpec"),
 										},
 									},
 								},
@@ -233,10 +233,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"iam": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSIAMProfileSpec"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSIAMProfileSpec"),
 							},
 						},
-						"instanceType": {
+						"machineType": {
 							SchemaProps: spec.SchemaProps{
 								Type:   []string{"string"},
 								Format: "",
@@ -260,7 +260,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSNetworkInterfaceSpec"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSNetworkInterfaceSpec"),
 										},
 									},
 								},
@@ -288,37 +288,37 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSBlockDeviceMappingSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSIAMProfileSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSNetworkInterfaceSpec", "k8s.io/api/core/v1.SecretReference"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSBlockDeviceMappingSpec", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSIAMProfileSpec", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSNetworkInterfaceSpec", "k8s.io/api/core/v1.SecretReference"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.AWSNetworkInterfaceSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSNetworkInterfaceSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "Describes a network interface. Please also see https://docs.aws.amazon.com/goto/WebAPI/ec2-2016-11-15/InstanceAWSNetworkInterfaceSpecification",
+					Description: "Describes a network interface. Please also see https://docs.aws.amazon.com/goto/WebAPI/ec2-2016-11-15/MachineAWSNetworkInterfaceSpecification",
 					Properties: map[string]spec.Schema{
 						"associatePublicIPAddress": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Indicates whether to assign a public IPv4 address to an instance you launch in a VPC. The public IP address can only be assigned to a network interface for eth0, and can only be assigned to a new network interface, not an existing one. You cannot specify more than one network interface in the request. If launching into a default subnet, the default value is true.",
+								Description: "Indicates whether to assign a public IPv4 address to an machine you launch in a VPC. The public IP address can only be assigned to a network interface for eth0, and can only be assigned to a new network interface, not an existing one. You cannot specify more than one network interface in the request. If launching into a default subnet, the default value is true.",
 								Type:        []string{"boolean"},
 								Format:      "",
 							},
 						},
 						"deleteOnTermination": {
 							SchemaProps: spec.SchemaProps{
-								Description: "If set to true, the interface is deleted when the instance is terminated. You can specify true only if creating a new network interface when launching an instance.",
+								Description: "If set to true, the interface is deleted when the machine is terminated. You can specify true only if creating a new network interface when launching an machine.",
 								Type:        []string{"boolean"},
 								Format:      "",
 							},
 						},
 						"description": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The description of the network interface. Applies only if creating a network interface when launching an instance.",
+								Description: "The description of the network interface. Applies only if creating a network interface when launching an machine.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
 						},
 						"securityGroupID": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The IDs of the security groups for the network interface. Applies only if creating a network interface when launching an instance.",
+								Description: "The IDs of the security groups for the network interface. Applies only if creating a network interface when launching an machine.",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -332,7 +332,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"subnetID": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The ID of the subnet associated with the network string. Applies only if creating a network interface when launching an instance.",
+								Description: "The ID of the subnet associated with the network string. Applies only if creating a network interface when launching an machine.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -342,10 +342,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ClassSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "ClassSpec is the class specification of instance",
+					Description: "ClassSpec is the class specification of machine",
 					Properties: map[string]spec.Schema{
 						"apiGroup": {
 							SchemaProps: spec.SchemaProps{
@@ -356,14 +356,14 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"kind": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Kind for instance class",
+								Description: "Kind for machine class",
 								Type:        []string{"string"},
 								Format:      "",
 							},
 						},
 						"name": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Name of instance class",
+								Description: "Name of machine class",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -373,7 +373,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.CurrentStatus": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.CurrentStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "type CurrentStatus",
@@ -387,7 +387,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"timeoutActive": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Name of instance class",
+								Description: "Name of machine class",
 								Type:        []string{"boolean"},
 								Format:      "",
 							},
@@ -404,10 +404,48 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.Instance": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.LastOperation": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "Instance TODO",
+					Description: "LastOperation",
+					Properties: map[string]spec.Schema{
+						"description": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Description of the current operation",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"lastUpdateTime": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Last update time of current operation",
+								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+							},
+						},
+						"state": {
+							SchemaProps: spec.SchemaProps{
+								Description: "State of operation",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"type": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Type of operation",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.Machine": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "Machine TODO",
 					Properties: map[string]spec.Schema{
 						"metadata": {
 							SchemaProps: spec.SchemaProps{
@@ -430,21 +468,21 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSpec"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec"),
 							},
 						},
 						"status": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceStatus"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineStatus"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeployment": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeployment": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DEPRECATED - This group version of Deployment is deprecated by apps/v1beta2/Deployment. See the release notes for more information. Deployment enables declarative updates for Pods and ReplicaSets.",
@@ -472,22 +510,22 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"spec": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Specification of the desired behavior of the Deployment.",
-								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentSpec"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentSpec"),
 							},
 						},
 						"status": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Most recently observed status of the Deployment.",
-								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStatus"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStatus"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentSpec", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentCondition": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentCondition": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DeploymentCondition describes the state of a deployment at a certain point.",
@@ -539,7 +577,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentList": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DeploymentList is a list of Deployments.",
@@ -571,7 +609,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeployment"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeployment"),
 										},
 									},
 								},
@@ -582,9 +620,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeployment", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeployment", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentRollback": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentRollback": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DEPRECATED. DeploymentRollback stores the information required to rollback a deployment.",
@@ -627,7 +665,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"rollbackTo": {
 							SchemaProps: spec.SchemaProps{
 								Description: "The config of this deployment rollback.",
-								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollbackConfig"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig"),
 							},
 						},
 					},
@@ -635,9 +673,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollbackConfig"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DeploymentSpec is the specification of the desired behavior of the Deployment.",
@@ -658,7 +696,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"template": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Template describes the pods that will be created.",
-								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec"),
 							},
 						},
 						"strategy": {
@@ -669,7 +707,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 							},
 							SchemaProps: spec.SchemaProps{
 								Description: "The deployment strategy to use to replace existing pods with new ones.",
-								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStrategy"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStrategy"),
 							},
 						},
 						"minReadySeconds": {
@@ -696,7 +734,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"rollbackTo": {
 							SchemaProps: spec.SchemaProps{
 								Description: "DEPRECATED. The config this deployment is rolling back to. Will be cleared after rollback is done.",
-								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollbackConfig"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig"),
 							},
 						},
 						"progressDeadlineSeconds": {
@@ -711,9 +749,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStrategy", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollbackConfig", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStrategy", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStatus": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DeploymentStatus is the most recently observed status of the Deployment.",
@@ -773,7 +811,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentCondition"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentCondition"),
 										},
 									},
 								},
@@ -790,9 +828,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentCondition"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentCondition"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceDeploymentStrategy": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStrategy": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DeploymentStrategy describes how to replace existing pods with new ones.",
@@ -807,19 +845,19 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"rollingUpdate": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Rolling update config params. Present only if DeploymentStrategyType = RollingUpdate.",
-								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollingUpdateInstanceDeployment"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.RollingUpdateMachineDeployment"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollingUpdateInstanceDeployment"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.RollingUpdateMachineDeployment"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceList": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "InstanceList is a collection of Instances.",
+					Description: "MachineList is a collection of Machines.",
 					Properties: map[string]spec.Schema{
 						"kind": {
 							SchemaProps: spec.SchemaProps{
@@ -846,7 +884,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.Instance"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.Machine"),
 										},
 									},
 								},
@@ -857,12 +895,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.Instance", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.Machine", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSet": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSet": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "InstanceSet TODO",
+					Description: "MachineSet TODO",
 					Properties: map[string]spec.Schema{
 						"metadata": {
 							SchemaProps: spec.SchemaProps{
@@ -885,28 +923,28 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetSpec"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSetSpec"),
 							},
 						},
 						"status": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetStatus"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSetStatus"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSetSpec", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetCondition": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSetCondition": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "ReplicaSetCondition describes the state of a instance set at a certain point.",
+					Description: "ReplicaSetCondition describes the state of a machine set at a certain point.",
 					Properties: map[string]spec.Schema{
 						"type": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Type of instance set condition.",
+								Description: "Type of machine set condition.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -945,10 +983,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetList": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSetList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "InstanceSetList is a collection of InstanceSet.",
+					Description: "MachineSetList is a collection of MachineSet.",
 					Properties: map[string]spec.Schema{
 						"kind": {
 							SchemaProps: spec.SchemaProps{
@@ -975,7 +1013,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSet"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSet"),
 										},
 									},
 								},
@@ -986,59 +1024,59 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSet", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSet", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSetSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "InstanceSetSpec is the specification of a Shoot cluster.",
+					Description: "MachineSetSpec is the specification of a Shoot cluster.",
 					Properties: map[string]spec.Schema{
 						"selector": {
 							SchemaProps: spec.SchemaProps{
 								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 							},
 						},
-						"instanceClass": {
+						"machineClass": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ClassSpec"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec"),
 							},
 						},
 						"template": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ClassSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSetStatus": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSetStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "InstanceSetStatus TODO",
+					Description: "MachineSetStatus TODO",
 					Properties: map[string]spec.Schema{
 						"lastOperation": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Conditions of this instance, same as node",
-								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.LastOperation"),
+								Description: "Conditions of this machine, same as node",
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.LastOperation"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.LastOperation"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.LastOperation"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "InstanceSpec is the specification of a Shoot cluster.",
+					Description: "MachineSpec is the specification of a Shoot cluster.",
 					Properties: map[string]spec.Schema{
 						"class": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ClassSpec"),
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec"),
 							},
 						},
 						"providerID": {
@@ -1051,12 +1089,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ClassSpec"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceStatus": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "InstanceStatus TODO",
+					Description: "MachineStatus TODO",
 					Properties: map[string]spec.Schema{
 						"node": {
 							SchemaProps: spec.SchemaProps{
@@ -1067,7 +1105,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"conditions": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Conditions of this instance, same as node",
+								Description: "Conditions of this machine, same as node",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1081,22 +1119,22 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"lastOperation": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Last operation refers to the status of the last operation performed",
-								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.LastOperation"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.LastOperation"),
 							},
 						},
 						"currentStatus": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Current status of the instance object",
-								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.CurrentStatus"),
+								Description: "Current status of the machine object",
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.CurrentStatus"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.CurrentStatus", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.LastOperation", "k8s.io/api/core/v1.NodeCondition"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.CurrentStatus", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.LastOperation", "k8s.io/api/core/v1.NodeCondition"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplate": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplate": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "PodTemplate describes a template for creating copies of a predefined pod.",
@@ -1124,16 +1162,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"template": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Template defines the pods that will be created from this pod template. https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status",
-								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateList": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "PodTemplateList is a list of PodTemplates.",
@@ -1165,7 +1203,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplate"),
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplate"),
 										},
 									},
 								},
@@ -1176,9 +1214,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceTemplateSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "PodTemplateSpec describes the data a pod should have when created from a template",
@@ -1192,54 +1230,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"spec": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Specification of the desired behavior of the pod. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status",
-								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSpec"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.InstanceSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.LastOperation": {
-			Schema: spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					Description: "LastOperation",
-					Properties: map[string]spec.Schema{
-						"description": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Description of the current operation",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"lastUpdateTime": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Last update time of current operation",
-								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
-							},
-						},
-						"state": {
-							SchemaProps: spec.SchemaProps{
-								Description: "State of operation",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"type": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Type of operation",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-					},
-				},
-			},
-			Dependencies: []string{
-				"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
-		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollbackConfig": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DEPRECATED.",
@@ -1256,7 +1256,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.RollingUpdateInstanceDeployment": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.RollingUpdateMachineDeployment": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "Spec to control the desired behavior of rolling update.",
@@ -1279,7 +1279,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.Scale": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.Scale": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "represents a scaling request for a resource.",
@@ -1307,29 +1307,29 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"spec": {
 							SchemaProps: spec.SchemaProps{
 								Description: "defines the behavior of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status.",
-								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ScaleSpec"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.ScaleSpec"),
 							},
 						},
 						"status": {
 							SchemaProps: spec.SchemaProps{
 								Description: "current status of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status. Read-only.",
-								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ScaleStatus"),
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.ScaleStatus"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ScaleSpec", "github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ScaleStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.ScaleSpec", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.ScaleStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ScaleSpec": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.ScaleSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "describes the attributes of a scale subresource",
 					Properties: map[string]spec.Schema{
 						"replicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "desired number of instances for the scaled object.",
+								Description: "desired number of machines for the scaled object.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
@@ -1339,14 +1339,14 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1.ScaleStatus": {
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.ScaleStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "represents the current status of a scale subresource.",
 					Properties: map[string]spec.Schema{
 						"replicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "actual number of observed instances of the scaled object.",
+								Description: "actual number of observed machines of the scaled object.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},

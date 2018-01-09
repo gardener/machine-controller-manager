@@ -27,13 +27,13 @@ import (
 	"github.com/golang/glog"
 
 	"k8s.io/api/core/v1"
-	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 // rollback the deployment to the specified revision. In any case cleanup the rollback spec.
-func (dc *controller) rollback(d *v1alpha1.InstanceDeployment, isList []*v1alpha1.InstanceSet, instanceMap map[types.UID]*v1alpha1.InstanceList) error {
-	newIS, allOldISs, err := dc.getAllInstanceSetsAndSyncRevision(d, isList, instanceMap, true)
+func (dc *controller) rollback(d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
+	newIS, allOldISs, err := dc.getAllMachineSetsAndSyncRevision(d, isList, machineMap, true)
 	if err != nil {
 		return err
 	}
@@ -46,19 +46,19 @@ func (dc *controller) rollback(d *v1alpha1.InstanceDeployment, isList []*v1alpha
 			// If we still can't find the last revision, gives up rollback
 			dc.emitRollbackWarningEvent(d, RollbackRevisionNotFound, "Unable to find last revision.")
 			// Gives up rollback
-			return dc.updateInstanceDeploymentAndClearRollbackTo(d)
+			return dc.updateMachineDeploymentAndClearRollbackTo(d)
 		}
 	}
 	for _, is := range allISs {
 		v, err := Revision(is)
 		if err != nil {
-			glog.V(4).Infof("Unable to extract revision from deployment's instance set %q: %v", is.Name, err)
+			glog.V(4).Infof("Unable to extract revision from deployment's machine set %q: %v", is.Name, err)
 			continue
 		}
 		if v == *toRevision {
-			glog.V(4).Infof("Found instance set %q with desired revision %d", is.Name, v)
-			// rollback by copying podTemplate.Spec from the instance set
-			// revision number will be incremented during the next getAllInstanceSetsAndSyncRevision call
+			glog.V(4).Infof("Found machine set %q with desired revision %d", is.Name, v)
+			// rollback by copying podTemplate.Spec from the machine set
+			// revision number will be incremented during the next getAllMachineSetsAndSyncRevision call
 			// no-op if the spec matches current deployment's podTemplate.Spec
 			performedRollback, err := dc.rollbackToTemplate(d, is)
 			if performedRollback && err == nil {
@@ -69,17 +69,17 @@ func (dc *controller) rollback(d *v1alpha1.InstanceDeployment, isList []*v1alpha
 	}
 	dc.emitRollbackWarningEvent(d, RollbackRevisionNotFound, "Unable to find the revision to rollback to.")
 	// Gives up rollback
-	return dc.updateInstanceDeploymentAndClearRollbackTo(d)
+	return dc.updateMachineDeploymentAndClearRollbackTo(d)
 }
 
-// rollbackToTemplate compares the templates of the provided deployment and instance set and
-// updates the deployment with the instance set template in case they are different. It also
+// rollbackToTemplate compares the templates of the provided deployment and machine set and
+// updates the deployment with the machine set template in case they are different. It also
 // cleans up the rollback spec so subsequent requeues of the deployment won't end up in here.
-func (dc *controller) rollbackToTemplate(d *v1alpha1.InstanceDeployment, is *v1alpha1.InstanceSet) (bool, error) {
+func (dc *controller) rollbackToTemplate(d *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet) (bool, error) {
 	performedRollback := false
 	if !EqualIgnoreHash(&d.Spec.Template, &is.Spec.Template) {
 		glog.V(4).Infof("Rolling back deployment %q to template spec %+v", d.Name, is.Spec.Template.Spec)
-		SetFromInstanceSetTemplate(d, is.Spec.Template)
+		SetFromMachineSetTemplate(d, is.Spec.Template)
 		// set RS (the old RS we'll rolling back to) annotations back to the deployment;
 		// otherwise, the deployment's current annotations (should be the same as current new RS) will be copied to the RS after the rollback.
 		//
@@ -91,7 +91,7 @@ func (dc *controller) rollbackToTemplate(d *v1alpha1.InstanceDeployment, is *v1a
 		//
 		// If we don't copy the annotations back from RS to deployment on rollback, the Deployment will stay as {change-cause:edit},
 		// and new RS1 becomes {change-cause:edit} (copied from deployment after rollback), old RS2 {change-cause:edit}, which is not correct.
-		SetInstanceDeploymentAnnotationsTo(d, is)
+		SetMachineDeploymentAnnotationsTo(d, is)
 		performedRollback = true
 	} else {
 		glog.V(4).Infof("Rolling back to a revision that contains the same template as current deployment %q, skipping rollback...", d.Name)
@@ -99,23 +99,23 @@ func (dc *controller) rollbackToTemplate(d *v1alpha1.InstanceDeployment, is *v1a
 		dc.emitRollbackWarningEvent(d, RollbackTemplateUnchanged, eventMsg)
 	}
 
-	return performedRollback, dc.updateInstanceDeploymentAndClearRollbackTo(d)
+	return performedRollback, dc.updateMachineDeploymentAndClearRollbackTo(d)
 }
 
-func (dc *controller) emitRollbackWarningEvent(d *v1alpha1.InstanceDeployment, reason, message string) {
+func (dc *controller) emitRollbackWarningEvent(d *v1alpha1.MachineDeployment, reason, message string) {
 	dc.recorder.Eventf(d, v1.EventTypeWarning, reason, message)
 }
 
-func (dc *controller) emitRollbackNormalEvent(d *v1alpha1.InstanceDeployment, message string) {
+func (dc *controller) emitRollbackNormalEvent(d *v1alpha1.MachineDeployment, message string) {
 	dc.recorder.Eventf(d, v1.EventTypeNormal, RollbackDone, message)
 }
 
 // updateDeploymentAndClearRollbackTo sets .spec.rollbackTo to nil and update the input deployment
 // It is assumed that the caller will have updated the deployment template appropriately (in case
 // we want to rollback).
-func (dc *controller) updateInstanceDeploymentAndClearRollbackTo(d *v1alpha1.InstanceDeployment) error {
-	glog.V(4).Infof("Cleans up rollbackTo of instance deployment %q", d.Name)
+func (dc *controller) updateMachineDeploymentAndClearRollbackTo(d *v1alpha1.MachineDeployment) error {
+	glog.V(4).Infof("Cleans up rollbackTo of machine deployment %q", d.Name)
 	d.Spec.RollbackTo = nil
-	_, err := dc.nodeClient.InstanceDeployments().Update(d)
+	_, err := dc.nodeClient.MachineDeployments().Update(d)
 	return err
 }

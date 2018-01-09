@@ -20,7 +20,7 @@ To the left are the list of copied files -> and to the right the current locatio
 	cmd/kube-controller-manager/app/options/options.go -> cmd/node-controller-manager/app/options/options.go
 	cmd/kube-controller-manager/controller_manager.go -> cmd/node-controller-manager/controller_manager.go
 	pkg/controller/deployment/deployment_controller.go -> pkg/controller/deployment_controller.go
-	pkg/controller/deployment/util/instanceset_util.go -> pkg/controller/deployment_instanceset_util.go
+	pkg/controller/deployment/util/replicaset_util.go -> pkg/controller/deployment_machineset_util.go
 	pkg/controller/deployment/progress.go -> pkg/controller/deployment_progress.go
 	pkg/controller/deployment/recreate.go -> pkg/controller/deployment_recreate.go
 	pkg/controller/deployment/rollback.go -> pkg/controller/deployment_rollback.go
@@ -28,9 +28,9 @@ To the left are the list of copied files -> and to the right the current locatio
 	pkg/controller/deployment/sync.go -> pkg/controller/deployment_sync.go
 	pkg/controller/deployment/util/deployment_util.go -> pkg/controller/deployment_util.go
 	pkg/controller/deployment/util/hash_test.go -> pkg/controller/hasttest.go
-	pkg/controller/deployment/util/pod_util.go -> pkg/controller/instance_util.go
-	pkg/controller/replicaset/replica_set.go -> pkg/controller/instanceset.go
-	pkg/controller/deployment/util/replicaset_util.go -> pkg/controller/instanceset_util.go
+	pkg/controller/deployment/util/pod_util.go -> pkg/controller/machine_util.go
+	pkg/controller/replicaset/replica_set.go -> pkg/controller/machineset.go
+	pkg/controller/deployment/util/replicaset_util.go -> pkg/controller/machineset_util.go
 
 ## Dependencies
 

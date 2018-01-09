@@ -42,38 +42,38 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/integer"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
-	"github.com/gardener/node-controller-manager/pkg/apis/node/v1alpha1"
-	v1alpha1client "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	v1alpha1client "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1"
 
-	v1alpha1listers "github.com/gardener/node-controller-manager/pkg/client/listers/node/v1alpha1"
+	v1alpha1listers "github.com/gardener/node-controller-manager/pkg/client/listers/machine/v1alpha1"
 )
 
 // DeploymentListerExpansion allows custom methods to be added to
 // DeploymentLister.
-type InstanceDeploymentListerExpansion interface {
-	GetInstanceDeploymentsForInstanceSet(is *v1alpha1.InstanceSet) ([]*v1alpha1.InstanceDeployment, error)
+type MachineDeploymentListerExpansion interface {
+	GetMachineDeploymentsForMachineSet(is *v1alpha1.MachineSet) ([]*v1alpha1.MachineDeployment, error)
 }
 
 // DeploymentNamespaceListerExpansion allows custom methods to be added to
 // DeploymentNamespaceLister.
-type InstanceDeploymentNamespaceListerExpansion interface{}
+type MachineDeploymentNamespaceListerExpansion interface{}
 
-// GetDeploymentsForInstanceSet returns a list of Deployments that potentially
-// match a InstanceSet. Only the one specified in the InstanceSet's ControllerRef
+// GetDeploymentsForMachineSet returns a list of Deployments that potentially
+// match a MachineSet. Only the one specified in the MachineSet's ControllerRef
 // will actually manage it.
 // Returns an error only if no matching Deployments are found.
-func (c *controller) GetInstanceDeploymentsForInstanceSet(is *v1alpha1.InstanceSet) ([]*v1alpha1.InstanceDeployment, error) {
+func (c *controller) GetMachineDeploymentsForMachineSet(is *v1alpha1.MachineSet) ([]*v1alpha1.MachineDeployment, error) {
 	if len(is.Labels) == 0 {
-		return nil, fmt.Errorf("no deployments found for InstanceSet %v because it has no labels", is.Name)
+		return nil, fmt.Errorf("no deployments found for MachineSet %v because it has no labels", is.Name)
 	}
 
-	// TODO: MODIFY THIS METHOD so that it checks for the instanceTemplateSpecHash label
-	dList, err := c.instanceDeploymentLister.List(labels.Everything())
+	// TODO: MODIFY THIS METHOD so that it checks for the machineTemplateSpecHash label
+	dList, err := c.machineDeploymentLister.List(labels.Everything())
 	if err != nil {
 		return nil, err
 	}
 
-	var deployments []*v1alpha1.InstanceDeployment
+	var deployments []*v1alpha1.MachineDeployment
 	for _, d := range dList {
 		selector, err := metav1.LabelSelectorAsSelector(d.Spec.Selector)
 		if err != nil {
@@ -87,23 +87,23 @@ func (c *controller) GetInstanceDeploymentsForInstanceSet(is *v1alpha1.InstanceS
 	}
 
 	if len(deployments) == 0 {
-		return nil, fmt.Errorf("could not find deployments set for InstanceSet %s with labels: %v", is.Name, is.Labels)
+		return nil, fmt.Errorf("could not find deployments set for MachineSet %s with labels: %v", is.Name, is.Labels)
 	}
 
 	return deployments, nil
 }
 
 const (
-	// RevisionAnnotation is the revision annotation of a deployment's instance sets which records its rollout sequence
+	// RevisionAnnotation is the revision annotation of a deployment's machine sets which records its rollout sequence
 	RevisionAnnotation = "deployment.kubernetes.io/revision"
-	// RevisionHistoryAnnotation maintains the history of all old revisions that a instance set has served for a deployment.
+	// RevisionHistoryAnnotation maintains the history of all old revisions that a machine set has served for a deployment.
 	RevisionHistoryAnnotation = "deployment.kubernetes.io/revision-history"
 	// DesiredReplicasAnnotation is the desired replicas for a deployment recorded as an annotation
-	// in its instance sets. Helps in separating scaling events from the rollout process and for
-	// determining if the new instance set for a deployment is really saturated.
+	// in its machine sets. Helps in separating scaling events from the rollout process and for
+	// determining if the new machine set for a deployment is really saturated.
 	DesiredReplicasAnnotation = "deployment.kubernetes.io/desired-replicas"
 	// MaxReplicasAnnotation is the maximum replicas a deployment can have at a given point, which
-	// is deployment.spec.replicas + maxSurge. Used by the underlying instance sets to estimate their
+	// is deployment.spec.replicas + maxSurge. Used by the underlying machine sets to estimate their
 	// proportions in case the deployment has surge replicas.
 	MaxReplicasAnnotation = "deployment.kubernetes.io/max-replicas"
 
@@ -117,28 +117,28 @@ const (
 	//
 	// Progressing:
 	//
-	// InstanceSetUpdatedReason is added in a deployment when one of its instance sets is updated as part
+	// MachineSetUpdatedReason is added in a deployment when one of its machine sets is updated as part
 	// of the rollout process.
-	InstanceSetUpdatedReason = "InstanceSetUpdated"
-	// FailedRSCreateReason is added in a deployment when it cannot create a new instance set.
-	FailedISCreateReason = "InstanceSetCreateError"
-	// NewInstanceSetReason is added in a deployment when it creates a new instance set.
-	NewInstanceSetReason = "NewInstanceSetCreated"
-	// FoundNewRSReason is added in a deployment when it adopts an existing instance set.
-	FoundNewISReason = "FoundNewInstanceSet"
-	// NewRSAvailableReason is added in a deployment when its newest instance set is made available
-	// ie. the number of new instances that have passed readiness checks and run for at least minReadySeconds
-	// is at least the minimum available instances that need to run for the deployment.
-	NewISAvailableReason = "NewInstanceSetAvailable"
-	// TimedOutReason is added in a deployment when its newest instance set fails to show any progress
+	MachineSetUpdatedReason = "MachineSetUpdated"
+	// FailedRSCreateReason is added in a deployment when it cannot create a new machine set.
+	FailedISCreateReason = "MachineSetCreateError"
+	// NewMachineSetReason is added in a deployment when it creates a new machine set.
+	NewMachineSetReason = "NewMachineSetCreated"
+	// FoundNewRSReason is added in a deployment when it adopts an existing machine set.
+	FoundNewISReason = "FoundNewMachineSet"
+	// NewRSAvailableReason is added in a deployment when its newest machine set is made available
+	// ie. the number of new machines that have passed readiness checks and run for at least minReadySeconds
+	// is at least the minimum available machines that need to run for the deployment.
+	NewISAvailableReason = "NewMachineSetAvailable"
+	// TimedOutReason is added in a deployment when its newest machine set fails to show any progress
 	// within the given deadline (progressDeadlineSeconds).
 	TimedOutReason = "ProgressDeadlineExceeded"
 	// PausedDeployReason is added in a deployment when it is paused. Lack of progress shouldn't be
 	// estimated once a deployment is paused.
-	PausedInstanceDeployReason = "DeploymentPaused"
+	PausedMachineDeployReason = "DeploymentPaused"
 	// ResumedDeployReason is added in a deployment when it is resumed. Useful for not failing accidentally
 	// deployments that paused amidst a rollout and are bounded by a deadline.
-	ResumedInstanceDeployReason = "DeploymentResumed"
+	ResumedMachineDeployReason = "DeploymentResumed"
 	//
 	// Available:
 	//
@@ -149,9 +149,9 @@ const (
 	MinimumReplicasUnavailable = "MinimumReplicasUnavailable"
 )
 
-// NewInstanceDeploymentCondition creates a new deployment condition.
-func NewInstanceDeploymentCondition(condType v1alpha1.InstanceDeploymentConditionType, status v1alpha1.ConditionStatus, reason, message string) *v1alpha1.InstanceDeploymentCondition {
-	return &v1alpha1.InstanceDeploymentCondition{
+// NewMachineDeploymentCondition creates a new deployment condition.
+func NewMachineDeploymentCondition(condType v1alpha1.MachineDeploymentConditionType, status v1alpha1.ConditionStatus, reason, message string) *v1alpha1.MachineDeploymentCondition {
+	return &v1alpha1.MachineDeploymentCondition{
 		Type:               condType,
 		Status:             status,
 		LastUpdateTime:     metav1.Now(),
@@ -161,8 +161,8 @@ func NewInstanceDeploymentCondition(condType v1alpha1.InstanceDeploymentConditio
 	}
 }
 
-// GetInstanceDeploymentCondition returns the condition with the provided type.
-func GetInstanceDeploymentCondition(status v1alpha1.InstanceDeploymentStatus, condType v1alpha1.InstanceDeploymentConditionType) *v1alpha1.InstanceDeploymentCondition {
+// GetMachineDeploymentCondition returns the condition with the provided type.
+func GetMachineDeploymentCondition(status v1alpha1.MachineDeploymentStatus, condType v1alpha1.MachineDeploymentConditionType) *v1alpha1.MachineDeploymentCondition {
 	for i := range status.Conditions {
 		c := status.Conditions[i]
 		if c.Type == condType {
@@ -173,9 +173,9 @@ func GetInstanceDeploymentCondition(status v1alpha1.InstanceDeploymentStatus, co
 }
 
 // TODO: remove the duplicate
-// GetInstanceDeploymentConditionInternal returns the condition with the provided type.
+// GetMachineDeploymentConditionInternal returns the condition with the provided type.
 // Avoiding Internal versions, use standard versions only.
-func GetInstanceDeploymentConditionInternal(status v1alpha1.InstanceDeploymentStatus, condType v1alpha1.InstanceDeploymentConditionType) *v1alpha1.InstanceDeploymentCondition {
+func GetMachineDeploymentConditionInternal(status v1alpha1.MachineDeploymentStatus, condType v1alpha1.MachineDeploymentConditionType) *v1alpha1.MachineDeploymentCondition {
 	for i := range status.Conditions {
 		c := status.Conditions[i]
 		if c.Type == condType {
@@ -185,10 +185,10 @@ func GetInstanceDeploymentConditionInternal(status v1alpha1.InstanceDeploymentSt
 	return nil
 }
 
-// SetInstanceDeploymentCondition updates the deployment to include the provided condition. If the condition that
+// SetMachineDeploymentCondition updates the deployment to include the provided condition. If the condition that
 // we are about to add already exists and has the same status and reason then we are not going to update.
-func SetInstanceDeploymentCondition(status *v1alpha1.InstanceDeploymentStatus, condition v1alpha1.InstanceDeploymentCondition) {
-	currentCond := GetInstanceDeploymentCondition(*status, condition.Type)
+func SetMachineDeploymentCondition(status *v1alpha1.MachineDeploymentStatus, condition v1alpha1.MachineDeploymentCondition) {
+	currentCond := GetMachineDeploymentCondition(*status, condition.Type)
 	if currentCond != nil && currentCond.Status == condition.Status && currentCond.Reason == condition.Reason {
 		return
 	}
@@ -200,14 +200,14 @@ func SetInstanceDeploymentCondition(status *v1alpha1.InstanceDeploymentStatus, c
 	status.Conditions = append(newConditions, condition)
 }
 
-// RemoveInstanceDeploymentCondition removes the deployment condition with the provided type.
-func RemoveInstanceDeploymentCondition(status *v1alpha1.InstanceDeploymentStatus, condType v1alpha1.InstanceDeploymentConditionType) {
+// RemoveMachineDeploymentCondition removes the deployment condition with the provided type.
+func RemoveMachineDeploymentCondition(status *v1alpha1.MachineDeploymentStatus, condType v1alpha1.MachineDeploymentConditionType) {
 	status.Conditions = filterOutDeploymentCondition(status.Conditions, condType)
 }
 
 // filterOutDeploymentCondition returns a new slice of deployment conditions without conditions with the provided type.
-func filterOutDeploymentCondition(conditions []v1alpha1.InstanceDeploymentCondition, condType v1alpha1.InstanceDeploymentConditionType) []v1alpha1.InstanceDeploymentCondition {
-	var newConditions []v1alpha1.InstanceDeploymentCondition
+func filterOutDeploymentCondition(conditions []v1alpha1.MachineDeploymentCondition, condType v1alpha1.MachineDeploymentConditionType) []v1alpha1.MachineDeploymentCondition {
+	var newConditions []v1alpha1.MachineDeploymentCondition
 	for _, c := range conditions {
 		if c.Type == condType {
 			continue
@@ -217,11 +217,11 @@ func filterOutDeploymentCondition(conditions []v1alpha1.InstanceDeploymentCondit
 	return newConditions
 }
 
-// InstanceSetToInstanceDeploymentCondition converts a instance set condition into a deployment condition.
-// Useful for promoting instance set failure conditions into deployments.
-func InstanceSetToInstanceDeploymentCondition(cond v1alpha1.InstanceSetCondition) v1alpha1.InstanceDeploymentCondition {
-	return v1alpha1.InstanceDeploymentCondition{
-		Type:               v1alpha1.InstanceDeploymentConditionType(cond.Type),
+// MachineSetToMachineDeploymentCondition converts a machine set condition into a deployment condition.
+// Useful for promoting machine set failure conditions into deployments.
+func MachineSetToMachineDeploymentCondition(cond v1alpha1.MachineSetCondition) v1alpha1.MachineDeploymentCondition {
+	return v1alpha1.MachineDeploymentCondition{
+		Type:               v1alpha1.MachineDeploymentConditionType(cond.Type),
 		Status:             cond.Status,
 		LastTransitionTime: cond.LastTransitionTime,
 		LastUpdateTime:     cond.LastTransitionTime,
@@ -231,7 +231,7 @@ func InstanceSetToInstanceDeploymentCondition(cond v1alpha1.InstanceSetCondition
 }
 
 // SetDeploymentRevision updates the revision for a deployment.
-func SetInstanceDeploymentRevision(deployment *v1alpha1.InstanceDeployment, revision string) bool {
+func SetMachineDeploymentRevision(deployment *v1alpha1.MachineDeployment, revision string) bool {
 	updated := false
 
 	if deployment.Annotations == nil {
@@ -245,13 +245,13 @@ func SetInstanceDeploymentRevision(deployment *v1alpha1.InstanceDeployment, revi
 	return updated
 }
 
-// MaxRevision finds the highest revision in the instance sets
-func MaxRevision(allISs []*v1alpha1.InstanceSet) int64 {
+// MaxRevision finds the highest revision in the machine sets
+func MaxRevision(allISs []*v1alpha1.MachineSet) int64 {
 	max := int64(0)
 	for _, is := range allISs {
 		if v, err := Revision(is); err != nil {
-			// Skip the instance sets when it failed to parse their revision information
-			glog.V(4).Infof("Error: %v. Couldn't parse revision for instance set %#v, instance deployment controller will skip it when reconciling revisions.", err, is)
+			// Skip the machine sets when it failed to parse their revision information
+			glog.V(4).Infof("Error: %v. Couldn't parse revision for machine set %#v, machine deployment controller will skip it when reconciling revisions.", err, is)
 		} else if v > max {
 			max = v
 		}
@@ -259,13 +259,13 @@ func MaxRevision(allISs []*v1alpha1.InstanceSet) int64 {
 	return max
 }
 
-// LastRevision finds the second max revision number in all instance sets (the last revision)
-func LastRevision(allISs []*v1alpha1.InstanceSet) int64 {
+// LastRevision finds the second max revision number in all machine sets (the last revision)
+func LastRevision(allISs []*v1alpha1.MachineSet) int64 {
 	max, secMax := int64(0), int64(0)
 	for _, is := range allISs {
 		if v, err := Revision(is); err != nil {
-			// Skip the instance sets when it failed to parse their revision information
-			glog.V(4).Infof("Error: %v. Couldn't parse revision for instance set %#v, instance deployment controller will skip it when reconciling revisions.", err, is)
+			// Skip the machine sets when it failed to parse their revision information
+			glog.V(4).Infof("Error: %v. Couldn't parse revision for machine set %#v, machine deployment controller will skip it when reconciling revisions.", err, is)
 		} else if v >= max {
 			secMax = max
 			max = v
@@ -289,12 +289,12 @@ func Revision(obj runtime.Object) (int64, error) {
 	return strconv.ParseInt(v, 10, 64)
 }
 
-// SetNewInstanceSetAnnotations sets new instance set's annotations appropriately by updating its revision and
-// copying required deployment annotations to it; it returns true if instance set's annotation is changed.
-func SetNewInstanceSetAnnotations(deployment *v1alpha1.InstanceDeployment, newIS *v1alpha1.InstanceSet, newRevision string, exists bool) bool {
+// SetNewMachineSetAnnotations sets new machine set's annotations appropriately by updating its revision and
+// copying required deployment annotations to it; it returns true if machine set's annotation is changed.
+func SetNewMachineSetAnnotations(deployment *v1alpha1.MachineDeployment, newIS *v1alpha1.MachineSet, newRevision string, exists bool) bool {
 	// First, copy deployment's annotations (except for apply and revision annotations)
-	annotationChanged := copyInstanceDeploymentAnnotationsToInstanceSet(deployment, newIS)
-	// Then, update instance set's revision annotation
+	annotationChanged := copyMachineDeploymentAnnotationsToMachineSet(deployment, newIS)
+	// Then, update machine set's revision annotation
 	if newIS.Annotations == nil {
 		newIS.Annotations = make(map[string]string)
 	}
@@ -306,7 +306,7 @@ func SetNewInstanceSetAnnotations(deployment *v1alpha1.InstanceDeployment, newIS
 	oldRevisionInt, err := strconv.ParseInt(oldRevision, 10, 64)
 	if err != nil {
 		if oldRevision != "" {
-			glog.Warningf("Updating instance set revision OldRevision not int %s", err)
+			glog.Warningf("Updating machine set revision OldRevision not int %s", err)
 			return false
 		}
 		//If the RS annotation is empty then initialise it to 0
@@ -314,16 +314,16 @@ func SetNewInstanceSetAnnotations(deployment *v1alpha1.InstanceDeployment, newIS
 	}
 	newRevisionInt, err := strconv.ParseInt(newRevision, 10, 64)
 	if err != nil {
-		glog.Warningf("Updating instance set revision NewRevision not int %s", err)
+		glog.Warningf("Updating machine set revision NewRevision not int %s", err)
 		return false
 	}
 	if oldRevisionInt < newRevisionInt {
 		newIS.Annotations[RevisionAnnotation] = newRevision
 		annotationChanged = true
-		glog.V(4).Infof("Updating instance set %q revision to %s", newIS.Name, newRevision)
+		glog.V(4).Infof("Updating machine set %q revision to %s", newIS.Name, newRevision)
 	}
-	// If a revision annotation already existed and this instance set was updated with a new revision
-	// then that means we are rolling back to this instance set. We need to preserve the old revisions
+	// If a revision annotation already existed and this machine set was updated with a new revision
+	// then that means we are rolling back to this machine set. We need to preserve the old revisions
 	// for historical information.
 	if ok && annotationChanged {
 		revisionHistoryAnnotation := newIS.Annotations[RevisionHistoryAnnotation]
@@ -335,7 +335,7 @@ func SetNewInstanceSetAnnotations(deployment *v1alpha1.InstanceDeployment, newIS
 			newIS.Annotations[RevisionHistoryAnnotation] = strings.Join(oldRevisions, ",")
 		}
 	}
-	// If the new instance set is about to be created, we need to add replica annotations to it.
+	// If the new machine set is about to be created, we need to add replica annotations to it.
 	if !exists && SetReplicasAnnotations(newIS, (deployment.Spec.Replicas), (deployment.Spec.Replicas)+MaxSurge(*deployment)) {
 		annotationChanged = true
 	}
@@ -357,16 +357,16 @@ func skipCopyAnnotation(key string) bool {
 	return annotationsToSkip[key]
 }
 
-// copyDeploymentAnnotationsToInstanceSet copies deployment's annotations to instance set's annotations,
-// and returns true if instance set's annotation is changed.
+// copyDeploymentAnnotationsToMachineSet copies deployment's annotations to machine set's annotations,
+// and returns true if machine set's annotation is changed.
 // Note that apply and revision annotations are not copied.
-func copyInstanceDeploymentAnnotationsToInstanceSet(deployment *v1alpha1.InstanceDeployment, is *v1alpha1.InstanceSet) bool {
+func copyMachineDeploymentAnnotationsToMachineSet(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet) bool {
 	isAnnotationsChanged := false
 	if is.Annotations == nil {
 		is.Annotations = make(map[string]string)
 	}
 	for k, v := range deployment.Annotations {
-		// newRS revision is updated automatically in getNewInstanceSet, and the deployment's revision number is then updated
+		// newRS revision is updated automatically in getNewMachineSet, and the deployment's revision number is then updated
 		// by copying its newRS revision number. We should not copy deployment's revision to its newRS, since the update of
 		// deployment revision number may fail (revision becomes stale) and the revision number in newRS is more reliable.
 		if skipCopyAnnotation(k) || is.Annotations[k] == v {
@@ -381,7 +381,7 @@ func copyInstanceDeploymentAnnotationsToInstanceSet(deployment *v1alpha1.Instanc
 // SetDeploymentAnnotationsTo sets deployment's annotations as given RS's annotations.
 // This action should be done if and only if the deployment is rolling back to this rs.
 // Note that apply and revision annotations are not changed.
-func SetInstanceDeploymentAnnotationsTo(deployment *v1alpha1.InstanceDeployment, rollbackToIS *v1alpha1.InstanceSet) {
+func SetMachineDeploymentAnnotationsTo(deployment *v1alpha1.MachineDeployment, rollbackToIS *v1alpha1.MachineSet) {
 	deployment.Annotations = getSkippedAnnotations(deployment.Annotations)
 	for k, v := range rollbackToIS.Annotations {
 		if !skipCopyAnnotation(k) {
@@ -400,19 +400,19 @@ func getSkippedAnnotations(annotations map[string]string) map[string]string {
 	return skippedAnnotations
 }
 
-// FindActiveOrLatest returns the only active or the latest instance set in case there is at most one active
-// instance set. If there are more active instance sets, then we should proportionally scale them.
-func FindActiveOrLatest(newIS *v1alpha1.InstanceSet, oldISs []*v1alpha1.InstanceSet) *v1alpha1.InstanceSet {
+// FindActiveOrLatest returns the only active or the latest machine set in case there is at most one active
+// machine set. If there are more active machine sets, then we should proportionally scale them.
+func FindActiveOrLatest(newIS *v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet) *v1alpha1.MachineSet {
 	if newIS == nil && len(oldISs) == 0 {
 		return nil
 	}
 
-	sort.Sort(sort.Reverse(InstanceSetsByCreationTimestamp(oldISs)))
-	allISs := FilterActiveInstanceSets(append(oldISs, newIS))
+	sort.Sort(sort.Reverse(MachineSetsByCreationTimestamp(oldISs)))
+	allISs := FilterActiveMachineSets(append(oldISs, newIS))
 
 	switch len(allISs) {
 	case 0:
-		// If there is no active instance set then we should return the newest.
+		// If there is no active machine set then we should return the newest.
 		if newIS != nil {
 			return newIS
 		}
@@ -425,29 +425,29 @@ func FindActiveOrLatest(newIS *v1alpha1.InstanceSet, oldISs []*v1alpha1.Instance
 }
 
 // GetDesiredReplicasAnnotation returns the number of desired replicas
-func GetDesiredReplicasAnnotation(is *v1alpha1.InstanceSet) (int32, bool) {
+func GetDesiredReplicasAnnotation(is *v1alpha1.MachineSet) (int32, bool) {
 	return getIntFromAnnotation(is, DesiredReplicasAnnotation)
 }
 
-func getMaxReplicasAnnotation(is *v1alpha1.InstanceSet) (int32, bool) {
+func getMaxReplicasAnnotation(is *v1alpha1.MachineSet) (int32, bool) {
 	return getIntFromAnnotation(is, MaxReplicasAnnotation)
 }
 
-func getIntFromAnnotation(is *v1alpha1.InstanceSet, annotationKey string) (int32, bool) {
+func getIntFromAnnotation(is *v1alpha1.MachineSet, annotationKey string) (int32, bool) {
 	annotationValue, ok := is.Annotations[annotationKey]
 	if !ok {
 		return int32(0), false
 	}
 	intValue, err := strconv.Atoi(annotationValue)
 	if err != nil {
-		glog.V(2).Infof("Cannot convert the value %q with annotation key %q for the instance set %q", annotationValue, annotationKey, is.Name)
+		glog.V(2).Infof("Cannot convert the value %q with annotation key %q for the machine set %q", annotationValue, annotationKey, is.Name)
 		return int32(0), false
 	}
 	return int32(intValue), true
 }
 
 // SetReplicasAnnotations sets the desiredReplicas and maxReplicas into the annotations
-func SetReplicasAnnotations(is *v1alpha1.InstanceSet, desiredReplicas, maxReplicas int32) bool {
+func SetReplicasAnnotations(is *v1alpha1.MachineSet, desiredReplicas, maxReplicas int32) bool {
 	updated := false
 	if is.Annotations == nil {
 		is.Annotations = make(map[string]string)
@@ -465,8 +465,8 @@ func SetReplicasAnnotations(is *v1alpha1.InstanceSet, desiredReplicas, maxReplic
 	return updated
 }
 
-// MaxUnavailable returns the maximum unavailable instances a rolling deployment can take.
-func MaxUnavailable(deployment v1alpha1.InstanceDeployment) int32 {
+// MaxUnavailable returns the maximum unavailable machines a rolling deployment can take.
+func MaxUnavailable(deployment v1alpha1.MachineDeployment) int32 {
 	if !IsRollingUpdate(&deployment) || (deployment.Spec.Replicas) == 0 {
 		return int32(0)
 	}
@@ -478,16 +478,16 @@ func MaxUnavailable(deployment v1alpha1.InstanceDeployment) int32 {
 	return maxUnavailable
 }
 
-// MinAvailable returns the minimum available instances of a given deployment
-func MinAvailable(deployment *v1alpha1.InstanceDeployment) int32 {
+// MinAvailable returns the minimum available machines of a given deployment
+func MinAvailable(deployment *v1alpha1.MachineDeployment) int32 {
 	if !IsRollingUpdate(deployment) {
 		return int32(0)
 	}
 	return (deployment.Spec.Replicas) - MaxUnavailable(*deployment)
 }
 
-// MaxSurge returns the maximum surge instances a rolling deployment can take.
-func MaxSurge(deployment v1alpha1.InstanceDeployment) int32 {
+// MaxSurge returns the maximum surge machines a rolling deployment can take.
+func MaxSurge(deployment v1alpha1.MachineDeployment) int32 {
 	if !IsRollingUpdate(&deployment) {
 		return int32(0)
 	}
@@ -496,33 +496,33 @@ func MaxSurge(deployment v1alpha1.InstanceDeployment) int32 {
 	return maxSurge
 }
 
-// GetProportion will estimate the proportion for the provided instance set using 1. the current size
-// of the parent deployment, 2. the replica count that needs be added on the instance sets of the
-// deployment, and 3. the total replicas added in the instance sets of the deployment so far.
-func GetProportion(is *v1alpha1.InstanceSet, d v1alpha1.InstanceDeployment, deploymentReplicasToAdd, deploymentReplicasAdded int32) int32 {
+// GetProportion will estimate the proportion for the provided machine set using 1. the current size
+// of the parent deployment, 2. the replica count that needs be added on the machine sets of the
+// deployment, and 3. the total replicas added in the machine sets of the deployment so far.
+func GetProportion(is *v1alpha1.MachineSet, d v1alpha1.MachineDeployment, deploymentReplicasToAdd, deploymentReplicasAdded int32) int32 {
 	if is == nil || (is.Spec.Replicas) == 0 || deploymentReplicasToAdd == 0 || deploymentReplicasToAdd == deploymentReplicasAdded {
 		return int32(0)
 	}
 
-	isFraction := getInstanceSetFraction(*is, d)
+	isFraction := getMachineSetFraction(*is, d)
 	allowed := deploymentReplicasToAdd - deploymentReplicasAdded
 
 	if deploymentReplicasToAdd > 0 {
-		// Use the minimum between the instance set fraction and the maximum allowed replicas
+		// Use the minimum between the machine set fraction and the maximum allowed replicas
 		// when scaling up. This way we ensure we will not scale up more than the allowed
 		// replicas we can add.
 		return integer.Int32Min(isFraction, allowed)
 	}
-	// Use the maximum between the instance set fraction and the maximum allowed replicas
+	// Use the maximum between the machine set fraction and the maximum allowed replicas
 	// when scaling down. This way we ensure we will not scale down more than the allowed
 	// replicas we can remove.
 	return integer.Int32Max(isFraction, allowed)
 }
 
-// getInstanceSetFraction estimates the fraction of replicas a instance set can have in
+// getMachineSetFraction estimates the fraction of replicas a machine set can have in
 // 1. a scaling event during a rollout or 2. when scaling a paused deployment.
-func getInstanceSetFraction(is v1alpha1.InstanceSet, d v1alpha1.InstanceDeployment) int32 {
-	// If we are scaling down to zero then the fraction of this instance set is its whole size (negative)
+func getMachineSetFraction(is v1alpha1.MachineSet, d v1alpha1.MachineDeployment) int32 {
+	// If we are scaling down to zero then the fraction of this machine set is its whole size (negative)
 	if (d.Spec.Replicas) == int32(0) {
 		return -(is.Spec.Replicas)
 	}
@@ -531,7 +531,7 @@ func getInstanceSetFraction(is v1alpha1.InstanceSet, d v1alpha1.InstanceDeployme
 	annotatedReplicas, ok := getMaxReplicasAnnotation(&is)
 	if !ok {
 		// If we cannot find the annotation then fallback to the current deployment size. Note that this
-		// will not be an accurate proportion estimation in case other instance sets have different values
+		// will not be an accurate proportion estimation in case other machine sets have different values
 		// which means that the deployment was scaled at some point but we at least will stay in limits
 		// due to the min-max comparisons in getProportion.
 		annotatedReplicas = d.Status.Replicas
@@ -543,48 +543,48 @@ func getInstanceSetFraction(is v1alpha1.InstanceSet, d v1alpha1.InstanceDeployme
 	return integer.RoundToInt32(newISsize) - (is.Spec.Replicas)
 }
 
-// GetAllInstanceSets returns the old and new instance sets targeted by the given Deployment. It gets InstanceList and InstanceSetList from client interface.
-// Note that the first set of old instance sets doesn't include the ones with no instances, and the second set of old instance sets include all old instance sets.
-// The third returned value is the new instance set, and it may be nil if it doesn't exist yet.
-func GetAllInstanceSets(deployment *v1alpha1.InstanceDeployment, c v1alpha1client.NodeV1alpha1Interface) ([]*v1alpha1.InstanceSet, []*v1alpha1.InstanceSet, *v1alpha1.InstanceSet, error) {
-	isList, err := ListInstanceSets(deployment, IsListFromClient(c))
+// GetAllMachineSets returns the old and new machine sets targeted by the given Deployment. It gets MachineList and MachineSetList from client interface.
+// Note that the first set of old machine sets doesn't include the ones with no machines, and the second set of old machine sets include all old machine sets.
+// The third returned value is the new machine set, and it may be nil if it doesn't exist yet.
+func GetAllMachineSets(deployment *v1alpha1.MachineDeployment, c v1alpha1client.MachineV1alpha1Interface) ([]*v1alpha1.MachineSet, []*v1alpha1.MachineSet, *v1alpha1.MachineSet, error) {
+	isList, err := ListMachineSets(deployment, IsListFromClient(c))
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	oldISes, allOldISes := FindOldInstanceSets(deployment, isList)
-	newIS := FindNewInstanceSet(deployment, isList)
+	oldISes, allOldISes := FindOldMachineSets(deployment, isList)
+	newIS := FindNewMachineSet(deployment, isList)
 	return oldISes, allOldISes, newIS, nil
 }
 
-// GetOldInstanceSets returns the old instance sets targeted by the given Deployment; get InstanceList and InstanceSetList from client interface.
-// Note that the first set of old instance sets doesn't include the ones with no instances, and the second set of old instance sets include all old instance sets.
-func GetOldInstanceSets(deployment *v1alpha1.InstanceDeployment, c v1alpha1client.NodeV1alpha1Interface) ([]*v1alpha1.InstanceSet, []*v1alpha1.InstanceSet, error) {
-	rsList, err := ListInstanceSets(deployment, IsListFromClient(c))
+// GetOldMachineSets returns the old machine sets targeted by the given Deployment; get MachineList and MachineSetList from client interface.
+// Note that the first set of old machine sets doesn't include the ones with no machines, and the second set of old machine sets include all old machine sets.
+func GetOldMachineSets(deployment *v1alpha1.MachineDeployment, c v1alpha1client.MachineV1alpha1Interface) ([]*v1alpha1.MachineSet, []*v1alpha1.MachineSet, error) {
+	rsList, err := ListMachineSets(deployment, IsListFromClient(c))
 	if err != nil {
 		return nil, nil, err
 	}
-	oldRSes, allOldRSes := FindOldInstanceSets(deployment, rsList)
+	oldRSes, allOldRSes := FindOldMachineSets(deployment, rsList)
 	return oldRSes, allOldRSes, nil
 }
 
-// GetNewInstanceSet returns a instance set that matches the intent of the given deployment; get InstanceSetList from client interface.
-// Returns nil if the new instance set doesn't exist yet.
-func GetNewInstanceSet(deployment *v1alpha1.InstanceDeployment, c v1alpha1client.NodeV1alpha1Interface) (*v1alpha1.InstanceSet, error) {
-	rsList, err := ListInstanceSets(deployment, IsListFromClient(c))
+// GetNewMachineSet returns a machine set that matches the intent of the given deployment; get MachineSetList from client interface.
+// Returns nil if the new machine set doesn't exist yet.
+func GetNewMachineSet(deployment *v1alpha1.MachineDeployment, c v1alpha1client.MachineV1alpha1Interface) (*v1alpha1.MachineSet, error) {
+	rsList, err := ListMachineSets(deployment, IsListFromClient(c))
 	if err != nil {
 		return nil, err
 	}
-	return FindNewInstanceSet(deployment, rsList), nil
+	return FindNewMachineSet(deployment, rsList), nil
 }
 
 // RsListFromClient returns an rsListFunc that wraps the given client.
-func IsListFromClient(c v1alpha1client.NodeV1alpha1Interface) IsListFunc {
-	return func(namespace string, options metav1.ListOptions) ([]*v1alpha1.InstanceSet, error) {
-		isList, err := c.InstanceSets().List(options)
+func IsListFromClient(c v1alpha1client.MachineV1alpha1Interface) IsListFunc {
+	return func(namespace string, options metav1.ListOptions) ([]*v1alpha1.MachineSet, error) {
+		isList, err := c.MachineSets().List(options)
 		if err != nil {
 			return nil, err
 		}
-		var ret []*v1alpha1.InstanceSet
+		var ret []*v1alpha1.MachineSet
 		for i := range isList.Items {
 			ret = append(ret, &isList.Items[i])
 		}
@@ -593,15 +593,15 @@ func IsListFromClient(c v1alpha1client.NodeV1alpha1Interface) IsListFunc {
 }
 
 // TODO: switch this to full namespacers
-type IsListFunc func(string, metav1.ListOptions) ([]*v1alpha1.InstanceSet, error)
-type instanceListFunc func(string, metav1.ListOptions) (*v1alpha1.InstanceList, error)
+type IsListFunc func(string, metav1.ListOptions) ([]*v1alpha1.MachineSet, error)
+type machineListFunc func(string, metav1.ListOptions) (*v1alpha1.MachineList, error)
 
-// ListInstanceSets returns a slice of RSes the given deployment targets.
+// ListMachineSets returns a slice of RSes the given deployment targets.
 // Note that this does NOT attempt to reconcile ControllerRef (adopt/orphan),
 // because only the controller itself should do that.
 // However, it does filter out anything whose ControllerRef doesn't match.
-func ListInstanceSets(deployment *v1alpha1.InstanceDeployment, getISList IsListFunc) ([]*v1alpha1.InstanceSet, error) {
-	// TODO: Right now we list instance sets by their labels. We should list them by selector, i.e. the instance set's selector
+func ListMachineSets(deployment *v1alpha1.MachineDeployment, getISList IsListFunc) ([]*v1alpha1.MachineSet, error) {
+	// TODO: Right now we list machine sets by their labels. We should list them by selector, i.e. the machine set's selector
 	//       should be a superset of the deployment's selector, see https://github.com/kubernetes/kubernetes/issues/19830.
 	namespace := deployment.Namespace
 	selector, err := metav1.LabelSelectorAsSelector(deployment.Spec.Selector)
@@ -614,7 +614,7 @@ func ListInstanceSets(deployment *v1alpha1.InstanceDeployment, getISList IsListF
 		return nil, err
 	}
 	// Only include those whose ControllerRef matches the Deployment.
-	owned := make([]*v1alpha1.InstanceSet, 0, len(all))
+	owned := make([]*v1alpha1.MachineSet, 0, len(all))
 	for _, is := range all {
 		if metav1.IsControlledBy(is, deployment) {
 			owned = append(owned, is)
@@ -623,9 +623,9 @@ func ListInstanceSets(deployment *v1alpha1.InstanceDeployment, getISList IsListF
 	return owned, nil
 }
 
-// ListInstanceSetsInternal is ListInstanceSets for v1alpha1.
-// TODO: Remove the duplicate when call sites are updated to ListInstanceSets.
-func ListInstanceSetsInternal(deployment *v1alpha1.InstanceDeployment, getISList func(string, metav1.ListOptions) ([]*v1alpha1.InstanceSet, error)) ([]*v1alpha1.InstanceSet, error) {
+// ListMachineSetsInternal is ListMachineSets for v1alpha1.
+// TODO: Remove the duplicate when call sites are updated to ListMachineSets.
+func ListMachineSetsInternal(deployment *v1alpha1.MachineDeployment, getISList func(string, metav1.ListOptions) ([]*v1alpha1.MachineSet, error)) ([]*v1alpha1.MachineSet, error) {
 	namespace := deployment.Namespace
 	selector, err := metav1.LabelSelectorAsSelector(deployment.Spec.Selector)
 	if err != nil {
@@ -637,7 +637,7 @@ func ListInstanceSetsInternal(deployment *v1alpha1.InstanceDeployment, getISList
 		return nil, err
 	}
 	// Only include those whose ControllerRef matches the Deployment.
-	filtered := make([]*v1alpha1.InstanceSet, 0, len(all))
+	filtered := make([]*v1alpha1.MachineSet, 0, len(all))
 	for _, is := range all {
 		if metav1.IsControlledBy(is, deployment) {
 			filtered = append(filtered, is)
@@ -647,39 +647,39 @@ func ListInstanceSetsInternal(deployment *v1alpha1.InstanceDeployment, getISList
 }
 
 
-func ListInstances(deployment *v1alpha1.InstanceDeployment, isList []*v1alpha1.InstanceSet, getInstanceList instanceListFunc) (*v1alpha1.InstanceList, error) {
+func ListMachines(deployment *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, getMachineList machineListFunc) (*v1alpha1.MachineList, error) {
 	namespace := deployment.Namespace
 	selector, err := metav1.LabelSelectorAsSelector(deployment.Spec.Selector)
 	if err != nil {
 		return nil, err
 	}
 	options := metav1.ListOptions{LabelSelector: selector.String()}
-	all, err := getInstanceList(namespace, options)
+	all, err := getMachineList(namespace, options)
 	if err != nil {
 		return all, err
 	}
-	// Only include those whose ControllerRef points to a InstanceSet that is in
+	// Only include those whose ControllerRef points to a MachineSet that is in
 	// turn owned by this Deployment.
 	isMap := make(map[types.UID]bool, len(isList))
 	for _, is := range isList {
 		isMap[is.UID] = true
 	}
-	owned := &v1alpha1.InstanceList{Items: make([]v1alpha1.Instance, 0, len(all.Items))}
+	owned := &v1alpha1.MachineList{Items: make([]v1alpha1.Machine, 0, len(all.Items))}
 	for i := range all.Items {
-		instance := &all.Items[i]
-		controllerRef := metav1.GetControllerOf(instance)
+		machine := &all.Items[i]
+		controllerRef := metav1.GetControllerOf(machine)
 		if controllerRef != nil && isMap[controllerRef.UID] {
-			owned.Items = append(owned.Items, *instance)
+			owned.Items = append(owned.Items, *machine)
 		}
 	}
 	return owned, nil
 }
 
-// EqualIgnoreHash returns true if two given instanceTemplateSpec are equal, ignoring the diff in value of Labels[instance-template-hash]
-// We ignore instance-template-hash because the hash result would be different upon instanceTemplateSpec API changes
+// EqualIgnoreHash returns true if two given machineTemplateSpec are equal, ignoring the diff in value of Labels[machine-template-hash]
+// We ignore machine-template-hash because the hash result would be different upon machineTemplateSpec API changes
 // (e.g. the addition of a new field will cause the hash code to change)
-// Note that we assume input instanceTemplateSpecs contain non-empty labels
-func EqualIgnoreHash(template1, template2 *v1alpha1.InstanceTemplateSpec) bool {
+// Note that we assume input machineTemplateSpecs contain non-empty labels
+func EqualIgnoreHash(template1, template2 *v1alpha1.MachineTemplateSpec) bool {
 	t1Copy := template1.DeepCopy()
 	t2Copy := template2.DeepCopy()
 	// First, compare template.Labels (ignoring hash)
@@ -689,7 +689,7 @@ func EqualIgnoreHash(template1, template2 *v1alpha1.InstanceTemplateSpec) bool {
 	}
 	// We make sure len(labels2) >= len(labels1)
 	for k, v := range labels2 {
-		if labels1[k] != v && k != v1alpha1.DefaultInstanceDeploymentUniqueLabelKey {
+		if labels1[k] != v && k != v1alpha1.DefaultMachineDeploymentUniqueLabelKey {
 			return false
 		}
 	}
@@ -698,30 +698,30 @@ func EqualIgnoreHash(template1, template2 *v1alpha1.InstanceTemplateSpec) bool {
 	return apiequality.Semantic.DeepEqual(t1Copy, t2Copy)
 }
 
-// FindNewInstanceSet returns the new RS this given deployment targets (the one with the same instance template).
-func FindNewInstanceSet(deployment *v1alpha1.InstanceDeployment, isList []*v1alpha1.InstanceSet) *v1alpha1.InstanceSet {
-	sort.Sort(InstanceSetsByCreationTimestamp(isList))
+// FindNewMachineSet returns the new RS this given deployment targets (the one with the same machine template).
+func FindNewMachineSet(deployment *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet) *v1alpha1.MachineSet {
+	sort.Sort(MachineSetsByCreationTimestamp(isList))
 	for i := range isList {
 		if EqualIgnoreHash(&isList[i].Spec.Template, &deployment.Spec.Template) {
 			// In rare cases, such as after cluster upgrades, Deployment may end up with
-			// having more than one new InstanceSets that have the same template as its template,
+			// having more than one new MachineSets that have the same template as its template,
 			// see https://github.com/kubernetes/kubernetes/issues/40415
-			// We deterministically choose the oldest new InstanceSet.
+			// We deterministically choose the oldest new MachineSet.
 			return isList[i]
 		}
 	}
-	// new InstanceSet does not exist.
+	// new MachineSet does not exist.
 	return nil
 }
 
-// FindOldInstanceSets returns the old instance sets targeted by the given Deployment, with the given slice of RSes.
-// Note that the first set of old instance sets doesn't include the ones with no instances, and the second set of old instance sets include all old instance sets.
-func FindOldInstanceSets(deployment *v1alpha1.InstanceDeployment, isList []*v1alpha1.InstanceSet) ([]*v1alpha1.InstanceSet, []*v1alpha1.InstanceSet) {
-	var requiredISs []*v1alpha1.InstanceSet
-	var allISs []*v1alpha1.InstanceSet
-	newIS := FindNewInstanceSet(deployment, isList)
+// FindOldMachineSets returns the old machine sets targeted by the given Deployment, with the given slice of RSes.
+// Note that the first set of old machine sets doesn't include the ones with no machines, and the second set of old machine sets include all old machine sets.
+func FindOldMachineSets(deployment *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet) ([]*v1alpha1.MachineSet, []*v1alpha1.MachineSet) {
+	var requiredISs []*v1alpha1.MachineSet
+	var allISs []*v1alpha1.MachineSet
+	newIS := FindNewMachineSet(deployment, isList)
 	for _, is := range isList {
-		// Filter out new instance set
+		// Filter out new machine set
 		if newIS != nil && is.UID == newIS.UID {
 			continue
 		}
@@ -733,8 +733,8 @@ func FindOldInstanceSets(deployment *v1alpha1.InstanceDeployment, isList []*v1al
 	return requiredISs, allISs
 }
 
-// WaitForInstanceSetUpdated polls the instance set until it is updated.
-func WaitForInstanceSetUpdated(c v1alpha1listers.InstanceSetLister, desiredGeneration int64, namespace, name string) error {
+// WaitForMachineSetUpdated polls the machine set until it is updated.
+func WaitForMachineSetUpdated(c v1alpha1listers.MachineSetLister, desiredGeneration int64, namespace, name string) error {
 	return wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
 		is, err := c.Get(name)
 		if err != nil {
@@ -744,8 +744,8 @@ func WaitForInstanceSetUpdated(c v1alpha1listers.InstanceSetLister, desiredGener
 	})
 }
 
-// WaitForInstancesHashPopulated polls the instance set until updated and fully labeled.
-func WaitForInstancesHashPopulated(c v1alpha1listers.InstanceSetLister, desiredGeneration int64, namespace, name string) error {
+// WaitForMachinesHashPopulated polls the machine set until updated and fully labeled.
+func WaitForMachinesHashPopulated(c v1alpha1listers.MachineSetLister, desiredGeneration int64, namespace, name string) error {
 	return wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
 		is, err := c.Get(name)
 		if err != nil {
@@ -756,47 +756,47 @@ func WaitForInstancesHashPopulated(c v1alpha1listers.InstanceSetLister, desiredG
 	})
 }
 
-// LabelInstancesWithHash labels all instances in the given instanceList with the new hash label.
-func LabelInstancesWithHash(instanceList *v1alpha1.InstanceList, c v1alpha1client.NodeV1alpha1Interface , instanceLister v1alpha1listers.InstanceLister, namespace, name, hash string) error {
-	for _, instance := range instanceList.Items {
-		// Ignore inactive Instances.
-		if !IsInstanceActive(&instance) {
+// LabelMachinesWithHash labels all machines in the given machineList with the new hash label.
+func LabelMachinesWithHash(machineList *v1alpha1.MachineList, c v1alpha1client.MachineV1alpha1Interface , machineLister v1alpha1listers.MachineLister, namespace, name, hash string) error {
+	for _, machine := range machineList.Items {
+		// Ignore inactive Machines.
+		if !IsMachineActive(&machine) {
 			continue
 		}
-		// Only label the instance that doesn't already have the new hash
-		if instance.Labels[v1alpha1.DefaultInstanceDeploymentUniqueLabelKey] != hash {
-			_, err := UpdateInstanceWithRetries(c.Instances(), instanceLister, instance.Namespace, instance.Name,
-				func(instanceToUpdate *v1alpha1.Instance) error {
-					// Precondition: the instance doesn't contain the new hash in its label.
-					if instanceToUpdate.Labels[v1alpha1.DefaultInstanceDeploymentUniqueLabelKey] == hash {
+		// Only label the machine that doesn't already have the new hash
+		if machine.Labels[v1alpha1.DefaultMachineDeploymentUniqueLabelKey] != hash {
+			_, err := UpdateMachineWithRetries(c.Machines(), machineLister, machine.Namespace, machine.Name,
+				func(machineToUpdate *v1alpha1.Machine) error {
+					// Precondition: the machine doesn't contain the new hash in its label.
+					if machineToUpdate.Labels[v1alpha1.DefaultMachineDeploymentUniqueLabelKey] == hash {
 						return errors.ErrPreconditionViolated
 					}
-					instanceToUpdate.Labels = labelsutil.AddLabel(instanceToUpdate.Labels, v1alpha1.DefaultInstanceDeploymentUniqueLabelKey, hash)
+					machineToUpdate.Labels = labelsutil.AddLabel(machineToUpdate.Labels, v1alpha1.DefaultMachineDeploymentUniqueLabelKey, hash)
 					return nil
 				})
 			if err != nil {
-				return fmt.Errorf("error in adding template hash label %s to instance %q: %v", hash, instance.Name, err)
+				return fmt.Errorf("error in adding template hash label %s to machine %q: %v", hash, machine.Name, err)
 			}
-			glog.V(4).Infof("Labeled instance %s/%s of InstanceSet %s/%s with hash %s.", instance.Namespace, instance.Name, namespace, name, hash)
+			glog.V(4).Infof("Labeled machine %s/%s of MachineSet %s/%s with hash %s.", machine.Namespace, machine.Name, namespace, name, hash)
 		}
 	}
 	return nil
 }
 
-// SetFromInstanceSetTemplate sets the desired InstanceTemplateSpec from a instance set template to the given deployment.
-func SetFromInstanceSetTemplate(deployment *v1alpha1.InstanceDeployment, template v1alpha1.InstanceTemplateSpec) *v1alpha1.InstanceDeployment {
+// SetFromMachineSetTemplate sets the desired MachineTemplateSpec from a machine set template to the given deployment.
+func SetFromMachineSetTemplate(deployment *v1alpha1.MachineDeployment, template v1alpha1.MachineTemplateSpec) *v1alpha1.MachineDeployment {
 	deployment.Spec.Template.ObjectMeta = template.ObjectMeta
 	deployment.Spec.Template.Spec = template.Spec
 	deployment.Spec.Template.ObjectMeta.Labels = labelsutil.CloneAndRemoveLabel(
 		deployment.Spec.Template.ObjectMeta.Labels,
-		v1alpha1.DefaultInstanceDeploymentUniqueLabelKey)
+		v1alpha1.DefaultMachineDeploymentUniqueLabelKey)
 	return deployment
 }
 
-// GetReplicaCountForInstanceSets returns the sum of Replicas of the given instance sets.
-func GetReplicaCountForInstanceSets(InstanceSets []*v1alpha1.InstanceSet) int32 {
+// GetReplicaCountForMachineSets returns the sum of Replicas of the given machine sets.
+func GetReplicaCountForMachineSets(MachineSets []*v1alpha1.MachineSet) int32 {
 	totalReplicas := int32(0)
-	for _, is := range InstanceSets {
+	for _, is := range MachineSets {
 		if is != nil {
 			totalReplicas += (is.Spec.Replicas)
 		}
@@ -804,10 +804,10 @@ func GetReplicaCountForInstanceSets(InstanceSets []*v1alpha1.InstanceSet) int32 
 	return totalReplicas
 }
 
-// GetActualReplicaCountForInstanceSets returns the sum of actual replicas of the given instance sets.
-func GetActualReplicaCountForInstanceSets(InstanceSets []*v1alpha1.InstanceSet) int32 {
+// GetActualReplicaCountForMachineSets returns the sum of actual replicas of the given machine sets.
+func GetActualReplicaCountForMachineSets(MachineSets []*v1alpha1.MachineSet) int32 {
 	totalActualReplicas := int32(0)
-	for _, is := range InstanceSets {
+	for _, is := range MachineSets {
 		if is != nil {
 			totalActualReplicas += is.Status.Replicas
 		}
@@ -815,10 +815,10 @@ func GetActualReplicaCountForInstanceSets(InstanceSets []*v1alpha1.InstanceSet) 
 	return totalActualReplicas
 }
 
-// GetReadyReplicaCountForInstanceSets returns the number of ready instances corresponding to the given instance sets.
-func GetReadyReplicaCountForInstanceSets(InstanceSets []*v1alpha1.InstanceSet) int32 {
+// GetReadyReplicaCountForMachineSets returns the number of ready machines corresponding to the given machine sets.
+func GetReadyReplicaCountForMachineSets(MachineSets []*v1alpha1.MachineSet) int32 {
 	totalReadyReplicas := int32(0)
-	for _, is := range InstanceSets {
+	for _, is := range MachineSets {
 		if is != nil {
 			totalReadyReplicas += is.Status.ReadyReplicas
 		}
@@ -826,10 +826,10 @@ func GetReadyReplicaCountForInstanceSets(InstanceSets []*v1alpha1.InstanceSet) i
 	return totalReadyReplicas
 }
 
-// GetAvailableReplicaCountForInstanceSets returns the number of available instances corresponding to the given instance sets.
-func GetAvailableReplicaCountForInstanceSets(InstanceSets []*v1alpha1.InstanceSet) int32 {
+// GetAvailableReplicaCountForMachineSets returns the number of available machines corresponding to the given machine sets.
+func GetAvailableReplicaCountForMachineSets(MachineSets []*v1alpha1.MachineSet) int32 {
 	totalAvailableReplicas := int32(0)
-	for _, is := range InstanceSets {
+	for _, is := range MachineSets {
 		if is != nil {
 			totalAvailableReplicas += is.Status.AvailableReplicas
 		}
@@ -838,13 +838,13 @@ func GetAvailableReplicaCountForInstanceSets(InstanceSets []*v1alpha1.InstanceSe
 }
 
 // IsRollingUpdate returns true if the strategy type is a rolling update.
-func IsRollingUpdate(deployment *v1alpha1.InstanceDeployment) bool {
-	return deployment.Spec.Strategy.Type == v1alpha1.RollingUpdateInstanceDeploymentStrategyType
+func IsRollingUpdate(deployment *v1alpha1.MachineDeployment) bool {
+	return deployment.Spec.Strategy.Type == v1alpha1.RollingUpdateMachineDeploymentStrategyType
 }
 
 // DeploymentComplete considers a deployment to be complete once all of its desired replicas
-// are updated and available, and no old instances are running.
-func InstanceDeploymentComplete(deployment *v1alpha1.InstanceDeployment, newStatus *v1alpha1.InstanceDeploymentStatus) bool {
+// are updated and available, and no old machines are running.
+func MachineDeploymentComplete(deployment *v1alpha1.MachineDeployment, newStatus *v1alpha1.MachineDeploymentStatus) bool {
 	return newStatus.UpdatedReplicas == (deployment.Spec.Replicas) &&
 		newStatus.Replicas == (deployment.Spec.Replicas) &&
 		newStatus.AvailableReplicas == (deployment.Spec.Replicas) &&
@@ -853,9 +853,9 @@ func InstanceDeploymentComplete(deployment *v1alpha1.InstanceDeployment, newStat
 
 // DeploymentProgressing reports progress for a deployment. Progress is estimated by comparing the
 // current with the new status of the deployment that the controller is observing. More specifically,
-// when new instances are scaled up or become ready or available, or old instances are scaled down, then we
+// when new machines are scaled up or become ready or available, or old machines are scaled down, then we
 // consider the deployment is progressing.
-func InstanceDeploymentProgressing(deployment *v1alpha1.InstanceDeployment, newStatus *v1alpha1.InstanceDeploymentStatus) bool {
+func MachineDeploymentProgressing(deployment *v1alpha1.MachineDeployment, newStatus *v1alpha1.MachineDeploymentStatus) bool {
 	oldStatus := deployment.Status
 
 	// Old replicas that need to be scaled down
@@ -874,7 +874,7 @@ var nowFn = func() time.Time { return time.Now() }
 // DeploymentTimedOut considers a deployment to have timed out once its condition that reports progress
 // is older than progressDeadlineSeconds or a Progressing condition with a TimedOutReason reason already
 // exists.
-func InstanceDeploymentTimedOut(deployment *v1alpha1.InstanceDeployment, newStatus *v1alpha1.InstanceDeploymentStatus) bool {
+func MachineDeploymentTimedOut(deployment *v1alpha1.MachineDeployment, newStatus *v1alpha1.MachineDeploymentStatus) bool {
 	if deployment.Spec.ProgressDeadlineSeconds == nil {
 		return false
 	}
@@ -882,7 +882,7 @@ func InstanceDeploymentTimedOut(deployment *v1alpha1.InstanceDeployment, newStat
 	// Look for the Progressing condition. If it doesn't exist, we have no base to estimate progress.
 	// If it's already set with a TimedOutReason reason, we have already timed out, no need to check
 	// again.
-	condition := GetInstanceDeploymentCondition(*newStatus, v1alpha1.InstanceDeploymentProgressing)
+	condition := GetMachineDeploymentCondition(*newStatus, v1alpha1.MachineDeploymentProgressing)
 	if condition == nil {
 		return false
 	}
@@ -891,9 +891,9 @@ func InstanceDeploymentTimedOut(deployment *v1alpha1.InstanceDeployment, newStat
 	//
 	// * progressDeadlineSeconds is smaller than the difference between now and the time
 	//   the last rollout finished in the past.
-	// * the creation of a new InstanceSet triggers a resync of the Deployment prior to the
+	// * the creation of a new MachineSet triggers a resync of the Deployment prior to the
 	//   cached copy of the Deployment getting updated with the status.condition that indicates
-	//   the creation of the new InstanceSet.
+	//   the creation of the new MachineSet.
 	//
 	// The Deployment will be resynced and eventually its Progressing condition will catch
 	// up with the state of the world.
@@ -905,53 +905,53 @@ func InstanceDeploymentTimedOut(deployment *v1alpha1.InstanceDeployment, newStat
 	}
 
 	// Look at the difference in seconds between now and the last time we reported any
-	// progress or tried to create a instance set, or resumed a paused deployment and
+	// progress or tried to create a machine set, or resumed a paused deployment and
 	// compare against progressDeadlineSeconds.
 	from := condition.LastUpdateTime
 	now := nowFn()
 	delta := time.Duration(*deployment.Spec.ProgressDeadlineSeconds) * time.Second
 	timedOut := from.Add(delta).Before(now)
 
-	glog.V(4).Infof("InstanceDeployment %q timed out (%t) [last progress check: %v - now: %v]", deployment.Name, timedOut, from, now)
+	glog.V(4).Infof("MachineDeployment %q timed out (%t) [last progress check: %v - now: %v]", deployment.Name, timedOut, from, now)
 	return timedOut
 }
 
 // NewRSNewReplicas calculates the number of replicas a deployment's new RS should have.
 // When one of the followings is true, we're rolling out the deployment; otherwise, we're scaling it.
 // 1) The new RS is saturated: newRS's replicas == deployment's replicas
-// 2) Max number of instances allowed is reached: deployment's replicas + maxSurge == all RSs' replicas
-func NewISNewReplicas(deployment *v1alpha1.InstanceDeployment, allISs []*v1alpha1.InstanceSet, newIS *v1alpha1.InstanceSet) (int32, error) {
+// 2) Max number of machines allowed is reached: deployment's replicas + maxSurge == all RSs' replicas
+func NewISNewReplicas(deployment *v1alpha1.MachineDeployment, allISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet) (int32, error) {
 	switch deployment.Spec.Strategy.Type {
-	case v1alpha1.RollingUpdateInstanceDeploymentStrategyType:
+	case v1alpha1.RollingUpdateMachineDeploymentStrategyType:
 		// Check if we can scale up.
 		maxSurge, err := intstrutil.GetValueFromIntOrPercent(deployment.Spec.Strategy.RollingUpdate.MaxSurge, int((deployment.Spec.Replicas)), true)
 		if err != nil {
 			return 0, err
 		}
-		// Find the total number of instances
-		currentInstanceCount := GetReplicaCountForInstanceSets(allISs)
-		maxTotalInstances := (deployment.Spec.Replicas) + int32(maxSurge)
-		if currentInstanceCount >= maxTotalInstances {
+		// Find the total number of machines
+		currentMachineCount := GetReplicaCountForMachineSets(allISs)
+		maxTotalMachines := (deployment.Spec.Replicas) + int32(maxSurge)
+		if currentMachineCount >= maxTotalMachines {
 			// Cannot scale up.
 			return (newIS.Spec.Replicas), nil
 		}
 		// Scale up.
-		scaleUpCount := maxTotalInstances - currentInstanceCount
+		scaleUpCount := maxTotalMachines - currentMachineCount
 		// Do not exceed the number of desired replicas.
 		scaleUpCount = int32(integer.IntMin(int(scaleUpCount), int((deployment.Spec.Replicas)-(newIS.Spec.Replicas))))
 		return (newIS.Spec.Replicas) + scaleUpCount, nil
-	case v1alpha1.RecreateInstanceDeploymentStrategyType:
+	case v1alpha1.RecreateMachineDeploymentStrategyType:
 		return (deployment.Spec.Replicas), nil
 	default:
-		return 0, fmt.Errorf("instance deployment type %v isn't supported", deployment.Spec.Strategy.Type)
+		return 0, fmt.Errorf("machine deployment type %v isn't supported", deployment.Spec.Strategy.Type)
 	}
 }
 
-// IsSaturated checks if the new instance set is saturated by comparing its size with its deployment size.
-// Both the deployment and the instance set have to believe this instance set can own all of the desired
-// replicas in the deployment and the annotation helps in achieving that. All instances of the InstanceSet
+// IsSaturated checks if the new machine set is saturated by comparing its size with its deployment size.
+// Both the deployment and the machine set have to believe this machine set can own all of the desired
+// replicas in the deployment and the annotation helps in achieving that. All machines of the MachineSet
 // need to be available.
-func IsSaturated(deployment *v1alpha1.InstanceDeployment, is *v1alpha1.InstanceSet) bool {
+func IsSaturated(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet) bool {
 	if is == nil {
 		return false
 	}
@@ -967,7 +967,7 @@ func IsSaturated(deployment *v1alpha1.InstanceDeployment, is *v1alpha1.InstanceS
 
 // WaitForObservedDeployment polls for deployment to be updated so that deployment.Status.ObservedGeneration >= desiredGeneration.
 // Returns error if polling timesout.
-func WaitForObservedInstanceDeployment(getDeploymentFunc func() (*v1alpha1.InstanceDeployment, error), desiredGeneration int64, interval, timeout time.Duration) error {
+func WaitForObservedMachineDeployment(getDeploymentFunc func() (*v1alpha1.MachineDeployment, error), desiredGeneration int64, interval, timeout time.Duration) error {
 	// TODO: This should take clientset.Interface when all code is updated to use clientset. Keeping it this way allows the function to be used by callers who have client.Interface.
 	return wait.PollImmediate(interval, timeout, func() (bool, error) {
 		deployment, err := getDeploymentFunc()
@@ -981,7 +981,7 @@ func WaitForObservedInstanceDeployment(getDeploymentFunc func() (*v1alpha1.Insta
 // TODO: remove the duplicate
 // WaitForObservedInternalDeployment polls for deployment to be updated so that deployment.Status.ObservedGeneration >= desiredGeneration.
 // Returns error if polling timesout.
-func WaitForObservedDeploymentInternal(getDeploymentFunc func() (*v1alpha1.InstanceDeployment, error), desiredGeneration int64, interval, timeout time.Duration) error {
+func WaitForObservedDeploymentInternal(getDeploymentFunc func() (*v1alpha1.MachineDeployment, error), desiredGeneration int64, interval, timeout time.Duration) error {
 	return wait.Poll(interval, timeout, func() (bool, error) {
 		deployment, err := getDeploymentFunc()
 		if err != nil {

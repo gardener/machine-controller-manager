@@ -8,7 +8,7 @@ LINT_FOLDERS     := $(shell echo $(PACKAGES) | sed "s|$(REPOSITORY)|.|g")
 BINARY_PATH      := $(REPOSITORY)/cmd/$(PROJECT)
 
 IMAGE_REPOSITORY := kvmprashanth/node-controller-manager
-IMAGE_TAG        := v1
+IMAGE_TAG        := v2
 
 TYPES_FILES      := $(shell find pkg/apis -name types.go)
 
@@ -52,17 +52,17 @@ generate-files: .generate_files
 	$(BINDIR)/defaulter-gen \
 		--v 1 --logtostderr \
 		--go-header-file "verify/boilerplate/boilerplate.go.txt" \
-		--input-dirs "$(REPOSITORY)/pkg/apis/node" \
-		--input-dirs "$(REPOSITORY)/pkg/apis/node/v1alpha1" \
-		--extra-peer-dirs "$(REPOSITORY)/pkg/apis/node" \
-		--extra-peer-dirs "$(REPOSITORY)/pkg/apis/node/v1alpha1" \
+		--input-dirs "$(REPOSITORY)/pkg/apis/machine" \
+		--input-dirs "$(REPOSITORY)/pkg/apis/machine/v1alpha1" \
+		--extra-peer-dirs "$(REPOSITORY)/pkg/apis/machine" \
+		--extra-peer-dirs "$(REPOSITORY)/pkg/apis/machine/v1alpha1" \
 		--output-file-base "zz_generated.defaults"
 	# Generate deep copies
 	$(BINDIR)/deepcopy-gen \
 		--v 1 --logtostderr \
 		--go-header-file "verify/boilerplate/boilerplate.go.txt" \
-		--input-dirs "$(REPOSITORY)/pkg/apis/node" \
-		--input-dirs "$(REPOSITORY)/pkg/apis/node/v1alpha1" \
+		--input-dirs "$(REPOSITORY)/pkg/apis/machine" \
+		--input-dirs "$(REPOSITORY)/pkg/apis/machine/v1alpha1" \
 		--bounding-dirs "$(REPOSITORY)" \
 		--output-file-base zz_generated.deepcopy
 	# Generate conversions
@@ -70,41 +70,41 @@ generate-files: .generate_files
 		--v 1 --logtostderr \
 		--extra-peer-dirs k8s.io/api/core/v1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/apimachinery/pkg/conversion,k8s.io/apimachinery/pkg/runtime \
 	  --go-header-file "verify/boilerplate/boilerplate.go.txt" \
-		--input-dirs "$(REPOSITORY)/pkg/apis/node" \
-		--input-dirs "$(REPOSITORY)/pkg/apis/node/v1alpha1" \
+		--input-dirs "$(REPOSITORY)/pkg/apis/machine" \
+		--input-dirs "$(REPOSITORY)/pkg/apis/machine/v1alpha1" \
 		--output-file-base zz_generated.conversion
 	# generate openapi
 	$(BINDIR)/openapi-gen \
 		--v 1 --logtostderr \
 		--go-header-file "verify/boilerplate/boilerplate.go.txt" \
-		--input-dirs "$(REPOSITORY)/pkg/apis/node/v1alpha1,k8s.io/api/core/v1,k8s.io/apimachinery/pkg/apis/meta/v1" \
+		--input-dirs "$(REPOSITORY)/pkg/apis/machine/v1alpha1,k8s.io/api/core/v1,k8s.io/apimachinery/pkg/apis/meta/v1" \
 		--output-package "$(REPOSITORY)/pkg/openapi"
 
 	# Generate the internal clientset (pkg/client/internalclientset)
 	${BINDIR}/client-gen "$@" \
 		--go-header-file "verify/boilerplate/boilerplate.go.txt" \
 		--input-base "$(REPOSITORY)/pkg/apis/" \
-		--input node \
+		--input machine \
 		--clientset-path "$(REPOSITORY)/pkg/client" \
 		--clientset-name internalclientset \
 	# Generate the versioned clientset (pkg/client/clientset/clientset)
 	${BINDIR}/client-gen "$@" \
 		--go-header-file "verify/boilerplate/boilerplate.go.txt" \
 		--input-base "$(REPOSITORY)/pkg/apis/" \
-		--input "node/v1alpha1" \
+		--input "machine/v1alpha1" \
 		--clientset-path "$(REPOSITORY)/pkg/client" \
 		--clientset-name "clientset" \
 	# generate lister
 	${BINDIR}/lister-gen "$@" \
 		--go-header-file "verify/boilerplate/boilerplate.go.txt" \
-		--input-dirs="$(REPOSITORY)/pkg/apis/node" \
-		--input-dirs="$(REPOSITORY)/pkg/apis/node/v1alpha1" \
+		--input-dirs="$(REPOSITORY)/pkg/apis/machine" \
+		--input-dirs="$(REPOSITORY)/pkg/apis/machine/v1alpha1" \
 		--output-package "$(REPOSITORY)/pkg/client/listers" \
 	# generate informer
 	${BINDIR}/informer-gen "$@" \
 	--go-header-file "verify/boilerplate/boilerplate.go.txt" \
-	--input-dirs "$(REPOSITORY)/pkg/apis/node" \
-	--input-dirs "$(REPOSITORY)/pkg/apis/node/v1alpha1" \
+	--input-dirs "$(REPOSITORY)/pkg/apis/machine" \
+	--input-dirs "$(REPOSITORY)/pkg/apis/machine/v1alpha1" \
 	--versioned-clientset-package "$(REPOSITORY)/pkg/client/clientset" \
 	--internal-clientset-package "$(REPOSITORY)/pkg/client/internalclientset" \
 	--listers-package "$(REPOSITORY)/pkg/client/listers" \

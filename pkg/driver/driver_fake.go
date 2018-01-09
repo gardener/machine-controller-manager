@@ -19,7 +19,7 @@ package driver
 type FakeDriver struct {
 	create   func() (string, string, error)
 	delete   func() error
-	//existing func() (string, v1alpha1.InstancePhase, error)
+	//existing func() (string, v1alpha1.MachinePhase, error)
 	existing func() (string, error)
 }
 

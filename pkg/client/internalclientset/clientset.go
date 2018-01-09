@@ -1,7 +1,7 @@
 package internalclientset
 
 import (
-	nodeinternalversion "github.com/gardener/node-controller-manager/pkg/client/internalclientset/typed/node/internalversion"
+	machineinternalversion "github.com/gardener/node-controller-manager/pkg/client/internalclientset/typed/machine/internalversion"
 	glog "github.com/golang/glog"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
@@ -10,19 +10,19 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	Node() nodeinternalversion.NodeInterface
+	Machine() machineinternalversion.MachineInterface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	node *nodeinternalversion.NodeClient
+	machine *machineinternalversion.MachineClient
 }
 
-// Node retrieves the NodeClient
-func (c *Clientset) Node() nodeinternalversion.NodeInterface {
-	return c.node
+// Machine retrieves the MachineClient
+func (c *Clientset) Machine() machineinternalversion.MachineInterface {
+	return c.machine
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -41,7 +41,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.node, err = nodeinternalversion.NewForConfig(&configShallowCopy)
+	cs.machine, err = machineinternalversion.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.node = nodeinternalversion.NewForConfigOrDie(c)
+	cs.machine = machineinternalversion.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -67,7 +67,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.node = nodeinternalversion.New(c)
+	cs.machine = machineinternalversion.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

@@ -4,7 +4,7 @@ package internalversion
 
 import (
 	"fmt"
-	node "github.com/gardener/node-controller-manager/pkg/apis/node"
+	machine "github.com/gardener/node-controller-manager/pkg/apis/machine"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -35,17 +35,17 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=Node, Version=InternalVersion
-	case node.SchemeGroupVersion.WithResource("awsinstanceclasses"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Node().InternalVersion().AWSInstanceClasses().Informer()}, nil
-	case node.SchemeGroupVersion.WithResource("instances"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Node().InternalVersion().Instances().Informer()}, nil
-	case node.SchemeGroupVersion.WithResource("instancedeployments"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Node().InternalVersion().InstanceDeployments().Informer()}, nil
-	case node.SchemeGroupVersion.WithResource("instancesets"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Node().InternalVersion().InstanceSets().Informer()}, nil
-	case node.SchemeGroupVersion.WithResource("instancetemplates"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Node().InternalVersion().InstanceTemplates().Informer()}, nil
+	// Group=Machine, Version=InternalVersion
+	case machine.SchemeGroupVersion.WithResource("awsmachineclasses"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().AWSMachineClasses().Informer()}, nil
+	case machine.SchemeGroupVersion.WithResource("machines"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().Machines().Informer()}, nil
+	case machine.SchemeGroupVersion.WithResource("machinedeployments"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().MachineDeployments().Informer()}, nil
+	case machine.SchemeGroupVersion.WithResource("machinesets"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().MachineSets().Informer()}, nil
+	case machine.SchemeGroupVersion.WithResource("machinetemplates"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().MachineTemplates().Informer()}, nil
 
 	}
 

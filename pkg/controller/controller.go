@@ -23,9 +23,9 @@ import (
 	"k8s.io/api/core/v1"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 
-	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
-	nodeinformers "github.com/gardener/node-controller-manager/pkg/client/informers/externalversions/node/v1alpha1"
-	nodelisters "github.com/gardener/node-controller-manager/pkg/client/listers/node/v1alpha1"
+	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1"
+	nodeinformers "github.com/gardener/node-controller-manager/pkg/client/informers/externalversions/machine/v1alpha1"
+	nodelisters "github.com/gardener/node-controller-manager/pkg/client/listers/machine/v1alpha1"
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	coreinformers "k8s.io/client-go/informers/core/v1"
@@ -46,23 +46,21 @@ const (
 	pollingStartInterval      = 1 * time.Second
 	pollingMaxBackoffDuration = 1 * time.Hour
 
-	ClassAnnotation = "node.sapcloud.io/class"
-
-	InstanceIDAnnotation = "node.sapcloud.io/id"
-
-	DeleteFinalizerName = "node.sapcloud.io/operator"
+	ClassAnnotation 	= "machine.sapcloud.io/class"
+	MachineIDAnnotation = "machine.sapcloud.io/id"
+	DeleteFinalizerName = "machine.sapcloud.io/node-controller-manager"
 )
 
 // NewController returns a new Node controller.
 func NewController(
 	kubeClient kubernetes.Interface,
-	nodeClient nodeclientset.NodeV1alpha1Interface,
+	nodeClient nodeclientset.MachineV1alpha1Interface,
 	secretInformer coreinformers.SecretInformer,
 	nodeInformer coreinformers.NodeInformer,
-	awsInstanceClassInformer nodeinformers.AWSInstanceClassInformer,
-	instanceInformer nodeinformers.InstanceInformer,
-	instanceSetInformer nodeinformers.InstanceSetInformer,
-	instanceDeploymentInformer nodeinformers.InstanceDeploymentInformer,
+	awsMachineClassInformer nodeinformers.AWSMachineClassInformer,
+	machineInformer nodeinformers.MachineInformer,
+	machineSetInformer nodeinformers.MachineSetInformer,
+	machineDeploymentInformer nodeinformers.MachineDeploymentInformer,
 	recorder record.EventRecorder,
 ) (Controller, error) {
 	controller := &controller{
@@ -72,42 +70,42 @@ func NewController(
 		expectations:     		NewUIDTrackingControllerExpectations(NewControllerExpectations()),
 		secretQueue:   	 		workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
 		nodeQueue:      		workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
-		nodeToInstanceQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "nodeToInstance"),
-		awsInstanceClassQueue: 	workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "instanceclass"),
-		instanceQueue:  		workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "instance"),
-		instanceSetQueue:		workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "instanceset"),
-		instanceDeploymentQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "instancedeployment"),
+		nodeToMachineQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "nodeToMachine"),
+		awsMachineClassQueue: 	workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineclass"),
+		machineQueue:  		workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
+		machineSetQueue:		workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
+		machineDeploymentQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
 	}
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.CoreV1().RESTClient()).Events("")})
 
-	controller.instanceControl = RealInstanceControl {
+	controller.machineControl = RealMachineControl {
 			NodeClient: nodeClient,
-			Recorder:   eventBroadcaster.NewRecorder(nodescheme.Scheme, v1.EventSource{Component: "instanceset-controller"}),
+			Recorder:   eventBroadcaster.NewRecorder(nodescheme.Scheme, v1.EventSource{Component: "machineset-controller"}),
 	}
 
-	controller.instanceSetControl = RealISControl { 
+	controller.machineSetControl = RealISControl { 
 			NodeClient: nodeClient,
-			Recorder:	eventBroadcaster.NewRecorder(nodescheme.Scheme, v1.EventSource{Component: "instancedeployment-controller"}),
+			Recorder:	eventBroadcaster.NewRecorder(nodescheme.Scheme, v1.EventSource{Component: "machinedeployment-controller"}),
 	}
 
 	// Controller listers
 	controller.secretLister = secretInformer.Lister()
-	controller.awsInstanceClassLister = awsInstanceClassInformer.Lister()
+	controller.awsMachineClassLister = awsMachineClassInformer.Lister()
 	controller.nodeLister = nodeInformer.Lister()
-	controller.instanceLister = instanceInformer.Lister()	
-	controller.instanceSetLister = instanceSetInformer.Lister()
-	controller.instanceDeploymentLister = instanceDeploymentInformer.Lister()
+	controller.machineLister = machineInformer.Lister()	
+	controller.machineSetLister = machineSetInformer.Lister()
+	controller.machineDeploymentLister = machineDeploymentInformer.Lister()
 	
 	// Controller syncs
 	controller.secretSynced = secretInformer.Informer().HasSynced
-	controller.awsInstanceClassSynced = awsInstanceClassInformer.Informer().HasSynced
+	controller.awsMachineClassSynced = awsMachineClassInformer.Informer().HasSynced
 	controller.nodeSynced = nodeInformer.Informer().HasSynced
-	controller.instanceSynced = instanceInformer.Informer().HasSynced
-	controller.instanceSetSynced = instanceSetInformer.Informer().HasSynced
-	controller.instanceDeploymentSynced = instanceDeploymentInformer.Informer().HasSynced
+	controller.machineSynced = machineInformer.Informer().HasSynced
+	controller.machineSetSynced = machineSetInformer.Informer().HasSynced
+	controller.machineDeploymentSynced = machineDeploymentInformer.Informer().HasSynced
 
 	/*
 	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -116,10 +114,10 @@ func NewController(
 	})*/
 
 	// Aws Controller Informers
-	awsInstanceClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.awsInstanceClassAdd,
-		UpdateFunc: controller.awsInstanceClassUpdate,
-		DeleteFunc: controller.awsInstanceClassDelete,
+	awsMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.awsMachineClassAdd,
+		UpdateFunc: controller.awsMachineClassUpdate,
+		DeleteFunc: controller.awsMachineClassDelete,
 	})
 
 	// Node Controller Informers
@@ -136,47 +134,47 @@ func NewController(
 			},
 		})
 
-	// Instance Controller Informers
+	// Machine Controller Informers
 	nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.nodeToInstanceAdd,
-		UpdateFunc: controller.nodeToInstanceUpdate,
-		DeleteFunc: controller.nodeToInstanceDelete,
+		AddFunc:    controller.nodeToMachineAdd,
+		UpdateFunc: controller.nodeToMachineUpdate,
+		DeleteFunc: controller.nodeToMachineDelete,
 	})
 
-	instanceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.instanceAdd,
-		UpdateFunc: controller.instanceUpdate,
-		DeleteFunc: controller.instanceDelete,
+	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.machineAdd,
+		UpdateFunc: controller.machineUpdate,
+		DeleteFunc: controller.machineDelete,
 	})
 
-	// InstanceSet Controller informers
-	instanceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.addInstanceToInstanceSet,
-		UpdateFunc: controller.updateInstanceToInstanceSet,
-		DeleteFunc: controller.deleteInstanceToInstanceSet,
+	// MachineSet Controller informers
+	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.addMachineToMachineSet,
+		UpdateFunc: controller.updateMachineToMachineSet,
+		DeleteFunc: controller.deleteMachineToMachineSet,
 	})
 	
-	instanceSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.enqueueInstanceSet,
-		UpdateFunc: controller.instanceSetUpdate,
-		DeleteFunc: controller.enqueueInstanceSet,
+	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.enqueueMachineSet,
+		UpdateFunc: controller.machineSetUpdate,
+		DeleteFunc: controller.enqueueMachineSet,
 	})
 
-	// InstanceDeployment Controller informers
-	instanceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.deleteInstanceDeployment,
+	// MachineDeployment Controller informers
+	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.deleteMachineDeployment,
 	})
 
-	instanceSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.addInstanceSetToDeployment,
-		UpdateFunc: controller.updateInstanceSetToDeployment,
-		DeleteFunc: controller.deleteInstanceSetToDeployment,
+	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.addMachineSetToDeployment,
+		UpdateFunc: controller.updateMachineSetToDeployment,
+		DeleteFunc: controller.deleteMachineSetToDeployment,
 	})
 
-	instanceDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:	controller.addInstanceDeployment, 
-		UpdateFunc: controller.updateInstanceDeployment, 
-		DeleteFunc: controller.deleteInstanceDeployment, 
+	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:	controller.addMachineDeployment, 
+		UpdateFunc: controller.updateMachineDeployment, 
+		DeleteFunc: controller.deleteMachineDeployment, 
 	})
 	
 	return controller, nil
@@ -193,15 +191,15 @@ type Controller interface {
 // controller is a concrete Controller.
 type controller struct {
 	kubeClient 				kubernetes.Interface
-	nodeClient 				nodeclientset.NodeV1alpha1Interface
+	nodeClient 				nodeclientset.MachineV1alpha1Interface
 
 	// listers
 	secretLister    		 corelisters.SecretLister
 	nodeLister      		 corelisters.NodeLister
-	awsInstanceClassLister 	 nodelisters.AWSInstanceClassLister
-	instanceLister  		 nodelisters.InstanceLister
-	instanceSetLister  		 nodelisters.InstanceSetLister
-	instanceDeploymentLister nodelisters.InstanceDeploymentLister
+	awsMachineClassLister 	 nodelisters.AWSMachineClassLister
+	machineLister  		 nodelisters.MachineLister
+	machineSetLister  		 nodelisters.MachineSetLister
+	machineDeploymentLister nodelisters.MachineDeploymentLister
 	
 	recorder 				record.EventRecorder
 
@@ -209,37 +207,37 @@ type controller struct {
 	expectations    		*UIDTrackingControllerExpectations
 
 	// Control Interfaces.
-	instanceControl 		InstanceControlInterface
-	instanceSetControl      ISControlInterface
+	machineControl 		MachineControlInterface
+	machineSetControl      ISControlInterface
 
 
 	// queues
 	secretQueue    			  workqueue.RateLimitingInterface
 	nodeQueue      			  workqueue.RateLimitingInterface
-	nodeToInstanceQueue  	  workqueue.RateLimitingInterface
-	awsInstanceClassQueue 	  workqueue.RateLimitingInterface
-	instanceQueue  			  workqueue.RateLimitingInterface
-	instanceSetQueue  		  workqueue.RateLimitingInterface
-	instanceDeploymentQueue   workqueue.RateLimitingInterface
+	nodeToMachineQueue  	  workqueue.RateLimitingInterface
+	awsMachineClassQueue 	  workqueue.RateLimitingInterface
+	machineQueue  			  workqueue.RateLimitingInterface
+	machineSetQueue  		  workqueue.RateLimitingInterface
+	machineDeploymentQueue   workqueue.RateLimitingInterface
 
 	// syncs
 	secretSynced    		  cache.InformerSynced
 	nodeSynced      		  cache.InformerSynced
-	awsInstanceClassSynced 	  cache.InformerSynced
-	instanceSynced  		  cache.InformerSynced
-	instanceSetSynced  		  cache.InformerSynced
-	instanceDeploymentSynced  cache.InformerSynced
+	awsMachineClassSynced 	  cache.InformerSynced
+	machineSynced  		  cache.InformerSynced
+	machineSetSynced  		  cache.InformerSynced
+	machineDeploymentSynced  cache.InformerSynced
 }
 
 func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer runtimeutil.HandleCrash()
 	defer c.nodeQueue.ShutDown()
-	defer c.awsInstanceClassQueue.ShutDown()
-	defer c.instanceQueue.ShutDown()
-	defer c.instanceSetQueue.ShutDown()
-	defer c.instanceDeploymentQueue.ShutDown()
+	defer c.awsMachineClassQueue.ShutDown()
+	defer c.machineQueue.ShutDown()
+	defer c.machineSetQueue.ShutDown()
+	defer c.machineDeploymentQueue.ShutDown()
 
-	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.awsInstanceClassSynced, c.instanceSynced, c.instanceSetSynced, c.instanceDeploymentSynced) {
+	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.awsMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
@@ -248,16 +246,16 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	var waitGroup sync.WaitGroup
 
 	for i := 0; i < workers; i++ {
-		createWorker(c.awsInstanceClassQueue, "ClusterawsInstanceClass", maxRetries, true, c.reconcileClusterawsInstanceClassKey, stopCh, &waitGroup)
+		createWorker(c.awsMachineClassQueue, "ClusterawsMachineClass", maxRetries, true, c.reconcileClusterawsMachineClassKey, stopCh, &waitGroup)
 		
 		createWorker(c.nodeQueue, "ClusterNode", maxRetries, true, c.reconcileClusterNodeKey, stopCh, &waitGroup)
 		
-		createWorker(c.instanceQueue, "ClusterInstance", maxRetries, true, c.reconcileClusterInstanceKey, stopCh, &waitGroup)
-		createWorker(c.nodeToInstanceQueue, "ClusterNodeToInstance", maxRetries, true, c.reconcileClusterNodeToInstanceKey, stopCh, &waitGroup)
+		createWorker(c.machineQueue, "ClusterMachine", maxRetries, true, c.reconcileClusterMachineKey, stopCh, &waitGroup)
+		createWorker(c.nodeToMachineQueue, "ClusterNodeToMachine", maxRetries, true, c.reconcileClusterNodeToMachineKey, stopCh, &waitGroup)
 		
-		createWorker(c.instanceSetQueue, "ClusterInstanceSet", maxRetries, true, c.syncInstanceSet, stopCh, &waitGroup)
+		createWorker(c.machineSetQueue, "ClusterMachineSet", maxRetries, true, c.syncMachineSet, stopCh, &waitGroup)
 
-		createWorker(c.instanceDeploymentQueue, "ClusterInstanceDeployment", maxRetries, true, c.syncInstanceDeployment, stopCh, &waitGroup)
+		createWorker(c.machineDeploymentQueue, "ClusterMachineDeployment", maxRetries, true, c.syncMachineDeployment, stopCh, &waitGroup)
 	}
 
 	<-stopCh

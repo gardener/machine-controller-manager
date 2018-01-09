@@ -8,12 +8,12 @@ metadata:
   name: node-controller-manager
 rules:
 - apiGroups:
-  - "node.sapcloud.io"
+  - "machine.sapcloud.io"
   resources:
-  - awsinstanceclasses
-  - instancedeployments
-  - instances
-  - instancesets
+  - awsmachineclasses
+  - machinedeployments
+  - machines
+  - machinesets
   verbs:
   - create
   - delete

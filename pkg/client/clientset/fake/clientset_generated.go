@@ -2,8 +2,8 @@ package fake
 
 import (
 	clientset "github.com/gardener/node-controller-manager/pkg/client/clientset"
-	nodev1alpha1 "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1"
-	fakenodev1alpha1 "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/node/v1alpha1/fake"
+	machinev1alpha1 "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1"
+	fakemachinev1alpha1 "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -44,12 +44,12 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 
 var _ clientset.Interface = &Clientset{}
 
-// NodeV1alpha1 retrieves the NodeV1alpha1Client
-func (c *Clientset) NodeV1alpha1() nodev1alpha1.NodeV1alpha1Interface {
-	return &fakenodev1alpha1.FakeNodeV1alpha1{Fake: &c.Fake}
+// MachineV1alpha1 retrieves the MachineV1alpha1Client
+func (c *Clientset) MachineV1alpha1() machinev1alpha1.MachineV1alpha1Interface {
+	return &fakemachinev1alpha1.FakeMachineV1alpha1{Fake: &c.Fake}
 }
 
-// Node retrieves the NodeV1alpha1Client
-func (c *Clientset) Node() nodev1alpha1.NodeV1alpha1Interface {
-	return &fakenodev1alpha1.FakeNodeV1alpha1{Fake: &c.Fake}
+// Machine retrieves the MachineV1alpha1Client
+func (c *Clientset) Machine() machinev1alpha1.MachineV1alpha1Interface {
+	return &fakemachinev1alpha1.FakeMachineV1alpha1{Fake: &c.Fake}
 }
