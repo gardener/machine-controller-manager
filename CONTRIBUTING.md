@@ -1,1 +1,1 @@
-Please refer to the [Gardener contributor guide](https://github.com/gardener/gardener-docs/blob/master/CONTRIBUTING.md)
+Please refer to the [Gardener contributor guide](https://github.com/gardener/documentation/blob/master/CONTRIBUTING.md)
