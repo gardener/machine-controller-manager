@@ -1,4 +1,4 @@
-apiVersion: rbac.authorization.k8s.io/v1
+apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
   annotations:
@@ -30,6 +30,9 @@ rules:
   - configmaps
   - secrets
   - serviceaccounts
+  - endpoints
+  - events
+  - namespaces
   verbs:
   - create
   - delete
@@ -42,16 +45,7 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - events
   - namespaces/status
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - namespaces
   verbs:
   - get
   - list
