@@ -21,27 +21,27 @@ Modifications Copyright 2017 The Gardener Authors.
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
 	"sync"
 	"time"
-	"errors"
 
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/integer"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/sets"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	
+	"k8s.io/apimachinery/pkg/labels"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/integer"
+	"k8s.io/kubernetes/pkg/api"
+
 	"github.com/golang/glog"
 
 	"github.com/gardener/node-controller-manager/pkg/apis/machine"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
 )
 
 const (
@@ -54,15 +54,13 @@ const (
 
 	// Kind for the machineSet
 	machineSetKind = "MachineSet"
-
 )
 
 var controllerKindIS = v1alpha1.SchemeGroupVersion.WithKind("MachineSet")
 
-
 // getMachineMachineSets returns the MachineSets matching the given Machine.
 func (c *controller) getMachineMachineSets(machine *v1alpha1.Machine) ([]*v1alpha1.MachineSet, error) {
-	
+
 	if len(machine.Labels) == 0 {
 		err := errors.New("No MachineSets found for machine because it has no labels")
 		glog.V(4).Info(err, ": ", machine.Name)
@@ -73,7 +71,7 @@ func (c *controller) getMachineMachineSets(machine *v1alpha1.Machine) ([]*v1alph
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var iss []*v1alpha1.MachineSet
 	for _, is := range list {
 		if is.Namespace != machine.Namespace {
@@ -96,12 +94,11 @@ func (c *controller) getMachineMachineSets(machine *v1alpha1.Machine) ([]*v1alph
 	if len(iss) == 0 {
 		err := errors.New("No MachineSets found for machine doesn't have matching labels")
 		glog.V(4).Info(err, ": ", machine.Name)
-		return nil, err	
+		return nil, err
 	}
 
 	return iss, nil
 }
-
 
 // resolveMachineSetControllerRef returns the controller referenced by a ControllerRef,
 // or nil if the ControllerRef could not be resolved to a matching controller
@@ -179,7 +176,7 @@ func (c *controller) addMachineToMachineSet(obj interface{}) {
 	// DO NOT observe creation because no controller should be waiting for an
 	// orphan.
 	iss, err := c.getMachineMachineSets(machine)
-	if err != nil{
+	if err != nil {
 		return
 	} else if len(iss) == 0 {
 		return
@@ -218,7 +215,6 @@ func (c *controller) updateMachineToMachineSet(old, cur interface{}) {
 		return
 	}
 
-
 	curControllerRef := metav1.GetControllerOf(curInst)
 	oldControllerRef := metav1.GetControllerOf(oldInst)
 	controllerRefChanged := !reflect.DeepEqual(curControllerRef, oldControllerRef)
@@ -244,7 +240,7 @@ func (c *controller) updateMachineToMachineSet(old, cur interface{}) {
 	// to see if anyone wants to adopt it now.
 	if labelChanged || controllerRefChanged {
 		iss, err := c.getMachineMachineSets(curInst)
-		if err != nil{
+		if err != nil {
 			return
 		} else if len(iss) == 0 {
 			return
@@ -321,7 +317,7 @@ func (c *controller) enqueueMachineSetAfter(obj interface{}, after time.Duration
 // Does NOT modify <filteredMachines>.
 // It will requeue the machine set in case of an error while creating/deleting machines.
 func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, is *v1alpha1.MachineSet) error {
-	
+
 	isKey, err := KeyFunc(is)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Couldn't get key for %v %#v: %v", is.Kind, is, err))
@@ -342,7 +338,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, is *v1alpha
 		glog.V(2).Infof("Deleting stales")
 	}
 	c.terminateMachines(staleMachines, is)
-	
+
 	diff := len(activeMachines) - int((is.Spec.Replicas))
 	if diff < 0 {
 		//glog.Info("Start Create:", diff)
@@ -369,7 +365,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, is *v1alpha
 			boolPtr := func(b bool) *bool { return &b }
 			controllerRef := &metav1.OwnerReference{
 				APIVersion:         controllerKindIS.GroupVersion().String(), //#ToCheck
-				Kind:               controllerKindIS.Kind, //is.Kind,
+				Kind:               controllerKindIS.Kind,                    //is.Kind,
 				Name:               is.Name,
 				UID:                is.UID,
 				BlockOwnerDeletion: boolPtr(true),
@@ -420,7 +416,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, is *v1alpha
 
 		c.terminateMachines(machinesToDelete, is)
 	}
-	
+
 	return nil
 }
 
@@ -510,13 +506,13 @@ func (c *controller) syncMachineSet(key string) error {
 
 	isNeedsSync := c.expectations.SatisfiedExpectations(key)
 
-	glog.V(4).Infof("2 Filtered machines length: %v , MachineSetNeedsSync: %v",len(filteredMachines), isNeedsSync) 
+	glog.V(4).Infof("2 Filtered machines length: %v , MachineSetNeedsSync: %v", len(filteredMachines), isNeedsSync)
 
 	var manageReplicasErr error
 	if isNeedsSync && is.DeletionTimestamp == nil {
 		manageReplicasErr = c.manageReplicas(filteredMachines, is)
 	}
-	//glog.V(2).Infof("Print manageReplicasErr: %v ",manageReplicasErr) //Remove	
+	//glog.V(2).Infof("Print manageReplicasErr: %v ",manageReplicasErr) //Remove
 
 	is = is.DeepCopy()
 	newStatus := calculateMachineSetStatus(is, filteredMachines, manageReplicasErr)
@@ -526,7 +522,7 @@ func (c *controller) syncMachineSet(key string) error {
 	if err != nil {
 		// Multiple things could lead to this update failing. Requeuing the machine set ensures
 		// Returning an error causes a requeue without forcing a hotloop
-		glog.V(2).Infof("update machine failed with : %v ",err) //Remove
+		glog.V(2).Infof("update machine failed with : %v ", err) //Remove
 		return err
 	}
 
@@ -613,8 +609,7 @@ func getMachineKeys(machines []*v1alpha1.Machine) []string {
 	return machineKeys
 }
 
-
-func (c *controller) prepareMachineForDeletion (targetMachine *v1alpha1.Machine, is *v1alpha1.MachineSet, wg *sync.WaitGroup, errCh *chan error) {
+func (c *controller) prepareMachineForDeletion(targetMachine *v1alpha1.Machine, is *v1alpha1.MachineSet, wg *sync.WaitGroup, errCh *chan error) {
 	defer wg.Done()
 
 	isKey, err := KeyFunc(is)
@@ -622,18 +617,18 @@ func (c *controller) prepareMachineForDeletion (targetMachine *v1alpha1.Machine,
 		utilruntime.HandleError(fmt.Errorf("Couldn't get key for %v %#v: %v", is.Kind, is, err))
 		return
 	} else if targetMachine.Status.CurrentStatus.Phase == "" {
- 		// Machine is still not created properly
- 		return
-  	}
-	
+		// Machine is still not created properly
+		return
+	}
+
 	// Force trigger deletion to reflect in machine status
-	currentStatus := v1alpha1.CurrentStatus {
-		Phase:			v1alpha1.MachineTerminating,
-		TimeoutActive:	false,
+	currentStatus := v1alpha1.CurrentStatus{
+		Phase:          v1alpha1.MachineTerminating,
+		TimeoutActive:  false,
 		LastUpdateTime: metav1.Now(),
 	}
 	c.updateMachineStatus(targetMachine, targetMachine.Status.LastOperation, currentStatus)
-	glog.V(2).Info("Delete machine from machineset:", targetMachine .Name)
+	glog.V(2).Info("Delete machine from machineset:", targetMachine.Name)
 
 	if err := c.machineControl.DeleteMachine(targetMachine.Name, is); err != nil {
 		// Decrement the expected number of deletes because the informer won't observe this deletion
@@ -644,8 +639,8 @@ func (c *controller) prepareMachineForDeletion (targetMachine *v1alpha1.Machine,
 	}
 }
 
-func (c *controller) terminateMachines (inactiveMachines []*v1alpha1.Machine, is *v1alpha1.MachineSet) error {
-	
+func (c *controller) terminateMachines(inactiveMachines []*v1alpha1.Machine, is *v1alpha1.MachineSet) error {
+
 	var wg sync.WaitGroup
 	numOfInactiveMachines := len(inactiveMachines)
 	errCh := make(chan error, numOfInactiveMachines)
@@ -657,12 +652,12 @@ func (c *controller) terminateMachines (inactiveMachines []*v1alpha1.Machine, is
 	wg.Wait()
 
 	select {
-		case err := <-errCh:
-			// all errors have been reported before and they're likely to be the same, so we'll only return the first one we hit.
-			if err != nil {
-				return err
-			}
-		default:
+	case err := <-errCh:
+		// all errors have been reported before and they're likely to be the same, so we'll only return the first one we hit.
+		if err != nil {
+			return err
+		}
+	default:
 	}
 
 	return nil
@@ -673,7 +668,7 @@ func (c *controller) terminateMachines (inactiveMachines []*v1alpha1.Machine, is
 	Manipulate Finalizers
 */
 
-func (c *controller) addMachineSetFinalizers (machineSet *v1alpha1.MachineSet) {
+func (c *controller) addMachineSetFinalizers(machineSet *v1alpha1.MachineSet) {
 	clone := machineSet.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
@@ -682,7 +677,7 @@ func (c *controller) addMachineSetFinalizers (machineSet *v1alpha1.MachineSet) {
 	}
 }
 
-func (c *controller) deleteMachineSetFinalizers (machineSet *v1alpha1.MachineSet) {
+func (c *controller) deleteMachineSetFinalizers(machineSet *v1alpha1.MachineSet) {
 	clone := machineSet.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
@@ -705,5 +700,5 @@ func (c *controller) updateMachineSetFinalizers(machineSet *v1alpha1.MachineSet,
 		// Keep retrying until update goes through
 		glog.Warning("Updated failed, retrying")
 		c.updateMachineSetFinalizers(machineSet, finalizers)
-	} 
+	}
 }

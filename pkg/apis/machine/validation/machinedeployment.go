@@ -48,7 +48,7 @@ func validateMachineDeploymentSpec(spec *machine.MachineDeploymentSpec, fldPath 
 			break
 		}
 	}
-	
+
 	allErrs = append(allErrs, validateClassReference(&spec.Template.Spec.Class, field.NewPath("spec.template.spec.class"))...)
 	return allErrs
 }

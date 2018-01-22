@@ -39,53 +39,51 @@ const (
 
 // AWSMachineClass TODO
 type AWSMachineClass struct {
+	metav1.ObjectMeta
 
-	metav1.ObjectMeta 
+	metav1.TypeMeta
 
-	metav1.TypeMeta 
-
-	Spec AWSMachineClassSpec 
+	Spec AWSMachineClassSpec
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // AWSMachineClassList is a collection of AWSMachineClasses.
 type AWSMachineClassList struct {
-	
-	metav1.TypeMeta 
+	metav1.TypeMeta
 
-	metav1.ListMeta 
+	metav1.ListMeta
 
-	Items []AWSMachineClass 
+	Items []AWSMachineClass
 }
 
 // AWSMachineClassSpec is the specification of a Shoot cluster.
 type AWSMachineClassSpec struct {
-	AMI               string                      
-	AvailabilityZone  string                      
-	BlockDevices      []AWSBlockDeviceMappingSpec 
-	EbsOptimized      bool                        
-	IAM               AWSIAMProfileSpec           
-	MachineType      string                      
-	KeyName           string                      
-	Monitoring        bool                        
-	NetworkInterfaces []AWSNetworkInterfaceSpec   
-	Tags              map[string]string           
+	AMI               string
+	AvailabilityZone  string
+	BlockDevices      []AWSBlockDeviceMappingSpec
+	EbsOptimized      bool
+	IAM               AWSIAMProfileSpec
+	MachineType       string
+	KeyName           string
+	Monitoring        bool
+	NetworkInterfaces []AWSNetworkInterfaceSpec
+	Tags              map[string]string
 	SecretRef         *corev1.SecretReference
 }
 
 type AWSBlockDeviceMappingSpec struct {
 
 	// The device name exposed to the machine (for example, /dev/sdh or xvdh).
-	DeviceName string 
+	DeviceName string
 
 	// Parameters used to automatically set up EBS volumes when the machine is
 	// launched.
-	Ebs AWSEbsBlockDeviceSpec 
+	Ebs AWSEbsBlockDeviceSpec
 
 	// Suppresses the specified device included in the block device mapping of the
 	// AMI.
-	NoDevice string 
+	NoDevice string
 
 	// The virtual device name (ephemeralN). Machine store volumes are numbered
 	// starting from 0. An machine type with 2 available machine store volumes
@@ -97,7 +95,7 @@ type AWSBlockDeviceMappingSpec struct {
 	// the block device mapping for the machine. When you launch an M3 machine,
 	// we ignore any machine store volumes specified in the block device mapping
 	// for the AMI.
-	VirtualName string 
+	VirtualName string
 }
 
 // Describes a block device for an EBS volume.
@@ -105,11 +103,11 @@ type AWSBlockDeviceMappingSpec struct {
 type AWSEbsBlockDeviceSpec struct {
 
 	// Indicates whether the EBS volume is deleted on machine termination.
-	DeleteOnTermination bool 
+	DeleteOnTermination bool
 
 	// Indicates whether the EBS volume is encrypted. Encrypted Amazon EBS volumes
 	// may only be attached to machines that support Amazon EBS encryption.
-	Encrypted bool 
+	Encrypted bool
 
 	// The number of I/O operations per second (IOPS) that the volume supports.
 	// For io1, this represents the number of IOPS that are provisioned for the
@@ -124,7 +122,7 @@ type AWSEbsBlockDeviceSpec struct {
 	//
 	// Condition: This parameter is required for requests to create io1 volumes;
 	// it is not used in requests to create gp2, st1, sc1, or standard volumes.
-	Iops int64 
+	Iops int64
 
 	// The size of the volume, in GiB.
 	//
@@ -136,22 +134,22 @@ type AWSEbsBlockDeviceSpec struct {
 	//
 	// Default: If you're creating the volume from a snapshot and don't specify
 	// a volume size, the default is the snapshot size.
-	VolumeSize int64 
+	VolumeSize int64
 
 	// The volume type: gp2, io1, st1, sc1, or standard.
 	//
 	// Default: standard
-	VolumeType string 
+	VolumeType string
 }
 
 // Describes an IAM machine profile.
 type AWSIAMProfileSpec struct {
 
 	// The Amazon Resource Name (ARN) of the machine profile.
-	ARN string 
+	ARN string
 
 	// The name of the machine profile.
-	Name string 
+	Name string
 }
 
 // Describes a network interface.
@@ -163,24 +161,24 @@ type AWSNetworkInterfaceSpec struct {
 	// for eth0, and can only be assigned to a new network interface, not an existing
 	// one. You cannot specify more than one network interface in the request. If
 	// launching into a default subnet, the default value is true.
-	AssociatePublicIPAddress bool 
+	AssociatePublicIPAddress bool
 
 	// If set to true, the interface is deleted when the machine is terminated.
 	// You can specify true only if creating a new network interface when launching
 	// an machine.
-	DeleteOnTermination bool 
+	DeleteOnTermination bool
 
 	// The description of the network interface. Applies only if creating a network
 	// interface when launching an machine.
-	Description string 
+	Description string
 
 	// The IDs of the security groups for the network interface. Applies only if
 	// creating a network interface when launching an machine.
-	SecurityGroupID []string 
+	SecurityGroupID []string
 
 	// The ID of the subnet associated with the network string. Applies only if
 	// creating a network interface when launching an machine.
-	SubnetID string 
+	SubnetID string
 }
 
 // MachinePhase is a label for the condition of a machines at the current time.
@@ -199,7 +197,7 @@ const (
 	// MachineUnknown indicates that the node is not ready at the movement
 	MachineUnknown MachinePhase = "Unknown"
 	// MachineFailed means operation failed leading to machine status failure
-	MachineFailed MachinePhase  = "Failed"
+	MachineFailed MachinePhase = "Failed"
 )
 
 // MachinePhase is a label for the condition of a machines at the current time.
@@ -210,7 +208,7 @@ const (
 	// MachinePending means there are operations pending on this machine state
 	MachineStateProcessing MachineState = "Processing"
 	// MachineFailed means operation failed leading to machine status failure
-	MachineStateFailed MachineState  = "Failed"
+	MachineStateFailed MachineState = "Failed"
 	// MachineUnknown indicates that the node is not ready at the movement
 	MachineStateSuccessful MachineState = "Successful"
 )
@@ -236,45 +234,42 @@ const (
 
 // Machine TODO
 type Machine struct {
+	metav1.ObjectMeta
 
-	metav1.ObjectMeta 
+	metav1.TypeMeta
 
-	metav1.TypeMeta 
+	Spec MachineSpec
 
-	Spec MachineSpec 
-
-	Status MachineStatus 
+	Status MachineStatus
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // MachineList is a collection of Machines.
 type MachineList struct {
-	metav1.TypeMeta 
+	metav1.TypeMeta
 
-	metav1.ListMeta 
+	metav1.ListMeta
 
-	Items []Machine 
+	Items []Machine
 }
 
 // MachineSpec is the specification of a Shoot cluster.
 type MachineSpec struct {
+	Class ClassSpec
 
-	Class ClassSpec 
-
-	ProviderID string 
+	ProviderID string
 }
-
 
 // PodTemplateSpec describes the data a pod should have when created from a template
 type MachineTemplateSpec struct {
 	// Standard object's metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata
-	metav1.ObjectMeta 
+	metav1.ObjectMeta
 
 	// Specification of the desired behavior of the pod.
 	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status
-	Spec MachineSpec 
+	Spec MachineSpec
 }
 
 // +genclient
@@ -282,72 +277,71 @@ type MachineTemplateSpec struct {
 
 // PodTemplate describes a template for creating copies of a predefined pod.
 type MachineTemplate struct {
-	metav1.TypeMeta 
+	metav1.TypeMeta
 	// Standard object's metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata
-	metav1.ObjectMeta 
+	metav1.ObjectMeta
 
 	// Template defines the pods that will be created from this pod template.
 	// https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status
-	Template MachineTemplateSpec 
+	Template MachineTemplateSpec
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // PodTemplateList is a list of PodTemplates.
 type MachineTemplateList struct {
-	metav1.TypeMeta 
+	metav1.TypeMeta
 	// Standard list metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds
-	metav1.ListMeta 
+	metav1.ListMeta
 
 	// List of pod templates
-	Items []MachineTemplate 
+	Items []MachineTemplate
 }
-
 
 // ClassSpec is the class specification of machine
 type ClassSpec struct {
 	// API group to which it belongs
-	APIGroup	string 					
-    // Kind for machine class
-    Kind		string 					
-    // Name of machine class
-    Name 		string 					
+	APIGroup string
+	// Kind for machine class
+	Kind string
+	// Name of machine class
+	Name string
 }
 
-//type CurrentStatus 
+//type CurrentStatus
 type CurrentStatus struct {
 	// API group to which it belongs
-	Phase				MachinePhase 			
-   	// Name of machine class
-    TimeoutActive 		bool				
-    // Last update time of current status
-	LastUpdateTime  	metav1.Time 				
+	Phase MachinePhase
+	// Name of machine class
+	TimeoutActive bool
+	// Last update time of current status
+	LastUpdateTime metav1.Time
 }
 
 // MachineStatus TODO
 type MachineStatus struct {
 	// Node string
-	Node 				string 					
+	Node string
 	// Conditions of this machine, same as node
-	Conditions          []corev1.NodeCondition 	
+	Conditions []corev1.NodeCondition
 	// Last operation refers to the status of the last operation performed
-	LastOperation		LastOperation 			
+	LastOperation LastOperation
 	// Current status of the machine object
-	CurrentStatus		CurrentStatus 			
+	CurrentStatus CurrentStatus
 }
 
 // LastOperation
 type LastOperation struct {
 	// Description of the current operation
-	Description 		string  				
+	Description string
 	// Last update time of current operation
-	LastUpdateTime  	metav1.Time 			
+	LastUpdateTime metav1.Time
 	// State of operation
-	State				MachineState			
+	State MachineState
 	// Type of operation
-	Type				string 					
+	Type string
 }
 
 // +genclient
@@ -356,40 +350,37 @@ type LastOperation struct {
 
 // MachineSet TODO
 type MachineSet struct {
+	metav1.ObjectMeta
 
-	metav1.ObjectMeta 
+	metav1.TypeMeta
 
-	metav1.TypeMeta 
+	Spec MachineSetSpec
 
-	Spec MachineSetSpec 
-
-	Status MachineSetStatus 
-
+	Status MachineSetStatus
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // MachineSetList is a collection of MachineSet.
 type MachineSetList struct {
-	metav1.TypeMeta 
+	metav1.TypeMeta
 
-	metav1.ListMeta 
+	metav1.ListMeta
 
-	Items []MachineSet 
+	Items []MachineSet
 }
 
 // MachineSetSpec is the specification of a Shoot cluster.
 type MachineSetSpec struct {
+	Replicas int32
 
-	Replicas 			int32 					
+	Selector *metav1.LabelSelector
 
-	Selector 			*metav1.LabelSelector 	
+	MachineClass ClassSpec
 
-	MachineClass 		ClassSpec 				
+	Template MachineTemplateSpec
 
-	Template 			MachineTemplateSpec 	
-
-	MinReadySeconds  	int 					
+	MinReadySeconds int
 }
 
 type MachineSetConditionType string
@@ -405,35 +396,34 @@ const (
 // ReplicaSetCondition describes the state of a machine set at a certain point.
 type MachineSetCondition struct {
 	// Type of machine set condition.
-	Type MachineSetConditionType 
+	Type MachineSetConditionType
 	// Status of the condition, one of True, False, Unknown.
-	Status ConditionStatus 
+	Status ConditionStatus
 	// The last time the condition transitioned from one status to another.
-	LastTransitionTime metav1.Time 
+	LastTransitionTime metav1.Time
 	// The reason for the condition's last transition.
-	Reason string 
+	Reason string
 	// A human readable message indicating details about the transition.
-	Message string 
+	Message string
 }
 
 // MachineSetStatus TODO
 type MachineSetStatus struct {
 	// Conditions of this machine, same as node
-	LastOperation			LastOperation 						
+	LastOperation LastOperation
 
-	Replicas 				int32  					
+	Replicas int32
 
-	FullyLabeledReplicas	int32					
+	FullyLabeledReplicas int32
 
-	ReadyReplicas			int32  					
+	ReadyReplicas int32
 
-	AvailableReplicas 		int32    					
+	AvailableReplicas int32
 
-	Conditions 				[]MachineSetCondition  
+	Conditions []MachineSetCondition
 
-	ObservedGeneration 		int64 					
+	ObservedGeneration int64
 }
-
 
 /***************** MachineDeploymennt APIs. ******************/
 
@@ -685,8 +675,7 @@ type ScaleStatus struct {
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors
 	// +optional
 	Selector *metav1.LabelSelector
-	
-	
+
 	TargetSelector string
 }
 

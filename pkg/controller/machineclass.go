@@ -18,16 +18,16 @@ package controller
 import (
 	"reflect"
 
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/kubernetes/pkg/api"
 
 	"github.com/golang/glog"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/node-controller-manager/pkg/apis/machine"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
 )
 
 func (c *controller) awsMachineClassAdd(obj interface{}) {
@@ -81,7 +81,7 @@ func (c *controller) reconcileClusterawsMachineClassKey(key string) error {
 }
 
 func (c *controller) reconcileClusterawsMachineClass(awsMachineClass *v1alpha1.AWSMachineClass) error {
-	
+
 	internalAWSMachineClass := &machine.AWSMachineClass{}
 	err := api.Scheme.Convert(awsMachineClass, internalAWSMachineClass, nil)
 	if err != nil {
