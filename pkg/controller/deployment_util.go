@@ -30,11 +30,13 @@ import (
 
 	"github.com/golang/glog"
 
-	"k8s.io/apimachinery/pkg/labels"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	v1alpha1client "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1"
 	"k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -42,8 +44,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/integer"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
-	v1alpha1client "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1"
 
 	v1alpha1listers "github.com/gardener/node-controller-manager/pkg/client/listers/machine/v1alpha1"
 )
@@ -646,7 +646,6 @@ func ListMachineSetsInternal(deployment *v1alpha1.MachineDeployment, getISList f
 	return filtered, nil
 }
 
-
 func ListMachines(deployment *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, getMachineList machineListFunc) (*v1alpha1.MachineList, error) {
 	namespace := deployment.Namespace
 	selector, err := metav1.LabelSelectorAsSelector(deployment.Spec.Selector)
@@ -757,7 +756,7 @@ func WaitForMachinesHashPopulated(c v1alpha1listers.MachineSetLister, desiredGen
 }
 
 // LabelMachinesWithHash labels all machines in the given machineList with the new hash label.
-func LabelMachinesWithHash(machineList *v1alpha1.MachineList, c v1alpha1client.MachineV1alpha1Interface , machineLister v1alpha1listers.MachineLister, namespace, name, hash string) error {
+func LabelMachinesWithHash(machineList *v1alpha1.MachineList, c v1alpha1client.MachineV1alpha1Interface, machineLister v1alpha1listers.MachineLister, namespace, name, hash string) error {
 	for _, machine := range machineList.Items {
 		// Ignore inactive Machines.
 		if !IsMachineActive(&machine) {
@@ -1020,4 +1019,3 @@ func ResolveFenceposts(maxSurge, maxUnavailable *intstrutil.IntOrString, desired
 
 	return int32(surge), int32(unavailable), nil
 }
-

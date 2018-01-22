@@ -24,11 +24,11 @@ package controller
 import (
 	"github.com/golang/glog"
 
-	errorsutil "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/client-go/util/retry"
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	v1alpha1client "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1"
 	v1alpha1listers "github.com/gardener/node-controller-manager/pkg/client/listers/machine/v1alpha1"
+	errorsutil "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/client-go/util/retry"
 )
 
 // TODO: use client library instead when it starts to support update retries

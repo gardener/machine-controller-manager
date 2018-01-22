@@ -33,7 +33,7 @@ func Install(groupFactoryRegistry announced.APIGroupFactoryRegistry, registry *r
 			GroupName:                  v1alpha1.GroupName,
 			VersionPreferenceOrder:     []string{v1alpha1.SchemeGroupVersion.Version},
 			AddInternalObjectsToScheme: node.AddToScheme,
-			RootScopedKinds:            sets.NewString("AWSMachineClass","MachineSet", "Machine", "MachineDeployment"),
+			RootScopedKinds:            sets.NewString("AWSMachineClass", "MachineSet", "Machine", "MachineDeployment"),
 		},
 		announced.VersionToSchemeFunc{
 			v1.SchemeGroupVersion.Version: v1.AddToScheme,

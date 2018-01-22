@@ -171,7 +171,7 @@ func StartControllers(s *options.NCMServer,
 		glog.Fatal(err)
 	}
 
-	if availableResources[nodeGVR] { 
+	if availableResources[nodeGVR] {
 		glog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
 		nodeInformerFactory := nodeinformers.NewSharedInformerFactory(

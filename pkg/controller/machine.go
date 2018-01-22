@@ -17,28 +17,28 @@ package controller
 
 import (
 	"errors"
-	"time"
 	"strings"
-	
+	"time"
+
 	"github.com/golang/glog"
 
 	"k8s.io/api/core/v1"
-	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/kubernetes/pkg/api"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	
-	"github.com/gardener/node-controller-manager/pkg/driver"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	machineapi "github.com/gardener/node-controller-manager/pkg/apis/machine"
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/node-controller-manager/pkg/driver"
 )
 
-/* 
+/*
 	SECTION
 	Machine controller - Machine add, update, delete watches
 */
@@ -81,12 +81,12 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 }
 
 func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
-	
-	/*	
-	glog.V(2).Info("Start Reconciling machine: ", machine.Name)
-	defer func() {
-		glog.V(2).Info("Stop Reconciling machine: ", machine.Name)
-	}()*/
+
+	/*
+		glog.V(2).Info("Start Reconciling machine: ", machine.Name)
+		defer func() {
+			glog.V(2).Info("Stop Reconciling machine: ", machine.Name)
+		}()*/
 
 	if !shouldReconcileMachine(machine, time.Now()) {
 		return nil
@@ -132,7 +132,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	}
 
 	splitProviderId := strings.Split(machine.Spec.ProviderID, "/")
-	machineID := splitProviderId[len(splitProviderId) - 1]
+	machineID := splitProviderId[len(splitProviderId)-1]
 	driver := driver.NewDriver(machineID, AWSMachineClassCopy, secretRef, machine.Spec.Class.Kind)
 	actualID, err := driver.GetExisting()
 	if err != nil {
@@ -158,14 +158,14 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		}
 
 	} else if machine.Status.CurrentStatus.TimeoutActive {
-		// Processing machine	
+		// Processing machine
 		c.checkMachineTimeout(machine)
 
 	} else {
 		// Processing of create or update event
 		//glog.V(2).Info("Processing Create/Update")
 		c.addMachineFinalizers(machine)
-		
+
 		if actualID == "" {
 			// Creating machine
 			err := c.createMachine(machine, AWSMachineClass.Spec.AvailabilityZone, driver)
@@ -181,7 +181,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 			}
 		}
 
-	} 
+	}
 
 	return nil
 }
@@ -221,7 +221,7 @@ func (c *controller) reconcileClusterNodeToMachineKey(key string) error {
 }
 
 func (c *controller) reconcileClusterNodeToMachine(node *v1.Node) error {
-    machine, err := c.getMachineFromNode(node.Name)
+	machine, err := c.getMachineFromNode(node.Name)
 
 	if err != nil {
 		glog.Error("Couldn't fetch machine: ", err)
@@ -229,69 +229,69 @@ func (c *controller) reconcileClusterNodeToMachine(node *v1.Node) error {
 	} else if machine == nil {
 		return nil
 	}
-	
+
 	err = c.updateMachineState(machine, node)
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
 /*
 	SECTION
-	NodeToMachine operations 
+	NodeToMachine operations
 */
 
 func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, error) {
-	
+
 	var list []string
-    list = append(list, nodeName)
-	
+	list = append(list, nodeName)
+
 	selector := labels.NewSelector()
-    req, _ := labels.NewRequirement("node", selection.Equals, list)
-    selector = selector.Add(*req)
-    machines, _ := c.machineLister.List(selector)
+	req, _ := labels.NewRequirement("node", selection.Equals, list)
+	selector = selector.Add(*req)
+	machines, _ := c.machineLister.List(selector)
 
-    if len(machines) > 1 {
-    	err := errors.New("Multiple machines matching node")
-        return nil, err
-    } else if len(machines) < 1 {
-    	return nil, nil
-    }
+	if len(machines) > 1 {
+		err := errors.New("Multiple machines matching node")
+		return nil, err
+	} else if len(machines) < 1 {
+		return nil, nil
+	}
 
-    return machines[0], nil
+	return machines[0], nil
 }
 
-func (c *controller) updateMachineState (machine *v1alpha1.Machine, node *v1.Node) error {
-	
+func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node) error {
+
 	machine = c.updateMachineConditions(machine, node.Status.Conditions)
 
 	if machine.Status.LastOperation.State != "Successful" {
-		
+
 		if machine.Status.LastOperation.Type == "Create" {
-			
+
 			if machine.Status.LastOperation.Description == "Creating machine on cloud provider" {
 				// Machine is ready but yet to join the cluster
-				lastOperation := v1alpha1.LastOperation {
-					Description: 	"Waiting for machine to join the cluster (Not Ready)",
-					State: 			"Processing",
-					Type:			"Create",
+				lastOperation := v1alpha1.LastOperation{
+					Description:    "Waiting for machine to join the cluster (Not Ready)",
+					State:          "Processing",
+					Type:           "Create",
 					LastUpdateTime: metav1.Now(),
 				}
-				currentStatus := v1alpha1.CurrentStatus {
-					Phase:			v1alpha1.MachineAvailable,
-					TimeoutActive:	true,
+				currentStatus := v1alpha1.CurrentStatus{
+					Phase:          v1alpha1.MachineAvailable,
+					TimeoutActive:  true,
 					LastUpdateTime: machine.Status.CurrentStatus.LastUpdateTime,
 				}
-				c.updateMachineStatus(machine, lastOperation, currentStatus)	
+				c.updateMachineStatus(machine, lastOperation, currentStatus)
 
-			} else if machine.Status.LastOperation.Description == "Waiting for machine to join the cluster (Not Ready)" && len(machine.Status.Conditions)==4 && machine.Status.Conditions[3].Status == "True" {
+			} else if machine.Status.LastOperation.Description == "Waiting for machine to join the cluster (Not Ready)" && len(machine.Status.Conditions) == 4 && machine.Status.Conditions[3].Status == "True" {
 				// Machine is ready and has joined the cluster
-				lastOperation := v1alpha1.LastOperation {
-					Description: 	"Machine is now ready",
-					State: 			"Successful",
-					Type:			"Create",
+				lastOperation := v1alpha1.LastOperation{
+					Description:    "Machine is now ready",
+					State:          "Successful",
+					Type:           "Create",
 					LastUpdateTime: metav1.Now(),
 				}
 				c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
@@ -308,21 +308,21 @@ func (c *controller) updateMachineState (machine *v1alpha1.Machine, node *v1.Nod
 	Machine operations - Create, Update, Delete
 */
 
-func (c *controller) createMachine (machine *v1alpha1.Machine, availabilityZone string, driver driver.Driver) error {
+func (c *controller) createMachine(machine *v1alpha1.Machine, availabilityZone string, driver driver.Driver) error {
 	//glog.V(2).Infof("Creating machine %s", machine.Name)
-	
+
 	actualID, private_dns, err := driver.Create()
 	if err != nil {
 
-		lastOperation := v1alpha1.LastOperation {
-			Description: 	"Cloud provider message - " + err.Error(),
-			State: 			"Failed",
-			Type:			"Create",
+		lastOperation := v1alpha1.LastOperation{
+			Description:    "Cloud provider message - " + err.Error(),
+			State:          "Failed",
+			Type:           "Create",
 			LastUpdateTime: metav1.Now(),
 		}
-		currentStatus := v1alpha1.CurrentStatus {
-			Phase:			v1alpha1.MachineFailed,
-			TimeoutActive:	false,
+		currentStatus := v1alpha1.CurrentStatus{
+			Phase:          v1alpha1.MachineFailed,
+			TimeoutActive:  false,
 			LastUpdateTime: metav1.Now(),
 		}
 		c.updateMachineStatus(machine, lastOperation, currentStatus)
@@ -338,15 +338,15 @@ func (c *controller) createMachine (machine *v1alpha1.Machine, availabilityZone 
 			return err
 		}
 
-		lastOperation := v1alpha1.LastOperation {
-			Description: 	"Creating machine on cloud provider",
-			State: 			"Processing",
-			Type:			"Create",
+		lastOperation := v1alpha1.LastOperation{
+			Description:    "Creating machine on cloud provider",
+			State:          "Processing",
+			Type:           "Create",
 			LastUpdateTime: metav1.Now(),
 		}
-		currentStatus := v1alpha1.CurrentStatus {
-			Phase:			v1alpha1.MachinePending,
-			TimeoutActive:	true,
+		currentStatus := v1alpha1.CurrentStatus{
+			Phase:          v1alpha1.MachinePending,
+			TimeoutActive:  true,
 			LastUpdateTime: metav1.Now(),
 		}
 
@@ -359,7 +359,7 @@ func (c *controller) createMachine (machine *v1alpha1.Machine, availabilityZone 
 		clone.Status.Node = private_dns
 		clone.Status.LastOperation = lastOperation
 		clone.Status.CurrentStatus = currentStatus
-		
+
 		_, err = c.nodeClient.Machines().Update(clone)
 		if err == nil {
 			break
@@ -370,8 +370,7 @@ func (c *controller) createMachine (machine *v1alpha1.Machine, availabilityZone 
 	return nil
 }
 
-
-func (c *controller) updateMachine (machine *v1alpha1.Machine, availabilityZone string, actualID string) error {
+func (c *controller) updateMachine(machine *v1alpha1.Machine, availabilityZone string, actualID string) error {
 	glog.V(2).Infof("Setting MachineId of %s to %s", machine.Name, actualID)
 
 	for {
@@ -382,14 +381,14 @@ func (c *controller) updateMachine (machine *v1alpha1.Machine, availabilityZone 
 
 		clone := machine.DeepCopy()
 		clone.Spec.ProviderID = "aws:///" + availabilityZone + "/" + actualID
-		lastOperation := v1alpha1.LastOperation {
-			Description: 	"Updated provider ID",
-			State: 			"Successful",
-			Type:			"Update",
+		lastOperation := v1alpha1.LastOperation{
+			Description:    "Updated provider ID",
+			State:          "Successful",
+			Type:           "Update",
 			LastUpdateTime: metav1.Now(),
 		}
 		clone.Status.LastOperation = lastOperation
-		
+
 		_, err = c.nodeClient.Machines().Update(clone)
 		if err == nil {
 			break
@@ -400,13 +399,13 @@ func (c *controller) updateMachine (machine *v1alpha1.Machine, availabilityZone 
 	return nil
 }
 
-func (c *controller) deleteMachine (machine *v1alpha1.Machine, driver driver.Driver) error {
-	
+func (c *controller) deleteMachine(machine *v1alpha1.Machine, driver driver.Driver) error {
+
 	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
-		
+
 		var err error
 		glog.V(2).Infof("Deleting Machine %s", machine.Name)
-		
+
 		// If machine was created on the cloud provider
 		machineID, _ := driver.GetExisting()
 
@@ -419,22 +418,22 @@ func (c *controller) deleteMachine (machine *v1alpha1.Machine, driver driver.Dri
 		if err != nil {
 			// When machine deletion fails
 			glog.V(2).Infof("Deletion failed: %s", err)
-			
-			lastOperation := v1alpha1.LastOperation {
-				Description: 	"Cloud provider message - " + err.Error(),
-				State: 			"Failed",
-				Type:			"Delete",
+
+			lastOperation := v1alpha1.LastOperation{
+				Description:    "Cloud provider message - " + err.Error(),
+				State:          "Failed",
+				Type:           "Delete",
 				LastUpdateTime: metav1.Now(),
 			}
-			currentStatus := v1alpha1.CurrentStatus {
-				Phase:			v1alpha1.MachineFailed,
-				TimeoutActive:	false,
+			currentStatus := v1alpha1.CurrentStatus{
+				Phase:          v1alpha1.MachineFailed,
+				TimeoutActive:  false,
 				LastUpdateTime: metav1.Now(),
 			}
 			c.updateMachineStatus(machine, lastOperation, currentStatus)
 
 			return err
-		}	
+		}
 		c.deleteMachineFinalizers(machine)
 		c.nodeClient.Machines().Delete(machine.Name, &metav1.DeleteOptions{})
 	}
@@ -446,11 +445,11 @@ func (c *controller) deleteMachine (machine *v1alpha1.Machine, driver driver.Dri
 	Update machine object
 */
 
-func (c *controller) updateMachineStatus (
-	machine *v1alpha1.Machine, 
-	lastOperation v1alpha1.LastOperation, 
+func (c *controller) updateMachineStatus(
+	machine *v1alpha1.Machine,
+	lastOperation v1alpha1.LastOperation,
 	currentStatus v1alpha1.CurrentStatus,
-){
+) {
 	// Get the latest version of the machine so that we can avoid conflicts
 	machine, err := c.nodeClient.Machines().Get(machine.Name, metav1.GetOptions{})
 	if err != nil {
@@ -466,10 +465,10 @@ func (c *controller) updateMachineStatus (
 		// Keep retrying until update goes through
 		glog.V(4).Info("Warning: Updated failed, retrying")
 		c.updateMachineStatus(machine, lastOperation, currentStatus)
-	} 
+	}
 }
 
-func (c *controller) updateMachineConditions (machine *v1alpha1.Machine, conditions []v1.NodeCondition) *v1alpha1.Machine {
+func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditions []v1.NodeCondition) *v1alpha1.Machine {
 	// Get the latest version of the machine so that we can avoid conflicts
 	machine, err := c.nodeClient.Machines().Get(machine.Name, metav1.GetOptions{})
 	if err != nil {
@@ -485,16 +484,16 @@ func (c *controller) updateMachineConditions (machine *v1alpha1.Machine, conditi
 		clone.Status.CurrentStatus = clone.Status.CurrentStatus
 
 	} else if !c.isHealthy(clone) && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
-		currentStatus := v1alpha1.CurrentStatus {
-			Phase:			v1alpha1.MachineUnknown,
-			TimeoutActive:	true,
+		currentStatus := v1alpha1.CurrentStatus{
+			Phase:          v1alpha1.MachineUnknown,
+			TimeoutActive:  true,
 			LastUpdateTime: metav1.Now(),
 		}
 		clone.Status.CurrentStatus = currentStatus
 	} else if c.isHealthy(clone) && clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
-		currentStatus := v1alpha1.CurrentStatus {
-			Phase:			v1alpha1.MachineRunning,
-			TimeoutActive:	false,
+		currentStatus := v1alpha1.CurrentStatus{
+			Phase:          v1alpha1.MachineRunning,
+			TimeoutActive:  false,
 			LastUpdateTime: metav1.Now(),
 		}
 		clone.Status.CurrentStatus = currentStatus
@@ -506,7 +505,7 @@ func (c *controller) updateMachineConditions (machine *v1alpha1.Machine, conditi
 		glog.V(2).Info("Warning: Updated failed, retrying")
 		c.updateMachineConditions(machine, conditions)
 		return machine
-	} 
+	}
 
 	return clone
 }
@@ -525,7 +524,7 @@ func (c *controller) updateMachineFinalizers(machine *v1alpha1.Machine, finalize
 		// Keep retrying until update goes through
 		glog.V(4).Info("Warning: Updated failed, retrying")
 		c.updateMachineFinalizers(machine, finalizers)
-	} 
+	}
 }
 
 /*
@@ -533,7 +532,7 @@ func (c *controller) updateMachineFinalizers(machine *v1alpha1.Machine, finalize
 	Manipulate Finalizers
 */
 
-func (c *controller) addMachineFinalizers (machine *v1alpha1.Machine) {
+func (c *controller) addMachineFinalizers(machine *v1alpha1.Machine) {
 	clone := machine.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
@@ -542,7 +541,7 @@ func (c *controller) addMachineFinalizers (machine *v1alpha1.Machine) {
 	}
 }
 
-func (c *controller) deleteMachineFinalizers (machine *v1alpha1.Machine) {
+func (c *controller) deleteMachineFinalizers(machine *v1alpha1.Machine) {
 	clone := machine.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
@@ -555,7 +554,7 @@ func (c *controller) deleteMachineFinalizers (machine *v1alpha1.Machine) {
 	SECTION
 	Helper Functions
 */
-func (c *controller) isHealthy (machine *v1alpha1.Machine) bool {
+func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 
 	//TODO: Change index numbers to status names
 	if len(machine.Status.Conditions) == 0 {
@@ -585,7 +584,7 @@ func (c *controller) getSecret(ref *v1.SecretReference, AWSMachineClass *v1alpha
 	return secretRef, err
 }
 
-func (c *controller) checkMachineTimeout (machine *v1alpha1.Machine) {
+func (c *controller) checkMachineTimeout(machine *v1alpha1.Machine) {
 
 	if machine.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 
@@ -594,22 +593,22 @@ func (c *controller) checkMachineTimeout (machine *v1alpha1.Machine) {
 
 		// Timeout value obtained by subtracting last operation with expected time out period
 		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
-		
+
 		//glog.V(2).Info("TIMEOUT: ", machine.Name, " ", timeOut)
 
 		if timeOut > 0 {
-			
-			currentStatus := v1alpha1.CurrentStatus {
-				Phase:			v1alpha1.MachineFailed,
-				TimeoutActive:	false,
+
+			currentStatus := v1alpha1.CurrentStatus{
+				Phase:          v1alpha1.MachineFailed,
+				TimeoutActive:  false,
 				LastUpdateTime: metav1.Now(),
 			}
 
-			if machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending {  
-				lastOperation := v1alpha1.LastOperation {
-					Description: 	machine.Status.LastOperation.Description,
-					State: 			"Failed",
-					Type:			machine.Status.LastOperation.Type,
+			if machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending {
+				lastOperation := v1alpha1.LastOperation{
+					Description:    machine.Status.LastOperation.Description,
+					State:          "Failed",
+					Type:           machine.Status.LastOperation.Type,
 					LastUpdateTime: metav1.Now(),
 				}
 				c.updateMachineStatus(machine, lastOperation, currentStatus)
@@ -619,20 +618,20 @@ func (c *controller) checkMachineTimeout (machine *v1alpha1.Machine) {
 
 			}
 		} else {
-			currentStatus := v1alpha1.CurrentStatus {
-				Phase:			machine.Status.CurrentStatus.Phase,
-				TimeoutActive:	true,
+			currentStatus := v1alpha1.CurrentStatus{
+				Phase:          machine.Status.CurrentStatus.Phase,
+				TimeoutActive:  true,
 				LastUpdateTime: machine.Status.CurrentStatus.LastUpdateTime,
 			}
 			c.updateMachineStatus(machine, machine.Status.LastOperation, currentStatus)
 
 			/*
-			time.Sleep(sleepTime)
-			machine, err := c.nodeClient.Machines().Get(machine.Name, metav1.GetOptions{})
-			if err != nil {
-				return
-			}
-			c.reconcileClusterMachine(machine)*/
+				time.Sleep(sleepTime)
+				machine, err := c.nodeClient.Machines().Get(machine.Name, metav1.GetOptions{})
+				if err != nil {
+					return
+				}
+				c.reconcileClusterMachine(machine)*/
 
 			c.enqueueMachineAfter(machine, sleepTime)
 		}

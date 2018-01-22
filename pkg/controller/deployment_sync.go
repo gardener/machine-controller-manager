@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/golang/glog"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -35,9 +36,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/rand"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 )
-
 
 // syncStatusOnly only updates Deployments Status and doesn't take any mutating actions.
 func (dc *controller) syncStatusOnly(d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
@@ -46,8 +45,8 @@ func (dc *controller) syncStatusOnly(d *v1alpha1.MachineDeployment, isList []*v1
 		return err
 	}
 
-    allISs := append(oldISs, newIS)     
-    return dc.syncMachineDeploymentStatus(allISs, newIS, d) 
+	allISs := append(oldISs, newIS)
+	return dc.syncMachineDeploymentStatus(allISs, newIS, d)
 }
 
 // sync is responsible for reconciling deployments on scaling events or when they
@@ -272,7 +271,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 		}
 
 		if needsUpdate {
-			var err error 
+			var err error
 			if d, err = dc.nodeClient.MachineDeployments().Update(d); err != nil {
 				return nil, err
 			}
@@ -298,7 +297,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 			Name:            d.Name + "-" + rand.SafeEncodeString(machineTemplateSpecHash),
 			Namespace:       d.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(d, controllerKind)},
-			Labels:			 newISTemplate.Labels,
+			Labels:          newISTemplate.Labels,
 		},
 		Spec: v1alpha1.MachineSetSpec{
 			Replicas:        0,
@@ -395,7 +394,7 @@ func (dc *controller) scale(deployment *v1alpha1.MachineDeployment, newIS *v1alp
 	if activeOrLatest := FindActiveOrLatest(newIS, oldISs); activeOrLatest != nil {
 		if (activeOrLatest.Spec.Replicas) == (deployment.Spec.Replicas) {
 			return nil
-		}		
+		}
 		_, _, err := dc.scaleMachineSetAndRecordEvent(activeOrLatest, (deployment.Spec.Replicas), deployment)
 		return err
 	}

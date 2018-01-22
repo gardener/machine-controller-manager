@@ -30,9 +30,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1"
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	nodescheme "github.com/gardener/node-controller-manager/pkg/client/clientset/scheme"
+	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,8 +52,8 @@ import (
 	clientretry "k8s.io/client-go/util/retry"
 	_ "k8s.io/kubernetes/pkg/api/install"
 	"k8s.io/kubernetes/pkg/api/validation"
-	taintutils "k8s.io/kubernetes/pkg/util/taints"
 	hashutil "k8s.io/kubernetes/pkg/util/hash"
+	taintutils "k8s.io/kubernetes/pkg/util/taints"
 
 	"github.com/golang/glog"
 )
@@ -401,7 +401,6 @@ const (
 	SuccessfulDeleteMachineReason = "SuccessfulDelete"
 )
 
-
 // RSControlInterface is an interface that knows how to add or delete
 // MachineSets, as well as increment or decrement them. It is used
 // by the deployment controller to ease testing of actions that it takes.
@@ -470,7 +469,6 @@ type RealMachineControl struct {
 
 var _ MachineControlInterface = &RealMachineControl{}
 
-
 type MachineControlInterface interface {
 	// Createmachines creates new machines according to the spec.
 	CreateMachines(template *v1alpha1.MachineTemplateSpec, object runtime.Object) error
@@ -538,7 +536,7 @@ func (r RealMachineControl) CreateMachinesWithControllerRef(template *v1alpha1.M
 }
 
 func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject runtime.Object, controllerRef *metav1.OwnerReference) (*v1alpha1.Machine, error) {
-	
+
 	//glog.Info("Template details \n", template.Spec.Class)
 	desiredLabels := getMachinesLabelSet(template)
 	//glog.Info(desiredLabels)
@@ -561,7 +559,7 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 			Finalizers:   desiredFinalizers,
 		},
 		Spec: v1alpha1.MachineSpec{
-			Class:		template.Spec.Class,
+			Class: template.Spec.Class,
 		},
 	}
 	if controllerRef != nil {
@@ -609,7 +607,6 @@ func (r RealMachineControl) createMachines(template *v1alpha1.MachineTemplateSpe
 	return nil
 }
 
-
 func (r RealMachineControl) PatchMachine(name string, data []byte) error {
 	_, err := r.NodeClient.Machines().Patch(name, types.MergePatchType, data)
 	return err
@@ -649,7 +646,6 @@ func (s ActiveMachines) Less(i, j int) bool {
 	return false
 }
 
-
 // afterOrZero checks if time t1 is after time t2; if one of them
 // is zero, the zero time is seen as after non-zero time.
 func afterOrZero(t1, t2 *metav1.Time) bool {
@@ -672,11 +668,10 @@ func IsMachineActive(p *v1alpha1.Machine) bool {
 func IsMachineFailed(p *v1alpha1.Machine) bool {
 	if p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
 		return true
-	} 
+	}
 
 	return false
 }
-
 
 func MachineKey(machine *v1alpha1.Machine) string { //ToCheck : as machine-namespace does not matter
 	return fmt.Sprintf("%v/%v", machine.Name)

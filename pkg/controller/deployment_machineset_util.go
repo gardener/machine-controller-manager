@@ -27,10 +27,10 @@ import (
 
 	"github.com/golang/glog"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 // updateMachineSetStatus attempts to update the Status.Replicas of the given MachineSet, with a single GET/PUT retry.
@@ -180,22 +180,22 @@ func filterOutMachineSetCondition(conditions []v1alpha1.MachineSetCondition, con
 	return newConditions
 }
 
-func isMachineAvailable (machine *v1alpha1.Machine) bool {
+func isMachineAvailable(machine *v1alpha1.Machine) bool {
 
 	if machine.Status.CurrentStatus.Phase == v1alpha1.MachineAvailable ||
-			machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+		machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
 		return true
 	}
 
 	return false
 }
 
-func isMachineReady (machine *v1alpha1.Machine) bool {
+func isMachineReady(machine *v1alpha1.Machine) bool {
 
 	// TODO add more conditions
 	if machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
 		return true
 	}
-	
+
 	return false
 }

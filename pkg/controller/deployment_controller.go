@@ -32,17 +32,17 @@ import (
 
 	"github.com/golang/glog"
 
-	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/cache"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/kubernetes/pkg/api"
+
 	"github.com/gardener/node-controller-manager/pkg/apis/machine"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
 )
 
@@ -303,7 +303,7 @@ func (dc *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) 
 		return nil
 	}
 	if controllerRef.Kind != "MachineDeployment" { //TODO: Remove hardcoded string
- 		// Not a Machine owned by a machine set.
+		// Not a Machine owned by a machine set.
 		return nil
 	}
 	is, err = dc.nodeClient.MachineSets().Get(controllerRef.Name, metav1.GetOptions{})

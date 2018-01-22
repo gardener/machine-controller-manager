@@ -26,8 +26,8 @@ import (
 
 	"github.com/golang/glog"
 
-	"k8s.io/api/core/v1"
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
