@@ -17,7 +17,7 @@ package controller
 
 import (
 	"github.com/golang/glog"
-	
+
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
 
@@ -59,5 +59,5 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 }
 
 func (c *controller) reconcileClusterNode(node *v1.Node) error {
-    return nil
+	return nil
 }

@@ -24,7 +24,7 @@ import (
 const GroupName = "machine.sapcloud.io"
 
 // SchemeGroupVersion is group version used to register these objects
-var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: runtime.APIVersionInternal }
+var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: runtime.APIVersionInternal}
 
 // Kind takes an unqualified kind and returns a Group qualified GroupKind
 func Kind(kind string) schema.GroupKind {
@@ -57,7 +57,7 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&MachineSetList{},
 
 		&MachineDeployment{},
-		&MachineDeploymentList{},		
+		&MachineDeploymentList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

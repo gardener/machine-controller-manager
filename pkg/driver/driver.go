@@ -32,10 +32,10 @@ func NewDriver(instanceID string, class *v1alpha1.AWSMachineClass, secretRef *co
 	switch classKind {
 	case "AWSMachineClass":
 		return &AWSDriver{
-			AWSMachineClass: 	class,
-			CloudConfig: 		secretRef,
-			UserData: 			string(secretRef.Data["userData"]),
-			InstanceId: 		instanceID,
+			AWSMachineClass: class,
+			CloudConfig:     secretRef,
+			UserData:        string(secretRef.Data["userData"]),
+			InstanceId:      instanceID,
 		}
 	}
 	return NewFakeDriver(

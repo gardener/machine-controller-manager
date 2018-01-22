@@ -25,13 +25,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/golang/glog"
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
 
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 )
@@ -127,12 +126,10 @@ func (m *BaseControllerRefManager) ClaimObject(obj metav1.Object, match func(met
 	return true, nil
 }
 
-
-
 type MachineControllerRefManager struct {
 	BaseControllerRefManager
-	controllerKind      schema.GroupVersionKind
-	machineControl     MachineControlInterface
+	controllerKind schema.GroupVersionKind
+	machineControl MachineControlInterface
 }
 
 // NewMachineControllerRefManager returns a MachineControllerRefManager that exposes
@@ -196,14 +193,14 @@ func (m *MachineControllerRefManager) ClaimMachines(machines []*v1alpha1.Machine
 		}
 		return true
 	}
-	
+
 	adopt := func(obj metav1.Object) error {
 		return m.AdoptMachine(obj.(*v1alpha1.Machine))
 	}
 	release := func(obj metav1.Object) error {
 		return m.ReleaseMachine(obj.(*v1alpha1.Machine))
 	}
-	
+
 	for _, machine := range machines {
 		ok, err := m.ClaimObject(machine, match, adopt, release)
 
@@ -374,7 +371,7 @@ func (m *MachineSetControllerRefManager) ReleaseMachineSet(machineSet *v1alpha1.
 	deleteOwnerRefPatch := fmt.Sprintf(
 		`{"metadata":{"ownerReferences":[{"$patch":"delete", "apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
 		m.controllerKind.Kind,
-		m.Controller.GetName(), m.Controller.GetUID(), machineSet.UID)	
+		m.Controller.GetName(), m.Controller.GetUID(), machineSet.UID)
 	err := m.isControl.PatchMachineSet(machineSet.Namespace, machineSet.Name, []byte(deleteOwnerRefPatch))
 	if err != nil {
 		if errors.IsNotFound(err) {
