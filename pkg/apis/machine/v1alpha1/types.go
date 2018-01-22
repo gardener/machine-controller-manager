@@ -53,7 +53,6 @@ type AWSMachineClass struct {
 
 // AWSMachineClassList is a collection of AWSMachineClasses.
 type AWSMachineClassList struct {
-	
 	metav1.TypeMeta `json:",inline"`
 
 	// +optional
@@ -69,7 +68,7 @@ type AWSMachineClassSpec struct {
 	BlockDevices      []AWSBlockDeviceMappingSpec `json:"blockDevices,omitempty"`
 	EbsOptimized      bool                        `json:"ebsOptimized,omitempty"`
 	IAM               AWSIAMProfileSpec           `json:"iam,omitempty"`
-	MachineType      string                      `json:"machineType,omitempty"`
+	MachineType       string                      `json:"machineType,omitempty"`
 	KeyName           string                      `json:"keyName,omitempty"`
 	Monitoring        bool                        `json:"monitoring,omitempty"`
 	NetworkInterfaces []AWSNetworkInterfaceSpec   `json:"networkInterfaces,omitempty"`
@@ -188,7 +187,6 @@ type AWSNetworkInterfaceSpec struct {
 	SubnetID string `json:"subnetID,omitempty"`
 }
 
-
 // MachinePhase is a label for the condition of a machines at the current time.
 type MachinePhase string
 
@@ -205,7 +203,7 @@ const (
 	// MachineUnknown indicates that the node is not ready at the movement
 	MachineUnknown MachinePhase = "Unknown"
 	// MachineFailed means operation failed leading to machine status failure
-	MachineFailed MachinePhase  = "Failed"
+	MachineFailed MachinePhase = "Failed"
 )
 
 // MachinePhase is a label for the condition of a machines at the current time.
@@ -216,7 +214,7 @@ const (
 	// MachinePending means there are operations pending on this machine state
 	MachineStateProcessing MachineState = "Processing"
 	// MachineFailed means operation failed leading to machine status failure
-	MachineStateFailed MachineState  = "Failed"
+	MachineStateFailed MachineState = "Failed"
 	// MachineUnknown indicates that the node is not ready at the movement
 	MachineStateSuccessful MachineState = "Successful"
 )
@@ -234,7 +232,6 @@ const (
 	ConditionFalse   ConditionStatus = "False"
 	ConditionUnknown ConditionStatus = "Unknown"
 )
-
 
 // +genclient
 // +genclient:nonNamespaced
@@ -277,7 +274,6 @@ type MachineSpec struct {
 	// +optional
 	ProviderID string `json:"providerID,omitempty"`
 }
-
 
 // PodTemplateSpec describes the data a pod should have when created from a template
 type MachineTemplateSpec struct {
@@ -323,49 +319,48 @@ type MachineTemplateList struct {
 	Items []MachineTemplate `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
-
 // ClassSpec is the class specification of machine
 type ClassSpec struct {
 	// API group to which it belongs
-	APIGroup	string 					`json:"apiGroup,omitempty"`
-    // Kind for machine class
-    Kind		string 					`json:"kind,omitempty"`
-    // Name of machine class
-    Name 		string 					`json:"name,omitempty"`
+	APIGroup string `json:"apiGroup,omitempty"`
+	// Kind for machine class
+	Kind string `json:"kind,omitempty"`
+	// Name of machine class
+	Name string `json:"name,omitempty"`
 }
 
-//type CurrentStatus 
+//type CurrentStatus
 type CurrentStatus struct {
 	// API group to which it belongs
-	Phase				MachinePhase 			`json:"phase,omitempty" protobuf:"bytes,1,opt,name=phase,casttype=MachinePhase"`
-   	// Name of machine class
-   	TimeoutActive 		bool					`json:"timeoutActive,omitempty"`
-    // Last update time of current status
-	LastUpdateTime  	metav1.Time 			`json:"lastUpdateTime,omitempty"`
+	Phase MachinePhase `json:"phase,omitempty" protobuf:"bytes,1,opt,name=phase,casttype=MachinePhase"`
+	// Name of machine class
+	TimeoutActive bool `json:"timeoutActive,omitempty"`
+	// Last update time of current status
+	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
 }
 
 // MachineStatus TODO
 type MachineStatus struct {
 	// Node string
-	Node 				string 					`json:"node,omitempty"`
+	Node string `json:"node,omitempty"`
 	// Conditions of this machine, same as node
-	Conditions          []corev1.NodeCondition 	`json:"conditions,omitempty"`
+	Conditions []corev1.NodeCondition `json:"conditions,omitempty"`
 	// Last operation refers to the status of the last operation performed
-	LastOperation		LastOperation 			`json:"lastOperation,omitempty"`
+	LastOperation LastOperation `json:"lastOperation,omitempty"`
 	// Current status of the machine object
-	CurrentStatus		CurrentStatus 			`json:"currentStatus,omitempty"`
+	CurrentStatus CurrentStatus `json:"currentStatus,omitempty"`
 }
 
 // LastOperation
 type LastOperation struct {
 	// Description of the current operation
-	Description 		string  				`json:"description,omitempty"`
+	Description string `json:"description,omitempty"`
 	// Last update time of current operation
-	LastUpdateTime  	metav1.Time 			`json:"lastUpdateTime,omitempty"`
+	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
 	// State of operation
-	State				MachineState 			`json:"state,omitempty"`
+	State MachineState `json:"state,omitempty"`
 	// Type of operation
-	Type				string 					`json:"type,omitempty"`
+	Type string `json:"type,omitempty"`
 }
 
 // +genclient
@@ -385,7 +380,6 @@ type MachineSet struct {
 
 	// +optional
 	Status MachineSetStatus `json:"status,omitempty"`
-
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -402,17 +396,16 @@ type MachineSetList struct {
 
 // MachineSetSpec is the specification of a Shoot cluster.
 type MachineSetSpec struct {
+	Replicas int32 `json:"replicas,inline"`
 
-	Replicas 			int32 					`json:"replicas,inline"`
+	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 
-	Selector 			*metav1.LabelSelector 	`json:"selector,omitempty"`
-
-	MachineClass 		ClassSpec 				`json:"machineClass,omitempty"`
+	MachineClass ClassSpec `json:"machineClass,omitempty"`
 
 	// +optional
-	Template 			MachineTemplateSpec 	`json:"template,omitempty" protobuf:"bytes,2,opt,name=template"`
+	Template MachineTemplateSpec `json:"template,omitempty" protobuf:"bytes,2,opt,name=template"`
 
-	MinReadySeconds  	int32 					`json:"minReadySeconds,inline"`
+	MinReadySeconds int32 `json:"minReadySeconds,inline"`
 }
 
 type MachineSetConditionType string
@@ -445,19 +438,19 @@ type MachineSetCondition struct {
 // MachineSetStatus TODO
 type MachineSetStatus struct {
 	// Conditions of this machine, same as node
-	LastOperation			LastOperation 			`json:"lastOperation,omitempty"`			
+	LastOperation LastOperation `json:"lastOperation,omitempty"`
 
-	Replicas 				int32  					`json:"replicas,inline"`
+	Replicas int32 `json:"replicas,inline"`
 
-	FullyLabeledReplicas	int32					`json:"fullyLabeledReplicas,inline"`
+	FullyLabeledReplicas int32 `json:"fullyLabeledReplicas,inline"`
 
-	ReadyReplicas			int32  					`json:"readyReplicas,inline"`
+	ReadyReplicas int32 `json:"readyReplicas,inline"`
 
-	AvailableReplicas 		int32    					`json:"availableReplicas,inline"`
+	AvailableReplicas int32 `json:"availableReplicas,inline"`
 
-	Conditions 				[]MachineSetCondition  `json:"machineSetCondition,inline"`
+	Conditions []MachineSetCondition `json:"machineSetCondition,inline"`
 
-	ObservedGeneration 		int64 					`json:"observedGeneration,inline"`
+	ObservedGeneration int64 `json:"observedGeneration,inline"`
 }
 
 /********************** MachineDeployment APIs ***************/

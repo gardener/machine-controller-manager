@@ -22,14 +22,14 @@ Modifications Copyright 2017 The Gardener Authors.
 package controller
 
 import (
-    "encoding/json"
-    "hash/adler32"
-    "strconv"
-    "strings"
-    "testing"
+	"encoding/json"
+	"hash/adler32"
+	"strconv"
+	"strings"
+	"testing"
 
-    hashutil "k8s.io/kubernetes/pkg/util/hash"
-    "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	hashutil "k8s.io/kubernetes/pkg/util/hash"
 )
 
 var machineSpec string = `
@@ -51,41 +51,41 @@ var machineSpec string = `
 `
 
 func TestMachineTemplateSpecHash(t *testing.T) {
-    seenHashes := make(map[uint32]int)
+	seenHashes := make(map[uint32]int)
 
-    for i := 0; i < 1000; i++ {
-        specJson := strings.Replace(machineSpec, "@@VERSION@@", strconv.Itoa(i), 1)
-        spec := v1alpha1.MachineTemplateSpec{}
-        json.Unmarshal([]byte(specJson), &spec)
-        hash := ComputeHash(&spec, nil)
-        if v, ok := seenHashes[hash]; ok {
-            t.Errorf("Hash collision, old: %d new: %d", v, i)
-            break
-        }
-        seenHashes[hash] = i
-    }
+	for i := 0; i < 1000; i++ {
+		specJson := strings.Replace(machineSpec, "@@VERSION@@", strconv.Itoa(i), 1)
+		spec := v1alpha1.MachineTemplateSpec{}
+		json.Unmarshal([]byte(specJson), &spec)
+		hash := ComputeHash(&spec, nil)
+		if v, ok := seenHashes[hash]; ok {
+			t.Errorf("Hash collision, old: %d new: %d", v, i)
+			break
+		}
+		seenHashes[hash] = i
+	}
 }
 
 func BenchmarkAdler(b *testing.B) {
-    spec := v1alpha1.MachineTemplateSpec{}
-    json.Unmarshal([]byte(machineSpec), &spec)
+	spec := v1alpha1.MachineTemplateSpec{}
+	json.Unmarshal([]byte(machineSpec), &spec)
 
-    for i := 0; i < b.N; i++ {
-        getMachineTemplateSpecOldHash(spec)
-    }
+	for i := 0; i < b.N; i++ {
+		getMachineTemplateSpecOldHash(spec)
+	}
 }
 
 func getMachineTemplateSpecOldHash(template v1alpha1.MachineTemplateSpec) uint32 {
-    machineTemplateSpecHasher := adler32.New()
-    hashutil.DeepHashObject(machineTemplateSpecHasher, template)
-    return machineTemplateSpecHasher.Sum32()
+	machineTemplateSpecHasher := adler32.New()
+	hashutil.DeepHashObject(machineTemplateSpecHasher, template)
+	return machineTemplateSpecHasher.Sum32()
 }
 
 func BenchmarkFnv(b *testing.B) {
-    spec := v1alpha1.MachineTemplateSpec{}
-    json.Unmarshal([]byte(machineSpec), &spec)
+	spec := v1alpha1.MachineTemplateSpec{}
+	json.Unmarshal([]byte(machineSpec), &spec)
 
-    for i := 0; i < b.N; i++ {
-        ComputeHash(&spec, nil)
-    }
+	for i := 0; i < b.N; i++ {
+		ComputeHash(&spec, nil)
+	}
 }

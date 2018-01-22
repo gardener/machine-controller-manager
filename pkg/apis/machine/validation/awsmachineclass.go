@@ -16,9 +16,9 @@ limitations under the License.
 package validation
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
-	"regexp"
 
 	corev1 "k8s.io/api/core/v1"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
@@ -53,7 +53,7 @@ func ValidateAWSMachineClass(AWSMachineClass *machine.AWSMachineClass) field.Err
 
 func internalValidateAWSMachineClass(AWSMachineClass *machine.AWSMachineClass) field.ErrorList {
 	allErrs := field.ErrorList{}
-	
+
 	allErrs = append(allErrs, apivalidation.ValidateObjectMeta(&AWSMachineClass.ObjectMeta, false, /*namespace*/
 		validateName,
 		field.NewPath("metadata"))...)
@@ -80,7 +80,7 @@ func validateAWSMachineClassSpec(spec *machine.AWSMachineClassSpec, fldPath *fie
 	if "" == spec.KeyName {
 		allErrs = append(allErrs, field.Required(fldPath.Child("keyName"), "KeyName is required"))
 	}
-	
+
 	allErrs = append(allErrs, validateBlockDevices(spec.BlockDevices, field.NewPath("spec.blockDevices"))...)
 	allErrs = append(allErrs, validateNetworkInterfaces(spec.NetworkInterfaces, field.NewPath("spec.networkInterfaces"))...)
 	allErrs = append(allErrs, validateSecretRef(spec.SecretRef, field.NewPath("spec.secretRef"))...)
@@ -112,14 +112,14 @@ func validateNetworkInterfaces(networkInterfaces []machine.AWSNetworkInterfaceSp
 			if "" == networkInterfaces[i].SubnetID {
 				allErrs = append(allErrs, field.Required(fldPath.Child("subnetID"), "SubnetID is required"))
 			}
-			
+
 			if 0 == len(networkInterfaces[i].SecurityGroupID) {
 				allErrs = append(allErrs, field.Required(fldPath.Child("securityGroupID"), "Mention atleast one securityGroupID"))
 			} else {
 				for j, _ := range networkInterfaces[i].SecurityGroupID {
 					if "" == networkInterfaces[i].SecurityGroupID[j] {
-						output := strings.Join([]string{"securityGroupID cannot be blank for networkInterface:", strconv.Itoa(i) ," securityGroupID:", strconv.Itoa(j)}, "")
-						allErrs = append(allErrs, field.Required(fldPath.Child("securityGroupID"), output))	
+						output := strings.Join([]string{"securityGroupID cannot be blank for networkInterface:", strconv.Itoa(i), " securityGroupID:", strconv.Itoa(j)}, "")
+						allErrs = append(allErrs, field.Required(fldPath.Child("securityGroupID"), output))
 					}
 				}
 			}
@@ -139,5 +139,3 @@ func validateSecretRef(reference *corev1.SecretReference, fldPath *field.Path) f
 	}
 	return allErrs
 }
-
-
