@@ -458,22 +458,10 @@ func (c *controller) syncMachineSet(key string) error {
 		return nil
 	}
 
-	AWSMachineClass, err := c.awsMachineClassLister.Get(is.Spec.Template.Spec.Class.Name)
-	if err != nil {
-		glog.V(2).Infof("AWSMachineClass for MachineSet %q not found %q. Skipping. %v", is.Name, is.Spec.Template.Spec.Class.Name, err)
-		return nil
-	}
-
-	// Validate AWSMachineClass
-	internalAWSMachineClass := &machine.AWSMachineClass{}
-	err = api.Scheme.Convert(AWSMachineClass, internalAWSMachineClass, nil)
-	if err != nil {
+	// Validate MachineClass
+	_, secretRef, err := c.validateMachineClass(&is.Spec.Template.Spec.Class)
+	if err != nil || secretRef == nil {
 		return err
-	}
-	validationerr = validation.ValidateAWSMachineClass(internalAWSMachineClass)
-	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of AWSMachineClass failled %s", validationerr.ToAggregate().Error())
-		return nil
 	}
 
 	// Manipulate finalizers
@@ -532,6 +520,7 @@ func (c *controller) syncMachineSet(key string) error {
 		updatedIS.Status.AvailableReplicas != updatedIS.Spec.Replicas {
 		c.enqueueMachineSetAfter(updatedIS, time.Duration(updatedIS.Spec.MinReadySeconds)*time.Second)
 	}
+
 	return manageReplicasErr
 }
 

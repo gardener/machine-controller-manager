@@ -10,6 +10,8 @@ import (
 type Interface interface {
 	// AWSMachineClasses returns a AWSMachineClassInformer.
 	AWSMachineClasses() AWSMachineClassInformer
+	// AzureMachineClasses returns a AzureMachineClassInformer.
+	AzureMachineClasses() AzureMachineClassInformer
 	// Machines returns a MachineInformer.
 	Machines() MachineInformer
 	// MachineDeployments returns a MachineDeploymentInformer.
@@ -32,6 +34,11 @@ func New(f internalinterfaces.SharedInformerFactory) Interface {
 // AWSMachineClasses returns a AWSMachineClassInformer.
 func (v *version) AWSMachineClasses() AWSMachineClassInformer {
 	return &aWSMachineClassInformer{factory: v.SharedInformerFactory}
+}
+
+// AzureMachineClasses returns a AzureMachineClassInformer.
+func (v *version) AzureMachineClasses() AzureMachineClassInformer {
+	return &azureMachineClassInformer{factory: v.SharedInformerFactory}
 }
 
 // Machines returns a MachineInformer.

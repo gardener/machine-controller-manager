@@ -16,7 +16,7 @@ limitations under the License.
 package driver
 
 import (
-	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -27,17 +27,28 @@ type Driver interface {
 	GetExisting() (string, error)
 }
 
-func NewDriver(instanceID string, class *v1alpha1.AWSMachineClass, secretRef *corev1.Secret, classKind string) Driver {
+func NewDriver(instanceID string, secretRef *corev1.Secret, classKind string, machineClass interface{}, machineName string) Driver {
 
 	switch classKind {
 	case "AWSMachineClass":
 		return &AWSDriver{
-			AWSMachineClass: class,
+			AWSMachineClass: machineClass.(*v1alpha1.AWSMachineClass),
 			CloudConfig:     secretRef,
 			UserData:        string(secretRef.Data["userData"]),
 			InstanceId:      instanceID,
+			MachineName:	 machineName,
+		}
+
+	case "AzureMachineClass":
+		return &AzureDriver{
+			AzureMachineClass: machineClass.(*v1alpha1.AzureMachineClass),
+			CloudConfig:       secretRef,
+			UserData:          string(secretRef.Data["userData"]),
+			InstanceId:        instanceID,
+			MachineName:	   machineName,
 		}
 	}
+
 	return NewFakeDriver(
 		func() (string, string, error) {
 			return "fake", "fake_ip", nil
@@ -47,5 +58,6 @@ func NewDriver(instanceID string, class *v1alpha1.AWSMachineClass, secretRef *co
 		},
 		func() (string, error) {
 			return "fake", nil
-		})
+		},
+	)
 }
