@@ -190,7 +190,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 							},
 						},
 					},
-					Required: []string{"items"},
 				},
 			},
 			Dependencies: []string{
@@ -199,7 +198,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClassSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "AWSMachineClassSpec is the specification of a Shoot cluster.",
+					Description: "AWSMachineClassSpec is the specification of a cluster.",
 					Properties: map[string]spec.Schema{
 						"ami": {
 							SchemaProps: spec.SchemaProps{
@@ -342,6 +341,501 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureHardwareProfile": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureHardwareProfile is specifies the hardware settings for the virtual machine. Refer github.com/Azure/azure-sdk-for-go/arm/compute/models.go for VMSizes",
+					Properties: map[string]spec.Schema{
+						"vmSize": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureImageReference": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureImageReference is specifies information about the image to use. You can specify information about platform images, marketplace images, or virtual machine images. This element is required when you want to use a platform image, marketplace image, or virtual machine image, but is not used in other creation operations.",
+					Properties: map[string]spec.Schema{
+						"id": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"publisher": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"offer": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"sku": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"version": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureLinuxConfiguration": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureLinuxConfiguration is specifies the Linux operating system settings on the virtual machine. <br><br>For a list of supported Linux distributions, see [Linux on Azure-Endorsed Distributions](https://docs.microsoft.com/azure/virtual-machines/virtual-machines-linux-endorsed-distros?toc=%2fazure%2fvirtual-machines%2flinux%2ftoc.json) <br><br> For running non-endorsed distributions, see [Information for Non-Endorsed Distributions](https://docs.microsoft.com/azure/virtual-machines/virtual-machines-linux-create-upload-generic?toc=%2fazure%2fvirtual-machines%2flinux%2ftoc.json).",
+					Properties: map[string]spec.Schema{
+						"disablePasswordAuthentication": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"boolean"},
+								Format: "",
+							},
+						},
+						"ssh": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureSSHConfiguration"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureSSHConfiguration"},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClass": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureMachineClass TODO",
+					Properties: map[string]spec.Schema{
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							},
+						},
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"spec": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClassSpec"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClassList": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureMachineClassList is a collection of AzureMachineClasses.",
+					Properties: map[string]spec.Schema{
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+							},
+						},
+						"items": {
+							SchemaProps: spec.SchemaProps{
+								Type: []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClass"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClassSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureMachineClassSpec is the specification of a cluster.",
+					Properties: map[string]spec.Schema{
+						"location": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"tags": {
+							SchemaProps: spec.SchemaProps{
+								Type: []string{"object"},
+								AdditionalProperties: &spec.SchemaOrBool{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+						"properties": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureVirtualMachineProperties"),
+							},
+						},
+						"resourceGroup": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"subnetInfo": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureSubnetInfo"),
+							},
+						},
+						"secretRef": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/api/core/v1.SecretReference"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureSubnetInfo", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureVirtualMachineProperties", "k8s.io/api/core/v1.SecretReference"},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureManagedDiskParameters": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureManagedDiskParameters is the parameters of a managed disk.",
+					Properties: map[string]spec.Schema{
+						"id": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"storageAccountType": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkInterfaceReference": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureNetworkInterfaceReference is describes a network interface reference.",
+					Properties: map[string]spec.Schema{
+						"id": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"properties": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkInterfaceReferenceProperties"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkInterfaceReferenceProperties"},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkInterfaceReferenceProperties": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureNetworkInterfaceReferenceProperties is describes a network interface reference properties.",
+					Properties: map[string]spec.Schema{
+						"primary": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"boolean"},
+								Format: "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkProfile": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureNetworkProfile is specifies the network interfaces of the virtual machine.",
+					Properties: map[string]spec.Schema{
+						"networkInterfaces": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkInterfaceReference"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkInterfaceReference"},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureOSDisk": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureOSDisk is specifies information about the operating system disk used by the virtual machine. <br><br> For more information about disks, see [About disks and VHDs for Azure virtual machines](https://docs.microsoft.com/azure/virtual-machines/virtual-machines-windows-about-disks-vhds?toc=%2fazure%2fvirtual-machines%2fwindows%2ftoc.json).",
+					Properties: map[string]spec.Schema{
+						"name": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"caching": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"managedDisk": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureManagedDiskParameters"),
+							},
+						},
+						"diskSizeGB": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"integer"},
+								Format: "int32",
+							},
+						},
+						"createOption": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureManagedDiskParameters"},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureOSProfile": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureOSProfile is specifies the operating system settings for the virtual machine.",
+					Properties: map[string]spec.Schema{
+						"computerName": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"adminUsername": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"adminPassword": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"customData": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"linuxConfiguration": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureLinuxConfiguration"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureLinuxConfiguration"},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureSSHConfiguration": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureSSHConfiguration is SSH configuration for Linux based VMs running on Azure",
+					Properties: map[string]spec.Schema{
+						"publicKeys": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureSSHPublicKey"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureSSHPublicKey"},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureSSHPublicKey": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureSSHPublicKey is contains information about SSH certificate public key and the path on the Linux VM where the public key is placed.",
+					Properties: map[string]spec.Schema{
+						"path": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"keyData": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureStorageProfile": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureStorageProfile is specifies the storage settings for the virtual machine disks.",
+					Properties: map[string]spec.Schema{
+						"imageReference": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureImageReference"),
+							},
+						},
+						"osDisk": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureOSDisk"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureImageReference", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureOSDisk"},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureSubResource": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureSubResource is the Sub Resource definition.",
+					Properties: map[string]spec.Schema{
+						"id": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureSubnetInfo": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureSubnetInfo is the information containing the subnet details",
+					Properties: map[string]spec.Schema{
+						"vnetName": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"subnetName": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureVirtualMachineProperties": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AzureVirtualMachineProperties is describes the properties of a Virtual Machine.",
+					Properties: map[string]spec.Schema{
+						"hardwareProfile": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureHardwareProfile"),
+							},
+						},
+						"storageProfile": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureStorageProfile"),
+							},
+						},
+						"osProfile": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureOSProfile"),
+							},
+						},
+						"networkProfile": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkProfile"),
+							},
+						},
+						"availabilitySet": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureSubResource"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureHardwareProfile", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkProfile", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureOSProfile", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureStorageProfile", "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.AzureSubResource"},
+		},
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -449,7 +943,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 					Properties: map[string]spec.Schema{
 						"metadata": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+								Description: "ObjectMeta for machine object",
+								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 							},
 						},
 						"kind": {
@@ -468,12 +963,14 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec"),
+								Description: "Spec contains the specification of the machine",
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec"),
 							},
 						},
 						"status": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineStatus"),
+								Description: "Status contains fields depicting the status",
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineStatus"),
 							},
 						},
 					},
@@ -485,7 +982,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeployment": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "DEPRECATED - This group version of Deployment is deprecated by apps/v1beta2/Deployment. See the release notes for more information. Deployment enables declarative updates for Pods and ReplicaSets.",
+					Description: "Deployment enables declarative updates for machines and MachineSets.",
 					Properties: map[string]spec.Schema{
 						"kind": {
 							SchemaProps: spec.SchemaProps{
@@ -509,13 +1006,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Specification of the desired behavior of the Deployment.",
+								Description: "Specification of the desired behavior of the MachineDeployment.",
 								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentSpec"),
 							},
 						},
 						"status": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Most recently observed status of the Deployment.",
+								Description: "Most recently observed status of the MachineDeployment.",
 								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStatus"),
 							},
 						},
@@ -528,11 +1025,11 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentCondition": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "DeploymentCondition describes the state of a deployment at a certain point.",
+					Description: "MachineDeploymentCondition describes the state of a MachineDeployment at a certain point.",
 					Properties: map[string]spec.Schema{
 						"type": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Type of deployment condition.",
+								Description: "Type of MachineDeployment condition.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -580,7 +1077,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "DeploymentList is a list of Deployments.",
+					Description: "MachineDeploymentList is a list of MachineDeployments.",
 					Properties: map[string]spec.Schema{
 						"kind": {
 							SchemaProps: spec.SchemaProps{
@@ -604,7 +1101,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"items": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Items is the list of Deployments.",
+								Description: "Items is the list of MachineDeployments.",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -625,7 +1122,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentRollback": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "DEPRECATED. DeploymentRollback stores the information required to rollback a deployment.",
+					Description: "DEPRECATED. MachineDeploymentRollback stores the information required to rollback a MachineDeployment.",
 					Properties: map[string]spec.Schema{
 						"kind": {
 							SchemaProps: spec.SchemaProps{
@@ -643,14 +1140,14 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"name": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Required: This must match the Name of a deployment.",
+								Description: "Required: This must match the Name of a MachineDeployment.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
 						},
 						"updatedAnnotations": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The annotations to be updated to a deployment",
+								Description: "The annotations to be updated to a MachineDeployment",
 								Type:        []string{"object"},
 								AdditionalProperties: &spec.SchemaOrBool{
 									Schema: &spec.Schema{
@@ -664,7 +1161,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"rollbackTo": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The config of this deployment rollback.",
+								Description: "The config of this MachineDeployment rollback.",
 								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig"),
 							},
 						},
@@ -678,24 +1175,24 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "DeploymentSpec is the specification of the desired behavior of the Deployment.",
+					Description: "MachineDeploymentSpec is the specification of the desired behavior of the MachineDeployment.",
 					Properties: map[string]spec.Schema{
 						"replicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.",
+								Description: "Number of desired machines. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
 						},
 						"selector": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this deployment.",
+								Description: "Label selector for machines. Existing MachineSets whose machines are selected by this will be the ones affected by this MachineDeployment.",
 								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 							},
 						},
 						"template": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Template describes the pods that will be created.",
+								Description: "Template describes the machines that will be created.",
 								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec"),
 							},
 						},
@@ -706,40 +1203,40 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								},
 							},
 							SchemaProps: spec.SchemaProps{
-								Description: "The deployment strategy to use to replace existing pods with new ones.",
+								Description: "The MachineDeployment strategy to use to replace existing machines with new ones.",
 								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStrategy"),
 							},
 						},
 						"minReadySeconds": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Minimum number of seconds for which a newly created pod should be ready without any of its container crashing, for it to be considered available. Defaults to 0 (pod will be considered available as soon as it is ready)",
+								Description: "Minimum number of seconds for which a newly created machine should be ready without any of its container crashing, for it to be considered available. Defaults to 0 (machine will be considered available as soon as it is ready)",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
 						},
 						"revisionHistoryLimit": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The number of old ReplicaSets to retain to allow rollback. This is a pointer to distinguish between explicit zero and not specified.",
+								Description: "The number of old MachineSets to retain to allow rollback. This is a pointer to distinguish between explicit zero and not specified.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
 						},
 						"paused": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Indicates that the deployment is paused and will not be processed by the deployment controller.",
+								Description: "Indicates that the MachineDeployment is paused and will not be processed by the MachineDeployment controller.",
 								Type:        []string{"boolean"},
 								Format:      "",
 							},
 						},
 						"rollbackTo": {
 							SchemaProps: spec.SchemaProps{
-								Description: "DEPRECATED. The config this deployment is rolling back to. Will be cleared after rollback is done.",
+								Description: "DEPRECATED. The config this MachineDeployment is rolling back to. Will be cleared after rollback is done.",
 								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig"),
 							},
 						},
 						"progressDeadlineSeconds": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The maximum time in seconds for a deployment to make progress before it is considered to be failed. The deployment controller will continue to process failed deployments and a condition with a ProgressDeadlineExceeded reason will be surfaced in the deployment status. Note that progress will not be estimated during the time a deployment is paused. This is not set by default.",
+								Description: "The maximum time in seconds for a MachineDeployment to make progress before it is considered to be failed. The MachineDeployment controller will continue to process failed MachineDeployments and a condition with a ProgressDeadlineExceeded reason will be surfaced in the MachineDeployment status. Note that progress will not be estimated during the time a MachineDeployment is paused. This is not set by default.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
@@ -754,46 +1251,46 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "DeploymentStatus is the most recently observed status of the Deployment.",
+					Description: "MachineDeploymentStatus is the most recently observed status of the MachineDeployment.",
 					Properties: map[string]spec.Schema{
 						"observedGeneration": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The generation observed by the deployment controller.",
+								Description: "The generation observed by the MachineDeployment controller.",
 								Type:        []string{"integer"},
 								Format:      "int64",
 							},
 						},
 						"replicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Total number of non-terminated pods targeted by this deployment (their labels match the selector).",
+								Description: "Total number of non-terminated machines targeted by this MachineDeployment (their labels match the selector).",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
 						},
 						"updatedReplicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Total number of non-terminated pods targeted by this deployment that have the desired template spec.",
+								Description: "Total number of non-terminated machines targeted by this MachineDeployment that have the desired template spec.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
 						},
 						"readyReplicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Total number of ready pods targeted by this deployment.",
+								Description: "Total number of ready machines targeted by this MachineDeployment.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
 						},
 						"availableReplicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Total number of available pods (ready for at least minReadySeconds) targeted by this deployment.",
+								Description: "Total number of available machines (ready for at least minReadySeconds) targeted by this MachineDeployment.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
 						},
 						"unavailableReplicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Total number of unavailable pods targeted by this deployment. This is the total number of pods that are still required for the deployment to have 100% available capacity. They may either be pods that are running but not yet available or pods that still have not been created.",
+								Description: "Total number of unavailable machines targeted by this MachineDeployment. This is the total number of machines that are still required for the MachineDeployment to have 100% available capacity. They may either be machines that are running but not yet available or machines that still have not been created.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
@@ -806,7 +1303,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								},
 							},
 							SchemaProps: spec.SchemaProps{
-								Description: "Represents the latest available observations of a deployment's current state.",
+								Description: "Represents the latest available observations of a MachineDeployment's current state.",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -819,7 +1316,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"collisionCount": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Count of hash collisions for the Deployment. The Deployment controller uses this field as a collision avoidance mechanism when it needs to create the name for the newest ReplicaSet.",
+								Description: "Count of hash collisions for the MachineDeployment. The MachineDeployment controller uses this field as a collision avoidance mechanism when it needs to create the name for the newest MachineSet.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
@@ -833,18 +1330,18 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStrategy": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "DeploymentStrategy describes how to replace existing pods with new ones.",
+					Description: "MachineDeploymentStrategy describes how to replace existing machines with new ones.",
 					Properties: map[string]spec.Schema{
 						"type": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Type of deployment. Can be \"Recreate\" or \"RollingUpdate\". Default is RollingUpdate.",
+								Description: "Type of MachineDeployment. Can be \"Recreate\" or \"RollingUpdate\". Default is RollingUpdate.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
 						},
 						"rollingUpdate": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Rolling update config params. Present only if DeploymentStrategyType = RollingUpdate.",
+								Description: "Rolling update config params. Present only if MachineDeploymentStrategyType = RollingUpdate.",
 								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.RollingUpdateMachineDeployment"),
 							},
 						},
@@ -875,12 +1372,14 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"metadata": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+								Description: "TypeMeta for MachineList object",
+								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 							},
 						},
 						"items": {
 							SchemaProps: spec.SchemaProps{
-								Type: []string{"array"},
+								Description: "Items contains the list of machines",
+								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
@@ -940,7 +1439,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSetCondition": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "ReplicaSetCondition describes the state of a machine set at a certain point.",
+					Description: "MachineSetCondition describes the state of a machine set at a certain point.",
 					Properties: map[string]spec.Schema{
 						"type": {
 							SchemaProps: spec.SchemaProps{
@@ -1020,7 +1519,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 							},
 						},
 					},
-					Required: []string{"items"},
 				},
 			},
 			Dependencies: []string{
@@ -1029,7 +1527,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSetSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "MachineSetSpec is the specification of a Shoot cluster.",
+					Description: "MachineSetSpec is the specification of a cluster.",
 					Properties: map[string]spec.Schema{
 						"selector": {
 							SchemaProps: spec.SchemaProps{
@@ -1059,7 +1557,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 					Properties: map[string]spec.Schema{
 						"lastOperation": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Conditions of this machine, same as node",
+								Description: "LastOperation performed",
 								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.LastOperation"),
 							},
 						},
@@ -1072,17 +1570,19 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "MachineSpec is the specification of a Shoot cluster.",
+					Description: "MachineSpec is the specification of a machine.",
 					Properties: map[string]spec.Schema{
 						"class": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec"),
+								Description: "Class contains the machineclass attributes of a machine",
+								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec"),
 							},
 						},
 						"providerID": {
 							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
+								Description: "ProviderID represents the provider's unique ID given to a machine",
+								Type:        []string{"string"},
+								Format:      "",
 							},
 						},
 					},
@@ -1137,7 +1637,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplate": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "PodTemplate describes a template for creating copies of a predefined pod.",
+					Description: "MachineTemplate describes a template for creating copies of a predefined machine.",
 					Properties: map[string]spec.Schema{
 						"kind": {
 							SchemaProps: spec.SchemaProps{
@@ -1161,7 +1661,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"template": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Template defines the pods that will be created from this pod template. https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status",
+								Description: "Template defines the machines that will be created from this machine template. https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status",
 								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec"),
 							},
 						},
@@ -1174,7 +1674,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "PodTemplateList is a list of PodTemplates.",
+					Description: "MachineTemplateList is a list of MachineTemplates.",
 					Properties: map[string]spec.Schema{
 						"kind": {
 							SchemaProps: spec.SchemaProps{
@@ -1198,7 +1698,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"items": {
 							SchemaProps: spec.SchemaProps{
-								Description: "List of pod templates",
+								Description: "List of machine templates",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -1219,7 +1719,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "PodTemplateSpec describes the data a pod should have when created from a template",
+					Description: "MachineTemplateSpec describes the data a machine should have when created from a template",
 					Properties: map[string]spec.Schema{
 						"metadata": {
 							SchemaProps: spec.SchemaProps{
@@ -1229,7 +1729,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Specification of the desired behavior of the pod. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status",
+								Description: "Specification of the desired behavior of the machine. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status",
 								Ref:         ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec"),
 							},
 						},
@@ -1242,7 +1742,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "DEPRECATED.",
 					Properties: map[string]spec.Schema{
 						"revision": {
 							SchemaProps: spec.SchemaProps{
@@ -1263,13 +1762,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 					Properties: map[string]spec.Schema{
 						"maxUnavailable": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. By default, a fixed value of 1 is used. Example: when this is set to 30%, the old RC can be scaled down to 70% of desired pods immediately when the rolling update starts. Once new pods are ready, old RC can be scaled down further, followed by scaling up the new RC, ensuring that the total number of pods available at all times during the update is at least 70% of desired pods.",
+								Description: "The maximum number of machines that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. By default, a fixed value of 1 is used. Example: when this is set to 30%, the old MC can be scaled down to 70% of desired machines immediately when the rolling update starts. Once new machines are ready, old MC can be scaled down further, followed by scaling up the new MC, ensuring that the total number of machines available at all times during the update is at least 70% of desired machines.",
 								Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 							},
 						},
 						"maxSurge": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The maximum number of pods that can be scheduled above the desired number of pods. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. By default, a value of 1 is used. Example: when this is set to 30%, the new RC can be scaled up immediately when the rolling update starts, such that the total number of old and new pods do not exceed 130% of desired pods. Once old pods have been killed, new RC can be scaled up further, ensuring that total number of pods running at any time during the update is atmost 130% of desired pods.",
+								Description: "The maximum number of machines that can be scheduled above the desired number of machines. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. By default, a value of 1 is used. Example: when this is set to 30%, the new MC can be scaled up immediately when the rolling update starts, such that the total number of old and new machines do not exceed 130% of desired machines. Once old machines have been killed, new MC can be scaled up further, ensuring that total number of machines running at any time during the update is atmost 130% of desired machines.",
 								Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 							},
 						},
@@ -1353,13 +1852,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"selector": {
 							SchemaProps: spec.SchemaProps{
-								Description: "label query over pods that should match the replicas count. More info: http://kubernetes.io/docs/user-guide/labels#label-selectors",
+								Description: "label query over machines that should match the replicas count. More info: http://kubernetes.io/docs/user-guide/labels#label-selectors",
 								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 							},
 						},
 						"targetSelector": {
 							SchemaProps: spec.SchemaProps{
-								Description: "label selector for pods that should match the replicas count. This is a serializated version of both map-based and more expressive set-based selectors. This is done to avoid introspection in the clients. The string will be in the same format as the query-param syntax. If the target type only supports map-based selectors, both this field and map-based selector field are populated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors",
+								Description: "label selector for machines that should match the replicas count. This is a serializated version of both map-based and more expressive set-based selectors. This is done to avoid introspection in the clients. The string will be in the same format as the query-param syntax. If the target type only supports map-based selectors, both this field and map-based selector field are populated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors",
 								Type:        []string{"string"},
 								Format:      "",
 							},

@@ -38,6 +38,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=Machine, Version=InternalVersion
 	case machine.SchemeGroupVersion.WithResource("awsmachineclasses"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().AWSMachineClasses().Informer()}, nil
+	case machine.SchemeGroupVersion.WithResource("azuremachineclasses"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().AzureMachineClasses().Informer()}, nil
 	case machine.SchemeGroupVersion.WithResource("machines"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().Machines().Informer()}, nil
 	case machine.SchemeGroupVersion.WithResource("machinedeployments"):

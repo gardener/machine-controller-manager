@@ -14,6 +14,10 @@ func (c *FakeMachine) AWSMachineClasses() internalversion.AWSMachineClassInterfa
 	return &FakeAWSMachineClasses{c}
 }
 
+func (c *FakeMachine) AzureMachineClasses() internalversion.AzureMachineClassInterface {
+	return &FakeAzureMachineClasses{c}
+}
+
 func (c *FakeMachine) Machines() internalversion.MachineInterface {
 	return &FakeMachines{c}
 }

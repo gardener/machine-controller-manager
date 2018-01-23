@@ -1,0 +1,45 @@
+# Sample Azure machine class
+
+apiVersion: machine.sapcloud.io/v1alpha1
+kind: AzureMachineClass
+metadata:
+  name: test-azure # Name of aws machine class goes here
+spec:
+  location: eu-east-1 # Region in which machine is to be deployed
+  properties:
+    hardwareProfile:
+      vmSize: "StandardDS1V2" # VMsize based on azure machine kinds
+    storageProfile:
+      imageReference: # Details about the image to be used
+        publisher: "CoreOS" 
+        offer: "CoreOS"
+        sku: "Beta"
+        version: "image-reference-version"
+      osDisk: 
+        name: "sample-disk-name" # Name of OSDisk
+        caching: None/ReadOnly/WriteOnly" # Caching Strategy
+        diskSizeGB: 35 # Size of Disk
+        createOption: "Empty/Attach/FromImage" # Create option for disk
+    osProfile: 
+      computerName: "sample-machine-name" # Machine Name
+      adminUserName: "test"               # Admin user name
+      customData: "cloud-init-script-encoded-in-base64" # Cloud init script in base64 format
+      linuxConfiguaration:
+        disablePasswordAuthentication: "true" # Password authentication
+          ssh:
+            publicKeys:
+              - path: "/path/to/key" # Path to public key
+                keyData: "public-key-data" # content of public key
+      networkProfile:
+        networkInterfaces:
+          - id: "samplei-nic-id" # NIC interface id
+            properties:
+              primary: "false" # If NIC is primary interface for Machine
+    availabilitySet:
+      id: "/subscriptionID/sample-url/avset" # Availablity Set of resource
+  tags:
+    "Name": "sample-vm-name" # Sample Tags
+    "kubernetes.io-cluster-name": "1"
+    "kubernetes.io-role-node": "1"
+
+

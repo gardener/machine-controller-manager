@@ -6,6 +6,10 @@ package internalversion
 // AWSMachineClassLister.
 type AWSMachineClassListerExpansion interface{}
 
+// AzureMachineClassListerExpansion allows custom methods to be added to
+// AzureMachineClassLister.
+type AzureMachineClassListerExpansion interface{}
+
 // MachineListerExpansion allows custom methods to be added to
 // MachineLister.
 type MachineListerExpansion interface{}

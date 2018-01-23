@@ -2,6 +2,8 @@ package v1alpha1
 
 type AWSMachineClassExpansion interface{}
 
+type AzureMachineClassExpansion interface{}
+
 type MachineExpansion interface{}
 
 type MachineDeploymentExpansion interface{}

@@ -8,8 +8,8 @@ spec:
   #paused: true [uncommment this when you want to pause]
   #rollbackTo:
     #revision: 0 [uncommment this when you want to rollback to previous version]
-  replicas: 3 # Number of healthy replicas that should always be healthy
-  minReadySeconds: 200 # Minimum time to wait for machine to be ready
+  replicas: 2 # Number of healthy replicas that should always be healthy
+  minReadySeconds: 500 # Minimum time to wait for machine to be ready
   strategy: 
     type: RollingUpdate # Strategy for update RollingUpdate/Recreate
     rollingUpdate:

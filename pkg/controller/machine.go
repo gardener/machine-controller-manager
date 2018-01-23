@@ -104,46 +104,24 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		return nil
 	}
 
-	AWSMachineClass, err := c.awsMachineClassLister.Get(machine.Spec.Class.Name)
-	if err != nil {
-		glog.V(2).Infof("AWSMachineClass for Machine %q not found %q. Skipping. %v", machine.Name, machine.Spec.Class.Name, err)
-		return nil
-	}
-	// Do not modify the original objects in any way!
-	AWSMachineClassCopy := AWSMachineClass.DeepCopy()
-	//glog.Info(AWSMachineClassCopy)
-
-	// Validate AWSMachineClass
-	internalAWSMachineClass := &machineapi.AWSMachineClass{}
-	err = api.Scheme.Convert(AWSMachineClass, internalAWSMachineClass, nil)
-	if err != nil {
-		return err
-	}
-	validationerr = validation.ValidateAWSMachineClass(internalAWSMachineClass)
-	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of AWSMachineClass failled %s", validationerr.ToAggregate().Error())
-		return nil
-	}
-
-	// Get secretRef
-	secretRef, err := c.getSecret(AWSMachineClass.Spec.SecretRef, AWSMachineClass)
+	// Validate MachineClass
+	MachineClass, secretRef, err := c.validateMachineClass(&machine.Spec.Class)
 	if err != nil || secretRef == nil {
 		return err
 	}
 
 	splitProviderId := strings.Split(machine.Spec.ProviderID, "/")
 	machineID := splitProviderId[len(splitProviderId)-1]
-	driver := driver.NewDriver(machineID, AWSMachineClassCopy, secretRef, machine.Spec.Class.Kind)
+	driver := driver.NewDriver(machineID, secretRef, machine.Spec.Class.Kind, MachineClass, machine.Name)
 	actualID, err := driver.GetExisting()
 	if err != nil {
 		return err
 	} else if actualID == "fake" {
-		glog.Info("Fake")
+		glog.Warning("Fake driver type")
 		return nil
 	}
 
-	//glog.Info(actualID, machineID)
-
+	//glog.Info("REACHED ", actualID, " ", machineID)
 	// Get the latest version of the machine so that we can avoid conflicts
 	machine, err = c.nodeClient.Machines().Get(machine.Name, metav1.GetOptions{})
 	if err != nil {
@@ -163,24 +141,22 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 
 	} else {
 		// Processing of create or update event
-		//glog.V(2).Info("Processing Create/Update")
 		c.addMachineFinalizers(machine)
 
 		if actualID == "" {
 			// Creating machine
-			err := c.createMachine(machine, AWSMachineClass.Spec.AvailabilityZone, driver)
+			err := c.createMachine(machine, driver)
 			if err != nil {
 				return err
 			}
 
 		} else if actualID != machineID {
 			// Updating machine
-			err := c.updateMachine(machine, AWSMachineClass.Spec.AvailabilityZone, actualID)
+			err := c.updateMachine(machine, actualID)
 			if err != nil {
 				return err
 			}
 		}
-
 	}
 
 	return nil
@@ -270,23 +246,25 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node
 	if machine.Status.LastOperation.State != "Successful" {
 
 		if machine.Status.LastOperation.Type == "Create" {
+			/*
+				TODO: Fix this
+				if machine.Status.LastOperation.Description == "Creating machine on cloud provider" {
+					// Machine is ready but yet to join the cluster
+					lastOperation := v1alpha1.LastOperation {
+						Description: 	"Waiting for machine to join the cluster (Not Ready)",
+						State: 			"Processing",
+						Type:			"Create",
+						LastUpdateTime: metav1.Now(),
+					}
+					currentStatus := v1alpha1.CurrentStatus {
+						Phase:			v1alpha1.MachineAvailable,
+						TimeoutActive:	true,
+						LastUpdateTime: machine.Status.CurrentStatus.LastUpdateTime,
+					}
+					c.updateMachineStatus(machine, lastOperation, currentStatus)
 
-			if machine.Status.LastOperation.Description == "Creating machine on cloud provider" {
-				// Machine is ready but yet to join the cluster
-				lastOperation := v1alpha1.LastOperation{
-					Description:    "Waiting for machine to join the cluster (Not Ready)",
-					State:          "Processing",
-					Type:           "Create",
-					LastUpdateTime: metav1.Now(),
-				}
-				currentStatus := v1alpha1.CurrentStatus{
-					Phase:          v1alpha1.MachineAvailable,
-					TimeoutActive:  true,
-					LastUpdateTime: machine.Status.CurrentStatus.LastUpdateTime,
-				}
-				c.updateMachineStatus(machine, lastOperation, currentStatus)
-
-			} else if machine.Status.LastOperation.Description == "Waiting for machine to join the cluster (Not Ready)" && len(machine.Status.Conditions) == 4 && machine.Status.Conditions[3].Status == "True" {
+				} else*/
+			if machine.Status.LastOperation.Description == "Creating machine on cloud provider" && len(machine.Status.Conditions) > 1 && machine.Status.Conditions[len(machine.Status.Conditions)-1].Status == "True" {
 				// Machine is ready and has joined the cluster
 				lastOperation := v1alpha1.LastOperation{
 					Description:    "Machine is now ready",
@@ -308,10 +286,10 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node
 	Machine operations - Create, Update, Delete
 */
 
-func (c *controller) createMachine(machine *v1alpha1.Machine, availabilityZone string, driver driver.Driver) error {
+func (c *controller) createMachine(machine *v1alpha1.Machine, driver driver.Driver) error {
 	//glog.V(2).Infof("Creating machine %s", machine.Name)
 
-	actualID, private_dns, err := driver.Create()
+	actualID, nodeName, err := driver.Create()
 	if err != nil {
 
 		lastOperation := v1alpha1.LastOperation{
@@ -329,7 +307,7 @@ func (c *controller) createMachine(machine *v1alpha1.Machine, availabilityZone s
 
 		return err
 	}
-	glog.V(2).Infof("Created machine: %s, AWS Machine-id: %s", machine.Name, actualID)
+	glog.V(2).Infof("Created machine: %s, Machine-id: %s", machine.Name, actualID)
 
 	for {
 		// Get the latest version of the machine so that we can avoid conflicts
@@ -351,12 +329,12 @@ func (c *controller) createMachine(machine *v1alpha1.Machine, availabilityZone s
 		}
 
 		clone := machine.DeepCopy()
-		clone.Spec.ProviderID = "aws:///" + availabilityZone + "/" + actualID
+		clone.Spec.ProviderID = "aws:///" + "eu-west-1" + "/" + actualID // TODO: Dynamically fetch region
 		if clone.Labels == nil {
 			clone.Labels = make(map[string]string)
 		}
-		clone.Labels["node"] = private_dns
-		clone.Status.Node = private_dns
+		clone.Labels["node"] = nodeName
+		clone.Status.Node = nodeName
 		clone.Status.LastOperation = lastOperation
 		clone.Status.CurrentStatus = currentStatus
 
@@ -370,7 +348,7 @@ func (c *controller) createMachine(machine *v1alpha1.Machine, availabilityZone s
 	return nil
 }
 
-func (c *controller) updateMachine(machine *v1alpha1.Machine, availabilityZone string, actualID string) error {
+func (c *controller) updateMachine(machine *v1alpha1.Machine, actualID string) error {
 	glog.V(2).Infof("Setting MachineId of %s to %s", machine.Name, actualID)
 
 	for {
@@ -380,7 +358,7 @@ func (c *controller) updateMachine(machine *v1alpha1.Machine, availabilityZone s
 		}
 
 		clone := machine.DeepCopy()
-		clone.Spec.ProviderID = "aws:///" + availabilityZone + "/" + actualID
+		clone.Spec.ProviderID = "aws:///" + "eu-west-1" + "/" + actualID // TODO: Dynamically fetch region
 		lastOperation := v1alpha1.LastOperation{
 			Description:    "Updated provider ID",
 			State:          "Successful",
@@ -490,6 +468,7 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 			LastUpdateTime: metav1.Now(),
 		}
 		clone.Status.CurrentStatus = currentStatus
+
 	} else if c.isHealthy(clone) && clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 		currentStatus := v1alpha1.CurrentStatus{
 			Phase:          v1alpha1.MachineRunning,
@@ -497,6 +476,7 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 			LastUpdateTime: metav1.Now(),
 		}
 		clone.Status.CurrentStatus = currentStatus
+
 	}
 
 	clone, err = c.nodeClient.Machines().Update(clone)
@@ -557,28 +537,35 @@ func (c *controller) deleteMachineFinalizers(machine *v1alpha1.Machine) {
 func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 
 	//TODO: Change index numbers to status names
-	if len(machine.Status.Conditions) == 0 {
+	numOfConditions := len(machine.Status.Conditions)
+
+	if numOfConditions == 0 {
 		return false
-	} else if machine.Status.Conditions[0].Status == "True" {
-		return false
-	} else if machine.Status.Conditions[1].Status == "True" {
-		return false
-	} else if machine.Status.Conditions[2].Status == "True" {
-		return false
-	} else if machine.Status.Conditions[3].Status != "True" {
-		return false
+	} else {
+
+		for i := 0; i < numOfConditions-1; i++ {
+			if machine.Status.Conditions[i].Status == "True" {
+				// One of the resource unhealthy conditions has turned true
+				return false
+			}
+		}
+		if machine.Status.Conditions[numOfConditions-1].Status != "True" {
+			//Kubelet ready is false
+			return false
+		}
 	}
+
 	return true
 }
 
-func (c *controller) getSecret(ref *v1.SecretReference, AWSMachineClass *v1alpha1.AWSMachineClass) (*v1.Secret, error) {
+func (c *controller) getSecret(ref *v1.SecretReference, MachineClassName string) (*v1.Secret, error) {
 	secretRef, err := c.secretLister.Secrets(ref.Namespace).Get(ref.Name)
 	if apierrors.IsNotFound(err) {
-		glog.V(2).Infof("No secret %q: found for AWSMachineClass %q", ref, AWSMachineClass.Name)
+		glog.V(2).Infof("No secret %q: found for MachineClass %q", ref, MachineClassName)
 		return nil, nil
 	}
 	if err != nil {
-		glog.Errorf("Unable get secret %q for AWSMachineClass %q: %v", AWSMachineClass.Name, ref, err)
+		glog.Errorf("Unable get secret %q for MachineClass %q: %v", MachineClassName, ref, err)
 		return nil, err
 	}
 	return secretRef, err
@@ -588,7 +575,7 @@ func (c *controller) checkMachineTimeout(machine *v1alpha1.Machine) {
 
 	if machine.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 
-		timeOutDuration := 5 * time.Minute
+		timeOutDuration := 10 * time.Minute
 		sleepTime := 1 * time.Minute
 
 		// Timeout value obtained by subtracting last operation with expected time out period

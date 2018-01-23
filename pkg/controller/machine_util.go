@@ -22,11 +22,15 @@ Modifications Copyright 2017 The Gardener Authors.
 package controller
 
 import (
+	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
 	"github.com/golang/glog"
+	"k8s.io/kubernetes/pkg/api"
 
+	machineapi "github.com/gardener/node-controller-manager/pkg/apis/machine"
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	v1alpha1client "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1"
 	v1alpha1listers "github.com/gardener/node-controller-manager/pkg/client/listers/machine/v1alpha1"
+	"k8s.io/api/core/v1"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
 )
@@ -63,4 +67,74 @@ func UpdateMachineWithRetries(machineClient v1alpha1client.MachineInterface, mac
 	}
 
 	return machine, retryErr
+}
+
+func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interface{}, *v1.Secret, error) {
+
+	var MachineClass interface{}
+	var secretRef *v1.Secret
+
+	if classSpec.Kind == "AWSMachineClass" {
+
+		AWSMachineClass, err := c.awsMachineClassLister.Get(classSpec.Name)
+		if err != nil {
+			glog.V(2).Infof("AWSMachineClass %q not found. Skipping. %v", classSpec.Name, err)
+			return MachineClass, secretRef, err
+		}
+		MachineClass = AWSMachineClass
+
+		// Validate AWSMachineClass
+		internalAWSMachineClass := &machineapi.AWSMachineClass{}
+		err = api.Scheme.Convert(AWSMachineClass, internalAWSMachineClass, nil)
+		if err != nil {
+			glog.V(2).Info("Error in scheme convertion")
+			return MachineClass, secretRef, err
+		}
+
+		validationerr := validation.ValidateAWSMachineClass(internalAWSMachineClass)
+		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+			glog.V(2).Infof("Validation of AWSInstanceClass failled %s", validationerr.ToAggregate().Error())
+			return MachineClass, secretRef, nil
+		}
+
+		// Get secretRef
+		secretRef, err = c.getSecret(AWSMachineClass.Spec.SecretRef, AWSMachineClass.Name)
+		if err != nil || secretRef == nil {
+			glog.V(2).Info("Secret reference not found")
+			return MachineClass, secretRef, err
+		}
+
+	} else if classSpec.Kind == "AzureMachineClass" {
+
+		AzureMachineClass, err := c.azureMachineClassLister.Get(classSpec.Name)
+		if err != nil {
+			glog.V(2).Infof("AzureMachineClass %q not found. Skipping. %v", classSpec.Name, err)
+			return MachineClass, secretRef, err
+		}
+		MachineClass = AzureMachineClass
+
+		// Validate AWSMachineClass
+		internalAzureMachineClass := &machineapi.AzureMachineClass{}
+		err = api.Scheme.Convert(AzureMachineClass, internalAzureMachineClass, nil)
+		if err != nil {
+			glog.V(2).Info("Error in scheme convertion")
+			return MachineClass, secretRef, err
+		}
+
+		validationerr := validation.ValidateAzureMachineClass(internalAzureMachineClass)
+		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+			glog.V(2).Infof("Validation of AWSInstanceClass failled %s", validationerr.ToAggregate().Error())
+			return MachineClass, secretRef, nil
+		}
+
+		// Get secretRef
+		secretRef, err = c.getSecret(AzureMachineClass.Spec.SecretRef, AzureMachineClass.Name)
+		if err != nil || secretRef == nil {
+			glog.V(2).Info("Secret reference not found")
+			return MachineClass, secretRef, err
+		}
+
+	}
+
+	return MachineClass, secretRef, nil
 }
