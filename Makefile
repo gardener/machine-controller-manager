@@ -39,7 +39,7 @@ push:
 	
 .PHONY: revendor
 revendor:
-	@dep ensure -update
+	@dep ensure
 	@dep prune
 
 .PHONY: generate-files
