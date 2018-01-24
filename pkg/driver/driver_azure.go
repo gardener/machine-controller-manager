@@ -19,18 +19,20 @@ import (
 	"fmt"
 	"os"
 	"encoding/base64"
+	"strings"
 	//"encoding/json"
 
 	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/azure-sdk-for-go/arm/compute"
 	"github.com/Azure/azure-sdk-for-go/arm/disk"
 	"github.com/Azure/azure-sdk-for-go/arm/network"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/to"
-	"github.com/Azure/go-autorest/autorest/utils"
+	//"github.com/Azure/go-autorest/autorest/utils"
 	"github.com/golang/glog"
 )
 
@@ -42,29 +44,23 @@ type AzureDriver struct {
 	MachineName		  string 
 }
 
-func NewAzureDriver(create func() (string, error), delete func() error, existing func() (string, error)) Driver {
-	return &AWSDriver{}
-}
+var (
+	interfacesClient network.InterfacesClient
+	vmClient         compute.VirtualMachinesClient
+	subnetClient     network.SubnetsClient
+	diskClient       disk.DisksClient
+)
 
 // Create
 func (d *AzureDriver) Create() (string, string, error) {
-
-	//VM-name has to be in small letters
-	vmName := d.MachineName
-	
+	d.setup()
+	vmName := d.MachineName //VM-name has to be in small letters
 	nicName := vmName + "-nic"
 	diskName := vmName + "-os-disk"
 	location := d.AzureMachineClass.Spec.Location
 	resourceGroup := d.AzureMachineClass.Spec.ResourceGroup
 	UserDataEnc := base64.StdEncoding.EncodeToString([]byte(d.UserData))
 	
-	/*
-	b, err := json.MarshalIndent(d.AzureMachineClass, "", "  ")
-	if err != nil {
-	    fmt.Println("error:", err)
-	}
-	fmt.Print(string(b))*/
-
 	subnet, err := subnetClient.Get(
 		resourceGroup, 
 		d.AzureMachineClass.Spec.SubnetInfo.VnetName, 
@@ -164,8 +160,7 @@ func (d *AzureDriver) Create() (string, string, error) {
 
 // Delete
 func (d *AzureDriver) Delete() error {
-
-	//VM-name has to be in small letters
+	d.setup()
 	vmName := d.MachineName
 	nicName := vmName + "-nic"
 	diskName := vmName + "-os-disk"
@@ -191,19 +186,44 @@ func (d *AzureDriver) GetExisting() (string, error) {
 	return d.InstanceId, nil
 }
 
-func init() {
-	subscriptionID := getEnvVarOrExit("AZURE_SUBSCRIPTION_ID")
-	authorizer, err := utils.GetAuthorizer(azure.PublicCloud)
+func (d *AzureDriver) setup() {
+	subscriptionID := strings.TrimSpace(string(d.CloudConfig.Data["azureSubscriptionId"]))
+	authorizer, err := d.getAuthorizer(azure.PublicCloud)
 	onErrorFail(err, "utils.GetAuthorizer failed")
 	createClients(subscriptionID, authorizer)
 }
 
-var (
-	interfacesClient network.InterfacesClient
-	vmClient         compute.VirtualMachinesClient
-	subnetClient     network.SubnetsClient
-	diskClient       disk.DisksClient
-)
+func (d *AzureDriver) getAuthorizer(env azure.Environment) (*autorest.BearerAuthorizer, error) {
+	tenantID := strings.TrimSpace(string(d.CloudConfig.Data["azureTenantId"]))
+	clientID := strings.TrimSpace(string(d.CloudConfig.Data["azureClientId"]))
+	clientSecret := strings.TrimSpace(string(d.CloudConfig.Data["azureClientSecret"]))
+	
+	oauthConfig, err := adal.NewOAuthConfig(env.ActiveDirectoryEndpoint, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	
+	spToken, err := adal.NewServicePrincipalToken(*oauthConfig, clientID, clientSecret, env.ResourceManagerEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	return autorest.NewBearerAuthorizer(spToken), nil
+}
+
+func createClients(subscriptionID string, authorizer *autorest.BearerAuthorizer) {
+	subnetClient = network.NewSubnetsClient(subscriptionID)
+	subnetClient.Authorizer = authorizer
+
+	interfacesClient = network.NewInterfacesClient(subscriptionID)
+	interfacesClient.Authorizer = authorizer
+
+	vmClient = compute.NewVirtualMachinesClient(subscriptionID)
+	vmClient.Authorizer = authorizer
+
+	diskClient = disk.NewDisksClient(subscriptionID)
+	diskClient.Authorizer = authorizer
+}
 
 // onErrorFail prints a failure message and exits the program if err is not nil.
 func onErrorFail(err error, message string) {
@@ -222,18 +242,4 @@ func getEnvVarOrExit(varName string) string {
 	}
 
 	return value
-}
-
-func createClients(subscriptionID string, authorizer *autorest.BearerAuthorizer) {
-	subnetClient = network.NewSubnetsClient(subscriptionID)
-	subnetClient.Authorizer = authorizer
-
-	interfacesClient = network.NewInterfacesClient(subscriptionID)
-	interfacesClient.Authorizer = authorizer
-
-	vmClient = compute.NewVirtualMachinesClient(subscriptionID)
-	vmClient.Authorizer = authorizer
-
-	diskClient = disk.NewDisksClient(subscriptionID)
-	diskClient.Authorizer = authorizer
 }
