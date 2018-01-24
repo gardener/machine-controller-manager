@@ -920,7 +920,7 @@ type AzureNetworkProfile struct {
 
 // AzureNetworkInterfaceReference is describes a network interface reference.
 type AzureNetworkInterfaceReference struct {
-	ID                                   string `json:"id,omitempty"`
+	ID                                        string `json:"id,omitempty"`
 	*AzureNetworkInterfaceReferenceProperties `json:"properties,omitempty"`
 }
 

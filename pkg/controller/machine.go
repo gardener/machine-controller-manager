@@ -329,7 +329,7 @@ func (c *controller) createMachine(machine *v1alpha1.Machine, driver driver.Driv
 		}
 
 		clone := machine.DeepCopy()
-		clone.Spec.ProviderID = "aws:///" + "eu-west-1" + "/" + actualID // TODO: Dynamically fetch region
+		clone.Spec.ProviderID = actualID
 		if clone.Labels == nil {
 			clone.Labels = make(map[string]string)
 		}

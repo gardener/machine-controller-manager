@@ -36,7 +36,7 @@ func NewDriver(instanceID string, secretRef *corev1.Secret, classKind string, ma
 			CloudConfig:     secretRef,
 			UserData:        string(secretRef.Data["userData"]),
 			InstanceId:      instanceID,
-			MachineName:	 machineName,
+			MachineName:     machineName,
 		}
 
 	case "AzureMachineClass":
@@ -45,7 +45,7 @@ func NewDriver(instanceID string, secretRef *corev1.Secret, classKind string, ma
 			CloudConfig:       secretRef,
 			UserData:          string(secretRef.Data["userData"]),
 			InstanceId:        instanceID,
-			MachineName:	   machineName,
+			MachineName:       machineName,
 		}
 	}
 
