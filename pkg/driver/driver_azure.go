@@ -16,20 +16,20 @@ limitations under the License.
 package driver
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
-	"encoding/base64"
 	"strings"
 	//"encoding/json"
 
 	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/azure-sdk-for-go/arm/compute"
 	"github.com/Azure/azure-sdk-for-go/arm/disk"
 	"github.com/Azure/azure-sdk-for-go/arm/network"
 	"github.com/Azure/go-autorest/autorest"
+	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/to"
 	//"github.com/Azure/go-autorest/autorest/utils"
@@ -41,7 +41,7 @@ type AzureDriver struct {
 	CloudConfig       *corev1.Secret
 	UserData          string
 	InstanceId        string
-	MachineName		  string 
+	MachineName       string
 }
 
 var (
@@ -60,15 +60,15 @@ func (d *AzureDriver) Create() (string, string, error) {
 	location := d.AzureMachineClass.Spec.Location
 	resourceGroup := d.AzureMachineClass.Spec.ResourceGroup
 	UserDataEnc := base64.StdEncoding.EncodeToString([]byte(d.UserData))
-	
+
 	subnet, err := subnetClient.Get(
-		resourceGroup, 
-		d.AzureMachineClass.Spec.SubnetInfo.VnetName, 
-		d.AzureMachineClass.Spec.SubnetInfo.SubnetName, 
+		resourceGroup,
+		d.AzureMachineClass.Spec.SubnetInfo.VnetName,
+		d.AzureMachineClass.Spec.SubnetInfo.SubnetName,
 		"",
 	)
-	onErrorFail(err, fmt.Sprintf("subnetClient.Get failed for subnet '%s'", subnet))
-	
+	err = onErrorFail(err, fmt.Sprintf("subnetClient.Get failed for subnet '%s'", subnet))
+
 	enableIPForwarding := true
 	nicParameters := network.Interface{
 		Location: &location,
@@ -87,15 +87,16 @@ func (d *AzureDriver) Create() (string, string, error) {
 	}
 	cancel := make(chan struct{})
 	_, errChan := interfacesClient.CreateOrUpdate(resourceGroup, nicName, nicParameters, cancel)
-	onErrorFail(<-errChan, fmt.Sprintf("interfacesClient.CreateOrUpdate for NIC '%s' failed", nicName))
+	err = onErrorFail(<-errChan, fmt.Sprintf("interfacesClient.CreateOrUpdate for NIC '%s' failed", nicName))
 	nicParameters, err = interfacesClient.Get(resourceGroup, nicName, "")
-	onErrorFail(err, fmt.Sprintf("interfaces.Get for NIC '%s' failed", nicName))
+	err = onErrorFail(err, fmt.Sprintf("interfaces.Get for NIC '%s' failed", nicName))
 
-	tags := map[string]*string{
-		"Name": &vmName,
-		"kubernetes.io-cluster-shoot-i341888-i341888-5": to.StringPtr("1"),
-		"kubernetes.io-role-node": to.StringPtr("1"),
+	// Add tags to the created machine
+	tagList := map[string]*string{}
+	for idx, element := range d.AzureMachineClass.Spec.Tags {
+		tagList[idx] = to.StringPtr(element)
 	}
+
 	vm := compute.VirtualMachine{
 		Location: &location,
 		VirtualMachineProperties: &compute.VirtualMachineProperties{
@@ -122,7 +123,7 @@ func (d *AzureDriver) Create() (string, string, error) {
 			OsProfile: &compute.OSProfile{
 				ComputerName:  &vmName,
 				AdminUsername: &d.AzureMachineClass.Spec.Properties.OsProfile.AdminUsername,
-				CustomData: &UserDataEnc,    
+				CustomData:    &UserDataEnc,
 				LinuxConfiguration: &compute.LinuxConfiguration{
 					DisablePasswordAuthentication: &d.AzureMachineClass.Spec.Properties.OsProfile.LinuxConfiguration.DisablePasswordAuthentication,
 					SSH: &compute.SSHConfiguration{
@@ -149,19 +150,19 @@ func (d *AzureDriver) Create() (string, string, error) {
 				ID: &d.AzureMachineClass.Spec.Properties.AvailabilitySet.ID,
 			},
 		},
-		Tags: &tags,
+		Tags: &tagList,
 	}
 	_, errChan = vmClient.CreateOrUpdate(resourceGroup, vmName, vm, cancel)
-	onErrorFail(<-errChan, "createVM failed")
+	err = onErrorFail(<-errChan, "createVM failed")
 	glog.Infof("Created machine '%s' successfully\n", vmName)
 
-	return vmName, vmName, nil
+	return "azure:///" + location + "/" + vmName, vmName, err
 }
 
 // Delete
 func (d *AzureDriver) Delete() error {
 	d.setup()
-	vmName := d.MachineName
+	vmName := d.InstanceId
 	nicName := vmName + "-nic"
 	diskName := vmName + "-os-disk"
 	resourceGroup := d.AzureMachineClass.Spec.ResourceGroup
@@ -169,16 +170,17 @@ func (d *AzureDriver) Delete() error {
 	cancel := make(chan struct{})
 
 	_, errChan := vmClient.Delete(resourceGroup, vmName, cancel)
-	onErrorFail(<-errChan, fmt.Sprintf("vmClient.Delete failed for '%s'", vmName))
-	
+	err := onErrorFail(<-errChan, fmt.Sprintf("vmClient.Delete failed for '%s'", vmName))
+
 	_, errChan = interfacesClient.Delete(resourceGroup, nicName, cancel)
-	onErrorFail(<-errChan, fmt.Sprintf("interfacesClient.Delete for NIC '%s' failed", nicName))
-	
+	err = onErrorFail(<-errChan, fmt.Sprintf("interfacesClient.Delete for NIC '%s' failed", nicName))
+
 	_, errChan = diskClient.Delete(resourceGroup, diskName, cancel)
-	onErrorFail(<-errChan, fmt.Sprintf("diskClient.Delete for NIC '%s' failed", nicName))
+	err = onErrorFail(<-errChan, fmt.Sprintf("diskClient.Delete for NIC '%s' failed", nicName))
+
 	glog.Infof("Deleted machine '%s' successfully\n", vmName)
 
-	return nil
+	return err
 }
 
 // GetExisting
@@ -197,12 +199,12 @@ func (d *AzureDriver) getAuthorizer(env azure.Environment) (*autorest.BearerAuth
 	tenantID := strings.TrimSpace(string(d.CloudConfig.Data["azureTenantId"]))
 	clientID := strings.TrimSpace(string(d.CloudConfig.Data["azureClientId"]))
 	clientSecret := strings.TrimSpace(string(d.CloudConfig.Data["azureClientSecret"]))
-	
+
 	oauthConfig, err := adal.NewOAuthConfig(env.ActiveDirectoryEndpoint, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	spToken, err := adal.NewServicePrincipalToken(*oauthConfig, clientID, clientSecret, env.ResourceManagerEndpoint)
 	if err != nil {
 		return nil, err
@@ -226,11 +228,12 @@ func createClients(subscriptionID string, authorizer *autorest.BearerAuthorizer)
 }
 
 // onErrorFail prints a failure message and exits the program if err is not nil.
-func onErrorFail(err error, message string) {
+func onErrorFail(err error, message string) error {
 	if err != nil {
 		glog.Infof("%s: %s\n", message, err)
-		os.Exit(1)
+		return err
 	}
+	return nil
 }
 
 // getEnvVarOrExit returns the value of specified environment variable or terminates if it's not defined.

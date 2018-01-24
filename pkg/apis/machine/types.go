@@ -35,16 +35,16 @@ import (
 // Machine TODO
 type Machine struct {
 	// ObjectMeta for machine object
-	metav1.ObjectMeta 
+	metav1.ObjectMeta
 
 	// TypeMeta for machine object
-	metav1.TypeMeta 
+	metav1.TypeMeta
 
 	// Spec contains the specification of the machine
-	Spec MachineSpec 
+	Spec MachineSpec
 
 	// Status contains fields depicting the status
-	Status MachineStatus 
+	Status MachineStatus
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -52,13 +52,13 @@ type Machine struct {
 // MachineList is a collection of Machines.
 type MachineList struct {
 	// ObjectMeta for MachineList object
-	metav1.TypeMeta 
+	metav1.TypeMeta
 
 	// TypeMeta for MachineList object
-	metav1.ListMeta 
+	metav1.ListMeta
 
 	// Items contains the list of machines
-	Items []Machine 
+	Items []Machine
 }
 
 // MachineSpec is the specification of a machine.
@@ -66,11 +66,11 @@ type MachineSpec struct {
 
 	// Class contains the machineclass attributes of a machine
 	// +optional
-	Class ClassSpec 
+	Class ClassSpec
 
 	// ProviderID represents the provider's unique ID given to a machine
 	// +optional
-	ProviderID string 
+	ProviderID string
 }
 
 // MachineTemplateSpec describes the data a machine should have when created from a template
@@ -78,12 +78,12 @@ type MachineTemplateSpec struct {
 	// Standard object's metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata
 	// +optional
-	metav1.ObjectMeta 
+	metav1.ObjectMeta
 
 	// Specification of the desired behavior of the machine.
 	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status
 	// +optional
-	Spec MachineSpec 
+	Spec MachineSpec
 }
 
 // +genclient
@@ -91,86 +91,86 @@ type MachineTemplateSpec struct {
 
 // MachineTemplate describes a template for creating copies of a predefined machine.
 type MachineTemplate struct {
-	metav1.TypeMeta 
+	metav1.TypeMeta
 
 	// Standard object's metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata
 	// +optional
-	metav1.ObjectMeta 
+	metav1.ObjectMeta
 
 	// Template defines the machines that will be created from this machine template.
 	// https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status
 	// +optional
-	Template MachineTemplateSpec 
+	Template MachineTemplateSpec
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // MachineTemplateList is a list of MachineTemplates.
 type MachineTemplateList struct {
-	metav1.TypeMeta 
+	metav1.TypeMeta
 
 	// Standard list metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds
 	// +optional
-	metav1.ListMeta 
+	metav1.ListMeta
 
 	// List of machine templates
-	Items []MachineTemplate 
+	Items []MachineTemplate
 }
 
 // ClassSpec is the class specification of machine
 type ClassSpec struct {
 	// API group to which it belongs
-	APIGroup string 
+	APIGroup string
 
 	// Kind for machine class
-	Kind string 
+	Kind string
 
 	// Name of machine class
-	Name string 
+	Name string
 }
 
 //type CurrentStatus
 type CurrentStatus struct {
 	// API group to which it belongs
-	Phase MachinePhase 
+	Phase MachinePhase
 
 	// Name of machine class
-	TimeoutActive bool 
+	TimeoutActive bool
 
 	// Last update time of current status
-	LastUpdateTime metav1.Time 
+	LastUpdateTime metav1.Time
 }
 
 // MachineStatus TODO
 type MachineStatus struct {
 	// Node string
-	Node string 
+	Node string
 
 	// Conditions of this machine, same as node
-	Conditions []corev1.NodeCondition 
+	Conditions []corev1.NodeCondition
 
 	// Last operation refers to the status of the last operation performed
-	LastOperation LastOperation 
+	LastOperation LastOperation
 
 	// Current status of the machine object
-	CurrentStatus CurrentStatus 
+	CurrentStatus CurrentStatus
 }
 
 // LastOperation
 type LastOperation struct {
 	// Description of the current operation
-	Description string 
+	Description string
 
 	// Last update time of current operation
-	LastUpdateTime metav1.Time 
+	LastUpdateTime metav1.Time
 
 	// State of operation
-	State MachineState 
+	State MachineState
 
 	// Type of operation
-	Type string 
+	Type string
 }
 
 // MachinePhase is a label for the condition of a machines at the current time.
@@ -235,16 +235,16 @@ const (
 // MachineSet TODO
 type MachineSet struct {
 	// +optional
-	metav1.ObjectMeta 
+	metav1.ObjectMeta
 
 	// +optional
-	metav1.TypeMeta 
+	metav1.TypeMeta
 
 	// +optional
-	Spec MachineSetSpec 
+	Spec MachineSetSpec
 
 	// +optional
-	Status MachineSetStatus 
+	Status MachineSetStatus
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -252,31 +252,31 @@ type MachineSet struct {
 // MachineSetList is a collection of MachineSet.
 type MachineSetList struct {
 	// +optional
-	metav1.TypeMeta 
+	metav1.TypeMeta
 
 	// +optional
-	metav1.ListMeta 
+	metav1.ListMeta
 
 	// +optional
-	Items []MachineSet 
+	Items []MachineSet
 }
 
 // MachineSetSpec is the specification of a cluster.
 type MachineSetSpec struct {
 	// +optional
-	Replicas int32 
+	Replicas int32
 
 	// +optional
-	Selector *metav1.LabelSelector 
+	Selector *metav1.LabelSelector
 
 	// +optional
-	MachineClass ClassSpec 
+	MachineClass ClassSpec
 
 	// +optional
-	Template MachineTemplateSpec 
+	Template MachineTemplateSpec
 
 	// +optional
-	MinReadySeconds int32 
+	MinReadySeconds int32
 }
 
 type MachineSetConditionType string
@@ -292,46 +292,46 @@ const (
 // MachineSetCondition describes the state of a machine set at a certain point.
 type MachineSetCondition struct {
 	// Type of machine set condition.
-	Type MachineSetConditionType 
+	Type MachineSetConditionType
 
 	// Status of the condition, one of True, False, Unknown.
-	Status ConditionStatus 
+	Status ConditionStatus
 
 	// The last time the condition transitioned from one status to another.
 	// +optional
-	LastTransitionTime metav1.Time 
+	LastTransitionTime metav1.Time
 
 	// The reason for the condition's last transition.
 	// +optional
-	Reason string 
+	Reason string
 
 	// A human readable message indicating details about the transition.
 	// +optional
-	Message string 
+	Message string
 }
 
 // MachineSetStatus TODO
 type MachineSetStatus struct {
 	// LastOperation performed
-	LastOperation LastOperation 
+	LastOperation LastOperation
 
 	// No of Replicas required
-	Replicas int32 
+	Replicas int32
 
 	// FullyLabeledReplicas represetnts the number of machines with same labels
-	FullyLabeledReplicas int32 
+	FullyLabeledReplicas int32
 
 	// ReadyReplicas represetnts the number of ready machines
-	ReadyReplicas int32 
+	ReadyReplicas int32
 
 	// AvailableReplicas represetnts the number of available machines
-	AvailableReplicas int32 
+	AvailableReplicas int32
 
 	// MachineSet Conditions
-	Conditions []MachineSetCondition 
+	Conditions []MachineSetCondition
 
 	// ObservedGeneration
-	ObservedGeneration int64 
+	ObservedGeneration int64
 }
 
 /********************** MachineDeployment APIs ***************/
@@ -344,18 +344,18 @@ type MachineSetStatus struct {
 
 // Deployment enables declarative updates for machines and MachineSets.
 type MachineDeployment struct {
-	metav1.TypeMeta 
+	metav1.TypeMeta
 	// Standard object metadata.
 	// +optional
-	metav1.ObjectMeta 
+	metav1.ObjectMeta
 
 	// Specification of the desired behavior of the MachineDeployment.
 	// +optional
-	Spec MachineDeploymentSpec 
+	Spec MachineDeploymentSpec
 
 	// Most recently observed status of the MachineDeployment.
 	// +optional
-	Status MachineDeploymentStatus 
+	Status MachineDeploymentStatus
 }
 
 // MachineDeploymentSpec is the specification of the desired behavior of the MachineDeployment.
@@ -363,41 +363,41 @@ type MachineDeploymentSpec struct {
 	// Number of desired machines. This is a pointer to distinguish between explicit
 	// zero and not specified. Defaults to 1.
 	// +optional
-	Replicas int32 
+	Replicas int32
 
 	// Label selector for machines. Existing MachineSets whose machines are
 	// selected by this will be the ones affected by this MachineDeployment.
 	// +optional
-	Selector *metav1.LabelSelector 
+	Selector *metav1.LabelSelector
 
 	// Template describes the machines that will be created.
-	Template MachineTemplateSpec 
+	Template MachineTemplateSpec
 
 	// The MachineDeployment strategy to use to replace existing machines with new ones.
 	// +optional
 	// +patchStrategy=retainKeys
-	Strategy MachineDeploymentStrategy 
+	Strategy MachineDeploymentStrategy
 
 	// Minimum number of seconds for which a newly created machine should be ready
 	// without any of its container crashing, for it to be considered available.
 	// Defaults to 0 (machine will be considered available as soon as it is ready)
 	// +optional
-	MinReadySeconds int32 
+	MinReadySeconds int32
 
 	// The number of old MachineSets to retain to allow rollback.
 	// This is a pointer to distinguish between explicit zero and not specified.
 	// +optional
-	RevisionHistoryLimit *int32 
+	RevisionHistoryLimit *int32
 
 	// Indicates that the MachineDeployment is paused and will not be processed by the
 	// MachineDeployment controller.
 	// +optional
-	Paused bool 
+	Paused bool
 
 	// DEPRECATED.
 	// The config this MachineDeployment is rolling back to. Will be cleared after rollback is done.
 	// +optional
-	RollbackTo *RollbackConfig 
+	RollbackTo *RollbackConfig
 
 	// The maximum time in seconds for a MachineDeployment to make progress before it
 	// is considered to be failed. The MachineDeployment controller will continue to
@@ -406,7 +406,7 @@ type MachineDeploymentSpec struct {
 	// not be estimated during the time a MachineDeployment is paused. This is not set
 	// by default.
 	// +optional
-	ProgressDeadlineSeconds *int32 
+	ProgressDeadlineSeconds *int32
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -414,23 +414,23 @@ type MachineDeploymentSpec struct {
 // DEPRECATED.
 // MachineDeploymentRollback stores the information required to rollback a MachineDeployment.
 type MachineDeploymentRollback struct {
-	metav1.TypeMeta 
+	metav1.TypeMeta
 
 	// Required: This must match the Name of a MachineDeployment.
-	Name string 
+	Name string
 
 	// The annotations to be updated to a MachineDeployment
 	// +optional
-	UpdatedAnnotations map[string]string 
+	UpdatedAnnotations map[string]string
 
 	// The config of this MachineDeployment rollback.
-	RollbackTo RollbackConfig 
+	RollbackTo RollbackConfig
 }
 
 type RollbackConfig struct {
 	// The revision to rollback to. If set to 0, rollback to the last revision.
 	// +optional
-	Revision int64 
+	Revision int64
 }
 
 const (
@@ -444,7 +444,7 @@ const (
 type MachineDeploymentStrategy struct {
 	// Type of MachineDeployment. Can be "Recreate" or "RollingUpdate". Default is RollingUpdate.
 	// +optional
-	Type MachineDeploymentStrategyType 
+	Type MachineDeploymentStrategyType
 
 	// Rolling update config params. Present only if MachineDeploymentStrategyType =
 	// RollingUpdate.
@@ -452,7 +452,7 @@ type MachineDeploymentStrategy struct {
 	// TODO: Update this to follow our convention for oneOf, whatever we decide it
 	// to be.
 	// +optional
-	RollingUpdate *RollingUpdateMachineDeployment 
+	RollingUpdate *RollingUpdateMachineDeployment
 }
 
 type MachineDeploymentStrategyType string
@@ -478,7 +478,7 @@ type RollingUpdateMachineDeployment struct {
 	// that the total number of machines available at all times during the update is at
 	// least 70% of desired machines.
 	// +optional
-	MaxUnavailable *intstr.IntOrString 
+	MaxUnavailable *intstr.IntOrString
 
 	// The maximum number of machines that can be scheduled above the desired number of
 	// machines.
@@ -492,47 +492,47 @@ type RollingUpdateMachineDeployment struct {
 	// new MC can be scaled up further, ensuring that total number of machines running
 	// at any time during the update is atmost 130% of desired machines.
 	// +optional
-	MaxSurge *intstr.IntOrString 
+	MaxSurge *intstr.IntOrString
 }
 
 // MachineDeploymentStatus is the most recently observed status of the MachineDeployment.
 type MachineDeploymentStatus struct {
 	// The generation observed by the MachineDeployment controller.
 	// +optional
-	ObservedGeneration int64 
+	ObservedGeneration int64
 
 	// Total number of non-terminated machines targeted by this MachineDeployment (their labels match the selector).
 	// +optional
-	Replicas int32 
+	Replicas int32
 
 	// Total number of non-terminated machines targeted by this MachineDeployment that have the desired template spec.
 	// +optional
-	UpdatedReplicas int32 
+	UpdatedReplicas int32
 
 	// Total number of ready machines targeted by this MachineDeployment.
 	// +optional
-	ReadyReplicas int32 
+	ReadyReplicas int32
 
 	// Total number of available machines (ready for at least minReadySeconds) targeted by this MachineDeployment.
 	// +optional
-	AvailableReplicas int32 
+	AvailableReplicas int32
 
 	// Total number of unavailable machines targeted by this MachineDeployment. This is the total number of
 	// machines that are still required for the MachineDeployment to have 100% available capacity. They may
 	// either be machines that are running but not yet available or machines that still have not been created.
 	// +optional
-	UnavailableReplicas int32 
+	UnavailableReplicas int32
 
 	// Represents the latest available observations of a MachineDeployment's current state.
 	// +patchMergeKey=type
 	// +patchStrategy=merge
-	Conditions []MachineDeploymentCondition 
+	Conditions []MachineDeploymentCondition
 
 	// Count of hash collisions for the MachineDeployment. The MachineDeployment controller uses this
 	// field as a collision avoidance mechanism when it needs to create the name for the
 	// newest MachineSet.
 	// +optional
-	CollisionCount *int32 
+	CollisionCount *int32
 }
 
 type MachineDeploymentConditionType string
@@ -557,52 +557,52 @@ const (
 // MachineDeploymentCondition describes the state of a MachineDeployment at a certain point.
 type MachineDeploymentCondition struct {
 	// Type of MachineDeployment condition.
-	Type MachineDeploymentConditionType 
+	Type MachineDeploymentConditionType
 
 	// Status of the condition, one of True, False, Unknown.
-	Status ConditionStatus 
+	Status ConditionStatus
 
 	// The last time this condition was updated.
-	LastUpdateTime metav1.Time 
+	LastUpdateTime metav1.Time
 
 	// Last time the condition transitioned from one status to another.
-	LastTransitionTime metav1.Time 
+	LastTransitionTime metav1.Time
 
 	// The reason for the condition's last transition.
-	Reason string 
+	Reason string
 
 	// A human readable message indicating details about the transition.
-	Message string 
+	Message string
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // MachineDeploymentList is a list of MachineDeployments.
 type MachineDeploymentList struct {
-	metav1.TypeMeta 
+	metav1.TypeMeta
 	// Standard list metadata.
 	// +optional
-	metav1.ListMeta 
+	metav1.ListMeta
 
 	// Items is the list of MachineDeployments.
-	Items []MachineDeployment 
+	Items []MachineDeployment
 }
 
 // describes the attributes of a scale subresource
 type ScaleSpec struct {
 	// desired number of machines for the scaled object.
 	// +optional
-	Replicas int32 
+	Replicas int32
 }
 
 // represents the current status of a scale subresource.
 type ScaleStatus struct {
 	// actual number of observed machines of the scaled object.
-	Replicas int32 
+	Replicas int32
 
 	// label query over machines that should match the replicas count. More info: http://kubernetes.io/docs/user-guide/labels#label-selectors
 	// +optional
-	Selector *metav1.LabelSelector 
+	Selector *metav1.LabelSelector
 
 	// label selector for machines that should match the replicas count. This is a serializated
 	// version of both map-based and more expressive set-based selectors. This is done to
@@ -611,7 +611,7 @@ type ScaleStatus struct {
 	// field and map-based selector field are populated.
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors
 	// +optional
-	TargetSelector string 
+	TargetSelector string
 }
 
 // +genclient
@@ -620,18 +620,18 @@ type ScaleStatus struct {
 
 // represents a scaling request for a resource.
 type Scale struct {
-	metav1.TypeMeta 
+	metav1.TypeMeta
 	// Standard object metadata; More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata.
 	// +optional
-	metav1.ObjectMeta 
+	metav1.ObjectMeta
 
 	// defines the behavior of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status.
 	// +optional
-	Spec ScaleSpec 
+	Spec ScaleSpec
 
 	// current status of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status. Read-only.
 	// +optional
-	Status ScaleStatus 
+	Status ScaleStatus
 }
 
 /********************** AWSMachineClass APIs ***************/
@@ -643,13 +643,13 @@ type Scale struct {
 // AWSMachineClass TODO
 type AWSMachineClass struct {
 	// +optional
-	metav1.ObjectMeta 
+	metav1.ObjectMeta
 
 	// +optional
-	metav1.TypeMeta 
+	metav1.TypeMeta
 
 	// +optional
-	Spec AWSMachineClassSpec 
+	Spec AWSMachineClassSpec
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -657,28 +657,28 @@ type AWSMachineClass struct {
 // AWSMachineClassList is a collection of AWSMachineClasses.
 type AWSMachineClassList struct {
 	// +optional
-	metav1.TypeMeta 
+	metav1.TypeMeta
 
 	// +optional
-	metav1.ListMeta 
+	metav1.ListMeta
 
 	// +optional
-	Items []AWSMachineClass 
+	Items []AWSMachineClass
 }
 
 // AWSMachineClassSpec is the specification of a cluster.
 type AWSMachineClassSpec struct {
-	AMI               string                      
-	AvailabilityZone  string                      
-	BlockDevices      []AWSBlockDeviceMappingSpec 
-	EbsOptimized      bool                        
-	IAM               AWSIAMProfileSpec           
-	MachineType       string                      
-	KeyName           string                      
-	Monitoring        bool                        
-	NetworkInterfaces []AWSNetworkInterfaceSpec   
-	Tags              map[string]string           
-	SecretRef         *corev1.SecretReference     
+	AMI               string
+	AvailabilityZone  string
+	BlockDevices      []AWSBlockDeviceMappingSpec
+	EbsOptimized      bool
+	IAM               AWSIAMProfileSpec
+	MachineType       string
+	KeyName           string
+	Monitoring        bool
+	NetworkInterfaces []AWSNetworkInterfaceSpec
+	Tags              map[string]string
+	SecretRef         *corev1.SecretReference
 
 	// TODO add more here
 }
@@ -686,15 +686,15 @@ type AWSMachineClassSpec struct {
 type AWSBlockDeviceMappingSpec struct {
 
 	// The device name exposed to the machine (for example, /dev/sdh or xvdh).
-	DeviceName string 
+	DeviceName string
 
 	// Parameters used to automatically set up EBS volumes when the machine is
 	// launched.
-	Ebs AWSEbsBlockDeviceSpec 
+	Ebs AWSEbsBlockDeviceSpec
 
 	// Suppresses the specified device included in the block device mapping of the
 	// AMI.
-	NoDevice string 
+	NoDevice string
 
 	// The virtual device name (ephemeralN). Machine store volumes are numbered
 	// starting from 0. An machine type with 2 available machine store volumes
@@ -706,7 +706,7 @@ type AWSBlockDeviceMappingSpec struct {
 	// the block device mapping for the machine. When you launch an M3 machine,
 	// we ignore any machine store volumes specified in the block device mapping
 	// for the AMI.
-	VirtualName string 
+	VirtualName string
 }
 
 // Describes a block device for an EBS volume.
@@ -714,11 +714,11 @@ type AWSBlockDeviceMappingSpec struct {
 type AWSEbsBlockDeviceSpec struct {
 
 	// Indicates whether the EBS volume is deleted on machine termination.
-	DeleteOnTermination bool 
+	DeleteOnTermination bool
 
 	// Indicates whether the EBS volume is encrypted. Encrypted Amazon EBS volumes
 	// may only be attached to machines that support Amazon EBS encryption.
-	Encrypted bool 
+	Encrypted bool
 
 	// The number of I/O operations per second (IOPS) that the volume supports.
 	// For io1, this represents the number of IOPS that are provisioned for the
@@ -733,7 +733,7 @@ type AWSEbsBlockDeviceSpec struct {
 	//
 	// Condition: This parameter is required for requests to create io1 volumes;
 	// it is not used in requests to create gp2, st1, sc1, or standard volumes.
-	Iops int64 
+	Iops int64
 
 	// The size of the volume, in GiB.
 	//
@@ -745,21 +745,21 @@ type AWSEbsBlockDeviceSpec struct {
 	//
 	// Default: If you're creating the volume from a snapshot and don't specify
 	// a volume size, the default is the snapshot size.
-	VolumeSize int64 
+	VolumeSize int64
 
 	// The volume type: gp2, io1, st1, sc1, or standard.
 	//
 	// Default: standard
-	VolumeType string 
+	VolumeType string
 }
 
 // Describes an IAM machine profile.
 type AWSIAMProfileSpec struct {
 	// The Amazon Resource Name (ARN) of the machine profile.
-	ARN string 
+	ARN string
 
 	// The name of the machine profile.
-	Name string 
+	Name string
 }
 
 // Describes a network interface.
@@ -771,24 +771,24 @@ type AWSNetworkInterfaceSpec struct {
 	// for eth0, and can only be assigned to a new network interface, not an existing
 	// one. You cannot specify more than one network interface in the request. If
 	// launching into a default subnet, the default value is true.
-	AssociatePublicIPAddress bool 
+	AssociatePublicIPAddress bool
 
 	// If set to true, the interface is deleted when the machine is terminated.
 	// You can specify true only if creating a new network interface when launching
 	// an machine.
-	DeleteOnTermination bool 
+	DeleteOnTermination bool
 
 	// The description of the network interface. Applies only if creating a network
 	// interface when launching an machine.
-	Description string 
+	Description string
 
 	// The IDs of the security groups for the network interface. Applies only if
 	// creating a network interface when launching an machine.
-	SecurityGroupID []string 
+	SecurityGroupID []string
 
 	// The ID of the subnet associated with the network string. Applies only if
 	// creating a network interface when launching an machine.
-	SubnetID string 
+	SubnetID string
 }
 
 /********************** AzureMachineClass APIs ***************/
@@ -800,13 +800,13 @@ type AWSNetworkInterfaceSpec struct {
 // AzureMachineClass TODO
 type AzureMachineClass struct {
 	// +optional
-	metav1.ObjectMeta 
+	metav1.ObjectMeta
 
 	// +optional
-	metav1.TypeMeta 
+	metav1.TypeMeta
 
 	// +optional
-	Spec AzureMachineClassSpec 
+	Spec AzureMachineClassSpec
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -814,81 +814,81 @@ type AzureMachineClass struct {
 // AzureMachineClassList is a collection of AzureMachineClasses.
 type AzureMachineClassList struct {
 	// +optional
-	metav1.TypeMeta 
+	metav1.TypeMeta
 
 	// +optional
-	metav1.ListMeta 
+	metav1.ListMeta
 
 	// +optional
-	Items []AzureMachineClass 
+	Items []AzureMachineClass
 }
 
 // AzureMachineClassSpec is the specification of a cluster.
 type AzureMachineClassSpec struct {
-	Location      string                        
-	Tags          map[string]string             
-	Properties    AzureVirtualMachineProperties 
-	ResourceGroup string                        
-	SubnetInfo    AzureSubnetInfo               
-	SecretRef     *corev1.SecretReference       
+	Location      string
+	Tags          map[string]string
+	Properties    AzureVirtualMachineProperties
+	ResourceGroup string
+	SubnetInfo    AzureSubnetInfo
+	SecretRef     *corev1.SecretReference
 }
 
 // AzureVirtualMachineProperties is describes the properties of a Virtual Machine.
 type AzureVirtualMachineProperties struct {
-	HardwareProfile AzureHardwareProfile 
-	StorageProfile  AzureStorageProfile  
-	OsProfile       AzureOSProfile       
-	NetworkProfile  AzureNetworkProfile  
-	AvailabilitySet AzureSubResource     
+	HardwareProfile AzureHardwareProfile
+	StorageProfile  AzureStorageProfile
+	OsProfile       AzureOSProfile
+	NetworkProfile  AzureNetworkProfile
+	AvailabilitySet AzureSubResource
 }
 
 // AzureHardwareProfile is specifies the hardware settings for the virtual machine.
 // Refer github.com/Azure/azure-sdk-for-go/arm/compute/models.go for VMSizes
 type AzureHardwareProfile struct {
-	VMSize string 
+	VMSize string
 }
 
 // AzureStorageProfile is specifies the storage settings for the virtual machine disks.
 type AzureStorageProfile struct {
-	ImageReference AzureImageReference 
-	OsDisk         AzureOSDisk         
+	ImageReference AzureImageReference
+	OsDisk         AzureOSDisk
 }
 
 // AzureImageReference is specifies information about the image to use. You can specify information about platform images,
 // marketplace images, or virtual machine images. This element is required when you want to use a platform image,
 // marketplace image, or virtual machine image, but is not used in other creation operations.
 type AzureImageReference struct {
-	ID        string 
-	Publisher string 
-	Offer     string 
-	Sku       string 
-	Version   string 
+	ID        string
+	Publisher string
+	Offer     string
+	Sku       string
+	Version   string
 }
 
 // AzureOSDisk is specifies information about the operating system disk used by the virtual machine. <br><br> For more
 // information about disks, see [About disks and VHDs for Azure virtual
 // machines](https://docs.microsoft.com/azure/virtual-machines/virtual-machines-windows-about-disks-vhds?toc=%2fazure%2fvirtual-machines%2fwindows%2ftoc.json).
 type AzureOSDisk struct {
-	Name         string                     
-	Caching      string                     
-	ManagedDisk  AzureManagedDiskParameters 
-	DiskSizeGB   int32                      
-	CreateOption string                     
+	Name         string
+	Caching      string
+	ManagedDisk  AzureManagedDiskParameters
+	DiskSizeGB   int32
+	CreateOption string
 }
 
 // AzureManagedDiskParameters is the parameters of a managed disk.
 type AzureManagedDiskParameters struct {
-	ID                 string 
-	StorageAccountType string 
+	ID                 string
+	StorageAccountType string
 }
 
 // AzureOSProfile is specifies the operating system settings for the virtual machine.
 type AzureOSProfile struct {
-	ComputerName       string                  
-	AdminUsername      string                  
-	AdminPassword      string                  
-	CustomData         string                  
-	LinuxConfiguration AzureLinuxConfiguration 
+	ComputerName       string
+	AdminUsername      string
+	AdminPassword      string
+	CustomData         string
+	LinuxConfiguration AzureLinuxConfiguration
 }
 
 // AzureLinuxConfiguration is specifies the Linux operating system settings on the virtual machine. <br><br>For a list of
@@ -897,45 +897,45 @@ type AzureOSProfile struct {
 // <br><br> For running non-endorsed distributions, see [Information for Non-Endorsed
 // Distributions](https://docs.microsoft.com/azure/virtual-machines/virtual-machines-linux-create-upload-generic?toc=%2fazure%2fvirtual-machines%2flinux%2ftoc.json).
 type AzureLinuxConfiguration struct {
-	DisablePasswordAuthentication bool                  
-	SSH                           AzureSSHConfiguration 
+	DisablePasswordAuthentication bool
+	SSH                           AzureSSHConfiguration
 }
 
 // AzureSSHConfiguration is SSH configuration for Linux based VMs running on Azure
 type AzureSSHConfiguration struct {
-	PublicKeys AzureSSHPublicKey 
+	PublicKeys AzureSSHPublicKey
 }
 
 // AzureSSHPublicKey is contains information about SSH certificate public key and the path on the Linux VM where the public
 // key is placed.
 type AzureSSHPublicKey struct {
-	Path    string 
-	KeyData string 
+	Path    string
+	KeyData string
 }
 
 // AzureNetworkProfile is specifies the network interfaces of the virtual machine.
 type AzureNetworkProfile struct {
-	NetworkInterfaces AzureNetworkInterfaceReference 
+	NetworkInterfaces AzureNetworkInterfaceReference
 }
 
 // AzureNetworkInterfaceReference is describes a network interface reference.
 type AzureNetworkInterfaceReference struct {
-	ID                                   string 
-	*AzureNetworkInterfaceReferenceProperties 
+	ID string
+	*AzureNetworkInterfaceReferenceProperties
 }
 
 // AzureNetworkInterfaceReferenceProperties is describes a network interface reference properties.
 type AzureNetworkInterfaceReferenceProperties struct {
-	Primary bool 
+	Primary bool
 }
 
 // AzureSubResource is the Sub Resource definition.
 type AzureSubResource struct {
-	ID string 
+	ID string
 }
 
 // AzureSubnetInfo is the information containing the subnet details
 type AzureSubnetInfo struct {
-	VnetName   string 
-	SubnetName string 
+	VnetName   string
+	SubnetName string
 }

@@ -36,7 +36,7 @@ type AWSDriver struct {
 	CloudConfig     *corev1.Secret
 	UserData        string
 	InstanceId      string
-	MachineName		string 
+	MachineName     string
 }
 
 func NewAWSDriver(create func() (string, error), delete func() error, existing func() (string, error)) Driver {
@@ -114,7 +114,7 @@ func (d *AWSDriver) Create() (string, string, error) {
 		return "Error", "Error", errtag
 	}
 
-	return *runResult.Instances[0].InstanceId, *runResult.Instances[0].PrivateDnsName, nil
+	return "aws:///" + d.AWSMachineClass.Spec.AvailabilityZone + "/" + *runResult.Instances[0].InstanceId, *runResult.Instances[0].PrivateDnsName, nil
 }
 
 // Delete TODO
@@ -156,7 +156,6 @@ func (d *AWSDriver) Delete() error {
 
 // GetExisting TODO
 func (d *AWSDriver) GetExisting() (string, error) {
-	//var dumbo v1alpha1.MachinePhase
 	return d.InstanceId, nil
 }
 

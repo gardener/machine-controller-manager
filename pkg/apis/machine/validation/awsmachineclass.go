@@ -33,7 +33,7 @@ const nameMaxLength int = 63
 
 var nameRegexp = regexp.MustCompile("^" + nameFmt + "$")
 
-// validateName is the validation function for ServicePlan names.
+// validateName is the validation function for object names.
 func validateName(value string, prefix bool) []string {
 	var errs []string
 	if len(value) > nameMaxLength {

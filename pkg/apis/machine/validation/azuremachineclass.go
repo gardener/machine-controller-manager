@@ -36,12 +36,73 @@ func ValidateAzureMachineClass(AzureMachineClass *machine.AzureMachineClass) fie
 
 func internalValidateAzureMachineClass(AzureMachineClass *machine.AzureMachineClass) field.ErrorList {
 	allErrs := field.ErrorList{}
-
 	allErrs = append(allErrs, validateAzureMachineClassSpec(&AzureMachineClass.Spec, field.NewPath("spec"))...)
 	return allErrs
 }
 
 func validateAzureMachineClassSpec(spec *machine.AzureMachineClassSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
+
+	if "" == spec.Location {
+		allErrs = append(allErrs, field.Required(fldPath.Child("location"), "Location is required"))
+	}
+	if "" == spec.ResourceGroup {
+		allErrs = append(allErrs, field.Required(fldPath.Child("resourceGroup"), "ResourceGroup is required"))
+	}
+	if "" == spec.SubnetInfo.SubnetName {
+		allErrs = append(allErrs, field.Required(fldPath.Child("subnetInfo.subnetName"), "SubnetName is required"))
+	}
+	if "" == spec.SubnetInfo.VnetName {
+		allErrs = append(allErrs, field.Required(fldPath.Child("subnetInfo.vnetName"), "VNetName Name is required"))
+	}
+
+	allErrs = append(allErrs, validateAzureProperties(spec.Properties, field.NewPath("spec.properties"))...)
+	allErrs = append(allErrs, validateSecretRef(spec.SecretRef, field.NewPath("spec.secretRef"))...)
+
+	return allErrs
+}
+
+func validateAzureProperties(properties machine.AzureVirtualMachineProperties, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	if properties.HardwareProfile.VMSize == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("hardwareProfile.vmSize"), "VMSize is required"))
+	}
+
+	if properties.StorageProfile.ImageReference.Publisher == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.imageReference.publisher"), "Image publisher is required"))
+	}
+	if properties.StorageProfile.ImageReference.Offer == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.imageReference.offer"), "Image offer is required"))
+	}
+	if properties.StorageProfile.ImageReference.Sku == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.imageReference.sku"), "Image sku is required"))
+	}
+	if properties.StorageProfile.ImageReference.Version == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.imageReference.version"), "Image version is required"))
+	}
+
+	if properties.StorageProfile.OsDisk.Caching == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.osDisk.caching"), "OSDisk caching is required"))
+	}
+	if properties.StorageProfile.OsDisk.DiskSizeGB <= 0 {
+		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.osDisk.diskSizeGB"), "OSDisk size must be positive"))
+	}
+	if properties.StorageProfile.OsDisk.CreateOption == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.osDisk.createOption"), "OSDisk create option is required"))
+	}
+
+	if properties.OsProfile.AdminUsername == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("osProfile.adminUserName"), "AdminUsername is required"))
+	}
+
+	/*
+		if properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.Path == "" {
+			allErrs = append(allErrs, field.Required(fldPath.Child("osProfile.linuxConfiguration.ssh.publicKeys.path"), "PublicKey path is required"))
+		}
+		if properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.KeyData == "" {
+			allErrs = append(allErrs, field.Required(fldPath.Child("osProfile.linuxConfiguration.ssh.publicKeys.keyData"), "PublicKey data is required"))
+		}*/
+
 	return allErrs
 }

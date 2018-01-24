@@ -65,7 +65,8 @@ const (
 	controllerDiscoveryAgentName = "node-controller-discovery"
 )
 
-var nodeGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "awsmachineclasses"}
+var awsGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "awsmachineclasses"}
+var azureGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "azuremachineclasses"}
 
 // Run runs the NCMServer.  This should never exit.
 func Run(s *options.NCMServer) error {
@@ -171,7 +172,7 @@ func StartControllers(s *options.NCMServer,
 		glog.Fatal(err)
 	}
 
-	if availableResources[nodeGVR] {
+	if availableResources[awsGVR] || availableResources[azureGVR] {
 		glog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
 		nodeInformerFactory := nodeinformers.NewSharedInformerFactory(
@@ -211,7 +212,7 @@ func StartControllers(s *options.NCMServer,
 		go nodeController.Run(int(s.ConcurrentNodeSyncs), stop)
 
 	} else {
-		return fmt.Errorf("unable to start machine controller: API GroupVersion %q is not available; found %#v", nodeGVR, availableResources)
+		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q is not available; found %#v", awsGVR, azureGVR, availableResources)
 	}
 
 	select {}

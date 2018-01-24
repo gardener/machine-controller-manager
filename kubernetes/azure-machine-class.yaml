@@ -5,41 +5,37 @@ kind: AzureMachineClass
 metadata:
   name: test-azure # Name of aws machine class goes here
 spec:
-  location: eu-east-1 # Region in which machine is to be deployed
+  location: "westamerica" # Region in which machine is to be deployed
+  resourceGroup: "sample-resource-group"
+  subnetInfo:
+    vnetName: "sample-vnet"
+    subnetName: "sample-subnet-in-given-vnet"
+  secretRef:
+    name: "test-secret"
+    namespace: "default"
+  tags:
+    "tag1": "key1"
+    "tag2": "key2"
   properties:
     hardwareProfile:
-      vmSize: "StandardDS1V2" # VMsize based on azure machine kinds
+      vmSize: "Standard_DS1_V2" # VMsize based on azure machine kinds
     storageProfile:
       imageReference: # Details about the image to be used
         publisher: "CoreOS" 
         offer: "CoreOS"
         sku: "Beta"
-        version: "image-reference-version"
+        version: "sample-image-version"
       osDisk: 
-        name: "sample-disk-name" # Name of OSDisk
-        caching: None/ReadOnly/WriteOnly" # Caching Strategy
-        diskSizeGB: 35 # Size of Disk
-        createOption: "Empty/Attach/FromImage" # Create option for disk
+        caching: "None" # Caching Strategy
+        diskSizeGB: 50 # Size of Disk
+        createOption: "FromImage" # Create option for disk
     osProfile: 
-      computerName: "sample-machine-name" # Machine Name
-      adminUserName: "test"               # Admin user name
-      customData: "cloud-init-script-encoded-in-base64" # Cloud init script in base64 format
-      linuxConfiguaration:
-        disablePasswordAuthentication: "true" # Password authentication
-          ssh:
-            publicKeys:
-              - path: "/path/to/key" # Path to public key
-                keyData: "public-key-data" # content of public key
-      networkProfile:
-        networkInterfaces:
-          - id: "samplei-nic-id" # NIC interface id
-            properties:
-              primary: "false" # If NIC is primary interface for Machine
+      adminUserName: "core" # Admin user name
+      linuxConfiguration:
+        disablePasswordAuthentication: true # Password authentication
+        ssh:
+          publicKeys:
+            path: "/path/to/public-key/in/machine" # Path to public key
+            keyData: "public-key"
     availabilitySet:
-      id: "/subscriptionID/sample-url/avset" # Availablity Set of resource
-  tags:
-    "Name": "sample-vm-name" # Sample Tags
-    "kubernetes.io-cluster-name": "1"
-    "kubernetes.io-role-node": "1"
-
-
+      id: "/subscriptions/subscription-id/resourceGroups/resource-group-name/providers/Microsoft.Compute/availabilitySets/availablity-set-name"
