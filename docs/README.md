@@ -4,6 +4,7 @@
 
 * [Setting up a local development environment](development/local_setup.md)
 * [Testing and Dependency Management](development/testing_and_dependencies.md)
+* [Adding support for a new cloud provider](development/new_cp_support.md)
 
 ## Usage
 
