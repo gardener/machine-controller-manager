@@ -17,7 +17,7 @@ $ export KUBECONFIG=$GOPATH/src/github.com/gardener/node-controller-manager/dev/
 
 Open `kubernetes/aws-machine-class.yaml` and replace required values there with the desired VM configurations. 
 
-Similarily open `kubernetes/secret.yaml` and replace - *userData, providerAccessKeyId, providerSecretAccessKey* with base64 encoded values of cloudconfig file, AWS access key id, and AWS secret access key respectively. Use the following command to get the base64 encoded value of your details
+Similarily open `kubernetes/aws-secret.yaml` and replace - *userData, providerAccessKeyId, providerSecretAccessKey* with base64 encoded values of cloudconfig file, AWS access key id, and AWS secret access key respectively. Use the following command to get the base64 encoded value of your details
 
 ```bash
 $ echo "sample-cloud-config" | base64
@@ -38,9 +38,9 @@ Create the class template that will be used as an machine template to create VMs
 $ kubectl apply -f kubernetes/aws-machine-class.yaml
 ```
 
-Create the secret used for the cloud credentials and cloudconfig using `kubernetes/secret.yaml`
+Create the secret used for the cloud credentials and cloudconfig using `kubernetes/aws-secret.yaml`
 ```bash
-$ kubectl apply -f kubernetes/secret.yaml
+$ kubectl apply -f kubernetes/aws-secret.yaml
 ```
 
 ## Check current cluster state

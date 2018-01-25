@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	// SchemeBuilder used to register the Shoot resource.
+	// SchemeBuilder used to register the Machine resource.
 	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
 
 	localSchemeBuilder = &SchemeBuilder

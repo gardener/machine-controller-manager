@@ -30,21 +30,21 @@ import (
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
 )
 
-func (c *controller) awsMachineClassAdd(obj interface{}) {
+func (c *controller) azureMachineClassAdd(obj interface{}) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
 		return
 	}
-	c.awsMachineClassQueue.Add(key)
+	c.azureMachineClassQueue.Add(key)
 }
 
-func (c *controller) awsMachineClassUpdate(oldObj, newObj interface{}) {
-	old, ok := oldObj.(*v1alpha1.AWSMachineClass)
+func (c *controller) azureMachineClassUpdate(oldObj, newObj interface{}) {
+	old, ok := oldObj.(*v1alpha1.AzureMachineClass)
 	if old == nil || !ok {
 		return
 	}
-	new, ok := oldObj.(*v1alpha1.AWSMachineClass)
+	new, ok := oldObj.(*v1alpha1.AzureMachineClass)
 	if new == nil || !ok {
 		return
 	}
@@ -52,49 +52,47 @@ func (c *controller) awsMachineClassUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	c.awsMachineClassAdd(newObj)
+	c.azureMachineClassAdd(newObj)
 }
 
-func (c *controller) awsMachineClassDelete(obj interface{}) {
-	awsMachineClass, ok := obj.(*v1alpha1.AWSMachineClass)
-	if awsMachineClass == nil || !ok {
+func (c *controller) azureMachineClassDelete(obj interface{}) {
+	azureMachineClass, ok := obj.(*v1alpha1.AzureMachineClass)
+	if azureMachineClass == nil || !ok {
 		return
 	}
-
-	glog.V(2).Infof("Received delete event for awsMachineClass %v; no further processing will occur", awsMachineClass.Name)
 }
 
-// reconcileawsMachineClassKey reconciles a awsMachineClass due to controller resync
-// or an event on the awsMachineClass.
-func (c *controller) reconcileClusterawsMachineClassKey(key string) error {
-	plan, err := c.awsMachineClassLister.Get(key)
+// reconcileazureMachineClassKey reconciles a azureMachineClass due to controller resync
+// or an event on the azureMachineClass.
+func (c *controller) reconcileClusterAzureMachineClassKey(key string) error {
+	plan, err := c.azureMachineClassLister.Get(key)
 	if errors.IsNotFound(err) {
-		glog.Infof("ClusterawsMachineClass %q: Not doing work because it has been deleted", key)
+		glog.Infof("ClusterazureMachineClass %q: Not doing work because it has been deleted", key)
 		return nil
 	}
 	if err != nil {
-		glog.Infof("ClusterawsMachineClass %q: Unable to retrieve object from store: %v", key, err)
+		glog.Infof("ClusterazureMachineClass %q: Unable to retrieve object from store: %v", key, err)
 		return err
 	}
 
-	return c.reconcileClusterawsMachineClass(plan)
+	return c.reconcileClusterAzureMachineClass(plan)
 }
 
-func (c *controller) reconcileClusterawsMachineClass(awsMachineClass *v1alpha1.AWSMachineClass) error {
+func (c *controller) reconcileClusterAzureMachineClass(azureMachineClass *v1alpha1.AzureMachineClass) error {
 
-	internalAWSMachineClass := &machine.AWSMachineClass{}
-	err := api.Scheme.Convert(awsMachineClass, internalAWSMachineClass, nil)
+	internalAzureMachineClass := &machine.AzureMachineClass{}
+	err := api.Scheme.Convert(azureMachineClass, internalAzureMachineClass, nil)
 	if err != nil {
 		return err
 	}
 	// TODO this should be put in own API server
-	validationerr := validation.ValidateAWSMachineClass(internalAWSMachineClass)
+	validationerr := validation.ValidateAzureMachineClass(internalAzureMachineClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of awsMachineClass failled %s", validationerr.ToAggregate().Error())
+		glog.V(2).Infof("Validation of azureMachineClass failled %s", validationerr.ToAggregate().Error())
 		return nil
 	}
 
-	machines, err := c.resolveMachines(awsMachineClass)
+	machines, err := c.resolveAzureMachines(azureMachineClass)
 	if err != nil {
 		return err
 	}
@@ -105,14 +103,14 @@ func (c *controller) reconcileClusterawsMachineClass(awsMachineClass *v1alpha1.A
 	return nil
 }
 
-func (c *controller) resolveMachines(awsMachineClass *v1alpha1.AWSMachineClass) ([]*v1alpha1.Machine, error) {
+func (c *controller) resolveAzureMachines(azureMachineClass *v1alpha1.AzureMachineClass) ([]*v1alpha1.Machine, error) {
 	machines, err := c.machineLister.List(labels.Everything())
 	if err != nil {
 		return nil, err
 	}
 	var filtered []*v1alpha1.Machine
 	for _, machine := range machines {
-		if machine.Spec.Class.Name == awsMachineClass.Name {
+		if machine.Spec.Class.Kind == " AzureMachineClass" && machine.Spec.Class.Name == azureMachineClass.Name {
 			filtered = append(filtered, machine)
 		}
 	}
