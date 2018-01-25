@@ -4,6 +4,6 @@
 // +k8s:defaulter-gen=TypeMeta
 
 // Package v1alpha1 defines all of the versioned (v1) definitions
-// of the shoot model.
+// of the machine model.
 // +groupName=machine.sapcloud.io
 package v1alpha1

@@ -52,6 +52,78 @@ func RegisterDeepCopies(scheme *runtime.Scheme) error {
 			return nil
 		}, InType: reflect.TypeOf(&AWSNetworkInterfaceSpec{})},
 		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureHardwareProfile).DeepCopyInto(out.(*AzureHardwareProfile))
+			return nil
+		}, InType: reflect.TypeOf(&AzureHardwareProfile{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureImageReference).DeepCopyInto(out.(*AzureImageReference))
+			return nil
+		}, InType: reflect.TypeOf(&AzureImageReference{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureLinuxConfiguration).DeepCopyInto(out.(*AzureLinuxConfiguration))
+			return nil
+		}, InType: reflect.TypeOf(&AzureLinuxConfiguration{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureMachineClass).DeepCopyInto(out.(*AzureMachineClass))
+			return nil
+		}, InType: reflect.TypeOf(&AzureMachineClass{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureMachineClassList).DeepCopyInto(out.(*AzureMachineClassList))
+			return nil
+		}, InType: reflect.TypeOf(&AzureMachineClassList{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureMachineClassSpec).DeepCopyInto(out.(*AzureMachineClassSpec))
+			return nil
+		}, InType: reflect.TypeOf(&AzureMachineClassSpec{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureManagedDiskParameters).DeepCopyInto(out.(*AzureManagedDiskParameters))
+			return nil
+		}, InType: reflect.TypeOf(&AzureManagedDiskParameters{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureNetworkInterfaceReference).DeepCopyInto(out.(*AzureNetworkInterfaceReference))
+			return nil
+		}, InType: reflect.TypeOf(&AzureNetworkInterfaceReference{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureNetworkInterfaceReferenceProperties).DeepCopyInto(out.(*AzureNetworkInterfaceReferenceProperties))
+			return nil
+		}, InType: reflect.TypeOf(&AzureNetworkInterfaceReferenceProperties{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureNetworkProfile).DeepCopyInto(out.(*AzureNetworkProfile))
+			return nil
+		}, InType: reflect.TypeOf(&AzureNetworkProfile{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureOSDisk).DeepCopyInto(out.(*AzureOSDisk))
+			return nil
+		}, InType: reflect.TypeOf(&AzureOSDisk{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureOSProfile).DeepCopyInto(out.(*AzureOSProfile))
+			return nil
+		}, InType: reflect.TypeOf(&AzureOSProfile{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureSSHConfiguration).DeepCopyInto(out.(*AzureSSHConfiguration))
+			return nil
+		}, InType: reflect.TypeOf(&AzureSSHConfiguration{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureSSHPublicKey).DeepCopyInto(out.(*AzureSSHPublicKey))
+			return nil
+		}, InType: reflect.TypeOf(&AzureSSHPublicKey{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureStorageProfile).DeepCopyInto(out.(*AzureStorageProfile))
+			return nil
+		}, InType: reflect.TypeOf(&AzureStorageProfile{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureSubResource).DeepCopyInto(out.(*AzureSubResource))
+			return nil
+		}, InType: reflect.TypeOf(&AzureSubResource{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureSubnetInfo).DeepCopyInto(out.(*AzureSubnetInfo))
+			return nil
+		}, InType: reflect.TypeOf(&AzureSubnetInfo{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
+			in.(*AzureVirtualMachineProperties).DeepCopyInto(out.(*AzureVirtualMachineProperties))
+			return nil
+		}, InType: reflect.TypeOf(&AzureVirtualMachineProperties{})},
+		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*ClassSpec).DeepCopyInto(out.(*ClassSpec))
 			return nil
 		}, InType: reflect.TypeOf(&ClassSpec{})},
@@ -335,6 +407,363 @@ func (in *AWSNetworkInterfaceSpec) DeepCopy() *AWSNetworkInterfaceSpec {
 		return nil
 	}
 	out := new(AWSNetworkInterfaceSpec)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureHardwareProfile) DeepCopyInto(out *AzureHardwareProfile) {
+	*out = *in
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureHardwareProfile.
+func (in *AzureHardwareProfile) DeepCopy() *AzureHardwareProfile {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureHardwareProfile)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureImageReference) DeepCopyInto(out *AzureImageReference) {
+	*out = *in
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureImageReference.
+func (in *AzureImageReference) DeepCopy() *AzureImageReference {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureImageReference)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureLinuxConfiguration) DeepCopyInto(out *AzureLinuxConfiguration) {
+	*out = *in
+	out.SSH = in.SSH
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureLinuxConfiguration.
+func (in *AzureLinuxConfiguration) DeepCopy() *AzureLinuxConfiguration {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureLinuxConfiguration)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureMachineClass) DeepCopyInto(out *AzureMachineClass) {
+	*out = *in
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	out.TypeMeta = in.TypeMeta
+	in.Spec.DeepCopyInto(&out.Spec)
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureMachineClass.
+func (in *AzureMachineClass) DeepCopy() *AzureMachineClass {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureMachineClass)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyObject is an autogenerated deepcopy function, copying the receiver, creating a new runtime.Object.
+func (in *AzureMachineClass) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	} else {
+		return nil
+	}
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureMachineClassList) DeepCopyInto(out *AzureMachineClassList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	out.ListMeta = in.ListMeta
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]AzureMachineClass, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureMachineClassList.
+func (in *AzureMachineClassList) DeepCopy() *AzureMachineClassList {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureMachineClassList)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyObject is an autogenerated deepcopy function, copying the receiver, creating a new runtime.Object.
+func (in *AzureMachineClassList) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	} else {
+		return nil
+	}
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureMachineClassSpec) DeepCopyInto(out *AzureMachineClassSpec) {
+	*out = *in
+	if in.Tags != nil {
+		in, out := &in.Tags, &out.Tags
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	in.Properties.DeepCopyInto(&out.Properties)
+	out.SubnetInfo = in.SubnetInfo
+	if in.SecretRef != nil {
+		in, out := &in.SecretRef, &out.SecretRef
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(v1.SecretReference)
+			**out = **in
+		}
+	}
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureMachineClassSpec.
+func (in *AzureMachineClassSpec) DeepCopy() *AzureMachineClassSpec {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureMachineClassSpec)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureManagedDiskParameters) DeepCopyInto(out *AzureManagedDiskParameters) {
+	*out = *in
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureManagedDiskParameters.
+func (in *AzureManagedDiskParameters) DeepCopy() *AzureManagedDiskParameters {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureManagedDiskParameters)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureNetworkInterfaceReference) DeepCopyInto(out *AzureNetworkInterfaceReference) {
+	*out = *in
+	if in.AzureNetworkInterfaceReferenceProperties != nil {
+		in, out := &in.AzureNetworkInterfaceReferenceProperties, &out.AzureNetworkInterfaceReferenceProperties
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(AzureNetworkInterfaceReferenceProperties)
+			**out = **in
+		}
+	}
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureNetworkInterfaceReference.
+func (in *AzureNetworkInterfaceReference) DeepCopy() *AzureNetworkInterfaceReference {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureNetworkInterfaceReference)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureNetworkInterfaceReferenceProperties) DeepCopyInto(out *AzureNetworkInterfaceReferenceProperties) {
+	*out = *in
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureNetworkInterfaceReferenceProperties.
+func (in *AzureNetworkInterfaceReferenceProperties) DeepCopy() *AzureNetworkInterfaceReferenceProperties {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureNetworkInterfaceReferenceProperties)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureNetworkProfile) DeepCopyInto(out *AzureNetworkProfile) {
+	*out = *in
+	in.NetworkInterfaces.DeepCopyInto(&out.NetworkInterfaces)
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureNetworkProfile.
+func (in *AzureNetworkProfile) DeepCopy() *AzureNetworkProfile {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureNetworkProfile)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureOSDisk) DeepCopyInto(out *AzureOSDisk) {
+	*out = *in
+	out.ManagedDisk = in.ManagedDisk
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureOSDisk.
+func (in *AzureOSDisk) DeepCopy() *AzureOSDisk {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureOSDisk)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureOSProfile) DeepCopyInto(out *AzureOSProfile) {
+	*out = *in
+	out.LinuxConfiguration = in.LinuxConfiguration
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureOSProfile.
+func (in *AzureOSProfile) DeepCopy() *AzureOSProfile {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureOSProfile)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureSSHConfiguration) DeepCopyInto(out *AzureSSHConfiguration) {
+	*out = *in
+	out.PublicKeys = in.PublicKeys
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureSSHConfiguration.
+func (in *AzureSSHConfiguration) DeepCopy() *AzureSSHConfiguration {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureSSHConfiguration)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureSSHPublicKey) DeepCopyInto(out *AzureSSHPublicKey) {
+	*out = *in
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureSSHPublicKey.
+func (in *AzureSSHPublicKey) DeepCopy() *AzureSSHPublicKey {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureSSHPublicKey)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureStorageProfile) DeepCopyInto(out *AzureStorageProfile) {
+	*out = *in
+	out.ImageReference = in.ImageReference
+	out.OsDisk = in.OsDisk
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureStorageProfile.
+func (in *AzureStorageProfile) DeepCopy() *AzureStorageProfile {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureStorageProfile)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureSubResource) DeepCopyInto(out *AzureSubResource) {
+	*out = *in
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureSubResource.
+func (in *AzureSubResource) DeepCopy() *AzureSubResource {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureSubResource)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureSubnetInfo) DeepCopyInto(out *AzureSubnetInfo) {
+	*out = *in
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureSubnetInfo.
+func (in *AzureSubnetInfo) DeepCopy() *AzureSubnetInfo {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureSubnetInfo)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *AzureVirtualMachineProperties) DeepCopyInto(out *AzureVirtualMachineProperties) {
+	*out = *in
+	out.HardwareProfile = in.HardwareProfile
+	out.StorageProfile = in.StorageProfile
+	out.OsProfile = in.OsProfile
+	in.NetworkProfile.DeepCopyInto(&out.NetworkProfile)
+	out.AvailabilitySet = in.AvailabilitySet
+	return
+}
+
+// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new AzureVirtualMachineProperties.
+func (in *AzureVirtualMachineProperties) DeepCopy() *AzureVirtualMachineProperties {
+	if in == nil {
+		return nil
+	}
+	out := new(AzureVirtualMachineProperties)
 	in.DeepCopyInto(out)
 	return out
 }

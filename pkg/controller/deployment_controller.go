@@ -457,22 +457,10 @@ func (dc *controller) syncMachineDeployment(key string) error {
 		return nil
 	}
 
-	AWSMachineClass, err := dc.awsMachineClassLister.Get(deployment.Spec.Template.Spec.Class.Name)
-	if err != nil {
-		glog.V(2).Infof("AWSMachineClass for MachineSet %q not found %q. Skipping. %v", deployment.Name, deployment.Spec.Template.Spec.Class.Name, err)
-		return nil
-	}
-
-	// Validate AWSMachineClass
-	internalAWSMachineClass := &machine.AWSMachineClass{}
-	err = api.Scheme.Convert(AWSMachineClass, internalAWSMachineClass, nil)
-	if err != nil {
+	// Validate MachineClass
+	_, secretRef, err := dc.validateMachineClass(&deployment.Spec.Template.Spec.Class)
+	if err != nil || secretRef == nil {
 		return err
-	}
-	validationerr = validation.ValidateAWSMachineClass(internalAWSMachineClass)
-	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of AWSMachineClass failled %s", validationerr.ToAggregate().Error())
-		return nil
 	}
 
 	// Deep-copy otherwise we are mutating our cache.

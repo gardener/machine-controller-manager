@@ -21,17 +21,620 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// Provider is the type of the provider to be used
-type Provider string
-
-// Valid providers
-const (
-	ProviderAWS Provider = "aws"
-)
-
 // WARNING!
 // IF YOU MODIFY ANY OF THE TYPES HERE COPY THEM TO ../types.go
 // AND RUN  make generate-files
+
+/********************** Machine APIs ***************/
+
+// +genclient
+// +genclient:nonNamespaced
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// Machine TODO
+type Machine struct {
+	// ObjectMeta for machine object
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// TypeMeta for machine object
+	metav1.TypeMeta `json:",inline"`
+
+	// Spec contains the specification of the machine
+	Spec MachineSpec `json:"spec,omitempty"`
+
+	// Status contains fields depicting the status
+	Status MachineStatus `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// MachineList is a collection of Machines.
+type MachineList struct {
+	// ObjectMeta for MachineList object
+	metav1.TypeMeta `json:",inline"`
+
+	// TypeMeta for MachineList object
+	metav1.ListMeta `json:"metadata,omitempty"`
+
+	// Items contains the list of machines
+	Items []Machine `json:"items"`
+}
+
+// MachineSpec is the specification of a machine.
+type MachineSpec struct {
+
+	// Class contains the machineclass attributes of a machine
+	// +optional
+	Class ClassSpec `json:"class,omitempty"`
+
+	// ProviderID represents the provider's unique ID given to a machine
+	// +optional
+	ProviderID string `json:"providerID,omitempty"`
+}
+
+// MachineTemplateSpec describes the data a machine should have when created from a template
+type MachineTemplateSpec struct {
+	// Standard object's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+
+	// Specification of the desired behavior of the machine.
+	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status
+	// +optional
+	Spec MachineSpec `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// MachineTemplate describes a template for creating copies of a predefined machine.
+type MachineTemplate struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// Standard object's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+
+	// Template defines the machines that will be created from this machine template.
+	// https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status
+	// +optional
+	Template MachineTemplateSpec `json:"template,omitempty" protobuf:"bytes,2,opt,name=template"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// MachineTemplateList is a list of MachineTemplates.
+type MachineTemplateList struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// Standard list metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds
+	// +optional
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+
+	// List of machine templates
+	Items []MachineTemplate `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// ClassSpec is the class specification of machine
+type ClassSpec struct {
+	// API group to which it belongs
+	APIGroup string `json:"apiGroup,omitempty"`
+
+	// Kind for machine class
+	Kind string `json:"kind,omitempty"`
+
+	// Name of machine class
+	Name string `json:"name,omitempty"`
+}
+
+//type CurrentStatus
+type CurrentStatus struct {
+	// API group to which it belongs
+	Phase MachinePhase `json:"phase,omitempty" protobuf:"bytes,1,opt,name=phase,casttype=MachinePhase"`
+
+	// Name of machine class
+	TimeoutActive bool `json:"timeoutActive,omitempty"`
+
+	// Last update time of current status
+	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
+}
+
+// MachineStatus TODO
+type MachineStatus struct {
+	// Node string
+	Node string `json:"node,omitempty"`
+
+	// Conditions of this machine, same as node
+	Conditions []corev1.NodeCondition `json:"conditions,omitempty"`
+
+	// Last operation refers to the status of the last operation performed
+	LastOperation LastOperation `json:"lastOperation,omitempty"`
+
+	// Current status of the machine object
+	CurrentStatus CurrentStatus `json:"currentStatus,omitempty"`
+}
+
+// LastOperation
+type LastOperation struct {
+	// Description of the current operation
+	Description string `json:"description,omitempty"`
+
+	// Last update time of current operation
+	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
+
+	// State of operation
+	State MachineState `json:"state,omitempty"`
+
+	// Type of operation
+	Type string `json:"type,omitempty"`
+}
+
+// MachinePhase is a label for the condition of a machines at the current time.
+type MachinePhase string
+
+// These are the valid statuses of machines.
+const (
+	// MachinePending means that the machine is being created
+	MachinePending MachinePhase = "Pending"
+
+	// MachineAvailable means that machine is present on provider but hasn't joined cluster yet
+	MachineAvailable MachinePhase = "Available"
+
+	// MachineRunning means node is ready and running succesfully
+	MachineRunning MachinePhase = "Running"
+
+	// MachineRunning means node is terminating
+	MachineTerminating MachinePhase = "Terminating"
+
+	// MachineUnknown indicates that the node is not ready at the movement
+	MachineUnknown MachinePhase = "Unknown"
+
+	// MachineFailed means operation failed leading to machine status failure
+	MachineFailed MachinePhase = "Failed"
+)
+
+// MachinePhase is a label for the condition of a machines at the current time.
+type MachineState string
+
+// These are the valid statuses of machines.
+const (
+	// MachineStatePending means there are operations pending on this machine state
+	MachineStateProcessing MachineState = "Processing"
+
+	// MachineStateFailed means operation failed leading to machine status failure
+	MachineStateFailed MachineState = "Failed"
+
+	// MachineStateSuccessful indicates that the node is not ready at the moment
+	MachineStateSuccessful MachineState = "Successful"
+)
+
+// The below types are used by kube_client and api_server.
+
+type ConditionStatus string
+
+// These are valid condition statuses. "ConditionTrue" means a resource is in the condition;
+// "ConditionFalse" means a resource is not in the condition; "ConditionUnknown" means kubernetes
+// can't decide if a resource is in the condition or not. In the future, we could add other
+// intermediate conditions, e.g. ConditionDegraded.
+const (
+	ConditionTrue    ConditionStatus = "True"
+	ConditionFalse   ConditionStatus = "False"
+	ConditionUnknown ConditionStatus = "Unknown"
+)
+
+/********************** MachineSet APIs ***************/
+
+// +genclient
+// +genclient:nonNamespaced
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// MachineSet TODO
+type MachineSet struct {
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// +optional
+	metav1.TypeMeta `json:",inline"`
+
+	// +optional
+	Spec MachineSetSpec `json:"spec,omitempty"`
+
+	// +optional
+	Status MachineSetStatus `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// MachineSetList is a collection of MachineSet.
+type MachineSetList struct {
+	// +optional
+	metav1.TypeMeta `json:",inline"`
+
+	// +optional
+	metav1.ListMeta `json:"metadata,omitempty"`
+
+	// +optional
+	Items []MachineSet `json:"items"`
+}
+
+// MachineSetSpec is the specification of a cluster.
+type MachineSetSpec struct {
+	// +optional
+	Replicas int32 `json:"replicas,inline"`
+
+	// +optional
+	Selector *metav1.LabelSelector `json:"selector,omitempty"`
+
+	// +optional
+	MachineClass ClassSpec `json:"machineClass,omitempty"`
+
+	// +optional
+	Template MachineTemplateSpec `json:"template,omitempty" protobuf:"bytes,2,opt,name=template"`
+
+	// +optional
+	MinReadySeconds int32 `json:"minReadySeconds,inline"`
+}
+
+type MachineSetConditionType string
+
+// These are valid conditions of a machine set.
+const (
+	// MachineSetReplicaFailure is added in a machine set when one of its machines fails to be created
+	// due to insufficient quota, limit ranges, machine security policy, node selectors, etc. or deleted
+	// due to kubelet being down or finalizers are failing.
+	MachineSetReplicaFailure MachineSetConditionType = "ReplicaFailure"
+)
+
+// MachineSetCondition describes the state of a machine set at a certain point.
+type MachineSetCondition struct {
+	// Type of machine set condition.
+	Type MachineSetConditionType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=MachineSetConditionType"`
+
+	// Status of the condition, one of True, False, Unknown.
+	Status ConditionStatus `json:"status" protobuf:"bytes,2,opt,name=status,casttype=k8s.io/api/core/v1.ConditionStatus"`
+
+	// The last time the condition transitioned from one status to another.
+	// +optional
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
+
+	// The reason for the condition's last transition.
+	// +optional
+	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
+
+	// A human readable message indicating details about the transition.
+	// +optional
+	Message string `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
+}
+
+// MachineSetStatus TODO
+type MachineSetStatus struct {
+	// LastOperation performed
+	LastOperation LastOperation `json:"lastOperation,omitempty"`
+
+	// No of Replicas required
+	Replicas int32 `json:"replicas,inline"`
+
+	// FullyLabeledReplicas represetnts the number of machines with same labels
+	FullyLabeledReplicas int32 `json:"fullyLabeledReplicas,inline"`
+
+	// ReadyReplicas represetnts the number of ready machines
+	ReadyReplicas int32 `json:"readyReplicas,inline"`
+
+	// AvailableReplicas represetnts the number of available machines
+	AvailableReplicas int32 `json:"availableReplicas,inline"`
+
+	// MachineSet Conditions
+	Conditions []MachineSetCondition `json:"machineSetCondition,inline"`
+
+	// ObservedGeneration
+	ObservedGeneration int64 `json:"observedGeneration,inline"`
+}
+
+/********************** MachineDeployment APIs ***************/
+
+// +genclient
+// +genclient:nonNamespaced
+// +genclient:method=GetScale,verb=get,subresource=scale,result=Scale
+// +genclient:method=UpdateScale,verb=update,subresource=scale,input=Scale,result=Scale
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// Deployment enables declarative updates for machines and MachineSets.
+type MachineDeployment struct {
+	metav1.TypeMeta `json:",inline"`
+	// Standard object metadata.
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Specification of the desired behavior of the MachineDeployment.
+	// +optional
+	Spec MachineDeploymentSpec `json:"spec,omitempty"`
+
+	// Most recently observed status of the MachineDeployment.
+	// +optional
+	Status MachineDeploymentStatus `json:"status,omitempty"`
+}
+
+// MachineDeploymentSpec is the specification of the desired behavior of the MachineDeployment.
+type MachineDeploymentSpec struct {
+	// Number of desired machines. This is a pointer to distinguish between explicit
+	// zero and not specified. Defaults to 1.
+	// +optional
+	Replicas int32 `json:"replicas,omitempty" protobuf:"varint,1,opt,name=replicas"`
+
+	// Label selector for machines. Existing MachineSets whose machines are
+	// selected by this will be the ones affected by this MachineDeployment.
+	// +optional
+	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,2,opt,name=selector"`
+
+	// Template describes the machines that will be created.
+	Template MachineTemplateSpec `json:"template" protobuf:"bytes,3,opt,name=template"`
+
+	// The MachineDeployment strategy to use to replace existing machines with new ones.
+	// +optional
+	// +patchStrategy=retainKeys
+	Strategy MachineDeploymentStrategy `json:"strategy,omitempty" patchStrategy:"retainKeys" protobuf:"bytes,4,opt,name=strategy"`
+
+	// Minimum number of seconds for which a newly created machine should be ready
+	// without any of its container crashing, for it to be considered available.
+	// Defaults to 0 (machine will be considered available as soon as it is ready)
+	// +optional
+	MinReadySeconds int32 `json:"minReadySeconds,omitempty" protobuf:"varint,5,opt,name=minReadySeconds"`
+
+	// The number of old MachineSets to retain to allow rollback.
+	// This is a pointer to distinguish between explicit zero and not specified.
+	// +optional
+	RevisionHistoryLimit *int32 `json:"revisionHistoryLimit,omitempty" protobuf:"varint,6,opt,name=revisionHistoryLimit"`
+
+	// Indicates that the MachineDeployment is paused and will not be processed by the
+	// MachineDeployment controller.
+	// +optional
+	Paused bool `json:"paused,omitempty" protobuf:"varint,7,opt,name=paused"`
+
+	// DEPRECATED.
+	// The config this MachineDeployment is rolling back to. Will be cleared after rollback is done.
+	// +optional
+	RollbackTo *RollbackConfig `json:"rollbackTo,omitempty" protobuf:"bytes,8,opt,name=rollbackTo"`
+
+	// The maximum time in seconds for a MachineDeployment to make progress before it
+	// is considered to be failed. The MachineDeployment controller will continue to
+	// process failed MachineDeployments and a condition with a ProgressDeadlineExceeded
+	// reason will be surfaced in the MachineDeployment status. Note that progress will
+	// not be estimated during the time a MachineDeployment is paused. This is not set
+	// by default.
+	// +optional
+	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty" protobuf:"varint,9,opt,name=progressDeadlineSeconds"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// DEPRECATED.
+// MachineDeploymentRollback stores the information required to rollback a MachineDeployment.
+type MachineDeploymentRollback struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// Required: This must match the Name of a MachineDeployment.
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+
+	// The annotations to be updated to a MachineDeployment
+	// +optional
+	UpdatedAnnotations map[string]string `json:"updatedAnnotations,omitempty" protobuf:"bytes,2,rep,name=updatedAnnotations"`
+
+	// The config of this MachineDeployment rollback.
+	RollbackTo RollbackConfig `json:"rollbackTo" protobuf:"bytes,3,opt,name=rollbackTo"`
+}
+
+type RollbackConfig struct {
+	// The revision to rollback to. If set to 0, rollback to the last revision.
+	// +optional
+	Revision int64 `json:"revision,omitempty" protobuf:"varint,1,opt,name=revision"`
+}
+
+const (
+	// DefaultDeploymentUniqueLabelKey is the default key of the selector that is added
+	// to existing MCs (and label key that is added to its machines) to prevent the existing MCs
+	// to select new machines (and old machines being select by new MC).
+	DefaultMachineDeploymentUniqueLabelKey string = "machine-template-hash"
+)
+
+// MachineDeploymentStrategy describes how to replace existing machines with new ones.
+type MachineDeploymentStrategy struct {
+	// Type of MachineDeployment. Can be "Recreate" or "RollingUpdate". Default is RollingUpdate.
+	// +optional
+	Type MachineDeploymentStrategyType `json:"type,omitempty" protobuf:"bytes,1,opt,name=type,casttype=DeploymentStrategyType"`
+
+	// Rolling update config params. Present only if MachineDeploymentStrategyType =
+	// RollingUpdate.
+	//---
+	// TODO: Update this to follow our convention for oneOf, whatever we decide it
+	// to be.
+	// +optional
+	RollingUpdate *RollingUpdateMachineDeployment `json:"rollingUpdate,omitempty" protobuf:"bytes,2,opt,name=rollingUpdate"`
+}
+
+type MachineDeploymentStrategyType string
+
+const (
+	// Kill all existing machines before creating new ones.
+	RecreateMachineDeploymentStrategyType MachineDeploymentStrategyType = "Recreate"
+
+	// Replace the old MCs by new one using rolling update i.e gradually scale down the old MCs and scale up the new one.
+	RollingUpdateMachineDeploymentStrategyType MachineDeploymentStrategyType = "RollingUpdate"
+)
+
+// Spec to control the desired behavior of rolling update.
+type RollingUpdateMachineDeployment struct {
+	// The maximum number of machines that can be unavailable during the update.
+	// Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%).
+	// Absolute number is calculated from percentage by rounding down.
+	// This can not be 0 if MaxSurge is 0.
+	// By default, a fixed value of 1 is used.
+	// Example: when this is set to 30%, the old MC can be scaled down to 70% of desired machines
+	// immediately when the rolling update starts. Once new machines are ready, old MC
+	// can be scaled down further, followed by scaling up the new MC, ensuring
+	// that the total number of machines available at all times during the update is at
+	// least 70% of desired machines.
+	// +optional
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty" protobuf:"bytes,1,opt,name=maxUnavailable"`
+
+	// The maximum number of machines that can be scheduled above the desired number of
+	// machines.
+	// Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%).
+	// This can not be 0 if MaxUnavailable is 0.
+	// Absolute number is calculated from percentage by rounding up.
+	// By default, a value of 1 is used.
+	// Example: when this is set to 30%, the new MC can be scaled up immediately when
+	// the rolling update starts, such that the total number of old and new machines do not exceed
+	// 130% of desired machines. Once old machines have been killed,
+	// new MC can be scaled up further, ensuring that total number of machines running
+	// at any time during the update is atmost 130% of desired machines.
+	// +optional
+	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty" protobuf:"bytes,2,opt,name=maxSurge"`
+}
+
+// MachineDeploymentStatus is the most recently observed status of the MachineDeployment.
+type MachineDeploymentStatus struct {
+	// The generation observed by the MachineDeployment controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty" protobuf:"varint,1,opt,name=observedGeneration"`
+
+	// Total number of non-terminated machines targeted by this MachineDeployment (their labels match the selector).
+	// +optional
+	Replicas int32 `json:"replicas,omitempty" protobuf:"varint,2,opt,name=replicas"`
+
+	// Total number of non-terminated machines targeted by this MachineDeployment that have the desired template spec.
+	// +optional
+	UpdatedReplicas int32 `json:"updatedReplicas,omitempty" protobuf:"varint,3,opt,name=updatedReplicas"`
+
+	// Total number of ready machines targeted by this MachineDeployment.
+	// +optional
+	ReadyReplicas int32 `json:"readyReplicas,omitempty" protobuf:"varint,7,opt,name=readyReplicas"`
+
+	// Total number of available machines (ready for at least minReadySeconds) targeted by this MachineDeployment.
+	// +optional
+	AvailableReplicas int32 `json:"availableReplicas,omitempty" protobuf:"varint,4,opt,name=availableReplicas"`
+
+	// Total number of unavailable machines targeted by this MachineDeployment. This is the total number of
+	// machines that are still required for the MachineDeployment to have 100% available capacity. They may
+	// either be machines that are running but not yet available or machines that still have not been created.
+	// +optional
+	UnavailableReplicas int32 `json:"unavailableReplicas,omitempty" protobuf:"varint,5,opt,name=unavailableReplicas"`
+
+	// Represents the latest available observations of a MachineDeployment's current state.
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	Conditions []MachineDeploymentCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,6,rep,name=conditions"`
+
+	// Count of hash collisions for the MachineDeployment. The MachineDeployment controller uses this
+	// field as a collision avoidance mechanism when it needs to create the name for the
+	// newest MachineSet.
+	// +optional
+	CollisionCount *int32 `json:"collisionCount,omitempty" protobuf:"varint,8,opt,name=collisionCount"`
+}
+
+type MachineDeploymentConditionType string
+
+// These are valid conditions of a MachineDeployment.
+const (
+	// Available means the MachineDeployment is available, ie. at least the minimum available
+	// replicas required are up and running for at least minReadySeconds.
+	MachineDeploymentAvailable MachineDeploymentConditionType = "Available"
+
+	// Progressing means the MachineDeployment is progressing. Progress for a MachineDeployment is
+	// considered when a new machine set is created or adopted, and when new machines scale
+	// up or old machines scale down. Progress is not estimated for paused MachineDeployments or
+	// when progressDeadlineSeconds is not specified.
+	MachineDeploymentProgressing MachineDeploymentConditionType = "Progressing"
+
+	// ReplicaFailure is added in a MachineDeployment when one of its machines fails to be created
+	// or deleted.
+	MachineDeploymentReplicaFailure MachineDeploymentConditionType = "ReplicaFailure"
+)
+
+// MachineDeploymentCondition describes the state of a MachineDeployment at a certain point.
+type MachineDeploymentCondition struct {
+	// Type of MachineDeployment condition.
+	Type MachineDeploymentConditionType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=MachineDeploymentConditionType"`
+
+	// Status of the condition, one of True, False, Unknown.
+	Status ConditionStatus `json:"status" protobuf:"bytes,2,opt,name=status,casttype=corev1.ConditionStatus"`
+
+	// The last time this condition was updated.
+	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty" protobuf:"bytes,6,opt,name=lastUpdateTime"`
+
+	// Last time the condition transitioned from one status to another.
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,7,opt,name=lastTransitionTime"`
+
+	// The reason for the condition's last transition.
+	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
+
+	// A human readable message indicating details about the transition.
+	Message string `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// MachineDeploymentList is a list of MachineDeployments.
+type MachineDeploymentList struct {
+	metav1.TypeMeta `json:",inline"`
+	// Standard list metadata.
+	// +optional
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+
+	// Items is the list of MachineDeployments.
+	Items []MachineDeployment `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// describes the attributes of a scale subresource
+type ScaleSpec struct {
+	// desired number of machines for the scaled object.
+	// +optional
+	Replicas int32 `json:"replicas,omitempty" protobuf:"varint,1,opt,name=replicas"`
+}
+
+// represents the current status of a scale subresource.
+type ScaleStatus struct {
+	// actual number of observed machines of the scaled object.
+	Replicas int32 `json:"replicas" protobuf:"varint,1,opt,name=replicas"`
+
+	// label query over machines that should match the replicas count. More info: http://kubernetes.io/docs/user-guide/labels#label-selectors
+	// +optional
+	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,2,rep,name=selector"`
+
+	// label selector for machines that should match the replicas count. This is a serializated
+	// version of both map-based and more expressive set-based selectors. This is done to
+	// avoid introspection in the clients. The string will be in the same format as the
+	// query-param syntax. If the target type only supports map-based selectors, both this
+	// field and map-based selector field are populated.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors
+	// +optional
+	TargetSelector string `json:"targetSelector,omitempty" protobuf:"bytes,3,opt,name=targetSelector"`
+}
+
+// +genclient
+// +genclient:noVerbs
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// represents a scaling request for a resource.
+type Scale struct {
+	metav1.TypeMeta `json:",inline"`
+	// Standard object metadata; More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata.
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+
+	// defines the behavior of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status.
+	// +optional
+	Spec ScaleSpec `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
+
+	// current status of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status. Read-only.
+	// +optional
+	Status ScaleStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+}
+
+/********************** AWSMachineClass APIs ***************/
 
 // +genclient
 // +genclient:nonNamespaced
@@ -39,10 +642,10 @@ const (
 
 // AWSMachineClass TODO
 type AWSMachineClass struct {
-
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +optional
 	metav1.TypeMeta `json:",inline"`
 
 	// +optional
@@ -53,15 +656,17 @@ type AWSMachineClass struct {
 
 // AWSMachineClassList is a collection of AWSMachineClasses.
 type AWSMachineClassList struct {
+	// +optional
 	metav1.TypeMeta `json:",inline"`
 
 	// +optional
 	metav1.ListMeta `json:"metadata,omitempty"`
 
+	// +optional
 	Items []AWSMachineClass `json:"items"`
 }
 
-// AWSMachineClassSpec is the specification of a Shoot cluster.
+// AWSMachineClassSpec is the specification of a cluster.
 type AWSMachineClassSpec struct {
 	AMI               string                      `json:"ami,omitempty"`
 	AvailabilityZone  string                      `json:"availabilityZone,omitempty"`
@@ -150,7 +755,6 @@ type AWSEbsBlockDeviceSpec struct {
 
 // Describes an IAM machine profile.
 type AWSIAMProfileSpec struct {
-
 	// The Amazon Resource Name (ARN) of the machine profile.
 	ARN string `json:"arn,omitempty"`
 
@@ -187,561 +791,151 @@ type AWSNetworkInterfaceSpec struct {
 	SubnetID string `json:"subnetID,omitempty"`
 }
 
-// MachinePhase is a label for the condition of a machines at the current time.
-type MachinePhase string
-
-// These are the valid statuses of machines.
-const (
-	// MachinePending means that the machine is being created
-	MachinePending MachinePhase = "Pending"
-	// MachinePending means that machine is present on provider but hasn't joined cluster yet
-	MachineAvailable MachinePhase = "Available"
-	// MachineRunning means node is ready and running succesfully
-	MachineRunning MachinePhase = "Running"
-	// MachineRunning means node is terminating
-	MachineTerminating MachinePhase = "Terminating"
-	// MachineUnknown indicates that the node is not ready at the movement
-	MachineUnknown MachinePhase = "Unknown"
-	// MachineFailed means operation failed leading to machine status failure
-	MachineFailed MachinePhase = "Failed"
-)
-
-// MachinePhase is a label for the condition of a machines at the current time.
-type MachineState string
-
-// These are the valid statuses of machines.
-const (
-	// MachinePending means there are operations pending on this machine state
-	MachineStateProcessing MachineState = "Processing"
-	// MachineFailed means operation failed leading to machine status failure
-	MachineStateFailed MachineState = "Failed"
-	// MachineUnknown indicates that the node is not ready at the movement
-	MachineStateSuccessful MachineState = "Successful"
-)
-
-// The below types are used by kube_client and api_server.
-
-type ConditionStatus string
-
-// These are valid condition statuses. "ConditionTrue" means a resource is in the condition;
-// "ConditionFalse" means a resource is not in the condition; "ConditionUnknown" means kubernetes
-// can't decide if a resource is in the condition or not. In the future, we could add other
-// intermediate conditions, e.g. ConditionDegraded.
-const (
-	ConditionTrue    ConditionStatus = "True"
-	ConditionFalse   ConditionStatus = "False"
-	ConditionUnknown ConditionStatus = "Unknown"
-)
+/********************** AzureMachineClass APIs ***************/
 
 // +genclient
 // +genclient:nonNamespaced
-// +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// Machine TODO
-type Machine struct {
-
+// AzureMachineClass TODO
+type AzureMachineClass struct {
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +optional
 	metav1.TypeMeta `json:",inline"`
 
 	// +optional
-	Spec MachineSpec `json:"spec,omitempty"`
-
-	// +optional
-	Status MachineStatus `json:"status,omitempty"`
+	Spec AzureMachineClassSpec `json:"spec,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// MachineList is a collection of Machines.
-type MachineList struct {
+// AzureMachineClassList is a collection of AzureMachineClasses.
+type AzureMachineClassList struct {
+	// +optional
 	metav1.TypeMeta `json:",inline"`
 
 	// +optional
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []Machine `json:"items"`
+	// +optional
+	Items []AzureMachineClass `json:"items"`
 }
 
-// MachineSpec is the specification of a Shoot cluster.
-type MachineSpec struct {
-
-	// +optional
-	Class ClassSpec `json:"class,omitempty"`
-
-	// +optional
-	ProviderID string `json:"providerID,omitempty"`
+// AzureMachineClassSpec is the specification of a cluster.
+type AzureMachineClassSpec struct {
+	Location      string                        `json:"location,omitempty"`
+	Tags          map[string]string             `json:"tags,omitempty"`
+	Properties    AzureVirtualMachineProperties `json:"properties,omitempty"`
+	ResourceGroup string                        `json:"resourceGroup,omitempty"`
+	SubnetInfo    AzureSubnetInfo               `json:"subnetInfo,omitempty"`
+	SecretRef     *corev1.SecretReference       `json:"secretRef,omitempty"`
 }
 
-// PodTemplateSpec describes the data a pod should have when created from a template
-type MachineTemplateSpec struct {
-	// Standard object's metadata.
-	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata
-	// +optional
-	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-
-	// Specification of the desired behavior of the pod.
-	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status
-	// +optional
-	Spec MachineSpec `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
+// AzureVirtualMachineProperties is describes the properties of a Virtual Machine.
+type AzureVirtualMachineProperties struct {
+	HardwareProfile AzureHardwareProfile `json:"hardwareProfile,omitempty"`
+	StorageProfile  AzureStorageProfile  `json:"storageProfile,omitempty"`
+	OsProfile       AzureOSProfile       `json:"osProfile,omitempty"`
+	NetworkProfile  AzureNetworkProfile  `json:"networkProfile,omitempty"`
+	AvailabilitySet AzureSubResource     `json:"availabilitySet,omitempty"`
 }
 
-// +genclient
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// PodTemplate describes a template for creating copies of a predefined pod.
-type MachineTemplate struct {
-	metav1.TypeMeta `json:",inline"`
-	// Standard object's metadata.
-	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata
-	// +optional
-	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-
-	// Template defines the pods that will be created from this pod template.
-	// https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status
-	// +optional
-	Template MachineTemplateSpec `json:"template,omitempty" protobuf:"bytes,2,opt,name=template"`
+// AzureHardwareProfile is specifies the hardware settings for the virtual machine.
+// Refer github.com/Azure/azure-sdk-for-go/arm/compute/models.go for VMSizes
+type AzureHardwareProfile struct {
+	VMSize string `json:"vmSize,omitempty"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// PodTemplateList is a list of PodTemplates.
-type MachineTemplateList struct {
-	metav1.TypeMeta `json:",inline"`
-	// Standard list metadata.
-	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds
-	// +optional
-	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-
-	// List of pod templates
-	Items []MachineTemplate `json:"items" protobuf:"bytes,2,rep,name=items"`
+// AzureStorageProfile is specifies the storage settings for the virtual machine disks.
+type AzureStorageProfile struct {
+	ImageReference AzureImageReference `json:"imageReference,omitempty"`
+	OsDisk         AzureOSDisk         `json:"osDisk,omitempty"`
 }
 
-// ClassSpec is the class specification of machine
-type ClassSpec struct {
-	// API group to which it belongs
-	APIGroup string `json:"apiGroup,omitempty"`
-	// Kind for machine class
-	Kind string `json:"kind,omitempty"`
-	// Name of machine class
-	Name string `json:"name,omitempty"`
+// AzureImageReference is specifies information about the image to use. You can specify information about platform images,
+// marketplace images, or virtual machine images. This element is required when you want to use a platform image,
+// marketplace image, or virtual machine image, but is not used in other creation operations.
+type AzureImageReference struct {
+	ID        string `json:"id,omitempty"`
+	Publisher string `json:"publisher,omitempty"`
+	Offer     string `json:"offer,omitempty"`
+	Sku       string `json:"sku,omitempty"`
+	Version   string `json:"version,omitempty"`
 }
 
-//type CurrentStatus
-type CurrentStatus struct {
-	// API group to which it belongs
-	Phase MachinePhase `json:"phase,omitempty" protobuf:"bytes,1,opt,name=phase,casttype=MachinePhase"`
-	// Name of machine class
-	TimeoutActive bool `json:"timeoutActive,omitempty"`
-	// Last update time of current status
-	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
+// AzureOSDisk is specifies information about the operating system disk used by the virtual machine. <br><br> For more
+// information about disks, see [About disks and VHDs for Azure virtual
+// machines](https://docs.microsoft.com/azure/virtual-machines/virtual-machines-windows-about-disks-vhds?toc=%2fazure%2fvirtual-machines%2fwindows%2ftoc.json).
+type AzureOSDisk struct {
+	Name         string                     `json:"name,omitempty"`
+	Caching      string                     `json:"caching,omitempty"`
+	ManagedDisk  AzureManagedDiskParameters `json:"managedDisk,omitempty"`
+	DiskSizeGB   int32                      `json:"diskSizeGB,omitempty"`
+	CreateOption string                     `json:"createOption,omitempty"`
 }
 
-// MachineStatus TODO
-type MachineStatus struct {
-	// Node string
-	Node string `json:"node,omitempty"`
-	// Conditions of this machine, same as node
-	Conditions []corev1.NodeCondition `json:"conditions,omitempty"`
-	// Last operation refers to the status of the last operation performed
-	LastOperation LastOperation `json:"lastOperation,omitempty"`
-	// Current status of the machine object
-	CurrentStatus CurrentStatus `json:"currentStatus,omitempty"`
+// AzureManagedDiskParameters is the parameters of a managed disk.
+type AzureManagedDiskParameters struct {
+	ID                 string `json:"id,omitempty"`
+	StorageAccountType string `json:"storageAccountType,omitempty"`
 }
 
-// LastOperation
-type LastOperation struct {
-	// Description of the current operation
-	Description string `json:"description,omitempty"`
-	// Last update time of current operation
-	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
-	// State of operation
-	State MachineState `json:"state,omitempty"`
-	// Type of operation
-	Type string `json:"type,omitempty"`
+// AzureOSProfile is specifies the operating system settings for the virtual machine.
+type AzureOSProfile struct {
+	ComputerName       string                  `json:"computerName,omitempty"`
+	AdminUsername      string                  `json:"adminUsername,omitempty"`
+	AdminPassword      string                  `json:"adminPassword,omitempty"`
+	CustomData         string                  `json:"customData,omitempty"`
+	LinuxConfiguration AzureLinuxConfiguration `json:"linuxConfiguration,omitempty"`
 }
 
-// +genclient
-// +genclient:nonNamespaced
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// MachineSet TODO
-type MachineSet struct {
-
-	// +optional
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	metav1.TypeMeta `json:",inline"`
-
-	// +optional
-	Spec MachineSetSpec `json:"spec,omitempty"`
-
-	// +optional
-	Status MachineSetStatus `json:"status,omitempty"`
+// AzureLinuxConfiguration is specifies the Linux operating system settings on the virtual machine. <br><br>For a list of
+// supported Linux distributions, see [Linux on Azure-Endorsed
+// Distributions](https://docs.microsoft.com/azure/virtual-machines/virtual-machines-linux-endorsed-distros?toc=%2fazure%2fvirtual-machines%2flinux%2ftoc.json)
+// <br><br> For running non-endorsed distributions, see [Information for Non-Endorsed
+// Distributions](https://docs.microsoft.com/azure/virtual-machines/virtual-machines-linux-create-upload-generic?toc=%2fazure%2fvirtual-machines%2flinux%2ftoc.json).
+type AzureLinuxConfiguration struct {
+	DisablePasswordAuthentication bool                  `json:"disablePasswordAuthentication,omitempty"`
+	SSH                           AzureSSHConfiguration `json:"ssh,omitempty"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// MachineSetList is a collection of MachineSet.
-type MachineSetList struct {
-	metav1.TypeMeta `json:",inline"`
-
-	// +optional
-	metav1.ListMeta `json:"metadata,omitempty"`
-
-	Items []MachineSet `json:"items"`
+// AzureSSHConfiguration is SSH configuration for Linux based VMs running on Azure
+type AzureSSHConfiguration struct {
+	PublicKeys AzureSSHPublicKey `json:"publicKeys,omitempty"`
 }
 
-// MachineSetSpec is the specification of a Shoot cluster.
-type MachineSetSpec struct {
-	Replicas int32 `json:"replicas,inline"`
-
-	Selector *metav1.LabelSelector `json:"selector,omitempty"`
-
-	MachineClass ClassSpec `json:"machineClass,omitempty"`
-
-	// +optional
-	Template MachineTemplateSpec `json:"template,omitempty" protobuf:"bytes,2,opt,name=template"`
-
-	MinReadySeconds int32 `json:"minReadySeconds,inline"`
+// AzureSSHPublicKey is contains information about SSH certificate public key and the path on the Linux VM where the public
+// key is placed.
+type AzureSSHPublicKey struct {
+	Path    string `json:"path,omitempty"`
+	KeyData string `json:"keyData,omitempty"`
 }
 
-type MachineSetConditionType string
-
-// These are valid conditions of a machine set.
-const (
-	// ReplicaSetReplicaFailure is added in a machine set when one of its pods fails to be created
-	// due to insufficient quota, limit ranges, pod security policy, node selectors, etc. or deleted
-	// due to kubelet being down or finalizers are failing.
-	MachineSetReplicaFailure MachineSetConditionType = "ReplicaFailure"
-)
-
-// ReplicaSetCondition describes the state of a machine set at a certain point.
-type MachineSetCondition struct {
-	// Type of machine set condition.
-	Type MachineSetConditionType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=ReplicaSetConditionType"`
-	// Status of the condition, one of True, False, Unknown.
-	Status ConditionStatus `json:"status" protobuf:"bytes,2,opt,name=status,casttype=k8s.io/api/core/v1.ConditionStatus"`
-	// The last time the condition transitioned from one status to another.
-	// +optional
-	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
-	// The reason for the condition's last transition.
-	// +optional
-	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
-	// A human readable message indicating details about the transition.
-	// +optional
-	Message string `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
+// AzureNetworkProfile is specifies the network interfaces of the virtual machine.
+type AzureNetworkProfile struct {
+	NetworkInterfaces AzureNetworkInterfaceReference `json:"networkInterfaces,omitempty"`
 }
 
-// MachineSetStatus TODO
-type MachineSetStatus struct {
-	// Conditions of this machine, same as node
-	LastOperation LastOperation `json:"lastOperation,omitempty"`
-
-	Replicas int32 `json:"replicas,inline"`
-
-	FullyLabeledReplicas int32 `json:"fullyLabeledReplicas,inline"`
-
-	ReadyReplicas int32 `json:"readyReplicas,inline"`
-
-	AvailableReplicas int32 `json:"availableReplicas,inline"`
-
-	Conditions []MachineSetCondition `json:"machineSetCondition,inline"`
-
-	ObservedGeneration int64 `json:"observedGeneration,inline"`
+// AzureNetworkInterfaceReference is describes a network interface reference.
+type AzureNetworkInterfaceReference struct {
+	ID                                        string `json:"id,omitempty"`
+	*AzureNetworkInterfaceReferenceProperties `json:"properties,omitempty"`
 }
 
-/********************** MachineDeployment APIs ***************/
-
-// +genclient
-// +genclient:nonNamespaced
-// +genclient:method=GetScale,verb=get,subresource=scale,result=Scale
-// +genclient:method=UpdateScale,verb=update,subresource=scale,input=Scale,result=Scale
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// DEPRECATED - This group version of Deployment is deprecated by apps/v1beta2/Deployment. See the release notes for
-// more information.
-// Deployment enables declarative updates for Pods and ReplicaSets.
-type MachineDeployment struct {
-	metav1.TypeMeta `json:",inline"`
-	// Standard object metadata.
-	// +optional
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	// Specification of the desired behavior of the Deployment.
-	// +optional
-	Spec MachineDeploymentSpec `json:"spec,omitempty"`
-
-	// Most recently observed status of the Deployment.
-	// +optional
-	Status MachineDeploymentStatus `json:"status,omitempty"`
+// AzureNetworkInterfaceReferenceProperties is describes a network interface reference properties.
+type AzureNetworkInterfaceReferenceProperties struct {
+	Primary bool `json:"primary,omitempty"`
 }
 
-// DeploymentSpec is the specification of the desired behavior of the Deployment.
-type MachineDeploymentSpec struct {
-	// Number of desired pods. This is a pointer to distinguish between explicit
-	// zero and not specified. Defaults to 1.
-	// +optional
-	Replicas int32 `json:"replicas,omitempty" protobuf:"varint,1,opt,name=replicas"`
-
-	// Label selector for pods. Existing ReplicaSets whose pods are
-	// selected by this will be the ones affected by this deployment.
-	// +optional
-	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,2,opt,name=selector"`
-
-	// Template describes the pods that will be created.
-	Template MachineTemplateSpec `json:"template" protobuf:"bytes,3,opt,name=template"`
-
-	// The deployment strategy to use to replace existing pods with new ones.
-	// +optional
-	// +patchStrategy=retainKeys
-	Strategy MachineDeploymentStrategy `json:"strategy,omitempty" patchStrategy:"retainKeys" protobuf:"bytes,4,opt,name=strategy"`
-
-	// Minimum number of seconds for which a newly created pod should be ready
-	// without any of its container crashing, for it to be considered available.
-	// Defaults to 0 (pod will be considered available as soon as it is ready)
-	// +optional
-	MinReadySeconds int32 `json:"minReadySeconds,omitempty" protobuf:"varint,5,opt,name=minReadySeconds"`
-
-	// The number of old ReplicaSets to retain to allow rollback.
-	// This is a pointer to distinguish between explicit zero and not specified.
-	// +optional
-	RevisionHistoryLimit *int32 `json:"revisionHistoryLimit,omitempty" protobuf:"varint,6,opt,name=revisionHistoryLimit"`
-
-	// Indicates that the deployment is paused and will not be processed by the
-	// deployment controller.
-	// +optional
-	Paused bool `json:"paused,omitempty" protobuf:"varint,7,opt,name=paused"`
-
-	// DEPRECATED.
-	// The config this deployment is rolling back to. Will be cleared after rollback is done.
-	// +optional
-	RollbackTo *RollbackConfig `json:"rollbackTo,omitempty" protobuf:"bytes,8,opt,name=rollbackTo"`
-
-	// The maximum time in seconds for a deployment to make progress before it
-	// is considered to be failed. The deployment controller will continue to
-	// process failed deployments and a condition with a ProgressDeadlineExceeded
-	// reason will be surfaced in the deployment status. Note that progress will
-	// not be estimated during the time a deployment is paused. This is not set
-	// by default.
-	// +optional
-	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty" protobuf:"varint,9,opt,name=progressDeadlineSeconds"`
+// AzureSubResource is the Sub Resource definition.
+type AzureSubResource struct {
+	ID string `json:"id,omitempty"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// DEPRECATED.
-// DeploymentRollback stores the information required to rollback a deployment.
-type MachineDeploymentRollback struct {
-	metav1.TypeMeta `json:",inline"`
-	// Required: This must match the Name of a deployment.
-	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	// The annotations to be updated to a deployment
-	// +optional
-	UpdatedAnnotations map[string]string `json:"updatedAnnotations,omitempty" protobuf:"bytes,2,rep,name=updatedAnnotations"`
-	// The config of this deployment rollback.
-	RollbackTo RollbackConfig `json:"rollbackTo" protobuf:"bytes,3,opt,name=rollbackTo"`
-}
-
-// DEPRECATED.
-type RollbackConfig struct {
-	// The revision to rollback to. If set to 0, rollback to the last revision.
-	// +optional
-	Revision int64 `json:"revision,omitempty" protobuf:"varint,1,opt,name=revision"`
-}
-
-const (
-	// DefaultDeploymentUniqueLabelKey is the default key of the selector that is added
-	// to existing RCs (and label key that is added to its pods) to prevent the existing RCs
-	// to select new pods (and old pods being select by new RC).
-	DefaultMachineDeploymentUniqueLabelKey string = "pod-template-hash"
-)
-
-// DeploymentStrategy describes how to replace existing pods with new ones.
-type MachineDeploymentStrategy struct {
-	// Type of deployment. Can be "Recreate" or "RollingUpdate". Default is RollingUpdate.
-	// +optional
-	Type MachineDeploymentStrategyType `json:"type,omitempty" protobuf:"bytes,1,opt,name=type,casttype=DeploymentStrategyType"`
-
-	// Rolling update config params. Present only if DeploymentStrategyType =
-	// RollingUpdate.
-	//---
-	// TODO: Update this to follow our convention for oneOf, whatever we decide it
-	// to be.
-	// +optional
-	RollingUpdate *RollingUpdateMachineDeployment `json:"rollingUpdate,omitempty" protobuf:"bytes,2,opt,name=rollingUpdate"`
-}
-
-type MachineDeploymentStrategyType string
-
-const (
-	// Kill all existing pods before creating new ones.
-	RecreateMachineDeploymentStrategyType MachineDeploymentStrategyType = "Recreate"
-
-	// Replace the old RCs by new one using rolling update i.e gradually scale down the old RCs and scale up the new one.
-	RollingUpdateMachineDeploymentStrategyType MachineDeploymentStrategyType = "RollingUpdate"
-)
-
-// Spec to control the desired behavior of rolling update.
-type RollingUpdateMachineDeployment struct {
-	// The maximum number of pods that can be unavailable during the update.
-	// Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
-	// Absolute number is calculated from percentage by rounding down.
-	// This can not be 0 if MaxSurge is 0.
-	// By default, a fixed value of 1 is used.
-	// Example: when this is set to 30%, the old RC can be scaled down to 70% of desired pods
-	// immediately when the rolling update starts. Once new pods are ready, old RC
-	// can be scaled down further, followed by scaling up the new RC, ensuring
-	// that the total number of pods available at all times during the update is at
-	// least 70% of desired pods.
-	// +optional
-	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty" protobuf:"bytes,1,opt,name=maxUnavailable"`
-
-	// The maximum number of pods that can be scheduled above the desired number of
-	// pods.
-	// Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
-	// This can not be 0 if MaxUnavailable is 0.
-	// Absolute number is calculated from percentage by rounding up.
-	// By default, a value of 1 is used.
-	// Example: when this is set to 30%, the new RC can be scaled up immediately when
-	// the rolling update starts, such that the total number of old and new pods do not exceed
-	// 130% of desired pods. Once old pods have been killed,
-	// new RC can be scaled up further, ensuring that total number of pods running
-	// at any time during the update is atmost 130% of desired pods.
-	// +optional
-	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty" protobuf:"bytes,2,opt,name=maxSurge"`
-}
-
-// DeploymentStatus is the most recently observed status of the Deployment.
-type MachineDeploymentStatus struct {
-	// The generation observed by the deployment controller.
-	// +optional
-	ObservedGeneration int64 `json:"observedGeneration,omitempty" protobuf:"varint,1,opt,name=observedGeneration"`
-
-	// Total number of non-terminated pods targeted by this deployment (their labels match the selector).
-	// +optional
-	Replicas int32 `json:"replicas,omitempty" protobuf:"varint,2,opt,name=replicas"`
-
-	// Total number of non-terminated pods targeted by this deployment that have the desired template spec.
-	// +optional
-	UpdatedReplicas int32 `json:"updatedReplicas,omitempty" protobuf:"varint,3,opt,name=updatedReplicas"`
-
-	// Total number of ready pods targeted by this deployment.
-	// +optional
-	ReadyReplicas int32 `json:"readyReplicas,omitempty" protobuf:"varint,7,opt,name=readyReplicas"`
-
-	// Total number of available pods (ready for at least minReadySeconds) targeted by this deployment.
-	// +optional
-	AvailableReplicas int32 `json:"availableReplicas,omitempty" protobuf:"varint,4,opt,name=availableReplicas"`
-
-	// Total number of unavailable pods targeted by this deployment. This is the total number of
-	// pods that are still required for the deployment to have 100% available capacity. They may
-	// either be pods that are running but not yet available or pods that still have not been created.
-	// +optional
-	UnavailableReplicas int32 `json:"unavailableReplicas,omitempty" protobuf:"varint,5,opt,name=unavailableReplicas"`
-
-	// Represents the latest available observations of a deployment's current state.
-	// +patchMergeKey=type
-	// +patchStrategy=merge
-	Conditions []MachineDeploymentCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,6,rep,name=conditions"`
-
-	// Count of hash collisions for the Deployment. The Deployment controller uses this
-	// field as a collision avoidance mechanism when it needs to create the name for the
-	// newest ReplicaSet.
-	// +optional
-	CollisionCount *int32 `json:"collisionCount,omitempty" protobuf:"varint,8,opt,name=collisionCount"`
-}
-
-type MachineDeploymentConditionType string
-
-// These are valid conditions of a deployment.
-const (
-	// Available means the deployment is available, ie. at least the minimum available
-	// replicas required are up and running for at least minReadySeconds.
-	MachineDeploymentAvailable MachineDeploymentConditionType = "Available"
-	// Progressing means the deployment is progressing. Progress for a deployment is
-	// considered when a new machine set is created or adopted, and when new pods scale
-	// up or old pods scale down. Progress is not estimated for paused deployments or
-	// when progressDeadlineSeconds is not specified.
-	MachineDeploymentProgressing MachineDeploymentConditionType = "Progressing"
-	// ReplicaFailure is added in a deployment when one of its pods fails to be created
-	// or deleted.
-	MachineDeploymentReplicaFailure MachineDeploymentConditionType = "ReplicaFailure"
-)
-
-// DeploymentCondition describes the state of a deployment at a certain point.
-type MachineDeploymentCondition struct {
-	// Type of deployment condition.
-	Type MachineDeploymentConditionType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=MachineDeploymentConditionType"`
-	// Status of the condition, one of True, False, Unknown.
-	Status ConditionStatus `json:"status" protobuf:"bytes,2,opt,name=status,casttype=corev1.ConditionStatus"`
-	// The last time this condition was updated.
-	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty" protobuf:"bytes,6,opt,name=lastUpdateTime"`
-	// Last time the condition transitioned from one status to another.
-	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,7,opt,name=lastTransitionTime"`
-	// The reason for the condition's last transition.
-	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
-	// A human readable message indicating details about the transition.
-	Message string `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
-}
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// DeploymentList is a list of Deployments.
-type MachineDeploymentList struct {
-	metav1.TypeMeta `json:",inline"`
-	// Standard list metadata.
-	// +optional
-	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-
-	// Items is the list of Deployments.
-	Items []MachineDeployment `json:"items" protobuf:"bytes,2,rep,name=items"`
-}
-
-// describes the attributes of a scale subresource
-type ScaleSpec struct {
-	// desired number of machines for the scaled object.
-	// +optional
-	Replicas int32 `json:"replicas,omitempty" protobuf:"varint,1,opt,name=replicas"`
-}
-
-// represents the current status of a scale subresource.
-type ScaleStatus struct {
-	// actual number of observed machines of the scaled object.
-	Replicas int32 `json:"replicas" protobuf:"varint,1,opt,name=replicas"`
-
-	// label query over pods that should match the replicas count. More info: http://kubernetes.io/docs/user-guide/labels#label-selectors
-	// +optional
-	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,2,rep,name=selector"`
-
-	// label selector for pods that should match the replicas count. This is a serializated
-	// version of both map-based and more expressive set-based selectors. This is done to
-	// avoid introspection in the clients. The string will be in the same format as the
-	// query-param syntax. If the target type only supports map-based selectors, both this
-	// field and map-based selector field are populated.
-	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors
-	// +optional
-	TargetSelector string `json:"targetSelector,omitempty" protobuf:"bytes,3,opt,name=targetSelector"`
-}
-
-// +genclient
-// +genclient:noVerbs
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// represents a scaling request for a resource.
-type Scale struct {
-	metav1.TypeMeta `json:",inline"`
-	// Standard object metadata; More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata.
-	// +optional
-	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-
-	// defines the behavior of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status.
-	// +optional
-	Spec ScaleSpec `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
-
-	// current status of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status. Read-only.
-	// +optional
-	Status ScaleStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+// AzureSubnetInfo is the information containing the subnet details
+type AzureSubnetInfo struct {
+	VnetName   string `json:"vnetName,omitempty"`
+	SubnetName string `json:"subnetName,omitempty"`
 }

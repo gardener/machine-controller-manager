@@ -10,6 +10,7 @@ import (
 type MachineV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	AWSMachineClassesGetter
+	AzureMachineClassesGetter
 	MachinesGetter
 	MachineDeploymentsGetter
 	MachineSetsGetter
@@ -24,6 +25,10 @@ type MachineV1alpha1Client struct {
 
 func (c *MachineV1alpha1Client) AWSMachineClasses() AWSMachineClassInterface {
 	return newAWSMachineClasses(c)
+}
+
+func (c *MachineV1alpha1Client) AzureMachineClasses() AzureMachineClassInterface {
+	return newAzureMachineClasses(c)
 }
 
 func (c *MachineV1alpha1Client) Machines() MachineInterface {
