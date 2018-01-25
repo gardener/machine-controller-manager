@@ -154,7 +154,7 @@ func (d *AzureDriver) Create() (string, string, error) {
 	}
 	_, errChan = vmClient.CreateOrUpdate(resourceGroup, vmName, vm, cancel)
 	err = onErrorFail(<-errChan, "createVM failed")
-	glog.Infof("Created machine '%s' successfully\n", vmName)
+	//glog.Infof("Created machine '%s' successfully\n", vmName)
 
 	return "azure:///" + location + "/" + vmName, vmName, err
 }
@@ -178,7 +178,7 @@ func (d *AzureDriver) Delete() error {
 	_, errChan = diskClient.Delete(resourceGroup, diskName, cancel)
 	err = onErrorFail(<-errChan, fmt.Sprintf("diskClient.Delete for NIC '%s' failed", nicName))
 
-	glog.Infof("Deleted machine '%s' successfully\n", vmName)
+	//glog.Infof("Deleted machine '%s' successfully\n", vmName)
 
 	return err
 }

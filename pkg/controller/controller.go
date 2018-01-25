@@ -71,7 +71,8 @@ func NewController(
 		secretQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
 		nodeQueue:              workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
 		nodeToMachineQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "nodeToMachine"),
-		awsMachineClassQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineclass"),
+		awsMachineClassQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
+		azureMachineClassQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
 		machineQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
 		machineSetQueue:        workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
 		machineDeploymentQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
@@ -122,14 +123,12 @@ func NewController(
 		DeleteFunc: controller.awsMachineClassDelete,
 	})
 
-	/*
-		// Azure Controller Informers
-		azureMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc:    controller.azureMachineClassAdd,
-			UpdateFunc: controller.azureMachineClassUpdate,
-			DeleteFunc: controller.azureMachineClassDelete,
-		})
-	*/
+	// Azure Controller Informers
+	azureMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.azureMachineClassAdd,
+		UpdateFunc: controller.azureMachineClassUpdate,
+		DeleteFunc: controller.azureMachineClassDelete,
+	})
 
 	// Node Controller Informers
 	nodeInformer.Informer().AddEventHandler(
@@ -259,8 +258,8 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	var waitGroup sync.WaitGroup
 
 	for i := 0; i < workers; i++ {
-		createWorker(c.awsMachineClassQueue, "ClusterawsMachineClass", maxRetries, true, c.reconcileClusterawsMachineClassKey, stopCh, &waitGroup)
-		//createWorker(c.azureMachineClassQueue, "ClusterazureMachineClass", maxRetries, true, c.reconcileClusterazureMachineClassKey, stopCh, &waitGroup)
+		createWorker(c.awsMachineClassQueue, "ClusterawsMachineClass", maxRetries, true, c.reconcileClusterAWSMachineClassKey, stopCh, &waitGroup)
+		createWorker(c.azureMachineClassQueue, "ClusterazureMachineClass", maxRetries, true, c.reconcileClusterAzureMachineClassKey, stopCh, &waitGroup)
 
 		createWorker(c.nodeQueue, "ClusterNode", maxRetries, true, c.reconcileClusterNodeKey, stopCh, &waitGroup)
 

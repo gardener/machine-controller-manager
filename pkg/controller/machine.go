@@ -287,7 +287,7 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node
 */
 
 func (c *controller) createMachine(machine *v1alpha1.Machine, driver driver.Driver) error {
-	//glog.V(2).Infof("Creating machine %s", machine.Name)
+	glog.V(2).Infof("Creating machine %s", machine.Name)
 
 	actualID, nodeName, err := driver.Create()
 	if err != nil {
@@ -456,6 +456,8 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 	clone := machine.DeepCopy()
 	clone.Status.Conditions = conditions
 
+	//glog.Info(c.isHealthy(clone))
+
 	if clone.Status.CurrentStatus.Phase == v1alpha1.MachineFailed ||
 		clone.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating {
 		// If machine is already in failed state, don't update
@@ -535,27 +537,31 @@ func (c *controller) deleteMachineFinalizers(machine *v1alpha1.Machine) {
 	Helper Functions
 */
 func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
-
-	//TODO: Change index numbers to status names
+	
 	numOfConditions := len(machine.Status.Conditions)
 
 	if numOfConditions == 0 {
+		// Kubernetes node object for this machine hasn't been recieved
 		return false
 	} else {
 
-		for i := 0; i < numOfConditions-1; i++ {
-			if machine.Status.Conditions[i].Status == "True" {
-				// One of the resource unhealthy conditions has turned true
-				return false
+		for i := 0; i < numOfConditions; i++ {
+			if machine.Status.Conditions[i].Type == "Ready" {
+				// Kubelet is not ready
+				if machine.Status.Conditions[i].Status != "True" {
+					return false
+				} else {
+					continue
+				}
+			} else {
+				// Every other condition, status has to be false. If not, then the machine is unhealthy	 
+				if machine.Status.Conditions[i].Status == "True" {
+					return false
+				}
 			}
 		}
-		if machine.Status.Conditions[numOfConditions-1].Status != "True" {
-			//Kubelet ready is false
-			return false
-		}
+		return true
 	}
-
-	return true
 }
 
 func (c *controller) getSecret(ref *v1.SecretReference, MachineClassName string) (*v1.Secret, error) {
