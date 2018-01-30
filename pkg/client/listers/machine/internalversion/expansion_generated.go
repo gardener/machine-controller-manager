@@ -10,6 +10,10 @@ type AWSMachineClassListerExpansion interface{}
 // AzureMachineClassLister.
 type AzureMachineClassListerExpansion interface{}
 
+// GCPMachineClassListerExpansion allows custom methods to be added to
+// GCPMachineClassLister.
+type GCPMachineClassListerExpansion interface{}
+
 // MachineListerExpansion allows custom methods to be added to
 // MachineLister.
 type MachineListerExpansion interface{}
