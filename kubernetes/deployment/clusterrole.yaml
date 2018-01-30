@@ -11,6 +11,7 @@ rules:
   - "machine.sapcloud.io"
   resources:
   - awsmachineclasses
+  - azuremachineclasses
   - machinedeployments
   - machines
   - machinesets
