@@ -110,7 +110,7 @@ func (c *controller) resolveAWSMachines(awsMachineClass *v1alpha1.AWSMachineClas
 	}
 	var filtered []*v1alpha1.Machine
 	for _, machine := range machines {
-		if machine.Spec.Class.Kind == " AWSMachineClass" && machine.Spec.Class.Name == awsMachineClass.Name {
+		if machine.Spec.Class.Kind == "AWSMachineClass" && machine.Spec.Class.Name == awsMachineClass.Name {
 			filtered = append(filtered, machine)
 		}
 	}

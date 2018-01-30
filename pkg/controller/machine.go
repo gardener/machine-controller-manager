@@ -17,7 +17,6 @@ package controller
 
 import (
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -110,9 +109,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		return err
 	}
 
-	splitProviderId := strings.Split(machine.Spec.ProviderID, "/")
-	machineID := splitProviderId[len(splitProviderId)-1]
-	driver := driver.NewDriver(machineID, secretRef, machine.Spec.Class.Kind, MachineClass, machine.Name)
+	driver := driver.NewDriver(machine.Spec.ProviderID, secretRef, machine.Spec.Class.Kind, MachineClass, machine.Name)
 	actualID, err := driver.GetExisting()
 	if err != nil {
 		return err
@@ -150,7 +147,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 				return err
 			}
 
-		} else if actualID != machineID {
+		} else if actualID != machine.Spec.ProviderID {
 			// Updating machine
 			err := c.updateMachine(machine, actualID)
 			if err != nil {
@@ -537,7 +534,7 @@ func (c *controller) deleteMachineFinalizers(machine *v1alpha1.Machine) {
 	Helper Functions
 */
 func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
-	
+
 	numOfConditions := len(machine.Status.Conditions)
 
 	if numOfConditions == 0 {
@@ -554,7 +551,7 @@ func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 					continue
 				}
 			} else {
-				// Every other condition, status has to be false. If not, then the machine is unhealthy	 
+				// Every other condition, status has to be false. If not, then the machine is unhealthy
 				if machine.Status.Conditions[i].Status == "True" {
 					return false
 				}

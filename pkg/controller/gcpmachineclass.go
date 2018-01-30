@@ -30,21 +30,21 @@ import (
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
 )
 
-func (c *controller) azureMachineClassAdd(obj interface{}) {
+func (c *controller) gcpMachineClassAdd(obj interface{}) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
 		return
 	}
-	c.azureMachineClassQueue.Add(key)
+	c.gcpMachineClassQueue.Add(key)
 }
 
-func (c *controller) azureMachineClassUpdate(oldObj, newObj interface{}) {
-	old, ok := oldObj.(*v1alpha1.AzureMachineClass)
+func (c *controller) gcpMachineClassUpdate(oldObj, newObj interface{}) {
+	old, ok := oldObj.(*v1alpha1.GCPMachineClass)
 	if old == nil || !ok {
 		return
 	}
-	new, ok := oldObj.(*v1alpha1.AzureMachineClass)
+	new, ok := oldObj.(*v1alpha1.GCPMachineClass)
 	if new == nil || !ok {
 		return
 	}
@@ -52,47 +52,47 @@ func (c *controller) azureMachineClassUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	c.azureMachineClassAdd(newObj)
+	c.gcpMachineClassAdd(newObj)
 }
 
-func (c *controller) azureMachineClassDelete(obj interface{}) {
-	azureMachineClass, ok := obj.(*v1alpha1.AzureMachineClass)
-	if azureMachineClass == nil || !ok {
+func (c *controller) gcpMachineClassDelete(obj interface{}) {
+	gcpMachineClass, ok := obj.(*v1alpha1.GCPMachineClass)
+	if gcpMachineClass == nil || !ok {
 		return
 	}
 }
 
-// reconcileazureMachineClassKey reconciles a azureMachineClass due to controller resync
-// or an event on the azureMachineClass.
-func (c *controller) reconcileClusterAzureMachineClassKey(key string) error {
-	plan, err := c.azureMachineClassLister.Get(key)
+// reconcilegcpMachineClassKey reconciles a gcpMachineClass due to controller resync
+// or an event on the gcpMachineClass.
+func (c *controller) reconcileClusterGCPMachineClassKey(key string) error {
+	plan, err := c.gcpMachineClassLister.Get(key)
 	if errors.IsNotFound(err) {
-		glog.Infof("ClusterazureMachineClass %q: Not doing work because it has been deleted", key)
+		glog.Infof("ClustergcpMachineClass %q: Not doing work because it has been deleted", key)
 		return nil
 	}
 	if err != nil {
-		glog.Infof("ClusterazureMachineClass %q: Unable to retrieve object from store: %v", key, err)
+		glog.Infof("ClustergcpMachineClass %q: Unable to retrieve object from store: %v", key, err)
 		return err
 	}
 
-	return c.reconcileClusterAzureMachineClass(plan)
+	return c.reconcileClusterGCPMachineClass(plan)
 }
 
-func (c *controller) reconcileClusterAzureMachineClass(azureMachineClass *v1alpha1.AzureMachineClass) error {
+func (c *controller) reconcileClusterGCPMachineClass(gcpMachineClass *v1alpha1.GCPMachineClass) error {
 
-	internalAzureMachineClass := &machine.AzureMachineClass{}
-	err := api.Scheme.Convert(azureMachineClass, internalAzureMachineClass, nil)
+	internalGCPMachineClass := &machine.GCPMachineClass{}
+	err := api.Scheme.Convert(gcpMachineClass, internalGCPMachineClass, nil)
 	if err != nil {
 		return err
 	}
 	// TODO this should be put in own API server
-	validationerr := validation.ValidateAzureMachineClass(internalAzureMachineClass)
+	validationerr := validation.ValidateGCPMachineClass(internalGCPMachineClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of azureMachineClass failled %s", validationerr.ToAggregate().Error())
+		glog.V(2).Infof("Validation of gcpMachineClass failed %s", validationerr.ToAggregate().Error())
 		return nil
 	}
 
-	machines, err := c.resolveAzureMachines(azureMachineClass)
+	machines, err := c.resolveGCPMachines(gcpMachineClass)
 	if err != nil {
 		return err
 	}
@@ -103,14 +103,14 @@ func (c *controller) reconcileClusterAzureMachineClass(azureMachineClass *v1alph
 	return nil
 }
 
-func (c *controller) resolveAzureMachines(azureMachineClass *v1alpha1.AzureMachineClass) ([]*v1alpha1.Machine, error) {
+func (c *controller) resolveGCPMachines(gcpMachineClass *v1alpha1.GCPMachineClass) ([]*v1alpha1.Machine, error) {
 	machines, err := c.machineLister.List(labels.Everything())
 	if err != nil {
 		return nil, err
 	}
 	var filtered []*v1alpha1.Machine
 	for _, machine := range machines {
-		if machine.Spec.Class.Kind == "AzureMachineClass" && machine.Spec.Class.Name == azureMachineClass.Name {
+		if machine.Spec.Class.Kind == "GCPMachineClass" && machine.Spec.Class.Name == gcpMachineClass.Name {
 			filtered = append(filtered, machine)
 		}
 	}
