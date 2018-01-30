@@ -4,6 +4,8 @@ type AWSMachineClassExpansion interface{}
 
 type AzureMachineClassExpansion interface{}
 
+type GCPMachineClassExpansion interface{}
+
 type MachineExpansion interface{}
 
 type MachineDeploymentExpansion interface{}

@@ -1,0 +1,42 @@
+# Sample GCP machine class
+
+apiVersion: machine.sapcloud.io/v1alpha1
+kind: GCPMachineClass
+metadata:
+  name: test-gcp # Name of GCP machine class goes here
+spec:
+  canIpForward: true
+  deletionProtection: false
+  description: An optional description for machines created by that class.
+  disks:
+  - autoDelete: true
+    boot: true
+    sizeGb: 20
+    type: pd-standard
+    image: projects/coreos-cloud/global/images/coreos-stable-1576-5-0-v20180105
+    labels:
+      name: my-disk
+  labels:
+    name: my-instance
+  machineType: n1-standard-4
+  metadata:
+  - key: my-key
+    value: my-value
+  networkInterfaces:
+  - network: vpc-1
+    subnetwork: shoot-core-d065849-g1-nodes
+  scheduling:
+    automaticRestart: true
+    onHostMaintenance: MIGRATE
+    preemptible: false
+  secretRef: # Kubernetes secret containing values for provider secrets and user-data
+    name: "test-secret" # Name of the secret
+    namespace: "default" # Namespace of secret
+  serviceAccounts:
+  - email: default@project.iam.gserviceaccount.com
+    scopes:
+    - https://www.googleapis.com/auth/compute
+  tags:
+  - my-tag
+  region: europe-west1
+  zone: europe-west1-b
