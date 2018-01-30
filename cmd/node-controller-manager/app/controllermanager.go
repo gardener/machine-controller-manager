@@ -67,6 +67,7 @@ const (
 
 var awsGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "awsmachineclasses"}
 var azureGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "azuremachineclasses"}
+var gcpGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "gcpmachineclasses"}
 
 // Run runs the NCMServer.  This should never exit.
 func Run(s *options.NCMServer) error {
@@ -172,7 +173,7 @@ func StartControllers(s *options.NCMServer,
 		glog.Fatal(err)
 	}
 
-	if availableResources[awsGVR] || availableResources[azureGVR] {
+	if availableResources[awsGVR] || availableResources[azureGVR] || availableResources[gcpGVR] {
 		glog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
 		nodeInformerFactory := nodeinformers.NewSharedInformerFactory(
@@ -195,6 +196,7 @@ func StartControllers(s *options.NCMServer,
 			coreInformerFactory.Core().V1().Nodes(),
 			nodeSharedInformers.AWSMachineClasses(),
 			nodeSharedInformers.AzureMachineClasses(),
+			nodeSharedInformers.GCPMachineClasses(),
 			nodeSharedInformers.Machines(),
 			nodeSharedInformers.MachineSets(),
 			nodeSharedInformers.MachineDeployments(),
@@ -212,7 +214,7 @@ func StartControllers(s *options.NCMServer,
 		go nodeController.Run(int(s.ConcurrentNodeSyncs), stop)
 
 	} else {
-		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q is not available; found %#v", awsGVR, azureGVR, availableResources)
+		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q is not available; found %#v", awsGVR, azureGVR, gcpGVR, availableResources)
 	}
 
 	select {}

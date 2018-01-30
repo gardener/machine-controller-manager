@@ -40,7 +40,7 @@ type AzureDriver struct {
 	AzureMachineClass *v1alpha1.AzureMachineClass
 	CloudConfig       *corev1.Secret
 	UserData          string
-	InstanceId        string
+	MachineId         string
 	MachineName       string
 }
 
@@ -54,12 +54,14 @@ var (
 // Create
 func (d *AzureDriver) Create() (string, string, error) {
 	d.setup()
-	vmName := d.MachineName //VM-name has to be in small letters
-	nicName := vmName + "-nic"
-	diskName := vmName + "-os-disk"
-	location := d.AzureMachineClass.Spec.Location
-	resourceGroup := d.AzureMachineClass.Spec.ResourceGroup
-	UserDataEnc := base64.StdEncoding.EncodeToString([]byte(d.UserData))
+	var (
+		vmName        = d.MachineName //VM-name has to be in small letters
+		nicName       = vmName + "-nic"
+		diskName      = vmName + "-os-disk"
+		location      = d.AzureMachineClass.Spec.Location
+		resourceGroup = d.AzureMachineClass.Spec.ResourceGroup
+		UserDataEnc   = base64.StdEncoding.EncodeToString([]byte(d.UserData))
+	)
 
 	subnet, err := subnetClient.Get(
 		resourceGroup,
@@ -156,18 +158,19 @@ func (d *AzureDriver) Create() (string, string, error) {
 	err = onErrorFail(<-errChan, "createVM failed")
 	//glog.Infof("Created machine '%s' successfully\n", vmName)
 
-	return "azure:///" + location + "/" + vmName, vmName, err
+	return d.encodeMachineId(location, vmName), vmName, err
 }
 
 // Delete
 func (d *AzureDriver) Delete() error {
 	d.setup()
-	vmName := d.InstanceId
-	nicName := vmName + "-nic"
-	diskName := vmName + "-os-disk"
-	resourceGroup := d.AzureMachineClass.Spec.ResourceGroup
-
-	cancel := make(chan struct{})
+	var (
+		vmName        = d.decodeMachineId(d.MachineId)
+		nicName       = vmName + "-nic"
+		diskName      = vmName + "-os-disk"
+		resourceGroup = d.AzureMachineClass.Spec.ResourceGroup
+		cancel        = make(chan struct{})
+	)
 
 	_, errChan := vmClient.Delete(resourceGroup, vmName, cancel)
 	err := onErrorFail(<-errChan, fmt.Sprintf("vmClient.Delete failed for '%s'", vmName))
@@ -185,7 +188,7 @@ func (d *AzureDriver) Delete() error {
 
 // GetExisting
 func (d *AzureDriver) GetExisting() (string, error) {
-	return d.InstanceId, nil
+	return d.MachineId, nil
 }
 
 func (d *AzureDriver) setup() {
@@ -245,4 +248,13 @@ func getEnvVarOrExit(varName string) string {
 	}
 
 	return value
+}
+
+func (d *AzureDriver) encodeMachineId(location, vmName string) string {
+	return fmt.Sprintf("azure:///%s/%s", location, vmName)
+}
+
+func (d *AzureDriver) decodeMachineId(id string) string {
+	splitProviderId := strings.Split(id, "/")
+	return splitProviderId[len(splitProviderId)-1]
 }

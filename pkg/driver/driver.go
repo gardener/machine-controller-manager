@@ -27,7 +27,7 @@ type Driver interface {
 	GetExisting() (string, error)
 }
 
-func NewDriver(instanceID string, secretRef *corev1.Secret, classKind string, machineClass interface{}, machineName string) Driver {
+func NewDriver(machineId string, secretRef *corev1.Secret, classKind string, machineClass interface{}, machineName string) Driver {
 
 	switch classKind {
 	case "AWSMachineClass":
@@ -35,7 +35,7 @@ func NewDriver(instanceID string, secretRef *corev1.Secret, classKind string, ma
 			AWSMachineClass: machineClass.(*v1alpha1.AWSMachineClass),
 			CloudConfig:     secretRef,
 			UserData:        string(secretRef.Data["userData"]),
-			InstanceId:      instanceID,
+			MachineId:       machineId,
 			MachineName:     machineName,
 		}
 
@@ -44,8 +44,17 @@ func NewDriver(instanceID string, secretRef *corev1.Secret, classKind string, ma
 			AzureMachineClass: machineClass.(*v1alpha1.AzureMachineClass),
 			CloudConfig:       secretRef,
 			UserData:          string(secretRef.Data["userData"]),
-			InstanceId:        instanceID,
+			MachineId:         machineId,
 			MachineName:       machineName,
+		}
+
+	case "GCPMachineClass":
+		return &GCPDriver{
+			GCPMachineClass: machineClass.(*v1alpha1.GCPMachineClass),
+			CloudConfig:     secretRef,
+			UserData:        string(secretRef.Data["userData"]),
+			MachineId:       machineId,
+			MachineName:     machineName,
 		}
 	}
 
