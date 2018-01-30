@@ -50,6 +50,9 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&AWSMachineClass{},
 		&AWSMachineClassList{},
 
+		&AzureMachineClass{},
+		&AzureMachineClassList{},
+
 		&Machine{},
 		&MachineList{},
 
