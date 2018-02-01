@@ -3,15 +3,16 @@
 package internalversion
 
 import (
+	time "time"
+
 	machine "github.com/gardener/node-controller-manager/pkg/apis/machine"
+	clientset_internalversion "github.com/gardener/node-controller-manager/pkg/client/clientset/internalversion"
 	internalinterfaces "github.com/gardener/node-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
-	internalclientset "github.com/gardener/node-controller-manager/pkg/client/internalclientset"
 	internalversion "github.com/gardener/node-controller-manager/pkg/client/listers/machine/internalversion"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
-	time "time"
 )
 
 // MachineDeploymentInformer provides access to a shared informer and lister for
@@ -22,19 +23,33 @@ type MachineDeploymentInformer interface {
 }
 
 type machineDeploymentInformer struct {
-	factory internalinterfaces.SharedInformerFactory
+	factory          internalinterfaces.SharedInformerFactory
+	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
 // NewMachineDeploymentInformer constructs a new informer for MachineDeployment type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewMachineDeploymentInformer(client internalclientset.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+func NewMachineDeploymentInformer(client clientset_internalversion.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredMachineDeploymentInformer(client, resyncPeriod, indexers, nil)
+}
+
+// NewFilteredMachineDeploymentInformer constructs a new informer for MachineDeployment type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredMachineDeploymentInformer(client clientset_internalversion.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
 				return client.Machine().MachineDeployments().List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
 				return client.Machine().MachineDeployments().Watch(options)
 			},
 		},
@@ -44,12 +59,12 @@ func NewMachineDeploymentInformer(client internalclientset.Interface, resyncPeri
 	)
 }
 
-func defaultMachineDeploymentInformer(client internalclientset.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewMachineDeploymentInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+func (f *machineDeploymentInformer) defaultInformer(client clientset_internalversion.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredMachineDeploymentInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
 func (f *machineDeploymentInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&machine.MachineDeployment{}, defaultMachineDeploymentInformer)
+	return f.factory.InformerFor(&machine.MachineDeployment{}, f.defaultInformer)
 }
 
 func (f *machineDeploymentInformer) Lister() internalversion.MachineDeploymentLister {

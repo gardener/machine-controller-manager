@@ -3,16 +3,20 @@
 package internalinterfaces
 
 import (
-	internalclientset "github.com/gardener/node-controller-manager/pkg/client/internalclientset"
+	time "time"
+
+	internalversion "github.com/gardener/node-controller-manager/pkg/client/clientset/internalversion"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	cache "k8s.io/client-go/tools/cache"
-	time "time"
 )
 
-type NewInformerFunc func(internalclientset.Interface, time.Duration) cache.SharedIndexInformer
+type NewInformerFunc func(internalversion.Interface, time.Duration) cache.SharedIndexInformer
 
 // SharedInformerFactory a small interface to allow for adding an informer without an import cycle
 type SharedInformerFactory interface {
 	Start(stopCh <-chan struct{})
 	InformerFor(obj runtime.Object, newFunc NewInformerFunc) cache.SharedIndexInformer
 }
+
+type TweakListOptionsFunc func(*v1.ListOptions)

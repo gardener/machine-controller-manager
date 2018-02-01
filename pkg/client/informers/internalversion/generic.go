@@ -4,6 +4,7 @@ package internalversion
 
 import (
 	"fmt"
+
 	machine "github.com/gardener/node-controller-manager/pkg/apis/machine"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
@@ -35,7 +36,7 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=Machine, Version=InternalVersion
+	// Group=machine.sapcloud.io, Version=internalVersion
 	case machine.SchemeGroupVersion.WithResource("awsmachineclasses"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().AWSMachineClasses().Informer()}, nil
 	case machine.SchemeGroupVersion.WithResource("azuremachineclasses"):
