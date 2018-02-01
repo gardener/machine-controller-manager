@@ -12,6 +12,8 @@ type Interface interface {
 	AWSMachineClasses() AWSMachineClassInformer
 	// AzureMachineClasses returns a AzureMachineClassInformer.
 	AzureMachineClasses() AzureMachineClassInformer
+	// GCPMachineClasses returns a GCPMachineClassInformer.
+	GCPMachineClasses() GCPMachineClassInformer
 	// Machines returns a MachineInformer.
 	Machines() MachineInformer
 	// MachineDeployments returns a MachineDeploymentInformer.
@@ -39,6 +41,11 @@ func (v *version) AWSMachineClasses() AWSMachineClassInformer {
 // AzureMachineClasses returns a AzureMachineClassInformer.
 func (v *version) AzureMachineClasses() AzureMachineClassInformer {
 	return &azureMachineClassInformer{factory: v.SharedInformerFactory}
+}
+
+// GCPMachineClasses returns a GCPMachineClassInformer.
+func (v *version) GCPMachineClasses() GCPMachineClassInformer {
+	return &gCPMachineClassInformer{factory: v.SharedInformerFactory}
 }
 
 // Machines returns a MachineInformer.

@@ -18,6 +18,7 @@ package driver
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"strings"
 
 	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
@@ -35,7 +36,7 @@ type AWSDriver struct {
 	AWSMachineClass *v1alpha1.AWSMachineClass
 	CloudConfig     *corev1.Secret
 	UserData        string
-	InstanceId      string
+	MachineId       string
 	MachineName     string
 }
 
@@ -114,18 +115,20 @@ func (d *AWSDriver) Create() (string, string, error) {
 		return "Error", "Error", errtag
 	}
 
-	return "aws:///" + d.AWSMachineClass.Spec.AvailabilityZone + "/" + *runResult.Instances[0].InstanceId, *runResult.Instances[0].PrivateDnsName, nil
+	return d.encodeMachineId(d.AWSMachineClass.Spec.AvailabilityZone, *runResult.Instances[0].InstanceId), *runResult.Instances[0].PrivateDnsName, nil
 }
 
 // Delete TODO
 func (d *AWSDriver) Delete() error {
-
-	var err error
+	var (
+		err       error
+		machineId = d.decodeMachineId(d.MachineId)
+	)
 
 	svc := d.createSVC()
 	input := &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{
-			aws.String(d.InstanceId),
+			aws.String(machineId),
 		},
 		DryRun: aws.Bool(true),
 	}
@@ -135,7 +138,7 @@ func (d *AWSDriver) Delete() error {
 		input.DryRun = aws.Bool(false)
 		output, err := svc.TerminateInstances(input)
 		if err != nil {
-			glog.Errorf("Could not terminate machine: ", err)
+			glog.Errorf("Could not terminate machine: %s", err.Error())
 			return err
 		}
 
@@ -150,13 +153,13 @@ func (d *AWSDriver) Delete() error {
 		}
 	}
 
-	glog.Errorf("Could not terminate machine: ", err)
+	glog.Errorf("Could not terminate machine: %s", err.Error())
 	return err
 }
 
 // GetExisting TODO
 func (d *AWSDriver) GetExisting() (string, error) {
-	return d.InstanceId, nil
+	return d.MachineId, nil
 }
 
 // Helper function to create SVC
@@ -178,4 +181,13 @@ func (d *AWSDriver) createSVC() *ec2.EC2 {
 	return ec2.New(session.New(&aws.Config{
 		Region: aws.String(d.AWSMachineClass.Spec.AvailabilityZone),
 	}))
+}
+
+func (d *AWSDriver) encodeMachineId(availabilityZone, instanceId string) string {
+	return fmt.Sprintf("aws:///%s/%s", availabilityZone, instanceId)
+}
+
+func (d *AWSDriver) decodeMachineId(id string) string {
+	splitProviderId := strings.Split(id, "/")
+	return splitProviderId[len(splitProviderId)-1]
 }

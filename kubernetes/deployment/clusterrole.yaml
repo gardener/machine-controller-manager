@@ -12,6 +12,7 @@ rules:
   resources:
   - awsmachineclasses
   - azuremachineclasses
+  - gcpmachineclasses
   - machinedeployments
   - machines
   - machinesets

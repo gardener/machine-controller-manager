@@ -90,3 +90,8 @@ Kube OpenAPI.
 https://github.com/kubernetes/kube-openapi.  
 Copyright 2017 The Kubernetes Authors.   
 Apache 2 license (https://github.com/kubernetes/kube-openapi/blob/master/LICENSE ).  
+
+Google Cloud Go SDK.  
+https://cloud.google.com/compute/docs/api/libraries#google_apis_go_client_library.  
+Copyright (c) 2011 Google Inc. All rights reserved.  
+BSD-3 license (https://github.com/google/google-api-go-client/blob/master/LICENSE)  

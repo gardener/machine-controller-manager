@@ -18,6 +18,10 @@ func (c *FakeMachine) AzureMachineClasses() internalversion.AzureMachineClassInt
 	return &FakeAzureMachineClasses{c}
 }
 
+func (c *FakeMachine) GCPMachineClasses() internalversion.GCPMachineClassInterface {
+	return &FakeGCPMachineClasses{c}
+}
+
 func (c *FakeMachine) Machines() internalversion.MachineInterface {
 	return &FakeMachines{c}
 }

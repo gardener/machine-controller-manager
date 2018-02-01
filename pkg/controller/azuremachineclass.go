@@ -110,7 +110,7 @@ func (c *controller) resolveAzureMachines(azureMachineClass *v1alpha1.AzureMachi
 	}
 	var filtered []*v1alpha1.Machine
 	for _, machine := range machines {
-		if machine.Spec.Class.Kind == " AzureMachineClass" && machine.Spec.Class.Name == azureMachineClass.Name {
+		if machine.Spec.Class.Kind == "AzureMachineClass" && machine.Spec.Class.Name == azureMachineClass.Name {
 			filtered = append(filtered, machine)
 		}
 	}
