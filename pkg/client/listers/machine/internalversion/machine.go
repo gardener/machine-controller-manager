@@ -5,7 +5,6 @@ package internalversion
 import (
 	machine "github.com/gardener/node-controller-manager/pkg/apis/machine"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 )
@@ -39,8 +38,7 @@ func (s *machineLister) List(selector labels.Selector) (ret []*machine.Machine, 
 
 // Get retrieves the Machine from the index for a given name.
 func (s *machineLister) Get(name string) (*machine.Machine, error) {
-	key := &machine.Machine{ObjectMeta: v1.ObjectMeta{Name: name}}
-	obj, exists, err := s.indexer.Get(key)
+	obj, exists, err := s.indexer.GetByKey(name)
 	if err != nil {
 		return nil, err
 	}

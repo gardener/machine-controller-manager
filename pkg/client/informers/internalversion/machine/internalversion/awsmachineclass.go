@@ -3,15 +3,16 @@
 package internalversion
 
 import (
+	time "time"
+
 	machine "github.com/gardener/node-controller-manager/pkg/apis/machine"
+	clientset_internalversion "github.com/gardener/node-controller-manager/pkg/client/clientset/internalversion"
 	internalinterfaces "github.com/gardener/node-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
-	internalclientset "github.com/gardener/node-controller-manager/pkg/client/internalclientset"
 	internalversion "github.com/gardener/node-controller-manager/pkg/client/listers/machine/internalversion"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
-	time "time"
 )
 
 // AWSMachineClassInformer provides access to a shared informer and lister for
@@ -22,19 +23,33 @@ type AWSMachineClassInformer interface {
 }
 
 type aWSMachineClassInformer struct {
-	factory internalinterfaces.SharedInformerFactory
+	factory          internalinterfaces.SharedInformerFactory
+	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
 // NewAWSMachineClassInformer constructs a new informer for AWSMachineClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewAWSMachineClassInformer(client internalclientset.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+func NewAWSMachineClassInformer(client clientset_internalversion.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredAWSMachineClassInformer(client, resyncPeriod, indexers, nil)
+}
+
+// NewFilteredAWSMachineClassInformer constructs a new informer for AWSMachineClass type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredAWSMachineClassInformer(client clientset_internalversion.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
 				return client.Machine().AWSMachineClasses().List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
 				return client.Machine().AWSMachineClasses().Watch(options)
 			},
 		},
@@ -44,12 +59,12 @@ func NewAWSMachineClassInformer(client internalclientset.Interface, resyncPeriod
 	)
 }
 
-func defaultAWSMachineClassInformer(client internalclientset.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewAWSMachineClassInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+func (f *aWSMachineClassInformer) defaultInformer(client clientset_internalversion.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredAWSMachineClassInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
 func (f *aWSMachineClassInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&machine.AWSMachineClass{}, defaultAWSMachineClassInformer)
+	return f.factory.InformerFor(&machine.AWSMachineClass{}, f.defaultInformer)
 }
 
 func (f *aWSMachineClassInformer) Lister() internalversion.AWSMachineClassLister {

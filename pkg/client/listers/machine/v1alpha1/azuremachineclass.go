@@ -5,7 +5,6 @@ package v1alpha1
 import (
 	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 )
@@ -39,8 +38,7 @@ func (s *azureMachineClassLister) List(selector labels.Selector) (ret []*v1alpha
 
 // Get retrieves the AzureMachineClass from the index for a given name.
 func (s *azureMachineClassLister) Get(name string) (*v1alpha1.AzureMachineClass, error) {
-	key := &v1alpha1.AzureMachineClass{ObjectMeta: v1.ObjectMeta{Name: name}}
-	obj, exists, err := s.indexer.Get(key)
+	obj, exists, err := s.indexer.GetByKey(name)
 	if err != nil {
 		return nil, err
 	}

@@ -5,13 +5,14 @@
 package v1alpha1
 
 import (
+	unsafe "unsafe"
+
 	machine "github.com/gardener/node-controller-manager/pkg/apis/machine"
 	v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
-	unsafe "unsafe"
 )
 
 func init() {
