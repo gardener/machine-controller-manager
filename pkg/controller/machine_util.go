@@ -93,7 +93,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 
 		validationerr := validation.ValidateAWSMachineClass(internalAWSMachineClass)
 		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-			glog.V(2).Infof("Validation of AWSInstanceClass failled %s", validationerr.ToAggregate().Error())
+			glog.V(2).Infof("Validation of AWSMachineClass failed %s", validationerr.ToAggregate().Error())
 			return MachineClass, secretRef, nil
 		}
 
@@ -113,7 +113,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 		}
 		MachineClass = AzureMachineClass
 
-		// Validate AWSMachineClass
+		// Validate AzureMachineClass
 		internalAzureMachineClass := &machineapi.AzureMachineClass{}
 		err = api.Scheme.Convert(AzureMachineClass, internalAzureMachineClass, nil)
 		if err != nil {
@@ -123,7 +123,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 
 		validationerr := validation.ValidateAzureMachineClass(internalAzureMachineClass)
 		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-			glog.V(2).Infof("Validation of AWSInstanceClass failled %s", validationerr.ToAggregate().Error())
+			glog.V(2).Infof("Validation of AzureMachineClass failed %s", validationerr.ToAggregate().Error())
 			return MachineClass, secretRef, nil
 		}
 
@@ -132,8 +132,38 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 		if err != nil || secretRef == nil {
 			glog.V(2).Info("Secret reference not found")
 			return MachineClass, secretRef, err
+
 		}
 
+	} else if classSpec.Kind == "GCPMachineClass" {
+
+		GCPMachineClass, err := c.gcpMachineClassLister.Get(classSpec.Name)
+		if err != nil {
+			glog.V(2).Infof("GCPMachineClass %q not found. Skipping. %v", classSpec.Name, err)
+			return MachineClass, secretRef, err
+		}
+		MachineClass = GCPMachineClass
+
+		// Validate GCPMachineClass
+		internalGCPMachineClass := &machineapi.GCPMachineClass{}
+		err = api.Scheme.Convert(GCPMachineClass, internalGCPMachineClass, nil)
+		if err != nil {
+			glog.V(2).Info("Error in scheme convertion")
+			return MachineClass, secretRef, err
+		}
+
+		validationerr := validation.ValidateGCPMachineClass(internalGCPMachineClass)
+		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+			glog.V(2).Infof("Validation of GCPMachineClass failed %s", validationerr.ToAggregate().Error())
+			return MachineClass, secretRef, nil
+		}
+
+		// Get secretRef
+		secretRef, err = c.getSecret(GCPMachineClass.Spec.SecretRef, GCPMachineClass.Name)
+		if err != nil || secretRef == nil {
+			glog.V(2).Info("Secret reference not found")
+			return MachineClass, secretRef, err
+		}
 	}
 
 	return MachineClass, secretRef, nil

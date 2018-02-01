@@ -45,3 +45,12 @@
 [[constraint]]
   branch = "release-1.8"
   name = "k8s.io/kubernetes"
+
+[[constraint]]
+  name = "cloud.google.com/go"
+  version = "0.18.0"
+
+[prune]
+  unused-packages = true
+  go-tests = true
+  non-go = true

@@ -58,6 +58,9 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&AzureMachineClass{},
 		&AzureMachineClassList{},
 
+		&GCPMachineClass{},
+		&GCPMachineClassList{},
+
 		&Machine{},
 		&MachineList{},
 

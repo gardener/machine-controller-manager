@@ -58,6 +58,7 @@ func NewController(
 	nodeInformer coreinformers.NodeInformer,
 	awsMachineClassInformer nodeinformers.AWSMachineClassInformer,
 	azureMachineClassInformer nodeinformers.AzureMachineClassInformer,
+	gcpMachineClassInformer nodeinformers.GCPMachineClassInformer,
 	machineInformer nodeinformers.MachineInformer,
 	machineSetInformer nodeinformers.MachineSetInformer,
 	machineDeploymentInformer nodeinformers.MachineDeploymentInformer,
@@ -73,6 +74,7 @@ func NewController(
 		nodeToMachineQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "nodeToMachine"),
 		awsMachineClassQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
 		azureMachineClassQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
+		gcpMachineClassQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "gcpmachineclass"),
 		machineQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
 		machineSetQueue:        workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
 		machineDeploymentQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
@@ -96,6 +98,7 @@ func NewController(
 	controller.secretLister = secretInformer.Lister()
 	controller.awsMachineClassLister = awsMachineClassInformer.Lister()
 	controller.azureMachineClassLister = azureMachineClassInformer.Lister()
+	controller.gcpMachineClassLister = gcpMachineClassInformer.Lister()
 	controller.nodeLister = nodeInformer.Lister()
 	controller.machineLister = machineInformer.Lister()
 	controller.machineSetLister = machineSetInformer.Lister()
@@ -105,6 +108,7 @@ func NewController(
 	controller.secretSynced = secretInformer.Informer().HasSynced
 	controller.awsMachineClassSynced = awsMachineClassInformer.Informer().HasSynced
 	controller.azureMachineClassSynced = azureMachineClassInformer.Informer().HasSynced
+	controller.gcpMachineClassSynced = gcpMachineClassInformer.Informer().HasSynced
 	controller.nodeSynced = nodeInformer.Informer().HasSynced
 	controller.machineSynced = machineInformer.Informer().HasSynced
 	controller.machineSetSynced = machineSetInformer.Informer().HasSynced
@@ -128,6 +132,13 @@ func NewController(
 		AddFunc:    controller.azureMachineClassAdd,
 		UpdateFunc: controller.azureMachineClassUpdate,
 		DeleteFunc: controller.azureMachineClassDelete,
+	})
+
+	// GCP Controller Informers
+	gcpMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.gcpMachineClassAdd,
+		UpdateFunc: controller.gcpMachineClassUpdate,
+		DeleteFunc: controller.gcpMachineClassDelete,
 	})
 
 	// Node Controller Informers
@@ -208,6 +219,7 @@ type controller struct {
 	nodeLister              corelisters.NodeLister
 	awsMachineClassLister   nodelisters.AWSMachineClassLister
 	azureMachineClassLister nodelisters.AzureMachineClassLister
+	gcpMachineClassLister   nodelisters.GCPMachineClassLister
 	machineLister           nodelisters.MachineLister
 	machineSetLister        nodelisters.MachineSetLister
 	machineDeploymentLister nodelisters.MachineDeploymentLister
@@ -227,6 +239,7 @@ type controller struct {
 	nodeToMachineQueue     workqueue.RateLimitingInterface
 	awsMachineClassQueue   workqueue.RateLimitingInterface
 	azureMachineClassQueue workqueue.RateLimitingInterface
+	gcpMachineClassQueue   workqueue.RateLimitingInterface
 	machineQueue           workqueue.RateLimitingInterface
 	machineSetQueue        workqueue.RateLimitingInterface
 	machineDeploymentQueue workqueue.RateLimitingInterface
@@ -236,6 +249,7 @@ type controller struct {
 	nodeSynced              cache.InformerSynced
 	awsMachineClassSynced   cache.InformerSynced
 	azureMachineClassSynced cache.InformerSynced
+	gcpMachineClassSynced   cache.InformerSynced
 	machineSynced           cache.InformerSynced
 	machineSetSynced        cache.InformerSynced
 	machineDeploymentSynced cache.InformerSynced
@@ -258,8 +272,9 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	var waitGroup sync.WaitGroup
 
 	for i := 0; i < workers; i++ {
-		createWorker(c.awsMachineClassQueue, "ClusterawsMachineClass", maxRetries, true, c.reconcileClusterAWSMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.azureMachineClassQueue, "ClusterazureMachineClass", maxRetries, true, c.reconcileClusterAzureMachineClassKey, stopCh, &waitGroup)
+		createWorker(c.awsMachineClassQueue, "ClusterAWSMachineClass", maxRetries, true, c.reconcileClusterAWSMachineClassKey, stopCh, &waitGroup)
+		createWorker(c.azureMachineClassQueue, "ClusterAzureMachineClass", maxRetries, true, c.reconcileClusterAzureMachineClassKey, stopCh, &waitGroup)
+		createWorker(c.gcpMachineClassQueue, "ClusterGCPMachineClass", maxRetries, true, c.reconcileClusterGCPMachineClassKey, stopCh, &waitGroup)
 
 		createWorker(c.nodeQueue, "ClusterNode", maxRetries, true, c.reconcileClusterNodeKey, stopCh, &waitGroup)
 

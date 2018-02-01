@@ -939,3 +939,88 @@ type AzureSubnetInfo struct {
 	VnetName   string
 	SubnetName string
 }
+
+/********************** GCPMachineClass APIs ***************/
+
+// +genclient
+// +genclient:nonNamespaced
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// GCPMachineClass TODO
+type GCPMachineClass struct {
+	// +optional
+	metav1.ObjectMeta
+
+	// +optional
+	metav1.TypeMeta
+
+	// +optional
+	Spec GCPMachineClassSpec
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// GCPMachineClassList is a collection of GCPMachineClasses.
+type GCPMachineClassList struct {
+	// +optional
+	metav1.TypeMeta
+
+	// +optional
+	metav1.ListMeta
+
+	// +optional
+	Items []GCPMachineClass
+}
+
+// GCPMachineClassSpec is the specification of a cluster.
+type GCPMachineClassSpec struct {
+	CanIpForward       bool
+	DeletionProtection bool
+	Description        *string
+	Disks              []*GCPDisk
+	Labels             map[string]string
+	MachineType        string
+	Metadata           []*GCPMetadata
+	NetworkInterfaces  []*GCPNetworkInterface
+	Scheduling         GCPScheduling
+	SecretRef          *corev1.SecretReference
+	ServiceAccounts    []GCPServiceAccount
+	Tags               []string
+	Region             string
+	Zone               string
+}
+
+// GCPDisk describes disks for GCP.
+type GCPDisk struct {
+	AutoDelete bool
+	Boot       bool
+	SizeGb     int64
+	Type       string
+	Image      string
+	Labels     map[string]string
+}
+
+// GCPMetadata describes metadata for GCP.
+type GCPMetadata struct {
+	Key   string
+	Value *string
+}
+
+// GCPNetworkInterface describes network interfaces for GCP
+type GCPNetworkInterface struct {
+	Network    string
+	Subnetwork string
+}
+
+// GCPScheduling describes scheduling configuration for GCP.
+type GCPScheduling struct {
+	AutomaticRestart  bool
+	OnHostMaintenance string
+	Preemptible       bool
+}
+
+// GCPServiceAccount describes service accounts for GCP.
+type GCPServiceAccount struct {
+	Email  string
+	Scopes []string
+}

@@ -9,6 +9,7 @@ type MachineInterface interface {
 	RESTClient() rest.Interface
 	AWSMachineClassesGetter
 	AzureMachineClassesGetter
+	GCPMachineClassesGetter
 	MachinesGetter
 	MachineDeploymentsGetter
 	MachineSetsGetter
@@ -27,6 +28,10 @@ func (c *MachineClient) AWSMachineClasses() AWSMachineClassInterface {
 
 func (c *MachineClient) AzureMachineClasses() AzureMachineClassInterface {
 	return newAzureMachineClasses(c)
+}
+
+func (c *MachineClient) GCPMachineClasses() GCPMachineClassInterface {
+	return newGCPMachineClasses(c)
 }
 
 func (c *MachineClient) Machines() MachineInterface {
