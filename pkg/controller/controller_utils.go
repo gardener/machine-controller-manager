@@ -31,8 +31,8 @@ import (
 	"time"
 
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
-	nodescheme "github.com/gardener/node-controller-manager/pkg/client/clientset/scheme"
-	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1"
+	nodescheme "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/scheme"
+	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

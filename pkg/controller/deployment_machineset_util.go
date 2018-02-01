@@ -28,7 +28,7 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
-	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1"
+	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )

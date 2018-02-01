@@ -31,7 +31,7 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
-	v1alpha1client "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1"
+	v1alpha1client "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	"k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
