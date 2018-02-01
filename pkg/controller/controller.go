@@ -23,7 +23,7 @@ import (
 	"k8s.io/api/core/v1"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 
-	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/typed/machine/v1alpha1"
+	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	nodeinformers "github.com/gardener/node-controller-manager/pkg/client/informers/externalversions/machine/v1alpha1"
 	nodelisters "github.com/gardener/node-controller-manager/pkg/client/listers/machine/v1alpha1"
 	"github.com/golang/glog"
@@ -31,7 +31,7 @@ import (
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 
-	nodescheme "github.com/gardener/node-controller-manager/pkg/client/clientset/scheme"
+	nodescheme "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/scheme"
 	runtimeutil "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
