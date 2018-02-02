@@ -387,7 +387,28 @@ func (c *controller) deleteMachine(machine *v1alpha1.Machine, driver driver.Driv
 		if machineID == "" {
 			err = errors.New("No provider-ID found on machine")
 		} else {
-			err = driver.Delete()
+			buf := bytes.NewBuffer([]byte{})
+			errBuf := bytes.NewBuffer([]byte{})
+
+			nodeName := machine.Labels["node"]
+			if err == nil {
+				drainOptions := NewDrainOptions(
+					c.kubeClient,
+					2*time.Minute,
+					nodeName,
+					30,
+					true,
+					true,
+					true,
+					buf,
+					errBuf,
+				)
+				err = drainOptions.RunDrain()
+				glog.Infof("\n1. %v \n2. %v", buf, errBuf)
+				if err == nil {
+					err = driver.Delete()
+				}
+			}
 		}
 
 		if err != nil {
