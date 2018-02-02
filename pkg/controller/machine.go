@@ -388,17 +388,17 @@ func (c *controller) deleteMachine(machine *v1alpha1.Machine, driver driver.Driv
 		if machineID == "" {
 			err = errors.New("No provider-ID found on machine")
 		} else {
-			// It first drains the node before deleting it
-			buf := bytes.NewBuffer([]byte{})
-			errBuf := bytes.NewBuffer([]byte{})
+			// force-deletion: "True" label should be present for deleting machine without draining it
+			if machine.Labels["force-deletion"] != "True" {
+				buf := bytes.NewBuffer([]byte{})
+				errBuf := bytes.NewBuffer([]byte{})
 
-			nodeName := machine.Labels["node"]
-			if err == nil {
+				nodeName := machine.Labels["node"]
 				drainOptions := NewDrainOptions(
 					c.kubeClient,
 					10*time.Minute, // TODO: Will need to configure timeout
 					nodeName,
-					60, // TODO: Will need to configure gracefulPeriodSeconds
+					-1,
 					true,
 					true,
 					true,
@@ -406,11 +406,12 @@ func (c *controller) deleteMachine(machine *v1alpha1.Machine, driver driver.Driv
 					errBuf,
 				)
 				err = drainOptions.RunDrain()
-				if err == nil {
-					glog.V(3).Infof("Drain successful - %v %v", buf, errBuf)
-					err = driver.Delete()
+				if err != nil {
+					return err
 				}
+				glog.V(3).Infof("Drain successful - %v %v", buf, errBuf)
 			}
+			err = driver.Delete()
 		}
 
 		if err != nil {
