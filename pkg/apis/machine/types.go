@@ -23,7 +23,7 @@ import (
 
 // WARNING!
 // IF YOU MODIFY ANY OF THE TYPES HERE COPY THEM TO ../types.go
-// AND RUN  make generate-files
+// AND RUN  ./hack/generate-code
 
 /********************** Machine APIs ***************/
 

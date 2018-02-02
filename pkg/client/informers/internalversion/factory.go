@@ -3,21 +3,25 @@
 package internalversion
 
 import (
-	internalinterfaces "github.com/gardener/node-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
-	machine "github.com/gardener/node-controller-manager/pkg/client/informers/internalversion/machine"
-	internalclientset "github.com/gardener/node-controller-manager/pkg/client/internalclientset"
-	runtime "k8s.io/apimachinery/pkg/runtime"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	cache "k8s.io/client-go/tools/cache"
 	reflect "reflect"
 	sync "sync"
 	time "time"
+
+	internalversion "github.com/gardener/node-controller-manager/pkg/client/clientset/internalversion"
+	internalinterfaces "github.com/gardener/node-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
+	machine "github.com/gardener/node-controller-manager/pkg/client/informers/internalversion/machine"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 type sharedInformerFactory struct {
-	client        internalclientset.Interface
-	lock          sync.Mutex
-	defaultResync time.Duration
+	client           internalversion.Interface
+	namespace        string
+	tweakListOptions internalinterfaces.TweakListOptionsFunc
+	lock             sync.Mutex
+	defaultResync    time.Duration
 
 	informers map[reflect.Type]cache.SharedIndexInformer
 	// startedInformers is used for tracking which informers have been started.
@@ -26,9 +30,18 @@ type sharedInformerFactory struct {
 }
 
 // NewSharedInformerFactory constructs a new instance of sharedInformerFactory
-func NewSharedInformerFactory(client internalclientset.Interface, defaultResync time.Duration) SharedInformerFactory {
+func NewSharedInformerFactory(client internalversion.Interface, defaultResync time.Duration) SharedInformerFactory {
+	return NewFilteredSharedInformerFactory(client, defaultResync, v1.NamespaceAll, nil)
+}
+
+// NewFilteredSharedInformerFactory constructs a new instance of sharedInformerFactory.
+// Listers obtained via this SharedInformerFactory will be subject to the same filters
+// as specified here.
+func NewFilteredSharedInformerFactory(client internalversion.Interface, defaultResync time.Duration, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) SharedInformerFactory {
 	return &sharedInformerFactory{
 		client:           client,
+		namespace:        namespace,
+		tweakListOptions: tweakListOptions,
 		defaultResync:    defaultResync,
 		informers:        make(map[reflect.Type]cache.SharedIndexInformer),
 		startedInformers: make(map[reflect.Type]bool),
@@ -98,5 +111,5 @@ type SharedInformerFactory interface {
 }
 
 func (f *sharedInformerFactory) Machine() machine.Interface {
-	return machine.New(f)
+	return machine.New(f, f.namespace, f.tweakListOptions)
 }

@@ -5,7 +5,6 @@ package internalversion
 import (
 	machine "github.com/gardener/node-controller-manager/pkg/apis/machine"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 )
@@ -39,8 +38,7 @@ func (s *aWSMachineClassLister) List(selector labels.Selector) (ret []*machine.A
 
 // Get retrieves the AWSMachineClass from the index for a given name.
 func (s *aWSMachineClassLister) Get(name string) (*machine.AWSMachineClass, error) {
-	key := &machine.AWSMachineClass{ObjectMeta: v1.ObjectMeta{Name: name}}
-	obj, exists, err := s.indexer.Get(key)
+	obj, exists, err := s.indexer.GetByKey(name)
 	if err != nil {
 		return nil, err
 	}

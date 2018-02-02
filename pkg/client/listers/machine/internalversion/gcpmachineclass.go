@@ -5,7 +5,6 @@ package internalversion
 import (
 	machine "github.com/gardener/node-controller-manager/pkg/apis/machine"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 )
@@ -39,8 +38,7 @@ func (s *gCPMachineClassLister) List(selector labels.Selector) (ret []*machine.G
 
 // Get retrieves the GCPMachineClass from the index for a given name.
 func (s *gCPMachineClassLister) Get(name string) (*machine.GCPMachineClass, error) {
-	key := &machine.GCPMachineClass{ObjectMeta: v1.ObjectMeta{Name: name}}
-	obj, exists, err := s.indexer.Get(key)
+	obj, exists, err := s.indexer.GetByKey(name)
 	if err != nil {
 		return nil, err
 	}

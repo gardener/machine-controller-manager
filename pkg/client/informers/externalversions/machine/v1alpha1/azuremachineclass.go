@@ -3,15 +3,16 @@
 package v1alpha1
 
 import (
+	time "time"
+
 	machine_v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
-	clientset "github.com/gardener/node-controller-manager/pkg/client/clientset"
+	versioned "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/gardener/node-controller-manager/pkg/client/informers/externalversions/internalinterfaces"
 	v1alpha1 "github.com/gardener/node-controller-manager/pkg/client/listers/machine/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
-	time "time"
 )
 
 // AzureMachineClassInformer provides access to a shared informer and lister for
@@ -22,19 +23,33 @@ type AzureMachineClassInformer interface {
 }
 
 type azureMachineClassInformer struct {
-	factory internalinterfaces.SharedInformerFactory
+	factory          internalinterfaces.SharedInformerFactory
+	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
 // NewAzureMachineClassInformer constructs a new informer for AzureMachineClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewAzureMachineClassInformer(client clientset.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+func NewAzureMachineClassInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredAzureMachineClassInformer(client, resyncPeriod, indexers, nil)
+}
+
+// NewFilteredAzureMachineClassInformer constructs a new informer for AzureMachineClass type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredAzureMachineClassInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
 				return client.MachineV1alpha1().AzureMachineClasses().List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
 				return client.MachineV1alpha1().AzureMachineClasses().Watch(options)
 			},
 		},
@@ -44,12 +59,12 @@ func NewAzureMachineClassInformer(client clientset.Interface, resyncPeriod time.
 	)
 }
 
-func defaultAzureMachineClassInformer(client clientset.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewAzureMachineClassInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+func (f *azureMachineClassInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredAzureMachineClassInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
 func (f *azureMachineClassInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&machine_v1alpha1.AzureMachineClass{}, defaultAzureMachineClassInformer)
+	return f.factory.InformerFor(&machine_v1alpha1.AzureMachineClass{}, f.defaultInformer)
 }
 
 func (f *azureMachineClassInformer) Lister() v1alpha1.AzureMachineClassLister {
