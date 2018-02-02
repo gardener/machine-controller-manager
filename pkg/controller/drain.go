@@ -88,7 +88,7 @@ func NewDrainOptions(
 ) *DrainOptions {
 
 	return &DrainOptions{
-		client: client,
+		client:             client,
 		Force:              force,
 		GracePeriodSeconds: gracePeriodSeconds,
 		IgnoreDaemonsets:   ignoreDaemonsets,
@@ -108,10 +108,6 @@ func (o *DrainOptions) RunDrain() error {
 	}
 
 	err := o.deleteOrEvictPodsSimple()
-	if err == nil {
-		//cmdutil.PrintSuccess(o.mapper, false, o.Out, "node", o.nodeName, false, "drained")
-		glog.V(2).Infof("Node %q drained successfully", o.nodeName)
-	}
 	return err
 }
 
@@ -354,10 +350,12 @@ func (o *DrainOptions) evictPods(pods []api.Pod, policyGroupVersion string, getP
 	doneCh := make(chan bool, len(pods))
 	errCh := make(chan error, 1)
 
+	glog.V(3).Info("The following pods were evicted -")
+
 	for _, pod := range pods {
 		go func(pod api.Pod, doneCh chan bool, errCh chan error) {
 			var err error
-			glog.Info("\t", pod.Name)
+			glog.V(3).Info("\t", pod.Name)
 			for {
 				err = o.evictPod(pod, policyGroupVersion)
 				if err == nil {
