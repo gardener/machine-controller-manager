@@ -5,7 +5,6 @@ package v1alpha1
 import (
 	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 )
@@ -39,8 +38,7 @@ func (s *machineSetLister) List(selector labels.Selector) (ret []*v1alpha1.Machi
 
 // Get retrieves the MachineSet from the index for a given name.
 func (s *machineSetLister) Get(name string) (*v1alpha1.MachineSet, error) {
-	key := &v1alpha1.MachineSet{ObjectMeta: v1.ObjectMeta{Name: name}}
-	obj, exists, err := s.indexer.Get(key)
+	obj, exists, err := s.indexer.GetByKey(name)
 	if err != nil {
 		return nil, err
 	}
