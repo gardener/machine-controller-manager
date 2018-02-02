@@ -16,9 +16,9 @@ limitations under the License.
 package controller
 
 import (
+	"bytes"
 	"errors"
 	"time"
-	"bytes"
 
 	"github.com/golang/glog"
 
@@ -285,7 +285,7 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node
 */
 
 func (c *controller) createMachine(machine *v1alpha1.Machine, driver driver.Driver) error {
-	glog.V(2).Infof("Creating machine %s", machine.Name)
+	glog.V(3).Infof("Creating machine %s, please wait!", machine.Name)
 
 	actualID, nodeName, err := driver.Create()
 	if err != nil {
@@ -356,7 +356,7 @@ func (c *controller) updateMachine(machine *v1alpha1.Machine, actualID string) e
 		}
 
 		clone := machine.DeepCopy()
-		clone.Spec.ProviderID = "aws:///" + "eu-west-1" + "/" + actualID // TODO: Dynamically fetch region
+		clone.Spec.ProviderID = actualID
 		lastOperation := v1alpha1.LastOperation{
 			Description:    "Updated provider ID",
 			State:          "Successful",
@@ -388,6 +388,7 @@ func (c *controller) deleteMachine(machine *v1alpha1.Machine, driver driver.Driv
 		if machineID == "" {
 			err = errors.New("No provider-ID found on machine")
 		} else {
+			// It first drains the node before deleting it
 			buf := bytes.NewBuffer([]byte{})
 			errBuf := bytes.NewBuffer([]byte{})
 
@@ -395,9 +396,9 @@ func (c *controller) deleteMachine(machine *v1alpha1.Machine, driver driver.Driv
 			if err == nil {
 				drainOptions := NewDrainOptions(
 					c.kubeClient,
-					2*time.Minute,
+					10*time.Minute, // TODO: Will need to configure timeout
 					nodeName,
-					30,
+					60, // TODO: Will need to configure gracefulPeriodSeconds
 					true,
 					true,
 					true,
@@ -405,8 +406,8 @@ func (c *controller) deleteMachine(machine *v1alpha1.Machine, driver driver.Driv
 					errBuf,
 				)
 				err = drainOptions.RunDrain()
-				glog.Infof("\n1. %v \n2. %v", buf, errBuf)
 				if err == nil {
+					glog.V(3).Infof("Drain successful - %v %v", buf, errBuf)
 					err = driver.Delete()
 				}
 			}
@@ -433,6 +434,7 @@ func (c *controller) deleteMachine(machine *v1alpha1.Machine, driver driver.Driv
 		}
 		c.deleteMachineFinalizers(machine)
 		c.nodeClient.Machines().Delete(machine.Name, &metav1.DeleteOptions{})
+		glog.V(3).Infof("Machine %s deleted succesfullly", machine.Name)
 	}
 	return nil
 }
