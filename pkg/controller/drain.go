@@ -361,7 +361,7 @@ func (o *DrainOptions) evictPods(pods []api.Pod, policyGroupVersion string, getP
 				if err == nil {
 					break
 				} else if apierrors.IsNotFound(err) {
-					glog.Info("\t", pod.Name, " evicted")
+					glog.V(3).Info("\t", pod.Name, " evicted")
 					doneCh <- true
 					return
 				} else if apierrors.IsTooManyRequests(err) {
