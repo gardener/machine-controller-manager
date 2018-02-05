@@ -276,7 +276,7 @@ func Convert_machine_AWSMachineClassList_To_v1alpha1_AWSMachineClassList(in *mac
 
 func autoConvert_v1alpha1_AWSMachineClassSpec_To_machine_AWSMachineClassSpec(in *AWSMachineClassSpec, out *machine.AWSMachineClassSpec, s conversion.Scope) error {
 	out.AMI = in.AMI
-	out.AvailabilityZone = in.AvailabilityZone
+	out.Region = in.Region
 	out.BlockDevices = *(*[]machine.AWSBlockDeviceMappingSpec)(unsafe.Pointer(&in.BlockDevices))
 	out.EbsOptimized = in.EbsOptimized
 	if err := Convert_v1alpha1_AWSIAMProfileSpec_To_machine_AWSIAMProfileSpec(&in.IAM, &out.IAM, s); err != nil {
@@ -298,7 +298,7 @@ func Convert_v1alpha1_AWSMachineClassSpec_To_machine_AWSMachineClassSpec(in *AWS
 
 func autoConvert_machine_AWSMachineClassSpec_To_v1alpha1_AWSMachineClassSpec(in *machine.AWSMachineClassSpec, out *AWSMachineClassSpec, s conversion.Scope) error {
 	out.AMI = in.AMI
-	out.AvailabilityZone = in.AvailabilityZone
+	out.Region = in.Region
 	out.BlockDevices = *(*[]AWSBlockDeviceMappingSpec)(unsafe.Pointer(&in.BlockDevices))
 	out.EbsOptimized = in.EbsOptimized
 	if err := Convert_machine_AWSIAMProfileSpec_To_v1alpha1_AWSIAMProfileSpec(&in.IAM, &out.IAM, s); err != nil {

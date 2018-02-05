@@ -6,7 +6,7 @@ metadata:
   name: test-aws # Name of aws machine class goes here
 spec:
   ami: ami-123456 # Amazon machine image name goes here
-  availabilityZone: eu-east-1 # Region in which machine is to be deployed
+  region: eu-east-1 # Region in which machine is to be deployed
   machineType: t2.large # Type of ec2 machine
   iam:
     name: iam-name # Name of the AWS Identity and Access Management

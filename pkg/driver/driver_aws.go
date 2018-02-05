@@ -120,7 +120,7 @@ func (d *AWSDriver) Create() (string, string, error) {
 		return "Error", "Error", errtag
 	}
 
-	return d.encodeMachineId(d.AWSMachineClass.Spec.AvailabilityZone, *runResult.Instances[0].InstanceId), *runResult.Instances[0].PrivateDnsName, nil
+	return d.encodeMachineId(d.AWSMachineClass.Spec.Region, *runResult.Instances[0].InstanceId), *runResult.Instances[0].PrivateDnsName, nil
 }
 
 // Delete TODO
@@ -175,7 +175,7 @@ func (d *AWSDriver) createSVC() *ec2.EC2 {
 
 	if accessKeyID != "" && secretAccessKey != "" {
 		return ec2.New(session.New(&aws.Config{
-			Region: aws.String(d.AWSMachineClass.Spec.AvailabilityZone),
+			Region: aws.String(d.AWSMachineClass.Spec.Region),
 			Credentials: credentials.NewStaticCredentialsFromCreds(credentials.Value{
 				AccessKeyID:     accessKeyID,
 				SecretAccessKey: secretAccessKey,
@@ -184,12 +184,12 @@ func (d *AWSDriver) createSVC() *ec2.EC2 {
 	}
 
 	return ec2.New(session.New(&aws.Config{
-		Region: aws.String(d.AWSMachineClass.Spec.AvailabilityZone),
+		Region: aws.String(d.AWSMachineClass.Spec.Region),
 	}))
 }
 
-func (d *AWSDriver) encodeMachineId(availabilityZone, instanceId string) string {
-	return fmt.Sprintf("aws:///%s/%s", availabilityZone, instanceId)
+func (d *AWSDriver) encodeMachineId(region, instanceId string) string {
+	return fmt.Sprintf("aws:///%s/%s", region, instanceId)
 }
 
 func (d *AWSDriver) decodeMachineId(id string) string {
