@@ -271,8 +271,8 @@ func (m *MachineControllerRefManager) ReleaseMachine(machine *v1alpha1.Machine) 
 // for more details.
 type MachineSetControllerRefManager struct {
 	BaseControllerRefManager
-	controllerKind schema.GroupVersionKind
-	isControl      ISControlInterface
+	controllerKind    schema.GroupVersionKind
+	machineSetControl MachineSetControlInterface
 }
 
 // NewMachineSetControllerRefManager returns a MachineSetControllerRefManager that exposes
@@ -287,7 +287,7 @@ type MachineSetControllerRefManager struct {
 //       MachineSetControllerRefManager machine. Create a new machine if it
 //       makes sense to check CanAdopt() again (e.g. in a different sync pass).
 func NewMachineSetControllerRefManager(
-	isControl ISControlInterface,
+	machineSetControl MachineSetControlInterface,
 	controller metav1.Object,
 	selector labels.Selector,
 	controllerKind schema.GroupVersionKind,
@@ -299,8 +299,8 @@ func NewMachineSetControllerRefManager(
 			Selector:     selector,
 			CanAdoptFunc: canAdopt,
 		},
-		controllerKind: controllerKind,
-		isControl:      isControl,
+		controllerKind:    controllerKind,
+		machineSetControl: machineSetControl,
 	}
 }
 
@@ -359,7 +359,7 @@ func (m *MachineSetControllerRefManager) AdoptMachineSet(is *v1alpha1.MachineSet
 		`{"metadata":{"ownerReferences":[{"apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
 		m.controllerKind.Kind,
 		m.Controller.GetName(), m.Controller.GetUID(), is.UID)
-	return m.isControl.PatchMachineSet(is.Namespace, is.Name, []byte(addControllerPatch))
+	return m.machineSetControl.PatchMachineSet(is.Namespace, is.Name, []byte(addControllerPatch))
 }
 
 // ReleaseMachineSet sends a patch to free the MachineSet from the control of the MachineDeployment controller.
@@ -372,7 +372,7 @@ func (m *MachineSetControllerRefManager) ReleaseMachineSet(machineSet *v1alpha1.
 		`{"metadata":{"ownerReferences":[{"$patch":"delete", "apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
 		m.controllerKind.Kind,
 		m.Controller.GetName(), m.Controller.GetUID(), machineSet.UID)
-	err := m.isControl.PatchMachineSet(machineSet.Namespace, machineSet.Name, []byte(deleteOwnerRefPatch))
+	err := m.machineSetControl.PatchMachineSet(machineSet.Namespace, machineSet.Name, []byte(deleteOwnerRefPatch))
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// If the MachineSet no longer exists, ignore it.

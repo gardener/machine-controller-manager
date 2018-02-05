@@ -401,22 +401,22 @@ const (
 	SuccessfulDeleteMachineReason = "SuccessfulDelete"
 )
 
-// RSControlInterface is an interface that knows how to add or delete
+// MachineSetControlInterface is an interface that knows how to add or delete
 // MachineSets, as well as increment or decrement them. It is used
 // by the deployment controller to ease testing of actions that it takes.
-type ISControlInterface interface {
+type MachineSetControlInterface interface {
 	PatchMachineSet(namespace, name string, data []byte) error
 }
 
-// RealRSControl is the default implementation of RSControllerInterface.
-type RealISControl struct {
+// RealMachineSetControl is the default implementation of RSControllerInterface.
+type RealMachineSetControl struct {
 	NodeClient nodeclientset.MachineV1alpha1Interface
 	Recorder   record.EventRecorder
 }
 
-var _ ISControlInterface = &RealISControl{}
+var _ MachineSetControlInterface = &RealMachineSetControl{}
 
-func (r RealISControl) PatchMachineSet(namespace, name string, data []byte) error {
+func (r RealMachineSetControl) PatchMachineSet(namespace, name string, data []byte) error {
 	_, err := r.NodeClient.MachineSets().Patch(name, types.MergePatchType, data)
 	return err
 }

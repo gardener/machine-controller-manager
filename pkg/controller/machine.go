@@ -73,7 +73,7 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 		return nil
 	}
 	if err != nil {
-		glog.Error("ClusterMachine %q: Unable to retrieve object from store: %v", key, err)
+		glog.Errorf("ClusterMachine %q: Unable to retrieve object from store: %v", key, err)
 		return err
 	}
 
@@ -276,9 +276,9 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node
 func (c *controller) createMachine(machine *v1alpha1.Machine, driver driver.Driver) error {
 	glog.V(3).Infof("Creating machine %s, please wait!", machine.Name)
 
-	actualID, nodeName, err := driver.Create()
+	actualProviderID, nodeName, err := driver.Create()
 	if err != nil {
-
+		glog.V(2).Infof("Error while creating machine %s: %s", machine.Name, err.Error())
 		lastOperation := v1alpha1.LastOperation{
 			Description:    "Cloud provider message - " + err.Error(),
 			State:          "Failed",
@@ -291,10 +291,9 @@ func (c *controller) createMachine(machine *v1alpha1.Machine, driver driver.Driv
 			LastUpdateTime: metav1.Now(),
 		}
 		c.updateMachineStatus(machine, lastOperation, currentStatus)
-
 		return err
 	}
-	glog.V(2).Infof("Created machine: %s, Machine-id: %s", machine.Name, actualID)
+	glog.V(2).Infof("Created machine: %s, MachineID: %s", machine.Name, actualProviderID)
 
 	for {
 		// Get the latest version of the machine so that we can avoid conflicts
@@ -316,7 +315,7 @@ func (c *controller) createMachine(machine *v1alpha1.Machine, driver driver.Driv
 		}
 
 		clone := machine.DeepCopy()
-		clone.Spec.ProviderID = actualID
+		clone.Spec.ProviderID = actualProviderID
 		if clone.Labels == nil {
 			clone.Labels = make(map[string]string)
 		}
