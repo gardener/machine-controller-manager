@@ -317,7 +317,6 @@ func (c *controller) enqueueMachineSetAfter(obj interface{}, after time.Duration
 // Does NOT modify <filteredMachines>.
 // It will requeue the machine set in case of an error while creating/deleting machines.
 func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
-
 	machineSetKey, err := KeyFunc(machineSet)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Couldn't get key for %v %#v: %v", machineSet.Kind, machineSet, err))
@@ -466,8 +465,6 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	// Manipulate finalizers
 	if machineSet.DeletionTimestamp == nil {
 		c.addMachineSetFinalizers(machineSet)
-	} else {
-		c.deleteMachineSetFinalizers(machineSet)
 	}
 
 	selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
@@ -491,12 +488,23 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		return err
 	}
 
+	if machineSet.DeletionTimestamp != nil {
+		if finalizers := sets.NewString(machineSet.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
+			return nil
+		}
+		if len(filteredMachines) == 0 {
+			c.deleteMachineSetFinalizers(machineSet)
+			return nil
+		}
+		glog.V(4).Infof("Deleting all child machines as MachineSet %s has set deletionTimestamp", machineSet.Name)
+		c.terminateMachines(filteredMachines, machineSet)
+		return nil
+	}
+
 	machineSetNeedsSync := c.expectations.SatisfiedExpectations(key)
-
-	glog.V(4).Infof("2 Filtered machines length: %v , MachineSetNeedsSync: %v", len(filteredMachines), machineSetNeedsSync)
-
+	glog.V(4).Infof("2 filtered machines length: %v, MachineSetNeedsSync: %v", len(filteredMachines), machineSetNeedsSync)
 	var manageReplicasErr error
-	if machineSetNeedsSync && machineSet.DeletionTimestamp == nil {
+	if machineSetNeedsSync {
 		manageReplicasErr = c.manageReplicas(filteredMachines, machineSet)
 	}
 	//glog.V(2).Infof("Print manageReplicasErr: %v ",manageReplicasErr) //Remove
@@ -509,7 +517,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	if err != nil {
 		// Multiple things could lead to this update failing. Requeuing the machine set ensures
 		// Returning an error causes a requeue without forcing a hotloop
-		glog.V(2).Infof("update machine failed with : %v", err) //Remove
+		glog.V(2).Infof("update machine failed with: %v", err) //Remove
 		return err
 	}
 
@@ -599,6 +607,11 @@ func getMachineKeys(machines []*v1alpha1.Machine) []string {
 
 func (c *controller) prepareMachineForDeletion(targetMachine *v1alpha1.Machine, machineSet *v1alpha1.MachineSet, wg *sync.WaitGroup, errCh *chan error) {
 	defer wg.Done()
+
+	// Machine is already marked as 'to-be-deleted'
+	if targetMachine.DeletionTimestamp != nil {
+		return
+	}
 
 	machineSetKey, err := KeyFunc(machineSet)
 	if err != nil {
