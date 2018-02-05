@@ -116,6 +116,6 @@ func (dc *controller) emitRollbackNormalEvent(d *v1alpha1.MachineDeployment, mes
 func (dc *controller) updateMachineDeploymentAndClearRollbackTo(d *v1alpha1.MachineDeployment) error {
 	glog.V(4).Infof("Cleans up rollbackTo of machine deployment %q", d.Name)
 	d.Spec.RollbackTo = nil
-	_, err := dc.nodeClient.MachineDeployments().Update(d)
+	_, err := dc.nodeClient.MachineDeployments(d.Namespace).Update(d)
 	return err
 }

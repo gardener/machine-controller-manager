@@ -13,6 +13,7 @@ import (
 // FakeGCPMachineClasses implements GCPMachineClassInterface
 type FakeGCPMachineClasses struct {
 	Fake *FakeMachine
+	ns   string
 }
 
 var gcpmachineclassesResource = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "", Resource: "gcpmachineclasses"}
@@ -22,7 +23,8 @@ var gcpmachineclassesKind = schema.GroupVersionKind{Group: "machine.sapcloud.io"
 // Get takes name of the gCPMachineClass, and returns the corresponding gCPMachineClass object, and an error if there is any.
 func (c *FakeGCPMachineClasses) Get(name string, options v1.GetOptions) (result *machine.GCPMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(gcpmachineclassesResource, name), &machine.GCPMachineClass{})
+		Invokes(testing.NewGetAction(gcpmachineclassesResource, c.ns, name), &machine.GCPMachineClass{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -32,7 +34,8 @@ func (c *FakeGCPMachineClasses) Get(name string, options v1.GetOptions) (result 
 // List takes label and field selectors, and returns the list of GCPMachineClasses that match those selectors.
 func (c *FakeGCPMachineClasses) List(opts v1.ListOptions) (result *machine.GCPMachineClassList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(gcpmachineclassesResource, gcpmachineclassesKind, opts), &machine.GCPMachineClassList{})
+		Invokes(testing.NewListAction(gcpmachineclassesResource, gcpmachineclassesKind, c.ns, opts), &machine.GCPMachineClassList{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -53,13 +56,15 @@ func (c *FakeGCPMachineClasses) List(opts v1.ListOptions) (result *machine.GCPMa
 // Watch returns a watch.Interface that watches the requested gCPMachineClasses.
 func (c *FakeGCPMachineClasses) Watch(opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(gcpmachineclassesResource, opts))
+		InvokesWatch(testing.NewWatchAction(gcpmachineclassesResource, c.ns, opts))
+
 }
 
 // Create takes the representation of a gCPMachineClass and creates it.  Returns the server's representation of the gCPMachineClass, and an error, if there is any.
 func (c *FakeGCPMachineClasses) Create(gCPMachineClass *machine.GCPMachineClass) (result *machine.GCPMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(gcpmachineclassesResource, gCPMachineClass), &machine.GCPMachineClass{})
+		Invokes(testing.NewCreateAction(gcpmachineclassesResource, c.ns, gCPMachineClass), &machine.GCPMachineClass{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -69,7 +74,8 @@ func (c *FakeGCPMachineClasses) Create(gCPMachineClass *machine.GCPMachineClass)
 // Update takes the representation of a gCPMachineClass and updates it. Returns the server's representation of the gCPMachineClass, and an error, if there is any.
 func (c *FakeGCPMachineClasses) Update(gCPMachineClass *machine.GCPMachineClass) (result *machine.GCPMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(gcpmachineclassesResource, gCPMachineClass), &machine.GCPMachineClass{})
+		Invokes(testing.NewUpdateAction(gcpmachineclassesResource, c.ns, gCPMachineClass), &machine.GCPMachineClass{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -79,13 +85,14 @@ func (c *FakeGCPMachineClasses) Update(gCPMachineClass *machine.GCPMachineClass)
 // Delete takes name of the gCPMachineClass and deletes it. Returns an error if one occurs.
 func (c *FakeGCPMachineClasses) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(gcpmachineclassesResource, name), &machine.GCPMachineClass{})
+		Invokes(testing.NewDeleteAction(gcpmachineclassesResource, c.ns, name), &machine.GCPMachineClass{})
+
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeGCPMachineClasses) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(gcpmachineclassesResource, listOptions)
+	action := testing.NewDeleteCollectionAction(gcpmachineclassesResource, c.ns, listOptions)
 
 	_, err := c.Fake.Invokes(action, &machine.GCPMachineClassList{})
 	return err
@@ -94,7 +101,8 @@ func (c *FakeGCPMachineClasses) DeleteCollection(options *v1.DeleteOptions, list
 // Patch applies the patch and returns the patched gCPMachineClass.
 func (c *FakeGCPMachineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *machine.GCPMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(gcpmachineclassesResource, name, data, subresources...), &machine.GCPMachineClass{})
+		Invokes(testing.NewPatchSubresourceAction(gcpmachineclassesResource, c.ns, name, data, subresources...), &machine.GCPMachineClass{})
+
 	if obj == nil {
 		return nil, err
 	}

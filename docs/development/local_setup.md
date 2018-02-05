@@ -61,7 +61,7 @@ $ kubectl apply -f kubernetes/crds.yaml
 
 ### Get started
 
-Create a `dev` directory and copy the Kubeconfig of the kubernetes cluster used for development purposes to `dev/kubeconfig.yaml`.
+Create a `dev` directory and copy the Kubeconfig of the both kubernetes clusters used for development purposes to `dev/kubeconfig.yaml` and `dev/kubeconfig-seed.yaml`.
 
 - There is a rule dev in the `Makefile` which will automatically start the Node Controller Manager with development settings:
 

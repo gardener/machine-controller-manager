@@ -4,6 +4,7 @@ apiVersion: machine.sapcloud.io/v1alpha1
 kind: GCPMachineClass
 metadata:
   name: test-gcp # Name of GCP machine class goes here
+  namespace: test
 spec:
   canIpForward: true
   deletionProtection: false

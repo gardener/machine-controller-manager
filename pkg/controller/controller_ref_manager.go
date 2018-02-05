@@ -229,7 +229,7 @@ func (m *MachineControllerRefManager) AdoptMachine(machine *v1alpha1.Machine) er
 		`{"metadata":{"ownerReferences":[{"apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
 		m.controllerKind.Kind,
 		m.Controller.GetName(), m.Controller.GetUID(), machine.UID)
-	err := m.machineControl.PatchMachine(machine.Name, []byte(addControllerPatch))
+	err := m.machineControl.PatchMachine(machine.Namespace, machine.Name, []byte(addControllerPatch))
 	return err
 }
 
@@ -243,7 +243,7 @@ func (m *MachineControllerRefManager) ReleaseMachine(machine *v1alpha1.Machine) 
 		m.controllerKind.Kind,
 		m.Controller.GetName(), m.Controller.GetUID(), machine.UID)
 
-	err := m.machineControl.PatchMachine(machine.Name, []byte(deleteOwnerRefPatch))
+	err := m.machineControl.PatchMachine(machine.Namespace, machine.Name, []byte(deleteOwnerRefPatch))
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// If the Machine no longer exists, ignore it.

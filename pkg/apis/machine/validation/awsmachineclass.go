@@ -54,7 +54,7 @@ func ValidateAWSMachineClass(AWSMachineClass *machine.AWSMachineClass) field.Err
 func internalValidateAWSMachineClass(AWSMachineClass *machine.AWSMachineClass) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	allErrs = append(allErrs, apivalidation.ValidateObjectMeta(&AWSMachineClass.ObjectMeta, false, /*namespace*/
+	allErrs = append(allErrs, apivalidation.ValidateObjectMeta(&AWSMachineClass.ObjectMeta, true, /*namespace*/
 		validateName,
 		field.NewPath("metadata"))...)
 

@@ -52,6 +52,7 @@ const (
 
 // NewController returns a new Node controller.
 func NewController(
+	namespace	string,
 	kubeClient kubernetes.Interface,
 	nodeClient nodeclientset.MachineV1alpha1Interface,
 	secretInformer coreinformers.SecretInformer,
@@ -65,6 +66,7 @@ func NewController(
 	recorder record.EventRecorder,
 ) (Controller, error) {
 	controller := &controller{
+		namespace:              namespace,
 		kubeClient:             kubeClient,
 		nodeClient:             nodeClient,
 		recorder:               recorder,
@@ -244,6 +246,8 @@ type Controller interface {
 
 // controller is a concrete Controller.
 type controller struct {
+	namespace string
+	
 	kubeClient kubernetes.Interface
 	nodeClient nodeclientset.MachineV1alpha1Interface
 
@@ -292,16 +296,20 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer runtimeutil.HandleCrash()
 	defer c.nodeQueue.ShutDown()
 	defer c.awsMachineClassQueue.ShutDown()
+	defer c.azureMachineClassQueue.ShutDown()
+	defer c.gcpMachineClassQueue.ShutDown()
 	defer c.machineQueue.ShutDown()
 	defer c.machineSetQueue.ShutDown()
 	defer c.machineDeploymentQueue.ShutDown()
 
-	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.awsMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
+	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.awsMachineClassSynced,c.azureMachineClassSynced, c.gcpMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
 
 	glog.Info("Starting Node-controller-manager")
+	//glog.Infof("Synced :: %+q", c.awsMachineClassSynced)
+	//time.Sleep(5 * time.Second)
 	var waitGroup sync.WaitGroup
 
 	for i := 0; i < workers; i++ {

@@ -26,6 +26,9 @@ type ClientConnectionConfiguration struct {
 type NodeControllerManagerConfiguration struct {
 	metav1.TypeMeta
 
+	// namespace in seed cluster in which controller would look for the resources.
+	Namespace	string
+
 	// port is the port that the controller-manager's http service runs on.
 	Port int32
 	// address is the IP address to serve on (set to 0.0.0.0 for all interfaces).
