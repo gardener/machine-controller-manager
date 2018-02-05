@@ -73,7 +73,7 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 		return nil
 	}
 	if err != nil {
-		glog.Error("ClusterMachine %q: Unable to retrieve object from store: %v", key, err)
+		glog.Errorf("ClusterMachine %q: Unable to retrieve object from store: %v", key, err)
 		return err
 	}
 
@@ -100,7 +100,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	}
 	validationerr := validation.ValidateMachine(internalMachine)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of Machine failled %s", validationerr.ToAggregate().Error())
+		glog.V(2).Infof("Validation of Machine failed %s", validationerr.ToAggregate().Error())
 		return nil
 	}
 
@@ -111,15 +111,15 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	}
 
 	driver := driver.NewDriver(machine.Spec.ProviderID, secretRef, machine.Spec.Class.Kind, MachineClass, machine.Name)
-	actualID, err := driver.GetExisting()
+	actualProviderID, err := driver.GetExisting()
 	if err != nil {
 		return err
-	} else if actualID == "fake" {
+	} else if actualProviderID == "fake" {
 		glog.Warning("Fake driver type")
 		return nil
 	}
 
-	//glog.Info("REACHED ", actualID, " ", machineID)
+	//glog.Info("REACHED ", actualProviderID, " ", machineID)
 	// Get the latest version of the machine so that we can avoid conflicts
 	machine, err = c.nodeClient.Machines().Get(machine.Name, metav1.GetOptions{})
 	if err != nil {
@@ -127,31 +127,22 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	}
 
 	if machine.DeletionTimestamp != nil {
-		// Deleting machine
-		err := c.deleteMachine(machine, driver)
-		if err != nil {
+		if err := c.deleteMachine(machine, driver); err != nil {
 			return err
 		}
-
 	} else if machine.Status.CurrentStatus.TimeoutActive {
 		// Processing machine
 		c.checkMachineTimeout(machine)
-
 	} else {
 		// Processing of create or update event
 		c.addMachineFinalizers(machine)
 
-		if actualID == "" {
-			// Creating machine
-			err := c.createMachine(machine, driver)
-			if err != nil {
+		if actualProviderID == "" {
+			if err := c.createMachine(machine, driver); err != nil {
 				return err
 			}
-
-		} else if actualID != machine.Spec.ProviderID {
-			// Updating machine
-			err := c.updateMachine(machine, actualID)
-			if err != nil {
+		} else if actualProviderID != machine.Spec.ProviderID {
+			if err := c.updateMachine(machine, actualProviderID); err != nil {
 				return err
 			}
 		}
@@ -187,7 +178,7 @@ func (c *controller) reconcileClusterNodeToMachineKey(key string) error {
 		return nil
 	}
 	if err != nil {
-		glog.Error("ClusterNode %q: Unable to retrieve object from store: %v", key, err)
+		glog.Errorf("ClusterNode %q: Unable to retrieve object from store: %v", key, err)
 		return err
 	}
 
@@ -218,18 +209,17 @@ func (c *controller) reconcileClusterNodeToMachine(node *v1.Node) error {
 */
 
 func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, error) {
+	var (
+		list     = []string{nodeName}
+		selector = labels.NewSelector()
+		req, _   = labels.NewRequirement("node", selection.Equals, list)
+	)
 
-	var list []string
-	list = append(list, nodeName)
-
-	selector := labels.NewSelector()
-	req, _ := labels.NewRequirement("node", selection.Equals, list)
 	selector = selector.Add(*req)
 	machines, _ := c.machineLister.List(selector)
 
 	if len(machines) > 1 {
-		err := errors.New("Multiple machines matching node")
-		return nil, err
+		return nil, errors.New("Multiple machines matching node")
 	} else if len(machines) < 1 {
 		return nil, nil
 	}
@@ -238,7 +228,6 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 }
 
 func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node) error {
-
 	machine = c.updateMachineConditions(machine, node.Status.Conditions)
 
 	if machine.Status.LastOperation.State != "Successful" {
@@ -287,9 +276,9 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node
 func (c *controller) createMachine(machine *v1alpha1.Machine, driver driver.Driver) error {
 	glog.V(3).Infof("Creating machine %s, please wait!", machine.Name)
 
-	actualID, nodeName, err := driver.Create()
+	actualProviderID, nodeName, err := driver.Create()
 	if err != nil {
-
+		glog.V(2).Infof("Error while creating machine %s: %s", machine.Name, err.Error())
 		lastOperation := v1alpha1.LastOperation{
 			Description:    "Cloud provider message - " + err.Error(),
 			State:          "Failed",
@@ -302,10 +291,9 @@ func (c *controller) createMachine(machine *v1alpha1.Machine, driver driver.Driv
 			LastUpdateTime: metav1.Now(),
 		}
 		c.updateMachineStatus(machine, lastOperation, currentStatus)
-
 		return err
 	}
-	glog.V(2).Infof("Created machine: %s, Machine-id: %s", machine.Name, actualID)
+	glog.V(2).Infof("Created machine: %s, MachineID: %s", machine.Name, actualProviderID)
 
 	for {
 		// Get the latest version of the machine so that we can avoid conflicts
@@ -327,7 +315,7 @@ func (c *controller) createMachine(machine *v1alpha1.Machine, driver driver.Driv
 		}
 
 		clone := machine.DeepCopy()
-		clone.Spec.ProviderID = actualID
+		clone.Spec.ProviderID = actualProviderID
 		if clone.Labels == nil {
 			clone.Labels = make(map[string]string)
 		}
@@ -346,8 +334,8 @@ func (c *controller) createMachine(machine *v1alpha1.Machine, driver driver.Driv
 	return nil
 }
 
-func (c *controller) updateMachine(machine *v1alpha1.Machine, actualID string) error {
-	glog.V(2).Infof("Setting MachineId of %s to %s", machine.Name, actualID)
+func (c *controller) updateMachine(machine *v1alpha1.Machine, actualProviderID string) error {
+	glog.V(2).Infof("Setting MachineId of %s to %s", machine.Name, actualProviderID)
 
 	for {
 		machine, err := c.nodeClient.Machines().Get(machine.Name, metav1.GetOptions{})
@@ -356,7 +344,7 @@ func (c *controller) updateMachine(machine *v1alpha1.Machine, actualID string) e
 		}
 
 		clone := machine.DeepCopy()
-		clone.Spec.ProviderID = actualID
+		clone.Spec.ProviderID = actualProviderID
 		lastOperation := v1alpha1.LastOperation{
 			Description:    "Updated provider ID",
 			State:          "Successful",
@@ -376,15 +364,13 @@ func (c *controller) updateMachine(machine *v1alpha1.Machine, actualID string) e
 }
 
 func (c *controller) deleteMachine(machine *v1alpha1.Machine, driver driver.Driver) error {
-
 	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
-
-		var err error
 		glog.V(2).Infof("Deleting Machine %s", machine.Name)
 
 		// If machine was created on the cloud provider
 		machineID, _ := driver.GetExisting()
 
+		var err error
 		if machineID == "" {
 			err = errors.New("No provider-ID found on machine")
 		} else {
@@ -483,8 +469,6 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 	if clone.Status.CurrentStatus.Phase == v1alpha1.MachineFailed ||
 		clone.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating {
 		// If machine is already in failed state, don't update
-		clone.Status.CurrentStatus = clone.Status.CurrentStatus
-
 	} else if !c.isHealthy(clone) && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
 		currentStatus := v1alpha1.CurrentStatus{
 			Phase:          v1alpha1.MachineUnknown,
@@ -559,31 +543,27 @@ func (c *controller) deleteMachineFinalizers(machine *v1alpha1.Machine) {
 	Helper Functions
 */
 func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
-
 	numOfConditions := len(machine.Status.Conditions)
 
 	if numOfConditions == 0 {
 		// Kubernetes node object for this machine hasn't been recieved
 		return false
-	} else {
+	}
 
-		for i := 0; i < numOfConditions; i++ {
-			if machine.Status.Conditions[i].Type == "Ready" {
-				// Kubelet is not ready
-				if machine.Status.Conditions[i].Status != "True" {
-					return false
-				} else {
-					continue
-				}
-			} else {
-				// Every other condition, status has to be false. If not, then the machine is unhealthy
-				if machine.Status.Conditions[i].Status == "True" {
-					return false
-				}
+	for _, condition := range machine.Status.Conditions {
+		if condition.Type == "Ready" {
+			// Kubelet is not ready
+			if condition.Status != "True" {
+				return false
+			}
+		} else {
+			// Every other condition, status has to be false. If not, then the machine is unhealthy
+			if condition.Status == "True" {
+				return false
 			}
 		}
-		return true
 	}
+	return true
 }
 
 func (c *controller) getSecret(ref *v1.SecretReference, MachineClassName string) (*v1.Secret, error) {
@@ -600,7 +580,6 @@ func (c *controller) getSecret(ref *v1.SecretReference, MachineClassName string)
 }
 
 func (c *controller) checkMachineTimeout(machine *v1alpha1.Machine) {
-
 	if machine.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 
 		timeOutDuration := 10 * time.Minute

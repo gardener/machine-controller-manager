@@ -33,7 +33,9 @@ import (
 
 	coreinformers "k8s.io/client-go/informers"
 
+	machinescheme "github.com/gardener/node-controller-manager/pkg/client/clientset/scheme"
 	nodeinformers "github.com/gardener/node-controller-manager/pkg/client/informers/externalversions"
+	kubescheme "k8s.io/client-go/kubernetes/scheme"
 
 	corecontroller "k8s.io/kubernetes/pkg/controller"
 
@@ -56,7 +58,6 @@ import (
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/util/configz"
 )
 
@@ -275,10 +276,11 @@ func getAvailableResources(clientBuilder corecontroller.ControllerClientBuilder)
 }
 
 func createRecorder(kubeClient *kubernetes.Clientset) record.EventRecorder {
+	machinescheme.AddToScheme(kubescheme.Scheme)
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.CoreV1().RESTClient()).Events("")})
-	return eventBroadcaster.NewRecorder(api.Scheme, v1.EventSource{Component: controllerManagerAgentName})
+	return eventBroadcaster.NewRecorder(kubescheme.Scheme, v1.EventSource{Component: controllerManagerAgentName})
 }
 
 func startHTTP(s *options.NCMServer) {

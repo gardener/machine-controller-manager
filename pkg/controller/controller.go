@@ -89,7 +89,7 @@ func NewController(
 		Recorder:   eventBroadcaster.NewRecorder(nodescheme.Scheme, v1.EventSource{Component: "machineset-controller"}),
 	}
 
-	controller.machineSetControl = RealISControl{
+	controller.machineSetControl = RealMachineSetControl{
 		NodeClient: nodeClient,
 		Recorder:   eventBroadcaster.NewRecorder(nodescheme.Scheme, v1.EventSource{Component: "machinedeployment-controller"}),
 	}
@@ -120,25 +120,58 @@ func NewController(
 			UpdateFunc: controller.secretUpdate,
 		})*/
 
-	// Aws Controller Informers
+	// AWS Controller Informers
+	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineDeploymentToAWSMachineClassDelete,
+	})
+
+	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineSetToAWSMachineClassDelete,
+	})
+
+	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineToAWSMachineClassDelete,
+	})
+
 	awsMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.awsMachineClassAdd,
 		UpdateFunc: controller.awsMachineClassUpdate,
-		DeleteFunc: controller.awsMachineClassDelete,
 	})
 
 	// Azure Controller Informers
+	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineDeploymentToAzureMachineClassDelete,
+	})
+
+	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineSetToAzureMachineClassDelete,
+	})
+
+	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineToAzureMachineClassDelete,
+	})
+
 	azureMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.azureMachineClassAdd,
 		UpdateFunc: controller.azureMachineClassUpdate,
-		DeleteFunc: controller.azureMachineClassDelete,
 	})
 
 	// GCP Controller Informers
+	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineDeploymentToGCPMachineClassDelete,
+	})
+
+	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineSetToGCPMachineClassDelete,
+	})
+
+	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineToGCPMachineClassDelete,
+	})
+
 	gcpMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.gcpMachineClassAdd,
 		UpdateFunc: controller.gcpMachineClassUpdate,
-		DeleteFunc: controller.gcpMachineClassDelete,
 	})
 
 	// Node Controller Informers
@@ -231,7 +264,7 @@ type controller struct {
 
 	// Control Interfaces.
 	machineControl    MachineControlInterface
-	machineSetControl ISControlInterface
+	machineSetControl MachineSetControlInterface
 
 	// queues
 	secretQueue            workqueue.RateLimitingInterface
@@ -275,15 +308,11 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 		createWorker(c.awsMachineClassQueue, "ClusterAWSMachineClass", maxRetries, true, c.reconcileClusterAWSMachineClassKey, stopCh, &waitGroup)
 		createWorker(c.azureMachineClassQueue, "ClusterAzureMachineClass", maxRetries, true, c.reconcileClusterAzureMachineClassKey, stopCh, &waitGroup)
 		createWorker(c.gcpMachineClassQueue, "ClusterGCPMachineClass", maxRetries, true, c.reconcileClusterGCPMachineClassKey, stopCh, &waitGroup)
-
 		createWorker(c.nodeQueue, "ClusterNode", maxRetries, true, c.reconcileClusterNodeKey, stopCh, &waitGroup)
-
 		createWorker(c.machineQueue, "ClusterMachine", maxRetries, true, c.reconcileClusterMachineKey, stopCh, &waitGroup)
 		createWorker(c.nodeToMachineQueue, "ClusterNodeToMachine", maxRetries, true, c.reconcileClusterNodeToMachineKey, stopCh, &waitGroup)
-
-		createWorker(c.machineSetQueue, "ClusterMachineSet", maxRetries, true, c.syncMachineSet, stopCh, &waitGroup)
-
-		createWorker(c.machineDeploymentQueue, "ClusterMachineDeployment", maxRetries, true, c.syncMachineDeployment, stopCh, &waitGroup)
+		createWorker(c.machineSetQueue, "ClusterMachineSet", maxRetries, true, c.reconcileClusterMachineSet, stopCh, &waitGroup)
+		createWorker(c.machineDeploymentQueue, "ClusterMachineDeployment", maxRetries, true, c.reconcileClusterMachineDeployment, stopCh, &waitGroup)
 	}
 
 	<-stopCh
