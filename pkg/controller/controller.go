@@ -89,7 +89,7 @@ func NewController(
 		Recorder:   eventBroadcaster.NewRecorder(nodescheme.Scheme, v1.EventSource{Component: "machineset-controller"}),
 	}
 
-	controller.machineSetControl = RealISControl{
+	controller.machineSetControl = RealMachineSetControl{
 		NodeClient: nodeClient,
 		Recorder:   eventBroadcaster.NewRecorder(nodescheme.Scheme, v1.EventSource{Component: "machinedeployment-controller"}),
 	}
@@ -231,7 +231,7 @@ type controller struct {
 
 	// Control Interfaces.
 	machineControl    MachineControlInterface
-	machineSetControl ISControlInterface
+	machineSetControl MachineSetControlInterface
 
 	// queues
 	secretQueue            workqueue.RateLimitingInterface
@@ -281,7 +281,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 		createWorker(c.machineQueue, "ClusterMachine", maxRetries, true, c.reconcileClusterMachineKey, stopCh, &waitGroup)
 		createWorker(c.nodeToMachineQueue, "ClusterNodeToMachine", maxRetries, true, c.reconcileClusterNodeToMachineKey, stopCh, &waitGroup)
 
-		createWorker(c.machineSetQueue, "ClusterMachineSet", maxRetries, true, c.syncMachineSet, stopCh, &waitGroup)
+		createWorker(c.machineSetQueue, "ClusterMachineSet", maxRetries, true, c.reconcileClusterMachineSet, stopCh, &waitGroup)
 
 		createWorker(c.machineDeploymentQueue, "ClusterMachineDeployment", maxRetries, true, c.syncMachineDeployment, stopCh, &waitGroup)
 	}
