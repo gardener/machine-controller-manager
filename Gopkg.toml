@@ -26,7 +26,7 @@ required = [
 
 [[constraint]]
   name = "k8s.io/api"
-  version = "kubernetes-1.8.0"
+  version = "kubernetes-1.8.4"
 
 [[constraint]]
   name = "k8s.io/apimachinery"
@@ -53,8 +53,9 @@ required = [
   revision = "868f2f29720b192240e18284659231b440f9cda5"
 
 [[constraint]]
-  branch = "release-1.8"
+  #branch = "release-1.8"
   name = "k8s.io/kubernetes"
+  revision = "36dd0d74e6c5156099510a0b5a502fb5d5ed0bec"
 
 [[constraint]]
   name = "cloud.google.com/go"

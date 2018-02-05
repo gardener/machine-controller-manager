@@ -16,6 +16,7 @@ limitations under the License.
 package controller
 
 import (
+	"bytes"
 	"errors"
 	"time"
 
@@ -284,7 +285,7 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node
 */
 
 func (c *controller) createMachine(machine *v1alpha1.Machine, driver driver.Driver) error {
-	glog.V(2).Infof("Creating machine %s", machine.Name)
+	glog.V(3).Infof("Creating machine %s, please wait!", machine.Name)
 
 	actualID, nodeName, err := driver.Create()
 	if err != nil {
@@ -355,7 +356,7 @@ func (c *controller) updateMachine(machine *v1alpha1.Machine, actualID string) e
 		}
 
 		clone := machine.DeepCopy()
-		clone.Spec.ProviderID = "aws:///" + "eu-west-1" + "/" + actualID // TODO: Dynamically fetch region
+		clone.Spec.ProviderID = actualID
 		lastOperation := v1alpha1.LastOperation{
 			Description:    "Updated provider ID",
 			State:          "Successful",
@@ -387,6 +388,29 @@ func (c *controller) deleteMachine(machine *v1alpha1.Machine, driver driver.Driv
 		if machineID == "" {
 			err = errors.New("No provider-ID found on machine")
 		} else {
+			// force-deletion: "True" label should be present for deleting machine without draining it
+			if machine.Labels["force-deletion"] != "True" {
+				buf := bytes.NewBuffer([]byte{})
+				errBuf := bytes.NewBuffer([]byte{})
+
+				nodeName := machine.Labels["node"]
+				drainOptions := NewDrainOptions(
+					c.kubeClient,
+					10*time.Minute, // TODO: Will need to configure timeout
+					nodeName,
+					-1,
+					true,
+					true,
+					true,
+					buf,
+					errBuf,
+				)
+				err = drainOptions.RunDrain()
+				if err != nil {
+					return err
+				}
+				glog.V(3).Infof("Drain successful - %v %v", buf, errBuf)
+			}
 			err = driver.Delete()
 		}
 
@@ -411,6 +435,7 @@ func (c *controller) deleteMachine(machine *v1alpha1.Machine, driver driver.Driv
 		}
 		c.deleteMachineFinalizers(machine)
 		c.nodeClient.Machines().Delete(machine.Name, &metav1.DeleteOptions{})
+		glog.V(3).Infof("Machine %s deleted succesfullly", machine.Name)
 	}
 	return nil
 }
