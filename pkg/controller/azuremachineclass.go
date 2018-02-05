@@ -16,10 +16,9 @@ limitations under the License.
 package controller
 
 import (
-	"reflect"
-
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/kubernetes/pkg/api"
 
@@ -29,6 +28,38 @@ import (
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
 )
+
+const AzureMachineClassKind = "AzureMachineClass"
+
+func (c *controller) machineDeploymentToAzureMachineClassDelete(obj interface{}) {
+	machineDeployment, ok := obj.(*v1alpha1.MachineDeployment)
+	if machineDeployment == nil || !ok {
+		return
+	}
+	if machineDeployment.Spec.Template.Spec.Class.Kind == AzureMachineClassKind {
+		c.azureMachineClassQueue.Add(machineDeployment.Spec.Template.Spec.Class.Name)
+	}
+}
+
+func (c *controller) machineSetToAzureMachineClassDelete(obj interface{}) {
+	machineSet, ok := obj.(*v1alpha1.MachineSet)
+	if machineSet == nil || !ok {
+		return
+	}
+	if machineSet.Spec.Template.Spec.Class.Kind == AzureMachineClassKind {
+		c.azureMachineClassQueue.Add(machineSet.Spec.Template.Spec.Class.Name)
+	}
+}
+
+func (c *controller) machineToAzureMachineClassDelete(obj interface{}) {
+	machine, ok := obj.(*v1alpha1.Machine)
+	if machine == nil || !ok {
+		return
+	}
+	if machine.Spec.Class.Kind == AzureMachineClassKind {
+		c.azureMachineClassQueue.Add(machine.Spec.Class.Name)
+	}
+}
 
 func (c *controller) azureMachineClassAdd(obj interface{}) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
@@ -48,53 +79,69 @@ func (c *controller) azureMachineClassUpdate(oldObj, newObj interface{}) {
 	if new == nil || !ok {
 		return
 	}
-	if reflect.DeepEqual(old.Spec, new.Spec) {
-		return
-	}
 
 	c.azureMachineClassAdd(newObj)
 }
 
-func (c *controller) azureMachineClassDelete(obj interface{}) {
-	azureMachineClass, ok := obj.(*v1alpha1.AzureMachineClass)
-	if azureMachineClass == nil || !ok {
-		return
-	}
-}
-
-// reconcileazureMachineClassKey reconciles a azureMachineClass due to controller resync
+// reconcileClusterAzureMachineClassKey reconciles an AzureMachineClass due to controller resync
 // or an event on the azureMachineClass.
 func (c *controller) reconcileClusterAzureMachineClassKey(key string) error {
-	plan, err := c.azureMachineClassLister.Get(key)
+	class, err := c.azureMachineClassLister.Get(key)
 	if errors.IsNotFound(err) {
-		glog.Infof("ClusterazureMachineClass %q: Not doing work because it has been deleted", key)
+		glog.Infof("%s %q: Not doing work because it has been deleted", AzureMachineClassKind, key)
 		return nil
 	}
 	if err != nil {
-		glog.Infof("ClusterazureMachineClass %q: Unable to retrieve object from store: %v", key, err)
+		glog.Infof("%s %q: Unable to retrieve object from store: %v", AzureMachineClassKind, key, err)
 		return err
 	}
 
-	return c.reconcileClusterAzureMachineClass(plan)
+	return c.reconcileClusterAzureMachineClass(class)
 }
 
-func (c *controller) reconcileClusterAzureMachineClass(azureMachineClass *v1alpha1.AzureMachineClass) error {
-
-	internalAzureMachineClass := &machine.AzureMachineClass{}
-	err := api.Scheme.Convert(azureMachineClass, internalAzureMachineClass, nil)
+func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMachineClass) error {
+	internalClass := &machine.AzureMachineClass{}
+	err := api.Scheme.Convert(class, internalClass, nil)
 	if err != nil {
 		return err
 	}
 	// TODO this should be put in own API server
-	validationerr := validation.ValidateAzureMachineClass(internalAzureMachineClass)
+	validationerr := validation.ValidateAzureMachineClass(internalClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of azureMachineClass failled %s", validationerr.ToAggregate().Error())
+		glog.V(2).Infof("Validation of %s failed %s", AzureMachineClassKind, validationerr.ToAggregate().Error())
 		return nil
 	}
 
-	machines, err := c.resolveAzureMachines(azureMachineClass)
+	// Manipulate finalizers
+	if class.DeletionTimestamp == nil {
+		c.addAzureMachineClassFinalizers(class)
+	}
+
+	machines, err := c.findMachinesForClass(AzureMachineClassKind, class.Name)
 	if err != nil {
 		return err
+	}
+
+	if class.DeletionTimestamp != nil {
+		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
+			return nil
+		}
+
+		machineDeployments, err := c.findMachineDeploymentsForClass(AzureMachineClassKind, class.Name)
+		if err != nil {
+			return err
+		}
+		machineSets, err := c.findMachineSetsForClass(AzureMachineClassKind, class.Name)
+		if err != nil {
+			return err
+		}
+		if len(machineDeployments) == 0 && len(machineSets) == 0 && len(machines) == 0 {
+			c.deleteAzureMachineClassFinalizers(class)
+			return nil
+		}
+
+		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", AzureMachineClassKind, class.Name)
+		return nil
 	}
 
 	for _, machine := range machines {
@@ -103,16 +150,42 @@ func (c *controller) reconcileClusterAzureMachineClass(azureMachineClass *v1alph
 	return nil
 }
 
-func (c *controller) resolveAzureMachines(azureMachineClass *v1alpha1.AzureMachineClass) ([]*v1alpha1.Machine, error) {
-	machines, err := c.machineLister.List(labels.Everything())
+/*
+	SECTION
+	Manipulate Finalizers
+*/
+
+func (c *controller) addAzureMachineClassFinalizers(class *v1alpha1.AzureMachineClass) {
+	clone := class.DeepCopy()
+
+	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
+		finalizers.Insert(DeleteFinalizerName)
+		c.updateAzureMachineClassFinalizers(clone, finalizers.List())
+	}
+}
+
+func (c *controller) deleteAzureMachineClassFinalizers(class *v1alpha1.AzureMachineClass) {
+	clone := class.DeepCopy()
+
+	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
+		finalizers.Delete(DeleteFinalizerName)
+		c.updateAzureMachineClassFinalizers(clone, finalizers.List())
+	}
+}
+
+func (c *controller) updateAzureMachineClassFinalizers(class *v1alpha1.AzureMachineClass, finalizers []string) {
+	// Get the latest version of the class so that we can avoid conflicts
+	class, err := c.nodeClient.AzureMachineClasses().Get(class.Name, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return
 	}
-	var filtered []*v1alpha1.Machine
-	for _, machine := range machines {
-		if machine.Spec.Class.Kind == "AzureMachineClass" && machine.Spec.Class.Name == azureMachineClass.Name {
-			filtered = append(filtered, machine)
-		}
+
+	clone := class.DeepCopy()
+	clone.Finalizers = finalizers
+	_, err = c.nodeClient.AzureMachineClasses().Update(clone)
+	if err != nil {
+		// Keep retrying until update goes through
+		glog.Warning("Updated failed, retrying")
+		c.updateAzureMachineClassFinalizers(class, finalizers)
 	}
-	return filtered, nil
 }

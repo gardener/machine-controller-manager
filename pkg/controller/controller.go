@@ -120,25 +120,58 @@ func NewController(
 			UpdateFunc: controller.secretUpdate,
 		})*/
 
-	// Aws Controller Informers
+	// AWS Controller Informers
+	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineDeploymentToAWSMachineClassDelete,
+	})
+
+	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineSetToAWSMachineClassDelete,
+	})
+
+	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineToAWSMachineClassDelete,
+	})
+
 	awsMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.awsMachineClassAdd,
 		UpdateFunc: controller.awsMachineClassUpdate,
-		DeleteFunc: controller.awsMachineClassDelete,
 	})
 
 	// Azure Controller Informers
+	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineDeploymentToAzureMachineClassDelete,
+	})
+
+	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineSetToAzureMachineClassDelete,
+	})
+
+	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineToAzureMachineClassDelete,
+	})
+
 	azureMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.azureMachineClassAdd,
 		UpdateFunc: controller.azureMachineClassUpdate,
-		DeleteFunc: controller.azureMachineClassDelete,
 	})
 
 	// GCP Controller Informers
+	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineDeploymentToGCPMachineClassDelete,
+	})
+
+	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineSetToGCPMachineClassDelete,
+	})
+
+	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineToGCPMachineClassDelete,
+	})
+
 	gcpMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.gcpMachineClassAdd,
 		UpdateFunc: controller.gcpMachineClassUpdate,
-		DeleteFunc: controller.gcpMachineClassDelete,
 	})
 
 	// Node Controller Informers
