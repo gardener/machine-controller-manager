@@ -16,10 +16,9 @@ limitations under the License.
 package controller
 
 import (
-	"reflect"
-
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/kubernetes/pkg/api"
 
@@ -29,6 +28,38 @@ import (
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
 )
+
+const GCPMachineClassKind = "GCPMachineClass"
+
+func (c *controller) machineDeploymentToGCPMachineClassDelete(obj interface{}) {
+	machineDeployment, ok := obj.(*v1alpha1.MachineDeployment)
+	if machineDeployment == nil || !ok {
+		return
+	}
+	if machineDeployment.Spec.Template.Spec.Class.Kind == GCPMachineClassKind {
+		c.gcpMachineClassQueue.Add(machineDeployment.Spec.Template.Spec.Class.Name)
+	}
+}
+
+func (c *controller) machineSetToGCPMachineClassDelete(obj interface{}) {
+	machineSet, ok := obj.(*v1alpha1.MachineSet)
+	if machineSet == nil || !ok {
+		return
+	}
+	if machineSet.Spec.Template.Spec.Class.Kind == GCPMachineClassKind {
+		c.gcpMachineClassQueue.Add(machineSet.Spec.Template.Spec.Class.Name)
+	}
+}
+
+func (c *controller) machineToGCPMachineClassDelete(obj interface{}) {
+	machine, ok := obj.(*v1alpha1.Machine)
+	if machine == nil || !ok {
+		return
+	}
+	if machine.Spec.Class.Kind == GCPMachineClassKind {
+		c.gcpMachineClassQueue.Add(machine.Spec.Class.Name)
+	}
+}
 
 func (c *controller) gcpMachineClassAdd(obj interface{}) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
@@ -48,53 +79,69 @@ func (c *controller) gcpMachineClassUpdate(oldObj, newObj interface{}) {
 	if new == nil || !ok {
 		return
 	}
-	if reflect.DeepEqual(old.Spec, new.Spec) {
-		return
-	}
 
 	c.gcpMachineClassAdd(newObj)
 }
 
-func (c *controller) gcpMachineClassDelete(obj interface{}) {
-	gcpMachineClass, ok := obj.(*v1alpha1.GCPMachineClass)
-	if gcpMachineClass == nil || !ok {
-		return
-	}
-}
-
-// reconcilegcpMachineClassKey reconciles a gcpMachineClass due to controller resync
+// reconcileClusterGCPMachineClassKey reconciles an GCPMachineClass due to controller resync
 // or an event on the gcpMachineClass.
 func (c *controller) reconcileClusterGCPMachineClassKey(key string) error {
-	plan, err := c.gcpMachineClassLister.Get(key)
+	class, err := c.gcpMachineClassLister.Get(key)
 	if errors.IsNotFound(err) {
-		glog.Infof("ClustergcpMachineClass %q: Not doing work because it has been deleted", key)
+		glog.Infof("%s %q: Not doing work because it has been deleted", GCPMachineClassKind, key)
 		return nil
 	}
 	if err != nil {
-		glog.Infof("ClustergcpMachineClass %q: Unable to retrieve object from store: %v", key, err)
+		glog.Infof("%s %q: Unable to retrieve object from store: %v", GCPMachineClassKind, key, err)
 		return err
 	}
 
-	return c.reconcileClusterGCPMachineClass(plan)
+	return c.reconcileClusterGCPMachineClass(class)
 }
 
-func (c *controller) reconcileClusterGCPMachineClass(gcpMachineClass *v1alpha1.GCPMachineClass) error {
-
-	internalGCPMachineClass := &machine.GCPMachineClass{}
-	err := api.Scheme.Convert(gcpMachineClass, internalGCPMachineClass, nil)
+func (c *controller) reconcileClusterGCPMachineClass(class *v1alpha1.GCPMachineClass) error {
+	internalClass := &machine.GCPMachineClass{}
+	err := api.Scheme.Convert(class, internalClass, nil)
 	if err != nil {
 		return err
 	}
 	// TODO this should be put in own API server
-	validationerr := validation.ValidateGCPMachineClass(internalGCPMachineClass)
+	validationerr := validation.ValidateGCPMachineClass(internalClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of gcpMachineClass failed %s", validationerr.ToAggregate().Error())
+		glog.V(2).Infof("Validation of %s failed %s", GCPMachineClassKind, validationerr.ToAggregate().Error())
 		return nil
 	}
 
-	machines, err := c.resolveGCPMachines(gcpMachineClass)
+	// Manipulate finalizers
+	if class.DeletionTimestamp == nil {
+		c.addGCPMachineClassFinalizers(class)
+	}
+
+	machines, err := c.findMachinesForClass(GCPMachineClassKind, class.Name)
 	if err != nil {
 		return err
+	}
+
+	if class.DeletionTimestamp != nil {
+		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
+			return nil
+		}
+
+		machineDeployments, err := c.findMachineDeploymentsForClass(GCPMachineClassKind, class.Name)
+		if err != nil {
+			return err
+		}
+		machineSets, err := c.findMachineSetsForClass(GCPMachineClassKind, class.Name)
+		if err != nil {
+			return err
+		}
+		if len(machineDeployments) == 0 && len(machineSets) == 0 && len(machines) == 0 {
+			c.deleteGCPMachineClassFinalizers(class)
+			return nil
+		}
+
+		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", GCPMachineClassKind, class.Name)
+		return nil
 	}
 
 	for _, machine := range machines {
@@ -103,16 +150,42 @@ func (c *controller) reconcileClusterGCPMachineClass(gcpMachineClass *v1alpha1.G
 	return nil
 }
 
-func (c *controller) resolveGCPMachines(gcpMachineClass *v1alpha1.GCPMachineClass) ([]*v1alpha1.Machine, error) {
-	machines, err := c.machineLister.List(labels.Everything())
+/*
+	SECTION
+	Manipulate Finalizers
+*/
+
+func (c *controller) addGCPMachineClassFinalizers(class *v1alpha1.GCPMachineClass) {
+	clone := class.DeepCopy()
+
+	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
+		finalizers.Insert(DeleteFinalizerName)
+		c.updateGCPMachineClassFinalizers(clone, finalizers.List())
+	}
+}
+
+func (c *controller) deleteGCPMachineClassFinalizers(class *v1alpha1.GCPMachineClass) {
+	clone := class.DeepCopy()
+
+	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
+		finalizers.Delete(DeleteFinalizerName)
+		c.updateGCPMachineClassFinalizers(clone, finalizers.List())
+	}
+}
+
+func (c *controller) updateGCPMachineClassFinalizers(class *v1alpha1.GCPMachineClass, finalizers []string) {
+	// Get the latest version of the class so that we can avoid conflicts
+	class, err := c.nodeClient.GCPMachineClasses().Get(class.Name, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return
 	}
-	var filtered []*v1alpha1.Machine
-	for _, machine := range machines {
-		if machine.Spec.Class.Kind == "GCPMachineClass" && machine.Spec.Class.Name == gcpMachineClass.Name {
-			filtered = append(filtered, machine)
-		}
+
+	clone := class.DeepCopy()
+	clone.Finalizers = finalizers
+	_, err = c.nodeClient.GCPMachineClasses().Update(clone)
+	if err != nil {
+		// Keep retrying until update goes through
+		glog.Warning("Updated failed, retrying")
+		c.updateGCPMachineClassFinalizers(class, finalizers)
 	}
-	return filtered, nil
 }
