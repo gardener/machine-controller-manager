@@ -45,7 +45,7 @@ func UpdateISWithRetries(isClient v1alpha1client.MachineSetInterface, isLister v
 
 	retryErr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		var err error
-		is, err = isLister.Get(name)
+		is, err = isLister.MachineSets(namespace).Get(name)
 		if err != nil {
 			return err
 		}

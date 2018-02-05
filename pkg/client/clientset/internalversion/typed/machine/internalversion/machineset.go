@@ -12,7 +12,7 @@ import (
 // MachineSetsGetter has a method to return a MachineSetInterface.
 // A group's client should implement this interface.
 type MachineSetsGetter interface {
-	MachineSets() MachineSetInterface
+	MachineSets(namespace string) MachineSetInterface
 }
 
 // MachineSetInterface has methods to work with MachineSet resources.
@@ -32,12 +32,14 @@ type MachineSetInterface interface {
 // machineSets implements MachineSetInterface
 type machineSets struct {
 	client rest.Interface
+	ns     string
 }
 
 // newMachineSets returns a MachineSets
-func newMachineSets(c *MachineClient) *machineSets {
+func newMachineSets(c *MachineClient, namespace string) *machineSets {
 	return &machineSets{
 		client: c.RESTClient(),
+		ns:     namespace,
 	}
 }
 
@@ -45,6 +47,7 @@ func newMachineSets(c *MachineClient) *machineSets {
 func (c *machineSets) Get(name string, options v1.GetOptions) (result *machine.MachineSet, err error) {
 	result = &machine.MachineSet{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("machinesets").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -57,6 +60,7 @@ func (c *machineSets) Get(name string, options v1.GetOptions) (result *machine.M
 func (c *machineSets) List(opts v1.ListOptions) (result *machine.MachineSetList, err error) {
 	result = &machine.MachineSetList{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("machinesets").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do().
@@ -68,6 +72,7 @@ func (c *machineSets) List(opts v1.ListOptions) (result *machine.MachineSetList,
 func (c *machineSets) Watch(opts v1.ListOptions) (watch.Interface, error) {
 	opts.Watch = true
 	return c.client.Get().
+		Namespace(c.ns).
 		Resource("machinesets").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Watch()
@@ -77,6 +82,7 @@ func (c *machineSets) Watch(opts v1.ListOptions) (watch.Interface, error) {
 func (c *machineSets) Create(machineSet *machine.MachineSet) (result *machine.MachineSet, err error) {
 	result = &machine.MachineSet{}
 	err = c.client.Post().
+		Namespace(c.ns).
 		Resource("machinesets").
 		Body(machineSet).
 		Do().
@@ -88,6 +94,7 @@ func (c *machineSets) Create(machineSet *machine.MachineSet) (result *machine.Ma
 func (c *machineSets) Update(machineSet *machine.MachineSet) (result *machine.MachineSet, err error) {
 	result = &machine.MachineSet{}
 	err = c.client.Put().
+		Namespace(c.ns).
 		Resource("machinesets").
 		Name(machineSet.Name).
 		Body(machineSet).
@@ -102,6 +109,7 @@ func (c *machineSets) Update(machineSet *machine.MachineSet) (result *machine.Ma
 func (c *machineSets) UpdateStatus(machineSet *machine.MachineSet) (result *machine.MachineSet, err error) {
 	result = &machine.MachineSet{}
 	err = c.client.Put().
+		Namespace(c.ns).
 		Resource("machinesets").
 		Name(machineSet.Name).
 		SubResource("status").
@@ -114,6 +122,7 @@ func (c *machineSets) UpdateStatus(machineSet *machine.MachineSet) (result *mach
 // Delete takes name of the machineSet and deletes it. Returns an error if one occurs.
 func (c *machineSets) Delete(name string, options *v1.DeleteOptions) error {
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("machinesets").
 		Name(name).
 		Body(options).
@@ -124,6 +133,7 @@ func (c *machineSets) Delete(name string, options *v1.DeleteOptions) error {
 // DeleteCollection deletes a collection of objects.
 func (c *machineSets) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("machinesets").
 		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Body(options).
@@ -135,6 +145,7 @@ func (c *machineSets) DeleteCollection(options *v1.DeleteOptions, listOptions v1
 func (c *machineSets) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *machine.MachineSet, err error) {
 	result = &machine.MachineSet{}
 	err = c.client.Patch(pt).
+		Namespace(c.ns).
 		Resource("machinesets").
 		SubResource(subresources...).
 		Name(name).

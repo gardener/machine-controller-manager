@@ -311,7 +311,7 @@ func (dc *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) 
 		// Not a Machine owned by a machine set.
 		return nil
 	}
-	is, err = dc.nodeClient.MachineSets().Get(controllerRef.Name, metav1.GetOptions{})
+	is, err = dc.nodeClient.MachineSets(machine.Namespace).Get(controllerRef.Name, metav1.GetOptions{})
 	if err != nil || is.UID != controllerRef.UID {
 		glog.V(4).Infof("Cannot get machineset %q for machine %q: %v", controllerRef.Name, machine.Name, err)
 		return nil
@@ -334,7 +334,7 @@ func (dc *controller) resolveDeploymentControllerRef(namespace string, controlle
 	if controllerRef.Kind != controllerKind.Kind {
 		return nil
 	}
-	d, err := dc.nodeClient.MachineDeployments().Get(controllerRef.Name, metav1.GetOptions{})
+	d, err := dc.nodeClient.MachineDeployments(namespace).Get(controllerRef.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil
 	}
@@ -380,7 +380,7 @@ func (dc *controller) getMachineSetsForMachineDeployment(d *v1alpha1.MachineDepl
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing MachineSets (see #42639).
 	canAdoptFunc := RecheckDeletionTimestamp(func() (metav1.Object, error) {
-		fresh, err := dc.nodeClient.MachineDeployments().Get(d.Name, metav1.GetOptions{})
+		fresh, err := dc.nodeClient.MachineDeployments(d.Namespace).Get(d.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -441,7 +441,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	if err != nil {
 		return err
 	}
-	deployment, err := dc.nodeClient.MachineDeployments().Get(name, metav1.GetOptions{})
+	deployment, err := dc.nodeClient.MachineDeployments(dc.namespace).Get(name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		glog.V(2).Infof("Deployment %v has been deleted", key)
 		return nil
@@ -482,7 +482,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		dc.recorder.Eventf(d, v1.EventTypeWarning, "SelectingAll", "This deployment is selecting all machines. A non-empty selector is required.")
 		if d.Status.ObservedGeneration < d.Generation {
 			d.Status.ObservedGeneration = d.Generation
-			dc.nodeClient.MachineDeployments().Update(d)
+			dc.nodeClient.MachineDeployments(d.Namespace).Update(d)
 		}
 		return nil
 	}
@@ -566,7 +566,7 @@ func (dc *controller) terminateMachineSets(machineSets []*v1alpha1.MachineSet, d
 			if machineSet.DeletionTimestamp != nil {
 				return
 			}
-			dc.nodeClient.MachineSets().Delete(machineSet.Name, nil)
+			dc.nodeClient.MachineSets(machineSet.Namespace).Delete(machineSet.Name, nil)
 		}(machineSet)
 	}
 	wg.Wait()
@@ -597,14 +597,14 @@ func (c *controller) deleteMachineDeploymentFinalizers(machineDeployment *v1alph
 
 func (c *controller) updateMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment, finalizers []string) {
 	// Get the latest version of the machineDeployment so that we can avoid conflicts
-	machineDeployment, err := c.nodeClient.MachineDeployments().Get(machineDeployment.Name, metav1.GetOptions{})
+	machineDeployment, err := c.nodeClient.MachineDeployments(machineDeployment.Namespace).Get(machineDeployment.Name, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
 
 	clone := machineDeployment.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.nodeClient.MachineDeployments().Update(clone)
+	_, err = c.nodeClient.MachineDeployments(machineDeployment.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
 		glog.Warning("Updated failed, retrying")

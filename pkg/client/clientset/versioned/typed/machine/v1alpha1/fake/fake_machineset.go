@@ -13,6 +13,7 @@ import (
 // FakeMachineSets implements MachineSetInterface
 type FakeMachineSets struct {
 	Fake *FakeMachineV1alpha1
+	ns   string
 }
 
 var machinesetsResource = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "machinesets"}
@@ -22,7 +23,8 @@ var machinesetsKind = schema.GroupVersionKind{Group: "machine.sapcloud.io", Vers
 // Get takes name of the machineSet, and returns the corresponding machineSet object, and an error if there is any.
 func (c *FakeMachineSets) Get(name string, options v1.GetOptions) (result *v1alpha1.MachineSet, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(machinesetsResource, name), &v1alpha1.MachineSet{})
+		Invokes(testing.NewGetAction(machinesetsResource, c.ns, name), &v1alpha1.MachineSet{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -32,7 +34,8 @@ func (c *FakeMachineSets) Get(name string, options v1.GetOptions) (result *v1alp
 // List takes label and field selectors, and returns the list of MachineSets that match those selectors.
 func (c *FakeMachineSets) List(opts v1.ListOptions) (result *v1alpha1.MachineSetList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(machinesetsResource, machinesetsKind, opts), &v1alpha1.MachineSetList{})
+		Invokes(testing.NewListAction(machinesetsResource, machinesetsKind, c.ns, opts), &v1alpha1.MachineSetList{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -53,13 +56,15 @@ func (c *FakeMachineSets) List(opts v1.ListOptions) (result *v1alpha1.MachineSet
 // Watch returns a watch.Interface that watches the requested machineSets.
 func (c *FakeMachineSets) Watch(opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(machinesetsResource, opts))
+		InvokesWatch(testing.NewWatchAction(machinesetsResource, c.ns, opts))
+
 }
 
 // Create takes the representation of a machineSet and creates it.  Returns the server's representation of the machineSet, and an error, if there is any.
 func (c *FakeMachineSets) Create(machineSet *v1alpha1.MachineSet) (result *v1alpha1.MachineSet, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(machinesetsResource, machineSet), &v1alpha1.MachineSet{})
+		Invokes(testing.NewCreateAction(machinesetsResource, c.ns, machineSet), &v1alpha1.MachineSet{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -69,7 +74,8 @@ func (c *FakeMachineSets) Create(machineSet *v1alpha1.MachineSet) (result *v1alp
 // Update takes the representation of a machineSet and updates it. Returns the server's representation of the machineSet, and an error, if there is any.
 func (c *FakeMachineSets) Update(machineSet *v1alpha1.MachineSet) (result *v1alpha1.MachineSet, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(machinesetsResource, machineSet), &v1alpha1.MachineSet{})
+		Invokes(testing.NewUpdateAction(machinesetsResource, c.ns, machineSet), &v1alpha1.MachineSet{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -80,7 +86,8 @@ func (c *FakeMachineSets) Update(machineSet *v1alpha1.MachineSet) (result *v1alp
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 func (c *FakeMachineSets) UpdateStatus(machineSet *v1alpha1.MachineSet) (*v1alpha1.MachineSet, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(machinesetsResource, "status", machineSet), &v1alpha1.MachineSet{})
+		Invokes(testing.NewUpdateSubresourceAction(machinesetsResource, "status", c.ns, machineSet), &v1alpha1.MachineSet{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -90,13 +97,14 @@ func (c *FakeMachineSets) UpdateStatus(machineSet *v1alpha1.MachineSet) (*v1alph
 // Delete takes name of the machineSet and deletes it. Returns an error if one occurs.
 func (c *FakeMachineSets) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(machinesetsResource, name), &v1alpha1.MachineSet{})
+		Invokes(testing.NewDeleteAction(machinesetsResource, c.ns, name), &v1alpha1.MachineSet{})
+
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeMachineSets) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(machinesetsResource, listOptions)
+	action := testing.NewDeleteCollectionAction(machinesetsResource, c.ns, listOptions)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.MachineSetList{})
 	return err
@@ -105,7 +113,8 @@ func (c *FakeMachineSets) DeleteCollection(options *v1.DeleteOptions, listOption
 // Patch applies the patch and returns the patched machineSet.
 func (c *FakeMachineSets) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.MachineSet, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(machinesetsResource, name, data, subresources...), &v1alpha1.MachineSet{})
+		Invokes(testing.NewPatchSubresourceAction(machinesetsResource, c.ns, name, data, subresources...), &v1alpha1.MachineSet{})
+
 	if obj == nil {
 		return nil, err
 	}

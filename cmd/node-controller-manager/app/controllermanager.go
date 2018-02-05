@@ -33,7 +33,7 @@ import (
 
 	coreinformers "k8s.io/client-go/informers"
 
-	machinescheme "github.com/gardener/node-controller-manager/pkg/client/clientset/scheme"
+	machinescheme "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/scheme"
 	nodeinformers "github.com/gardener/node-controller-manager/pkg/client/informers/externalversions"
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 
@@ -80,32 +80,47 @@ func Run(s *options.NCMServer) error {
 
 	var err error
 
+	//kubeconfig for the cluster for which node-controller-manager will create machines.
 	kubeconfig, err := clientcmd.BuildConfigFromFlags("", s.Kubeconfig)
 	if err != nil {
 		return err
 	}
 
+	kubeconfigSeed := kubeconfig
+
+	if s.KubeconfigSeed != "" {
+		//kubeconfig for the seedcluster where MachineCRDs are supposed to be registered.
+		kubeconfigSeed, err = clientcmd.BuildConfigFromFlags("", s.KubeconfigSeed)
+		if err != nil {
+			return err
+		}		
+	}
+	
 	// PROTOBUF WONT WORK
 	// kubeconfig.ContentConfig.ContentType = s.ContentType
 	// Override kubeconfig qps/burst settings from flags
 	kubeconfig.QPS = s.KubeAPIQPS
+	kubeconfigSeed.QPS = s.KubeAPIQPS
 	kubeconfig.Burst = int(s.KubeAPIBurst)
-	kubeClient, err := kubernetes.NewForConfig(
-		rest.AddUserAgent(kubeconfig, "node-controller-manager"),
+	kubeconfigSeed.Burst = int(s.KubeAPIBurst)
+
+	kubeClientSeed, err := kubernetes.NewForConfig(
+		rest.AddUserAgent(kubeconfigSeed, "node-controller-manager"),
 	)
 	if err != nil {
-		glog.Fatalf("Invalid API configuration: %v", err)
+		glog.Fatalf("Invalid API configuration for seed-kubeconfig: %v", err)
 	}
-	leaderElectionClient := kubernetes.NewForConfigOrDie(rest.AddUserAgent(kubeconfig, "node-leader-election"))
+
+	leaderElectionClient := kubernetes.NewForConfigOrDie(rest.AddUserAgent(kubeconfigSeed, "node-leader-election"))
 
 	glog.V(4).Info("Starting http server and mux")
 	go startHTTP(s)
 
-	recorder := createRecorder(kubeClient)
+	recorder := createRecorder(kubeClientSeed)
 
 	run := func(stop <-chan struct{}) {
 		nodeClientBuilder := nodecontroller.SimpleClientBuilder{
-			ClientConfig: kubeconfig,
+			ClientConfig: kubeconfigSeed,
 		}
 
 		coreClientBuilder := corecontroller.SimpleControllerClientBuilder{
@@ -177,20 +192,24 @@ func StartControllers(s *options.NCMServer,
 	if availableResources[awsGVR] || availableResources[azureGVR] || availableResources[gcpGVR] {
 		glog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
-		nodeInformerFactory := nodeinformers.NewSharedInformerFactory(
+		nodeInformerFactory := nodeinformers.NewFilteredSharedInformerFactory(
 			nodeClientBuilder.ClientOrDie("node-shared-informers"),
 			s.MinResyncPeriod.Duration,
+			s.Namespace, 
+			nil,
 		)
 
 		coreInformerFactory := coreinformers.NewSharedInformerFactory(
 			coreClientBuilder.ClientOrDie("core-shared-informers"),
 			s.MinResyncPeriod.Duration,
 		)
+
 		// All shared informers are v1alpha1 API level
 		nodeSharedInformers := nodeInformerFactory.Machine().V1alpha1()
 
 		glog.V(5).Infof("Creating controllers...")
 		nodeController, err := nodecontroller.NewController(
+			s.Namespace,
 			coreClient,
 			nodeClientBuilder.ClientOrDie(controllerManagerAgentName).MachineV1alpha1(),
 			coreInformerFactory.Core().V1().Secrets(),

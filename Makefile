@@ -22,7 +22,7 @@ export GOBIN
 
 .PHONY: dev
 dev:
-	@go run cmd/node-controller-manager/controller_manager.go --kubeconfig=dev/kubeconfig.yaml --v=2
+	@go run cmd/node-controller-manager/controller_manager.go --kubeconfig=dev/kubeconfig.yaml --kubeconfig-seed=dev/kubeconfig-seed.yaml --namespace=default --v=2
 
 .PHONY: build
 build:
