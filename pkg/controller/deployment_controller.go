@@ -28,6 +28,7 @@ package controller
 import (
 	"fmt"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -38,6 +39,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/kubernetes/pkg/api"
 
@@ -117,8 +119,8 @@ func (dc *controller) addMachineSetToDeployment(obj interface{}) {
 
 // getDeploymentsForMachineSet returns a list of Deployments that potentially
 // match a MachineSet.
-func (dc *controller) getMachineDeploymentsForMachineSet(is *v1alpha1.MachineSet) []*v1alpha1.MachineDeployment {
-	deployments, err := dc.GetMachineDeploymentsForMachineSet(is)
+func (dc *controller) getMachineDeploymentsForMachineSet(machineSet *v1alpha1.MachineSet) []*v1alpha1.MachineDeployment {
+	deployments, err := dc.GetMachineDeploymentsForMachineSet(machineSet)
 	if err != nil || len(deployments) == 0 {
 		return nil
 	}
@@ -130,7 +132,7 @@ func (dc *controller) getMachineDeploymentsForMachineSet(is *v1alpha1.MachineSet
 		// ControllerRef will ensure we don't do anything crazy, but more than one
 		// item in this list nevertheless constitutes user error.
 		glog.V(4).Infof("user error! more than one deployment is selecting machine set %s with labels: %#v, returning %s",
-			is.Name, is.Labels, deployments[0].Name)
+			machineSet.Name, machineSet.Labels, deployments[0].Name)
 	}
 	return deployments
 }
@@ -140,44 +142,44 @@ func (dc *controller) getMachineDeploymentsForMachineSet(is *v1alpha1.MachineSet
 // awaken both the old and new deployments. old and cur must be *extensions.MachineSet
 // types.
 func (dc *controller) updateMachineSetToDeployment(old, cur interface{}) {
-	curIS := cur.(*v1alpha1.MachineSet)
-	oldIS := old.(*v1alpha1.MachineSet)
-	if curIS.ResourceVersion == oldIS.ResourceVersion {
+	curMachineSet := cur.(*v1alpha1.MachineSet)
+	oldMachineSet := old.(*v1alpha1.MachineSet)
+	if curMachineSet.ResourceVersion == oldMachineSet.ResourceVersion {
 		// Periodic resync will send update events for all known machine sets.
 		// Two different versions of the same machine set will always have different RVs.
 		return
 	}
 
-	curControllerRef := metav1.GetControllerOf(curIS)
-	oldControllerRef := metav1.GetControllerOf(oldIS)
+	curControllerRef := metav1.GetControllerOf(curMachineSet)
+	oldControllerRef := metav1.GetControllerOf(oldMachineSet)
 	controllerRefChanged := !reflect.DeepEqual(curControllerRef, oldControllerRef)
 	if controllerRefChanged && oldControllerRef != nil {
 		// The ControllerRef was changed. Sync the old controller, if any.
-		if d := dc.resolveDeploymentControllerRef(oldIS.Namespace, oldControllerRef); d != nil {
+		if d := dc.resolveDeploymentControllerRef(oldMachineSet.Namespace, oldControllerRef); d != nil {
 			dc.enqueueMachineDeployment(d)
 		}
 	}
 
 	// If it has a ControllerRef, that's all that matters.
 	if curControllerRef != nil {
-		d := dc.resolveDeploymentControllerRef(curIS.Namespace, curControllerRef)
+		d := dc.resolveDeploymentControllerRef(curMachineSet.Namespace, curControllerRef)
 		if d == nil {
 			return
 		}
-		glog.V(4).Infof("MachineSet %s updated.", curIS.Name)
+		glog.V(4).Infof("MachineSet %s updated.", curMachineSet.Name)
 		dc.enqueueMachineDeployment(d)
 		return
 	}
 
 	// Otherwise, it's an orphan. If anything changed, sync matching controllers
 	// to see if anyone wants to adopt it now.
-	labelChanged := !reflect.DeepEqual(curIS.Labels, oldIS.Labels)
+	labelChanged := !reflect.DeepEqual(curMachineSet.Labels, oldMachineSet.Labels)
 	if labelChanged || controllerRefChanged {
-		ds := dc.getMachineDeploymentsForMachineSet(curIS)
+		ds := dc.getMachineDeploymentsForMachineSet(curMachineSet)
 		if len(ds) == 0 {
 			return
 		}
-		glog.V(4).Infof("Orphan MachineSet %s updated.", curIS.Name)
+		glog.V(4).Infof("Orphan MachineSet %s updated.", curMachineSet.Name)
 		for _, d := range ds {
 			dc.enqueueMachineDeployment(d)
 		}
@@ -185,10 +187,10 @@ func (dc *controller) updateMachineSetToDeployment(old, cur interface{}) {
 }
 
 // deleteMachineSet enqueues the deployment that manages a MachineSet when
-// the MachineSet is deleted. obj could be an *extensions.MachineSet, or
+// the MachineSet is deleted. obj could be an *v1alpha1.MachineSet, or
 // a DeletionFinalStateUnknown marker item.
 func (dc *controller) deleteMachineSetToDeployment(obj interface{}) {
-	is, ok := obj.(*v1alpha1.MachineSet)
+	machineSet, ok := obj.(*v1alpha1.MachineSet)
 
 	// When a delete is dropped, the relist will notice a Machine in the store not
 	// in the list, leading to the insertion of a tombstone object which contains
@@ -200,23 +202,23 @@ func (dc *controller) deleteMachineSetToDeployment(obj interface{}) {
 			utilruntime.HandleError(fmt.Errorf("Couldn't get object from tombstone %#v", obj))
 			return
 		}
-		is, ok = tombstone.Obj.(*v1alpha1.MachineSet)
+		machineSet, ok = tombstone.Obj.(*v1alpha1.MachineSet)
 		if !ok {
 			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a MachineSet %#v", obj))
 			return
 		}
 	}
 
-	controllerRef := metav1.GetControllerOf(is)
+	controllerRef := metav1.GetControllerOf(machineSet)
 	if controllerRef == nil {
 		// No controller should care about orphans being deleted.
 		return
 	}
-	d := dc.resolveDeploymentControllerRef(is.Namespace, controllerRef)
+	d := dc.resolveDeploymentControllerRef(machineSet.Namespace, controllerRef)
 	if d == nil {
 		return
 	}
-	glog.V(4).Infof("MachineSet %s deleted.", is.Name)
+	glog.V(4).Infof("MachineSet %s deleted.", machineSet.Name)
 	dc.enqueueMachineDeployment(d)
 }
 
@@ -243,11 +245,11 @@ func (dc *controller) deleteMachineToMachineDeployment(obj interface{}) {
 	glog.V(4).Infof("Machine %s deleted.", machine.Name)
 	if d := dc.getMachineDeploymentForMachine(machine); d != nil && d.Spec.Strategy.Type == v1alpha1.RecreateMachineDeploymentStrategyType {
 		// Sync if this Deployment now has no more Machines.
-		isList, err := ListMachineSets(d, IsListFromClient(dc.nodeClient))
+		machineSets, err := ListMachineSets(d, IsListFromClient(dc.nodeClient))
 		if err != nil {
 			return
 		}
-		machineMap, err := dc.getMachineMapForMachineDeployment(d, isList)
+		machineMap, err := dc.getMachineMapForMachineDeployment(d, machineSets)
 		if err != nil {
 			return
 		}
@@ -268,7 +270,10 @@ func (dc *controller) enqueueMachineDeployment(deployment *v1alpha1.MachineDeplo
 		return
 	}
 
+	glog.V(4).Infof("Enqueuing %s", key)
+	glog.V(4).Infof("len: %d", dc.machineDeploymentQueue.Len())
 	dc.machineDeploymentQueue.Add(key)
+	glog.V(4).Infof("len: %d", dc.machineDeploymentQueue.Len())
 }
 
 func (dc *controller) enqueueRateLimited(deployment *v1alpha1.MachineDeployment) {
@@ -364,7 +369,7 @@ func (dc *controller) handleErr(err error, key interface{}) {
 func (dc *controller) getMachineSetsForMachineDeployment(d *v1alpha1.MachineDeployment) ([]*v1alpha1.MachineSet, error) {
 	// List all MachineSets to find those we own but that no longer match our
 	// selector. They will be orphaned by ClaimMachineSets().
-	isList, err := dc.machineSetLister.List(labels.Everything())
+	machineSets, err := dc.machineSetLister.List(labels.Everything())
 	if err != nil {
 		return nil, err
 	}
@@ -385,7 +390,7 @@ func (dc *controller) getMachineSetsForMachineDeployment(d *v1alpha1.MachineDepl
 		return fresh, nil
 	})
 	cm := NewMachineSetControllerRefManager(dc.machineSetControl, d, deploymentSelector, controllerKind, canAdoptFunc)
-	ISes, err := cm.ClaimMachineSets(isList)
+	ISes, err := cm.ClaimMachineSets(machineSets)
 	return ISes, err
 }
 
@@ -393,7 +398,7 @@ func (dc *controller) getMachineSetsForMachineDeployment(d *v1alpha1.MachineDepl
 //
 // It returns a map from MachineSet UID to a list of Machines controlled by that RS,
 // according to the Machine's ControllerRef.
-func (dc *controller) getMachineMapForMachineDeployment(d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet) (map[types.UID]*v1alpha1.MachineList, error) {
+func (dc *controller) getMachineMapForMachineDeployment(d *v1alpha1.MachineDeployment, machineSets []*v1alpha1.MachineSet) (map[types.UID]*v1alpha1.MachineList, error) {
 	// Get all Machines that potentially belong to this Deployment.
 	selector, err := metav1.LabelSelectorAsSelector(d.Spec.Selector)
 	if err != nil {
@@ -404,8 +409,8 @@ func (dc *controller) getMachineMapForMachineDeployment(d *v1alpha1.MachineDeplo
 		return nil, err
 	}
 	// Group Machines by their controller (if it's in rsList).
-	machineMap := make(map[types.UID]*v1alpha1.MachineList, len(isList))
-	for _, is := range isList {
+	machineMap := make(map[types.UID]*v1alpha1.MachineList, len(machineSets))
+	for _, is := range machineSets {
 		machineMap[is.UID] = &v1alpha1.MachineList{}
 	}
 	for _, machine := range machines {
@@ -423,9 +428,9 @@ func (dc *controller) getMachineMapForMachineDeployment(d *v1alpha1.MachineDeplo
 	return machineMap, nil
 }
 
-// syncDeployment will sync the deployment with the given key.
+// reconcileClusterMachineDeployment will sync the deployment with the given key.
 // This function is not meant to be invoked concurrently with the same key.
-func (dc *controller) syncMachineDeployment(key string) error {
+func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	startTime := time.Now()
 	glog.V(4).Infof("Started syncing deployment %q (%v)", key, startTime)
 	defer func() {
@@ -467,6 +472,11 @@ func (dc *controller) syncMachineDeployment(key string) error {
 	// TODO: Deep-copy only when needed.
 	d := deployment.DeepCopy()
 
+	// Manipulate finalizers
+	if d.DeletionTimestamp == nil {
+		dc.addMachineDeploymentFinalizers(d)
+	}
+
 	everything := metav1.LabelSelector{}
 	if reflect.DeepEqual(d.Spec.Selector, &everything) {
 		dc.recorder.Eventf(d, v1.EventTypeWarning, "SelectingAll", "This deployment is selecting all machines. A non-empty selector is required.")
@@ -479,7 +489,7 @@ func (dc *controller) syncMachineDeployment(key string) error {
 
 	// List MachineSets owned by this Deployment, while reconciling ControllerRef
 	// through adoption/orphaning.
-	isList, err := dc.getMachineSetsForMachineDeployment(d)
+	machineSets, err := dc.getMachineSetsForMachineDeployment(d)
 	if err != nil {
 		return err
 	}
@@ -488,13 +498,22 @@ func (dc *controller) syncMachineDeployment(key string) error {
 	//
 	// * check if a Machine is labeled correctly with the Machine-template-hash label.
 	// * check that no old Machines are running in the middle of Recreate Deployments.
-	machineMap, err := dc.getMachineMapForMachineDeployment(d, isList)
+	machineMap, err := dc.getMachineMapForMachineDeployment(d, machineSets)
 	if err != nil {
 		return err
 	}
 
 	if d.DeletionTimestamp != nil {
-		return dc.syncStatusOnly(d, isList, machineMap)
+		if finalizers := sets.NewString(d.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
+			return nil
+		}
+		if len(machineSets) == 0 {
+			dc.deleteMachineDeploymentFinalizers(d)
+			return nil
+		}
+		glog.V(4).Infof("Deleting all child MachineSets as MachineDeployment %s has set deletionTimestamp", d.Name)
+		dc.terminateMachineSets(machineSets, d)
+		return dc.syncStatusOnly(d, machineSets, machineMap)
 	}
 
 	// Update deployment conditions with an Unknown condition when pausing/resuming
@@ -505,30 +524,90 @@ func (dc *controller) syncMachineDeployment(key string) error {
 	}
 
 	if d.Spec.Paused {
-		return dc.sync(d, isList, machineMap)
+		return dc.sync(d, machineSets, machineMap)
 	}
 
 	// rollback is not re-entrant in case the underlying machine sets are updated with a new
 	// revision so we should ensure that we won't proceed to update machine sets until we
 	// make sure that the deployment has cleaned up its rollback spec in subsequent enqueues.
 	if d.Spec.RollbackTo != nil {
-		return dc.rollback(d, isList, machineMap)
+		return dc.rollback(d, machineSets, machineMap)
 	}
 
-	scalingEvent, err := dc.isScalingEvent(d, isList, machineMap)
+	scalingEvent, err := dc.isScalingEvent(d, machineSets, machineMap)
 
 	if err != nil {
 		return err
 	}
 	if scalingEvent {
-		return dc.sync(d, isList, machineMap)
+		return dc.sync(d, machineSets, machineMap)
 	}
 
 	switch d.Spec.Strategy.Type {
 	case v1alpha1.RecreateMachineDeploymentStrategyType:
-		return dc.rolloutRecreate(d, isList, machineMap)
+		return dc.rolloutRecreate(d, machineSets, machineMap)
 	case v1alpha1.RollingUpdateMachineDeploymentStrategyType:
-		return dc.rolloutRolling(d, isList, machineMap)
+		return dc.rolloutRolling(d, machineSets, machineMap)
 	}
 	return fmt.Errorf("unexpected deployment strategy type: %s", d.Spec.Strategy.Type)
+}
+
+func (dc *controller) terminateMachineSets(machineSets []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) {
+	var (
+		wg               sync.WaitGroup
+		numOfMachinesets = len(machineSets)
+	)
+	wg.Add(numOfMachinesets)
+
+	for _, machineSet := range machineSets {
+		go func(machineSet *v1alpha1.MachineSet) {
+			defer wg.Done()
+			// Machine is already marked as 'to-be-deleted'
+			if machineSet.DeletionTimestamp != nil {
+				return
+			}
+			dc.nodeClient.MachineSets().Delete(machineSet.Name, nil)
+		}(machineSet)
+	}
+	wg.Wait()
+}
+
+/*
+	SECTION
+	Manipulate Finalizers
+*/
+
+func (c *controller) addMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment) {
+	clone := machineDeployment.DeepCopy()
+
+	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
+		finalizers.Insert(DeleteFinalizerName)
+		c.updateMachineDeploymentFinalizers(clone, finalizers.List())
+	}
+}
+
+func (c *controller) deleteMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment) {
+	clone := machineDeployment.DeepCopy()
+
+	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
+		finalizers.Delete(DeleteFinalizerName)
+		c.updateMachineDeploymentFinalizers(clone, finalizers.List())
+	}
+}
+
+func (c *controller) updateMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment, finalizers []string) {
+	// Get the latest version of the machineDeployment so that we can avoid conflicts
+	machineDeployment, err := c.nodeClient.MachineDeployments().Get(machineDeployment.Name, metav1.GetOptions{})
+	if err != nil {
+		return
+	}
+
+	clone := machineDeployment.DeepCopy()
+	clone.Finalizers = finalizers
+	_, err = c.nodeClient.MachineDeployments().Update(clone)
+	if err != nil {
+		// Keep retrying until update goes through
+		glog.Warning("Updated failed, retrying")
+		c.updateMachineDeploymentFinalizers(machineDeployment, finalizers)
+	}
 }
