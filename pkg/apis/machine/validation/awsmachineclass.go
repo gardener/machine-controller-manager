@@ -68,8 +68,8 @@ func validateAWSMachineClassSpec(spec *machine.AWSMachineClassSpec, fldPath *fie
 	if "" == spec.AMI {
 		allErrs = append(allErrs, field.Required(fldPath.Child("ami"), "AMI is required"))
 	}
-	if "" == spec.AvailabilityZone {
-		allErrs = append(allErrs, field.Required(fldPath.Child("availabilityZone"), "AvailabilityZone is required"))
+	if "" == spec.Region {
+		allErrs = append(allErrs, field.Required(fldPath.Child("region"), "Region is required"))
 	}
 	if "" == spec.MachineType {
 		allErrs = append(allErrs, field.Required(fldPath.Child("machineType"), "MachineType is required"))

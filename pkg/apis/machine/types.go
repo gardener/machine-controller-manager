@@ -669,7 +669,7 @@ type AWSMachineClassList struct {
 // AWSMachineClassSpec is the specification of a cluster.
 type AWSMachineClassSpec struct {
 	AMI               string
-	AvailabilityZone  string
+	Region            string
 	BlockDevices      []AWSBlockDeviceMappingSpec
 	EbsOptimized      bool
 	IAM               AWSIAMProfileSpec
