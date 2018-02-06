@@ -39,7 +39,7 @@ import (
 
 	corecontroller "k8s.io/kubernetes/pkg/controller"
 
-	nodecontroller "github.com/gardener/node-controller-manager/pkg/controller"
+	machinecontroller "github.com/gardener/node-controller-manager/pkg/controller"
 
 	"github.com/gardener/node-controller-manager/cmd/node-controller-manager/app/options"
 	"github.com/golang/glog"
@@ -80,54 +80,68 @@ func Run(s *options.NCMServer) error {
 
 	var err error
 
-	//kubeconfig for the cluster for which node-controller-manager will create machines.
-	kubeconfig, err := clientcmd.BuildConfigFromFlags("", s.Kubeconfig)
+	//targetkubeconfig for the cluster for which node-controller-manager will create machines.
+	targetkubeconfig, err := clientcmd.BuildConfigFromFlags("", s.TargetKubeconfig)
 	if err != nil {
 		return err
 	}
 
-	kubeconfigSeed := kubeconfig
+	controlkubeconfig := targetkubeconfig
 
-	if s.KubeconfigSeed != "" {
-		//kubeconfig for the seedcluster where MachineCRDs are supposed to be registered.
-		kubeconfigSeed, err = clientcmd.BuildConfigFromFlags("", s.KubeconfigSeed)
+	if s.ControlKubeconfig != "" {
+		//targetkubeconfig for the seedcluster where MachineCRDs are supposed to be registered.
+		controlkubeconfig, err = clientcmd.BuildConfigFromFlags("", s.ControlKubeconfig)
 		if err != nil {
 			return err
-		}		
+		}
 	}
-	
-	// PROTOBUF WONT WORK
-	// kubeconfig.ContentConfig.ContentType = s.ContentType
-	// Override kubeconfig qps/burst settings from flags
-	kubeconfig.QPS = s.KubeAPIQPS
-	kubeconfigSeed.QPS = s.KubeAPIQPS
-	kubeconfig.Burst = int(s.KubeAPIBurst)
-	kubeconfigSeed.Burst = int(s.KubeAPIBurst)
 
-	kubeClientSeed, err := kubernetes.NewForConfig(
-		rest.AddUserAgent(kubeconfigSeed, "node-controller-manager"),
+	// PROTOBUF WONT WORK
+	// targetkubeconfig.ContentConfig.ContentType = s.ContentType
+	// Override targetkubeconfig qps/burst settings from flags
+	targetkubeconfig.QPS = s.KubeAPIQPS
+	controlkubeconfig.QPS = s.KubeAPIQPS
+	targetkubeconfig.Burst = int(s.KubeAPIBurst)
+	controlkubeconfig.Burst = int(s.KubeAPIBurst)
+
+	controlKubeClient, err := kubernetes.NewForConfig(
+		rest.AddUserAgent(controlkubeconfig, "node-controller-manager"),
 	)
 	if err != nil {
-		glog.Fatalf("Invalid API configuration for seed-kubeconfig: %v", err)
+		glog.Fatalf("Invalid API configuration for control kubeconfig: %v", err)
 	}
 
-	leaderElectionClient := kubernetes.NewForConfigOrDie(rest.AddUserAgent(kubeconfigSeed, "node-leader-election"))
+	leaderElectionClient := kubernetes.NewForConfigOrDie(rest.AddUserAgent(controlkubeconfig, "node-leader-election"))
 
 	glog.V(4).Info("Starting http server and mux")
 	go startHTTP(s)
 
-	recorder := createRecorder(kubeClientSeed)
+	recorder := createRecorder(controlKubeClient)
 
 	run := func(stop <-chan struct{}) {
-		nodeClientBuilder := nodecontroller.SimpleClientBuilder{
-			ClientConfig: kubeconfigSeed,
+		// Control plane client used to interact with machine APIs
+		controlMachineClientBuilder := machinecontroller.SimpleClientBuilder{
+			ClientConfig: controlkubeconfig,
+		}
+		// Control plane client used to interact with core kubernetes objects
+		controlCoreClientBuilder := corecontroller.SimpleControllerClientBuilder{
+			ClientConfig: controlkubeconfig,
+		}
+		// Target plane client used to interact with core kubernetes objects
+		targetCoreClientBuilder := corecontroller.SimpleControllerClientBuilder{
+			ClientConfig: targetkubeconfig,
 		}
 
-		coreClientBuilder := corecontroller.SimpleControllerClientBuilder{
-			ClientConfig: kubeconfig,
-		}
-
-		err := StartControllers(s, kubeconfig, nodeClientBuilder, coreClientBuilder, recorder, stop)
+		err := StartControllers(
+			s,
+			controlkubeconfig,
+			targetkubeconfig,
+			controlMachineClientBuilder,
+			controlCoreClientBuilder,
+			targetCoreClientBuilder,
+			recorder,
+			stop,
+		)
 		glog.Fatalf("error running controllers: %v", err)
 		panic("unreachable")
 
@@ -171,20 +185,30 @@ func Run(s *options.NCMServer) error {
 }
 
 func StartControllers(s *options.NCMServer,
-	coreKubeconfig *rest.Config,
-	nodeClientBuilder nodecontroller.ClientBuilder,
-	coreClientBuilder corecontroller.ControllerClientBuilder,
+	controlCoreKubeconfig *rest.Config,
+	targetCoreKubeconfig *rest.Config,
+	controlMachineClientBuilder machinecontroller.ClientBuilder,
+	controlCoreClientBuilder corecontroller.ControllerClientBuilder,
+	targetCoreClientBuilder corecontroller.ControllerClientBuilder,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) error {
 
 	glog.V(5).Info("Getting available resources")
-	availableResources, err := getAvailableResources(coreClientBuilder)
+	availableResources, err := getAvailableResources(controlCoreClientBuilder)
 	if err != nil {
 		return err
 	}
 
-	coreKubeconfig = rest.AddUserAgent(coreKubeconfig, controllerManagerAgentName)
-	coreClient, err := kubernetes.NewForConfig(coreKubeconfig)
+	controlMachineClient := controlMachineClientBuilder.ClientOrDie(controllerManagerAgentName).MachineV1alpha1()
+
+	controlCoreKubeconfig = rest.AddUserAgent(controlCoreKubeconfig, controllerManagerAgentName)
+	controlCoreClient, err := kubernetes.NewForConfig(controlCoreKubeconfig)
+	if err != nil {
+		glog.Fatal(err)
+	}
+
+	targetCoreKubeconfig = rest.AddUserAgent(targetCoreKubeconfig, controllerManagerAgentName)
+	targetCoreClient, err := kubernetes.NewForConfig(targetCoreKubeconfig)
 	if err != nil {
 		glog.Fatal(err)
 	}
@@ -192,34 +216,40 @@ func StartControllers(s *options.NCMServer,
 	if availableResources[awsGVR] || availableResources[azureGVR] || availableResources[gcpGVR] {
 		glog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
-		nodeInformerFactory := nodeinformers.NewFilteredSharedInformerFactory(
-			nodeClientBuilder.ClientOrDie("node-shared-informers"),
+		controlMachineInformerFactory := nodeinformers.NewFilteredSharedInformerFactory(
+			controlMachineClientBuilder.ClientOrDie("control-machine-shared-informers"),
 			s.MinResyncPeriod.Duration,
-			s.Namespace, 
+			s.Namespace,
 			nil,
 		)
 
-		coreInformerFactory := coreinformers.NewSharedInformerFactory(
-			coreClientBuilder.ClientOrDie("core-shared-informers"),
+		controlCoreInformerFactory := coreinformers.NewSharedInformerFactory(
+			controlCoreClientBuilder.ClientOrDie("control-core-shared-informers"),
+			s.MinResyncPeriod.Duration,
+		)
+
+		targetCoreInformerFactory := coreinformers.NewSharedInformerFactory(
+			targetCoreClientBuilder.ClientOrDie("target-core-shared-informers"),
 			s.MinResyncPeriod.Duration,
 		)
 
 		// All shared informers are v1alpha1 API level
-		nodeSharedInformers := nodeInformerFactory.Machine().V1alpha1()
+		machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
 
 		glog.V(5).Infof("Creating controllers...")
-		nodeController, err := nodecontroller.NewController(
+		nodeController, err := machinecontroller.NewController(
 			s.Namespace,
-			coreClient,
-			nodeClientBuilder.ClientOrDie(controllerManagerAgentName).MachineV1alpha1(),
-			coreInformerFactory.Core().V1().Secrets(),
-			coreInformerFactory.Core().V1().Nodes(),
-			nodeSharedInformers.AWSMachineClasses(),
-			nodeSharedInformers.AzureMachineClasses(),
-			nodeSharedInformers.GCPMachineClasses(),
-			nodeSharedInformers.Machines(),
-			nodeSharedInformers.MachineSets(),
-			nodeSharedInformers.MachineDeployments(),
+			controlMachineClient,
+			controlCoreClient,
+			targetCoreClient,
+			controlCoreInformerFactory.Core().V1().Secrets(),
+			targetCoreInformerFactory.Core().V1().Nodes(),
+			machineSharedInformers.AWSMachineClasses(),
+			machineSharedInformers.AzureMachineClasses(),
+			machineSharedInformers.GCPMachineClasses(),
+			machineSharedInformers.Machines(),
+			machineSharedInformers.MachineSets(),
+			machineSharedInformers.MachineDeployments(),
 			recorder,
 		)
 		if err != nil {
@@ -227,8 +257,9 @@ func StartControllers(s *options.NCMServer,
 		}
 		glog.V(1).Info("Starting shared informers")
 
-		coreInformerFactory.Start(stop)
-		nodeInformerFactory.Start(stop)
+		controlMachineInformerFactory.Start(stop)
+		controlCoreInformerFactory.Start(stop)
+		targetCoreInformerFactory.Start(stop)
 
 		glog.V(5).Info("Running controller")
 		go nodeController.Run(int(s.ConcurrentNodeSyncs), stop)

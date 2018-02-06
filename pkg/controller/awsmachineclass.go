@@ -86,7 +86,7 @@ func (c *controller) awsMachineClassUpdate(oldObj, newObj interface{}) {
 // reconcileClusterAWSMachineClassKey reconciles an AWSMachineClass due to controller resync
 // or an event on the awsMachineClass.
 func (c *controller) reconcileClusterAWSMachineClassKey(key string) error {
-	_ , name, err := cache.SplitMetaNamespaceKey(key)
+	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
 	}
@@ -180,14 +180,14 @@ func (c *controller) deleteAWSMachineClassFinalizers(class *v1alpha1.AWSMachineC
 
 func (c *controller) updateAWSMachineClassFinalizers(class *v1alpha1.AWSMachineClass, finalizers []string) {
 	// Get the latest version of the class so that we can avoid conflicts
-	class, err := c.nodeClient.AWSMachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
+	class, err := c.controlMachineClient.AWSMachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.nodeClient.AWSMachineClasses(class.Namespace).Update(clone)
+	_, err = c.controlMachineClient.AWSMachineClasses(class.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
 		glog.Warning("Updated failed, retrying")

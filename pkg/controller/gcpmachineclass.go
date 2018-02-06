@@ -86,7 +86,7 @@ func (c *controller) gcpMachineClassUpdate(oldObj, newObj interface{}) {
 // reconcileClusterGCPMachineClassKey reconciles an GCPMachineClass due to controller resync
 // or an event on the gcpMachineClass.
 func (c *controller) reconcileClusterGCPMachineClassKey(key string) error {
-	_ , name, err := cache.SplitMetaNamespaceKey(key)
+	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
 	}
@@ -181,14 +181,14 @@ func (c *controller) deleteGCPMachineClassFinalizers(class *v1alpha1.GCPMachineC
 
 func (c *controller) updateGCPMachineClassFinalizers(class *v1alpha1.GCPMachineClass, finalizers []string) {
 	// Get the latest version of the class so that we can avoid conflicts
-	class, err := c.nodeClient.GCPMachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
+	class, err := c.controlMachineClient.GCPMachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.nodeClient.GCPMachineClasses(class.Namespace).Update(clone)
+	_, err = c.controlMachineClient.GCPMachineClasses(class.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
 		glog.Warning("Updated failed, retrying")
