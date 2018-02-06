@@ -513,7 +513,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	newStatus := calculateMachineSetStatus(machineSet, filteredMachines, manageReplicasErr)
 
 	// Always updates status as machines come up or die.
-	updatedMachineSet, err := updateMachineSetStatus(c.nodeClient, machineSet, newStatus)
+	updatedMachineSet, err := updateMachineSetStatus(c.controlMachineClient, machineSet, newStatus)
 	if err != nil {
 		// Multiple things could lead to this update failing. Requeuing the machine set ensures
 		// Returning an error causes a requeue without forcing a hotloop
@@ -535,7 +535,7 @@ func (c *controller) claimMachines(machineSet *v1alpha1.MachineSet, selector lab
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing Machines (see #42639).
 	canAdoptFunc := RecheckDeletionTimestamp(func() (metav1.Object, error) {
-		fresh, err := c.nodeClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
+		fresh, err := c.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -690,14 +690,14 @@ func (c *controller) deleteMachineSetFinalizers(machineSet *v1alpha1.MachineSet)
 
 func (c *controller) updateMachineSetFinalizers(machineSet *v1alpha1.MachineSet, finalizers []string) {
 	// Get the latest version of the machineSet so that we can avoid conflicts
-	machineSet, err := c.nodeClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
+	machineSet, err := c.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
 
 	clone := machineSet.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.nodeClient.MachineSets(clone.Namespace).Update(clone)
+	_, err = c.controlMachineClient.MachineSets(clone.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
 		glog.Warning("Updated failed, retrying")

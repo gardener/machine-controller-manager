@@ -410,15 +410,14 @@ type MachineSetControlInterface interface {
 
 // RealMachineSetControl is the default implementation of RSControllerInterface.
 type RealMachineSetControl struct {
-	NodeClient nodeclientset.MachineV1alpha1Interface
-	Recorder   record.EventRecorder
+	controlMachineClient nodeclientset.MachineV1alpha1Interface
+	Recorder             record.EventRecorder
 }
 
 var _ MachineSetControlInterface = &RealMachineSetControl{}
 
-
 func (r RealMachineSetControl) PatchMachineSet(namespace, name string, data []byte) error {
-	_, err := r.NodeClient.MachineSets(namespace).Patch(name, types.MergePatchType, data)
+	_, err := r.controlMachineClient.MachineSets(namespace).Patch(name, types.MergePatchType, data)
 	return err
 }
 
@@ -464,8 +463,8 @@ func validateControllerRef(controllerRef *metav1.OwnerReference) error {
 //--- For Machines ---//
 // RealmachineControl is the default implementation of machineControlInterface.
 type RealMachineControl struct {
-	NodeClient nodeclientset.MachineV1alpha1Interface
-	Recorder   record.EventRecorder
+	controlMachineClient nodeclientset.MachineV1alpha1Interface
+	Recorder             record.EventRecorder
 }
 
 var _ MachineControlInterface = &RealMachineControl{}
@@ -589,7 +588,7 @@ func (r RealMachineControl) createMachines(namespace string, template *v1alpha1.
 
 	//glog.Infof("2 : Printing Machine details : %+v", machine)
 
-	if newMachine, err := r.NodeClient.Machines(namespace).Create(machine); err != nil {
+	if newMachine, err := r.controlMachineClient.Machines(namespace).Create(machine); err != nil {
 		glog.Error(err)
 		//glog.Infof("3")
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedCreateMachineReason, "Error creating: %v", err)
@@ -609,7 +608,7 @@ func (r RealMachineControl) createMachines(namespace string, template *v1alpha1.
 }
 
 func (r RealMachineControl) PatchMachine(namespace string, name string, data []byte) error {
-	_, err := r.NodeClient.Machines(namespace).Patch(name, types.MergePatchType, data)
+	_, err := r.controlMachineClient.Machines(namespace).Patch(name, types.MergePatchType, data)
 	return err
 }
 
@@ -620,7 +619,7 @@ func (r RealMachineControl) DeleteMachine(namespace string, machineID string, ob
 	}
 	glog.V(2).Infof("Controller %v deleting machine %v", accessor.GetName(), machineID)
 
-	if err := r.NodeClient.Machines(namespace).Delete(machineID, nil); err != nil {
+	if err := r.controlMachineClient.Machines(namespace).Delete(machineID, nil); err != nil {
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeleteMachineReason, "Error deleting: %v", err)
 		return fmt.Errorf("unable to delete machines: %v", err)
 	} else {

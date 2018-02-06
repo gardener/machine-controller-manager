@@ -40,8 +40,8 @@ import (
 type NCMServer struct {
 	nodeconfig.NodeControllerManagerConfiguration
 
-	Kubeconfig string
-	KubeconfigSeed string
+	ControlKubeconfig string
+	TargetKubeconfig  string
 }
 
 // NewNCMServer creates a new NCMServer with a default config.
@@ -52,7 +52,7 @@ func NewNCMServer() *NCMServer {
 		// Please keep them in sync when doing update.
 		NodeControllerManagerConfiguration: nodeconfig.NodeControllerManagerConfiguration{
 			Port:                    10258,
-			Namespace:               "default",	
+			Namespace:               "default",
 			Address:                 "0.0.0.0",
 			ConcurrentNodeSyncs:     5,
 			ContentType:             "application/vnd.kubernetes.protobuf",
@@ -78,9 +78,9 @@ func (s *NCMServer) AddFlags(fs *pflag.FlagSet) {
 
 	fs.BoolVar(&s.EnableProfiling, "profiling", true, "Enable profiling via web interface host:port/debug/pprof/")
 	fs.BoolVar(&s.EnableContentionProfiling, "contention-profiling", false, "Enable lock contention profiling, if profiling is enabled")
-	fs.StringVar(&s.Kubeconfig, "kubeconfig", s.Kubeconfig, "Path to kubeconfig file with authorization and master location information.")
-	fs.StringVar(&s.KubeconfigSeed, "kubeconfig-seed", "", "Path to seed cluster's kubeconfig file with authorization and master location information.")	
-	fs.StringVar(&s.Namespace, "namespace", s.Namespace, "Name of the namespace in seed cluster where controller would look for CRDs")
+	fs.StringVar(&s.TargetKubeconfig, "target-kubeconfig", s.TargetKubeconfig, "Path to kubeconfig file of the target cluster for which machines are to be managed")
+	fs.StringVar(&s.ControlKubeconfig, "control-kubeconfig", "", "Path to kubeconfig file of the control cluster where the node-controller-manager will run")
+	fs.StringVar(&s.Namespace, "namespace", s.Namespace, "Name of the namespace in control cluster where controller would look for CRDs and Kubernetes objects")
 	fs.StringVar(&s.ContentType, "kube-api-content-type", s.ContentType, "Content type of requests sent to apiserver.")
 	fs.Float32Var(&s.KubeAPIQPS, "kube-api-qps", s.KubeAPIQPS, "QPS to use while talking with kubernetes apiserver")
 	fs.Int32Var(&s.KubeAPIBurst, "kube-api-burst", s.KubeAPIBurst, "Burst to use while talking with kubernetes apiserver")
