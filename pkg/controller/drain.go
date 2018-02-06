@@ -488,7 +488,7 @@ func (o *DrainOptions) RunCordonOrUncordon(desired bool) error {
 	}
 	unsched := node.Spec.Unschedulable
 	if unsched == desired {
-		glog.Info("Already desired")
+		glog.V(3).Info("Already desired")
 	} else {
 		clone := node.DeepCopy()
 		clone.Spec.Unschedulable = desired
