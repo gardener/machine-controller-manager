@@ -81,53 +81,58 @@ func Run(s *options.NCMServer) error {
 	var err error
 
 	//kubeconfig for the cluster for which node-controller-manager will create machines.
-	kubeconfig, err := clientcmd.BuildConfigFromFlags("", s.Kubeconfig)
+	kubeconfigTarget, err := clientcmd.BuildConfigFromFlags("", s.KubeconfigTarget)
 	if err != nil {
 		return err
 	}
 
-	kubeconfigSeed := kubeconfig
+	kubeconfigControl := kubeconfigTarget
 
-	if s.KubeconfigSeed != "" {
-		//kubeconfig for the seedcluster where MachineCRDs are supposed to be registered.
-		kubeconfigSeed, err = clientcmd.BuildConfigFromFlags("", s.KubeconfigSeed)
+	if s.KubeconfigControl != "" {
+		if s.KubeconfigControl == "inClusterConfig" {
+			//use inClusterConfig when controller is running inside clus
+			kubeconfigControl, err = clientcmd.BuildConfigFromFlags("", "")
+		} else {
+			//kubeconfig for the seedcluster where MachineCRDs are supposed to be registered.
+			kubeconfigControl, err = clientcmd.BuildConfigFromFlags("", s.KubeconfigControl)			
+		}
 		if err != nil {
 			return err
 		}		
 	}
-	
+
 	// PROTOBUF WONT WORK
 	// kubeconfig.ContentConfig.ContentType = s.ContentType
 	// Override kubeconfig qps/burst settings from flags
-	kubeconfig.QPS = s.KubeAPIQPS
-	kubeconfigSeed.QPS = s.KubeAPIQPS
-	kubeconfig.Burst = int(s.KubeAPIBurst)
-	kubeconfigSeed.Burst = int(s.KubeAPIBurst)
+	kubeconfigTarget.QPS = s.KubeAPIQPS
+	kubeconfigControl.QPS = s.KubeAPIQPS
+	kubeconfigTarget.Burst = int(s.KubeAPIBurst)
+	kubeconfigControl.Burst = int(s.KubeAPIBurst)
 
-	kubeClientSeed, err := kubernetes.NewForConfig(
-		rest.AddUserAgent(kubeconfigSeed, "node-controller-manager"),
+	kubeClientControl, err := kubernetes.NewForConfig(
+		rest.AddUserAgent(kubeconfigControl, "node-controller-manager"),
 	)
 	if err != nil {
-		glog.Fatalf("Invalid API configuration for seed-kubeconfig: %v", err)
+		glog.Fatalf("Invalid API configuration for kubeconfig-control: %v", err)
 	}
 
-	leaderElectionClient := kubernetes.NewForConfigOrDie(rest.AddUserAgent(kubeconfigSeed, "node-leader-election"))
+	leaderElectionClient := kubernetes.NewForConfigOrDie(rest.AddUserAgent(kubeconfigControl, "node-leader-election"))
 
 	glog.V(4).Info("Starting http server and mux")
 	go startHTTP(s)
 
-	recorder := createRecorder(kubeClientSeed)
+	recorder := createRecorder(kubeClientControl)
 
 	run := func(stop <-chan struct{}) {
 		nodeClientBuilder := nodecontroller.SimpleClientBuilder{
-			ClientConfig: kubeconfigSeed,
+			ClientConfig: kubeconfigControl,
 		}
 
 		coreClientBuilder := corecontroller.SimpleControllerClientBuilder{
-			ClientConfig: kubeconfig,
+			ClientConfig: kubeconfigTarget,
 		}
 
-		err := StartControllers(s, kubeconfig, nodeClientBuilder, coreClientBuilder, recorder, stop)
+		err := StartControllers(s, kubeconfigTarget, nodeClientBuilder, coreClientBuilder, recorder, stop)
 		glog.Fatalf("error running controllers: %v", err)
 		panic("unreachable")
 
@@ -144,7 +149,7 @@ func Run(s *options.NCMServer) error {
 	}
 
 	rl, err := resourcelock.New(s.LeaderElection.ResourceLock,
-		"kube-system",
+		s.Namespace,
 		"node-controller-manager",
 		leaderElectionClient.CoreV1(),
 		resourcelock.ResourceLockConfig{

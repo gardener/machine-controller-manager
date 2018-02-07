@@ -8,7 +8,7 @@ LINT_FOLDERS     := $(shell echo $(PACKAGES) | sed "s|$(REPOSITORY)|.|g")
 BINARY_PATH      := $(REPOSITORY)/cmd/$(PROJECT)
 
 IMAGE_REPOSITORY := kvmprashanth/node-controller-manager
-IMAGE_TAG        := v2
+IMAGE_TAG        := v0.1.0
 
 TYPES_FILES      := $(shell find pkg/apis -name types.go)
 

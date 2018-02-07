@@ -4,7 +4,7 @@ apiVersion: machine.sapcloud.io/v1alpha1
 kind: MachineSet
 metadata:
   name: test-machine-set # Name of machine-set
-  namespace: test
+  namespace: default
   labels:
     test-label: test-label # Label to match the selector (XXXXX)
 spec:

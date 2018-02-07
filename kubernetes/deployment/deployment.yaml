@@ -13,9 +13,10 @@ spec:
     spec:
       containers:
       - name: node-controller-manager
-        image: kvmprashanth/node-controller-manager:v2
+        image: kvmprashanth/node-controller-manager:v0.1.0
         imagePullPolicy: Always 
         command:
           - ./node-controller-manager
           - --v=2
+          - --namespace=default
           #- --kubeconfig=kubeconfig.yaml ## Optional parameter used when controller is running outside the cluster, kubeconfig.yaml file can be fetched from Kubernetes config-map or secret
