@@ -66,6 +66,7 @@ const (
 	controllerDiscoveryAgentName = "node-controller-discovery"
 )
 
+var openStackGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "openstackmachineclasses"}
 var awsGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "awsmachineclasses"}
 var azureGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "azuremachineclasses"}
 var gcpGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "gcpmachineclasses"}
@@ -195,6 +196,7 @@ func StartControllers(s *options.NCMServer,
 			nodeClientBuilder.ClientOrDie(controllerManagerAgentName).MachineV1alpha1(),
 			coreInformerFactory.Core().V1().Secrets(),
 			coreInformerFactory.Core().V1().Nodes(),
+			nodeSharedInformers.OpenStackMachineClasses(),
 			nodeSharedInformers.AWSMachineClasses(),
 			nodeSharedInformers.AzureMachineClasses(),
 			nodeSharedInformers.GCPMachineClasses(),

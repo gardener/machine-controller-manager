@@ -61,6 +61,10 @@ required = [
   name = "cloud.google.com/go"
   version = "0.18.0"
 
+[[constraint]]
+  name = "github.com/gophercloud/gophercloud"
+  revision = "fe85f9519740a5b5c09ecb0909609b58e59e5dec"
+
 [prune]
   unused-packages = true
   go-tests = true

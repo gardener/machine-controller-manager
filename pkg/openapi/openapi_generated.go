@@ -2123,6 +2123,162 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClass": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "OpenStackMachineClass TODO",
+					Properties: map[string]spec.Schema{
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							},
+						},
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"spec": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClassSpec"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClassList": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "OpenStackMachineClassList is a collection of OpenStackMachineClasses.",
+					Properties: map[string]spec.Schema{
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+							},
+						},
+						"items": {
+							SchemaProps: spec.SchemaProps{
+								Type: []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClass"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+		},
+		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClassSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "OpenStackMachineClassSpec is the specification of a cluster.",
+					Properties: map[string]spec.Schema{
+						"imageName": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"region": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"availabilityZone": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"flavorName": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"keyName": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"securityGroups": {
+							SchemaProps: spec.SchemaProps{
+								Type: []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+						"tags": {
+							SchemaProps: spec.SchemaProps{
+								Type: []string{"object"},
+								AdditionalProperties: &spec.SchemaOrBool{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+						"networkID": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"secretRef": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/api/core/v1.SecretReference"),
+							},
+						},
+					},
+					Required: []string{"imageName", "region", "availabilityZone", "flavorName", "keyName", "securityGroups", "networkID"},
+				},
+			},
+			Dependencies: []string{
+				"k8s.io/api/core/v1.SecretReference"},
+		},
 		"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -6455,7 +6611,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"scaleIO": {
 							SchemaProps: spec.SchemaProps{
 								Description: "ScaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes.",
-								Ref:         ref("k8s.io/api/core/v1.ScaleIOVolumeSource"),
+								Ref:         ref("k8s.io/api/core/v1.ScaleIOPersistentVolumeSource"),
 							},
 						},
 						"local": {
@@ -6474,7 +6630,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource", "k8s.io/api/core/v1.AzureDiskVolumeSource", "k8s.io/api/core/v1.AzureFilePersistentVolumeSource", "k8s.io/api/core/v1.CephFSPersistentVolumeSource", "k8s.io/api/core/v1.CinderVolumeSource", "k8s.io/api/core/v1.FCVolumeSource", "k8s.io/api/core/v1.FlexVolumeSource", "k8s.io/api/core/v1.FlockerVolumeSource", "k8s.io/api/core/v1.GCEPersistentDiskVolumeSource", "k8s.io/api/core/v1.GlusterfsVolumeSource", "k8s.io/api/core/v1.HostPathVolumeSource", "k8s.io/api/core/v1.ISCSIVolumeSource", "k8s.io/api/core/v1.LocalVolumeSource", "k8s.io/api/core/v1.NFSVolumeSource", "k8s.io/api/core/v1.PhotonPersistentDiskVolumeSource", "k8s.io/api/core/v1.PortworxVolumeSource", "k8s.io/api/core/v1.QuobyteVolumeSource", "k8s.io/api/core/v1.RBDVolumeSource", "k8s.io/api/core/v1.ScaleIOVolumeSource", "k8s.io/api/core/v1.StorageOSPersistentVolumeSource", "k8s.io/api/core/v1.VsphereVirtualDiskVolumeSource"},
+				"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource", "k8s.io/api/core/v1.AzureDiskVolumeSource", "k8s.io/api/core/v1.AzureFilePersistentVolumeSource", "k8s.io/api/core/v1.CephFSPersistentVolumeSource", "k8s.io/api/core/v1.CinderVolumeSource", "k8s.io/api/core/v1.FCVolumeSource", "k8s.io/api/core/v1.FlexVolumeSource", "k8s.io/api/core/v1.FlockerVolumeSource", "k8s.io/api/core/v1.GCEPersistentDiskVolumeSource", "k8s.io/api/core/v1.GlusterfsVolumeSource", "k8s.io/api/core/v1.HostPathVolumeSource", "k8s.io/api/core/v1.ISCSIVolumeSource", "k8s.io/api/core/v1.LocalVolumeSource", "k8s.io/api/core/v1.NFSVolumeSource", "k8s.io/api/core/v1.PhotonPersistentDiskVolumeSource", "k8s.io/api/core/v1.PortworxVolumeSource", "k8s.io/api/core/v1.QuobyteVolumeSource", "k8s.io/api/core/v1.RBDVolumeSource", "k8s.io/api/core/v1.ScaleIOPersistentVolumeSource", "k8s.io/api/core/v1.StorageOSPersistentVolumeSource", "k8s.io/api/core/v1.VsphereVirtualDiskVolumeSource"},
 		},
 		"k8s.io/api/core/v1.PersistentVolumeSpec": {
 			Schema: spec.Schema{
@@ -6605,7 +6761,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"scaleIO": {
 							SchemaProps: spec.SchemaProps{
 								Description: "ScaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes.",
-								Ref:         ref("k8s.io/api/core/v1.ScaleIOVolumeSource"),
+								Ref:         ref("k8s.io/api/core/v1.ScaleIOPersistentVolumeSource"),
 							},
 						},
 						"local": {
@@ -6672,7 +6828,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource", "k8s.io/api/core/v1.AzureDiskVolumeSource", "k8s.io/api/core/v1.AzureFilePersistentVolumeSource", "k8s.io/api/core/v1.CephFSPersistentVolumeSource", "k8s.io/api/core/v1.CinderVolumeSource", "k8s.io/api/core/v1.FCVolumeSource", "k8s.io/api/core/v1.FlexVolumeSource", "k8s.io/api/core/v1.FlockerVolumeSource", "k8s.io/api/core/v1.GCEPersistentDiskVolumeSource", "k8s.io/api/core/v1.GlusterfsVolumeSource", "k8s.io/api/core/v1.HostPathVolumeSource", "k8s.io/api/core/v1.ISCSIVolumeSource", "k8s.io/api/core/v1.LocalVolumeSource", "k8s.io/api/core/v1.NFSVolumeSource", "k8s.io/api/core/v1.ObjectReference", "k8s.io/api/core/v1.PhotonPersistentDiskVolumeSource", "k8s.io/api/core/v1.PortworxVolumeSource", "k8s.io/api/core/v1.QuobyteVolumeSource", "k8s.io/api/core/v1.RBDVolumeSource", "k8s.io/api/core/v1.ScaleIOVolumeSource", "k8s.io/api/core/v1.StorageOSPersistentVolumeSource", "k8s.io/api/core/v1.VsphereVirtualDiskVolumeSource", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
+				"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource", "k8s.io/api/core/v1.AzureDiskVolumeSource", "k8s.io/api/core/v1.AzureFilePersistentVolumeSource", "k8s.io/api/core/v1.CephFSPersistentVolumeSource", "k8s.io/api/core/v1.CinderVolumeSource", "k8s.io/api/core/v1.FCVolumeSource", "k8s.io/api/core/v1.FlexVolumeSource", "k8s.io/api/core/v1.FlockerVolumeSource", "k8s.io/api/core/v1.GCEPersistentDiskVolumeSource", "k8s.io/api/core/v1.GlusterfsVolumeSource", "k8s.io/api/core/v1.HostPathVolumeSource", "k8s.io/api/core/v1.ISCSIVolumeSource", "k8s.io/api/core/v1.LocalVolumeSource", "k8s.io/api/core/v1.NFSVolumeSource", "k8s.io/api/core/v1.ObjectReference", "k8s.io/api/core/v1.PhotonPersistentDiskVolumeSource", "k8s.io/api/core/v1.PortworxVolumeSource", "k8s.io/api/core/v1.QuobyteVolumeSource", "k8s.io/api/core/v1.RBDVolumeSource", "k8s.io/api/core/v1.ScaleIOPersistentVolumeSource", "k8s.io/api/core/v1.StorageOSPersistentVolumeSource", "k8s.io/api/core/v1.VsphereVirtualDiskVolumeSource", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
 		},
 		"k8s.io/api/core/v1.PersistentVolumeStatus": {
 			Schema: spec.Schema{
@@ -8709,6 +8865,87 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
+		"k8s.io/api/core/v1.ScaleIOPersistentVolumeSource": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "ScaleIOPersistentVolumeSource represents a persistent ScaleIO volume",
+					Properties: map[string]spec.Schema{
+						"gateway": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The host address of the ScaleIO API Gateway.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"system": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The name of the storage system as configured in ScaleIO.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"secretRef": {
+							SchemaProps: spec.SchemaProps{
+								Description: "SecretRef references to the secret for ScaleIO user and other sensitive information. If this is not provided, Login operation will fail.",
+								Ref:         ref("k8s.io/api/core/v1.SecretReference"),
+							},
+						},
+						"sslEnabled": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Flag to enable/disable SSL communication with Gateway, default false",
+								Type:        []string{"boolean"},
+								Format:      "",
+							},
+						},
+						"protectionDomain": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The name of the ScaleIO Protection Domain for the configured storage.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"storagePool": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The ScaleIO Storage Pool associated with the protection domain.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"storageMode": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Indicates whether the storage for a volume should be ThickProvisioned or ThinProvisioned.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"volumeName": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The name of a volume already created in the ScaleIO system that is associated with this volume source.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"fsType": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"readOnly": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
+								Type:        []string{"boolean"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"gateway", "system", "secretRef"},
+				},
+			},
+			Dependencies: []string{
+				"k8s.io/api/core/v1.SecretReference"},
+		},
 		"k8s.io/api/core/v1.ScaleIOVolumeSource": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -8743,21 +8980,21 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"protectionDomain": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The name of the Protection Domain for the configured storage (defaults to \"default\").",
+								Description: "The name of the ScaleIO Protection Domain for the configured storage.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
 						},
 						"storagePool": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The Storage Pool associated with the protection domain (defaults to \"default\").",
+								Description: "The ScaleIO Storage Pool associated with the protection domain.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
 						},
 						"storageMode": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Indicates whether the storage for a volume should be thick or thin (defaults to \"thin\").",
+								Description: "Indicates whether the storage for a volume should be ThickProvisioned or ThinProvisioned.",
 								Type:        []string{"string"},
 								Format:      "",
 							},

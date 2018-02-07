@@ -1,0 +1,213 @@
+/*
+Copyright 2017 The Gardener Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+package driver
+
+import (
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
+	"net/http"
+	"strings"
+
+	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/golang/glog"
+	corev1 "k8s.io/api/core/v1"
+
+	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/keypairs"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
+	_ "github.com/gophercloud/gophercloud/openstack/utils"
+)
+
+type OpenStackDriver struct {
+	OpenStackMachineClass *v1alpha1.OpenStackMachineClass
+	CloudConfig           *corev1.Secret
+	UserData              string
+	MachineId             string
+	MachineName           string
+}
+
+// func NewOpenStackDriver(create func() (string, error), delete func() error, existing func() (string, error)) Driver {
+// 	return &OpenStackDriver{}
+// }
+
+// Create TODO
+func (d *OpenStackDriver) Create() (string, string, error) {
+
+	client, err := d.createNovaClient()
+	if err != nil {
+		return "", "", err
+	}
+
+	flavorName := d.OpenStackMachineClass.Spec.FlavorName
+	keyName := d.OpenStackMachineClass.Spec.KeyName
+	imageName := d.OpenStackMachineClass.Spec.ImageName
+	networkID := d.OpenStackMachineClass.Spec.NetworkID
+	securityGroups := d.OpenStackMachineClass.Spec.SecurityGroups
+	availabilityZone := d.OpenStackMachineClass.Spec.AvailabilityZone
+
+	var createOpts servers.CreateOptsBuilder
+
+	createOpts = &servers.CreateOpts{
+		ServiceClient:    client,
+		Name:             d.MachineName,
+		FlavorName:       flavorName,
+		ImageName:        imageName,
+		Networks:         []servers.Network{{UUID: networkID}},
+		SecurityGroups:   securityGroups,
+		UserData:         []byte(d.UserData),
+		AvailabilityZone: availabilityZone,
+	}
+
+	createOpts = &keypairs.CreateOptsExt{
+		CreateOptsBuilder: createOpts,
+		KeyName:           keyName,
+	}
+
+	glog.Infof("creating machine")
+	server, err := servers.Create(client, createOpts).Extract()
+
+	d.MachineId = d.encodeMachineId(server.ID)
+
+	return d.MachineId, d.MachineName, err
+}
+
+// Delete TODO
+func (d *OpenStackDriver) Delete() error {
+
+	machineId := d.decodeMachineId(d.MachineId)
+
+	client, err := d.createNovaClient()
+	if err != nil {
+		return err
+	}
+	glog.Infof("deleting machine with ID: %s", machineId)
+	result := servers.Delete(client, machineId)
+	glog.Infof("deleted machine with ID: %s", machineId)
+
+	return result.Err
+}
+
+// GetExisting TODO
+func (d *OpenStackDriver) GetExisting() (string, error) {
+	return d.MachineId, nil
+}
+
+// createNovaClient TODO
+func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error) {
+
+	config := &tls.Config{}
+
+	authURL, ok := d.CloudConfig.Data["authURL"]
+	if !ok {
+		return nil, fmt.Errorf("missing auth_url in secret")
+	}
+	glog.Infof("AuthURL: %s", authURL)
+	username, ok := d.CloudConfig.Data["username"]
+	if !ok {
+		return nil, fmt.Errorf("missing username in secret")
+	}
+	glog.Infof("Username: %s", username)
+	password, ok := d.CloudConfig.Data["password"]
+	if !ok {
+		return nil, fmt.Errorf("missing password in secret")
+	}
+	domainName, ok := d.CloudConfig.Data["domainName"]
+	if !ok {
+		return nil, fmt.Errorf("missing domainName in secret")
+	}
+	glog.Infof("DomainName: %s", domainName)
+	region := d.OpenStackMachineClass.Spec.Region
+	glog.Infof("Region: %s", region)
+	tenantName, ok := d.CloudConfig.Data["tenantName"]
+	if !ok {
+		return nil, fmt.Errorf("missing tenantName in secret")
+	}
+	glog.Infof("TenantName: %s", tenantName)
+
+	caCert, ok := d.CloudConfig.Data["caCert"]
+	if !ok {
+		caCert = nil
+	}
+
+	insecure, ok := d.CloudConfig.Data["insecure"]
+	if ok && strings.TrimSpace(string(insecure)) == "true" {
+		config.InsecureSkipVerify = true
+	}
+
+	if caCert != nil {
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM([]byte(caCert))
+		config.RootCAs = caCertPool
+	}
+
+	clientCert, ok := d.CloudConfig.Data["clientCert"]
+	if ok {
+		clientKey, ok := d.CloudConfig.Data["clientKey"]
+		if ok {
+			cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
+			if err != nil {
+				return nil, err
+			}
+			config.Certificates = []tls.Certificate{cert}
+			config.BuildNameToCertificate()
+		} else {
+			return nil, fmt.Errorf("client key missing in secret")
+		}
+	}
+
+	opts := gophercloud.AuthOptions{
+		IdentityEndpoint: strings.TrimSpace(string(authURL)),
+		Username:         strings.TrimSpace(string(username)),
+		Password:         strings.TrimSpace(string(password)),
+		DomainName:       strings.TrimSpace(string(domainName)),
+		TenantName:       strings.TrimSpace(string(tenantName)),
+	}
+	glog.Infof("Auth opts")
+
+	client, err := openstack.NewClient(opts.IdentityEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set UserAgent
+	client.UserAgent.Prepend("Machine Controller 08/15")
+
+	transport := &http.Transport{Proxy: http.ProxyFromEnvironment, TLSClientConfig: config}
+	client.HTTPClient = http.Client{
+		Transport: transport,
+	}
+
+	err = openstack.Authenticate(client, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return openstack.NewComputeV2(client, gophercloud.EndpointOpts{
+		Region:       strings.TrimSpace(region),
+		Availability: gophercloud.AvailabilityPublic,
+	})
+}
+
+func (d *OpenStackDriver) encodeMachineId(instanceId string) string {
+	return fmt.Sprintf("openstack:///%s \n", instanceId)
+}
+
+func (d *OpenStackDriver) decodeMachineId(id string) string {
+	splitProviderId := strings.Split(id, "/")
+	return splitProviderId[len(splitProviderId)-1]
+}

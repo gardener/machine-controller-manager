@@ -38,6 +38,10 @@ func (c *FakeMachine) MachineTemplates(namespace string) internalversion.Machine
 	return &FakeMachineTemplates{c, namespace}
 }
 
+func (c *FakeMachine) OpenStackMachineClasses() internalversion.OpenStackMachineClassInterface {
+	return &FakeOpenStackMachineClasses{c}
+}
+
 func (c *FakeMachine) Scales(namespace string) internalversion.ScaleInterface {
 	return &FakeScales{c, namespace}
 }
