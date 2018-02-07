@@ -103,7 +103,7 @@ func (dc *controller) checkPausedConditions(d *v1alpha1.MachineDeployment) error
 	}
 
 	var err error
-	d, err = dc.nodeClient.MachineDeployments(d.Namespace).Update(d)
+	d, err = dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d)
 	return err
 }
 
@@ -170,7 +170,7 @@ func (dc *controller) addHashKeyToISAndMachines(is *v1alpha1.MachineSet, machine
 		return nil, err
 	}
 	// 1. Add hash template label to the rs. This ensures that any newly created machines will have the new label.
-	updatedIS, err := UpdateISWithRetries(dc.nodeClient.MachineSets(is.Namespace), dc.machineSetLister, is.Namespace, is.Name,
+	updatedIS, err := UpdateISWithRetries(dc.controlMachineClient.MachineSets(is.Namespace), dc.machineSetLister, is.Namespace, is.Name,
 		func(updated *v1alpha1.MachineSet) error {
 			// Precondition: the RS doesn't contain the new hash in its machine template label.
 			if updated.Spec.Template.Labels[v1alpha1.DefaultMachineDeploymentUniqueLabelKey] == hash {
@@ -193,7 +193,7 @@ func (dc *controller) addHashKeyToISAndMachines(is *v1alpha1.MachineSet, machine
 	}
 
 	// 2. Update all machines managed by the rs to have the new hash label, so they will be correctly adopted.
-	if err := LabelMachinesWithHash(machineList, dc.nodeClient, dc.machineLister, is.Namespace, is.Name, hash); err != nil {
+	if err := LabelMachinesWithHash(machineList, dc.controlMachineClient, dc.machineLister, is.Namespace, is.Name, hash); err != nil {
 		return nil, fmt.Errorf("error in adding template hash label %s to machines %+v: %s", hash, machineList, err)
 	}
 
@@ -210,7 +210,7 @@ func (dc *controller) addHashKeyToISAndMachines(is *v1alpha1.MachineSet, machine
 
 	// 3. Update rs label and selector to include the new hash label
 	// Copy the old selector, so that we can scrub out any orphaned machines
-	updatedIS, err = UpdateISWithRetries(dc.nodeClient.MachineSets(is.Namespace), dc.machineSetLister, is.Namespace, is.Name, func(updated *v1alpha1.MachineSet) error {
+	updatedIS, err = UpdateISWithRetries(dc.controlMachineClient.MachineSets(is.Namespace), dc.machineSetLister, is.Namespace, is.Name, func(updated *v1alpha1.MachineSet) error {
 		// Precondition: the RS doesn't contain the new hash in its label and selector.
 		if updated.Labels[v1alpha1.DefaultMachineDeploymentUniqueLabelKey] == hash && updated.Spec.Selector.MatchLabels[v1alpha1.DefaultMachineDeploymentUniqueLabelKey] == hash {
 			return utilerrors.ErrPreconditionViolated
@@ -254,7 +254,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 		minReadySecondsNeedsUpdate := isCopy.Spec.MinReadySeconds != d.Spec.MinReadySeconds
 		if annotationsUpdated || minReadySecondsNeedsUpdate {
 			isCopy.Spec.MinReadySeconds = d.Spec.MinReadySeconds
-			return dc.nodeClient.MachineSets(isCopy.Namespace).Update(isCopy)
+			return dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(isCopy)
 		}
 
 		// Should use the revision in existingNewRS's annotation, since it set by before
@@ -272,7 +272,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 
 		if needsUpdate {
 			var err error
-			if d, err = dc.nodeClient.MachineDeployments(d.Namespace).Update(d); err != nil {
+			if d, err = dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d); err != nil {
 				return nil, err
 			}
 		}
@@ -319,7 +319,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 	// hash collisions. If there is any other error, we need to report it in the status of
 	// the Deployment.
 	alreadyExists := false
-	createdIS, err := dc.nodeClient.MachineSets(newIS.Namespace).Create(&newIS)
+	createdIS, err := dc.controlMachineClient.MachineSets(newIS.Namespace).Create(&newIS)
 	switch {
 	// We may end up hitting this due to a slow cache or a fast resync of the Deployment.
 	// Fetch a copy of the ReplicaSet. If its machineTemplateSpec is semantically deep equal
@@ -344,7 +344,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 			*d.Status.CollisionCount++
 			// Update the collisionCount for the Deployment and let it requeue by returning the original
 			// error.
-			_, dErr := dc.nodeClient.MachineDeployments(d.Namespace).Update(d)
+			_, dErr := dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d)
 			if dErr == nil {
 				glog.V(2).Infof("Found a hash collision for machine deployment %q - bumping collisionCount (%d->%d) to resolve it", d.Name, preCollisionCount, *d.Status.CollisionCount)
 			}
@@ -361,7 +361,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 			// We don't really care about this error at this point, since we have a bigger issue to report.
 			// TODO: Identify which errors are permanent and switch DeploymentIsFailed to take into account
 			// these reasons as well. Related issue: https://github.com/kubernetes/kubernetes/issues/18568
-			_, _ = dc.nodeClient.MachineDeployments(d.Namespace).Update(d)
+			_, _ = dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d)
 		}
 		dc.recorder.Eventf(d, v1.EventTypeWarning, FailedISCreateReason, msg)
 		return nil, err
@@ -378,7 +378,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 		needsUpdate = true
 	}
 	if needsUpdate {
-		_, err = dc.nodeClient.MachineDeployments(d.Namespace).Update(d)
+		_, err = dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d)
 	}
 	return createdIS, err
 }
@@ -514,7 +514,7 @@ func (dc *controller) scaleMachineSet(is *v1alpha1.MachineSet, newScale int32, d
 	var err error
 	if sizeNeedsUpdate || annotationsNeedUpdate {
 		isCopy.Spec.Replicas = newScale
-		is, err = dc.nodeClient.MachineSets(isCopy.Namespace).Update(isCopy)
+		is, err = dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(isCopy)
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
 			dc.recorder.Eventf(deployment, v1.EventTypeNormal, "ScalingMachineSet", "Scaled %s machine set %s to %d", scalingOperation, is.Name, newScale)
@@ -552,7 +552,7 @@ func (dc *controller) cleanupMachineDeployment(oldISs []*v1alpha1.MachineSet, de
 			continue
 		}
 		glog.V(4).Infof("Trying to cleanup machine set %q for deployment %q", is.Name, deployment.Name)
-		if err := dc.nodeClient.MachineSets(is.Namespace).Delete(is.Name, nil); err != nil && !errors.IsNotFound(err) {
+		if err := dc.controlMachineClient.MachineSets(is.Namespace).Delete(is.Name, nil); err != nil && !errors.IsNotFound(err) {
 			// Return error instead of aggregating and continuing DELETEs on the theory
 			// that we may be overloading the api server.
 			return err
@@ -572,7 +572,7 @@ func (dc *controller) syncMachineDeploymentStatus(allISs []*v1alpha1.MachineSet,
 
 	newDeployment := d
 	newDeployment.Status = newStatus
-	_, err := dc.nodeClient.MachineDeployments(newDeployment.Namespace).Update(newDeployment)
+	_, err := dc.controlMachineClient.MachineDeployments(newDeployment.Namespace).Update(newDeployment)
 	return err
 }
 
