@@ -4,7 +4,7 @@ apiVersion: machine.sapcloud.io/v1alpha1
 kind: AWSMachineClass
 metadata:
   name: test-aws # Name of aws machine class goes here
-  namespace: default
+  namespace: default # Namespace in which the machine class is to be deployed
 spec:
   ami: ami-123456 # Amazon machine image name goes here
   region: eu-east-1 # Region in which machine is to be deployed

@@ -61,8 +61,9 @@ $ kubectl apply -f kubernetes/crds.yaml
 
 ### Get started
 
-Create a `dev` directory and copy the Kubeconfig of the both kubernetes clusters used for development purposes to `dev/kubeconfig.yaml` and `dev/kubeconfig-seed.yaml`.
-
+- Create a `dev` directory. 
+- Copy the kubeconfig of kubernetes cluster where you wish to deploy the machines into `dev/target-kubeconfig.yaml`.
+- (optional) Copy the kubeconfig of kubernetes cluster from where you wish to manage the machines into `dev/control-kubeconfig.yaml`. If you do this, also update the `Makefile` variable CONTROL_KUBECONFIG to point to `dev/control-kubeconfig.yaml` and CONTROL_NAMESPACE to the namespace in which your controller watches over.
 - There is a rule dev in the `Makefile` which will automatically start the Node Controller Manager with development settings:
 
 ```bash
@@ -72,6 +73,9 @@ I1227 11:08:20.766085   55523 controller.go:247] Starting Node-controller-manage
 ```
 
 The Node Controller Manager should now be ready to manage the VMs in your kubernetes cluster.
+
+:warning: The file `dev/target-kubeconfig.yaml` points to the cluster whose nodes you want to manage. `dev/control-kubeconfig.yaml` points to the cluster from where you want to manage the nodes from. However, `dev/control-kubeconfig.yaml` is optional.
+
 
 ## Usage
 
