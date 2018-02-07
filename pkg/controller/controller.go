@@ -52,9 +52,10 @@ const (
 
 // NewController returns a new Node controller.
 func NewController(
-	namespace	string,
-	kubeClient kubernetes.Interface,
-	nodeClient nodeclientset.MachineV1alpha1Interface,
+	namespace string,
+	controlMachineClient nodeclientset.MachineV1alpha1Interface,
+	controlCoreClient kubernetes.Interface,
+	targetCoreClient kubernetes.Interface,
 	secretInformer coreinformers.SecretInformer,
 	nodeInformer coreinformers.NodeInformer,
 	awsMachineClassInformer nodeinformers.AWSMachineClassInformer,
@@ -67,8 +68,9 @@ func NewController(
 ) (Controller, error) {
 	controller := &controller{
 		namespace:              namespace,
-		kubeClient:             kubeClient,
-		nodeClient:             nodeClient,
+		controlMachineClient:   controlMachineClient,
+		controlCoreClient:      controlCoreClient,
+		targetCoreClient:       targetCoreClient,
 		recorder:               recorder,
 		expectations:           NewUIDTrackingControllerExpectations(NewControllerExpectations()),
 		secretQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
@@ -84,16 +86,16 @@ func NewController(
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
-	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.CoreV1().RESTClient()).Events("")})
+	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(controlCoreClient.CoreV1().RESTClient()).Events("")})
 
 	controller.machineControl = RealMachineControl{
-		NodeClient: nodeClient,
-		Recorder:   eventBroadcaster.NewRecorder(nodescheme.Scheme, v1.EventSource{Component: "machineset-controller"}),
+		controlMachineClient: controlMachineClient,
+		Recorder:             eventBroadcaster.NewRecorder(nodescheme.Scheme, v1.EventSource{Component: "machineset-controller"}),
 	}
 
 	controller.machineSetControl = RealMachineSetControl{
-		NodeClient: nodeClient,
-		Recorder:   eventBroadcaster.NewRecorder(nodescheme.Scheme, v1.EventSource{Component: "machinedeployment-controller"}),
+		controlMachineClient: controlMachineClient,
+		Recorder:             eventBroadcaster.NewRecorder(nodescheme.Scheme, v1.EventSource{Component: "machinedeployment-controller"}),
 	}
 
 	// Controller listers
@@ -247,9 +249,10 @@ type Controller interface {
 // controller is a concrete Controller.
 type controller struct {
 	namespace string
-	
-	kubeClient kubernetes.Interface
-	nodeClient nodeclientset.MachineV1alpha1Interface
+
+	controlMachineClient nodeclientset.MachineV1alpha1Interface
+	controlCoreClient    kubernetes.Interface
+	targetCoreClient     kubernetes.Interface
 
 	// listers
 	secretLister            corelisters.SecretLister
@@ -302,7 +305,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer c.machineSetQueue.ShutDown()
 	defer c.machineDeploymentQueue.ShutDown()
 
-	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.awsMachineClassSynced,c.azureMachineClassSynced, c.gcpMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
+	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.awsMachineClassSynced, c.azureMachineClassSynced, c.gcpMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
