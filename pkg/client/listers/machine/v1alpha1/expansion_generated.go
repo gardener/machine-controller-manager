@@ -34,6 +34,10 @@ type MachineTemplateListerExpansion interface{}
 // MachineTemplateNamespaceLister.
 type MachineTemplateNamespaceListerExpansion interface{}
 
+// OpenStackMachineClassListerExpansion allows custom methods to be added to
+// OpenStackMachineClassLister.
+type OpenStackMachineClassListerExpansion interface{}
+
 // ScaleListerExpansion allows custom methods to be added to
 // ScaleLister.
 type ScaleListerExpansion interface{}

@@ -634,6 +634,51 @@ type Scale struct {
 	Status ScaleStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
+/********************** OpenStackMachineClass APIs ***************/
+
+// +genclient
+// +genclient:nonNamespaced
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// OpenStackMachineClass TODO
+type OpenStackMachineClass struct {
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// +optional
+	metav1.TypeMeta `json:",inline"`
+
+	// +optional
+	Spec OpenStackMachineClassSpec `json:"spec,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// OpenStackMachineClassList is a collection of OpenStackMachineClasses.
+type OpenStackMachineClassList struct {
+	// +optional
+	metav1.TypeMeta `json:",inline"`
+
+	// +optional
+	metav1.ListMeta `json:"metadata,omitempty"`
+
+	// +optional
+	Items []OpenStackMachineClass `json:"items"`
+}
+
+// OpenStackMachineClassSpec is the specification of a cluster.
+type OpenStackMachineClassSpec struct {
+	ImageName        string                  `json:"imageName"`
+	Region           string                  `json:"region"`
+	AvailabilityZone string                  `json:"availabilityZone"`
+	FlavorName       string                  `json:"flavorName"`
+	KeyName          string                  `json:"keyName"`
+	SecurityGroups   []string                `json:"securityGroups"`
+	Tags             map[string]string       `json:"tags,omitempty"`
+	NetworkID        string                  `json:"networkID"`
+	SecretRef        *corev1.SecretReference `json:"secretRef,omitempty"`
+}
+
 /********************** AWSMachineClass APIs ***************/
 
 // +genclient

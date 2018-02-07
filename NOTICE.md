@@ -95,3 +95,8 @@ Google Cloud Go SDK.
 https://cloud.google.com/compute/docs/api/libraries#google_apis_go_client_library.  
 Copyright (c) 2011 Google Inc. All rights reserved.  
 BSD-3 license (https://github.com/google/google-api-go-client/blob/master/LICENSE)  
+
+Gophercloud.  
+https://github.com/gophercloud/gophercloud.  
+Copyright 2012-2013 Rackspace, Inc.  
+Apache 2 license (https://github.com/gophercloud/gophercloud/blob/master/LICENSE)  

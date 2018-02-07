@@ -634,6 +634,51 @@ type Scale struct {
 	Status ScaleStatus
 }
 
+/********************** OpenStackMachineClass APIs ***************/
+
+// +genclient
+// +genclient:nonNamespaced
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// OpenStackMachineClass TODO
+type OpenStackMachineClass struct {
+	// +optional
+	metav1.ObjectMeta
+
+	// +optional
+	metav1.TypeMeta
+
+	// +optional
+	Spec OpenStackMachineClassSpec
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// OpenStackMachineClassList is a collection of OpenStackMachineClasses.
+type OpenStackMachineClassList struct {
+	// +optional
+	metav1.TypeMeta
+
+	// +optional
+	metav1.ListMeta
+
+	// +optional
+	Items []OpenStackMachineClass
+}
+
+// OpenStackMachineClassSpec is the specification of a cluster.
+type OpenStackMachineClassSpec struct {
+	ImageName        string
+	Region           string
+	AvailabilityZone string
+	FlavorName       string
+	KeyName          string
+	SecurityGroups   []string
+	Tags             map[string]string
+	NetworkID        string
+	SecretRef        *corev1.SecretReference
+}
+
 /********************** AWSMachineClass APIs ***************/
 
 // +genclient

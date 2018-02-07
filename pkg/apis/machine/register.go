@@ -47,6 +47,9 @@ var (
 
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
+		&OpenStackMachineClass{},
+		&OpenStackMachineClassList{},
+
 		&AWSMachineClass{},
 		&AWSMachineClassList{},
 
