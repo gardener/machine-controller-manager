@@ -1,10 +1,6 @@
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
-  annotations:
-    rbac.authorization.kubernetes.io/autoupdate: "true"
-  labels:
-    kubernetes.io/bootstrapping: rbac-defaults
   name: node-controller-manager
 rules:
 - apiGroups:
@@ -31,10 +27,8 @@ rules:
   - nodes
   - configmaps
   - secrets
-  - serviceaccounts
   - endpoints
   - events
-  - namespaces
   verbs:
   - create
   - delete
@@ -43,12 +37,4 @@ rules:
   - list
   - patch
   - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - namespaces/status
-  verbs:
-  - get
-  - list
   - watch
