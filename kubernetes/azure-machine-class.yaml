@@ -4,7 +4,7 @@ apiVersion: machine.sapcloud.io/v1alpha1
 kind: AzureMachineClass
 metadata:
   name: test-azure # Name of aws machine class goes here
-  namespace: test
+  namespace: default
 spec:
   location: "sample-location" # Azure location in which machine is to be deployed (Eg- NorthAmerica)
   resourceGroup: "sample-resource-group" # Name of the resource group to which the node should be bound
