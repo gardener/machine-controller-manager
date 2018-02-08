@@ -99,15 +99,20 @@ func (d *AWSDriver) Create() (string, string, error) {
 
 	// Add tags to the created machine
 	tagList := []*ec2.Tag{}
-	// If no "Name" tag has been specified in the MachineClass definition we set the "Name" tag's
-	// value to "name-of-machine-object".
-	if _, ok := d.AWSMachineClass.Spec.Tags["Name"]; !ok {
-		d.AWSMachineClass.Spec.Tags["Name"] = d.MachineName
-	}
 	for idx, element := range d.AWSMachineClass.Spec.Tags {
 		newTag := ec2.Tag{
 			Key:   aws.String(idx),
 			Value: aws.String(element),
+		}
+		tagList = append(tagList, &newTag)
+	}
+	
+	// If no "Name" tag has been specified in the MachineClass definition we set the "Name" tag's
+	// value to "name-of-machine-object".
+	if _, ok := d.AWSMachineClass.Spec.Tags["Name"]; !ok {
+		newTag := ec2.Tag{
+			Key:   aws.String("Name"),
+			Value: aws.String(d.MachineName),
 		}
 		tagList = append(tagList, &newTag)
 	}
