@@ -281,7 +281,7 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node
 */
 
 func (c *controller) createMachine(machine *v1alpha1.Machine, driver driver.Driver) error {
-	glog.V(3).Infof("Creating machine %s, please wait!", machine.Name)
+	glog.V(2).Infof("Creating machine %s, please wait!", machine.Name)
 
 	actualProviderID, nodeName, err := driver.Create()
 	if err != nil {
@@ -400,9 +400,10 @@ func (c *controller) deleteMachine(machine *v1alpha1.Machine, driver driver.Driv
 				)
 				err = drainOptions.RunDrain()
 				if err != nil {
+					glog.V(2).Infof("Drain unsuccessful for machine %s - \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
 					return err
 				}
-				glog.V(3).Infof("Drain successful - %v %v", buf, errBuf)
+				glog.V(2).Infof("Drain successful for machine %s - %v %v", machine.Name, buf, errBuf)
 			}
 			err = driver.Delete()
 		}
@@ -426,9 +427,10 @@ func (c *controller) deleteMachine(machine *v1alpha1.Machine, driver driver.Driv
 
 			return err
 		}
+
 		c.deleteMachineFinalizers(machine)
 		c.controlMachineClient.Machines(machine.Namespace).Delete(machine.Name, &metav1.DeleteOptions{})
-		glog.V(3).Infof("Machine %s deleted succesfullly", machine.Name)
+		glog.V(2).Infof("Machine %s deleted succesfullly", machine.Name)
 	}
 	return nil
 }
