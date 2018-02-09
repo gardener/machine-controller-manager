@@ -7,9 +7,9 @@ import (
 	sync "sync"
 	time "time"
 
-	internalversion "github.com/gardener/node-controller-manager/pkg/client/clientset/internalversion"
-	internalinterfaces "github.com/gardener/node-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
-	machine "github.com/gardener/node-controller-manager/pkg/client/informers/internalversion/machine"
+	internalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion"
+	internalinterfaces "github.com/gardener/machine-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
+	machine "github.com/gardener/machine-controller-manager/pkg/client/informers/internalversion/machine"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

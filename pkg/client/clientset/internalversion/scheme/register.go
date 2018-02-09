@@ -3,7 +3,7 @@ package scheme
 import (
 	os "os"
 
-	machine "github.com/gardener/node-controller-manager/pkg/apis/machine/install"
+	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine/install"
 	announced "k8s.io/apimachinery/pkg/apimachinery/announced"
 	registered "k8s.io/apimachinery/pkg/apimachinery/registered"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

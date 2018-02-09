@@ -32,10 +32,10 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	machineapi "github.com/gardener/node-controller-manager/pkg/apis/machine"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
-	"github.com/gardener/node-controller-manager/pkg/driver"
+	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/machine-controller-manager/pkg/driver"
 )
 
 /*

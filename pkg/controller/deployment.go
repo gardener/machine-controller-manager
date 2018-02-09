@@ -43,9 +43,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/kubernetes/pkg/api"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 )
 
 // controllerKind contains the schema.GroupVersionKind for this controller type.

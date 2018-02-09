@@ -13,7 +13,7 @@ const (
 
 	// owner: @i068969
 	// beta: v1.4
-	NodeTestFeature utilfeature.Feature = "NodeTestFeature"
+	MachineTestFeature utilfeature.Feature = "MachineTestFeature"
 )
 
 func init() {
@@ -21,5 +21,5 @@ func init() {
 }
 
 var defaultKubernetesFeatureGates = map[utilfeature.Feature]utilfeature.FeatureSpec{
-	NodeTestFeature: {Default: true, PreRelease: utilfeature.Beta},
+	MachineTestFeature: {Default: true, PreRelease: utilfeature.Beta},
 }

@@ -1,8 +1,8 @@
 package internalversion
 
 import (
-	machine "github.com/gardener/node-controller-manager/pkg/apis/machine"
-	scheme "github.com/gardener/node-controller-manager/pkg/client/clientset/internalversion/scheme"
+	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	scheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"

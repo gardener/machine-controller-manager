@@ -16,7 +16,7 @@ limitations under the License.
 package driver
 
 import (
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 )
 

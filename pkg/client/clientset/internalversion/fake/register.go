@@ -1,7 +1,7 @@
 package fake
 
 import (
-	machineinternalversion "github.com/gardener/node-controller-manager/pkg/apis/machine"
+	machineinternalversion "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

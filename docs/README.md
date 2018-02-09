@@ -15,4 +15,4 @@
 
 ## Deployment
 
-* [Deploying the Node Controller Manager into a Kubernetes cluster](deployment/kubernetes.md)
+* [Deploying the Machine Controller Manager into a Kubernetes cluster](deployment/kubernetes.md)
