@@ -24,9 +24,9 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 )
 
 const AzureMachineClassKind = "AzureMachineClass"

@@ -25,8 +25,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gardener/node-controller-manager/cmd/node-controller-manager/app"
-	"github.com/gardener/node-controller-manager/cmd/node-controller-manager/app/options"
+	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app"
+	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
 	"github.com/spf13/pflag"
 	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/apiserver/pkg/util/flag"
@@ -44,7 +44,7 @@ func init() {
 
 func main() {
 
-	s := options.NewNCMServer()
+	s := options.NewMCMServer()
 	s.AddFlags(pflag.CommandLine)
 
 	flag.InitFlags()

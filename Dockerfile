@@ -2,6 +2,6 @@ FROM alpine:3.6
 
 RUN apk add --update bash curl
 
-COPY ./bin/node-controller-manager /node-controller-manager
+COPY ./bin/machine-controller-manager /machine-controller-manager
 WORKDIR /
-ENTRYPOINT ["/node-controller-manager"]
+ENTRYPOINT ["/machine-controller-manager"]

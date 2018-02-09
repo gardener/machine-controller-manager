@@ -3,7 +3,7 @@
 package internalversion
 
 import (
-	machine "github.com/gardener/node-controller-manager/pkg/apis/machine"
+	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"

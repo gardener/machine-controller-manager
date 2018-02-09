@@ -1,7 +1,7 @@
 package fake
 
 import (
-	v1alpha1 "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

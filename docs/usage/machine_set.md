@@ -14,9 +14,9 @@
 ```bash
 $ kubectl apply -f kubernetes/machine-set.yaml
 ```
-You should notice that the Node Controller Manager has immediately picked up your manifest and started to create a new machines based on the number of replicas you have provided in the manifest.
+You should notice that the Machine Controller Manager has immediately picked up your manifest and started to create a new machines based on the number of replicas you have provided in the manifest.
 
-- Check Node Controller Manager machine-sets in the cluster
+- Check Machine Controller Manager machine-sets in the cluster
 ```bash
 $ kubectl get machineset
 NAME                KIND
@@ -24,7 +24,7 @@ test-machine-set   MachineSet.v1alpha1.machine.sapcloud.io
 ```
 You will see a new machine-set with your given name
 
-- Check Node Controller Manager machines in the cluster
+- Check Machine Controller Manager machines in the cluster
 ```bash
 $ kubectl get machine
 NAME                      KIND
@@ -95,8 +95,8 @@ status:
 
 ## Health monitoring
 
-- If you try to delete/terminate any of the machines backing the machine-set by either talking to the Node Controller Manager or from the cloud provider, the Node Controller Manager recreates a matching healthy machine to replace the deleted machine. 
-- Similarly, if any of your machines are unreachable or in an unhealthy state (kubelet not ready / disk pressure) for longer than the configured timeout (~ 5mins), the Node Controller Manager recreates the nodes to replace the unhealthy nodes.
+- If you try to delete/terminate any of the machines backing the machine-set by either talking to the Machine Controller Manager or from the cloud provider, the Machine Controller Manager recreates a matching healthy machine to replace the deleted machine. 
+- Similarly, if any of your machines are unreachable or in an unhealthy state (kubelet not ready / disk pressure) for longer than the configured timeout (~ 5mins), the Machine Controller Manager recreates the nodes to replace the unhealthy nodes.
 
 ## Delete machine-set
 
@@ -104,4 +104,4 @@ status:
 ```bash
 $ kubectl delete -f kubernetes/machine-set.yaml
 ```
-Now the Node Controller Manager has immediately picked up your manifest and started to delete the existing VMs by talking to the cloud provider. Your nodes should be detached from the cluster in a few minutes (~1min for AWS).
+Now the Machine Controller Manager has immediately picked up your manifest and started to delete the existing VMs by talking to the cloud provider. Your nodes should be detached from the cluster in a few minutes (~1min for AWS).

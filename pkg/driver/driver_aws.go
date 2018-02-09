@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -106,7 +106,7 @@ func (d *AWSDriver) Create() (string, string, error) {
 		}
 		tagList = append(tagList, &newTag)
 	}
-	
+
 	// If no "Name" tag has been specified in the MachineClass definition we set the "Name" tag's
 	// value to "name-of-machine-object".
 	if _, ok := d.AWSMachineClass.Spec.Tags["Name"]; !ok {
