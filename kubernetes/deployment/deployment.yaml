@@ -13,8 +13,8 @@ spec:
     spec:
       containers:
       - name: node-controller-manager
-        image: kvmprashanth/node-controller-manager:v0.1.0
-        imagePullPolicy: Always 
+        image: kvmprashanth/node-controller-manager:v0.1.3
+        imagePullPolicy: Always
         command:
           - ./node-controller-manager
           - --v=2

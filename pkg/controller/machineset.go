@@ -623,12 +623,18 @@ func (c *controller) prepareMachineForDeletion(targetMachine *v1alpha1.Machine, 
 	}
 
 	// Force trigger deletion to reflect in machine status
+	lastOperation := v1alpha1.LastOperation{
+		Description:    "Deleting machine from cloud provider",
+		State:          "Processing",
+		Type:           "Delete",
+		LastUpdateTime: metav1.Now(),
+	}
 	currentStatus := v1alpha1.CurrentStatus{
 		Phase:          v1alpha1.MachineTerminating,
 		TimeoutActive:  false,
 		LastUpdateTime: metav1.Now(),
 	}
-	c.updateMachineStatus(targetMachine, targetMachine.Status.LastOperation, currentStatus)
+	c.updateMachineStatus(targetMachine, lastOperation, currentStatus)
 	glog.V(2).Info("Delete machine from machineset:", targetMachine.Name)
 
 	if err := c.machineControl.DeleteMachine(targetMachine.Namespace, targetMachine.Name, machineSet); err != nil {

@@ -94,7 +94,7 @@ func Run(s *options.NCMServer) error {
 			controlkubeconfig, err = clientcmd.BuildConfigFromFlags("", "")
 		} else {
 			//kubeconfig for the seedcluster where MachineCRDs are supposed to be registered.
-			controlkubeconfig, err = clientcmd.BuildConfigFromFlags("", s.ControlKubeconfig)			
+			controlkubeconfig, err = clientcmd.BuildConfigFromFlags("", s.ControlKubeconfig)
 		}
 		if err != nil {
 			return err
