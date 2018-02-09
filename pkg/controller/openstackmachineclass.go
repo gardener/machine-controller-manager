@@ -88,11 +88,11 @@ func (c *controller) openStackMachineClassUpdate(oldObj, newObj interface{}) {
 func (c *controller) reconcileClusterOpenStackMachineClassKey(key string) error {
 	class, err := c.openStackMachineClassLister.Get(key)
 	if errors.IsNotFound(err) {
-		glog.Infof("%s %q: Not doing work because it has been deleted", OpenStackMachineClassKind, key)
+		glog.V(3).Infof("%s %q: Not doing work because it has been deleted", OpenStackMachineClassKind, key)
 		return nil
 	}
 	if err != nil {
-		glog.Infof("%s %q: Unable to retrieve object from store: %v", OpenStackMachineClassKind, key, err)
+		glog.V(3).Infof("%s %q: Unable to retrieve object from store: %v", OpenStackMachineClassKind, key, err)
 		return err
 	}
 
@@ -108,7 +108,7 @@ func (c *controller) reconcileClusterOpenStackMachineClass(class *v1alpha1.OpenS
 	// TODO this should be put in own API server
 	validationerr := validation.ValidateOpenStackMachineClass(internalClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of %s failed %s", OpenStackMachineClassKind, validationerr.ToAggregate().Error())
+		glog.V(3).Infof("Validation of %s failed %s", OpenStackMachineClassKind, validationerr.ToAggregate().Error())
 		return nil
 	}
 
@@ -140,7 +140,7 @@ func (c *controller) reconcileClusterOpenStackMachineClass(class *v1alpha1.OpenS
 			return nil
 		}
 
-		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", OpenStackMachineClassKind, class.Name)
+		glog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", OpenStackMachineClassKind, class.Name)
 		return nil
 	}
 

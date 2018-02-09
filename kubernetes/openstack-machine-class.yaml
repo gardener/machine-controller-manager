@@ -1,23 +1,18 @@
-# Sample AWS machine class
+# Sample OpenStack machine class
 
 apiVersion: machine.sapcloud.io/v1alpha1
 kind: OpenStackMachineClass
 metadata:
   name: test-openstack # Name of aws machine class goes here
 spec:
-  flavorName: <flavor_name> 
-  keyName: <keypair_name> 
-  imageName: <image_name>
-  networkID: <network_id>
+  flavorName: <flavor_name> # Name of the machine flavor 
+  keyName: <keypair_name> # Name of the ssh key pair
+  imageName: <image_name> # Machine image name
+  networkID: <network_id> # Network ID where the machine should be placed
   securityGroups:
-  - <security_group_name>
-  region: <region>
-  availabilityZone: <availability_zone>
-  tags:
-    Name: sample-machine-name # Name tag that can be used to identify a machine at AWS
-    kubernetes.io/cluster/cluster-name: "1" # Tag that helps a new node to join existing AWS cluster (replace cluster-name with real cluster name)
-    tag1: tag1-value # A set of additional tags attached to a machine (optional)
-    tag2: tag2-value # A set of additional tags attached to a machine (optional)
+  - <security_group_name> # List of security groups which should be used for this machine
+  region: <region> # Region where to place the machine
+  availabilityZone: <availability_zone> # Availability zone where to place the machine
   secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig
     namespace: default  # Namespace
     name: test-secret # Name of the secret
