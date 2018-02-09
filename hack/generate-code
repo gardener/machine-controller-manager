@@ -37,9 +37,9 @@ rm -f $GOPATH/bin/*-gen
 
 $(dirname $0)/../vendor/k8s.io/code-generator/generate-internal-groups.sh \
   all \
-  github.com/gardener/node-controller-manager/pkg/client \
-  github.com/gardener/node-controller-manager/pkg/apis \
-  github.com/gardener/node-controller-manager/pkg/apis \
+  github.com/gardener/machine-controller-manager/pkg/client \
+  github.com/gardener/machine-controller-manager/pkg/apis \
+  github.com/gardener/machine-controller-manager/pkg/apis \
   "machine:v1alpha1" \
   -h <(headers)
 
@@ -50,12 +50,12 @@ echo "Generating openapi definitions"
 ${GOPATH}/bin/openapi-gen "$@" \
   --v 1 \
   --logtostderr \
-  --input-dirs=github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1 \
+  --input-dirs=github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1 \
   --input-dirs=k8s.io/api/core/v1 \
   --input-dirs=k8s.io/apimachinery/pkg/apis/meta/v1 \
   --input-dirs=k8s.io/apimachinery/pkg/api/resource \
   --input-dirs=k8s.io/apimachinery/pkg/types \
   --input-dirs=k8s.io/apimachinery/pkg/version \
   --input-dirs=k8s.io/apimachinery/pkg/runtime \
-  --output-package=github.com/gardener/node-controller-manager/pkg/openapi \
+  --output-package=github.com/gardener/machine-controller-manager/pkg/openapi \
   -h <(headers)

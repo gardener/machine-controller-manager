@@ -21,9 +21,9 @@ type ClientConnectionConfiguration struct {
 	Burst int
 }
 
-// NodeControllerManagerConfiguration ff
+// MachineControllerManagerConfiguration ff
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-type NodeControllerManagerConfiguration struct {
+type MachineControllerManagerConfiguration struct {
 	metav1.TypeMeta
 
 	// namespace in seed cluster in which controller would look for the resources.

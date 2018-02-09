@@ -16,7 +16,7 @@ limitations under the License.
 package controller
 
 import (
-	clientset "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned"
+	clientset "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned"
 	restclient "k8s.io/client-go/rest"
 
 	"github.com/golang/glog"

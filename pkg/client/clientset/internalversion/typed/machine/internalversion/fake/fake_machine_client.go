@@ -1,7 +1,7 @@
 package fake
 
 import (
-	internalversion "github.com/gardener/node-controller-manager/pkg/client/clientset/internalversion/typed/machine/internalversion"
+	internalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion/typed/machine/internalversion"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )
