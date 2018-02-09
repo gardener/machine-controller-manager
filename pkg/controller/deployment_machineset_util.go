@@ -38,7 +38,7 @@ func updateMachineSetStatus(nodeClient nodeclientset.MachineV1alpha1Interface, i
 	// This is the steady state. It happens when the MachineSet doesn't have any expectations, since
 	// we do a periodic relist every 30s. If the generations differ but the replicas are
 	// the same, a caller might've resized to the same replica count.
-	c := nodeClient.MachineSets()
+	c := nodeClient.MachineSets(is.Namespace)
 
 	if is.Status.Replicas == newStatus.Replicas &&
 		is.Status.FullyLabeledReplicas == newStatus.FullyLabeledReplicas &&

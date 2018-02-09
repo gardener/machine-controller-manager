@@ -7,7 +7,7 @@ metadata:
 spec:
   group: machine.sapcloud.io
   version: v1alpha1
-  scope: Cluster
+  scope: Namespaced
   names:
     kind: AWSMachineClass
     plural: awsmachineclasses
@@ -24,7 +24,7 @@ metadata:
 spec:
   group: machine.sapcloud.io
   version: v1alpha1
-  scope: Cluster
+  scope: Namespaced
   names:
     kind: AzureMachineClass
     plural: azuremachineclasses
@@ -41,7 +41,7 @@ metadata:
 spec:
   group: machine.sapcloud.io
   version: v1alpha1
-  scope: Cluster
+  scope: Namespaced
   names:
     kind: GCPMachineClass
     plural: gcpmachineclasses
@@ -58,7 +58,7 @@ metadata:
 spec:
   group: machine.sapcloud.io
   version: v1alpha1
-  scope: Cluster
+  scope: Namespaced
   names:
     kind: Machine
     plural: machines
@@ -75,7 +75,7 @@ metadata:
 spec:
   group: machine.sapcloud.io
   version: v1alpha1
-  scope: Cluster
+  scope: Namespaced
   names:
     kind: MachineSet
     plural: machinesets
@@ -91,7 +91,7 @@ metadata:
 spec:
   group: machine.sapcloud.io
   version: v1alpha1
-  scope: Cluster
+  scope: Namespaced
   names:
     kind: MachineDeployment
     plural: machinedeployments

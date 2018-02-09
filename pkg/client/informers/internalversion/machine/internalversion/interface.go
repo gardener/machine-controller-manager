@@ -37,32 +37,32 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 
 // AWSMachineClasses returns a AWSMachineClassInformer.
 func (v *version) AWSMachineClasses() AWSMachineClassInformer {
-	return &aWSMachineClassInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+	return &aWSMachineClassInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // AzureMachineClasses returns a AzureMachineClassInformer.
 func (v *version) AzureMachineClasses() AzureMachineClassInformer {
-	return &azureMachineClassInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+	return &azureMachineClassInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // GCPMachineClasses returns a GCPMachineClassInformer.
 func (v *version) GCPMachineClasses() GCPMachineClassInformer {
-	return &gCPMachineClassInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+	return &gCPMachineClassInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Machines returns a MachineInformer.
 func (v *version) Machines() MachineInformer {
-	return &machineInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+	return &machineInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // MachineDeployments returns a MachineDeploymentInformer.
 func (v *version) MachineDeployments() MachineDeploymentInformer {
-	return &machineDeploymentInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+	return &machineDeploymentInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // MachineSets returns a MachineSetInformer.
 func (v *version) MachineSets() MachineSetInformer {
-	return &machineSetInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+	return &machineSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // MachineTemplates returns a MachineTemplateInformer.

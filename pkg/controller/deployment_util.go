@@ -580,7 +580,7 @@ func GetNewMachineSet(deployment *v1alpha1.MachineDeployment, c v1alpha1client.M
 // RsListFromClient returns an rsListFunc that wraps the given client.
 func IsListFromClient(c v1alpha1client.MachineV1alpha1Interface) IsListFunc {
 	return func(namespace string, options metav1.ListOptions) ([]*v1alpha1.MachineSet, error) {
-		isList, err := c.MachineSets().List(options)
+		isList, err := c.MachineSets(namespace).List(options)
 		if err != nil {
 			return nil, err
 		}
@@ -735,7 +735,7 @@ func FindOldMachineSets(deployment *v1alpha1.MachineDeployment, isList []*v1alph
 // WaitForMachineSetUpdated polls the machine set until it is updated.
 func WaitForMachineSetUpdated(c v1alpha1listers.MachineSetLister, desiredGeneration int64, namespace, name string) error {
 	return wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
-		is, err := c.Get(name)
+		is, err := c.MachineSets(namespace).Get(name)
 		if err != nil {
 			return false, err
 		}
@@ -746,7 +746,7 @@ func WaitForMachineSetUpdated(c v1alpha1listers.MachineSetLister, desiredGenerat
 // WaitForMachinesHashPopulated polls the machine set until updated and fully labeled.
 func WaitForMachinesHashPopulated(c v1alpha1listers.MachineSetLister, desiredGeneration int64, namespace, name string) error {
 	return wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
-		is, err := c.Get(name)
+		is, err := c.MachineSets(namespace).Get(name)
 		if err != nil {
 			return false, err
 		}
@@ -764,7 +764,7 @@ func LabelMachinesWithHash(machineList *v1alpha1.MachineList, c v1alpha1client.M
 		}
 		// Only label the machine that doesn't already have the new hash
 		if machine.Labels[v1alpha1.DefaultMachineDeploymentUniqueLabelKey] != hash {
-			_, err := UpdateMachineWithRetries(c.Machines(), machineLister, machine.Namespace, machine.Name,
+			_, err := UpdateMachineWithRetries(c.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
 				func(machineToUpdate *v1alpha1.Machine) error {
 					// Precondition: the machine doesn't contain the new hash in its label.
 					if machineToUpdate.Labels[v1alpha1.DefaultMachineDeploymentUniqueLabelKey] == hash {

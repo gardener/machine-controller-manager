@@ -13,6 +13,7 @@ import (
 // FakeAzureMachineClasses implements AzureMachineClassInterface
 type FakeAzureMachineClasses struct {
 	Fake *FakeMachine
+	ns   string
 }
 
 var azuremachineclassesResource = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "", Resource: "azuremachineclasses"}
@@ -22,7 +23,8 @@ var azuremachineclassesKind = schema.GroupVersionKind{Group: "machine.sapcloud.i
 // Get takes name of the azureMachineClass, and returns the corresponding azureMachineClass object, and an error if there is any.
 func (c *FakeAzureMachineClasses) Get(name string, options v1.GetOptions) (result *machine.AzureMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(azuremachineclassesResource, name), &machine.AzureMachineClass{})
+		Invokes(testing.NewGetAction(azuremachineclassesResource, c.ns, name), &machine.AzureMachineClass{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -32,7 +34,8 @@ func (c *FakeAzureMachineClasses) Get(name string, options v1.GetOptions) (resul
 // List takes label and field selectors, and returns the list of AzureMachineClasses that match those selectors.
 func (c *FakeAzureMachineClasses) List(opts v1.ListOptions) (result *machine.AzureMachineClassList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(azuremachineclassesResource, azuremachineclassesKind, opts), &machine.AzureMachineClassList{})
+		Invokes(testing.NewListAction(azuremachineclassesResource, azuremachineclassesKind, c.ns, opts), &machine.AzureMachineClassList{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -53,13 +56,15 @@ func (c *FakeAzureMachineClasses) List(opts v1.ListOptions) (result *machine.Azu
 // Watch returns a watch.Interface that watches the requested azureMachineClasses.
 func (c *FakeAzureMachineClasses) Watch(opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(azuremachineclassesResource, opts))
+		InvokesWatch(testing.NewWatchAction(azuremachineclassesResource, c.ns, opts))
+
 }
 
 // Create takes the representation of a azureMachineClass and creates it.  Returns the server's representation of the azureMachineClass, and an error, if there is any.
 func (c *FakeAzureMachineClasses) Create(azureMachineClass *machine.AzureMachineClass) (result *machine.AzureMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(azuremachineclassesResource, azureMachineClass), &machine.AzureMachineClass{})
+		Invokes(testing.NewCreateAction(azuremachineclassesResource, c.ns, azureMachineClass), &machine.AzureMachineClass{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -69,7 +74,8 @@ func (c *FakeAzureMachineClasses) Create(azureMachineClass *machine.AzureMachine
 // Update takes the representation of a azureMachineClass and updates it. Returns the server's representation of the azureMachineClass, and an error, if there is any.
 func (c *FakeAzureMachineClasses) Update(azureMachineClass *machine.AzureMachineClass) (result *machine.AzureMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(azuremachineclassesResource, azureMachineClass), &machine.AzureMachineClass{})
+		Invokes(testing.NewUpdateAction(azuremachineclassesResource, c.ns, azureMachineClass), &machine.AzureMachineClass{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -79,13 +85,14 @@ func (c *FakeAzureMachineClasses) Update(azureMachineClass *machine.AzureMachine
 // Delete takes name of the azureMachineClass and deletes it. Returns an error if one occurs.
 func (c *FakeAzureMachineClasses) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(azuremachineclassesResource, name), &machine.AzureMachineClass{})
+		Invokes(testing.NewDeleteAction(azuremachineclassesResource, c.ns, name), &machine.AzureMachineClass{})
+
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeAzureMachineClasses) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(azuremachineclassesResource, listOptions)
+	action := testing.NewDeleteCollectionAction(azuremachineclassesResource, c.ns, listOptions)
 
 	_, err := c.Fake.Invokes(action, &machine.AzureMachineClassList{})
 	return err
@@ -94,7 +101,8 @@ func (c *FakeAzureMachineClasses) DeleteCollection(options *v1.DeleteOptions, li
 // Patch applies the patch and returns the patched azureMachineClass.
 func (c *FakeAzureMachineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *machine.AzureMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(azuremachineclassesResource, name, data, subresources...), &machine.AzureMachineClass{})
+		Invokes(testing.NewPatchSubresourceAction(azuremachineclassesResource, c.ns, name, data, subresources...), &machine.AzureMachineClass{})
+
 	if obj == nil {
 		return nil, err
 	}

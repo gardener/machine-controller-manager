@@ -25,32 +25,33 @@ type AWSMachineClassInformer interface {
 type aWSMachineClassInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
+	namespace        string
 }
 
 // NewAWSMachineClassInformer constructs a new informer for AWSMachineClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewAWSMachineClassInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredAWSMachineClassInformer(client, resyncPeriod, indexers, nil)
+func NewAWSMachineClassInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredAWSMachineClassInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
 // NewFilteredAWSMachineClassInformer constructs a new informer for AWSMachineClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredAWSMachineClassInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredAWSMachineClassInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.MachineV1alpha1().AWSMachineClasses().List(options)
+				return client.MachineV1alpha1().AWSMachineClasses(namespace).List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.MachineV1alpha1().AWSMachineClasses().Watch(options)
+				return client.MachineV1alpha1().AWSMachineClasses(namespace).Watch(options)
 			},
 		},
 		&machine_v1alpha1.AWSMachineClass{},
@@ -60,7 +61,7 @@ func NewFilteredAWSMachineClassInformer(client versioned.Interface, resyncPeriod
 }
 
 func (f *aWSMachineClassInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredAWSMachineClassInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewFilteredAWSMachineClassInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
 func (f *aWSMachineClassInformer) Informer() cache.SharedIndexInformer {

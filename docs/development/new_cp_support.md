@@ -12,4 +12,5 @@ For adding support for a new cloud provider in the Node Controller Manager, foll
 1. Extend the `StartControllers()` function in `cmd/node-controller-manager/app/controllermanager.go` to only start if your new machine class is under the available resources.
 1. Update `pkg/controller/controller.go` to add new providerMachineClassLister, providerMachineClassQueue, awsMachineClassSynced into the controller struct. Also initialize them in NewController() method.
 1. Add a new file `pkg/controller/providermachineclass.go` that allows re-queuing of machines which refer to an modified providerMachineClass.
+1. Update `pkg/controller/controller.go` to extend `WaitForCacheSync` and `.Shutdown()` similar to other cloud providers.
 1. Update the example ClusterRole in `kubernetes/deployment/clusterrole.yaml` to allow operations on your new machine class.

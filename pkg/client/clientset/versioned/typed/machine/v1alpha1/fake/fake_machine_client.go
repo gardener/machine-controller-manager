@@ -10,28 +10,28 @@ type FakeMachineV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeMachineV1alpha1) AWSMachineClasses() v1alpha1.AWSMachineClassInterface {
-	return &FakeAWSMachineClasses{c}
+func (c *FakeMachineV1alpha1) AWSMachineClasses(namespace string) v1alpha1.AWSMachineClassInterface {
+	return &FakeAWSMachineClasses{c, namespace}
 }
 
-func (c *FakeMachineV1alpha1) AzureMachineClasses() v1alpha1.AzureMachineClassInterface {
-	return &FakeAzureMachineClasses{c}
+func (c *FakeMachineV1alpha1) AzureMachineClasses(namespace string) v1alpha1.AzureMachineClassInterface {
+	return &FakeAzureMachineClasses{c, namespace}
 }
 
-func (c *FakeMachineV1alpha1) GCPMachineClasses() v1alpha1.GCPMachineClassInterface {
-	return &FakeGCPMachineClasses{c}
+func (c *FakeMachineV1alpha1) GCPMachineClasses(namespace string) v1alpha1.GCPMachineClassInterface {
+	return &FakeGCPMachineClasses{c, namespace}
 }
 
-func (c *FakeMachineV1alpha1) Machines() v1alpha1.MachineInterface {
-	return &FakeMachines{c}
+func (c *FakeMachineV1alpha1) Machines(namespace string) v1alpha1.MachineInterface {
+	return &FakeMachines{c, namespace}
 }
 
-func (c *FakeMachineV1alpha1) MachineDeployments() v1alpha1.MachineDeploymentInterface {
-	return &FakeMachineDeployments{c}
+func (c *FakeMachineV1alpha1) MachineDeployments(namespace string) v1alpha1.MachineDeploymentInterface {
+	return &FakeMachineDeployments{c, namespace}
 }
 
-func (c *FakeMachineV1alpha1) MachineSets() v1alpha1.MachineSetInterface {
-	return &FakeMachineSets{c}
+func (c *FakeMachineV1alpha1) MachineSets(namespace string) v1alpha1.MachineSetInterface {
+	return &FakeMachineSets{c, namespace}
 }
 
 func (c *FakeMachineV1alpha1) MachineTemplates(namespace string) v1alpha1.MachineTemplateInterface {

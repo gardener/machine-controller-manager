@@ -13,8 +13,8 @@ import (
 type MachineDeploymentLister interface {
 	// List lists all MachineDeployments in the indexer.
 	List(selector labels.Selector) (ret []*v1alpha1.MachineDeployment, err error)
-	// Get retrieves the MachineDeployment from the index for a given name.
-	Get(name string) (*v1alpha1.MachineDeployment, error)
+	// MachineDeployments returns an object that can list and get MachineDeployments.
+	MachineDeployments(namespace string) MachineDeploymentNamespaceLister
 	MachineDeploymentListerExpansion
 }
 
@@ -36,9 +36,38 @@ func (s *machineDeploymentLister) List(selector labels.Selector) (ret []*v1alpha
 	return ret, err
 }
 
-// Get retrieves the MachineDeployment from the index for a given name.
-func (s *machineDeploymentLister) Get(name string) (*v1alpha1.MachineDeployment, error) {
-	obj, exists, err := s.indexer.GetByKey(name)
+// MachineDeployments returns an object that can list and get MachineDeployments.
+func (s *machineDeploymentLister) MachineDeployments(namespace string) MachineDeploymentNamespaceLister {
+	return machineDeploymentNamespaceLister{indexer: s.indexer, namespace: namespace}
+}
+
+// MachineDeploymentNamespaceLister helps list and get MachineDeployments.
+type MachineDeploymentNamespaceLister interface {
+	// List lists all MachineDeployments in the indexer for a given namespace.
+	List(selector labels.Selector) (ret []*v1alpha1.MachineDeployment, err error)
+	// Get retrieves the MachineDeployment from the indexer for a given namespace and name.
+	Get(name string) (*v1alpha1.MachineDeployment, error)
+	MachineDeploymentNamespaceListerExpansion
+}
+
+// machineDeploymentNamespaceLister implements the MachineDeploymentNamespaceLister
+// interface.
+type machineDeploymentNamespaceLister struct {
+	indexer   cache.Indexer
+	namespace string
+}
+
+// List lists all MachineDeployments in the indexer for a given namespace.
+func (s machineDeploymentNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.MachineDeployment, err error) {
+	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
+		ret = append(ret, m.(*v1alpha1.MachineDeployment))
+	})
+	return ret, err
+}
+
+// Get retrieves the MachineDeployment from the indexer for a given namespace and name.
+func (s machineDeploymentNamespaceLister) Get(name string) (*v1alpha1.MachineDeployment, error) {
+	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
 	if err != nil {
 		return nil, err
 	}
