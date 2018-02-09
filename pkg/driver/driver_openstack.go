@@ -78,10 +78,10 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 		KeyName:           keyName,
 	}
 
-	glog.Infof("creating machine")
+	glog.V(3).Infof("creating machine")
 	server, err := servers.Create(client, createOpts).Extract()
 
-	d.MachineId = d.encodeMachineId(server.ID)
+	d.MachineId = d.encodeMachineId(d.OpenStackMachineClass.Spec.Region, server.ID)
 
 	return d.MachineId, d.MachineName, err
 }
@@ -95,9 +95,9 @@ func (d *OpenStackDriver) Delete() error {
 	if err != nil {
 		return err
 	}
-	glog.Infof("deleting machine with ID: %s", machineId)
+	glog.V(3).Infof("deleting machine with ID: %s", machineId)
 	result := servers.Delete(client, machineId)
-	glog.Infof("deleted machine with ID: %s", machineId)
+	glog.V(3).Infof("deleted machine with ID: %s", machineId)
 
 	return result.Err
 }
@@ -116,12 +116,12 @@ func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error)
 	if !ok {
 		return nil, fmt.Errorf("missing auth_url in secret")
 	}
-	glog.Infof("AuthURL: %s", authURL)
+	glog.V(3).Infof("AuthURL: %s", authURL)
 	username, ok := d.CloudConfig.Data["username"]
 	if !ok {
 		return nil, fmt.Errorf("missing username in secret")
 	}
-	glog.Infof("Username: %s", username)
+	glog.V(3).Infof("Username: %s", username)
 	password, ok := d.CloudConfig.Data["password"]
 	if !ok {
 		return nil, fmt.Errorf("missing password in secret")
@@ -130,14 +130,14 @@ func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error)
 	if !ok {
 		return nil, fmt.Errorf("missing domainName in secret")
 	}
-	glog.Infof("DomainName: %s", domainName)
+	glog.V(3).Infof("DomainName: %s", domainName)
 	region := d.OpenStackMachineClass.Spec.Region
-	glog.Infof("Region: %s", region)
+	glog.V(3).Infof("Region: %s", region)
 	tenantName, ok := d.CloudConfig.Data["tenantName"]
 	if !ok {
 		return nil, fmt.Errorf("missing tenantName in secret")
 	}
-	glog.Infof("TenantName: %s", tenantName)
+	glog.V(3).Infof("TenantName: %s", tenantName)
 
 	caCert, ok := d.CloudConfig.Data["caCert"]
 	if !ok {
@@ -177,7 +177,7 @@ func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error)
 		DomainName:       strings.TrimSpace(string(domainName)),
 		TenantName:       strings.TrimSpace(string(tenantName)),
 	}
-	glog.Infof("Auth opts")
+	glog.V(3).Infof("Auth opts")
 
 	client, err := openstack.NewClient(opts.IdentityEndpoint)
 	if err != nil {
@@ -203,8 +203,8 @@ func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error)
 	})
 }
 
-func (d *OpenStackDriver) encodeMachineId(instanceId string) string {
-	return fmt.Sprintf("openstack:///%s \n", instanceId)
+func (d *OpenStackDriver) encodeMachineId(region string, instanceId string) string {
+	return fmt.Sprintf("openstack:///%s/%s", region, instanceId)
 }
 
 func (d *OpenStackDriver) decodeMachineId(id string) string {

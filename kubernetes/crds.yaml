@@ -13,7 +13,7 @@ spec:
     plural: openstackmachineclasses
     singular: openstackmachineclass
     shortNames:
-    - instcls
+    - oscls
 
 ---
 
