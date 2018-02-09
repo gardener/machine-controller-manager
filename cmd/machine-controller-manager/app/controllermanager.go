@@ -33,15 +33,15 @@ import (
 
 	coreinformers "k8s.io/client-go/informers"
 
-	machinescheme "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/scheme"
-	nodeinformers "github.com/gardener/node-controller-manager/pkg/client/informers/externalversions"
+	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
+	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 
 	corecontroller "k8s.io/kubernetes/pkg/controller"
 
-	machinecontroller "github.com/gardener/node-controller-manager/pkg/controller"
+	machinecontroller "github.com/gardener/machine-controller-manager/pkg/controller"
 
-	"github.com/gardener/node-controller-manager/cmd/node-controller-manager/app/options"
+	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/api/core/v1"
@@ -62,16 +62,16 @@ import (
 )
 
 const (
-	controllerManagerAgentName   = "node-controller-manager"
-	controllerDiscoveryAgentName = "node-controller-discovery"
+	controllerManagerAgentName   = "machine-controller-manager"
+	controllerDiscoveryAgentName = "machine-controller-discovery"
 )
 
 var awsGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "awsmachineclasses"}
 var azureGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "azuremachineclasses"}
 var gcpGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "gcpmachineclasses"}
 
-// Run runs the NCMServer.  This should never exit.
-func Run(s *options.NCMServer) error {
+// Run runs the MCMServer.  This should never exit.
+func Run(s *options.MCMServer) error {
 	// To help debugging, immediately log version
 	glog.V(4).Infof("Version: %+v", version.Get())
 	if err := s.Validate(); err != nil {
@@ -80,7 +80,7 @@ func Run(s *options.NCMServer) error {
 
 	var err error
 
-	//kubeconfig for the cluster for which node-controller-manager will create machines.
+	//kubeconfig for the cluster for which machine-controller-manager will create machines.
 	targetkubeconfig, err := clientcmd.BuildConfigFromFlags("", s.TargetKubeconfig)
 	if err != nil {
 		return err
@@ -110,13 +110,13 @@ func Run(s *options.NCMServer) error {
 	controlkubeconfig.Burst = int(s.KubeAPIBurst)
 
 	kubeClientControl, err := kubernetes.NewForConfig(
-		rest.AddUserAgent(controlkubeconfig, "node-controller-manager"),
+		rest.AddUserAgent(controlkubeconfig, "machine-controller-manager"),
 	)
 	if err != nil {
 		glog.Fatalf("Invalid API configuration for kubeconfig-control: %v", err)
 	}
 
-	leaderElectionClient := kubernetes.NewForConfigOrDie(rest.AddUserAgent(controlkubeconfig, "node-leader-election"))
+	leaderElectionClient := kubernetes.NewForConfigOrDie(rest.AddUserAgent(controlkubeconfig, "machine-leader-election"))
 	glog.V(4).Info("Starting http server and mux")
 	go startHTTP(s)
 
@@ -164,7 +164,7 @@ func Run(s *options.NCMServer) error {
 
 	rl, err := resourcelock.New(s.LeaderElection.ResourceLock,
 		s.Namespace,
-		"node-controller-manager",
+		"machine-controller-manager",
 		leaderElectionClient.CoreV1(),
 		resourcelock.ResourceLockConfig{
 			Identity:      id,
@@ -189,7 +189,7 @@ func Run(s *options.NCMServer) error {
 	panic("unreachable")
 }
 
-func StartControllers(s *options.NCMServer,
+func StartControllers(s *options.MCMServer,
 	controlCoreKubeconfig *rest.Config,
 	targetCoreKubeconfig *rest.Config,
 	controlMachineClientBuilder machinecontroller.ClientBuilder,
@@ -221,7 +221,7 @@ func StartControllers(s *options.NCMServer,
 	if availableResources[awsGVR] || availableResources[azureGVR] || availableResources[gcpGVR] {
 		glog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
-		controlMachineInformerFactory := nodeinformers.NewFilteredSharedInformerFactory(
+		controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
 			controlMachineClientBuilder.ClientOrDie("control-machine-shared-informers"),
 			s.MinResyncPeriod.Duration,
 			s.Namespace,
@@ -242,7 +242,7 @@ func StartControllers(s *options.NCMServer,
 		machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
 
 		glog.V(5).Infof("Creating controllers...")
-		nodeController, err := machinecontroller.NewController(
+		machineController, err := machinecontroller.NewController(
 			s.Namespace,
 			controlMachineClient,
 			controlCoreClient,
@@ -267,7 +267,7 @@ func StartControllers(s *options.NCMServer,
 		targetCoreInformerFactory.Start(stop)
 
 		glog.V(5).Info("Running controller")
-		go nodeController.Run(int(s.ConcurrentNodeSyncs), stop)
+		go machineController.Run(int(s.ConcurrentNodeSyncs), stop)
 
 	} else {
 		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q is not available; found %#v", awsGVR, azureGVR, gcpGVR, availableResources)
@@ -338,7 +338,7 @@ func createRecorder(kubeClient *kubernetes.Clientset) record.EventRecorder {
 	return eventBroadcaster.NewRecorder(kubescheme.Scheme, v1.EventSource{Component: controllerManagerAgentName})
 }
 
-func startHTTP(s *options.NCMServer) {
+func startHTTP(s *options.MCMServer) {
 	mux := http.NewServeMux()
 	healthz.InstallHandler(mux)
 	if s.EnableProfiling {

@@ -27,7 +27,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/golang/glog"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

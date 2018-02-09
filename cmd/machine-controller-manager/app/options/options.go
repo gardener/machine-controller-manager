@@ -24,7 +24,7 @@ package options
 import (
 	"time"
 
-	nodeconfig "github.com/gardener/node-controller-manager/pkg/options"
+	machineconfig "github.com/gardener/machine-controller-manager/pkg/options"
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -32,25 +32,25 @@ import (
 	"k8s.io/kubernetes/pkg/apis/componentconfig"
 	"k8s.io/kubernetes/pkg/client/leaderelectionconfig"
 
-	// add the node feature gates
-	_ "github.com/gardener/node-controller-manager/pkg/features"
+	// add the machine feature gates
+	_ "github.com/gardener/machine-controller-manager/pkg/features"
 )
 
-// NCMServer is the main context object for the controller manager.
-type NCMServer struct {
-	nodeconfig.NodeControllerManagerConfiguration
+// MCMServer is the main context object for the controller manager.
+type MCMServer struct {
+	machineconfig.MachineControllerManagerConfiguration
 
 	ControlKubeconfig string
 	TargetKubeconfig  string
 }
 
-// NewNCMServer creates a new NCMServer with a default config.
-func NewNCMServer() *NCMServer {
+// NewMCMServer creates a new MCMServer with a default config.
+func NewMCMServer() *MCMServer {
 
-	s := NCMServer{
+	s := MCMServer{
 		// Part of these default values also present in 'cmd/cloud-controller-manager/app/options/options.go'.
 		// Please keep them in sync when doing update.
-		NodeControllerManagerConfiguration: nodeconfig.NodeControllerManagerConfiguration{
+		MachineControllerManagerConfiguration: machineconfig.MachineControllerManagerConfiguration{
 			Port:                    10258,
 			Namespace:               "default",
 			Address:                 "0.0.0.0",
@@ -68,7 +68,7 @@ func NewNCMServer() *NCMServer {
 }
 
 // AddFlags adds flags for a specific CMServer to the specified FlagSet
-func (s *NCMServer) AddFlags(fs *pflag.FlagSet) {
+func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&s.Port, "port", s.Port, "The port that the controller-manager's http service runs on")
 	fs.Var(componentconfig.IPVar{Val: &s.Address}, "address", "The IP address to serve on (set to 0.0.0.0 for all interfaces)")
 	fs.StringVar(&s.CloudProvider, "cloud-provider", s.CloudProvider, "The provider for cloud services.  Empty string for no provider.")
@@ -77,7 +77,7 @@ func (s *NCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&s.EnableProfiling, "profiling", true, "Enable profiling via web interface host:port/debug/pprof/")
 	fs.BoolVar(&s.EnableContentionProfiling, "contention-profiling", false, "Enable lock contention profiling, if profiling is enabled")
 	fs.StringVar(&s.TargetKubeconfig, "target-kubeconfig", s.TargetKubeconfig, "Path to kubeconfig file of the target cluster for which machines are to be managed")
-	fs.StringVar(&s.ControlKubeconfig, "control-kubeconfig", s.ControlKubeconfig, "Path to kubeconfig file of the control cluster where the node-controller-manager will run")
+	fs.StringVar(&s.ControlKubeconfig, "control-kubeconfig", s.ControlKubeconfig, "Path to kubeconfig file of the control cluster where the machine-controller-manager will run")
 	fs.StringVar(&s.Namespace, "namespace", s.Namespace, "Name of the namespace in control cluster where controller would look for CRDs and Kubernetes objects")
 	fs.StringVar(&s.ContentType, "kube-api-content-type", s.ContentType, "Content type of requests sent to apiserver.")
 	fs.Float32Var(&s.KubeAPIQPS, "kube-api-qps", s.KubeAPIQPS, "QPS to use while talking with kubernetes apiserver")
@@ -91,7 +91,7 @@ func (s *NCMServer) AddFlags(fs *pflag.FlagSet) {
 }
 
 // Validate is used to validate the options and config before launching the controller manager
-func (s *NCMServer) Validate() error {
+func (s *MCMServer) Validate() error {
 	var errs []error
 	// TODO add validation
 	return utilerrors.NewAggregate(errs)

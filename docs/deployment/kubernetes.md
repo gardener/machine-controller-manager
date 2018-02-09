@@ -1,10 +1,10 @@
-# Deploying the Node Controller Manager into a Kubernetes cluster
+# Deploying the Machine Controller Manager into a Kubernetes cluster
 
-As already mentioned, the Node Controller Manager is designed to run as controller in a Kubernetes cluster. The existing source code can be compiled and tested on a local machine as described in [Setting up a local development environment](../development/local_setup.md). You can deploy the Node Controller Manager using the steps described below.
+As already mentioned, the Machine Controller Manager is designed to run as controller in a Kubernetes cluster. The existing source code can be compiled and tested on a local machine as described in [Setting up a local development environment](../development/local_setup.md). You can deploy the Machine Controller Manager using the steps described below.
 
 ## Prepare the cluster
 
-- Connect to the remote kubernetes cluster where you plan to deploy the Node Controller Manager using the kubectl. Set the environment variable KUBECONFIG to the path of the yaml file containing the cluster info.
+- Connect to the remote kubernetes cluster where you plan to deploy the Machine Controller Manager using the kubectl. Set the environment variable KUBECONFIG to the path of the yaml file containing the cluster info.
 - Now, create the required CRDs on the remote cluster using the following command,
 ```bash
 $ kubectl apply -f kubernetes/crds.yaml
@@ -14,7 +14,7 @@ $ kubectl apply -f kubernetes/crds.yaml
 
 :warning: Modify the `Makefile` to refer to your own registry.
 
-- Run the build which generates the binary to `bin/node-controller-manager`
+- Run the build which generates the binary to `bin/machine-controller-manager`
 ```bash
 $ make build
 ```
@@ -39,4 +39,4 @@ $ kubectl apply -f kubernetes/deployment/clusterrolebinding.yaml
 
 ## Usage
 
-To start using Node Controller Manager, follow the links given at [usage here](../README.md).
+To start using Machine Controller Manager, follow the links given at [usage here](../README.md).

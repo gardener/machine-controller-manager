@@ -30,9 +30,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
-	nodescheme "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/scheme"
-	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
+	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -410,7 +410,7 @@ type MachineSetControlInterface interface {
 
 // RealMachineSetControl is the default implementation of RSControllerInterface.
 type RealMachineSetControl struct {
-	controlMachineClient nodeclientset.MachineV1alpha1Interface
+	controlMachineClient machineapi.MachineV1alpha1Interface
 	Recorder             record.EventRecorder
 }
 
@@ -463,7 +463,7 @@ func validateControllerRef(controllerRef *metav1.OwnerReference) error {
 //--- For Machines ---//
 // RealmachineControl is the default implementation of machineControlInterface.
 type RealMachineControl struct {
-	controlMachineClient nodeclientset.MachineV1alpha1Interface
+	controlMachineClient machineapi.MachineV1alpha1Interface
 	Recorder             record.EventRecorder
 }
 
@@ -499,7 +499,7 @@ func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, object run
 	for k, v := range template.Annotations {
 		desiredAnnotations[k] = v
 	}
-	createdByRef, err := ref.GetReference(nodescheme.Scheme, object)
+	createdByRef, err := ref.GetReference(machinescheme.Scheme, object)
 	if err != nil {
 		return desiredAnnotations, fmt.Errorf("unable to get controller reference: %v", err)
 	}

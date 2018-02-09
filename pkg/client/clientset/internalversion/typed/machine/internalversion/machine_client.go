@@ -1,7 +1,7 @@
 package internalversion
 
 import (
-	"github.com/gardener/node-controller-manager/pkg/client/clientset/internalversion/scheme"
+	"github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

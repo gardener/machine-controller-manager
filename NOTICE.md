@@ -1,4 +1,4 @@
-Node controller manager.  
+Machine Controller Manager.  
 Copyright 2017 The Gardener Authors.  
 [Apache 2 license](./LICENSE.md ).   
 
@@ -16,9 +16,9 @@ Commit-ID: 682da6ea1fd7a8b471d84c83b17c5239ded056d5.
 Commit-Message:  Add/Update CHANGELOG-1.8.md for v1.8.6.     
 To the left are the list of copied files -> and to the right the current location they are at.  
 
-	cmd/kube-controller-manager/app/controllermanager.go -> cmd/node-controller-manager/app/controllermanager.go
-	cmd/kube-controller-manager/app/options/options.go -> cmd/node-controller-manager/app/options/options.go
-	cmd/kube-controller-manager/controller_manager.go -> cmd/node-controller-manager/controller_manager.go
+	cmd/kube-controller-manager/app/controllermanager.go -> cmd/machine-controller-manager/app/controllermanager.go
+	cmd/kube-controller-manager/app/options/options.go -> cmd/machine-controller-manager/app/options/options.go
+	cmd/kube-controller-manager/controller_manager.go -> cmd/machine-controller-manager/controller_manager.go
 	pkg/controller/deployment/deployment_controller.go -> pkg/controller/deployment_controller.go
 	pkg/controller/deployment/util/replicaset_util.go -> pkg/controller/deployment_machineset_util.go
 	pkg/controller/deployment/progress.go -> pkg/controller/deployment_progress.go
@@ -34,7 +34,7 @@ To the left are the list of copied files -> and to the right the current locatio
 
 ## Dependencies
 
-The node-controller-manager includes the following components
+The machine-controller-manager includes the following components
 
 OAI Object Model.   
 https://github.com/go-openapi/spec.  

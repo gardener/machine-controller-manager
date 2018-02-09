@@ -3,7 +3,7 @@
 package internalversion
 
 import (
-	internalinterfaces "github.com/gardener/node-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
+	internalinterfaces "github.com/gardener/machine-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
 )
 
 // Interface provides access to all the informers in this group version.

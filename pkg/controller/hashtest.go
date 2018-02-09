@@ -28,7 +28,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	hashutil "k8s.io/kubernetes/pkg/util/hash"
 )
 

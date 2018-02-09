@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/integer"
