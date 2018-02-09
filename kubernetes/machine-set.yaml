@@ -4,7 +4,9 @@ apiVersion: machine.sapcloud.io/v1alpha1
 kind: MachineSet
 metadata:
   name: test-machine-set # Name of machine-set
-  test-label: test-label # Label used by machine-deployment to match (optional)
+  namespace: default
+  labels:
+    test-label: test-label # Label to match the selector (XXXXX)
 spec:
   replicas: 3 # Number of healthy replicas that should always be healthy
   minReadySeconds: 200 # Minimum time to wait for machine to be ready

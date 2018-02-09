@@ -25,32 +25,33 @@ type AzureMachineClassInformer interface {
 type azureMachineClassInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
+	namespace        string
 }
 
 // NewAzureMachineClassInformer constructs a new informer for AzureMachineClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewAzureMachineClassInformer(client clientset_internalversion.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredAzureMachineClassInformer(client, resyncPeriod, indexers, nil)
+func NewAzureMachineClassInformer(client clientset_internalversion.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredAzureMachineClassInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
 // NewFilteredAzureMachineClassInformer constructs a new informer for AzureMachineClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredAzureMachineClassInformer(client clientset_internalversion.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredAzureMachineClassInformer(client clientset_internalversion.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.Machine().AzureMachineClasses().List(options)
+				return client.Machine().AzureMachineClasses(namespace).List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.Machine().AzureMachineClasses().Watch(options)
+				return client.Machine().AzureMachineClasses(namespace).Watch(options)
 			},
 		},
 		&machine.AzureMachineClass{},
@@ -60,7 +61,7 @@ func NewFilteredAzureMachineClassInformer(client clientset_internalversion.Inter
 }
 
 func (f *azureMachineClassInformer) defaultInformer(client clientset_internalversion.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredAzureMachineClassInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewFilteredAzureMachineClassInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
 func (f *azureMachineClassInformer) Informer() cache.SharedIndexInformer {

@@ -24,28 +24,28 @@ type MachineV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *MachineV1alpha1Client) AWSMachineClasses() AWSMachineClassInterface {
-	return newAWSMachineClasses(c)
+func (c *MachineV1alpha1Client) AWSMachineClasses(namespace string) AWSMachineClassInterface {
+	return newAWSMachineClasses(c, namespace)
 }
 
-func (c *MachineV1alpha1Client) AzureMachineClasses() AzureMachineClassInterface {
-	return newAzureMachineClasses(c)
+func (c *MachineV1alpha1Client) AzureMachineClasses(namespace string) AzureMachineClassInterface {
+	return newAzureMachineClasses(c, namespace)
 }
 
-func (c *MachineV1alpha1Client) GCPMachineClasses() GCPMachineClassInterface {
-	return newGCPMachineClasses(c)
+func (c *MachineV1alpha1Client) GCPMachineClasses(namespace string) GCPMachineClassInterface {
+	return newGCPMachineClasses(c, namespace)
 }
 
-func (c *MachineV1alpha1Client) Machines() MachineInterface {
-	return newMachines(c)
+func (c *MachineV1alpha1Client) Machines(namespace string) MachineInterface {
+	return newMachines(c, namespace)
 }
 
-func (c *MachineV1alpha1Client) MachineDeployments() MachineDeploymentInterface {
-	return newMachineDeployments(c)
+func (c *MachineV1alpha1Client) MachineDeployments(namespace string) MachineDeploymentInterface {
+	return newMachineDeployments(c, namespace)
 }
 
-func (c *MachineV1alpha1Client) MachineSets() MachineSetInterface {
-	return newMachineSets(c)
+func (c *MachineV1alpha1Client) MachineSets(namespace string) MachineSetInterface {
+	return newMachineSets(c, namespace)
 }
 
 func (c *MachineV1alpha1Client) MachineTemplates(namespace string) MachineTemplateInterface {

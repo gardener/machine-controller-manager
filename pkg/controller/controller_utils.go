@@ -410,14 +410,14 @@ type MachineSetControlInterface interface {
 
 // RealMachineSetControl is the default implementation of RSControllerInterface.
 type RealMachineSetControl struct {
-	NodeClient nodeclientset.MachineV1alpha1Interface
-	Recorder   record.EventRecorder
+	controlMachineClient nodeclientset.MachineV1alpha1Interface
+	Recorder             record.EventRecorder
 }
 
 var _ MachineSetControlInterface = &RealMachineSetControl{}
 
 func (r RealMachineSetControl) PatchMachineSet(namespace, name string, data []byte) error {
-	_, err := r.NodeClient.MachineSets().Patch(name, types.MergePatchType, data)
+	_, err := r.controlMachineClient.MachineSets(namespace).Patch(name, types.MergePatchType, data)
 	return err
 }
 
@@ -463,21 +463,21 @@ func validateControllerRef(controllerRef *metav1.OwnerReference) error {
 //--- For Machines ---//
 // RealmachineControl is the default implementation of machineControlInterface.
 type RealMachineControl struct {
-	NodeClient nodeclientset.MachineV1alpha1Interface
-	Recorder   record.EventRecorder
+	controlMachineClient nodeclientset.MachineV1alpha1Interface
+	Recorder             record.EventRecorder
 }
 
 var _ MachineControlInterface = &RealMachineControl{}
 
 type MachineControlInterface interface {
 	// Createmachines creates new machines according to the spec.
-	CreateMachines(template *v1alpha1.MachineTemplateSpec, object runtime.Object) error
+	CreateMachines(namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object) error
 	// CreatemachinesWithControllerRef creates new machines according to the spec, and sets object as the machine's controller.
-	CreateMachinesWithControllerRef(template *v1alpha1.MachineTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error
+	CreateMachinesWithControllerRef(namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error
 	// Deletemachine deletes the machine identified by machineID.
-	DeleteMachine(machineID string, object runtime.Object) error
+	DeleteMachine(namespace string, machineID string, object runtime.Object) error
 	// Patchmachine patches the machine.
-	PatchMachine(name string, data []byte) error
+	PatchMachine(namespace string, name string, data []byte) error
 }
 
 func getMachinesLabelSet(template *v1alpha1.MachineTemplateSpec) labels.Set {
@@ -528,11 +528,11 @@ func getMachinesPrefix(controllerName string) string {
 	return prefix
 }
 
-func (r RealMachineControl) CreateMachinesWithControllerRef(template *v1alpha1.MachineTemplateSpec, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
+func (r RealMachineControl) CreateMachinesWithControllerRef(namespace string, template *v1alpha1.MachineTemplateSpec, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
 	if err := validateControllerRef(controllerRef); err != nil {
 		return err
 	}
-	return r.createMachines(template, controllerObject, controllerRef)
+	return r.createMachines(namespace, template, controllerObject, controllerRef)
 }
 
 func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject runtime.Object, controllerRef *metav1.OwnerReference) (*v1alpha1.Machine, error) {
@@ -570,11 +570,11 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 	return machine, nil
 }
 
-func (r RealMachineControl) CreateMachines(template *v1alpha1.MachineTemplateSpec, object runtime.Object) error {
-	return r.createMachines(template, object, nil)
+func (r RealMachineControl) CreateMachines(namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object) error {
+	return r.createMachines(namespace, template, object, nil)
 }
 
-func (r RealMachineControl) createMachines(template *v1alpha1.MachineTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
+func (r RealMachineControl) createMachines(namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
 	machine, err := GetMachineFromTemplate(template, object, controllerRef)
 	if err != nil {
 		return err
@@ -588,7 +588,7 @@ func (r RealMachineControl) createMachines(template *v1alpha1.MachineTemplateSpe
 
 	//glog.Infof("2 : Printing Machine details : %+v", machine)
 
-	if newMachine, err := r.NodeClient.Machines().Create(machine); err != nil {
+	if newMachine, err := r.controlMachineClient.Machines(namespace).Create(machine); err != nil {
 		glog.Error(err)
 		//glog.Infof("3")
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedCreateMachineReason, "Error creating: %v", err)
@@ -607,19 +607,19 @@ func (r RealMachineControl) createMachines(template *v1alpha1.MachineTemplateSpe
 	return nil
 }
 
-func (r RealMachineControl) PatchMachine(name string, data []byte) error {
-	_, err := r.NodeClient.Machines().Patch(name, types.MergePatchType, data)
+func (r RealMachineControl) PatchMachine(namespace string, name string, data []byte) error {
+	_, err := r.controlMachineClient.Machines(namespace).Patch(name, types.MergePatchType, data)
 	return err
 }
 
-func (r RealMachineControl) DeleteMachine(machineID string, object runtime.Object) error {
+func (r RealMachineControl) DeleteMachine(namespace string, machineID string, object runtime.Object) error {
 	accessor, err := meta.Accessor(object)
 	if err != nil {
 		return fmt.Errorf("object does not have ObjectMeta, %v", err)
 	}
 	glog.V(2).Infof("Controller %v deleting machine %v", accessor.GetName(), machineID)
 
-	if err := r.NodeClient.Machines().Delete(machineID, nil); err != nil {
+	if err := r.controlMachineClient.Machines(namespace).Delete(machineID, nil); err != nil {
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeleteMachineReason, "Error deleting: %v", err)
 		return fmt.Errorf("unable to delete machines: %v", err)
 	} else {

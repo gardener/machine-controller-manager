@@ -10,28 +10,28 @@ type FakeMachine struct {
 	*testing.Fake
 }
 
-func (c *FakeMachine) AWSMachineClasses() internalversion.AWSMachineClassInterface {
-	return &FakeAWSMachineClasses{c}
+func (c *FakeMachine) AWSMachineClasses(namespace string) internalversion.AWSMachineClassInterface {
+	return &FakeAWSMachineClasses{c, namespace}
 }
 
-func (c *FakeMachine) AzureMachineClasses() internalversion.AzureMachineClassInterface {
-	return &FakeAzureMachineClasses{c}
+func (c *FakeMachine) AzureMachineClasses(namespace string) internalversion.AzureMachineClassInterface {
+	return &FakeAzureMachineClasses{c, namespace}
 }
 
-func (c *FakeMachine) GCPMachineClasses() internalversion.GCPMachineClassInterface {
-	return &FakeGCPMachineClasses{c}
+func (c *FakeMachine) GCPMachineClasses(namespace string) internalversion.GCPMachineClassInterface {
+	return &FakeGCPMachineClasses{c, namespace}
 }
 
-func (c *FakeMachine) Machines() internalversion.MachineInterface {
-	return &FakeMachines{c}
+func (c *FakeMachine) Machines(namespace string) internalversion.MachineInterface {
+	return &FakeMachines{c, namespace}
 }
 
-func (c *FakeMachine) MachineDeployments() internalversion.MachineDeploymentInterface {
-	return &FakeMachineDeployments{c}
+func (c *FakeMachine) MachineDeployments(namespace string) internalversion.MachineDeploymentInterface {
+	return &FakeMachineDeployments{c, namespace}
 }
 
-func (c *FakeMachine) MachineSets() internalversion.MachineSetInterface {
-	return &FakeMachineSets{c}
+func (c *FakeMachine) MachineSets(namespace string) internalversion.MachineSetInterface {
+	return &FakeMachineSets{c, namespace}
 }
 
 func (c *FakeMachine) MachineTemplates(namespace string) internalversion.MachineTemplateInterface {

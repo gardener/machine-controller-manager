@@ -25,32 +25,33 @@ type GCPMachineClassInformer interface {
 type gCPMachineClassInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
+	namespace        string
 }
 
 // NewGCPMachineClassInformer constructs a new informer for GCPMachineClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewGCPMachineClassInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredGCPMachineClassInformer(client, resyncPeriod, indexers, nil)
+func NewGCPMachineClassInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredGCPMachineClassInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
 // NewFilteredGCPMachineClassInformer constructs a new informer for GCPMachineClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredGCPMachineClassInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredGCPMachineClassInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.MachineV1alpha1().GCPMachineClasses().List(options)
+				return client.MachineV1alpha1().GCPMachineClasses(namespace).List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.MachineV1alpha1().GCPMachineClasses().Watch(options)
+				return client.MachineV1alpha1().GCPMachineClasses(namespace).Watch(options)
 			},
 		},
 		&machine_v1alpha1.GCPMachineClass{},
@@ -60,7 +61,7 @@ func NewFilteredGCPMachineClassInformer(client versioned.Interface, resyncPeriod
 }
 
 func (f *gCPMachineClassInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredGCPMachineClassInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewFilteredGCPMachineClassInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
 func (f *gCPMachineClassInformer) Informer() cache.SharedIndexInformer {

@@ -1,28 +1,32 @@
-VCS              := github.com
-ORGANIZATION     := gardener
-PROJECT          := node-controller-manager
-REPOSITORY       := $(VCS)/$(ORGANIZATION)/$(PROJECT)
-VERSION          := v0.1.0
-PACKAGES         := $(shell go list ./... | grep -vE '/vendor/|/pkg/test|/code-generator|/pkg/client|/pkg/openapi')
-LINT_FOLDERS     := $(shell echo $(PACKAGES) | sed "s|$(REPOSITORY)|.|g")
-BINARY_PATH      := $(REPOSITORY)/cmd/$(PROJECT)
+VCS              	:= github.com
+ORGANIZATION     	:= gardener
+PROJECT          	:= node-controller-manager
+REPOSITORY       	:= $(VCS)/$(ORGANIZATION)/$(PROJECT)
+VERSION          	:= v0.1.0
+PACKAGES         	:= $(shell go list ./... | grep -vE '/vendor/|/pkg/test|/code-generator|/pkg/client|/pkg/openapi')
+LINT_FOLDERS     	:= $(shell echo $(PACKAGES) | sed "s|$(REPOSITORY)|.|g")
+BINARY_PATH      	:= $(REPOSITORY)/cmd/$(PROJECT)
 
-IMAGE_REPOSITORY := kvmprashanth/node-controller-manager
-IMAGE_TAG        := v2
+IMAGE_REPOSITORY 	:= kvmprashanth/node-controller-manager
+IMAGE_TAG        	:= v0.1.3
 
-TYPES_FILES      := $(shell find pkg/apis -name types.go)
+TYPES_FILES      	:= $(shell find pkg/apis -name types.go)
 
-BINDIR           := bin
-GOBIN            := $(PWD)/bin
-PATH             := $(GOBIN):$(PATH)
-USER             := $(shell id -u -n)
+BINDIR           	:= bin
+GOBIN            	:= $(PWD)/bin
+PATH             	:= $(GOBIN):$(PATH)
+USER             	:= $(shell id -u -n)
+
+CONTROL_NAMESPACE 	:= default
+CONTROL_KUBECONFIG 	:= dev/target-kubeconfig.yaml
+TARGET_KUBECONFIG 	:= dev/target-kubeconfig.yaml
 
 export PATH
 export GOBIN
 
 .PHONY: dev
 dev:
-	@go run cmd/node-controller-manager/controller_manager.go --kubeconfig=dev/kubeconfig.yaml --v=2
+	@go run cmd/node-controller-manager/controller_manager.go --control-kubeconfig=$(CONTROL_KUBECONFIG) --target-kubeconfig=$(TARGET_KUBECONFIG) --namespace=$(CONTROL_NAMESPACE) --v=2
 
 .PHONY: build
 build:

@@ -12,7 +12,7 @@ import (
 // MachineDeploymentsGetter has a method to return a MachineDeploymentInterface.
 // A group's client should implement this interface.
 type MachineDeploymentsGetter interface {
-	MachineDeployments() MachineDeploymentInterface
+	MachineDeployments(namespace string) MachineDeploymentInterface
 }
 
 // MachineDeploymentInterface has methods to work with MachineDeployment resources.
@@ -35,12 +35,14 @@ type MachineDeploymentInterface interface {
 // machineDeployments implements MachineDeploymentInterface
 type machineDeployments struct {
 	client rest.Interface
+	ns     string
 }
 
 // newMachineDeployments returns a MachineDeployments
-func newMachineDeployments(c *MachineV1alpha1Client) *machineDeployments {
+func newMachineDeployments(c *MachineV1alpha1Client, namespace string) *machineDeployments {
 	return &machineDeployments{
 		client: c.RESTClient(),
+		ns:     namespace,
 	}
 }
 
@@ -48,6 +50,7 @@ func newMachineDeployments(c *MachineV1alpha1Client) *machineDeployments {
 func (c *machineDeployments) Get(name string, options v1.GetOptions) (result *v1alpha1.MachineDeployment, err error) {
 	result = &v1alpha1.MachineDeployment{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("machinedeployments").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -60,6 +63,7 @@ func (c *machineDeployments) Get(name string, options v1.GetOptions) (result *v1
 func (c *machineDeployments) List(opts v1.ListOptions) (result *v1alpha1.MachineDeploymentList, err error) {
 	result = &v1alpha1.MachineDeploymentList{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("machinedeployments").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do().
@@ -71,6 +75,7 @@ func (c *machineDeployments) List(opts v1.ListOptions) (result *v1alpha1.Machine
 func (c *machineDeployments) Watch(opts v1.ListOptions) (watch.Interface, error) {
 	opts.Watch = true
 	return c.client.Get().
+		Namespace(c.ns).
 		Resource("machinedeployments").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Watch()
@@ -80,6 +85,7 @@ func (c *machineDeployments) Watch(opts v1.ListOptions) (watch.Interface, error)
 func (c *machineDeployments) Create(machineDeployment *v1alpha1.MachineDeployment) (result *v1alpha1.MachineDeployment, err error) {
 	result = &v1alpha1.MachineDeployment{}
 	err = c.client.Post().
+		Namespace(c.ns).
 		Resource("machinedeployments").
 		Body(machineDeployment).
 		Do().
@@ -91,6 +97,7 @@ func (c *machineDeployments) Create(machineDeployment *v1alpha1.MachineDeploymen
 func (c *machineDeployments) Update(machineDeployment *v1alpha1.MachineDeployment) (result *v1alpha1.MachineDeployment, err error) {
 	result = &v1alpha1.MachineDeployment{}
 	err = c.client.Put().
+		Namespace(c.ns).
 		Resource("machinedeployments").
 		Name(machineDeployment.Name).
 		Body(machineDeployment).
@@ -105,6 +112,7 @@ func (c *machineDeployments) Update(machineDeployment *v1alpha1.MachineDeploymen
 func (c *machineDeployments) UpdateStatus(machineDeployment *v1alpha1.MachineDeployment) (result *v1alpha1.MachineDeployment, err error) {
 	result = &v1alpha1.MachineDeployment{}
 	err = c.client.Put().
+		Namespace(c.ns).
 		Resource("machinedeployments").
 		Name(machineDeployment.Name).
 		SubResource("status").
@@ -117,6 +125,7 @@ func (c *machineDeployments) UpdateStatus(machineDeployment *v1alpha1.MachineDep
 // Delete takes name of the machineDeployment and deletes it. Returns an error if one occurs.
 func (c *machineDeployments) Delete(name string, options *v1.DeleteOptions) error {
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("machinedeployments").
 		Name(name).
 		Body(options).
@@ -127,6 +136,7 @@ func (c *machineDeployments) Delete(name string, options *v1.DeleteOptions) erro
 // DeleteCollection deletes a collection of objects.
 func (c *machineDeployments) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("machinedeployments").
 		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Body(options).
@@ -138,6 +148,7 @@ func (c *machineDeployments) DeleteCollection(options *v1.DeleteOptions, listOpt
 func (c *machineDeployments) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.MachineDeployment, err error) {
 	result = &v1alpha1.MachineDeployment{}
 	err = c.client.Patch(pt).
+		Namespace(c.ns).
 		Resource("machinedeployments").
 		SubResource(subresources...).
 		Name(name).
@@ -151,6 +162,7 @@ func (c *machineDeployments) Patch(name string, pt types.PatchType, data []byte,
 func (c *machineDeployments) GetScale(machineDeploymentName string, options v1.GetOptions) (result *v1alpha1.Scale, err error) {
 	result = &v1alpha1.Scale{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("machinedeployments").
 		Name(machineDeploymentName).
 		SubResource("scale").
@@ -164,6 +176,7 @@ func (c *machineDeployments) GetScale(machineDeploymentName string, options v1.G
 func (c *machineDeployments) UpdateScale(machineDeploymentName string, scale *v1alpha1.Scale) (result *v1alpha1.Scale, err error) {
 	result = &v1alpha1.Scale{}
 	err = c.client.Put().
+		Namespace(c.ns).
 		Resource("machinedeployments").
 		Name(machineDeploymentName).
 		SubResource("scale").

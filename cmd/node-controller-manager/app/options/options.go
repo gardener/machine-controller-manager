@@ -40,7 +40,8 @@ import (
 type NCMServer struct {
 	nodeconfig.NodeControllerManagerConfiguration
 
-	Kubeconfig string
+	ControlKubeconfig string
+	TargetKubeconfig  string
 }
 
 // NewNCMServer creates a new NCMServer with a default config.
@@ -51,6 +52,7 @@ func NewNCMServer() *NCMServer {
 		// Please keep them in sync when doing update.
 		NodeControllerManagerConfiguration: nodeconfig.NodeControllerManagerConfiguration{
 			Port:                    10258,
+			Namespace:               "default",
 			Address:                 "0.0.0.0",
 			ConcurrentNodeSyncs:     5,
 			ContentType:             "application/vnd.kubernetes.protobuf",
@@ -71,12 +73,12 @@ func (s *NCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Var(componentconfig.IPVar{Val: &s.Address}, "address", "The IP address to serve on (set to 0.0.0.0 for all interfaces)")
 	fs.StringVar(&s.CloudProvider, "cloud-provider", s.CloudProvider, "The provider for cloud services.  Empty string for no provider.")
 	fs.Int32Var(&s.ConcurrentNodeSyncs, "concurrent-syncs", s.ConcurrentNodeSyncs, "The number of nodes that are allowed to sync concurrently. Larger number = more responsive service management, but more CPU (and network) load")
-
 	fs.DurationVar(&s.MinResyncPeriod.Duration, "min-resync-period", s.MinResyncPeriod.Duration, "The resync period in reflectors will be random between MinResyncPeriod and 2*MinResyncPeriod")
-
 	fs.BoolVar(&s.EnableProfiling, "profiling", true, "Enable profiling via web interface host:port/debug/pprof/")
 	fs.BoolVar(&s.EnableContentionProfiling, "contention-profiling", false, "Enable lock contention profiling, if profiling is enabled")
-	fs.StringVar(&s.Kubeconfig, "kubeconfig", s.Kubeconfig, "Path to kubeconfig file with authorization and master location information.")
+	fs.StringVar(&s.TargetKubeconfig, "target-kubeconfig", s.TargetKubeconfig, "Path to kubeconfig file of the target cluster for which machines are to be managed")
+	fs.StringVar(&s.ControlKubeconfig, "control-kubeconfig", s.ControlKubeconfig, "Path to kubeconfig file of the control cluster where the node-controller-manager will run")
+	fs.StringVar(&s.Namespace, "namespace", s.Namespace, "Name of the namespace in control cluster where controller would look for CRDs and Kubernetes objects")
 	fs.StringVar(&s.ContentType, "kube-api-content-type", s.ContentType, "Content type of requests sent to apiserver.")
 	fs.Float32Var(&s.KubeAPIQPS, "kube-api-qps", s.KubeAPIQPS, "QPS to use while talking with kubernetes apiserver")
 	fs.Int32Var(&s.KubeAPIBurst, "kube-api-burst", s.KubeAPIBurst, "Burst to use while talking with kubernetes apiserver")
