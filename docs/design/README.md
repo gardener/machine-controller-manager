@@ -40,6 +40,9 @@ The following is a short list of future plans,
 4. Build a comprehensive testing framework.
 5. Fix bugs that exist in the current implementation.
 
+### Todos Doc
+[This link](https://docs.google.com/document/d/10ruoL6VLVOEG2htYluY5T0-qvijXkw0Do_qE0tmexos/edit?usp=sharing) contains the working doc for the todos which are planned in the near future.
+
 ## Limitations
 The following are the list of limitations,
 1. It currently only supports AWS, Azure and GCP, but will support a larger set of cloud providers in future.
