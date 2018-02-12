@@ -166,7 +166,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 		}
 	} else if classSpec.Kind == "OpenStackMachineClass" {
 
-		OpenStackMachineClass, err := c.openStackMachineClassLister.Get(classSpec.Name)
+		OpenStackMachineClass, err := c.openStackMachineClassLister.OpenStackMachineClasses(c.namespace).Get(classSpec.Name)
 		if err != nil {
 			glog.V(2).Infof("OpenStackMachineClass %q not found. Skipping. %v", classSpec.Name, err)
 			return MachineClass, secretRef, err

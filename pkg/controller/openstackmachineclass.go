@@ -86,7 +86,12 @@ func (c *controller) openStackMachineClassUpdate(oldObj, newObj interface{}) {
 // reconcileClusterOpenStackMachineClassKey reconciles an OpenStackMachineClass due to controller resync
 // or an event on the openStackMachineClass.
 func (c *controller) reconcileClusterOpenStackMachineClassKey(key string) error {
-	class, err := c.openStackMachineClassLister.Get(key)
+	_, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return err
+	}
+
+	class, err := c.openStackMachineClassLister.OpenStackMachineClasses(c.namespace).Get(name)
 	if errors.IsNotFound(err) {
 		glog.V(3).Infof("%s %q: Not doing work because it has been deleted", OpenStackMachineClassKind, key)
 		return nil
@@ -175,14 +180,14 @@ func (c *controller) deleteOpenStackMachineClassFinalizers(class *v1alpha1.OpenS
 
 func (c *controller) updateOpenStackMachineClassFinalizers(class *v1alpha1.OpenStackMachineClass, finalizers []string) {
 	// Get the latest version of the class so that we can avoid conflicts
-	class, err := c.controlMachineClient.OpenStackMachineClasses().Get(class.Name, metav1.GetOptions{})
+	class, err := c.controlMachineClient.OpenStackMachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.controlMachineClient.OpenStackMachineClasses().Update(clone)
+	_, err = c.controlMachineClient.OpenStackMachineClasses(class.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
 		glog.Warning("Updated failed, retrying")

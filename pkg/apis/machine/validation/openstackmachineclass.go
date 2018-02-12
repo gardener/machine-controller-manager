@@ -16,7 +16,6 @@ limitations under the License.
 package validation
 
 import (
-	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -29,10 +28,6 @@ func ValidateOpenStackMachineClass(OpenStackMachineClass *machine.OpenStackMachi
 
 func internalValidateOpenStackMachineClass(OpenStackMachineClass *machine.OpenStackMachineClass) field.ErrorList {
 	allErrs := field.ErrorList{}
-
-	allErrs = append(allErrs, apivalidation.ValidateObjectMeta(&OpenStackMachineClass.ObjectMeta, false, /*namespace*/
-		validateName,
-		field.NewPath("metadata"))...)
 
 	allErrs = append(allErrs, validateOpenStackMachineClassSpec(&OpenStackMachineClass.Spec, field.NewPath("spec"))...)
 	return allErrs
