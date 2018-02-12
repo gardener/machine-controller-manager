@@ -66,6 +66,7 @@ const (
 	controllerDiscoveryAgentName = "machine-controller-discovery"
 )
 
+var openStackGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "openstackmachineclasses"}
 var awsGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "awsmachineclasses"}
 var azureGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "azuremachineclasses"}
 var gcpGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "gcpmachineclasses"}
@@ -249,6 +250,7 @@ func StartControllers(s *options.MCMServer,
 			targetCoreClient,
 			controlCoreInformerFactory.Core().V1().Secrets(),
 			targetCoreInformerFactory.Core().V1().Nodes(),
+			machineSharedInformers.OpenStackMachineClasses(),
 			machineSharedInformers.AWSMachineClasses(),
 			machineSharedInformers.AzureMachineClasses(),
 			machineSharedInformers.GCPMachineClasses(),

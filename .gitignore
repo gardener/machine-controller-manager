@@ -3,3 +3,4 @@ rel
 controller_manager
 *.DS_Store
 dev/
+managevm

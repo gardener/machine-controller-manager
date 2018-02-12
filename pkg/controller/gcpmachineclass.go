@@ -151,7 +151,7 @@ func (c *controller) reconcileClusterGCPMachineClass(class *v1alpha1.GCPMachineC
 	}
 
 	for _, machine := range machines {
-		c.machineQueue.Add(machine.Name)
+		c.machineAdd(machine)
 	}
 	return nil
 }

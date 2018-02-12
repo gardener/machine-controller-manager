@@ -16,6 +16,7 @@ type MachineV1alpha1Interface interface {
 	MachineDeploymentsGetter
 	MachineSetsGetter
 	MachineTemplatesGetter
+	OpenStackMachineClassesGetter
 	ScalesGetter
 }
 
@@ -50,6 +51,10 @@ func (c *MachineV1alpha1Client) MachineSets(namespace string) MachineSetInterfac
 
 func (c *MachineV1alpha1Client) MachineTemplates(namespace string) MachineTemplateInterface {
 	return newMachineTemplates(c, namespace)
+}
+
+func (c *MachineV1alpha1Client) OpenStackMachineClasses(namespace string) OpenStackMachineClassInterface {
+	return newOpenStackMachineClasses(c, namespace)
 }
 
 func (c *MachineV1alpha1Client) Scales(namespace string) ScaleInterface {

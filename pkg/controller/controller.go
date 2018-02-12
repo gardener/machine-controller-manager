@@ -58,6 +58,7 @@ func NewController(
 	targetCoreClient kubernetes.Interface,
 	secretInformer coreinformers.SecretInformer,
 	nodeInformer coreinformers.NodeInformer,
+	openStackMachineClassInformer machineinformers.OpenStackMachineClassInformer,
 	awsMachineClassInformer machineinformers.AWSMachineClassInformer,
 	azureMachineClassInformer machineinformers.AzureMachineClassInformer,
 	gcpMachineClassInformer machineinformers.GCPMachineClassInformer,
@@ -67,21 +68,22 @@ func NewController(
 	recorder record.EventRecorder,
 ) (Controller, error) {
 	controller := &controller{
-		namespace:              namespace,
-		controlMachineClient:   controlMachineClient,
-		controlCoreClient:      controlCoreClient,
-		targetCoreClient:       targetCoreClient,
-		recorder:               recorder,
-		expectations:           NewUIDTrackingControllerExpectations(NewControllerExpectations()),
-		secretQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
-		nodeQueue:              workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
-		nodeToMachineQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "nodeToMachine"),
-		awsMachineClassQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
-		azureMachineClassQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
-		gcpMachineClassQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "gcpmachineclass"),
-		machineQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
-		machineSetQueue:        workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
-		machineDeploymentQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
+		namespace:                  namespace,
+		controlMachineClient:       controlMachineClient,
+		controlCoreClient:          controlCoreClient,
+		targetCoreClient:           targetCoreClient,
+		recorder:                   recorder,
+		expectations:               NewUIDTrackingControllerExpectations(NewControllerExpectations()),
+		secretQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
+		nodeQueue:                  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
+		nodeToMachineQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "nodeToMachine"),
+		openStackMachineClassQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "openstackmachineclass"),
+		awsMachineClassQueue:       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
+		azureMachineClassQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
+		gcpMachineClassQueue:       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "gcpmachineclass"),
+		machineQueue:               workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
+		machineSetQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
+		machineDeploymentQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
 	}
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -100,6 +102,7 @@ func NewController(
 
 	// Controller listers
 	controller.secretLister = secretInformer.Lister()
+	controller.openStackMachineClassLister = openStackMachineClassInformer.Lister()
 	controller.awsMachineClassLister = awsMachineClassInformer.Lister()
 	controller.azureMachineClassLister = azureMachineClassInformer.Lister()
 	controller.gcpMachineClassLister = gcpMachineClassInformer.Lister()
@@ -110,6 +113,7 @@ func NewController(
 
 	// Controller syncs
 	controller.secretSynced = secretInformer.Informer().HasSynced
+	controller.openStackMachineClassSynced = openStackMachineClassInformer.Informer().HasSynced
 	controller.awsMachineClassSynced = awsMachineClassInformer.Informer().HasSynced
 	controller.azureMachineClassSynced = azureMachineClassInformer.Informer().HasSynced
 	controller.gcpMachineClassSynced = gcpMachineClassInformer.Informer().HasSynced
@@ -123,6 +127,24 @@ func NewController(
 			AddFunc:    controller.secretAdd,
 			UpdateFunc: controller.secretUpdate,
 		})*/
+
+	// Openstack Controller Informers
+	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineDeploymentToOpenStackMachineClassDelete,
+	})
+
+	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineSetToOpenStackMachineClassDelete,
+	})
+
+	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineToOpenStackMachineClassDelete,
+	})
+
+	openStackMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.openStackMachineClassAdd,
+		UpdateFunc: controller.openStackMachineClassUpdate,
+	})
 
 	// AWS Controller Informers
 	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -255,14 +277,15 @@ type controller struct {
 	targetCoreClient     kubernetes.Interface
 
 	// listers
-	secretLister            corelisters.SecretLister
-	nodeLister              corelisters.NodeLister
-	awsMachineClassLister   machinelisters.AWSMachineClassLister
-	azureMachineClassLister machinelisters.AzureMachineClassLister
-	gcpMachineClassLister   machinelisters.GCPMachineClassLister
-	machineLister           machinelisters.MachineLister
-	machineSetLister        machinelisters.MachineSetLister
-	machineDeploymentLister machinelisters.MachineDeploymentLister
+	secretLister                corelisters.SecretLister
+	nodeLister                  corelisters.NodeLister
+	openStackMachineClassLister machinelisters.OpenStackMachineClassLister
+	awsMachineClassLister       machinelisters.AWSMachineClassLister
+	azureMachineClassLister     machinelisters.AzureMachineClassLister
+	gcpMachineClassLister       machinelisters.GCPMachineClassLister
+	machineLister               machinelisters.MachineLister
+	machineSetLister            machinelisters.MachineSetLister
+	machineDeploymentLister     machinelisters.MachineDeploymentLister
 
 	recorder record.EventRecorder
 
@@ -274,30 +297,33 @@ type controller struct {
 	machineSetControl MachineSetControlInterface
 
 	// queues
-	secretQueue            workqueue.RateLimitingInterface
-	nodeQueue              workqueue.RateLimitingInterface
-	nodeToMachineQueue     workqueue.RateLimitingInterface
-	awsMachineClassQueue   workqueue.RateLimitingInterface
-	azureMachineClassQueue workqueue.RateLimitingInterface
-	gcpMachineClassQueue   workqueue.RateLimitingInterface
-	machineQueue           workqueue.RateLimitingInterface
-	machineSetQueue        workqueue.RateLimitingInterface
-	machineDeploymentQueue workqueue.RateLimitingInterface
+	secretQueue                workqueue.RateLimitingInterface
+	nodeQueue                  workqueue.RateLimitingInterface
+	nodeToMachineQueue         workqueue.RateLimitingInterface
+	openStackMachineClassQueue workqueue.RateLimitingInterface
+	awsMachineClassQueue       workqueue.RateLimitingInterface
+	azureMachineClassQueue     workqueue.RateLimitingInterface
+	gcpMachineClassQueue       workqueue.RateLimitingInterface
+	machineQueue               workqueue.RateLimitingInterface
+	machineSetQueue            workqueue.RateLimitingInterface
+	machineDeploymentQueue     workqueue.RateLimitingInterface
 
 	// syncs
-	secretSynced            cache.InformerSynced
-	nodeSynced              cache.InformerSynced
-	awsMachineClassSynced   cache.InformerSynced
-	azureMachineClassSynced cache.InformerSynced
-	gcpMachineClassSynced   cache.InformerSynced
-	machineSynced           cache.InformerSynced
-	machineSetSynced        cache.InformerSynced
-	machineDeploymentSynced cache.InformerSynced
+	secretSynced                cache.InformerSynced
+	nodeSynced                  cache.InformerSynced
+	openStackMachineClassSynced cache.InformerSynced
+	awsMachineClassSynced       cache.InformerSynced
+	azureMachineClassSynced     cache.InformerSynced
+	gcpMachineClassSynced       cache.InformerSynced
+	machineSynced               cache.InformerSynced
+	machineSetSynced            cache.InformerSynced
+	machineDeploymentSynced     cache.InformerSynced
 }
 
 func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer runtimeutil.HandleCrash()
 	defer c.nodeQueue.ShutDown()
+	defer c.openStackMachineClassQueue.ShutDown()
 	defer c.awsMachineClassQueue.ShutDown()
 	defer c.azureMachineClassQueue.ShutDown()
 	defer c.gcpMachineClassQueue.ShutDown()
@@ -305,7 +331,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer c.machineSetQueue.ShutDown()
 	defer c.machineDeploymentQueue.ShutDown()
 
-	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.awsMachineClassSynced, c.azureMachineClassSynced, c.gcpMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
+	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.openStackMachineClassSynced, c.awsMachineClassSynced, c.azureMachineClassSynced, c.gcpMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
@@ -316,6 +342,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	var waitGroup sync.WaitGroup
 
 	for i := 0; i < workers; i++ {
+		createWorker(c.openStackMachineClassQueue, "ClusterOpenStackMachineClass", maxRetries, true, c.reconcileClusterOpenStackMachineClassKey, stopCh, &waitGroup)
 		createWorker(c.awsMachineClassQueue, "ClusterAWSMachineClass", maxRetries, true, c.reconcileClusterAWSMachineClassKey, stopCh, &waitGroup)
 		createWorker(c.azureMachineClassQueue, "ClusterAzureMachineClass", maxRetries, true, c.reconcileClusterAzureMachineClassKey, stopCh, &waitGroup)
 		createWorker(c.gcpMachineClassQueue, "ClusterGCPMachineClass", maxRetries, true, c.reconcileClusterGCPMachineClassKey, stopCh, &waitGroup)

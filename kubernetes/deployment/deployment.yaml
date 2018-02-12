@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: machine-controller-manager
-        image: kvmprashanth/machine-controller-manager:v0.1.3
+        image: kvmprashanth/machine-controller-manager:v0.1.6
         imagePullPolicy: Always
         command:
           - ./machine-controller-manager
