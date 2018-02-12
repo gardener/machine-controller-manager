@@ -150,7 +150,7 @@ func (c *controller) reconcileClusterOpenStackMachineClass(class *v1alpha1.OpenS
 	}
 
 	for _, machine := range machines {
-		c.machineQueue.Add(machine.Name)
+		c.machineAdd(machine)
 	}
 	return nil
 }
