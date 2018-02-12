@@ -23,15 +23,15 @@ import (
 	"k8s.io/api/core/v1"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 
-	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
-	nodeinformers "github.com/gardener/node-controller-manager/pkg/client/informers/externalversions/machine/v1alpha1"
-	nodelisters "github.com/gardener/node-controller-manager/pkg/client/listers/machine/v1alpha1"
+	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions/machine/v1alpha1"
+	machinelisters "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 
-	nodescheme "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/scheme"
+	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	runtimeutil "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -47,27 +47,31 @@ const (
 
 	ClassAnnotation     = "machine.sapcloud.io/class"
 	MachineIDAnnotation = "machine.sapcloud.io/id"
-	DeleteFinalizerName = "machine.sapcloud.io/node-controller-manager"
+	DeleteFinalizerName = "machine.sapcloud.io/machine-controller-manager"
 )
 
 // NewController returns a new Node controller.
 func NewController(
-	kubeClient kubernetes.Interface,
-	nodeClient nodeclientset.MachineV1alpha1Interface,
+	namespace string,
+	controlMachineClient machineapi.MachineV1alpha1Interface,
+	controlCoreClient kubernetes.Interface,
+	targetCoreClient kubernetes.Interface,
 	secretInformer coreinformers.SecretInformer,
 	nodeInformer coreinformers.NodeInformer,
-	openStackMachineClassInformer nodeinformers.OpenStackMachineClassInformer,
-	awsMachineClassInformer nodeinformers.AWSMachineClassInformer,
-	azureMachineClassInformer nodeinformers.AzureMachineClassInformer,
-	gcpMachineClassInformer nodeinformers.GCPMachineClassInformer,
-	machineInformer nodeinformers.MachineInformer,
-	machineSetInformer nodeinformers.MachineSetInformer,
-	machineDeploymentInformer nodeinformers.MachineDeploymentInformer,
+	openStackMachineClassInformer machineinformers.OpenStackMachineClassInformer,
+	awsMachineClassInformer machineinformers.AWSMachineClassInformer,
+	azureMachineClassInformer machineinformers.AzureMachineClassInformer,
+	gcpMachineClassInformer machineinformers.GCPMachineClassInformer,
+	machineInformer machineinformers.MachineInformer,
+	machineSetInformer machineinformers.MachineSetInformer,
+	machineDeploymentInformer machineinformers.MachineDeploymentInformer,
 	recorder record.EventRecorder,
 ) (Controller, error) {
 	controller := &controller{
-		kubeClient:                 kubeClient,
-		nodeClient:                 nodeClient,
+		namespace:                  namespace,
+		controlMachineClient:       controlMachineClient,
+		controlCoreClient:          controlCoreClient,
+		targetCoreClient:           targetCoreClient,
 		recorder:                   recorder,
 		expectations:               NewUIDTrackingControllerExpectations(NewControllerExpectations()),
 		secretQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
@@ -84,16 +88,16 @@ func NewController(
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
-	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.CoreV1().RESTClient()).Events("")})
+	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(controlCoreClient.CoreV1().RESTClient()).Events("")})
 
 	controller.machineControl = RealMachineControl{
-		NodeClient: nodeClient,
-		Recorder:   eventBroadcaster.NewRecorder(nodescheme.Scheme, v1.EventSource{Component: "machineset-controller"}),
+		controlMachineClient: controlMachineClient,
+		Recorder:             eventBroadcaster.NewRecorder(machinescheme.Scheme, v1.EventSource{Component: "machineset-controller"}),
 	}
 
 	controller.machineSetControl = RealMachineSetControl{
-		NodeClient: nodeClient,
-		Recorder:   eventBroadcaster.NewRecorder(nodescheme.Scheme, v1.EventSource{Component: "machinedeployment-controller"}),
+		controlMachineClient: controlMachineClient,
+		Recorder:             eventBroadcaster.NewRecorder(machinescheme.Scheme, v1.EventSource{Component: "machinedeployment-controller"}),
 	}
 
 	// Controller listers
@@ -248,19 +252,22 @@ type Controller interface {
 
 // controller is a concrete Controller.
 type controller struct {
-	kubeClient kubernetes.Interface
-	nodeClient nodeclientset.MachineV1alpha1Interface
+	namespace string
+
+	controlMachineClient machineapi.MachineV1alpha1Interface
+	controlCoreClient    kubernetes.Interface
+	targetCoreClient     kubernetes.Interface
 
 	// listers
 	secretLister                corelisters.SecretLister
 	nodeLister                  corelisters.NodeLister
-	openStackMachineClassLister nodelisters.OpenStackMachineClassLister
-	awsMachineClassLister       nodelisters.AWSMachineClassLister
-	azureMachineClassLister     nodelisters.AzureMachineClassLister
-	gcpMachineClassLister       nodelisters.GCPMachineClassLister
-	machineLister               nodelisters.MachineLister
-	machineSetLister            nodelisters.MachineSetLister
-	machineDeploymentLister     nodelisters.MachineDeploymentLister
+	openStackMachineClassLister machinelisters.OpenStackMachineClassLister
+	awsMachineClassLister       machinelisters.AWSMachineClassLister
+	azureMachineClassLister     machinelisters.AzureMachineClassLister
+	gcpMachineClassLister       machinelisters.GCPMachineClassLister
+	machineLister               machinelisters.MachineLister
+	machineSetLister            machinelisters.MachineSetLister
+	machineDeploymentLister     machinelisters.MachineDeploymentLister
 
 	recorder record.EventRecorder
 
@@ -311,7 +318,9 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 		return
 	}
 
-	glog.Info("Starting Node-controller-manager")
+	glog.Info("Starting machine-controller-manager")
+	//glog.Infof("Synced :: %+q", c.awsMachineClassSynced)
+	//time.Sleep(5 * time.Second)
 	var waitGroup sync.WaitGroup
 
 	for i := 0; i < workers; i++ {
@@ -327,7 +336,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	}
 
 	<-stopCh
-	glog.Info("Shutting down node controller manager ")
+	glog.Info("Shutting down Machine Controller Manager ")
 
 	waitGroup.Wait()
 }

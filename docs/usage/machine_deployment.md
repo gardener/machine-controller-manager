@@ -14,9 +14,9 @@
 ```bash
 $ kubectl apply -f kubernetes/machine-deployment.yaml
 ```
-Now the Node Controller Manager picks up the manifest immediately and starts to create a new machines based on the number of replicas you have provided in the manifest.
+Now the Machine Controller Manager picks up the manifest immediately and starts to create a new machines based on the number of replicas you have provided in the manifest.
 
-- Check Node Controller Manager machine-deployments in the cluster
+- Check Machine Controller Manager machine-deployments in the cluster
 ```bash
 $ kubectl get machinedeployment
 NAME                       KIND
@@ -24,7 +24,7 @@ test-machine-deployment   MachineDeployment.v1alpha1.machine.sapcloud.io
 ```
 You will notice a new machine-deployment with your given name
 
-- Check Node Controller Manager machine-sets in the cluster
+- Check Machine Controller Manager machine-sets in the cluster
 ```bash
 $ kubectl get machineset 
 NAME                                  KIND
@@ -32,7 +32,7 @@ test-machine-deployment-5bc6dd7c8f   MachineSet.v1alpha1.machine.sapcloud.io
 ```
 You will notice a new machine-set backing your machine-deployment
 
-- Check Node Controller Manager machines in the cluster
+- Check Machine Controller Manager machines in the cluster
 ```bash
 $ kubectl get machine
 NAME                                        KIND
@@ -125,7 +125,7 @@ ip-10-250-20-19.eu-west-1.compute.internal    Ready     1m        v1.8.0
 ip-10-250-27-123.eu-west-1.compute.internal   Ready     1m        v1.8.0
 ip-10-250-31-80.eu-west-1.compute.internal    Ready     1m        v1.8.0
 ``` 
-- Check Node Controller Manager machine-sets in the cluster. You will notice one machine-set backing your machine-deployment
+- Check Machine Controller Manager machine-sets in the cluster. You will notice one machine-set backing your machine-deployment
 ```bash
 $ kubectl get machineset 
 NAME                                  KIND
@@ -164,7 +164,7 @@ ip-10-250-11-171.eu-west-1.compute.internal   Ready     4m        v1.8.0
 ip-10-250-17-213.eu-west-1.compute.internal   Ready     5m        v1.8.0
 ip-10-250-31-81.eu-west-1.compute.internal    Ready     5m        v1.8.0
 ```
-- Check Node Controller Manager machine-sets in the cluster. You will notice two machine-sets backing your machine-deployment
+- Check Machine Controller Manager machine-sets in the cluster. You will notice two machine-sets backing your machine-deployment
 ```bash
 $ kubectl get machineset
 NAME                                  KIND
@@ -208,4 +208,4 @@ $ kubectl edit machinedeployment test-machine-deployment
 $ kubectl delete -f kubernetes/machine-deployment.yaml
 ```
 
-The Node Controller Manager picks up the manifest and starts to delete the existing VMs by talking to the cloud provider. The nodes should be detached from the cluster in a few minutes (~1min for AWS).
+The Machine Controller Manager picks up the manifest and starts to delete the existing VMs by talking to the cloud provider. The nodes should be detached from the cluster in a few minutes (~1min for AWS).

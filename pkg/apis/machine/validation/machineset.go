@@ -18,7 +18,7 @@ package validation
 import (
 	//"strconv"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 

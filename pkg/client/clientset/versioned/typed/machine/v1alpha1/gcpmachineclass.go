@@ -1,8 +1,8 @@
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
-	scheme "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/scheme"
+	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	scheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -12,7 +12,7 @@ import (
 // GCPMachineClassesGetter has a method to return a GCPMachineClassInterface.
 // A group's client should implement this interface.
 type GCPMachineClassesGetter interface {
-	GCPMachineClasses() GCPMachineClassInterface
+	GCPMachineClasses(namespace string) GCPMachineClassInterface
 }
 
 // GCPMachineClassInterface has methods to work with GCPMachineClass resources.
@@ -31,12 +31,14 @@ type GCPMachineClassInterface interface {
 // gCPMachineClasses implements GCPMachineClassInterface
 type gCPMachineClasses struct {
 	client rest.Interface
+	ns     string
 }
 
 // newGCPMachineClasses returns a GCPMachineClasses
-func newGCPMachineClasses(c *MachineV1alpha1Client) *gCPMachineClasses {
+func newGCPMachineClasses(c *MachineV1alpha1Client, namespace string) *gCPMachineClasses {
 	return &gCPMachineClasses{
 		client: c.RESTClient(),
+		ns:     namespace,
 	}
 }
 
@@ -44,6 +46,7 @@ func newGCPMachineClasses(c *MachineV1alpha1Client) *gCPMachineClasses {
 func (c *gCPMachineClasses) Get(name string, options v1.GetOptions) (result *v1alpha1.GCPMachineClass, err error) {
 	result = &v1alpha1.GCPMachineClass{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("gcpmachineclasses").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -56,6 +59,7 @@ func (c *gCPMachineClasses) Get(name string, options v1.GetOptions) (result *v1a
 func (c *gCPMachineClasses) List(opts v1.ListOptions) (result *v1alpha1.GCPMachineClassList, err error) {
 	result = &v1alpha1.GCPMachineClassList{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("gcpmachineclasses").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do().
@@ -67,6 +71,7 @@ func (c *gCPMachineClasses) List(opts v1.ListOptions) (result *v1alpha1.GCPMachi
 func (c *gCPMachineClasses) Watch(opts v1.ListOptions) (watch.Interface, error) {
 	opts.Watch = true
 	return c.client.Get().
+		Namespace(c.ns).
 		Resource("gcpmachineclasses").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Watch()
@@ -76,6 +81,7 @@ func (c *gCPMachineClasses) Watch(opts v1.ListOptions) (watch.Interface, error) 
 func (c *gCPMachineClasses) Create(gCPMachineClass *v1alpha1.GCPMachineClass) (result *v1alpha1.GCPMachineClass, err error) {
 	result = &v1alpha1.GCPMachineClass{}
 	err = c.client.Post().
+		Namespace(c.ns).
 		Resource("gcpmachineclasses").
 		Body(gCPMachineClass).
 		Do().
@@ -87,6 +93,7 @@ func (c *gCPMachineClasses) Create(gCPMachineClass *v1alpha1.GCPMachineClass) (r
 func (c *gCPMachineClasses) Update(gCPMachineClass *v1alpha1.GCPMachineClass) (result *v1alpha1.GCPMachineClass, err error) {
 	result = &v1alpha1.GCPMachineClass{}
 	err = c.client.Put().
+		Namespace(c.ns).
 		Resource("gcpmachineclasses").
 		Name(gCPMachineClass.Name).
 		Body(gCPMachineClass).
@@ -98,6 +105,7 @@ func (c *gCPMachineClasses) Update(gCPMachineClass *v1alpha1.GCPMachineClass) (r
 // Delete takes name of the gCPMachineClass and deletes it. Returns an error if one occurs.
 func (c *gCPMachineClasses) Delete(name string, options *v1.DeleteOptions) error {
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("gcpmachineclasses").
 		Name(name).
 		Body(options).
@@ -108,6 +116,7 @@ func (c *gCPMachineClasses) Delete(name string, options *v1.DeleteOptions) error
 // DeleteCollection deletes a collection of objects.
 func (c *gCPMachineClasses) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("gcpmachineclasses").
 		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Body(options).
@@ -119,6 +128,7 @@ func (c *gCPMachineClasses) DeleteCollection(options *v1.DeleteOptions, listOpti
 func (c *gCPMachineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.GCPMachineClass, err error) {
 	result = &v1alpha1.GCPMachineClass{}
 	err = c.client.Patch(pt).
+		Namespace(c.ns).
 		Resource("gcpmachineclasses").
 		SubResource(subresources...).
 		Name(name).

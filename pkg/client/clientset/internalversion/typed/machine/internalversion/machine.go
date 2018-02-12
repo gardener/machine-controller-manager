@@ -1,8 +1,8 @@
 package internalversion
 
 import (
-	machine "github.com/gardener/node-controller-manager/pkg/apis/machine"
-	scheme "github.com/gardener/node-controller-manager/pkg/client/clientset/internalversion/scheme"
+	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	scheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -12,7 +12,7 @@ import (
 // MachinesGetter has a method to return a MachineInterface.
 // A group's client should implement this interface.
 type MachinesGetter interface {
-	Machines() MachineInterface
+	Machines(namespace string) MachineInterface
 }
 
 // MachineInterface has methods to work with Machine resources.
@@ -31,12 +31,14 @@ type MachineInterface interface {
 // machines implements MachineInterface
 type machines struct {
 	client rest.Interface
+	ns     string
 }
 
 // newMachines returns a Machines
-func newMachines(c *MachineClient) *machines {
+func newMachines(c *MachineClient, namespace string) *machines {
 	return &machines{
 		client: c.RESTClient(),
+		ns:     namespace,
 	}
 }
 
@@ -44,6 +46,7 @@ func newMachines(c *MachineClient) *machines {
 func (c *machines) Get(name string, options v1.GetOptions) (result *machine.Machine, err error) {
 	result = &machine.Machine{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("machines").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -56,6 +59,7 @@ func (c *machines) Get(name string, options v1.GetOptions) (result *machine.Mach
 func (c *machines) List(opts v1.ListOptions) (result *machine.MachineList, err error) {
 	result = &machine.MachineList{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("machines").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do().
@@ -67,6 +71,7 @@ func (c *machines) List(opts v1.ListOptions) (result *machine.MachineList, err e
 func (c *machines) Watch(opts v1.ListOptions) (watch.Interface, error) {
 	opts.Watch = true
 	return c.client.Get().
+		Namespace(c.ns).
 		Resource("machines").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Watch()
@@ -76,6 +81,7 @@ func (c *machines) Watch(opts v1.ListOptions) (watch.Interface, error) {
 func (c *machines) Create(machine *machine.Machine) (result *machine.Machine, err error) {
 	result = &machine.Machine{}
 	err = c.client.Post().
+		Namespace(c.ns).
 		Resource("machines").
 		Body(machine).
 		Do().
@@ -87,6 +93,7 @@ func (c *machines) Create(machine *machine.Machine) (result *machine.Machine, er
 func (c *machines) Update(machine *machine.Machine) (result *machine.Machine, err error) {
 	result = &machine.Machine{}
 	err = c.client.Put().
+		Namespace(c.ns).
 		Resource("machines").
 		Name(machine.Name).
 		Body(machine).
@@ -98,6 +105,7 @@ func (c *machines) Update(machine *machine.Machine) (result *machine.Machine, er
 // Delete takes name of the machine and deletes it. Returns an error if one occurs.
 func (c *machines) Delete(name string, options *v1.DeleteOptions) error {
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("machines").
 		Name(name).
 		Body(options).
@@ -108,6 +116,7 @@ func (c *machines) Delete(name string, options *v1.DeleteOptions) error {
 // DeleteCollection deletes a collection of objects.
 func (c *machines) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("machines").
 		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Body(options).
@@ -119,6 +128,7 @@ func (c *machines) DeleteCollection(options *v1.DeleteOptions, listOptions v1.Li
 func (c *machines) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *machine.Machine, err error) {
 	result = &machine.Machine{}
 	err = c.client.Patch(pt).
+		Namespace(c.ns).
 		Resource("machines").
 		SubResource(subresources...).
 		Name(name).

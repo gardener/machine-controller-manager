@@ -27,18 +27,18 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
-	nodeclientset "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
 // updateMachineSetStatus attempts to update the Status.Replicas of the given MachineSet, with a single GET/PUT retry.
-func updateMachineSetStatus(nodeClient nodeclientset.MachineV1alpha1Interface, is *v1alpha1.MachineSet, newStatus v1alpha1.MachineSetStatus) (*v1alpha1.MachineSet, error) {
+func updateMachineSetStatus(machineClient machineapi.MachineV1alpha1Interface, is *v1alpha1.MachineSet, newStatus v1alpha1.MachineSetStatus) (*v1alpha1.MachineSet, error) {
 	// This is the steady state. It happens when the MachineSet doesn't have any expectations, since
 	// we do a periodic relist every 30s. If the generations differ but the replicas are
 	// the same, a caller might've resized to the same replica count.
-	c := nodeClient.MachineSets()
+	c := machineClient.MachineSets(is.Namespace)
 
 	if is.Status.Replicas == newStatus.Replicas &&
 		is.Status.FullyLabeledReplicas == newStatus.FullyLabeledReplicas &&

@@ -1,21 +1,22 @@
-# Sample deployment file, used to run node controller manager on your cluster
+# Sample deployment file, used to run Machine Controller Manager on your cluster
 
 apiVersion: apps/v1beta1 # Version may change based on kubernetes version
 kind: Deployment
 metadata:
-  name: node-controller-manager
+  name: machine-controller-manager
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        app: node-controller-manager
+        app: machine-controller-manager
     spec:
       containers:
-      - name: node-controller-manager
-        image: kvmprashanth/node-controller-manager:v2
-        imagePullPolicy: Always 
+      - name: machine-controller-manager
+        image: kvmprashanth/machine-controller-manager:v0.1.3
+        imagePullPolicy: Always
         command:
-          - ./node-controller-manager
+          - ./machine-controller-manager
           - --v=2
+          - --namespace=default
           #- --kubeconfig=kubeconfig.yaml ## Optional parameter used when controller is running outside the cluster, kubeconfig.yaml file can be fetched from Kubernetes config-map or secret

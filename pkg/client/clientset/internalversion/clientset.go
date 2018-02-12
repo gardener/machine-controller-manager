@@ -1,7 +1,7 @@
 package internalversion
 
 import (
-	machineinternalversion "github.com/gardener/node-controller-manager/pkg/client/clientset/internalversion/typed/machine/internalversion"
+	machineinternalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion/typed/machine/internalversion"
 	glog "github.com/golang/glog"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"

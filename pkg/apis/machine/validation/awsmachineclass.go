@@ -25,7 +25,7 @@ import (
 	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 )
 
 const nameFmt string = `[-a-z0-9]+`
@@ -54,7 +54,7 @@ func ValidateAWSMachineClass(AWSMachineClass *machine.AWSMachineClass) field.Err
 func internalValidateAWSMachineClass(AWSMachineClass *machine.AWSMachineClass) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	allErrs = append(allErrs, apivalidation.ValidateObjectMeta(&AWSMachineClass.ObjectMeta, false, /*namespace*/
+	allErrs = append(allErrs, apivalidation.ValidateObjectMeta(&AWSMachineClass.ObjectMeta, true, /*namespace*/
 		validateName,
 		field.NewPath("metadata"))...)
 

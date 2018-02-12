@@ -28,7 +28,6 @@ import (
 /********************** Machine APIs ***************/
 
 // +genclient
-// +genclient:nonNamespaced
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -229,7 +228,6 @@ const (
 /********************** MachineSet APIs ***************/
 
 // +genclient
-// +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // MachineSet TODO
@@ -337,7 +335,6 @@ type MachineSetStatus struct {
 /********************** MachineDeployment APIs ***************/
 
 // +genclient
-// +genclient:nonNamespaced
 // +genclient:method=GetScale,verb=get,subresource=scale,result=Scale
 // +genclient:method=UpdateScale,verb=update,subresource=scale,input=Scale,result=Scale
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -682,7 +679,6 @@ type OpenStackMachineClassSpec struct {
 /********************** AWSMachineClass APIs ***************/
 
 // +genclient
-// +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // AWSMachineClass TODO
@@ -839,7 +835,6 @@ type AWSNetworkInterfaceSpec struct {
 /********************** AzureMachineClass APIs ***************/
 
 // +genclient
-// +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // AzureMachineClass TODO
@@ -988,7 +983,6 @@ type AzureSubnetInfo struct {
 /********************** GCPMachineClass APIs ***************/
 
 // +genclient
-// +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // GCPMachineClass TODO

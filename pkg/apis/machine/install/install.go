@@ -22,8 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 )
 
 // Install registers the API group and adds types to a scheme
@@ -33,10 +33,8 @@ func Install(groupFactoryRegistry announced.APIGroupFactoryRegistry, registry *r
 			GroupName:                  v1alpha1.GroupName,
 			VersionPreferenceOrder:     []string{v1alpha1.SchemeGroupVersion.Version},
 			AddInternalObjectsToScheme: node.AddToScheme,
-			RootScopedKinds:            sets.NewString("AWSMachineClass", "MachineSet", "Machine", "MachineDeployment"),
 		},
 		announced.VersionToSchemeFunc{
-			v1.SchemeGroupVersion.Version: v1.AddToScheme,
 			// v1beta1.SchemeGroupVersion.Version:  v1beta1.AddToScheme,
 			v1alpha1.SchemeGroupVersion.Version: v1alpha1.AddToScheme,
 		},

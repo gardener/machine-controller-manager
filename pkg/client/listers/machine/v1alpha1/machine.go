@@ -3,7 +3,7 @@
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
@@ -13,8 +13,8 @@ import (
 type MachineLister interface {
 	// List lists all Machines in the indexer.
 	List(selector labels.Selector) (ret []*v1alpha1.Machine, err error)
-	// Get retrieves the Machine from the index for a given name.
-	Get(name string) (*v1alpha1.Machine, error)
+	// Machines returns an object that can list and get Machines.
+	Machines(namespace string) MachineNamespaceLister
 	MachineListerExpansion
 }
 
@@ -36,9 +36,38 @@ func (s *machineLister) List(selector labels.Selector) (ret []*v1alpha1.Machine,
 	return ret, err
 }
 
-// Get retrieves the Machine from the index for a given name.
-func (s *machineLister) Get(name string) (*v1alpha1.Machine, error) {
-	obj, exists, err := s.indexer.GetByKey(name)
+// Machines returns an object that can list and get Machines.
+func (s *machineLister) Machines(namespace string) MachineNamespaceLister {
+	return machineNamespaceLister{indexer: s.indexer, namespace: namespace}
+}
+
+// MachineNamespaceLister helps list and get Machines.
+type MachineNamespaceLister interface {
+	// List lists all Machines in the indexer for a given namespace.
+	List(selector labels.Selector) (ret []*v1alpha1.Machine, err error)
+	// Get retrieves the Machine from the indexer for a given namespace and name.
+	Get(name string) (*v1alpha1.Machine, error)
+	MachineNamespaceListerExpansion
+}
+
+// machineNamespaceLister implements the MachineNamespaceLister
+// interface.
+type machineNamespaceLister struct {
+	indexer   cache.Indexer
+	namespace string
+}
+
+// List lists all Machines in the indexer for a given namespace.
+func (s machineNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.Machine, err error) {
+	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
+		ret = append(ret, m.(*v1alpha1.Machine))
+	})
+	return ret, err
+}
+
+// Get retrieves the Machine from the indexer for a given namespace and name.
+func (s machineNamespaceLister) Get(name string) (*v1alpha1.Machine, error) {
+	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
 	if err != nil {
 		return nil, err
 	}

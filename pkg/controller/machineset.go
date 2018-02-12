@@ -39,9 +39,9 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 )
 
 const (
@@ -49,7 +49,7 @@ const (
 	// performance requirements for kubernetes 1.0.
 	BurstReplicas = 100
 
-	// The number of times we retry updating a ReplicaSet's status.
+	// The number of times we retry updating a MachineSet's status.
 	statusUpdateRetries = 1
 
 	// Kind for the machineSet
@@ -83,7 +83,7 @@ func (c *controller) getMachineMachineSets(machine *v1alpha1.Machine) ([]*v1alph
 			return nil, err
 		}
 
-		// If a ReplicaSet with a nil or empty selector creeps in, it should match nothing, not everything.
+		// If a MachineSet with a nil or empty selector creeps in, it should match nothing, not everything.
 		if selector.Empty() || !selector.Matches(labels.Set(machine.Labels)) {
 			continue
 		}
@@ -109,7 +109,7 @@ func (c *controller) resolveMachineSetControllerRef(namespace string, controller
 	if controllerRef.Kind != machineSetKind { //TOCheck
 		return nil
 	}
-	machineSet, err := c.machineSetLister.Get(controllerRef.Name)
+	machineSet, err := c.machineSetLister.MachineSets(namespace).Get(controllerRef.Name)
 	if err != nil {
 		return nil
 	}
@@ -136,7 +136,7 @@ func (c *controller) machineSetUpdate(old, cur interface{}) {
 	// does result in some spurious syncs (like when Status.Replica
 	// is updated and the watch notification from it retriggers
 	// this function), but in general extra resyncs shouldn't be
-	// that bad as ReplicaSets that haven't met expectations yet won't
+	// that bad as MachineSets that haven't met expectations yet won't
 	// sync, and all the listing is done using local stores.
 	if oldMachineSet.Spec.Replicas != currentMachineSet.Spec.Replicas {
 		glog.V(4).Infof("%v %v updated. Desired machine count change: %d->%d", currentMachineSet.Name, oldMachineSet.Spec.Replicas, currentMachineSet.Spec.Replicas)
@@ -171,7 +171,7 @@ func (c *controller) addMachineToMachineSet(obj interface{}) {
 		return
 	}
 
-	// Otherwise, it's an orphan. Get a list of all matching ReplicaSets and sync
+	// Otherwise, it's an orphan. Get a list of all matching MachineSets and sync
 	// them to see if anyone wants to adopt it.
 	// DO NOT observe creation because no controller should be waiting for an
 	// orphan.
@@ -261,7 +261,7 @@ func (c *controller) deleteMachineToMachineSet(obj interface{}) {
 	// When a delete is dropped, the relist will notice a machine in the store not
 	// in the list, leading to the insertion of a tombstone object which contains
 	// the deleted key/value. Note that this value might be stale. If the machine
-	// changed labels the new ReplicaSet will not be woken up till the periodic resync.
+	// changed labels the new MachineSet will not be woken up till the periodic resync.
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
@@ -293,7 +293,7 @@ func (c *controller) deleteMachineToMachineSet(obj interface{}) {
 	c.enqueueMachineSet(machineSet)
 }
 
-// obj could be an *extensions.ReplicaSet, or a DeletionFinalStateUnknown marker item.
+// obj could be an *extensions.MachineSet, or a DeletionFinalStateUnknown marker item.
 func (c *controller) enqueueMachineSet(obj interface{}) {
 	key, err := KeyFunc(obj)
 	if err != nil {
@@ -303,7 +303,7 @@ func (c *controller) enqueueMachineSet(obj interface{}) {
 	c.machineSetQueue.Add(key)
 }
 
-// obj could be an *extensions.ReplicaSet, or a DeletionFinalStateUnknown marker item.
+// obj could be an *extensions.MachineSet, or a DeletionFinalStateUnknown marker item.
 func (c *controller) enqueueMachineSetAfter(obj interface{}, after time.Duration) {
 	key, err := KeyFunc(obj)
 	if err != nil {
@@ -313,7 +313,7 @@ func (c *controller) enqueueMachineSetAfter(obj interface{}, after time.Duration
 	c.machineSetQueue.AddAfter(key, after)
 }
 
-// manageReplicas checks and updates replicas for the given ReplicaSet.
+// manageReplicas checks and updates replicas for the given MachineSet.
 // Does NOT modify <filteredMachines>.
 // It will requeue the machine set in case of an error while creating/deleting machines.
 func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
@@ -370,8 +370,8 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 				BlockOwnerDeletion: boolPtr(true),
 				Controller:         boolPtr(true),
 			}
-			//glog.Info("Printing MachineSet details ... %v", &machineSet)
-			err := c.machineControl.CreateMachinesWithControllerRef(&machineSet.Spec.Template, machineSet, controllerRef)
+			//glog.Info("Printing MachineSet details ... %v", &is)
+			err := c.machineControl.CreateMachinesWithControllerRef(machineSet.Namespace, &machineSet.Spec.Template, machineSet, controllerRef)
 			if err != nil && apierrors.IsTimeout(err) {
 				// Machine is created but its initialization has timed out.
 				// If the initialization is successful eventually, the
@@ -419,7 +419,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 	return nil
 }
 
-// syncReplicaSet will sync the ReplicaSet with the given key if it has had its expectations fulfilled,
+// syncMachineSet will sync the MachineSet with the given key if it has had its expectations fulfilled,
 // meaning it did not expect to see any more of its machines created or deleted. This function is not meant to be
 // invoked concurrently with the same key.
 func (c *controller) reconcileClusterMachineSet(key string) error {
@@ -432,7 +432,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	if err != nil {
 		return err
 	}
-	machineSet, err := c.machineSetLister.Get(name)
+	machineSet, err := c.machineSetLister.MachineSets(c.namespace).Get(name)
 	//time.Sleep(10 * time.Second)
 	//glog.V(2).Infof("2.. Printing Key : %v , Printing MachineSet First :: %+v", key, machineSet)
 	if apierrors.IsNotFound(err) {
@@ -513,7 +513,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	newStatus := calculateMachineSetStatus(machineSet, filteredMachines, manageReplicasErr)
 
 	// Always updates status as machines come up or die.
-	updatedMachineSet, err := updateMachineSetStatus(c.nodeClient, machineSet, newStatus)
+	updatedMachineSet, err := updateMachineSetStatus(c.controlMachineClient, machineSet, newStatus)
 	if err != nil {
 		// Multiple things could lead to this update failing. Requeuing the machine set ensures
 		// Returning an error causes a requeue without forcing a hotloop
@@ -535,7 +535,7 @@ func (c *controller) claimMachines(machineSet *v1alpha1.MachineSet, selector lab
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing Machines (see #42639).
 	canAdoptFunc := RecheckDeletionTimestamp(func() (metav1.Object, error) {
-		fresh, err := c.nodeClient.MachineSets().Get(machineSet.Name, metav1.GetOptions{})
+		fresh, err := c.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -623,15 +623,21 @@ func (c *controller) prepareMachineForDeletion(targetMachine *v1alpha1.Machine, 
 	}
 
 	// Force trigger deletion to reflect in machine status
+	lastOperation := v1alpha1.LastOperation{
+		Description:    "Deleting machine from cloud provider",
+		State:          "Processing",
+		Type:           "Delete",
+		LastUpdateTime: metav1.Now(),
+	}
 	currentStatus := v1alpha1.CurrentStatus{
 		Phase:          v1alpha1.MachineTerminating,
 		TimeoutActive:  false,
 		LastUpdateTime: metav1.Now(),
 	}
-	c.updateMachineStatus(targetMachine, targetMachine.Status.LastOperation, currentStatus)
+	c.updateMachineStatus(targetMachine, lastOperation, currentStatus)
 	glog.V(2).Info("Delete machine from machineset:", targetMachine.Name)
 
-	if err := c.machineControl.DeleteMachine(targetMachine.Name, machineSet); err != nil {
+	if err := c.machineControl.DeleteMachine(targetMachine.Namespace, targetMachine.Name, machineSet); err != nil {
 		// Decrement the expected number of deletes because the informer won't observe this deletion
 		machineKey := MachineKey(targetMachine)
 		glog.V(2).Infof("Failed to delete %v, decrementing expectations for %v %s/%s", machineKey, machineSet.Kind, machineSet.Namespace, machineSet.Name)
@@ -690,14 +696,14 @@ func (c *controller) deleteMachineSetFinalizers(machineSet *v1alpha1.MachineSet)
 
 func (c *controller) updateMachineSetFinalizers(machineSet *v1alpha1.MachineSet, finalizers []string) {
 	// Get the latest version of the machineSet so that we can avoid conflicts
-	machineSet, err := c.nodeClient.MachineSets().Get(machineSet.Name, metav1.GetOptions{})
+	machineSet, err := c.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
 
 	clone := machineSet.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.nodeClient.MachineSets().Update(clone)
+	_, err = c.controlMachineClient.MachineSets(clone.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
 		glog.Warning("Updated failed, retrying")

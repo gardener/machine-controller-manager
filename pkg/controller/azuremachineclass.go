@@ -24,9 +24,9 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 )
 
 const AzureMachineClassKind = "AzureMachineClass"
@@ -86,7 +86,13 @@ func (c *controller) azureMachineClassUpdate(oldObj, newObj interface{}) {
 // reconcileClusterAzureMachineClassKey reconciles an AzureMachineClass due to controller resync
 // or an event on the azureMachineClass.
 func (c *controller) reconcileClusterAzureMachineClassKey(key string) error {
-	class, err := c.azureMachineClassLister.Get(key)
+	_, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return err
+	}
+
+	class, err := c.azureMachineClassLister.AzureMachineClasses(c.namespace).Get(name)
+
 	if errors.IsNotFound(err) {
 		glog.Infof("%s %q: Not doing work because it has been deleted", AzureMachineClassKind, key)
 		return nil
@@ -175,14 +181,14 @@ func (c *controller) deleteAzureMachineClassFinalizers(class *v1alpha1.AzureMach
 
 func (c *controller) updateAzureMachineClassFinalizers(class *v1alpha1.AzureMachineClass, finalizers []string) {
 	// Get the latest version of the class so that we can avoid conflicts
-	class, err := c.nodeClient.AzureMachineClasses().Get(class.Name, metav1.GetOptions{})
+	class, err := c.controlMachineClient.AzureMachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.nodeClient.AzureMachineClasses().Update(clone)
+	_, err = c.controlMachineClient.AzureMachineClasses(class.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
 		glog.Warning("Updated failed, retrying")
