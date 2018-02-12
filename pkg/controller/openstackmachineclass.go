@@ -24,9 +24,9 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 )
 
 const OpenStackMachineClassKind = "OpenStackMachineClass"
@@ -175,14 +175,14 @@ func (c *controller) deleteOpenStackMachineClassFinalizers(class *v1alpha1.OpenS
 
 func (c *controller) updateOpenStackMachineClassFinalizers(class *v1alpha1.OpenStackMachineClass, finalizers []string) {
 	// Get the latest version of the class so that we can avoid conflicts
-	class, err := c.nodeClient.OpenStackMachineClasses().Get(class.Name, metav1.GetOptions{})
+	class, err := c.controlMachineClient.OpenStackMachineClasses().Get(class.Name, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.nodeClient.OpenStackMachineClasses().Update(clone)
+	_, err = c.controlMachineClient.OpenStackMachineClasses().Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
 		glog.Warning("Updated failed, retrying")

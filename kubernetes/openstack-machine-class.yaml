@@ -4,8 +4,9 @@ apiVersion: machine.sapcloud.io/v1alpha1
 kind: OpenStackMachineClass
 metadata:
   name: test-openstack # Name of aws machine class goes here
+  namespace: default
 spec:
-  flavorName: <flavor_name> # Name of the machine flavor 
+  flavorName: <flavor_name> # Name of the machine flavor
   keyName: <keypair_name> # Name of the ssh key pair
   imageName: <image_name> # Machine image name
   networkID: <network_id> # Network ID where the machine should be placed

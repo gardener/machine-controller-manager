@@ -14,9 +14,9 @@
 ```bash
 $ kubectl apply -f kubernetes/machine.yaml
 ```
-You should notice that the Node Controller Manager has immediately picked up your manifest and started to create a new machine by talking to the cloud provider.
+You should notice that the Machine Controller Manager has immediately picked up your manifest and started to create a new machine by talking to the cloud provider.
 
-- Check Node Controller Manager machines in the cluster
+- Check Machine Controller Manager machines in the cluster
 ```bash
 $ kubectl get machine
 test-machine	Machine.v1alpha1.machine.sapcloud.io
@@ -104,4 +104,4 @@ status:
 ```bash
 $ kubectl delete -f kubernetes/machine.yaml
 ```
-Now the Node Controller Manager picks up the manifest immediately and starts to delete the existing VM by talking to the cloud provider. The node should be detached from the cluster in a few minutes (~1min for AWS).
+Now the Machine Controller Manager picks up the manifest immediately and starts to delete the existing VM by talking to the cloud provider. The node should be detached from the cluster in a few minutes (~1min for AWS).

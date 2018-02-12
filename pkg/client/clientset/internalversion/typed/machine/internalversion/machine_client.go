@@ -1,7 +1,7 @@
 package internalversion
 
 import (
-	"github.com/gardener/node-controller-manager/pkg/client/clientset/internalversion/scheme"
+	"github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
@@ -23,28 +23,28 @@ type MachineClient struct {
 	restClient rest.Interface
 }
 
-func (c *MachineClient) AWSMachineClasses() AWSMachineClassInterface {
-	return newAWSMachineClasses(c)
+func (c *MachineClient) AWSMachineClasses(namespace string) AWSMachineClassInterface {
+	return newAWSMachineClasses(c, namespace)
 }
 
-func (c *MachineClient) AzureMachineClasses() AzureMachineClassInterface {
-	return newAzureMachineClasses(c)
+func (c *MachineClient) AzureMachineClasses(namespace string) AzureMachineClassInterface {
+	return newAzureMachineClasses(c, namespace)
 }
 
-func (c *MachineClient) GCPMachineClasses() GCPMachineClassInterface {
-	return newGCPMachineClasses(c)
+func (c *MachineClient) GCPMachineClasses(namespace string) GCPMachineClassInterface {
+	return newGCPMachineClasses(c, namespace)
 }
 
-func (c *MachineClient) Machines() MachineInterface {
-	return newMachines(c)
+func (c *MachineClient) Machines(namespace string) MachineInterface {
+	return newMachines(c, namespace)
 }
 
-func (c *MachineClient) MachineDeployments() MachineDeploymentInterface {
-	return newMachineDeployments(c)
+func (c *MachineClient) MachineDeployments(namespace string) MachineDeploymentInterface {
+	return newMachineDeployments(c, namespace)
 }
 
-func (c *MachineClient) MachineSets() MachineSetInterface {
-	return newMachineSets(c)
+func (c *MachineClient) MachineSets(namespace string) MachineSetInterface {
+	return newMachineSets(c, namespace)
 }
 
 func (c *MachineClient) MachineTemplates(namespace string) MachineTemplateInterface {

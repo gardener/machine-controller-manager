@@ -4,6 +4,7 @@ apiVersion: machine.sapcloud.io/v1alpha1
 kind: MachineDeployment
 metadata:
   name: test-machine-deployment # Name of the machine deploy
+  namespace: default
 spec:
   #paused: true [uncommment this when you want to pause]
   #rollbackTo:

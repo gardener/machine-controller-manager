@@ -3,7 +3,7 @@
 package internalversion
 
 import (
-	machine "github.com/gardener/node-controller-manager/pkg/apis/machine"
+	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
@@ -13,8 +13,8 @@ import (
 type MachineSetLister interface {
 	// List lists all MachineSets in the indexer.
 	List(selector labels.Selector) (ret []*machine.MachineSet, err error)
-	// Get retrieves the MachineSet from the index for a given name.
-	Get(name string) (*machine.MachineSet, error)
+	// MachineSets returns an object that can list and get MachineSets.
+	MachineSets(namespace string) MachineSetNamespaceLister
 	MachineSetListerExpansion
 }
 
@@ -36,9 +36,38 @@ func (s *machineSetLister) List(selector labels.Selector) (ret []*machine.Machin
 	return ret, err
 }
 
-// Get retrieves the MachineSet from the index for a given name.
-func (s *machineSetLister) Get(name string) (*machine.MachineSet, error) {
-	obj, exists, err := s.indexer.GetByKey(name)
+// MachineSets returns an object that can list and get MachineSets.
+func (s *machineSetLister) MachineSets(namespace string) MachineSetNamespaceLister {
+	return machineSetNamespaceLister{indexer: s.indexer, namespace: namespace}
+}
+
+// MachineSetNamespaceLister helps list and get MachineSets.
+type MachineSetNamespaceLister interface {
+	// List lists all MachineSets in the indexer for a given namespace.
+	List(selector labels.Selector) (ret []*machine.MachineSet, err error)
+	// Get retrieves the MachineSet from the indexer for a given namespace and name.
+	Get(name string) (*machine.MachineSet, error)
+	MachineSetNamespaceListerExpansion
+}
+
+// machineSetNamespaceLister implements the MachineSetNamespaceLister
+// interface.
+type machineSetNamespaceLister struct {
+	indexer   cache.Indexer
+	namespace string
+}
+
+// List lists all MachineSets in the indexer for a given namespace.
+func (s machineSetNamespaceLister) List(selector labels.Selector) (ret []*machine.MachineSet, err error) {
+	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
+		ret = append(ret, m.(*machine.MachineSet))
+	})
+	return ret, err
+}
+
+// Get retrieves the MachineSet from the indexer for a given namespace and name.
+func (s machineSetNamespaceLister) Get(name string) (*machine.MachineSet, error) {
+	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
 	if err != nil {
 		return nil, err
 	}

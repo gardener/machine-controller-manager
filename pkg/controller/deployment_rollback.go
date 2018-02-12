@@ -26,7 +26,7 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -116,6 +116,6 @@ func (dc *controller) emitRollbackNormalEvent(d *v1alpha1.MachineDeployment, mes
 func (dc *controller) updateMachineDeploymentAndClearRollbackTo(d *v1alpha1.MachineDeployment) error {
 	glog.V(4).Infof("Cleans up rollbackTo of machine deployment %q", d.Name)
 	d.Spec.RollbackTo = nil
-	_, err := dc.nodeClient.MachineDeployments().Update(d)
+	_, err := dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d)
 	return err
 }

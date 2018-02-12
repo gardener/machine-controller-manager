@@ -28,7 +28,7 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 )
 
 // syncRolloutStatus updates the status of a deployment during a rollout. There are
@@ -115,7 +115,7 @@ func (dc *controller) syncRolloutStatus(allISs []*v1alpha1.MachineSet, newIS *v1
 
 	newDeployment := d
 	newDeployment.Status = newStatus
-	_, err := dc.nodeClient.MachineDeployments().Update(newDeployment)
+	_, err := dc.controlMachineClient.MachineDeployments(newDeployment.Namespace).Update(newDeployment)
 	return err
 }
 

@@ -19,7 +19,7 @@ import (
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
-	"github.com/gardener/node-controller-manager/pkg/apis/machine"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 )
 
 // ValidateOpenStackMachineClass validates a OpenStackMachineClass and returns a list of errors.

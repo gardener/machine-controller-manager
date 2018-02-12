@@ -3,7 +3,7 @@
 package internalversion
 
 import (
-	machine "github.com/gardener/node-controller-manager/pkg/apis/machine"
+	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
@@ -13,8 +13,8 @@ import (
 type AzureMachineClassLister interface {
 	// List lists all AzureMachineClasses in the indexer.
 	List(selector labels.Selector) (ret []*machine.AzureMachineClass, err error)
-	// Get retrieves the AzureMachineClass from the index for a given name.
-	Get(name string) (*machine.AzureMachineClass, error)
+	// AzureMachineClasses returns an object that can list and get AzureMachineClasses.
+	AzureMachineClasses(namespace string) AzureMachineClassNamespaceLister
 	AzureMachineClassListerExpansion
 }
 
@@ -36,9 +36,38 @@ func (s *azureMachineClassLister) List(selector labels.Selector) (ret []*machine
 	return ret, err
 }
 
-// Get retrieves the AzureMachineClass from the index for a given name.
-func (s *azureMachineClassLister) Get(name string) (*machine.AzureMachineClass, error) {
-	obj, exists, err := s.indexer.GetByKey(name)
+// AzureMachineClasses returns an object that can list and get AzureMachineClasses.
+func (s *azureMachineClassLister) AzureMachineClasses(namespace string) AzureMachineClassNamespaceLister {
+	return azureMachineClassNamespaceLister{indexer: s.indexer, namespace: namespace}
+}
+
+// AzureMachineClassNamespaceLister helps list and get AzureMachineClasses.
+type AzureMachineClassNamespaceLister interface {
+	// List lists all AzureMachineClasses in the indexer for a given namespace.
+	List(selector labels.Selector) (ret []*machine.AzureMachineClass, err error)
+	// Get retrieves the AzureMachineClass from the indexer for a given namespace and name.
+	Get(name string) (*machine.AzureMachineClass, error)
+	AzureMachineClassNamespaceListerExpansion
+}
+
+// azureMachineClassNamespaceLister implements the AzureMachineClassNamespaceLister
+// interface.
+type azureMachineClassNamespaceLister struct {
+	indexer   cache.Indexer
+	namespace string
+}
+
+// List lists all AzureMachineClasses in the indexer for a given namespace.
+func (s azureMachineClassNamespaceLister) List(selector labels.Selector) (ret []*machine.AzureMachineClass, err error) {
+	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
+		ret = append(ret, m.(*machine.AzureMachineClass))
+	})
+	return ret, err
+}
+
+// Get retrieves the AzureMachineClass from the indexer for a given namespace and name.
+func (s azureMachineClassNamespaceLister) Get(name string) (*machine.AzureMachineClass, error) {
+	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
 	if err != nil {
 		return nil, err
 	}

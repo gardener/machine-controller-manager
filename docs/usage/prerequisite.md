@@ -2,7 +2,7 @@
 
 :warning: All paths are relative to the root location of this project repository.
 
-- Run the Node Controller Manager either as described in [Setting up a local development environment](../development/local_setup.md) or [Deploying the Node Controller Manager into a Kubernetes cluster](../deployment/kubernetes.md).
+- Run the Machine Controller Manager either as described in [Setting up a local development environment](../development/local_setup.md) or [Deploying the Machine Controller Manager into a Kubernetes cluster](../deployment/kubernetes.md).
 - Make sure that the following steps are run before managing machines/ machine-sets/ machine-deploys.
 
 ## Set KUBECONFIG
@@ -10,7 +10,7 @@
 Using the existing [Kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/authenticate-across-clusters-kubeconfig/), open another Terminal panel/window with the `KUBECONFIG` environment variable pointing to this Kubeconfig file as shown below,
 
 ```bash
-$ export KUBECONFIG=$GOPATH/src/github.com/gardener/node-controller-manager/dev/kubeconfig.yaml
+$ export KUBECONFIG=$GOPATH/src/github.com/gardener/machine-controller-manager/dev/kubeconfig.yaml
 ```
 
 ## Replace provider credentials and desired VM configurations
@@ -67,19 +67,19 @@ $ kubectl get nodes
 ```
 Lists the default set of nodes attached to your cluster
 
-- Checking Node Controller Manager machines in the cluster
+- Checking Machine Controller Manager machines in the cluster
 ```bash
 $ kubectl get machine
 No resources found.
 ```
 
-- Checking Node Controller Manager machine-sets in the cluster
+- Checking Machine Controller Manager machine-sets in the cluster
 ```bash
 $ kubectl get machineset
 No resources found.
 ```
 
-- Checking Node Controller Manager machine-deploys in the cluster
+- Checking Machine Controller Manager machine-deploys in the cluster
 ```bash
 $ kubectl get machinedeployment
 No resources found.

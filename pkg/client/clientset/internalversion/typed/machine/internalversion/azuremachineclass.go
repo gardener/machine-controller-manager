@@ -1,8 +1,8 @@
 package internalversion
 
 import (
-	machine "github.com/gardener/node-controller-manager/pkg/apis/machine"
-	scheme "github.com/gardener/node-controller-manager/pkg/client/clientset/internalversion/scheme"
+	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	scheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -12,7 +12,7 @@ import (
 // AzureMachineClassesGetter has a method to return a AzureMachineClassInterface.
 // A group's client should implement this interface.
 type AzureMachineClassesGetter interface {
-	AzureMachineClasses() AzureMachineClassInterface
+	AzureMachineClasses(namespace string) AzureMachineClassInterface
 }
 
 // AzureMachineClassInterface has methods to work with AzureMachineClass resources.
@@ -31,12 +31,14 @@ type AzureMachineClassInterface interface {
 // azureMachineClasses implements AzureMachineClassInterface
 type azureMachineClasses struct {
 	client rest.Interface
+	ns     string
 }
 
 // newAzureMachineClasses returns a AzureMachineClasses
-func newAzureMachineClasses(c *MachineClient) *azureMachineClasses {
+func newAzureMachineClasses(c *MachineClient, namespace string) *azureMachineClasses {
 	return &azureMachineClasses{
 		client: c.RESTClient(),
+		ns:     namespace,
 	}
 }
 
@@ -44,6 +46,7 @@ func newAzureMachineClasses(c *MachineClient) *azureMachineClasses {
 func (c *azureMachineClasses) Get(name string, options v1.GetOptions) (result *machine.AzureMachineClass, err error) {
 	result = &machine.AzureMachineClass{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("azuremachineclasses").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -56,6 +59,7 @@ func (c *azureMachineClasses) Get(name string, options v1.GetOptions) (result *m
 func (c *azureMachineClasses) List(opts v1.ListOptions) (result *machine.AzureMachineClassList, err error) {
 	result = &machine.AzureMachineClassList{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("azuremachineclasses").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do().
@@ -67,6 +71,7 @@ func (c *azureMachineClasses) List(opts v1.ListOptions) (result *machine.AzureMa
 func (c *azureMachineClasses) Watch(opts v1.ListOptions) (watch.Interface, error) {
 	opts.Watch = true
 	return c.client.Get().
+		Namespace(c.ns).
 		Resource("azuremachineclasses").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Watch()
@@ -76,6 +81,7 @@ func (c *azureMachineClasses) Watch(opts v1.ListOptions) (watch.Interface, error
 func (c *azureMachineClasses) Create(azureMachineClass *machine.AzureMachineClass) (result *machine.AzureMachineClass, err error) {
 	result = &machine.AzureMachineClass{}
 	err = c.client.Post().
+		Namespace(c.ns).
 		Resource("azuremachineclasses").
 		Body(azureMachineClass).
 		Do().
@@ -87,6 +93,7 @@ func (c *azureMachineClasses) Create(azureMachineClass *machine.AzureMachineClas
 func (c *azureMachineClasses) Update(azureMachineClass *machine.AzureMachineClass) (result *machine.AzureMachineClass, err error) {
 	result = &machine.AzureMachineClass{}
 	err = c.client.Put().
+		Namespace(c.ns).
 		Resource("azuremachineclasses").
 		Name(azureMachineClass.Name).
 		Body(azureMachineClass).
@@ -98,6 +105,7 @@ func (c *azureMachineClasses) Update(azureMachineClass *machine.AzureMachineClas
 // Delete takes name of the azureMachineClass and deletes it. Returns an error if one occurs.
 func (c *azureMachineClasses) Delete(name string, options *v1.DeleteOptions) error {
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("azuremachineclasses").
 		Name(name).
 		Body(options).
@@ -108,6 +116,7 @@ func (c *azureMachineClasses) Delete(name string, options *v1.DeleteOptions) err
 // DeleteCollection deletes a collection of objects.
 func (c *azureMachineClasses) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("azuremachineclasses").
 		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Body(options).
@@ -119,6 +128,7 @@ func (c *azureMachineClasses) DeleteCollection(options *v1.DeleteOptions, listOp
 func (c *azureMachineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *machine.AzureMachineClass, err error) {
 	result = &machine.AzureMachineClass{}
 	err = c.client.Patch(pt).
+		Namespace(c.ns).
 		Resource("azuremachineclasses").
 		SubResource(subresources...).
 		Name(name).

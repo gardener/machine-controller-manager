@@ -3,8 +3,8 @@
 package machine
 
 import (
-	internalinterfaces "github.com/gardener/node-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
-	internalversion "github.com/gardener/node-controller-manager/pkg/client/informers/internalversion/machine/internalversion"
+	internalinterfaces "github.com/gardener/machine-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
+	internalversion "github.com/gardener/machine-controller-manager/pkg/client/informers/internalversion/machine/internalversion"
 )
 
 // Interface provides access to each of this group's versions.

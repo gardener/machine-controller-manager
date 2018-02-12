@@ -22,14 +22,14 @@ Modifications Copyright 2017 The Gardener Authors.
 package controller
 
 import (
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 	"github.com/golang/glog"
 	"k8s.io/kubernetes/pkg/api"
 
-	machineapi "github.com/gardener/node-controller-manager/pkg/apis/machine"
-	"github.com/gardener/node-controller-manager/pkg/apis/machine/v1alpha1"
-	v1alpha1client "github.com/gardener/node-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
-	v1alpha1listers "github.com/gardener/node-controller-manager/pkg/client/listers/machine/v1alpha1"
+	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
 	"k8s.io/api/core/v1"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
@@ -46,7 +46,7 @@ func UpdateMachineWithRetries(machineClient v1alpha1client.MachineInterface, mac
 
 	retryErr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		var err error
-		machine, err = machineLister.Get(name)
+		machine, err = machineLister.Machines(namespace).Get(name)
 		if err != nil {
 			return err
 		}
@@ -76,9 +76,9 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 
 	if classSpec.Kind == "AWSMachineClass" {
 
-		AWSMachineClass, err := c.awsMachineClassLister.Get(classSpec.Name)
+		AWSMachineClass, err := c.awsMachineClassLister.AWSMachineClasses(c.namespace).Get(classSpec.Name)
 		if err != nil {
-			glog.V(2).Infof("AWSMachineClass %q not found. Skipping. %v", classSpec.Name, err)
+			glog.V(2).Infof("AWSMachineClass %q/%q not found. Skipping. %v", c.namespace, classSpec.Name, err)
 			return MachineClass, secretRef, err
 		}
 		MachineClass = AWSMachineClass
@@ -106,7 +106,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 
 	} else if classSpec.Kind == "AzureMachineClass" {
 
-		AzureMachineClass, err := c.azureMachineClassLister.Get(classSpec.Name)
+		AzureMachineClass, err := c.azureMachineClassLister.AzureMachineClasses(c.namespace).Get(classSpec.Name)
 		if err != nil {
 			glog.V(2).Infof("AzureMachineClass %q not found. Skipping. %v", classSpec.Name, err)
 			return MachineClass, secretRef, err
@@ -137,7 +137,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 
 	} else if classSpec.Kind == "GCPMachineClass" {
 
-		GCPMachineClass, err := c.gcpMachineClassLister.Get(classSpec.Name)
+		GCPMachineClass, err := c.gcpMachineClassLister.GCPMachineClasses(c.namespace).Get(classSpec.Name)
 		if err != nil {
 			glog.V(2).Infof("GCPMachineClass %q not found. Skipping. %v", classSpec.Name, err)
 			return MachineClass, secretRef, err
