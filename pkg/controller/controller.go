@@ -128,6 +128,24 @@ func NewController(
 			UpdateFunc: controller.secretUpdate,
 		})*/
 
+	// Openstack Controller Informers
+	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineDeploymentToOpenStackMachineClassDelete,
+	})
+
+	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineSetToOpenStackMachineClassDelete,
+	})
+
+	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineToOpenStackMachineClassDelete,
+	})
+
+	openStackMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.openStackMachineClassAdd,
+		UpdateFunc: controller.openStackMachineClassUpdate,
+	})
+
 	// AWS Controller Informers
 	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: controller.machineDeploymentToAWSMachineClassDelete,

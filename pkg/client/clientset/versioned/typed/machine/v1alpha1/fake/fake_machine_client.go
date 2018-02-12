@@ -38,8 +38,8 @@ func (c *FakeMachineV1alpha1) MachineTemplates(namespace string) v1alpha1.Machin
 	return &FakeMachineTemplates{c, namespace}
 }
 
-func (c *FakeMachineV1alpha1) OpenStackMachineClasses() v1alpha1.OpenStackMachineClassInterface {
-	return &FakeOpenStackMachineClasses{c}
+func (c *FakeMachineV1alpha1) OpenStackMachineClasses(namespace string) v1alpha1.OpenStackMachineClassInterface {
+	return &FakeOpenStackMachineClasses{c, namespace}
 }
 
 func (c *FakeMachineV1alpha1) Scales(namespace string) v1alpha1.ScaleInterface {

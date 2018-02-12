@@ -74,5 +74,5 @@ func (v *version) MachineTemplates() MachineTemplateInformer {
 
 // OpenStackMachineClasses returns a OpenStackMachineClassInformer.
 func (v *version) OpenStackMachineClasses() OpenStackMachineClassInformer {
-	return &openStackMachineClassInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+	return &openStackMachineClassInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

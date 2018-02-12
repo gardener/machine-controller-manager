@@ -53,8 +53,8 @@ func (c *MachineV1alpha1Client) MachineTemplates(namespace string) MachineTempla
 	return newMachineTemplates(c, namespace)
 }
 
-func (c *MachineV1alpha1Client) OpenStackMachineClasses() OpenStackMachineClassInterface {
-	return newOpenStackMachineClasses(c)
+func (c *MachineV1alpha1Client) OpenStackMachineClasses(namespace string) OpenStackMachineClassInterface {
+	return newOpenStackMachineClasses(c, namespace)
 }
 
 func (c *MachineV1alpha1Client) Scales(namespace string) ScaleInterface {

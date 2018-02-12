@@ -13,6 +13,7 @@ import (
 // FakeOpenStackMachineClasses implements OpenStackMachineClassInterface
 type FakeOpenStackMachineClasses struct {
 	Fake *FakeMachineV1alpha1
+	ns   string
 }
 
 var openstackmachineclassesResource = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "openstackmachineclasses"}
@@ -22,7 +23,8 @@ var openstackmachineclassesKind = schema.GroupVersionKind{Group: "machine.sapclo
 // Get takes name of the openStackMachineClass, and returns the corresponding openStackMachineClass object, and an error if there is any.
 func (c *FakeOpenStackMachineClasses) Get(name string, options v1.GetOptions) (result *v1alpha1.OpenStackMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(openstackmachineclassesResource, name), &v1alpha1.OpenStackMachineClass{})
+		Invokes(testing.NewGetAction(openstackmachineclassesResource, c.ns, name), &v1alpha1.OpenStackMachineClass{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -32,7 +34,8 @@ func (c *FakeOpenStackMachineClasses) Get(name string, options v1.GetOptions) (r
 // List takes label and field selectors, and returns the list of OpenStackMachineClasses that match those selectors.
 func (c *FakeOpenStackMachineClasses) List(opts v1.ListOptions) (result *v1alpha1.OpenStackMachineClassList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(openstackmachineclassesResource, openstackmachineclassesKind, opts), &v1alpha1.OpenStackMachineClassList{})
+		Invokes(testing.NewListAction(openstackmachineclassesResource, openstackmachineclassesKind, c.ns, opts), &v1alpha1.OpenStackMachineClassList{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -53,13 +56,15 @@ func (c *FakeOpenStackMachineClasses) List(opts v1.ListOptions) (result *v1alpha
 // Watch returns a watch.Interface that watches the requested openStackMachineClasses.
 func (c *FakeOpenStackMachineClasses) Watch(opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(openstackmachineclassesResource, opts))
+		InvokesWatch(testing.NewWatchAction(openstackmachineclassesResource, c.ns, opts))
+
 }
 
 // Create takes the representation of a openStackMachineClass and creates it.  Returns the server's representation of the openStackMachineClass, and an error, if there is any.
 func (c *FakeOpenStackMachineClasses) Create(openStackMachineClass *v1alpha1.OpenStackMachineClass) (result *v1alpha1.OpenStackMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(openstackmachineclassesResource, openStackMachineClass), &v1alpha1.OpenStackMachineClass{})
+		Invokes(testing.NewCreateAction(openstackmachineclassesResource, c.ns, openStackMachineClass), &v1alpha1.OpenStackMachineClass{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -69,7 +74,8 @@ func (c *FakeOpenStackMachineClasses) Create(openStackMachineClass *v1alpha1.Ope
 // Update takes the representation of a openStackMachineClass and updates it. Returns the server's representation of the openStackMachineClass, and an error, if there is any.
 func (c *FakeOpenStackMachineClasses) Update(openStackMachineClass *v1alpha1.OpenStackMachineClass) (result *v1alpha1.OpenStackMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(openstackmachineclassesResource, openStackMachineClass), &v1alpha1.OpenStackMachineClass{})
+		Invokes(testing.NewUpdateAction(openstackmachineclassesResource, c.ns, openStackMachineClass), &v1alpha1.OpenStackMachineClass{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -79,13 +85,14 @@ func (c *FakeOpenStackMachineClasses) Update(openStackMachineClass *v1alpha1.Ope
 // Delete takes name of the openStackMachineClass and deletes it. Returns an error if one occurs.
 func (c *FakeOpenStackMachineClasses) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(openstackmachineclassesResource, name), &v1alpha1.OpenStackMachineClass{})
+		Invokes(testing.NewDeleteAction(openstackmachineclassesResource, c.ns, name), &v1alpha1.OpenStackMachineClass{})
+
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeOpenStackMachineClasses) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(openstackmachineclassesResource, listOptions)
+	action := testing.NewDeleteCollectionAction(openstackmachineclassesResource, c.ns, listOptions)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.OpenStackMachineClassList{})
 	return err
@@ -94,7 +101,8 @@ func (c *FakeOpenStackMachineClasses) DeleteCollection(options *v1.DeleteOptions
 // Patch applies the patch and returns the patched openStackMachineClass.
 func (c *FakeOpenStackMachineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.OpenStackMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(openstackmachineclassesResource, name, data, subresources...), &v1alpha1.OpenStackMachineClass{})
+		Invokes(testing.NewPatchSubresourceAction(openstackmachineclassesResource, c.ns, name, data, subresources...), &v1alpha1.OpenStackMachineClass{})
+
 	if obj == nil {
 		return nil, err
 	}
