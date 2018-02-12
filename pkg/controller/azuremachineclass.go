@@ -151,7 +151,7 @@ func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMach
 	}
 
 	for _, machine := range machines {
-		c.machineQueue.Add(machine.Name)
+		c.machineAdd(machine)
 	}
 	return nil
 }

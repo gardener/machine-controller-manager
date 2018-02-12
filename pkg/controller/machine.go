@@ -43,7 +43,7 @@ import (
 	Machine controller - Machine add, update, delete watches
 */
 func (c *controller) machineAdd(obj interface{}) {
-	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
 		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
 		return
@@ -58,6 +58,7 @@ func (c *controller) machineUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *controller) machineDelete(obj interface{}) {
+	glog.V(3).Info("Deleting machine object")
 	c.machineAdd(obj)
 }
 

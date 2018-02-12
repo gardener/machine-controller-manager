@@ -8,7 +8,7 @@ LINT_FOLDERS     	:= $(shell echo $(PACKAGES) | sed "s|$(REPOSITORY)|.|g")
 BINARY_PATH      	:= $(REPOSITORY)/cmd/$(PROJECT)
 
 IMAGE_REPOSITORY 	:= kvmprashanth/machine-controller-manager
-IMAGE_TAG        	:= v0.1.5
+IMAGE_TAG        	:= v0.1.6
 
 TYPES_FILES      	:= $(shell find pkg/apis -name types.go)
 
