@@ -30,6 +30,15 @@ type Driver interface {
 func NewDriver(machineId string, secretRef *corev1.Secret, classKind string, machineClass interface{}, machineName string) Driver {
 
 	switch classKind {
+	case "OpenStackMachineClass":
+		return &OpenStackDriver{
+			OpenStackMachineClass: machineClass.(*v1alpha1.OpenStackMachineClass),
+			CloudConfig:           secretRef,
+			UserData:              string(secretRef.Data["userData"]),
+			MachineId:             machineId,
+			MachineName:           machineName,
+		}
+
 	case "AWSMachineClass":
 		return &AWSDriver{
 			AWSMachineClass: machineClass.(*v1alpha1.AWSMachineClass),

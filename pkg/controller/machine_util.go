@@ -164,6 +164,35 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 			glog.V(2).Info("Secret reference not found")
 			return MachineClass, secretRef, err
 		}
+	} else if classSpec.Kind == "OpenStackMachineClass" {
+
+		OpenStackMachineClass, err := c.openStackMachineClassLister.OpenStackMachineClasses(c.namespace).Get(classSpec.Name)
+		if err != nil {
+			glog.V(2).Infof("OpenStackMachineClass %q not found. Skipping. %v", classSpec.Name, err)
+			return MachineClass, secretRef, err
+		}
+		MachineClass = OpenStackMachineClass
+
+		// Validate OpenStackMachineClass
+		internalOpenStackMachineClass := &machineapi.OpenStackMachineClass{}
+		err = api.Scheme.Convert(OpenStackMachineClass, internalOpenStackMachineClass, nil)
+		if err != nil {
+			glog.V(2).Info("Error in scheme convertion")
+			return MachineClass, secretRef, err
+		}
+
+		validationerr := validation.ValidateOpenStackMachineClass(internalOpenStackMachineClass)
+		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+			glog.V(2).Infof("Validation of OpenStackMachineClass failed %s", validationerr.ToAggregate().Error())
+			return MachineClass, secretRef, nil
+		}
+
+		// Get secretRef
+		secretRef, err = c.getSecret(OpenStackMachineClass.Spec.SecretRef, OpenStackMachineClass.Name)
+		if err != nil || secretRef == nil {
+			glog.V(2).Info("Secret reference not found")
+			return MachineClass, secretRef, err
+		}
 	}
 
 	return MachineClass, secretRef, nil

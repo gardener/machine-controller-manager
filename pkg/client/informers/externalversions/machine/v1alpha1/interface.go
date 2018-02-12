@@ -22,6 +22,8 @@ type Interface interface {
 	MachineSets() MachineSetInformer
 	// MachineTemplates returns a MachineTemplateInformer.
 	MachineTemplates() MachineTemplateInformer
+	// OpenStackMachineClasses returns a OpenStackMachineClassInformer.
+	OpenStackMachineClasses() OpenStackMachineClassInformer
 }
 
 type version struct {
@@ -68,4 +70,9 @@ func (v *version) MachineSets() MachineSetInformer {
 // MachineTemplates returns a MachineTemplateInformer.
 func (v *version) MachineTemplates() MachineTemplateInformer {
 	return &machineTemplateInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// OpenStackMachineClasses returns a OpenStackMachineClassInformer.
+func (v *version) OpenStackMachineClasses() OpenStackMachineClassInformer {
+	return &openStackMachineClassInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

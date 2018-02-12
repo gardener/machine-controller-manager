@@ -150,7 +150,7 @@ func (c *controller) reconcileClusterAWSMachineClass(class *v1alpha1.AWSMachineC
 	}
 
 	for _, machine := range machines {
-		c.machineQueue.Add(machine.Name)
+		c.machineAdd(machine)
 	}
 	return nil
 }
@@ -190,7 +190,7 @@ func (c *controller) updateAWSMachineClassFinalizers(class *v1alpha1.AWSMachineC
 	_, err = c.controlMachineClient.AWSMachineClasses(class.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
-		glog.Warning("Updated failed, retrying")
+		glog.Warning("Updated failed, retrying: %v", err)
 		c.updateAWSMachineClassFinalizers(class, finalizers)
 	}
 }
