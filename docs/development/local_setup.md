@@ -59,7 +59,7 @@ $ cd machine-controller-manager
 $ kubectl apply -f kubernetes/crds.yaml
 ```
 
-### Get started
+### Getting started
 
 - Create a `dev` directory. 
 - Copy the kubeconfig of kubernetes cluster where you wish to deploy the machines into `dev/target-kubeconfig.yaml`.
@@ -76,6 +76,17 @@ The Machine Controller Manager should now be ready to manage the VMs in your kub
 
 :warning: The file `dev/target-kubeconfig.yaml` points to the cluster whose nodes you want to manage. `dev/control-kubeconfig.yaml` points to the cluster from where you want to manage the nodes from. However, `dev/control-kubeconfig.yaml` is optional.
 
+### Testing Machine Classes
+
+To test the creation/deletion of a single instance for one particular machine class you can use the `managevm` cli. The corresponding `INFRASTRUCTURE-machine-class.yaml` and the `INFRASTRUCTURE-secret.yaml` need to be defined upfront. To build and run it
+
+```bash
+go build cmd/machine-controller-manager/cli/managevm.go
+# create machine
+./managevm --secret ~/temp/openstack-secret.yaml --machineclass ~/temp/openstack-machine-class.yaml --classkind openstack --machinename test
+# delete machine
+./managevm --secret ~/temp/openstack-secret.yaml --machineclass ~/temp/openstack-machine-class.yaml --classkind openstack --machinename test --machineid openstack:///REGION/INSTANCE_ID
+```
 
 ## Usage
 
