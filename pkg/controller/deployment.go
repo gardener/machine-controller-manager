@@ -54,7 +54,7 @@ var GroupVersionKind = "machine.sapcloud.io/v1alpha1"
 
 func (dc *controller) addMachineDeployment(obj interface{}) {
 	d := obj.(*v1alpha1.MachineDeployment)
-	glog.V(4).Infof("Adding machine deployment %s", d.Name)
+	glog.V(2).Infof("Adding machine deployment %s", d.Name)
 	dc.enqueueMachineDeployment(d)
 }
 
@@ -79,7 +79,7 @@ func (dc *controller) deleteMachineDeployment(obj interface{}) {
 			return
 		}
 	}
-	glog.V(4).Infof("Deleting machine deployment %s", d.Name)
+	glog.V(2).Infof("Deleting machine deployment %s", d.Name)
 	dc.enqueueMachineDeployment(d)
 }
 

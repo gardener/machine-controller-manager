@@ -193,6 +193,8 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 			glog.V(2).Info("Secret reference not found")
 			return MachineClass, secretRef, err
 		}
+	} else {
+		glog.V(2).Infof("ClassKind %q not found", classSpec.Kind)
 	}
 
 	return MachineClass, secretRef, nil
