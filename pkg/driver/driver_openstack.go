@@ -59,6 +59,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	networkID := d.OpenStackMachineClass.Spec.NetworkID
 	securityGroups := d.OpenStackMachineClass.Spec.SecurityGroups
 	availabilityZone := d.OpenStackMachineClass.Spec.AvailabilityZone
+	metadata := d.OpenStackMachineClass.Spec.Tags
 
 	var createOpts servers.CreateOptsBuilder
 
@@ -69,6 +70,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 		ImageName:        imageName,
 		Networks:         []servers.Network{{UUID: networkID}},
 		SecurityGroups:   securityGroups,
+		Metadata:         metadata,
 		UserData:         []byte(d.UserData),
 		AvailabilityZone: availabilityZone,
 	}
