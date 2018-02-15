@@ -83,9 +83,9 @@ To test the creation/deletion of a single instance for one particular machine cl
 ```bash
 go build cmd/machine-controller-manager/cli/managevm.go
 # create machine
-./managevm --secret ~/temp/openstack-secret.yaml --machineclass ~/temp/openstack-machine-class.yaml --classkind openstack --machinename test
+./managevm --secret PATH_TO/INFRASTRUCTURE-secret.yaml --machineclass PATH_TO/INFRASTRUCTURE-machine-class.yaml --classkind INFRASTRUCTURE --machinename test
 # delete machine
-./managevm --secret ~/temp/openstack-secret.yaml --machineclass ~/temp/openstack-machine-class.yaml --classkind openstack --machinename test --machineid openstack:///REGION/INSTANCE_ID
+./managevm --secret PATH_TO/INFRASTRUCTURE-secret.yaml --machineclass PATH_TO/INFRASTRUCTURE-machine-class.yaml --classkind INFRASTRUCTURE --machinename test --machineid INFRASTRUCTURE:///REGION/INSTANCE_ID
 ```
 
 ## Usage
