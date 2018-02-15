@@ -14,6 +14,11 @@ spec:
   - <security_group_name> # List of security groups which should be used for this machine
   region: <region> # Region where to place the machine
   availabilityZone: <availability_zone> # Availability zone where to place the machine
+  # OpenStack machine metadata block
+  # Be aware, that metadata keys in OpenStack can not contain special characters likes "/"
+  tags:
+    tag1: tag1-value # A set of additional tags attached to a machine (optional)
+    tag2: tag2-value # A set of additional tags attached to a machine (optional)
   secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig
     namespace: default  # Namespace
     name: test-secret # Name of the secret
