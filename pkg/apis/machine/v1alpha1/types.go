@@ -824,7 +824,7 @@ type AWSNetworkInterfaceSpec struct {
 
 	// The IDs of the security groups for the network interface. Applies only if
 	// creating a network interface when launching an machine.
-	SecurityGroupID []string `json:"securityGroupID,omitempty"`
+	SecurityGroupIDs []string `json:"securityGroupIDs,omitempty"`
 
 	// The ID of the subnet associated with the network string. Applies only if
 	// creating a network interface when launching an machine.

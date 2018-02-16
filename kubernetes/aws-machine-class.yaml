@@ -14,7 +14,7 @@ spec:
   keyName: key-value-pair-name # EC2 keypair used to access ec2 machine
   networkInterfaces:
     - subnetID: subnet-acbd1234 # The subnetID in which machine is to be deployed
-      securityGroupID: ["sg-xyz12345"] # The security group to which it is attached to
+      securityGroupIDs: ["sg-xyz12345"] # The security groups to which it is attached to
   tags:
     Name: sample-machine-name # Name tag that can be used to identify a machine at AWS
     kubernetes.io/cluster/cluster-name: "1" # Tag that helps a new node to join existing AWS cluster (replace cluster-name with real cluster name)

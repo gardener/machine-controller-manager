@@ -461,7 +461,7 @@ func (c *controller) deleteMachine(machine *v1alpha1.Machine, driver driver.Driv
 
 		c.deleteMachineFinalizers(machine)
 		c.controlMachineClient.Machines(machine.Namespace).Delete(machine.Name, &metav1.DeleteOptions{})
-		glog.V(2).Infof("Machine %s deleted succesfullly", machine.Name)
+		glog.V(2).Infof("Machine %s deleted successfullly", machine.Name)
 	}
 	return nil
 }
