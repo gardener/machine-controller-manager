@@ -88,7 +88,7 @@ func (d *AWSDriver) Create() (string, string, error) {
 		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
 			Name: &(d.AWSMachineClass.Spec.IAM.Name),
 		},
-		SecurityGroupIds:    []*string{aws.String(d.AWSMachineClass.Spec.NetworkInterfaces[0].SecurityGroupID[0])},
+		SecurityGroupIds:    []*string{aws.String(d.AWSMachineClass.Spec.NetworkInterfaces[0].SecurityGroupIDs[0])},
 		BlockDeviceMappings: blkDeviceMappings,
 	}
 
