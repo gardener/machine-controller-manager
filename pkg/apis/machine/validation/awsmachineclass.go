@@ -106,20 +106,20 @@ func validateBlockDevices(blockDevices []machine.AWSBlockDeviceMappingSpec, fldP
 func validateNetworkInterfaces(networkInterfaces []machine.AWSNetworkInterfaceSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	if len(networkInterfaces) == 0 {
-		allErrs = append(allErrs, field.Required(fldPath.Child(""), "Mention atleast one NetworkInterface"))
+		allErrs = append(allErrs, field.Required(fldPath.Child(""), "Mention at least one NetworkInterface"))
 	} else {
 		for i, _ := range networkInterfaces {
 			if "" == networkInterfaces[i].SubnetID {
 				allErrs = append(allErrs, field.Required(fldPath.Child("subnetID"), "SubnetID is required"))
 			}
 
-			if 0 == len(networkInterfaces[i].SecurityGroupID) {
-				allErrs = append(allErrs, field.Required(fldPath.Child("securityGroupID"), "Mention atleast one securityGroupID"))
+			if 0 == len(networkInterfaces[i].SecurityGroupIDs) {
+				allErrs = append(allErrs, field.Required(fldPath.Child("securityGroupIDs"), "Mention at least one securityGroupID"))
 			} else {
-				for j, _ := range networkInterfaces[i].SecurityGroupID {
-					if "" == networkInterfaces[i].SecurityGroupID[j] {
-						output := strings.Join([]string{"securityGroupID cannot be blank for networkInterface:", strconv.Itoa(i), " securityGroupID:", strconv.Itoa(j)}, "")
-						allErrs = append(allErrs, field.Required(fldPath.Child("securityGroupID"), output))
+				for j, _ := range networkInterfaces[i].SecurityGroupIDs {
+					if "" == networkInterfaces[i].SecurityGroupIDs[j] {
+						output := strings.Join([]string{"securityGroupIDs cannot be blank for networkInterface:", strconv.Itoa(i), " securityGroupID:", strconv.Itoa(j)}, "")
+						allErrs = append(allErrs, field.Required(fldPath.Child("securityGroupIDs"), output))
 					}
 				}
 			}

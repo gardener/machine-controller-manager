@@ -328,7 +328,7 @@ func autoConvert_v1alpha1_AWSNetworkInterfaceSpec_To_machine_AWSNetworkInterface
 	out.AssociatePublicIPAddress = in.AssociatePublicIPAddress
 	out.DeleteOnTermination = in.DeleteOnTermination
 	out.Description = in.Description
-	out.SecurityGroupID = *(*[]string)(unsafe.Pointer(&in.SecurityGroupID))
+	out.SecurityGroupIDs = *(*[]string)(unsafe.Pointer(&in.SecurityGroupIDs))
 	out.SubnetID = in.SubnetID
 	return nil
 }
@@ -342,7 +342,7 @@ func autoConvert_machine_AWSNetworkInterfaceSpec_To_v1alpha1_AWSNetworkInterface
 	out.AssociatePublicIPAddress = in.AssociatePublicIPAddress
 	out.DeleteOnTermination = in.DeleteOnTermination
 	out.Description = in.Description
-	out.SecurityGroupID = *(*[]string)(unsafe.Pointer(&in.SecurityGroupID))
+	out.SecurityGroupIDs = *(*[]string)(unsafe.Pointer(&in.SecurityGroupIDs))
 	out.SubnetID = in.SubnetID
 	return nil
 }
