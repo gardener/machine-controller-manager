@@ -2,13 +2,13 @@ VCS              	:= github.com
 ORGANIZATION     	:= gardener
 PROJECT          	:= machine-controller-manager
 REPOSITORY       	:= $(VCS)/$(ORGANIZATION)/$(PROJECT)
-VERSION          	:= v0.1.0
+VERSION          	:= 0.1.0
 PACKAGES         	:= $(shell go list ./... | grep -vE '/vendor/|/pkg/test|/code-generator|/pkg/client|/pkg/openapi')
 LINT_FOLDERS     	:= $(shell echo $(PACKAGES) | sed "s|$(REPOSITORY)|.|g")
 BINARY_PATH      	:= $(REPOSITORY)/cmd/$(PROJECT)
 
-IMAGE_REPOSITORY 	:= kvmprashanth/machine-controller-manager
-IMAGE_TAG        	:= v0.1.7
+IMAGE_REPOSITORY 	:= eu.gcr.io/gardener-project/gardener/machine-controller-manager
+IMAGE_TAG        	:= 0.1.0
 
 TYPES_FILES      	:= $(shell find pkg/apis -name types.go)
 
@@ -39,7 +39,7 @@ docker-image:
 
 .PHONY: push
 push:
-	@docker push $(IMAGE_REPOSITORY):$(IMAGE_TAG)
+	@gcloud docker -- push $(IMAGE_REPOSITORY):$(IMAGE_TAG)
 
 .PHONY: revendor
 revendor:
