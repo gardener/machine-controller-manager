@@ -332,7 +332,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format:      "",
 							},
 						},
-						"securityGroupID": {
+						"securityGroupIDs": {
 							SchemaProps: spec.SchemaProps{
 								Description: "The IDs of the security groups for the network interface. Applies only if creating a network interface when launching an machine.",
 								Type:        []string{"array"},
