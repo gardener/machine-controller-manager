@@ -150,7 +150,7 @@ func (c *controller) reconcileClusterAWSMachineClass(class *v1alpha1.AWSMachineC
 	}
 
 	for _, machine := range machines {
-		c.machineAdd(machine)
+		c.addMachine(machine)
 	}
 	return nil
 }

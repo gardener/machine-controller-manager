@@ -88,7 +88,7 @@ func NewController(
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
-	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(controlCoreClient.CoreV1().RESTClient()).Events("")})
+	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(controlCoreClient.CoreV1().RESTClient()).Events(namespace)})
 
 	controller.machineControl = RealMachineControl{
 		controlMachineClient: controlMachineClient,
@@ -200,7 +200,7 @@ func NewController(
 		UpdateFunc: controller.gcpMachineClassUpdate,
 	})
 
-	// Node Controller Informers
+	/* Node Controller Informers - Don't remove this, saved for future use case.
 	nodeInformer.Informer().AddEventHandler(
 		cache.FilteringResourceEventHandler{
 			FilterFunc: func(obj interface{}) bool {
@@ -213,18 +213,19 @@ func NewController(
 				DeleteFunc: controller.nodeDelete,
 			},
 		})
+	*/
 
 	// Machine Controller Informers
 	nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.nodeToMachineAdd,
-		UpdateFunc: controller.nodeToMachineUpdate,
-		DeleteFunc: controller.nodeToMachineDelete,
+		AddFunc:    controller.addNodeToMachine,
+		UpdateFunc: controller.updateNodeToMachine,
+		DeleteFunc: controller.deleteNodeToMachine,
 	})
 
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.machineAdd,
-		UpdateFunc: controller.machineUpdate,
-		DeleteFunc: controller.machineDelete,
+		AddFunc:    controller.addMachine,
+		UpdateFunc: controller.updateMachine,
+		DeleteFunc: controller.deleteMachine,
 	})
 
 	// MachineSet Controller informers

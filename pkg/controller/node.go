@@ -45,6 +45,7 @@ func (c *controller) nodeDelete(obj interface{}) {
 
 }
 
+// Not being used at the moment, saving it for a future use case.
 func (c *controller) reconcileClusterNodeKey(key string) error {
 	node, err := c.nodeLister.Get(key)
 	if apierrors.IsNotFound(err) {
