@@ -67,7 +67,7 @@ $ kubectl apply -f kubernetes/crds.yaml
 - There is a rule dev in the `Makefile` which will automatically start the Machine Controller Manager with development settings:
 
 ```bash
-$ make dev
+$ make start
 I1227 11:08:19.963638   55523 controllermanager.go:204] Starting shared informers
 I1227 11:08:20.766085   55523 controller.go:247] Starting machine-controller-manager
 ```

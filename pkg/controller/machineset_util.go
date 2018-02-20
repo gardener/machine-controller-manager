@@ -69,7 +69,7 @@ func UpdateISWithRetries(isClient v1alpha1client.MachineSetInterface, isLister v
 	return is, retryErr
 }
 
-// GetMachineSetHash returns the has of a machineSet
+// GetMachineSetHash returns the hash of a machineSet
 func GetMachineSetHash(is *v1alpha1.MachineSet, uniquifier *int32) (string, error) {
 	isTemplate := is.Spec.Template.DeepCopy()
 	isTemplate.Labels = labelsutil.CloneAndRemoveLabel(isTemplate.Labels, v1alpha1.DefaultMachineDeploymentUniqueLabelKey)
