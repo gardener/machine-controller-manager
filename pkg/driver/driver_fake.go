@@ -13,9 +13,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package driver contains the cloud provider specific implementations to manage machines
 package driver
 
-// FakeDriver TODO
+// FakeDriver is a fake driver returned when none of the actual drivers match
 type FakeDriver struct {
 	create func() (string, string, error)
 	delete func() error
@@ -23,7 +25,7 @@ type FakeDriver struct {
 	existing func() (string, error)
 }
 
-// NewFakeDriver TODO
+// NewFakeDriver returns a new fakedriver object
 func NewFakeDriver(create func() (string, string, error), delete func() error, existing func() (string, error)) Driver {
 	return &FakeDriver{
 		create:   create,
@@ -32,17 +34,17 @@ func NewFakeDriver(create func() (string, string, error), delete func() error, e
 	}
 }
 
-// Create TODO
+// Create returns a newly created fake driver
 func (d *FakeDriver) Create() (string, string, error) {
 	return d.create()
 }
 
-// Delete TODO
+// Delete deletes a fake driver
 func (d *FakeDriver) Delete() error {
 	return d.delete()
 }
 
-// GetExisting TODO
+// GetExisting returns the existing fake driver
 func (d *FakeDriver) GetExisting() (string, error) {
 	return d.existing()
 }

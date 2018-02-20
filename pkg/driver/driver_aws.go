@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package driver contains the cloud provider specific implementations to manage machines
 package driver
 
 import (
@@ -32,27 +34,29 @@ import (
 	"github.com/golang/glog"
 )
 
+// AWSDriver is the driver struct for holding AWS machine information
 type AWSDriver struct {
 	AWSMachineClass *v1alpha1.AWSMachineClass
 	CloudConfig     *corev1.Secret
 	UserData        string
-	MachineId       string
+	MachineID       string
 	MachineName     string
 }
 
+// NewAWSDriver returns an empty AWSDriver object
 func NewAWSDriver(create func() (string, error), delete func() error, existing func() (string, error)) Driver {
 	return &AWSDriver{}
 }
 
-// Create TODO
+// Create method is used to create a AWS machine
 func (d *AWSDriver) Create() (string, string, error) {
 
 	svc := d.createSVC()
 	UserDataEnc := base64.StdEncoding.EncodeToString([]byte(d.UserData))
 
 	var imageIds []*string
-	imageId := aws.String(d.AWSMachineClass.Spec.AMI)
-	imageIds = append(imageIds, imageId)
+	imageID := aws.String(d.AWSMachineClass.Spec.AMI)
+	imageIds = append(imageIds, imageID)
 
 	describeImagesRequest := ec2.DescribeImagesInput{
 		ImageIds: imageIds,
@@ -125,20 +129,20 @@ func (d *AWSDriver) Create() (string, string, error) {
 		return "Error", "Error", errtag
 	}
 
-	return d.encodeMachineId(d.AWSMachineClass.Spec.Region, *runResult.Instances[0].InstanceId), *runResult.Instances[0].PrivateDnsName, nil
+	return d.encodeMachineID(d.AWSMachineClass.Spec.Region, *runResult.Instances[0].InstanceId), *runResult.Instances[0].PrivateDnsName, nil
 }
 
-// Delete TODO
+// Delete method is used to delete a AWS machine
 func (d *AWSDriver) Delete() error {
 	var (
 		err       error
-		machineId = d.decodeMachineId(d.MachineId)
+		machineID = d.decodeMachineID(d.MachineID)
 	)
 
 	svc := d.createSVC()
 	input := &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{
-			aws.String(machineId),
+			aws.String(machineID),
 		},
 		DryRun: aws.Bool(true),
 	}
@@ -158,18 +162,18 @@ func (d *AWSDriver) Delete() error {
 		if *vmState.CurrentState.Name == "shutting-down" ||
 			*vmState.CurrentState.Name == "terminated" {
 			return nil
-		} else {
-			err = errors.New("Machine already terminated")
 		}
+
+		err = errors.New("Machine already terminated")
 	}
 
 	glog.Errorf("Could not terminate machine: %s", err.Error())
 	return err
 }
 
-// GetExisting TODO
+// GetExisting method is used to get machineID for existing AWS machine
 func (d *AWSDriver) GetExisting() (string, error) {
-	return d.MachineId, nil
+	return d.MachineID, nil
 }
 
 // Helper function to create SVC
@@ -193,11 +197,11 @@ func (d *AWSDriver) createSVC() *ec2.EC2 {
 	}))
 }
 
-func (d *AWSDriver) encodeMachineId(region, instanceId string) string {
-	return fmt.Sprintf("aws:///%s/%s", region, instanceId)
+func (d *AWSDriver) encodeMachineID(region, machineID string) string {
+	return fmt.Sprintf("aws:///%s/%s", region, machineID)
 }
 
-func (d *AWSDriver) decodeMachineId(id string) string {
-	splitProviderId := strings.Split(id, "/")
-	return splitProviderId[len(splitProviderId)-1]
+func (d *AWSDriver) decodeMachineID(id string) string {
+	splitProviderID := strings.Split(id, "/")
+	return splitProviderID[len(splitProviderID)-1]
 }

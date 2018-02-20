@@ -187,6 +187,7 @@ func Run(s *options.MCMServer) error {
 	panic("unreachable")
 }
 
+// StartControllers starts all the controllers which are a part of machine-controller-manager
 func StartControllers(s *options.MCMServer,
 	controlCoreKubeconfig *rest.Config,
 	targetCoreKubeconfig *rest.Config,

@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package machine is the internal version of the API.
 package machine
 
 import (
@@ -21,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// GroupName of all machine-controller-manager objects
 const GroupName = "machine.sapcloud.io"
 
 // SchemeGroupVersion is group version used to register these objects
@@ -39,10 +42,10 @@ func Resource(resource string) schema.GroupResource {
 var (
 	// SchemeBuilder needs to be exported as `SchemeBuilder` so
 	// the code-generation can find it.
-	SchemeBuilder      = runtime.NewSchemeBuilder(addKnownTypes)
-	localSchemeBuilder = &SchemeBuilder
+	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
 	// AddToScheme is exposed for API installation
-	AddToScheme = SchemeBuilder.AddToScheme
+	AddToScheme        = SchemeBuilder.AddToScheme
+	localSchemeBuilder = &SchemeBuilder
 )
 
 func addKnownTypes(scheme *runtime.Scheme) error {

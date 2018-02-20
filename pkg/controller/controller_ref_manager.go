@@ -19,6 +19,7 @@ https://github.com/kubernetes/kubernetes/release-1.8/pkg/controller/controller_r
 Modifications Copyright 2017 The Gardener Authors.
 */
 
+// Package controller is used to provide the core functionalities of machine-controller-manager
 package controller
 
 import (
@@ -35,6 +36,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
+// BaseControllerRefManager is the struct is used to identify the base controller of the object
 type BaseControllerRefManager struct {
 	Controller metav1.Object
 	Selector   labels.Selector
@@ -44,6 +46,7 @@ type BaseControllerRefManager struct {
 	CanAdoptFunc func() error
 }
 
+// CanAdopt is used to identify if the object can be adopted by the controller
 func (m *BaseControllerRefManager) CanAdopt() error {
 	m.canAdoptOnce.Do(func() {
 		if m.CanAdoptFunc != nil {
@@ -126,6 +129,7 @@ func (m *BaseControllerRefManager) ClaimObject(obj metav1.Object, match func(met
 	return true, nil
 }
 
+// MachineControllerRefManager is the struct used to manage the machines
 type MachineControllerRefManager struct {
 	BaseControllerRefManager
 	controllerKind schema.GroupVersionKind

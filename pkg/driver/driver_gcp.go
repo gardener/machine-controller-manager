@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package driver contains the cloud provider specific implementations to manage machines
 package driver
 
 import (
@@ -33,15 +35,16 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
+// GCPDriver is the driver struct for holding GCP machine information
 type GCPDriver struct {
 	GCPMachineClass *v1alpha1.GCPMachineClass
 	CloudConfig     *corev1.Secret
 	UserData        string
-	MachineId       string
+	MachineID       string
 	MachineName     string
 }
 
-// Create
+// Create method is used to create a GCP machine
 func (d *GCPDriver) Create() (string, string, error) {
 	ctx, computeService, err := d.createComputeService()
 	if err != nil {
@@ -141,10 +144,10 @@ func (d *GCPDriver) Create() (string, string, error) {
 		return "Error", "Error", err
 	}
 
-	return d.encodeMachineId(project, zone, d.MachineName), d.MachineName, nil
+	return d.encodeMachineID(project, zone, d.MachineName), d.MachineName, nil
 }
 
-// Delete
+// Delete method is used to delete a GCP machine
 func (d *GCPDriver) Delete() error {
 	ctx, computeService, err := d.createComputeService()
 	if err != nil {
@@ -152,7 +155,7 @@ func (d *GCPDriver) Delete() error {
 		return err
 	}
 
-	project, zone, name, err := d.decodeMachineId(d.MachineId)
+	project, zone, name, err := d.decodeMachineID(d.MachineID)
 	if err != nil {
 		glog.Error(err)
 		return err
@@ -170,9 +173,9 @@ func (d *GCPDriver) Delete() error {
 	return waitUntilOperationCompleted(computeService, project, zone, operation.Name)
 }
 
-// GetExisting
+// GetExisting method is used to get machineID for existing GCP machine
 func (d *GCPDriver) GetExisting() (string, error) {
-	return d.MachineId, nil
+	return d.MachineID, nil
 }
 
 func (d *GCPDriver) createComputeService() (context.Context, *compute.Service, error) {
@@ -213,11 +216,11 @@ func waitUntilOperationCompleted(computeService *compute.Service, project, zone,
 	})
 }
 
-func (d *GCPDriver) encodeMachineId(project, zone, name string) string {
+func (d *GCPDriver) encodeMachineID(project, zone, name string) string {
 	return fmt.Sprintf("gce:///%s/%s/%s", project, zone, name)
 }
 
-func (d *GCPDriver) decodeMachineId(id string) (string, string, string, error) {
+func (d *GCPDriver) decodeMachineID(id string) (string, string, string, error) {
 	gceSplit := strings.Split(id, "gce:///")
 	if len(gceSplit) != 2 {
 		return "", "", "", fmt.Errorf("Invalid format of machine id: %s", id)

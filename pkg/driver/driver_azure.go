@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package driver contains the cloud provider specific implementations to manage machines
 package driver
 
 import (
@@ -20,7 +22,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	//"encoding/json"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -32,15 +33,15 @@ import (
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/to"
-	//"github.com/Azure/go-autorest/autorest/utils"
 	"github.com/golang/glog"
 )
 
+// AzureDriver is the driver struct for holding azure machine information
 type AzureDriver struct {
 	AzureMachineClass *v1alpha1.AzureMachineClass
 	CloudConfig       *corev1.Secret
 	UserData          string
-	MachineId         string
+	MachineID         string
 	MachineName       string
 }
 
@@ -51,7 +52,7 @@ var (
 	diskClient       disk.DisksClient
 )
 
-// Create
+// Create method is used to create an azure machine
 func (d *AzureDriver) Create() (string, string, error) {
 	d.setup()
 	var (
@@ -69,7 +70,7 @@ func (d *AzureDriver) Create() (string, string, error) {
 		d.AzureMachineClass.Spec.SubnetInfo.SubnetName,
 		"",
 	)
-	err = onErrorFail(err, fmt.Sprintf("subnetClient.Get failed for subnet '%s'", subnet))
+	err = onErrorFail(err, fmt.Sprintf("subnetClient.Get failed for subnet %q", subnet.Name))
 
 	enableIPForwarding := true
 	nicParameters := network.Interface{
@@ -158,14 +159,14 @@ func (d *AzureDriver) Create() (string, string, error) {
 	err = onErrorFail(<-errChan, "createVM failed")
 	//glog.Infof("Created machine '%s' successfully\n", vmName)
 
-	return d.encodeMachineId(location, vmName), vmName, err
+	return d.encodeMachineID(location, vmName), vmName, err
 }
 
-// Delete
+// Delete method is used to delete an azure machine
 func (d *AzureDriver) Delete() error {
 	d.setup()
 	var (
-		vmName        = d.decodeMachineId(d.MachineId)
+		vmName        = d.decodeMachineID(d.MachineID)
 		nicName       = vmName + "-nic"
 		diskName      = vmName + "-os-disk"
 		resourceGroup = d.AzureMachineClass.Spec.ResourceGroup
@@ -186,9 +187,9 @@ func (d *AzureDriver) Delete() error {
 	return err
 }
 
-// GetExisting
+// GetExisting method is used to fetch the machineID for an azure machine
 func (d *AzureDriver) GetExisting() (string, error) {
-	return d.MachineId, nil
+	return d.MachineID, nil
 }
 
 func (d *AzureDriver) setup() {
@@ -250,11 +251,11 @@ func getEnvVarOrExit(varName string) string {
 	return value
 }
 
-func (d *AzureDriver) encodeMachineId(location, vmName string) string {
+func (d *AzureDriver) encodeMachineID(location, vmName string) string {
 	return fmt.Sprintf("azure:///%s/%s", location, vmName)
 }
 
-func (d *AzureDriver) decodeMachineId(id string) string {
-	splitProviderId := strings.Split(id, "/")
-	return splitProviderId[len(splitProviderId)-1]
+func (d *AzureDriver) decodeMachineID(id string) string {
+	splitProviderID := strings.Split(id, "/")
+	return splitProviderID[len(splitProviderID)-1]
 }

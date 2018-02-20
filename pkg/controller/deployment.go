@@ -19,10 +19,7 @@ https://github.com/kubernetes/kubernetes/release-1.8/pkg/controller/deployment/d
 Modifications Copyright 2017 The Gardener Authors.
 */
 
-// Package deployment contains all the logic for handling Kubernetes Deployments.
-// It implements a set of strategies (rolling, recreate) for deploying an application,
-// the means to rollback to previous versions, proportional scaling for mitigating
-// risk, cleanup policy, and other useful features of Deployments.
+// Package controller is used to provide the core functionalities of machine-controller-manager
 package controller
 
 import (
@@ -50,6 +47,8 @@ import (
 
 // controllerKind contains the schema.GroupVersionKind for this controller type.
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("MachineDeployment")
+
+// GroupVersionKind is the version kind used to identify objects managed by machine-controller-manager
 var GroupVersionKind = "machine.sapcloud.io/v1alpha1"
 
 func (dc *controller) addMachineDeployment(obj interface{}) {
@@ -577,37 +576,37 @@ func (dc *controller) terminateMachineSets(machineSets []*v1alpha1.MachineSet, d
 	Manipulate Finalizers
 */
 
-func (c *controller) addMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment) {
+func (dc *controller) addMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment) {
 	clone := machineDeployment.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
 		finalizers.Insert(DeleteFinalizerName)
-		c.updateMachineDeploymentFinalizers(clone, finalizers.List())
+		dc.updateMachineDeploymentFinalizers(clone, finalizers.List())
 	}
 }
 
-func (c *controller) deleteMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment) {
+func (dc *controller) deleteMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment) {
 	clone := machineDeployment.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		finalizers.Delete(DeleteFinalizerName)
-		c.updateMachineDeploymentFinalizers(clone, finalizers.List())
+		dc.updateMachineDeploymentFinalizers(clone, finalizers.List())
 	}
 }
 
-func (c *controller) updateMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment, finalizers []string) {
+func (dc *controller) updateMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment, finalizers []string) {
 	// Get the latest version of the machineDeployment so that we can avoid conflicts
-	machineDeployment, err := c.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Get(machineDeployment.Name, metav1.GetOptions{})
+	machineDeployment, err := dc.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Get(machineDeployment.Name, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
 
 	clone := machineDeployment.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Update(clone)
+	_, err = dc.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
 		glog.Warning("Updated failed, retrying")
-		c.updateMachineDeploymentFinalizers(machineDeployment, finalizers)
+		dc.updateMachineDeploymentFinalizers(machineDeployment, finalizers)
 	}
 }

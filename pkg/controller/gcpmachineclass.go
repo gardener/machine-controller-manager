@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package controller is used to provide the core functionalities of machine-controller-manager
 package controller
 
 import (
@@ -29,6 +31,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 )
 
+// GCPMachineClassKind is used to identify the machineClassKind as GCP
 const GCPMachineClassKind = "GCPMachineClass"
 
 func (c *controller) machineDeploymentToGCPMachineClassDelete(obj interface{}) {

@@ -14,23 +14,23 @@ import (
 )
 
 var (
-	secret_filename       string
-	machineclass_filename string
-	class_kind            string
-	machine_name          string
-	machine_id            string
+	secretFilename       string
+	machineclassFilename string
+	classKind            string
+	machineName          string
+	machineID            string
 )
 
-// func NewDriver(machineId string, secretRef *corev1.Secret, classKind string, machineClass interface{}, machineName string) Driver {
+// func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, machineClass interface{}, machineName string) Driver {
 
-// AddFlags adds flags for a specific CMServer to the specified FlagSet
+// CreateFlags adds flags for a specific CMServer to the specified FlagSet
 func CreateFlags() {
 
-	flag.StringVar(&secret_filename, "secret", "", "infrastructure secret")
-	flag.StringVar(&machineclass_filename, "machineclass", "", "infrastructure machineclass")
-	flag.StringVar(&class_kind, "classkind", "", "infrastructure class kind")
-	flag.StringVar(&machine_name, "machinename", "", "machine name")
-	flag.StringVar(&machine_id, "machineid", "", "machine id")
+	flag.StringVar(&secretFilename, "secret", "", "infrastructure secret")
+	flag.StringVar(&machineclassFilename, "machineclass", "", "infrastructure machineclass")
+	flag.StringVar(&classKind, "classkind", "", "infrastructure class kind")
+	flag.StringVar(&machineName, "machinename", "", "machine name")
+	flag.StringVar(&machineID, "machineid", "", "machine id")
 
 	flag.Parse()
 }
@@ -43,70 +43,71 @@ func main() {
 		machineclass interface{}
 	)
 
-	if machine_name == "" {
+	if machineName == "" {
 		log.Fatalf("machine name required")
 	}
 
-	if machineclass_filename == "" {
+	if machineclassFilename == "" {
 		log.Fatalf("machine class filename required")
 	}
 
-	if secret_filename == "" {
+	if secretFilename == "" {
 		log.Fatalf("secret filename required")
 	}
 	secret := corev1.Secret{}
-	err := Read(secret_filename, &secret)
+	err := Read(secretFilename, &secret)
 	if err != nil {
 		log.Fatalf("Could not parse secret yaml: %s", err)
 	}
 
-	switch class_kind {
+	switch classKind {
 	case "OpenStackMachineClass", "openstack":
 		class := v1alpha1.OpenStackMachineClass{}
 		machineclass = &class
-		class_kind = "OpenStackMachineClass"
+		classKind = "OpenStackMachineClass"
 
 	case "AWSMachineClass", "aws":
 		class := v1alpha1.AWSMachineClass{}
 		machineclass = &class
-		class_kind = "AWSMachineClass"
+		classKind = "AWSMachineClass"
 
 	case "AzureMachineClass", "azure":
 		class := v1alpha1.AzureMachineClass{}
 		machineclass = &class
-		class_kind = "AzureMachineClass"
+		classKind = "AzureMachineClass"
 
 	case "GCPMachineClass", "gcp":
 		class := v1alpha1.GCPMachineClass{}
 		machineclass = &class
-		class_kind = "GCPMachineClass"
+		classKind = "GCPMachineClass"
 
 	default:
-		log.Fatalf("Unknown class kind %s", class_kind)
+		log.Fatalf("Unknown class kind %s", classKind)
 	}
-	err = Read(machineclass_filename, machineclass)
+	err = Read(machineclassFilename, machineclass)
 	if err != nil {
 		log.Fatalf("Could not parse machine class yaml: %s", err)
 	}
 
-	driver := driver.NewDriver(machine_id, &secret, class_kind, machineclass, machine_name)
+	driver := driver.NewDriver(machineID, &secret, classKind, machineclass, machineName)
 
-	if machine_id == "" {
+	if machineID == "" {
 		id, name, err := driver.Create()
 		if err != nil {
-			log.Fatalf("Could not create %s : %s", machine_name, err)
+			log.Fatalf("Could not create %s : %s", machineName, err)
 		}
 		fmt.Printf("Machine id: %s", id)
 		fmt.Printf("Name: %s", name)
 	} else {
 		err = driver.Delete()
 		if err != nil {
-			log.Fatalf("Could not delete %s : %s", machine_id, err)
+			log.Fatalf("Could not delete %s : %s", machineID, err)
 		}
 	}
 
 }
 
+// Read function decodes the yaml file passed to it
 func Read(fileName string, decodedObj interface{}) error {
 	m, err := ioutil.ReadFile(fileName)
 	if err != nil {
