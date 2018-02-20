@@ -19,6 +19,7 @@ https://github.com/kubernetes/kubernetes/release-1.8/pkg/controller/deployment/p
 Modifications Copyright 2017 The Gardener Authors.
 */
 
+// Package controller is used to provide the core functionalities of machine-controller-manager
 package controller
 
 import (

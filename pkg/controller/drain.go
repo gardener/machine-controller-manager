@@ -19,6 +19,7 @@ https://github.com/kubernetes/kubernetes/blob/release-1.8/pkg/kubectl/cmd/drain.
 Modifications Copyright 2017 The Gardener Authors.
 */
 
+// Package controller is used to provide the core functionalities of machine-controller-manager
 package controller
 
 import (
@@ -41,6 +42,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubectl"
 )
 
+// DrainOptions are configurable options while draining a node before deletion
 type DrainOptions struct {
 	client             kubernetes.Interface
 	Force              bool
@@ -64,17 +66,20 @@ type fatal struct {
 }
 
 const (
-	EvictionKind        = "Eviction"
+	// EvictionKind is the kind used for eviction
+	EvictionKind = "Eviction"
+	// EvictionSubresource is the kind used for evicting pods
 	EvictionSubresource = "pods/eviction"
 
-	kDaemonsetFatal      = "DaemonSet-managed pods (use --ignore-daemonsets to ignore)"
-	kDaemonsetWarning    = "Ignoring DaemonSet-managed pods"
-	kLocalStorageFatal   = "pods with local storage (use --delete-local-data to override)"
-	kLocalStorageWarning = "Deleting pods with local storage"
-	kUnmanagedFatal      = "pods not managed by ReplicationController, ReplicaSet, Job, DaemonSet or StatefulSet (use --force to override)"
-	kUnmanagedWarning    = "Deleting pods not managed by ReplicationController, ReplicaSet, Job, DaemonSet or StatefulSet"
+	daemonsetFatal      = "DaemonSet-managed pods (use --ignore-daemonsets to ignore)"
+	daemonsetWarning    = "Ignoring DaemonSet-managed pods"
+	localStorageFatal   = "pods with local storage (use --delete-local-data to override)"
+	localStorageWarning = "Deleting pods with local storage"
+	unmanagedFatal      = "pods not managed by ReplicationController, ReplicaSet, Job, DaemonSet or StatefulSet (use --force to override)"
+	unmanagedWarning    = "Deleting pods not managed by ReplicationController, ReplicaSet, Job, DaemonSet or StatefulSet"
 )
 
+// NewDrainOptions creates a new DrainOptions struct and returns a pointer to it
 func NewDrainOptions(
 	client kubernetes.Interface,
 	timeout time.Duration,
@@ -183,9 +188,9 @@ func (o *DrainOptions) unreplicatedFilter(pod api.Pod) (bool, *warning, *fatal) 
 		return true, nil, nil
 	}
 	if !o.Force {
-		return false, nil, &fatal{kUnmanagedFatal}
+		return false, nil, &fatal{unmanagedFatal}
 	}
-	return true, &warning{kUnmanagedWarning}, nil
+	return true, &warning{unmanagedWarning}, nil
 }
 
 func (o *DrainOptions) daemonsetFilter(pod api.Pod) (bool, *warning, *fatal) {
@@ -211,9 +216,9 @@ func (o *DrainOptions) daemonsetFilter(pod api.Pod) (bool, *warning, *fatal) {
 		return false, nil, &fatal{err.Error()}
 	}
 	if !o.IgnoreDaemonsets {
-		return false, nil, &fatal{kDaemonsetFatal}
+		return false, nil, &fatal{daemonsetFatal}
 	}
-	return false, &warning{kDaemonsetWarning}, nil
+	return false, &warning{daemonsetWarning}, nil
 }
 
 func mirrorPodFilter(pod api.Pod) (bool, *warning, *fatal) {
@@ -238,9 +243,9 @@ func (o *DrainOptions) localStorageFilter(pod api.Pod) (bool, *warning, *fatal) 
 		return true, nil, nil
 	}
 	if !o.DeleteLocalData {
-		return false, nil, &fatal{kLocalStorageFatal}
+		return false, nil, &fatal{localStorageFatal}
 	}
-	return true, &warning{kLocalStorageWarning}, nil
+	return true, &warning{localStorageWarning}, nil
 }
 
 // Map of status message to a list of pod names having that status.
@@ -341,9 +346,8 @@ func (o *DrainOptions) deleteOrEvictPods(pods []api.Pod) error {
 
 	if len(policyGroupVersion) > 0 {
 		return o.evictPods(pods, policyGroupVersion, getPodFn)
-	} else {
-		return o.deletePods(pods, getPodFn)
 	}
+	return o.deletePods(pods, getPodFn)
 }
 
 func (o *DrainOptions) evictPods(pods []api.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error)) error {

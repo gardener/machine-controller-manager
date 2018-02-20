@@ -18,6 +18,8 @@ https://github.com/kubernetes/kubernetes/release-1.8/pkg/controller/replicaset/r
 
 Modifications Copyright 2017 The Gardener Authors.
 */
+
+// Package controller is used to provide the core functionalities of machine-controller-manager
 package controller
 
 import (
@@ -45,7 +47,7 @@ import (
 )
 
 const (
-	// Realistic value of the burstReplica field for the machine set manager based off
+	// BurstReplicas - Realistic value of the burstReplica field for the machine set manager based off
 	// performance requirements for kubernetes 1.0.
 	BurstReplicas = 100
 

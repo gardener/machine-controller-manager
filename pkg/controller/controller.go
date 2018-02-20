@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package controller is used to provide the core functionalities of machine-controller-manager
 package controller
 
 import (
@@ -45,8 +47,11 @@ const (
 	pollingStartInterval      = 1 * time.Second
 	pollingMaxBackoffDuration = 1 * time.Hour
 
-	ClassAnnotation     = "machine.sapcloud.io/class"
+	// ClassAnnotation is the annotation used to identify a machine class
+	ClassAnnotation = "machine.sapcloud.io/class"
+	// MachineIDAnnotation is the annotation used to identify a machine ID
 	MachineIDAnnotation = "machine.sapcloud.io/id"
+	// DeleteFinalizerName is the finalizer used to identify the controller acting on an object
 	DeleteFinalizerName = "machine.sapcloud.io/machine-controller-manager"
 )
 
@@ -73,7 +78,7 @@ func NewController(
 		controlCoreClient:          controlCoreClient,
 		targetCoreClient:           targetCoreClient,
 		recorder:                   recorder,
-		expectations:               NewUIDTrackingControllerExpectations(NewControllerExpectations()),
+		expectations:               NewUIDTrackingContExpectations(NewContExpectations()),
 		secretQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
 		nodeQueue:                  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
 		nodeToMachineQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "nodeToMachine"),
@@ -88,7 +93,7 @@ func NewController(
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
-	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(controlCoreClient.CoreV1().RESTClient()).Events("")})
+	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(controlCoreClient.CoreV1().RESTClient()).Events(namespace)})
 
 	controller.machineControl = RealMachineControl{
 		controlMachineClient: controlMachineClient,
@@ -200,7 +205,7 @@ func NewController(
 		UpdateFunc: controller.gcpMachineClassUpdate,
 	})
 
-	// Node Controller Informers
+	/* Node Controller Informers - Don't remove this, saved for future use case.
 	nodeInformer.Informer().AddEventHandler(
 		cache.FilteringResourceEventHandler{
 			FilterFunc: func(obj interface{}) bool {
@@ -213,18 +218,19 @@ func NewController(
 				DeleteFunc: controller.nodeDelete,
 			},
 		})
+	*/
 
 	// Machine Controller Informers
 	nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.nodeToMachineAdd,
-		UpdateFunc: controller.nodeToMachineUpdate,
-		DeleteFunc: controller.nodeToMachineDelete,
+		AddFunc:    controller.addNodeToMachine,
+		UpdateFunc: controller.updateNodeToMachine,
+		DeleteFunc: controller.deleteNodeToMachine,
 	})
 
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.machineAdd,
-		UpdateFunc: controller.machineUpdate,
-		DeleteFunc: controller.machineDelete,
+		AddFunc:    controller.addMachine,
+		UpdateFunc: controller.updateMachine,
+		DeleteFunc: controller.deleteMachine,
 	})
 
 	// MachineSet Controller informers
@@ -240,7 +246,6 @@ func NewController(
 		DeleteFunc: controller.enqueueMachineSet,
 	})
 
-	// MachineDeployment Controller informers
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: controller.deleteMachineDeployment,
 	})
@@ -290,7 +295,7 @@ type controller struct {
 	recorder record.EventRecorder
 
 	// A TTLCache of pod creates/deletes each rc expects to see.
-	expectations *UIDTrackingControllerExpectations
+	expectations *UIDTrackingContExpectations
 
 	// Control Interfaces.
 	machineControl    MachineControlInterface

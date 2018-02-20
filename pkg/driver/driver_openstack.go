@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package driver contains the cloud provider specific implementations to manage machines
 package driver
 
 import (
@@ -30,22 +32,18 @@ import (
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/keypairs"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
-	_ "github.com/gophercloud/gophercloud/openstack/utils"
 )
 
+// OpenStackDriver is the driver struct for holding OS machine information
 type OpenStackDriver struct {
 	OpenStackMachineClass *v1alpha1.OpenStackMachineClass
 	CloudConfig           *corev1.Secret
 	UserData              string
-	MachineId             string
+	MachineID             string
 	MachineName           string
 }
 
-// func NewOpenStackDriver(create func() (string, error), delete func() error, existing func() (string, error)) Driver {
-// 	return &OpenStackDriver{}
-// }
-
-// Create TODO
+// Create method is used to create an OS machine
 func (d *OpenStackDriver) Create() (string, string, error) {
 
 	client, err := d.createNovaClient()
@@ -83,33 +81,33 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	glog.V(3).Infof("creating machine")
 	server, err := servers.Create(client, createOpts).Extract()
 
-	d.MachineId = d.encodeMachineId(d.OpenStackMachineClass.Spec.Region, server.ID)
+	d.MachineID = d.encodeMachineID(d.OpenStackMachineClass.Spec.Region, server.ID)
 
-	return d.MachineId, d.MachineName, err
+	return d.MachineID, d.MachineName, err
 }
 
-// Delete TODO
+// Delete method is used to delete an OS machine
 func (d *OpenStackDriver) Delete() error {
 
-	machineId := d.decodeMachineId(d.MachineId)
+	machineID := d.decodeMachineID(d.MachineID)
 
 	client, err := d.createNovaClient()
 	if err != nil {
 		return err
 	}
-	glog.V(3).Infof("deleting machine with ID: %s", machineId)
-	result := servers.Delete(client, machineId)
-	glog.V(3).Infof("deleted machine with ID: %s", machineId)
+	glog.V(3).Infof("deleting machine with ID: %s", machineID)
+	result := servers.Delete(client, machineID)
+	glog.V(3).Infof("deleted machine with ID: %s", machineID)
 
 	return result.Err
 }
 
-// GetExisting TODO
+// GetExisting method is used to get machineID for existing OS machine
 func (d *OpenStackDriver) GetExisting() (string, error) {
-	return d.MachineId, nil
+	return d.MachineID, nil
 }
 
-// createNovaClient TODO
+// createNovaClient is used to create a Nova client
 func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error) {
 
 	config := &tls.Config{}
@@ -205,11 +203,11 @@ func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error)
 	})
 }
 
-func (d *OpenStackDriver) encodeMachineId(region string, instanceId string) string {
-	return fmt.Sprintf("openstack:///%s/%s", region, instanceId)
+func (d *OpenStackDriver) encodeMachineID(region string, machineID string) string {
+	return fmt.Sprintf("openstack:///%s/%s", region, machineID)
 }
 
-func (d *OpenStackDriver) decodeMachineId(id string) string {
-	splitProviderId := strings.Split(id, "/")
-	return splitProviderId[len(splitProviderId)-1]
+func (d *OpenStackDriver) decodeMachineID(id string) string {
+	splitProviderID := strings.Split(id, "/")
+	return splitProviderID[len(splitProviderID)-1]
 }

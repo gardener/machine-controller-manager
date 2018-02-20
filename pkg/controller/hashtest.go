@@ -19,6 +19,7 @@ https://github.com/kubernetes/kubernetes/release-1.8/pkg/controller/deployment/u
 Modifications Copyright 2017 The Gardener Authors.
 */
 
+// Package controller is used to provide the core functionalities of machine-controller-manager
 package controller
 
 import (
@@ -32,7 +33,7 @@ import (
 	hashutil "k8s.io/kubernetes/pkg/util/hash"
 )
 
-var machineSpec string = `
+var machineSpec = `
 {
    "metadata": {
       "name": "vm2",
@@ -50,13 +51,14 @@ var machineSpec string = `
 }
 `
 
+// TestMachineTemplateSpecHash tests the templateSpecHash for any collisions
 func TestMachineTemplateSpecHash(t *testing.T) {
 	seenHashes := make(map[uint32]int)
 
 	for i := 0; i < 1000; i++ {
-		specJson := strings.Replace(machineSpec, "@@VERSION@@", strconv.Itoa(i), 1)
+		specJSON := strings.Replace(machineSpec, "@@VERSION@@", strconv.Itoa(i), 1)
 		spec := v1alpha1.MachineTemplateSpec{}
-		json.Unmarshal([]byte(specJson), &spec)
+		json.Unmarshal([]byte(specJSON), &spec)
 		hash := ComputeHash(&spec, nil)
 		if v, ok := seenHashes[hash]; ok {
 			t.Errorf("Hash collision, old: %d new: %d", v, i)
@@ -66,6 +68,7 @@ func TestMachineTemplateSpecHash(t *testing.T) {
 	}
 }
 
+// BenchmarkAdler is used to fetch machineTemplateSpecOldHash
 func BenchmarkAdler(b *testing.B) {
 	spec := v1alpha1.MachineTemplateSpec{}
 	json.Unmarshal([]byte(machineSpec), &spec)
@@ -81,6 +84,7 @@ func getMachineTemplateSpecOldHash(template v1alpha1.MachineTemplateSpec) uint32
 	return machineTemplateSpecHasher.Sum32()
 }
 
+// BenchmarkFnv is used the computeHash
 func BenchmarkFnv(b *testing.B) {
 	spec := v1alpha1.MachineTemplateSpec{}
 	json.Unmarshal([]byte(machineSpec), &spec)

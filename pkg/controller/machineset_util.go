@@ -18,6 +18,8 @@ https://github.com/kubernetes/kubernetes/blob/release-1.8/pkg/controller/deploym
 
 Modifications Copyright 2017 The Gardener Authors.
 */
+
+// Package controller is used to provide the core functionalities of machine-controller-manager
 package controller
 
 import (
@@ -67,7 +69,7 @@ func UpdateISWithRetries(isClient v1alpha1client.MachineSetInterface, isLister v
 	return is, retryErr
 }
 
-// TODO : Redefine ?
+// GetMachineSetHash returns the hash of a machineSet
 func GetMachineSetHash(is *v1alpha1.MachineSet, uniquifier *int32) (string, error) {
 	isTemplate := is.Spec.Template.DeepCopy()
 	isTemplate.Labels = labelsutil.CloneAndRemoveLabel(isTemplate.Labels, v1alpha1.DefaultMachineDeploymentUniqueLabelKey)
