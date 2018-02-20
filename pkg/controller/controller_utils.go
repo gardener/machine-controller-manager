@@ -19,6 +19,7 @@ https://github.com/kubernetes/kubernetes/release-1.8/pkg/controller/controller_u
 Modifications Copyright 2017 The Gardener Authors.
 */
 
+// Package controller is used to provide the core functionalities of machine-controller-manager
 package controller
 
 import (
@@ -50,7 +51,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	ref "k8s.io/client-go/tools/reference"
 	clientretry "k8s.io/client-go/util/retry"
-	_ "k8s.io/kubernetes/pkg/api/install"
 	"k8s.io/kubernetes/pkg/api/validation"
 	hashutil "k8s.io/kubernetes/pkg/util/hash"
 	taintutils "k8s.io/kubernetes/pkg/util/taints"
@@ -59,7 +59,7 @@ import (
 )
 
 const (
-	// If a watch drops a delete event for a machine, it'll take this long
+	// ExpectationsTimeout - If a watch drops a delete event for a machine, it'll take this long
 	// before a dormant controller waiting for those packets is woken up anyway. It is
 	// specifically targeted at the case where some problem prevents an update
 	// of expectations, without it the controller could stay asleep forever. This should
@@ -70,7 +70,7 @@ const (
 	// 500 machines. Just creation is limited to 20qps, and watching happens with ~10-30s
 	// latency/machine at the scale of 3000 machines over 100 nodes.
 	ExpectationsTimeout = 5 * time.Minute
-	// When batching machine creates, SlowStartInitialBatchSize is the size of the
+	// SlowStartInitialBatchSize - When batching machine creates, is the size of the
 	// inital batch.  The size of each successive batch is twice the size of
 	// the previous batch.  For example, for a value of 1, batch sizes would be
 	// 1, 2, 4, 8, ...  and for a value of 10, batch sizes would be
@@ -87,6 +87,7 @@ const (
 	SlowStartInitialBatchSize = 1
 )
 
+// UpdateTaintBackoff is the backoff period used while updating taint
 var UpdateTaintBackoff = wait.Backoff{
 	Steps:    5,
 	Duration: 100 * time.Millisecond,
@@ -94,12 +95,14 @@ var UpdateTaintBackoff = wait.Backoff{
 }
 
 var (
+	// KeyFunc is the variable that stores the function that retreives the object key from an object
 	KeyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
 )
 
+// ResyncPeriodFunc is the function that returns the resync duration
 type ResyncPeriodFunc func() time.Duration
 
-// Returns 0 for resyncPeriod in case resyncing is not needed.
+// NoResyncPeriodFunc Returns 0 for resyncPeriod in case resyncing is not needed.
 func NoResyncPeriodFunc() time.Duration {
 	return 0
 }
@@ -112,7 +115,7 @@ func StaticResyncPeriodFunc(resyncPeriod time.Duration) ResyncPeriodFunc {
 }
 
 // Expectations are a way for controllers to tell the controller manager what they expect. eg:
-//	ControllerExpectations: {
+//	ContExpectations: {
 //		controller1: expects  2 adds in 2 minutes
 //		controller2: expects  2 dels in 2 minutes
 //		controller3: expects -1 adds in 2 minutes => controller3's expectations have already been met
@@ -120,7 +123,7 @@ func StaticResyncPeriodFunc(resyncPeriod time.Duration) ResyncPeriodFunc {
 //
 // Implementation:
 //	ControlleeExpectation = pair of atomic counters to track controllee's creation/deletion
-//	ControllerExpectationsStore = TTLStore + a ControlleeExpectation per controller
+//	ContExpectationsStore = TTLStore + a ControlleeExpectation per controller
 //
 // * Once set expectations can only be lowered
 // * A controller isn't synced till its expectations are either fulfilled, or expire
@@ -134,11 +137,11 @@ var ExpKeyFunc = func(obj interface{}) (string, error) {
 	return "", fmt.Errorf("Could not find key for obj %#v", obj)
 }
 
-// ControllerExpectationsInterface is an interface that allows users to set and wait on expectations.
+// ExpectationsInterface is an interface that allows users to set and wait on expectations.
 // Only abstracted out for testing.
-// Warning: if using KeyFunc it is not safe to use a single ControllerExpectationsInterface with different
+// Warning: if using KeyFunc it is not safe to use a single ExpectationsInterface with different
 // types of controllers, because the keys might conflict across types.
-type ControllerExpectationsInterface interface {
+type ExpectationsInterface interface {
 	GetExpectations(controllerKey string) (*ControlleeExpectations, bool, error)
 	SatisfiedExpectations(controllerKey string) bool
 	DeleteExpectations(controllerKey string)
@@ -151,22 +154,23 @@ type ControllerExpectationsInterface interface {
 	LowerExpectations(controllerKey string, add, del int)
 }
 
-// ControllerExpectations is a cache mapping controllers to what they expect to see before being woken up for a sync.
-type ControllerExpectations struct {
+// ContExpectations is a cache mapping controllers to what they expect to see before being woken up for a sync.
+type ContExpectations struct {
 	cache.Store
 }
 
 // GetExpectations returns the ControlleeExpectations of the given controller.
-func (r *ControllerExpectations) GetExpectations(controllerKey string) (*ControlleeExpectations, bool, error) {
+func (r *ContExpectations) GetExpectations(controllerKey string) (*ControlleeExpectations, bool, error) {
+	var err error
 	if exp, exists, err := r.GetByKey(controllerKey); err == nil && exists {
 		return exp.(*ControlleeExpectations), true, nil
-	} else {
-		return nil, false, err
 	}
+
+	return nil, false, err
 }
 
 // DeleteExpectations deletes the expectations of the given controller from the TTLStore.
-func (r *ControllerExpectations) DeleteExpectations(controllerKey string) {
+func (r *ContExpectations) DeleteExpectations(controllerKey string) {
 	if exp, exists, err := r.GetByKey(controllerKey); err == nil && exists {
 		if err := r.Delete(exp); err != nil {
 			glog.V(2).Infof("Error deleting expectations for controller %v: %v", controllerKey, err)
@@ -177,7 +181,7 @@ func (r *ControllerExpectations) DeleteExpectations(controllerKey string) {
 // SatisfiedExpectations returns true if the required adds/dels for the given controller have been observed.
 // Add/del counts are established by the controller at sync time, and updated as controllees are observed by the controller
 // manager.
-func (r *ControllerExpectations) SatisfiedExpectations(controllerKey string) bool {
+func (r *ContExpectations) SatisfiedExpectations(controllerKey string) bool {
 	if exp, exists, err := r.GetExpectations(controllerKey); exists {
 		if exp.Fulfilled() {
 			glog.V(4).Infof("Controller expectations fulfilled %#v", exp)
@@ -212,22 +216,24 @@ func (exp *ControlleeExpectations) isExpired() bool {
 }
 
 // SetExpectations registers new expectations for the given controller. Forgets existing expectations.
-func (r *ControllerExpectations) SetExpectations(controllerKey string, add, del int) error {
+func (r *ContExpectations) SetExpectations(controllerKey string, add, del int) error {
 	exp := &ControlleeExpectations{add: int64(add), del: int64(del), key: controllerKey, timestamp: clock.RealClock{}.Now()}
 	glog.V(4).Infof("Setting expectations %#v", exp)
 	return r.Add(exp)
 }
 
-func (r *ControllerExpectations) ExpectCreations(controllerKey string, adds int) error {
+// ExpectCreations adds creations to an existing expectation
+func (r *ContExpectations) ExpectCreations(controllerKey string, adds int) error {
 	return r.SetExpectations(controllerKey, adds, 0)
 }
 
-func (r *ControllerExpectations) ExpectDeletions(controllerKey string, dels int) error {
+// ExpectDeletions deletion creations to an existing expectation
+func (r *ContExpectations) ExpectDeletions(controllerKey string, dels int) error {
 	return r.SetExpectations(controllerKey, 0, dels)
 }
 
-// Decrements the expectation counts of the given controller.
-func (r *ControllerExpectations) LowerExpectations(controllerKey string, add, del int) {
+// LowerExpectations Decrements the expectation counts of the given controller.
+func (r *ContExpectations) LowerExpectations(controllerKey string, add, del int) {
 	if exp, exists, err := r.GetExpectations(controllerKey); err == nil && exists {
 		exp.Add(int64(-add), int64(-del))
 		// The expectations might've been modified since the update on the previous line.
@@ -235,8 +241,8 @@ func (r *ControllerExpectations) LowerExpectations(controllerKey string, add, de
 	}
 }
 
-// Increments the expectation counts of the given controller.
-func (r *ControllerExpectations) RaiseExpectations(controllerKey string, add, del int) {
+// RaiseExpectations Increments the expectation counts of the given controller.
+func (r *ContExpectations) RaiseExpectations(controllerKey string, add, del int) {
 	if exp, exists, err := r.GetExpectations(controllerKey); err == nil && exists {
 		exp.Add(int64(add), int64(del))
 		// The expectations might've been modified since the update on the previous line.
@@ -245,12 +251,12 @@ func (r *ControllerExpectations) RaiseExpectations(controllerKey string, add, de
 }
 
 // CreationObserved atomically decrements the `add` expectation count of the given controller.
-func (r *ControllerExpectations) CreationObserved(controllerKey string) {
+func (r *ContExpectations) CreationObserved(controllerKey string) {
 	r.LowerExpectations(controllerKey, 1, 0)
 }
 
 // DeletionObserved atomically decrements the `del` expectation count of the given controller.
-func (r *ControllerExpectations) DeletionObserved(controllerKey string) {
+func (r *ContExpectations) DeletionObserved(controllerKey string) {
 	r.LowerExpectations(controllerKey, 0, 1)
 }
 
@@ -270,25 +276,25 @@ type ControlleeExpectations struct {
 }
 
 // Add increments the add and del counters.
-func (e *ControlleeExpectations) Add(add, del int64) {
-	atomic.AddInt64(&e.add, add)
-	atomic.AddInt64(&e.del, del)
+func (exp *ControlleeExpectations) Add(add, del int64) {
+	atomic.AddInt64(&exp.add, add)
+	atomic.AddInt64(&exp.del, del)
 }
 
 // Fulfilled returns true if this expectation has been fulfilled.
-func (e *ControlleeExpectations) Fulfilled() bool {
+func (exp *ControlleeExpectations) Fulfilled() bool {
 	// TODO: think about why this line being atomic doesn't matter
-	return atomic.LoadInt64(&e.add) <= 0 && atomic.LoadInt64(&e.del) <= 0
+	return atomic.LoadInt64(&exp.add) <= 0 && atomic.LoadInt64(&exp.del) <= 0
 }
 
 // GetExpectations returns the add and del expectations of the controllee.
-func (e *ControlleeExpectations) GetExpectations() (int64, int64) {
-	return atomic.LoadInt64(&e.add), atomic.LoadInt64(&e.del)
+func (exp *ControlleeExpectations) GetExpectations() (int64, int64) {
+	return atomic.LoadInt64(&exp.add), atomic.LoadInt64(&exp.del)
 }
 
-// NewControllerExpectations returns a store for ControllerExpectations.
-func NewControllerExpectations() *ControllerExpectations {
-	return &ControllerExpectations{cache.NewStore(ExpKeyFunc)}
+// NewContExpectations returns a store for ContExpectations.
+func NewContExpectations() *ContExpectations {
+	return &ContExpectations{cache.NewStore(ExpKeyFunc)}
 }
 
 // UIDSetKeyFunc to parse out the key from a UIDSet.
@@ -300,33 +306,33 @@ var UIDSetKeyFunc = func(obj interface{}) (string, error) {
 }
 
 // UIDSet holds a key and a set of UIDs. Used by the
-// UIDTrackingControllerExpectations to remember which UID it has seen/still
+// UIDTrackingContExpectations to remember which UID it has seen/still
 // waiting for.
 type UIDSet struct {
 	sets.String
 	key string
 }
 
-// UIDTrackingControllerExpectations tracks the UID of the machines it deletes.
+// UIDTrackingContExpectations tracks the UID of the machines it deletes.
 // This cache is needed over plain old expectations to safely handle graceful
 // deletion. The desired behavior is to treat an update that sets the
 // DeletionTimestamp on an object as a delete. To do so consistently, one needs
 // to remember the expected deletes so they aren't double counted.
 // TODO: Track creates as well (#22599)
-type UIDTrackingControllerExpectations struct {
-	ControllerExpectationsInterface
+type UIDTrackingContExpectations struct {
+	ExpectationsInterface
 	// TODO: There is a much nicer way to do this that involves a single store,
 	// a lock per entry, and a ControlleeExpectationsInterface type.
 	uidStoreLock sync.Mutex
 	// Store used for the UIDs associated with any expectation tracked via the
-	// ControllerExpectationsInterface.
+	// ExpectationsInterface.
 	uidStore cache.Store
 }
 
 // GetUIDs is a convenience method to avoid exposing the set of expected uids.
 // The returned set is not thread safe, all modifications must be made holding
 // the uidStoreLock.
-func (u *UIDTrackingControllerExpectations) GetUIDs(controllerKey string) sets.String {
+func (u *UIDTrackingContExpectations) GetUIDs(controllerKey string) sets.String {
 	if uid, exists, err := u.uidStore.GetByKey(controllerKey); err == nil && exists {
 		return uid.(*UIDSet).String
 	}
@@ -334,7 +340,7 @@ func (u *UIDTrackingControllerExpectations) GetUIDs(controllerKey string) sets.S
 }
 
 // ExpectDeletions records expectations for the given deleteKeys, against the given controller.
-func (u *UIDTrackingControllerExpectations) ExpectDeletions(rcKey string, deletedKeys []string) error {
+func (u *UIDTrackingContExpectations) ExpectDeletions(rcKey string, deletedKeys []string) error {
 	u.uidStoreLock.Lock()
 	defer u.uidStoreLock.Unlock()
 
@@ -349,29 +355,29 @@ func (u *UIDTrackingControllerExpectations) ExpectDeletions(rcKey string, delete
 	if err := u.uidStore.Add(&UIDSet{expectedUIDs, rcKey}); err != nil {
 		return err
 	}
-	return u.ControllerExpectationsInterface.ExpectDeletions(rcKey, expectedUIDs.Len())
+	return u.ExpectationsInterface.ExpectDeletions(rcKey, expectedUIDs.Len())
 }
 
 // DeletionObserved records the given deleteKey as a deletion, for the given rc.
-func (u *UIDTrackingControllerExpectations) DeletionObserved(rcKey, deleteKey string) {
+func (u *UIDTrackingContExpectations) DeletionObserved(rcKey, deleteKey string) {
 	u.uidStoreLock.Lock()
 	defer u.uidStoreLock.Unlock()
 
 	uids := u.GetUIDs(rcKey)
 	if uids != nil && uids.Has(deleteKey) {
 		glog.V(4).Infof("Controller %v received delete for machine %v", rcKey, deleteKey)
-		u.ControllerExpectationsInterface.DeletionObserved(rcKey)
+		u.ExpectationsInterface.DeletionObserved(rcKey)
 		uids.Delete(deleteKey)
 	}
 }
 
 // DeleteExpectations deletes the UID set and invokes DeleteExpectations on the
-// underlying ControllerExpectationsInterface.
-func (u *UIDTrackingControllerExpectations) DeleteExpectations(rcKey string) {
+// underlying ExpectationsInterface.
+func (u *UIDTrackingContExpectations) DeleteExpectations(rcKey string) {
 	u.uidStoreLock.Lock()
 	defer u.uidStoreLock.Unlock()
 
-	u.ControllerExpectationsInterface.DeleteExpectations(rcKey)
+	u.ExpectationsInterface.DeleteExpectations(rcKey)
 	if uidExp, exists, err := u.uidStore.GetByKey(rcKey); err == nil && exists {
 		if err := u.uidStore.Delete(uidExp); err != nil {
 			glog.V(2).Infof("Error deleting uid expectations for controller %v: %v", rcKey, err)
@@ -379,10 +385,10 @@ func (u *UIDTrackingControllerExpectations) DeleteExpectations(rcKey string) {
 	}
 }
 
-// NewUIDTrackingControllerExpectations returns a wrapper around
-// ControllerExpectations that is aware of deleteKeys.
-func NewUIDTrackingControllerExpectations(ce ControllerExpectationsInterface) *UIDTrackingControllerExpectations {
-	return &UIDTrackingControllerExpectations{ControllerExpectationsInterface: ce, uidStore: cache.NewStore(UIDSetKeyFunc)}
+// NewUIDTrackingContExpectations returns a wrapper around
+// ContExpectations that is aware of deleteKeys.
+func NewUIDTrackingContExpectations(ce ExpectationsInterface) *UIDTrackingContExpectations {
+	return &UIDTrackingContExpectations{ExpectationsInterface: ce, uidStore: cache.NewStore(UIDSetKeyFunc)}
 }
 
 // Reasons for machine events
@@ -416,26 +422,28 @@ type RealMachineSetControl struct {
 
 var _ MachineSetControlInterface = &RealMachineSetControl{}
 
+// PatchMachineSet patches the machineSet object
 func (r RealMachineSetControl) PatchMachineSet(namespace, name string, data []byte) error {
 	_, err := r.controlMachineClient.MachineSets(namespace).Patch(name, types.MergePatchType, data)
 	return err
 }
 
-// TODO: merge the controller revision interface in controller_history.go with this one
-// ControllerRevisionControlInterface is an interface that knows how to patch
+// RevisionControlInterface is an interface that knows how to patch
 // ControllerRevisions, as well as increment or decrement them. It is used
 // by the daemonset controller to ease testing of actions that it takes.
-type ControllerRevisionControlInterface interface {
+// TODO: merge the controller revision interface in controller_history.go with this one
+type RevisionControlInterface interface {
 	PatchControllerRevision(namespace, name string, data []byte) error
 }
 
-// RealControllerRevisionControl is the default implementation of ControllerRevisionControlInterface.
+// RealControllerRevisionControl is the default implementation of RevisionControlInterface.
 type RealControllerRevisionControl struct {
 	KubeClient clientset.Interface
 }
 
-var _ ControllerRevisionControlInterface = &RealControllerRevisionControl{}
+var _ RevisionControlInterface = &RealControllerRevisionControl{}
 
+// PatchControllerRevision is the patch method used to patch the controller revision
 func (r RealControllerRevisionControl) PatchControllerRevision(namespace, name string, data []byte) error {
 	_, err := r.KubeClient.AppsV1beta1().ControllerRevisions(namespace).Patch(name, types.StrategicMergePatchType, data)
 	return err
@@ -461,14 +469,17 @@ func validateControllerRef(controllerRef *metav1.OwnerReference) error {
 }
 
 //--- For Machines ---//
-// RealmachineControl is the default implementation of machineControlInterface.
+
+// RealMachineControl is the default implementation of machineControlInterface.
 type RealMachineControl struct {
 	controlMachineClient machineapi.MachineV1alpha1Interface
 	Recorder             record.EventRecorder
 }
 
+// MachineControlInterface is the reference to the realMachineControl
 var _ MachineControlInterface = &RealMachineControl{}
 
+// MachineControlInterface is the interface used by the machine-set controller to interact with the machine controller
 type MachineControlInterface interface {
 	// Createmachines creates new machines according to the spec.
 	CreateMachines(namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object) error
@@ -509,13 +520,13 @@ func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, object run
 	//   We need to consistently handle this case of annotation versioning.
 	codec := scheme.Codecs.LegacyCodec(v1.SchemeGroupVersion)
 
-	createdByRefJson, err := runtime.Encode(codec, &v1.SerializedReference{
+	createdByRefJSON, err := runtime.Encode(codec, &v1.SerializedReference{
 		Reference: *createdByRef,
 	})
 	if err != nil {
 		return desiredAnnotations, fmt.Errorf("unable to serialize controller reference: %v", err)
 	}
-	desiredAnnotations[v1.CreatedByAnnotation] = string(createdByRefJson)
+	desiredAnnotations[v1.CreatedByAnnotation] = string(createdByRefJSON)
 	return desiredAnnotations, nil
 }
 
@@ -528,6 +539,7 @@ func getMachinesPrefix(controllerName string) string {
 	return prefix
 }
 
+// CreateMachinesWithControllerRef creates a machine with controller reference
 func (r RealMachineControl) CreateMachinesWithControllerRef(namespace string, template *v1alpha1.MachineTemplateSpec, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
 	if err := validateControllerRef(controllerRef); err != nil {
 		return err
@@ -535,6 +547,7 @@ func (r RealMachineControl) CreateMachinesWithControllerRef(namespace string, te
 	return r.createMachines(namespace, template, controllerObject, controllerRef)
 }
 
+// GetMachineFromTemplate passes the machine template spec to return the machine object
 func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject runtime.Object, controllerRef *metav1.OwnerReference) (*v1alpha1.Machine, error) {
 
 	//glog.Info("Template details \n", template.Spec.Class)
@@ -570,6 +583,7 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 	return machine, nil
 }
 
+// CreateMachines initiates a create machine for a RealMachineControl
 func (r RealMachineControl) CreateMachines(namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object) error {
 	return r.createMachines(namespace, template, object, nil)
 }
@@ -579,39 +593,36 @@ func (r RealMachineControl) createMachines(namespace string, template *v1alpha1.
 	if err != nil {
 		return err
 	}
-	//glog.Infof("1a %v", machine.Labels)
 
 	if labels.Set(machine.Labels).AsSelectorPreValidated().Empty() {
-		//glog.Infof("1b")
 		return fmt.Errorf("unable to create machines, no labels")
 	}
 
-	//glog.Infof("2 : Printing Machine details : %+v", machine)
-
-	if newMachine, err := r.controlMachineClient.Machines(namespace).Create(machine); err != nil {
+	var newMachine *v1alpha1.Machine
+	if newMachine, err = r.controlMachineClient.Machines(namespace).Create(machine); err != nil {
 		glog.Error(err)
-		//glog.Infof("3")
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedCreateMachineReason, "Error creating: %v", err)
 		return err
-	} else {
-		accessor, err := meta.Accessor(object)
-		if err != nil {
-			glog.Errorf("parentObject does not have ObjectMeta, %v", err)
-			return nil
-		}
-		//glog.Infof("4")
-		glog.V(2).Infof("Controller %v created machine %v", accessor.GetName(), newMachine.Name)
-		r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulCreateMachineReason, "Created Machine: %v", newMachine.Name)
 	}
-	//glog.Infof("5")
+	accessor, err := meta.Accessor(object)
+	if err != nil {
+		glog.Errorf("parentObject does not have ObjectMeta, %v", err)
+		return nil
+	}
+
+	glog.V(2).Infof("Controller %v created machine %v", accessor.GetName(), newMachine.Name)
+	r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulCreateMachineReason, "Created Machine: %v", newMachine.Name)
+
 	return nil
 }
 
+// PatchMachine applies a patch on machine
 func (r RealMachineControl) PatchMachine(namespace string, name string, data []byte) error {
 	_, err := r.controlMachineClient.Machines(namespace).Patch(name, types.MergePatchType, data)
 	return err
 }
 
+// DeleteMachine deletes a machine attached to the RealMachineControl
 func (r RealMachineControl) DeleteMachine(namespace string, machineID string, object runtime.Object) error {
 	accessor, err := meta.Accessor(object)
 	if err != nil {
@@ -622,15 +633,15 @@ func (r RealMachineControl) DeleteMachine(namespace string, machineID string, ob
 	if err := r.controlMachineClient.Machines(namespace).Delete(machineID, nil); err != nil {
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeleteMachineReason, "Error deleting: %v", err)
 		return fmt.Errorf("unable to delete machines: %v", err)
-	} else {
-		r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulDeleteMachineReason, "Deleted machine: %v", machineID)
 	}
+	r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulDeleteMachineReason, "Deleted machine: %v", machineID)
+
 	return nil
 }
 
 // --- //
 
-// Activemachines type allows custom sorting of machines so a controller can pick the best ones to delete.
+// ActiveMachines type allows custom sorting of machines so a controller can pick the best ones to delete.
 type ActiveMachines []*v1alpha1.Machine
 
 func (s ActiveMachines) Len() int      { return len(s) }
@@ -655,6 +666,7 @@ func afterOrZero(t1, t2 *metav1.Time) bool {
 	return t1.After(t2.Time)
 }
 
+// IsMachineActive checks if machine was active
 func IsMachineActive(p *v1alpha1.Machine) bool {
 	if p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
 		return false
@@ -665,6 +677,7 @@ func IsMachineActive(p *v1alpha1.Machine) bool {
 	return true
 }
 
+// IsMachineFailed checks if machine has failed
 func IsMachineFailed(p *v1alpha1.Machine) bool {
 	if p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
 		return true
@@ -673,8 +686,10 @@ func IsMachineFailed(p *v1alpha1.Machine) bool {
 	return false
 }
 
-func MachineKey(machine *v1alpha1.Machine) string { //ToCheck : as machine-namespace does not matter
-	return fmt.Sprintf("%v/%v", machine.Name)
+// MachineKey is the function used to get the machine name from machine object
+//ToCheck : as machine-namespace does not matter
+func MachineKey(machine *v1alpha1.Machine) string {
+	return fmt.Sprintf("%v", machine.Name)
 }
 
 // ControllersByCreationTimestamp sorts a list of ReplicationControllers by creation timestamp, using their names as a tie breaker.
@@ -689,8 +704,8 @@ func (o ControllersByCreationTimestamp) Less(i, j int) bool {
 	return o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
 }
 
-/****************** For MachineSet **********************/
 // MachineSetsByCreationTimestamp sorts a list of MachineSet by creation timestamp, using their names as a tie breaker.
+/****************** For MachineSet **********************/
 type MachineSetsByCreationTimestamp []*v1alpha1.MachineSet
 
 func (o MachineSetsByCreationTimestamp) Len() int      { return int(len(o)) }
@@ -777,7 +792,7 @@ func AddOrUpdateTaintOnNode(c clientset.Interface, nodeName string, taints ...*v
 		for _, taint := range taints {
 			curNewNode, ok, err := taintutils.AddOrUpdateTaint(oldNodeCopy, taint)
 			if err != nil {
-				return fmt.Errorf("Failed to update taint of node!")
+				return fmt.Errorf("Failed to update taint of node")
 			}
 			updated = updated || ok
 			newNode = curNewNode
@@ -834,7 +849,7 @@ func RemoveTaintOffNode(c clientset.Interface, nodeName string, node *v1.Node, t
 		for _, taint := range taints {
 			curNewNode, ok, err := taintutils.RemoveTaint(oldNodeCopy, taint)
 			if err != nil {
-				return fmt.Errorf("Failed to remove taint of node!")
+				return fmt.Errorf("Failed to remove taint of node")
 			}
 			updated = updated || ok
 			newNode = curNewNode

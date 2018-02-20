@@ -19,6 +19,7 @@ https://github.com/kubernetes/kubernetes/release-1.8/pkg/controller/deployment/u
 Modifications Copyright 2017 The Gardener Authors.
 */
 
+// Package controller is used to provide the core functionalities of machine-controller-manager
 package controller
 
 import (
@@ -48,17 +49,15 @@ import (
 	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
 )
 
-// DeploymentListerExpansion allows custom methods to be added to
-// DeploymentLister.
+// MachineDeploymentListerExpansion allows custom methods to be added to MachineDeploymentLister.
 type MachineDeploymentListerExpansion interface {
 	GetMachineDeploymentsForMachineSet(is *v1alpha1.MachineSet) ([]*v1alpha1.MachineDeployment, error)
 }
 
-// DeploymentNamespaceListerExpansion allows custom methods to be added to
-// DeploymentNamespaceLister.
+// MachineDeploymentNamespaceListerExpansion allows custom methods to be added to MachineDeploymentNamespaceLister.
 type MachineDeploymentNamespaceListerExpansion interface{}
 
-// GetDeploymentsForMachineSet returns a list of Deployments that potentially
+// GetMachineDeploymentsForMachineSet returns a list of Deployments that potentially
 // match a MachineSet. Only the one specified in the MachineSet's ControllerRef
 // will actually manage it.
 // Returns an error only if no matching Deployments are found.
@@ -113,35 +112,30 @@ const (
 	RollbackTemplateUnchanged = "DeploymentRollbackTemplateUnchanged"
 	// RollbackDone is the done rollback event reason
 	RollbackDone = "DeploymentRollback"
-	// Reasons for deployment conditions
-	//
-	// Progressing:
-	//
+
 	// MachineSetUpdatedReason is added in a deployment when one of its machine sets is updated as part
 	// of the rollout process.
 	MachineSetUpdatedReason = "MachineSetUpdated"
-	// FailedRSCreateReason is added in a deployment when it cannot create a new machine set.
+	// FailedISCreateReason is added in a deployment when it cannot create a new machine set.
 	FailedISCreateReason = "MachineSetCreateError"
 	// NewMachineSetReason is added in a deployment when it creates a new machine set.
 	NewMachineSetReason = "NewMachineSetCreated"
-	// FoundNewRSReason is added in a deployment when it adopts an existing machine set.
+	// FoundNewISReason is added in a deployment when it adopts an existing machine set.
 	FoundNewISReason = "FoundNewMachineSet"
-	// NewRSAvailableReason is added in a deployment when its newest machine set is made available
+	// NewISAvailableReason is added in a deployment when its newest machine set is made available
 	// ie. the number of new machines that have passed readiness checks and run for at least minReadySeconds
 	// is at least the minimum available machines that need to run for the deployment.
 	NewISAvailableReason = "NewMachineSetAvailable"
 	// TimedOutReason is added in a deployment when its newest machine set fails to show any progress
 	// within the given deadline (progressDeadlineSeconds).
 	TimedOutReason = "ProgressDeadlineExceeded"
-	// PausedDeployReason is added in a deployment when it is paused. Lack of progress shouldn't be
+	// PausedMachineDeployReason is added in a deployment when it is paused. Lack of progress shouldn't be
 	// estimated once a deployment is paused.
 	PausedMachineDeployReason = "DeploymentPaused"
-	// ResumedDeployReason is added in a deployment when it is resumed. Useful for not failing accidentally
+	// ResumedMachineDeployReason is added in a deployment when it is resumed. Useful for not failing accidentally
 	// deployments that paused amidst a rollout and are bounded by a deadline.
 	ResumedMachineDeployReason = "DeploymentResumed"
-	//
-	// Available:
-	//
+
 	// MinimumReplicasAvailable is added in a deployment when it has its minimum replicas required available.
 	MinimumReplicasAvailable = "MinimumReplicasAvailable"
 	// MinimumReplicasUnavailable is added in a deployment when it doesn't have the minimum required replicas
@@ -172,9 +166,9 @@ func GetMachineDeploymentCondition(status v1alpha1.MachineDeploymentStatus, cond
 	return nil
 }
 
-// TODO: remove the duplicate
 // GetMachineDeploymentConditionInternal returns the condition with the provided type.
 // Avoiding Internal versions, use standard versions only.
+// TODO: remove the duplicate
 func GetMachineDeploymentConditionInternal(status v1alpha1.MachineDeploymentStatus, condType v1alpha1.MachineDeploymentConditionType) *v1alpha1.MachineDeploymentCondition {
 	for i := range status.Conditions {
 		c := status.Conditions[i]
@@ -230,7 +224,7 @@ func MachineSetToMachineDeploymentCondition(cond v1alpha1.MachineSetCondition) v
 	}
 }
 
-// SetDeploymentRevision updates the revision for a deployment.
+// SetMachineDeploymentRevision updates the revision for a deployment.
 func SetMachineDeploymentRevision(deployment *v1alpha1.MachineDeployment, revision string) bool {
 	updated := false
 
@@ -378,7 +372,7 @@ func copyMachineDeploymentAnnotationsToMachineSet(deployment *v1alpha1.MachineDe
 	return isAnnotationsChanged
 }
 
-// SetDeploymentAnnotationsTo sets deployment's annotations as given RS's annotations.
+// SetMachineDeploymentAnnotationsTo sets deployment's annotations as given RS's annotations.
 // This action should be done if and only if the deployment is rolling back to this rs.
 // Note that apply and revision annotations are not changed.
 func SetMachineDeploymentAnnotationsTo(deployment *v1alpha1.MachineDeployment, rollbackToIS *v1alpha1.MachineSet) {
@@ -577,7 +571,7 @@ func GetNewMachineSet(deployment *v1alpha1.MachineDeployment, c v1alpha1client.M
 	return FindNewMachineSet(deployment, rsList), nil
 }
 
-// RsListFromClient returns an rsListFunc that wraps the given client.
+// IsListFromClient returns an rsListFunc that wraps the given client.
 func IsListFromClient(c v1alpha1client.MachineV1alpha1Interface) IsListFunc {
 	return func(namespace string, options metav1.ListOptions) ([]*v1alpha1.MachineSet, error) {
 		isList, err := c.MachineSets(namespace).List(options)
@@ -592,8 +586,11 @@ func IsListFromClient(c v1alpha1client.MachineV1alpha1Interface) IsListFunc {
 	}
 }
 
+// IsListFunc is used to list all machineSets for a given list option
 // TODO: switch this to full namespacers
 type IsListFunc func(string, metav1.ListOptions) ([]*v1alpha1.MachineSet, error)
+
+// IsListFunc is used to list all machineList for a given listOptions
 type machineListFunc func(string, metav1.ListOptions) (*v1alpha1.MachineList, error)
 
 // ListMachineSets returns a slice of RSes the given deployment targets.
@@ -646,6 +643,7 @@ func ListMachineSetsInternal(deployment *v1alpha1.MachineDeployment, getISList f
 	return filtered, nil
 }
 
+// ListMachines for given machineDeployment
 func ListMachines(deployment *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, getMachineList machineListFunc) (*v1alpha1.MachineList, error) {
 	namespace := deployment.Namespace
 	selector, err := metav1.LabelSelectorAsSelector(deployment.Spec.Selector)
@@ -841,7 +839,7 @@ func IsRollingUpdate(deployment *v1alpha1.MachineDeployment) bool {
 	return deployment.Spec.Strategy.Type == v1alpha1.RollingUpdateMachineDeploymentStrategyType
 }
 
-// DeploymentComplete considers a deployment to be complete once all of its desired replicas
+// MachineDeploymentComplete considers a deployment to be complete once all of its desired replicas
 // are updated and available, and no old machines are running.
 func MachineDeploymentComplete(deployment *v1alpha1.MachineDeployment, newStatus *v1alpha1.MachineDeploymentStatus) bool {
 	return newStatus.UpdatedReplicas == (deployment.Spec.Replicas) &&
@@ -850,7 +848,7 @@ func MachineDeploymentComplete(deployment *v1alpha1.MachineDeployment, newStatus
 		newStatus.ObservedGeneration >= deployment.Generation
 }
 
-// DeploymentProgressing reports progress for a deployment. Progress is estimated by comparing the
+// MachineDeploymentProgressing reports progress for a deployment. Progress is estimated by comparing the
 // current with the new status of the deployment that the controller is observing. More specifically,
 // when new machines are scaled up or become ready or available, or old machines are scaled down, then we
 // consider the deployment is progressing.
@@ -870,7 +868,7 @@ func MachineDeploymentProgressing(deployment *v1alpha1.MachineDeployment, newSta
 // used for unit testing
 var nowFn = func() time.Time { return time.Now() }
 
-// DeploymentTimedOut considers a deployment to have timed out once its condition that reports progress
+// MachineDeploymentTimedOut considers a deployment to have timed out once its condition that reports progress
 // is older than progressDeadlineSeconds or a Progressing condition with a TimedOutReason reason already
 // exists.
 func MachineDeploymentTimedOut(deployment *v1alpha1.MachineDeployment, newStatus *v1alpha1.MachineDeploymentStatus) bool {
@@ -915,7 +913,7 @@ func MachineDeploymentTimedOut(deployment *v1alpha1.MachineDeployment, newStatus
 	return timedOut
 }
 
-// NewRSNewReplicas calculates the number of replicas a deployment's new RS should have.
+// NewISNewReplicas calculates the number of replicas a deployment's new IS should have.
 // When one of the followings is true, we're rolling out the deployment; otherwise, we're scaling it.
 // 1) The new RS is saturated: newRS's replicas == deployment's replicas
 // 2) Max number of machines allowed is reached: deployment's replicas + maxSurge == all RSs' replicas
@@ -964,7 +962,7 @@ func IsSaturated(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet
 		is.Status.AvailableReplicas == (deployment.Spec.Replicas)
 }
 
-// WaitForObservedDeployment polls for deployment to be updated so that deployment.Status.ObservedGeneration >= desiredGeneration.
+// WaitForObservedMachineDeployment polls for deployment to be updated so that deployment.Status.ObservedGeneration >= desiredGeneration.
 // Returns error if polling timesout.
 func WaitForObservedMachineDeployment(getDeploymentFunc func() (*v1alpha1.MachineDeployment, error), desiredGeneration int64, interval, timeout time.Duration) error {
 	// TODO: This should take clientset.Interface when all code is updated to use clientset. Keeping it this way allows the function to be used by callers who have client.Interface.
@@ -977,9 +975,9 @@ func WaitForObservedMachineDeployment(getDeploymentFunc func() (*v1alpha1.Machin
 	})
 }
 
-// TODO: remove the duplicate
-// WaitForObservedInternalDeployment polls for deployment to be updated so that deployment.Status.ObservedGeneration >= desiredGeneration.
+// WaitForObservedDeploymentInternal polls for deployment to be updated so that deployment.Status.ObservedGeneration >= desiredGeneration.
 // Returns error if polling timesout.
+// TODO: remove the duplicate
 func WaitForObservedDeploymentInternal(getDeploymentFunc func() (*v1alpha1.MachineDeployment, error), desiredGeneration int64, interval, timeout time.Duration) error {
 	return wait.Poll(interval, timeout, func() (bool, error) {
 		deployment, err := getDeploymentFunc()

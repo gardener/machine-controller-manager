@@ -31,15 +31,12 @@ import (
 	"strconv"
 	"time"
 
-	coreinformers "k8s.io/client-go/informers"
-
 	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
-	kubescheme "k8s.io/client-go/kubernetes/scheme"
-
-	corecontroller "k8s.io/kubernetes/pkg/controller"
-
 	machinecontroller "github.com/gardener/machine-controller-manager/pkg/controller"
+	coreinformers "k8s.io/client-go/informers"
+	kubescheme "k8s.io/client-go/kubernetes/scheme"
+	corecontroller "k8s.io/kubernetes/pkg/controller"
 
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
 	"github.com/golang/glog"
@@ -190,6 +187,7 @@ func Run(s *options.MCMServer) error {
 	panic("unreachable")
 }
 
+// StartControllers starts all the controllers which are a part of machine-controller-manager
 func StartControllers(s *options.MCMServer,
 	controlCoreKubeconfig *rest.Config,
 	targetCoreKubeconfig *rest.Config,
@@ -219,7 +217,7 @@ func StartControllers(s *options.MCMServer,
 		glog.Fatal(err)
 	}
 
-	if availableResources[awsGVR] || availableResources[azureGVR] || availableResources[gcpGVR] {
+	if availableResources[awsGVR] || availableResources[azureGVR] || availableResources[gcpGVR] || availableResources[openStackGVR] {
 		glog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
 		controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
@@ -272,7 +270,7 @@ func StartControllers(s *options.MCMServer,
 		go machineController.Run(int(s.ConcurrentNodeSyncs), stop)
 
 	} else {
-		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q is not available; found %#v", awsGVR, azureGVR, gcpGVR, availableResources)
+		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q or %q is not available; found %#v", awsGVR, azureGVR, gcpGVR, openStackGVR, availableResources)
 	}
 
 	select {}

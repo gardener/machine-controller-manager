@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package controller is used to provide the core functionalities of machine-controller-manager
 package controller
 
 import (
@@ -42,7 +44,7 @@ import (
 	SECTION
 	Machine controller - Machine add, update, delete watches
 */
-func (c *controller) machineAdd(obj interface{}) {
+func (c *controller) addMachine(obj interface{}) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
 		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
@@ -52,14 +54,14 @@ func (c *controller) machineAdd(obj interface{}) {
 	c.machineQueue.Add(key)
 }
 
-func (c *controller) machineUpdate(oldObj, newObj interface{}) {
+func (c *controller) updateMachine(oldObj, newObj interface{}) {
 	glog.V(3).Info("Updating machine object")
-	c.machineAdd(newObj)
+	c.addMachine(newObj)
 }
 
-func (c *controller) machineDelete(obj interface{}) {
+func (c *controller) deleteMachine(obj interface{}) {
 	glog.V(3).Info("Deleting machine object")
-	c.machineAdd(obj)
+	c.addMachine(obj)
 }
 
 func (c *controller) enqueueMachineAfter(obj interface{}, after time.Duration) {
@@ -135,7 +137,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	}
 
 	if machine.DeletionTimestamp != nil {
-		if err := c.deleteMachine(machine, driver); err != nil {
+		if err := c.machineDelete(machine, driver); err != nil {
 			return err
 		}
 	} else if machine.Status.CurrentStatus.TimeoutActive {
@@ -146,11 +148,11 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		c.addMachineFinalizers(machine)
 
 		if actualProviderID == "" {
-			if err := c.createMachine(machine, driver); err != nil {
+			if err := c.machineCreate(machine, driver); err != nil {
 				return err
 			}
 		} else if actualProviderID != machine.Spec.ProviderID {
-			if err := c.updateMachine(machine, actualProviderID); err != nil {
+			if err := c.machineUpdate(machine, actualProviderID); err != nil {
 				return err
 			}
 		}
@@ -163,7 +165,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	SECTION
 	Machine controller - nodeToMachine
 */
-func (c *controller) nodeToMachineAdd(obj interface{}) {
+func (c *controller) addNodeToMachine(obj interface{}) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
@@ -172,12 +174,12 @@ func (c *controller) nodeToMachineAdd(obj interface{}) {
 	c.nodeToMachineQueue.Add(key)
 }
 
-func (c *controller) nodeToMachineUpdate(oldObj, newObj interface{}) {
-	c.nodeToMachineAdd(newObj)
+func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
+	c.addNodeToMachine(newObj)
 }
 
-func (c *controller) nodeToMachineDelete(obj interface{}) {
-	c.nodeToMachineAdd(obj)
+func (c *controller) deleteNodeToMachine(obj interface{}) {
+	c.addNodeToMachine(obj)
 }
 
 func (c *controller) reconcileClusterNodeToMachineKey(key string) error {
@@ -281,7 +283,7 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node
 	Machine operations - Create, Update, Delete
 */
 
-func (c *controller) createMachine(machine *v1alpha1.Machine, driver driver.Driver) error {
+func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driver) error {
 	glog.V(2).Infof("Creating machine %s, please wait!", machine.Name)
 
 	actualProviderID, nodeName, err := driver.Create()
@@ -342,7 +344,7 @@ func (c *controller) createMachine(machine *v1alpha1.Machine, driver driver.Driv
 	return nil
 }
 
-func (c *controller) updateMachine(machine *v1alpha1.Machine, actualProviderID string) error {
+func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID string) error {
 	glog.V(2).Infof("Setting MachineId of %s to %s", machine.Name, actualProviderID)
 
 	for {
@@ -371,7 +373,7 @@ func (c *controller) updateMachine(machine *v1alpha1.Machine, actualProviderID s
 	return nil
 }
 
-func (c *controller) deleteMachine(machine *v1alpha1.Machine, driver driver.Driver) error {
+func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driver) error {
 	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		glog.V(2).Infof("Deleting Machine %s", machine.Name)
 

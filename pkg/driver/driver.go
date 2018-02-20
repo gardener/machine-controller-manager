@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package driver contains the cloud provider specific implementations to manage machines
 package driver
 
 import (
@@ -20,14 +22,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-//Driver is the common interface for creation/deletion of the VMs over different cloud-providers.
+// Driver is the common interface for creation/deletion of the VMs over different cloud-providers.
 type Driver interface {
 	Create() (string, string, error)
 	Delete() error
 	GetExisting() (string, error)
 }
 
-func NewDriver(machineId string, secretRef *corev1.Secret, classKind string, machineClass interface{}, machineName string) Driver {
+// NewDriver creates a new driver object based on the classKind
+func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, machineClass interface{}, machineName string) Driver {
 
 	switch classKind {
 	case "OpenStackMachineClass":
@@ -35,7 +38,7 @@ func NewDriver(machineId string, secretRef *corev1.Secret, classKind string, mac
 			OpenStackMachineClass: machineClass.(*v1alpha1.OpenStackMachineClass),
 			CloudConfig:           secretRef,
 			UserData:              string(secretRef.Data["userData"]),
-			MachineId:             machineId,
+			MachineID:             machineID,
 			MachineName:           machineName,
 		}
 
@@ -44,7 +47,7 @@ func NewDriver(machineId string, secretRef *corev1.Secret, classKind string, mac
 			AWSMachineClass: machineClass.(*v1alpha1.AWSMachineClass),
 			CloudConfig:     secretRef,
 			UserData:        string(secretRef.Data["userData"]),
-			MachineId:       machineId,
+			MachineID:       machineID,
 			MachineName:     machineName,
 		}
 
@@ -53,7 +56,7 @@ func NewDriver(machineId string, secretRef *corev1.Secret, classKind string, mac
 			AzureMachineClass: machineClass.(*v1alpha1.AzureMachineClass),
 			CloudConfig:       secretRef,
 			UserData:          string(secretRef.Data["userData"]),
-			MachineId:         machineId,
+			MachineID:         machineID,
 			MachineName:       machineName,
 		}
 
@@ -62,7 +65,7 @@ func NewDriver(machineId string, secretRef *corev1.Secret, classKind string, mac
 			GCPMachineClass: machineClass.(*v1alpha1.GCPMachineClass),
 			CloudConfig:     secretRef,
 			UserData:        string(secretRef.Data["userData"]),
-			MachineId:       machineId,
+			MachineID:       machineID,
 			MachineName:     machineName,
 		}
 	}
