@@ -78,7 +78,7 @@ func (c *controller) awsMachineClassUpdate(oldObj, newObj interface{}) {
 	if old == nil || !ok {
 		return
 	}
-	new, ok := oldObj.(*v1alpha1.AWSMachineClass)
+	new, ok := newObj.(*v1alpha1.AWSMachineClass)
 	if new == nil || !ok {
 		return
 	}
