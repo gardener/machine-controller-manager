@@ -79,6 +79,30 @@ func (d *AWSDriver) Create() (string, string, error) {
 	}
 	blkDeviceMappings = append(blkDeviceMappings, &blkDeviceMapping)
 
+	// Add tags to the created machine
+	tagList := []*ec2.Tag{}
+	for idx, element := range d.AWSMachineClass.Spec.Tags {
+		newTag := ec2.Tag{
+			Key:   aws.String(idx),
+			Value: aws.String(element),
+		}
+		tagList = append(tagList, &newTag)
+	}
+	// If no "Name" tag has been specified in the MachineClass definition we set the "Name" tag's
+	// value to "name-of-machine-object".
+	if _, ok := d.AWSMachineClass.Spec.Tags["Name"]; !ok {
+		newTag := ec2.Tag{
+			Key:   aws.String("Name"),
+			Value: aws.String(d.MachineName),
+		}
+		tagList = append(tagList, &newTag)
+	}
+
+	tagInstance := &ec2.TagSpecification{
+		ResourceType: aws.String("instance"),
+		Tags:         tagList,
+	}
+
 	// Specify the details of the machine that you want to create.
 	inputConfig := ec2.RunInstancesInput{
 		// An Amazon Linux AMI ID for t2.micro machines in the us-west-2 region
@@ -94,39 +118,12 @@ func (d *AWSDriver) Create() (string, string, error) {
 		},
 		SecurityGroupIds:    []*string{aws.String(d.AWSMachineClass.Spec.NetworkInterfaces[0].SecurityGroupIDs[0])},
 		BlockDeviceMappings: blkDeviceMappings,
+		TagSpecifications:   []*ec2.TagSpecification{tagInstance},
 	}
 
 	runResult, err := svc.RunInstances(&inputConfig)
 	if err != nil {
 		return "Error", "Error", err
-	}
-
-	// Add tags to the created machine
-	tagList := []*ec2.Tag{}
-	for idx, element := range d.AWSMachineClass.Spec.Tags {
-		newTag := ec2.Tag{
-			Key:   aws.String(idx),
-			Value: aws.String(element),
-		}
-		tagList = append(tagList, &newTag)
-	}
-
-	// If no "Name" tag has been specified in the MachineClass definition we set the "Name" tag's
-	// value to "name-of-machine-object".
-	if _, ok := d.AWSMachineClass.Spec.Tags["Name"]; !ok {
-		newTag := ec2.Tag{
-			Key:   aws.String("Name"),
-			Value: aws.String(d.MachineName),
-		}
-		tagList = append(tagList, &newTag)
-	}
-
-	_, errtag := svc.CreateTags(&ec2.CreateTagsInput{
-		Resources: []*string{runResult.Instances[0].InstanceId},
-		Tags:      tagList,
-	})
-	if errtag != nil {
-		return "Error", "Error", errtag
 	}
 
 	return d.encodeMachineID(d.AWSMachineClass.Spec.Region, *runResult.Instances[0].InstanceId), *runResult.Instances[0].PrivateDnsName, nil
