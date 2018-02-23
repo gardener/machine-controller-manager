@@ -78,7 +78,7 @@ func (c *controller) openStackMachineClassUpdate(oldObj, newObj interface{}) {
 	if old == nil || !ok {
 		return
 	}
-	new, ok := oldObj.(*v1alpha1.OpenStackMachineClass)
+	new, ok := newObj.(*v1alpha1.OpenStackMachineClass)
 	if new == nil || !ok {
 		return
 	}
