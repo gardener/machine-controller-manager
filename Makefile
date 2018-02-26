@@ -29,6 +29,11 @@ start:
 			--control-kubeconfig=$(CONTROL_KUBECONFIG) \
 			--target-kubeconfig=$(TARGET_KUBECONFIG) \
 			--namespace=$(CONTROL_NAMESPACE) \
+			--safety-up=2 \
+			--safety-down=1 \
+			--machine-drain-timeout=5 \
+			--machine-health-timeout=10 \
+			--machine-set-scale-timeout=20 \
 			--v=2
 
 #################################################################

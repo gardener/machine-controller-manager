@@ -192,6 +192,12 @@ func (d *AzureDriver) GetExisting() (string, error) {
 	return d.MachineID, nil
 }
 
+// GetVMs returns a list of VMs
+func (d *AzureDriver) GetVMs(name string) []VM {
+	var listOfVMs []VM
+	return listOfVMs
+}
+
 func (d *AzureDriver) setup() {
 	subscriptionID := strings.TrimSpace(string(d.CloudConfig.Data["azureSubscriptionId"]))
 	authorizer, err := d.getAuthorizer(azure.PublicCloud)

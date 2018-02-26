@@ -27,6 +27,13 @@ type Driver interface {
 	Create() (string, string, error)
 	Delete() error
 	GetExisting() (string, error)
+	GetVMs(string) []VM
+}
+
+// VM tracks all orphanVMs
+type VM struct {
+	MachineName string
+	MachineID   string
 }
 
 // NewDriver creates a new driver object based on the classKind
