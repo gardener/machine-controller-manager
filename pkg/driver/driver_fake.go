@@ -48,3 +48,9 @@ func (d *FakeDriver) Delete() error {
 func (d *FakeDriver) GetExisting() (string, error) {
 	return d.existing()
 }
+
+// GetVMs returns a list of VMs
+func (d *FakeDriver) GetVMs(name string) []VM {
+	var listOfVMs []VM
+	return listOfVMs
+}

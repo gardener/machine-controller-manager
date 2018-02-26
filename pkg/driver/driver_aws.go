@@ -82,21 +82,21 @@ func (d *AWSDriver) Create() (string, string, error) {
 	// Add tags to the created machine
 	tagList := []*ec2.Tag{}
 	for idx, element := range d.AWSMachineClass.Spec.Tags {
+		if idx == "Name" {
+			// Name tag cannot be set, as its used to identify backing machine object
+			continue
+		}
 		newTag := ec2.Tag{
 			Key:   aws.String(idx),
 			Value: aws.String(element),
 		}
 		tagList = append(tagList, &newTag)
 	}
-	// If no "Name" tag has been specified in the MachineClass definition we set the "Name" tag's
-	// value to "name-of-machine-object".
-	if _, ok := d.AWSMachineClass.Spec.Tags["Name"]; !ok {
-		newTag := ec2.Tag{
-			Key:   aws.String("Name"),
-			Value: aws.String(d.MachineName),
-		}
-		tagList = append(tagList, &newTag)
+	nameTag := ec2.Tag{
+		Key:   aws.String("Name"),
+		Value: aws.String(d.MachineName),
 	}
+	tagList = append(tagList, &nameTag)
 
 	tagInstance := &ec2.TagSpecification{
 		ResourceType: aws.String("instance"),
@@ -131,6 +131,14 @@ func (d *AWSDriver) Create() (string, string, error) {
 
 // Delete method is used to delete a AWS machine
 func (d *AWSDriver) Delete() error {
+
+	result := d.GetVMs(d.MachineID)
+	if len(result) == 0 {
+		// No running instance exists with the given it
+		glog.V(3).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
+		return nil
+	}
+
 	var (
 		err       error
 		machineID = d.decodeMachineID(d.MachineID)
@@ -171,6 +179,93 @@ func (d *AWSDriver) Delete() error {
 // GetExisting method is used to get machineID for existing AWS machine
 func (d *AWSDriver) GetExisting() (string, error) {
 	return d.MachineID, nil
+}
+
+// GetVMs returns a VM matching the machineID
+// If machineID is an empty string then it returns all matching instances
+func (d *AWSDriver) GetVMs(machineID string) []VM {
+	var listOfVMs []VM
+
+	clusterName := ""
+	nodeRole := ""
+
+	for key := range d.AWSMachineClass.Spec.Tags {
+		if strings.Contains(key, "kubernetes.io/cluster/") {
+			clusterName = key
+		} else if strings.Contains(key, "kubernetes.io/role/") {
+			nodeRole = key
+		}
+	}
+
+	if clusterName == "" || nodeRole == "" {
+		return listOfVMs
+	}
+
+	svc := d.createSVC()
+	input := ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
+				Name: aws.String("tag-key"),
+				Values: []*string{
+					&clusterName,
+				},
+			},
+			&ec2.Filter{
+				Name: aws.String("tag-key"),
+				Values: []*string{
+					&nodeRole,
+				},
+			},
+			&ec2.Filter{
+				Name: aws.String("instance-state-name"),
+				Values: []*string{
+					aws.String("pending"),
+					aws.String("running"),
+					aws.String("stopping"),
+					aws.String("stopped"),
+				},
+			},
+		},
+	}
+
+	// When targetting particular VM
+	if machineID != "" {
+		machineID = d.decodeMachineID(machineID)
+		instanceFilter := &ec2.Filter{
+			Name: aws.String("instance-id"),
+			Values: []*string{
+				&machineID,
+			},
+		}
+		input.Filters = append(input.Filters, instanceFilter)
+	}
+
+	runResult, err := svc.DescribeInstances(&input)
+	if err != nil {
+		glog.Warningf("AWS driver is returning error while describe instances request is sent: %s", err)
+		return listOfVMs
+	}
+
+	for _, reservation := range runResult.Reservations {
+		for _, instance := range reservation.Instances {
+
+			machineName := ""
+			for _, tag := range instance.Tags {
+				if *tag.Key == "Name" {
+					machineName = *tag.Value
+					break
+				}
+			}
+
+			vm := VM{
+				MachineName: machineName,
+				MachineID:   d.encodeMachineID(d.AWSMachineClass.Spec.Region, *instance.InstanceId),
+			}
+			listOfVMs = append(listOfVMs, vm)
+		}
+	}
+
+	return listOfVMs
 }
 
 // Helper function to create SVC

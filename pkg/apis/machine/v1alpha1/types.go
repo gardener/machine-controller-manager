@@ -277,6 +277,7 @@ type MachineSetSpec struct {
 	MinReadySeconds int32 `json:"minReadySeconds,inline"`
 }
 
+// MachineSetConditionType is the condition on machineset object
 type MachineSetConditionType string
 
 // These are valid conditions of a machine set.
@@ -285,6 +286,8 @@ const (
 	// due to insufficient quota, limit ranges, machine security policy, node selectors, etc. or deleted
 	// due to kubelet being down or finalizers are failing.
 	MachineSetReplicaFailure MachineSetConditionType = "ReplicaFailure"
+	// MachineSetFrozen is set when the machineset has exceeded its replica threshold at the safety controller
+	MachineSetFrozen MachineSetConditionType = "Frozen"
 )
 
 // MachineSetCondition describes the state of a machine set at a certain point.
@@ -549,6 +552,10 @@ const (
 	// ReplicaFailure is added in a MachineDeployment when one of its machines fails to be created
 	// or deleted.
 	MachineDeploymentReplicaFailure MachineDeploymentConditionType = "ReplicaFailure"
+
+	// MachineDeploymentFrozen is added in a MachineDeployment when one of its machines fails to be created
+	// or deleted.
+	MachineDeploymentFrozen MachineDeploymentConditionType = "Frozen"
 )
 
 // MachineDeploymentCondition describes the state of a MachineDeployment at a certain point.
