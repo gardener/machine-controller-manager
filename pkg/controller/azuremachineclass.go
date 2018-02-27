@@ -78,7 +78,7 @@ func (c *controller) azureMachineClassUpdate(oldObj, newObj interface{}) {
 	if old == nil || !ok {
 		return
 	}
-	new, ok := oldObj.(*v1alpha1.AzureMachineClass)
+	new, ok := newObj.(*v1alpha1.AzureMachineClass)
 	if new == nil || !ok {
 		return
 	}
