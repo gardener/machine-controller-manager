@@ -396,9 +396,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 		}
 
 		var err error
-		if machineID == "" {
-			err = errors.New("No provider-ID found on machine")
-		} else {
+		if machineID != "" {
 			timeOutDuration := 5 * time.Minute
 			// Timeout value obtained by subtracting last operation with expected time out period
 			timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)

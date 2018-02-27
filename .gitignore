@@ -8,7 +8,10 @@
 *.html
 .vscode
 .idea
-.DS_Store
+*.DS_Store
+managevm
+controller_manager
+
 
 ./machine-controller-manager
 ./managevm
