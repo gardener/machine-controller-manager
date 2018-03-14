@@ -34,6 +34,7 @@ import (
 	corelisters "k8s.io/client-go/listers/core/v1"
 
 	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
+	"github.com/gardener/machine-controller-manager/pkg/options"
 	runtimeutil "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -71,6 +72,7 @@ func NewController(
 	machineSetInformer machineinformers.MachineSetInformer,
 	machineDeploymentInformer machineinformers.MachineDeploymentInformer,
 	recorder record.EventRecorder,
+	safetyOptions options.SafetyOptions,
 ) (Controller, error) {
 	controller := &controller{
 		namespace:                  namespace,
@@ -89,6 +91,8 @@ func NewController(
 		machineQueue:               workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
 		machineSetQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
 		machineDeploymentQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
+		machineSafetyQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafety"),
+		safetyOptions:              safetyOptions,
 	}
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -233,7 +237,7 @@ func NewController(
 		DeleteFunc: controller.deleteMachine,
 	})
 
-	// MachineSet Controller informers
+	// MachineSet Controller Informers
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.addMachineToMachineSet,
 		UpdateFunc: controller.updateMachineToMachineSet,
@@ -246,6 +250,7 @@ func NewController(
 		DeleteFunc: controller.enqueueMachineSet,
 	})
 
+	// MachineDeployment Controller Informers
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: controller.deleteMachineDeployment,
 	})
@@ -261,6 +266,21 @@ func NewController(
 		UpdateFunc: controller.updateMachineDeployment,
 		DeleteFunc: controller.deleteMachineDeployment,
 	})
+
+	// MachineSafety Controller Informers
+	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: controller.addMachineToSafety,
+	})
+
+	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.addMachineSetToSafety,
+		UpdateFunc: controller.updateMachineSetToSafety,
+	})
+
+	// We follow the kubernetes way of reconciling the safety controller
+	// done by adding empty key objects. We initialize it here to trigger
+	// running of safety loop on MCM startup.
+	controller.machineSafetyQueue.Add("")
 
 	return controller, nil
 }
@@ -281,6 +301,12 @@ type controller struct {
 	controlCoreClient    kubernetes.Interface
 	targetCoreClient     kubernetes.Interface
 
+	recorder          record.EventRecorder
+	machineControl    MachineControlInterface
+	machineSetControl MachineSetControlInterface
+	safetyOptions     options.SafetyOptions
+	expectations      *UIDTrackingContExpectations
+
 	// listers
 	secretLister                corelisters.SecretLister
 	nodeLister                  corelisters.NodeLister
@@ -291,16 +317,6 @@ type controller struct {
 	machineLister               machinelisters.MachineLister
 	machineSetLister            machinelisters.MachineSetLister
 	machineDeploymentLister     machinelisters.MachineDeploymentLister
-
-	recorder record.EventRecorder
-
-	// A TTLCache of pod creates/deletes each rc expects to see.
-	expectations *UIDTrackingContExpectations
-
-	// Control Interfaces.
-	machineControl    MachineControlInterface
-	machineSetControl MachineSetControlInterface
-
 	// queues
 	secretQueue                workqueue.RateLimitingInterface
 	nodeQueue                  workqueue.RateLimitingInterface
@@ -312,7 +328,7 @@ type controller struct {
 	machineQueue               workqueue.RateLimitingInterface
 	machineSetQueue            workqueue.RateLimitingInterface
 	machineDeploymentQueue     workqueue.RateLimitingInterface
-
+	machineSafetyQueue         workqueue.RateLimitingInterface
 	// syncs
 	secretSynced                cache.InformerSynced
 	nodeSynced                  cache.InformerSynced
@@ -356,6 +372,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 		createWorker(c.nodeToMachineQueue, "ClusterNodeToMachine", maxRetries, true, c.reconcileClusterNodeToMachineKey, stopCh, &waitGroup)
 		createWorker(c.machineSetQueue, "ClusterMachineSet", maxRetries, true, c.reconcileClusterMachineSet, stopCh, &waitGroup)
 		createWorker(c.machineDeploymentQueue, "ClusterMachineDeployment", maxRetries, true, c.reconcileClusterMachineDeployment, stopCh, &waitGroup)
+		createWorker(c.machineSafetyQueue, "ClusterMachineSafety", maxRetries, true, c.reconcileClusterMachineSafety, stopCh, &waitGroup)
 	}
 
 	<-stopCh

@@ -57,4 +57,24 @@ type MachineControllerManagerConfiguration struct {
 	// minResyncPeriod is the resync period in reflectors; will be random between
 	// minResyncPeriod and 2*minResyncPeriod.
 	MinResyncPeriod metav1.Duration
+
+	// SafetyOptions is the set of options to set to ensure safety of controller
+	SafetyOptions SafetyOptions
+}
+
+// SafetyOptions are used to configure the upper-limit and lower-limit
+// while configuring freezing of machineSet objects
+type SafetyOptions struct {
+	// SafetyUp
+	SafetyUp int32
+	// SafetyDown
+	SafetyDown int32
+	// Timeout (in minutes) used while creation/failing of machine before it is declared as failed
+	MachineHealthTimeout int32
+	// Timeout (in minutes) used while draining of machine before deletion,
+	// beyond which it forcefully deletes machine
+	MachineDrainTimeout int32
+	// Timeout (in minutes) used while scaling machineSet
+	// if timeout occurs machineSet is permanently frozen
+	MachineSetScaleTimeout int32
 }

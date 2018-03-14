@@ -435,8 +435,6 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		return err
 	}
 	machineSet, err := c.machineSetLister.MachineSets(c.namespace).Get(name)
-	//time.Sleep(10 * time.Second)
-	//glog.V(2).Infof("2.. Printing Key : %v , Printing MachineSet First :: %+v", key, machineSet)
 	if apierrors.IsNotFound(err) {
 		glog.V(4).Infof("%v has been deleted", key)
 		c.expectations.DeleteExpectations(key)
@@ -444,6 +442,12 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	}
 	if err != nil {
 		return err
+	}
+
+	// If MachineSet is frozen, don't process it
+	if machineSet.Labels["freeze"] == "True" {
+		glog.V(3).Infof("MachineSet %q is frozen, and hence not processeing", machineSet.Name)
+		return nil
 	}
 
 	// Validate MachineSet

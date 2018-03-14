@@ -178,6 +178,12 @@ func (d *GCPDriver) GetExisting() (string, error) {
 	return d.MachineID, nil
 }
 
+// GetVMs returns a list of VMs
+func (d *GCPDriver) GetVMs(name string) []VM {
+	var listOfVMs []VM
+	return listOfVMs
+}
+
 func (d *GCPDriver) createComputeService() (context.Context, *compute.Service, error) {
 	ctx := context.Background()
 

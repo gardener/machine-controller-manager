@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package validation is used to validate all the machine CRD objects
 package validation
 
 import (
@@ -84,6 +86,30 @@ func validateAWSMachineClassSpec(spec *machine.AWSMachineClassSpec, fldPath *fie
 	allErrs = append(allErrs, validateBlockDevices(spec.BlockDevices, field.NewPath("spec.blockDevices"))...)
 	allErrs = append(allErrs, validateNetworkInterfaces(spec.NetworkInterfaces, field.NewPath("spec.networkInterfaces"))...)
 	allErrs = append(allErrs, validateSecretRef(spec.SecretRef, field.NewPath("spec.secretRef"))...)
+	allErrs = append(allErrs, validateAWSClassSpecTags(spec.Tags, field.NewPath("spec.tags"))...)
+
+	return allErrs
+}
+
+func validateAWSClassSpecTags(tags map[string]string, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	clusterName := ""
+	nodeRole := ""
+
+	for key := range tags {
+		if strings.Contains(key, "kubernetes.io/cluster/") {
+			clusterName = key
+		} else if strings.Contains(key, "kubernetes.io/role/") {
+			nodeRole = key
+		}
+	}
+
+	if clusterName == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes.io/cluster/"), "Tag required of the form kubernetes.io/cluster/cluster-name"))
+	}
+	if nodeRole == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes.io/role/"), "Tag required of the form kubernetes.io/role/role-name"))
+	}
 
 	return allErrs
 }
@@ -108,7 +134,7 @@ func validateNetworkInterfaces(networkInterfaces []machine.AWSNetworkInterfaceSp
 	if len(networkInterfaces) == 0 {
 		allErrs = append(allErrs, field.Required(fldPath.Child(""), "Mention at least one NetworkInterface"))
 	} else {
-		for i, _ := range networkInterfaces {
+		for i := range networkInterfaces {
 			if "" == networkInterfaces[i].SubnetID {
 				allErrs = append(allErrs, field.Required(fldPath.Child("subnetID"), "SubnetID is required"))
 			}
@@ -116,7 +142,7 @@ func validateNetworkInterfaces(networkInterfaces []machine.AWSNetworkInterfaceSp
 			if 0 == len(networkInterfaces[i].SecurityGroupIDs) {
 				allErrs = append(allErrs, field.Required(fldPath.Child("securityGroupIDs"), "Mention at least one securityGroupID"))
 			} else {
-				for j, _ := range networkInterfaces[i].SecurityGroupIDs {
+				for j := range networkInterfaces[i].SecurityGroupIDs {
 					if "" == networkInterfaces[i].SecurityGroupIDs[j] {
 						output := strings.Join([]string{"securityGroupIDs cannot be blank for networkInterface:", strconv.Itoa(i), " securityGroupID:", strconv.Itoa(j)}, "")
 						allErrs = append(allErrs, field.Required(fldPath.Child("securityGroupIDs"), output))

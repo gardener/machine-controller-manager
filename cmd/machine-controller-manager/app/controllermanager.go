@@ -256,6 +256,7 @@ func StartControllers(s *options.MCMServer,
 			machineSharedInformers.MachineSets(),
 			machineSharedInformers.MachineDeployments(),
 			recorder,
+			s.SafetyOptions,
 		)
 		if err != nil {
 			return err
