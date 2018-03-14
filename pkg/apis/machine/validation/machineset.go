@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package validation is used to validate all the machine CRD objects
 package validation
 
 import (
@@ -22,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-// ValidateMachine and returns a list of errors.
+// ValidateMachineSet and returns a list of errors.
 func ValidateMachineSet(machineSet *machine.MachineSet) field.ErrorList {
 	return internalValidateMachineSet(machineSet)
 }

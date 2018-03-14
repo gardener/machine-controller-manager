@@ -107,6 +107,12 @@ func (d *OpenStackDriver) GetExisting() (string, error) {
 	return d.MachineID, nil
 }
 
+// GetVMs returns a list of VMs
+func (d *OpenStackDriver) GetVMs(name string) []VM {
+	var listOfVMs []VM
+	return listOfVMs
+}
+
 // createNovaClient is used to create a Nova client
 func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error) {
 

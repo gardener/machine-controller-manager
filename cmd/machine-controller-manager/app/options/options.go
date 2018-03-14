@@ -61,6 +61,13 @@ func NewMCMServer() *MCMServer {
 			KubeAPIBurst:            30,
 			LeaderElection:          leaderelectionconfig.DefaultLeaderElectionConfiguration(),
 			ControllerStartInterval: metav1.Duration{Duration: 0 * time.Second},
+			SafetyOptions: machineconfig.SafetyOptions{
+				SafetyUp:               2,
+				SafetyDown:             1,
+				MachineHealthTimeout:   10,
+				MachineDrainTimeout:    5,
+				MachineSetScaleTimeout: 20,
+			},
 		},
 	}
 	s.LeaderElection.LeaderElect = true
@@ -84,8 +91,13 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&s.KubeAPIBurst, "kube-api-burst", s.KubeAPIBurst, "Burst to use while talking with kubernetes apiserver")
 	fs.DurationVar(&s.ControllerStartInterval.Duration, "controller-start-interval", s.ControllerStartInterval.Duration, "Interval between starting controller managers.")
 
-	leaderelectionconfig.BindFlags(&s.LeaderElection, fs)
+	fs.Int32Var(&s.SafetyOptions.SafetyUp, "safety-up", s.SafetyOptions.SafetyUp, "The number of excess machine objects permitted for any machineSet/machineDeployment beyond its expected number of replicas based on desired and max-surge, we call this the upper-limit. When this upper-limit is reached, the objects are temporarily frozen until the number of objects reduce")
+	fs.Int32Var(&s.SafetyOptions.SafetyDown, "safety-down", s.SafetyOptions.SafetyDown, "Upper-limit minus safety-down value gives the lower-limit. This is the limits below which any temporarily frozen machineSet/machineDeployment object is unfrozen.")
+	fs.Int32Var(&s.SafetyOptions.MachineHealthTimeout, "machine-health-timeout", s.SafetyOptions.MachineHealthTimeout, "Timeout (in minutes) used while creation/failing of machine before it is declared as failed")
+	fs.Int32Var(&s.SafetyOptions.MachineDrainTimeout, "machine-drain-timeout", s.SafetyOptions.MachineDrainTimeout, "Timeout (in minutes) used while draining of machine before deletion, beyond which it forcefully deletes machine")
+	fs.Int32Var(&s.SafetyOptions.MachineSetScaleTimeout, "machine-set-scale-timeout", s.SafetyOptions.MachineSetScaleTimeout, "Timeout (in minutes) used while scaling machineSet if timeout occurs machineSet is permanently frozen")
 
+	leaderelectionconfig.BindFlags(&s.LeaderElection, fs)
 	// TODO: DefaultFeatureGate is global and it adds all k8s flags
 	// utilfeature.DefaultFeatureGate.AddFlag(fs)
 }

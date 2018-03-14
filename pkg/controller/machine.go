@@ -50,17 +50,17 @@ func (c *controller) addMachine(obj interface{}) {
 		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
 		return
 	}
-	glog.V(3).Info("Adding machine object")
+	glog.V(4).Info("Adding machine object")
 	c.machineQueue.Add(key)
 }
 
 func (c *controller) updateMachine(oldObj, newObj interface{}) {
-	glog.V(3).Info("Updating machine object")
+	glog.V(4).Info("Updating machine object")
 	c.addMachine(newObj)
 }
 
 func (c *controller) deleteMachine(obj interface{}) {
-	glog.V(3).Info("Deleting machine object")
+	glog.V(4).Info("Deleting machine object")
 	c.addMachine(obj)
 }
 
@@ -93,9 +93,9 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 }
 
 func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
-	glog.V(3).Info("Start Reconciling machine: ", machine.Name)
+	glog.V(4).Info("Start Reconciling machine: ", machine.Name)
 	defer func() {
-		glog.V(3).Info("Stop Reconciling machine: ", machine.Name)
+		glog.V(4).Info("Stop Reconciling machine: ", machine.Name)
 	}()
 
 	if !shouldReconcileMachine(machine, time.Now()) {
@@ -137,6 +137,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	}
 
 	if machine.DeletionTimestamp != nil {
+		// Processing of delete event
 		if err := c.machineDelete(machine, driver); err != nil {
 			return err
 		}
@@ -147,7 +148,9 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		// Processing of create or update event
 		c.addMachineFinalizers(machine)
 
-		if actualProviderID == "" {
+		if machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
+			return nil
+		} else if actualProviderID == "" {
 			if err := c.machineCreate(machine, driver); err != nil {
 				return err
 			}
@@ -397,7 +400,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 
 		var err error
 		if machineID != "" {
-			timeOutDuration := 5 * time.Minute
+			timeOutDuration := time.Duration(c.safetyOptions.MachineDrainTimeout) * time.Minute
 			// Timeout value obtained by subtracting last operation with expected time out period
 			timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 
@@ -623,12 +626,11 @@ func (c *controller) getSecret(ref *v1.SecretReference, MachineClassName string)
 func (c *controller) checkMachineTimeout(machine *v1alpha1.Machine) {
 	if machine.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 
-		timeOutDuration := 10 * time.Minute
+		timeOutDuration := time.Duration(c.safetyOptions.MachineHealthTimeout) * time.Minute
 		sleepTime := 1 * time.Minute
 
 		// Timeout value obtained by subtracting last operation with expected time out period
 		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
-
 		//glog.V(2).Info("TIMEOUT: ", machine.Name, " ", timeOut)
 
 		if timeOut > 0 {
@@ -659,15 +661,6 @@ func (c *controller) checkMachineTimeout(machine *v1alpha1.Machine) {
 				LastUpdateTime: machine.Status.CurrentStatus.LastUpdateTime,
 			}
 			c.updateMachineStatus(machine, machine.Status.LastOperation, currentStatus)
-
-			/*
-				time.Sleep(sleepTime)
-				machine, err := c.controlMachineClient.Machines().Get(machine.Name, metav1.GetOptions{})
-				if err != nil {
-					return
-				}
-				c.reconcileClusterMachine(machine)*/
-
 			c.enqueueMachineAfter(machine, sleepTime)
 		}
 	}

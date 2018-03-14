@@ -449,6 +449,12 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return err
 	}
 
+	// If MachineDeployment is frozen, don't process it
+	if deployment.Labels["freeze"] == "True" {
+		glog.V(3).Infof("MachineDeployment %q is frozen, and hence not processeing", deployment.Name)
+		return nil
+	}
+
 	// Validate MachineDeployment
 	internalMachineDeployment := &machine.MachineDeployment{}
 	err = api.Scheme.Convert(deployment, internalMachineDeployment, nil)
