@@ -141,8 +141,9 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(wg *sync.WaitGroup) {
 func (c *controller) checkVMObjects(wg *sync.WaitGroup) {
 	var wgForCheckVM sync.WaitGroup
 
-	wgForCheckVM.Add(1)
+	wgForCheckVM.Add(2)
 	go c.checkAWSMachineClass(&wgForCheckVM)
+	go c.checkOSMachineClass(&wgForCheckVM)
 	wgForCheckVM.Wait()
 
 	wg.Done()
@@ -219,6 +220,31 @@ func (c *controller) checkAWSMachineClass(wgForCheckVM *sync.WaitGroup) {
 	}
 
 	for _, machineClass := range AWSMachineClasses {
+
+		var machineClassInterface interface{}
+		machineClassInterface = machineClass
+
+		c.checkMachineClass(
+			machineClassInterface,
+			machineClass.Spec.SecretRef,
+			machineClass.Name,
+			machineClass.Kind,
+		)
+	}
+
+	wgForCheckVM.Done()
+}
+
+// checkOSMachineClass checks for orphan VMs in OSMachinesClasses
+func (c *controller) checkOSMachineClass(wgForCheckVM *sync.WaitGroup) {
+	OSMachineClasses, err := c.openStackMachineClassLister.List(labels.Everything())
+	if err != nil {
+		glog.Error("Safety-Net: Error getting machineClasses")
+		wgForCheckVM.Done()
+		return
+	}
+
+	for _, machineClass := range OSMachineClasses {
 
 		var machineClassInterface interface{}
 		machineClassInterface = machineClass
@@ -345,8 +371,6 @@ func (c *controller) enqueueMachineSafetyKey(obj interface{}) {
 // deleteOrphanVM teriminates's the VM on the cloud provider passed to it
 func (c *controller) deleteOrphanVM(vm driver.VM, secretRef *corev1.Secret, kind string, machineClass interface{}) {
 
-	glog.V(2).Infof("Orphan VM found. Initializing termination on VM: %s, %s", vm.MachineName, vm.MachineID)
-
 	dvr := driver.NewDriver(
 		vm.MachineID,
 		secretRef,
@@ -358,7 +382,8 @@ func (c *controller) deleteOrphanVM(vm driver.VM, secretRef *corev1.Secret, kind
 	err := dvr.Delete()
 	if err != nil {
 		glog.Warning("Error while deleting VM on CP - ", err)
-		return
+	} else {
+		glog.V(2).Infof("Orphan VM found and terminated VM: %s, %s", vm.MachineName, vm.MachineID)
 	}
 }
 
