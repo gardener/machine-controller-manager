@@ -381,7 +381,7 @@ func (c *controller) deleteOrphanVM(vm driver.VM, secretRef *corev1.Secret, kind
 
 	err := dvr.Delete()
 	if err != nil {
-		glog.Warning("Error while deleting VM on CP - ", err)
+		glog.Errorf("Error while deleting VM on CP - %s. Shall retry in next safety controller sync.", err)
 	} else {
 		glog.V(2).Infof("Orphan VM found and terminated VM: %s, %s", vm.MachineName, vm.MachineID)
 	}

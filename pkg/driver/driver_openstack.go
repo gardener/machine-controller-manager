@@ -140,6 +140,7 @@ func (d *OpenStackDriver) GetVMs(machineID string) []VM {
 
 	client, err := d.createNovaClient()
 	if err != nil {
+		glog.Errorf("Could not connect to NovaClient. Error Message - %s", err)
 		return listOfVMs
 	}
 
