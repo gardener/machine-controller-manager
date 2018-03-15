@@ -18,6 +18,8 @@ limitations under the License.
 package validation
 
 import (
+	"strings"
+
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -58,6 +60,30 @@ func validateOpenStackMachineClassSpec(spec *machine.OpenStackMachineClassSpec, 
 	}
 
 	allErrs = append(allErrs, validateSecretRef(spec.SecretRef, field.NewPath("spec.secretRef"))...)
+	allErrs = append(allErrs, validateOSClassSpecTags(spec.Tags, field.NewPath("spec.tags"))...)
+
+	return allErrs
+}
+
+func validateOSClassSpecTags(tags map[string]string, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	clusterName := ""
+	nodeRole := ""
+
+	for key := range tags {
+		if strings.Contains(key, "kubernetes.io-cluster-") {
+			clusterName = key
+		} else if strings.Contains(key, "kubernetes.io-role-") {
+			nodeRole = key
+		}
+	}
+
+	if clusterName == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes.io-cluster-"), "Tag required of the form kubernetes.io-cluster-****"))
+	}
+	if nodeRole == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes.io-role-"), "Tag required of the form kubernetes.io-role-****"))
+	}
 
 	return allErrs
 }

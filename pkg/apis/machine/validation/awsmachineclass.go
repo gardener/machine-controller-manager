@@ -105,10 +105,10 @@ func validateAWSClassSpecTags(tags map[string]string, fldPath *field.Path) field
 	}
 
 	if clusterName == "" {
-		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes.io/cluster/"), "Tag required of the form kubernetes.io/cluster/cluster-name"))
+		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes.io/cluster/"), "Tag required of the form kubernetes.io/cluster/****"))
 	}
 	if nodeRole == "" {
-		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes.io/role/"), "Tag required of the form kubernetes.io/role/role-name"))
+		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes.io/role/"), "Tag required of the form kubernetes.io/role/****"))
 	}
 
 	return allErrs
