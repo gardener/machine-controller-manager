@@ -15,8 +15,10 @@ spec:
   region: <region> # Region where to place the machine
   availabilityZone: <availability_zone> # Availability zone where to place the machine
   # OpenStack machine metadata block
-  # Be aware, that metadata keys in OpenStack can not contain special characters likes "/"
+  # Be aware, that metadata keys (tags) in OpenStack can not contain special characters likes "/"
   tags:
+    kubernetes.io-cluster-****: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired cluster name.
+    kubernetes.io-role-****: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired role name.
     tag1: tag1-value # A set of additional tags attached to a machine (optional)
     tag2: tag2-value # A set of additional tags attached to a machine (optional)
   secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig
