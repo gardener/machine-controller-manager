@@ -1,5 +1,5 @@
-Machine Controller Manager.  
-Copyright 2017 The Gardener Authors.  
+## Machine Controller Manager.  
+Copyright (c) 2017-2018 SAP SE or an SAP affiliate company. All rights reserved.      
 [Apache 2 license](./LICENSE.md ).   
 
 ## Seed Source
