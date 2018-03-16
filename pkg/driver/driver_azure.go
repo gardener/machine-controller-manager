@@ -164,6 +164,14 @@ func (d *AzureDriver) Create() (string, string, error) {
 
 // Delete method is used to delete an azure machine
 func (d *AzureDriver) Delete() error {
+
+	result := d.GetVMs(d.MachineID)
+	if len(result) == 0 {
+		// No running instance exists with the given it
+		glog.V(3).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
+		return nil
+	}
+
 	d.setup()
 	var (
 		vmName        = d.decodeMachineID(d.MachineID)
@@ -193,8 +201,64 @@ func (d *AzureDriver) GetExisting() (string, error) {
 }
 
 // GetVMs returns a list of VMs
-func (d *AzureDriver) GetVMs(name string) []VM {
+func (d *AzureDriver) GetVMs(machineID string) []VM {
 	var listOfVMs []VM
+
+	searchClusterName := ""
+	searchNodeRole := ""
+
+	for key := range d.AzureMachineClass.Spec.Tags {
+		if strings.Contains(key, "kubernetes.io-cluster-") {
+			searchClusterName = key
+		} else if strings.Contains(key, "kubernetes.io-role-") {
+			searchNodeRole = key
+		}
+	}
+
+	if searchClusterName == "" ||
+		searchNodeRole == "" ||
+		d.AzureMachineClass.Spec.ResourceGroup == "" {
+		return listOfVMs
+	}
+
+	d.setup()
+	result, err := vmClient.List(d.AzureMachineClass.Spec.ResourceGroup)
+	if err != nil {
+		glog.Errorf("Failed to list VMs. Error Message - %s", err)
+	}
+
+	if result.Value != nil && len(*result.Value) > 0 {
+		for _, server := range *result.Value {
+
+			clusterName := ""
+			nodeRole := ""
+
+			for key := range *server.Tags {
+				if strings.Contains(key, "kubernetes.io-cluster-") {
+					clusterName = key
+				} else if strings.Contains(key, "kubernetes.io-role-") {
+					nodeRole = key
+				}
+			}
+
+			if clusterName == searchClusterName && nodeRole == searchNodeRole {
+				vm := VM{
+					MachineName: *server.Name,
+					MachineID:   d.encodeMachineID(d.AzureMachineClass.Spec.Location, *server.Name),
+				}
+
+				if machineID == "" {
+					listOfVMs = append(listOfVMs, vm)
+				} else if machineID == vm.MachineID {
+					listOfVMs = append(listOfVMs, vm)
+					glog.V(3).Infof("Found machine with name: %q", *server.Name)
+					break
+				}
+			}
+
+		}
+	}
+
 	return listOfVMs
 }
 
