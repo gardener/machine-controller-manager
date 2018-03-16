@@ -129,6 +129,7 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(wg *sync.WaitGroup) {
 			c.freezeMachineSetsAndDeployments(machineSet, OverShootingReplicaCount, message)
 
 		} else if machineSet.Labels["freeze"] == "True" &&
+			machineSet.Status.Conditions != nil &&
 			GetCondition(&machineSet.Status, v1alpha1.MachineSetFrozen).Reason == OverShootingReplicaCount &&
 			fullyLabeledReplicasCount <= lowerThreshold {
 			c.unfreezeMachineSetsAndDeployments(machineSet)
@@ -139,12 +140,9 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(wg *sync.WaitGroup) {
 
 // checkVMObjects checks for orphan VMs (VMs that don't have a machine object backing)
 func (c *controller) checkVMObjects(wg *sync.WaitGroup) {
-	var wgForCheckVM sync.WaitGroup
-
-	wgForCheckVM.Add(2)
-	go c.checkAWSMachineClass(&wgForCheckVM)
-	go c.checkOSMachineClass(&wgForCheckVM)
-	wgForCheckVM.Wait()
+	go c.checkAWSMachineClass()
+	go c.checkOSMachineClass()
+	go c.checkAzureMachineClass()
 
 	wg.Done()
 }
@@ -168,6 +166,7 @@ func (c *controller) checkAndFreezeMachineSetTimeout(wg *sync.WaitGroup) {
 			if ok {
 
 				if ms.Labels["freeze"] == "True" &&
+					ms.Status.Conditions != nil &&
 					GetCondition(&ms.Status, v1alpha1.MachineSetFrozen).Reason == TimeoutOccurred {
 					// MachineSet already frozen permanently due to timeout
 					continue
@@ -211,11 +210,10 @@ func (c *controller) checkAndFreezeMachineSetTimeout(wg *sync.WaitGroup) {
 }
 
 // checkAWSMachineClass checks for orphan VMs in AWSMachinesClasses
-func (c *controller) checkAWSMachineClass(wgForCheckVM *sync.WaitGroup) {
+func (c *controller) checkAWSMachineClass() {
 	AWSMachineClasses, err := c.awsMachineClassLister.List(labels.Everything())
 	if err != nil {
 		glog.Error("Safety-Net: Error getting machineClasses")
-		wgForCheckVM.Done()
 		return
 	}
 
@@ -231,16 +229,13 @@ func (c *controller) checkAWSMachineClass(wgForCheckVM *sync.WaitGroup) {
 			machineClass.Kind,
 		)
 	}
-
-	wgForCheckVM.Done()
 }
 
 // checkOSMachineClass checks for orphan VMs in OSMachinesClasses
-func (c *controller) checkOSMachineClass(wgForCheckVM *sync.WaitGroup) {
+func (c *controller) checkOSMachineClass() {
 	OSMachineClasses, err := c.openStackMachineClassLister.List(labels.Everything())
 	if err != nil {
 		glog.Error("Safety-Net: Error getting machineClasses")
-		wgForCheckVM.Done()
 		return
 	}
 
@@ -256,8 +251,28 @@ func (c *controller) checkOSMachineClass(wgForCheckVM *sync.WaitGroup) {
 			machineClass.Kind,
 		)
 	}
+}
 
-	wgForCheckVM.Done()
+// checkOSMachineClass checks for orphan VMs in AzureMachinesClasses
+func (c *controller) checkAzureMachineClass() {
+	AzureMachineClasses, err := c.azureMachineClassLister.List(labels.Everything())
+	if err != nil {
+		glog.Error("Safety-Net: Error getting machineClasses")
+		return
+	}
+
+	for _, machineClass := range AzureMachineClasses {
+
+		var machineClassInterface interface{}
+		machineClassInterface = machineClass
+
+		c.checkMachineClass(
+			machineClassInterface,
+			machineClass.Spec.SecretRef,
+			machineClass.Name,
+			machineClass.Kind,
+		)
+	}
 }
 
 // checkMachineClass checks a particular machineClass for orphan instances
@@ -300,6 +315,13 @@ func (c *controller) checkMachineClass(
 			// Any other types of errors
 			glog.Error("Safety-Net: Error getting machines - ", err)
 		} else if err != nil || machine.Spec.ProviderID != vm.MachineID {
+
+			// If machine exists and machine object is still been processed by the machine controller
+			if err == nil &&
+				machine.Status.CurrentStatus.Phase == "" {
+				glog.V(3).Infof("Machine object %q is being processed by machine controller, hence skipping", machine.Name)
+				continue
+			}
 
 			// Re-check VM object existance
 			// before deleting orphan VM
