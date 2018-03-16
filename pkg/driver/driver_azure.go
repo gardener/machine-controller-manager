@@ -225,6 +225,7 @@ func (d *AzureDriver) GetVMs(machineID string) []VM {
 	result, err := vmClient.List(d.AzureMachineClass.Spec.ResourceGroup)
 	if err != nil {
 		glog.Errorf("Failed to list VMs. Error Message - %s", err)
+		return listOfVMs
 	}
 
 	if result.Value != nil && len(*result.Value) > 0 {

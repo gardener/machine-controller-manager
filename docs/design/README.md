@@ -29,6 +29,7 @@ Machine Controller Manager is made up of 3 sub-controllers as of now. They are -
 1. Machine Controller: Used to create/update/delete machines. It is the only controller which actually talks to the cloud providers.
 1. Machine Set Controller: Used to manage machine-sets. This controller makes sure that desired number of machines are always up and running healthy.
 1. Machine Deployment Controller: Used to update machines from one version to another by manipulating the machine-set objects.
+1. Machine Safety Controller: A safety net controller that terminates orphan VMs and freezes machineSet/machineDeployment objects which are overshooting or timing out while trying to join nodes to the cluster.
 
 All these controllers work in an co-operative manner. They form a parent-child relationship with Machine Deployment Controller being the grandparent, Machine Set Controller being the parent, and Machine Controller being the child.
 
