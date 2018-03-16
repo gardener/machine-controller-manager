@@ -15,8 +15,10 @@ spec:
     name: "test-secret" # Name of the secret
     namespace: "default" # Namespace of secret
   tags:
-    "tag1": "key1" # Sample tag1
-    "tag2": "key2" # Sample tag2
+    kubernetes.io-cluster-****: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired cluster name.
+    kubernetes.io-role-****: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired role name.
+    tag1: "key1" # A set of additional tags attached to a machine (optional)
+    tag2: "key2" # A set of additional tags attached to a machine (optional)
   properties:
     hardwareProfile:
       vmSize: "sample-azure-vm-size" # VMsize based on azure machine kinds (Eg- Standard_DS1_V2)

@@ -26,6 +26,8 @@ import (
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
 	*/
+	"strings"
+
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -60,6 +62,30 @@ func validateAzureMachineClassSpec(spec *machine.AzureMachineClassSpec, fldPath 
 
 	allErrs = append(allErrs, validateAzureProperties(spec.Properties, field.NewPath("spec.properties"))...)
 	allErrs = append(allErrs, validateSecretRef(spec.SecretRef, field.NewPath("spec.secretRef"))...)
+	allErrs = append(allErrs, validateAzureClassSpecTags(spec.Tags, field.NewPath("spec.tags"))...)
+
+	return allErrs
+}
+
+func validateAzureClassSpecTags(tags map[string]string, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	clusterName := ""
+	nodeRole := ""
+
+	for key := range tags {
+		if strings.Contains(key, "kubernetes.io-cluster-") {
+			clusterName = key
+		} else if strings.Contains(key, "kubernetes.io-role-") {
+			nodeRole = key
+		}
+	}
+
+	if clusterName == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes.io-cluster-"), "Tag required of the form kubernetes.io-cluster-****"))
+	}
+	if nodeRole == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes.io-role-"), "Tag required of the form kubernetes.io-role-****"))
+	}
 
 	return allErrs
 }
