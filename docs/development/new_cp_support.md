@@ -9,6 +9,7 @@ For adding support for a new cloud provider in the Machine Controller Manager, f
 1. Update `pkg/controller/machine_util.go` to allow validation of the new provider.
 1. Add a new driver into `pkg/driver/driver_provider.go` similar to `pkg/driver/driver_aws.go` to implement the driver interface.
 1. Update `pkg/driver/driver.go` to add a new switch case to support the new provider driver.
+1. Add a new method in `pkg/controller/machine_safety.go` called checkProviderMachineClass similar to the existing method called checkAWSMachineClass present in the same file. Now invoke this method as a go-routine in the method checkVMObjects. Make sure to increase the worker group (wgForCheckVM) count while you are at it.
 1. Extend the `StartControllers()` function in `cmd/machine-controller-manager/app/controllermanager.go` to only start if your new machine class is under the available resources.
 1. Update `pkg/controller/controller.go` to add new providerMachineClassLister, providerMachineClassQueue, awsMachineClassSynced into the controller struct. Also initialize them in NewController() method.
 1. Add a new file `pkg/controller/providermachineclass.go` that allows re-queuing of machines which refer to an modified providerMachineClass.
