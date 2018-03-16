@@ -32,6 +32,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/keypairs"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
+	"github.com/gophercloud/gophercloud/pagination"
 )
 
 // OpenStackDriver is the driver struct for holding OS machine information
@@ -89,15 +90,25 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 // Delete method is used to delete an OS machine
 func (d *OpenStackDriver) Delete() error {
 
-	machineID := d.decodeMachineID(d.MachineID)
+	res := d.GetVMs(d.MachineID)
+	if len(res) == 0 {
+		// No running instance exists with the given it
+		glog.V(3).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
+		return nil
+	}
 
+	machineID := d.decodeMachineID(d.MachineID)
 	client, err := d.createNovaClient()
 	if err != nil {
 		return err
 	}
-	glog.V(3).Infof("deleting machine with ID: %s", machineID)
+
 	result := servers.Delete(client, machineID)
-	glog.V(3).Infof("deleted machine with ID: %s", machineID)
+	if result.Err == nil {
+		glog.V(3).Infof("Deleted machine with ID: %s", d.MachineID)
+	} else {
+		glog.Errorf("Failed to delete machine with ID: %s", d.MachineID)
+	}
 
 	return result.Err
 }
@@ -107,9 +118,71 @@ func (d *OpenStackDriver) GetExisting() (string, error) {
 	return d.MachineID, nil
 }
 
-// GetVMs returns a list of VMs
-func (d *OpenStackDriver) GetVMs(name string) []VM {
+// GetVMs returns a VM matching the machineID
+// If machineID is an empty string then it returns all matching instances
+func (d *OpenStackDriver) GetVMs(machineID string) []VM {
 	var listOfVMs []VM
+
+	searchClusterName := ""
+	searchNodeRole := ""
+
+	for key := range d.OpenStackMachineClass.Spec.Tags {
+		if strings.Contains(key, "kubernetes.io-cluster-") {
+			searchClusterName = key
+		} else if strings.Contains(key, "kubernetes.io-role-") {
+			searchNodeRole = key
+		}
+	}
+
+	if searchClusterName == "" || searchNodeRole == "" {
+		return listOfVMs
+	}
+
+	client, err := d.createNovaClient()
+	if err != nil {
+		glog.Errorf("Could not connect to NovaClient. Error Message - %s", err)
+		return listOfVMs
+	}
+
+	// Retrieve a pager (i.e. a paginated collection)
+	pager := servers.List(client, servers.ListOpts{})
+
+	// Define an anonymous function to be executed on each page's iteration
+	err = pager.EachPage(func(page pagination.Page) (bool, error) {
+		serverList, err := servers.ExtractServers(page)
+
+		for _, server := range serverList {
+
+			clusterName := ""
+			nodeRole := ""
+
+			for key := range server.Metadata {
+				if strings.Contains(key, "kubernetes.io-cluster-") {
+					clusterName = key
+				} else if strings.Contains(key, "kubernetes.io-role-") {
+					nodeRole = key
+				}
+			}
+
+			if clusterName == searchClusterName && nodeRole == searchNodeRole {
+				vm := VM{
+					MachineName: server.Name,
+					MachineID:   d.encodeMachineID(d.OpenStackMachineClass.Spec.Region, server.ID),
+				}
+
+				if machineID == "" {
+					listOfVMs = append(listOfVMs, vm)
+				} else if machineID == vm.MachineID {
+					listOfVMs = append(listOfVMs, vm)
+					glog.V(3).Infof("Found machine with name: %q", server.Name)
+					break
+				}
+			}
+
+		}
+		return true, err
+	})
+
 	return listOfVMs
 }
 
@@ -122,12 +195,10 @@ func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error)
 	if !ok {
 		return nil, fmt.Errorf("missing auth_url in secret")
 	}
-	glog.V(3).Infof("AuthURL: %s", authURL)
 	username, ok := d.CloudConfig.Data["username"]
 	if !ok {
 		return nil, fmt.Errorf("missing username in secret")
 	}
-	glog.V(3).Infof("Username: %s", username)
 	password, ok := d.CloudConfig.Data["password"]
 	if !ok {
 		return nil, fmt.Errorf("missing password in secret")
@@ -136,14 +207,11 @@ func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error)
 	if !ok {
 		return nil, fmt.Errorf("missing domainName in secret")
 	}
-	glog.V(3).Infof("DomainName: %s", domainName)
 	region := d.OpenStackMachineClass.Spec.Region
-	glog.V(3).Infof("Region: %s", region)
 	tenantName, ok := d.CloudConfig.Data["tenantName"]
 	if !ok {
 		return nil, fmt.Errorf("missing tenantName in secret")
 	}
-	glog.V(3).Infof("TenantName: %s", tenantName)
 
 	caCert, ok := d.CloudConfig.Data["caCert"]
 	if !ok {
@@ -183,7 +251,6 @@ func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error)
 		DomainName:       strings.TrimSpace(string(domainName)),
 		TenantName:       strings.TrimSpace(string(tenantName)),
 	}
-	glog.V(3).Infof("Auth opts")
 
 	client, err := openstack.NewClient(opts.IdentityEndpoint)
 	if err != nil {

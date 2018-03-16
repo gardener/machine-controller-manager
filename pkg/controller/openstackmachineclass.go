@@ -116,7 +116,7 @@ func (c *controller) reconcileClusterOpenStackMachineClass(class *v1alpha1.OpenS
 	// TODO this should be put in own API server
 	validationerr := validation.ValidateOpenStackMachineClass(internalClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(3).Infof("Validation of %s failed %s", OpenStackMachineClassKind, validationerr.ToAggregate().Error())
+		glog.V(2).Infof("Validation of %s failed %s", OpenStackMachineClassKind, validationerr.ToAggregate().Error())
 		return nil
 	}
 
