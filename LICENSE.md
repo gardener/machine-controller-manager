@@ -201,3 +201,111 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 ```
+
+## APIs
+
+This project may include APIs to SAP or third party products or services. The use of these APIs, products and services may be subject to additional agreements. In no event shall the application of the Apache Software License, v.2 to this project grant any rights in or to these APIs, products or services that would alter, expand, be inconsistent with, or supersede any terms of these additional agreements. API means application programming interfaces, as well as their respective specifications and implementing code that allows other software products to communicate with or call on SAP or third party products or services (for example, SAP Enterprise Services, BAPIs, Idocs, RFCs and ABAP calls or other user exits) and may be made available through SAP or third party products, SDKs, documentation or other media.
+
+## Subcomponents
+
+This project includes the following subcomponents that are subject to separate license terms. 
+Your use of these subcomponents is subject to the separate license terms applicable to
+each subcomponent.
+
+OAI Object Model.   
+https://github.com/go-openapi/spec.  
+Copyright 2015 go-swagger maintainers.  
+Apache 2 license (https://github.com/go-openapi/spec/blob/master/LICENSE ).  
+
+Glog.  
+https://github.com/golang/glog.  
+Copyright 2013 Google Inc. All Rights Reserved.  
+Apache 2 license (https://github.com/golang/glog/blob/master/LICENSE ).  
+
+Prometheus Go Client Library.  
+https://github.com/prometheus/client_golang.  
+Copyright 2015 The Prometheus Authors.  
+Apache 2 license (https://github.com/prometheus/client_golang/blob/master/LICENSE ).  
+
+Pflag.   
+https://github.com/spf13/pflag.  
+Copyright (c) 2012 Alex Ogier. Copyright (c) 2012 The Go Authors.   
+BSD 3-clause "New" or "Revised" License (https://github.com/spf13/pflag/blob/master/LICENSE ).  
+
+API.  
+https://github.com/kubernetes/api/.  
+Copyright 2017 The Kubernetes Authors.   
+Apache 2 license (https://github.com/kubernetes/api/blob/master/LICENSE ).  
+
+APIMachinery.  
+https://github.com/kubernetes/apimachinery.  
+Copyright 2017 The Kubernetes Authors.      
+Apache 2 license (https://github.com/kubernetes/apimachinery/blob/master/LICENSE ).  
+
+APIServer.  
+https://github.com/kubernetes/apiserver.  
+Copyright 2017 The Kubernetes Authors.   
+Apache 2 license (https://github.com/kubernetes/apiserver/blob/master/LICENSE ).  
+
+Client-go.  
+https://github.com/kubernetes/client-go.  
+Copyright 2017 The Kubernetes Authors.   
+Apache 2 license (https://github.com/kubernetes/client-go/blob/master/LICENSE ).  
+
+Code-generator.  
+https://github.com/kubernetes/code-generator.  
+Copyright 2017 The Kubernetes Authors.   
+Apache 2 license (https://github.com/kubernetes/code-generator/blob/master/LICENSE ).  
+
+Gengo.  
+https://github.com/kubernetes/gengo.  
+Copyright 2017 The Kubernetes Authors.   
+Apache 2 license (https://github.com/kubernetes/gengo/blob/master/LICENSE ).   
+
+Kube OpenAPI.  
+https://github.com/kubernetes/kube-openapi.  
+Copyright 2017 The Kubernetes Authors.   
+Apache 2 license (https://github.com/kubernetes/kube-openapi/blob/master/LICENSE ).  
+
+Google Cloud Go SDK.  
+https://cloud.google.com/compute/docs/api/libraries#google_apis_go_client_library.  
+Copyright (c) 2011 Google Inc. All rights reserved.  
+BSD-3 license (https://github.com/google/google-api-go-client/blob/master/LICENSE)  
+
+Gophercloud.  
+https://github.com/gophercloud/gophercloud.  
+Copyright 2012-2013 Rackspace, Inc.  
+Apache 2 license (https://github.com/gophercloud/gophercloud/blob/master/LICENSE)  
+
+------
+## BSD 3-clause "New" or "Revised" License
+```
+    Copyright (c) <year> <author> All rights reserved.
+    Copyright (c) <year> <author> All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+
+    * Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+    copyright notice, this list of conditions and the following disclaimer
+    in the documentation and/or other materials provided with the
+    distribution.
+    * Neither the name of Google Inc. nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
