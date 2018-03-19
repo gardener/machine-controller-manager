@@ -19,6 +19,7 @@ package validation
 
 import (
 	"regexp"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
@@ -56,6 +57,30 @@ func validateGCPMachineClassSpec(spec *machine.GCPMachineClassSpec, fldPath *fie
 	allErrs = append(allErrs, validateGCPScheduling(spec.Scheduling, fldPath.Child("scheduling"))...)
 	allErrs = append(allErrs, validateSecretRef(spec.SecretRef, fldPath.Child("secretRef"))...)
 	allErrs = append(allErrs, validateGCPServiceAccounts(spec.ServiceAccounts, fldPath.Child("serviceAccounts"))...)
+	allErrs = append(allErrs, validateGCPClassSpecTags(spec.Tags, field.NewPath("spec.tags"))...)
+
+	return allErrs
+}
+
+func validateGCPClassSpecTags(tags []string, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	clusterName := ""
+	nodeRole := ""
+
+	for _, key := range tags {
+		if strings.Contains(key, "kubernetes-io-cluster-") {
+			clusterName = key
+		} else if strings.Contains(key, "kubernetes-io-role-") {
+			nodeRole = key
+		}
+	}
+
+	if clusterName == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes-io-cluster-"), "Tag required of the form kubernetes-io-cluster-****"))
+	}
+	if nodeRole == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes-io-role-"), "Tag required of the form kubernetes-io-role-****"))
+	}
 
 	return allErrs
 }
