@@ -149,6 +149,14 @@ func (d *GCPDriver) Create() (string, string, error) {
 
 // Delete method is used to delete a GCP machine
 func (d *GCPDriver) Delete() error {
+
+	res := d.GetVMs(d.MachineID)
+	if len(res) == 0 {
+		// No running instance exists with the given machine-ID
+		glog.V(3).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
+		return nil
+	}
+
 	ctx, computeService, err := d.createComputeService()
 	if err != nil {
 		glog.Error(err)
@@ -179,8 +187,72 @@ func (d *GCPDriver) GetExisting() (string, error) {
 }
 
 // GetVMs returns a list of VMs
-func (d *GCPDriver) GetVMs(name string) []VM {
+func (d *GCPDriver) GetVMs(machineID string) []VM {
 	var listOfVMs []VM
+
+	searchClusterName := ""
+	searchNodeRole := ""
+
+	for _, key := range d.GCPMachineClass.Spec.Tags {
+		if strings.Contains(key, "kubernetes-io-cluster-") {
+			searchClusterName = key
+		} else if strings.Contains(key, "kubernetes-io-role-") {
+			searchNodeRole = key
+		}
+	}
+
+	if searchClusterName == "" || searchNodeRole == "" {
+		return listOfVMs
+	}
+
+	ctx, computeService, err := d.createComputeService()
+	if err != nil {
+		glog.Error(err)
+		return listOfVMs
+	}
+
+	project, err := extractProject(d.CloudConfig.Data["serviceAccountJSON"])
+	if err != nil {
+		glog.Error(err)
+		return listOfVMs
+	}
+
+	zone := d.GCPMachineClass.Spec.Zone
+
+	req := computeService.Instances.List(project, zone)
+	if err := req.Pages(ctx, func(page *compute.InstanceList) error {
+		for _, server := range page.Items {
+			clusterName := ""
+			nodeRole := ""
+
+			for _, key := range server.Tags.Items {
+				if strings.Contains(key, "kubernetes-io-cluster-") {
+					clusterName = key
+				} else if strings.Contains(key, "kubernetes-io-role-") {
+					nodeRole = key
+				}
+			}
+
+			if clusterName == searchClusterName && nodeRole == searchNodeRole {
+				vm := VM{
+					MachineName: server.Name,
+					MachineID:   d.encodeMachineID(project, zone, server.Name),
+				}
+
+				if machineID == "" {
+					listOfVMs = append(listOfVMs, vm)
+				} else if machineID == vm.MachineID {
+					listOfVMs = append(listOfVMs, vm)
+					glog.V(3).Infof("Found machine with name: %q", server.Name)
+					break
+				}
+			}
+		}
+		return nil
+	}); err != nil {
+		glog.Error(err)
+	}
+
 	return listOfVMs
 }
 

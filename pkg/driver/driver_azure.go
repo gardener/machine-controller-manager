@@ -167,7 +167,7 @@ func (d *AzureDriver) Delete() error {
 
 	result := d.GetVMs(d.MachineID)
 	if len(result) == 0 {
-		// No running instance exists with the given it
+		// No running instance exists with the given machine-ID
 		glog.V(3).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
 		return nil
 	}
