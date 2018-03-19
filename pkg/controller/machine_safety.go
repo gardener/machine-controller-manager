@@ -54,7 +54,7 @@ func (c *controller) reconcileClusterMachineSafety(key string) error {
 	go c.checkVMObjects(&wg)
 	go c.checkAndFreezeMachineSetTimeout(&wg)
 	wg.Wait()
-	c.machineSafetyQueue.AddAfter("", 10*time.Second)
+	c.machineSafetyQueue.AddAfter("", 60*time.Second)
 
 	return nil
 }
@@ -143,6 +143,7 @@ func (c *controller) checkVMObjects(wg *sync.WaitGroup) {
 	go c.checkAWSMachineClass()
 	go c.checkOSMachineClass()
 	go c.checkAzureMachineClass()
+	go c.checkGCPMachineClass()
 
 	wg.Done()
 }
@@ -262,6 +263,28 @@ func (c *controller) checkAzureMachineClass() {
 	}
 
 	for _, machineClass := range AzureMachineClasses {
+
+		var machineClassInterface interface{}
+		machineClassInterface = machineClass
+
+		c.checkMachineClass(
+			machineClassInterface,
+			machineClass.Spec.SecretRef,
+			machineClass.Name,
+			machineClass.Kind,
+		)
+	}
+}
+
+// checkGCPMachineClass checks for orphan VMs in GCPMachinesClasses
+func (c *controller) checkGCPMachineClass() {
+	GCPMachineClasses, err := c.gcpMachineClassLister.List(labels.Everything())
+	if err != nil {
+		glog.Error("Safety-Net: Error getting machineClasses")
+		return
+	}
+
+	for _, machineClass := range GCPMachineClasses {
 
 		var machineClassInterface interface{}
 		machineClassInterface = machineClass
