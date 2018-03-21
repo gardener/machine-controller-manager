@@ -658,6 +658,8 @@ func (s ActiveMachines) Less(i, j int) bool {
 		num, err := strconv.Atoi(s[i].Annotations[MachinePriority])
 		if err == nil {
 			machineIPriority = num
+		} else {
+			glog.Errorf("Machine priority is taken to be the default value (3). Couldn't convert machine priority to integer for machine:%s. Error message - %s", s[i].Name, err)
 		}
 	}
 
@@ -665,6 +667,8 @@ func (s ActiveMachines) Less(i, j int) bool {
 		num, err := strconv.Atoi(s[j].Annotations[MachinePriority])
 		if err == nil {
 			machineJPriority = num
+		} else {
+			glog.Errorf("Machine priority is taken to be the default value (3). Couldn't convert machine priority to integer for machine:%s. Error message - %s", s[j].Name, err)
 		}
 	}
 

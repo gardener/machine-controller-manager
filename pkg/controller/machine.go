@@ -344,7 +344,9 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 		if clone.Annotations == nil {
 			clone.Annotations = make(map[string]string)
 		}
-		clone.Annotations[MachinePriority] = "3"
+		if clone.Annotations[MachinePriority] == "" {
+			clone.Annotations[MachinePriority] = "3"
+		}
 
 		clone.Spec.ProviderID = actualProviderID
 		clone.Status.Node = nodeName
