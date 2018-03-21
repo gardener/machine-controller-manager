@@ -27,6 +27,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -649,9 +650,44 @@ func (s ActiveMachines) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func (s ActiveMachines) Less(i, j int) bool {
 
-	m := map[v1alpha1.MachineState]int{v1alpha1.MachineStateFailed: 0, v1alpha1.MachineStateProcessing: 1, v1alpha1.MachineStateSuccessful: 2}
-	if m[s[i].Status.LastOperation.State] != m[s[j].Status.LastOperation.State] {
-		return m[s[i].Status.LastOperation.State] < m[s[j].Status.LastOperation.State]
+	// Default priority for machine objects
+	machineIPriority := 3
+	machineJPriority := 3
+
+	if s[i].Annotations != nil && s[i].Annotations[MachinePriority] != "" {
+		num, err := strconv.Atoi(s[i].Annotations[MachinePriority])
+		if err == nil {
+			machineIPriority = num
+		}
+	}
+
+	if s[j].Annotations != nil && s[j].Annotations[MachinePriority] != "" {
+		num, err := strconv.Atoi(s[j].Annotations[MachinePriority])
+		if err == nil {
+			machineJPriority = num
+		}
+	}
+
+	// Map containing machinePhase priority
+	// the lower the priority, the more likely
+	// it is to be deleted
+	m := map[v1alpha1.MachinePhase]int{
+		v1alpha1.MachineTerminating: 0,
+		v1alpha1.MachineFailed:      1,
+		v1alpha1.MachineUnknown:     2,
+		v1alpha1.MachinePending:     3,
+		v1alpha1.MachineAvailable:   4,
+		v1alpha1.MachineRunning:     5,
+	}
+
+	// Initially we try to prioritize machine deletion based on
+	// machinePriority annotation. If both priorities are equal,
+	// then we look at their machinePhase and prioritize as
+	// mentioned in the above map
+	if machineIPriority != machineJPriority {
+		return machineIPriority < machineJPriority
+	} else if m[s[i].Status.CurrentStatus.Phase] != m[s[j].Status.CurrentStatus.Phase] {
+		return m[s[i].Status.CurrentStatus.Phase] < m[s[j].Status.CurrentStatus.Phase]
 	}
 
 	return false
