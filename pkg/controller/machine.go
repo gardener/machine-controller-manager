@@ -40,6 +40,14 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/driver"
 )
 
+const (
+	// MachinePriority is the annotation used to specify priority
+	// associated with a machine while deleting it. The less its
+	// priority the more likely it is to be deleted first
+	// Default priority for a machine is set to 3
+	MachinePriority = "machinepriority.machine.sapcloud.io"
+)
+
 /*
 	SECTION
 	Machine controller - Machine add, update, delete watches
@@ -328,11 +336,17 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 		}
 
 		clone := machine.DeepCopy()
-		clone.Spec.ProviderID = actualProviderID
+
 		if clone.Labels == nil {
 			clone.Labels = make(map[string]string)
 		}
 		clone.Labels["node"] = nodeName
+		if clone.Annotations == nil {
+			clone.Annotations = make(map[string]string)
+		}
+		clone.Annotations[MachinePriority] = "3"
+
+		clone.Spec.ProviderID = actualProviderID
 		clone.Status.Node = nodeName
 		clone.Status.LastOperation = lastOperation
 		clone.Status.CurrentStatus = currentStatus
