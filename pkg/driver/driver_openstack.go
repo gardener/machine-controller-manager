@@ -120,8 +120,8 @@ func (d *OpenStackDriver) GetExisting() (string, error) {
 
 // GetVMs returns a VM matching the machineID
 // If machineID is an empty string then it returns all matching instances
-func (d *OpenStackDriver) GetVMs(machineID string) []VM {
-	var listOfVMs []VM
+func (d *OpenStackDriver) GetVMs(machineID string) VMs {
+	listOfVMs := make(map[string]string)
 
 	searchClusterName := ""
 	searchNodeRole := ""
@@ -165,15 +165,12 @@ func (d *OpenStackDriver) GetVMs(machineID string) []VM {
 			}
 
 			if clusterName == searchClusterName && nodeRole == searchNodeRole {
-				vm := VM{
-					MachineName: server.Name,
-					MachineID:   d.encodeMachineID(d.OpenStackMachineClass.Spec.Region, server.ID),
-				}
+				instanceID := d.encodeMachineID(d.OpenStackMachineClass.Spec.Region, server.ID)
 
 				if machineID == "" {
-					listOfVMs = append(listOfVMs, vm)
-				} else if machineID == vm.MachineID {
-					listOfVMs = append(listOfVMs, vm)
+					listOfVMs[instanceID] = server.Name
+				} else if machineID == instanceID {
+					listOfVMs[instanceID] = server.Name
 					glog.V(3).Infof("Found machine with name: %q", server.Name)
 					break
 				}

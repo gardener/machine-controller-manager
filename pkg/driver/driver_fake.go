@@ -50,7 +50,7 @@ func (d *FakeDriver) GetExisting() (string, error) {
 }
 
 // GetVMs returns a list of VMs
-func (d *FakeDriver) GetVMs(name string) []VM {
-	var listOfVMs []VM
+func (d *FakeDriver) GetVMs(name string) VMs {
+	listOfVMs := make(map[string]string)
 	return listOfVMs
 }

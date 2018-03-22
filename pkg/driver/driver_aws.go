@@ -183,8 +183,8 @@ func (d *AWSDriver) GetExisting() (string, error) {
 
 // GetVMs returns a VM matching the machineID
 // If machineID is an empty string then it returns all matching instances
-func (d *AWSDriver) GetVMs(machineID string) []VM {
-	var listOfVMs []VM
+func (d *AWSDriver) GetVMs(machineID string) VMs {
+	listOfVMs := make(map[string]string)
 
 	clusterName := ""
 	nodeRole := ""
@@ -256,12 +256,7 @@ func (d *AWSDriver) GetVMs(machineID string) []VM {
 					break
 				}
 			}
-
-			vm := VM{
-				MachineName: machineName,
-				MachineID:   d.encodeMachineID(d.AWSMachineClass.Spec.Region, *instance.InstanceId),
-			}
-			listOfVMs = append(listOfVMs, vm)
+			listOfVMs[d.encodeMachineID(d.AWSMachineClass.Spec.Region, *instance.InstanceId)] = machineName
 		}
 	}
 

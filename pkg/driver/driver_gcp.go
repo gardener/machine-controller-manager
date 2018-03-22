@@ -187,8 +187,8 @@ func (d *GCPDriver) GetExisting() (string, error) {
 }
 
 // GetVMs returns a list of VMs
-func (d *GCPDriver) GetVMs(machineID string) []VM {
-	var listOfVMs []VM
+func (d *GCPDriver) GetVMs(machineID string) VMs {
+	listOfVMs := make(map[string]string)
 
 	searchClusterName := ""
 	searchNodeRole := ""
@@ -234,15 +234,12 @@ func (d *GCPDriver) GetVMs(machineID string) []VM {
 			}
 
 			if clusterName == searchClusterName && nodeRole == searchNodeRole {
-				vm := VM{
-					MachineName: server.Name,
-					MachineID:   d.encodeMachineID(project, zone, server.Name),
-				}
+				instanceID := d.encodeMachineID(project, zone, server.Name)
 
 				if machineID == "" {
-					listOfVMs = append(listOfVMs, vm)
-				} else if machineID == vm.MachineID {
-					listOfVMs = append(listOfVMs, vm)
+					listOfVMs[instanceID] = server.Name
+				} else if machineID == instanceID {
+					listOfVMs[instanceID] = server.Name
 					glog.V(3).Infof("Found machine with name: %q", server.Name)
 					break
 				}

@@ -27,14 +27,13 @@ type Driver interface {
 	Create() (string, string, error)
 	Delete() error
 	GetExisting() (string, error)
-	GetVMs(string) []VM
+	GetVMs(string) VMs
 }
 
-// VM tracks all orphanVMs
-type VM struct {
-	MachineName string
-	MachineID   string
-}
+// VMs maintains a list of VM returned by the provider
+// Key refers to the machine-id on the cloud provider
+// value refers to the machine-name of the machine object
+type VMs map[string]string
 
 // NewDriver creates a new driver object based on the classKind
 func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, machineClass interface{}, machineName string) Driver {
