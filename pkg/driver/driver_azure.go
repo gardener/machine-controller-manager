@@ -20,7 +20,6 @@ package driver
 import (
 	"encoding/base64"
 	"fmt"
-	"os"
 	"strings"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -64,6 +63,12 @@ func (d *AzureDriver) Create() (string, string, error) {
 		UserDataEnc   = base64.StdEncoding.EncodeToString([]byte(d.UserData))
 	)
 
+	// Add tags to the machine resources
+	tagList := map[string]*string{}
+	for idx, element := range d.AzureMachineClass.Spec.Tags {
+		tagList[idx] = to.StringPtr(element)
+	}
+
 	subnet, err := subnetClient.Get(
 		resourceGroup,
 		d.AzureMachineClass.Spec.SubnetInfo.VnetName,
@@ -87,18 +92,13 @@ func (d *AzureDriver) Create() (string, string, error) {
 			},
 			EnableIPForwarding: &enableIPForwarding,
 		},
+		Tags: &tagList,
 	}
 	cancel := make(chan struct{})
 	_, errChan := interfacesClient.CreateOrUpdate(resourceGroup, nicName, nicParameters, cancel)
 	err = onErrorFail(<-errChan, fmt.Sprintf("interfacesClient.CreateOrUpdate for NIC '%s' failed", nicName))
 	nicParameters, err = interfacesClient.Get(resourceGroup, nicName, "")
 	err = onErrorFail(err, fmt.Sprintf("interfaces.Get for NIC '%s' failed", nicName))
-
-	// Add tags to the created machine
-	tagList := map[string]*string{}
-	for idx, element := range d.AzureMachineClass.Spec.Tags {
-		tagList[idx] = to.StringPtr(element)
-	}
 
 	vm := compute.VirtualMachine{
 		Location: &location,
@@ -179,19 +179,35 @@ func (d *AzureDriver) Delete() error {
 		diskName      = vmName + "-os-disk"
 		resourceGroup = d.AzureMachineClass.Spec.ResourceGroup
 		cancel        = make(chan struct{})
+		err           error
 	)
 
-	_, errChan := vmClient.Delete(resourceGroup, vmName, cancel)
-	err := onErrorFail(<-errChan, fmt.Sprintf("vmClient.Delete failed for '%s'", vmName))
+	listOfResources := make(map[string]string)
+	d.getvms(d.MachineID, listOfResources)
+	if len(listOfResources) != 0 {
+		_, errChan := vmClient.Delete(resourceGroup, vmName, cancel)
+		err = onErrorFail(<-errChan, fmt.Sprintf("vmClient.Delete failed for '%s'", vmName))
+	}
+	glog.V(3).Infof("Deleted VM %s", vmName)
 
-	_, errChan = interfacesClient.Delete(resourceGroup, nicName, cancel)
-	err = onErrorFail(<-errChan, fmt.Sprintf("interfacesClient.Delete for NIC '%s' failed", nicName))
+	listOfResources = make(map[string]string)
+	d.getnics(d.MachineID, listOfResources)
+	if len(listOfResources) != 0 {
+		_, errChan := interfacesClient.Delete(resourceGroup, nicName, cancel)
+		err = onErrorFail(<-errChan, fmt.Sprintf("interfacesClient.Delete for NIC '%s' failed", nicName))
+	}
+	glog.V(3).Infof("Deleted NIC %s", nicName)
 
-	_, errChan = diskClient.Delete(resourceGroup, diskName, cancel)
-	err = onErrorFail(<-errChan, fmt.Sprintf("diskClient.Delete for NIC '%s' failed", nicName))
+	listOfResources = make(map[string]string)
+	d.getdisks(d.MachineID, listOfResources)
+	if len(listOfResources) != 0 {
+		_, errChan := diskClient.Delete(resourceGroup, diskName, cancel)
+		err = onErrorFail(<-errChan, fmt.Sprintf("diskClient.Delete for NIC '%s' failed", nicName))
+	}
 
-	//glog.Infof("Deleted machine '%s' successfully\n", vmName)
-
+	if err == nil {
+		glog.Infof("Deleted machine '%s' successfully\n", vmName)
+	}
 	return err
 }
 
@@ -200,9 +216,23 @@ func (d *AzureDriver) GetExisting() (string, error) {
 	return d.MachineID, nil
 }
 
-// GetVMs returns a list of VMs
-func (d *AzureDriver) GetVMs(machineID string) []VM {
-	var listOfVMs []VM
+// GetVMs returns a list of VM or VM resources
+// Azure earlier treated all VM resources (instance, NIC, Disks)
+// as a single resource and atomically created/deleted them in the driver interface.
+// This caused issues when the controller crashes, during deletions. To fix this,
+// now GetVMs interface checks for all resources instead of just VMs.
+func (d *AzureDriver) GetVMs(machineID string) VMs {
+	listOfVMs := make(map[string]string)
+
+	d.getvms(machineID, listOfVMs)
+	d.getnics(machineID, listOfVMs)
+	d.getdisks(machineID, listOfVMs)
+
+	return listOfVMs
+}
+
+// getvms is a helper method used to list actual vm instances
+func (d *AzureDriver) getvms(machineID string, listOfVMs VMs) {
 
 	searchClusterName := ""
 	searchNodeRole := ""
@@ -218,14 +248,14 @@ func (d *AzureDriver) GetVMs(machineID string) []VM {
 	if searchClusterName == "" ||
 		searchNodeRole == "" ||
 		d.AzureMachineClass.Spec.ResourceGroup == "" {
-		return listOfVMs
+		return
 	}
 
 	d.setup()
 	result, err := vmClient.List(d.AzureMachineClass.Spec.ResourceGroup)
 	if err != nil {
 		glog.Errorf("Failed to list VMs. Error Message - %s", err)
-		return listOfVMs
+		return
 	}
 
 	if result.Value != nil && len(*result.Value) > 0 {
@@ -234,6 +264,9 @@ func (d *AzureDriver) GetVMs(machineID string) []VM {
 			clusterName := ""
 			nodeRole := ""
 
+			if server.Tags == nil {
+				continue
+			}
 			for key := range *server.Tags {
 				if strings.Contains(key, "kubernetes.io-cluster-") {
 					clusterName = key
@@ -243,15 +276,13 @@ func (d *AzureDriver) GetVMs(machineID string) []VM {
 			}
 
 			if clusterName == searchClusterName && nodeRole == searchNodeRole {
-				vm := VM{
-					MachineName: *server.Name,
-					MachineID:   d.encodeMachineID(d.AzureMachineClass.Spec.Location, *server.Name),
-				}
+
+				instanceID := d.encodeMachineID(d.AzureMachineClass.Spec.Location, *server.Name)
 
 				if machineID == "" {
-					listOfVMs = append(listOfVMs, vm)
-				} else if machineID == vm.MachineID {
-					listOfVMs = append(listOfVMs, vm)
+					listOfVMs[instanceID] = *server.Name
+				} else if machineID == instanceID {
+					listOfVMs[instanceID] = *server.Name
 					glog.V(3).Infof("Found machine with name: %q", *server.Name)
 					break
 				}
@@ -259,8 +290,134 @@ func (d *AzureDriver) GetVMs(machineID string) []VM {
 
 		}
 	}
+}
 
-	return listOfVMs
+// getnics is helper method used to list NICs
+func (d *AzureDriver) getnics(machineID string, listOfVMs VMs) {
+
+	searchClusterName := ""
+	searchNodeRole := ""
+
+	for key := range d.AzureMachineClass.Spec.Tags {
+		if strings.Contains(key, "kubernetes.io-cluster-") {
+			searchClusterName = key
+		} else if strings.Contains(key, "kubernetes.io-role-") {
+			searchNodeRole = key
+		}
+	}
+
+	if searchClusterName == "" ||
+		searchNodeRole == "" ||
+		d.AzureMachineClass.Spec.ResourceGroup == "" {
+		return
+	}
+
+	d.setup()
+	result, err := interfacesClient.List(d.AzureMachineClass.Spec.ResourceGroup)
+	if err != nil {
+		glog.Errorf("Failed to list NICs. Error Message - %s", err)
+		return
+	}
+
+	if result.Value != nil && len(*result.Value) > 0 {
+		for _, nic := range *result.Value {
+
+			clusterName := ""
+			nodeRole := ""
+
+			if nic.Tags == nil {
+				continue
+			}
+			for key := range *nic.Tags {
+				if strings.Contains(key, "kubernetes.io-cluster-") {
+					clusterName = key
+				} else if strings.Contains(key, "kubernetes.io-role-") {
+					nodeRole = key
+				}
+			}
+
+			if clusterName == searchClusterName && nodeRole == searchNodeRole {
+
+				machineName := *nic.Name
+				// Removing last 4 characters from NIC name to get the machine object name
+				machineName = machineName[:len(machineName)-4]
+				instanceID := d.encodeMachineID(d.AzureMachineClass.Spec.Location, machineName)
+
+				if machineID == "" {
+					listOfVMs[instanceID] = machineName
+				} else if machineID == instanceID {
+					listOfVMs[instanceID] = machineName
+					glog.V(3).Infof("Found nic with name %q, hence appending machine %q", *nic.Name, machineName)
+					break
+				}
+			}
+
+		}
+	}
+}
+
+// getdisks is a helper method used to list disks
+func (d *AzureDriver) getdisks(machineID string, listOfVMs VMs) {
+
+	searchClusterName := ""
+	searchNodeRole := ""
+
+	for key := range d.AzureMachineClass.Spec.Tags {
+		if strings.Contains(key, "kubernetes.io-cluster-") {
+			searchClusterName = key
+		} else if strings.Contains(key, "kubernetes.io-role-") {
+			searchNodeRole = key
+		}
+	}
+
+	if searchClusterName == "" ||
+		searchNodeRole == "" ||
+		d.AzureMachineClass.Spec.ResourceGroup == "" {
+		return
+	}
+
+	d.setup()
+	result, err := diskClient.List()
+	if err != nil {
+		glog.Errorf("Failed to list OS Disks. Error Message - %s", err)
+		return
+	}
+
+	if result.Value != nil && len(*result.Value) > 0 {
+		for _, disk := range *result.Value {
+
+			clusterName := ""
+			nodeRole := ""
+
+			if disk.Tags == nil {
+				continue
+			}
+			for key := range *disk.Tags {
+				if strings.Contains(key, "kubernetes.io-cluster-") {
+					clusterName = key
+				} else if strings.Contains(key, "kubernetes.io-role-") {
+					nodeRole = key
+				}
+			}
+
+			if clusterName == searchClusterName && nodeRole == searchNodeRole {
+
+				machineName := *disk.Name
+				// Removing last 8 characters from disk name to get the machine object name
+				machineName = machineName[:len(machineName)-8]
+				instanceID := d.encodeMachineID(d.AzureMachineClass.Spec.Location, machineName)
+
+				if machineID == "" {
+					listOfVMs[instanceID] = machineName
+				} else if machineID == instanceID {
+					listOfVMs[instanceID] = machineName
+					glog.V(3).Infof("Found disk with name %q, hence appending machine %q", *disk.Name, machineName)
+					break
+				}
+			}
+
+		}
+	}
 }
 
 func (d *AzureDriver) setup() {
@@ -305,21 +462,10 @@ func createClients(subscriptionID string, authorizer *autorest.BearerAuthorizer)
 // onErrorFail prints a failure message and exits the program if err is not nil.
 func onErrorFail(err error, message string) error {
 	if err != nil {
-		glog.Infof("%s: %s\n", message, err)
+		glog.Errorf("%s: %s\n", message, err)
 		return err
 	}
 	return nil
-}
-
-// getEnvVarOrExit returns the value of specified environment variable or terminates if it's not defined.
-func getEnvVarOrExit(varName string) string {
-	value := os.Getenv(varName)
-	if value == "" {
-		fmt.Printf("Missing environment variable '%s'\n", varName)
-		os.Exit(1)
-	}
-
-	return value
 }
 
 func (d *AzureDriver) encodeMachineID(location, vmName string) string {

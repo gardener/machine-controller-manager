@@ -331,13 +331,13 @@ func (c *controller) checkMachineClass(
 		}
 	}
 
-	for _, vm := range listOfVMs {
-		machine, err := c.machineLister.Machines(c.namespace).Get(vm.MachineName)
+	for machineID, machineName := range listOfVMs {
+		machine, err := c.machineLister.Machines(c.namespace).Get(machineName)
 
 		if err != nil && !apierrors.IsNotFound(err) {
 			// Any other types of errors
 			glog.Error("Safety-Net: Error getting machines - ", err)
-		} else if err != nil || machine.Spec.ProviderID != vm.MachineID {
+		} else if err != nil || machine.Spec.ProviderID != machineID {
 
 			// If machine exists and machine object is still been processed by the machine controller
 			if err == nil &&
@@ -348,13 +348,16 @@ func (c *controller) checkMachineClass(
 
 			// Re-check VM object existance
 			// before deleting orphan VM
-			result := dvr.GetVMs(vm.MachineID)
-			if result != nil &&
-				result[0].MachineID == vm.MachineID {
-				// Get latest version of machine object and verfiy again
-				machine, err := c.controlMachineClient.Machines(c.namespace).Get(vm.MachineName, metav1.GetOptions{})
-				if (err != nil && apierrors.IsNotFound(err)) || machine.Spec.ProviderID != vm.MachineID {
-					c.deleteOrphanVM(vm, secret, classKind, machineClass)
+			result := dvr.GetVMs(machineID)
+			for reMachineID := range result {
+				if reMachineID == machineID {
+					// Get latest version of machine object and verfiy again
+					machine, err := c.controlMachineClient.Machines(c.namespace).Get(machineName, metav1.GetOptions{})
+					if (err != nil && apierrors.IsNotFound(err)) || machine.Spec.ProviderID != machineID {
+						vm := make(map[string]string)
+						vm[machineID] = machineName
+						c.deleteOrphanVM(vm, secret, classKind, machineClass)
+					}
 				}
 			}
 
@@ -414,21 +417,29 @@ func (c *controller) enqueueMachineSafetyKey(obj interface{}) {
 }
 
 // deleteOrphanVM teriminates's the VM on the cloud provider passed to it
-func (c *controller) deleteOrphanVM(vm driver.VM, secretRef *corev1.Secret, kind string, machineClass interface{}) {
+func (c *controller) deleteOrphanVM(vm driver.VMs, secretRef *corev1.Secret, kind string, machineClass interface{}) {
+
+	var machineID string
+	var machineName string
+
+	for k, v := range vm {
+		machineID = k
+		machineName = v
+	}
 
 	dvr := driver.NewDriver(
-		vm.MachineID,
+		machineID,
 		secretRef,
 		kind,
 		machineClass,
-		vm.MachineName,
+		machineName,
 	)
 
 	err := dvr.Delete()
 	if err != nil {
 		glog.Errorf("Error while deleting VM on CP - %s. Shall retry in next safety controller sync.", err)
 	} else {
-		glog.V(2).Infof("Orphan VM found and terminated VM: %s, %s", vm.MachineName, vm.MachineID)
+		glog.V(2).Infof("Orphan VM found and terminated VM: %s, %s", machineName, machineID)
 	}
 }
 
