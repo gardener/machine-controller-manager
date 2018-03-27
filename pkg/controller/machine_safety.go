@@ -320,7 +320,10 @@ func (c *controller) checkMachineClass(
 		machineClass,
 		"",
 	)
-	listOfVMs := dvr.GetVMs("")
+	listOfVMs, err := dvr.GetVMs("")
+	if err != nil {
+		glog.Warningf("Failed to list VMs at provider. Err - %s", err)
+	}
 
 	// Making sure that its not a VM just being created, machine object not yet updated at API server
 	if len(listOfVMs) > 1 {
@@ -348,7 +351,7 @@ func (c *controller) checkMachineClass(
 
 			// Re-check VM object existance
 			// before deleting orphan VM
-			result := dvr.GetVMs(machineID)
+			result, _ := dvr.GetVMs(machineID)
 			for reMachineID := range result {
 				if reMachineID == machineID {
 					// Get latest version of machine object and verfiy again
