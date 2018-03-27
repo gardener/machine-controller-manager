@@ -27,7 +27,7 @@ type Driver interface {
 	Create() (string, string, error)
 	Delete() error
 	GetExisting() (string, error)
-	GetVMs(string) VMs
+	GetVMs(string) (VMs, error)
 }
 
 // VMs maintains a list of VM returned by the provider

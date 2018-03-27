@@ -165,10 +165,12 @@ func (d *AzureDriver) Create() (string, string, error) {
 // Delete method is used to delete an azure machine
 func (d *AzureDriver) Delete() error {
 
-	result := d.GetVMs(d.MachineID)
-	if len(result) == 0 {
+	result, err := d.GetVMs(d.MachineID)
+	if err != nil {
+		return err
+	} else if len(result) == 0 {
 		// No running instance exists with the given machine-ID
-		glog.V(3).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
+		glog.V(2).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
 		return nil
 	}
 
@@ -179,7 +181,6 @@ func (d *AzureDriver) Delete() error {
 		diskName      = vmName + "-os-disk"
 		resourceGroup = d.AzureMachineClass.Spec.ResourceGroup
 		cancel        = make(chan struct{})
-		err           error
 	)
 
 	listOfResources := make(map[string]string)
@@ -187,6 +188,9 @@ func (d *AzureDriver) Delete() error {
 	if len(listOfResources) != 0 {
 		_, errChan := vmClient.Delete(resourceGroup, vmName, cancel)
 		err = onErrorFail(<-errChan, fmt.Sprintf("vmClient.Delete failed for '%s'", vmName))
+		if err != nil {
+			return err
+		}
 	}
 	glog.V(3).Infof("Deleted VM %s", vmName)
 
@@ -195,6 +199,9 @@ func (d *AzureDriver) Delete() error {
 	if len(listOfResources) != 0 {
 		_, errChan := interfacesClient.Delete(resourceGroup, nicName, cancel)
 		err = onErrorFail(<-errChan, fmt.Sprintf("interfacesClient.Delete for NIC '%s' failed", nicName))
+		if err != nil {
+			return err
+		}
 	}
 	glog.V(3).Infof("Deleted NIC %s", nicName)
 
@@ -203,11 +210,12 @@ func (d *AzureDriver) Delete() error {
 	if len(listOfResources) != 0 {
 		_, errChan := diskClient.Delete(resourceGroup, diskName, cancel)
 		err = onErrorFail(<-errChan, fmt.Sprintf("diskClient.Delete for NIC '%s' failed", nicName))
+		if err != nil {
+			return err
+		}
 	}
+	glog.V(3).Infof("Deleted OS-Disk %s", nicName)
 
-	if err == nil {
-		glog.Infof("Deleted machine '%s' successfully\n", vmName)
-	}
 	return err
 }
 
@@ -221,18 +229,26 @@ func (d *AzureDriver) GetExisting() (string, error) {
 // as a single resource and atomically created/deleted them in the driver interface.
 // This caused issues when the controller crashes, during deletions. To fix this,
 // now GetVMs interface checks for all resources instead of just VMs.
-func (d *AzureDriver) GetVMs(machineID string) VMs {
+func (d *AzureDriver) GetVMs(machineID string) (VMs, error) {
+	var err error
 	listOfVMs := make(map[string]string)
 
-	d.getvms(machineID, listOfVMs)
-	d.getnics(machineID, listOfVMs)
-	d.getdisks(machineID, listOfVMs)
+	err = d.getvms(machineID, listOfVMs)
+	if err != nil {
+		return listOfVMs, err
+	}
 
-	return listOfVMs
+	err = d.getnics(machineID, listOfVMs)
+	if err != nil {
+		return listOfVMs, err
+	}
+
+	err = d.getdisks(machineID, listOfVMs)
+	return listOfVMs, err
 }
 
 // getvms is a helper method used to list actual vm instances
-func (d *AzureDriver) getvms(machineID string, listOfVMs VMs) {
+func (d *AzureDriver) getvms(machineID string, listOfVMs VMs) error {
 
 	searchClusterName := ""
 	searchNodeRole := ""
@@ -248,14 +264,14 @@ func (d *AzureDriver) getvms(machineID string, listOfVMs VMs) {
 	if searchClusterName == "" ||
 		searchNodeRole == "" ||
 		d.AzureMachineClass.Spec.ResourceGroup == "" {
-		return
+		return nil
 	}
 
 	d.setup()
 	result, err := vmClient.List(d.AzureMachineClass.Spec.ResourceGroup)
 	if err != nil {
 		glog.Errorf("Failed to list VMs. Error Message - %s", err)
-		return
+		return err
 	}
 
 	if result.Value != nil && len(*result.Value) > 0 {
@@ -290,10 +306,12 @@ func (d *AzureDriver) getvms(machineID string, listOfVMs VMs) {
 
 		}
 	}
+
+	return nil
 }
 
 // getnics is helper method used to list NICs
-func (d *AzureDriver) getnics(machineID string, listOfVMs VMs) {
+func (d *AzureDriver) getnics(machineID string, listOfVMs VMs) error {
 
 	searchClusterName := ""
 	searchNodeRole := ""
@@ -309,14 +327,14 @@ func (d *AzureDriver) getnics(machineID string, listOfVMs VMs) {
 	if searchClusterName == "" ||
 		searchNodeRole == "" ||
 		d.AzureMachineClass.Spec.ResourceGroup == "" {
-		return
+		return nil
 	}
 
 	d.setup()
 	result, err := interfacesClient.List(d.AzureMachineClass.Spec.ResourceGroup)
 	if err != nil {
 		glog.Errorf("Failed to list NICs. Error Message - %s", err)
-		return
+		return err
 	}
 
 	if result.Value != nil && len(*result.Value) > 0 {
@@ -354,10 +372,12 @@ func (d *AzureDriver) getnics(machineID string, listOfVMs VMs) {
 
 		}
 	}
+
+	return nil
 }
 
 // getdisks is a helper method used to list disks
-func (d *AzureDriver) getdisks(machineID string, listOfVMs VMs) {
+func (d *AzureDriver) getdisks(machineID string, listOfVMs VMs) error {
 
 	searchClusterName := ""
 	searchNodeRole := ""
@@ -373,14 +393,14 @@ func (d *AzureDriver) getdisks(machineID string, listOfVMs VMs) {
 	if searchClusterName == "" ||
 		searchNodeRole == "" ||
 		d.AzureMachineClass.Spec.ResourceGroup == "" {
-		return
+		return nil
 	}
 
 	d.setup()
 	result, err := diskClient.List()
 	if err != nil {
 		glog.Errorf("Failed to list OS Disks. Error Message - %s", err)
-		return
+		return err
 	}
 
 	if result.Value != nil && len(*result.Value) > 0 {
@@ -418,6 +438,8 @@ func (d *AzureDriver) getdisks(machineID string, listOfVMs VMs) {
 
 		}
 	}
+
+	return nil
 }
 
 func (d *AzureDriver) setup() {

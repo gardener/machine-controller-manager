@@ -132,17 +132,16 @@ func (d *AWSDriver) Create() (string, string, error) {
 // Delete method is used to delete a AWS machine
 func (d *AWSDriver) Delete() error {
 
-	result := d.GetVMs(d.MachineID)
-	if len(result) == 0 {
+	result, err := d.GetVMs(d.MachineID)
+	if err != nil {
+		return err
+	} else if len(result) == 0 {
 		// No running instance exists with the given machine-ID
-		glog.V(3).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
+		glog.V(2).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
 		return nil
 	}
 
-	var (
-		err       error
-		machineID = d.decodeMachineID(d.MachineID)
-	)
+	machineID := d.decodeMachineID(d.MachineID)
 
 	svc := d.createSVC()
 	input := &ec2.TerminateInstancesInput{
@@ -183,7 +182,7 @@ func (d *AWSDriver) GetExisting() (string, error) {
 
 // GetVMs returns a VM matching the machineID
 // If machineID is an empty string then it returns all matching instances
-func (d *AWSDriver) GetVMs(machineID string) VMs {
+func (d *AWSDriver) GetVMs(machineID string) (VMs, error) {
 	listOfVMs := make(map[string]string)
 
 	clusterName := ""
@@ -198,7 +197,7 @@ func (d *AWSDriver) GetVMs(machineID string) VMs {
 	}
 
 	if clusterName == "" || nodeRole == "" {
-		return listOfVMs
+		return listOfVMs, nil
 	}
 
 	svc := d.createSVC()
@@ -242,8 +241,8 @@ func (d *AWSDriver) GetVMs(machineID string) VMs {
 
 	runResult, err := svc.DescribeInstances(&input)
 	if err != nil {
-		glog.Warningf("AWS driver is returning error while describe instances request is sent: %s", err)
-		return listOfVMs
+		glog.Errorf("AWS driver is returning error while describe instances request is sent: %s", err)
+		return listOfVMs, err
 	}
 
 	for _, reservation := range runResult.Reservations {
@@ -260,7 +259,7 @@ func (d *AWSDriver) GetVMs(machineID string) VMs {
 		}
 	}
 
-	return listOfVMs
+	return listOfVMs, nil
 }
 
 // Helper function to create SVC

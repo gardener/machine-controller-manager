@@ -150,10 +150,12 @@ func (d *GCPDriver) Create() (string, string, error) {
 // Delete method is used to delete a GCP machine
 func (d *GCPDriver) Delete() error {
 
-	res := d.GetVMs(d.MachineID)
-	if len(res) == 0 {
+	result, err := d.GetVMs(d.MachineID)
+	if err != nil {
+		return err
+	} else if len(result) == 0 {
 		// No running instance exists with the given machine-ID
-		glog.V(3).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
+		glog.V(2).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
 		return nil
 	}
 
@@ -187,7 +189,7 @@ func (d *GCPDriver) GetExisting() (string, error) {
 }
 
 // GetVMs returns a list of VMs
-func (d *GCPDriver) GetVMs(machineID string) VMs {
+func (d *GCPDriver) GetVMs(machineID string) (VMs, error) {
 	listOfVMs := make(map[string]string)
 
 	searchClusterName := ""
@@ -202,19 +204,19 @@ func (d *GCPDriver) GetVMs(machineID string) VMs {
 	}
 
 	if searchClusterName == "" || searchNodeRole == "" {
-		return listOfVMs
+		return listOfVMs, nil
 	}
 
 	ctx, computeService, err := d.createComputeService()
 	if err != nil {
 		glog.Error(err)
-		return listOfVMs
+		return listOfVMs, err
 	}
 
 	project, err := extractProject(d.CloudConfig.Data["serviceAccountJSON"])
 	if err != nil {
 		glog.Error(err)
-		return listOfVMs
+		return listOfVMs, err
 	}
 
 	zone := d.GCPMachineClass.Spec.Zone
@@ -248,9 +250,10 @@ func (d *GCPDriver) GetVMs(machineID string) VMs {
 		return nil
 	}); err != nil {
 		glog.Error(err)
+		return listOfVMs, err
 	}
 
-	return listOfVMs
+	return listOfVMs, nil
 }
 
 func (d *GCPDriver) createComputeService() (context.Context, *compute.Service, error) {
