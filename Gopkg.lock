@@ -89,67 +89,12 @@
   revision = "01aeca54ebda6e0fbfafd0a524d234159c05ec20"
 
 [[projects]]
-  name = "github.com/docker/distribution"
-  packages = [
-    "digestset",
-    "reference"
-  ]
-  revision = "edc3ab29cdff8694dd6feb85cfeb4b5f1b38ed9c"
-
-[[projects]]
-  name = "github.com/docker/docker"
-  packages = [
-    "api/types",
-    "api/types/blkiodev",
-    "api/types/container",
-    "api/types/filters",
-    "api/types/mount",
-    "api/types/network",
-    "api/types/registry",
-    "api/types/strslice",
-    "api/types/swarm",
-    "api/types/versions"
-  ]
-  revision = "092cba3727bb9b4a2f0e922cd6c0f93ea270e363"
-  version = "v1.13.1"
-
-[[projects]]
-  name = "github.com/docker/go-connections"
-  packages = ["nat"]
-  revision = "3ede32e2033de7505e6500d6c868c2b9ed9f169d"
-  version = "v0.3.0"
-
-[[projects]]
-  name = "github.com/docker/go-units"
-  packages = ["."]
-  revision = "0dadbb0345b35ec7ef35e228dabb8de89a65bf52"
-  version = "v0.3.2"
-
-[[projects]]
   name = "github.com/emicklei/go-restful"
   packages = [
     ".",
     "log"
   ]
   revision = "ff4f55a206334ef123e4f79bbf348980da81ca46"
-
-[[projects]]
-  name = "github.com/emicklei/go-restful-swagger12"
-  packages = ["."]
-  revision = "dcef7f55730566d41eae5db10e7d6981829720f6"
-  version = "1.0.1"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/exponent-io/jsonpath"
-  packages = ["."]
-  revision = "d6023ce2651d8eafb5c75bb0c7167536102ec9f5"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/fatih/camelcase"
-  packages = ["."]
-  revision = "44e46d280b43ec1531bb25252440e34f1b800b65"
 
 [[projects]]
   name = "github.com/ghodss/yaml"
@@ -275,12 +220,6 @@
   revision = "6633656539c1639d9d78127b7d47c622b5d7b6dc"
 
 [[projects]]
-  name = "github.com/inconshreveable/mousetrap"
-  packages = ["."]
-  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
-  version = "v1.0"
-
-[[projects]]
   name = "github.com/jmespath/go-jmespath"
   packages = ["."]
   revision = "0b12d6b5"
@@ -309,17 +248,6 @@
   name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
   revision = "fc2b8d3a73c4867e51861bbdd5ae3c1f0869dd6a"
-
-[[projects]]
-  name = "github.com/opencontainers/go-digest"
-  packages = ["."]
-  revision = "a6d0ee40d4207ea02364bd3b9e8e77b9159ba1eb"
-
-[[projects]]
-  name = "github.com/pborman/uuid"
-  packages = ["."]
-  revision = "e790cca94e6cc75c7064b1332e63811d4aae1a53"
-  version = "v1.1"
 
 [[projects]]
   branch = "master"
@@ -359,12 +287,6 @@
     "xfs"
   ]
   revision = "65c1f6f8f0fc1e2185eb9863a3bc751496404259"
-
-[[projects]]
-  name = "github.com/spf13/cobra"
-  packages = ["."]
-  revision = "7b2c5ac9fc04fc5efafb60700713d4fa609b777b"
-  version = "v0.0.1"
 
 [[projects]]
   name = "github.com/spf13/pflag"
@@ -413,16 +335,11 @@
   name = "golang.org/x/text"
   packages = [
     "cases",
-    "encoding",
-    "encoding/internal",
-    "encoding/internal/identifier",
-    "encoding/unicode",
     "internal",
     "internal/gen",
     "internal/tag",
     "internal/triegen",
     "internal/ucd",
-    "internal/utf8internal",
     "language",
     "runes",
     "secure/bidirule",
@@ -488,6 +405,8 @@
   name = "k8s.io/api"
   packages = [
     "admissionregistration/v1alpha1",
+    "admissionregistration/v1beta1",
+    "apps/v1",
     "apps/v1beta1",
     "apps/v1beta2",
     "authentication/v1",
@@ -501,6 +420,7 @@
     "batch/v2alpha1",
     "certificates/v1beta1",
     "core/v1",
+    "events/v1beta1",
     "extensions/v1beta1",
     "networking/v1",
     "policy/v1beta1",
@@ -510,15 +430,11 @@
     "scheduling/v1alpha1",
     "settings/v1alpha1",
     "storage/v1",
+    "storage/v1alpha1",
     "storage/v1beta1"
   ]
-  revision = "f63f838f2e6d362a1fd4a710ae13f603e4b51ea9"
-  version = "kubernetes-1.8.4"
-
-[[projects]]
-  name = "k8s.io/apiextensions-apiserver"
-  packages = ["pkg/features"]
-  revision = "a5bbfd114a9b122acd741c61d88c84812375d9e1"
+  revision = "006a217681ae70cbacdd66a5e2fca1a61a8ff28e"
+  version = "kubernetes-1.9.1"
 
 [[projects]]
   name = "k8s.io/apimachinery"
@@ -538,7 +454,6 @@
     "pkg/apis/meta/v1alpha1",
     "pkg/conversion",
     "pkg/conversion/queryparams",
-    "pkg/conversion/unstructured",
     "pkg/fields",
     "pkg/labels",
     "pkg/runtime",
@@ -564,7 +479,6 @@
     "pkg/util/runtime",
     "pkg/util/sets",
     "pkg/util/strategicpatch",
-    "pkg/util/uuid",
     "pkg/util/validation",
     "pkg/util/validation/field",
     "pkg/util/wait",
@@ -574,37 +488,32 @@
     "third_party/forked/golang/json",
     "third_party/forked/golang/reflect"
   ]
-  revision = "9d38e20d609d27e00d4ec18f7b9db67105a2bde0"
-  version = "kubernetes-1.8.0-rc.1"
+  revision = "68f9c3a1feb3140df59c67ced62d3a5df8e6c9c2"
+  version = "kubernetes-1.9.1"
 
 [[projects]]
   name = "k8s.io/apiserver"
   packages = [
-    "pkg/apis/audit",
-    "pkg/authentication/authenticator",
-    "pkg/authentication/serviceaccount",
-    "pkg/authentication/user",
-    "pkg/endpoints/request",
-    "pkg/features",
     "pkg/server/healthz",
     "pkg/util/feature",
     "pkg/util/flag",
     "pkg/util/logs"
   ]
-  revision = "f9b476d61dbdf6474e3d42cc5e854d0d8b7f759e"
-  version = "kubernetes-1.8.0-rc.1"
+  revision = "2a1092aaa7202e8f9b188281ff9424a014ce61c2"
+  version = "kubernetes-1.9.2"
 
 [[projects]]
-  branch = "release-5.0"
+  branch = "release-6.0"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
     "discovery/fake",
-    "dynamic",
     "informers",
     "informers/admissionregistration",
     "informers/admissionregistration/v1alpha1",
+    "informers/admissionregistration/v1beta1",
     "informers/apps",
+    "informers/apps/v1",
     "informers/apps/v1beta1",
     "informers/apps/v1beta2",
     "informers/autoscaling",
@@ -618,6 +527,8 @@
     "informers/certificates/v1beta1",
     "informers/core",
     "informers/core/v1",
+    "informers/events",
+    "informers/events/v1beta1",
     "informers/extensions",
     "informers/extensions/v1beta1",
     "informers/internalinterfaces",
@@ -635,10 +546,13 @@
     "informers/settings/v1alpha1",
     "informers/storage",
     "informers/storage/v1",
+    "informers/storage/v1alpha1",
     "informers/storage/v1beta1",
     "kubernetes",
     "kubernetes/scheme",
     "kubernetes/typed/admissionregistration/v1alpha1",
+    "kubernetes/typed/admissionregistration/v1beta1",
+    "kubernetes/typed/apps/v1",
     "kubernetes/typed/apps/v1beta1",
     "kubernetes/typed/apps/v1beta2",
     "kubernetes/typed/authentication/v1",
@@ -652,6 +566,7 @@
     "kubernetes/typed/batch/v2alpha1",
     "kubernetes/typed/certificates/v1beta1",
     "kubernetes/typed/core/v1",
+    "kubernetes/typed/events/v1beta1",
     "kubernetes/typed/extensions/v1beta1",
     "kubernetes/typed/networking/v1",
     "kubernetes/typed/policy/v1beta1",
@@ -661,8 +576,11 @@
     "kubernetes/typed/scheduling/v1alpha1",
     "kubernetes/typed/settings/v1alpha1",
     "kubernetes/typed/storage/v1",
+    "kubernetes/typed/storage/v1alpha1",
     "kubernetes/typed/storage/v1beta1",
     "listers/admissionregistration/v1alpha1",
+    "listers/admissionregistration/v1beta1",
+    "listers/apps/v1",
     "listers/apps/v1beta1",
     "listers/apps/v1beta2",
     "listers/autoscaling/v1",
@@ -672,6 +590,7 @@
     "listers/batch/v2alpha1",
     "listers/certificates/v1beta1",
     "listers/core/v1",
+    "listers/events/v1beta1",
     "listers/extensions/v1beta1",
     "listers/networking/v1",
     "listers/policy/v1beta1",
@@ -681,17 +600,12 @@
     "listers/scheduling/v1alpha1",
     "listers/settings/v1alpha1",
     "listers/storage/v1",
+    "listers/storage/v1alpha1",
     "listers/storage/v1beta1",
     "pkg/version",
-    "plugin/pkg/client/auth",
-    "plugin/pkg/client/auth/azure",
-    "plugin/pkg/client/auth/gcp",
-    "plugin/pkg/client/auth/oidc",
-    "plugin/pkg/client/auth/openstack",
     "rest",
     "rest/watch",
     "testing",
-    "third_party/forked/golang/template",
     "tools/auth",
     "tools/cache",
     "tools/clientcmd",
@@ -705,15 +619,15 @@
     "tools/record",
     "tools/reference",
     "transport",
+    "util/buffer",
     "util/cert",
     "util/flowcontrol",
     "util/homedir",
     "util/integer",
-    "util/jsonpath",
     "util/retry",
     "util/workqueue"
   ]
-  revision = "afb4606c45bae77c4dc2c15291d4d7d6d792196c"
+  revision = "90539b4e75a8daaf7f67c3874c6180bfb1a63936"
 
 [[projects]]
   branch = "release-1.9"
@@ -757,196 +671,14 @@
   name = "k8s.io/kube-openapi"
   packages = [
     "pkg/common",
-    "pkg/generators"
+    "pkg/generators",
+    "pkg/util/proto"
   ]
-  revision = "868f2f29720b192240e18284659231b440f9cda5"
-
-[[projects]]
-  name = "k8s.io/kubernetes"
-  packages = [
-    "federation/apis/federation",
-    "federation/apis/federation/install",
-    "federation/apis/federation/v1beta1",
-    "federation/client/clientset_generated/federation_clientset",
-    "federation/client/clientset_generated/federation_clientset/scheme",
-    "federation/client/clientset_generated/federation_clientset/typed/autoscaling/v1",
-    "federation/client/clientset_generated/federation_clientset/typed/batch/v1",
-    "federation/client/clientset_generated/federation_clientset/typed/core/v1",
-    "federation/client/clientset_generated/federation_clientset/typed/extensions/v1beta1",
-    "federation/client/clientset_generated/federation_clientset/typed/federation/v1beta1",
-    "pkg/api",
-    "pkg/api/events",
-    "pkg/api/helper",
-    "pkg/api/helper/qos",
-    "pkg/api/install",
-    "pkg/api/pod",
-    "pkg/api/ref",
-    "pkg/api/resource",
-    "pkg/api/service",
-    "pkg/api/util",
-    "pkg/api/v1",
-    "pkg/api/v1/helper",
-    "pkg/api/v1/helper/qos",
-    "pkg/api/v1/pod",
-    "pkg/api/validation",
-    "pkg/apis/admissionregistration",
-    "pkg/apis/admissionregistration/install",
-    "pkg/apis/admissionregistration/v1alpha1",
-    "pkg/apis/apps",
-    "pkg/apis/apps/install",
-    "pkg/apis/apps/v1beta1",
-    "pkg/apis/apps/v1beta2",
-    "pkg/apis/authentication",
-    "pkg/apis/authentication/install",
-    "pkg/apis/authentication/v1",
-    "pkg/apis/authentication/v1beta1",
-    "pkg/apis/authorization",
-    "pkg/apis/authorization/install",
-    "pkg/apis/authorization/v1",
-    "pkg/apis/authorization/v1beta1",
-    "pkg/apis/autoscaling",
-    "pkg/apis/autoscaling/install",
-    "pkg/apis/autoscaling/v1",
-    "pkg/apis/autoscaling/v2beta1",
-    "pkg/apis/batch",
-    "pkg/apis/batch/install",
-    "pkg/apis/batch/v1",
-    "pkg/apis/batch/v1beta1",
-    "pkg/apis/batch/v2alpha1",
-    "pkg/apis/certificates",
-    "pkg/apis/certificates/install",
-    "pkg/apis/certificates/v1beta1",
-    "pkg/apis/componentconfig",
-    "pkg/apis/componentconfig/install",
-    "pkg/apis/componentconfig/v1alpha1",
-    "pkg/apis/extensions",
-    "pkg/apis/extensions/install",
-    "pkg/apis/extensions/v1beta1",
-    "pkg/apis/networking",
-    "pkg/apis/networking/install",
-    "pkg/apis/networking/v1",
-    "pkg/apis/policy",
-    "pkg/apis/policy/install",
-    "pkg/apis/policy/v1beta1",
-    "pkg/apis/rbac",
-    "pkg/apis/rbac/install",
-    "pkg/apis/rbac/v1",
-    "pkg/apis/rbac/v1alpha1",
-    "pkg/apis/rbac/v1beta1",
-    "pkg/apis/scheduling",
-    "pkg/apis/scheduling/install",
-    "pkg/apis/scheduling/v1alpha1",
-    "pkg/apis/settings",
-    "pkg/apis/settings/install",
-    "pkg/apis/settings/v1alpha1",
-    "pkg/apis/storage",
-    "pkg/apis/storage/install",
-    "pkg/apis/storage/util",
-    "pkg/apis/storage/v1",
-    "pkg/apis/storage/v1beta1",
-    "pkg/capabilities",
-    "pkg/client/clientset_generated/internalclientset",
-    "pkg/client/clientset_generated/internalclientset/scheme",
-    "pkg/client/clientset_generated/internalclientset/typed/admissionregistration/internalversion",
-    "pkg/client/clientset_generated/internalclientset/typed/apps/internalversion",
-    "pkg/client/clientset_generated/internalclientset/typed/authentication/internalversion",
-    "pkg/client/clientset_generated/internalclientset/typed/authorization/internalversion",
-    "pkg/client/clientset_generated/internalclientset/typed/autoscaling/internalversion",
-    "pkg/client/clientset_generated/internalclientset/typed/batch/internalversion",
-    "pkg/client/clientset_generated/internalclientset/typed/certificates/internalversion",
-    "pkg/client/clientset_generated/internalclientset/typed/core/internalversion",
-    "pkg/client/clientset_generated/internalclientset/typed/extensions/internalversion",
-    "pkg/client/clientset_generated/internalclientset/typed/networking/internalversion",
-    "pkg/client/clientset_generated/internalclientset/typed/policy/internalversion",
-    "pkg/client/clientset_generated/internalclientset/typed/rbac/internalversion",
-    "pkg/client/clientset_generated/internalclientset/typed/scheduling/internalversion",
-    "pkg/client/clientset_generated/internalclientset/typed/settings/internalversion",
-    "pkg/client/clientset_generated/internalclientset/typed/storage/internalversion",
-    "pkg/client/leaderelectionconfig",
-    "pkg/client/metrics/prometheus",
-    "pkg/client/unversioned",
-    "pkg/controller",
-    "pkg/controller/daemon",
-    "pkg/controller/daemon/util",
-    "pkg/controller/deployment/util",
-    "pkg/controller/history",
-    "pkg/controller/statefulset",
-    "pkg/credentialprovider",
-    "pkg/features",
-    "pkg/fieldpath",
-    "pkg/kubectl",
-    "pkg/kubectl/resource",
-    "pkg/kubectl/util",
-    "pkg/kubectl/util/hash",
-    "pkg/kubectl/util/slice",
-    "pkg/kubectl/validation",
-    "pkg/kubelet/apis",
-    "pkg/kubelet/qos",
-    "pkg/kubelet/types",
-    "pkg/master/ports",
-    "pkg/printers",
-    "pkg/printers/internalversion",
-    "pkg/registry/rbac/validation",
-    "pkg/security/apparmor",
-    "pkg/serviceaccount",
-    "pkg/util/configz",
-    "pkg/util/file",
-    "pkg/util/hash",
-    "pkg/util/io",
-    "pkg/util/labels",
-    "pkg/util/metrics",
-    "pkg/util/mount",
-    "pkg/util/net/sets",
-    "pkg/util/node",
-    "pkg/util/parsers",
-    "pkg/util/pointer",
-    "pkg/util/reflector/prometheus",
-    "pkg/util/slice",
-    "pkg/util/taints",
-    "pkg/util/workqueue/prometheus",
-    "pkg/version",
-    "pkg/version/prometheus",
-    "pkg/version/verflag",
-    "pkg/volume/util",
-    "plugin/pkg/scheduler/algorithm",
-    "plugin/pkg/scheduler/algorithm/predicates",
-    "plugin/pkg/scheduler/algorithm/priorities/util",
-    "plugin/pkg/scheduler/api",
-    "plugin/pkg/scheduler/schedulercache",
-    "plugin/pkg/scheduler/util",
-    "staging/src/k8s.io/apimachinery/pkg/util/rand"
-  ]
-  revision = "36dd0d74e6c5156099510a0b5a502fb5d5ed0bec"
-
-[[projects]]
-  branch = "master"
-  name = "k8s.io/metrics"
-  packages = [
-    "pkg/apis/metrics",
-    "pkg/apis/metrics/v1alpha1",
-    "pkg/apis/metrics/v1beta1",
-    "pkg/client/clientset_generated/clientset",
-    "pkg/client/clientset_generated/clientset/scheme",
-    "pkg/client/clientset_generated/clientset/typed/metrics/v1alpha1",
-    "pkg/client/clientset_generated/clientset/typed/metrics/v1beta1"
-  ]
-  revision = "a51d59ae25bec1b94f00be3fe970268aed3eadfa"
-
-[[projects]]
-  branch = "master"
-  name = "k8s.io/utils"
-  packages = ["exec"]
-  revision = "a99a3e11a96751670db62ba77c6d278d1136931e"
-
-[[projects]]
-  branch = "master"
-  name = "vbom.ml/util"
-  packages = ["sortorder"]
-  revision = "256737ac55c46798123f754ab7d2c784e2c71783"
+  revision = "50ae88d24ede7b8bad68e23c805b5d3da5c8abaf"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1f27cb84a10bd0eae52f9c251cb99a62805d817c3439fc08d301fc664b12fc45"
+  inputs-digest = "d042be9be17de998f49966058d31047cabc3e704b3e303681382538bcba75ba1"
   solver-name = "gps-cdcl"
   solver-version = 1
