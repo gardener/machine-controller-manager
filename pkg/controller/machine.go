@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/kubernetes/pkg/api"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -112,7 +111,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 
 	// Validate Machine
 	internalMachine := &machineapi.Machine{}
-	err := api.Scheme.Convert(machine, internalMachine, nil)
+	err := c.internalExternalScheme.Convert(machine, internalMachine, nil)
 	if err != nil {
 		return err
 	}

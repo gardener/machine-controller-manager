@@ -38,7 +38,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/kubernetes/pkg/api"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -457,10 +456,12 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 
 	// Validate MachineDeployment
 	internalMachineDeployment := &machine.MachineDeployment{}
-	err = api.Scheme.Convert(deployment, internalMachineDeployment, nil)
+
+	err = v1alpha1.Convert_v1alpha1_MachineDeployment_To_machine_MachineDeployment(deployment, internalMachineDeployment, nil)
 	if err != nil {
 		return err
 	}
+
 	validationerr := validation.ValidateMachineDeployment(internalMachineDeployment)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
 		glog.V(2).Infof("Validation of MachineDeployment failled %s", validationerr.ToAggregate().Error())

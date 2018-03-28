@@ -22,7 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/kubernetes/pkg/api"
 
 	"github.com/golang/glog"
 
@@ -109,7 +108,7 @@ func (c *controller) reconcileClusterOpenStackMachineClassKey(key string) error 
 
 func (c *controller) reconcileClusterOpenStackMachineClass(class *v1alpha1.OpenStackMachineClass) error {
 	internalClass := &machine.OpenStackMachineClass{}
-	err := api.Scheme.Convert(class, internalClass, nil)
+	err := c.internalExternalScheme.Convert(class, internalClass, nil)
 	if err != nil {
 		return err
 	}

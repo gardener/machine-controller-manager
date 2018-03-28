@@ -22,7 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/kubernetes/pkg/api"
 
 	"github.com/golang/glog"
 
@@ -110,7 +109,7 @@ func (c *controller) reconcileClusterAzureMachineClassKey(key string) error {
 
 func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMachineClass) error {
 	internalClass := &machine.AzureMachineClass{}
-	err := api.Scheme.Convert(class, internalClass, nil)
+	err := c.internalExternalScheme.Convert(class, internalClass, nil)
 	if err != nil {
 		return err
 	}
