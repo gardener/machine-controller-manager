@@ -32,9 +32,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/validation"
+
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	hashutil "github.com/gardener/machine-controller-manager/pkg/util/hash"
+	taintutils "github.com/gardener/machine-controller-manager/pkg/util/taints"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,9 +56,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	ref "k8s.io/client-go/tools/reference"
 	clientretry "k8s.io/client-go/util/retry"
-	"k8s.io/kubernetes/pkg/api/validation"
-	hashutil "k8s.io/kubernetes/pkg/util/hash"
-	taintutils "k8s.io/kubernetes/pkg/util/taints"
 
 	"github.com/golang/glog"
 )
@@ -534,7 +535,7 @@ func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, object run
 func getMachinesPrefix(controllerName string) string {
 	// use the dash (if the name isn't too long) to make the machine name a bit prettier
 	prefix := fmt.Sprintf("%s-", controllerName)
-	if len(validation.ValidatePodName(prefix, true)) != 0 { // #ToCheck
+	if len(validation.NameIsDNSSubdomain(prefix, true)) != 0 { // #ToCheck
 		prefix = controllerName
 	}
 	return prefix

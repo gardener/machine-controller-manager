@@ -29,6 +29,7 @@ import (
 	"strconv"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
 	"github.com/golang/glog"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -36,7 +37,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/rand"
-	labelsutil "k8s.io/kubernetes/pkg/util/labels"
 )
 
 // syncStatusOnly only updates Deployments Status and doesn't take any mutating actions.
