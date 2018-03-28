@@ -35,7 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/validation"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	hashutil "github.com/gardener/machine-controller-manager/pkg/util/hash"
 	taintutils "github.com/gardener/machine-controller-manager/pkg/util/taints"
@@ -51,10 +50,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	ref "k8s.io/client-go/tools/reference"
 	clientretry "k8s.io/client-go/util/retry"
 
 	"github.com/golang/glog"
@@ -507,29 +504,12 @@ func getMachinesFinalizers(template *v1alpha1.MachineTemplateSpec) []string {
 	return desiredFinalizers
 }
 
-func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, object runtime.Object) (labels.Set, error) {
+func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, object runtime.Object) labels.Set {
 	desiredAnnotations := make(labels.Set)
 	for k, v := range template.Annotations {
 		desiredAnnotations[k] = v
 	}
-	createdByRef, err := ref.GetReference(machinescheme.Scheme, object)
-	if err != nil {
-		return desiredAnnotations, fmt.Errorf("unable to get controller reference: %v", err)
-	}
-
-	// TODO: this code was not safe previously - as soon as new code came along that switched to v2, old clients
-	//   would be broken upon reading it. This is explicitly hardcoded to v1 to guarantee predictable deployment.
-	//   We need to consistently handle this case of annotation versioning.
-	codec := scheme.Codecs.LegacyCodec(v1.SchemeGroupVersion)
-
-	createdByRefJSON, err := runtime.Encode(codec, &v1.SerializedReference{
-		Reference: *createdByRef,
-	})
-	if err != nil {
-		return desiredAnnotations, fmt.Errorf("unable to serialize controller reference: %v", err)
-	}
-	desiredAnnotations[v1.CreatedByAnnotation] = string(createdByRefJSON)
-	return desiredAnnotations, nil
+	return desiredAnnotations
 }
 
 func getMachinesPrefix(controllerName string) string {
@@ -556,10 +536,8 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 	desiredLabels := getMachinesLabelSet(template)
 	//glog.Info(desiredLabels)
 	desiredFinalizers := getMachinesFinalizers(template)
-	desiredAnnotations, err := getMachinesAnnotationSet(template, parentObject)
-	if err != nil {
-		return nil, err
-	}
+	desiredAnnotations := getMachinesAnnotationSet(template, parentObject)
+
 	accessor, err := meta.Accessor(parentObject)
 	if err != nil {
 		return nil, fmt.Errorf("parentObject does not have ObjectMeta, %v", err)

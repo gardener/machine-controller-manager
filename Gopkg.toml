@@ -26,38 +26,33 @@ required = [
 
 [[constraint]]
   name = "k8s.io/api"
-  version = "kubernetes-1.8.4"
+  version = "kubernetes-1.9.2"
 
 [[constraint]]
   name = "k8s.io/apimachinery"
-  version = "kubernetes-1.8.0-rc.1"
+  version = "kubernetes-1.9.2"
 
 [[constraint]]
   name = "k8s.io/apiserver"
-  version = "kubernetes-1.8.0-rc.1"
+  version = "kubernetes-1.9.2"
 
 [[constraint]]
-  branch = "release-5.0"
+  branch = "release-6.0"
   name = "k8s.io/client-go"
 
 [[constraint]]
   name = "k8s.io/code-generator"
   version = "kubernetes-1.9.2"
 
-[[override]]
-  name = "k8s.io/gengo"
-  revision = "8394c995ab8fbe52216f38d0e1a37de36d820528"
+# [[override]]
+#   name = "k8s.io/gengo"
+#   revision = "8394c995ab8fbe52216f38d0e1a37de36d820528"
 
 [[constraint]]
   name = "k8s.io/kube-openapi"
-  revision = "868f2f29720b192240e18284659231b440f9cda5"
+  revision = "50ae88d24ede7b8bad68e23c805b5d3da5c8abaf"
 
-[[constraint]]
-  #branch = "release-1.8"
-  name = "k8s.io/kubernetes"
-  revision = "36dd0d74e6c5156099510a0b5a502fb5d5ed0bec"
-
-[[constraint]]
+[[override]]
   name = "cloud.google.com/go"
   version = "0.18.0"
 
