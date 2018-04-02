@@ -425,6 +425,12 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 // meaning it did not expect to see any more of its machines created or deleted. This function is not meant to be
 // invoked concurrently with the same key.
 func (c *controller) reconcileClusterMachineSet(key string) error {
+	startTime := time.Now()
+	glog.V(4).Infof("Start syncing %q (%v)", key)
+	defer func() {
+		glog.V(4).Infof("Finished syncing %q (%v)", key, time.Since(startTime))
+	}()
+
 	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
