@@ -414,14 +414,17 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				LastUpdateTime: metav1.Now(),
 			}
 			machine, err = c.updateMachineStatus(machine, lastOperation, currentStatus)
-			if err != nil {
-				// Object no longer exits and has been deleted
+			if err != nil && apierrors.IsNotFound(err) {
+				// Object no longer exists and has been deleted
 				glog.Warning(err)
 				return nil
+			} else if err != nil {
+				// Any other type of errors
+				glog.Error(err)
+				return err
 			}
 		}
 
-		var err error
 		if machineID != "" {
 			timeOutDuration := time.Duration(c.safetyOptions.MachineDrainTimeout) * time.Minute
 			// Timeout value obtained by subtracting last operation with expected time out period
