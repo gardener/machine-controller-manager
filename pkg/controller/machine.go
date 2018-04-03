@@ -393,6 +393,8 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 }
 
 func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driver) error {
+	var err error
+
 	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		glog.V(2).Infof("Deleting Machine %s", machine.Name)
 
@@ -411,10 +413,18 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				TimeoutActive:  false,
 				LastUpdateTime: metav1.Now(),
 			}
-			machine = c.updateMachineStatus(machine, lastOperation, currentStatus)
+			machine, err = c.updateMachineStatus(machine, lastOperation, currentStatus)
+			if err != nil && apierrors.IsNotFound(err) {
+				// Object no longer exists and has been deleted
+				glog.Warning(err)
+				return nil
+			} else if err != nil {
+				// Any other type of errors
+				glog.Error(err)
+				return err
+			}
 		}
 
-		var err error
 		if machineID != "" {
 			timeOutDuration := time.Duration(c.safetyOptions.MachineDrainTimeout) * time.Minute
 			// Timeout value obtained by subtracting last operation with expected time out period
@@ -494,24 +504,24 @@ func (c *controller) updateMachineStatus(
 	machine *v1alpha1.Machine,
 	lastOperation v1alpha1.LastOperation,
 	currentStatus v1alpha1.CurrentStatus,
-) *v1alpha1.Machine {
+) (*v1alpha1.Machine, error) {
 	// Get the latest version of the machine so that we can avoid conflicts
-	machine, err := c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+	clone, err := c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
 	if err != nil {
-		return machine
+		return machine, err
 	}
 
-	clone := machine.DeepCopy()
+	clone = clone.DeepCopy()
 	clone.Status.LastOperation = lastOperation
 	clone.Status.CurrentStatus = currentStatus
 
-	machine, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
+	clone, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
-		glog.V(4).Info("Warning: Updated failed, retrying, error: %q", err)
+		glog.V(3).Infof("Warning: Updated failed, retrying, error: %q", err)
 		c.updateMachineStatus(machine, lastOperation, currentStatus)
 	}
-	return machine
+	return machine, nil
 }
 
 func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditions []v1.NodeCondition) *v1alpha1.Machine {
