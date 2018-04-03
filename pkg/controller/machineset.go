@@ -426,6 +426,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 // invoked concurrently with the same key.
 func (c *controller) reconcileClusterMachineSet(key string) error {
 	startTime := time.Now()
+	glog.V(4).Infof("Start syncing %q (%v)", key)
 	defer func() {
 		glog.V(4).Infof("Finished syncing %q (%v)", key, time.Since(startTime))
 	}()
@@ -628,6 +629,14 @@ func (c *controller) prepareMachineForDeletion(targetMachine *v1alpha1.Machine, 
 		return
 	}
 
+	if err := c.machineControl.DeleteMachine(targetMachine.Namespace, targetMachine.Name, machineSet); err != nil {
+		// Decrement the expected number of deletes because the informer won't observe this deletion
+		machineKey := MachineKey(targetMachine)
+		glog.V(2).Infof("Failed to delete %v, decrementing expectations for %v %s/%s", machineKey, machineSet.Kind, machineSet.Namespace, machineSet.Name)
+		c.expectations.DeletionObserved(machineSetKey, machineKey)
+		*errCh <- err
+	}
+
 	// Force trigger deletion to reflect in machine status
 	lastOperation := v1alpha1.LastOperation{
 		Description:    "Deleting machine from cloud provider",
@@ -641,15 +650,7 @@ func (c *controller) prepareMachineForDeletion(targetMachine *v1alpha1.Machine, 
 		LastUpdateTime: metav1.Now(),
 	}
 	c.updateMachineStatus(targetMachine, lastOperation, currentStatus)
-	glog.V(2).Info("Delete machine from machineset:", targetMachine.Name)
-
-	if err := c.machineControl.DeleteMachine(targetMachine.Namespace, targetMachine.Name, machineSet); err != nil {
-		// Decrement the expected number of deletes because the informer won't observe this deletion
-		machineKey := MachineKey(targetMachine)
-		glog.V(2).Infof("Failed to delete %v, decrementing expectations for %v %s/%s", machineKey, machineSet.Kind, machineSet.Namespace, machineSet.Name)
-		c.expectations.DeletionObserved(machineSetKey, machineKey)
-		*errCh <- err
-	}
+	glog.V(2).Infof("Delete machine from machineset %q", targetMachine.Name)
 }
 
 func (c *controller) terminateMachines(inactiveMachines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
