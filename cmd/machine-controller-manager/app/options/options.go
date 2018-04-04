@@ -29,8 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 
-	"k8s.io/kubernetes/pkg/apis/componentconfig"
-	"k8s.io/kubernetes/pkg/client/leaderelectionconfig"
+	"github.com/gardener/machine-controller-manager/pkg/util/client/leaderelectionconfig"
 
 	// add the machine feature gates
 	_ "github.com/gardener/machine-controller-manager/pkg/features"
@@ -77,7 +76,7 @@ func NewMCMServer() *MCMServer {
 // AddFlags adds flags for a specific CMServer to the specified FlagSet
 func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&s.Port, "port", s.Port, "The port that the controller-manager's http service runs on")
-	fs.Var(componentconfig.IPVar{Val: &s.Address}, "address", "The IP address to serve on (set to 0.0.0.0 for all interfaces)")
+	fs.Var(machineconfig.IPVar{Val: &s.Address}, "address", "The IP address to serve on (set to 0.0.0.0 for all interfaces)")
 	fs.StringVar(&s.CloudProvider, "cloud-provider", s.CloudProvider, "The provider for cloud services.  Empty string for no provider.")
 	fs.Int32Var(&s.ConcurrentNodeSyncs, "concurrent-syncs", s.ConcurrentNodeSyncs, "The number of nodes that are allowed to sync concurrently. Larger number = more responsive service management, but more CPU (and network) load")
 	fs.DurationVar(&s.MinResyncPeriod.Duration, "min-resync-period", s.MinResyncPeriod.Duration, "The resync period in reflectors will be random between MinResyncPeriod and 2*MinResyncPeriod")

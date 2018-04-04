@@ -37,7 +37,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/integer"
-	"k8s.io/kubernetes/pkg/api"
 
 	"github.com/golang/glog"
 
@@ -453,7 +452,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 
 	// Validate MachineSet
 	internalMachineSet := &machine.MachineSet{}
-	err = api.Scheme.Convert(machineSet, internalMachineSet, nil)
+	err = c.internalExternalScheme.Convert(machineSet, internalMachineSet, nil)
 	if err != nil {
 		return err
 	}

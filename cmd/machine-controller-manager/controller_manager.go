@@ -27,15 +27,15 @@ import (
 
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app"
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
+	_ "github.com/gardener/machine-controller-manager/pkg/util/client/metrics/prometheus" // for client metric registration
+	_ "github.com/gardener/machine-controller-manager/pkg/util/reflector/prometheus"      // for reflector metric registration
+	_ "github.com/gardener/machine-controller-manager/pkg/util/workqueue/prometheus"      // for workqueue metric registration
 	"github.com/spf13/pflag"
 	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/apiserver/pkg/util/flag"
 	"k8s.io/apiserver/pkg/util/logs"
-	_ "k8s.io/kubernetes/pkg/client/metrics/prometheus" // for client metric registration
-	_ "k8s.io/kubernetes/pkg/util/reflector/prometheus" // for reflector metric registration
-	_ "k8s.io/kubernetes/pkg/util/workqueue/prometheus" // for workqueue metric registration
-	_ "k8s.io/kubernetes/pkg/version/prometheus"        // for version metric registration
-	"k8s.io/kubernetes/pkg/version/verflag"
+	// TODO version should be enabled later on. DON'T import k8s.io/kubernetes 	_ "k8s.io/kubernetes/pkg/version/prometheus"        // for version metric registration
+	// TODO version should be enabled later on. DON'T import k8s.io/kubernetes  "k8s.io/kubernetes/pkg/version/verflag"
 )
 
 func init() {
@@ -51,7 +51,7 @@ func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	verflag.PrintAndExitIfRequested()
+	// verflag.PrintAndExitIfRequested()
 
 	if err := app.Run(s); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)

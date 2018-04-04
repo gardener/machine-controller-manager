@@ -25,7 +25,6 @@ package controller
 import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 	"github.com/golang/glog"
-	"k8s.io/kubernetes/pkg/api"
 
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -86,7 +85,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 
 		// Validate AWSMachineClass
 		internalAWSMachineClass := &machineapi.AWSMachineClass{}
-		err = api.Scheme.Convert(AWSMachineClass, internalAWSMachineClass, nil)
+		err = c.internalExternalScheme.Convert(AWSMachineClass, internalAWSMachineClass, nil)
 		if err != nil {
 			glog.V(2).Info("Error in scheme convertion")
 			return MachineClass, secretRef, err
@@ -116,7 +115,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 
 		// Validate AzureMachineClass
 		internalAzureMachineClass := &machineapi.AzureMachineClass{}
-		err = api.Scheme.Convert(AzureMachineClass, internalAzureMachineClass, nil)
+		err = c.internalExternalScheme.Convert(AzureMachineClass, internalAzureMachineClass, nil)
 		if err != nil {
 			glog.V(2).Info("Error in scheme convertion")
 			return MachineClass, secretRef, err
@@ -147,7 +146,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 
 		// Validate GCPMachineClass
 		internalGCPMachineClass := &machineapi.GCPMachineClass{}
-		err = api.Scheme.Convert(GCPMachineClass, internalGCPMachineClass, nil)
+		err = c.internalExternalScheme.Convert(GCPMachineClass, internalGCPMachineClass, nil)
 		if err != nil {
 			glog.V(2).Info("Error in scheme convertion")
 			return MachineClass, secretRef, err
@@ -176,7 +175,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 
 		// Validate OpenStackMachineClass
 		internalOpenStackMachineClass := &machineapi.OpenStackMachineClass{}
-		err = api.Scheme.Convert(OpenStackMachineClass, internalOpenStackMachineClass, nil)
+		err = c.internalExternalScheme.Convert(OpenStackMachineClass, internalOpenStackMachineClass, nil)
 		if err != nil {
 			glog.V(2).Info("Error in scheme convertion")
 			return MachineClass, secretRef, err

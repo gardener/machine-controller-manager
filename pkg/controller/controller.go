@@ -22,15 +22,17 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/api/core/v1"
-	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
+	machine_internal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	machine_v1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions/machine/v1alpha1"
 	machinelisters "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/api/core/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
+	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 
 	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
@@ -93,6 +95,16 @@ func NewController(
 		machineDeploymentQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
 		machineSafetyQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafety"),
 		safetyOptions:              safetyOptions,
+	}
+
+	controller.internalExternalScheme = runtime.NewScheme()
+
+	if err := machine_internal.AddToScheme(controller.internalExternalScheme); err != nil {
+		return nil, err
+	}
+
+	if err := machine_v1.AddToScheme(controller.internalExternalScheme); err != nil {
+		return nil, err
 	}
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -307,6 +319,7 @@ type controller struct {
 	safetyOptions     options.SafetyOptions
 	expectations      *UIDTrackingContExpectations
 
+	internalExternalScheme *runtime.Scheme
 	// listers
 	secretLister                corelisters.SecretLister
 	nodeLister                  corelisters.NodeLister
@@ -353,7 +366,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer c.machineDeploymentQueue.ShutDown()
 
 	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.openStackMachineClassSynced, c.awsMachineClassSynced, c.azureMachineClassSynced, c.gcpMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+		runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
 

@@ -30,7 +30,7 @@ import (
 	"testing"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	hashutil "k8s.io/kubernetes/pkg/util/hash"
+	hashutil "github.com/gardener/machine-controller-manager/pkg/util/hash"
 )
 
 var machineSpec = `

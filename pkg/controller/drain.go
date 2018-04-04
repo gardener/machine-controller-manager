@@ -39,7 +39,6 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/pkg/kubectl"
 )
 
 // DrainOptions are configurable options while draining a node before deletion
@@ -70,6 +69,9 @@ const (
 	EvictionKind = "Eviction"
 	// EvictionSubresource is the kind used for evicting pods
 	EvictionSubresource = "pods/eviction"
+
+	// Interval is the default Poll interval
+	Interval = time.Second * 1
 
 	daemonsetFatal      = "DaemonSet-managed pods (use --ignore-daemonsets to ignore)"
 	daemonsetWarning    = "Ignoring DaemonSet-managed pods"
@@ -376,7 +378,7 @@ func (o *DrainOptions) evictPods(pods []api.Pod, policyGroupVersion string, getP
 				}
 			}
 			podArray := []api.Pod{pod}
-			_, err = o.waitForDelete(podArray, kubectl.Interval, time.Duration(math.MaxInt64), true, getPodFn)
+			_, err = o.waitForDelete(podArray, Interval, time.Duration(math.MaxInt64), true, getPodFn)
 			if err == nil {
 				doneCh <- true
 			} else {
@@ -422,7 +424,7 @@ func (o *DrainOptions) deletePods(pods []api.Pod, getPodFn func(namespace, name 
 			return err
 		}
 	}
-	_, err := o.waitForDelete(pods, kubectl.Interval, globalTimeout, false, getPodFn)
+	_, err := o.waitForDelete(pods, Interval, globalTimeout, false, getPodFn)
 	return err
 }
 

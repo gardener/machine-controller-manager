@@ -2,7 +2,6 @@ package options
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/apis/componentconfig"
 )
 
 // ClientConnectionConfiguration contains details for constructing a client.
@@ -51,7 +50,7 @@ type MachineControllerManagerConfiguration struct {
 	// kubeAPIBurst is the burst to use while talking with kubernetes apiserver.
 	KubeAPIBurst int32
 	// leaderElection defines the configuration of leader election client.
-	LeaderElection componentconfig.LeaderElectionConfiguration
+	LeaderElection LeaderElectionConfiguration
 	// How long to wait between starting controller managers
 	ControllerStartInterval metav1.Duration
 	// minResyncPeriod is the resync period in reflectors; will be random between
@@ -77,4 +76,32 @@ type SafetyOptions struct {
 	// Timeout (in minutes) used while scaling machineSet
 	// if timeout occurs machineSet is permanently frozen
 	MachineSetScaleTimeout int32
+}
+
+// LeaderElectionConfiguration defines the configuration of leader election
+// clients for components that can run with leader election enabled.
+type LeaderElectionConfiguration struct {
+	// leaderElect enables a leader election client to gain leadership
+	// before executing the main loop. Enable this when running replicated
+	// components for high availability.
+	LeaderElect bool
+	// leaseDuration is the duration that non-leader candidates will wait
+	// after observing a leadership renewal until attempting to acquire
+	// leadership of a led but unrenewed leader slot. This is effectively the
+	// maximum duration that a leader can be stopped before it is replaced
+	// by another candidate. This is only applicable if leader election is
+	// enabled.
+	LeaseDuration metav1.Duration
+	// renewDeadline is the interval between attempts by the acting master to
+	// renew a leadership slot before it stops leading. This must be less
+	// than or equal to the lease duration. This is only applicable if leader
+	// election is enabled.
+	RenewDeadline metav1.Duration
+	// retryPeriod is the duration the clients should wait between attempting
+	// acquisition and renewal of a leadership. This is only applicable if
+	// leader election is enabled.
+	RetryPeriod metav1.Duration
+	// resourceLock indicates the resource object type that will be used to lock
+	// during leader election cycles.
+	ResourceLock string
 }
