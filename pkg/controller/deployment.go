@@ -448,8 +448,8 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return err
 	}
 
-	// If MachineDeployment is frozen, don't process it
-	if deployment.Labels["freeze"] == "True" {
+	// If MachineDeployment is frozen and no deletion timestamp, don't process it
+	if deployment.Labels["freeze"] == "True" && deployment.DeletionTimestamp == nil {
 		glog.V(3).Infof("MachineDeployment %q is frozen, and hence not processeing", deployment.Name)
 		return nil
 	}
