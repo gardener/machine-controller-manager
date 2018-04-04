@@ -39,6 +39,7 @@ import (
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
+	"github.com/gardener/machine-controller-manager/pkg/handlers"
 	"github.com/gardener/machine-controller-manager/pkg/util/configz"
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
@@ -197,6 +198,8 @@ func StartControllers(s *options.MCMServer,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) error {
 
+	handlers.UpdateLiveness(false)
+
 	glog.V(5).Info("Getting available resources")
 	availableResources, err := getAvailableResources(controlCoreClientBuilder)
 	if err != nil {
@@ -273,6 +276,8 @@ func StartControllers(s *options.MCMServer,
 	} else {
 		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q or %q is not available; found %#v", awsGVR, azureGVR, gcpGVR, openStackGVR, availableResources)
 	}
+
+	handlers.UpdateLiveness(true)
 
 	select {}
 }
@@ -353,6 +358,7 @@ func startHTTP(s *options.MCMServer) {
 	}
 	configz.InstallHandler(mux)
 	mux.Handle("/metrics", prometheus.Handler())
+	mux.HandleFunc("/livez", handlers.Livez)
 
 	server := &http.Server{
 		Addr:    net.JoinHostPort(s.Address, strconv.Itoa(int(s.Port))),
