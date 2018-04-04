@@ -445,8 +445,8 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		return err
 	}
 
-	// If MachineSet is frozen, don't process it
-	if machineSet.Labels["freeze"] == "True" {
+	// If MachineSet is frozen and no deletion timestamp, don't process it
+	if machineSet.Labels["freeze"] == "True" && machineSet.DeletionTimestamp == nil {
 		glog.V(3).Infof("MachineSet %q is frozen, and hence not processeing", machineSet.Name)
 		return nil
 	}
