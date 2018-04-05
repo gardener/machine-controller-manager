@@ -29,11 +29,15 @@ import (
 )
 
 const (
+	// DefaultLeaseDuration is the default lease duration for leader election
 	DefaultLeaseDuration = 15 * time.Second
+	// DefaultRenewDeadline is the default renew duration for leader election
 	DefaultRenewDeadline = 10 * time.Second
-	DefaultRetryPeriod   = 2 * time.Second
+	// DefaultRetryPeriod is the default retry period for leader election
+	DefaultRetryPeriod = 2 * time.Second
 )
 
+// DefaultLeaderElectionConfiguration the default configurations used for leader election
 func DefaultLeaderElectionConfiguration() options.LeaderElectionConfiguration {
 	return options.LeaderElectionConfiguration{
 		LeaderElect:   false,

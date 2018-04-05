@@ -1,0 +1,242 @@
+#!/usr/bin/env bash
+
+# Copyright 2018 The Gardener Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+mkdir -p dev
+control_kubeconfig=dev/control_kubeconfig.yaml
+target_kubeconfig=dev/target_kubeconfig.yaml
+control_namespace=aws
+
+/cc/utils/cli.py config attribute --cfg-type kubernetes --cfg-name mcm-ci-control --key kubeconfig > $control_kubeconfig
+/cc/utils/cli.py config attribute --cfg-type kubernetes --cfg-name mcm-ci-target --key kubeconfig > $target_kubeconfig
+
+
+export KUBECONFIG=$control_kubeconfig:$target_kubeconfig
+Objects_path=$SOURCE_PATH/.ci/sample-objects
+num_of_existing_nodes=1
+
+############################################## <Initialization> ##############################################
+
+function check_cluster_state() {
+    printf "\nChecking existance of machine objects\n"
+    # Wait 20mins for any existing PRs to cleanup machines
+    hf_wait_on "hf_num_of_objects" mach 0 1200
+    printf "No machine objects in target test cluster\n"
+
+    printf "\nChecking existance of node objects\n"
+    # Wait 20mins for any existing PRs to cleanup nodes
+    hf_wait_on "hf_num_of_ready_nodes" nodes 0 1200
+    printf "No additional node objects in target test cluster\n"
+
+    printf "\nCluster state looks clean\n"
+}
+
+function setup_environment() {
+    printf "\nDownloading and installing kubectl\n"
+    curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.10.0/bin/linux/amd64/kubectl
+    chmod +x ./kubectl
+    mv ./kubectl /usr/local/bin/kubectl
+    printf "Successfully installed kubectl\n"
+
+    printf "\nBuilding MCM binary\n"
+    if go build -i cmd/machine-controller-manager/controller_manager.go; then
+        printf "Go build Successful\n"
+    else
+        printf "Go build Failure\n"
+        terminate_script
+    fi
+
+    printf "\nRunning MCM in background\n"
+    ./controller_manager \
+                --control-kubeconfig=$control_kubeconfig \
+                --target-kubeconfig=$target_kubeconfig \
+                --namespace=$control_namespace \
+                --safety-up=2 \
+                --safety-down=1 \
+                --machine-drain-timeout=5 \
+                --machine-health-timeout=10 \
+                --machine-set-scale-timeout=20 \
+                --v=2 > mcm.out 2>&1 &
+}
+
+############################################## </Intialization> ##############################################
+############################################## <HelperFunction> ##############################################
+
+function hf_object_create() {
+    output=$(kubectl apply -f "$Objects_path"/"$1" --context=control 2>&1)
+    outputSucccess=$(echo "$output" | grep created -c)
+    if [[ outputSucccess -ne 1 ]]; then
+        printf "\tFailed: To create object. Exiting Test to avoid further conflicts.\n"
+        printf "\tCreate error message: %s" "$output"
+        terminate_script
+    fi
+
+    printf "\n\t%s" "$output"
+}
+
+function hf_object_configure() {
+    output=$(kubectl apply -f "$Objects_path"/"$1" --context=control 2>&1)
+    outputSucccess=$(echo "$output" | grep configured -c)
+    if [[ outputSucccess -ne 1 ]]; then
+        printf "\tFailed: To apply object. Exiting Test to avoid further conflicts.\n"
+        printf "\tApply error message: %s" "$output"
+        terminate_script
+    fi
+
+    printf "\n\t%s" "$output"
+}
+
+function hf_object_delete() {
+    output=$(kubectl delete -f "$Objects_path"/"$1" --context=control 2>&1)
+    outputSucccess=$(echo "$output" | grep deleted -c)
+    if [[ outputSucccess -ne 1 ]]; then
+        printf "\tFailed: To delete object. Exiting Test to avoid further conflicts.\n"
+        printf "\tDelete error message: %s" "$output"
+        terminate_script
+    fi
+
+    printf "\n\t%s" "$output"
+}
+
+function hf_num_of_objects() {
+    output=$(kubectl -n aws get "$1" --context=control 2>&1)
+    if [[ $output == *"No resources found."* ]]; then
+        return 0
+    fi
+    object_count=$(echo "$output" | wc -l)
+    ((object_count--))
+
+    return "$object_count"
+}
+
+function hf_num_of_ready_nodes() {
+    output=$(kubectl get "$1" --context=target 2>&1)
+    ready_count=$(echo "$output" | tr " " "\n" | grep ^Ready -c)
+
+    return $((ready_count-num_of_existing_nodes))
+}
+
+function hf_wait_on() {
+    function_name=$1
+    function_param=$2
+    count_to_match=$3
+    seconds_to_wait=$4
+    iteration_count=$(($seconds_to_wait/30))
+
+    while
+        "$function_name" "$function_param"
+        ret=$?
+        [[ $ret -ne $count_to_match ]]
+    do
+        sleep 30
+        ((iteration_count--))
+
+        # Exit script when timeout occurs
+        if [ $iteration_count -le 0 ]; then
+            printf "\tFailed: Timeout occured while waiting for operation. Exiting Test to avoid further conflicts.\n"
+            printf "\tExecuting function: %s, %s" $function_name $function_param
+            terminate_script
+        fi
+
+    done
+}
+
+function terminate_script() {
+    printf "\n-------------- LOGS OF MCM -----------\n\n"
+    cat ./mcm.out
+    printf "\n-------------- END OF LOGS -----------\n\n"
+    printf "CI tests have failed. Re-check your PR."
+    exit 1
+}
+
+############################################## </HelperFunction> #############################################
+############################################## <TestCases> ###################################################
+function tc_machine() {
+
+    printf "\nStarting TestCase: %s" "${FUNCNAME[0]}"
+
+    # Wait until 1 nodes have joined the cluster
+    hf_object_create aws/machine.yaml
+    printf "\n\tWaiting 600s for machine to join the cluster"
+    hf_wait_on "hf_num_of_ready_nodes" nodes 1 600
+
+    # Wait for deletion of machine-deployment
+    hf_object_delete aws/machine.yaml
+    hf_wait_on "hf_num_of_objects" mach 0 300
+
+    printf "\nCompleted TestCase\n"
+}
+
+function tc_machine_deployment() {
+
+    printf "\nStarting TestCase: %s" "${FUNCNAME[0]}"
+
+    # Wait until 3 nodes have joined the cluster
+    hf_object_create aws/md.yaml
+    printf "\n\tWaiting 600s for 3 machines to join the cluster"
+    hf_wait_on "hf_num_of_ready_nodes" nodes 3 600
+
+    # Scale down the number of nodes to 2
+    hf_object_configure aws/md-scale-down.yaml
+    printf "\n\tWaiting 300s for machines to scale-down to 2"
+    hf_wait_on "hf_num_of_ready_nodes" nodes 2 300
+
+    # Update the machines to v2 and double the number of replicas
+    hf_object_configure aws/md-update.yaml
+    printf "\n\tWaiting 1200s for machines to upgrade to x.Large type and scale-up replicas to 4"
+    hf_wait_on "hf_num_of_ready_nodes" nodes 4 1200
+
+    # Delete the machine-deployment
+    hf_object_delete aws/md.yaml
+    hf_wait_on "hf_num_of_objects" machdeploy 0 300
+
+    printf "\nCompleted TestCase\n"
+}
+
+############################################## </TestCases> ##################################################
+############################################## <CleanUp> #####################################################
+
+
+############################################## </CleanUp> ####################################################
+############################################## <Main> ########################################################
+
+printf "\n\t\t\t----- Setup Test Environment --------\n"
+
+setup_environment
+
+printf "\t\t\t----- Checking Test Environment -------\n"
+
+check_cluster_state
+
+printf "\n\t\t\t----- Start of TestCases -----------\n"
+
+tc_machine
+tc_machine_deployment
+
+printf "\n\t\t\t----- End of TestCases -------------\n"
+
+printf "\n\t\t\t----- CleanUp Test Environment -----\n"
+
+sleep 30
+
+printf "\n\t\t\t----- Start of MCM Logs -----------\n\n"
+
+cat ./mcm.out
+
+printf "\n\t\t\t----- End of MCM logs -----------\n\n"
+
+printf "\n\t\t\t----- End of Test Script -----------\n"
+
+############################################## </Main> #######################################################
