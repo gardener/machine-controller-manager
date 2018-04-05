@@ -11,7 +11,8 @@
 *.DS_Store
 managevm
 controller_manager
-
+mcm.out
+kubectl
 
 ./machine-controller-manager
 ./managevm

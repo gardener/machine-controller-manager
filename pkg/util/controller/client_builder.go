@@ -27,8 +27,8 @@ import (
 	"github.com/golang/glog"
 )
 
-// ControllerClientBuilder allows you to get clients and configs for controllers
-type ControllerClientBuilder interface {
+// ClientBuilder allows you to get clients and configs for controllers
+type ClientBuilder interface {
 	Config(name string) (*restclient.Config, error)
 	ConfigOrDie(name string) *restclient.Config
 	Client(name string) (clientset.Interface, error)
@@ -43,11 +43,13 @@ type SimpleControllerClientBuilder struct {
 	ClientConfig *restclient.Config
 }
 
+// Config lets you configure the client builder
 func (b SimpleControllerClientBuilder) Config(name string) (*restclient.Config, error) {
 	clientConfig := *b.ClientConfig
 	return restclient.AddUserAgent(&clientConfig, name), nil
 }
 
+// ConfigOrDie either configures or die's while configuring
 func (b SimpleControllerClientBuilder) ConfigOrDie(name string) *restclient.Config {
 	clientConfig, err := b.Config(name)
 	if err != nil {
@@ -56,6 +58,7 @@ func (b SimpleControllerClientBuilder) ConfigOrDie(name string) *restclient.Conf
 	return clientConfig
 }
 
+// Client builds a new client for clientBuilder
 func (b SimpleControllerClientBuilder) Client(name string) (clientset.Interface, error) {
 	clientConfig, err := b.Config(name)
 	if err != nil {
@@ -64,6 +67,7 @@ func (b SimpleControllerClientBuilder) Client(name string) (clientset.Interface,
 	return clientset.NewForConfig(clientConfig)
 }
 
+// ClientOrDie builds a client or die's
 func (b SimpleControllerClientBuilder) ClientOrDie(name string) clientset.Interface {
 	client, err := b.Client(name)
 	if err != nil {
@@ -72,6 +76,7 @@ func (b SimpleControllerClientBuilder) ClientOrDie(name string) clientset.Interf
 	return client
 }
 
+// ClientGoClient builds a go client
 func (b SimpleControllerClientBuilder) ClientGoClient(name string) (clientgoclientset.Interface, error) {
 	clientConfig, err := b.Config(name)
 	if err != nil {
@@ -80,6 +85,7 @@ func (b SimpleControllerClientBuilder) ClientGoClient(name string) (clientgoclie
 	return clientgoclientset.NewForConfig(clientConfig)
 }
 
+// ClientGoClientOrDie builds a go client or die's
 func (b SimpleControllerClientBuilder) ClientGoClientOrDie(name string) clientgoclientset.Interface {
 	client, err := b.ClientGoClient(name)
 	if err != nil {

@@ -19,7 +19,7 @@ https://github.com/kubernetes/kubernetes/blob/release-1.8/pkg/util/taints/taints
 Modifications Copyright 2018 The Gardener Authors.
 */
 
-// package taints implements utilites for working with taints
+// Package taints implements utilites for working with taints
 package taints
 
 import (
@@ -34,8 +34,11 @@ import (
 )
 
 const (
-	MODIFIED  = "modified"
-	TAINTED   = "tainted"
+	// MODIFIED refer's to the object was modified
+	MODIFIED = "modified"
+	// TAINTED refer's if it was tainted
+	TAINTED = "tainted"
+	// UNTAINTED refer's if it was untainted
 	UNTAINTED = "untainted"
 )
 
@@ -67,19 +70,21 @@ func parseTaint(st string) (v1.Taint, error) {
 	return taint, nil
 }
 
-// NewTaintsVar wraps []api.Taint in a struct that implements flag.Value to allow taints to be
+// NewVar wraps []api.Taint in a struct that implements flag.Value to allow taints to be
 // bound to command line flags.
-func NewTaintsVar(ptr *[]v1.Taint) taintsVar {
-	return taintsVar{
+func NewVar(ptr *[]v1.Taint) Var {
+	return Var{
 		ptr: ptr,
 	}
 }
 
-type taintsVar struct {
+// Var are varibles used to tarck taints
+type Var struct {
 	ptr *[]v1.Taint
 }
 
-func (t taintsVar) Set(s string) error {
+// Set sets the type for Var
+func (t Var) Set(s string) error {
 	sts := strings.Split(s, ",")
 	var taints []v1.Taint
 	for _, st := range sts {
@@ -93,7 +98,8 @@ func (t taintsVar) Set(s string) error {
 	return nil
 }
 
-func (t taintsVar) String() string {
+// String gets the String for Var
+func (t Var) String() string {
 	if len(*t.ptr) == 0 {
 		return "<nil>"
 	}
@@ -104,7 +110,8 @@ func (t taintsVar) String() string {
 	return strings.Join(taints, ",")
 }
 
-func (t taintsVar) Type() string {
+// Type gets the type for Var
+func (t Var) Type() string {
 	return "[]v1.Taint"
 }
 
@@ -297,6 +304,7 @@ func TaintExists(taints []v1.Taint, taintToFind *v1.Taint) bool {
 	return false
 }
 
+// TaintSetDiff set difference between the taints
 func TaintSetDiff(t1, t2 []v1.Taint) (taintsToAdd []*v1.Taint, taintsToRemove []*v1.Taint) {
 	for _, taint := range t1 {
 		if !TaintExists(t2, &taint) {
@@ -315,6 +323,7 @@ func TaintSetDiff(t1, t2 []v1.Taint) (taintsToAdd []*v1.Taint, taintsToRemove []
 	return
 }
 
+// TaintSetFilter filter from the set of taints
 func TaintSetFilter(taints []v1.Taint, fn func(*v1.Taint) bool) []v1.Taint {
 	res := []v1.Taint{}
 
