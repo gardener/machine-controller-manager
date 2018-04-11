@@ -17,6 +17,7 @@ This file was copied and modified from the kubernetes/kubernetes project
 https://github.com/kubernetes/kubernetes/blob/release-1.8/pkg/apis/componentconfig/helpers.go
 */
 
+// Package options is used to specify options to MCM
 package options
 
 import (
@@ -33,10 +34,12 @@ import (
 // used for validating command line opts
 // TODO(mikedanese): remove these when we remove command line flags
 
+// IPVar is used to store the IP Address as a string
 type IPVar struct {
 	Val *string
 }
 
+// Set is used to set IPVar
 func (v IPVar) Set(s string) error {
 	if net.ParseIP(s) == nil {
 		return fmt.Errorf("%q is not a valid IP address", s)
@@ -49,6 +52,7 @@ func (v IPVar) Set(s string) error {
 	return nil
 }
 
+// String is used to get IPVar in string format
 func (v IPVar) String() string {
 	if v.Val == nil {
 		return ""
@@ -56,14 +60,17 @@ func (v IPVar) String() string {
 	return *v.Val
 }
 
+// Type is used to determine the type of IPVar
 func (v IPVar) Type() string {
 	return "ip"
 }
 
+// PortRangeVar is used to store the range of ports
 type PortRangeVar struct {
 	Val *string
 }
 
+// Set is used to set the PortRangeVar
 func (v PortRangeVar) Set(s string) error {
 	if _, err := utilnet.ParsePortRange(s); err != nil {
 		return fmt.Errorf("%q is not a valid port range: %v", s, err)
@@ -76,6 +83,7 @@ func (v PortRangeVar) Set(s string) error {
 	return nil
 }
 
+// String is used to get PortRangeVar in string format
 func (v PortRangeVar) String() string {
 	if v.Val == nil {
 		return ""
@@ -83,6 +91,7 @@ func (v PortRangeVar) String() string {
 	return *v.Val
 }
 
+// Type is used to determine the type of PortRangeVar
 func (v PortRangeVar) Type() string {
 	return "port-range"
 }

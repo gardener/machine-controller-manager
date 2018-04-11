@@ -192,8 +192,8 @@ func StartControllers(s *options.MCMServer,
 	controlCoreKubeconfig *rest.Config,
 	targetCoreKubeconfig *rest.Config,
 	controlMachineClientBuilder machinecontroller.ClientBuilder,
-	controlCoreClientBuilder corecontroller.ControllerClientBuilder,
-	targetCoreClientBuilder corecontroller.ControllerClientBuilder,
+	controlCoreClientBuilder corecontroller.ClientBuilder,
+	targetCoreClientBuilder corecontroller.ClientBuilder,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) error {
 
@@ -280,7 +280,7 @@ func StartControllers(s *options.MCMServer,
 // TODO: In general, any controller checking this needs to be dynamic so
 //  users don't have to restart their controller manager if they change the apiserver.
 // Until we get there, the structure here needs to be exposed for the construction of a proper ControllerContext.
-func getAvailableResources(clientBuilder corecontroller.ControllerClientBuilder) (map[schema.GroupVersionResource]bool, error) {
+func getAvailableResources(clientBuilder corecontroller.ClientBuilder) (map[schema.GroupVersionResource]bool, error) {
 	var discoveryClient discovery.DiscoveryInterface
 
 	var healthzContent string
