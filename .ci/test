@@ -16,9 +16,8 @@
 
 set -e
 
-# For the build step concourse will set the following environment variables:
+# For the test step concourse will set the following environment variables:
 # SOURCE_PATH - path to component repository root directory.
-# BINARY_PATH - path to an existing (empty) directory to place build results into.
 
 if [[ $(uname) == 'Darwin' ]]; then
   READLINK_BIN="greadlink"
@@ -30,12 +29,6 @@ if [[ -z "${SOURCE_PATH}" ]]; then
   export SOURCE_PATH="$(${READLINK_BIN} -f $(dirname ${0})/..)"
 else
   export SOURCE_PATH="$(${READLINK_BIN} -f "${SOURCE_PATH}")"
-fi
-
-if [[ -z "${BINARY_PATH}" ]]; then
-  export BINARY_PATH="${SOURCE_PATH}/bin"
-else
-  export BINARY_PATH="$(${READLINK_BIN} -f "${BINARY_PATH}")/bin"
 fi
 
 # The `go <cmd>` commands requires to see the target repository to be part of a
@@ -55,21 +48,17 @@ if [[ "${SOURCE_PATH}" != *"src/github.com/gardener/machine-controller-manager" 
   export PATH="${GOBIN}:${PATH}"
 fi
 
+# Install Ginkgo (test framework) to be able to execute the tests.
+go get -u github.com/onsi/ginkgo/ginkgo
+
 ###############################################################################
 
-# If no LOCAL_BUILD environment variable is set, we configure the `go build` command
-# to build for linux OS, amd64 architectures and without CGO enablement.
-if [[ -z "$LOCAL_BUILD" ]]; then
-  CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -a \
-    -v \
-    -o ${BINARY_PATH}/rel/machine-controller-manager \
-    cmd/machine-controller-manager/controller_manager.go
+printf ">>>>> Invoking unit tests\n"
+# TODO to be added
+printf ">>>>> Finished executing unit tests\n\n"
 
-# If the LOCAL_BUILD environment variable is set, we simply run `go build`.
-else
-  go build \
-    -v \
-    -o ${BINARY_PATH}/machine-controller-manager \
-    cmd/machine-controller-manager/controller_manager.go
-fi
+printf ">>>>> Invoking intergration tests\n"
+.ci/integration-tests
+printf ">>>>> Finished executing integration tests\n\n"
+
+printf "CI tests have passed successfully"

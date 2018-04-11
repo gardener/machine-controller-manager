@@ -32,10 +32,12 @@ var (
 	configs      = map[string]*Config{}
 )
 
+// Config is the utility used to configure
 type Config struct {
 	val interface{}
 }
 
+// InstallHandler used to handle /configz endpoint
 func InstallHandler(m mux) {
 	m.Handle("/configz", http.HandlerFunc(handle))
 }
@@ -44,6 +46,7 @@ type mux interface {
 	Handle(string, http.Handler)
 }
 
+// New creates a new config
 func New(name string) (*Config, error) {
 	configsGuard.Lock()
 	defer configsGuard.Unlock()
@@ -55,18 +58,21 @@ func New(name string) (*Config, error) {
 	return &newConfig, nil
 }
 
+// Delete delete's a config
 func Delete(name string) {
 	configsGuard.Lock()
 	defer configsGuard.Unlock()
 	delete(configs, name)
 }
 
+// Set set's up the config
 func (v *Config) Set(val interface{}) {
 	configsGuard.Lock()
 	defer configsGuard.Unlock()
 	v.val = val
 }
 
+// MarshalJSON marshal the JSON
 func (v *Config) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.val)
 }
