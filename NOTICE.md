@@ -1,6 +1,5 @@
 ## Machine Controller Manager.  
-Copyright (c) 2017-2018 SAP SE or an SAP affiliate company. All rights reserved.      
-[Apache 2 license](./LICENSE.md ).   
+Copyright (c) 2017-2018 SAP SE or an SAP affiliate company. All rights reserved.
 
 ## Seed Source
 
@@ -32,71 +31,3 @@ To the left are the list of copied files -> and to the right the current locatio
 	pkg/controller/replicaset/replica_set.go -> pkg/controller/machineset.go
 	pkg/controller/deployment/util/replicaset_util.go -> pkg/controller/machineset_util.go
 
-## Dependencies
-
-The machine-controller-manager includes the following components
-
-OAI Object Model.   
-https://github.com/go-openapi/spec.  
-Copyright 2015 go-swagger maintainers.  
-Apache 2 license (https://github.com/go-openapi/spec/blob/master/LICENSE ).  
-
-Glog.  
-https://github.com/golang/glog.  
-Copyright 2013 Google Inc. All Rights Reserved.  
-Apache 2 license (https://github.com/golang/glog/blob/master/LICENSE ).  
-
-Prometheus Go Client Library.  
-https://github.com/prometheus/client_golang.  
-Copyright 2015 The Prometheus Authors.  
-Apache 2 license (https://github.com/prometheus/client_golang/blob/master/LICENSE ).  
-
-Pflag.   
-https://github.com/spf13/pflag.  
-Copyright (c) 2012 Alex Ogier. Copyright (c) 2012 The Go Authors.   
-BSD 3-clause "New" or "Revised" License (https://github.com/spf13/pflag/blob/master/LICENSE ).  
-
-API.  
-https://github.com/kubernetes/api/.  
-Copyright 2017 The Kubernetes Authors.   
-Apache 2 license (https://github.com/kubernetes/api/blob/master/LICENSE ).  
-
-APIMachinery.  
-https://github.com/kubernetes/apimachinery.  
-Copyright 2017 The Kubernetes Authors.      
-Apache 2 license (https://github.com/kubernetes/apimachinery/blob/master/LICENSE ).  
-
-APIServer.  
-https://github.com/kubernetes/apiserver.  
-Copyright 2017 The Kubernetes Authors.   
-Apache 2 license (https://github.com/kubernetes/apiserver/blob/master/LICENSE ).  
-
-Client-go.  
-https://github.com/kubernetes/client-go.  
-Copyright 2017 The Kubernetes Authors.   
-Apache 2 license (https://github.com/kubernetes/client-go/blob/master/LICENSE ).  
-
-Code-generator.  
-https://github.com/kubernetes/code-generator.  
-Copyright 2017 The Kubernetes Authors.   
-Apache 2 license (https://github.com/kubernetes/code-generator/blob/master/LICENSE ).  
-
-Gengo.  
-https://github.com/kubernetes/gengo.  
-Copyright 2017 The Kubernetes Authors.   
-Apache 2 license (https://github.com/kubernetes/gengo/blob/master/LICENSE ).   
-
-Kube OpenAPI.  
-https://github.com/kubernetes/kube-openapi.  
-Copyright 2017 The Kubernetes Authors.   
-Apache 2 license (https://github.com/kubernetes/kube-openapi/blob/master/LICENSE ).  
-
-Google Cloud Go SDK.  
-https://cloud.google.com/compute/docs/api/libraries#google_apis_go_client_library.  
-Copyright (c) 2011 Google Inc. All rights reserved.  
-BSD-3 license (https://github.com/google/google-api-go-client/blob/master/LICENSE)  
-
-Gophercloud.  
-https://github.com/gophercloud/gophercloud.  
-Copyright 2012-2013 Rackspace, Inc.  
-Apache 2 license (https://github.com/gophercloud/gophercloud/blob/master/LICENSE)  
