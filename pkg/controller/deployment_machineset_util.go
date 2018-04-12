@@ -16,7 +16,7 @@ limitations under the License.
 This file was copied and modified from the kubernetes/kubernetes project
 https://github.com/kubernetes/kubernetes/blob/release-1.8/pkg/controller/deployment/util/replicaset_util.go
 
-Modifications Copyright 2017 The Gardener Authors.
+Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights reserved.
 */
 
 // Package controller is used to provide the core functionalities of machine-controller-manager

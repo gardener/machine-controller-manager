@@ -16,7 +16,7 @@ limitations under the License.
 This file was copied and modified from the kubernetes/kubernetes project
 https://github.com/kubernetes/kubernetes/release-1.8/cmd/kube-controller-manager/controller_manager.go
 
-Modifications Copyright 2017 The Gardener Authors.
+Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights reserved.
 */
 
 package main
