@@ -518,9 +518,9 @@ func (c *controller) updateMachineStatus(
 	if err != nil {
 		// Keep retrying until update goes through
 		glog.V(3).Infof("Warning: Updated failed, retrying, error: %q", err)
-		c.updateMachineStatus(machine, lastOperation, currentStatus)
+		return c.updateMachineStatus(machine, lastOperation, currentStatus)
 	}
-	return machine, nil
+	return clone, nil
 }
 
 func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditions []v1.NodeCondition) *v1alpha1.Machine {
