@@ -1,0 +1,38 @@
+machine-controller-manager:
+  template: 'default'
+  base_definition:
+    repo: ~
+    traits:
+      version:
+        preprocess:
+          'inject-commit-hash'
+        inject_effective_version: true
+      publish:
+        dockerimages:
+          machine-controller-manager:
+            inputs:
+              repos:
+                source: ~ # default
+              steps:
+                build: ~
+            registry: 'gcr-readwrite'
+            image: 'eu.gcr.io/gardener-project/gardener/machine-controller-manager'
+    steps:
+      check:
+        image: 'golang:1.9.4'
+      test:
+        image: 'eu.gcr.io/gardener-project/cc/job-image-golang-1-9-4:0.21.0'
+      build:
+        image: 'golang:1.9.4'
+        output_dir: 'binary'
+  variants:
+    head-update: ~
+    pull-request:
+      traits:
+        pull-request: ~
+    release:
+      traits:
+        version:
+          preprocess: 'finalise'
+        release:
+          nextversion: 'bump_minor'
