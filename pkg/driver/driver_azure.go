@@ -76,6 +76,9 @@ func (d *AzureDriver) Create() (string, string, error) {
 		"",
 	)
 	err = onErrorFail(err, fmt.Sprintf("subnetClient.Get failed for subnet %q", subnet.Name))
+	if err != nil {
+		return "Error", "Error", err
+	}
 
 	enableIPForwarding := true
 	nicParameters := network.Interface{
@@ -94,11 +97,20 @@ func (d *AzureDriver) Create() (string, string, error) {
 		},
 		Tags: &tagList,
 	}
-	cancel := make(chan struct{})
+
+	var cancel chan struct{}
+
 	_, errChan := interfacesClient.CreateOrUpdate(resourceGroup, nicName, nicParameters, cancel)
 	err = onErrorFail(<-errChan, fmt.Sprintf("interfacesClient.CreateOrUpdate for NIC '%s' failed", nicName))
+	if err != nil {
+		return "Error", "Error", err
+	}
+
 	nicParameters, err = interfacesClient.Get(resourceGroup, nicName, "")
 	err = onErrorFail(err, fmt.Sprintf("interfaces.Get for NIC '%s' failed", nicName))
+	if err != nil {
+		return "Error", "Error", err
+	}
 
 	vm := compute.VirtualMachine{
 		Location: &location,
@@ -155,9 +167,13 @@ func (d *AzureDriver) Create() (string, string, error) {
 		},
 		Tags: &tagList,
 	}
+
+	cancel = nil
 	_, errChan = vmClient.CreateOrUpdate(resourceGroup, vmName, vm, cancel)
 	err = onErrorFail(<-errChan, "createVM failed")
-	//glog.Infof("Created machine '%s' successfully\n", vmName)
+	if err != nil {
+		return "Error", "Error", err
+	}
 
 	return d.encodeMachineID(location, vmName), vmName, err
 }
