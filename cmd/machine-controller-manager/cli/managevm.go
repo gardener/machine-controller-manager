@@ -103,6 +103,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Could not delete %s : %s", machineID, err)
 		}
+		fmt.Printf("Deleted machine with id %s", machineID)
 	}
 
 }
