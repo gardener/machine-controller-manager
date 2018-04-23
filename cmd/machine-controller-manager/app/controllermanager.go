@@ -198,7 +198,7 @@ func StartControllers(s *options.MCMServer,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) error {
 
-	handlers.UpdateLiveness(false)
+	handlers.UpdateHealth(false)
 
 	glog.V(5).Info("Getting available resources")
 	availableResources, err := getAvailableResources(controlCoreClientBuilder)
@@ -277,7 +277,7 @@ func StartControllers(s *options.MCMServer,
 		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q or %q is not available; found %#v", awsGVR, azureGVR, gcpGVR, openStackGVR, availableResources)
 	}
 
-	handlers.UpdateLiveness(true)
+	handlers.UpdateHealth(true)
 
 	select {}
 }
@@ -358,7 +358,7 @@ func startHTTP(s *options.MCMServer) {
 	}
 	configz.InstallHandler(mux)
 	mux.Handle("/metrics", prometheus.Handler())
-	mux.HandleFunc("/livez", handlers.Livez)
+	mux.HandleFunc("/healthz", handlers.Healthz)
 
 	server := &http.Server{
 		Addr:    net.JoinHostPort(s.Address, strconv.Itoa(int(s.Port))),

@@ -19,55 +19,55 @@ import (
 	"testing"
 )
 
-func TestUpdateLiveness(t *testing.T) {
+func TestUpdateHealth(t *testing.T) {
 	type testCase struct {
-		name            string
-		initialLiveness bool
-		updatedLiveness bool
+		name          string
+		initialHealth bool
+		updatedHealth bool
 	}
 
 	tests := []testCase{
-		{"update liveness from false to true", false, true},
-		{"update liveness from true to false", true, false},
-		{"update liveness with same value", false, false},
+		{"update health from false to true", false, true},
+		{"update health from true to false", true, false},
+		{"update health with same value", false, false},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			lively = test.initialLiveness
+			healthy = test.initialHealth
 
-			UpdateLiveness(test.updatedLiveness)
+			UpdateHealth(test.updatedHealth)
 
-			if lively != test.updatedLiveness {
-				t.Errorf("Liveness not updated correctly, got: %t, want: %t.", lively, test.updatedLiveness)
+			if healthy != test.updatedHealth {
+				t.Errorf("Health not updated correctly, got: %t, want: %t.", healthy, test.updatedHealth)
 			}
 		})
 	}
 }
 
-func TestLivez(t *testing.T) {
+func TestHealthz(t *testing.T) {
 	type testCase struct {
 		name           string
-		liveness       bool
+		health         bool
 		expectedStatus int
 	}
 
 	tests := []testCase{
-		{"respond with 200 when live", true, 200},
-		{"respond with 500 when not live", false, 500},
+		{"respond with 200 when healthy", true, 200},
+		{"respond with 500 when not healthy", false, 500},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			lively = test.liveness
+			healthy = test.health
 			fakeResponseWriter := httptest.NewRecorder()
 
-			Livez(fakeResponseWriter, nil)
+			Healthz(fakeResponseWriter, nil)
 
 			actualStatus := fakeResponseWriter.Result().StatusCode
 
 			if actualStatus != test.expectedStatus {
-				t.Errorf("Livez endpoint incorrect response, got: %d, want: %d.", actualStatus, test.expectedStatus)
+				t.Errorf("/s/livez/healthz endpoint incorrect response, got: %d, want: %d.", actualStatus, test.expectedStatus)
 			}
 		})
 	}

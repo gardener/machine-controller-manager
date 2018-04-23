@@ -20,24 +20,24 @@ import (
 )
 
 var (
-	mutex  sync.Mutex
-	lively = false
+	mutex   sync.Mutex
+	healthy = false
 )
 
-// UpdateLiveness expects a boolean value <isLive> and assigns it to the package-internal 'lively' variable.
-func UpdateLiveness(isLive bool) {
+// UpdateHealth expects a boolean value <isHealthy> and assigns it to the package-internal 'healthy' variable.
+func UpdateHealth(isHealthy bool) {
 	mutex.Lock()
-	lively = isLive
+	healthy = isHealthy
 	mutex.Unlock()
 }
 
-// Livez is a HTTP handler for the /livez endpoint which responses with 200 OK status code
-// if the Gardener controller manager is lively; and with 500 Internal Server error status code otherwise.
-func Livez(w http.ResponseWriter, r *http.Request) {
+// Healthz is a HTTP handler for the /s/livez/healthz endpoint which responds with 200 OK status code
+// if the Machine Controller Manager is healthy; and with 500 Internal Server error status code otherwise.
+func Healthz(w http.ResponseWriter, r *http.Request) {
 	mutex.Lock()
-	isLive := lively
+	isHealthy := healthy
 	mutex.Unlock()
-	if isLive {
+	if isHealthy {
 		w.WriteHeader(http.StatusOK)
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
