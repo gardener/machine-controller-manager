@@ -67,7 +67,7 @@ func TestHealthz(t *testing.T) {
 			actualStatus := fakeResponseWriter.Result().StatusCode
 
 			if actualStatus != test.expectedStatus {
-				t.Errorf("/s/livez/healthz endpoint incorrect response, got: %d, want: %d.", actualStatus, test.expectedStatus)
+				t.Errorf("/healthz endpoint incorrect response, got: %d, want: %d.", actualStatus, test.expectedStatus)
 			}
 		})
 	}

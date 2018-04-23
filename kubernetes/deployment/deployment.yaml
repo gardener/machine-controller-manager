@@ -22,7 +22,7 @@ spec:
           #- --kubeconfig=kubeconfig.yaml ## Optional parameter used when controller is running outside the cluster, kubeconfig.yaml file can be fetched from Kubernetes config-map or secret
         livenessProbe:
           httpGet:
-            path: /s/livez/healthz
+            path: /healthz
             port: 10258
           initialDelaySeconds: 10
           periodSeconds: 5
