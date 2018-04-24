@@ -31,6 +31,7 @@ import (
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/keypairs"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/images"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/pagination"
 )
@@ -62,11 +63,16 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 
 	var createOpts servers.CreateOptsBuilder
 
+	imageRef, err := d.recentImageIdFromName(client, imageName)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get image id for image name %s: %s", imageName, err)
+	}
+
 	createOpts = &servers.CreateOpts{
 		ServiceClient:    client,
 		Name:             d.MachineName,
 		FlavorName:       flavorName,
-		ImageName:        imageName,
+		ImageRef:         imageRef,
 		Networks:         []servers.Network{{UUID: networkID}},
 		SecurityGroups:   securityGroups,
 		Metadata:         metadata,
@@ -89,7 +95,6 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 
 // Delete method is used to delete an OS machine
 func (d *OpenStackDriver) Delete() error {
-
 	res, err := d.GetVMs(d.MachineID)
 	if err != nil {
 		return err
@@ -286,4 +291,21 @@ func (d *OpenStackDriver) encodeMachineID(region string, machineID string) strin
 func (d *OpenStackDriver) decodeMachineID(id string) string {
 	splitProviderID := strings.Split(id, "/")
 	return splitProviderID[len(splitProviderID)-1]
+}
+
+func (d *OpenStackDriver) recentImageIdFromName(client *gophercloud.ServiceClient, imageName string) (string, error) {
+	allPages, err := images.ListDetail(client, nil).AllPages()
+	if err != nil {
+		return "", err
+	}
+	all, err := images.ExtractImages(allPages)
+	if err != nil {
+		return "", err
+	}
+	for _, f := range all {
+		if f.Name == imageName {
+			return f.ID, nil
+		}
+	}
+	return "", fmt.Errorf("could not find an image id for image name %s", imageName)
 }
