@@ -4,6 +4,8 @@ package internalversion
 
 type AWSMachineClassExpansion interface{}
 
+type AliyunMachineClassExpansion interface{}
+
 type AzureMachineClassExpansion interface{}
 
 type GCPMachineClassExpansion interface{}

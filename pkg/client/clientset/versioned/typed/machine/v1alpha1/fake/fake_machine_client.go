@@ -16,6 +16,10 @@ func (c *FakeMachineV1alpha1) AWSMachineClasses(namespace string) v1alpha1.AWSMa
 	return &FakeAWSMachineClasses{c, namespace}
 }
 
+func (c *FakeMachineV1alpha1) AliyunMachineClasses(namespace string) v1alpha1.AliyunMachineClassInterface {
+	return &FakeAliyunMachineClasses{c, namespace}
+}
+
 func (c *FakeMachineV1alpha1) AzureMachineClasses(namespace string) v1alpha1.AzureMachineClassInterface {
 	return &FakeAzureMachineClasses{c, namespace}
 }

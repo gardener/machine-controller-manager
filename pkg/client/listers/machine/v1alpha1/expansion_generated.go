@@ -12,6 +12,14 @@ type AWSMachineClassListerExpansion interface{}
 // AWSMachineClassNamespaceLister.
 type AWSMachineClassNamespaceListerExpansion interface{}
 
+// AliyunMachineClassListerExpansion allows custom methods to be added to
+// AliyunMachineClassLister.
+type AliyunMachineClassListerExpansion interface{}
+
+// AliyunMachineClassNamespaceListerExpansion allows custom methods to be added to
+// AliyunMachineClassNamespaceLister.
+type AliyunMachineClassNamespaceListerExpansion interface{}
+
 // AzureMachineClassListerExpansion allows custom methods to be added to
 // AzureMachineClassLister.
 type AzureMachineClassListerExpansion interface{}
