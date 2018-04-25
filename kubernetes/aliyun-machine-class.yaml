@@ -1,0 +1,33 @@
+# Sample Aliyun machine class
+
+apiVersion: machine.sapcloud.io/v1alpha1
+kind: AliyunMachineClass
+metadata:
+  name: test-aliyun # Name of Aliyun machine class goes here
+  namespace: default # Namespace in which the machine class is to be deployed
+spec:
+  imageId: centos_7_04_64_20G_alibase_201701015.vhd  # Aliyun machine image name goes here coreos_1465_8_0_64_30G_alibase_20171024.vhd centos_7_04_64_20G_alibase_201701015
+  instanceType: ecs.n1.tiny # Type of ecs machine ecs.t5-lc1m1.small ecs.t5-lc2m1.nano
+  region: cn-hangzhou # Region in which machine is to be deployed
+  zoneId: cn-hangzhou-e # Zone of the region
+  securityGroupId: sg-1234567890 # Id of security group, it has to be within the same VPC of VSwitch
+  vSwitchId: vsw-1234567890 # similar to AWS subnet id
+  systemDisk:
+    category: cloud_efficiency # cloud, cloud_efficiency, cloud_ssd, ephemeral_ssd
+    size: 20 # 20-500
+  instanceChargeType: PostPaid # Prepaid or PostPaid (default)
+  internetChargeType: PayByTraffic # PayByBandwidth or PayByTraffic (default)
+  internetMaxBandwidthIn: 5 # 1-200
+  internetMaxBandwidthOut: 0 # 0-100
+  spotStrategy: NoSpot # NoSpot, SpotWithPriceLimit, SpotAsPriceGo
+  tags:
+    tag1Key: kubernetes.io/cluster/**** # This is mandatory at first tag as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired cluster name.
+    tag1Value: "1"
+    tag2Key: kubernetes.io/role/**** # This is mandatory at second tag as the safety controller uses this tag to identify VMs created by by this controller. Replace **** string with your desired role name.
+    tag2Value: "1"
+    tag3Key: tag-key # A set of additional tags attached to a machine (optional)
+    tag3Value: tag-value
+  keyPairName: test-keypair # keypair used to access Aliyun ECS machine
+  secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig
+    namespace: default  # Namespace
+    name: test-secret # Name of the secret

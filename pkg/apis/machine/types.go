@@ -1117,3 +1117,75 @@ type GCPServiceAccount struct {
 	Email  string
 	Scopes []string
 }
+
+/********************** AliyunMachineClass APIs ***************/
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// AliyunMachineClass
+type AliyunMachineClass struct {
+	// +optional
+	metav1.ObjectMeta
+
+	// +optional
+	metav1.TypeMeta
+
+	// +optional
+	Spec AliyunMachineClassSpec
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// AliyunMachineClassList is a collection of AliyunMachineClasses.
+type AliyunMachineClassList struct {
+	// +optional
+	metav1.TypeMeta
+
+	// +optional
+	metav1.ListMeta
+
+	// +optional
+	Items []AliyunMachineClass
+}
+
+// AliyunMachineClassSpec is the specification of a cluster.
+type AliyunMachineClassSpec struct {
+	ImageId                 string
+	InstanceType            string
+	Region                  string
+	ZoneId                  string
+	SecurityGroupId         string
+	VSwitchId               string
+	PrivateIpAddress        string
+	SystemDisk              *AliyunSystemDisk
+	InstanceChargeType      string
+	InternetChargeType      string
+	InternetMaxBandwidthIn  *int
+	InternetMaxBandwidthOut *int
+	SpotStrategy            string
+	IoOptimized             string
+	Tags                    *AliyunTags
+	KeyPairName             string
+	SecretRef               *corev1.SecretReference
+}
+
+// AliyunSystemDisk describes SystemDisk for Aliyun.
+type AliyunSystemDisk struct {
+	Category string
+	Size     int
+}
+
+// AliyunTags describes Tags for Aliyun.
+type AliyunTags struct {
+	Tag1Key   string
+	Tag1Value string
+	Tag2Key   string
+	Tag2Value string
+	Tag3Key   string
+	Tag3Value string
+	Tag4Key   string
+	Tag4Value string
+	Tag5Key   string
+	Tag5Value string
+}

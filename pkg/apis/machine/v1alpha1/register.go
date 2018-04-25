@@ -64,6 +64,9 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&GCPMachineClass{},
 		&GCPMachineClassList{},
 
+		&AliyunMachineClass{},
+		&AliyunMachineClassList{},
+
 		&Machine{},
 		&MachineList{},
 
