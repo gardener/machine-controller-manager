@@ -360,6 +360,287 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClass": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AlicloudMachineClass TODO",
+					Properties: map[string]spec.Schema{
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							},
+						},
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"spec": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClassSpec"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClassList": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AlicloudMachineClassList is a collection of AlicloudMachineClasses.",
+					Properties: map[string]spec.Schema{
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+							},
+						},
+						"items": {
+							SchemaProps: spec.SchemaProps{
+								Type: []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClass"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClassSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AlicloudMachineClassSpec is the specification of a cluster.",
+					Properties: map[string]spec.Schema{
+						"imageId": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"instanceType": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"region": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"zoneId": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"securityGroupId": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"vSwitchId": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"privateIpAddress": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"systemDisk": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudSystemDisk"),
+							},
+						},
+						"instanceChargeType": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"internetChargeType": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"internetMaxBandwidthIn": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"integer"},
+								Format: "int32",
+							},
+						},
+						"internetMaxBandwidthOut": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"integer"},
+								Format: "int32",
+							},
+						},
+						"spotStrategy": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"IoOptimized": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"tags": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudTags"),
+							},
+						},
+						"keyPairName": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"secretRef": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/api/core/v1.SecretReference"),
+							},
+						},
+					},
+					Required: []string{"imageId", "instanceType", "region", "vSwitchId", "keyPairName"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudSystemDisk", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudTags", "k8s.io/api/core/v1.SecretReference"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudSystemDisk": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AlicloudSystemDisk describes SystemDisk for Alicloud.",
+					Properties: map[string]spec.Schema{
+						"category": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"size": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"integer"},
+								Format: "int32",
+							},
+						},
+					},
+					Required: []string{"category", "size"},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudTags": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "AlicloudTags describes Tags for Alicloud",
+					Properties: map[string]spec.Schema{
+						"tag1Key": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"tag1Value": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"tag2Key": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"tag2Value": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"tag3Key": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"tag3Value": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"tag4Key": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"tag4Value": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"tag5Key": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"tag5Value": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{},
+		},
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureHardwareProfile": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
