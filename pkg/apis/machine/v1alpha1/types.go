@@ -1153,3 +1153,75 @@ const (
 	// OpenStackClientKey is a constant for a key name that is part of the OpenStack cloud credentials.
 	OpenStackClientKey string = "clientKey"
 )
+
+/********************** AlicloudMachineClass APIs ***************/
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// AlicloudMachineClass TODO
+type AlicloudMachineClass struct {
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// +optional
+	metav1.TypeMeta `json:",inline"`
+
+	// +optional
+	Spec AlicloudMachineClassSpec `json:"spec,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// AlicloudMachineClassList is a collection of AlicloudMachineClasses.
+type AlicloudMachineClassList struct {
+	// +optional
+	metav1.TypeMeta `json:",inline"`
+
+	// +optional
+	metav1.ListMeta `json:"metadata,omitempty"`
+
+	// +optional
+	Items []AlicloudMachineClass `json:"items"`
+}
+
+// AlicloudMachineClassSpec is the specification of a cluster.
+type AlicloudMachineClassSpec struct {
+	ImageId                 string                  `json:"imageId"`
+	InstanceType            string                  `json:"instanceType"`
+	Region                  string                  `json:"region"`
+	ZoneId                  string                  `json:"zoneId,omitempty"`
+	SecurityGroupId         string                  `json:"securityGroupId,omitempty"`
+	VSwitchId               string                  `json:"vSwitchId"`
+	PrivateIpAddress        string                  `json:"privateIpAddress,omitempty"`
+	SystemDisk              *AlicloudSystemDisk     `json:"systemDisk,omitempty"`
+	InstanceChargeType      string                  `json:"instanceChargeType,omitempty"`
+	InternetChargeType      string                  `json:"internetChargeType,omitempty"`
+	InternetMaxBandwidthIn  *int                    `json:"internetMaxBandwidthIn,omitempty"`
+	InternetMaxBandwidthOut *int                    `json:"internetMaxBandwidthOut,omitempty"`
+	SpotStrategy            string                  `json:"spotStrategy,omitempty"`
+	IoOptimized             string                  `json:"IoOptimized,omitempty"`
+	Tags                    *AlicloudTags           `json:"tags,omitempty"`
+	KeyPairName             string                  `json:"keyPairName"`
+	SecretRef               *corev1.SecretReference `json:"secretRef,omitempty"`
+}
+
+// AlicloudSystemDisk describes SystemDisk for Alicloud.
+type AlicloudSystemDisk struct {
+	Category string `json:"category"`
+	Size     int    `json:"size"`
+}
+
+// AlicloudTags describes Tags for Alicloud
+type AlicloudTags struct {
+	Tag1Key   string `json:"tag1Key,omitempty"`
+	Tag1Value string `json:"tag1Value,omitempty"`
+	Tag2Key   string `json:"tag2Key,omitempty"`
+	Tag2Value string `json:"tag2Value,omitempty"`
+	Tag3Key   string `json:"tag3Key,omitempty"`
+	Tag3Value string `json:"tag3Value,omitempty"`
+	Tag4Key   string `json:"tag4Key,omitempty"`
+	Tag4Value string `json:"tag4Value,omitempty"`
+	Tag5Key   string `json:"tag5Key,omitempty"`
+	Tag5Value string `json:"tag5Value,omitempty"`
+}
