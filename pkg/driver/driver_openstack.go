@@ -63,7 +63,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 
 	var createOpts servers.CreateOptsBuilder
 
-	imageRef, err := d.recentImageIdFromName(client, imageName)
+	imageRef, err := d.recentImageIDFromName(client, imageName)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get image id for image name %s: %s", imageName, err)
 	}
@@ -293,7 +293,7 @@ func (d *OpenStackDriver) decodeMachineID(id string) string {
 	return splitProviderID[len(splitProviderID)-1]
 }
 
-func (d *OpenStackDriver) recentImageIdFromName(client *gophercloud.ServiceClient, imageName string) (string, error) {
+func (d *OpenStackDriver) recentImageIDFromName(client *gophercloud.ServiceClient, imageName string) (string, error) {
 	allPages, err := images.ListDetail(client, nil).AllPages()
 	if err != nil {
 		return "", err
