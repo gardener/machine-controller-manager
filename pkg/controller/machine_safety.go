@@ -155,6 +155,7 @@ func (c *controller) checkVMObjects() {
 	c.checkOSMachineClass()
 	c.checkAzureMachineClass()
 	c.checkGCPMachineClass()
+	c.checkAlicloudMachineClass()
 }
 
 // checkAndFreezeMachineSetTimeout permanently freezes any
@@ -290,6 +291,28 @@ func (c *controller) checkGCPMachineClass() {
 	}
 
 	for _, machineClass := range GCPMachineClasses {
+
+		var machineClassInterface interface{}
+		machineClassInterface = machineClass
+
+		c.checkMachineClass(
+			machineClassInterface,
+			machineClass.Spec.SecretRef,
+			machineClass.Name,
+			machineClass.Kind,
+		)
+	}
+}
+
+// checkAlicloudMachineClass checks for orphan VMs in AlicloudMachinesClasses
+func (c *controller) checkAlicloudMachineClass() {
+	AlicloudMachineClasses, err := c.alicloudMachineClassLister.List(labels.Everything())
+	if err != nil {
+		glog.Error("Safety-Net: Error getting machineClasses")
+		return
+	}
+
+	for _, machineClass := range AlicloudMachineClasses {
 
 		var machineClassInterface interface{}
 		machineClassInterface = machineClass
