@@ -74,6 +74,15 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 			MachineID:       machineID,
 			MachineName:     machineName,
 		}
+
+	case "AliyunMachineClass":
+		return &AliyunDriver{
+			AliyunMachineClass:	machineClass.(*v1alpha1.AliyunMachineClass),
+			CloudConfig:		secretRef,
+			UserData: 			string(secretRef.Data["userData"]),
+			MachineID:			machineID,
+			MachineName:		machineName,
+		}
 	}
 
 	return NewFakeDriver(

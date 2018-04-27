@@ -81,6 +81,11 @@ func main() {
 		machineclass = &class
 		classKind = "GCPMachineClass"
 
+	case "AliyunMachineClass", "aliyun":
+		class := v1alpha1.AliyunMachineClass{}
+		machineclass = &class
+		classKind = "AliyunMachineClass"
+
 	default:
 		log.Fatalf("Unknown class kind %s", classKind)
 	}
@@ -103,7 +108,6 @@ func main() {
 		if err != nil {
 			log.Fatalf("Could not delete %s : %s", machineID, err)
 		}
-		fmt.Printf("Deleted machine with id %s", machineID)
 	}
 
 }
