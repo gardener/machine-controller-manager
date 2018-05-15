@@ -97,7 +97,7 @@ func validateGCPDisks(disks []*machine.GCPDisk, fldPath *field.Path) field.Error
 		if disk.SizeGb < 20 {
 			allErrs = append(allErrs, field.Invalid(idxPath.Child("sizeGb"), disk.SizeGb, "disk size must be at least 20 GB"))
 		}
-		if disk.Type != "pd-standard" && disk.Type != "pd-sdd" {
+		if disk.Type != "pd-standard" && disk.Type != "pd-ssd" {
 			allErrs = append(allErrs, field.NotSupported(idxPath.Child("type"), disk.Type, []string{"pd-standard", "pd-ssd"}))
 		}
 		if "" == disk.Image {
