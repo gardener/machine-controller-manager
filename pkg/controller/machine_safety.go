@@ -44,7 +44,7 @@ const (
 	LastReplicaUpdate = "safety.machine.sapcloud.io/lastreplicaupdate"
 )
 
-// SafetyCheck controller is used to protect the controller from orphan VMs being created
+// SafetyCheck controller is used to protect the controller from orphan or excess VMs being created
 func (c *controller) reconcileClusterMachineSafety(key string) error {
 	var wg sync.WaitGroup
 
@@ -125,7 +125,7 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(wg *sync.WaitGroup) {
 		if machineSet.Labels["freeze"] != "True" &&
 			fullyLabeledReplicasCount >= higherThreshold {
 			message := fmt.Sprintf(
-				"The number of machines backing MachineSet: %s is %d > %d which is the Max-ScaleUp-Limit",
+				"The number of machines backing MachineSet: %s is %d >= %d which is the Max-ScaleUp-Limit",
 				machineSet.Name,
 				fullyLabeledReplicasCount,
 				higherThreshold,
