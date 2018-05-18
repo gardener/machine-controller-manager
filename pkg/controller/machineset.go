@@ -341,7 +341,12 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
 	if diff < 0 {
-		//glog.Info("Start Create:", diff)
+		// If MachineSet is frozen and no deletion timestamp, don't process it
+		if machineSet.Labels["freeze"] == "True" && machineSet.DeletionTimestamp == nil {
+			glog.V(2).Infof("MachineSet %q is frozen, and hence not processing", machineSet.Name)
+			return nil
+		}
+
 		diff *= -1
 		if diff > BurstReplicas {
 			diff = BurstReplicas
@@ -442,12 +447,6 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	}
 	if err != nil {
 		return err
-	}
-
-	// If MachineSet is frozen and no deletion timestamp, don't process it
-	if machineSet.Labels["freeze"] == "True" && machineSet.DeletionTimestamp == nil {
-		glog.V(3).Infof("MachineSet %q is frozen, and hence not processeing", machineSet.Name)
-		return nil
 	}
 
 	// Validate MachineSet
