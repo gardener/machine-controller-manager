@@ -109,6 +109,14 @@ func (d *AzureDriver) Create() (string, string, error) {
 	nicParameters, err = interfacesClient.Get(resourceGroup, nicName, "")
 	err = onErrorFail(err, fmt.Sprintf("interfaces.Get for NIC '%s' failed", nicName))
 	if err != nil {
+		// Delete the created NIC
+		_, errChan = interfacesClient.Delete(resourceGroup, nicName, cancel)
+		errNIC := onErrorFail(<-errChan, fmt.Sprintf("Getting NIC details failed, inturn deletion for corresponding newly created NIC '%s' failed", nicName))
+		if errNIC != nil {
+			// When deletion of NIC returns an error
+			return "Error", "Error", errNIC
+		}
+
 		return "Error", "Error", err
 	}
 
@@ -172,6 +180,14 @@ func (d *AzureDriver) Create() (string, string, error) {
 	_, errChan = vmClient.CreateOrUpdate(resourceGroup, vmName, vm, cancel)
 	err = onErrorFail(<-errChan, "createVM failed")
 	if err != nil {
+		// Delete the created NIC
+		_, errChan = interfacesClient.Delete(resourceGroup, nicName, cancel)
+		errNIC := onErrorFail(<-errChan, fmt.Sprintf("Creation of VM failed, inturn deletion for corresponding newly created NIC '%s' failed", nicName))
+		if errNIC != nil {
+			// When deletion of NIC returns an error
+			return "Error", "Error", errNIC
+		}
+
 		return "Error", "Error", err
 	}
 
