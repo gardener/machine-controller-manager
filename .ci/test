@@ -51,10 +51,17 @@ fi
 # Install Ginkgo (test framework) to be able to execute the tests.
 go get -u github.com/onsi/ginkgo/ginkgo
 
-###############################################################################
-
 printf ">>>>> Invoking unit tests\n"
-# TODO to be added
+##############################################################################
+COVER_FLAG=""
+if [[ ! -z "$COVERAGE" ]]; then
+  COVER_FLAG="-cover"
+fi
+
+
+ginkgo ${COVER_FLAG} -r cmd pkg
+
+###############################################################################
 printf ">>>>> Finished executing unit tests\n\n"
 
 printf ">>>>> Invoking intergration tests\n"
