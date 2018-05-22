@@ -46,7 +46,8 @@ func updateMachineSetStatus(machineClient machineapi.MachineV1alpha1Interface, i
 		is.Status.ReadyReplicas == newStatus.ReadyReplicas &&
 		is.Status.AvailableReplicas == newStatus.AvailableReplicas &&
 		is.Generation == is.Status.ObservedGeneration &&
-		reflect.DeepEqual(is.Status.Conditions, newStatus.Conditions) {
+		reflect.DeepEqual(is.Status.Conditions, newStatus.Conditions) &&
+		reflect.DeepEqual(is.Status.MachinesNotRunning, newStatus.MachinesNotRunning) {
 		return is, nil
 	}
 
@@ -98,6 +99,9 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	readyReplicasCount := 0
 	availableReplicasCount := 0
 
+	newStatus.MachinesNotRunning = []v1alpha1.MachineSummary{}
+	var machineSummary v1alpha1.MachineSummary
+
 	templateLabel := labels.Set(is.Spec.Template.Labels).AsSelectorPreValidated()
 	for _, machine := range filteredMachines {
 		if templateLabel.Matches(labels.Set(machine.Labels)) {
@@ -108,6 +112,18 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 			if isMachineReady(machine) {
 				readyReplicasCount++
 			}
+		} else if !isMachineReady(machine) {
+			machineSummary.Name = &machine.Name
+			machineSummary.ProviderID = &machine.Spec.ProviderID
+			machineSummary.Phase = &machine.Status.CurrentStatus.Phase
+			machineSummary.LastOperation = &machine.Status.LastOperation
+			//ownerRef populated here, so that deployment doesn't have to add it seperately
+			if controller := metav1.GetControllerOf(machine); controller != nil {
+				machineSummary.OwnerRef = &controller.Name
+			}
+			// Memory pointed by MachinesNotRunning's pointer fields should never be altered using them
+			// as they point to the machine object's fields, and only machine controller should alter them
+			newStatus.MachinesNotRunning = append(newStatus.MachinesNotRunning, machineSummary)
 		}
 	}
 

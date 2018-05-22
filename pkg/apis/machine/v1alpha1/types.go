@@ -225,6 +225,25 @@ const (
 	ConditionUnknown ConditionStatus = "Unknown"
 )
 
+//MachineSummary store the summary of machine.
+type MachineSummary struct {
+	// +optional
+	Name *string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+
+	// ProviderID represents the provider's unique ID given to a machine
+	// +optional
+	ProviderID *string `json:"providerID,omitempty"`
+
+	// Phase of the machine
+	Phase *MachinePhase `json:"phase,omitempty" protobuf:"bytes,1,opt,name=phase,casttype=MachinePhase"`
+
+	// Last operation refers to the status of the last operation performed
+	LastOperation *LastOperation `json:"lastOperation,omitempty"`
+
+	// OwnerRef
+	OwnerRef *string `json:"ownerRef,omitempty"`
+}
+
 /********************** MachineSet APIs ***************/
 
 // +genclient
@@ -333,6 +352,9 @@ type MachineSetStatus struct {
 
 	// ObservedGeneration
 	ObservedGeneration int64 `json:"observedGeneration,inline"`
+
+	// MachinesNotRunning has summary of machines that are not in "Running" phase
+	MachinesNotRunning []MachineSummary `json:"MachinesNotRunning ,inline"`
 }
 
 /********************** MachineDeployment APIs ***************/
@@ -533,6 +555,9 @@ type MachineDeploymentStatus struct {
 	// newest MachineSet.
 	// +optional
 	CollisionCount *int32 `json:"collisionCount,omitempty" protobuf:"varint,8,opt,name=collisionCount"`
+
+	// MachinesNotRunning has summary of machines that are not in "Running" phase
+	MachinesNotRunning []*MachineSummary `json:"MachinesNotRunning,inline"`
 }
 
 type MachineDeploymentConditionType string
