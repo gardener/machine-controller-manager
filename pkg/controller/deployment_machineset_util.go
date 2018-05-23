@@ -47,7 +47,7 @@ func updateMachineSetStatus(machineClient machineapi.MachineV1alpha1Interface, i
 		is.Status.AvailableReplicas == newStatus.AvailableReplicas &&
 		is.Generation == is.Status.ObservedGeneration &&
 		reflect.DeepEqual(is.Status.Conditions, newStatus.Conditions) &&
-		reflect.DeepEqual(is.Status.MachinesNotRunning, newStatus.MachinesNotRunning) {
+		reflect.DeepEqual(is.Status.FailedMachines, newStatus.FailedMachines) {
 		return is, nil
 	}
 
@@ -99,7 +99,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	readyReplicasCount := 0
 	availableReplicasCount := 0
 
-	newStatus.MachinesNotRunning = []v1alpha1.MachineSummary{}
+	failedMachines := []v1alpha1.MachineSummary{}
 	var machineSummary v1alpha1.MachineSummary
 
 	templateLabel := labels.Set(is.Spec.Template.Labels).AsSelectorPreValidated()
@@ -112,19 +112,22 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 			if isMachineReady(machine) {
 				readyReplicasCount++
 			}
-		} else if !isMachineReady(machine) {
-			machineSummary.Name = &machine.Name
-			machineSummary.ProviderID = &machine.Spec.ProviderID
-			machineSummary.Phase = &machine.Status.CurrentStatus.Phase
-			machineSummary.LastOperation = &machine.Status.LastOperation
+		} else if machine.Status.LastOperation.State == v1alpha1.MachineStateFailed {
+			machineSummary.Name = machine.Name
+			machineSummary.ProviderID = machine.Spec.ProviderID
+			machineSummary.LastOperation = machine.Status.LastOperation
 			//ownerRef populated here, so that deployment doesn't have to add it seperately
 			if controller := metav1.GetControllerOf(machine); controller != nil {
-				machineSummary.OwnerRef = &controller.Name
+				machineSummary.OwnerRef = controller.Name
 			}
-			// Memory pointed by MachinesNotRunning's pointer fields should never be altered using them
-			// as they point to the machine object's fields, and only machine controller should alter them
-			newStatus.MachinesNotRunning = append(newStatus.MachinesNotRunning, machineSummary)
+			failedMachines = append(failedMachines, machineSummary)
 		}
+	}
+
+	// Update the FailedMachines field only if we see new failures
+	// otherwise, keep it same
+	if len(failedMachines) > 0 {
+		newStatus.FailedMachines = &failedMachines
 	}
 
 	failureCond := GetCondition(&is.Status, v1alpha1.MachineSetReplicaFailure)
