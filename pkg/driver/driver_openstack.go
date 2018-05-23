@@ -199,34 +199,34 @@ func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error)
 
 	config := &tls.Config{}
 
-	authURL, ok := d.CloudConfig.Data["authURL"]
+	authURL, ok := d.CloudConfig.Data[v1alpha1.OpenStackAuthURL]
 	if !ok {
-		return nil, fmt.Errorf("missing auth_url in secret")
+		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackAuthURL)
 	}
-	username, ok := d.CloudConfig.Data["username"]
+	username, ok := d.CloudConfig.Data[v1alpha1.OpenStackUsername]
 	if !ok {
-		return nil, fmt.Errorf("missing username in secret")
+		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackUsername)
 	}
-	password, ok := d.CloudConfig.Data["password"]
+	password, ok := d.CloudConfig.Data[v1alpha1.OpenStackPassword]
 	if !ok {
-		return nil, fmt.Errorf("missing password in secret")
+		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackPassword)
 	}
-	domainName, ok := d.CloudConfig.Data["domainName"]
+	domainName, ok := d.CloudConfig.Data[v1alpha1.OpenStackDomainName]
 	if !ok {
-		return nil, fmt.Errorf("missing domainName in secret")
+		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackDomainName)
 	}
-	region := d.OpenStackMachineClass.Spec.Region
-	tenantName, ok := d.CloudConfig.Data["tenantName"]
+	tenantName, ok := d.CloudConfig.Data[v1alpha1.OpenStackTenantName]
 	if !ok {
-		return nil, fmt.Errorf("missing tenantName in secret")
+		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackTenantName)
 	}
 
-	caCert, ok := d.CloudConfig.Data["caCert"]
+	region := d.OpenStackMachineClass.Spec.Region
+	caCert, ok := d.CloudConfig.Data[v1alpha1.OpenStackCACert]
 	if !ok {
 		caCert = nil
 	}
 
-	insecure, ok := d.CloudConfig.Data["insecure"]
+	insecure, ok := d.CloudConfig.Data[v1alpha1.OpenStackInsecure]
 	if ok && strings.TrimSpace(string(insecure)) == "true" {
 		config.InsecureSkipVerify = true
 	}
@@ -237,9 +237,9 @@ func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error)
 		config.RootCAs = caCertPool
 	}
 
-	clientCert, ok := d.CloudConfig.Data["clientCert"]
+	clientCert, ok := d.CloudConfig.Data[v1alpha1.OpenStackClientCert]
 	if ok {
-		clientKey, ok := d.CloudConfig.Data["clientKey"]
+		clientKey, ok := d.CloudConfig.Data[v1alpha1.OpenStackClientKey]
 		if ok {
 			cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
 			if err != nil {
@@ -248,7 +248,7 @@ func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error)
 			config.Certificates = []tls.Certificate{cert}
 			config.BuildNameToCertificate()
 		} else {
-			return nil, fmt.Errorf("client key missing in secret")
+			return nil, fmt.Errorf("%s missing in secret", v1alpha1.OpenStackClientKey)
 		}
 	}
 

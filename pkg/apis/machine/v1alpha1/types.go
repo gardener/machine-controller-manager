@@ -1069,3 +1069,41 @@ type GCPServiceAccount struct {
 	Email  string   `json:"email"`
 	Scopes []string `json:"scopes"`
 }
+
+const (
+	// AWSAccessKeyID is a constant for a key name that is part of the AWS cloud credentials.
+	AWSAccessKeyID string = "providerAccessKeyId"
+	// AWSSecretAccessKey is a constant for a key name that is part of the AWS cloud credentials.
+	AWSSecretAccessKey string = "providerSecretAccessKey"
+
+	// AzureClientID is a constant for a key name that is part of the Azure cloud credentials.
+	AzureClientID string = "azureClientId"
+	// AzureClientSecret is a constant for a key name that is part of the Azure cloud credentials.
+	AzureClientSecret string = "azureClientSecret"
+	// AzureSubscriptionID is a constant for a key name that is part of the Azure cloud credentials.
+	AzureSubscriptionID string = "azureSubscriptionId"
+	// AzureTenantID is a constant for a key name that is part of the Azure cloud credentials.
+	AzureTenantID string = "azureTenantId"
+
+	// GCPServiceAccountJSON is a constant for a key name that is part of the GCP cloud credentials.
+	GCPServiceAccountJSON string = "serviceAccountJSON"
+
+	// OpenStackAuthURL is a constant for a key name that is part of the OpenStack cloud credentials.
+	OpenStackAuthURL string = "authURL"
+	// OpenStackCACert is a constant for a key name that is part of the OpenStack cloud credentials.
+	OpenStackCACert string = "caCert"
+	// OpenStackInsecure is a constant for a key name that is part of the OpenStack cloud credentials.
+	OpenStackInsecure string = "insecure"
+	// OpenStackDomainName is a constant for a key name that is part of the OpenStack cloud credentials.
+	OpenStackDomainName string = "domainName"
+	// OpenStackTenantName is a constant for a key name that is part of the OpenStack cloud credentials.
+	OpenStackTenantName string = "tenantName"
+	// OpenStackUsername is a constant for a key name that is part of the OpenStack cloud credentials.
+	OpenStackUsername string = "username"
+	// OpenStackPassword is a constant for a key name that is part of the OpenStack cloud credentials.
+	OpenStackPassword string = "password"
+	// OpenStackClientCert is a constant for a key name that is part of the OpenStack cloud credentials.
+	OpenStackClientCert string = "clientCert"
+	// OpenStackClientKey is a constant for a key name that is part of the OpenStack cloud credentials.
+	OpenStackClientKey string = "clientKey"
+)
