@@ -475,16 +475,16 @@ func (d *AzureDriver) getdisks(machineID string, listOfVMs VMs) error {
 }
 
 func (d *AzureDriver) setup() {
-	subscriptionID := strings.TrimSpace(string(d.CloudConfig.Data["azureSubscriptionId"]))
+	subscriptionID := strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureSubscriptionID]))
 	authorizer, err := d.getAuthorizer(azure.PublicCloud)
 	onErrorFail(err, "utils.GetAuthorizer failed")
 	createClients(subscriptionID, authorizer)
 }
 
 func (d *AzureDriver) getAuthorizer(env azure.Environment) (*autorest.BearerAuthorizer, error) {
-	tenantID := strings.TrimSpace(string(d.CloudConfig.Data["azureTenantId"]))
-	clientID := strings.TrimSpace(string(d.CloudConfig.Data["azureClientId"]))
-	clientSecret := strings.TrimSpace(string(d.CloudConfig.Data["azureClientSecret"]))
+	tenantID := strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureTenantID]))
+	clientID := strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureClientID]))
+	clientSecret := strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureClientSecret]))
 
 	oauthConfig, err := adal.NewOAuthConfig(env.ActiveDirectoryEndpoint, tenantID)
 	if err != nil {

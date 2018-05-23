@@ -51,7 +51,7 @@ func (d *GCPDriver) Create() (string, string, error) {
 		return "Error", "Error", err
 	}
 
-	project, err := extractProject(d.CloudConfig.Data["serviceAccountJSON"])
+	project, err := extractProject(d.CloudConfig.Data[v1alpha1.GCPServiceAccountJSON])
 	if err != nil {
 		return "Error", "Error", err
 	}
@@ -213,7 +213,7 @@ func (d *GCPDriver) GetVMs(machineID string) (VMs, error) {
 		return listOfVMs, err
 	}
 
-	project, err := extractProject(d.CloudConfig.Data["serviceAccountJSON"])
+	project, err := extractProject(d.CloudConfig.Data[v1alpha1.GCPServiceAccountJSON])
 	if err != nil {
 		glog.Error(err)
 		return listOfVMs, err
@@ -259,7 +259,7 @@ func (d *GCPDriver) GetVMs(machineID string) (VMs, error) {
 func (d *GCPDriver) createComputeService() (context.Context, *compute.Service, error) {
 	ctx := context.Background()
 
-	jwt, err := google.JWTConfigFromJSON(d.CloudConfig.Data["serviceAccountJSON"], compute.CloudPlatformScope)
+	jwt, err := google.JWTConfigFromJSON(d.CloudConfig.Data[v1alpha1.GCPServiceAccountJSON], compute.CloudPlatformScope)
 	if err != nil {
 		return nil, nil, err
 	}
