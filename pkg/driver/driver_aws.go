@@ -265,8 +265,8 @@ func (d *AWSDriver) GetVMs(machineID string) (VMs, error) {
 // Helper function to create SVC
 func (d *AWSDriver) createSVC() *ec2.EC2 {
 
-	accessKeyID := strings.TrimSpace(string(d.CloudConfig.Data["providerAccessKeyId"]))
-	secretAccessKey := strings.TrimSpace(string(d.CloudConfig.Data["providerSecretAccessKey"]))
+	accessKeyID := strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AWSAccessKeyID]))
+	secretAccessKey := strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AWSSecretAccessKey]))
 
 	if accessKeyID != "" && secretAccessKey != "" {
 		return ec2.New(session.New(&aws.Config{
