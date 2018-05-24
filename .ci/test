@@ -51,21 +51,29 @@ fi
 # Install Ginkgo (test framework) to be able to execute the tests.
 go get -u github.com/onsi/ginkgo/ginkgo
 
-printf ">>>>> Invoking unit tests\n"
 ##############################################################################
-COVER_FLAG=""
-if [[ ! -z "$COVERAGE" ]]; then
-  COVER_FLAG="-cover"
+
+if [[ "${SKIP_UNIT_TESTS}" != "" ]]; then
+  echo ">>>>>Skipping unit tests"
+else
+  echo ">>>>> Invoking unit tests"
+  COVER_FLAG=""
+  if [[ ! -z "$COVERAGE" ]]; then
+    COVER_FLAG="-cover"
+  fi
+
+  ginkgo ${COVER_FLAG} -r cmd pkg
+
+  echo ">>>>> Finished executing unit tests"
 fi
 
+if [[ "${SKIP_INTEGRATION_TESTS}" != "" ]]; then
+  echo ">>>>> Skipping integration tests"
+else
+  echo ">>>>> Invoking intergration tests"
+  .ci/integration-tests
+  echo ">>>>> Finished executing integration tests"
+fi
 
-ginkgo ${COVER_FLAG} -r cmd pkg
-
-###############################################################################
-printf ">>>>> Finished executing unit tests\n\n"
-
-printf ">>>>> Invoking intergration tests\n"
-.ci/integration-tests
-printf ">>>>> Finished executing integration tests\n\n"
-
-printf "CI tests have passed successfully"
+#TODO: return success failure properly
+echo "CI tests have passed successfully"
