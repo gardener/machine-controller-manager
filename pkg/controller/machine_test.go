@@ -110,6 +110,7 @@ var _ = Describe("machine", func() {
 			Expect(machineRet).Should(Not(BeNil()))
 			Expect(machineUpdated).Should(Not(BeNil()))
 			Expect(machineUpdated).Should(Not(BeIdenticalTo(machine)))
+			Expect(machineRet).Should(Not(BeIdenticalTo(machine)))
 			Expect(machineRet).Should(BeIdenticalTo(machineUpdated))
 			Expect(machineRet.Status.CurrentStatus).Should(BeIdenticalTo(currentStatus))
 			Expect(machineRet.Status.LastOperation).Should(BeIdenticalTo(lastOperation))
