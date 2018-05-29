@@ -94,7 +94,7 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(wg *sync.WaitGroup) {
 		lowerThreshold := higherThreshold - c.safetyOptions.SafetyDown
 
 		machineDeployments := c.getMachineDeploymentsForMachineSet(machineSet)
-		if machineDeployments != nil && len(machineDeployments) >= 1 {
+		if len(machineDeployments) >= 1 {
 			machineDeployment := machineDeployments[0]
 			if machineDeployment != nil {
 				surge, err := intstrutil.GetValueFromIntOrPercent(
@@ -481,7 +481,7 @@ func (c *controller) freezeMachineSetsAndDeployments(machineSet *v1alpha1.Machin
 	}
 
 	machineDeployments := c.getMachineDeploymentsForMachineSet(machineSet)
-	if machineDeployments != nil && len(machineDeployments) >= 1 {
+	if len(machineDeployments) >= 1 {
 		machineDeployment := machineDeployments[0]
 		if machineDeployment != nil {
 			for {
