@@ -668,7 +668,7 @@ func (c *controller) checkMachineTimeout(machine *v1alpha1.Machine) {
 
 			if machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending {
 				lastOperation := v1alpha1.LastOperation{
-					Description:    machine.Status.LastOperation.Description,
+					Description:    "Machine could not join the cluster. Operation timed out",
 					State:          "Failed",
 					Type:           machine.Status.LastOperation.Type,
 					LastUpdateTime: metav1.Now(),

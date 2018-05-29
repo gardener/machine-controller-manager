@@ -112,11 +112,12 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 			if isMachineReady(machine) {
 				readyReplicasCount++
 			}
-		} else if machine.Status.LastOperation.State == v1alpha1.MachineStateFailed {
+		}
+		if machine.Status.LastOperation.State == v1alpha1.MachineStateFailed {
 			machineSummary.Name = machine.Name
 			machineSummary.ProviderID = machine.Spec.ProviderID
 			machineSummary.LastOperation = machine.Status.LastOperation
-			//ownerRef populated here, so that deployment doesn't have to add it seperately
+			//ownerRef populated here, so that deployment controller doesn't have to add it seperately
 			if controller := metav1.GetControllerOf(machine); controller != nil {
 				machineSummary.OwnerRef = controller.Name
 			}
@@ -125,9 +126,12 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	}
 
 	// Update the FailedMachines field only if we see new failures
-	// otherwise, keep it same
+	// Clear FailedMachines if ready replicas equals total replicas,
+	// which means the machineset doesn't have any machine objects which are in any failed state
 	if len(failedMachines) > 0 {
 		newStatus.FailedMachines = &failedMachines
+	} else if int32(readyReplicasCount) == is.Status.Replicas {
+		newStatus.FailedMachines = nil
 	}
 
 	failureCond := GetCondition(&is.Status, v1alpha1.MachineSetReplicaFailure)
