@@ -95,6 +95,14 @@ check:
 test:
 	@.ci/test
 
+.PHONY: test-unit
+test-unit:
+	@SKIP_INTEGRATION_TESTS=X .ci/test
+
+.PHONY: test-integration
+test-integration:
+	@SKIP_UNIT_TESTS=X .ci/test
+
 .PHONY: test-cov
 test-cov:
 	@env COVERAGE=1 .ci/test
