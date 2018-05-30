@@ -271,7 +271,7 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node
 					c.updateMachineStatus(machine, lastOperation, currentStatus)
 
 				} else*/
-			if machine.Status.LastOperation.Description == "Creating machine on cloud provider" && len(machine.Status.Conditions) > 1 && machine.Status.Conditions[len(machine.Status.Conditions)-1].Status == "True" {
+			if len(machine.Status.Conditions) > 1 && machine.Status.Conditions[len(machine.Status.Conditions)-1].Status == "True" {
 				// Machine is ready and has joined the cluster
 				lastOperation := v1alpha1.LastOperation{
 					Description:    "Machine is now ready",
@@ -535,9 +535,8 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 
 	//glog.Info(c.isHealthy(clone))
 
-	if clone.Status.CurrentStatus.Phase == v1alpha1.MachineFailed ||
-		clone.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating {
-		// If machine is already in failed state, don't update
+	if clone.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating {
+		// If machine is already in terminating state, don't update
 	} else if !c.isHealthy(clone) && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
 		currentStatus := v1alpha1.CurrentStatus{
 			Phase:          v1alpha1.MachineUnknown,
