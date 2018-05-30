@@ -252,7 +252,8 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node
 
 	if machine.Status.LastOperation.State != "Successful" {
 
-		if machine.Status.LastOperation.Type == "Create" {
+		if machine.Status.LastOperation.Type == "Create" &&
+			machine.Status.Conditions != nil {
 			/*
 				TODO: Fix this
 				if machine.Status.LastOperation.Description == "Creating machine on cloud provider" {
@@ -271,16 +272,19 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node
 					c.updateMachineStatus(machine, lastOperation, currentStatus)
 
 				} else*/
-			if len(machine.Status.Conditions) > 1 && machine.Status.Conditions[len(machine.Status.Conditions)-1].Status == "True" {
-				// Machine is ready and has joined the cluster
-				lastOperation := v1alpha1.LastOperation{
-					Description:    "Machine is now ready",
-					State:          "Successful",
-					Type:           "Create",
-					LastUpdateTime: metav1.Now(),
-				}
-				c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
+			for _, v := range machine.Status.Conditions {
+				if v.Reason == "KubeletReady" && v.Status == "True" {
+					// Machine is ready and has joined the cluster
+					lastOperation := v1alpha1.LastOperation{
+						Description:    "Machine is now ready",
+						State:          "Successful",
+						Type:           "Create",
+						LastUpdateTime: metav1.Now(),
+					}
+					c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
+					break
 
+				}
 			}
 
 		}
