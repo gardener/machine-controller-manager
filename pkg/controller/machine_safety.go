@@ -93,23 +93,27 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(wg *sync.WaitGroup) {
 		// Unfreeze machineset when replica count reaches higherThreshold - SafetyDown
 		lowerThreshold := higherThreshold - c.safetyOptions.SafetyDown
 
-		machineDeployment := c.getMachineDeploymentsForMachineSet(machineSet)[0]
-		if machineDeployment != nil {
+		machineDeployments := c.getMachineDeploymentsForMachineSet(machineSet)
+		if len(machineDeployments) >= 1 {
+			machineDeployment := machineDeployments[0]
+			if machineDeployment != nil {
+				surge, err := intstrutil.GetValueFromIntOrPercent(
+					machineDeployment.Spec.Strategy.RollingUpdate.MaxSurge,
+					int(machineDeployment.Spec.Replicas),
+					true,
+				)
+				if err != nil {
+					//TODO explore if we can log/annotate this machineset and continue here.
+					glog.Error("Safety-Net: Error getting surge value - ", err)
+					wg.Done()
+					return
+				}
 
-			surge, err := intstrutil.GetValueFromIntOrPercent(
-				machineDeployment.Spec.Strategy.RollingUpdate.MaxSurge,
-				int(machineDeployment.Spec.Replicas),
-				true,
-			)
-			if err != nil {
-				glog.Error("Safety-Net: Error getting surge value - ", err)
-				wg.Done()
-				return
+				higherThreshold = machineDeployment.Spec.Replicas + int32(surge) + c.safetyOptions.SafetyUp
+				lowerThreshold = higherThreshold - c.safetyOptions.SafetyDown
 			}
-
-			higherThreshold = machineDeployment.Spec.Replicas + int32(surge) + c.safetyOptions.SafetyUp
-			lowerThreshold = higherThreshold - c.safetyOptions.SafetyDown
 		}
+
 		glog.V(3).Infof(
 			"MS:%q LowerThreshold:%d FullyLabeledReplicas:%d HigherThreshold:%d",
 			machineSet.Name,
@@ -476,31 +480,35 @@ func (c *controller) freezeMachineSetsAndDeployments(machineSet *v1alpha1.Machin
 		glog.Warning("Updated failed, retrying - ", err)
 	}
 
-	machineDeployment := c.getMachineDeploymentsForMachineSet(machineSet)[0]
-	if machineDeployment != nil {
-		for {
-			// Get the latest version of the machineDeployment so that we can avoid conflicts
-			machineDeployment, err := c.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Get(machineDeployment.Name, metav1.GetOptions{})
-			if err != nil {
-				// Some error occued while fetching object from API server
-				glog.Error(err)
-				break
+	machineDeployments := c.getMachineDeploymentsForMachineSet(machineSet)
+	if len(machineDeployments) >= 1 {
+		machineDeployment := machineDeployments[0]
+		if machineDeployment != nil {
+			for {
+				// Get the latest version of the machineDeployment so that we can avoid conflicts
+				machineDeployment, err := c.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Get(machineDeployment.Name, metav1.GetOptions{})
+				if err != nil {
+					// Some error occued while fetching object from API server
+					//TODO explore if we can log/annotate this machinedeployment and continue here.
+					glog.Error(err)
+					break
+				}
+				clone := machineDeployment.DeepCopy()
+				newStatus := clone.Status
+				mdcond := NewMachineDeploymentCondition(v1alpha1.MachineDeploymentFrozen, v1alpha1.ConditionTrue, reason, message)
+				SetMachineDeploymentCondition(&newStatus, *mdcond)
+				if clone.Labels == nil {
+					clone.Labels = make(map[string]string)
+				}
+				clone.Status = newStatus
+				clone.Labels["freeze"] = "True"
+				_, err = c.controlMachineClient.MachineDeployments(clone.Namespace).Update(clone)
+				if err == nil {
+					break
+				}
+				// Keep retrying until update goes through
+				glog.Warning("Updated failed, retrying - ", err)
 			}
-			clone := machineDeployment.DeepCopy()
-			newStatus := clone.Status
-			mdcond := NewMachineDeploymentCondition(v1alpha1.MachineDeploymentFrozen, v1alpha1.ConditionTrue, reason, message)
-			SetMachineDeploymentCondition(&newStatus, *mdcond)
-			if clone.Labels == nil {
-				clone.Labels = make(map[string]string)
-			}
-			clone.Status = newStatus
-			clone.Labels["freeze"] = "True"
-			_, err = c.controlMachineClient.MachineDeployments(clone.Namespace).Update(clone)
-			if err == nil {
-				break
-			}
-			// Keep retrying until update goes through
-			glog.Warning("Updated failed, retrying - ", err)
 		}
 	}
 }
