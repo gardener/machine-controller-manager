@@ -49,10 +49,11 @@ func (c *controller) reconcileClusterMachineSafety(key string) error {
 	var wg sync.WaitGroup
 
 	glog.V(3).Info("SafetyCheck loop initializing")
-	wg.Add(3)
+	wg.Add(2)
 	go c.checkAndFreezeORUnfreezeMachineSets(&wg)
 	go c.checkVMObjects(&wg)
-	go c.checkAndFreezeMachineSetTimeout(&wg)
+	//Disable permenant freeze for now. We should enable it again once we have sophisticated automatic unfreeze mechanism in place.
+	//go c.checkAndFreezeMachineSetTimeout(&wg)
 	wg.Wait()
 	c.machineSafetyQueue.AddAfter("", 60*time.Second)
 
@@ -63,10 +64,11 @@ func (c *controller) reconcileClusterMachineSafety(key string) error {
 // which have much greater than desired number of replicas of machine objects
 func (c *controller) checkAndFreezeORUnfreezeMachineSets(wg *sync.WaitGroup) {
 
+	defer wg.Done()
+
 	machineSets, err := c.machineSetLister.List(labels.Everything())
 	if err != nil {
 		glog.Error("Safety-Net: Error getting machineSets - ", err)
-		wg.Done()
 		return
 	}
 
@@ -75,14 +77,13 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(wg *sync.WaitGroup) {
 		filteredMachines, err := c.machineLister.List(labels.Everything())
 		if err != nil {
 			glog.Error("Safety-Net: Error getting machines - ", err)
-			wg.Done()
 			return
 		}
 		fullyLabeledReplicasCount := int32(0)
 		templateLabel := labels.Set(machineSet.Spec.Template.Labels).AsSelectorPreValidated()
 		for _, machine := range filteredMachines {
 			if templateLabel.Matches(labels.Set(machine.Labels)) &&
-				len(machine.OwnerReferences) == 1 &&
+				len(machine.OwnerReferences) >= 1 &&
 				machine.OwnerReferences[0].Name == machineSet.Name {
 				fullyLabeledReplicasCount++
 			}
@@ -103,9 +104,7 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(wg *sync.WaitGroup) {
 					true,
 				)
 				if err != nil {
-					//TODO explore if we can log/annotate this machineset and continue here.
 					glog.Error("Safety-Net: Error getting surge value - ", err)
-					wg.Done()
 					return
 				}
 
@@ -133,13 +132,13 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(wg *sync.WaitGroup) {
 			c.freezeMachineSetsAndDeployments(machineSet, OverShootingReplicaCount, message)
 
 		} else if machineSet.Labels["freeze"] == "True" &&
-			machineSet.Status.Conditions != nil &&
-			GetCondition(&machineSet.Status, v1alpha1.MachineSetFrozen).Reason == OverShootingReplicaCount &&
+			//TODO: Reintroduce this checks once we have automated unfreeze for MachinTimeout aka meltdown.
+			//machineSet.Status.Conditions != nil &&
+			//GetCondition(&machineSet.Status, v1alpha1.MachineSetFrozen).Reason == OverShootingReplicaCount &&
 			fullyLabeledReplicasCount <= lowerThreshold {
 			c.unfreezeMachineSetsAndDeployments(machineSet)
 		}
 	}
-	wg.Done()
 }
 
 // checkVMObjects checks for orphan VMs (VMs that don't have a machine object backing)
@@ -456,6 +455,8 @@ func (c *controller) freezeMachineSetsAndDeployments(machineSet *v1alpha1.Machin
 	glog.V(2).Infof("Freezing MachineSet %q due to %q", machineSet.Name, reason)
 
 	for {
+		// TODO: Replace it with better retry logic. Replace all occurrences similarly.
+		// Ref: https://github.com/kubernetes/kubernetes/blob/master/pkg/controller/deployment/util/replicaset_util.go#L35
 		// Get the latest version of the machineSet so that we can avoid conflicts
 		machineSet, err := c.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
 		if err != nil {
