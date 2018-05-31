@@ -178,18 +178,26 @@ var _ = Describe("machine", func() {
 			Entry("with NodeReady is True", corev1.NodeReady, corev1.ConditionTrue, true),
 			Entry("with NodeReady is False", corev1.NodeReady, corev1.ConditionFalse, false),
 			Entry("with NodeReady is Unknown", corev1.NodeReady, corev1.ConditionUnknown, false),
-			Entry("with NodeOutOfDisk is True", corev1.NodeOutOfDisk, corev1.ConditionTrue, false),
-			Entry("with NodeOutOfDisk is Unknown", corev1.NodeOutOfDisk, corev1.ConditionUnknown, false),
-			Entry("with NodeDiskPressure is True", corev1.NodeDiskPressure, corev1.ConditionTrue, false),
-			Entry("with NodeDiskPressure is Unknown", corev1.NodeDiskPressure, corev1.ConditionUnknown, false),
-			Entry("with NodeMemoryPressure is True", corev1.NodeMemoryPressure, corev1.ConditionTrue, false),
-			Entry("with NodeMemoryPressure is Unknown", corev1.NodeMemoryPressure, corev1.ConditionUnknown, false),
-			Entry("with NodeNetworkUnavailable is True", corev1.NodeNetworkUnavailable, corev1.ConditionTrue, false),
-			Entry("with NodeNetworkUnavailable is Unknown", corev1.NodeNetworkUnavailable, corev1.ConditionUnknown, false),
 
-			//TODO: To be enhanced later, currently unclear on how to handle the NodeConfigOK NodeConditionType
-			//Entry("with NodeConfigOK is False", corev1.NodeConfigOK, corev1.ConditionFalse, false),
-			//Entry("with NodeConfigOK is Unknown", corev1.NodeConfigOK, corev1.ConditionUnknown, false),
+			Entry("with NodeDiskPressure is True", corev1.NodeDiskPressure, corev1.ConditionTrue, false),
+			Entry("with NodeDiskPressure is False", corev1.NodeDiskPressure, corev1.ConditionFalse, true),
+			Entry("with NodeDiskPressure is Unknown", corev1.NodeDiskPressure, corev1.ConditionUnknown, false),
+
+			Entry("with NodeOutOfDisk is True", corev1.NodeOutOfDisk, corev1.ConditionTrue, true),
+			Entry("with NodeOutOfDisk is Unknown", corev1.NodeOutOfDisk, corev1.ConditionUnknown, true),
+			Entry("with NodeOutOfDisk is False", corev1.NodeOutOfDisk, corev1.ConditionFalse, true),
+
+			Entry("with NodeMemoryPressure is True", corev1.NodeMemoryPressure, corev1.ConditionTrue, true),
+			Entry("with NodeMemoryPressure is Unknown", corev1.NodeMemoryPressure, corev1.ConditionUnknown, true),
+			Entry("with NodeMemoryPressure is False", corev1.NodeMemoryPressure, corev1.ConditionFalse, true),
+
+			Entry("with NodeNetworkUnavailable is True", corev1.NodeNetworkUnavailable, corev1.ConditionTrue, true),
+			Entry("with NodeNetworkUnavailable is Unknown", corev1.NodeNetworkUnavailable, corev1.ConditionUnknown, true),
+			Entry("with NodeNetworkUnavailable is False", corev1.NodeNetworkUnavailable, corev1.ConditionFalse, true),
+
+			Entry("with NodeConfigOK is True", corev1.NodeConfigOK, corev1.ConditionTrue, true),
+			Entry("with NodeConfigOK is Unknown", corev1.NodeConfigOK, corev1.ConditionUnknown, true),
+			Entry("with NodeConfigOK is False", corev1.NodeConfigOK, corev1.ConditionFalse, true),
 		)
 	})
 
