@@ -623,20 +623,12 @@ func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 	}
 
 	for _, condition := range machine.Status.Conditions {
-		if condition.Type == v1.NodeReady {
-			// Kubelet is not ready
-			if condition.Status != v1.ConditionTrue {
-				return false
-			}
-		} else {
-			// Check if ConditionType is not ConfigOK
-			if condition.Type != v1.NodeConfigOK {
-				// Every other condition, status has to be false. If not, then the machine is unhealthy
-				// Undesired Status can be True or Unknown, hence safe to check != "False"
-				if condition.Status != v1.ConditionFalse {
-					return false
-				}
-			}
+		if condition.Type == v1.NodeReady && condition.Status != v1.ConditionTrue {
+			// If Kubelet is not ready
+			return false
+		} else if condition.Type == v1.NodeDiskPressure && condition.Status != v1.ConditionFalse {
+			// If DiskPressure has occurred on node
+			return false
 		}
 	}
 	return true
