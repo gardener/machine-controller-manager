@@ -83,9 +83,12 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(wg *sync.WaitGroup) {
 		templateLabel := labels.Set(machineSet.Spec.Template.Labels).AsSelectorPreValidated()
 		for _, machine := range filteredMachines {
 			if templateLabel.Matches(labels.Set(machine.Labels)) &&
-				len(machine.OwnerReferences) >= 1 &&
-				machine.OwnerReferences[0].Name == machineSet.Name {
-				fullyLabeledReplicasCount++
+				len(machine.OwnerReferences) >= 1 {
+				for i := range machine.OwnerReferences {
+					if machine.OwnerReferences[i].Name == machineSet.Name {
+						fullyLabeledReplicasCount++
+					}
+				}
 			}
 		}
 
