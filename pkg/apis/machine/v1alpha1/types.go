@@ -553,7 +553,7 @@ type MachineDeploymentStatus struct {
 	// +optional
 	CollisionCount *int32 `json:"collisionCount,omitempty" protobuf:"varint,8,opt,name=collisionCount"`
 
-	// FailedMachines has summary of machines that are not in "Running" phase
+	// FailedMachines has summary of machines on which lastOperation Failed
 	FailedMachines []*MachineSummary `json:"failedMachines,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,9,rep,name=failedMachines"`
 }
 
