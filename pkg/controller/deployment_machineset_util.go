@@ -46,7 +46,8 @@ func updateMachineSetStatus(machineClient machineapi.MachineV1alpha1Interface, i
 		is.Status.ReadyReplicas == newStatus.ReadyReplicas &&
 		is.Status.AvailableReplicas == newStatus.AvailableReplicas &&
 		is.Generation == is.Status.ObservedGeneration &&
-		reflect.DeepEqual(is.Status.Conditions, newStatus.Conditions) {
+		reflect.DeepEqual(is.Status.Conditions, newStatus.Conditions) &&
+		reflect.DeepEqual(is.Status.FailedMachines, newStatus.FailedMachines) {
 		return is, nil
 	}
 
@@ -98,6 +99,9 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	readyReplicasCount := 0
 	availableReplicasCount := 0
 
+	failedMachines := []v1alpha1.MachineSummary{}
+	var machineSummary v1alpha1.MachineSummary
+
 	templateLabel := labels.Set(is.Spec.Template.Labels).AsSelectorPreValidated()
 	for _, machine := range filteredMachines {
 		if templateLabel.Matches(labels.Set(machine.Labels)) {
@@ -109,6 +113,25 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 				readyReplicasCount++
 			}
 		}
+		if machine.Status.LastOperation.State == v1alpha1.MachineStateFailed {
+			machineSummary.Name = machine.Name
+			machineSummary.ProviderID = machine.Spec.ProviderID
+			machineSummary.LastOperation = machine.Status.LastOperation
+			//ownerRef populated here, so that deployment controller doesn't have to add it seperately
+			if controller := metav1.GetControllerOf(machine); controller != nil {
+				machineSummary.OwnerRef = controller.Name
+			}
+			failedMachines = append(failedMachines, machineSummary)
+		}
+	}
+
+	// Update the FailedMachines field only if we see new failures
+	// Clear FailedMachines if ready replicas equals total replicas,
+	// which means the machineset doesn't have any machine objects which are in any failed state
+	if len(failedMachines) > 0 {
+		newStatus.FailedMachines = &failedMachines
+	} else if int32(readyReplicasCount) == is.Status.Replicas {
+		newStatus.FailedMachines = nil
 	}
 
 	failureCond := GetCondition(&is.Status, v1alpha1.MachineSetReplicaFailure)
