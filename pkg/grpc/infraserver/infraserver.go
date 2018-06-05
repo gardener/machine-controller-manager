@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -33,6 +34,7 @@ type Driver struct {
 	stream *pb.Infragrpc_RegisterServer
 }
 
+// TODO: Make this array of drivers so that multiple drivers can register
 var driver Driver
 
 // Register Requests driver to send it's details, and sets up stream
@@ -62,9 +64,73 @@ func (s *Server) Register(stream pb.Infragrpc_RegisterServer) error {
 
 	log.Printf("driver: %v", driver)
 
+	// Start receiving stream
+	go receiveDriverStream(driver)
+
 	// Never return from this handler, this will close the stream
 	<-waitc
 	return nil
+}
+
+var opID int32
+var mutex = &sync.Mutex{}
+
+// Data has the response structure and the channel reference on which a request is waiting
+type Data struct {
+	data    interface{}
+	channel *chan int32
+}
+
+var cache map[int32]*Data
+
+func sendAndWait(params *pb.MCMsideOperationParams, opType string) (interface{}, error) {
+
+	waitc := make(chan int32)
+
+	mutex.Lock()
+	opID++
+	request := pb.MCMside{
+		OperationID:     opID,
+		OperationType:   opType,
+		Operationparams: params,
+	}
+	mutex.Unlock()
+
+	if err := (*driver.stream).Send(&request); err != nil {
+		log.Fatalf("Failed to send request: %v", err)
+		return nil, err
+	}
+
+	responseData := Data{
+		data:    nil,
+		channel: &waitc,
+	}
+
+	if cache == nil {
+		cache = make(map[int32]*Data)
+	}
+	cache[request.OperationID] = &responseData
+	// The receiveDriverStream function will receive message, read the opID, then write to corresponding waitc
+	// This will make sure that the response structure is populated
+	<-waitc
+
+	response := cache[request.OperationID].data
+
+	delete(cache, request.OperationID)
+
+	return response, nil
+}
+
+func receiveDriverStream(newDriver Driver) {
+	for {
+		response, err := (*newDriver.stream).Recv()
+		if err != nil {
+			log.Fatalf("Failed to receive response: %v", err)
+		}
+
+		cache[response.OperationID].data = response.GetResponse()
+		*cache[response.OperationID].channel <- 1
+	}
 }
 
 // doCreate sends create request to the driver over the grpc stream
@@ -85,23 +151,51 @@ func doCreate(providerName, machineclass, machineID string) (string, string, int
 		MachineID:   "fakeID",
 		MachineName: "fakename",
 	}
-	createReq := pb.MCMside{
-		OperationID:     2,
-		OperationType:   "create",
-		Operationparams: &createParams,
-	}
 
-	if err := (*driver.stream).Send(&createReq); err != nil {
-		log.Fatalf("Failed to send create req: %v", err)
-	}
-
-	createResp, err := (*driver.stream).Recv()
+	createResp, err := sendAndWait(&createParams, "create")
 	if err != nil {
 		log.Fatalf("Failed to send create req: %v", err)
 	}
-	response := createResp.GetCreateresponse()
-	log.Printf("Create response: %s %s %d", response.ProviderID, response.Nodename, response.Error)
+
+	if createResp == nil {
+		log.Printf("nil")
+		return "", "", 2
+	}
+	response := createResp.(*pb.DriverSide_Createresponse).Createresponse
+	log.Printf("Create. Return: %s %s %d", response.ProviderID, response.Nodename, response.Error)
 	return response.ProviderID, response.Nodename, response.Error
+}
+
+// doDelete sends delete request to the driver over the grpc stream
+func doDelete(providerName, machineclass, machineID string) int32 {
+
+	if driver.driver.Name != providerName {
+		log.Printf("Driver not available")
+		return 1
+	}
+
+	deleteParams := pb.MCMsideOperationParams{
+		MachineClassMetaData: &pb.MCMsideMachineClassMeta{
+			Name:     "fakeclass",
+			Revision: 1,
+		},
+		CloudConfig: "fakeCloudConfig",
+		MachineID:   "fakeID",
+		MachineName: "fakename",
+	}
+
+	deleteResp, err := sendAndWait(&deleteParams, "delete")
+	if err != nil {
+		log.Fatalf("Failed to send delete req: %v", err)
+	}
+
+	if deleteResp == nil {
+		log.Printf("nil")
+		return 2
+	}
+	response := deleteResp.(*pb.DriverSide_Deleteresponse).Deleteresponse
+	log.Printf("Delete Return: %d", response.Error)
+	return response.Error
 }
 
 //ShareMeta share metadata
@@ -132,13 +226,17 @@ func main() {
 	// Test go routine to test end to end flow
 	go func() {
 		for {
-			log.Printf("Calling valid create after 10 seconds")
-			time.Sleep(10 * time.Second)
+			time.Sleep(5 * time.Second)
+			log.Printf("Calling valid create")
 			doCreate("fakeDriver", "a", "b")
 
-			log.Printf("Calling invalid create after 5 seconds")
 			time.Sleep(5 * time.Second)
+			log.Printf("Calling invalid create")
 			doCreate("someDriver", "a", "b")
+
+			time.Sleep(5 * time.Second)
+			log.Printf("Calling valid delete")
+			doDelete("fakeDriver", "a", "b")
 		}
 	}()
 
