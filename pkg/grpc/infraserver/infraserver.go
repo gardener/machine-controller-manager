@@ -6,15 +6,17 @@ import (
 	"io"
 	"log"
 	"net"
-	"sync"
+	"path"
 	"time"
 
 	"google.golang.org/grpc"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/testdata"
 
 	pb "github.com/gardener/machine-controller-manager/pkg/grpc/infrapb"
+	"github.com/golang/glog"
 )
 
 var (
@@ -24,173 +26,119 @@ var (
 	port     = 10000 //"The server port"
 )
 
-// Server definition
-type Server struct {
+// ExternalDriverManager manages the registered drivers.
+type ExternalDriverManager struct {
+	// a map of machine class type to the corresponding driver.
+	drivers map[metav1.TypeMeta]*driver
 }
 
-// Driver driver
-type Driver struct {
-	driver *pb.DriverSideRegisterationResp
-	stream *pb.Infragrpc_RegisterServer
+//GetDriver gets a registered and working driver stream for the given machine class type.
+func (s *ExternalDriverManager) GetDriver(machineClassType metav1.TypeMeta) (Driver, error) {
+	driver := s.drivers[machineClassType]
+	if driver == nil {
+		return nil, fmt.Errorf("No driver available for machine class type %s", machineClassType)
+	}
+
+	stream := driver.stream
+	if stream == nil {
+		return nil, fmt.Errorf("No valid driver available for machine class type %s", machineClassType)
+	}
+	err := stream.Context().Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return driver, nil
 }
 
-// TODO: Make this array of drivers so that multiple drivers can register
-var driver Driver
+func (s *ExternalDriverManager) registerDriver(machineClassType metav1.TypeMeta, stream pb.Infragrpc_RegisterServer) (*driver, error) {
+	if stream == nil {
+		return nil, fmt.Errorf("Cannot register invalid driver stream for machine class type %s", machineClassType)
+	}
+
+	err := stream.Context().Err()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.GetDriver(machineClassType)
+	if err != nil {
+		return nil, err
+	}
+
+	stopCh := make(chan interface{})
+	driver := &driver{
+		machineClassType: machineClassType,
+		stream:           stream,
+		stopCh:           stopCh,
+		pendingRequests:  make(map[int32](chan *pb.DriverSide)),
+	}
+
+	s.drivers[machineClassType] = driver
+
+	go func() {
+		<-stopCh
+
+		glog.Infof("Driver for machine class type %s is closed.", machineClassType)
+		latest := s.drivers[machineClassType]
+		if driver == latest {
+			delete(s.drivers, machineClassType)
+			glog.Infof("Driver for machine class type %s is unregistered.", machineClassType)
+		}
+	}()
+
+	return driver, nil
+}
+
+// Stop the ExternalDriverManager and all the active drivers.
+func (s *ExternalDriverManager) Stop() {
+	for _, driver := range s.drivers {
+		driver.close()
+	}
+}
 
 // Register Requests driver to send it's details, and sets up stream
-func (s *Server) Register(stream pb.Infragrpc_RegisterServer) error {
-
-	waitc := make(chan struct{})
-
+func (s *ExternalDriverManager) Register(stream pb.Infragrpc_RegisterServer) error {
 	regReq := pb.MCMside{
 		OperationID:   1,
 		OperationType: "register",
 	}
 
-	stream.Send(&regReq)
+	err := stream.Send(&regReq)
+	if err != nil {
+		// return will close the stream
+		return err
+	}
 
-	resp, err := stream.Recv()
+	msg, err := stream.Recv()
 	if err == io.EOF {
 		// return will close stream from server side
-		log.Println("exit")
-		return nil
+		glog.Warning("Driver closed before registration is completed.")
+		return err
 	}
 	if err != nil {
-		log.Printf("receive error %v", err)
+		log.Printf("received error %v", err)
+		return err
 	}
 
-	driver.driver = resp.GetRegisterResp()
-	driver.stream = &stream
+	driverDetails := msg.GetRegisterResp()
+	driver, err := s.registerDriver(metav1.TypeMeta{
+		Kind:       driverDetails.Kind,
+		APIVersion: path.Join(driverDetails.Group, driverDetails.Version),
+	}, stream)
 
-	log.Printf("driver: %v", driver)
+	if err != nil {
+		return err
+	}
 
-	// Start receiving stream
-	go receiveDriverStream(driver)
+	go driver.receiveAndDispatch()
 
-	// Never return from this handler, this will close the stream
-	<-waitc
+	driver.wait()
 	return nil
 }
 
-var opID int32
-var mutex = &sync.Mutex{}
-
-var requestCache map[int32](chan *pb.DriverSide)
-
-func sendAndWait(params *pb.MCMsideOperationParams, opType string) (interface{}, error) {
-
-	waitc := make(chan *pb.DriverSide)
-
-	mutex.Lock()
-	opID++
-	request := pb.MCMside{
-		OperationID:     opID,
-		OperationType:   opType,
-		Operationparams: params,
-	}
-	mutex.Unlock()
-
-	if err := (*driver.stream).Send(&request); err != nil {
-		log.Fatalf("Failed to send request: %v", err)
-		return nil, err
-	}
-
-	if requestCache == nil {
-		requestCache = make(map[int32](chan *pb.DriverSide))
-	}
-	requestCache[request.OperationID] = waitc
-
-	// The receiveDriverStream function will receive message, read the opID, then write to corresponding waitc
-	// This will make sure that the response structure is populated
-	response := <-waitc
-
-	delete(requestCache, request.OperationID)
-
-	return response.GetResponse(), nil
-}
-
-func receiveDriverStream(newDriver Driver) {
-	for {
-		response, err := (*newDriver.stream).Recv()
-		if err != nil {
-			log.Fatalf("Failed to receive response: %v", err)
-		}
-
-		if _, ok := requestCache[response.OperationID]; ok {
-			requestCache[response.OperationID] <- response
-		} else {
-			log.Printf("Request ID %d missing in request cache", response.OperationID)
-		}
-	}
-}
-
-// doCreate sends create request to the driver over the grpc stream
-func doCreate(providerName, machineclass, machineID string) (string, string, int32) {
-
-	if driver.driver.Name != providerName {
-		log.Printf("Driver not available")
-		return "", "", 1
-	}
-
-	createParams := pb.MCMsideOperationParams{
-		MachineClassMetaData: &pb.MCMsideMachineClassMeta{
-			Name:     "fakeclass",
-			Revision: 1,
-		},
-		CloudConfig: "fakeCloudConfig",
-		UserData:    "fakeData",
-		MachineID:   "fakeID",
-		MachineName: "fakename",
-	}
-
-	createResp, err := sendAndWait(&createParams, "create")
-	if err != nil {
-		log.Fatalf("Failed to send create req: %v", err)
-	}
-
-	if createResp == nil {
-		log.Printf("nil")
-		return "", "", 2
-	}
-	response := createResp.(*pb.DriverSide_Createresponse).Createresponse
-	log.Printf("Create. Return: %s %s %d", response.ProviderID, response.Nodename, response.Error)
-	return response.ProviderID, response.Nodename, response.Error
-}
-
-// doDelete sends delete request to the driver over the grpc stream
-func doDelete(providerName, machineclass, machineID string) int32 {
-
-	if driver.driver.Name != providerName {
-		log.Printf("Driver not available")
-		return 1
-	}
-
-	deleteParams := pb.MCMsideOperationParams{
-		MachineClassMetaData: &pb.MCMsideMachineClassMeta{
-			Name:     "fakeclass",
-			Revision: 1,
-		},
-		CloudConfig: "fakeCloudConfig",
-		MachineID:   "fakeID",
-		MachineName: "fakename",
-	}
-
-	deleteResp, err := sendAndWait(&deleteParams, "delete")
-	if err != nil {
-		log.Fatalf("Failed to send delete req: %v", err)
-	}
-
-	if deleteResp == nil {
-		log.Printf("nil")
-		return 2
-	}
-	response := deleteResp.(*pb.DriverSide_Deleteresponse).Deleteresponse
-	log.Printf("Delete Return: %d", response.Error)
-	return response.Error
-}
-
 //ShareMeta share metadata
-func (s *Server) ShareMeta(ctx context.Context, in *pb.Metadata) (*pb.ErrorResp, error) {
+func (s *ExternalDriverManager) ShareMeta(ctx context.Context, in *pb.Metadata) (*pb.ErrorResp, error) {
 	return nil, nil
 }
 
@@ -214,25 +162,28 @@ func main() {
 		opts = []grpc.ServerOption{grpc.Creds(creds)}
 	}
 
+	driverManager := &ExternalDriverManager{}
 	// Test go routine to test end to end flow
 	go func() {
 		for {
-			time.Sleep(5 * time.Second)
-			log.Printf("Calling valid create")
-			doCreate("fakeDriver", "a", "b")
+			for _, driver := range driverManager.drivers {
+				time.Sleep(5 * time.Second)
+				log.Printf("Calling valid create")
+				driver.Create("fakeDriver", "a", "b")
 
-			time.Sleep(5 * time.Second)
-			log.Printf("Calling invalid create")
-			doCreate("someDriver", "a", "b")
+				time.Sleep(5 * time.Second)
+				log.Printf("Calling invalid create")
+				driver.Create("someDriver", "a", "b")
 
-			time.Sleep(5 * time.Second)
-			log.Printf("Calling valid delete")
-			doDelete("fakeDriver", "a", "b")
+				time.Sleep(5 * time.Second)
+				log.Printf("Calling valid delete")
+				driver.Delete("fakeDriver", "a", "b")
+			}
 		}
 	}()
 
 	log.Printf("Starting grpc server")
 	grpcServer := grpc.NewServer(opts...)
-	pb.RegisterInfragrpcServer(grpcServer, &Server{})
+	pb.RegisterInfragrpcServer(grpcServer, driverManager)
 	grpcServer.Serve(lis)
 }
