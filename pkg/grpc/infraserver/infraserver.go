@@ -4,40 +4,30 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"path"
-	"time"
 
 	"google.golang.org/grpc"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/testdata"
 
 	pb "github.com/gardener/machine-controller-manager/pkg/grpc/infrapb"
 	"github.com/golang/glog"
 )
 
-var (
-	tls      = false //"Connection uses TLS if true, else plain TCP"
-	certFile = ""    //"The TLS cert file"
-	keyFile  = ""    //"The TLS key file"
-	port     = 10000 //"The server port"
-)
-
 // ExternalDriverManager manages the registered drivers.
 type ExternalDriverManager struct {
 	// a map of machine class type to the corresponding driver.
-	drivers map[metav1.TypeMeta]*driver
+	drivers    map[metav1.TypeMeta]*driver
+	Port       int
+	Options    []grpc.ServerOption
+	grpcServer *grpc.Server
 }
 
 //GetDriver gets a registered and working driver stream for the given machine class type.
 func (s *ExternalDriverManager) GetDriver(machineClassType metav1.TypeMeta) (Driver, error) {
 	driver := s.drivers[machineClassType]
 	if driver == nil {
-		log.Printf("No driver available for machine class type %s", machineClassType)
-		return nil, nil
+		return nil, fmt.Errorf("No driver available for machine class type %s", machineClassType)
 	}
 
 	stream := driver.stream
@@ -54,7 +44,7 @@ func (s *ExternalDriverManager) GetDriver(machineClassType metav1.TypeMeta) (Dri
 
 func (s *ExternalDriverManager) registerDriver(machineClassType metav1.TypeMeta, stream pb.Infragrpc_RegisterServer) (*driver, error) {
 	if stream == nil {
-		return nil, fmt.Errorf("Cannot register invalid driver stream for machine class type %s", machineClassType)
+		return nil, fmt.Errorf("Cannot register invalid driver stream for machine class type %v", machineClassType)
 	}
 
 	err := stream.Context().Err()
@@ -63,13 +53,11 @@ func (s *ExternalDriverManager) registerDriver(machineClassType metav1.TypeMeta,
 	}
 
 	d, err := s.GetDriver(machineClassType)
-	if err != nil {
-		return nil, err
-	} else if d != nil {
-		return nil, fmt.Errorf("Driver for machineClassType %s already registered", machineClassType)
+	if err == nil && d != nil {
+		return nil, fmt.Errorf("Driver for machineClassType %v already registered", machineClassType)
 	}
 
-	log.Printf("Registering new driver")
+	glog.Infof("Registering new driver")
 
 	stopCh := make(chan interface{})
 	newDriver := &driver{
@@ -83,6 +71,8 @@ func (s *ExternalDriverManager) registerDriver(machineClassType metav1.TypeMeta,
 		s.drivers = make(map[metav1.TypeMeta]*driver)
 	}
 	s.drivers[machineClassType] = newDriver
+
+	glog.Infof("Registered new driver %v", machineClassType)
 
 	go func() {
 		<-stopCh
@@ -103,6 +93,7 @@ func (s *ExternalDriverManager) Stop() {
 	for _, driver := range s.drivers {
 		driver.close()
 	}
+	s.grpcServer.Stop()
 }
 
 // Register Requests driver to send it's details, and sets up stream
@@ -125,7 +116,7 @@ func (s *ExternalDriverManager) Register(stream pb.Infragrpc_RegisterServer) err
 		return err
 	}
 	if err != nil {
-		log.Printf("received error %v", err)
+		glog.Warningf("received error %v", err)
 		return err
 	}
 
@@ -155,45 +146,18 @@ func (s *ExternalDriverManager) GetMachineClass(ctx context.Context, in *pb.Mach
 	return nil, nil
 }
 
-// StartServer start the grpc server
-func StartServer() {
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+// Start start the grpc server
+func (s *ExternalDriverManager) Start() {
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", s.Port))
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-	var opts []grpc.ServerOption
-	if tls {
-		if certFile == "" {
-			certFile = testdata.Path("server1.pem")
-		}
-		if keyFile == "" {
-			keyFile = testdata.Path("server1.key")
-		}
-		creds, err := credentials.NewServerTLSFromFile(certFile, keyFile)
-		if err != nil {
-			log.Fatalf("Failed to generate credentials %v", err)
-		}
-		opts = []grpc.ServerOption{grpc.Creds(creds)}
+		glog.Fatalf("failed to listen: %v", err)
 	}
 
-	driverManager := &ExternalDriverManager{}
-	// Test go routine to test end to end flow
+	glog.Infof("Starting grpc server...")
+	s.grpcServer = grpc.NewServer(s.Options...)
+	pb.RegisterInfragrpcServer(s.grpcServer, s)
+
 	go func() {
-		for {
-			for _, driver := range driverManager.drivers {
-				time.Sleep(5 * time.Second)
-				log.Printf("Calling create")
-				driver.Create("fakeDriver", "a", "b")
-
-				time.Sleep(5 * time.Second)
-				log.Printf("Calling delete")
-				driver.Delete("fakeDriver", "a", "b")
-			}
-		}
+		s.grpcServer.Serve(lis)
 	}()
-
-	log.Printf("Starting grpc server")
-	grpcServer := grpc.NewServer(opts...)
-	pb.RegisterInfragrpcServer(grpcServer, driverManager)
-	grpcServer.Serve(lis)
 }
