@@ -64,7 +64,7 @@ func registerwithMCM(client pb.InfragrpcClient) {
 			message := pb.DriverSideCreateResp{
 				ProviderID: "fakeID",
 				Nodename:   "fakename",
-				Error:      0,
+				Error:      "",
 			}
 			resp.Response = &pb.DriverSide_Createresponse{
 				Createresponse: &message,
@@ -78,7 +78,7 @@ func registerwithMCM(client pb.InfragrpcClient) {
 
 			log.Printf("delete parameters: %v", opParams)
 			message := pb.DriverSideDeleteResp{
-				Error: 0,
+				Error: "",
 			}
 			resp.Response = &pb.DriverSide_Deleteresponse{
 				Deleteresponse: &message,
@@ -93,7 +93,7 @@ func registerwithMCM(client pb.InfragrpcClient) {
 			log.Printf("list parameters: %v", opParams)
 			message := pb.DriverSideListResp{
 				List:  []string{"fakemach1", "fakemach2"},
-				Error: 0,
+				Error: "",
 			}
 			resp.Response = &pb.DriverSide_Listresponse{
 				Listresponse: &message,

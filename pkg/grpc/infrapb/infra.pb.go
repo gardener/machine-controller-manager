@@ -23,6 +23,182 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
+type MachineClassMeta struct {
+	Name                 string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Revision             int32    `protobuf:"varint,2,opt,name=revision" json:"revision,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *MachineClassMeta) Reset()         { *m = MachineClassMeta{} }
+func (m *MachineClassMeta) String() string { return proto.CompactTextString(m) }
+func (*MachineClassMeta) ProtoMessage()    {}
+func (*MachineClassMeta) Descriptor() ([]byte, []int) {
+	return fileDescriptor_infra_835ce489110120ef, []int{0}
+}
+func (m *MachineClassMeta) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_MachineClassMeta.Unmarshal(m, b)
+}
+func (m *MachineClassMeta) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_MachineClassMeta.Marshal(b, m, deterministic)
+}
+func (dst *MachineClassMeta) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MachineClassMeta.Merge(dst, src)
+}
+func (m *MachineClassMeta) XXX_Size() int {
+	return xxx_messageInfo_MachineClassMeta.Size(m)
+}
+func (m *MachineClassMeta) XXX_DiscardUnknown() {
+	xxx_messageInfo_MachineClassMeta.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MachineClassMeta proto.InternalMessageInfo
+
+func (m *MachineClassMeta) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *MachineClassMeta) GetRevision() int32 {
+	if m != nil {
+		return m.Revision
+	}
+	return 0
+}
+
+type CloudConfigMeta struct {
+	MachineClassMeta     *MachineClassMeta `protobuf:"bytes,1,opt,name=machineClassMeta" json:"machineClassMeta,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
+}
+
+func (m *CloudConfigMeta) Reset()         { *m = CloudConfigMeta{} }
+func (m *CloudConfigMeta) String() string { return proto.CompactTextString(m) }
+func (*CloudConfigMeta) ProtoMessage()    {}
+func (*CloudConfigMeta) Descriptor() ([]byte, []int) {
+	return fileDescriptor_infra_835ce489110120ef, []int{1}
+}
+func (m *CloudConfigMeta) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CloudConfigMeta.Unmarshal(m, b)
+}
+func (m *CloudConfigMeta) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CloudConfigMeta.Marshal(b, m, deterministic)
+}
+func (dst *CloudConfigMeta) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CloudConfigMeta.Merge(dst, src)
+}
+func (m *CloudConfigMeta) XXX_Size() int {
+	return xxx_messageInfo_CloudConfigMeta.Size(m)
+}
+func (m *CloudConfigMeta) XXX_DiscardUnknown() {
+	xxx_messageInfo_CloudConfigMeta.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CloudConfigMeta proto.InternalMessageInfo
+
+func (m *CloudConfigMeta) GetMachineClassMeta() *MachineClassMeta {
+	if m != nil {
+		return m.MachineClassMeta
+	}
+	return nil
+}
+
+type MachineClass struct {
+	Data                 string   `protobuf:"bytes,1,opt,name=data" json:"data,omitempty"`
+	Error                string   `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *MachineClass) Reset()         { *m = MachineClass{} }
+func (m *MachineClass) String() string { return proto.CompactTextString(m) }
+func (*MachineClass) ProtoMessage()    {}
+func (*MachineClass) Descriptor() ([]byte, []int) {
+	return fileDescriptor_infra_835ce489110120ef, []int{2}
+}
+func (m *MachineClass) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_MachineClass.Unmarshal(m, b)
+}
+func (m *MachineClass) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_MachineClass.Marshal(b, m, deterministic)
+}
+func (dst *MachineClass) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MachineClass.Merge(dst, src)
+}
+func (m *MachineClass) XXX_Size() int {
+	return xxx_messageInfo_MachineClass.Size(m)
+}
+func (m *MachineClass) XXX_DiscardUnknown() {
+	xxx_messageInfo_MachineClass.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MachineClass proto.InternalMessageInfo
+
+func (m *MachineClass) GetData() string {
+	if m != nil {
+		return m.Data
+	}
+	return ""
+}
+
+func (m *MachineClass) GetError() string {
+	if m != nil {
+		return m.Error
+	}
+	return ""
+}
+
+type CloudConfig struct {
+	Data                 string   `protobuf:"bytes,1,opt,name=data" json:"data,omitempty"`
+	Error                string   `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *CloudConfig) Reset()         { *m = CloudConfig{} }
+func (m *CloudConfig) String() string { return proto.CompactTextString(m) }
+func (*CloudConfig) ProtoMessage()    {}
+func (*CloudConfig) Descriptor() ([]byte, []int) {
+	return fileDescriptor_infra_835ce489110120ef, []int{3}
+}
+func (m *CloudConfig) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CloudConfig.Unmarshal(m, b)
+}
+func (m *CloudConfig) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CloudConfig.Marshal(b, m, deterministic)
+}
+func (dst *CloudConfig) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CloudConfig.Merge(dst, src)
+}
+func (m *CloudConfig) XXX_Size() int {
+	return xxx_messageInfo_CloudConfig.Size(m)
+}
+func (m *CloudConfig) XXX_DiscardUnknown() {
+	xxx_messageInfo_CloudConfig.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CloudConfig proto.InternalMessageInfo
+
+func (m *CloudConfig) GetData() string {
+	if m != nil {
+		return m.Data
+	}
+	return ""
+}
+
+func (m *CloudConfig) GetError() string {
+	if m != nil {
+		return m.Error
+	}
+	return ""
+}
+
 // The message containing driver side structures
 type DriverSide struct {
 	// operationID to match response with asynchronous requests
@@ -44,7 +220,7 @@ func (m *DriverSide) Reset()         { *m = DriverSide{} }
 func (m *DriverSide) String() string { return proto.CompactTextString(m) }
 func (*DriverSide) ProtoMessage()    {}
 func (*DriverSide) Descriptor() ([]byte, []int) {
-	return fileDescriptor_infra_eec868e281ffaff7, []int{0}
+	return fileDescriptor_infra_835ce489110120ef, []int{4}
 }
 func (m *DriverSide) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DriverSide.Unmarshal(m, b)
@@ -261,7 +437,7 @@ func (m *DriverSideRegisterationResp) Reset()         { *m = DriverSideRegistera
 func (m *DriverSideRegisterationResp) String() string { return proto.CompactTextString(m) }
 func (*DriverSideRegisterationResp) ProtoMessage()    {}
 func (*DriverSideRegisterationResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_infra_eec868e281ffaff7, []int{0, 0}
+	return fileDescriptor_infra_835ce489110120ef, []int{4, 0}
 }
 func (m *DriverSideRegisterationResp) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DriverSideRegisterationResp.Unmarshal(m, b)
@@ -312,7 +488,7 @@ func (m *DriverSideRegisterationResp) GetVersion() string {
 type DriverSideCreateResp struct {
 	ProviderID           string   `protobuf:"bytes,1,opt,name=providerID" json:"providerID,omitempty"`
 	Nodename             string   `protobuf:"bytes,2,opt,name=nodename" json:"nodename,omitempty"`
-	Error                int32    `protobuf:"varint,3,opt,name=error" json:"error,omitempty"`
+	Error                string   `protobuf:"bytes,3,opt,name=error" json:"error,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -322,7 +498,7 @@ func (m *DriverSideCreateResp) Reset()         { *m = DriverSideCreateResp{} }
 func (m *DriverSideCreateResp) String() string { return proto.CompactTextString(m) }
 func (*DriverSideCreateResp) ProtoMessage()    {}
 func (*DriverSideCreateResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_infra_eec868e281ffaff7, []int{0, 1}
+	return fileDescriptor_infra_835ce489110120ef, []int{4, 1}
 }
 func (m *DriverSideCreateResp) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DriverSideCreateResp.Unmarshal(m, b)
@@ -356,15 +532,15 @@ func (m *DriverSideCreateResp) GetNodename() string {
 	return ""
 }
 
-func (m *DriverSideCreateResp) GetError() int32 {
+func (m *DriverSideCreateResp) GetError() string {
 	if m != nil {
 		return m.Error
 	}
-	return 0
+	return ""
 }
 
 type DriverSideDeleteResp struct {
-	Error                int32    `protobuf:"varint,1,opt,name=error" json:"error,omitempty"`
+	Error                string   `protobuf:"bytes,1,opt,name=error" json:"error,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -374,7 +550,7 @@ func (m *DriverSideDeleteResp) Reset()         { *m = DriverSideDeleteResp{} }
 func (m *DriverSideDeleteResp) String() string { return proto.CompactTextString(m) }
 func (*DriverSideDeleteResp) ProtoMessage()    {}
 func (*DriverSideDeleteResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_infra_eec868e281ffaff7, []int{0, 2}
+	return fileDescriptor_infra_835ce489110120ef, []int{4, 2}
 }
 func (m *DriverSideDeleteResp) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DriverSideDeleteResp.Unmarshal(m, b)
@@ -394,16 +570,16 @@ func (m *DriverSideDeleteResp) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_DriverSideDeleteResp proto.InternalMessageInfo
 
-func (m *DriverSideDeleteResp) GetError() int32 {
+func (m *DriverSideDeleteResp) GetError() string {
 	if m != nil {
 		return m.Error
 	}
-	return 0
+	return ""
 }
 
 type DriverSideListResp struct {
 	List                 []string `protobuf:"bytes,1,rep,name=list" json:"list,omitempty"`
-	Error                int32    `protobuf:"varint,2,opt,name=error" json:"error,omitempty"`
+	Error                string   `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -413,7 +589,7 @@ func (m *DriverSideListResp) Reset()         { *m = DriverSideListResp{} }
 func (m *DriverSideListResp) String() string { return proto.CompactTextString(m) }
 func (*DriverSideListResp) ProtoMessage()    {}
 func (*DriverSideListResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_infra_eec868e281ffaff7, []int{0, 3}
+	return fileDescriptor_infra_835ce489110120ef, []int{4, 3}
 }
 func (m *DriverSideListResp) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DriverSideListResp.Unmarshal(m, b)
@@ -440,11 +616,11 @@ func (m *DriverSideListResp) GetList() []string {
 	return nil
 }
 
-func (m *DriverSideListResp) GetError() int32 {
+func (m *DriverSideListResp) GetError() string {
 	if m != nil {
 		return m.Error
 	}
-	return 0
+	return ""
 }
 
 // The message containing the MCM side structures
@@ -463,7 +639,7 @@ func (m *MCMside) Reset()         { *m = MCMside{} }
 func (m *MCMside) String() string { return proto.CompactTextString(m) }
 func (*MCMside) ProtoMessage()    {}
 func (*MCMside) Descriptor() ([]byte, []int) {
-	return fileDescriptor_infra_eec868e281ffaff7, []int{1}
+	return fileDescriptor_infra_835ce489110120ef, []int{5}
 }
 func (m *MCMside) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MCMside.Unmarshal(m, b)
@@ -504,59 +680,12 @@ func (m *MCMside) GetOperationparams() *MCMsideOperationParams {
 	return nil
 }
 
-type MCMsideMachineClassMeta struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	Revision             int32    `protobuf:"varint,2,opt,name=revision" json:"revision,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *MCMsideMachineClassMeta) Reset()         { *m = MCMsideMachineClassMeta{} }
-func (m *MCMsideMachineClassMeta) String() string { return proto.CompactTextString(m) }
-func (*MCMsideMachineClassMeta) ProtoMessage()    {}
-func (*MCMsideMachineClassMeta) Descriptor() ([]byte, []int) {
-	return fileDescriptor_infra_eec868e281ffaff7, []int{1, 0}
-}
-func (m *MCMsideMachineClassMeta) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_MCMsideMachineClassMeta.Unmarshal(m, b)
-}
-func (m *MCMsideMachineClassMeta) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_MCMsideMachineClassMeta.Marshal(b, m, deterministic)
-}
-func (dst *MCMsideMachineClassMeta) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MCMsideMachineClassMeta.Merge(dst, src)
-}
-func (m *MCMsideMachineClassMeta) XXX_Size() int {
-	return xxx_messageInfo_MCMsideMachineClassMeta.Size(m)
-}
-func (m *MCMsideMachineClassMeta) XXX_DiscardUnknown() {
-	xxx_messageInfo_MCMsideMachineClassMeta.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_MCMsideMachineClassMeta proto.InternalMessageInfo
-
-func (m *MCMsideMachineClassMeta) GetName() string {
-	if m != nil {
-		return m.Name
-	}
-	return ""
-}
-
-func (m *MCMsideMachineClassMeta) GetRevision() int32 {
-	if m != nil {
-		return m.Revision
-	}
-	return 0
-}
-
 type MCMsideOperationParams struct {
-	MachineClassMetaData *MCMsideMachineClassMeta `protobuf:"bytes,1,opt,name=machineClassMetaData" json:"machineClassMetaData,omitempty"`
+	MachineClassMetaData *MachineClassMeta `protobuf:"bytes,1,opt,name=machineClassMetaData" json:"machineClassMetaData,omitempty"`
 	// cloudConfig has the secrets (username/password info to connect to provider account)
-	CloudConfig          string   `protobuf:"bytes,2,opt,name=cloudConfig" json:"cloudConfig,omitempty"`
-	UserData             string   `protobuf:"bytes,3,opt,name=userData" json:"userData,omitempty"`
-	MachineID            string   `protobuf:"bytes,4,opt,name=machineID" json:"machineID,omitempty"`
-	MachineName          string   `protobuf:"bytes,5,opt,name=machineName" json:"machineName,omitempty"`
+	Credentials          string   `protobuf:"bytes,2,opt,name=credentials" json:"credentials,omitempty"`
+	MachineID            string   `protobuf:"bytes,3,opt,name=machineID" json:"machineID,omitempty"`
+	MachineName          string   `protobuf:"bytes,4,opt,name=machineName" json:"machineName,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -566,7 +695,7 @@ func (m *MCMsideOperationParams) Reset()         { *m = MCMsideOperationParams{}
 func (m *MCMsideOperationParams) String() string { return proto.CompactTextString(m) }
 func (*MCMsideOperationParams) ProtoMessage()    {}
 func (*MCMsideOperationParams) Descriptor() ([]byte, []int) {
-	return fileDescriptor_infra_eec868e281ffaff7, []int{1, 1}
+	return fileDescriptor_infra_835ce489110120ef, []int{5, 0}
 }
 func (m *MCMsideOperationParams) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MCMsideOperationParams.Unmarshal(m, b)
@@ -586,23 +715,16 @@ func (m *MCMsideOperationParams) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MCMsideOperationParams proto.InternalMessageInfo
 
-func (m *MCMsideOperationParams) GetMachineClassMetaData() *MCMsideMachineClassMeta {
+func (m *MCMsideOperationParams) GetMachineClassMetaData() *MachineClassMeta {
 	if m != nil {
 		return m.MachineClassMetaData
 	}
 	return nil
 }
 
-func (m *MCMsideOperationParams) GetCloudConfig() string {
+func (m *MCMsideOperationParams) GetCredentials() string {
 	if m != nil {
-		return m.CloudConfig
-	}
-	return ""
-}
-
-func (m *MCMsideOperationParams) GetUserData() string {
-	if m != nil {
-		return m.UserData
+		return m.Credentials
 	}
 	return ""
 }
@@ -621,119 +743,18 @@ func (m *MCMsideOperationParams) GetMachineName() string {
 	return ""
 }
 
-// The request message containing metadata information
-type Metadata struct {
-	Type                 string   `protobuf:"bytes,1,opt,name=type" json:"type,omitempty"`
-	Name                 string   `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
-	Data                 string   `protobuf:"bytes,3,opt,name=data" json:"data,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *Metadata) Reset()         { *m = Metadata{} }
-func (m *Metadata) String() string { return proto.CompactTextString(m) }
-func (*Metadata) ProtoMessage()    {}
-func (*Metadata) Descriptor() ([]byte, []int) {
-	return fileDescriptor_infra_eec868e281ffaff7, []int{2}
-}
-func (m *Metadata) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Metadata.Unmarshal(m, b)
-}
-func (m *Metadata) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Metadata.Marshal(b, m, deterministic)
-}
-func (dst *Metadata) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Metadata.Merge(dst, src)
-}
-func (m *Metadata) XXX_Size() int {
-	return xxx_messageInfo_Metadata.Size(m)
-}
-func (m *Metadata) XXX_DiscardUnknown() {
-	xxx_messageInfo_Metadata.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Metadata proto.InternalMessageInfo
-
-func (m *Metadata) GetType() string {
-	if m != nil {
-		return m.Type
-	}
-	return ""
-}
-
-func (m *Metadata) GetName() string {
-	if m != nil {
-		return m.Name
-	}
-	return ""
-}
-
-func (m *Metadata) GetData() string {
-	if m != nil {
-		return m.Data
-	}
-	return ""
-}
-
-// The response message containing error code and message
-type ErrorResp struct {
-	Err                  int32    `protobuf:"varint,1,opt,name=err" json:"err,omitempty"`
-	Message              string   `protobuf:"bytes,2,opt,name=message" json:"message,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *ErrorResp) Reset()         { *m = ErrorResp{} }
-func (m *ErrorResp) String() string { return proto.CompactTextString(m) }
-func (*ErrorResp) ProtoMessage()    {}
-func (*ErrorResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_infra_eec868e281ffaff7, []int{3}
-}
-func (m *ErrorResp) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ErrorResp.Unmarshal(m, b)
-}
-func (m *ErrorResp) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ErrorResp.Marshal(b, m, deterministic)
-}
-func (dst *ErrorResp) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ErrorResp.Merge(dst, src)
-}
-func (m *ErrorResp) XXX_Size() int {
-	return xxx_messageInfo_ErrorResp.Size(m)
-}
-func (m *ErrorResp) XXX_DiscardUnknown() {
-	xxx_messageInfo_ErrorResp.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ErrorResp proto.InternalMessageInfo
-
-func (m *ErrorResp) GetErr() int32 {
-	if m != nil {
-		return m.Err
-	}
-	return 0
-}
-
-func (m *ErrorResp) GetMessage() string {
-	if m != nil {
-		return m.Message
-	}
-	return ""
-}
-
 func init() {
+	proto.RegisterType((*MachineClassMeta)(nil), "infra.MachineClassMeta")
+	proto.RegisterType((*CloudConfigMeta)(nil), "infra.CloudConfigMeta")
+	proto.RegisterType((*MachineClass)(nil), "infra.MachineClass")
+	proto.RegisterType((*CloudConfig)(nil), "infra.CloudConfig")
 	proto.RegisterType((*DriverSide)(nil), "infra.DriverSide")
 	proto.RegisterType((*DriverSideRegisterationResp)(nil), "infra.DriverSide.registerationResp")
 	proto.RegisterType((*DriverSideCreateResp)(nil), "infra.DriverSide.createResp")
 	proto.RegisterType((*DriverSideDeleteResp)(nil), "infra.DriverSide.deleteResp")
 	proto.RegisterType((*DriverSideListResp)(nil), "infra.DriverSide.listResp")
 	proto.RegisterType((*MCMside)(nil), "infra.MCMside")
-	proto.RegisterType((*MCMsideMachineClassMeta)(nil), "infra.MCMside.machineClassMeta")
 	proto.RegisterType((*MCMsideOperationParams)(nil), "infra.MCMside.operationParams")
-	proto.RegisterType((*Metadata)(nil), "infra.Metadata")
-	proto.RegisterType((*ErrorResp)(nil), "infra.ErrorResp")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -750,8 +771,10 @@ const _ = grpc.SupportPackageIsVersion4
 type InfragrpcClient interface {
 	// infra operations
 	Register(ctx context.Context, opts ...grpc.CallOption) (Infragrpc_RegisterClient, error)
-	// Share Metadata
-	ShareMeta(ctx context.Context, in *Metadata, opts ...grpc.CallOption) (*ErrorResp, error)
+	// Get Machine Class
+	GetMachineClass(ctx context.Context, in *MachineClassMeta, opts ...grpc.CallOption) (*MachineClass, error)
+	// Get Cloud Config
+	GetCloudConfig(ctx context.Context, in *CloudConfigMeta, opts ...grpc.CallOption) (*CloudConfig, error)
 }
 
 type infragrpcClient struct {
@@ -793,9 +816,18 @@ func (x *infragrpcRegisterClient) Recv() (*MCMside, error) {
 	return m, nil
 }
 
-func (c *infragrpcClient) ShareMeta(ctx context.Context, in *Metadata, opts ...grpc.CallOption) (*ErrorResp, error) {
-	out := new(ErrorResp)
-	err := c.cc.Invoke(ctx, "/infra.Infragrpc/ShareMeta", in, out, opts...)
+func (c *infragrpcClient) GetMachineClass(ctx context.Context, in *MachineClassMeta, opts ...grpc.CallOption) (*MachineClass, error) {
+	out := new(MachineClass)
+	err := c.cc.Invoke(ctx, "/infra.Infragrpc/GetMachineClass", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *infragrpcClient) GetCloudConfig(ctx context.Context, in *CloudConfigMeta, opts ...grpc.CallOption) (*CloudConfig, error) {
+	out := new(CloudConfig)
+	err := c.cc.Invoke(ctx, "/infra.Infragrpc/GetCloudConfig", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -806,8 +838,10 @@ func (c *infragrpcClient) ShareMeta(ctx context.Context, in *Metadata, opts ...g
 type InfragrpcServer interface {
 	// infra operations
 	Register(Infragrpc_RegisterServer) error
-	// Share Metadata
-	ShareMeta(context.Context, *Metadata) (*ErrorResp, error)
+	// Get Machine Class
+	GetMachineClass(context.Context, *MachineClassMeta) (*MachineClass, error)
+	// Get Cloud Config
+	GetCloudConfig(context.Context, *CloudConfigMeta) (*CloudConfig, error)
 }
 
 func RegisterInfragrpcServer(s *grpc.Server, srv InfragrpcServer) {
@@ -840,20 +874,38 @@ func (x *infragrpcRegisterServer) Recv() (*DriverSide, error) {
 	return m, nil
 }
 
-func _Infragrpc_ShareMeta_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Metadata)
+func _Infragrpc_GetMachineClass_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MachineClassMeta)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(InfragrpcServer).ShareMeta(ctx, in)
+		return srv.(InfragrpcServer).GetMachineClass(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/infra.Infragrpc/ShareMeta",
+		FullMethod: "/infra.Infragrpc/GetMachineClass",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InfragrpcServer).ShareMeta(ctx, req.(*Metadata))
+		return srv.(InfragrpcServer).GetMachineClass(ctx, req.(*MachineClassMeta))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Infragrpc_GetCloudConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CloudConfigMeta)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InfragrpcServer).GetCloudConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/infra.Infragrpc/GetCloudConfig",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InfragrpcServer).GetCloudConfig(ctx, req.(*CloudConfigMeta))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -863,8 +915,12 @@ var _Infragrpc_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*InfragrpcServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ShareMeta",
-			Handler:    _Infragrpc_ShareMeta_Handler,
+			MethodName: "GetMachineClass",
+			Handler:    _Infragrpc_GetMachineClass_Handler,
+		},
+		{
+			MethodName: "GetCloudConfig",
+			Handler:    _Infragrpc_GetCloudConfig_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
@@ -878,45 +934,45 @@ var _Infragrpc_serviceDesc = grpc.ServiceDesc{
 	Metadata: "infra.proto",
 }
 
-func init() { proto.RegisterFile("infra.proto", fileDescriptor_infra_eec868e281ffaff7) }
+func init() { proto.RegisterFile("infra.proto", fileDescriptor_infra_835ce489110120ef) }
 
-var fileDescriptor_infra_eec868e281ffaff7 = []byte{
-	// 587 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x54, 0xcd, 0x6e, 0xda, 0x40,
-	0x10, 0x8e, 0x03, 0x4e, 0xf0, 0x90, 0x26, 0x64, 0x95, 0x83, 0x65, 0x45, 0x29, 0x72, 0x7b, 0xe0,
-	0x84, 0x22, 0x52, 0xa9, 0xd7, 0x2a, 0xd0, 0x28, 0x1c, 0xa8, 0xaa, 0xa5, 0xe7, 0x4a, 0x5b, 0x3c,
-	0x21, 0xab, 0x80, 0xd7, 0x9a, 0x35, 0x48, 0x7d, 0x9f, 0x3e, 0x4b, 0x9f, 0xa4, 0x0f, 0x52, 0xed,
-	0x7a, 0xfd, 0x03, 0xa4, 0xb7, 0xde, 0x66, 0x46, 0xdf, 0x7c, 0xfb, 0xcd, 0x37, 0x63, 0x43, 0x57,
-	0xa6, 0x4f, 0x24, 0x86, 0x19, 0xa9, 0x5c, 0x31, 0xdf, 0x26, 0xf1, 0x2f, 0x1f, 0x60, 0x42, 0x72,
-	0x8b, 0x34, 0x97, 0x09, 0xb2, 0x3e, 0x74, 0x55, 0x86, 0x24, 0x72, 0xa9, 0xd2, 0xe9, 0x24, 0xf4,
-	0xfa, 0xde, 0xc0, 0xe7, 0xcd, 0x12, 0x7b, 0x0f, 0x6f, 0xaa, 0xf4, 0xdb, 0xcf, 0x0c, 0xc3, 0xe3,
-	0xbe, 0x37, 0x08, 0xf8, 0x6e, 0x91, 0x4d, 0xe1, 0x8c, 0x70, 0x29, 0x75, 0x8e, 0xc4, 0x51, 0x67,
-	0x61, 0xab, 0xef, 0x0d, 0xba, 0xa3, 0x77, 0xc3, 0x42, 0x41, 0xfd, 0xe0, 0xb0, 0x44, 0xd9, 0x56,
-	0x03, 0x7d, 0x3c, 0xe2, 0x3b, 0xad, 0xec, 0x01, 0xce, 0x17, 0x84, 0x22, 0x47, 0x42, 0x9d, 0xa9,
-	0x54, 0x63, 0xd8, 0xb6, 0x64, 0xd7, 0x87, 0x64, 0x05, 0xce, 0xb1, 0xec, 0x75, 0x19, 0x9e, 0x04,
-	0x57, 0xd8, 0xe0, 0xf1, 0xff, 0xc5, 0x53, 0xe0, 0x4a, 0x9e, 0xdd, 0x2e, 0xf6, 0x09, 0xce, 0x56,
-	0x52, 0xe7, 0x15, 0xcb, 0x89, 0x65, 0x89, 0x0e, 0x59, 0x0c, 0xaa, 0x9c, 0xa8, 0xd9, 0x11, 0xbd,
-	0xc0, 0xe5, 0xc1, 0xd8, 0x8c, 0x41, 0x3b, 0x15, 0x6b, 0xb4, 0x96, 0x07, 0xdc, 0xc6, 0xec, 0x0a,
-	0xfc, 0x25, 0xa9, 0x4d, 0xe6, 0x3c, 0x2e, 0x12, 0x83, 0x7c, 0x91, 0x69, 0x62, 0x3d, 0x0d, 0xb8,
-	0x8d, 0x59, 0x08, 0xa7, 0x5b, 0x24, 0x2d, 0x55, 0x6a, 0xdd, 0x09, 0x78, 0x99, 0x46, 0xdf, 0x01,
-	0x6a, 0x5b, 0xd8, 0x0d, 0x40, 0x46, 0x6a, 0x2b, 0x13, 0x24, 0xb7, 0xde, 0x80, 0x37, 0x2a, 0x2c,
-	0x82, 0x4e, 0xaa, 0x12, 0xb4, 0x4a, 0x8a, 0x47, 0xab, 0xdc, 0xa8, 0x41, 0x22, 0x45, 0xf6, 0x61,
-	0x9f, 0x17, 0x49, 0x14, 0x03, 0xd4, 0x76, 0xd5, 0x18, 0xaf, 0x89, 0xf9, 0x00, 0x9d, 0xd2, 0x0c,
-	0xa3, 0xde, 0xc4, 0xa1, 0xd7, 0x6f, 0x19, 0xf5, 0x26, 0xae, 0xbb, 0x8e, 0x1b, 0x5d, 0xf7, 0x00,
-	0x9d, 0xd2, 0xb2, 0xf8, 0x77, 0x0b, 0x4e, 0x67, 0xe3, 0x99, 0xfe, 0x9f, 0x37, 0xfa, 0x08, 0x17,
-	0x55, 0x21, 0x13, 0x24, 0xd6, 0xda, 0x9d, 0xe9, 0x8d, 0xdb, 0xa5, 0x7b, 0x70, 0x58, 0xa1, 0xbe,
-	0x5a, 0x14, 0xdf, 0x6f, 0x8b, 0xee, 0xa1, 0xb7, 0x16, 0x8b, 0x67, 0x99, 0xe2, 0x78, 0x25, 0xb4,
-	0x9e, 0x61, 0x2e, 0x5e, 0xdd, 0x67, 0x64, 0x26, 0xda, 0x4a, 0xbb, 0xa6, 0x62, 0xd4, 0x2a, 0x8f,
-	0xfe, 0x78, 0x0d, 0x39, 0xc5, 0x43, 0x6c, 0x0e, 0x57, 0xfb, 0xbc, 0x13, 0x91, 0x0b, 0xcb, 0xd9,
-	0x1d, 0xbd, 0xdd, 0x93, 0xb9, 0x0f, 0xe5, 0xaf, 0x36, 0x1b, 0xfb, 0x16, 0x2b, 0xb5, 0x49, 0xc6,
-	0x2a, 0x7d, 0x92, 0x4b, 0x67, 0x4d, 0xb3, 0x64, 0x64, 0x6e, 0x34, 0x92, 0x7d, 0xaa, 0x38, 0xb2,
-	0x2a, 0x67, 0xd7, 0x10, 0x38, 0xd6, 0xe9, 0xc4, 0x9d, 0x5a, 0x5d, 0x30, 0xdc, 0x2e, 0xf9, 0x62,
-	0x66, 0xf7, 0x0b, 0xee, 0x46, 0x29, 0x7e, 0x80, 0x8e, 0x51, 0x92, 0x88, 0xc2, 0xa2, 0xdc, 0x6c,
-	0xc7, 0x59, 0x64, 0xe2, 0xca, 0xb6, 0xe3, 0x86, 0x6d, 0x0c, 0xda, 0x49, 0xad, 0xc5, 0xc6, 0xf1,
-	0x47, 0x08, 0x3e, 0x9b, 0x2b, 0xb1, 0x37, 0xd5, 0x83, 0x16, 0x52, 0x79, 0x73, 0x26, 0x34, 0xdf,
-	0xc3, 0x1a, 0xb5, 0x16, 0xcb, 0x92, 0xa9, 0x4c, 0x47, 0x04, 0xc1, 0xd4, 0xd8, 0xb6, 0xa4, 0x6c,
-	0xc1, 0xee, 0xa0, 0xc3, 0xdd, 0x97, 0xc8, 0x2e, 0x0f, 0xbe, 0xe0, 0xe8, 0x7c, 0xd7, 0xe1, 0xf8,
-	0x68, 0xe0, 0xdd, 0x7a, 0xec, 0x16, 0x82, 0xf9, 0xb3, 0x20, 0xb4, 0x6b, 0xbe, 0x28, 0x21, 0x6e,
-	0xa8, 0xa8, 0xe7, 0x0a, 0x95, 0xba, 0xf8, 0xe8, 0xc7, 0x89, 0xfd, 0xe5, 0xde, 0xfd, 0x0d, 0x00,
-	0x00, 0xff, 0xff, 0x0c, 0x1f, 0xaf, 0x88, 0x81, 0x05, 0x00, 0x00,
+var fileDescriptor_infra_835ce489110120ef = []byte{
+	// 591 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x54, 0x51, 0x6f, 0xd3, 0x30,
+	0x10, 0x6e, 0xb6, 0x65, 0x6b, 0xae, 0xa5, 0xdd, 0x4c, 0x05, 0x51, 0x34, 0x4d, 0x55, 0xe0, 0xa1,
+	0x4f, 0x15, 0xda, 0x90, 0xe0, 0x09, 0xc1, 0x5a, 0xb1, 0x55, 0xa8, 0x08, 0x19, 0xc4, 0x23, 0x92,
+	0x69, 0x6e, 0xc5, 0x5a, 0x1b, 0x47, 0x4e, 0x56, 0x89, 0xff, 0xc3, 0x0f, 0x41, 0xe2, 0x7f, 0xf0,
+	0x5b, 0x90, 0x1d, 0x27, 0x71, 0x93, 0x4e, 0x08, 0x89, 0x37, 0xdf, 0xe5, 0xfb, 0x3e, 0xdf, 0x9d,
+	0xbf, 0x1c, 0x74, 0x78, 0x7c, 0x23, 0xd9, 0x38, 0x91, 0x22, 0x13, 0xc4, 0xd5, 0x41, 0x78, 0x09,
+	0xc7, 0x73, 0xb6, 0xf8, 0xc6, 0x63, 0x9c, 0xac, 0x58, 0x9a, 0xce, 0x31, 0x63, 0x84, 0xc0, 0x41,
+	0xcc, 0xd6, 0xe8, 0x3b, 0x43, 0x67, 0xe4, 0x51, 0x7d, 0x26, 0x01, 0xb4, 0x25, 0x6e, 0x78, 0xca,
+	0x45, 0xec, 0xef, 0x0d, 0x9d, 0x91, 0x4b, 0xcb, 0x38, 0xfc, 0x0c, 0xfd, 0xc9, 0x4a, 0xdc, 0x45,
+	0x13, 0x11, 0xdf, 0xf0, 0xa5, 0x96, 0x98, 0xc0, 0xf1, 0xba, 0x26, 0xab, 0xe5, 0x3a, 0xe7, 0x8f,
+	0xc7, 0x79, 0x15, 0xf5, 0x5b, 0x69, 0x83, 0x10, 0xbe, 0x84, 0xae, 0x8d, 0x52, 0x75, 0x45, 0xcc,
+	0x08, 0x79, 0x54, 0x9f, 0xc9, 0x00, 0x5c, 0x94, 0x52, 0x48, 0x5d, 0x94, 0x47, 0xf3, 0x20, 0x7c,
+	0x01, 0x1d, 0xab, 0xa2, 0x7f, 0x20, 0xfe, 0x70, 0x01, 0xa6, 0x92, 0x6f, 0x50, 0x7e, 0xe4, 0x11,
+	0x92, 0x21, 0x74, 0x44, 0x82, 0x92, 0x65, 0x5c, 0xc4, 0xb3, 0xa9, 0xe6, 0xbb, 0xd4, 0x4e, 0x91,
+	0xa7, 0xf0, 0xa0, 0x0c, 0x3f, 0x7d, 0x4f, 0xd0, 0xc8, 0x6d, 0x27, 0xc9, 0x0c, 0xba, 0x12, 0x97,
+	0x3c, 0xcd, 0x50, 0x52, 0x4c, 0x13, 0x7f, 0x5f, 0x8f, 0xe2, 0x89, 0x19, 0x45, 0x75, 0xe1, 0xb8,
+	0x40, 0x69, 0xaa, 0x82, 0x5e, 0xb7, 0xe8, 0x16, 0x95, 0xbc, 0x85, 0xde, 0x42, 0x22, 0xcb, 0x50,
+	0x62, 0x9a, 0x88, 0x38, 0x45, 0xff, 0x40, 0x8b, 0x9d, 0x36, 0xc5, 0x72, 0x9c, 0x51, 0xa9, 0xb1,
+	0x94, 0x4e, 0x84, 0x2b, 0xb4, 0x74, 0xdc, 0xfb, 0x74, 0x72, 0x5c, 0xa1, 0xb3, 0xcd, 0x22, 0xaf,
+	0xa1, 0xbb, 0xe2, 0x69, 0x56, 0xaa, 0x1c, 0x6a, 0x95, 0xa0, 0xa9, 0xa2, 0x50, 0x45, 0x47, 0x36,
+	0x23, 0xb8, 0x85, 0x93, 0x46, 0xdb, 0x3b, 0x3d, 0x38, 0x00, 0x77, 0x29, 0xc5, 0x5d, 0x52, 0x3c,
+	0x99, 0x0e, 0x14, 0xf2, 0x96, 0xc7, 0x91, 0x9e, 0xa9, 0x47, 0xf5, 0x99, 0xf8, 0x70, 0xb4, 0x41,
+	0xa9, 0xcd, 0x7a, 0xa0, 0xd3, 0x45, 0x18, 0x7c, 0x01, 0xa8, 0xc6, 0x42, 0xce, 0x00, 0x12, 0x29,
+	0x36, 0x3c, 0x42, 0x69, 0x9e, 0xd7, 0xa3, 0x56, 0x46, 0xb9, 0x3e, 0x16, 0x11, 0xea, 0x4a, 0xf2,
+	0x4b, 0xcb, 0xb8, 0x32, 0xd0, 0xbe, 0x65, 0xa0, 0x20, 0x04, 0xa8, 0xc6, 0x55, 0x61, 0x1c, 0x1b,
+	0xf3, 0x1c, 0xda, 0xc5, 0x30, 0x54, 0xf5, 0xea, 0xec, 0x3b, 0xc3, 0x7d, 0x55, 0xbd, 0x3a, 0xef,
+	0xb6, 0xe6, 0x25, 0xa8, 0x3f, 0x30, 0x1f, 0x59, 0xf8, 0x7b, 0x0f, 0x8e, 0xe6, 0x93, 0x79, 0xfa,
+	0x3f, 0x3d, 0x7a, 0x0d, 0xfd, 0x32, 0x91, 0x30, 0xc9, 0xd6, 0xa9, 0xb1, 0xe9, 0x59, 0xf1, 0xc7,
+	0xe6, 0x17, 0x8e, 0x4b, 0xd4, 0x07, 0x8d, 0xa2, 0x75, 0x5a, 0xf0, 0xd3, 0xb1, 0xa4, 0x72, 0x10,
+	0x79, 0x07, 0x83, 0xfa, 0xff, 0x3d, 0x65, 0x7f, 0x5f, 0x0a, 0x3b, 0x49, 0xaa, 0xe5, 0x85, 0xc4,
+	0x08, 0xe3, 0x8c, 0xb3, 0x55, 0x6a, 0xda, 0xb1, 0x53, 0xe4, 0x14, 0x3c, 0xc3, 0x9c, 0x4d, 0xcd,
+	0x03, 0x55, 0x09, 0xc5, 0x37, 0xc1, 0x7b, 0xf5, 0xb2, 0xb9, 0x45, 0xec, 0xd4, 0xf9, 0x2f, 0x07,
+	0xbc, 0x99, 0x2a, 0x69, 0x29, 0x93, 0x05, 0xb9, 0x80, 0x36, 0x35, 0x0e, 0x25, 0x27, 0x0d, 0x67,
+	0x07, 0xbd, 0xed, 0x01, 0x85, 0xad, 0x91, 0xf3, 0xcc, 0x21, 0x6f, 0xa0, 0x7f, 0x85, 0xd9, 0xd6,
+	0x02, 0xbb, 0xaf, 0xcd, 0xe0, 0xe1, 0x8e, 0x0f, 0x61, 0x8b, 0xbc, 0x82, 0xde, 0x15, 0x66, 0xf6,
+	0x26, 0x7b, 0x64, 0x80, 0xb5, 0x7d, 0x1b, 0x90, 0x66, 0x3e, 0x6c, 0x7d, 0x3d, 0xd4, 0xab, 0xfe,
+	0xe2, 0x4f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x9a, 0x88, 0xde, 0x0f, 0xf9, 0x05, 0x00, 0x00,
 }

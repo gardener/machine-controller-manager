@@ -145,8 +145,13 @@ func (s *ExternalDriverManager) Register(stream pb.Infragrpc_RegisterServer) err
 	return nil
 }
 
-//ShareMeta share metadata
-func (s *ExternalDriverManager) ShareMeta(ctx context.Context, in *pb.Metadata) (*pb.ErrorResp, error) {
+//GetCloudConfig share metadata
+func (s *ExternalDriverManager) GetCloudConfig(ctx context.Context, in *pb.CloudConfigMeta) (*pb.CloudConfig, error) {
+	return nil, nil
+}
+
+//GetMachineClass share metadata
+func (s *ExternalDriverManager) GetMachineClass(ctx context.Context, in *pb.MachineClassMeta) (*pb.MachineClass, error) {
 	return nil, nil
 }
 
