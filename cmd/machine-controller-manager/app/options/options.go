@@ -100,6 +100,9 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&s.SafetyOptions.MachineSafetyOrphanVMsPeriod, "machine-safety-orphan-vms-period", s.SafetyOptions.MachineSafetyOrphanVMsPeriod, "Time period (in minutes) used to poll for orphan VMs by safety controller.")
 	fs.Int32Var(&s.SafetyOptions.MachineSafetyOvershootingPeriod, "machine-safety-overshooting-period", s.SafetyOptions.MachineSafetyOvershootingPeriod, "Time period (in minutes) used to poll for overshooting of machine objects backing a machineSet by safety controller.")
 
+	fs.BoolVar(&s.ExternalDriverManagerOptions.Enabled, "external-driver-manager-enabled", s.ExternalDriverManagerOptions.Enabled, "If true, enable support for external drivers")
+	fs.Uint16Var(&s.ExternalDriverManagerOptions.Port, "external-driver-manager-port", s.ExternalDriverManagerOptions.Port, "Port on which to listen for external drivers")
+
 	leaderelectionconfig.BindFlags(&s.LeaderElection, fs)
 	// TODO: DefaultFeatureGate is global and it adds all k8s flags
 	// utilfeature.DefaultFeatureGate.AddFlag(fs)

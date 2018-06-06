@@ -18,7 +18,7 @@ import (
 type ExternalDriverManager struct {
 	// a map of machine class type to the corresponding driver.
 	drivers    map[metav1.TypeMeta]*driver
-	Port       int
+	Port       uint16
 	Options    []grpc.ServerOption
 	grpcServer *grpc.Server
 }

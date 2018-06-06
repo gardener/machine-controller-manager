@@ -19,7 +19,9 @@ package driver
 
 import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/grpc/infraserver"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Driver is the common interface for creation/deletion of the VMs over different cloud-providers.
@@ -35,10 +37,13 @@ type Driver interface {
 // value refers to the machine-name of the machine object
 type VMs map[string]string
 
-// NewDriver creates a new driver object based on the classKind
-func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, machineClass interface{}, machineName string) Driver {
+// ExternalDriverManager is the central manager of all the external drivers.
+var ExternalDriverManager *infraserver.ExternalDriverManager
 
-	switch classKind {
+// NewDriver creates a new driver object based on the classKind
+func NewDriver(machineID string, secretRef *corev1.Secret, class *v1alpha1.ClassSpec, machineClass interface{}, machineName string) Driver {
+
+	switch class.Kind {
 	case "OpenStackMachineClass":
 		return &OpenStackDriver{
 			OpenStackMachineClass: machineClass.(*v1alpha1.OpenStackMachineClass),
@@ -82,6 +87,16 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 			UserData:             string(secretRef.Data["userData"]),
 			MachineID:            machineID,
 			MachineName:          machineName,
+		}
+	}
+
+	if ExternalDriverManager != nil {
+		external, err := ExternalDriverManager.GetDriver(metav1.TypeMeta{
+			APIVersion: class.APIGroup,
+			Kind:       class.Kind,
+		})
+		if err != nil {
+			return NewExternalDriver(external, machineClass, secretRef, string(secretRef.Data["userData"]), machineID, machineName)
 		}
 	}
 

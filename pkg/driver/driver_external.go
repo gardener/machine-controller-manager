@@ -20,11 +20,13 @@ package driver
 import (
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/gardener/machine-controller-manager/pkg/grpc/infraserver"
 	"github.com/golang/glog"
 )
 
 // ExternalDriver implements the support for out-of-tree drivers
 type ExternalDriver struct {
+	driver       infraserver.Driver
 	machineClass interface{}
 	credentials  *corev1.Secret
 	userData     string
@@ -33,13 +35,26 @@ type ExternalDriver struct {
 }
 
 // NewExternalDriver returns an empty AWSDriver object
-func NewExternalDriver(machineClass interface{}, credentials *corev1.Secret, userData, machineID, machineName string) Driver {
-	return &ExternalDriver{}
+func NewExternalDriver(driver infraserver.Driver, machineClass interface{}, credentials *corev1.Secret, userData, machineID, machineName string) Driver {
+	return &ExternalDriver{
+		driver:       driver,
+		machineClass: machineClass,
+		credentials:  nil, //TODO
+		userData:     userData,
+		machineID:    machineID,
+		machineName:  machineName,
+	}
 }
 
 // Create method is used to create a machine
 func (d *ExternalDriver) Create() (string, string, error) {
-	return "", "", nil
+	//TODO
+	machineID, machineName, err := d.driver.Create(nil, "", d.machineID, d.machineName)
+	if err != nil {
+		d.machineID = machineID
+		d.machineName = machineName
+	}
+	return machineID, machineName, err
 }
 
 // Delete method is used to delete a AWS machine
@@ -53,7 +68,11 @@ func (d *ExternalDriver) Delete() error {
 		return nil
 	}
 
-	glog.Errorf("Could not terminate machine: %s", err.Error())
+	//TODO
+	err = d.driver.Delete("", d.machineID)
+	if err != nil {
+		glog.Errorf("Could not terminate machine: %s", err.Error())
+	}
 	return err
 }
 
@@ -65,5 +84,6 @@ func (d *ExternalDriver) GetExisting() (string, error) {
 // GetVMs returns a VM matching the machineID
 // If machineID is an empty string then it returns all matching instances
 func (d *ExternalDriver) GetVMs(machineID string) (VMs, error) {
+	//TODO
 	return nil, nil
 }
