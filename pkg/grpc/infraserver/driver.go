@@ -1,6 +1,7 @@
 package infraserver
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"sync/atomic"
@@ -13,8 +14,8 @@ import (
 
 // Driver interface mediates the communication with the external driver
 type Driver interface {
-	Create(providerName, machineclass, machineID string) (string, string, int32)
-	Delete(providerName, machineclass, machineID string) int32
+	Create(providerName, machineclass, machineID string) (string, string, error)
+	Delete(providerName, machineclass, machineID string) error
 }
 
 // driver also implements the interface Infragrpc_RegisterServer as a proxy to unregister the driver automatically on error during Send or Recv.
@@ -106,14 +107,13 @@ func (d *driver) sendAndWait(params *pb.MCMsideOperationParams, opType string) (
 }
 
 // Create sends create request to the driver over the grpc stream
-func (d *driver) Create(providerName, machineclass, machineID string) (string, string, int32) {
+func (d *driver) Create(providerName, machineclass, machineID string) (string, string, error) {
 	createParams := pb.MCMsideOperationParams{
-		MachineClassMetaData: &pb.MCMsideMachineClassMeta{
+		MachineClassMetaData: &pb.MachineClassMeta{
 			Name:     "fakeclass",
 			Revision: 1,
 		},
-		CloudConfig: "fakeCloudConfig",
-		UserData:    "fakeData",
+		Credentials: "fakeCredentials",
 		MachineID:   "fakeID",
 		MachineName: "fakename",
 	}
@@ -125,21 +125,21 @@ func (d *driver) Create(providerName, machineclass, machineID string) (string, s
 
 	if createResp == nil {
 		log.Printf("nil")
-		return "", "", 2
+		return "", "", fmt.Errorf("Create response empty")
 	}
 	response := createResp.(*pb.DriverSide_Createresponse).Createresponse
-	log.Printf("Create. Return: %s %s %d", response.ProviderID, response.Nodename, response.Error)
-	return response.ProviderID, response.Nodename, response.Error
+	log.Printf("Create. Return: %s %s %s", response.ProviderID, response.Nodename, response.Error)
+	return response.ProviderID, response.Nodename, errors.New(response.Error)
 }
 
 // Delete sends delete request to the driver over the grpc stream
-func (d *driver) Delete(providerName, machineclass, machineID string) int32 {
+func (d *driver) Delete(providerName, machineclass, machineID string) error {
 	deleteParams := pb.MCMsideOperationParams{
-		MachineClassMetaData: &pb.MCMsideMachineClassMeta{
+		MachineClassMetaData: &pb.MachineClassMeta{
 			Name:     "fakeclass",
 			Revision: 1,
 		},
-		CloudConfig: "fakeCloudConfig",
+		Credentials: "fakeCredentials",
 		MachineID:   "fakeID",
 		MachineName: "fakename",
 	}
@@ -151,9 +151,9 @@ func (d *driver) Delete(providerName, machineclass, machineID string) int32 {
 
 	if deleteResp == nil {
 		log.Printf("nil")
-		return 2
+		return fmt.Errorf("Delete response empty")
 	}
 	response := deleteResp.(*pb.DriverSide_Deleteresponse).Deleteresponse
-	log.Printf("Delete Return: %d", response.Error)
-	return response.Error
+	log.Printf("Delete Return: %s", response.Error)
+	return errors.New(response.Error)
 }

@@ -7,9 +7,30 @@ service Infragrpc {
   // infra operations
   rpc Register(stream DriverSide) returns (stream MCMside) {}
 
-  // Share Metadata
-  // Split this into two RPCs GetMachineClass and GetCloudConfig
-  rpc ShareMeta(Metadata) returns (ErrorResp) {}
+  // Get Machine Class
+  rpc GetMachineClass(MachineClassMeta) returns (MachineClass) {}
+
+  // Get Cloud Config
+  rpc GetCloudConfig(CloudConfigMeta) returns (CloudConfig) {}
+}
+
+message MachineClassMeta {
+    string name = 1;
+    int32 revision = 2;
+}
+
+message CloudConfigMeta {
+    MachineClassMeta machineClassMeta = 1;
+}
+
+message MachineClass {
+    string data = 1;
+    string error = 2;
+}
+
+message CloudConfig {
+    string data = 1;
+    string error = 2;
 }
 
 // The message containing driver side structures
@@ -31,16 +52,16 @@ message DriverSide {
     message createResp {
         string providerID = 1;
         string nodename = 2;
-        int32 error = 3;
+        string error = 3;
     }
 
     message deleteResp {
-        int32 error = 1;
+        string error = 1;
     }
 
     message listResp {
         repeated string list = 1;
-        int32 error = 2;
+        string error = 2;
     }
 
     oneof response {
@@ -60,32 +81,13 @@ message MCMside {
     // operationType can be register, create, delete, getVMs
     string operationType = 2;
 
-    message machineClassMeta {
-        string name = 1;
-        int32 revision = 2;
-    }
-
     message operationParams {
         machineClassMeta machineClassMetaData = 1;
         // cloudConfig has the secrets (username/password info to connect to provider account)
-        string cloudConfig = 2;
-        string userData = 3;
-        string machineID = 4;
-        string machineName = 5;
+        string credentials = 2;
+        string machineID = 3;
+        string machineName = 4;
     }
 
     operationParams operationparams = 3;
-}
-
-// The request message containing metadata information
-message Metadata {
-  string type = 1;
-  string name = 2;
-  string data = 3;
-}
-
-// The response message containing error code and message
-message ErrorResp {
-  int32 err = 1;
-  string message = 2;
 }
