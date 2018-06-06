@@ -75,7 +75,7 @@ func (s *Server) Register(stream pb.Infragrpc_RegisterServer) error {
 var opID int32
 var mutex = &sync.Mutex{}
 
-var requestCache map[int32](*chan *pb.DriverSide)
+var requestCache map[int32](chan *pb.DriverSide)
 
 func sendAndWait(params *pb.MCMsideOperationParams, opType string) (interface{}, error) {
 
@@ -96,9 +96,9 @@ func sendAndWait(params *pb.MCMsideOperationParams, opType string) (interface{},
 	}
 
 	if requestCache == nil {
-		requestCache = make(map[int32](*chan *pb.DriverSide))
+		requestCache = make(map[int32](chan *pb.DriverSide))
 	}
-	requestCache[request.OperationID] = &waitc
+	requestCache[request.OperationID] = waitc
 
 	// The receiveDriverStream function will receive message, read the opID, then write to corresponding waitc
 	// This will make sure that the response structure is populated
@@ -117,7 +117,7 @@ func receiveDriverStream(newDriver Driver) {
 		}
 
 		if _, ok := requestCache[response.OperationID]; ok {
-			*requestCache[response.OperationID] <- response
+			requestCache[response.OperationID] <- response
 		} else {
 			log.Printf("Request ID %d missing in request cache", response.OperationID)
 		}
