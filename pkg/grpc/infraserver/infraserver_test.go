@@ -66,7 +66,7 @@ var _ = Describe("ExternalDriverManager", func() {
 				err    error
 			)
 			for i := 0; i < 1; i++ {
-				time.Sleep(2 * time.Second)
+				time.Sleep(1 * time.Second)
 				driver, err = server.GetDriver(*machineClassType)
 				glog.Infof("%v", err)
 				if err == nil {

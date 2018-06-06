@@ -231,7 +231,10 @@ func (c *controller) checkAWSMachineClass() {
 			machineClassInterface,
 			machineClass.Spec.SecretRef,
 			machineClass.Name,
-			machineClass.Kind,
+			&v1alpha1.ClassSpec{
+				APIGroup: machineClass.TypeMeta.GroupVersionKind().GroupVersion().String(),
+				Kind:     machineClass.Kind,
+			},
 		)
 	}
 }
@@ -253,7 +256,10 @@ func (c *controller) checkOSMachineClass() {
 			machineClassInterface,
 			machineClass.Spec.SecretRef,
 			machineClass.Name,
-			machineClass.Kind,
+			&v1alpha1.ClassSpec{
+				APIGroup: machineClass.TypeMeta.GroupVersionKind().GroupVersion().String(),
+				Kind:     machineClass.Kind,
+			},
 		)
 	}
 }
@@ -275,7 +281,10 @@ func (c *controller) checkAzureMachineClass() {
 			machineClassInterface,
 			machineClass.Spec.SecretRef,
 			machineClass.Name,
-			machineClass.Kind,
+			&v1alpha1.ClassSpec{
+				APIGroup: machineClass.TypeMeta.GroupVersionKind().GroupVersion().String(),
+				Kind:     machineClass.Kind,
+			},
 		)
 	}
 }
@@ -297,7 +306,10 @@ func (c *controller) checkGCPMachineClass() {
 			machineClassInterface,
 			machineClass.Spec.SecretRef,
 			machineClass.Name,
-			machineClass.Kind,
+			&v1alpha1.ClassSpec{
+				APIGroup: machineClass.TypeMeta.GroupVersionKind().GroupVersion().String(),
+				Kind:     machineClass.Kind,
+			},
 		)
 	}
 }
@@ -307,7 +319,7 @@ func (c *controller) checkMachineClass(
 	machineClass interface{},
 	secretRef *corev1.SecretReference,
 	className string,
-	classKind string) {
+	class *v1alpha1.ClassSpec) {
 
 	// Get secret
 	secret, err := c.getSecret(secretRef, className)
@@ -320,7 +332,7 @@ func (c *controller) checkMachineClass(
 	dvr := driver.NewDriver(
 		"",
 		secret,
-		classKind,
+		class,
 		machineClass,
 		"",
 	)
@@ -363,7 +375,7 @@ func (c *controller) checkMachineClass(
 					if (err != nil && apierrors.IsNotFound(err)) || machine.Spec.ProviderID != machineID {
 						vm := make(map[string]string)
 						vm[machineID] = machineName
-						c.deleteOrphanVM(vm, secret, classKind, machineClass)
+						c.deleteOrphanVM(vm, secret, class, machineClass)
 					}
 				}
 			}
@@ -424,7 +436,7 @@ func (c *controller) enqueueMachineSafetyKey(obj interface{}) {
 }
 
 // deleteOrphanVM teriminates's the VM on the cloud provider passed to it
-func (c *controller) deleteOrphanVM(vm driver.VMs, secretRef *corev1.Secret, kind string, machineClass interface{}) {
+func (c *controller) deleteOrphanVM(vm driver.VMs, secretRef *corev1.Secret, class *v1alpha1.ClassSpec, machineClass interface{}) {
 
 	var machineID string
 	var machineName string
@@ -437,7 +449,7 @@ func (c *controller) deleteOrphanVM(vm driver.VMs, secretRef *corev1.Secret, kin
 	dvr := driver.NewDriver(
 		machineID,
 		secretRef,
-		kind,
+		class,
 		machineClass,
 		machineName,
 	)

@@ -96,6 +96,9 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&s.SafetyOptions.MachineDrainTimeout, "machine-drain-timeout", s.SafetyOptions.MachineDrainTimeout, "Timeout (in minutes) used while draining of machine before deletion, beyond which it forcefully deletes machine")
 	fs.Int32Var(&s.SafetyOptions.MachineSetScaleTimeout, "machine-set-scale-timeout", s.SafetyOptions.MachineSetScaleTimeout, "Timeout (in minutes) used while scaling machineSet if timeout occurs machineSet is permanently frozen")
 
+	fs.BoolVar(&s.ExternalDriverManagerOptions.Enabled, "external-driver-manager-enabled", s.ExternalDriverManagerOptions.Enabled, "If true, enable support for external drivers")
+	fs.Uint16Var(&s.ExternalDriverManagerOptions.Port, "external-driver-manager-port", s.ExternalDriverManagerOptions.Port, "Port on which to listen for external drivers")
+
 	leaderelectionconfig.BindFlags(&s.LeaderElection, fs)
 	// TODO: DefaultFeatureGate is global and it adds all k8s flags
 	// utilfeature.DefaultFeatureGate.AddFlag(fs)
