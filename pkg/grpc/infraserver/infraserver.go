@@ -75,17 +75,11 @@ func (s *Server) Register(stream pb.Infragrpc_RegisterServer) error {
 var opID int32
 var mutex = &sync.Mutex{}
 
-// Data has the response structure and the channel reference on which a request is waiting
-type Data struct {
-	data    interface{}
-	channel *chan int32
-}
-
-var cache map[int32]*Data
+var requestCache map[int32](*chan *pb.DriverSide)
 
 func sendAndWait(params *pb.MCMsideOperationParams, opType string) (interface{}, error) {
 
-	waitc := make(chan int32)
+	waitc := make(chan *pb.DriverSide)
 
 	mutex.Lock()
 	opID++
@@ -101,24 +95,18 @@ func sendAndWait(params *pb.MCMsideOperationParams, opType string) (interface{},
 		return nil, err
 	}
 
-	responseData := Data{
-		data:    nil,
-		channel: &waitc,
+	if requestCache == nil {
+		requestCache = make(map[int32](*chan *pb.DriverSide))
 	}
+	requestCache[request.OperationID] = &waitc
 
-	if cache == nil {
-		cache = make(map[int32]*Data)
-	}
-	cache[request.OperationID] = &responseData
 	// The receiveDriverStream function will receive message, read the opID, then write to corresponding waitc
 	// This will make sure that the response structure is populated
-	<-waitc
+	response := <-waitc
 
-	response := cache[request.OperationID].data
+	delete(requestCache, request.OperationID)
 
-	delete(cache, request.OperationID)
-
-	return response, nil
+	return response.GetResponse(), nil
 }
 
 func receiveDriverStream(newDriver Driver) {
@@ -128,8 +116,11 @@ func receiveDriverStream(newDriver Driver) {
 			log.Fatalf("Failed to receive response: %v", err)
 		}
 
-		cache[response.OperationID].data = response.GetResponse()
-		*cache[response.OperationID].channel <- 1
+		if _, ok := requestCache[response.OperationID]; ok {
+			*requestCache[response.OperationID] <- response
+		} else {
+			log.Printf("Request ID %d missing in request cache", response.OperationID)
+		}
 	}
 }
 
