@@ -19,6 +19,7 @@ import (
 	"errors"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	fakeuntyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/fake"
 	fakemachineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -28,6 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	k8stesting "k8s.io/client-go/testing"
 )
+
+const machinenamespace = "test"
 
 var _ = Describe("machine", func() {
 	var (
@@ -52,7 +55,7 @@ var _ = Describe("machine", func() {
 			machine = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "machine-1",
-					Namespace: "test",
+					Namespace: machinenamespace,
 				},
 			}
 			lastOperation = machinev1.LastOperation{
@@ -133,7 +136,7 @@ var _ = Describe("machine", func() {
 		testMachine := machinev1.Machine{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "testmachine",
-				Namespace: "test",
+				Namespace: machinenamespace,
 			},
 			Status: machinev1.MachineStatus{
 				Conditions: []corev1.NodeCondition{},
@@ -201,4 +204,90 @@ var _ = Describe("machine", func() {
 		)
 	})
 
+	Describe("##updateMachineConditions", func() {
+		Describe("Update conditions of a non-existing machine", func() {
+			It("should return error", func() {
+				createController := func(objects ...runtime.Object) *controller {
+					fakeUntypedClient := fakeuntyped.NewSimpleClientset(objects...)
+					fakeTypedClient := &fakemachineapi.FakeMachineV1alpha1{
+						&fakeUntypedClient.Fake,
+					}
+
+					return &controller{
+						controlMachineClient: fakeTypedClient,
+					}
+				}
+				objects := []runtime.Object{}
+				c := createController(objects...)
+
+				testMachine := &machinev1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "testmachine",
+						Namespace: machinenamespace,
+					},
+					Status: machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase: machinev1.MachineTerminating,
+						},
+					},
+				}
+				conditions := []corev1.NodeCondition{}
+				var _, err = c.updateMachineConditions(testMachine, conditions)
+				Expect(err).Should(Not(BeNil()))
+			})
+		})
+		DescribeTable("Update conditions of an existing machine",
+			func(phase machinev1.MachinePhase, conditions []corev1.NodeCondition, expectedPhase machinev1.MachinePhase) {
+				createController := func(objects ...runtime.Object) *controller {
+					fakeUntypedClient := fakeuntyped.NewSimpleClientset(objects...)
+					fakeTypedClient := &fakemachineapi.FakeMachineV1alpha1{
+						&fakeUntypedClient.Fake,
+					}
+
+					return &controller{
+						controlMachineClient: fakeTypedClient,
+					}
+				}
+
+				testMachine := &machinev1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "testmachine",
+						Namespace: machinenamespace,
+					},
+					Status: machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase: phase,
+						},
+					},
+				}
+				objects := []runtime.Object{}
+				objects = append(objects, testMachine)
+
+				c := createController(objects...)
+
+				var updatedMachine, err = c.updateMachineConditions(testMachine, conditions)
+				Expect(updatedMachine.Status.Conditions).Should(BeEquivalentTo(conditions))
+				Expect(updatedMachine.Status.CurrentStatus.Phase).Should(BeIdenticalTo(expectedPhase))
+				Expect(err).Should(BeNil())
+			},
+			Entry("healthy status but machine terminating", machinev1.MachineTerminating, []corev1.NodeCondition{
+				{
+					Type:   corev1.NodeReady,
+					Status: corev1.ConditionTrue,
+				},
+			}, machinev1.MachineTerminating),
+			Entry("unhealthy status but machine running", machinev1.MachineRunning, []corev1.NodeCondition{
+				{
+					Type:   corev1.NodeReady,
+					Status: corev1.ConditionFalse,
+				},
+			}, machinev1.MachineUnknown),
+			Entry("healthy status but machine not running", machinev1.MachineAvailable, []corev1.NodeCondition{
+				{
+					Type:   corev1.NodeReady,
+					Status: corev1.ConditionTrue,
+				},
+			}, machinev1.MachineRunning),
+		)
+	})
 })
