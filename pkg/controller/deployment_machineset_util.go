@@ -47,7 +47,7 @@ func updateMachineSetStatus(machineClient machineapi.MachineV1alpha1Interface, i
 		is.Status.AvailableReplicas == newStatus.AvailableReplicas &&
 		is.Generation == is.Status.ObservedGeneration &&
 		reflect.DeepEqual(is.Status.Conditions, newStatus.Conditions) &&
-		reflect.DeepEqual(is.Status.FailedMachines, newStatus.FailedMachines) {
+		reflect.DeepEqual(is.Status.LastFailedMachines, newStatus.LastFailedMachines) {
 		return is, nil
 	}
 
@@ -125,13 +125,9 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 		}
 	}
 
-	// Update the FailedMachines field only if we see new failures
-	// Clear FailedMachines if ready replicas equals total replicas,
-	// which means the machineset doesn't have any machine objects which are in any failed state
+	// Update the LastFailedMachines field only if we see new failures
 	if len(failedMachines) > 0 {
-		newStatus.FailedMachines = &failedMachines
-	} else if int32(readyReplicasCount) == is.Status.Replicas {
-		newStatus.FailedMachines = nil
+		newStatus.LastFailedMachines = &failedMachines
 	}
 
 	failureCond := GetCondition(&is.Status, v1alpha1.MachineSetReplicaFailure)

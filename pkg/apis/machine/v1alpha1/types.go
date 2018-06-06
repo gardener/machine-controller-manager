@@ -350,8 +350,8 @@ type MachineSetStatus struct {
 	// ObservedGeneration
 	ObservedGeneration int64 `json:"observedGeneration,inline"`
 
-	// FailedMachines has summary of machines on which lastOperation Failed
-	FailedMachines *[]MachineSummary `json:"failedMachines,inline"`
+	// LastFailedMachines has summary of machines on which lastOperation Failed
+	LastFailedMachines *[]MachineSummary `json:"LastFailedMachines,inline"`
 }
 
 /********************** MachineDeployment APIs ***************/
@@ -553,8 +553,8 @@ type MachineDeploymentStatus struct {
 	// +optional
 	CollisionCount *int32 `json:"collisionCount,omitempty" protobuf:"varint,8,opt,name=collisionCount"`
 
-	// FailedMachines has summary of machines on which lastOperation Failed
-	FailedMachines []*MachineSummary `json:"failedMachines,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,9,rep,name=failedMachines"`
+	// LastFailedMachines has summary of machines on which lastOperation Failed
+	LastFailedMachines []*MachineSummary `json:"lastFailedMachines,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,9,rep,name=LastFailedMachines"`
 }
 
 type MachineDeploymentConditionType string
