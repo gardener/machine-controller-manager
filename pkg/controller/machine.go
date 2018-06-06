@@ -248,7 +248,7 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 }
 
 func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node) error {
-	machine = c.updateMachineConditions(machine, node.Status.Conditions)
+	machine, _ = c.updateMachineConditions(machine, node.Status.Conditions)
 
 	if machine.Status.LastOperation.State != "Successful" {
 
@@ -527,11 +527,11 @@ func (c *controller) updateMachineStatus(
 	return clone, nil
 }
 
-func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditions []v1.NodeCondition) *v1alpha1.Machine {
+func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditions []v1.NodeCondition) (*v1alpha1.Machine, error) {
 	// Get the latest version of the machine so that we can avoid conflicts
 	machine, err := c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
 	if err != nil {
-		return machine
+		return machine, err
 	}
 
 	clone := machine.DeepCopy()
@@ -563,11 +563,10 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 	if err != nil {
 		// Keep retrying until update goes through
 		glog.V(2).Infof("Warning: Updated failed, retrying, error: %q", err)
-		c.updateMachineConditions(machine, conditions)
-		return machine
+		return c.updateMachineConditions(machine, conditions)
 	}
 
-	return clone
+	return clone, nil
 }
 
 func (c *controller) updateMachineFinalizers(machine *v1alpha1.Machine, finalizers []string) {
