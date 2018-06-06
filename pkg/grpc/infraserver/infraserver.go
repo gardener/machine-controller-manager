@@ -1,4 +1,4 @@
-package main
+package infraserver
 
 import (
 	"context"
@@ -36,7 +36,8 @@ type ExternalDriverManager struct {
 func (s *ExternalDriverManager) GetDriver(machineClassType metav1.TypeMeta) (Driver, error) {
 	driver := s.drivers[machineClassType]
 	if driver == nil {
-		return nil, fmt.Errorf("No driver available for machine class type %s", machineClassType)
+		log.Printf("No driver available for machine class type %s", machineClassType)
+		return nil, nil
 	}
 
 	stream := driver.stream
@@ -61,33 +62,40 @@ func (s *ExternalDriverManager) registerDriver(machineClassType metav1.TypeMeta,
 		return nil, err
 	}
 
-	_, err = s.GetDriver(machineClassType)
+	d, err := s.GetDriver(machineClassType)
 	if err != nil {
 		return nil, err
+	} else if d != nil {
+		return nil, fmt.Errorf("Driver for machineClassType %s already registered", machineClassType)
 	}
 
+	log.Printf("Registering new driver")
+
 	stopCh := make(chan interface{})
-	driver := &driver{
+	newDriver := &driver{
 		machineClassType: machineClassType,
 		stream:           stream,
 		stopCh:           stopCh,
 		pendingRequests:  make(map[int32](chan *pb.DriverSide)),
 	}
 
-	s.drivers[machineClassType] = driver
+	if s.drivers == nil {
+		s.drivers = make(map[metav1.TypeMeta]*driver)
+	}
+	s.drivers[machineClassType] = newDriver
 
 	go func() {
 		<-stopCh
 
 		glog.Infof("Driver for machine class type %s is closed.", machineClassType)
 		latest := s.drivers[machineClassType]
-		if driver == latest {
+		if newDriver == latest {
 			delete(s.drivers, machineClassType)
 			glog.Infof("Driver for machine class type %s is unregistered.", machineClassType)
 		}
 	}()
 
-	return driver, nil
+	return newDriver, nil
 }
 
 // Stop the ExternalDriverManager and all the active drivers.
@@ -142,7 +150,8 @@ func (s *ExternalDriverManager) ShareMeta(ctx context.Context, in *pb.Metadata) 
 	return nil, nil
 }
 
-func main() {
+// StartServer start the grpc server
+func StartServer() {
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -168,15 +177,11 @@ func main() {
 		for {
 			for _, driver := range driverManager.drivers {
 				time.Sleep(5 * time.Second)
-				log.Printf("Calling valid create")
+				log.Printf("Calling create")
 				driver.Create("fakeDriver", "a", "b")
 
 				time.Sleep(5 * time.Second)
-				log.Printf("Calling invalid create")
-				driver.Create("someDriver", "a", "b")
-
-				time.Sleep(5 * time.Second)
-				log.Printf("Calling valid delete")
+				log.Printf("Calling delete")
 				driver.Delete("fakeDriver", "a", "b")
 			}
 		}

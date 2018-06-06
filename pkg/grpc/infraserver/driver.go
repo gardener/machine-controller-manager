@@ -1,4 +1,4 @@
-package main
+package infraserver
 
 import (
 	"fmt"
