@@ -8,6 +8,7 @@ service Infragrpc {
   rpc Register(stream DriverSide) returns (stream MCMside) {}
 
   // Share Metadata
+  // Split this into two RPCs GetMachineClass and GetCloudConfig
   rpc ShareMeta(Metadata) returns (ErrorResp) {}
 }
 
