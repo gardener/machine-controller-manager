@@ -41,7 +41,7 @@ type testdata struct {
 
 var _ = Describe("ExternalDriverManager", func() {
 	DescribeTable("##Start",
-		func(machineClassType *metav1.TypeMeta, creates, deletes []*testdata) {
+		func(machineClassType *metav1.TypeMeta, creates, deletes, lists []*testdata) {
 			server := &ExternalDriverManager{
 				Port: 50000,
 			}
@@ -53,6 +53,7 @@ var _ = Describe("ExternalDriverManager", func() {
 				machineClassType: machineClassType,
 				creates:          creates,
 				deletes:          deletes,
+				lists:            lists,
 			}
 			externalDriver := infraclient.NewExternalDriver("localhost:50000", []grpc.DialOption{
 				grpc.WithInsecure(),
@@ -96,6 +97,14 @@ var _ = Describe("ExternalDriverManager", func() {
 					Expect(err.Error()).To(BeEquivalentTo(t.err.Error()))
 				}
 			}
+
+			for _, t := range lists {
+				list, err := driver.GetVMs(t.credentials, t.machineID)
+				Expect(err).To(BeNil())
+				for id := range list {
+					Expect(id).To(BeEquivalentTo(t.machineID))
+				}
+			}
 		},
 		Entry("happy path", &metav1.TypeMeta{
 			Kind:       "driver",
@@ -111,6 +120,11 @@ var _ = Describe("ExternalDriverManager", func() {
 			credentials: "c",
 			machineID:   "a",
 			err:         nil,
+		}}, []*testdata{&testdata{
+			credentials: "c",
+			machineID:   "a",
+			machineName: "d",
+			err:         nil,
 		}}),
 	)
 })
@@ -119,6 +133,7 @@ type fakeExternalDriverProvider struct {
 	machineClassType *metav1.TypeMeta
 	creates          []*testdata
 	deletes          []*testdata
+	lists            []*testdata
 }
 
 func (f *fakeExternalDriverProvider) Register(machineClassProvider infraclient.MachineClassDataProvider) metav1.TypeMeta {
@@ -144,6 +159,12 @@ func (f *fakeExternalDriverProvider) Delete(machineclass *infraclient.MachineCla
 }
 
 func (f *fakeExternalDriverProvider) List(machineclass *infraclient.MachineClassMeta, credentials, machineID string) (map[string]string, error) {
-	//TODO
-	return nil, nil
+	list := make(map[string]string)
+
+	for _, t := range f.lists {
+		if t.machineID == machineID {
+			list[t.machineID] = t.machineName
+		}
+	}
+	return list, nil
 }
