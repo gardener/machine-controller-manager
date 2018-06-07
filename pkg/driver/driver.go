@@ -86,7 +86,7 @@ func NewDriver(machineID string, secretRef *corev1.Secret, class *v1alpha1.Class
 			APIVersion: class.APIGroup,
 			Kind:       class.Kind,
 		})
-		if err != nil {
+		if err == nil {
 			return NewExternalDriver(external, machineClass, secretRef, string(secretRef.Data["userData"]), machineID, machineName)
 		}
 	}

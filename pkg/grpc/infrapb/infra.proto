@@ -59,8 +59,13 @@ message DriverSide {
         string error = 1;
     }
 
+    message machine{
+        string machineID = 1;
+        string machineName = 2;
+    }
+
     message listResp {
-        repeated string list = 1;
+        repeated machine list = 1;
         string error = 2;
     }
 
@@ -82,8 +87,7 @@ message MCMside {
     string operationType = 2;
 
     message operationParams {
-        machineClassMeta machineClassMetaData = 1;
-        // cloudConfig has the secrets (username/password info to connect to provider account)
+        MachineClassMeta machineClassMetaData = 1;
         string credentials = 2;
         string machineID = 3;
         string machineName = 4;

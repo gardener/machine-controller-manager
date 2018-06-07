@@ -179,12 +179,20 @@ func (d *ExternalDriver) serveMCM(client pb.InfragrpcClient) error {
 				}
 			}
 			vms, err := d.provider.List(machineClass, opParams.Credentials, opParams.MachineID)
-			list := []string{}
+			var list []*pb.DriverSideMachine
+			var machine *pb.DriverSideMachine
 
 			var sErr string
 			if err == nil {
-				for _, machineID := range vms {
-					list = append(list, machineID)
+				size := len(vms)
+				list = make([]*pb.DriverSideMachine, size)
+				i := 0
+				for machineID, machineName := range vms {
+					machine = new(pb.DriverSideMachine)
+					machine.MachineID = machineID
+					machine.MachineName = machineName
+					list[i] = machine
+					i++
 				}
 			} else {
 				sErr = err.Error()

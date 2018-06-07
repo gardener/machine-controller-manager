@@ -21,6 +21,7 @@ type MachineClassMeta struct {
 type Driver interface {
 	Create(machineClass *MachineClassMeta, credentials, machineID, machineName string) (string, string, error)
 	Delete(credentials, machineID string) error
+	GetVMs(credentials, machineID string) (map[string]string, error)
 }
 
 // driver also implements the interface Infragrpc_RegisterServer as a proxy to unregister the driver automatically on error during Send or Recv.
@@ -180,4 +181,34 @@ func (d *driver) Delete(credentials, machineID string) error {
 		return errors.New(response.Error)
 	}
 	return nil
+}
+
+func (d *driver) GetVMs(credentials, machineID string) (map[string]string, error) {
+	listParams := pb.MCMsideOperationParams{
+		Credentials: credentials,
+		MachineID:   machineID,
+	}
+
+	listResp, err := d.sendAndWait(&listParams, "list")
+	if err != nil {
+		return nil, err
+	}
+
+	if listResp == nil {
+		return nil, fmt.Errorf("List response empty")
+	}
+	response := listResp.(*pb.DriverSide_Listresponse).Listresponse
+	glog.Infof("List Return: %s", response.Error)
+	if response.Error != "" {
+		return nil, errors.New(response.Error)
+	}
+
+	listOfVMs := response.GetList()
+	mapOfVMs := make(map[string]string, len(listOfVMs))
+
+	for _, v := range listOfVMs {
+		mapOfVMs[v.MachineID] = v.MachineName
+	}
+
+	return mapOfVMs, nil
 }

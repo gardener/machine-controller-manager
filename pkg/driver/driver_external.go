@@ -84,6 +84,10 @@ func (d *ExternalDriver) GetExisting() (string, error) {
 // GetVMs returns a VM matching the machineID
 // If machineID is an empty string then it returns all matching instances
 func (d *ExternalDriver) GetVMs(machineID string) (VMs, error) {
-	//TODO
-	return nil, nil
+	result, err := d.driver.GetVMs("", machineID)
+	if err != nil {
+		glog.Errorf("Could not get list of VMs. Error: %s", err.Error())
+		return nil, err
+	}
+	return result, nil
 }
