@@ -3,6 +3,7 @@ package infraserver
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +31,7 @@ type driver struct {
 	stream           pb.Infragrpc_RegisterServer
 	stopCh           chan interface{}
 	requestCounter   int32
-	pendingRequests  map[int32](chan *pb.DriverSide)
+	pendingRequests  *sync.Map
 }
 
 // send proxies to the stream but closes the driver on error.
@@ -85,8 +86,9 @@ func (d *driver) receiveAndDispatch() error {
 			return nil
 		}
 
-		if ch, ok := d.pendingRequests[msg.OperationID]; ok {
-			ch <- msg
+		if ch, ok := d.pendingRequests.Load(msg.OperationID); ok {
+			c := ch.(chan *pb.DriverSide)
+			c <- msg
 		} else {
 			glog.Warningf("Request ID %d missing in pending requests", msg.OperationID)
 		}
@@ -108,13 +110,13 @@ func (d *driver) sendAndWait(params *pb.MCMsideOperationParams, opType string) (
 
 	ch := make(chan *pb.DriverSide)
 	//TODO validation
-	d.pendingRequests[id] = ch
+	d.pendingRequests.Store(id, ch)
 
 	// The receiveDriverStream function will receive message, read the opID, then write to corresponding waitc
 	// This will make sure that the response structure is populated
 	response := <-ch
 
-	delete(d.pendingRequests, id)
+	d.pendingRequests.Delete(id)
 	close(ch)
 
 	if response == nil {

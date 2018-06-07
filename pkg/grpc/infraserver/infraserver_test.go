@@ -111,6 +111,22 @@ var _ = Describe("ExternalDriverManager", func() {
 			list, err := driver.GetVMs("c", "")
 			Expect(err).To(BeNil())
 			Expect(len(list)).To(BeEquivalentTo(len(lists)))
+
+			// Create race conditions
+			for i := 0; i < 200; i++ {
+				go func() {
+					for _, t := range creates {
+						providerID, nodeName, err := driver.Create(t.machineClass, t.credentials, t.machineID, t.machineName)
+						Expect(providerID).To(BeEquivalentTo(t.providerID))
+						Expect(nodeName).To(BeEquivalentTo(t.nodeName))
+						if t.err == nil {
+							Expect(err).To(BeNil())
+						} else {
+							Expect(err.Error()).To(BeEquivalentTo(t.err.Error()))
+						}
+					}
+				}()
+			}
 		},
 		Entry("happy path", &metav1.TypeMeta{
 			Kind:       "driver",
