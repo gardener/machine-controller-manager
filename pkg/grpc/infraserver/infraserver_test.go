@@ -121,7 +121,7 @@ type fakeExternalDriverProvider struct {
 	deletes          []*testdata
 }
 
-func (f *fakeExternalDriverProvider) Register() metav1.TypeMeta {
+func (f *fakeExternalDriverProvider) Register(machineClassProvider infraclient.MachineClassDataProvider) metav1.TypeMeta {
 	return *f.machineClassType
 }
 
@@ -134,7 +134,7 @@ func (f *fakeExternalDriverProvider) Create(machineclass *infraclient.MachineCla
 	return "", "", fmt.Errorf("No fake data found for %v", machineID)
 }
 
-func (f *fakeExternalDriverProvider) Delete(credentials, machineID string) error {
+func (f *fakeExternalDriverProvider) Delete(machineclass *infraclient.MachineClassMeta, credentials, machineID string) error {
 	for _, t := range f.creates {
 		if t.machineID == machineID {
 			return t.err
@@ -143,7 +143,7 @@ func (f *fakeExternalDriverProvider) Delete(credentials, machineID string) error
 	return fmt.Errorf("No fake data found for %v", machineID)
 }
 
-func (f *fakeExternalDriverProvider) List(machineID string) (map[string]string, error) {
+func (f *fakeExternalDriverProvider) List(machineclass *infraclient.MachineClassMeta, credentials, machineID string) (map[string]string, error) {
 	//TODO
 	return nil, nil
 }

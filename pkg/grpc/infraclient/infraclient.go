@@ -17,7 +17,9 @@ package infraclient
 
 import (
 	"context"
+	"errors"
 	"io"
+	"time"
 
 	pb "github.com/gardener/machine-controller-manager/pkg/grpc/infrapb"
 	"github.com/golang/glog"
@@ -30,6 +32,7 @@ type ExternalDriver struct {
 	options    []grpc.DialOption
 	provider   ExternalDriverProvider
 	connection *grpc.ClientConn
+	client     pb.InfragrpcClient
 	stream     pb.Infragrpc_RegisterClient
 }
 
@@ -51,6 +54,7 @@ func (d *ExternalDriver) Start() error {
 	}
 	d.connection = conn
 	client := pb.NewInfragrpcClient(conn)
+	d.client = client
 
 	go func() {
 		d.serveMCM(client)
@@ -116,7 +120,7 @@ func (d *ExternalDriver) serveMCM(client pb.InfragrpcClient) error {
 
 		switch in.OperationType {
 		case "register":
-			machineClassType := d.provider.Register()
+			machineClassType := d.provider.Register(d)
 			pMachineClassType := &machineClassType
 			gvk := pMachineClassType.GroupVersionKind()
 			resp.Response = &pb.DriverSide_RegisterResp{
@@ -149,7 +153,14 @@ func (d *ExternalDriver) serveMCM(client pb.InfragrpcClient) error {
 				},
 			}
 		case "delete":
-			err := d.provider.Delete(opParams.Credentials, opParams.MachineID)
+			var machineClass *MachineClassMeta
+			if opParams.MachineClassMetaData != nil {
+				machineClass = &MachineClassMeta{
+					Name:     opParams.MachineClassMetaData.Name,
+					Revision: opParams.MachineClassMetaData.Revision,
+				}
+			}
+			err := d.provider.Delete(machineClass, opParams.Credentials, opParams.MachineID)
 			var sErr string
 			if err != nil {
 				sErr = err.Error()
@@ -160,7 +171,14 @@ func (d *ExternalDriver) serveMCM(client pb.InfragrpcClient) error {
 				},
 			}
 		case "list":
-			vms, err := d.provider.List(opParams.MachineID)
+			var machineClass *MachineClassMeta
+			if opParams.MachineClassMetaData != nil {
+				machineClass = &MachineClassMeta{
+					Name:     opParams.MachineClassMetaData.Name,
+					Revision: opParams.MachineClassMetaData.Revision,
+				}
+			}
+			vms, err := d.provider.List(machineClass, opParams.Credentials, opParams.MachineID)
 			list := []string{}
 
 			var sErr string
@@ -181,4 +199,50 @@ func (d *ExternalDriver) serveMCM(client pb.InfragrpcClient) error {
 
 		stream.Send(&resp)
 	}
+}
+
+// GetMachineClass contacts the grpc server to get the machine class.
+func (d *ExternalDriver) GetMachineClass(machineClassMeta *MachineClassMeta) (interface{}, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	resp, err := d.client.GetMachineClass(ctx, &pb.MachineClassMeta{
+		Name:     machineClassMeta.Name,
+		Revision: machineClassMeta.Revision,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	sErr := resp.Error
+	if sErr != "" {
+		return nil, errors.New(sErr)
+	}
+
+	return resp.Data, nil
+}
+
+// GetCloudConfig contacts the grpc server to get the cloud config.
+func (d *ExternalDriver) GetCloudConfig(machineClassMeta *MachineClassMeta) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	resp, err := d.client.GetCloudConfig(ctx, &pb.CloudConfigMeta{
+		MachineClassMeta: &pb.MachineClassMeta{
+			Name:     machineClassMeta.Name,
+			Revision: machineClassMeta.Revision,
+		},
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	sErr := resp.Error
+	if sErr != "" {
+		return "", errors.New(sErr)
+	}
+
+	return resp.Data, nil
 }

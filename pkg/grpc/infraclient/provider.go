@@ -25,10 +25,17 @@ type MachineClassMeta struct {
 	Revision int32
 }
 
+// MachineClassDataProvider is the interface an ExternalDriverProvider implementation
+// can use to access machine class data.
+type MachineClassDataProvider interface {
+	GetMachineClass(machineClassMeta *MachineClassMeta) (interface{}, error)
+	GetCloudConfig(machineClassMeta *MachineClassMeta) (string, error)
+}
+
 // ExternalDriverProvider interface must be implemented by the providers.
 type ExternalDriverProvider interface {
-	Register() metav1.TypeMeta
+	Register(machineClassDataProvider MachineClassDataProvider) metav1.TypeMeta
 	Create(machineclass *MachineClassMeta, credentials, machineID, machineName string) (string, string, error)
-	Delete(credentials, machineID string) error
-	List(machineID string) (map[string]string, error)
+	Delete(machineclass *MachineClassMeta, credentials, machineID string) error
+	List(machineclass *MachineClassMeta, credentials, machineID string) (map[string]string, error)
 }
