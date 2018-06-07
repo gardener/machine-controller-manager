@@ -101,10 +101,16 @@ var _ = Describe("ExternalDriverManager", func() {
 			for _, t := range lists {
 				list, err := driver.GetVMs(t.credentials, t.machineID)
 				Expect(err).To(BeNil())
-				for id := range list {
+				Expect(len(list)).To(BeEquivalentTo(1))
+				for id, name := range list {
 					Expect(id).To(BeEquivalentTo(t.machineID))
+					Expect(name).To(BeEquivalentTo(t.machineName))
 				}
 			}
+
+			list, err := driver.GetVMs("c", "")
+			Expect(err).To(BeNil())
+			Expect(len(list)).To(BeEquivalentTo(len(lists)))
 		},
 		Entry("happy path", &metav1.TypeMeta{
 			Kind:       "driver",
@@ -124,6 +130,16 @@ var _ = Describe("ExternalDriverManager", func() {
 			credentials: "c",
 			machineID:   "a",
 			machineName: "d",
+			err:         nil,
+		}, &testdata{
+			credentials: "c",
+			machineID:   "b",
+			machineName: "q",
+			err:         nil,
+		}, &testdata{
+			credentials: "c",
+			machineID:   "f",
+			machineName: "w",
 			err:         nil,
 		}}),
 	)
@@ -161,10 +177,18 @@ func (f *fakeExternalDriverProvider) Delete(machineclass *infraclient.MachineCla
 func (f *fakeExternalDriverProvider) List(machineclass *infraclient.MachineClassMeta, credentials, machineID string) (map[string]string, error) {
 	list := make(map[string]string)
 
-	for _, t := range f.lists {
-		if t.machineID == machineID {
+	if machineID == "" {
+		for _, t := range f.lists {
 			list[t.machineID] = t.machineName
 		}
+	} else {
+		for _, t := range f.lists {
+			if t.machineID == machineID {
+				list[t.machineID] = t.machineName
+				return list, nil
+			}
+		}
+		return nil, fmt.Errorf("No fake data found for %v", machineID)
 	}
 	return list, nil
 }
