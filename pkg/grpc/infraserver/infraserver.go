@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"path"
+	"sync"
 
 	"google.golang.org/grpc"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,6 +58,8 @@ func (s *ExternalDriverManager) registerDriver(machineClassType metav1.TypeMeta,
 		return nil, fmt.Errorf("Driver for machineClassType %v already registered", machineClassType)
 	}
 
+	var sm sync.Map
+
 	glog.Infof("Registering new driver")
 
 	stopCh := make(chan interface{})
@@ -64,7 +67,7 @@ func (s *ExternalDriverManager) registerDriver(machineClassType metav1.TypeMeta,
 		machineClassType: machineClassType,
 		stream:           stream,
 		stopCh:           stopCh,
-		pendingRequests:  make(map[int32](chan *pb.DriverSide)),
+		pendingRequests:  &sm,
 	}
 
 	if s.drivers == nil {
