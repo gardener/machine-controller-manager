@@ -19,7 +19,6 @@ package controller
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -44,28 +43,34 @@ const (
 	LastReplicaUpdate = "safety.machine.sapcloud.io/lastreplicaupdate"
 )
 
-// SafetyCheck controller is used to protect the controller from orphan or excess VMs being created
-func (c *controller) reconcileClusterMachineSafety(key string) error {
-	var wg sync.WaitGroup
+// reconcileClusterMachineSafetyOrphanVMs checks for any orphan VMs and deletes them
+func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
+	reSyncAfter := time.Duration(c.safetyOptions.MachineSafetyOrphanVMsPeriod) * time.Minute
 
-	glog.V(3).Info("SafetyCheck loop initializing")
-	wg.Add(2)
-	go c.checkAndFreezeORUnfreezeMachineSets(&wg)
-	go c.checkVMObjects(&wg)
-	//Disable permenant freeze for now. We should enable it again once we have sophisticated automatic unfreeze mechanism in place.
-	//go c.checkAndFreezeMachineSetTimeout(&wg)
-	wg.Wait()
-	c.machineSafetyQueue.AddAfter("", 60*time.Second)
+	defer c.machineSafetyOrphanVMsQueue.AddAfter("", reSyncAfter)
+	glog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: Start")
+	c.checkVMObjects()
+	glog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: End, reSync-Period: %v", reSyncAfter)
+
+	return nil
+}
+
+// reconcileClusterMachineSafetyOvershooting checks all machineSet/machineDeployment
+// if the number of machine objects backing them is way beyond its desired replicas
+func (c *controller) reconcileClusterMachineSafetyOvershooting(key string) error {
+	reSyncAfter := time.Duration(c.safetyOptions.MachineSafetyOvershootingPeriod) * time.Minute
+
+	defer c.machineSafetyOvershootingQueue.AddAfter("", reSyncAfter)
+	glog.V(3).Infof("reconcileClusterMachineSafetyOvershooting: Start")
+	c.checkAndFreezeORUnfreezeMachineSets()
+	glog.V(3).Infof("reconcileClusterMachineSafetyOvershooting: End, reSync-Period: %v", reSyncAfter)
 
 	return nil
 }
 
 // checkAndFreezeORUnfreezeMachineSets freezes/unfreezes machineSets/machineDeployments
 // which have much greater than desired number of replicas of machine objects
-func (c *controller) checkAndFreezeORUnfreezeMachineSets(wg *sync.WaitGroup) {
-
-	defer wg.Done()
-
+func (c *controller) checkAndFreezeORUnfreezeMachineSets() {
 	machineSets, err := c.machineSetLister.List(labels.Everything())
 	if err != nil {
 		glog.Error("Safety-Net: Error getting machineSets - ", err)
@@ -145,25 +150,22 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(wg *sync.WaitGroup) {
 }
 
 // checkVMObjects checks for orphan VMs (VMs that don't have a machine object backing)
-func (c *controller) checkVMObjects(wg *sync.WaitGroup) {
-	go c.checkAWSMachineClass()
-	go c.checkOSMachineClass()
-	go c.checkAzureMachineClass()
-	go c.checkGCPMachineClass()
-
-	wg.Done()
+func (c *controller) checkVMObjects() {
+	c.checkAWSMachineClass()
+	c.checkOSMachineClass()
+	c.checkAzureMachineClass()
+	c.checkGCPMachineClass()
 }
 
 // checkAndFreezeMachineSetTimeout permanently freezes any
 // machineSet/machineDeployment whose creation times out
-func (c *controller) checkAndFreezeMachineSetTimeout(wg *sync.WaitGroup) {
-
+// TBD: Call this while implementing back-off while melt down
+func (c *controller) checkAndFreezeMachineSetTimeout() {
 	timeout := time.Duration(c.safetyOptions.MachineSetScaleTimeout) * time.Minute
 
 	machineSets, err := c.machineSetLister.List(labels.Everything())
 	if err != nil {
 		glog.Error("Safety-Net: Error getting machineSets - ", err)
-		wg.Done()
 		return
 	}
 
@@ -183,7 +185,6 @@ func (c *controller) checkAndFreezeMachineSetTimeout(wg *sync.WaitGroup) {
 				timestamp, err := time.Parse(layout, timestampString)
 				if err != nil {
 					glog.Error("Error parsing time: ", err)
-					wg.Done()
 					return
 				}
 
@@ -212,8 +213,6 @@ func (c *controller) checkAndFreezeMachineSetTimeout(wg *sync.WaitGroup) {
 			}
 		}
 	}
-
-	wg.Done()
 }
 
 // checkAWSMachineClass checks for orphan VMs in AWSMachinesClasses
@@ -392,7 +391,7 @@ func (c *controller) updateMachineSetToSafety(old, new interface{}) {
 // addMachineToSafety enqueues into machineSafetyQueue when a new machine is added
 func (c *controller) addMachineToSafety(obj interface{}) {
 	machine := obj.(*v1alpha1.Machine)
-	c.enqueueMachineSafetyKey(machine)
+	c.enqueueMachineSafetyOvershootingKey(machine)
 }
 
 // updateTimeStamp adds an annotation indicating the last time the number of replicas
@@ -420,9 +419,9 @@ func (c *controller) updateTimeStamp(ms *v1alpha1.MachineSet) {
 	}
 }
 
-// enqueueMachineSafetyKey enqueues into machineSafetyQueue
-func (c *controller) enqueueMachineSafetyKey(obj interface{}) {
-	c.machineSafetyQueue.Add("")
+// enqueueMachineSafetyOvershootingKey enqueues into machineSafetyOvershootingQueue
+func (c *controller) enqueueMachineSafetyOvershootingKey(obj interface{}) {
+	c.machineSafetyOvershootingQueue.Add("")
 }
 
 // deleteOrphanVM teriminates's the VM on the cloud provider passed to it
