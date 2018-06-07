@@ -76,6 +76,8 @@ type MachineControllerManagerConfiguration struct {
 
 	// SafetyOptions is the set of options to set to ensure safety of controller
 	SafetyOptions SafetyOptions
+
+	ExternalDriverManagerOptions ExternalDriverManagerOptions
 }
 
 // SafetyOptions are used to configure the upper-limit and lower-limit
@@ -93,6 +95,14 @@ type SafetyOptions struct {
 	// Timeout (in minutes) used while scaling machineSet
 	// if timeout occurs machineSet is permanently frozen
 	MachineSetScaleTimeout int32
+}
+
+// ExternalDriverManagerOptions are used to configure the ExternalDriverManager
+type ExternalDriverManagerOptions struct {
+	//Enabled indicates that external driver support should be enabled
+	Enabled bool
+	//Port on which to listen for external drivers
+	Port uint16
 }
 
 // LeaderElectionConfiguration defines the configuration of leader election

@@ -3,7 +3,6 @@ package infraserver
 import (
 	"errors"
 	"fmt"
-	"log"
 	"sync/atomic"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,10 +11,16 @@ import (
 	"github.com/golang/glog"
 )
 
+// MachineClassMeta has metadata about the machine class.
+type MachineClassMeta struct {
+	Name     string
+	Revision int32
+}
+
 // Driver interface mediates the communication with the external driver
 type Driver interface {
-	Create(providerName, machineclass, machineID string) (string, string, error)
-	Delete(providerName, machineclass, machineID string) error
+	Create(machineClass *MachineClassMeta, credentials, machineID, machineName string) (string, string, error)
+	Delete(credentials, machineID string) error
 }
 
 // driver also implements the interface Infragrpc_RegisterServer as a proxy to unregister the driver automatically on error during Send or Recv.
@@ -50,11 +55,17 @@ func (d *driver) recv() (*pb.DriverSide, error) {
 }
 
 func (d *driver) close() {
-	close(d.stopCh)
+	ch := d.stopCh
+	if ch != nil {
+		d.stopCh = nil
+		close(ch)
+	}
 }
 
 func (d *driver) wait() {
-	<-d.stopCh
+	if d.stopCh != nil {
+		<-d.stopCh
+	}
 }
 
 func (d *driver) nextRequestID() int32 {
@@ -66,6 +77,11 @@ func (d *driver) receiveAndDispatch() error {
 		msg, err := d.recv()
 		if err != nil {
 			return err
+		}
+
+		if msg.OperationType == "unregister" {
+			d.close()
+			return nil
 		}
 
 		if ch, ok := d.pendingRequests[msg.OperationID]; ok {
@@ -85,7 +101,7 @@ func (d *driver) sendAndWait(params *pb.MCMsideOperationParams, opType string) (
 	}
 
 	if err := d.send(&msg); err != nil {
-		log.Fatalf("Failed to send request: %v", err)
+		glog.Fatalf("Failed to send request: %v", err)
 		return nil, err
 	}
 
@@ -98,6 +114,7 @@ func (d *driver) sendAndWait(params *pb.MCMsideOperationParams, opType string) (
 	response := <-ch
 
 	delete(d.pendingRequests, id)
+	close(ch)
 
 	if response == nil {
 		return nil, fmt.Errorf("Received nil response from driver %v", d.machineClassType)
@@ -107,53 +124,60 @@ func (d *driver) sendAndWait(params *pb.MCMsideOperationParams, opType string) (
 }
 
 // Create sends create request to the driver over the grpc stream
-func (d *driver) Create(providerName, machineclass, machineID string) (string, string, error) {
+func (d *driver) Create(machineClass *MachineClassMeta, credentials, machineID, machineName string) (string, string, error) {
 	createParams := pb.MCMsideOperationParams{
-		MachineClassMetaData: &pb.MachineClassMeta{
-			Name:     "fakeclass",
-			Revision: 1,
-		},
-		Credentials: "fakeCredentials",
-		MachineID:   "fakeID",
-		MachineName: "fakename",
+		Credentials: credentials,
+		MachineID:   machineID,
+		MachineName: machineName,
+	}
+	if machineClass != nil {
+		createParams.MachineClassMetaData = &pb.MachineClassMeta{
+			Name:     machineClass.Name,
+			Revision: machineClass.Revision,
+		}
 	}
 
 	createResp, err := d.sendAndWait(&createParams, "create")
 	if err != nil {
-		log.Fatalf("Failed to send create req: %v", err)
+		glog.Fatalf("Failed to send create req: %v", err)
+		return "", "", err
 	}
 
 	if createResp == nil {
-		log.Printf("nil")
 		return "", "", fmt.Errorf("Create response empty")
 	}
+
+	//TODO type check
 	response := createResp.(*pb.DriverSide_Createresponse).Createresponse
-	log.Printf("Create. Return: %s %s %s", response.ProviderID, response.Nodename, response.Error)
-	return response.ProviderID, response.Nodename, errors.New(response.Error)
+	glog.Infof("Create. Return: %s %s %s", response.ProviderID, response.Nodename, response.Error)
+
+	err = nil
+	if response.Error != "" {
+		err = errors.New(response.Error)
+	}
+
+	return response.ProviderID, response.Nodename, err
 }
 
 // Delete sends delete request to the driver over the grpc stream
-func (d *driver) Delete(providerName, machineclass, machineID string) error {
+func (d *driver) Delete(credentials, machineID string) error {
 	deleteParams := pb.MCMsideOperationParams{
-		MachineClassMetaData: &pb.MachineClassMeta{
-			Name:     "fakeclass",
-			Revision: 1,
-		},
-		Credentials: "fakeCredentials",
-		MachineID:   "fakeID",
-		MachineName: "fakename",
+		Credentials: credentials,
+		MachineID:   machineID,
 	}
 
 	deleteResp, err := d.sendAndWait(&deleteParams, "delete")
 	if err != nil {
-		log.Fatalf("Failed to send delete req: %v", err)
+		return err
 	}
 
 	if deleteResp == nil {
-		log.Printf("nil")
 		return fmt.Errorf("Delete response empty")
 	}
 	response := deleteResp.(*pb.DriverSide_Deleteresponse).Deleteresponse
-	log.Printf("Delete Return: %s", response.Error)
-	return errors.New(response.Error)
+	glog.Infof("Delete Return: %s", response.Error)
+	if response.Error != "" {
+		return errors.New(response.Error)
+	}
+	return nil
 }

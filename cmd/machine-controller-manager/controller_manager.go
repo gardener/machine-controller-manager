@@ -27,6 +27,8 @@ import (
 
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app"
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
+	"github.com/gardener/machine-controller-manager/pkg/driver"
+	"github.com/gardener/machine-controller-manager/pkg/grpc/infraserver"
 	_ "github.com/gardener/machine-controller-manager/pkg/util/client/metrics/prometheus" // for client metric registration
 	_ "github.com/gardener/machine-controller-manager/pkg/util/reflector/prometheus"      // for reflector metric registration
 	_ "github.com/gardener/machine-controller-manager/pkg/util/workqueue/prometheus"      // for workqueue metric registration
@@ -52,6 +54,14 @@ func main() {
 	defer logs.FlushLogs()
 
 	// verflag.PrintAndExitIfRequested()
+
+	if s.ExternalDriverManagerOptions.Enabled {
+		externalDriverManager := &infraserver.ExternalDriverManager{
+			Port: s.ExternalDriverManagerOptions.Port,
+		}
+		driver.ExternalDriverManager = externalDriverManager
+		externalDriverManager.Start()
+	}
 
 	if err := app.Run(s); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
