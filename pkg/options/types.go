@@ -85,7 +85,8 @@ type SafetyOptions struct {
 	SafetyUp int32
 	// SafetyDown
 	SafetyDown int32
-	// Timeout (in minutes) used while creation/failing of machine before it is declared as failed
+	// Timeout (in minutes) used while creation/failing of
+	// machine before it is declared as failed
 	MachineHealthTimeout int32
 	// Timeout (in minutes) used while draining of machine before deletion,
 	// beyond which it forcefully deletes machine
@@ -93,6 +94,12 @@ type SafetyOptions struct {
 	// Timeout (in minutes) used while scaling machineSet
 	// if timeout occurs machineSet is permanently frozen
 	MachineSetScaleTimeout int32
+	// Period (in minutes) used to poll for orphan VMs
+	// by safety controller
+	MachineSafetyOrphanVMsPeriod int32
+	// Period (in minutes) used to poll for overshooting
+	// of machine objects backing a machineSet by safety controller
+	MachineSafetyOvershootingPeriod int32
 }
 
 // LeaderElectionConfiguration defines the configuration of leader election

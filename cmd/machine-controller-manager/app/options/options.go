@@ -61,11 +61,13 @@ func NewMCMServer() *MCMServer {
 			LeaderElection:          leaderelectionconfig.DefaultLeaderElectionConfiguration(),
 			ControllerStartInterval: metav1.Duration{Duration: 0 * time.Second},
 			SafetyOptions: machineconfig.SafetyOptions{
-				SafetyUp:               2,
-				SafetyDown:             1,
-				MachineHealthTimeout:   10,
-				MachineDrainTimeout:    5,
-				MachineSetScaleTimeout: 20,
+				SafetyUp:                        2,
+				SafetyDown:                      1,
+				MachineHealthTimeout:            10,
+				MachineDrainTimeout:             5,
+				MachineSetScaleTimeout:          20,
+				MachineSafetyOrphanVMsPeriod:    30,
+				MachineSafetyOvershootingPeriod: 1,
 			},
 		},
 	}
@@ -95,6 +97,8 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&s.SafetyOptions.MachineHealthTimeout, "machine-health-timeout", s.SafetyOptions.MachineHealthTimeout, "Timeout (in minutes) used while creation/failing of machine before it is declared as failed")
 	fs.Int32Var(&s.SafetyOptions.MachineDrainTimeout, "machine-drain-timeout", s.SafetyOptions.MachineDrainTimeout, "Timeout (in minutes) used while draining of machine before deletion, beyond which it forcefully deletes machine")
 	fs.Int32Var(&s.SafetyOptions.MachineSetScaleTimeout, "machine-set-scale-timeout", s.SafetyOptions.MachineSetScaleTimeout, "Timeout (in minutes) used while scaling machineSet if timeout occurs machineSet is permanently frozen")
+	fs.Int32Var(&s.SafetyOptions.MachineSafetyOrphanVMsPeriod, "machine-safety-orphan-vms-period", s.SafetyOptions.MachineSafetyOrphanVMsPeriod, "Period (in minutes) used to poll for orphan VMs by safety controller")
+	fs.Int32Var(&s.SafetyOptions.MachineSafetyOvershootingPeriod, "machine-safety-overshooting-period", s.SafetyOptions.MachineSafetyOvershootingPeriod, "Period (in minutes) used to poll for overshooting of machine objects backing a machineSet by safety controller")
 
 	leaderelectionconfig.BindFlags(&s.LeaderElection, fs)
 	// TODO: DefaultFeatureGate is global and it adds all k8s flags
