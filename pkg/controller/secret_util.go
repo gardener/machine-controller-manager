@@ -40,9 +40,15 @@ func (c *controller) existsMachineClassForSecret(name string) (bool, error) {
 		return false, err
 	}
 
+	awsMachineClasses, err := c.findAWSMachineClassForSecret(name)
+	if err != nil {
+		return false, err
+	}
+
 	if len(openStackMachineClasses) == 0 &&
 		len(gcpMachineClasses) == 0 &&
-		len(azureMachineClasses) == 0 {
+		len(azureMachineClasses) == 0 &&
+		len(awsMachineClasses) == 0 {
 		return false, nil
 	}
 
@@ -89,6 +95,22 @@ func (c *controller) findAzureMachineClassForSecret(name string) ([]*v1alpha1.Az
 		return nil, err
 	}
 	var filtered []*v1alpha1.AzureMachineClass
+	for _, machineClass := range machineClasses {
+		if machineClass.Spec.SecretRef.Name == name {
+			filtered = append(filtered, machineClass)
+		}
+	}
+	return filtered, nil
+}
+
+// findAWSClassForSecret returns the set of
+// AWSMachineClasses referring to the passed secret
+func (c *controller) findAWSMachineClassForSecret(name string) ([]*v1alpha1.AWSMachineClass, error) {
+	machineClasses, err := c.awsMachineClassLister.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+	var filtered []*v1alpha1.AWSMachineClass
 	for _, machineClass := range machineClasses {
 		if machineClass.Spec.SecretRef.Name == name {
 			filtered = append(filtered, machineClass)
