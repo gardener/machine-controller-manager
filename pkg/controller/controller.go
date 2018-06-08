@@ -144,11 +144,29 @@ func NewController(
 	controller.machineSetSynced = machineSetInformer.Informer().HasSynced
 	controller.machineDeploymentSynced = machineDeploymentInformer.Informer().HasSynced
 
-	/*
-		secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc:    controller.secretAdd,
-			UpdateFunc: controller.secretUpdate,
-		})*/
+	// Secret Controller Informers
+	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.secretAdd,
+		DeleteFunc: controller.secretDelete,
+	})
+
+	openStackMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.openStackMachineClassToSecretAdd,
+		UpdateFunc: controller.openStackMachineClassToSecretUpdate,
+		DeleteFunc: controller.openStackMachineClassToSecretDelete,
+	})
+
+	gcpMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.gcpMachineClassToSecretAdd,
+		UpdateFunc: controller.gcpMachineClassToSecretUpdate,
+		DeleteFunc: controller.gcpMachineClassToSecretDelete,
+	})
+
+	azureMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.azureMachineClassToSecretAdd,
+		UpdateFunc: controller.azureMachineClassToSecretUpdate,
+		DeleteFunc: controller.azureMachineClassToSecretDelete,
+	})
 
 	// Openstack Controller Informers
 	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -384,6 +402,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 		createWorker(c.awsMachineClassQueue, "ClusterAWSMachineClass", maxRetries, true, c.reconcileClusterAWSMachineClassKey, stopCh, &waitGroup)
 		createWorker(c.azureMachineClassQueue, "ClusterAzureMachineClass", maxRetries, true, c.reconcileClusterAzureMachineClassKey, stopCh, &waitGroup)
 		createWorker(c.gcpMachineClassQueue, "ClusterGCPMachineClass", maxRetries, true, c.reconcileClusterGCPMachineClassKey, stopCh, &waitGroup)
+		createWorker(c.secretQueue, "ClusterSecret", maxRetries, true, c.reconcileClusterSecretKey, stopCh, &waitGroup)
 		createWorker(c.nodeQueue, "ClusterNode", maxRetries, true, c.reconcileClusterNodeKey, stopCh, &waitGroup)
 		createWorker(c.machineQueue, "ClusterMachine", maxRetries, true, c.reconcileClusterMachineKey, stopCh, &waitGroup)
 		createWorker(c.nodeToMachineQueue, "ClusterNodeToMachine", maxRetries, true, c.reconcileClusterNodeToMachineKey, stopCh, &waitGroup)
