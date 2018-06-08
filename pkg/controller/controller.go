@@ -168,6 +168,12 @@ func NewController(
 		DeleteFunc: controller.azureMachineClassToSecretDelete,
 	})
 
+	awsMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.awsMachineClassToSecretAdd,
+		UpdateFunc: controller.awsMachineClassToSecretUpdate,
+		DeleteFunc: controller.awsMachineClassToSecretDelete,
+	})
+
 	// Openstack Controller Informers
 	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: controller.machineDeploymentToOpenStackMachineClassDelete,
