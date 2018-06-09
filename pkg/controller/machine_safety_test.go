@@ -157,6 +157,7 @@ var _ = Describe("machine", func() {
 					Expect(err).ShouldNot(BeNil())
 				}
 
+				//TODO: Fails if the machineDeployment is retrieved by the below method
 				// machineDeployments := c.getMachineDeploymentsForMachineSet(machineSet)
 				// if len(machineDeployments) >= 1 {
 				// 	machineDeployment := machineDeployments[0]
@@ -169,12 +170,11 @@ var _ = Describe("machine", func() {
 				Expect(err).ShouldNot(BeNil())
 			}
 		},
-		/**
-		Entry("Testdata format::::::", machineSetExists, machineSetFrozen, parentExists, parentFrozen)
-		**/
-		Entry("existing and valid frozen machineset", true, true, true, true),
-		Entry("existing and valid frozen machineset", false, true, true, true),
-		Entry("existing and valid frozen machineset", true, true, false, true),
+
+		//Entry("Testdata format::::::", machineSetExists, machineSetFrozen, parentExists, parentFrozen)
+		Entry("existing, frozen machineset and machinedeployment", true, true, true, true),
+		Entry("non-existing but frozen machineset and existing, frozen machinedeployment", false, true, true, true),
+		Entry("existing, frozen machineset but non-existing, frozen machinedeployment", true, true, false, true),
 	)
 
 	DescribeTable("##checkAndFreezeORUnfreezeMachineSets",
