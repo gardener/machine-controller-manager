@@ -385,6 +385,7 @@ type controller struct {
 func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer runtimeutil.HandleCrash()
 	defer c.nodeQueue.ShutDown()
+	defer c.secretQueue.ShutDown()
 	defer c.openStackMachineClassQueue.ShutDown()
 	defer c.awsMachineClassQueue.ShutDown()
 	defer c.azureMachineClassQueue.ShutDown()
@@ -392,6 +393,9 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer c.machineQueue.ShutDown()
 	defer c.machineSetQueue.ShutDown()
 	defer c.machineDeploymentQueue.ShutDown()
+	defer c.nodeToMachineQueue.ShutDown()
+	defer c.machineSafetyOrphanVMsQueue.ShutDown()
+	defer c.machineSafetyOvershootingQueue.ShutDown()
 
 	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.openStackMachineClassSynced, c.awsMachineClassSynced, c.azureMachineClassSynced, c.gcpMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
 		runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
