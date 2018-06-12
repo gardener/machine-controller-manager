@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package aws .
 package aws
 
 import (
@@ -289,7 +291,12 @@ func (d *awsDriverProvider) getMachineClassData(machineClassMeta *infraclient.Ma
 		return nil, "", err
 	}
 
-	userData, err := d.machineClassDataProvider.GetCloudConfig(machineClassMeta)
+	secret := infraclient.CloudConfigMeta{
+		SecretName:      machineClass.Spec.SecretRef.Name,
+		SecretNameSpace: machineClass.Spec.SecretRef.Namespace,
+		Revision:        1,
+	}
+	userData, err := d.machineClassDataProvider.GetCloudConfig(&secret)
 	if err != nil {
 		return nil, "", err
 	}

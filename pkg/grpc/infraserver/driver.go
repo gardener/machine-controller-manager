@@ -112,7 +112,7 @@ func (d *driver) sendAndWait(params *pb.MCMsideOperationParams, opType string) (
 	//TODO validation
 	d.pendingRequests.Store(id, ch)
 
-	// The receiveDriverStream function will receive message, read the opID, then write to corresponding waitc
+	// The receiveAndDispatch function will receive message, read the opID, then write to corresponding waitc
 	// This will make sure that the response structure is populated
 	response := <-ch
 
