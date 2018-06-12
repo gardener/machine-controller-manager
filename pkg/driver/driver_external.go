@@ -50,7 +50,7 @@ func NewExternalDriver(driver infraserver.Driver, machineClass interface{}, cred
 func (d *ExternalDriver) Create() (string, string, error) {
 	//TODO
 	machineID, machineName, err := d.driver.Create(nil, "", d.machineID, d.machineName)
-	if err != nil {
+	if err == nil {
 		d.machineID = machineID
 		d.machineName = machineName
 	}

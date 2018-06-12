@@ -1,6 +1,7 @@
 package infraserver
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -13,15 +14,19 @@ import (
 
 	pb "github.com/gardener/machine-controller-manager/pkg/grpc/infrapb"
 	"github.com/golang/glog"
+	"k8s.io/client-go/kubernetes"
+	corelisters "k8s.io/client-go/listers/core/v1"
 )
 
 // ExternalDriverManager manages the registered drivers.
 type ExternalDriverManager struct {
 	// a map of machine class type to the corresponding driver.
-	drivers    map[metav1.TypeMeta]*driver
-	Port       uint16
-	Options    []grpc.ServerOption
-	grpcServer *grpc.Server
+	drivers      map[metav1.TypeMeta]*driver
+	Port         uint16
+	Options      []grpc.ServerOption
+	grpcServer   *grpc.Server
+	client       kubernetes.Interface
+	secretLister corelisters.SecretLister
 }
 
 //GetDriver gets a registered and working driver stream for the given machine class type.
@@ -141,12 +146,58 @@ func (s *ExternalDriverManager) Register(stream pb.Infragrpc_RegisterServer) err
 
 //GetCloudConfig share metadata
 func (s *ExternalDriverManager) GetCloudConfig(ctx context.Context, in *pb.CloudConfigMeta) (*pb.CloudConfig, error) {
-	return nil, nil
+	var userData []byte
+
+	secretName := in.GetSecretName()
+	if secretName == "" {
+		return nil, fmt.Errorf("Secret name not provided")
+	}
+
+	secretNS := in.GetNameSpace()
+	if secretNS == "" {
+		return nil, fmt.Errorf("Secret namespace not provided")
+	}
+
+	secretRef, err := s.secretLister.Secrets(secretNS).Get(secretName)
+	if err != nil {
+		glog.Errorf("Error getting secret %s/%s: %v", secretNS, secretName, err)
+		return nil, err
+	}
+
+	if data, ok := secretRef.Data["userData"]; ok {
+		userData = data
+	} else {
+		return nil, fmt.Errorf("Cloud config not found in the provided secret")
+	}
+
+	n := bytes.IndexByte(userData, 0)
+
+	cloudConfig := &pb.CloudConfig{
+		Data:  string(userData[:n]),
+		Error: "",
+	}
+
+	return cloudConfig, nil
 }
 
 //GetMachineClass share metadata
 func (s *ExternalDriverManager) GetMachineClass(ctx context.Context, in *pb.MachineClassMeta) (*pb.MachineClass, error) {
-	return nil, nil
+	machineClassName := in.GetName()
+	if machineClassName == "" {
+		return nil, fmt.Errorf("Machine class name not provided")
+	}
+
+	MachineClass, err := s.client.Core().RESTClient().Get().AbsPath(machineClassName).Do().Raw()
+	if err != nil {
+		return nil, err
+	}
+
+	n := bytes.IndexByte(MachineClass, 0)
+	machineClassData := &pb.MachineClass{
+		Data:  string(MachineClass[:n]),
+		Error: "",
+	}
+	return machineClassData, nil
 }
 
 // Start start the grpc server

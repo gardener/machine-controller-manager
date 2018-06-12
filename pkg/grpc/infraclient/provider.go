@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package infraclient .
 package infraclient
 
 import (
@@ -25,11 +27,18 @@ type MachineClassMeta struct {
 	Revision int32
 }
 
+// CloudConfigMeta has metadata about the machine class.
+type CloudConfigMeta struct {
+	SecretName      string
+	SecretNameSpace string
+	Revision        int32
+}
+
 // MachineClassDataProvider is the interface an ExternalDriverProvider implementation
 // can use to access machine class data.
 type MachineClassDataProvider interface {
 	GetMachineClass(machineClassMeta *MachineClassMeta) (interface{}, error)
-	GetCloudConfig(machineClassMeta *MachineClassMeta) (string, error)
+	GetCloudConfig(cloudConfigMeta *CloudConfigMeta) (string, error)
 }
 
 // ExternalDriverProvider interface must be implemented by the providers.

@@ -20,7 +20,9 @@ message MachineClassMeta {
 }
 
 message CloudConfigMeta {
-    MachineClassMeta machineClassMeta = 1;
+    string secretName = 1;
+    string nameSpace = 2;
+    int32 revision = 3;
 }
 
 message MachineClass {

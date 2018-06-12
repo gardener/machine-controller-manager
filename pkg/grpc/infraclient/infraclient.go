@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package infraclient .
 package infraclient
 
 import (
@@ -232,15 +234,14 @@ func (d *ExternalDriver) GetMachineClass(machineClassMeta *MachineClassMeta) (in
 }
 
 // GetCloudConfig contacts the grpc server to get the cloud config.
-func (d *ExternalDriver) GetCloudConfig(machineClassMeta *MachineClassMeta) (string, error) {
+func (d *ExternalDriver) GetCloudConfig(cloudConfigMeta *CloudConfigMeta) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
 	resp, err := d.client.GetCloudConfig(ctx, &pb.CloudConfigMeta{
-		MachineClassMeta: &pb.MachineClassMeta{
-			Name:     machineClassMeta.Name,
-			Revision: machineClassMeta.Revision,
-		},
+		SecretName: cloudConfigMeta.SecretName,
+		NameSpace:  cloudConfigMeta.SecretNameSpace,
+		Revision:   cloudConfigMeta.Revision,
 	})
 
 	if err != nil {
