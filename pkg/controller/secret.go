@@ -18,7 +18,6 @@ limitations under the License.
 package controller
 
 import (
-	"fmt"
 	"time"
 
 	"k8s.io/api/core/v1"
@@ -38,7 +37,8 @@ func (c *controller) reconcileClusterSecretKey(key string) error {
 	if err != nil {
 		return err
 	} else if c.namespace != namespace {
-		return fmt.Errorf("Secret exists outside of controller namespace - %s/%s", namespace, name)
+		// Secret exists outside of controller namespace
+		return nil
 	}
 
 	secret, err := c.secretLister.Secrets(c.namespace).Get(name)
@@ -69,24 +69,15 @@ func (c *controller) reconcileClusterSecret(secret *v1.Secret) error {
 		return err
 	}
 
-	if secret.DeletionTimestamp == nil {
-		if exists {
-			// If one or more machineClasses refer this, add finalizer (if it doesn't exist)
-			c.addSecretFinalizers(secret)
-		}
+	if exists {
+		// If one or more machineClasses refer this, add finalizer (if it doesn't exist)
+		c.addSecretFinalizers(secret)
 	} else {
-		// If deletion timestamp exists
-
 		if finalizers := sets.NewString(secret.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
 			// Finalizer doesn't exist, simply return nil
 			return nil
-		} else if !exists {
-			// If machineClass reference no longer exists
-			c.deleteSecretFinalizers(secret)
-		} else {
-			// If machineClasses are still referring to this secret
-			glog.V(3).Infof("Cannot remove finalizer of %s because still MachineClasses are referencing it", secret.Name)
 		}
+		c.deleteSecretFinalizers(secret)
 	}
 
 	return nil
@@ -116,7 +107,7 @@ func (c *controller) deleteSecretFinalizers(secret *v1.Secret) {
 }
 
 func (c *controller) updateSecretFinalizers(secret *v1.Secret, finalizers []string) {
-	// Get the latest version of the class so that we can avoid conflicts
+	// Get the latest version of the secret so that we can avoid conflicts
 	secret, err := c.controlCoreClient.Core().Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
 	if err != nil {
 		return
