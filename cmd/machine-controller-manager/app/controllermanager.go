@@ -227,9 +227,11 @@ func StartControllers(s *options.MCMServer,
 			nil,
 		)
 
-		controlCoreInformerFactory := coreinformers.NewSharedInformerFactory(
+		controlCoreInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
 			controlCoreClientBuilder.ClientOrDie("control-core-shared-informers"),
 			s.MinResyncPeriod.Duration,
+			s.Namespace,
+			nil,
 		)
 
 		targetCoreInformerFactory := coreinformers.NewSharedInformerFactory(
