@@ -119,11 +119,13 @@ func validateBlockDevices(blockDevices []machine.AWSBlockDeviceMappingSpec, fldP
 	if len(blockDevices) > 1 {
 		allErrs = append(allErrs, field.Required(fldPath.Child(""), "Can only specify one (root) block device"))
 	} else if len(blockDevices) == 1 {
-		if blockDevices[0].Ebs.VolumeSize == 0 {
+		if blockDevices[0].Ebs.VolumeSize <= 0 {
 			allErrs = append(allErrs, field.Required(fldPath.Child("ebs.volumeSize"), "Please mention a valid ebs volume size"))
 		}
 		if blockDevices[0].Ebs.VolumeType == "" {
 			allErrs = append(allErrs, field.Required(fldPath.Child("ebs.volumeType"), "Please mention a valid ebs volume type"))
+		} else if blockDevices[0].Ebs.VolumeType == "io1" && blockDevices[0].Ebs.Iops <= 0 {
+			allErrs = append(allErrs, field.Required(fldPath.Child("ebs.iops"), "Please mention a valid ebs volume iops"))
 		}
 	}
 	return allErrs

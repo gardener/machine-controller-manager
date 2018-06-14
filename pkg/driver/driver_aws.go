@@ -77,6 +77,9 @@ func (d *AWSDriver) Create() (string, string, error) {
 			VolumeType: &volumeType,
 		},
 	}
+	if volumeType == "io1" {
+		blkDeviceMapping.Ebs.Iops = &d.AWSMachineClass.Spec.BlockDevices[0].Ebs.Iops
+	}
 	blkDeviceMappings = append(blkDeviceMappings, &blkDeviceMapping)
 
 	// Add tags to the created machine
