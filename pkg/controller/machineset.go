@@ -430,7 +430,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 // invoked concurrently with the same key.
 func (c *controller) reconcileClusterMachineSet(key string) error {
 	startTime := time.Now()
-	glog.V(4).Infof("Start syncing %q (%v)", key)
+	glog.V(4).Infof("Start syncing %q", key)
 	defer func() {
 		glog.V(4).Infof("Finished syncing %q (%v)", key, time.Since(startTime))
 	}()
@@ -507,7 +507,6 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	}
 
 	machineSetNeedsSync := c.expectations.SatisfiedExpectations(key)
-	glog.V(4).Infof("2 filtered machines length: %v, MachineSetNeedsSync: %v", len(filteredMachines), machineSetNeedsSync)
 	var manageReplicasErr error
 	if machineSetNeedsSync {
 		manageReplicasErr = c.manageReplicas(filteredMachines, machineSet)

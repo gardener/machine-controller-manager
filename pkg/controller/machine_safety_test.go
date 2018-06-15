@@ -16,7 +16,6 @@ limitations under the License.
 package controller
 
 import (
-	"sync"
 	"time"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -109,24 +108,7 @@ var _ = Describe("machine", func() {
 			Expect(err).To(BeNil())
 			Expect(len(machineSets)).To(Equal(len(initialMachineSets)))
 
-			wg := sync.WaitGroup{}
-			wg.Add(1)
-			done := make(chan struct{})
-			go func() {
-				wg.Wait()
-				close(done)
-			}()
-
-			c.checkAndFreezeORUnfreezeMachineSets(&wg)
-
-			select {
-			case <-done:
-			// All done!
-			case <-time.After(100 * time.Millisecond):
-				//Timeout!
-			}
-
-			Expect(done).To(BeClosed())
+			c.checkAndFreezeORUnfreezeMachineSets()
 		},
 		Entry("no objects", nil, nil, nil),
 		Entry("one machineset", nil, map[string]string{"machineset-1": ""}, nil),

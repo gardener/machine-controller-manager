@@ -77,24 +77,25 @@ func NewController(
 	safetyOptions options.SafetyOptions,
 ) (Controller, error) {
 	controller := &controller{
-		namespace:                  namespace,
-		controlMachineClient:       controlMachineClient,
-		controlCoreClient:          controlCoreClient,
-		targetCoreClient:           targetCoreClient,
-		recorder:                   recorder,
-		expectations:               NewUIDTrackingContExpectations(NewContExpectations()),
-		secretQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
-		nodeQueue:                  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
-		nodeToMachineQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "nodeToMachine"),
-		openStackMachineClassQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "openstackmachineclass"),
-		awsMachineClassQueue:       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
-		azureMachineClassQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
-		gcpMachineClassQueue:       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "gcpmachineclass"),
-		machineQueue:               workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
-		machineSetQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
-		machineDeploymentQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
-		machineSafetyQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafety"),
-		safetyOptions:              safetyOptions,
+		namespace:                      namespace,
+		controlMachineClient:           controlMachineClient,
+		controlCoreClient:              controlCoreClient,
+		targetCoreClient:               targetCoreClient,
+		recorder:                       recorder,
+		expectations:                   NewUIDTrackingContExpectations(NewContExpectations()),
+		secretQueue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
+		nodeQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
+		nodeToMachineQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "nodeToMachine"),
+		openStackMachineClassQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "openstackmachineclass"),
+		awsMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
+		azureMachineClassQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
+		gcpMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "gcpmachineclass"),
+		machineQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
+		machineSetQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
+		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
+		machineSafetyOrphanVMsQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
+		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
+		safetyOptions:                  safetyOptions,
 	}
 
 	controller.internalExternalScheme = runtime.NewScheme()
@@ -143,11 +144,35 @@ func NewController(
 	controller.machineSetSynced = machineSetInformer.Informer().HasSynced
 	controller.machineDeploymentSynced = machineDeploymentInformer.Informer().HasSynced
 
-	/*
-		secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc:    controller.secretAdd,
-			UpdateFunc: controller.secretUpdate,
-		})*/
+	// Secret Controller Informers
+	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.secretAdd,
+		DeleteFunc: controller.secretDelete,
+	})
+
+	openStackMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.openStackMachineClassToSecretAdd,
+		UpdateFunc: controller.openStackMachineClassToSecretUpdate,
+		DeleteFunc: controller.openStackMachineClassToSecretDelete,
+	})
+
+	gcpMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.gcpMachineClassToSecretAdd,
+		UpdateFunc: controller.gcpMachineClassToSecretUpdate,
+		DeleteFunc: controller.gcpMachineClassToSecretDelete,
+	})
+
+	azureMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.azureMachineClassToSecretAdd,
+		UpdateFunc: controller.azureMachineClassToSecretUpdate,
+		DeleteFunc: controller.azureMachineClassToSecretDelete,
+	})
+
+	awsMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.awsMachineClassToSecretAdd,
+		UpdateFunc: controller.awsMachineClassToSecretUpdate,
+		DeleteFunc: controller.awsMachineClassToSecretDelete,
+	})
 
 	// Openstack Controller Informers
 	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -280,6 +305,13 @@ func NewController(
 	})
 
 	// MachineSafety Controller Informers
+
+	// We follow the kubernetes way of reconciling the safety controller
+	// done by adding empty key objects. We initialize it, to trigger
+	// running of different safety loop on MCM startup.
+	controller.machineSafetyOrphanVMsQueue.Add("")
+	controller.machineSafetyOvershootingQueue.Add("")
+
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.addMachineToSafety,
 	})
@@ -288,11 +320,6 @@ func NewController(
 		AddFunc:    controller.addMachineSetToSafety,
 		UpdateFunc: controller.updateMachineSetToSafety,
 	})
-
-	// We follow the kubernetes way of reconciling the safety controller
-	// done by adding empty key objects. We initialize it here to trigger
-	// running of safety loop on MCM startup.
-	controller.machineSafetyQueue.Add("")
 
 	return controller, nil
 }
@@ -331,17 +358,18 @@ type controller struct {
 	machineSetLister            machinelisters.MachineSetLister
 	machineDeploymentLister     machinelisters.MachineDeploymentLister
 	// queues
-	secretQueue                workqueue.RateLimitingInterface
-	nodeQueue                  workqueue.RateLimitingInterface
-	nodeToMachineQueue         workqueue.RateLimitingInterface
-	openStackMachineClassQueue workqueue.RateLimitingInterface
-	awsMachineClassQueue       workqueue.RateLimitingInterface
-	azureMachineClassQueue     workqueue.RateLimitingInterface
-	gcpMachineClassQueue       workqueue.RateLimitingInterface
-	machineQueue               workqueue.RateLimitingInterface
-	machineSetQueue            workqueue.RateLimitingInterface
-	machineDeploymentQueue     workqueue.RateLimitingInterface
-	machineSafetyQueue         workqueue.RateLimitingInterface
+	secretQueue                    workqueue.RateLimitingInterface
+	nodeQueue                      workqueue.RateLimitingInterface
+	nodeToMachineQueue             workqueue.RateLimitingInterface
+	openStackMachineClassQueue     workqueue.RateLimitingInterface
+	awsMachineClassQueue           workqueue.RateLimitingInterface
+	azureMachineClassQueue         workqueue.RateLimitingInterface
+	gcpMachineClassQueue           workqueue.RateLimitingInterface
+	machineQueue                   workqueue.RateLimitingInterface
+	machineSetQueue                workqueue.RateLimitingInterface
+	machineDeploymentQueue         workqueue.RateLimitingInterface
+	machineSafetyOrphanVMsQueue    workqueue.RateLimitingInterface
+	machineSafetyOvershootingQueue workqueue.RateLimitingInterface
 	// syncs
 	secretSynced                cache.InformerSynced
 	nodeSynced                  cache.InformerSynced
@@ -357,6 +385,7 @@ type controller struct {
 func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer runtimeutil.HandleCrash()
 	defer c.nodeQueue.ShutDown()
+	defer c.secretQueue.ShutDown()
 	defer c.openStackMachineClassQueue.ShutDown()
 	defer c.awsMachineClassQueue.ShutDown()
 	defer c.azureMachineClassQueue.ShutDown()
@@ -364,6 +393,9 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer c.machineQueue.ShutDown()
 	defer c.machineSetQueue.ShutDown()
 	defer c.machineDeploymentQueue.ShutDown()
+	defer c.nodeToMachineQueue.ShutDown()
+	defer c.machineSafetyOrphanVMsQueue.ShutDown()
+	defer c.machineSafetyOvershootingQueue.ShutDown()
 
 	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.openStackMachineClassSynced, c.awsMachineClassSynced, c.azureMachineClassSynced, c.gcpMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
 		runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
@@ -380,12 +412,14 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 		createWorker(c.awsMachineClassQueue, "ClusterAWSMachineClass", maxRetries, true, c.reconcileClusterAWSMachineClassKey, stopCh, &waitGroup)
 		createWorker(c.azureMachineClassQueue, "ClusterAzureMachineClass", maxRetries, true, c.reconcileClusterAzureMachineClassKey, stopCh, &waitGroup)
 		createWorker(c.gcpMachineClassQueue, "ClusterGCPMachineClass", maxRetries, true, c.reconcileClusterGCPMachineClassKey, stopCh, &waitGroup)
+		createWorker(c.secretQueue, "ClusterSecret", maxRetries, true, c.reconcileClusterSecretKey, stopCh, &waitGroup)
 		createWorker(c.nodeQueue, "ClusterNode", maxRetries, true, c.reconcileClusterNodeKey, stopCh, &waitGroup)
 		createWorker(c.machineQueue, "ClusterMachine", maxRetries, true, c.reconcileClusterMachineKey, stopCh, &waitGroup)
 		createWorker(c.nodeToMachineQueue, "ClusterNodeToMachine", maxRetries, true, c.reconcileClusterNodeToMachineKey, stopCh, &waitGroup)
 		createWorker(c.machineSetQueue, "ClusterMachineSet", maxRetries, true, c.reconcileClusterMachineSet, stopCh, &waitGroup)
 		createWorker(c.machineDeploymentQueue, "ClusterMachineDeployment", maxRetries, true, c.reconcileClusterMachineDeployment, stopCh, &waitGroup)
-		createWorker(c.machineSafetyQueue, "ClusterMachineSafety", maxRetries, true, c.reconcileClusterMachineSafety, stopCh, &waitGroup)
+		createWorker(c.machineSafetyOrphanVMsQueue, "ClusterMachineSafetyOrphanVMs", maxRetries, true, c.reconcileClusterMachineSafetyOrphanVMs, stopCh, &waitGroup)
+		createWorker(c.machineSafetyOvershootingQueue, "ClusterMachineSafetyOvershooting", maxRetries, true, c.reconcileClusterMachineSafetyOvershooting, stopCh, &waitGroup)
 	}
 
 	<-stopCh
