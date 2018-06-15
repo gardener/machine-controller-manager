@@ -313,7 +313,10 @@ func NewController(
 	controller.machineSafetyOvershootingQueue.Add("")
 
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		// addMachineToSafety makes sure machine objects does not overshoot
 		AddFunc: controller.addMachineToSafety,
+		// deleteMachineToSafety makes sure that orphan VM handler is invoked
+		DeleteFunc: controller.deleteMachineToSafety,
 	})
 
 	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{

@@ -394,6 +394,12 @@ func (c *controller) addMachineToSafety(obj interface{}) {
 	c.enqueueMachineSafetyOvershootingKey(machine)
 }
 
+// deleteMachineToSafety enqueues into machineSafetyQueue when a new machine is deleted
+func (c *controller) deleteMachineToSafety(obj interface{}) {
+	machine := obj.(*v1alpha1.Machine)
+	c.enqueueMachineSafetyOrphanVMsKey(machine)
+}
+
 // updateTimeStamp adds an annotation indicating the last time the number of replicas
 // of machineSet was changed
 func (c *controller) updateTimeStamp(ms *v1alpha1.MachineSet) {
@@ -422,6 +428,11 @@ func (c *controller) updateTimeStamp(ms *v1alpha1.MachineSet) {
 // enqueueMachineSafetyOvershootingKey enqueues into machineSafetyOvershootingQueue
 func (c *controller) enqueueMachineSafetyOvershootingKey(obj interface{}) {
 	c.machineSafetyOvershootingQueue.Add("")
+}
+
+// enqueueMachineSafetyOrphanVMsKey enqueues into machineSafetyOrphanVMsQueue
+func (c *controller) enqueueMachineSafetyOrphanVMsKey(obj interface{}) {
+	c.machineSafetyOrphanVMsQueue.Add("")
 }
 
 // deleteOrphanVM teriminates's the VM on the cloud provider passed to it
