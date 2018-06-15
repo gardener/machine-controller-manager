@@ -140,6 +140,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	// Get the latest version of the machine so that we can avoid conflicts
 	machine, err = c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
 	if err != nil {
+		glog.Errorf("Could not fetch machine object %s", err)
 		return err
 	}
 
@@ -372,6 +373,7 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 	for {
 		machine, err := c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
 		if err != nil {
+			glog.Errorf("Could not fetch machine object while setting up MachineId %s for Machine %s due to error %s", actualProviderID, machine.Name, err)
 			return err
 		}
 
@@ -387,6 +389,7 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 
 		_, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
 		if err == nil {
+			glog.V(2).Infof("MachinId %s was successfully set to Machine %s", actualProviderID, machine.Name)
 			break
 		}
 		glog.Warning("Updated failed, retrying, error: %q", err)
@@ -473,7 +476,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 
 		if err != nil {
 			// When machine deletion fails
-			glog.V(2).Infof("Deletion failed: %s", err)
+			glog.Errorf("Deletion failed: %s", err)
 
 			lastOperation := v1alpha1.LastOperation{
 				Description:    "Cloud provider message - " + err.Error(),
@@ -492,7 +495,12 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 		}
 
 		c.deleteMachineFinalizers(machine)
-		c.controlMachineClient.Machines(machine.Namespace).Delete(machine.Name, &metav1.DeleteOptions{})
+		err = c.controlMachineClient.Machines(machine.Namespace).Delete(machine.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			glog.Errorf("Deletion of Machine Object %s failed due to error: %s", machine.Name, err)
+			return err
+		}
+
 		glog.V(2).Infof("Machine %s deleted successfullly", machine.Name)
 	}
 	return nil
@@ -548,6 +556,7 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 			LastUpdateTime: metav1.Now(),
 		}
 		clone.Status.CurrentStatus = currentStatus
+		glog.Warningf("Machine %s is unhealthy - changing MachineState to Unknown", clone.Name)
 
 	} else if c.isHealthy(clone) && clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 		currentStatus := v1alpha1.CurrentStatus{
@@ -556,7 +565,7 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 			LastUpdateTime: metav1.Now(),
 		}
 		clone.Status.CurrentStatus = currentStatus
-
+		glog.V(2).Infof("Machine %s successfully (re)joined the cluster", clone.Name)
 	}
 
 	clone, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
@@ -671,9 +680,11 @@ func (c *controller) checkMachineTimeout(machine *v1alpha1.Machine) {
 					Type:           machine.Status.LastOperation.Type,
 					LastUpdateTime: metav1.Now(),
 				}
+				glog.Errorf("Machine %s failed to join the cluster in %s minutes.", machine.Name, timeOutDuration)
 				c.updateMachineStatus(machine, lastOperation, currentStatus)
 
 			} else {
+				glog.Errorf("Machine %s is not healthy since %s minutes. Changing status to failed. Node Conditions: %+v", machine.Name, timeOutDuration, machine.Status.Conditions)
 				c.updateMachineStatus(machine, machine.Status.LastOperation, currentStatus)
 
 			}
