@@ -268,10 +268,7 @@ func (dc *controller) enqueueMachineDeployment(deployment *v1alpha1.MachineDeplo
 		return
 	}
 
-	glog.V(4).Infof("Enqueuing %s", key)
-	glog.V(4).Infof("len: %d", dc.machineDeploymentQueue.Len())
 	dc.machineDeploymentQueue.Add(key)
-	glog.V(4).Infof("len: %d", dc.machineDeploymentQueue.Len())
 }
 
 func (dc *controller) enqueueRateLimited(deployment *v1alpha1.MachineDeployment) {

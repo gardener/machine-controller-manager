@@ -34,6 +34,8 @@ start:
 			--machine-drain-timeout=5 \
 			--machine-health-timeout=10 \
 			--machine-set-scale-timeout=20 \
+			--machine-safety-orphan-vms-period=30 \
+			--machine-safety-overshooting-period=1 \
 			--v=2
 
 #################################################################

@@ -61,11 +61,13 @@ func NewMCMServer() *MCMServer {
 			LeaderElection:          leaderelectionconfig.DefaultLeaderElectionConfiguration(),
 			ControllerStartInterval: metav1.Duration{Duration: 0 * time.Second},
 			SafetyOptions: machineconfig.SafetyOptions{
-				SafetyUp:               2,
-				SafetyDown:             1,
-				MachineHealthTimeout:   10,
-				MachineDrainTimeout:    5,
-				MachineSetScaleTimeout: 20,
+				SafetyUp:                        2,
+				SafetyDown:                      1,
+				MachineHealthTimeout:            10,
+				MachineDrainTimeout:             5,
+				MachineSetScaleTimeout:          20,
+				MachineSafetyOrphanVMsPeriod:    30,
+				MachineSafetyOvershootingPeriod: 1,
 			},
 		},
 	}
@@ -82,19 +84,21 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&s.MinResyncPeriod.Duration, "min-resync-period", s.MinResyncPeriod.Duration, "The resync period in reflectors will be random between MinResyncPeriod and 2*MinResyncPeriod")
 	fs.BoolVar(&s.EnableProfiling, "profiling", true, "Enable profiling via web interface host:port/debug/pprof/")
 	fs.BoolVar(&s.EnableContentionProfiling, "contention-profiling", false, "Enable lock contention profiling, if profiling is enabled")
-	fs.StringVar(&s.TargetKubeconfig, "target-kubeconfig", s.TargetKubeconfig, "Path to kubeconfig file of the target cluster for which machines are to be managed")
-	fs.StringVar(&s.ControlKubeconfig, "control-kubeconfig", s.ControlKubeconfig, "Path to kubeconfig file of the control cluster where the machine-controller-manager will run")
+	fs.StringVar(&s.TargetKubeconfig, "target-kubeconfig", s.TargetKubeconfig, "Filepath to the target cluster's kubeconfig where node objects are expected to join")
+	fs.StringVar(&s.ControlKubeconfig, "control-kubeconfig", s.ControlKubeconfig, "Filepath to the control cluster's kubeconfig where machine objects would be created. Optionally you could also use 'inClusterConfig' when pod is running inside control kubeconfig. (Default value is same as target-kubeconfig)")
 	fs.StringVar(&s.Namespace, "namespace", s.Namespace, "Name of the namespace in control cluster where controller would look for CRDs and Kubernetes objects")
 	fs.StringVar(&s.ContentType, "kube-api-content-type", s.ContentType, "Content type of requests sent to apiserver.")
 	fs.Float32Var(&s.KubeAPIQPS, "kube-api-qps", s.KubeAPIQPS, "QPS to use while talking with kubernetes apiserver")
 	fs.Int32Var(&s.KubeAPIBurst, "kube-api-burst", s.KubeAPIBurst, "Burst to use while talking with kubernetes apiserver")
 	fs.DurationVar(&s.ControllerStartInterval.Duration, "controller-start-interval", s.ControllerStartInterval.Duration, "Interval between starting controller managers.")
 
-	fs.Int32Var(&s.SafetyOptions.SafetyUp, "safety-up", s.SafetyOptions.SafetyUp, "The number of excess machine objects permitted for any machineSet/machineDeployment beyond its expected number of replicas based on desired and max-surge, we call this the upper-limit. When this upper-limit is reached, the objects are temporarily frozen until the number of objects reduce")
-	fs.Int32Var(&s.SafetyOptions.SafetyDown, "safety-down", s.SafetyOptions.SafetyDown, "Upper-limit minus safety-down value gives the lower-limit. This is the limits below which any temporarily frozen machineSet/machineDeployment object is unfrozen.")
-	fs.Int32Var(&s.SafetyOptions.MachineHealthTimeout, "machine-health-timeout", s.SafetyOptions.MachineHealthTimeout, "Timeout (in minutes) used while creation/failing of machine before it is declared as failed")
-	fs.Int32Var(&s.SafetyOptions.MachineDrainTimeout, "machine-drain-timeout", s.SafetyOptions.MachineDrainTimeout, "Timeout (in minutes) used while draining of machine before deletion, beyond which it forcefully deletes machine")
-	fs.Int32Var(&s.SafetyOptions.MachineSetScaleTimeout, "machine-set-scale-timeout", s.SafetyOptions.MachineSetScaleTimeout, "Timeout (in minutes) used while scaling machineSet if timeout occurs machineSet is permanently frozen")
+	fs.Int32Var(&s.SafetyOptions.SafetyUp, "safety-up", s.SafetyOptions.SafetyUp, "The number of excess machine objects permitted for any machineSet/machineDeployment beyond its expected number of replicas based on desired and max-surge, we call this the upper-limit. When this upper-limit is reached, the objects are temporarily frozen until the number of objects reduce. upper-limit = desired + maxSurge (if applicable) + safetyUp.")
+	fs.Int32Var(&s.SafetyOptions.SafetyDown, "safety-down", s.SafetyOptions.SafetyDown, "Upper-limit minus safety-down value gives the lower-limit. This is the limits below which any temporarily frozen machineSet/machineDeployment object is unfrozen. lower-limit = desired + maxSurge (if applicable) + safetyUp - safetyDown.")
+	fs.Int32Var(&s.SafetyOptions.MachineHealthTimeout, "machine-health-timeout", s.SafetyOptions.MachineHealthTimeout, "Timeout (in minutes) used while joining (during creation) or re-joining (in case of temporary health issues) of machine before it is declared as failed.")
+	fs.Int32Var(&s.SafetyOptions.MachineDrainTimeout, "machine-drain-timeout", s.SafetyOptions.MachineDrainTimeout, "Timeout (in minutes) used while draining of machine before deletion, beyond which MCM forcefully deletes machine.")
+	fs.Int32Var(&s.SafetyOptions.MachineSetScaleTimeout, "machine-set-scale-timeout", s.SafetyOptions.MachineSetScaleTimeout, "Timeout (in minutes) used while scaling machineSet if timeout occurs machineSet is frozen.")
+	fs.Int32Var(&s.SafetyOptions.MachineSafetyOrphanVMsPeriod, "machine-safety-orphan-vms-period", s.SafetyOptions.MachineSafetyOrphanVMsPeriod, "Time period (in minutes) used to poll for orphan VMs by safety controller.")
+	fs.Int32Var(&s.SafetyOptions.MachineSafetyOvershootingPeriod, "machine-safety-overshooting-period", s.SafetyOptions.MachineSafetyOvershootingPeriod, "Time period (in minutes) used to poll for overshooting of machine objects backing a machineSet by safety controller.")
 
 	leaderelectionconfig.BindFlags(&s.LeaderElection, fs)
 	// TODO: DefaultFeatureGate is global and it adds all k8s flags
