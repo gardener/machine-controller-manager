@@ -496,7 +496,8 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 
 		c.deleteMachineFinalizers(machine)
 		err = c.controlMachineClient.Machines(machine.Namespace).Delete(machine.Name, &metav1.DeleteOptions{})
-		if err != nil {
+		if err != nil && !apierrors.IsNotFound(err) {
+			// If its an error, and anyother error than object not found
 			glog.Errorf("Deletion of Machine Object %s failed due to error: %s", machine.Name, err)
 			return err
 		}
