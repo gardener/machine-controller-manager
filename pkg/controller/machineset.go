@@ -493,25 +493,27 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		return err
 	}
 
-	if machineSet.DeletionTimestamp != nil {
-		if finalizers := sets.NewString(machineSet.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
-			return nil
-		}
-		if len(filteredMachines) == 0 {
-			c.deleteMachineSetFinalizers(machineSet)
-			return nil
-		}
-		glog.V(4).Infof("Deleting all child machines as MachineSet %s has set deletionTimestamp", machineSet.Name)
-		c.terminateMachines(filteredMachines, machineSet)
-		return nil
-	}
-
 	machineSetNeedsSync := c.expectations.SatisfiedExpectations(key)
 	var manageReplicasErr error
-	if machineSetNeedsSync {
+
+	if machineSetNeedsSync && machineSet.DeletionTimestamp == nil {
+		// manageReplicas is the core machineSet method where scale up/down occurs
+		// It is not called when deletion timestamp is set
 		manageReplicasErr = c.manageReplicas(filteredMachines, machineSet)
+
+	} else if machineSet.DeletionTimestamp != nil {
+		// When machineSet if triggered for deletion
+
+		if len(filteredMachines) == 0 {
+			// If machines backing a machineSet are zero,
+			// remove the machineSetFinalizer
+			c.deleteMachineSetFinalizers(machineSet)
+		} else if finalizers := sets.NewString(machineSet.Finalizers...); finalizers.Has(DeleteFinalizerName) {
+			// Trigger deletion of machines backing the machineSet
+			glog.V(4).Infof("Deleting all child machines as MachineSet %s has set deletionTimestamp", machineSet.Name)
+			c.terminateMachines(filteredMachines, machineSet)
+		}
 	}
-	//glog.V(2).Infof("Print manageReplicasErr: %v ",manageReplicasErr) //Remove
 
 	machineSet = machineSet.DeepCopy()
 	newStatus := calculateMachineSetStatus(machineSet, filteredMachines, manageReplicasErr)
@@ -521,7 +523,9 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	if err != nil {
 		// Multiple things could lead to this update failing. Requeuing the machine set ensures
 		// Returning an error causes a requeue without forcing a hotloop
-		glog.V(2).Infof("update machine failed with: %v", err) //Remove
+		if !apierrors.IsNotFound(err) {
+			glog.Errorf("Update machineSet %s failed with: %s", machineSet.Name, err)
+		}
 		return err
 	}
 
