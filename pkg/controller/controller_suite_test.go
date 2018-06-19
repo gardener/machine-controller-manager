@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"time"
 
+	machine_internal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	fakeuntyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/fake"
 	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
@@ -29,6 +30,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
 
 	"testing"
 )
@@ -197,13 +200,15 @@ func newSecretReference(meta *metav1.ObjectMeta, index int) *corev1.SecretRefere
 	return r
 }
 
-func createController(stop <-chan struct{}, machineObjects []runtime.Object, coreObjects []runtime.Object) *controller {
-	fakeUntypedMachineClient := fakeuntyped.NewSimpleClientset(machineObjects...)
+func createController(stop <-chan struct{}, namespace string, machineObjects, coreObjects []runtime.Object) *controller {
+	fakeCoreClient := k8sfake.NewSimpleClientset(coreObjects...)
+
+	fakeMachineClient := fakeuntyped.NewSimpleClientset(machineObjects...)
 	fakeTypedMachineClient := &faketyped.FakeMachineV1alpha1{
-		Fake: &fakeUntypedMachineClient.Fake,
+		Fake: &fakeMachineClient.Fake,
 	}
 	//TODO controlCoreClient
-	controlMachineInformerFactory := machineinformers.NewSharedInformerFactory(fakeUntypedMachineClient, 100*time.Millisecond)
+	controlMachineInformerFactory := machineinformers.NewSharedInformerFactory(fakeMachineClient, 100*time.Millisecond)
 	defer controlMachineInformerFactory.Start(stop)
 
 	machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
@@ -215,12 +220,20 @@ func createController(stop <-chan struct{}, machineObjects []runtime.Object, cor
 	machineSets := machineSharedInformers.MachineSets()
 	machineDeployments := machineSharedInformers.MachineDeployments()
 
+	internalExternalScheme := runtime.NewScheme()
+	Expect(machine_internal.AddToScheme(internalExternalScheme)).To(Succeed())
+	Expect(v1alpha1.AddToScheme(internalExternalScheme)).To(Succeed())
+
 	return &controller{
+		namespace:                   namespace,
 		awsMachineClassLister:       aws.Lister(),
+		awsMachineClassSynced:       aws.Informer().HasSynced,
 		azureMachineClassLister:     azure.Lister(),
 		gcpMachineClassLister:       gcp.Lister(),
 		openStackMachineClassLister: openstack.Lister(),
+		controlCoreClient:           fakeCoreClient,
 		controlMachineClient:        fakeTypedMachineClient,
+		internalExternalScheme:      internalExternalScheme,
 		machineLister:               machines.Lister(),
 		machineSetLister:            machineSets.Lister(),
 		machineDeploymentLister:     machineDeployments.Lister(),
@@ -228,4 +241,14 @@ func createController(stop <-chan struct{}, machineObjects []runtime.Object, cor
 		machineSetSynced:            machineSets.Informer().HasSynced,
 		machineDeploymentSynced:     machineDeployments.Informer().HasSynced,
 	}
+}
+
+func waitForCacheSync(stop <-chan struct{}, controller *controller) {
+	Expect(cache.WaitForCacheSync(
+		stop,
+		controller.awsMachineClassSynced,
+		controller.machineSynced,
+		controller.machineSetSynced,
+		controller.machineDeploymentSynced,
+	)).To(BeTrue())
 }

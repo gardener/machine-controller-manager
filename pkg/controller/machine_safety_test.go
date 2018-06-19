@@ -23,7 +23,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/cache"
 )
 
 const namespace = "test"
@@ -41,7 +40,7 @@ var _ = Describe("machine", func() {
 			if machineSet != nil {
 				objects = append(objects, machineSet)
 			}
-			c := createController(stop, objects, nil)
+			c := createController(stop, namespace, objects, nil)
 			machineSets, err := c.controlMachineClient.MachineSets(machineSet.Namespace).List(metav1.ListOptions{})
 			Expect(err).To(BeNil())
 			Expect(machineSets).To(Not(BeNil()))
@@ -70,8 +69,8 @@ var _ = Describe("machine", func() {
 			if machineSet != nil {
 				objects = append(objects, machineSet)
 			}
-			c := createController(stop, objects, nil)
-			Expect(cache.WaitForCacheSync(stop, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced)).To(BeTrue())
+			c := createController(stop, namespace, objects, nil)
+			waitForCacheSync(stop, c)
 			machineSets, err := c.machineSetLister.List(labels.Everything())
 			Expect(err).To(BeNil())
 			Expect(len(machineSets)).To(Equal(len(objects)))

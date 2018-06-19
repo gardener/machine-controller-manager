@@ -31,7 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/cache"
 )
 
 const machinenamespace = "test"
@@ -215,7 +214,7 @@ var _ = Describe("machine", func() {
 				defer close(stop)
 
 				objects := []runtime.Object{}
-				c := createController(stop, objects, nil)
+				c := createController(stop, namespace, objects, nil)
 
 				testMachine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
@@ -252,7 +251,7 @@ var _ = Describe("machine", func() {
 				objects := []runtime.Object{}
 				objects = append(objects, testMachine)
 
-				c := createController(stop, objects, nil)
+				c := createController(stop, namespace, objects, nil)
 
 				var updatedMachine, err = c.updateMachineConditions(testMachine, conditions)
 				Expect(updatedMachine.Status.Conditions).Should(BeEquivalentTo(conditions))
@@ -319,20 +318,29 @@ var _ = Describe("machine", func() {
 			action *machinev1.ClassSpec
 			expect expect
 		}
-		DescribeTable("##unhappy path",
+
+		objMeta := &metav1.ObjectMeta{
+			GenerateName: "class",
+			Namespace:    namespace,
+		}
+
+		DescribeTable("##table",
 			func(data *data) {
 				stop := make(chan struct{})
 				defer close(stop)
 
-				objects := []runtime.Object{}
-				for _, o := range data.setup.secrets {
-					objects = append(objects, o)
-				}
+				machineObjects := []runtime.Object{}
 				for _, o := range data.setup.aws {
-					objects = append(objects, o)
+					machineObjects = append(machineObjects, o)
 				}
 
-				controller := createController(stop, objects, nil)
+				coreObjects := []runtime.Object{}
+				for _, o := range data.setup.secrets {
+					coreObjects = append(coreObjects, o)
+				}
+
+				controller := createController(stop, objMeta.Namespace, machineObjects, coreObjects)
+				waitForCacheSync(stop, controller)
 				machineClass, secret, err := controller.validateMachineClass(data.action)
 
 				if data.expect.machineClass == nil {
@@ -351,14 +359,11 @@ var _ = Describe("machine", func() {
 					Expect(err).To(HaveOccurred())
 				}
 			},
-			Entry("non-existing", &data{
+			Entry("non-existing machine class", &data{
 				setup: setup{
 					aws: []*machinev1.AWSMachineClass{
 						&machinev1.AWSMachineClass{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "existing",
-								Namespace: "test",
-							},
+							ObjectMeta: *newObjectMeta(objMeta, 0),
 						},
 					},
 				},
@@ -368,6 +373,60 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err: true,
+				},
+			}),
+			Entry("non-existing secret", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						&corev1.Secret{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						&machinev1.AWSMachineClass{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+				},
+				action: &machinev1.ClassSpec{
+					Kind: "AWSMachineClass",
+					Name: "class-0",
+				},
+				expect: expect{
+					err: true,
+				},
+			}),
+			FEntry("valid", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						&corev1.Secret{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						&machinev1.AWSMachineClass{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+				},
+				action: &machinev1.ClassSpec{
+					Kind: "AWSMachineClass",
+					Name: "class-0",
+				},
+				expect: expect{
+					machineClass: &machinev1.AWSMachineClass{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.AWSMachineClassSpec{
+							SecretRef: newSecretReference(objMeta, 0),
+						},
+					},
+					err: false,
 				},
 			}),
 		)
@@ -403,21 +462,21 @@ var _ = Describe("machine", func() {
 				stop := make(chan struct{})
 				defer close(stop)
 
-				objects := []runtime.Object{}
-				/*
-					for _, o := range data.setup.secrets {
-						objects = append(objects, o)
-					}
-				*/
+				machineObjects := []runtime.Object{}
 				for _, o := range data.setup.aws {
-					objects = append(objects, o)
+					machineObjects = append(machineObjects, o)
 				}
 				for _, o := range data.setup.machines {
-					objects = append(objects, o)
+					machineObjects = append(machineObjects, o)
 				}
 
-				controller := createController(stop, objects, nil)
-				Expect(cache.WaitForCacheSync(stop, controller.machineSynced)).To(BeTrue())
+				coreObjects := []runtime.Object{}
+				for _, o := range data.setup.secrets {
+					coreObjects = append(coreObjects, o)
+				}
+
+				controller := createController(stop, objMeta.Namespace, machineObjects, coreObjects)
+				waitForCacheSync(stop, controller)
 
 				action := data.action
 				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
