@@ -379,7 +379,7 @@ var _ = Describe("machine", func() {
 					err: true,
 				},
 			}),
-			FEntry("non-existing secret", &data{
+			Entry("non-existing secret", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
 						&corev1.Secret{
