@@ -505,7 +505,7 @@ func (w *watcher) dispatchInitialObjects(action k8stesting.WatchAction, t k8stes
 	return nil
 }
 
-var _ = Describe("#createControllerWithWatchSupport", func() {
+var _ = Describe("#createController", func() {
 	objMeta := &metav1.ObjectMeta{
 		GenerateName: "machine",
 		Namespace:    "test",
