@@ -18,15 +18,18 @@ package controller
 import (
 	"errors"
 
+	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	fakeuntyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/fake"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 	fakemachineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
+	"github.com/gardener/machine-controller-manager/pkg/driver"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	k8stesting "k8s.io/client-go/testing"
 )
 
@@ -207,18 +210,12 @@ var _ = Describe("machine", func() {
 	Describe("##updateMachineConditions", func() {
 		Describe("Update conditions of a non-existing machine", func() {
 			It("should return error", func() {
-				createController := func(objects ...runtime.Object) *controller {
-					fakeUntypedClient := fakeuntyped.NewSimpleClientset(objects...)
-					fakeTypedClient := &fakemachineapi.FakeMachineV1alpha1{
-						&fakeUntypedClient.Fake,
-					}
+				stop := make(chan struct{})
+				defer close(stop)
 
-					return &controller{
-						controlMachineClient: fakeTypedClient,
-					}
-				}
 				objects := []runtime.Object{}
-				c := createController(objects...)
+				c, w := createController(stop, namespace, objects, nil)
+				defer w.Stop()
 
 				testMachine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
@@ -238,16 +235,8 @@ var _ = Describe("machine", func() {
 		})
 		DescribeTable("Update conditions of an existing machine",
 			func(phase machinev1.MachinePhase, conditions []corev1.NodeCondition, expectedPhase machinev1.MachinePhase) {
-				createController := func(objects ...runtime.Object) *controller {
-					fakeUntypedClient := fakeuntyped.NewSimpleClientset(objects...)
-					fakeTypedClient := &fakemachineapi.FakeMachineV1alpha1{
-						&fakeUntypedClient.Fake,
-					}
-
-					return &controller{
-						controlMachineClient: fakeTypedClient,
-					}
-				}
+				stop := make(chan struct{})
+				defer close(stop)
 
 				testMachine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
@@ -263,7 +252,8 @@ var _ = Describe("machine", func() {
 				objects := []runtime.Object{}
 				objects = append(objects, testMachine)
 
-				c := createController(objects...)
+				c, w := createController(stop, namespace, objects, nil)
+				defer w.Stop()
 
 				var updatedMachine, err = c.updateMachineConditions(testMachine, conditions)
 				Expect(updatedMachine.Status.Conditions).Should(BeEquivalentTo(conditions))
@@ -288,6 +278,288 @@ var _ = Describe("machine", func() {
 					Status: corev1.ConditionTrue,
 				},
 			}, machinev1.MachineRunning),
+		)
+	})
+
+	Describe("#ValidateMachine", func() {
+		type data struct {
+			action machineapi.Machine
+			expect field.ErrorList
+		}
+		DescribeTable("#happy path",
+			func(data *data) {
+				errList := validation.ValidateMachine(&data.action)
+				Expect(errList).To(Equal(data.expect))
+			},
+			Entry("aws", &data{
+				action: machineapi.Machine{
+					Spec: machineapi.MachineSpec{
+						Class: machineapi.ClassSpec{
+							Kind: "AWSMachineClass",
+							Name: "aws",
+						},
+					},
+				},
+				expect: field.ErrorList{},
+			}),
+		)
+	})
+
+	Describe("#validateMachineClass", func() {
+		type setup struct {
+			aws     []*machinev1.AWSMachineClass
+			secrets []*corev1.Secret
+		}
+		type expect struct {
+			machineClass interface{}
+			secret       *corev1.Secret
+			err          bool
+		}
+		type data struct {
+			setup  setup
+			action *machinev1.ClassSpec
+			expect expect
+		}
+
+		objMeta := &metav1.ObjectMeta{
+			GenerateName: "class",
+			Namespace:    namespace,
+		}
+
+		DescribeTable("##table",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				machineObjects := []runtime.Object{}
+				for _, o := range data.setup.aws {
+					machineObjects = append(machineObjects, o)
+				}
+
+				coreObjects := []runtime.Object{}
+				for _, o := range data.setup.secrets {
+					coreObjects = append(coreObjects, o)
+				}
+
+				controller, w := createController(stop, objMeta.Namespace, machineObjects, coreObjects)
+				defer w.Stop()
+
+				waitForCacheSync(stop, controller)
+				machineClass, secret, err := controller.validateMachineClass(data.action)
+
+				if data.expect.machineClass == nil {
+					Expect(machineClass).To(BeNil())
+				} else {
+					Expect(machineClass).To(Equal(data.expect.machineClass))
+				}
+				if data.expect.secret == nil {
+					Expect(secret).To(BeNil())
+				} else {
+					Expect(secret).To(Equal(data.expect.secret))
+				}
+				if !data.expect.err {
+					Expect(err).To(BeNil())
+				} else {
+					Expect(err).To(HaveOccurred())
+				}
+			},
+			Entry("non-existing machine class", &data{
+				setup: setup{
+					aws: []*machinev1.AWSMachineClass{
+						&machinev1.AWSMachineClass{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+				},
+				action: &machinev1.ClassSpec{
+					Kind: "AWSMachineClass",
+					Name: "non-existing",
+				},
+				expect: expect{
+					err: true,
+				},
+			}),
+			Entry("non-existing secret", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						&corev1.Secret{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						&machinev1.AWSMachineClass{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+				},
+				action: &machinev1.ClassSpec{
+					Kind: "AWSMachineClass",
+					Name: "class-0",
+				},
+				expect: expect{
+					machineClass: &machinev1.AWSMachineClass{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.AWSMachineClassSpec{
+							SecretRef: newSecretReference(objMeta, 0),
+						},
+					},
+					err: false, //TODO Why? Create issue
+				},
+			}),
+			Entry("valid", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						&corev1.Secret{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						&machinev1.AWSMachineClass{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+				},
+				action: &machinev1.ClassSpec{
+					Kind: "AWSMachineClass",
+					Name: "class-0",
+				},
+				expect: expect{
+					machineClass: &machinev1.AWSMachineClass{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.AWSMachineClassSpec{
+							SecretRef: newSecretReference(objMeta, 0),
+						},
+					},
+					err: false,
+				},
+			}),
+		)
+	})
+
+	Describe("#machineCreate", func() {
+		type setup struct {
+			secrets  []*corev1.Secret
+			aws      []*machinev1.AWSMachineClass
+			machines []*machinev1.Machine
+		}
+		type action struct {
+			machine        string
+			fakeProviderID string
+			fakeNodeName   string
+			fakeError      error
+		}
+		type expect struct {
+			machine *machinev1.Machine
+			err     bool
+		}
+		type data struct {
+			setup  setup
+			action action
+			expect expect
+		}
+		objMeta := &metav1.ObjectMeta{
+			GenerateName: "machine",
+			Namespace:    "test",
+		}
+		DescribeTable("##happy path",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				machineObjects := []runtime.Object{}
+				for _, o := range data.setup.aws {
+					machineObjects = append(machineObjects, o)
+				}
+				for _, o := range data.setup.machines {
+					machineObjects = append(machineObjects, o)
+				}
+
+				coreObjects := []runtime.Object{}
+				for _, o := range data.setup.secrets {
+					coreObjects = append(coreObjects, o)
+				}
+
+				controller, w := createController(stop, objMeta.Namespace, machineObjects, coreObjects)
+				defer w.Stop()
+
+				waitForCacheSync(stop, controller)
+
+				action := data.action
+				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+
+				err = controller.machineCreate(machine, driver.NewFakeDriver(
+					func() (string, string, error) {
+						return action.fakeProviderID, action.fakeNodeName, action.fakeError
+					},
+					nil, nil))
+
+				if data.expect.err {
+					Expect(err).To(HaveOccurred())
+					return
+				}
+
+				Expect(err).To(BeNil())
+				actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+				Expect(err).To(BeNil())
+				Expect(actual.Spec).To(Equal(data.expect.machine.Spec))
+				Expect(actual.Status.Node).To(Equal(data.expect.machine.Status.Node))
+				//TODO Conditions
+			},
+			Entry("simple", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						&corev1.Secret{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						&machinev1.AWSMachineClass{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil),
+				},
+				action: action{
+					machine:        "machine-0",
+					fakeProviderID: "fakeID-0",
+					fakeNodeName:   "fakeNode-0",
+					fakeError:      nil,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+							ProviderID: "fakeID",
+						},
+					}, &machinev1.MachineStatus{
+						Node: "fakeNode",
+						//TODO conditions
+					}, nil),
+					err: false,
+				},
+			}),
 		)
 	})
 })
