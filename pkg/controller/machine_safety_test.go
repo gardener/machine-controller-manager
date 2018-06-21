@@ -40,7 +40,9 @@ var _ = Describe("machine", func() {
 			if machineSet != nil {
 				objects = append(objects, machineSet)
 			}
-			c := createController(stop, namespace, objects, nil)
+			c, w := createController(stop, namespace, objects, nil)
+			defer w.Stop()
+
 			machineSets, err := c.controlMachineClient.MachineSets(machineSet.Namespace).List(metav1.ListOptions{})
 			Expect(err).To(BeNil())
 			Expect(machineSets).To(Not(BeNil()))
@@ -69,7 +71,9 @@ var _ = Describe("machine", func() {
 			if machineSet != nil {
 				objects = append(objects, machineSet)
 			}
-			c := createController(stop, namespace, objects, nil)
+			c, w := createController(stop, namespace, objects, nil)
+			defer w.Stop()
+
 			waitForCacheSync(stop, c)
 			machineSets, err := c.machineSetLister.List(labels.Everything())
 			Expect(err).To(BeNil())

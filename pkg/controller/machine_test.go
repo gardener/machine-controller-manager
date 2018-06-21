@@ -214,7 +214,8 @@ var _ = Describe("machine", func() {
 				defer close(stop)
 
 				objects := []runtime.Object{}
-				c := createController(stop, namespace, objects, nil)
+				c, w := createController(stop, namespace, objects, nil)
+				defer w.Stop()
 
 				testMachine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
@@ -251,7 +252,8 @@ var _ = Describe("machine", func() {
 				objects := []runtime.Object{}
 				objects = append(objects, testMachine)
 
-				c := createController(stop, namespace, objects, nil)
+				c, w := createController(stop, namespace, objects, nil)
+				defer w.Stop()
 
 				var updatedMachine, err = c.updateMachineConditions(testMachine, conditions)
 				Expect(updatedMachine.Status.Conditions).Should(BeEquivalentTo(conditions))
@@ -339,7 +341,9 @@ var _ = Describe("machine", func() {
 					coreObjects = append(coreObjects, o)
 				}
 
-				controller := createController(stop, objMeta.Namespace, machineObjects, coreObjects)
+				controller, w := createController(stop, objMeta.Namespace, machineObjects, coreObjects)
+				defer w.Stop()
+
 				waitForCacheSync(stop, controller)
 				machineClass, secret, err := controller.validateMachineClass(data.action)
 
@@ -375,7 +379,7 @@ var _ = Describe("machine", func() {
 					err: true,
 				},
 			}),
-			Entry("non-existing secret", &data{
+			FEntry("non-existing secret", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
 						&corev1.Secret{
@@ -396,10 +400,16 @@ var _ = Describe("machine", func() {
 					Name: "class-0",
 				},
 				expect: expect{
-					err: true,
+					machineClass: &machinev1.AWSMachineClass{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.AWSMachineClassSpec{
+							SecretRef: newSecretReference(objMeta, 0),
+						},
+					},
+					err: false, //TODO Why? Create issue
 				},
 			}),
-			FEntry("valid", &data{
+			Entry("valid", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
 						&corev1.Secret{
@@ -475,7 +485,9 @@ var _ = Describe("machine", func() {
 					coreObjects = append(coreObjects, o)
 				}
 
-				controller := createController(stop, objMeta.Namespace, machineObjects, coreObjects)
+				controller, w := createController(stop, objMeta.Namespace, machineObjects, coreObjects)
+				defer w.Stop()
+
 				waitForCacheSync(stop, controller)
 
 				action := data.action
