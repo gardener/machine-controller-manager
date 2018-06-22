@@ -17,6 +17,8 @@ package controller
 
 import (
 	"errors"
+	"fmt"
+	"time"
 
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -562,4 +564,221 @@ var _ = Describe("machine", func() {
 			}),
 		)
 	})
+
+	Describe("#checkMachineTimeout", func() {
+		type setup struct {
+			machines []*machinev1.Machine
+		}
+		type action struct {
+			machine string
+		}
+		type expect struct {
+			machine *machinev1.Machine
+			err     bool
+		}
+		type data struct {
+			setup  setup
+			action action
+			expect expect
+		}
+		objMeta := &metav1.ObjectMeta{
+			GenerateName: "machine",
+			Namespace:    "test",
+		}
+
+		machineName := "machine-0"
+		timeOutOccurred := -11 * time.Minute
+		timeOutNotOccurred := -5 * time.Minute
+		timeOut := 10 * time.Minute
+
+		DescribeTable("##Machine Timeout Scenarios",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				machineObjects := []runtime.Object{}
+				for _, o := range data.setup.machines {
+					machineObjects = append(machineObjects, o)
+				}
+
+				coreObjects := []runtime.Object{}
+
+				controller, watch := createController(stop, objMeta.Namespace, machineObjects, coreObjects)
+				defer watch.Stop()
+				waitForCacheSync(stop, controller)
+
+				action := data.action
+				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				//Expect(err).ToNot(HaveOccurred())
+
+				controller.checkMachineTimeout(machine)
+
+				actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+				Expect(err).To(BeNil())
+				Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
+				Expect(actual.Status.CurrentStatus.TimeoutActive).To(Equal(data.expect.machine.Status.CurrentStatus.TimeoutActive))
+				Expect(actual.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
+				Expect(actual.Status.LastOperation.State).To(Equal(data.expect.machine.Status.LastOperation.State))
+				Expect(actual.Status.LastOperation.Type).To(Equal(data.expect.machine.Status.LastOperation.Type))
+			},
+			Entry("Machine is still running", &data{
+				setup: setup{
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase:          machinev1.MachineRunning,
+							TimeoutActive:  false,
+							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
+						},
+						LastOperation: machinev1.LastOperation{
+							Description:    "Creating machine on cloud provider",
+							State:          machinev1.MachineStateSuccessful,
+							Type:           machinev1.MachineLastOperationCreate,
+							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
+						},
+					}, nil),
+				},
+				action: action{
+					machine: machineName,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase:         machinev1.MachineRunning,
+							TimeoutActive: false,
+						},
+						LastOperation: machinev1.LastOperation{
+							Description: "Creating machine on cloud provider",
+							State:       machinev1.MachineStateSuccessful,
+							Type:        machinev1.MachineLastOperationCreate,
+						},
+					}, nil),
+				},
+			}),
+			Entry("Machine creation has still not timed out", &data{
+				setup: setup{
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase:          machinev1.MachineUnknown,
+							TimeoutActive:  true,
+							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
+						},
+						LastOperation: machinev1.LastOperation{
+							Description:    fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown", machineName),
+							State:          machinev1.MachineStateProcessing,
+							Type:           machinev1.MachineLastOperationCreate,
+							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
+						},
+					}, nil),
+				},
+				action: action{
+					machine: machineName,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase:         machinev1.MachineUnknown,
+							TimeoutActive: true,
+						},
+						LastOperation: machinev1.LastOperation{
+							Description: fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown", machineName),
+							State:       machinev1.MachineStateProcessing,
+							Type:        machinev1.MachineLastOperationCreate,
+						},
+					}, nil),
+				},
+			}),
+			Entry("Machine creation has timed out", &data{
+				setup: setup{
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase:          machinev1.MachinePending,
+							TimeoutActive:  true,
+							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
+						},
+						LastOperation: machinev1.LastOperation{
+							Description:    "Creating machine on cloud provider",
+							State:          machinev1.MachineStateProcessing,
+							Type:           machinev1.MachineLastOperationCreate,
+							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
+						},
+					}, nil),
+				},
+				action: action{
+					machine: machineName,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase:         machinev1.MachineFailed,
+							TimeoutActive: false,
+						},
+						LastOperation: machinev1.LastOperation{
+							Description: fmt.Sprintf(
+								"Machine %s failed to join the cluster in %s minutes.",
+								machineName,
+								timeOut,
+							),
+							State: machinev1.MachineStateFailed,
+							Type:  machinev1.MachineLastOperationCreate,
+						},
+					}, nil),
+				},
+			}),
+			Entry("Machine health has timed out", &data{
+				setup: setup{
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase:          machinev1.MachineUnknown,
+							TimeoutActive:  true,
+							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
+						},
+						LastOperation: machinev1.LastOperation{
+							Description:    fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown", machineName),
+							State:          machinev1.MachineStateProcessing,
+							Type:           machinev1.MachineLastOperationHealthCheck,
+							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
+						},
+					}, nil),
+				},
+				action: action{
+					machine: machineName,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase:         machinev1.MachineFailed,
+							TimeoutActive: false,
+						},
+						LastOperation: machinev1.LastOperation{
+							Description: fmt.Sprintf(
+								"Machine %s is not healthy since %s minutes. Changing status to failed. Node Conditions: %+v",
+								machineName,
+								timeOut,
+								[]corev1.NodeCondition{},
+							),
+							State: machinev1.MachineStateFailed,
+							Type:  machinev1.MachineLastOperationHealthCheck,
+						},
+					}, nil),
+				},
+			}),
+		)
+	})
+
 })

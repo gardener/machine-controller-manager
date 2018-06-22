@@ -27,6 +27,7 @@ import (
 	fakeuntyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/fake"
 	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
+	"github.com/gardener/machine-controller-manager/pkg/options"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +42,7 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 
 	"testing"
 )
@@ -249,22 +251,45 @@ func createController(stop <-chan struct{}, namespace string, machineObjects, co
 	Expect(machine_internal.AddToScheme(internalExternalScheme)).To(Succeed())
 	Expect(v1alpha1.AddToScheme(internalExternalScheme)).To(Succeed())
 
+	safetyOptions := options.SafetyOptions{
+		SafetyUp:                        2,
+		SafetyDown:                      1,
+		MachineDrainTimeout:             5,
+		MachineHealthTimeout:            10,
+		MachineSetScaleTimeout:          2,
+		MachineSafetyOrphanVMsPeriod:    30,
+		MachineSafetyOvershootingPeriod: 1,
+	}
+
 	return &controller{
-		namespace:                   namespace,
-		awsMachineClassLister:       aws.Lister(),
-		awsMachineClassSynced:       aws.Informer().HasSynced,
-		azureMachineClassLister:     azure.Lister(),
-		gcpMachineClassLister:       gcp.Lister(),
-		openStackMachineClassLister: openstack.Lister(),
-		controlCoreClient:           fakeCoreClient,
-		controlMachineClient:        fakeTypedMachineClient,
-		internalExternalScheme:      internalExternalScheme,
-		machineLister:               machines.Lister(),
-		machineSetLister:            machineSets.Lister(),
-		machineDeploymentLister:     machineDeployments.Lister(),
-		machineSynced:               machines.Informer().HasSynced,
-		machineSetSynced:            machineSets.Informer().HasSynced,
-		machineDeploymentSynced:     machineDeployments.Informer().HasSynced,
+		namespace:                      namespace,
+		safetyOptions:                  safetyOptions,
+		awsMachineClassLister:          aws.Lister(),
+		awsMachineClassSynced:          aws.Informer().HasSynced,
+		azureMachineClassLister:        azure.Lister(),
+		gcpMachineClassLister:          gcp.Lister(),
+		openStackMachineClassLister:    openstack.Lister(),
+		controlCoreClient:              fakeCoreClient,
+		controlMachineClient:           fakeTypedMachineClient,
+		internalExternalScheme:         internalExternalScheme,
+		machineLister:                  machines.Lister(),
+		machineSetLister:               machineSets.Lister(),
+		machineDeploymentLister:        machineDeployments.Lister(),
+		machineSynced:                  machines.Informer().HasSynced,
+		machineSetSynced:               machineSets.Informer().HasSynced,
+		machineDeploymentSynced:        machineDeployments.Informer().HasSynced,
+		secretQueue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
+		nodeQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
+		nodeToMachineQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "nodeToMachine"),
+		openStackMachineClassQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "openstackmachineclass"),
+		awsMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
+		azureMachineClassQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
+		gcpMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "gcpmachineclass"),
+		machineQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
+		machineSetQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
+		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
+		machineSafetyOrphanVMsQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
+		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
 	}, w
 }
 
