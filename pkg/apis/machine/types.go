@@ -171,7 +171,7 @@ type LastOperation struct {
 	State MachineState
 
 	// Type of operation
-	Type string
+	Type MachineLastOperationType
 }
 
 // MachinePhase is a label for the condition of a machines at the current time.
@@ -211,6 +211,24 @@ const (
 
 	// MachineStateSuccessful indicates that the node is not ready at the moment
 	MachineStateSuccessful MachineState = "Successful"
+)
+
+// MachineLastOperationType is a label for the last operation performed on a machine object.
+type MachineLastOperationType string
+
+// These are the valid statuses of machines.
+const (
+	// MachineLastOperationCreate indicates that the last operation was a create
+	MachineLastOperationCreate MachineLastOperationType = "Create"
+
+	// MachineLastOperationUpdate indicates that the last operation was an update
+	MachineLastOperationUpdate MachineLastOperationType = "Update"
+
+	// MachineLastOperationHealthCheck indicates that the last operation was a create
+	MachineLastOperationHealthCheck MachineLastOperationType = "HealthCheck"
+
+	// MachineLastOperationDelete indicates that the last operation was a create
+	MachineLastOperationDelete MachineLastOperationType = "Delete"
 )
 
 // The below types are used by kube_client and api_server.
@@ -335,6 +353,25 @@ type MachineSetStatus struct {
 
 	// ObservedGeneration
 	ObservedGeneration int64
+
+	// FailedMachines has summary of machines on which lastOperation Failed
+	FailedMachines *[]MachineSummary
+}
+
+//MachineSummary store the summary of machine.
+type MachineSummary struct {
+	// +optional
+	Name string
+
+	// ProviderID represents the provider's unique ID given to a machine
+	// +optional
+	ProviderID string
+
+	// Last operation refers to the status of the last operation performed
+	LastOperation LastOperation
+
+	// OwnerRef
+	OwnerRef string
 }
 
 /********************** MachineDeployment APIs ***************/
@@ -535,6 +572,10 @@ type MachineDeploymentStatus struct {
 	// newest MachineSet.
 	// +optional
 	CollisionCount *int32
+
+	// FailedMachines has summary of machines on which lastOperation Failed
+	// +optional
+	FailedMachines []*MachineSummary
 }
 
 type MachineDeploymentConditionType string
