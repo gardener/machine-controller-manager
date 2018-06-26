@@ -1287,7 +1287,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.LastOperation": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "LastOperation",
+					Description: "LastOperation suggests the last operation performed on the object",
 					Properties: map[string]spec.Schema{
 						"description": {
 							SchemaProps: spec.SchemaProps{
@@ -1952,7 +1952,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSetStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "MachineSetStatus TODO",
+					Description: "MachineSetStatus represents the status of a machineSet object",
 					Properties: map[string]spec.Schema{
 						"lastOperation": {
 							SchemaProps: spec.SchemaProps{
@@ -2040,8 +2040,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 					Properties: map[string]spec.Schema{
 						"name": {
 							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
+								Description: "Name of the machine object",
+								Type:        []string{"string"},
+								Format:      "",
 							},
 						},
 						"providerID": {

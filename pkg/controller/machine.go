@@ -271,7 +271,7 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 		lastOperation := v1alpha1.LastOperation{
 			Description:    "Cloud provider message - " + err.Error(),
 			State:          v1alpha1.MachineStateFailed,
-			Type:           v1alpha1.MachineLastOperationCreate,
+			Type:           v1alpha1.MachineOperationCreate,
 			LastUpdateTime: metav1.Now(),
 		}
 		currentStatus := v1alpha1.CurrentStatus{
@@ -294,7 +294,7 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 		lastOperation := v1alpha1.LastOperation{
 			Description:    "Creating machine on cloud provider",
 			State:          v1alpha1.MachineStateProcessing,
-			Type:           v1alpha1.MachineLastOperationCreate,
+			Type:           v1alpha1.MachineOperationCreate,
 			LastUpdateTime: metav1.Now(),
 		}
 		currentStatus := v1alpha1.CurrentStatus{
@@ -346,7 +346,7 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 		lastOperation := v1alpha1.LastOperation{
 			Description:    "Updated provider ID",
 			State:          v1alpha1.MachineStateSuccessful,
-			Type:           v1alpha1.MachineLastOperationUpdate,
+			Type:           v1alpha1.MachineOperationUpdate,
 			LastUpdateTime: metav1.Now(),
 		}
 		clone.Status.LastOperation = lastOperation
@@ -375,7 +375,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			lastOperation := v1alpha1.LastOperation{
 				Description:    "Deleting machine from cloud provider",
 				State:          v1alpha1.MachineStateProcessing,
-				Type:           v1alpha1.MachineLastOperationDelete,
+				Type:           v1alpha1.MachineOperationDelete,
 				LastUpdateTime: metav1.Now(),
 			}
 			currentStatus := v1alpha1.CurrentStatus{
@@ -424,7 +424,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 					lastOperation := v1alpha1.LastOperation{
 						Description:    "Drain failed - " + err.Error(),
 						State:          v1alpha1.MachineStateFailed,
-						Type:           v1alpha1.MachineLastOperationDelete,
+						Type:           v1alpha1.MachineOperationDelete,
 						LastUpdateTime: metav1.Now(),
 					}
 					c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
@@ -445,7 +445,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			lastOperation := v1alpha1.LastOperation{
 				Description:    "Cloud provider message - " + err.Error(),
 				State:          v1alpha1.MachineStateFailed,
-				Type:           v1alpha1.MachineLastOperationDelete,
+				Type:           v1alpha1.MachineOperationDelete,
 				LastUpdateTime: metav1.Now(),
 			}
 			currentStatus := v1alpha1.CurrentStatus{
@@ -504,7 +504,7 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 
 	var (
 		msg               string
-		lastOperationType v1alpha1.MachineLastOperationType
+		lastOperationType v1alpha1.MachineOperationType
 		lastOperation     v1alpha1.LastOperation
 	)
 
@@ -536,7 +536,7 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 		lastOperation = v1alpha1.LastOperation{
 			Description:    msg,
 			State:          v1alpha1.MachineStateProcessing,
-			Type:           v1alpha1.MachineLastOperationHealthCheck,
+			Type:           v1alpha1.MachineOperationHealthCheck,
 			LastUpdateTime: metav1.Now(),
 		}
 		clone.Status.CurrentStatus = currentStatus
@@ -546,15 +546,15 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 		// If machine is healhy and current machinePhase is not running.
 		// indicates that the machine is not healthy and status needs to be updated.
 
-		if clone.Status.LastOperation.Type == v1alpha1.MachineLastOperationCreate &&
+		if clone.Status.LastOperation.Type == v1alpha1.MachineOperationCreate &&
 			clone.Status.LastOperation.State != v1alpha1.MachineStateSuccessful {
 			// When machine creation went through
 			msg = fmt.Sprintf("Machine %s successfully joined the cluster", clone.Name)
-			lastOperationType = v1alpha1.MachineLastOperationCreate
+			lastOperationType = v1alpha1.MachineOperationCreate
 		} else {
 			// Machine rejoined the cluster after a healthcheck
 			msg = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
-			lastOperationType = v1alpha1.MachineLastOperationHealthCheck
+			lastOperationType = v1alpha1.MachineOperationHealthCheck
 		}
 
 		// Machine is ready and has joined/re-joined the cluster

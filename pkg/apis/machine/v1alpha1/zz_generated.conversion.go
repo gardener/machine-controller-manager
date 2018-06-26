@@ -1104,7 +1104,7 @@ func autoConvert_v1alpha1_LastOperation_To_machine_LastOperation(in *LastOperati
 	out.Description = in.Description
 	out.LastUpdateTime = in.LastUpdateTime
 	out.State = machine.MachineState(in.State)
-	out.Type = machine.MachineLastOperationType(in.Type)
+	out.Type = machine.MachineOperationType(in.Type)
 	return nil
 }
 
@@ -1117,7 +1117,7 @@ func autoConvert_machine_LastOperation_To_v1alpha1_LastOperation(in *machine.Las
 	out.Description = in.Description
 	out.LastUpdateTime = in.LastUpdateTime
 	out.State = MachineState(in.State)
-	out.Type = MachineLastOperationType(in.Type)
+	out.Type = MachineOperationType(in.Type)
 	return nil
 }
 
@@ -1513,15 +1513,15 @@ func Convert_machine_MachineSetSpec_To_v1alpha1_MachineSetSpec(in *machine.Machi
 }
 
 func autoConvert_v1alpha1_MachineSetStatus_To_machine_MachineSetStatus(in *MachineSetStatus, out *machine.MachineSetStatus, s conversion.Scope) error {
-	if err := Convert_v1alpha1_LastOperation_To_machine_LastOperation(&in.LastOperation, &out.LastOperation, s); err != nil {
-		return err
-	}
 	out.Replicas = in.Replicas
 	out.FullyLabeledReplicas = in.FullyLabeledReplicas
 	out.ReadyReplicas = in.ReadyReplicas
 	out.AvailableReplicas = in.AvailableReplicas
-	out.Conditions = *(*[]machine.MachineSetCondition)(unsafe.Pointer(&in.Conditions))
 	out.ObservedGeneration = in.ObservedGeneration
+	out.Conditions = *(*[]machine.MachineSetCondition)(unsafe.Pointer(&in.Conditions))
+	if err := Convert_v1alpha1_LastOperation_To_machine_LastOperation(&in.LastOperation, &out.LastOperation, s); err != nil {
+		return err
+	}
 	out.FailedMachines = (*[]machine.MachineSummary)(unsafe.Pointer(in.FailedMachines))
 	return nil
 }
@@ -1532,15 +1532,15 @@ func Convert_v1alpha1_MachineSetStatus_To_machine_MachineSetStatus(in *MachineSe
 }
 
 func autoConvert_machine_MachineSetStatus_To_v1alpha1_MachineSetStatus(in *machine.MachineSetStatus, out *MachineSetStatus, s conversion.Scope) error {
-	if err := Convert_machine_LastOperation_To_v1alpha1_LastOperation(&in.LastOperation, &out.LastOperation, s); err != nil {
-		return err
-	}
 	out.Replicas = in.Replicas
 	out.FullyLabeledReplicas = in.FullyLabeledReplicas
 	out.ReadyReplicas = in.ReadyReplicas
 	out.AvailableReplicas = in.AvailableReplicas
-	out.Conditions = *(*[]MachineSetCondition)(unsafe.Pointer(&in.Conditions))
 	out.ObservedGeneration = in.ObservedGeneration
+	out.Conditions = *(*[]MachineSetCondition)(unsafe.Pointer(&in.Conditions))
+	if err := Convert_machine_LastOperation_To_v1alpha1_LastOperation(&in.LastOperation, &out.LastOperation, s); err != nil {
+		return err
+	}
 	out.FailedMachines = (*[]MachineSummary)(unsafe.Pointer(in.FailedMachines))
 	return nil
 }
