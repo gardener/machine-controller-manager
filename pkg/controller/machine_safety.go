@@ -553,30 +553,33 @@ func (c *controller) unfreezeMachineSetsAndDeployments(machineSet *v1alpha1.Mach
 		glog.Warning("Updated failed, retrying - ", err)
 	}
 
-	machineDeployment := c.getMachineDeploymentsForMachineSet(machineSet)[0]
-	if machineDeployment != nil {
-		for {
-			// Get the latest version of the machineDeployment so that we can avoid conflicts
-			machineDeployment, err := c.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Get(machineDeployment.Name, metav1.GetOptions{})
-			if err != nil {
-				// Some error occued while fetching object from API server
-				glog.Error(err)
-				break
+	machineDeployments := c.getMachineDeploymentsForMachineSet(machineSet)
+	if len(machineDeployments) >= 1 {
+		machineDeployment := machineDeployments[0]
+		if machineDeployment != nil {
+			for {
+				// Get the latest version of the machineDeployment so that we can avoid conflicts
+				machineDeployment, err := c.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Get(machineDeployment.Name, metav1.GetOptions{})
+				if err != nil {
+					// Some error occued while fetching object from API server
+					glog.Error(err)
+					break
+				}
+				clone := machineDeployment.DeepCopy()
+				if clone.Labels == nil {
+					clone.Labels = make(map[string]string)
+				}
+				newStatus := clone.Status
+				RemoveMachineDeploymentCondition(&newStatus, v1alpha1.MachineDeploymentFrozen)
+				clone.Status = newStatus
+				delete(clone.Labels, "freeze")
+				_, err = c.controlMachineClient.MachineDeployments(clone.Namespace).Update(clone)
+				if err == nil {
+					break
+				}
+				// Keep retrying until update goes through
+				glog.Warning("Updated failed, retrying - ", err)
 			}
-			clone := machineDeployment.DeepCopy()
-			if clone.Labels == nil {
-				clone.Labels = make(map[string]string)
-			}
-			newStatus := clone.Status
-			RemoveMachineDeploymentCondition(&newStatus, v1alpha1.MachineDeploymentFrozen)
-			clone.Status = newStatus
-			delete(clone.Labels, "freeze")
-			_, err = c.controlMachineClient.MachineDeployments(clone.Namespace).Update(clone)
-			if err == nil {
-				break
-			}
-			// Keep retrying until update goes through
-			glog.Warning("Updated failed, retrying - ", err)
 		}
 	}
 }
