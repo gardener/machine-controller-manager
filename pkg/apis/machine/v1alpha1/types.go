@@ -157,7 +157,7 @@ type MachineStatus struct {
 	CurrentStatus CurrentStatus `json:"currentStatus,omitempty"`
 }
 
-// LastOperation
+// LastOperation suggests the last operation performed on the object
 type LastOperation struct {
 	// Description of the current operation
 	Description string `json:"description,omitempty"`
@@ -169,7 +169,7 @@ type LastOperation struct {
 	State MachineState `json:"state,omitempty"`
 
 	// Type of operation
-	Type string `json:"type,omitempty"`
+	Type MachineOperationType `json:"type,omitempty"`
 }
 
 // MachinePhase is a label for the condition of a machines at the current time.
@@ -211,6 +211,24 @@ const (
 	MachineStateSuccessful MachineState = "Successful"
 )
 
+// MachineOperationType is a label for the operation performed on a machine object.
+type MachineOperationType string
+
+// These are the valid statuses of machines.
+const (
+	// MachineOperationCreate indicates that the operation was a create
+	MachineOperationCreate MachineOperationType = "Create"
+
+	// MachineOperationUpdate indicates that the operation was an update
+	MachineOperationUpdate MachineOperationType = "Update"
+
+	// MachineOperationHealthCheck indicates that the operation was a create
+	MachineOperationHealthCheck MachineOperationType = "HealthCheck"
+
+	// MachineOperationDelete indicates that the operation was a create
+	MachineOperationDelete MachineOperationType = "Delete"
+)
+
 // The below types are used by kube_client and api_server.
 
 type ConditionStatus string
@@ -224,22 +242,6 @@ const (
 	ConditionFalse   ConditionStatus = "False"
 	ConditionUnknown ConditionStatus = "Unknown"
 )
-
-//MachineSummary store the summary of machine.
-type MachineSummary struct {
-	// +optional
-	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-
-	// ProviderID represents the provider's unique ID given to a machine
-	// +optional
-	ProviderID string `json:"providerID,omitempty"`
-
-	// Last operation refers to the status of the last operation performed
-	LastOperation LastOperation `json:"lastOperation,omitempty"`
-
-	// OwnerRef
-	OwnerRef string `json:"ownerRef,omitempty"`
-}
 
 /********************** MachineSet APIs ***************/
 
@@ -327,31 +329,52 @@ type MachineSetCondition struct {
 	Message string `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
 }
 
-// MachineSetStatus TODO
+// MachineSetStatus represents the status of a machineSet object
 type MachineSetStatus struct {
+	// Replicas is the number of actual replicas.
+	Replicas int32 `json:"replicas,inline"`
+
+	// The number of pods that have labels matching the labels of the pod template of the replicaset.
+	// +optional
+	FullyLabeledReplicas int32 `json:"fullyLabeledReplicas,inline"`
+
+	// The number of ready replicas for this replica set.
+	// +optional
+	ReadyReplicas int32 `json:"readyReplicas,inline"`
+
+	// The number of available replicas (ready for at least minReadySeconds) for this replica set.
+	// +optional
+	AvailableReplicas int32 `json:"availableReplicas,inline"`
+
+	// ObservedGeneration is the most recent generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,inline"`
+
+	// Represents the latest available observations of a replica set's current state.
+	// +optional
+	Conditions []MachineSetCondition `json:"machineSetCondition,inline"`
+
 	// LastOperation performed
 	LastOperation LastOperation `json:"lastOperation,omitempty"`
 
-	// No of Replicas required
-	Replicas int32 `json:"replicas,inline"`
-
-	// FullyLabeledReplicas represetnts the number of machines with same labels
-	FullyLabeledReplicas int32 `json:"fullyLabeledReplicas,inline"`
-
-	// ReadyReplicas represetnts the number of ready machines
-	ReadyReplicas int32 `json:"readyReplicas,inline"`
-
-	// AvailableReplicas represetnts the number of available machines
-	AvailableReplicas int32 `json:"availableReplicas,inline"`
-
-	// MachineSet Conditions
-	Conditions []MachineSetCondition `json:"machineSetCondition,inline"`
-
-	// ObservedGeneration
-	ObservedGeneration int64 `json:"observedGeneration,inline"`
-
 	// FailedMachines has summary of machines on which lastOperation Failed
+	// +optional
 	FailedMachines *[]MachineSummary `json:"failedMachines,inline"`
+}
+
+// MachineSummary store the summary of machine.
+type MachineSummary struct {
+	// Name of the machine object
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+
+	// ProviderID represents the provider's unique ID given to a machine
+	ProviderID string `json:"providerID,omitempty"`
+
+	// Last operation refers to the status of the last operation performed
+	LastOperation LastOperation `json:"lastOperation,omitempty"`
+
+	// OwnerRef
+	OwnerRef string `json:"ownerRef,omitempty"`
 }
 
 /********************** MachineDeployment APIs ***************/
@@ -554,7 +577,8 @@ type MachineDeploymentStatus struct {
 	CollisionCount *int32 `json:"collisionCount,omitempty" protobuf:"varint,8,opt,name=collisionCount"`
 
 	// FailedMachines has summary of machines on which lastOperation Failed
-	FailedMachines []*MachineSummary `json:"failedMachines,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,9,rep,name=failedMachines"`
+	// +optional
+	FailedMachines []*MachineSummary `json:"failedMachines,omitempty" protobuf:"bytes,9,rep,name=failedMachines"`
 }
 
 type MachineDeploymentConditionType string
