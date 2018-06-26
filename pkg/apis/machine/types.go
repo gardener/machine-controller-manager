@@ -159,7 +159,7 @@ type MachineStatus struct {
 	CurrentStatus CurrentStatus
 }
 
-// LastOperation
+// LastOperation suggests the last operation performed on the object
 type LastOperation struct {
 	// Description of the current operation
 	Description string
@@ -171,7 +171,7 @@ type LastOperation struct {
 	State MachineState
 
 	// Type of operation
-	Type string
+	Type MachineOperationType
 }
 
 // MachinePhase is a label for the condition of a machines at the current time.
@@ -211,6 +211,24 @@ const (
 
 	// MachineStateSuccessful indicates that the node is not ready at the moment
 	MachineStateSuccessful MachineState = "Successful"
+)
+
+// MachineOperationType is a label for the operation performed on a machine object.
+type MachineOperationType string
+
+// These are the valid statuses of machines.
+const (
+	// MachineOperationCreate indicates that the operation was a create
+	MachineOperationCreate MachineOperationType = "Create"
+
+	// MachineOperationUpdate indicates that the operation was an update
+	MachineOperationUpdate MachineOperationType = "Update"
+
+	// MachineOperationHealthCheck indicates that the operation was a create
+	MachineOperationHealthCheck MachineOperationType = "HealthCheck"
+
+	// MachineOperationDelete indicates that the operation was a create
+	MachineOperationDelete MachineOperationType = "Delete"
 )
 
 // The below types are used by kube_client and api_server.
@@ -313,28 +331,52 @@ type MachineSetCondition struct {
 	Message string
 }
 
-// MachineSetStatus TODO
+// MachineSetStatus represents the status of a machineSet object
 type MachineSetStatus struct {
+	// Replicas is the number of actual replicas.
+	Replicas int32
+
+	// The number of pods that have labels matching the labels of the pod template of the replicaset.
+	// +optional
+	FullyLabeledReplicas int32
+
+	// The number of ready replicas for this replica set.
+	// +optional
+	ReadyReplicas int32
+
+	// The number of available replicas (ready for at least minReadySeconds) for this replica set.
+	// +optional
+	AvailableReplicas int32
+
+	// ObservedGeneration is the most recent generation observed by the controller.
+	// +optional
+	ObservedGeneration int64
+
+	// Represents the latest available observations of a replica set's current state.
+	// +optional
+	Conditions []MachineSetCondition
+
 	// LastOperation performed
 	LastOperation LastOperation
 
-	// No of Replicas required
-	Replicas int32
+	// FailedMachines has summary of machines on which lastOperation Failed
+	// +optional
+	FailedMachines *[]MachineSummary
+}
 
-	// FullyLabeledReplicas represetnts the number of machines with same labels
-	FullyLabeledReplicas int32
+// MachineSummary store the summary of machine.
+type MachineSummary struct {
+	// Name of the machine object
+	Name string
 
-	// ReadyReplicas represetnts the number of ready machines
-	ReadyReplicas int32
+	// ProviderID represents the provider's unique ID given to a machine
+	ProviderID string
 
-	// AvailableReplicas represetnts the number of available machines
-	AvailableReplicas int32
+	// Last operation refers to the status of the last operation performed
+	LastOperation LastOperation
 
-	// MachineSet Conditions
-	Conditions []MachineSetCondition
-
-	// ObservedGeneration
-	ObservedGeneration int64
+	// OwnerRef
+	OwnerRef string
 }
 
 /********************** MachineDeployment APIs ***************/
@@ -535,6 +577,10 @@ type MachineDeploymentStatus struct {
 	// newest MachineSet.
 	// +optional
 	CollisionCount *int32
+
+	// FailedMachines has summary of machines on which lastOperation Failed
+	// +optional
+	FailedMachines []*MachineSummary
 }
 
 type MachineDeploymentConditionType string
