@@ -634,7 +634,7 @@ var _ = Describe("machine", func() {
 						LastOperation: machinev1.LastOperation{
 							Description:    "Creating machine on cloud provider",
 							State:          machinev1.MachineStateSuccessful,
-							Type:           machinev1.MachineLastOperationCreate,
+							Type:           machinev1.MachineOperationCreate,
 							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
 						},
 					}, nil),
@@ -653,7 +653,7 @@ var _ = Describe("machine", func() {
 						LastOperation: machinev1.LastOperation{
 							Description: "Creating machine on cloud provider",
 							State:       machinev1.MachineStateSuccessful,
-							Type:        machinev1.MachineLastOperationCreate,
+							Type:        machinev1.MachineOperationCreate,
 						},
 					}, nil),
 				},
@@ -671,7 +671,7 @@ var _ = Describe("machine", func() {
 						LastOperation: machinev1.LastOperation{
 							Description:    fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown", machineName),
 							State:          machinev1.MachineStateProcessing,
-							Type:           machinev1.MachineLastOperationCreate,
+							Type:           machinev1.MachineOperationCreate,
 							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
 						},
 					}, nil),
@@ -690,7 +690,7 @@ var _ = Describe("machine", func() {
 						LastOperation: machinev1.LastOperation{
 							Description: fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown", machineName),
 							State:       machinev1.MachineStateProcessing,
-							Type:        machinev1.MachineLastOperationCreate,
+							Type:        machinev1.MachineOperationCreate,
 						},
 					}, nil),
 				},
@@ -708,7 +708,7 @@ var _ = Describe("machine", func() {
 						LastOperation: machinev1.LastOperation{
 							Description:    "Creating machine on cloud provider",
 							State:          machinev1.MachineStateProcessing,
-							Type:           machinev1.MachineLastOperationCreate,
+							Type:           machinev1.MachineOperationCreate,
 							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
 						},
 					}, nil),
@@ -731,7 +731,7 @@ var _ = Describe("machine", func() {
 								timeOut,
 							),
 							State: machinev1.MachineStateFailed,
-							Type:  machinev1.MachineLastOperationCreate,
+							Type:  machinev1.MachineOperationCreate,
 						},
 					}, nil),
 				},
@@ -749,7 +749,7 @@ var _ = Describe("machine", func() {
 						LastOperation: machinev1.LastOperation{
 							Description:    fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown", machineName),
 							State:          machinev1.MachineStateProcessing,
-							Type:           machinev1.MachineLastOperationHealthCheck,
+							Type:           machinev1.MachineOperationHealthCheck,
 							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
 						},
 					}, nil),
@@ -773,7 +773,7 @@ var _ = Describe("machine", func() {
 								[]corev1.NodeCondition{},
 							),
 							State: machinev1.MachineStateFailed,
-							Type:  machinev1.MachineLastOperationHealthCheck,
+							Type:  machinev1.MachineOperationHealthCheck,
 						},
 					}, nil),
 				},
