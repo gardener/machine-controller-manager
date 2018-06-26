@@ -74,22 +74,6 @@ var _ = Describe("machine", func() {
 					},
 				},
 			}, 1, 10, nil, nil)
-			// testMachineSet := &v1alpha1.MachineSet{
-			// 	ObjectMeta: metav1.ObjectMeta{
-			// 		Name:      "testMachineSet",
-			// 		Namespace: machinenamespace,
-			// 		Labels: map[string]string{
-			// 			"name": "testMachineDeployment",
-			// 		},
-			// 	},
-			// 	Spec: v1alpha1.MachineSetSpec{
-			// 		Selector: &metav1.LabelSelector{
-			// 			MatchLabels: map[string]string{
-			// 				"name": "testMachineDeployment",
-			// 			},
-			// 		},
-			// 	},
-			// }
 			if machineSetIsFrozen {
 				testMachineSet.Labels["freeze"] = "True"
 				msStatus := testMachineSet.Status
