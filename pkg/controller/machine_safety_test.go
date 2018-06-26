@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/cache"
 )
 
 const namespace = "test"
@@ -60,6 +61,83 @@ var _ = Describe("machine", func() {
 				Namespace: "test",
 			},
 		}, 1, 10, nil, nil)),
+	)
+
+	DescribeTable("##unfreezeMachineSetsAndDeployments",
+		func(machineSetExists, machineSetIsFrozen, parentExists, parentIsFrozen bool) {
+			testMachineSet := newMachineSet(&v1alpha1.MachineTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "testMachineSet",
+					Namespace: machinenamespace,
+					Labels: map[string]string{
+						"name": "testMachineDeployment",
+					},
+				},
+			}, 1, 10, nil, nil)
+			if machineSetIsFrozen {
+				testMachineSet.Labels["freeze"] = "True"
+				msStatus := testMachineSet.Status
+				mscond := NewMachineSetCondition(v1alpha1.MachineSetFrozen, v1alpha1.ConditionTrue, "testing", "freezing the machineset")
+				SetCondition(&msStatus, mscond)
+			}
+
+			testMachineDeployment := &v1alpha1.MachineDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "testMachineDeployment",
+					Namespace: machinenamespace,
+					Labels:    map[string]string{},
+				},
+				Spec: v1alpha1.MachineDeploymentSpec{
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"name": "testMachineDeployment",
+						},
+					},
+				},
+			}
+			if parentIsFrozen {
+				testMachineDeployment.Labels["freeze"] = "True"
+				mdStatus := testMachineDeployment.Status
+				mdCond := NewMachineDeploymentCondition(v1alpha1.MachineDeploymentFrozen, v1alpha1.ConditionTrue, "testing", "freezing the machinedeployment")
+				SetMachineDeploymentCondition(&mdStatus, *mdCond)
+			}
+
+			stop := make(chan struct{})
+			defer close(stop)
+
+			objects := []runtime.Object{}
+			if machineSetExists {
+				objects = append(objects, testMachineSet)
+			}
+			if parentExists {
+				objects = append(objects, testMachineDeployment)
+			}
+			c, w := createController(stop, namespace, objects, nil)
+			defer w.Stop()
+
+			Expect(cache.WaitForCacheSync(stop, c.machineSetSynced, c.machineDeploymentSynced)).To(BeTrue())
+
+			c.unfreezeMachineSetsAndDeployments(testMachineSet)
+			machineSet, err := c.controlMachineClient.MachineSets(testMachineSet.Namespace).Get(testMachineSet.Name, metav1.GetOptions{})
+			if machineSetExists {
+				Expect(machineSet.Labels["freeze"]).Should((BeEmpty()))
+				Expect(GetCondition(&machineSet.Status, v1alpha1.MachineSetFrozen)).Should(BeNil())
+				machineDeployment, err := c.controlMachineClient.MachineDeployments(testMachineDeployment.Namespace).Get(testMachineDeployment.Name, metav1.GetOptions{})
+				if parentExists {
+					Expect(machineDeployment.Labels["freeze"]).Should((BeEmpty()))
+					Expect(GetMachineDeploymentCondition(machineDeployment.Status, v1alpha1.MachineDeploymentFrozen)).Should(BeNil())
+				} else {
+					Expect(err).ShouldNot(BeNil())
+				}
+			} else {
+				Expect(err).ShouldNot(BeNil())
+			}
+		},
+
+		//Entry("Testdata format::::::", machineSetExists, machineSetFrozen, parentExists, parentFrozen)
+		Entry("existing, frozen machineset and machinedeployment", true, true, true, true),
+		Entry("non-existing but frozen machineset and existing, frozen machinedeployment", false, true, true, true),
+		Entry("existing, frozen machineset but non-existing, frozen machinedeployment", true, true, false, true),
 	)
 
 	DescribeTable("##checkAndFreezeORUnfreezeMachineSets",
