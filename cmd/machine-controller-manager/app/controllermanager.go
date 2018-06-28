@@ -47,7 +47,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -198,8 +197,6 @@ func StartControllers(s *options.MCMServer,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) error {
 
-	handlers.UpdateHealth(false)
-
 	glog.V(5).Info("Getting available resources")
 	availableResources, err := getAvailableResources(controlCoreClientBuilder)
 	if err != nil {
@@ -279,8 +276,6 @@ func StartControllers(s *options.MCMServer,
 		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q or %q is not available; found %#v", awsGVR, azureGVR, gcpGVR, openStackGVR, availableResources)
 	}
 
-	handlers.UpdateHealth(true)
-
 	select {}
 }
 
@@ -348,7 +343,6 @@ func createRecorder(kubeClient *kubernetes.Clientset) record.EventRecorder {
 
 func startHTTP(s *options.MCMServer) {
 	mux := http.NewServeMux()
-	healthz.InstallHandler(mux)
 	if s.EnableProfiling {
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
 		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)

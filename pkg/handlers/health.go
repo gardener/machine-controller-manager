@@ -39,7 +39,9 @@ func Healthz(w http.ResponseWriter, r *http.Request) {
 	mutex.Unlock()
 	if isHealthy {
 		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Unhealthy"))
 	}
 }
