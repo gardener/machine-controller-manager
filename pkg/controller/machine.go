@@ -184,7 +184,25 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
 		return
 	}
-	c.nodeToMachineQueue.Add(key)
+
+	node, err := c.nodeLister.Get(key)
+	if err != nil {
+		glog.Errorf("ClusterNode %q: Unable to retrieve object from store: %v", key, err)
+		return
+	}
+
+	machine, err := c.getMachineFromNode(node.Name)
+	if err != nil {
+		glog.Error("Couldn't fetch machine %s, Error: ", key, err)
+		return
+	} else if machine == nil {
+		return
+	}
+
+	err = c.updateMachineState(machine, node)
+	if err != nil {
+		glog.Error("Could not update machine state for: %s", machine.Name)
+	}
 }
 
 func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
@@ -193,37 +211,6 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 
 func (c *controller) deleteNodeToMachine(obj interface{}) {
 	c.addNodeToMachine(obj)
-}
-
-func (c *controller) reconcileClusterNodeToMachineKey(key string) error {
-	node, err := c.nodeLister.Get(key)
-	if apierrors.IsNotFound(err) {
-		return nil
-	}
-	if err != nil {
-		glog.Errorf("ClusterNode %q: Unable to retrieve object from store: %v", key, err)
-		return err
-	}
-
-	return c.reconcileClusterNodeToMachine(node)
-}
-
-func (c *controller) reconcileClusterNodeToMachine(node *v1.Node) error {
-	machine, err := c.getMachineFromNode(node.Name)
-
-	if err != nil {
-		glog.Error("Couldn't fetch machine: ", err)
-		return err
-	} else if machine == nil {
-		return nil
-	}
-
-	err = c.updateMachineState(machine, node)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 /*
