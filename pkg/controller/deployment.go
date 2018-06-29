@@ -281,8 +281,8 @@ func (dc *controller) enqueueRateLimited(deployment *v1alpha1.MachineDeployment)
 	dc.machineDeploymentQueue.AddRateLimited(key)
 }
 
-// enqueueAfter will enqueue a deployment after the provided amount of time.
-func (dc *controller) enqueueAfter(deployment *v1alpha1.MachineDeployment, after time.Duration) {
+//  enqueueMachineDeploymentAfter will enqueue a deployment after the provided amount of time.
+func (dc *controller) enqueueMachineDeploymentAfter(deployment *v1alpha1.MachineDeployment, after time.Duration) {
 	key, err := KeyFunc(deployment)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %#v: %v", deployment, err))
@@ -447,8 +447,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 
 	// If MachineDeployment is frozen and no deletion timestamp, don't process it
 	if deployment.Labels["freeze"] == "True" && deployment.DeletionTimestamp == nil {
-		glog.V(3).Infof("MachineDeployment %q is frozen, however, will still pe processed if its scaling down", deployment.Name)
-		//return nil
+		glog.V(3).Infof("MachineDeployment %q is frozen. However, it will still be processed if it there is an scale down event.", deployment.Name)
 	}
 
 	// Validate MachineDeployment

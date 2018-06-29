@@ -170,6 +170,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		}
 	}
 
+	c.enqueueMachineAfter(machine, time.Minute*10)
 	return nil
 }
 
