@@ -39,6 +39,7 @@ import (
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
+	"github.com/gardener/machine-controller-manager/pkg/handlers"
 	"github.com/gardener/machine-controller-manager/pkg/util/configz"
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
@@ -46,7 +47,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -343,7 +343,6 @@ func createRecorder(kubeClient *kubernetes.Clientset) record.EventRecorder {
 
 func startHTTP(s *options.MCMServer) {
 	mux := http.NewServeMux()
-	healthz.InstallHandler(mux)
 	if s.EnableProfiling {
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
 		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -355,6 +354,7 @@ func startHTTP(s *options.MCMServer) {
 	}
 	configz.InstallHandler(mux)
 	mux.Handle("/metrics", prometheus.Handler())
+	mux.HandleFunc("/healthz", handlers.Healthz)
 
 	server := &http.Server{
 		Addr:    net.JoinHostPort(s.Address, strconv.Itoa(int(s.Port))),
