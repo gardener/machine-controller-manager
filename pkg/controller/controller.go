@@ -36,6 +36,7 @@ import (
 	corelisters "k8s.io/client-go/listers/core/v1"
 
 	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
+	"github.com/gardener/machine-controller-manager/pkg/handlers"
 	"github.com/gardener/machine-controller-manager/pkg/options"
 	runtimeutil "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -386,6 +387,11 @@ type controller struct {
 }
 
 func (c *controller) Run(workers int, stopCh <-chan struct{}) {
+
+	var (
+		waitGroup sync.WaitGroup
+	)
+
 	defer runtimeutil.HandleCrash()
 	defer c.nodeQueue.ShutDown()
 	defer c.secretQueue.ShutDown()
@@ -405,10 +411,8 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 		return
 	}
 
-	glog.Info("Starting machine-controller-manager")
-	//glog.Infof("Synced :: %+q", c.awsMachineClassSynced)
-	//time.Sleep(5 * time.Second)
-	var waitGroup sync.WaitGroup
+	glog.V(1).Info("Starting machine-controller-manager")
+	handlers.UpdateHealth(true)
 
 	for i := 0; i < workers; i++ {
 		createWorker(c.openStackMachineClassQueue, "ClusterOpenStackMachineClass", maxRetries, true, c.reconcileClusterOpenStackMachineClassKey, stopCh, &waitGroup)
@@ -426,7 +430,8 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	}
 
 	<-stopCh
-	glog.Info("Shutting down Machine Controller Manager ")
+	glog.V(1).Info("Shutting down Machine Controller Manager ")
+	handlers.UpdateHealth(false)
 
 	waitGroup.Wait()
 }
