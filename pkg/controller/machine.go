@@ -278,7 +278,6 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 			}
 			clone, err := c.updateMachineStatus(machine, lastOperation, currentStatus)
 			if err != nil {
-				// Keep retrying until update goes through
 				glog.Errorf("Machine updated failed for %s, Error: %q", machine.Name, err)
 				return machine, err
 			}
@@ -288,8 +287,7 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 		// Hence returning
 		return machine, nil
 	} else if err != nil {
-		// Any other types of errors while
-		// fetching node object
+		// Any other types of errors while fetching node object
 		glog.Errorf("Could not fetch node object for machine %s", machine.Name)
 		return machine, err
 	}

@@ -40,6 +40,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/watch"
+	coreinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
@@ -227,16 +228,30 @@ func newSecretReference(meta *metav1.ObjectMeta, index int) *corev1.SecretRefere
 }
 
 func createController(stop <-chan struct{}, namespace string, machineObjects, coreObjects []runtime.Object) (*controller, *watchableObjectTracker) {
+	// TODO controlCoreClient
 	fakeCoreClient := k8sfake.NewSimpleClientset(coreObjects...)
+	coreInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
+		fakeCoreClient,
+		100*time.Millisecond,
+		namespace,
+		nil,
+	)
+	defer coreInformerFactory.Start(stop)
+
+	coreSharedInformers := coreInformerFactory.Core().V1()
+	nodes := coreSharedInformers.Nodes()
 
 	fakeMachineClient, w := newMachineClientSet(machineObjects...)
 	go w.Start()
-
 	fakeTypedMachineClient := &faketyped.FakeMachineV1alpha1{
 		Fake: &fakeMachineClient.Fake,
 	}
-	//TODO controlCoreClient
-	controlMachineInformerFactory := machineinformers.NewSharedInformerFactory(fakeMachineClient, 100*time.Millisecond)
+	controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
+		fakeMachineClient,
+		100*time.Millisecond,
+		namespace,
+		nil,
+	)
 	defer controlMachineInformerFactory.Start(stop)
 
 	machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
@@ -273,6 +288,7 @@ func createController(stop <-chan struct{}, namespace string, machineObjects, co
 		controlCoreClient:              fakeCoreClient,
 		controlMachineClient:           fakeTypedMachineClient,
 		internalExternalScheme:         internalExternalScheme,
+		nodeLister:                     nodes.Lister(),
 		machineLister:                  machines.Lister(),
 		machineSetLister:               machineSets.Lister(),
 		machineDeploymentLister:        machineDeployments.Lister(),
