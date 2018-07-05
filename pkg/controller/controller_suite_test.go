@@ -18,6 +18,7 @@ package controller
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"errors"
@@ -330,11 +331,12 @@ func newMachineClientSet(objects ...runtime.Object) (*fakeuntyped.Clientset, *wa
 //watchableObjectTracker implements both k8stesting.ObjectTracker as well as watch.Interface.
 type watchableObjectTracker struct {
 	*watch.FakeWatcher
-	delegatee k8stesting.ObjectTracker
-	watchers  []*watcher
+	delegatee    k8stesting.ObjectTracker
+	watchers     []*watcher
+	trackerMutex sync.Mutex
 }
 
-func (t watchableObjectTracker) Add(obj runtime.Object) error {
+func (t *watchableObjectTracker) Add(obj runtime.Object) error {
 	return t.delegatee.Add(obj)
 }
 
@@ -417,6 +419,8 @@ func (t *watchableObjectTracker) watchReactionfunc(action k8stesting.Action) (bo
 			action:      a,
 		}
 		go w.dispatchInitialObjects(a, t)
+		t.trackerMutex.Lock()
+		defer t.trackerMutex.Unlock()
 		t.watchers = append(t.watchers, w)
 		return true, w, nil
 	default:
@@ -447,6 +451,9 @@ func (t *watchableObjectTracker) Stop() {
 		panic(errors.New("Tracker has no watch support"))
 	}
 
+	t.trackerMutex.Lock()
+	defer t.trackerMutex.Unlock()
+
 	t.FakeWatcher.Stop()
 	for _, w := range t.watchers {
 		w.Stop()
@@ -456,7 +463,15 @@ func (t *watchableObjectTracker) Stop() {
 
 type watcher struct {
 	*watch.FakeWatcher
-	action k8stesting.WatchAction
+	action      k8stesting.WatchAction
+	updateMutex sync.Mutex
+}
+
+func (w *watcher) Stop() {
+	w.updateMutex.Lock()
+	defer w.updateMutex.Unlock()
+
+	w.FakeWatcher.Stop()
 }
 
 func (w *watcher) handles(event *watch.Event) bool {
@@ -500,10 +515,12 @@ func (w *watcher) handles(event *watch.Event) bool {
 }
 
 func (w *watcher) dispatch(event *watch.Event) {
+	w.updateMutex.Lock()
+	defer w.updateMutex.Unlock()
+
 	if !w.handles(event) {
 		return
 	}
-
 	w.Action(event.Type, event.Object)
 }
 
