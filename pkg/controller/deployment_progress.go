@@ -197,6 +197,6 @@ func (dc *controller) requeueStuckMachineDeployment(d *v1alpha1.MachineDeploymen
 	glog.V(4).Infof("Queueing up machine deployment %q for a progress check after %ds", d.Name, int(after.Seconds()))
 	// Add a second to avoid milliseconds skew in AddAfter.
 	// See https://github.com/kubernetes/kubernetes/issues/39785#issuecomment-279959133 for more info.
-	dc.enqueueAfter(d, after+time.Second)
+	dc.enqueueMachineDeploymentAfter(d, after+time.Second)
 	return after
 }

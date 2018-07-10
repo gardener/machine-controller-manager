@@ -86,7 +86,6 @@ func NewController(
 		expectations:                   NewUIDTrackingContExpectations(NewContExpectations()),
 		secretQueue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
 		nodeQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
-		nodeToMachineQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "nodeToMachine"),
 		openStackMachineClassQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "openstackmachineclass"),
 		awsMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
 		azureMachineClassQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
@@ -364,7 +363,6 @@ type controller struct {
 	// queues
 	secretQueue                    workqueue.RateLimitingInterface
 	nodeQueue                      workqueue.RateLimitingInterface
-	nodeToMachineQueue             workqueue.RateLimitingInterface
 	openStackMachineClassQueue     workqueue.RateLimitingInterface
 	awsMachineClassQueue           workqueue.RateLimitingInterface
 	azureMachineClassQueue         workqueue.RateLimitingInterface
@@ -402,7 +400,6 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer c.machineQueue.ShutDown()
 	defer c.machineSetQueue.ShutDown()
 	defer c.machineDeploymentQueue.ShutDown()
-	defer c.nodeToMachineQueue.ShutDown()
 	defer c.machineSafetyOrphanVMsQueue.ShutDown()
 	defer c.machineSafetyOvershootingQueue.ShutDown()
 
@@ -422,7 +419,6 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 		createWorker(c.secretQueue, "ClusterSecret", maxRetries, true, c.reconcileClusterSecretKey, stopCh, &waitGroup)
 		createWorker(c.nodeQueue, "ClusterNode", maxRetries, true, c.reconcileClusterNodeKey, stopCh, &waitGroup)
 		createWorker(c.machineQueue, "ClusterMachine", maxRetries, true, c.reconcileClusterMachineKey, stopCh, &waitGroup)
-		createWorker(c.nodeToMachineQueue, "ClusterNodeToMachine", maxRetries, true, c.reconcileClusterNodeToMachineKey, stopCh, &waitGroup)
 		createWorker(c.machineSetQueue, "ClusterMachineSet", maxRetries, true, c.reconcileClusterMachineSet, stopCh, &waitGroup)
 		createWorker(c.machineDeploymentQueue, "ClusterMachineDeployment", maxRetries, true, c.reconcileClusterMachineDeployment, stopCh, &waitGroup)
 		createWorker(c.machineSafetyOrphanVMsQueue, "ClusterMachineSafetyOrphanVMs", maxRetries, true, c.reconcileClusterMachineSafetyOrphanVMs, stopCh, &waitGroup)

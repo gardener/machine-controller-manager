@@ -632,7 +632,7 @@ var _ = Describe("machine", func() {
 							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
 						},
 						LastOperation: machinev1.LastOperation{
-							Description:    "Creating machine on cloud provider",
+							Description:    fmt.Sprintf("Machine % successfully joined the cluster", machineName),
 							State:          machinev1.MachineStateSuccessful,
 							Type:           machinev1.MachineOperationCreate,
 							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
@@ -651,7 +651,7 @@ var _ = Describe("machine", func() {
 							TimeoutActive: false,
 						},
 						LastOperation: machinev1.LastOperation{
-							Description: "Creating machine on cloud provider",
+							Description: fmt.Sprintf("Machine % successfully joined the cluster", machineName),
 							State:       machinev1.MachineStateSuccessful,
 							Type:        machinev1.MachineOperationCreate,
 						},
@@ -774,6 +774,244 @@ var _ = Describe("machine", func() {
 							),
 							State: machinev1.MachineStateFailed,
 							Type:  machinev1.MachineOperationHealthCheck,
+						},
+					}, nil),
+				},
+			}),
+		)
+	})
+
+	Describe("#updateMachineState", func() {
+		type setup struct {
+			machines []*machinev1.Machine
+			nodes    []*corev1.Node
+		}
+		type action struct {
+			machine string
+		}
+		type expect struct {
+			machine *machinev1.Machine
+			err     bool
+		}
+		type data struct {
+			setup  setup
+			action action
+			expect expect
+		}
+		objMeta := &metav1.ObjectMeta{
+			GenerateName: "machine",
+			// using default namespace for non-namespaced objects
+			// as our current fake client is with the assumption
+			// that all objects are namespaced
+			Namespace: "",
+		}
+
+		machineName := "machine-0"
+
+		DescribeTable("##Different machine state update scenrios",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				machineObjects := []runtime.Object{}
+				for _, o := range data.setup.machines {
+					machineObjects = append(machineObjects, o)
+				}
+
+				coreObjects := []runtime.Object{}
+				for _, o := range data.setup.nodes {
+					coreObjects = append(coreObjects, o)
+				}
+
+				controller, w := createController(stop, objMeta.Namespace, machineObjects, coreObjects)
+				defer w.Stop()
+				waitForCacheSync(stop, controller)
+
+				action := data.action
+				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+
+				controller.updateMachineState(machine)
+
+				actual, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				Expect(err).To(BeNil())
+				Expect(actual.Name).To(Equal(data.expect.machine.Name))
+				Expect(actual.Status.Node).To(Equal(data.expect.machine.Status.Node))
+				Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
+				Expect(actual.Status.CurrentStatus.TimeoutActive).To(Equal(data.expect.machine.Status.CurrentStatus.TimeoutActive))
+				Expect(actual.Status.LastOperation.State).To(Equal(data.expect.machine.Status.LastOperation.State))
+				Expect(actual.Status.LastOperation.Type).To(Equal(data.expect.machine.Status.LastOperation.Type))
+				Expect(actual.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
+
+				for i := range actual.Status.Conditions {
+					Expect(actual.Status.Conditions[i].Type).To(Equal(data.expect.machine.Status.Conditions[i].Type))
+					Expect(actual.Status.Conditions[i].Status).To(Equal(data.expect.machine.Status.Conditions[i].Status))
+					Expect(actual.Status.Conditions[i].Reason).To(Equal(data.expect.machine.Status.Conditions[i].Reason))
+					Expect(actual.Status.Conditions[i].Message).To(Equal(data.expect.machine.Status.Conditions[i].Message))
+				}
+			},
+			Entry("Machine does not have a node backing", &data{
+				setup: setup{
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{}, nil),
+				},
+				action: action{
+					machine: machineName,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{}, nil),
+				},
+			}),
+			Entry("Node object backing machine not found and machine conditions are empty", &data{
+				setup: setup{
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						Node: "dummy-node",
+					}, nil),
+				},
+				action: action{
+					machine: machineName,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						Node: "dummy-node",
+					}, nil),
+				},
+			}),
+			Entry("Machine is running but node object is lost", &data{
+				setup: setup{
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						Node: "dummy-node",
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase:          machinev1.MachineRunning,
+							TimeoutActive:  false,
+							LastUpdateTime: metav1.Now(),
+						},
+						LastOperation: machinev1.LastOperation{
+							Description:    fmt.Sprintf("Machine % successfully joined the cluster", machineName),
+							State:          machinev1.MachineStateSuccessful,
+							Type:           machinev1.MachineOperationCreate,
+							LastUpdateTime: metav1.Now(),
+						},
+						Conditions: []corev1.NodeCondition{
+							corev1.NodeCondition{
+								Message: "kubelet is posting ready status",
+								Reason:  "KubeletReady",
+								Status:  "True",
+								Type:    "Ready",
+							},
+						},
+					}, nil),
+				},
+				action: action{
+					machine: machineName,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						Node: "dummy-node",
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase:          machinev1.MachineUnknown,
+							TimeoutActive:  true,
+							LastUpdateTime: metav1.Now(),
+						},
+						LastOperation: machinev1.LastOperation{
+							Description: fmt.Sprintf(
+								"Node object went missing. Machine %s is unhealthy - changing MachineState to Unknown",
+								machineName,
+							),
+							State:          machinev1.MachineStateProcessing,
+							Type:           machinev1.MachineOperationHealthCheck,
+							LastUpdateTime: metav1.Now(),
+						},
+						Conditions: []corev1.NodeCondition{
+							corev1.NodeCondition{
+								Message: "kubelet is posting ready status",
+								Reason:  "KubeletReady",
+								Status:  "True",
+								Type:    "Ready",
+							},
+						},
+					}, nil),
+				},
+			}),
+			Entry("Machine and node both are present and kubelet ready status is updated", &data{
+				setup: setup{
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						Node: "machine",
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase:          machinev1.MachinePending,
+							TimeoutActive:  true,
+							LastUpdateTime: metav1.Now(),
+						},
+						LastOperation: machinev1.LastOperation{
+							Description:    "Creating machine on cloud provider",
+							State:          machinev1.MachineStateProcessing,
+							Type:           machinev1.MachineOperationCreate,
+							LastUpdateTime: metav1.Now(),
+						},
+						Conditions: []corev1.NodeCondition{
+							corev1.NodeCondition{
+								Message: "kubelet is not ready",
+								Reason:  "KubeletReady",
+								Status:  "False",
+								Type:    "Ready",
+							},
+						},
+					}, nil),
+					nodes: []*corev1.Node{
+						&corev1.Node{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Status: corev1.NodeStatus{
+								Conditions: []corev1.NodeCondition{
+									corev1.NodeCondition{
+										Message: "kubelet is posting ready status",
+										Reason:  "KubeletReady",
+										Status:  "True",
+										Type:    "Ready",
+									},
+								},
+							},
+						},
+					},
+				},
+				action: action{
+					machine: machineName,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						Node: "machine",
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase:          machinev1.MachineRunning,
+							TimeoutActive:  false,
+							LastUpdateTime: metav1.Now(),
+						},
+						LastOperation: machinev1.LastOperation{
+							Description:    "Machine machine-0 successfully joined the cluster",
+							State:          machinev1.MachineStateSuccessful,
+							Type:           machinev1.MachineOperationCreate,
+							LastUpdateTime: metav1.Now(),
+						},
+						Conditions: []corev1.NodeCondition{
+							corev1.NodeCondition{
+								Message: "kubelet is posting ready status",
+								Reason:  "KubeletReady",
+								Status:  "True",
+								Type:    "Ready",
+							},
 						},
 					}, nil),
 				},
