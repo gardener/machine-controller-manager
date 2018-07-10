@@ -72,6 +72,14 @@ func (c *controller) deleteMachine(obj interface{}) {
 	c.addMachine(obj)
 }
 
+func (c *controller) enqueueMachine(obj interface{}) {
+	key, err := KeyFunc(obj)
+	if err != nil {
+		return
+	}
+	c.machineQueue.Add(key)
+}
+
 func (c *controller) enqueueMachineAfter(obj interface{}, after time.Duration) {
 	key, err := KeyFunc(obj)
 	if err != nil {
@@ -145,6 +153,12 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		return err
 	}
 
+	machine, err = c.updateMachineState(machine)
+	if err != nil {
+		glog.Error("Could not update machine state for: %s", machine.Name)
+		return err
+	}
+
 	if machine.DeletionTimestamp != nil {
 		// Processing of delete event
 		if err := c.machineDelete(machine, driver); err != nil {
@@ -170,6 +184,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		}
 	}
 
+	c.enqueueMachineAfter(machine, time.Minute*10)
 	return nil
 }
 
@@ -183,7 +198,16 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
 		return
 	}
-	c.nodeToMachineQueue.Add(key)
+
+	machine, err := c.getMachineFromNode(key)
+	if err != nil {
+		glog.Error("Couldn't fetch machine %s, Error: ", key, err)
+		return
+	} else if machine == nil {
+		return
+	}
+
+	c.enqueueMachine(machine)
 }
 
 func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
@@ -192,37 +216,6 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 
 func (c *controller) deleteNodeToMachine(obj interface{}) {
 	c.addNodeToMachine(obj)
-}
-
-func (c *controller) reconcileClusterNodeToMachineKey(key string) error {
-	node, err := c.nodeLister.Get(key)
-	if apierrors.IsNotFound(err) {
-		return nil
-	}
-	if err != nil {
-		glog.Errorf("ClusterNode %q: Unable to retrieve object from store: %v", key, err)
-		return err
-	}
-
-	return c.reconcileClusterNodeToMachine(node)
-}
-
-func (c *controller) reconcileClusterNodeToMachine(node *v1.Node) error {
-	machine, err := c.getMachineFromNode(node.Name)
-
-	if err != nil {
-		glog.Error("Couldn't fetch machine: ", err)
-		return err
-	} else if machine == nil {
-		return nil
-	}
-
-	err = c.updateMachineState(machine, node)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 /*
@@ -249,12 +242,61 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	return machines[0], nil
 }
 
-func (c *controller) updateMachineState(machine *v1alpha1.Machine, node *v1.Node) error {
-	machine, err := c.updateMachineConditions(machine, node.Status.Conditions)
-	if err != nil {
-		return err
+func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
+
+	if machine.Status.Node == "" {
+		// There are no objects mapped to this machine object
+		// Hence node status need not be propogated to machine object
+		return machine, nil
 	}
-	return nil
+
+	node, err := c.nodeLister.Get(machine.Status.Node)
+	if err != nil && apierrors.IsNotFound(err) {
+		// Node object is not found
+
+		if len(machine.Status.Conditions) > 0 &&
+			machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+			// If machine has conditions on it,
+			// and corresponding node object went missing
+			// and machine is still healthy
+			msg := fmt.Sprintf(
+				"Node object went missing. Machine %s is unhealthy - changing MachineState to Unknown",
+				machine.Name,
+			)
+			glog.Warning(msg)
+
+			currentStatus := v1alpha1.CurrentStatus{
+				Phase:          v1alpha1.MachineUnknown,
+				TimeoutActive:  true,
+				LastUpdateTime: metav1.Now(),
+			}
+			lastOperation := v1alpha1.LastOperation{
+				Description:    msg,
+				State:          v1alpha1.MachineStateProcessing,
+				Type:           v1alpha1.MachineOperationHealthCheck,
+				LastUpdateTime: metav1.Now(),
+			}
+			clone, err := c.updateMachineStatus(machine, lastOperation, currentStatus)
+			if err != nil {
+				glog.Errorf("Machine updated failed for %s, Error: %q", machine.Name, err)
+				return machine, err
+			}
+			return clone, nil
+		}
+		// Cannot update node status as node doesn't exist
+		// Hence returning
+		return machine, nil
+	} else if err != nil {
+		// Any other types of errors while fetching node object
+		glog.Errorf("Could not fetch node object for machine %s", machine.Name)
+		return machine, err
+	}
+
+	clone, err := c.updateMachineConditions(machine, node.Status.Conditions)
+	if err != nil {
+		return machine, err
+	}
+	return clone, nil
 }
 
 /*
@@ -505,7 +547,6 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 	var (
 		msg               string
 		lastOperationType v1alpha1.MachineOperationType
-		lastOperation     v1alpha1.LastOperation
 	)
 
 	// Get the latest version of the machine so that we can avoid conflicts
@@ -528,19 +569,17 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 		msg = fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown", clone.Name)
 		glog.Warning(msg)
 
-		currentStatus := v1alpha1.CurrentStatus{
+		clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 			Phase:          v1alpha1.MachineUnknown,
 			TimeoutActive:  true,
 			LastUpdateTime: metav1.Now(),
 		}
-		lastOperation = v1alpha1.LastOperation{
+		clone.Status.LastOperation = v1alpha1.LastOperation{
 			Description:    msg,
 			State:          v1alpha1.MachineStateProcessing,
 			Type:           v1alpha1.MachineOperationHealthCheck,
 			LastUpdateTime: metav1.Now(),
 		}
-		clone.Status.CurrentStatus = currentStatus
-		clone.Status.LastOperation = lastOperation
 
 	} else if c.isHealthy(clone) && clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 		// If machine is healhy and current machinePhase is not running.
@@ -556,22 +595,20 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 			msg = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
 			lastOperationType = v1alpha1.MachineOperationHealthCheck
 		}
+		glog.V(2).Infof(msg)
 
 		// Machine is ready and has joined/re-joined the cluster
-		lastOperation := v1alpha1.LastOperation{
+		clone.Status.LastOperation = v1alpha1.LastOperation{
 			Description:    msg,
 			State:          v1alpha1.MachineStateSuccessful,
 			Type:           lastOperationType,
 			LastUpdateTime: metav1.Now(),
 		}
-		currentStatus := v1alpha1.CurrentStatus{
+		clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 			Phase:          v1alpha1.MachineRunning,
 			TimeoutActive:  false,
 			LastUpdateTime: metav1.Now(),
 		}
-		clone.Status.CurrentStatus = currentStatus
-		clone.Status.LastOperation = lastOperation
-		glog.V(2).Infof(msg)
 	}
 
 	clone, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)

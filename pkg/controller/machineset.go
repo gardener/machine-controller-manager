@@ -533,7 +533,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	if manageReplicasErr == nil && updatedMachineSet.Spec.MinReadySeconds > 0 &&
 		updatedMachineSet.Status.ReadyReplicas == updatedMachineSet.Spec.Replicas &&
 		updatedMachineSet.Status.AvailableReplicas != updatedMachineSet.Spec.Replicas {
-		c.enqueueMachineSetAfter(updatedMachineSet, time.Duration(updatedMachineSet.Spec.MinReadySeconds)*time.Second)
+		c.enqueueMachineSetAfter(updatedMachineSet, 10*time.Minute)
 	}
 
 	return manageReplicasErr

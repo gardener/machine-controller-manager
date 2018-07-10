@@ -18,6 +18,7 @@ package controller
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"errors"
@@ -39,6 +40,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/watch"
+	coreinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
@@ -226,16 +228,30 @@ func newSecretReference(meta *metav1.ObjectMeta, index int) *corev1.SecretRefere
 }
 
 func createController(stop <-chan struct{}, namespace string, machineObjects, coreObjects []runtime.Object) (*controller, *watchableObjectTracker) {
+	// TODO controlCoreClient
 	fakeCoreClient := k8sfake.NewSimpleClientset(coreObjects...)
+	coreInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
+		fakeCoreClient,
+		100*time.Millisecond,
+		namespace,
+		nil,
+	)
+	defer coreInformerFactory.Start(stop)
+
+	coreSharedInformers := coreInformerFactory.Core().V1()
+	nodes := coreSharedInformers.Nodes()
 
 	fakeMachineClient, w := newMachineClientSet(machineObjects...)
 	go w.Start()
-
 	fakeTypedMachineClient := &faketyped.FakeMachineV1alpha1{
 		Fake: &fakeMachineClient.Fake,
 	}
-	//TODO controlCoreClient
-	controlMachineInformerFactory := machineinformers.NewSharedInformerFactory(fakeMachineClient, 100*time.Millisecond)
+	controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
+		fakeMachineClient,
+		100*time.Millisecond,
+		namespace,
+		nil,
+	)
 	defer controlMachineInformerFactory.Start(stop)
 
 	machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
@@ -272,6 +288,7 @@ func createController(stop <-chan struct{}, namespace string, machineObjects, co
 		controlCoreClient:              fakeCoreClient,
 		controlMachineClient:           fakeTypedMachineClient,
 		internalExternalScheme:         internalExternalScheme,
+		nodeLister:                     nodes.Lister(),
 		machineLister:                  machines.Lister(),
 		machineSetLister:               machineSets.Lister(),
 		machineDeploymentLister:        machineDeployments.Lister(),
@@ -280,7 +297,6 @@ func createController(stop <-chan struct{}, namespace string, machineObjects, co
 		machineDeploymentSynced:        machineDeployments.Informer().HasSynced,
 		secretQueue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
 		nodeQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
-		nodeToMachineQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "nodeToMachine"),
 		openStackMachineClassQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "openstackmachineclass"),
 		awsMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
 		azureMachineClassQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
@@ -331,11 +347,12 @@ func newMachineClientSet(objects ...runtime.Object) (*fakeuntyped.Clientset, *wa
 //watchableObjectTracker implements both k8stesting.ObjectTracker as well as watch.Interface.
 type watchableObjectTracker struct {
 	*watch.FakeWatcher
-	delegatee k8stesting.ObjectTracker
-	watchers  []*watcher
+	delegatee    k8stesting.ObjectTracker
+	watchers     []*watcher
+	trackerMutex sync.Mutex
 }
 
-func (t watchableObjectTracker) Add(obj runtime.Object) error {
+func (t *watchableObjectTracker) Add(obj runtime.Object) error {
 	return t.delegatee.Add(obj)
 }
 
@@ -418,6 +435,8 @@ func (t *watchableObjectTracker) watchReactionfunc(action k8stesting.Action) (bo
 			action:      a,
 		}
 		go w.dispatchInitialObjects(a, t)
+		t.trackerMutex.Lock()
+		defer t.trackerMutex.Unlock()
 		t.watchers = append(t.watchers, w)
 		return true, w, nil
 	default:
@@ -448,6 +467,9 @@ func (t *watchableObjectTracker) Stop() {
 		panic(errors.New("Tracker has no watch support"))
 	}
 
+	t.trackerMutex.Lock()
+	defer t.trackerMutex.Unlock()
+
 	t.FakeWatcher.Stop()
 	for _, w := range t.watchers {
 		w.Stop()
@@ -457,7 +479,15 @@ func (t *watchableObjectTracker) Stop() {
 
 type watcher struct {
 	*watch.FakeWatcher
-	action k8stesting.WatchAction
+	action      k8stesting.WatchAction
+	updateMutex sync.Mutex
+}
+
+func (w *watcher) Stop() {
+	w.updateMutex.Lock()
+	defer w.updateMutex.Unlock()
+
+	w.FakeWatcher.Stop()
 }
 
 func (w *watcher) handles(event *watch.Event) bool {
@@ -501,10 +531,12 @@ func (w *watcher) handles(event *watch.Event) bool {
 }
 
 func (w *watcher) dispatch(event *watch.Event) {
+	w.updateMutex.Lock()
+	defer w.updateMutex.Unlock()
+
 	if !w.handles(event) {
 		return
 	}
-
 	w.Action(event.Type, event.Object)
 }
 
