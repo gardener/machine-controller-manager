@@ -44,6 +44,44 @@ type GCPDriver struct {
 	MachineName     string
 }
 
+type gcpAddressKind string
+
+const (
+	gcpInternalAddress gcpAddressKind = "INTERNAL"
+	gcpExternalAddress gcpAddressKind = "EXTERNAL"
+)
+
+func (d *GCPDriver) createStaticAddress(ctx context.Context, computeService *compute.Service, project string, kind gcpAddressKind) (*compute.Address, error) {
+	ad := &compute.Address{
+		Name:        fmt.Sprintf("%s-%s-static", d.MachineName, strings.ToLower(string(kind))),
+		Description: fmt.Sprintf("interface created by machine provisioner for %s", d.GCPMachineClass.Name),
+		AddressType: string(kind),
+	}
+
+	region := d.GCPMachineClass.Spec.Region
+
+	glog.V(2).Infof("Checking for existing address: %s", ad.Name)
+
+	// see if an interface named this is already out there, and use it if it is
+	existingAddress, err := computeService.Addresses.Get(project, region, ad.Name).Context(ctx).Do()
+	if err == nil {
+		glog.V(2).Infof("Found existing address: '%s'  for %s ", existingAddress.Address, ad.Name)
+		return existingAddress, nil
+	}
+
+	op, err := computeService.Addresses.Insert(project, region, ad).Context(ctx).Do()
+	if err != nil {
+		return ad, err
+	}
+
+	if err := waitUntilRegionOperationCompleted(computeService, project, region, op.Name); err != nil {
+		return ad, err
+	}
+
+	glog.V(2).Infof("Created new address: %s", ad.Name)
+	return ad, nil
+}
+
 // Create method is used to create a GCP machine
 func (d *GCPDriver) Create() (string, string, error) {
 	ctx, computeService, err := d.createComputeService()
@@ -116,14 +154,43 @@ func (d *GCPDriver) Create() (string, string, error) {
 		computeNIC := &compute.NetworkInterface{
 			AccessConfigs: []*compute.AccessConfig{{}},
 		}
-		if len(nic.Network) != 0 {
+
+		if nic.CreateStaticExternal {
+			adr, err := d.createStaticAddress(ctx, computeService, project, gcpExternalAddress)
+			if err != nil {
+				return "Error", "Error", err
+			}
+			// currently theres only ever one access config on the nic object even tho it's a slice
+			computeNIC.AccessConfigs[0].NatIP = adr.Address
+		}
+
+		if nic.CreateStaticInternal {
+			adr, err := d.createStaticAddress(ctx, computeService, project, gcpInternalAddress)
+			if err != nil {
+				return "Error", "Error", err
+			}
+			computeNIC.NetworkIP = adr.Address
+		}
+
+		if nic.AttachExternal != "" {
+			computeNIC.AccessConfigs[0].NatIP = nic.AttachExternal
+		}
+
+		if nic.AttachInternal != "" {
+			computeNIC.NetworkIP = nic.AttachInternal
+		}
+
+		if len(nic.Network) > 0 {
 			computeNIC.Network = fmt.Sprintf("projects/%s/global/networks/%s", project, nic.Network)
 		}
-		if len(nic.Subnetwork) != 0 {
+
+		if len(nic.Subnetwork) > 0 {
 			computeNIC.Subnetwork = fmt.Sprintf("regions/%s/subnetworks/%s", d.GCPMachineClass.Spec.Region, nic.Subnetwork)
 		}
+
 		networkInterfaces = append(networkInterfaces, computeNIC)
 	}
+
 	instance.NetworkInterfaces = networkInterfaces
 
 	var serviceAccounts = []*compute.ServiceAccount{}
@@ -271,6 +338,28 @@ func (d *GCPDriver) createComputeService() (context.Context, *compute.Service, e
 	}
 
 	return ctx, computeService, nil
+}
+
+func waitUntilRegionOperationCompleted(computeService *compute.Service, project, region, operationName string) error {
+	return wait.Poll(5*time.Second, 300*time.Second, func() (bool, error) {
+		op, err := computeService.RegionOperations.Get(project, region, operationName).Do()
+		if err != nil {
+			return false, err
+		}
+
+		glog.V(3).Infof("Waiting for operation to be completed... (status: %s)", op.Status)
+		if op.Status == "DONE" {
+			if op.Error == nil {
+				return true, nil
+			}
+			var err []error
+			for _, opErr := range op.Error.Errors {
+				err = append(err, fmt.Errorf("%s", *opErr))
+			}
+			return false, fmt.Errorf("The following errors occurred: %+v", err)
+		}
+		return false, nil
+	})
 }
 
 func waitUntilOperationCompleted(computeService *compute.Service, project, zone, operationName string) error {

@@ -120,6 +120,14 @@ func validateGCPNetworkInterfaces(interfaces []*machine.GCPNetworkInterface, fld
 		if "" == nic.Network && "" == nic.Subnetwork {
 			allErrs = append(allErrs, field.Required(idxPath, "either network or subnetwork or both is required"))
 		}
+
+		if nic.CreateStaticExternal && nic.AttachExternal != "" {
+			allErrs = append(allErrs, field.Required(idxPath, "either attachExternal or createStaticExternal can be used, but not both"))
+		}
+
+		if nic.CreateStaticInternal && nic.AttachInternal != "" {
+			allErrs = append(allErrs, field.Required(idxPath, "either attachInternal or createStaticInternal can be used, but not both"))
+		}
 	}
 
 	return allErrs

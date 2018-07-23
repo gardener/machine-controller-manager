@@ -1101,6 +1101,20 @@ type GCPMetadata struct {
 type GCPNetworkInterface struct {
 	Network    string `json:"network,omitempty"`
 	Subnetwork string `json:"subnetwork,omitempty"`
+
+	// CreateStaticExternal creates a new IP ant ensures this node gets attached to it.
+	// If this is specified you can't use AttachExternal
+	CreateStaticExternal bool `json:"createStaticExternal,omitemptu"`
+
+	// CreateStaticInternal creates a new IP ant ensures this node gets attached to it.
+	// If this is specified you can't use AttachInternal
+	CreateStaticInternal bool `json:"createStaticInternal,omitemptu"`
+
+	// AttachExternal attaches this interface to the specified IPv4 External address
+	AttachExternal string `json:"attachExternal,omitempty"`
+
+	// AttachInternal attaches this interface to the specified IPv4 Internal address
+	AttachInternal string `json:"attachInternal,omitempty"`
 }
 
 // GCPScheduling describes scheduling configuration for GCP.
