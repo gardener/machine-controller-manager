@@ -100,8 +100,8 @@ func validateGCPDisks(disks []*machine.GCPDisk, fldPath *field.Path) field.Error
 		if disk.Type != "pd-standard" && disk.Type != "pd-ssd" {
 			allErrs = append(allErrs, field.NotSupported(idxPath.Child("type"), disk.Type, []string{"pd-standard", "pd-ssd"}))
 		}
-		if "" == disk.Image {
-			allErrs = append(allErrs, field.Required(idxPath.Child("image"), "image is required"))
+		if disk.Boot && "" == disk.Image {
+			allErrs = append(allErrs, field.Required(idxPath.Child("image"), "image is required for boot disk"))
 		}
 	}
 
