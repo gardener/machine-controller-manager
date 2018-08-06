@@ -183,7 +183,7 @@ const (
 	// MachineAvailable means that machine is present on provider but hasn't joined cluster yet
 	MachineAvailable MachinePhase = "Available"
 
-	// MachineRunning means node is ready and running succesfully
+	// MachineRunning means node is ready and running successfully
 	MachineRunning MachinePhase = "Running"
 
 	// MachineRunning means node is terminating

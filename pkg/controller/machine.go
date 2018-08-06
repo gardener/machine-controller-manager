@@ -508,7 +508,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			return err
 		}
 
-		glog.V(2).Infof("Machine %s deleted successfullly", machine.Name)
+		glog.V(2).Infof("Machine %s deleted successfully", machine.Name)
 	}
 	return nil
 }
@@ -669,7 +669,7 @@ func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 	numOfConditions := len(machine.Status.Conditions)
 
 	if numOfConditions == 0 {
-		// Kubernetes node object for this machine hasn't been recieved
+		// Kubernetes node object for this machine hasn't been received
 		return false
 	}
 
