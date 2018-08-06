@@ -70,7 +70,7 @@ const (
 	// latency/machine at the scale of 3000 machines over 100 nodes.
 	ExpectationsTimeout = 5 * time.Minute
 	// SlowStartInitialBatchSize - When batching machine creates, is the size of the
-	// inital batch.  The size of each successive batch is twice the size of
+	// initial batch.  The size of each successive batch is twice the size of
 	// the previous batch.  For example, for a value of 1, batch sizes would be
 	// 1, 2, 4, 8, ...  and for a value of 10, batch sizes would be
 	// 10, 20, 40, 80, ...  Setting the value higher means that quota denials
