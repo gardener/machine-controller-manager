@@ -230,7 +230,7 @@ func (d *AWSDriver) GetVMs(machineID string) (VMs, error) {
 		},
 	}
 
-	// When targetting particular VM
+	// When targeting particular VM
 	if machineID != "" {
 		machineID = d.decodeMachineID(machineID)
 		instanceFilter := &ec2.Filter{

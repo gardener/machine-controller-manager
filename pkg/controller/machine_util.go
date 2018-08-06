@@ -87,7 +87,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 		internalAWSMachineClass := &machineapi.AWSMachineClass{}
 		err = c.internalExternalScheme.Convert(AWSMachineClass, internalAWSMachineClass, nil)
 		if err != nil {
-			glog.V(2).Info("Error in scheme convertion")
+			glog.V(2).Info("Error in scheme conversion")
 			return MachineClass, secretRef, err
 		}
 
@@ -117,7 +117,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 		internalAzureMachineClass := &machineapi.AzureMachineClass{}
 		err = c.internalExternalScheme.Convert(AzureMachineClass, internalAzureMachineClass, nil)
 		if err != nil {
-			glog.V(2).Info("Error in scheme convertion")
+			glog.V(2).Info("Error in scheme conversion")
 			return MachineClass, secretRef, err
 		}
 
@@ -148,7 +148,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 		internalGCPMachineClass := &machineapi.GCPMachineClass{}
 		err = c.internalExternalScheme.Convert(GCPMachineClass, internalGCPMachineClass, nil)
 		if err != nil {
-			glog.V(2).Info("Error in scheme convertion")
+			glog.V(2).Info("Error in scheme conversion")
 			return MachineClass, secretRef, err
 		}
 
@@ -177,7 +177,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 		internalOpenStackMachineClass := &machineapi.OpenStackMachineClass{}
 		err = c.internalExternalScheme.Convert(OpenStackMachineClass, internalOpenStackMachineClass, nil)
 		if err != nil {
-			glog.V(2).Info("Error in scheme convertion")
+			glog.V(2).Info("Error in scheme conversion")
 			return MachineClass, secretRef, err
 		}
 

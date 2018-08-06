@@ -354,7 +354,7 @@ func (c *controller) checkMachineClass(
 				continue
 			}
 
-			// Re-check VM object existance
+			// Re-check VM object existence
 			// before deleting orphan VM
 			result, _ := dvr.GetVMs(machineID)
 			for reMachineID := range result {
