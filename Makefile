@@ -96,11 +96,11 @@ check:
 
 .PHONY: test
 test:
-	@COVER=true .ci/test
+	@.ci/test
 
 .PHONY: test-unit
 test-unit:
-	@SKIP_INTEGRATION_TESTS=X COVER=true .ci/test
+	@SKIP_INTEGRATION_TESTS=X .ci/test
 
 .PHONY: test-integration
 test-integration:
