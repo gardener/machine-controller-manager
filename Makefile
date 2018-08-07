@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-IMAGE_REPOSITORY := eu.gcr.io/gardener-project/gardener/machine-controller-manager
-IMAGE_TAG        := $(shell cat VERSION)
+IMAGE_REPOSITORY   := eu.gcr.io/gardener-project/gardener/machine-controller-manager
+IMAGE_TAG          := $(shell cat VERSION)
+COVERPROFILE       := test/output/coverprofile.out
 
 CONTROL_NAMESPACE  := default
 CONTROL_KUBECONFIG := dev/target-kubeconfig.yaml
@@ -105,14 +106,12 @@ test-unit:
 test-integration:
 	@SKIP_UNIT_TESTS=X .ci/test
 
-.PHONY: test-cov
-test-cov:
-	@env COVERAGE=1 .ci/test
-	@echo "mode: set" > machine-controller-manager.coverprofile && find . -name "*.coverprofile" -type f | xargs cat | grep -v mode: | sort -r | awk '{if($$1 != last) {print $$0;last=$$1}}' >> machine-controller-manager.coverprofile
-	@go tool cover -html=machine-controller-manager.coverprofile -o=machine-controller-manager.coverage.html
-	@rm machine-controller-manager.coverprofile
+.PHONY: show-coverage
+show-coverage:
+	@if [ ! -f $(COVERPROFILE) ]; then echo "$(COVERPROFILE) is not yet built. Please run 'COVER=true make test'"; false; fi
+	go tool cover -html $(COVERPROFILE)
 
 .PHONY: test-clean
 test-clean:
 	@find . -name "*.coverprofile" -type f -delete
-	@rm -f machine-controller-manager.coverage.html
+	@rm -f $(COVERPROFILE)
