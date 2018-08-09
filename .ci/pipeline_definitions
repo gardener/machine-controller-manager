@@ -26,7 +26,9 @@ machine-controller-manager:
         image: 'golang:1.9.4'
         output_dir: 'binary'
   variants:
-    head-update: ~
+    head-update:
+      traits:
+        draft_release: ~
     pull-request:
       traits:
         pull-request: ~
