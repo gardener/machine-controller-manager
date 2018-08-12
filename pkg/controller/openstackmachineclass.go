@@ -25,9 +25,9 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	machine "github.com/gardener/machine-controller-manager/pkg/apis/cluster"
+	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/validation"
 )
 
 // OpenStackMachineClassKind is used to identify the machineClassKind as OpenStack

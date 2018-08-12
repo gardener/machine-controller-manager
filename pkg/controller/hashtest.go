@@ -29,7 +29,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
 	hashutil "github.com/gardener/machine-controller-manager/pkg/util/hash"
 )
 

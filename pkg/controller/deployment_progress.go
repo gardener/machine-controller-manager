@@ -29,7 +29,7 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
 )
 
 // syncRolloutStatus updates the status of a deployment during a rollout. There are

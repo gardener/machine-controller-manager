@@ -3,7 +3,7 @@
 package internalversion
 
 import (
-	machineinternalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion/typed/machine/internalversion"
+	clusterinternalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion/typed/cluster/internalversion"
 	glog "github.com/golang/glog"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
@@ -12,19 +12,19 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	Machine() machineinternalversion.MachineInterface
+	Cluster() clusterinternalversion.ClusterInterface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	machine *machineinternalversion.MachineClient
+	cluster *clusterinternalversion.ClusterClient
 }
 
-// Machine retrieves the MachineClient
-func (c *Clientset) Machine() machineinternalversion.MachineInterface {
-	return c.machine
+// Cluster retrieves the ClusterClient
+func (c *Clientset) Cluster() clusterinternalversion.ClusterInterface {
+	return c.cluster
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -43,7 +43,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.machine, err = machineinternalversion.NewForConfig(&configShallowCopy)
+	cs.cluster, err = clusterinternalversion.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.machine = machineinternalversion.NewForConfigOrDie(c)
+	cs.cluster = clusterinternalversion.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -69,7 +69,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.machine = machineinternalversion.New(c)
+	cs.cluster = clusterinternalversion.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

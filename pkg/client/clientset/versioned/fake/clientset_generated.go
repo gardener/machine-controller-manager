@@ -4,8 +4,8 @@ package fake
 
 import (
 	clientset "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned"
-	machinev1alpha1 "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
-	fakemachinev1alpha1 "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
+	clusterv1alpha1 "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/cluster/v1alpha1"
+	fakeclusterv1alpha1 "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/cluster/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -46,12 +46,12 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 
 var _ clientset.Interface = &Clientset{}
 
-// MachineV1alpha1 retrieves the MachineV1alpha1Client
-func (c *Clientset) MachineV1alpha1() machinev1alpha1.MachineV1alpha1Interface {
-	return &fakemachinev1alpha1.FakeMachineV1alpha1{Fake: &c.Fake}
+// ClusterV1alpha1 retrieves the ClusterV1alpha1Client
+func (c *Clientset) ClusterV1alpha1() clusterv1alpha1.ClusterV1alpha1Interface {
+	return &fakeclusterv1alpha1.FakeClusterV1alpha1{Fake: &c.Fake}
 }
 
-// Machine retrieves the MachineV1alpha1Client
-func (c *Clientset) Machine() machinev1alpha1.MachineV1alpha1Interface {
-	return &fakemachinev1alpha1.FakeMachineV1alpha1{Fake: &c.Fake}
+// Cluster retrieves the ClusterV1alpha1Client
+func (c *Clientset) Cluster() clusterv1alpha1.ClusterV1alpha1Interface {
+	return &fakeclusterv1alpha1.FakeClusterV1alpha1{Fake: &c.Fake}
 }

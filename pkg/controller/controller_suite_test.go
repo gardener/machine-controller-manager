@@ -23,10 +23,10 @@ import (
 
 	"errors"
 
-	machine_internal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	machine_internal "github.com/gardener/machine-controller-manager/pkg/apis/cluster"
+	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
 	fakeuntyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/fake"
-	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
+	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/cluster/v1alpha1/fake"
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
 	"github.com/gardener/machine-controller-manager/pkg/options"
 	. "github.com/onsi/ginkgo"

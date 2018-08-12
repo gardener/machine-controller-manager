@@ -18,7 +18,7 @@ limitations under the License.
 package controller
 
 import (
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 

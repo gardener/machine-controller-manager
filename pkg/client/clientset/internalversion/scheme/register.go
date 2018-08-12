@@ -5,7 +5,7 @@ package scheme
 import (
 	os "os"
 
-	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine/install"
+	cluster "github.com/gardener/machine-controller-manager/pkg/apis/cluster/install"
 	announced "k8s.io/apimachinery/pkg/apimachinery/announced"
 	registered "k8s.io/apimachinery/pkg/apimachinery/registered"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,6 +28,6 @@ func init() {
 
 // Install registers the API group and adds types to a scheme
 func Install(groupFactoryRegistry announced.APIGroupFactoryRegistry, registry *registered.APIRegistrationManager, scheme *runtime.Scheme) {
-	machine.Install(groupFactoryRegistry, registry, scheme)
+	cluster.Install(groupFactoryRegistry, registry, scheme)
 
 }

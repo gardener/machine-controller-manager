@@ -24,11 +24,11 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 
-	machine_internal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	machine_v1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
-	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions/machine/v1alpha1"
-	machinelisters "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
+	machine_internal "github.com/gardener/machine-controller-manager/pkg/apis/cluster"
+	machine_v1 "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
+	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/cluster/v1alpha1"
+	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions/cluster/v1alpha1"
+	machinelisters "github.com/gardener/machine-controller-manager/pkg/client/listers/cluster/v1alpha1"
 	"github.com/golang/glog"
 	"k8s.io/api/core/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"

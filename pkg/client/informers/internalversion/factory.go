@@ -10,8 +10,8 @@ import (
 	time "time"
 
 	internalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion"
+	cluster "github.com/gardener/machine-controller-manager/pkg/client/informers/internalversion/cluster"
 	internalinterfaces "github.com/gardener/machine-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
-	machine "github.com/gardener/machine-controller-manager/pkg/client/informers/internalversion/machine"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -109,9 +109,9 @@ type SharedInformerFactory interface {
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
-	Machine() machine.Interface
+	Cluster() cluster.Interface
 }
 
-func (f *sharedInformerFactory) Machine() machine.Interface {
-	return machine.New(f, f.namespace, f.tweakListOptions)
+func (f *sharedInformerFactory) Cluster() cluster.Interface {
+	return cluster.New(f, f.namespace, f.tweakListOptions)
 }
