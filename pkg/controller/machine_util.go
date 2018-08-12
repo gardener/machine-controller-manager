@@ -23,14 +23,11 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
-	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/validation"
 	"github.com/golang/glog"
 
-	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/cluster"
 	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
 	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/cluster/v1alpha1"
 	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/cluster/v1alpha1"
-	"k8s.io/api/core/v1"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
 )
@@ -69,133 +66,133 @@ func UpdateMachineWithRetries(machineClient v1alpha1client.MachineInterface, mac
 	return machine, retryErr
 }
 
-func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interface{}, *v1.Secret, error) {
+// func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interface{}, *v1.Secret, error) {
 
-	var MachineClass interface{}
-	var secretRef *v1.Secret
+// 	var MachineClass interface{}
+// 	var secretRef *v1.Secret
 
-	if classSpec.Kind == "AWSMachineClass" {
+// 	if classSpec.Kind == "AWSMachineClass" {
 
-		AWSMachineClass, err := c.awsMachineClassLister.AWSMachineClasses(c.namespace).Get(classSpec.Name)
-		if err != nil {
-			glog.V(2).Infof("AWSMachineClass %q/%q not found. Skipping. %v", c.namespace, classSpec.Name, err)
-			return MachineClass, secretRef, err
-		}
-		MachineClass = AWSMachineClass
+// 		AWSMachineClass, err := c.awsMachineClassLister.AWSMachineClasses(c.namespace).Get(classSpec.Name)
+// 		if err != nil {
+// 			glog.V(2).Infof("AWSMachineClass %q/%q not found. Skipping. %v", c.namespace, classSpec.Name, err)
+// 			return MachineClass, secretRef, err
+// 		}
+// 		MachineClass = AWSMachineClass
 
-		// Validate AWSMachineClass
-		internalAWSMachineClass := &machineapi.AWSMachineClass{}
-		err = c.internalExternalScheme.Convert(AWSMachineClass, internalAWSMachineClass, nil)
-		if err != nil {
-			glog.V(2).Info("Error in scheme convertion")
-			return MachineClass, secretRef, err
-		}
+// 		// Validate AWSMachineClass
+// 		internalAWSMachineClass := &machineapi.AWSMachineClass{}
+// 		err = c.internalExternalScheme.Convert(AWSMachineClass, internalAWSMachineClass, nil)
+// 		if err != nil {
+// 			glog.V(2).Info("Error in scheme convertion")
+// 			return MachineClass, secretRef, err
+// 		}
 
-		validationerr := validation.ValidateAWSMachineClass(internalAWSMachineClass)
-		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-			glog.V(2).Infof("Validation of AWSMachineClass failed %s", validationerr.ToAggregate().Error())
-			return MachineClass, secretRef, nil
-		}
+// 		validationerr := validation.ValidateAWSMachineClass(internalAWSMachineClass)
+// 		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+// 			glog.V(2).Infof("Validation of AWSMachineClass failed %s", validationerr.ToAggregate().Error())
+// 			return MachineClass, secretRef, nil
+// 		}
 
-		// Get secretRef
-		secretRef, err = c.getSecret(AWSMachineClass.Spec.SecretRef, AWSMachineClass.Name)
-		if err != nil || secretRef == nil {
-			glog.V(2).Info("Secret reference not found")
-			return MachineClass, secretRef, err
-		}
+// 		// Get secretRef
+// 		secretRef, err = c.getSecret(AWSMachineClass.Spec.SecretRef, AWSMachineClass.Name)
+// 		if err != nil || secretRef == nil {
+// 			glog.V(2).Info("Secret reference not found")
+// 			return MachineClass, secretRef, err
+// 		}
 
-	} else if classSpec.Kind == "AzureMachineClass" {
+// 	} else if classSpec.Kind == "AzureMachineClass" {
 
-		AzureMachineClass, err := c.azureMachineClassLister.AzureMachineClasses(c.namespace).Get(classSpec.Name)
-		if err != nil {
-			glog.V(2).Infof("AzureMachineClass %q not found. Skipping. %v", classSpec.Name, err)
-			return MachineClass, secretRef, err
-		}
-		MachineClass = AzureMachineClass
+// 		AzureMachineClass, err := c.azureMachineClassLister.AzureMachineClasses(c.namespace).Get(classSpec.Name)
+// 		if err != nil {
+// 			glog.V(2).Infof("AzureMachineClass %q not found. Skipping. %v", classSpec.Name, err)
+// 			return MachineClass, secretRef, err
+// 		}
+// 		MachineClass = AzureMachineClass
 
-		// Validate AzureMachineClass
-		internalAzureMachineClass := &machineapi.AzureMachineClass{}
-		err = c.internalExternalScheme.Convert(AzureMachineClass, internalAzureMachineClass, nil)
-		if err != nil {
-			glog.V(2).Info("Error in scheme convertion")
-			return MachineClass, secretRef, err
-		}
+// 		// Validate AzureMachineClass
+// 		internalAzureMachineClass := &machineapi.AzureMachineClass{}
+// 		err = c.internalExternalScheme.Convert(AzureMachineClass, internalAzureMachineClass, nil)
+// 		if err != nil {
+// 			glog.V(2).Info("Error in scheme convertion")
+// 			return MachineClass, secretRef, err
+// 		}
 
-		validationerr := validation.ValidateAzureMachineClass(internalAzureMachineClass)
-		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-			glog.V(2).Infof("Validation of AzureMachineClass failed %s", validationerr.ToAggregate().Error())
-			return MachineClass, secretRef, nil
-		}
+// 		validationerr := validation.ValidateAzureMachineClass(internalAzureMachineClass)
+// 		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+// 			glog.V(2).Infof("Validation of AzureMachineClass failed %s", validationerr.ToAggregate().Error())
+// 			return MachineClass, secretRef, nil
+// 		}
 
-		// Get secretRef
-		secretRef, err = c.getSecret(AzureMachineClass.Spec.SecretRef, AzureMachineClass.Name)
-		if err != nil || secretRef == nil {
-			glog.V(2).Info("Secret reference not found")
-			return MachineClass, secretRef, err
+// 		// Get secretRef
+// 		secretRef, err = c.getSecret(AzureMachineClass.Spec.SecretRef, AzureMachineClass.Name)
+// 		if err != nil || secretRef == nil {
+// 			glog.V(2).Info("Secret reference not found")
+// 			return MachineClass, secretRef, err
 
-		}
+// 		}
 
-	} else if classSpec.Kind == "GCPMachineClass" {
+// 	} else if classSpec.Kind == "GCPMachineClass" {
 
-		GCPMachineClass, err := c.gcpMachineClassLister.GCPMachineClasses(c.namespace).Get(classSpec.Name)
-		if err != nil {
-			glog.V(2).Infof("GCPMachineClass %q not found. Skipping. %v", classSpec.Name, err)
-			return MachineClass, secretRef, err
-		}
-		MachineClass = GCPMachineClass
+// 		GCPMachineClass, err := c.gcpMachineClassLister.GCPMachineClasses(c.namespace).Get(classSpec.Name)
+// 		if err != nil {
+// 			glog.V(2).Infof("GCPMachineClass %q not found. Skipping. %v", classSpec.Name, err)
+// 			return MachineClass, secretRef, err
+// 		}
+// 		MachineClass = GCPMachineClass
 
-		// Validate GCPMachineClass
-		internalGCPMachineClass := &machineapi.GCPMachineClass{}
-		err = c.internalExternalScheme.Convert(GCPMachineClass, internalGCPMachineClass, nil)
-		if err != nil {
-			glog.V(2).Info("Error in scheme convertion")
-			return MachineClass, secretRef, err
-		}
+// 		// Validate GCPMachineClass
+// 		internalGCPMachineClass := &machineapi.GCPMachineClass{}
+// 		err = c.internalExternalScheme.Convert(GCPMachineClass, internalGCPMachineClass, nil)
+// 		if err != nil {
+// 			glog.V(2).Info("Error in scheme convertion")
+// 			return MachineClass, secretRef, err
+// 		}
 
-		validationerr := validation.ValidateGCPMachineClass(internalGCPMachineClass)
-		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-			glog.V(2).Infof("Validation of GCPMachineClass failed %s", validationerr.ToAggregate().Error())
-			return MachineClass, secretRef, nil
-		}
+// 		validationerr := validation.ValidateGCPMachineClass(internalGCPMachineClass)
+// 		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+// 			glog.V(2).Infof("Validation of GCPMachineClass failed %s", validationerr.ToAggregate().Error())
+// 			return MachineClass, secretRef, nil
+// 		}
 
-		// Get secretRef
-		secretRef, err = c.getSecret(GCPMachineClass.Spec.SecretRef, GCPMachineClass.Name)
-		if err != nil || secretRef == nil {
-			glog.V(2).Info("Secret reference not found")
-			return MachineClass, secretRef, err
-		}
-	} else if classSpec.Kind == "OpenStackMachineClass" {
+// 		// Get secretRef
+// 		secretRef, err = c.getSecret(GCPMachineClass.Spec.SecretRef, GCPMachineClass.Name)
+// 		if err != nil || secretRef == nil {
+// 			glog.V(2).Info("Secret reference not found")
+// 			return MachineClass, secretRef, err
+// 		}
+// 	} else if classSpec.Kind == "OpenStackMachineClass" {
 
-		OpenStackMachineClass, err := c.openStackMachineClassLister.OpenStackMachineClasses(c.namespace).Get(classSpec.Name)
-		if err != nil {
-			glog.V(2).Infof("OpenStackMachineClass %q not found. Skipping. %v", classSpec.Name, err)
-			return MachineClass, secretRef, err
-		}
-		MachineClass = OpenStackMachineClass
+// 		OpenStackMachineClass, err := c.openStackMachineClassLister.OpenStackMachineClasses(c.namespace).Get(classSpec.Name)
+// 		if err != nil {
+// 			glog.V(2).Infof("OpenStackMachineClass %q not found. Skipping. %v", classSpec.Name, err)
+// 			return MachineClass, secretRef, err
+// 		}
+// 		MachineClass = OpenStackMachineClass
 
-		// Validate OpenStackMachineClass
-		internalOpenStackMachineClass := &machineapi.OpenStackMachineClass{}
-		err = c.internalExternalScheme.Convert(OpenStackMachineClass, internalOpenStackMachineClass, nil)
-		if err != nil {
-			glog.V(2).Info("Error in scheme convertion")
-			return MachineClass, secretRef, err
-		}
+// 		// Validate OpenStackMachineClass
+// 		internalOpenStackMachineClass := &machineapi.OpenStackMachineClass{}
+// 		err = c.internalExternalScheme.Convert(OpenStackMachineClass, internalOpenStackMachineClass, nil)
+// 		if err != nil {
+// 			glog.V(2).Info("Error in scheme convertion")
+// 			return MachineClass, secretRef, err
+// 		}
 
-		validationerr := validation.ValidateOpenStackMachineClass(internalOpenStackMachineClass)
-		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-			glog.V(2).Infof("Validation of OpenStackMachineClass failed %s", validationerr.ToAggregate().Error())
-			return MachineClass, secretRef, nil
-		}
+// 		validationerr := validation.ValidateOpenStackMachineClass(internalOpenStackMachineClass)
+// 		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+// 			glog.V(2).Infof("Validation of OpenStackMachineClass failed %s", validationerr.ToAggregate().Error())
+// 			return MachineClass, secretRef, nil
+// 		}
 
-		// Get secretRef
-		secretRef, err = c.getSecret(OpenStackMachineClass.Spec.SecretRef, OpenStackMachineClass.Name)
-		if err != nil || secretRef == nil {
-			glog.V(2).Info("Secret reference not found")
-			return MachineClass, secretRef, err
-		}
-	} else {
-		glog.V(2).Infof("ClassKind %q not found", classSpec.Kind)
-	}
+// 		// Get secretRef
+// 		secretRef, err = c.getSecret(OpenStackMachineClass.Spec.SecretRef, OpenStackMachineClass.Name)
+// 		if err != nil || secretRef == nil {
+// 			glog.V(2).Info("Secret reference not found")
+// 			return MachineClass, secretRef, err
+// 		}
+// 	} else {
+// 		glog.V(2).Infof("ClassKind %q not found", classSpec.Kind)
+// 	}
 
-	return MachineClass, secretRef, nil
-}
+// 	return MachineClass, secretRef, nil
+// }

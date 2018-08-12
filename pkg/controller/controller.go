@@ -62,7 +62,7 @@ const (
 // NewController returns a new Node controller.
 func NewController(
 	namespace string,
-	controlMachineClient machineapi.MachineV1alpha1Interface,
+	controlMachineClient machineapi.ClusterInterface,
 	controlCoreClient kubernetes.Interface,
 	targetCoreClient kubernetes.Interface,
 	secretInformer coreinformers.SecretInformer,
@@ -339,7 +339,7 @@ type Controller interface {
 type controller struct {
 	namespace string
 
-	controlMachineClient machineapi.MachineV1alpha1Interface
+	controlMachineClient machineapi.ClusterInterface
 	controlCoreClient    kubernetes.Interface
 	targetCoreClient     kubernetes.Interface
 

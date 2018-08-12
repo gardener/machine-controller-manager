@@ -35,7 +35,7 @@ import (
 )
 
 // updateMachineSetStatus attempts to update the Status.Replicas of the given MachineSet, with a single GET/PUT retry.
-func updateMachineSetStatus(machineClient machineapi.MachineV1alpha1Interface, is *v1alpha1.MachineSet, newStatus v1alpha1.MachineSetStatus) (*v1alpha1.MachineSet, error) {
+func updateMachineSetStatus(machineClient machineapi.ClusterInterface, is *v1alpha1.MachineSet, newStatus v1alpha1.MachineSetStatus) (*v1alpha1.MachineSet, error) {
 	// This is the steady state. It happens when the MachineSet doesn't have any expectations, since
 	// we do a periodic relist every 30s. If the generations differ but the replicas are
 	// the same, a caller might've resized to the same replica count.

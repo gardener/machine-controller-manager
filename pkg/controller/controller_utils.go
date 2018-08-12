@@ -415,7 +415,7 @@ type MachineSetControlInterface interface {
 
 // RealMachineSetControl is the default implementation of RSControllerInterface.
 type RealMachineSetControl struct {
-	controlMachineClient machineapi.MachineV1alpha1Interface
+	controlMachineClient machineapi.ClusterInterface
 	Recorder             record.EventRecorder
 }
 
@@ -471,7 +471,7 @@ func validateControllerRef(controllerRef *metav1.OwnerReference) error {
 
 // RealMachineControl is the default implementation of machineControlInterface.
 type RealMachineControl struct {
-	controlMachineClient machineapi.MachineV1alpha1Interface
+	controlMachineClient machineapi.ClusterInterface
 	Recorder             record.EventRecorder
 }
 

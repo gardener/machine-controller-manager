@@ -42,7 +42,6 @@ import (
 
 	machine "github.com/gardener/machine-controller-manager/pkg/apis/cluster"
 	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/validation"
 )
 
 const (
@@ -455,17 +454,18 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	if err != nil {
 		return err
 	}
-	validationerr := validation.ValidateMachineSet(internalMachineSet)
-	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of MachineSet failed %s", validationerr.ToAggregate().Error())
-		return nil
-	}
+	// TODO: Un-comment it later.
+	// validationerr := validation.ValidateMachineSet(internalMachineSet)
+	// if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+	// 	glog.V(2).Infof("Validation of MachineSet failed %s", validationerr.ToAggregate().Error())
+	// 	return nil
+	// }
 
-	// Validate MachineClass
-	_, secretRef, err := c.validateMachineClass(&machineSet.Spec.Template.Spec.Class)
-	if err != nil || secretRef == nil {
-		return err
-	}
+	// // Validate MachineClass
+	// _, secretRef, err := c.validateMachineClass(&machineSet.Spec.Template.Spec.Class)
+	// if err != nil || secretRef == nil {
+	// 	return err
+	// }
 
 	// Manipulate finalizers
 	if machineSet.DeletionTimestamp == nil {

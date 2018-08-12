@@ -36,7 +36,6 @@ import (
 
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/cluster"
 	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/validation"
 	"github.com/gardener/machine-controller-manager/pkg/driver"
 )
 
@@ -124,11 +123,11 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	if err != nil {
 		return err
 	}
-	validationerr := validation.ValidateMachine(internalMachine)
-	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of Machine failed %s", validationerr.ToAggregate().Error())
-		return nil
-	}
+	// validationerr := validation.ValidateMachine(internalMachine)
+	// if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+	// 	glog.V(2).Infof("Validation of Machine failed %s", validationerr.ToAggregate().Error())
+	// 	return nil
+	// }
 
 	// Validate MachineClass
 	MachineClass, secretRef, err := c.validateMachineClass(&machine.Spec.Class)

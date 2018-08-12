@@ -125,6 +125,51 @@ type MachineSetStatus struct {
 	ErrorReason *common.MachineSetStatusError `json:"errorReason,omitempty"`
 	// +optional
 	ErrorMessage *string `json:"errorMessage,omitempty"`
+
+	// Represents the latest available observations of a replica set's current state.
+	// +optional
+	Conditions []MachineSetCondition `json:"machineSetCondition,inline"`
+
+	// LastOperation performed
+	LastOperation LastOperation `json:"lastOperation,omitempty"`
+
+	// FailedMachines has summary of machines on which lastOperation Failed
+	// +optional
+	FailedMachines *[]MachineSummary `json:"failedMachines,inline"`
+}
+
+// MachineSetConditionType is the condition on machineset object
+type MachineSetConditionType string
+
+// These are valid conditions of a machine set.
+const (
+	// MachineSetReplicaFailure is added in a machine set when one of its machines fails to be created
+	// due to insufficient quota, limit ranges, machine security policy, node selectors, etc. or deleted
+	// due to kubelet being down or finalizers are failing.
+	MachineSetReplicaFailure MachineSetConditionType = "ReplicaFailure"
+	// MachineSetFrozen is set when the machineset has exceeded its replica threshold at the safety controller
+	MachineSetFrozen MachineSetConditionType = "Frozen"
+)
+
+// MachineSetCondition describes the state of a machine set at a certain point.
+type MachineSetCondition struct {
+	// Type of machine set condition.
+	Type MachineSetConditionType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=MachineSetConditionType"`
+
+	// Status of the condition, one of True, False, Unknown.
+	Status ConditionStatus `json:"status" protobuf:"bytes,2,opt,name=status,casttype=k8s.io/api/core/v1.ConditionStatus"`
+
+	// The last time the condition transitioned from one status to another.
+	// +optional
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
+
+	// The reason for the condition's last transition.
+	// +optional
+	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
+
+	// A human readable message indicating details about the transition.
+	// +optional
+	Message string `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
 }
 
 // Validate checks that an instance of MachineSet is well formed

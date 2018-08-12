@@ -252,6 +252,21 @@ type MachineVersionInfo struct {
 	ControlPlane string `json:"controlPlane,omitempty"`
 }
 
+// MachineSummary store the summary of machine.
+type MachineSummary struct {
+	// Name of the machine object
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+
+	// ProviderID represents the provider's unique ID given to a machine
+	ProviderID string `json:"providerID,omitempty"`
+
+	// Last operation refers to the status of the last operation performed
+	LastOperation LastOperation `json:"lastOperation,omitempty"`
+
+	// OwnerRef
+	OwnerRef string `json:"ownerRef,omitempty"`
+}
+
 // Validate checks that an instance of Machine is well formed
 func (MachineStrategy) Validate(ctx request.Context, obj runtime.Object) field.ErrorList {
 	machine := obj.(*cluster.Machine)

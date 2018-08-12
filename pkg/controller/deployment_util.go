@@ -540,7 +540,7 @@ func getMachineSetFraction(is v1alpha1.MachineSet, d v1alpha1.MachineDeployment)
 // GetAllMachineSets returns the old and new machine sets targeted by the given Deployment. It gets MachineList and MachineSetList from client interface.
 // Note that the first set of old machine sets doesn't include the ones with no machines, and the second set of old machine sets include all old machine sets.
 // The third returned value is the new machine set, and it may be nil if it doesn't exist yet.
-func GetAllMachineSets(deployment *v1alpha1.MachineDeployment, c v1alpha1client.MachineV1alpha1Interface) ([]*v1alpha1.MachineSet, []*v1alpha1.MachineSet, *v1alpha1.MachineSet, error) {
+func GetAllMachineSets(deployment *v1alpha1.MachineDeployment, c v1alpha1client.ClusterInterface) ([]*v1alpha1.MachineSet, []*v1alpha1.MachineSet, *v1alpha1.MachineSet, error) {
 	isList, err := ListMachineSets(deployment, IsListFromClient(c))
 	if err != nil {
 		return nil, nil, nil, err
@@ -552,7 +552,7 @@ func GetAllMachineSets(deployment *v1alpha1.MachineDeployment, c v1alpha1client.
 
 // GetOldMachineSets returns the old machine sets targeted by the given Deployment; get MachineList and MachineSetList from client interface.
 // Note that the first set of old machine sets doesn't include the ones with no machines, and the second set of old machine sets include all old machine sets.
-func GetOldMachineSets(deployment *v1alpha1.MachineDeployment, c v1alpha1client.MachineV1alpha1Interface) ([]*v1alpha1.MachineSet, []*v1alpha1.MachineSet, error) {
+func GetOldMachineSets(deployment *v1alpha1.MachineDeployment, c v1alpha1client.ClusterInterface) ([]*v1alpha1.MachineSet, []*v1alpha1.MachineSet, error) {
 	rsList, err := ListMachineSets(deployment, IsListFromClient(c))
 	if err != nil {
 		return nil, nil, err
@@ -563,7 +563,7 @@ func GetOldMachineSets(deployment *v1alpha1.MachineDeployment, c v1alpha1client.
 
 // GetNewMachineSet returns a machine set that matches the intent of the given deployment; get MachineSetList from client interface.
 // Returns nil if the new machine set doesn't exist yet.
-func GetNewMachineSet(deployment *v1alpha1.MachineDeployment, c v1alpha1client.MachineV1alpha1Interface) (*v1alpha1.MachineSet, error) {
+func GetNewMachineSet(deployment *v1alpha1.MachineDeployment, c v1alpha1client.ClusterInterface) (*v1alpha1.MachineSet, error) {
 	rsList, err := ListMachineSets(deployment, IsListFromClient(c))
 	if err != nil {
 		return nil, err
@@ -572,7 +572,7 @@ func GetNewMachineSet(deployment *v1alpha1.MachineDeployment, c v1alpha1client.M
 }
 
 // IsListFromClient returns an rsListFunc that wraps the given client.
-func IsListFromClient(c v1alpha1client.MachineV1alpha1Interface) IsListFunc {
+func IsListFromClient(c v1alpha1client.ClusterInterface) IsListFunc {
 	return func(namespace string, options metav1.ListOptions) ([]*v1alpha1.MachineSet, error) {
 		isList, err := c.MachineSets(namespace).List(options)
 		if err != nil {
@@ -754,7 +754,7 @@ func WaitForMachinesHashPopulated(c v1alpha1listers.MachineSetLister, desiredGen
 }
 
 // LabelMachinesWithHash labels all machines in the given machineList with the new hash label.
-func LabelMachinesWithHash(machineList *v1alpha1.MachineList, c v1alpha1client.MachineV1alpha1Interface, machineLister v1alpha1listers.MachineLister, namespace, name, hash string) error {
+func LabelMachinesWithHash(machineList *v1alpha1.MachineList, c v1alpha1client.ClusterInterface, machineLister v1alpha1listers.MachineLister, namespace, name, hash string) error {
 	for _, machine := range machineList.Items {
 		// Ignore inactive Machines.
 		if !IsMachineActive(&machine) {

@@ -151,6 +151,26 @@ type MachineSetStatus struct {
 	ObservedGeneration   int64
 	ErrorReason          *clustercommon.MachineSetStatusError
 	ErrorMessage         *string
+	FailedMachines       *[]MachineSummary
+	Conditions           []MachineSetCondition
+	LastOperation        LastOperation
+}
+
+// MachineSetConditionType is the condition on machineset object
+type MachineSetConditionType string
+
+// These are valid conditions of a machine set.
+const (
+	MachineSetReplicaFailure MachineSetConditionType = "ReplicaFailure"
+	MachineSetFrozen         MachineSetConditionType = "Frozen"
+)
+
+type MachineSetCondition struct {
+	Type               MachineSetConditionType
+	Status             ConditionStatus
+	LastTransitionTime metav1.Time
+	Reason             string
+	Message            string
 }
 
 type APIEndpoint struct {
@@ -197,6 +217,20 @@ type MachineClassRef struct {
 	Parameters map[string]string
 }
 
+type MachineClass struct {
+	metav1.TypeMeta
+	metav1.ObjectMeta
+	Capacity       corev1.ResourceList
+	Allocatable    corev1.ResourceList
+	ProviderConfig runtime.RawExtension
+}
+
+type MachineClassList struct {
+	metav1.TypeMeta
+	metav1.ListMeta
+	Items []MachineClass
+}
+
 type MachineVersionInfo struct {
 	Kubelet      string
 	ControlPlane string
@@ -230,6 +264,9 @@ type MachineDeploymentStatus struct {
 	ReadyReplicas       int32
 	AvailableReplicas   int32
 	UnavailableReplicas int32
+	Conditions          []MachineDeploymentCondition
+	CollisionCount      *int32
+	FailedMachines      []*MachineSummary
 }
 
 type MachineDeploymentSpec struct {
@@ -241,6 +278,7 @@ type MachineDeploymentSpec struct {
 	RevisionHistoryLimit    *int32
 	Paused                  bool
 	ProgressDeadlineSeconds *int32
+	RollbackTo              *RollbackConfig
 }
 
 type MachineDeploymentStrategy struct {
@@ -252,6 +290,36 @@ type MachineRollingUpdateDeployment struct {
 	MaxUnavailable *utilintstr.IntOrString
 	MaxSurge       *utilintstr.IntOrString
 }
+
+type RollbackConfig struct {
+	Revision int64
+}
+
+type MachineDeploymentConditionType string
+
+const (
+	MachineDeploymentAvailable      MachineDeploymentConditionType = "Available"
+	MachineDeploymentProgressing    MachineDeploymentConditionType = "Progressing"
+	MachineDeploymentReplicaFailure MachineDeploymentConditionType = "ReplicaFailure"
+	MachineDeploymentFrozen         MachineDeploymentConditionType = "Frozen"
+)
+
+type MachineDeploymentCondition struct {
+	Type               MachineDeploymentConditionType
+	Status             ConditionStatus
+	LastUpdateTime     metav1.Time
+	LastTransitionTime metav1.Time
+	Reason             string
+	Message            string
+}
+
+type ConditionStatus string
+
+const (
+	ConditionTrue    ConditionStatus = "True"
+	ConditionFalse   ConditionStatus = "False"
+	ConditionUnknown ConditionStatus = "Unknown"
+)
 
 // +genclient
 // +genclient
@@ -324,6 +392,13 @@ const (
 	MachineUnknown     MachinePhase = "Unknown"
 	MachineFailed      MachinePhase = "Failed"
 )
+
+type MachineSummary struct {
+	Name          string
+	ProviderID    string
+	LastOperation LastOperation
+	OwnerRef      string
+}
 
 //
 // Cluster Functions and Structs

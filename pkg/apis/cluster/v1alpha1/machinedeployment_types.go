@@ -83,6 +83,11 @@ type MachineDeploymentSpec struct {
 	// +optional
 	Paused bool `json:"paused,omitempty"`
 
+	// DEPRECATED.
+	// The config this MachineDeployment is rolling back to. Will be cleared after rollback is done.
+	// +optional
+	RollbackTo *RollbackConfig `json:"rollbackTo,omitempty" protobuf:"bytes,8,opt,name=rollbackTo"`
+
 	// The maximum time in seconds for a deployment to make progress before it
 	// is considered to be failed. The deployment controller will continue to
 	// process failed deployments and a condition with a ProgressDeadlineExceeded
@@ -90,6 +95,37 @@ type MachineDeploymentSpec struct {
 	// not be estimated during the time a deployment is paused. Defaults to 600s.
 	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// DEPRECATED.
+// MachineDeploymentRollback stores the information required to rollback a MachineDeployment.
+type MachineDeploymentRollback struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// Required: This must match the Name of a MachineDeployment.
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+
+	// The annotations to be updated to a MachineDeployment
+	// +optional
+	UpdatedAnnotations map[string]string `json:"updatedAnnotations,omitempty" protobuf:"bytes,2,rep,name=updatedAnnotations"`
+
+	// The config of this MachineDeployment rollback.
+	RollbackTo RollbackConfig `json:"rollbackTo" protobuf:"bytes,3,opt,name=rollbackTo"`
+}
+
+type RollbackConfig struct {
+	// The revision to rollback to. If set to 0, rollback to the last revision.
+	// +optional
+	Revision int64 `json:"revision,omitempty" protobuf:"varint,1,opt,name=revision"`
+}
+
+const (
+	// DefaultDeploymentUniqueLabelKey is the default key of the selector that is added
+	// to existing MCs (and label key that is added to its machines) to prevent the existing MCs
+	// to select new machines (and old machines being select by new MC).
+	DefaultMachineDeploymentUniqueLabelKey string = "machine-template-hash"
+)
 
 // MachineDeploymentStrategy describes how to replace existing machines
 // with new ones.
@@ -172,6 +208,65 @@ type MachineDeploymentStatus struct {
 	// that still have not been created.
 	// +optional
 	UnavailableReplicas int32 `json:"unavailableReplicas,omitempty" protobuf:"varint,5,opt,name=unavailableReplicas"`
+
+	// Represents the latest available observations of a MachineDeployment's current state.
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	Conditions []MachineDeploymentCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,6,rep,name=conditions"`
+
+	// Count of hash collisions for the MachineDeployment. The MachineDeployment controller uses this
+	// field as a collision avoidance mechanism when it needs to create the name for the
+	// newest MachineSet.
+	// +optional
+	CollisionCount *int32 `json:"collisionCount,omitempty" protobuf:"varint,8,opt,name=collisionCount"`
+
+	// FailedMachines has summary of machines on which lastOperation Failed
+	// +optional
+	FailedMachines []*MachineSummary `json:"failedMachines,omitempty" protobuf:"bytes,9,rep,name=failedMachines"`
+}
+
+type MachineDeploymentConditionType string
+
+// These are valid conditions of a MachineDeployment.
+const (
+	// Available means the MachineDeployment is available, ie. at least the minimum available
+	// replicas required are up and running for at least minReadySeconds.
+	MachineDeploymentAvailable MachineDeploymentConditionType = "Available"
+
+	// Progressing means the MachineDeployment is progressing. Progress for a MachineDeployment is
+	// considered when a new machine set is created or adopted, and when new machines scale
+	// up or old machines scale down. Progress is not estimated for paused MachineDeployments or
+	// when progressDeadlineSeconds is not specified.
+	MachineDeploymentProgressing MachineDeploymentConditionType = "Progressing"
+
+	// ReplicaFailure is added in a MachineDeployment when one of its machines fails to be created
+	// or deleted.
+	MachineDeploymentReplicaFailure MachineDeploymentConditionType = "ReplicaFailure"
+
+	// MachineDeploymentFrozen is added in a MachineDeployment when one of its machines fails to be created
+	// or deleted.
+	MachineDeploymentFrozen MachineDeploymentConditionType = "Frozen"
+)
+
+// MachineDeploymentCondition describes the state of a MachineDeployment at a certain point.
+type MachineDeploymentCondition struct {
+	// Type of MachineDeployment condition.
+	Type MachineDeploymentConditionType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=MachineDeploymentConditionType"`
+
+	// Status of the condition, one of True, False, Unknown.
+	Status ConditionStatus `json:"status" protobuf:"bytes,2,opt,name=status,casttype=corev1.ConditionStatus"`
+
+	// The last time this condition was updated.
+	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty" protobuf:"bytes,6,opt,name=lastUpdateTime"`
+
+	// Last time the condition transitioned from one status to another.
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,7,opt,name=lastTransitionTime"`
+
+	// The reason for the condition's last transition.
+	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
+
+	// A human readable message indicating details about the transition.
+	Message string `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
 }
 
 // Validate checks that an instance of MachineDeployment is well formed

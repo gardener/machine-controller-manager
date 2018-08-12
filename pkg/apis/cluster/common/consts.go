@@ -99,6 +99,10 @@ const (
 type MachineDeploymentStrategyType string
 
 const (
+
+	// Kill all existing machines before creating new ones.
+	RecreateMachineDeploymentStrategyType MachineDeploymentStrategyType = "Recreate"
+
 	// Replace the old MachineSet by new one using rolling update
 	// i.e gradually scale down the old MachineSet and scale up the new one.
 	RollingUpdateMachineDeploymentStrategyType MachineDeploymentStrategyType = "RollingUpdate"

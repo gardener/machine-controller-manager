@@ -41,7 +41,6 @@ import (
 
 	machine "github.com/gardener/machine-controller-manager/pkg/apis/cluster"
 	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/validation"
 )
 
 // controllerKind contains the schema.GroupVersionKind for this controller type.
@@ -458,11 +457,11 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return err
 	}
 
-	validationerr := validation.ValidateMachineDeployment(internalMachineDeployment)
-	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of MachineDeployment failled %s", validationerr.ToAggregate().Error())
-		return nil
-	}
+	// validationerr := validation.ValidateMachineDeployment(internalMachineDeployment)
+	// if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+	// 	glog.V(2).Infof("Validation of MachineDeployment failled %s", validationerr.ToAggregate().Error())
+	// 	return nil
+	// }
 
 	// Validate MachineClass
 	_, secretRef, err := dc.validateMachineClass(&deployment.Spec.Template.Spec.Class)
