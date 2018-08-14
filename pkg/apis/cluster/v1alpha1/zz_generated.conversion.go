@@ -12,6 +12,7 @@ import (
 	cluster "github.com/gardener/machine-controller-manager/pkg/apis/cluster"
 	common "github.com/gardener/machine-controller-manager/pkg/apis/cluster/common"
 	v1 "k8s.io/api/core/v1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
@@ -449,6 +450,7 @@ func Convert_cluster_MachineClassList_To_v1alpha1_MachineClassList(in *cluster.M
 func autoConvert_v1alpha1_MachineClassRef_To_cluster_MachineClassRef(in *MachineClassRef, out *cluster.MachineClassRef, s conversion.Scope) error {
 	out.Name = in.Name
 	out.Parameters = *(*map[string]string)(unsafe.Pointer(&in.Parameters))
+	out.Kind = in.Kind
 	return nil
 }
 
@@ -460,6 +462,7 @@ func Convert_v1alpha1_MachineClassRef_To_cluster_MachineClassRef(in *MachineClas
 func autoConvert_cluster_MachineClassRef_To_v1alpha1_MachineClassRef(in *cluster.MachineClassRef, out *MachineClassRef, s conversion.Scope) error {
 	out.Name = in.Name
 	out.Parameters = *(*map[string]string)(unsafe.Pointer(&in.Parameters))
+	out.Kind = in.Kind
 	return nil
 }
 
@@ -574,7 +577,7 @@ func Convert_cluster_MachineDeploymentList_To_v1alpha1_MachineDeploymentList(in 
 
 func autoConvert_v1alpha1_MachineDeploymentSpec_To_cluster_MachineDeploymentSpec(in *MachineDeploymentSpec, out *cluster.MachineDeploymentSpec, s conversion.Scope) error {
 	out.Replicas = (*int32)(unsafe.Pointer(in.Replicas))
-	out.Selector = in.Selector
+	out.Selector = (*meta_v1.LabelSelector)(unsafe.Pointer(in.Selector))
 	if err := Convert_v1alpha1_MachineTemplateSpec_To_cluster_MachineTemplateSpec(&in.Template, &out.Template, s); err != nil {
 		return err
 	}
@@ -596,7 +599,7 @@ func Convert_v1alpha1_MachineDeploymentSpec_To_cluster_MachineDeploymentSpec(in 
 
 func autoConvert_cluster_MachineDeploymentSpec_To_v1alpha1_MachineDeploymentSpec(in *cluster.MachineDeploymentSpec, out *MachineDeploymentSpec, s conversion.Scope) error {
 	out.Replicas = (*int32)(unsafe.Pointer(in.Replicas))
-	out.Selector = in.Selector
+	out.Selector = (*meta_v1.LabelSelector)(unsafe.Pointer(in.Selector))
 	if err := Convert_cluster_MachineTemplateSpec_To_v1alpha1_MachineTemplateSpec(&in.Template, &out.Template, s); err != nil {
 		return err
 	}
@@ -863,7 +866,7 @@ func Convert_cluster_MachineSetList_To_v1alpha1_MachineSetList(in *cluster.Machi
 func autoConvert_v1alpha1_MachineSetSpec_To_cluster_MachineSetSpec(in *MachineSetSpec, out *cluster.MachineSetSpec, s conversion.Scope) error {
 	out.Replicas = (*int32)(unsafe.Pointer(in.Replicas))
 	out.MinReadySeconds = in.MinReadySeconds
-	out.Selector = in.Selector
+	out.Selector = (*meta_v1.LabelSelector)(unsafe.Pointer(in.Selector))
 	if err := Convert_v1alpha1_MachineTemplateSpec_To_cluster_MachineTemplateSpec(&in.Template, &out.Template, s); err != nil {
 		return err
 	}
@@ -878,7 +881,7 @@ func Convert_v1alpha1_MachineSetSpec_To_cluster_MachineSetSpec(in *MachineSetSpe
 func autoConvert_cluster_MachineSetSpec_To_v1alpha1_MachineSetSpec(in *cluster.MachineSetSpec, out *MachineSetSpec, s conversion.Scope) error {
 	out.Replicas = (*int32)(unsafe.Pointer(in.Replicas))
 	out.MinReadySeconds = in.MinReadySeconds
-	out.Selector = in.Selector
+	out.Selector = (*meta_v1.LabelSelector)(unsafe.Pointer(in.Selector))
 	if err := Convert_cluster_MachineTemplateSpec_To_v1alpha1_MachineTemplateSpec(&in.Template, &out.Template, s); err != nil {
 		return err
 	}
@@ -1023,6 +1026,7 @@ func autoConvert_v1alpha1_MachineStatus_To_cluster_MachineStatus(in *MachineStat
 	if err := Convert_v1alpha1_CurrentStatus_To_cluster_CurrentStatus(&in.CurrentStatus, &out.CurrentStatus, s); err != nil {
 		return err
 	}
+	out.ProviderID = in.ProviderID
 	return nil
 }
 
@@ -1046,6 +1050,7 @@ func autoConvert_cluster_MachineStatus_To_v1alpha1_MachineStatus(in *cluster.Mac
 	if err := Convert_cluster_CurrentStatus_To_v1alpha1_CurrentStatus(&in.CurrentStatus, &out.CurrentStatus, s); err != nil {
 		return err
 	}
+	out.ProviderID = in.ProviderID
 	return nil
 }
 

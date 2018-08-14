@@ -61,7 +61,7 @@ type MachineSetSpec struct {
 	// Label keys and values that must match in order to be controlled by this MachineSet.
 	// It must match the machine template's labels.
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors
-	Selector metav1.LabelSelector `json:"selector"`
+	Selector *metav1.LabelSelector `json:"selector"`
 
 	// Template is the object that describes the machine that will be created if
 	// insufficient replicas are detected.
@@ -179,11 +179,11 @@ func (MachineSetStrategy) Validate(ctx request.Context, obj runtime.Object) fiel
 
 	// validate spec.selector and spec.template.labels
 	fldPath := field.NewPath("spec")
-	errors = append(errors, metav1validation.ValidateLabelSelector(&machineSet.Spec.Selector, fldPath.Child("selector"))...)
+	errors = append(errors, metav1validation.ValidateLabelSelector(machineSet.Spec.Selector, fldPath.Child("selector"))...)
 	if len(machineSet.Spec.Selector.MatchLabels)+len(machineSet.Spec.Selector.MatchExpressions) == 0 {
 		errors = append(errors, field.Invalid(fldPath.Child("selector"), machineSet.Spec.Selector, "empty selector is not valid for MachineSet."))
 	}
-	selector, err := metav1.LabelSelectorAsSelector(&machineSet.Spec.Selector)
+	selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
 	if err != nil {
 		errors = append(errors, field.Invalid(fldPath.Child("selector"), machineSet.Spec.Selector, "invalid label selector."))
 	} else {

@@ -1716,8 +1716,15 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								},
 							},
 						},
+						"Kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind represents the cloud-provider",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
 					},
-					Required: []string{"Name"},
+					Required: []string{"Name", "Kind"},
 				},
 			},
 			Dependencies: []string{},
@@ -2634,6 +2641,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 							SchemaProps: spec.SchemaProps{
 								Description: "Current status of the machine object",
 								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.CurrentStatus"),
+							},
+						},
+						"providerID": {
+							SchemaProps: spec.SchemaProps{
+								Description: "ProviderID is the fixed ID Machines get from Nodes.",
+								Type:        []string{"string"},
+								Format:      "",
 							},
 						},
 					},

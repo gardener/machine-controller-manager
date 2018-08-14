@@ -25,94 +25,27 @@ import (
 // existsMachineClassForSecret checks for any machineClass
 // referring to the passed secret object
 func (c *controller) existsMachineClassForSecret(name string) (bool, error) {
-	openStackMachineClasses, err := c.findOpenStackMachineClassForSecret(name)
+	machineClasses, err := c.findMachineClassForSecret(name)
 	if err != nil {
 		return false, err
 	}
 
-	gcpMachineClasses, err := c.findGCPMachineClassForSecret(name)
-	if err != nil {
-		return false, err
-	}
-
-	azureMachineClasses, err := c.findAzureMachineClassForSecret(name)
-	if err != nil {
-		return false, err
-	}
-
-	awsMachineClasses, err := c.findAWSMachineClassForSecret(name)
-	if err != nil {
-		return false, err
-	}
-
-	if len(openStackMachineClasses) == 0 &&
-		len(gcpMachineClasses) == 0 &&
-		len(azureMachineClasses) == 0 &&
-		len(awsMachineClasses) == 0 {
+	if len(machineClasses) == 0 {
 		return false, nil
 	}
-
 	return true, nil
-}
-
-// findOpenStackMachineClassForSecret returns the set of
-// openStackMachineClasses referring to the passed secret
-func (c *controller) findOpenStackMachineClassForSecret(name string) ([]*v1alpha1.OpenStackMachineClass, error) {
-	machineClasses, err := c.openStackMachineClassLister.List(labels.Everything())
-	if err != nil {
-		return nil, err
-	}
-	var filtered []*v1alpha1.OpenStackMachineClass
-	for _, machineClass := range machineClasses {
-		if machineClass.Spec.SecretRef.Name == name {
-			filtered = append(filtered, machineClass)
-		}
-	}
-	return filtered, nil
-}
-
-// findGCPClassForSecret returns the set of
-// GCPMachineClasses referring to the passed secret
-func (c *controller) findGCPMachineClassForSecret(name string) ([]*v1alpha1.GCPMachineClass, error) {
-	machineClasses, err := c.gcpMachineClassLister.List(labels.Everything())
-	if err != nil {
-		return nil, err
-	}
-	var filtered []*v1alpha1.GCPMachineClass
-	for _, machineClass := range machineClasses {
-		if machineClass.Spec.SecretRef.Name == name {
-			filtered = append(filtered, machineClass)
-		}
-	}
-	return filtered, nil
-}
-
-// findAzureClassForSecret returns the set of
-// AzureMachineClasses referring to the passed secret
-func (c *controller) findAzureMachineClassForSecret(name string) ([]*v1alpha1.AzureMachineClass, error) {
-	machineClasses, err := c.azureMachineClassLister.List(labels.Everything())
-	if err != nil {
-		return nil, err
-	}
-	var filtered []*v1alpha1.AzureMachineClass
-	for _, machineClass := range machineClasses {
-		if machineClass.Spec.SecretRef.Name == name {
-			filtered = append(filtered, machineClass)
-		}
-	}
-	return filtered, nil
 }
 
 // findAWSClassForSecret returns the set of
 // AWSMachineClasses referring to the passed secret
-func (c *controller) findAWSMachineClassForSecret(name string) ([]*v1alpha1.AWSMachineClass, error) {
-	machineClasses, err := c.awsMachineClassLister.List(labels.Everything())
+func (c *controller) findMachineClassForSecret(name string) ([]*v1alpha1.MachineClass, error) {
+	machineClasses, err := c.machineClassLister.List(labels.Everything())
 	if err != nil {
 		return nil, err
 	}
-	var filtered []*v1alpha1.AWSMachineClass
+	var filtered []*v1alpha1.MachineClass
 	for _, machineClass := range machineClasses {
-		if machineClass.Spec.SecretRef.Name == name {
+		if machineClass.SecretRef.Name == name {
 			filtered = append(filtered, machineClass)
 		}
 	}

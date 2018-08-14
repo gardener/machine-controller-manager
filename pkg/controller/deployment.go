@@ -40,6 +40,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	machine "github.com/gardener/machine-controller-manager/pkg/apis/cluster"
+	common "github.com/gardener/machine-controller-manager/pkg/apis/cluster/common"
 	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
 )
 
@@ -240,7 +241,7 @@ func (dc *controller) deleteMachineToMachineDeployment(obj interface{}) {
 		}
 	}
 	glog.V(4).Infof("Machine %s deleted.", machine.Name)
-	if d := dc.getMachineDeploymentForMachine(machine); d != nil && d.Spec.Strategy.Type == v1alpha1.RecreateMachineDeploymentStrategyType {
+	if d := dc.getMachineDeploymentForMachine(machine); d != nil && d.Spec.Strategy.Type == common.RecreateMachineDeploymentStrategyType {
 		// Sync if this Deployment now has no more Machines.
 		machineSets, err := ListMachineSets(d, IsListFromClient(dc.controlMachineClient))
 		if err != nil {
@@ -452,7 +453,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	// Validate MachineDeployment
 	internalMachineDeployment := &machine.MachineDeployment{}
 
-	err = v1alpha1.Convert_v1alpha1_MachineDeployment_To_machine_MachineDeployment(deployment, internalMachineDeployment, nil)
+	err = v1alpha1.Convert_v1alpha1_MachineDeployment_To_cluster_MachineDeployment(deployment, internalMachineDeployment, nil)
 	if err != nil {
 		return err
 	}
@@ -463,11 +464,12 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	// 	return nil
 	// }
 
-	// Validate MachineClass
-	_, secretRef, err := dc.validateMachineClass(&deployment.Spec.Template.Spec.Class)
-	if err != nil || secretRef == nil {
-		return err
-	}
+	// TODO: Enable Validation again.
+	// // Validate MachineClass
+	// _, secretRef, err := dc.validateMachineClass(&deployment.Spec.Template.Spec.Class)
+	// if err != nil || secretRef == nil {
+	// 	return err
+	// }
 
 	// Deep-copy otherwise we are mutating our cache.
 	// TODO: Deep-copy only when needed.
@@ -545,9 +547,9 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	}
 
 	switch d.Spec.Strategy.Type {
-	case v1alpha1.RecreateMachineDeploymentStrategyType:
+	case common.RecreateMachineDeploymentStrategyType:
 		return dc.rolloutRecreate(d, machineSets, machineMap)
-	case v1alpha1.RollingUpdateMachineDeploymentStrategyType:
+	case common.RollingUpdateMachineDeploymentStrategyType:
 		return dc.rolloutRolling(d, machineSets, machineMap)
 	}
 	return fmt.Errorf("unexpected deployment strategy type: %s", d.Spec.Strategy.Type)

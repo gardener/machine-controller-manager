@@ -98,7 +98,7 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets() {
 		}
 
 		// Freeze machinesets when replica count exceeds by SafetyUP
-		higherThreshold := 2*machineSet.Spec.Replicas + c.safetyOptions.SafetyUp
+		higherThreshold := 2*(*machineSet.Spec.Replicas) + c.safetyOptions.SafetyUp
 		// Unfreeze machineset when replica count reaches higherThreshold - SafetyDown
 		lowerThreshold := higherThreshold - c.safetyOptions.SafetyDown
 
@@ -108,7 +108,7 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets() {
 			if machineDeployment != nil {
 				surge, err := intstrutil.GetValueFromIntOrPercent(
 					machineDeployment.Spec.Strategy.RollingUpdate.MaxSurge,
-					int(machineDeployment.Spec.Replicas),
+					int(*machineDeployment.Spec.Replicas),
 					true,
 				)
 				if err != nil {
@@ -116,7 +116,7 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets() {
 					return
 				}
 
-				higherThreshold = machineDeployment.Spec.Replicas + int32(surge) + c.safetyOptions.SafetyUp
+				higherThreshold = *machineDeployment.Spec.Replicas + int32(surge) + c.safetyOptions.SafetyUp
 				lowerThreshold = higherThreshold - c.safetyOptions.SafetyDown
 			}
 		}
@@ -151,10 +151,7 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets() {
 
 // checkVMObjects checks for orphan VMs (VMs that don't have a machine object backing)
 func (c *controller) checkVMObjects() {
-	c.checkAWSMachineClass()
-	c.checkOSMachineClass()
-	c.checkAzureMachineClass()
-	c.checkGCPMachineClass()
+	c.checkAllMachineClass()
 }
 
 // checkAndFreezeMachineSetTimeout permanently freezes any
@@ -188,7 +185,7 @@ func (c *controller) checkAndFreezeMachineSetTimeout() {
 					return
 				}
 
-				if ms.Status.ReadyReplicas == ms.Spec.Replicas {
+				if ms.Status.ReadyReplicas == *ms.Spec.Replicas {
 					for {
 						// Get the latest version of the machineSet so that we can avoid conflicts
 						ms, err := c.controlMachineClient.MachineSets(ms.Namespace).Get(ms.Name, metav1.GetOptions{})
@@ -215,88 +212,22 @@ func (c *controller) checkAndFreezeMachineSetTimeout() {
 	}
 }
 
-// checkAWSMachineClass checks for orphan VMs in AWSMachinesClasses
-func (c *controller) checkAWSMachineClass() {
-	AWSMachineClasses, err := c.awsMachineClassLister.List(labels.Everything())
+// checkMachineClass checks for orphan VMs in MachinesClasses
+func (c *controller) checkAllMachineClass() {
+	MachineClasses, err := c.machineClassLister.List(labels.Everything())
 	if err != nil {
 		glog.Error("Safety-Net: Error getting machineClasses")
 		return
 	}
 
-	for _, machineClass := range AWSMachineClasses {
+	for _, machineClass := range MachineClasses {
 
 		var machineClassInterface interface{}
 		machineClassInterface = machineClass
 
 		c.checkMachineClass(
 			machineClassInterface,
-			machineClass.Spec.SecretRef,
-			machineClass.Name,
-			machineClass.Kind,
-		)
-	}
-}
-
-// checkOSMachineClass checks for orphan VMs in OSMachinesClasses
-func (c *controller) checkOSMachineClass() {
-	OSMachineClasses, err := c.openStackMachineClassLister.List(labels.Everything())
-	if err != nil {
-		glog.Error("Safety-Net: Error getting machineClasses")
-		return
-	}
-
-	for _, machineClass := range OSMachineClasses {
-
-		var machineClassInterface interface{}
-		machineClassInterface = machineClass
-
-		c.checkMachineClass(
-			machineClassInterface,
-			machineClass.Spec.SecretRef,
-			machineClass.Name,
-			machineClass.Kind,
-		)
-	}
-}
-
-// checkOSMachineClass checks for orphan VMs in AzureMachinesClasses
-func (c *controller) checkAzureMachineClass() {
-	AzureMachineClasses, err := c.azureMachineClassLister.List(labels.Everything())
-	if err != nil {
-		glog.Error("Safety-Net: Error getting machineClasses")
-		return
-	}
-
-	for _, machineClass := range AzureMachineClasses {
-
-		var machineClassInterface interface{}
-		machineClassInterface = machineClass
-
-		c.checkMachineClass(
-			machineClassInterface,
-			machineClass.Spec.SecretRef,
-			machineClass.Name,
-			machineClass.Kind,
-		)
-	}
-}
-
-// checkGCPMachineClass checks for orphan VMs in GCPMachinesClasses
-func (c *controller) checkGCPMachineClass() {
-	GCPMachineClasses, err := c.gcpMachineClassLister.List(labels.Everything())
-	if err != nil {
-		glog.Error("Safety-Net: Error getting machineClasses")
-		return
-	}
-
-	for _, machineClass := range GCPMachineClasses {
-
-		var machineClassInterface interface{}
-		machineClassInterface = machineClass
-
-		c.checkMachineClass(
-			machineClassInterface,
-			machineClass.Spec.SecretRef,
+			machineClass.SecretRef,
 			machineClass.Name,
 			machineClass.Kind,
 		)
@@ -345,7 +276,7 @@ func (c *controller) checkMachineClass(
 		if err != nil && !apierrors.IsNotFound(err) {
 			// Any other types of errors
 			glog.Error("Safety-Net: Error getting machines - ", err)
-		} else if err != nil || machine.Spec.ProviderID != machineID {
+		} else if err != nil || machine.Status.ProviderID != machineID {
 
 			// If machine exists and machine object is still been processed by the machine controller
 			if err == nil &&
@@ -361,7 +292,7 @@ func (c *controller) checkMachineClass(
 				if reMachineID == machineID {
 					// Get latest version of machine object and verfiy again
 					machine, err := c.controlMachineClient.Machines(c.namespace).Get(machineName, metav1.GetOptions{})
-					if (err != nil && apierrors.IsNotFound(err)) || machine.Spec.ProviderID != machineID {
+					if (err != nil && apierrors.IsNotFound(err)) || machine.Status.ProviderID != machineID {
 						vm := make(map[string]string)
 						vm[machineID] = machineName
 						c.deleteOrphanVM(vm, secret, classKind, machineClass)
@@ -383,7 +314,7 @@ func (c *controller) addMachineSetToSafety(obj interface{}) {
 func (c *controller) updateMachineSetToSafety(old, new interface{}) {
 	oldMS := old.(*v1alpha1.MachineSet)
 	newMS := new.(*v1alpha1.MachineSet)
-	if oldMS.Spec.Replicas != newMS.Spec.Replicas {
+	if *oldMS.Spec.Replicas != *newMS.Spec.Replicas {
 		c.updateTimeStamp(newMS)
 	}
 }

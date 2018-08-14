@@ -203,7 +203,7 @@ func StartControllers(s *options.MCMServer,
 		return err
 	}
 
-	controlMachineClient := controlMachineClientBuilder.ClientOrDie(controllerManagerAgentName).MachineV1alpha1()
+	controlMachineClient := controlMachineClientBuilder.ClientOrDie(controllerManagerAgentName).ClusterV1alpha1()
 
 	controlCoreKubeconfig = rest.AddUserAgent(controlCoreKubeconfig, controllerManagerAgentName)
 	controlCoreClient, err := kubernetes.NewForConfig(controlCoreKubeconfig)
@@ -240,7 +240,7 @@ func StartControllers(s *options.MCMServer,
 		)
 
 		// All shared informers are v1alpha1 API level
-		machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
+		machineSharedInformers := controlMachineInformerFactory.Cluster().V1alpha1()
 
 		glog.V(5).Infof("Creating controllers...")
 		machineController, err := machinecontroller.NewController(
@@ -250,10 +250,7 @@ func StartControllers(s *options.MCMServer,
 			targetCoreClient,
 			controlCoreInformerFactory.Core().V1().Secrets(),
 			targetCoreInformerFactory.Core().V1().Nodes(),
-			machineSharedInformers.OpenStackMachineClasses(),
-			machineSharedInformers.AWSMachineClasses(),
-			machineSharedInformers.AzureMachineClasses(),
-			machineSharedInformers.GCPMachineClasses(),
+			machineSharedInformers.MachineClasses(),
 			machineSharedInformers.Machines(),
 			machineSharedInformers.MachineSets(),
 			machineSharedInformers.MachineDeployments(),

@@ -54,6 +54,9 @@ type MachineClassRef struct {
 	// parameters is 512, with a cumulative max size of 256K.
 	// +optional
 	Parameters map[string]string `json:parameters,omitempty`
+
+	//Kind represents the cloud-provider
+	Kind string `json:kind`
 }
 
 // The below types are used by kube_client and api_server.

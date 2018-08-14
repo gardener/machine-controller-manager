@@ -130,12 +130,12 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	// }
 
 	// Validate MachineClass
-	MachineClass, secretRef, err := c.validateMachineClass(&machine.Spec.Class)
+	_, secretRef, err := c.validateMachineClass(machine.Spec.ProviderConfig.ValueFrom.MachineClass)
 	if err != nil || secretRef == nil {
 		return err
 	}
 
-	driver := driver.NewDriver(machine.Spec.ProviderID, secretRef, machine.Spec.Class.Kind, MachineClass, machine.Name)
+	driver := driver.NewDriver(machine.Status.ProviderID, secretRef, machine.Spec.ProviderConfig.ValueFrom.MachineClass.Kind, machine.Spec.ProviderConfig.ValueFrom.MachineClass.Name, machine.Name)
 	actualProviderID, err := driver.GetExisting()
 	if err != nil {
 		return err
@@ -176,7 +176,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 			if err := c.machineCreate(machine, driver); err != nil {
 				return err
 			}
-		} else if actualProviderID != machine.Spec.ProviderID {
+		} else if actualProviderID != machine.Status.ProviderID {
 			if err := c.machineUpdate(machine, actualProviderID); err != nil {
 				return err
 			}
@@ -243,13 +243,13 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 
 func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
 
-	if machine.Status.Node == "" {
+	if machine.Status.NodeRef.Name == "" {
 		// There are no objects mapped to this machine object
 		// Hence node status need not be propogated to machine object
 		return machine, nil
 	}
 
-	node, err := c.nodeLister.Get(machine.Status.Node)
+	node, err := c.nodeLister.Get(machine.Status.NodeRef.Name)
 	if err != nil && apierrors.IsNotFound(err) {
 		// Node object is not found
 
@@ -357,8 +357,8 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 			clone.Annotations[MachinePriority] = "3"
 		}
 
-		clone.Spec.ProviderID = actualProviderID
-		clone.Status.Node = nodeName
+		clone.Status.ProviderID = actualProviderID
+		clone.Status.NodeRef.Name = nodeName
 		clone.Status.LastOperation = lastOperation
 		clone.Status.CurrentStatus = currentStatus
 
@@ -383,7 +383,7 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 		}
 
 		clone := machine.DeepCopy()
-		clone.Spec.ProviderID = actualProviderID
+		clone.Status.ProviderID = actualProviderID
 		lastOperation := v1alpha1.LastOperation{
 			Description:    "Updated provider ID",
 			State:          v1alpha1.MachineStateSuccessful,
@@ -768,7 +768,7 @@ func shouldReconcileMachine(machine *v1alpha1.Machine, now time.Time) bool {
 	if machine.DeletionTimestamp != nil {
 		return true
 	}
-	if machine.Spec.ProviderID == "" {
+	if machine.Status.ProviderID == "" {
 		return true
 	}
 	// TODO add more cases where this will be false

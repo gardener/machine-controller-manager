@@ -56,7 +56,7 @@ type MachineDeploymentSpec struct {
 	// Label selector for machines. Existing MachineSets whose machines are
 	// selected by this will be the ones affected by this deployment.
 	// It must match the machine template's labels.
-	Selector metav1.LabelSelector `json:"selector"`
+	Selector *metav1.LabelSelector `json:"selector"`
 
 	// Template describes the machines that will be created.
 	Template MachineTemplateSpec `json:"template"`
@@ -281,11 +281,11 @@ func (MachineDeploymentValidationStrategy) Validate(ctx request.Context, obj run
 
 func ValidateMachineDeploymentSpec(spec *cluster.MachineDeploymentSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, metav1validation.ValidateLabelSelector(&spec.Selector, fldPath.Child("selector"))...)
+	allErrs = append(allErrs, metav1validation.ValidateLabelSelector(spec.Selector, fldPath.Child("selector"))...)
 	if len(spec.Selector.MatchLabels)+len(spec.Selector.MatchExpressions) == 0 {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("selector"), spec.Selector, "empty selector is not valid for MachineSet."))
 	}
-	selector, err := metav1.LabelSelectorAsSelector(&spec.Selector)
+	selector, err := metav1.LabelSelectorAsSelector(spec.Selector)
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("selector"), spec.Selector, "invalid label selector."))
 	} else {

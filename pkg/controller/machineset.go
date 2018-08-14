@@ -138,8 +138,8 @@ func (c *controller) machineSetUpdate(old, cur interface{}) {
 	// this function), but in general extra resyncs shouldn't be
 	// that bad as MachineSets that haven't met expectations yet won't
 	// sync, and all the listing is done using local stores.
-	if oldMachineSet.Spec.Replicas != currentMachineSet.Spec.Replicas {
-		glog.V(4).Infof("%v %v updated. Desired machine count change: %d->%d", currentMachineSet.Name, oldMachineSet.Spec.Replicas, currentMachineSet.Spec.Replicas)
+	if *oldMachineSet.Spec.Replicas != *currentMachineSet.Spec.Replicas {
+		glog.V(4).Infof("%v %v updated. Desired machine count change: %d->%d", currentMachineSet.Name, *oldMachineSet.Spec.Replicas, *currentMachineSet.Spec.Replicas)
 	}
 	c.enqueueMachineSet(currentMachineSet)
 }
@@ -338,7 +338,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 	}
 	c.terminateMachines(staleMachines, machineSet)
 
-	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
+	diff := len(activeMachines) - int(*machineSet.Spec.Replicas)
 	if diff < 0 {
 		// If MachineSet is frozen and no deletion timestamp, don't process it
 		if machineSet.Labels["freeze"] == "True" && machineSet.DeletionTimestamp == nil {
@@ -356,7 +356,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 		// into a performance bottleneck. We should generate a UID for the machine
 		// beforehand and store it via ExpectCreations.
 		c.expectations.ExpectCreations(machineSetKey, diff)
-		glog.V(1).Infof("Too few replicas for MachineSet %s, need %d, creating %d", machineSet.Name, (machineSet.Spec.Replicas), diff)
+		glog.V(1).Infof("Too few replicas for MachineSet %s, need %d, creating %d", machineSet.Name, (*machineSet.Spec.Replicas), diff)
 		// Batch the machine creates. Batch sizes start at SlowStartInitialBatchSize
 		// and double with each successful iteration in a kind of "slow start".
 		// This handles attempts to start large numbers of machines that would
@@ -406,7 +406,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 		if diff > BurstReplicas {
 			diff = BurstReplicas
 		}
-		glog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (machineSet.Spec.Replicas), diff)
+		glog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (*machineSet.Spec.Replicas), diff)
 
 		machinesToDelete := getMachinesToDelete(activeMachines, diff)
 
@@ -531,8 +531,8 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 
 	// Resync the ReplicaSet after MinReadySeconds as a last line of defense to guard against clock-skew.
 	if manageReplicasErr == nil && updatedMachineSet.Spec.MinReadySeconds > 0 &&
-		updatedMachineSet.Status.ReadyReplicas == updatedMachineSet.Spec.Replicas &&
-		updatedMachineSet.Status.AvailableReplicas != updatedMachineSet.Spec.Replicas {
+		updatedMachineSet.Status.ReadyReplicas == *updatedMachineSet.Spec.Replicas &&
+		updatedMachineSet.Status.AvailableReplicas != *updatedMachineSet.Spec.Replicas {
 		c.enqueueMachineSetAfter(updatedMachineSet, 10*time.Minute)
 	}
 

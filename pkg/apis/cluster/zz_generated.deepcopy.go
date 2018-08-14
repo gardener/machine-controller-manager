@@ -23,6 +23,7 @@ package cluster
 import (
 	common "github.com/gardener/machine-controller-manager/pkg/apis/cluster/common"
 	v1 "k8s.io/api/core/v1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -404,7 +405,15 @@ func (in *MachineDeploymentSpec) DeepCopyInto(out *MachineDeploymentSpec) {
 			**out = **in
 		}
 	}
-	in.Selector.DeepCopyInto(&out.Selector)
+	if in.Selector != nil {
+		in, out := &in.Selector, &out.Selector
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(meta_v1.LabelSelector)
+			(*in).DeepCopyInto(*out)
+		}
+	}
 	in.Template.DeepCopyInto(&out.Template)
 	in.Strategy.DeepCopyInto(&out.Strategy)
 	if in.MinReadySeconds != nil {
@@ -682,7 +691,15 @@ func (in *MachineSetSpec) DeepCopyInto(out *MachineSetSpec) {
 			**out = **in
 		}
 	}
-	in.Selector.DeepCopyInto(&out.Selector)
+	if in.Selector != nil {
+		in, out := &in.Selector, &out.Selector
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(meta_v1.LabelSelector)
+			(*in).DeepCopyInto(*out)
+		}
+	}
 	in.Template.DeepCopyInto(&out.Template)
 	return
 }

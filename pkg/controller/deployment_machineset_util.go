@@ -35,7 +35,7 @@ import (
 )
 
 // updateMachineSetStatus attempts to update the Status.Replicas of the given MachineSet, with a single GET/PUT retry.
-func updateMachineSetStatus(machineClient machineapi.ClusterInterface, is *v1alpha1.MachineSet, newStatus v1alpha1.MachineSetStatus) (*v1alpha1.MachineSet, error) {
+func updateMachineSetStatus(machineClient machineapi.ClusterV1alpha1Interface, is *v1alpha1.MachineSet, newStatus v1alpha1.MachineSetStatus) (*v1alpha1.MachineSet, error) {
 	// This is the steady state. It happens when the MachineSet doesn't have any expectations, since
 	// we do a periodic relist every 30s. If the generations differ but the replicas are
 	// the same, a caller might've resized to the same replica count.
@@ -115,7 +115,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 		}
 		if machine.Status.LastOperation.State == v1alpha1.MachineStateFailed {
 			machineSummary.Name = machine.Name
-			machineSummary.ProviderID = machine.Spec.ProviderID
+			machineSummary.ProviderID = machine.Status.ProviderID
 			machineSummary.LastOperation = machine.Status.LastOperation
 			//ownerRef populated here, so that deployment controller doesn't have to add it seperately
 			if controller := metav1.GetControllerOf(machine); controller != nil {
@@ -137,7 +137,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	failureCond := GetCondition(&is.Status, v1alpha1.MachineSetReplicaFailure)
 	if manageReplicasErr != nil && failureCond == nil {
 		var reason string
-		if diff := len(filteredMachines) - int(is.Spec.Replicas); diff < 0 {
+		if diff := len(filteredMachines) - int(*is.Spec.Replicas); diff < 0 {
 			reason = "FailedCreate"
 		} else if diff > 0 {
 			reason = "FailedDelete"

@@ -59,6 +59,8 @@ type MachineClass struct {
 	// A link to the MachineTemplate that will be used to create provider
 	// specific configuration for Machines of this class.
 	// MachineTemplate corev1.ObjectReference `json:machineTemplate`
+
+	SecretRef *corev1.SecretReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

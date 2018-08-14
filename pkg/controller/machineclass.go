@@ -37,8 +37,8 @@ func (c *controller) machineDeploymentToMachineClassDelete(obj interface{}) {
 	if machineDeployment == nil || !ok {
 		return
 	}
-	if machineDeployment.Spec.Template.Spec.Class.Kind == MachineClassKind {
-		c.MachineClassQueue.Add(machineDeployment.Spec.Template.Spec.Class.Name)
+	if machineDeployment.Spec.Template.Spec.ProviderConfig.ValueFrom.MachineClass.Kind == MachineClassKind {
+		c.machineClassQueue.Add(machineDeployment.Spec.Template.Spec.ProviderConfig.ValueFrom.MachineClass.Name)
 	}
 }
 
@@ -47,8 +47,8 @@ func (c *controller) machineSetToMachineClassDelete(obj interface{}) {
 	if machineSet == nil || !ok {
 		return
 	}
-	if machineSet.Spec.Template.Spec.Class.Kind == MachineClassKind {
-		c.MachineClassQueue.Add(machineSet.Spec.Template.Spec.Class.Name)
+	if machineSet.Spec.Template.Spec.ProviderConfig.ValueFrom.MachineClass.Kind == MachineClassKind {
+		c.machineClassQueue.Add(machineSet.Spec.Template.Spec.ProviderConfig.ValueFrom.MachineClass.Name)
 	}
 }
 
@@ -57,21 +57,21 @@ func (c *controller) machineToMachineClassDelete(obj interface{}) {
 	if machine == nil || !ok {
 		return
 	}
-	if machine.Spec.Class.Kind == MachineClassKind {
-		c.MachineClassQueue.Add(machine.Spec.Class.Name)
+	if machine.Spec.ProviderConfig.ValueFrom.MachineClass.Kind == MachineClassKind {
+		c.machineClassQueue.Add(machine.Spec.ProviderConfig.ValueFrom.MachineClass.Name)
 	}
 }
 
-func (c *controller) MachineClassAdd(obj interface{}) {
+func (c *controller) machineClassAdd(obj interface{}) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
 		return
 	}
-	c.MachineClassQueue.Add(key)
+	c.machineClassQueue.Add(key)
 }
 
-func (c *controller) MachineClassUpdate(oldObj, newObj interface{}) {
+func (c *controller) machineClassUpdate(oldObj, newObj interface{}) {
 	old, ok := oldObj.(*v1alpha1.MachineClass)
 	if old == nil || !ok {
 		return
@@ -81,7 +81,7 @@ func (c *controller) MachineClassUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	c.MachineClassAdd(newObj)
+	c.machineClassAdd(newObj)
 }
 
 // reconcileClusterMachineClassKey reconciles an MachineClass due to controller resync
@@ -92,7 +92,7 @@ func (c *controller) reconcileClusterMachineClassKey(key string) error {
 		return err
 	}
 
-	class, err := c.MachineClassLister.MachineClasses(c.namespace).Get(name)
+	class, err := c.machineClassLister.MachineClasses(c.namespace).Get(name)
 	if errors.IsNotFound(err) {
 		glog.Infof("%s %q: Not doing work because it has been deleted", MachineClassKind, key)
 		return nil

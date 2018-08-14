@@ -155,6 +155,9 @@ type MachineStatus struct {
 	// Current status of the machine object
 	// +optional
 	CurrentStatus CurrentStatus `json:"currentStatus,omitempty"`
+
+	//ProviderID is the fixed ID Machines get from Nodes.
+	ProviderID string `json:"providerID,omitempty"`
 }
 
 // LastOperation suggests the last operation performed on the object

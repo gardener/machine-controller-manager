@@ -29,7 +29,7 @@ func (c *controller) findMachineDeploymentsForClass(kind, name string) ([]*v1alp
 	}
 	var filtered []*v1alpha1.MachineDeployment
 	for _, machineDeployment := range machineDeployments {
-		if machineDeployment.Spec.Template.Spec.Class.Kind == kind && machineDeployment.Spec.Template.Spec.Class.Name == name {
+		if machineDeployment.Spec.Template.Spec.ProviderConfig.ValueFrom.MachineClass.Kind == kind && machineDeployment.Spec.Template.Spec.ProviderConfig.ValueFrom.MachineClass.Name == name {
 			filtered = append(filtered, machineDeployment)
 		}
 	}
@@ -43,7 +43,7 @@ func (c *controller) findMachineSetsForClass(kind, name string) ([]*v1alpha1.Mac
 	}
 	var filtered []*v1alpha1.MachineSet
 	for _, machineSet := range machineSets {
-		if machineSet.Spec.Template.Spec.Class.Kind == kind && machineSet.Spec.Template.Spec.Class.Name == name {
+		if machineSet.Spec.Template.Spec.ProviderConfig.ValueFrom.MachineClass.Kind == kind && machineSet.Spec.Template.Spec.ProviderConfig.ValueFrom.MachineClass.Name == name {
 			filtered = append(filtered, machineSet)
 		}
 	}
@@ -57,7 +57,7 @@ func (c *controller) findMachinesForClass(kind, name string) ([]*v1alpha1.Machin
 	}
 	var filtered []*v1alpha1.Machine
 	for _, machine := range machines {
-		if machine.Spec.Class.Kind == kind && machine.Spec.Class.Name == name {
+		if machine.Spec.ProviderConfig.ValueFrom.MachineClass.Kind == kind && machine.Spec.ProviderConfig.ValueFrom.MachineClass.Name == name {
 			filtered = append(filtered, machine)
 		}
 	}

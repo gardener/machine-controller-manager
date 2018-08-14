@@ -252,9 +252,9 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 
 		// Set existing new machine set's annotation
 		annotationsUpdated := SetNewMachineSetAnnotations(d, isCopy, newRevision, true)
-		minReadySecondsNeedsUpdate := isCopy.Spec.MinReadySeconds != d.Spec.MinReadySeconds
+		minReadySecondsNeedsUpdate := isCopy.Spec.MinReadySeconds != *d.Spec.MinReadySeconds
 		if annotationsUpdated || minReadySecondsNeedsUpdate {
-			isCopy.Spec.MinReadySeconds = d.Spec.MinReadySeconds
+			isCopy.Spec.MinReadySeconds = *d.Spec.MinReadySeconds
 			return dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(isCopy)
 		}
 
@@ -301,8 +301,8 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 			Labels:          newISTemplate.Labels,
 		},
 		Spec: v1alpha1.MachineSetSpec{
-			Replicas:        0,
-			MinReadySeconds: d.Spec.MinReadySeconds,
+			Replicas:        new(int32),
+			MinReadySeconds: *d.Spec.MinReadySeconds,
 			Selector:        newISSelector,
 			Template:        newISTemplate,
 		},
@@ -313,7 +313,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 		return nil, err
 	}
 
-	newIS.Spec.Replicas = newReplicasCount
+	*newIS.Spec.Replicas = newReplicasCount
 	// Set new machine set's annotation
 	SetNewMachineSetAnnotations(d, &newIS, newRevision, false)
 	// Create the new ReplicaSet. If it already exists, then we need to check for possible
@@ -396,7 +396,7 @@ func (dc *controller) scale(deployment *v1alpha1.MachineDeployment, newIS *v1alp
 		if (activeOrLatest.Spec.Replicas) == (deployment.Spec.Replicas) {
 			return nil
 		}
-		_, _, err := dc.scaleMachineSetAndRecordEvent(activeOrLatest, (deployment.Spec.Replicas), deployment)
+		_, _, err := dc.scaleMachineSetAndRecordEvent(activeOrLatest, *(deployment.Spec.Replicas), deployment)
 		return err
 	}
 
@@ -419,8 +419,8 @@ func (dc *controller) scale(deployment *v1alpha1.MachineDeployment, newIS *v1alp
 		allISsReplicas := GetReplicaCountForMachineSets(allISs)
 
 		allowedSize := int32(0)
-		if (deployment.Spec.Replicas) > 0 {
-			allowedSize = (deployment.Spec.Replicas) + MaxSurge(*deployment)
+		if *(deployment.Spec.Replicas) > 0 {
+			allowedSize = *(deployment.Spec.Replicas) + MaxSurge(*deployment)
 		}
 
 		// Number of additional replicas that can be either added or removed from the total
@@ -457,10 +457,10 @@ func (dc *controller) scale(deployment *v1alpha1.MachineDeployment, newIS *v1alp
 			if deploymentReplicasToAdd != 0 {
 				proportion := GetProportion(is, *deployment, deploymentReplicasToAdd, deploymentReplicasAdded)
 
-				nameToSize[is.Name] = (is.Spec.Replicas) + proportion
+				nameToSize[is.Name] = *(is.Spec.Replicas) + proportion
 				deploymentReplicasAdded += proportion
 			} else {
-				nameToSize[is.Name] = (is.Spec.Replicas)
+				nameToSize[is.Name] = *(is.Spec.Replicas)
 			}
 		}
 
@@ -489,11 +489,11 @@ func (dc *controller) scale(deployment *v1alpha1.MachineDeployment, newIS *v1alp
 
 func (dc *controller) scaleMachineSetAndRecordEvent(is *v1alpha1.MachineSet, newScale int32, deployment *v1alpha1.MachineDeployment) (bool, *v1alpha1.MachineSet, error) {
 	// No need to scale
-	if (is.Spec.Replicas) == newScale {
+	if *(is.Spec.Replicas) == newScale {
 		return false, is, nil
 	}
 	var scalingOperation string
-	if (is.Spec.Replicas) < newScale {
+	if *(is.Spec.Replicas) < newScale {
 		scalingOperation = "up"
 	} else {
 		scalingOperation = "down"
@@ -505,16 +505,16 @@ func (dc *controller) scaleMachineSetAndRecordEvent(is *v1alpha1.MachineSet, new
 func (dc *controller) scaleMachineSet(is *v1alpha1.MachineSet, newScale int32, deployment *v1alpha1.MachineDeployment, scalingOperation string) (bool, *v1alpha1.MachineSet, error) {
 	isCopy := is.DeepCopy()
 
-	sizeNeedsUpdate := (isCopy.Spec.Replicas) != newScale
+	sizeNeedsUpdate := *(isCopy.Spec.Replicas) != newScale
 	// TODO: Do not mutate the machine set here, instead simply compare the annotation and if they mismatch
 	// call SetReplicasAnnotations inside the following if clause. Then we can also move the deep-copy from
 	// above inside the if too.
-	annotationsNeedUpdate := SetReplicasAnnotations(isCopy, (deployment.Spec.Replicas), (deployment.Spec.Replicas)+MaxSurge(*deployment))
+	annotationsNeedUpdate := SetReplicasAnnotations(isCopy, *(deployment.Spec.Replicas), *(deployment.Spec.Replicas)+MaxSurge(*deployment))
 
 	scaled := false
 	var err error
 	if sizeNeedsUpdate || annotationsNeedUpdate {
-		isCopy.Spec.Replicas = newScale
+		*isCopy.Spec.Replicas = newScale
 		is, err = dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(isCopy)
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
@@ -549,7 +549,7 @@ func (dc *controller) cleanupMachineDeployment(oldISs []*v1alpha1.MachineSet, de
 	for i := int32(0); i < diff; i++ {
 		is := cleanableISes[i]
 		// Avoid delete machine set with non-zero replica counts
-		if is.Status.Replicas != 0 || (is.Spec.Replicas) != 0 || is.Generation > is.Status.ObservedGeneration || is.DeletionTimestamp != nil {
+		if is.Status.Replicas != 0 || *(is.Spec.Replicas) != 0 || is.Generation > is.Status.ObservedGeneration || is.DeletionTimestamp != nil {
 			continue
 		}
 		glog.V(4).Infof("Trying to cleanup machine set %q for deployment %q", is.Name, deployment.Name)
@@ -616,7 +616,7 @@ func calculateDeploymentStatus(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.Ma
 		status.Conditions = append(status.Conditions, conditions[i])
 	}
 
-	if availableReplicas >= (deployment.Spec.Replicas)-MaxUnavailable(*deployment) {
+	if availableReplicas >= *(deployment.Spec.Replicas)-MaxUnavailable(*deployment) {
 		minAvailability := NewMachineDeploymentCondition(v1alpha1.MachineDeploymentAvailable, v1alpha1.ConditionTrue, MinimumReplicasAvailable, "Deployment has minimum availability.")
 		SetMachineDeploymentCondition(&status, *minAvailability)
 	} else {
@@ -643,7 +643,7 @@ func (dc *controller) isScalingEvent(d *v1alpha1.MachineDeployment, isList []*v1
 		if !ok {
 			continue
 		}
-		if desired != (d.Spec.Replicas) {
+		if desired != *(d.Spec.Replicas) {
 			return true, nil
 		}
 	}

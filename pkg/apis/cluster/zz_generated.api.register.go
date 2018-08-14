@@ -181,7 +181,7 @@ type APIEndpoint struct {
 type MachineSetSpec struct {
 	Replicas        *int32
 	MinReadySeconds int32
-	Selector        metav1.LabelSelector
+	Selector        *metav1.LabelSelector
 	Template        MachineTemplateSpec
 }
 
@@ -215,6 +215,7 @@ type ProviderConfigSource struct {
 type MachineClassRef struct {
 	Name       string
 	Parameters map[string]string
+	Kind       string
 }
 
 type MachineClass struct {
@@ -271,7 +272,7 @@ type MachineDeploymentStatus struct {
 
 type MachineDeploymentSpec struct {
 	Replicas                *int32
-	Selector                metav1.LabelSelector
+	Selector                *metav1.LabelSelector
 	Template                MachineTemplateSpec
 	Strategy                MachineDeploymentStrategy
 	MinReadySeconds         *int32
@@ -343,6 +344,7 @@ type MachineStatus struct {
 	Conditions     []corev1.NodeCondition
 	LastOperation  LastOperation
 	CurrentStatus  CurrentStatus
+	ProviderID     string
 }
 
 // LastOperation suggests the last operation performed on the object
