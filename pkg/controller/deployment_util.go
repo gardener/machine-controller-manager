@@ -1031,6 +1031,25 @@ func statusUpdateRequired(old v1alpha1.MachineDeploymentStatus, new v1alpha1.Mac
 		old.UpdatedReplicas == new.UpdatedReplicas &&
 		reflect.DeepEqual(old.Conditions, new.Conditions) {
 		// If all conditions are matching
+
+		// Iterate through all new failed machines and check if there
+		// exists an older machine with same name and description
+		for _, newMachine := range new.FailedMachines {
+			found := false
+
+			for _, oldMachine := range old.FailedMachines {
+				if oldMachine.Name == newMachine.Name &&
+					oldMachine.LastOperation.Description == newMachine.LastOperation.Description {
+					found = true
+					continue
+				}
+			}
+
+			if !found {
+				return true
+			}
+		}
+
 		return false
 	}
 
