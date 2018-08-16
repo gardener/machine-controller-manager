@@ -24,6 +24,7 @@ package controller
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -1016,4 +1017,22 @@ func ResolveFenceposts(maxSurge, maxUnavailable *intstrutil.IntOrString, desired
 	}
 
 	return int32(surge), int32(unavailable), nil
+}
+
+// statusUpdateRequired checks for if status update is required comparing two MachineDeployment statuses
+func statusUpdateRequired(old v1alpha1.MachineDeploymentStatus, new v1alpha1.MachineDeploymentStatus) bool {
+
+	if old.AvailableReplicas == new.AvailableReplicas &&
+		old.CollisionCount == new.CollisionCount &&
+		len(old.FailedMachines) == len(new.FailedMachines) &&
+		old.ObservedGeneration == new.ObservedGeneration &&
+		old.ReadyReplicas == new.ReadyReplicas &&
+		old.Replicas == new.Replicas &&
+		old.UpdatedReplicas == new.UpdatedReplicas &&
+		reflect.DeepEqual(old.Conditions, new.Conditions) {
+		// If all conditions are matching
+		return false
+	}
+
+	return true
 }

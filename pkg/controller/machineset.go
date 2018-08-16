@@ -140,7 +140,7 @@ func (c *controller) machineSetUpdate(old, cur interface{}) {
 	// that bad as MachineSets that haven't met expectations yet won't
 	// sync, and all the listing is done using local stores.
 	if oldMachineSet.Spec.Replicas != currentMachineSet.Spec.Replicas {
-		glog.V(4).Infof("%v %v updated. Desired machine count change: %d->%d", currentMachineSet.Name, oldMachineSet.Spec.Replicas, currentMachineSet.Spec.Replicas)
+		glog.V(4).Infof("%v updated. Desired machine count change: %d->%d", currentMachineSet.Name, oldMachineSet.Spec.Replicas, currentMachineSet.Spec.Replicas)
 	}
 	c.enqueueMachineSet(currentMachineSet)
 }
