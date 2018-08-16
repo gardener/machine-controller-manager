@@ -58,7 +58,7 @@ func (c *controller) addMachine(obj interface{}) {
 		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
 		return
 	}
-	glog.V(4).Info("Adding machine object")
+	glog.V(4).Infof("Add/Update/Delete machine object %q", key)
 	c.machineQueue.Add(key)
 }
 
@@ -184,7 +184,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		}
 	}
 
-	c.enqueueMachineAfter(machine, time.Minute*10)
+	c.enqueueMachineAfter(machine, 10*time.Minute)
 	return nil
 }
 
@@ -207,6 +207,7 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 		return
 	}
 
+	glog.V(4).Infof("Add machine object backing node %q", machine.Name)
 	c.enqueueMachine(machine)
 }
 
@@ -545,8 +546,9 @@ func (c *controller) updateMachineStatus(
 func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditions []v1.NodeCondition) (*v1alpha1.Machine, error) {
 
 	var (
-		msg               string
-		lastOperationType v1alpha1.MachineOperationType
+		msg                  string
+		lastOperationType    v1alpha1.MachineOperationType
+		objectRequiresUpdate bool
 	)
 
 	// Get the latest version of the machine so that we can avoid conflicts
@@ -556,12 +558,14 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 	}
 
 	clone := machine.DeepCopy()
-	clone.Status.Conditions = conditions
 
-	//glog.Info(c.isHealthy(clone))
+	if nodeConditionsHaveChanged(clone.Status.Conditions, conditions) {
+		clone.Status.Conditions = conditions
+		objectRequiresUpdate = true
+	}
 
 	if clone.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating {
-		// If machine is already in terminating state, don't update
+		// If machine is already in terminating state, don't update health status
 
 	} else if !c.isHealthy(clone) && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
 		// If machine is not healthy, and current state is running,
@@ -580,6 +584,7 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 			Type:           v1alpha1.MachineOperationHealthCheck,
 			LastUpdateTime: metav1.Now(),
 		}
+		objectRequiresUpdate = true
 
 	} else if c.isHealthy(clone) && clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 		// If machine is healhy and current machinePhase is not running.
@@ -609,16 +614,22 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 			TimeoutActive:  false,
 			LastUpdateTime: metav1.Now(),
 		}
+		objectRequiresUpdate = true
+
 	}
 
-	clone, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
-	if err != nil {
-		// Keep retrying until update goes through
-		glog.V(2).Infof("Warning: Updated failed, retrying, error: %q", err)
-		return c.updateMachineConditions(machine, conditions)
+	if objectRequiresUpdate {
+		clone, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
+		if err != nil {
+			// Keep retrying until update goes through
+			glog.Warningf("Updated failed, retrying, error: %q", err)
+			return c.updateMachineConditions(machine, conditions)
+		}
+
+		return clone, nil
 	}
 
-	return clone, nil
+	return machine, nil
 }
 
 func (c *controller) updateMachineFinalizers(machine *v1alpha1.Machine, finalizers []string) {
@@ -715,7 +726,7 @@ func (c *controller) checkMachineTimeout(machine *v1alpha1.Machine) {
 		// Timeout value obtained by subtracting last operation with expected time out period
 		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 		if timeOut > 0 {
-			// If machine health timeout occurs while joining or rejoining of machine
+			// Machine health timeout occurs while joining or rejoining of machine
 
 			if machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending {
 				// Timeout occurred while machine creation
@@ -748,20 +759,14 @@ func (c *controller) checkMachineTimeout(machine *v1alpha1.Machine) {
 			// Log the error message for machine failure
 			glog.Error(description)
 
+			// Update the machine status to reflect the changes
+			c.updateMachineStatus(machine, lastOperation, currentStatus)
+
 		} else {
 			// If timeout has not occurred, re-enqueue the machine
 			// after a specified sleep time
 			c.enqueueMachineAfter(machine, sleepTime)
-			currentStatus = v1alpha1.CurrentStatus{
-				Phase:          machine.Status.CurrentStatus.Phase,
-				TimeoutActive:  true,
-				LastUpdateTime: machine.Status.CurrentStatus.LastUpdateTime,
-			}
-			lastOperation = machine.Status.LastOperation
 		}
-
-		// Update the machine status to reflect the changes
-		c.updateMachineStatus(machine, lastOperation, currentStatus)
 	}
 }
 

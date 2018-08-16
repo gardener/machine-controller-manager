@@ -199,3 +199,19 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 
 	return MachineClass, secretRef, nil
 }
+
+// nodeConditionsHaveChanged compares two node statuses to see if any of the statuses have changed
+func nodeConditionsHaveChanged(machineConditions []v1.NodeCondition, nodeConditions []v1.NodeCondition) bool {
+
+	if len(machineConditions) != len(nodeConditions) {
+		return true
+	}
+
+	for i := range nodeConditions {
+		if nodeConditions[i].Status != machineConditions[i].Status {
+			return true
+		}
+	}
+
+	return false
+}
