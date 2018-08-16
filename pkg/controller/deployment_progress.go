@@ -24,7 +24,6 @@ package controller
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/golang/glog"
@@ -108,7 +107,7 @@ func (dc *controller) syncRolloutStatus(allISs []*v1alpha1.MachineSet, newIS *v1
 	}
 
 	// Do not update if there is nothing new to add.
-	if reflect.DeepEqual(d.Status, newStatus) {
+	if !statusUpdateRequired(d.Status, newStatus) {
 		// Requeue the deployment if required.
 		dc.requeueStuckMachineDeployment(d, newStatus)
 		return nil
