@@ -3,8 +3,9 @@
 apiVersion: machine.sapcloud.io/v1alpha1
 kind: OpenStackMachineClass
 metadata:
-  name: test-openstack # Name of aws machine class goes here
-  namespace: default
+  name: test-openstack # Name of OpenStack machine class goes here
+  namespace: default # Namespace in which the machine class is to be deployed
+
 spec:
   flavorName: <flavor_name> # Name of the machine flavor
   keyName: <keypair_name> # Name of the ssh key pair
@@ -24,5 +25,3 @@ spec:
   secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig
     namespace: default  # Namespace
     name: test-secret # Name of the secret
-
-

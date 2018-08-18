@@ -91,7 +91,7 @@ func NewController(
 		awsMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
 		azureMachineClassQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
 		gcpMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "gcpmachineclass"),
-		alicloudMachineClassQueue:	    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "alicloudmachineclass"),
+		alicloudMachineClassQueue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "alicloudmachineclass"),
 		machineQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
 		machineSetQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
 		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
@@ -379,7 +379,7 @@ type controller struct {
 	awsMachineClassLister       machinelisters.AWSMachineClassLister
 	azureMachineClassLister     machinelisters.AzureMachineClassLister
 	gcpMachineClassLister       machinelisters.GCPMachineClassLister
-	alicloudMachineClassLister	machinelisters.AlicloudMachineClassLister
+	alicloudMachineClassLister  machinelisters.AlicloudMachineClassLister
 	machineLister               machinelisters.MachineLister
 	machineSetLister            machinelisters.MachineSetLister
 	machineDeploymentLister     machinelisters.MachineDeploymentLister
@@ -390,7 +390,7 @@ type controller struct {
 	awsMachineClassQueue           workqueue.RateLimitingInterface
 	azureMachineClassQueue         workqueue.RateLimitingInterface
 	gcpMachineClassQueue           workqueue.RateLimitingInterface
-	alicloudMachineClassQueue	       workqueue.RateLimitingInterface
+	alicloudMachineClassQueue      workqueue.RateLimitingInterface
 	machineQueue                   workqueue.RateLimitingInterface
 	machineSetQueue                workqueue.RateLimitingInterface
 	machineDeploymentQueue         workqueue.RateLimitingInterface
@@ -403,7 +403,7 @@ type controller struct {
 	awsMachineClassSynced       cache.InformerSynced
 	azureMachineClassSynced     cache.InformerSynced
 	gcpMachineClassSynced       cache.InformerSynced
-	alicloudMachineClassSynced	cache.InformerSynced
+	alicloudMachineClassSynced  cache.InformerSynced
 	machineSynced               cache.InformerSynced
 	machineSetSynced            cache.InformerSynced
 	machineDeploymentSynced     cache.InformerSynced
