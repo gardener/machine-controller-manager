@@ -35,10 +35,10 @@ import (
 // AlicloudDriver is the driver struct for holding Alicloud machine information
 type AlicloudDriver struct {
 	AlicloudMachineClass *v1alpha1.AlicloudMachineClass
-	CloudConfig        *corev1.Secret
-	UserData           string
-	MachineID          string
-	MachineName        string
+	CloudConfig          *corev1.Secret
+	UserData             string
+	MachineID            string
+	MachineName          string
 }
 
 // runInstanceRequest is the request struct for api RunInstances
@@ -47,15 +47,15 @@ type runInstancesRequest struct {
 	InstanceName            string           `position:"Query" name:"InstanceName"`
 	Description             string           `position:"Query" name:"Description"`
 	UserData                string           `position:"Query" name:"UserData"`
-	ClusterId               string           `position:"Query" name:"ClusterId"`
+	ClusterID               string           `position:"Query" name:"ClusterId"`
 	ClientToken             string           `position:"Query" name:"ClientToken"`
-	ImageId                 string           `position:"Query" name:"ImageId"`
+	ImageName               string           `position:"Query" name:"ImageId"`
 	InstanceType            string           `position:"Query" name:"InstanceType"`
-	ZoneId                  string           `position:"Query" name:"ZoneId"`
-	SecurityGroupId         string           `position:"Query" name:"SecurityGroupId"`
-	VSwitchId               string           `position:"Query" name:"VSwitchId"`
-	PrivateIpAddress        string           `position:"Query" name:"PrivateIpAddress"`
-	InnerIpAddress          string           `position:"Query" name:"InnerIpAddress"`
+	Zone                    string           `position:"Query" name:"ZoneId"`
+	SecurityGroupID         string           `position:"Query" name:"SecurityGroupId"`
+	VSwitchID               string           `position:"Query" name:"VSwitchId"`
+	PrivateIPAddress        string           `position:"Query" name:"PrivateIpAddress"`
+	InnerIPAddress          string           `position:"Query" name:"InnerIpAddress"`
 	SystemDiskSize          requests.Integer `position:"Query" name:"SystemDisk.Size"`
 	SystemDiskCategory      string           `position:"Query" name:"SystemDisk.Category"`
 	InstanceChargeType      string           `position:"Query" name:"InstanceChargeType"`
@@ -69,11 +69,21 @@ type runInstancesRequest struct {
 	Tag3Key                 string           `position:"Query" name:"Tag.3.Key"`
 	Tag4Key                 string           `position:"Query" name:"Tag.4.Key"`
 	Tag5Key                 string           `position:"Query" name:"Tag.5.Key"`
+	Tag6Key                 string           `position:"Query" name:"Tag.6.Key"`
+	Tag7Key                 string           `position:"Query" name:"Tag.7.Key"`
+	Tag8Key                 string           `position:"Query" name:"Tag.8.Key"`
+	Tag9Key                 string           `position:"Query" name:"Tag.9.Key"`
+	Tag10Key                string           `position:"Query" name:"Tag.10.Key"`
 	Tag1Value               string           `position:"Query" name:"Tag.1.Value"`
 	Tag2Value               string           `position:"Query" name:"Tag.2.Value"`
 	Tag3Value               string           `position:"Query" name:"Tag.3.Value"`
 	Tag4Value               string           `position:"Query" name:"Tag.4.Value"`
 	Tag5Value               string           `position:"Query" name:"Tag.5.Value"`
+	Tag6Value               string           `position:"Query" name:"Tag.6.Value"`
+	Tag7Value               string           `position:"Query" name:"Tag.7.Value"`
+	Tag8Value               string           `position:"Query" name:"Tag.8.Value"`
+	Tag9Value               string           `position:"Query" name:"Tag.9.Value"`
+	Tag10Value              string           `position:"Query" name:"Tag.10.Value"`
 	KeyPairName             string           `position:"Query" name:"KeyPairName"`
 	DryRun                  requests.Boolean `position:"Query" name:"DryRun"`
 }
@@ -88,7 +98,7 @@ func (c *AlicloudDriver) createRunInstancesRequest() (request *runInstancesReque
 }
 
 // RunInstances invokes the ecs.RunInstances API synchronously
-// api document: https://help.alicloud.com/api/ecs/runinstances.html
+// api document: https://help.aliyun.com/api/ecs/runinstances.html
 func (c *AlicloudDriver) runInstances(client *ecs.Client, request *runInstancesRequest) (response *ecs.RunInstancesResponse, err error) {
 	response = ecs.CreateRunInstancesResponse()
 	err = client.DoAction(request, response)
@@ -105,13 +115,13 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 	request := c.createRunInstancesRequest()
 	//request.DryRun = requests.NewBoolean(true)
 
-	request.ImageId = c.AlicloudMachineClass.Spec.ImageId
+	request.ImageName = c.AlicloudMachineClass.Spec.ImageName
 	request.InstanceType = c.AlicloudMachineClass.Spec.InstanceType
 	request.RegionId = c.AlicloudMachineClass.Spec.Region
-	request.ZoneId = c.AlicloudMachineClass.Spec.ZoneId
-	request.SecurityGroupId = c.AlicloudMachineClass.Spec.SecurityGroupId
-	request.VSwitchId = c.AlicloudMachineClass.Spec.VSwitchId
-	request.PrivateIpAddress = c.AlicloudMachineClass.Spec.PrivateIpAddress
+	request.Zone = c.AlicloudMachineClass.Spec.Zone
+	request.SecurityGroupID = c.AlicloudMachineClass.Spec.SecurityGroupID
+	request.VSwitchID = c.AlicloudMachineClass.Spec.VSwitchID
+	request.PrivateIPAddress = c.AlicloudMachineClass.Spec.PrivateIPAddress
 	request.InstanceChargeType = c.AlicloudMachineClass.Spec.InstanceChargeType
 	request.InternetChargeType = c.AlicloudMachineClass.Spec.InternetChargeType
 	request.SpotStrategy = c.AlicloudMachineClass.Spec.SpotStrategy
@@ -131,17 +141,38 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 		request.SystemDiskSize = requests.NewInteger(c.AlicloudMachineClass.Spec.SystemDisk.Size)
 	}
 
-	if c.AlicloudMachineClass.Spec.Tags != nil {
-		request.Tag1Key = c.AlicloudMachineClass.Spec.Tags.Tag1Key
-		request.Tag1Value = c.AlicloudMachineClass.Spec.Tags.Tag1Value
-		request.Tag2Key = c.AlicloudMachineClass.Spec.Tags.Tag2Key
-		request.Tag2Value = c.AlicloudMachineClass.Spec.Tags.Tag2Value
-		request.Tag3Key = c.AlicloudMachineClass.Spec.Tags.Tag3Key
-		request.Tag3Value = c.AlicloudMachineClass.Spec.Tags.Tag3Value
-		request.Tag4Key = c.AlicloudMachineClass.Spec.Tags.Tag4Key
-		request.Tag4Value = c.AlicloudMachineClass.Spec.Tags.Tag4Value
-		request.Tag5Key = c.AlicloudMachineClass.Spec.Tags.Tag5Key
-		request.Tag5Value = c.AlicloudMachineClass.Spec.Tags.Tag5Value
+	for key, value := range c.AlicloudMachineClass.Spec.Tags {
+		if strings.Contains(key, "kubernetes.io/cluster/") {
+			request.Tag1Key = key
+			request.Tag1Value = value
+		} else if strings.Contains(key, "kubernetes.io/role/") {
+			request.Tag2Key = key
+			request.Tag2Value = value
+		} else if request.Tag3Key == "" {
+			request.Tag3Key = key
+			request.Tag3Value = value
+		} else if request.Tag4Key == "" {
+			request.Tag4Key = key
+			request.Tag4Value = value
+		} else if request.Tag5Key == "" {
+			request.Tag5Key = key
+			request.Tag5Value = value
+		} else if request.Tag6Key == "" {
+			request.Tag6Key = key
+			request.Tag6Value = value
+		} else if request.Tag7Key == "" {
+			request.Tag7Key = key
+			request.Tag7Value = value
+		} else if request.Tag8Key == "" {
+			request.Tag8Key = key
+			request.Tag8Value = value
+		} else if request.Tag9Key == "" {
+			request.Tag9Key = key
+			request.Tag9Value = value
+		} else if request.Tag10Key == "" {
+			request.Tag10Key = key
+			request.Tag10Value = value
+		}
 	}
 
 	request.InstanceName = c.MachineName
@@ -167,7 +198,7 @@ func (c *AlicloudDriver) Delete() error {
 	}
 
 	if result[0].Status != "Running" && result[0].Status != "Stopped" {
-		return errors.New("ec2 instance not in running/stopped state.")
+		return errors.New("ec2 instance not in running/stopped state")
 	}
 
 	machineID := c.decodeMachineID(c.MachineID)
@@ -210,14 +241,14 @@ func (c *AlicloudDriver) getVMDetails(machineID string) ([]ecs.Instance, error) 
 	searchClusterName := ""
 	searchNodeRole := ""
 
-	if c.AlicloudMachineClass.Spec.Tags != nil {
-		if strings.Contains(c.AlicloudMachineClass.Spec.Tags.Tag1Key, "kubernetes.io/cluster/") {
-			searchClusterName = c.AlicloudMachineClass.Spec.Tags.Tag1Key
-		}
-		if strings.Contains(c.AlicloudMachineClass.Spec.Tags.Tag1Key, "kubernetes.io/cluster/") {
-			searchNodeRole = c.AlicloudMachineClass.Spec.Tags.Tag2Key
+	for key, _ := range c.AlicloudMachineClass.Spec.Tags {
+		if strings.Contains(key, "kubernetes.io/cluster/") {
+			searchClusterName = key
+		} else if strings.Contains(key, "kubernetes.io/role/") {
+			searchNodeRole = key
 		}
 	}
+
 	if searchClusterName == "" || searchNodeRole == "" {
 		return nil, nil
 	}
@@ -247,7 +278,7 @@ func (c *AlicloudDriver) getVMDetails(machineID string) ([]ecs.Instance, error) 
 // GetVMs returns a VM matching the machineID
 // If machineID is an empty string then it returns all matching instances
 func (c *AlicloudDriver) GetVMs(machineID string) (VMs, error) {
-	listOfVMs := map[string]string{}
+	listOfVMs := make(map[string]string)
 
 	instances, err := c.getVMDetails(machineID)
 	if err != nil {
@@ -272,8 +303,8 @@ func (c *AlicloudDriver) decodeMachineID(id string) string {
 }
 
 func (c *AlicloudDriver) getEcsClient() (*ecs.Client, error) {
-	accessKeyID := strings.TrimSpace(string(c.CloudConfig.Data["alicloudAccessKeyId"]))
-	accessKeySecret := strings.TrimSpace(string(c.CloudConfig.Data["alicloudAccessKeySecret"]))
+	accessKeyID := strings.TrimSpace(string(c.CloudConfig.Data[v1alpha1.AlicloudAccessKeyID]))
+	accessKeySecret := strings.TrimSpace(string(c.CloudConfig.Data[v1alpha1.AlicloudAccessKeySecret]))
 	region := c.AlicloudMachineClass.Spec.Region
 
 	var ecsClient *ecs.Client

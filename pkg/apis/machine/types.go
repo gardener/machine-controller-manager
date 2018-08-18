@@ -1151,13 +1151,13 @@ type AlicloudMachineClassList struct {
 
 // AlicloudMachineClassSpec is the specification of a cluster.
 type AlicloudMachineClassSpec struct {
-	ImageId                 string
+	ImageName               string
 	InstanceType            string
 	Region                  string
-	ZoneId                  string
-	SecurityGroupId         string
-	VSwitchId               string
-	PrivateIpAddress        string
+	Zone                    string
+	SecurityGroupID         string
+	VSwitchID               string
+	PrivateIPAddress        string
 	SystemDisk              *AlicloudSystemDisk
 	InstanceChargeType      string
 	InternetChargeType      string
@@ -1165,7 +1165,7 @@ type AlicloudMachineClassSpec struct {
 	InternetMaxBandwidthOut *int
 	SpotStrategy            string
 	IoOptimized             string
-	Tags                    *AlicloudTags
+	Tags                    map[string]string
 	KeyPairName             string
 	SecretRef               *corev1.SecretReference
 }
@@ -1174,18 +1174,4 @@ type AlicloudMachineClassSpec struct {
 type AlicloudSystemDisk struct {
 	Category string
 	Size     int
-}
-
-// AlicloudTags describes Tags for Alicloud.
-type AlicloudTags struct {
-	Tag1Key   string
-	Tag1Value string
-	Tag2Key   string
-	Tag2Value string
-	Tag3Key   string
-	Tag3Value string
-	Tag4Key   string
-	Tag4Value string
-	Tag5Key   string
-	Tag5Value string
 }

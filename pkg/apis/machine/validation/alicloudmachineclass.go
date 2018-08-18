@@ -18,6 +18,8 @@ limitations under the License.
 package validation
 
 import (
+	"strings"
+
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -41,8 +43,8 @@ func internalValidateAlicloudMachineClass(AlicloudMachineClass *machine.Alicloud
 func validateAlicloudMachineClassSpec(spec *machine.AlicloudMachineClassSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	if "" == spec.ImageId {
-		allErrs = append(allErrs, field.Required(fldPath.Child("imageId"), "ImageId is required"))
+	if "" == spec.ImageName {
+		allErrs = append(allErrs, field.Required(fldPath.Child("imageName"), "ImageName is required"))
 	}
 	if "" == spec.Region {
 		allErrs = append(allErrs, field.Required(fldPath.Child("region"), "Region is required"))
@@ -50,8 +52,8 @@ func validateAlicloudMachineClassSpec(spec *machine.AlicloudMachineClassSpec, fl
 	if "" == spec.InstanceType {
 		allErrs = append(allErrs, field.Required(fldPath.Child("instanceType"), "InstanceType is required"))
 	}
-	if "" == spec.VSwitchId {
-		allErrs = append(allErrs, field.Required(fldPath.Child("vSwitchId"), "VSwitchId is required"))
+	if "" == spec.VSwitchID {
+		allErrs = append(allErrs, field.Required(fldPath.Child("vSwitchID"), "VSwitchID is required"))
 	}
 	if "" == spec.KeyPairName {
 		allErrs = append(allErrs, field.Required(fldPath.Child("keyPairName"), "KeyPairName is required"))
@@ -63,7 +65,7 @@ func validateAlicloudMachineClassSpec(spec *machine.AlicloudMachineClassSpec, fl
 	return allErrs
 }
 
-func validateAlicloudClassSpecTags(tags *machine.AlicloudTags, fldPath *field.Path) field.ErrorList {
+func validateAlicloudClassSpecTags(tags map[string]string, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	clusterName := ""
 	nodeRole := ""
@@ -72,14 +74,19 @@ func validateAlicloudClassSpecTags(tags *machine.AlicloudTags, fldPath *field.Pa
 		allErrs = append(allErrs, field.Required(fldPath.Child("tags"), "Tags required for Alicloud machines"))
 	}
 
-	clusterName = tags.Tag1Key
-	nodeRole = tags.Tag2Key
+	for key := range tags {
+		if strings.Contains(key, "kubernetes.io/cluster/") {
+			clusterName = key
+		} else if strings.Contains(key, "kubernetes.io/role/") {
+			nodeRole = key
+		}
+	}
 
 	if clusterName == "" {
-		allErrs = append(allErrs, field.Required(fldPath.Child("tags.Tag1Key"), "Tag1Key required of the form kubernetes.io/cluster/****"))
+		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes.io/cluster/"), "Tag required of the form kubernetes.io/cluster/****"))
 	}
 	if nodeRole == "" {
-		allErrs = append(allErrs, field.Required(fldPath.Child("tags.Tag2Key"), "Tag2Key required of the form kubernetes.io/role/****"))
+		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes.io/role/"), "Tag required of the form kubernetes.io/role/****"))
 	}
 
 	return allErrs

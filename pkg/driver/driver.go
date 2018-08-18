@@ -77,11 +77,11 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 
 	case "AlicloudMachineClass":
 		return &AlicloudDriver{
-			AlicloudMachineClass:	machineClass.(*v1alpha1.AlicloudMachineClass),
-			CloudConfig:		secretRef,
-			UserData: 			string(secretRef.Data["userData"]),
-			MachineID:			machineID,
-			MachineName:		machineName,
+			AlicloudMachineClass: machineClass.(*v1alpha1.AlicloudMachineClass),
+			CloudConfig:          secretRef,
+			UserData:             string(secretRef.Data["userData"]),
+			MachineID:            machineID,
+			MachineName:          machineName,
 		}
 	}
 
