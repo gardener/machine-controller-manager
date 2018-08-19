@@ -60,7 +60,7 @@ type MachineClass struct {
 	// specific configuration for Machines of this class.
 	// MachineTemplate corev1.ObjectReference `json:machineTemplate`
 
-	SecretRef *corev1.SecretReference
+	SecretRef *corev1.SecretReference `json:"secretRef,omitempty"`
 
 	//Cloud-provider name
 	Provider string `json:"provider"`

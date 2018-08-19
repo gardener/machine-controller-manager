@@ -190,6 +190,7 @@ func (c *controller) updateMachineClassFinalizers(class *v1alpha1.MachineClass, 
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
+
 	_, err = c.controlMachineClient.MachineClasses(class.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through

@@ -139,11 +139,11 @@ depend:
 
 generate: genapi genconversion genclientset gendeepcopy genopenapi
 
-genapi: depend
+genapi: 
 	go build -o $$GOPATH/bin/apiregister-gen sigs.k8s.io/cluster-api/vendor/github.com/kubernetes-incubator/apiserver-builder/cmd/apiregister-gen
 	apiregister-gen -i ./pkg/apis,./pkg/apis/cluster,./pkg/apis/cluster/v1alpha1
 
-genconversion: depend
+genconversion: 
 	go build -o $$GOPATH/bin/conversion-gen sigs.k8s.io/cluster-api/vendor/k8s.io/code-generator/cmd/conversion-gen
 	conversion-gen -i ./pkg/apis/cluster/v1alpha1/ -O zz_generated.conversion --go-header-file boilerplate.go.txt
 

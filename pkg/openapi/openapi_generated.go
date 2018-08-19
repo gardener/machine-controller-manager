@@ -1643,7 +1643,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
 							},
 						},
-						"SecretRef": {
+						"secretRef": {
 							SchemaProps: spec.SchemaProps{
 								Ref: ref("k8s.io/api/core/v1.SecretReference"),
 							},
@@ -1656,7 +1656,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 							},
 						},
 					},
-					Required: []string{"capacity", "allocatable", "providerConfig", "SecretRef", "provider"},
+					Required: []string{"capacity", "allocatable", "providerConfig", "provider"},
 				},
 			},
 			Dependencies: []string{
