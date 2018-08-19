@@ -39,7 +39,7 @@ type VMs map[string]string
 func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, machineClass interface{}, machineName string) Driver {
 
 	switch classKind {
-	case "OpenStackMachineClass":
+	case "OpenStack":
 		return &OpenStackDriver{
 			OpenStackMachineClass: machineClass.(*v1alpha1.OpenStackMachineClass),
 			CloudConfig:           secretRef,
@@ -48,7 +48,7 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 			MachineName:           machineName,
 		}
 
-	case "AWSMachineClass":
+	case "AWS":
 		return &AWSDriver{
 			AWSMachineClass: machineClass.(*v1alpha1.AWSMachineClass),
 			CloudConfig:     secretRef,
@@ -57,7 +57,7 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 			MachineName:     machineName,
 		}
 
-	case "AzureMachineClass":
+	case "Azure":
 		return &AzureDriver{
 			AzureMachineClass: machineClass.(*v1alpha1.AzureMachineClass),
 			CloudConfig:       secretRef,
@@ -66,7 +66,7 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 			MachineName:       machineName,
 		}
 
-	case "GCPMachineClass":
+	case "GCP":
 		return &GCPDriver{
 			GCPMachineClass: machineClass.(*v1alpha1.GCPMachineClass),
 			CloudConfig:     secretRef,

@@ -1643,12 +1643,24 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
 							},
 						},
+						"SecretRef": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/api/core/v1.SecretReference"),
+							},
+						},
+						"provider": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Cloud-provider name",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
 					},
-					Required: []string{"capacity", "allocatable", "providerConfig"},
+					Required: []string{"capacity", "allocatable", "providerConfig", "SecretRef", "provider"},
 				},
 			},
 			Dependencies: []string{
-				"k8s.io/apimachinery/pkg/api/resource.Quantity", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
+				"k8s.io/api/core/v1.SecretReference", "k8s.io/apimachinery/pkg/api/resource.Quantity", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
 		},
 		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineClassList": {
 			Schema: spec.Schema{

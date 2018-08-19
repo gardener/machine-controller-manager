@@ -224,6 +224,8 @@ type MachineClass struct {
 	Capacity       corev1.ResourceList
 	Allocatable    corev1.ResourceList
 	ProviderConfig runtime.RawExtension
+	Provider       string
+	SecretRef      *corev1.SecretReference
 }
 
 type MachineClassList struct {
@@ -242,6 +244,28 @@ type ClusterNetworkingConfig struct {
 	Pods          NetworkRanges
 	ServiceDomain string
 }
+
+const (
+	AWSAccessKeyID     string = "providerAccessKeyId"
+	AWSSecretAccessKey string = "providerSecretAccessKey"
+
+	AzureClientID       string = "azureClientId"
+	AzureClientSecret   string = "azureClientSecret"
+	AzureSubscriptionID string = "azureSubscriptionId"
+	AzureTenantID       string = "azureTenantId"
+
+	GCPServiceAccountJSON string = "serviceAccountJSON"
+
+	OpenStackAuthURL    string = "authURL"
+	OpenStackCACert     string = "caCert"
+	OpenStackInsecure   string = "insecure"
+	OpenStackDomainName string = "domainName"
+	OpenStackTenantName string = "tenantName"
+	OpenStackUsername   string = "username"
+	OpenStackPassword   string = "password"
+	OpenStackClientCert string = "clientCert"
+	OpenStackClientKey  string = "clientKey"
+)
 
 // +genclient
 // +genclient

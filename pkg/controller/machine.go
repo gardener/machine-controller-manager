@@ -135,7 +135,9 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		return err
 	}
 
-	driver := driver.NewDriver(machine.Status.ProviderID, secretRef, machine.Spec.ProviderConfig.ValueFrom.MachineClass.Kind, machine.Spec.ProviderConfig.ValueFrom.MachineClass.Name, machine.Name)
+	machineClass, err := c.controlMachineClient.MachineClasses(machine.Namespace).Get(machine.Spec.ProviderConfig.ValueFrom.MachineClass.Name, metav1.GetOptions{})
+
+	driver := driver.NewDriver(machine.Status.ProviderID, secretRef, machine.Spec.ProviderConfig.ValueFrom.MachineClass.Kind, machineClass.ProviderConfig, machine.Name)
 	actualProviderID, err := driver.GetExisting()
 	if err != nil {
 		return err

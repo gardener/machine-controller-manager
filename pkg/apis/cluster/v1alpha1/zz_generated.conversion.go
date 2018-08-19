@@ -404,6 +404,8 @@ func autoConvert_v1alpha1_MachineClass_To_cluster_MachineClass(in *MachineClass,
 	out.Capacity = *(*v1.ResourceList)(unsafe.Pointer(&in.Capacity))
 	out.Allocatable = *(*v1.ResourceList)(unsafe.Pointer(&in.Allocatable))
 	out.ProviderConfig = in.ProviderConfig
+	out.SecretRef = (*v1.SecretReference)(unsafe.Pointer(in.SecretRef))
+	out.Provider = in.Provider
 	return nil
 }
 
@@ -417,6 +419,8 @@ func autoConvert_cluster_MachineClass_To_v1alpha1_MachineClass(in *cluster.Machi
 	out.Capacity = *(*v1.ResourceList)(unsafe.Pointer(&in.Capacity))
 	out.Allocatable = *(*v1.ResourceList)(unsafe.Pointer(&in.Allocatable))
 	out.ProviderConfig = in.ProviderConfig
+	out.Provider = in.Provider
+	out.SecretRef = (*v1.SecretReference)(unsafe.Pointer(in.SecretRef))
 	return nil
 }
 
@@ -427,7 +431,17 @@ func Convert_cluster_MachineClass_To_v1alpha1_MachineClass(in *cluster.MachineCl
 
 func autoConvert_v1alpha1_MachineClassList_To_cluster_MachineClassList(in *MachineClassList, out *cluster.MachineClassList, s conversion.Scope) error {
 	out.ListMeta = in.ListMeta
-	out.Items = *(*[]cluster.MachineClass)(unsafe.Pointer(&in.Items))
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]cluster.MachineClass, len(*in))
+		for i := range *in {
+			if err := Convert_v1alpha1_MachineClass_To_cluster_MachineClass(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
 	return nil
 }
 
@@ -438,7 +452,17 @@ func Convert_v1alpha1_MachineClassList_To_cluster_MachineClassList(in *MachineCl
 
 func autoConvert_cluster_MachineClassList_To_v1alpha1_MachineClassList(in *cluster.MachineClassList, out *MachineClassList, s conversion.Scope) error {
 	out.ListMeta = in.ListMeta
-	out.Items = *(*[]MachineClass)(unsafe.Pointer(&in.Items))
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]MachineClass, len(*in))
+		for i := range *in {
+			if err := Convert_cluster_MachineClass_To_v1alpha1_MachineClass(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
 	return nil
 }
 

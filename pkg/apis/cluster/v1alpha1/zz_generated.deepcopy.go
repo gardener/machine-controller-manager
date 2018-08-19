@@ -1034,6 +1034,15 @@ func (in *MachineClass) DeepCopyInto(out *MachineClass) {
 		}
 	}
 	in.ProviderConfig.DeepCopyInto(&out.ProviderConfig)
+	if in.SecretRef != nil {
+		in, out := &in.SecretRef, &out.SecretRef
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(v1.SecretReference)
+			**out = **in
+		}
+	}
 	return
 }
 
