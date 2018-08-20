@@ -11,6 +11,7 @@ type ClusterInterface interface {
 	RESTClient() rest.Interface
 	ClustersGetter
 	MachinesGetter
+	MachineClassesGetter
 	MachineDeploymentsGetter
 	MachineSetsGetter
 }
@@ -26,6 +27,10 @@ func (c *ClusterClient) Clusters(namespace string) ClusterInterface {
 
 func (c *ClusterClient) Machines(namespace string) MachineInterface {
 	return newMachines(c, namespace)
+}
+
+func (c *ClusterClient) MachineClasses(namespace string) MachineClassInterface {
+	return newMachineClasses(c, namespace)
 }
 
 func (c *ClusterClient) MachineDeployments(namespace string) MachineDeploymentInterface {

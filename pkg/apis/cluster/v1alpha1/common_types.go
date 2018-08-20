@@ -16,7 +16,13 @@ limitations under the License.
 
 package v1alpha1
 
-import runtime "k8s.io/apimachinery/pkg/runtime"
+import (
+	"bytes"
+	"fmt"
+
+	runtime "k8s.io/apimachinery/pkg/runtime"
+	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
+)
 
 // ProviderConfig defines the configuration to use during node creation.
 type ProviderConfig struct {
@@ -72,3 +78,64 @@ const (
 	ConditionFalse   ConditionStatus = "False"
 	ConditionUnknown ConditionStatus = "Unknown"
 )
+
+// +k8s:deepcopy-gen=false
+type ProviderConfigCodec struct {
+	encoder runtime.Encoder
+	decoder runtime.Decoder
+}
+
+func NewScheme() (*runtime.Scheme, error) {
+	scheme := runtime.NewScheme()
+	if err := AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+	if err := AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+	return scheme, nil
+}
+
+func NewCodec() (*ProviderConfigCodec, error) {
+	scheme, err := NewScheme()
+	if err != nil {
+		return nil, err
+	}
+	codecFactory := serializer.NewCodecFactory(scheme)
+	encoder, err := newEncoder(&codecFactory)
+	if err != nil {
+		return nil, err
+	}
+	codec := ProviderConfigCodec{
+		encoder: encoder,
+		decoder: codecFactory.UniversalDecoder(SchemeGroupVersion),
+	}
+	return &codec, nil
+}
+
+func newEncoder(codecFactory *serializer.CodecFactory) (runtime.Encoder, error) {
+	serializerInfos := codecFactory.SupportedMediaTypes()
+	if len(serializerInfos) == 0 {
+		return nil, fmt.Errorf("unable to find any serlializers")
+	}
+	encoder := codecFactory.EncoderForVersion(serializerInfos[0].Serializer, SchemeGroupVersion)
+	return encoder, nil
+}
+
+func (codec *ProviderConfigCodec) DecodeFromProviderConfig(machineClass *MachineClass, out runtime.Object) error {
+	_, _, err := codec.decoder.Decode(machineClass.ProviderConfig.Raw, nil, out)
+	if err != nil {
+		return fmt.Errorf("decoding failure: %v", err)
+	}
+	return nil
+}
+
+func (codec *ProviderConfigCodec) EncodeToProviderConfig(in runtime.Object) (*ProviderConfig, error) {
+	var buf bytes.Buffer
+	if err := codec.encoder.Encode(in, &buf); err != nil {
+		return nil, fmt.Errorf("encoding failed: %v", err)
+	}
+	return &ProviderConfig{
+		Value: &runtime.RawExtension{Raw: buf.Bytes()},
+	}, nil
+}

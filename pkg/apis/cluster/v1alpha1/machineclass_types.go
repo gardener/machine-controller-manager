@@ -23,6 +23,7 @@ import (
 )
 
 // +genclient
+// +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // MachineClass can be used to templatize and re-use provider configuration
@@ -66,15 +67,15 @@ type MachineClass struct {
 	Provider string `json:"provider"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type MachineClassList struct {
-	// +optional
-	metav1.TypeMeta `json:",inline"`
+// type MachineClassList struct {
+// 	// +optional
+// 	metav1.TypeMeta `json:",inline"`
 
-	// +optional
-	metav1.ListMeta `json:"metadata,omitempty"`
+// 	// +optional
+// 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	// +optional
-	Items []MachineClass `json:"items"`
-}
+// 	// +optional
+// 	Items []MachineClass `json:"items"`
+// }

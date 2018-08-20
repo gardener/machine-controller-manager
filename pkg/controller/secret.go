@@ -18,7 +18,6 @@ limitations under the License.
 package controller
 
 import (
-	"fmt"
 	"time"
 
 	"k8s.io/api/core/v1"
@@ -147,7 +146,6 @@ func (c *controller) machineClassToSecretAdd(obj interface{}) {
 	if machineClass == nil || !ok {
 		return
 	}
-	fmt.Println(machineClass)
 	c.secretQueue.Add(machineClass.SecretRef.Namespace + "/" + machineClass.SecretRef.Name)
 }
 

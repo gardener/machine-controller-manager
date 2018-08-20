@@ -1,10 +1,10 @@
 # Sample machine object
 
-apiVersion: machine.sapcloud.io/v1alpha1
+apiVersion: cluster.k8s.io/v1alpha1
 kind: Machine
 metadata:
   name: test-machine # Name of the machine to be created
-  namespace: default
+  namespace: mcm-cluster-api
   labels:
     test-label: test-label # Label used by machine-set to match (optional)
 spec:

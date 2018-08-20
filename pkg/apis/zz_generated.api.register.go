@@ -19,9 +19,9 @@ limitations under the License.
 package apis
 
 import (
-	"github.com/kubernetes-incubator/apiserver-builder/pkg/builders"
 	"github.com/gardener/machine-controller-manager/pkg/apis/cluster"
 	clusterv1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
+	"github.com/kubernetes-incubator/apiserver-builder/pkg/builders"
 )
 
 // GetAllApiBuilders returns all known APIGroupBuilders

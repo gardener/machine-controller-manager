@@ -140,15 +140,15 @@ depend:
 generate: genapi genconversion genclientset gendeepcopy genopenapi
 
 genapi: 
-	go build -o $$GOPATH/bin/apiregister-gen sigs.k8s.io/cluster-api/vendor/github.com/kubernetes-incubator/apiserver-builder/cmd/apiregister-gen
-	apiregister-gen -i ./pkg/apis,./pkg/apis/cluster,./pkg/apis/cluster/v1alpha1
+	go build -o $$GOPATH/bin/apiregister-gen ../../../sigs.k8s.io/cluster-api/vendor/github.com/kubernetes-incubator/apiserver-builder/cmd/apiregister-gen
+	$$GOPATH/bin/apiregister-gen -i ./pkg/apis,./pkg/apis/cluster,./pkg/apis/cluster/v1alpha1
 
 genconversion: 
-	go build -o $$GOPATH/bin/conversion-gen sigs.k8s.io/cluster-api/vendor/k8s.io/code-generator/cmd/conversion-gen
-	conversion-gen -i ./pkg/apis/cluster/v1alpha1/ -O zz_generated.conversion --go-header-file boilerplate.go.txt
+	go build -o $$GOPATH/bin/conversion-gen ../../../sigs.k8s.io/cluster-api/vendor/k8s.io/code-generator/cmd/conversion-gen
+	$$GOPATH/bin/conversion-gen -i ./pkg/apis/cluster/v1alpha1/ -O zz_generated.conversion --go-header-file boilerplate.go.txt
 
-genclientset: depend
-	go build -o $$GOPATH/bin/client-gen sigs.k8s.io/cluster-api/vendor/k8s.io/code-generator/cmd/client-gen
+genclientset: 
+	go build -o $$GOPATH/bin/client-gen ../../../sigs.k8s.io/cluster-api/vendor/k8s.io/code-generator/cmd/client-gen
 	client-gen \
 	  --input="cluster/v1alpha1" \
 		--clientset-name="clientset" \
@@ -158,8 +158,8 @@ genclientset: depend
 		--clientset-path sigs.k8s.io/cluster-api/pkg/client/clientset_generated
 
 gendeepcopy:
-	go build -o $$GOPATH/bin/deepcopy-gen sigs.k8s.io/cluster-api/vendor/k8s.io/code-generator/cmd/deepcopy-gen
-	deepcopy-gen \
+	go build -o $$GOPATH/bin/deepcopy-gen ../../../sigs.k8s.io/cluster-api/vendor/k8s.io/code-generator/cmd/deepcopy-gen
+	$$GOPATH/bin/deepcopy-gen \
 	  -i ./pkg/apis/cluster/,./pkg/apis/cluster/v1alpha1/ \
 	  -O zz_generated.deepcopy \
 	  -h boilerplate.go.txt

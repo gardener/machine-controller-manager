@@ -137,7 +137,24 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 
 	machineClass, err := c.controlMachineClient.MachineClasses(machine.Namespace).Get(machine.Spec.ProviderConfig.ValueFrom.MachineClass.Name, metav1.GetOptions{})
 
-	driver := driver.NewDriver(machine.Status.ProviderID, secretRef, machine.Spec.ProviderConfig.ValueFrom.MachineClass.Kind, machineClass.ProviderConfig, machine.Name)
+	// _ , codecFactory, err := v1alpha1.NewCodec()
+	// if err != nil {
+	// 	return err
+	// }
+	// obj, gvk, err := runtime.Serializer.CodecFactory.UniversalDecoder(openstackconfigv1.SchemeGroupVersion).Decode(providerConfig.Value.Raw, nil, nil)
+
+	codec, err := v1alpha1.NewCodec()
+	if err != nil {
+		return err
+	}
+	//type config v1alpha1.AWSMachineClass
+	//config := v1alpha1.AWSMachineClass{}
+	var config v1alpha1.AWSMachineClass
+	_ = codec.DecodeFromProviderConfig(machineClass, &config)
+
+	//codec.decoder.Decode(machineClass.ProviderConfig.Raw, nil, config)
+
+	driver := driver.NewDriver(machine.Status.ProviderID, secretRef, machine.Spec.ProviderConfig.ValueFrom.MachineClass.Kind, &config, machine.Name)
 	actualProviderID, err := driver.GetExisting()
 	if err != nil {
 		return err
@@ -245,7 +262,7 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 
 func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
 
-	if machine.Status.NodeRef.Name == "" {
+	if machine.Status.NodeRef == nil {
 		// There are no objects mapped to this machine object
 		// Hence node status need not be propogated to machine object
 		return machine, nil
@@ -359,8 +376,13 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 			clone.Annotations[MachinePriority] = "3"
 		}
 
+		nodeRef := &v1.ObjectReference{
+			Name: nodeName,
+		}
+
 		clone.Status.ProviderID = actualProviderID
-		clone.Status.NodeRef.Name = nodeName
+		//clone.Status.NodeRef.Name = nodeName
+		clone.Status.NodeRef = nodeRef
 		clone.Status.LastOperation = lastOperation
 		clone.Status.CurrentStatus = currentStatus
 

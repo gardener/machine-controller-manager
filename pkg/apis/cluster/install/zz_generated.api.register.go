@@ -19,10 +19,10 @@ limitations under the License.
 package install
 
 import (
+	"github.com/gardener/machine-controller-manager/pkg/apis"
 	"k8s.io/apimachinery/pkg/apimachinery/announced"
 	"k8s.io/apimachinery/pkg/apimachinery/registered"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/cluster-api/pkg/apis"
 )
 
 func Install(
