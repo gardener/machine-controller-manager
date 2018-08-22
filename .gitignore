@@ -4,6 +4,7 @@
 /tmp/*
 /dev
 /test
+/logs
 
 *.html
 .vscode
