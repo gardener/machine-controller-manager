@@ -30,6 +30,7 @@ import (
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions/machine/v1alpha1"
 	machinelisters "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
 	"github.com/golang/glog"
+	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/api/core/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -410,6 +411,12 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 
 	glog.V(1).Info("Starting machine-controller-manager")
 	handlers.UpdateHealth(true)
+
+	// The controller implement the prometheus.Collector interface and can therefore
+	// be passed to the metrics registry. Collectors which added to the registry
+	// will collect metrics to expose them via the metrics endpoint of the mcm
+	// every time when the endpoint is called.
+	prometheus.MustRegister(c)
 
 	for i := 0; i < workers; i++ {
 		createWorker(c.openStackMachineClassQueue, "ClusterOpenStackMachineClass", maxRetries, true, c.reconcileClusterOpenStackMachineClassKey, stopCh, &waitGroup)
