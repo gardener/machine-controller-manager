@@ -1152,4 +1152,67 @@ const (
 	OpenStackClientCert string = "clientCert"
 	// OpenStackClientKey is a constant for a key name that is part of the OpenStack cloud credentials.
 	OpenStackClientKey string = "clientKey"
+
+	// AlicloudAccessKeyID is a constant for a key name that is part of the Alibaba cloud credentials.
+	AlicloudAccessKeyID string = "alicloudAccessKeyID"
+	// AlicloudAccessKeySecret is a constant for a key name that is part of the Alibaba cloud credentials.
+	AlicloudAccessKeySecret string = "alicloudAccessKeySecret"
 )
+
+/********************** AlicloudMachineClass APIs ***************/
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// AlicloudMachineClass TODO
+type AlicloudMachineClass struct {
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// +optional
+	metav1.TypeMeta `json:",inline"`
+
+	// +optional
+	Spec AlicloudMachineClassSpec `json:"spec,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// AlicloudMachineClassList is a collection of AlicloudMachineClasses.
+type AlicloudMachineClassList struct {
+	// +optional
+	metav1.TypeMeta `json:",inline"`
+
+	// +optional
+	metav1.ListMeta `json:"metadata,omitempty"`
+
+	// +optional
+	Items []AlicloudMachineClass `json:"items"`
+}
+
+// AlicloudMachineClassSpec is the specification of a cluster.
+type AlicloudMachineClassSpec struct {
+	ImageName               string                  `json:"imageName"`
+	InstanceType            string                  `json:"instanceType"`
+	Region                  string                  `json:"region"`
+	Zone                    string                  `json:"zone,omitempty"`
+	SecurityGroupID         string                  `json:"securityGroupID,omitempty"`
+	VSwitchID               string                  `json:"vSwitchID"`
+	PrivateIPAddress        string                  `json:"privateIPAddress,omitempty"`
+	SystemDisk              *AlicloudSystemDisk     `json:"systemDisk,omitempty"`
+	InstanceChargeType      string                  `json:"instanceChargeType,omitempty"`
+	InternetChargeType      string                  `json:"internetChargeType,omitempty"`
+	InternetMaxBandwidthIn  *int                    `json:"internetMaxBandwidthIn,omitempty"`
+	InternetMaxBandwidthOut *int                    `json:"internetMaxBandwidthOut,omitempty"`
+	SpotStrategy            string                  `json:"spotStrategy,omitempty"`
+	IoOptimized             string                  `json:"IoOptimized,omitempty"`
+	Tags                    map[string]string       `json:"tags,omitempty"`
+	KeyPairName             string                  `json:"keyPairName"`
+	SecretRef               *corev1.SecretReference `json:"secretRef,omitempty"`
+}
+
+// AlicloudSystemDisk describes SystemDisk for Alicloud.
+type AlicloudSystemDisk struct {
+	Category string `json:"category"`
+	Size     int    `json:"size"`
+}
