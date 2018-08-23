@@ -63,7 +63,7 @@ const (
 	controllerDiscoveryAgentName = "machine-controller-discovery"
 )
 
-var machineClassGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "machineclasses"}
+var machineClassGVR = schema.GroupVersionResource{Group: "cluster.k8s.io", Version: "v1alpha1", Resource: "machineclasses"}
 
 // Run runs the MCMServer.  This should never exit.
 func Run(s *options.MCMServer) error {
