@@ -58,6 +58,9 @@ func validateOpenStackMachineClassSpec(spec *machine.OpenStackMachineClassSpec, 
 	if "" == spec.NetworkID {
 		allErrs = append(allErrs, field.Required(fldPath.Child("networkID"), "NetworkID is required"))
 	}
+	if "" == spec.PodNetworkCidr {
+		allErrs = append(allErrs, field.Required(fldPath.Child("podNetworkCidr"), "PodNetworkCidr is required"))
+	}
 
 	allErrs = append(allErrs, validateSecretRef(spec.SecretRef, field.NewPath("spec.secretRef"))...)
 	allErrs = append(allErrs, validateOSClassSpecTags(spec.Tags, field.NewPath("spec.tags"))...)

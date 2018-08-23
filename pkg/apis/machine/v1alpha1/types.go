@@ -726,6 +726,7 @@ type OpenStackMachineClassSpec struct {
 	Tags             map[string]string       `json:"tags,omitempty"`
 	NetworkID        string                  `json:"networkID"`
 	SecretRef        *corev1.SecretReference `json:"secretRef,omitempty"`
+	PodNetworkCidr   string                  `json:"podNetworkCidr"`
 }
 
 /********************** AWSMachineClass APIs ***************/

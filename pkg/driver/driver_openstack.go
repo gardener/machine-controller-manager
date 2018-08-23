@@ -61,8 +61,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	securityGroups := d.OpenStackMachineClass.Spec.SecurityGroups
 	availabilityZone := d.OpenStackMachineClass.Spec.AvailabilityZone
 	metadata := d.OpenStackMachineClass.Spec.Tags
-
-	podNetworkCidr := "100.96.0.0/11"
+	podNetworkCidr := d.OpenStackMachineClass.Spec.PodNetworkCidr
 
 	var createOpts servers.CreateOptsBuilder
 
