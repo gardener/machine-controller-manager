@@ -1117,3 +1117,61 @@ type GCPServiceAccount struct {
 	Email  string
 	Scopes []string
 }
+
+/********************** AlicloudMachineClass APIs ***************/
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// AlicloudMachineClass
+type AlicloudMachineClass struct {
+	// +optional
+	metav1.ObjectMeta
+
+	// +optional
+	metav1.TypeMeta
+
+	// +optional
+	Spec AlicloudMachineClassSpec
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// AlicloudMachineClassList is a collection of AlicloudMachineClasses.
+type AlicloudMachineClassList struct {
+	// +optional
+	metav1.TypeMeta
+
+	// +optional
+	metav1.ListMeta
+
+	// +optional
+	Items []AlicloudMachineClass
+}
+
+// AlicloudMachineClassSpec is the specification of a cluster.
+type AlicloudMachineClassSpec struct {
+	ImageName               string
+	InstanceType            string
+	Region                  string
+	Zone                    string
+	SecurityGroupID         string
+	VSwitchID               string
+	PrivateIPAddress        string
+	SystemDisk              *AlicloudSystemDisk
+	InstanceChargeType      string
+	InternetChargeType      string
+	InternetMaxBandwidthIn  *int
+	InternetMaxBandwidthOut *int
+	SpotStrategy            string
+	IoOptimized             string
+	Tags                    map[string]string
+	KeyPairName             string
+	SecretRef               *corev1.SecretReference
+}
+
+// AlicloudSystemDisk describes SystemDisk for Alicloud.
+type AlicloudSystemDisk struct {
+	Category string
+	Size     int
+}

@@ -164,6 +164,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 			glog.V(2).Info("Secret reference not found")
 			return MachineClass, secretRef, err
 		}
+
 	} else if classSpec.Kind == "OpenStackMachineClass" {
 
 		OpenStackMachineClass, err := c.openStackMachineClassLister.OpenStackMachineClasses(c.namespace).Get(classSpec.Name)
@@ -193,6 +194,37 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 			glog.V(2).Info("Secret reference not found")
 			return MachineClass, secretRef, err
 		}
+
+	} else if classSpec.Kind == "AlicloudMachineClass" {
+
+		AlicloudMachineClass, err := c.alicloudMachineClassLister.AlicloudMachineClasses(c.namespace).Get(classSpec.Name)
+		if err != nil {
+			glog.V(2).Infof("AlicloudMachineClass %q/%q not found. Skipping. %v", c.namespace, classSpec.Name, err)
+			return MachineClass, secretRef, err
+		}
+		MachineClass = AlicloudMachineClass
+
+		// Validate AlicloudMachineClass
+		internalAlicloudMachineClass := &machineapi.AlicloudMachineClass{}
+		err = c.internalExternalScheme.Convert(AlicloudMachineClass, internalAlicloudMachineClass, nil)
+		if err != nil {
+			glog.V(2).Info("Error in scheme convertion")
+			return MachineClass, secretRef, err
+		}
+
+		validationerr := validation.ValidateAlicloudMachineClass(internalAlicloudMachineClass)
+		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+			glog.V(2).Infof("Validation of AlicloudMachineClass failed %s", validationerr.ToAggregate().Error())
+			return MachineClass, secretRef, nil
+		}
+
+		// Get secretRef
+		secretRef, err = c.getSecret(AlicloudMachineClass.Spec.SecretRef, AlicloudMachineClass.Name)
+		if err != nil || secretRef == nil {
+			glog.V(2).Info("Secret reference not found")
+			return MachineClass, secretRef, err
+		}
+
 	} else {
 		glog.V(2).Infof("ClassKind %q not found", classSpec.Kind)
 	}

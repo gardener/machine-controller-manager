@@ -1,0 +1,31 @@
+# Sample Alicloud machine class
+
+apiVersion: machine.sapcloud.io/v1alpha1
+kind: AlicloudMachineClass
+metadata:
+  name: test-alicloud # Name of Alicloud machine class goes here
+  namespace: default # Namespace in which the machine class is to be deployed
+spec:
+  imageName: coreos_1745_7_0_64_30G_alibase_20180705.vhd # Alicloud machine image name goes here, e.g. centos_7_04_64_20G_alibase_201701015
+  instanceType: ecs.n1.medium # Type of ecs machine ecs.t5-lc1m1.small ecs.t5-lc2m1.nano
+  region: cn-hangzhou # Region in which machine is to be deployed
+  zone: cn-hangzhou-e # Zone of the region
+  securityGroupID: sg-1234567890 # ID of security group, it has to be within the same VPC of vSwitch
+  vSwitchID: vsw-1234567890 # similar to AWS subnet ID
+  systemDisk:
+    category: cloud_efficiency # cloud, cloud_efficiency, cloud_ssd, ephemeral_ssd
+    size: 30 # 20-500
+  instanceChargeType: PostPaid # Prepaid or PostPaid (default)
+  internetChargeType: PayByTraffic # PayByBandwidth or PayByTraffic (default)
+  internetMaxBandwidthIn: 5 # 1-200
+  internetMaxBandwidthOut: 0 # 0-100
+  spotStrategy: NoSpot # NoSpot, SpotWithPriceLimit, SpotAsPriceGo
+  tags:
+    kubernetes.io/cluster/****: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired cluster name.
+    kubernetes.io/role/****: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired role name.
+    tag1: tag1-value # A set of additional tags attached to a machine (optional)
+    tag2: tag2-value # A set of additional tags attached to a machine (optional)
+  keyPairName: test-keypair # keypair used to access Alicloud ECS machine
+  secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig
+    namespace: default  # Namespace
+    name: test-secret # Name of the secret
