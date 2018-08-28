@@ -116,7 +116,7 @@ func (c *controller) reconcileClusterGCPMachineClass(class *v1alpha1.GCPMachineC
 	// TODO this should be put in own API server
 	validationerr := validation.ValidateGCPMachineClass(internalClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of %s failed %s", GCPMachineClassKind, validationerr.ToAggregate().Error())
+		glog.Errorf("Validation of %s failed %s", GCPMachineClassKind, validationerr.ToAggregate().Error())
 		return nil
 	}
 

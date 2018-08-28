@@ -43,10 +43,10 @@ func (c *controller) reconcileClusterSecretKey(key string) error {
 
 	secret, err := c.secretLister.Secrets(c.namespace).Get(name)
 	if errors.IsNotFound(err) {
-		glog.V(3).Infof("%q: Not doing work because it has been deleted", key)
+		glog.V(4).Infof("%q: Not doing work because it has been deleted", key)
 		return nil
 	} else if err != nil {
-		glog.V(3).Infof("%q: Unable to retrieve object from store: %v", key, err)
+		glog.V(4).Infof("%q: Unable to retrieve object from store: %v", key, err)
 		return err
 	}
 

@@ -116,7 +116,7 @@ func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMach
 	// TODO this should be put in own API server
 	validationerr := validation.ValidateAzureMachineClass(internalClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of %s failed %s", AzureMachineClassKind, validationerr.ToAggregate().Error())
+		glog.Errorf("Validation of %s failed %s", AzureMachineClassKind, validationerr.ToAggregate().Error())
 		return nil
 	}
 

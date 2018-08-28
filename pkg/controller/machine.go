@@ -109,9 +109,9 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 }
 
 func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
-	glog.V(4).Info("Start Reconciling machine: ", machine.Name)
+	glog.V(3).Info("Start Reconciling machine: ", machine.Name)
 	defer func() {
-		glog.V(4).Info("Stop Reconciling machine: ", machine.Name)
+		glog.V(3).Info("Stop Reconciling machine: ", machine.Name)
 	}()
 
 	if !shouldReconcileMachine(machine, time.Now()) {
@@ -126,7 +126,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	}
 	validationerr := validation.ValidateMachine(internalMachine)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of Machine failed %s", validationerr.ToAggregate().Error())
+		glog.Errorf("Validation of Machine failed %s", validationerr.ToAggregate().Error())
 		return nil
 	}
 
@@ -207,7 +207,7 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 		return
 	}
 
-	glog.V(4).Infof("Add machine object backing node %q", machine.Name)
+	glog.V(3).Infof("Add machine object backing node %q", machine.Name)
 	c.enqueueMachine(machine)
 }
 
@@ -310,7 +310,7 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 
 	actualProviderID, nodeName, err := driver.Create()
 	if err != nil {
-		glog.V(2).Infof("Error while creating machine %s: %s", machine.Name, err.Error())
+		glog.Errorf("Error while creating machine %s: %s", machine.Name, err.Error())
 		lastOperation := v1alpha1.LastOperation{
 			Description:    "Cloud provider message - " + err.Error(),
 			State:          v1alpha1.MachineStateFailed,
@@ -644,7 +644,7 @@ func (c *controller) updateMachineFinalizers(machine *v1alpha1.Machine, finalize
 	_, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
-		glog.V(4).Info("Warning: Updated failed, retrying, error: %q", err)
+		glog.Warningf("Warning: Updated failed, retrying, error: %q", err)
 		c.updateMachineFinalizers(machine, finalizers)
 	}
 }
@@ -699,7 +699,7 @@ func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 func (c *controller) getSecret(ref *v1.SecretReference, MachineClassName string) (*v1.Secret, error) {
 	secretRef, err := c.secretLister.Secrets(ref.Namespace).Get(ref.Name)
 	if apierrors.IsNotFound(err) {
-		glog.V(2).Infof("No secret %q: found for MachineClass %q", ref, MachineClassName)
+		glog.V(3).Infof("No secret %q: found for MachineClass %q", ref, MachineClassName)
 		return nil, nil
 	}
 	if err != nil {
