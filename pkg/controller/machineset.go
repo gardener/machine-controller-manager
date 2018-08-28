@@ -335,11 +335,13 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 	}
 
 	if len(staleMachines) >= 1 {
-		glog.V(2).Infof("Deleting stales")
+		glog.V(2).Infof("Deleting stale machines")
 	}
 	c.terminateMachines(staleMachines, machineSet)
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
+	glog.V(3).Infof("Difference between current active replicas and desired replicas - %d", diff)
+
 	if diff < 0 {
 		// If MachineSet is frozen and no deletion timestamp, don't process it
 		if machineSet.Labels["freeze"] == "True" && machineSet.DeletionTimestamp == nil {
@@ -357,7 +359,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 		// into a performance bottleneck. We should generate a UID for the machine
 		// beforehand and store it via ExpectCreations.
 		c.expectations.ExpectCreations(machineSetKey, diff)
-		glog.V(1).Infof("Too few replicas for MachineSet %s, need %d, creating %d", machineSet.Name, (machineSet.Spec.Replicas), diff)
+		glog.V(2).Infof("Too few replicas for MachineSet %s, need %d, creating %d", machineSet.Name, (machineSet.Spec.Replicas), diff)
 		// Batch the machine creates. Batch sizes start at SlowStartInitialBatchSize
 		// and double with each successful iteration in a kind of "slow start".
 		// This handles attempts to start large numbers of machines that would
@@ -430,9 +432,9 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 // invoked concurrently with the same key.
 func (c *controller) reconcileClusterMachineSet(key string) error {
 	startTime := time.Now()
-	glog.V(4).Infof("Start syncing %q", key)
+	glog.V(3).Infof("Start syncing %q", key)
 	defer func() {
-		glog.V(4).Infof("Finished syncing %q (%v)", key, time.Since(startTime))
+		glog.V(3).Infof("Finished syncing %q (%v)", key, time.Since(startTime))
 	}()
 
 	_, name, err := cache.SplitMetaNamespaceKey(key)

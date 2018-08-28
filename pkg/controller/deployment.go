@@ -52,7 +52,7 @@ var GroupVersionKind = "machine.sapcloud.io/v1alpha1"
 
 func (dc *controller) addMachineDeployment(obj interface{}) {
 	d := obj.(*v1alpha1.MachineDeployment)
-	glog.V(2).Infof("Adding machine deployment %s", d.Name)
+	glog.V(4).Infof("Adding machine deployment %s", d.Name)
 	dc.enqueueMachineDeployment(d)
 }
 
@@ -77,7 +77,7 @@ func (dc *controller) deleteMachineDeployment(obj interface{}) {
 			return
 		}
 	}
-	glog.V(2).Infof("Deleting machine deployment %s", d.Name)
+	glog.V(4).Infof("Deleting machine deployment %s", d.Name)
 	dc.enqueueMachineDeployment(d)
 }
 
@@ -427,9 +427,9 @@ func (dc *controller) getMachineMapForMachineDeployment(d *v1alpha1.MachineDeplo
 // This function is not meant to be invoked concurrently with the same key.
 func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	startTime := time.Now()
-	glog.V(4).Infof("Started syncing deployment %q (%v)", key, startTime)
+	glog.V(3).Infof("Started syncing deployment %q (%v)", key, startTime)
 	defer func() {
-		glog.V(4).Infof("Finished syncing deployment %q (%v)", key, time.Since(startTime))
+		glog.V(3).Infof("Finished syncing deployment %q (%v)", key, time.Since(startTime))
 	}()
 
 	_, name, err := cache.SplitMetaNamespaceKey(key)
@@ -438,7 +438,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	}
 	deployment, err := dc.controlMachineClient.MachineDeployments(dc.namespace).Get(name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
-		glog.V(2).Infof("Deployment %v has been deleted", key)
+		glog.V(4).Infof("Deployment %v has been deleted", key)
 		return nil
 	}
 	if err != nil {
@@ -460,7 +460,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 
 	validationerr := validation.ValidateMachineDeployment(internalMachineDeployment)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of MachineDeployment failled %s", validationerr.ToAggregate().Error())
+		glog.Errorf("Validation of MachineDeployment failled %s", validationerr.ToAggregate().Error())
 		return nil
 	}
 
