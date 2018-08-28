@@ -441,7 +441,9 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	if err != nil {
 		return err
 	}
-	machineSet, err := c.machineSetLister.MachineSets(c.namespace).Get(name)
+
+	// Get the latest version of the machineSet so that we can avoid conflicts
+	machineSet, err := c.controlMachineClient.MachineSets(c.namespace).Get(name, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
 		glog.V(4).Infof("%v has been deleted", key)
 		c.expectations.DeleteExpectations(key)
@@ -495,10 +497,11 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		return err
 	}
 
-	machineSetNeedsSync := c.expectations.SatisfiedExpectations(key)
+	// TODO: Fix working of expectations to reflect correct behaviour
+	//machineSetNeedsSync := c.expectations.SatisfiedExpectations(key)
 	var manageReplicasErr error
 
-	if machineSetNeedsSync && machineSet.DeletionTimestamp == nil {
+	if machineSet.DeletionTimestamp == nil {
 		// manageReplicas is the core machineSet method where scale up/down occurs
 		// It is not called when deletion timestamp is set
 		manageReplicasErr = c.manageReplicas(filteredMachines, machineSet)
@@ -531,12 +534,8 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		return err
 	}
 
-	// Resync the ReplicaSet after MinReadySeconds as a last line of defense to guard against clock-skew.
-	if manageReplicasErr == nil && updatedMachineSet.Spec.MinReadySeconds > 0 &&
-		updatedMachineSet.Status.ReadyReplicas == updatedMachineSet.Spec.Replicas &&
-		updatedMachineSet.Status.AvailableReplicas != updatedMachineSet.Spec.Replicas {
-		c.enqueueMachineSetAfter(updatedMachineSet, 10*time.Minute)
-	}
+	// Resync the MachineSet after 10 minutes to avoid missing out on missed out events
+	defer c.enqueueMachineSetAfter(updatedMachineSet, 10*time.Minute)
 
 	return manageReplicasErr
 }
