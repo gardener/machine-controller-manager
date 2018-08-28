@@ -112,13 +112,13 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 		return "", "", fmt.Errorf("failed to extract ports for network ID %s: %s", networkID, err)
 	}
 
-	port := allPorts[0]
-
-	updateOpts := ports.UpdateOpts{
-		AllowedAddressPairs: &[]ports.AddressPair{ports.AddressPair{IPAddress: podNetworkCidr}},
+	if len(allPorts) == 0 {
+		return "", "", fmt.Errorf("got an empty port list for network ID %s", networkID)
 	}
 
-	port, err := ports.Update(nwClient, port.ID, updateOpts).Extract()
+	port, err := ports.Update(nwClient, allPorts[0].ID, ports.UpdateOpts{
+		AllowedAddressPairs: &[]ports.AddressPair{ports.AddressPair{IPAddress: podNetworkCidr}},
+	}).Extract()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to update allowed address pair for port ID %s: %s", port.ID, err)
 	}

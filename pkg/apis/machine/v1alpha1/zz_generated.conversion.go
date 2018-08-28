@@ -1902,6 +1902,7 @@ func autoConvert_v1alpha1_OpenStackMachineClassSpec_To_machine_OpenStackMachineC
 	out.Tags = *(*map[string]string)(unsafe.Pointer(&in.Tags))
 	out.NetworkID = in.NetworkID
 	out.SecretRef = (*v1.SecretReference)(unsafe.Pointer(in.SecretRef))
+	out.PodNetworkCidr = in.PodNetworkCidr
 	return nil
 }
 
@@ -1920,6 +1921,7 @@ func autoConvert_machine_OpenStackMachineClassSpec_To_v1alpha1_OpenStackMachineC
 	out.Tags = *(*map[string]string)(unsafe.Pointer(&in.Tags))
 	out.NetworkID = in.NetworkID
 	out.SecretRef = (*v1.SecretReference)(unsafe.Pointer(in.SecretRef))
+	out.PodNetworkCidr = in.PodNetworkCidr
 	return nil
 }
 
