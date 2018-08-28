@@ -19,9 +19,8 @@ control_kubeconfig=dev/control_kubeconfig.yaml
 target_kubeconfig=dev/target_kubeconfig.yaml
 control_namespace=aws
 
-/cc/utils/cli.py config attribute --cfg-type kubernetes --cfg-name mcm-ci-control --key kubeconfig > $control_kubeconfig
-/cc/utils/cli.py config attribute --cfg-type kubernetes --cfg-name mcm-ci-target --key kubeconfig > $target_kubeconfig
-
+/cc/utils/cli.py config attribute --cfg-type kubernetes --cfg-name mcm-ci-aws-control --key kubeconfig > $control_kubeconfig
+/cc/utils/cli.py config attribute --cfg-type kubernetes --cfg-name mcm-ci-aws-target --key kubeconfig > $target_kubeconfig
 
 export KUBECONFIG=$control_kubeconfig:$target_kubeconfig
 Objects_path=$SOURCE_PATH/.ci/sample-objects

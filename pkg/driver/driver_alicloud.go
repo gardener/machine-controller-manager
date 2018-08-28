@@ -241,7 +241,7 @@ func (c *AlicloudDriver) getVMDetails(machineID string) ([]ecs.Instance, error) 
 	searchClusterName := ""
 	searchNodeRole := ""
 
-	for key, _ := range c.AlicloudMachineClass.Spec.Tags {
+	for key := range c.AlicloudMachineClass.Spec.Tags {
 		if strings.Contains(key, "kubernetes.io/cluster/") {
 			searchClusterName = key
 		} else if strings.Contains(key, "kubernetes.io/role/") {
