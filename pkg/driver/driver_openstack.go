@@ -97,6 +97,8 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 		return "", "", err
 	}
 
+	servers.WaitForStatus(client, server.ID, "ACTIVE", 300)
+
 	listOpts := &ports.ListOpts{
 		NetworkID: networkID,
 		DeviceID:  server.ID,
@@ -113,7 +115,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	}
 
 	if len(allPorts) == 0 {
-		return "", "", fmt.Errorf("got an empty port list for network ID %s", networkID)
+		return "", "", fmt.Errorf("got an empty port list for network ID %s and server ID %s", networkID, server.ID)
 	}
 
 	port, err := ports.Update(nwClient, allPorts[0].ID, ports.UpdateOpts{
