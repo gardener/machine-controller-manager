@@ -17,28 +17,41 @@
 mkdir -p dev
 mkdir -p logs
 
-declare -a cloud_providers=("aws" "az" "gcp" "os")
-failed_logs=""
-
-aws_control_kubeconfig=dev/aws_control_kubeconfig.yaml
-aws_target_kubeconfig=dev/aws_target_kubeconfig.yaml
-az_control_kubeconfig=dev/az_control_kubeconfig.yaml
-az_target_kubeconfig=dev/az_target_kubeconfig.yaml
-gcp_control_kubeconfig=dev/gcp_control_kubeconfig.yaml
-gcp_target_kubeconfig=dev/gcp_target_kubeconfig.yaml
-os_control_kubeconfig=dev/os_control_kubeconfig.yaml
-os_target_kubeconfig=dev/os_target_kubeconfig.yaml
-
-/cc/utils/cli.py config attribute --cfg-type kubernetes --cfg-name mcm-ci-aws-control --key kubeconfig > $aws_control_kubeconfig
-/cc/utils/cli.py config attribute --cfg-type kubernetes --cfg-name mcm-ci-aws-target --key kubeconfig > $aws_target_kubeconfig
-/cc/utils/cli.py config attribute --cfg-type kubernetes --cfg-name mcm-ci-az-control --key kubeconfig > $az_control_kubeconfig
-/cc/utils/cli.py config attribute --cfg-type kubernetes --cfg-name mcm-ci-az-target --key kubeconfig > $az_target_kubeconfig
-/cc/utils/cli.py config attribute --cfg-type kubernetes --cfg-name mcm-ci-gcp-control --key kubeconfig > $gcp_control_kubeconfig
-/cc/utils/cli.py config attribute --cfg-type kubernetes --cfg-name mcm-ci-gcp-target --key kubeconfig > $gcp_target_kubeconfig
-/cc/utils/cli.py config attribute --cfg-type kubernetes --cfg-name mcm-ci-os-control --key kubeconfig > $os_control_kubeconfig
-/cc/utils/cli.py config attribute --cfg-type kubernetes --cfg-name mcm-ci-os-target --key kubeconfig > $os_target_kubeconfig
-Objects_path=$SOURCE_PATH/.ci/sample-objects
+# TODO add support for azure and openstack
+declare -a cloud_providers=("aws" "gcp")
+declare failed_logs=""
 num_of_existing_nodes=1
+
+if [ -n "$1" ]; then
+    printf "Local test"
+    LOCAL_TEST=true
+
+    if [[ (-z "$2") || (-z "$3") ]]; then
+        printf ".ci/integration-tests LOCAL_TEST {PATH_TO_LOCAL_CLI} {PATH_TO_SECRETS_CACHE_FILE}"
+        exit 1
+    fi
+
+    cli_path=$2
+    cache_path=$3
+    Objects_path=.ci/sample-objects
+else
+    cli_path=/cc/utils/cli.py
+    Objects_path=$SOURCE_PATH/.ci/sample-objects
+fi
+
+for cp in "${cloud_providers[@]}"; do
+    declare control_kubeconfig_${cp}=dev/control_kubeconfig_${cp}.yaml
+    declare target_kubeconfig_${cp}=dev/target_kubeconfig_${cp}.yaml
+
+    if [ -n "$LOCAL_TEST" ]; then
+        ${cli_path} config --cache-file $cache_path attribute --cfg-type kubernetes --cfg-name mcm-ci-${cp}-control --key kubeconfig > dev/control_kubeconfig_${cp}.yaml
+        ${cli_path} config --cache-file $cache_path attribute --cfg-type kubernetes --cfg-name mcm-ci-${cp}-target --key kubeconfig > dev/target_kubeconfig_${cp}.yaml
+    else
+        ${cli_path} config attribute --cfg-type kubernetes --cfg-name mcm-ci-${cp}-control --key kubeconfig > dev/control_kubeconfig_${cp}.yaml
+        ${cli_path} config attribute --cfg-type kubernetes --cfg-name mcm-ci-${cp}-target --key kubeconfig > dev/target_kubeconfig_${cp}.yaml
+    fi
+done
+
 
 ############################################## <Initialization> ##############################################
 
@@ -61,11 +74,14 @@ function check_cluster_state() {
 function setup_environment() {
     printf "\n\t\t\t----- Setup Test Environment --------\n"
 
-    printf "\nDownloading and installing kubectl\n"
-    curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.10.0/bin/linux/amd64/kubectl
-    chmod +x ./kubectl
-    mv ./kubectl /usr/local/bin/kubectl
-    printf "Successfully installed kubectl\n"
+    # If not a local test then install kubectl
+    if [ -z "$LOCAL_TEST" ]; then
+        printf "\nDownloading and installing kubectl\n"
+        curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.10.0/bin/linux/amd64/kubectl
+        chmod +x ./kubectl
+        mv ./kubectl /usr/local/bin/kubectl
+        printf "Successfully installed kubectl\n"
+    fi
 
     printf "\nBuilding MCM binary\n"
     if go build -i cmd/machine-controller-manager/controller_manager.go; then
@@ -77,17 +93,14 @@ function setup_environment() {
 }
 
 # run_controller runs MCM controller in background
-# it expects 3 parameters
-# 1 - control cluster kubeconfig
-# 2 - target cluster kubeconfig
-# 3 - port to which wish to bind the controller
+# it expects the port to be passed as a parameter
 function run_controller() {
     printf "\nRunning MCM in background\n"
     ./controller_manager \
-        --control-kubeconfig=$1 \
-        --target-kubeconfig=$2 \
-        --namespace=$provider \
-        --port=$3 \
+        --control-kubeconfig=dev/control_kubeconfig_${provider}.yaml \
+        --target-kubeconfig=dev/target_kubeconfig_${provider}.yaml \
+        --namespace=${provider} \
+        --port=$1 \
         --safety-up=2 \
         --safety-down=1 \
         --machine-drain-timeout=5 \
@@ -249,7 +262,7 @@ function tc_machine_deployment() {
 
 function clean_up() {
     provider=$1
-    export KUBECONFIG=$2:$3
+    export KUBECONFIG=dev/control_kubeconfig_${provider}.yaml:dev/target_kubeconfig_${provider}.yaml
 
     printf "\n\t\t\t----- CleanUp Test Environment -----\n"
     hf_scale_deploy machine-controller-manager 1
@@ -260,8 +273,21 @@ function clean_up() {
         [[ $ret -ne 0 ]]
     then
         # Delete the machine-deployment
-        hf_object_delete $provider/md.yaml
+        output=$(kubectl delete machdeploy --context=control --namespace="$provider" --all 2>&1)
+        printf "\n\t%s" "$output"
         printf "\n\tWaiting 1200s for machine-deployment to be deleted"
+        hf_wait_on "hf_num_of_objects" machdeploy 0 1200 $5
+    fi
+
+    if
+        hf_num_of_objects machset 0
+        ret=$?
+        [[ $ret -ne 0 ]]
+    then
+        # Delete the machine-set
+        output=$(kubectl delete machset --context=control --namespace="$provider" --all 2>&1)
+        printf "\n\t%s" "$output"
+        printf "\n\tWaiting 1200s for machine-set to be deleted"
         hf_wait_on "hf_num_of_objects" machdeploy 0 1200 $5
     fi
 
@@ -271,7 +297,8 @@ function clean_up() {
         [[ $ret -ne 0 ]]
     then
         # Delete the machine
-        hf_object_delete $provider/machine.yaml
+        output=$(kubectl delete mach --context=control --namespace="$provider" --all 2>&1)
+        printf "\n\t%s" "$output"
         printf "\n\tWaiting 1200s for machine to be deleted"
         hf_wait_on "hf_num_of_objects" mach 0 1200 $5
     fi
@@ -280,18 +307,35 @@ function clean_up() {
     printf "\n\t\t\t----- End of CleanUp Test Environment -----\n"
 }
 
+function cleanup_all_providers() {
+
+    i=0
+    for cp in "${cloud_providers[@]}"; do
+        clean_up ${cp} > logs/${cp}-cleanup.out & pids[${i}]=$!
+        printf "\n\t\t\tStarted clean-up for provider: $cp"
+    done
+
+    # wait for all pids
+    for pid in ${pids[*]}; do
+        printf "\nWaiting for clean-ups to complete"
+        wait $pid
+    done
+}
+
+############################################## </CleanUp> ####################################################
+############################################## <Modules> ########################################################
+
 function test_cloud_provider() {
     provider=$1
-    export KUBECONFIG=$2:$3
+    export KUBECONFIG=dev/control_kubeconfig_${provider}.yaml:dev/target_kubeconfig_${provider}.yaml
 
-    run_controller $2 $3 $4
+    run_controller $2
     check_cluster_state
 
     printf "\n\t\t\t----- Start of TestCases -----------\n"
 
     tc_machine
     tc_machine_deployment
-    sleep 30
 
     printf "\n\t\t\t----- End of TestCases -------------\n"
 
@@ -301,27 +345,18 @@ function test_cloud_provider() {
 }
 
 function test_all_providers() {
-    test_cloud_provider "aws" $aws_control_kubeconfig $aws_target_kubeconfig 10258 > logs/aws-it.out & pids[0]=$!
-    test_cloud_provider "az" $az_control_kubeconfig $az_target_kubeconfig 10259 > logs/az-it.out & pids[1]=$!
-    test_cloud_provider "gcp" $gcp_control_kubeconfig $gcp_target_kubeconfig 10260 > logs/gcp-it.out & pids[2]=$!
-    test_cloud_provider "os" $os_control_kubeconfig $os_target_kubeconfig 10261 > logs/os-it.out & pids[3]=$!
+
+    i=0
+    for cp in "${cloud_providers[@]}"; do
+        port=`expr 10258 + $i`
+        test_cloud_provider ${cp} $port > logs/${cp}-it.out & pids[${i}]=$!
+        printf "\n\t\t\tStarted test for provider: $cp on port-no: $port"
+        ((i++))
+    done
 
     # wait for all pids
     for pid in ${pids[*]}; do
         printf "\nWaiting for integration tests to complete"
-        wait $pid
-    done
-}
-
-function cleanup_all_providers() {
-    clean_up "aws" $aws_control_kubeconfig $aws_target_kubeconfig > logs/aws-cleanup.out & pids[0]=$!
-    clean_up "az" $az_control_kubeconfig $az_target_kubeconfig > logs/az-cleanup.out & pids[1]=$!
-    clean_up "gcp" $gcp_control_kubeconfig $gcp_target_kubeconfig > logs/gcp-cleanup.out & pids[2]=$!
-    clean_up "os" $os_control_kubeconfig $os_target_kubeconfig > logs/os-cleanup.out & pids[3]=$!
-
-    # wait for all pids
-    for pid in ${pids[*]}; do
-        printf "\nWaiting for clean-up to complete"
         wait $pid
     done
 }
@@ -347,7 +382,7 @@ function print_results() {
     if [[ $failed_logs != "" ]]; then
         printf "\n\t\t\t----- Test failure logs -----------\n"
         printf "Integration test for the following cloud providers have failed. Kindly re-check your PR."
-        printf $failed_logs
+        echo -e ${failed_logs}
         printf "\n\t\t\t----- End of Test failure logs -----------\n"
         exit 1
     else
@@ -355,7 +390,7 @@ function print_results() {
     fi
 }
 
-############################################## </CleanUp> ####################################################
+############################################## </Modules> ####################################################
 ############################################## <Main> ########################################################
 
 printf "\n\t\t\t----- Start of Test Script -----------\n"
