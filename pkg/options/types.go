@@ -112,6 +112,14 @@ type ExternalDriverManagerOptions struct {
 	Port uint16
 }
 
+// ExternalDriverManagerOptions are used to configure the ExternalDriverManager
+type ExternalDriverManagerOptions struct {
+	//Enabled indicates that external driver support should be enabled
+	Enabled bool
+	//Port on which to listen for external drivers
+	Port uint16
+}
+
 // LeaderElectionConfiguration defines the configuration of leader election
 // clients for components that can run with leader election enabled.
 type LeaderElectionConfiguration struct {

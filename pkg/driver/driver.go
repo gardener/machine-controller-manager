@@ -101,6 +101,17 @@ func NewDriver(machineID string, secretRef *corev1.Secret, class *v1alpha1.Class
 		}
 	}
 
+	if ExternalDriverManager != nil {
+		external, err := ExternalDriverManager.GetDriver(metav1.TypeMeta{
+			// TODO: but here class (coming from machine.spec.class) doesn't have APIGroup populated
+			APIVersion: class.APIGroup,
+			Kind:       class.Kind,
+		})
+		if err == nil {
+			return NewExternalDriver(external, machineClass, secretRef, string(secretRef.Data["userData"]), machineID, machineName)
+		}
+	}
+
 	return NewFakeDriver(
 		func() (string, string, error) {
 			return "fake", "fake_ip", nil
