@@ -76,6 +76,8 @@ type MachineControllerManagerConfiguration struct {
 
 	// SafetyOptions is the set of options to set to ensure safety of controller
 	SafetyOptions SafetyOptions
+
+	ExternalDriverManagerOptions ExternalDriverManagerOptions
 }
 
 // SafetyOptions are used to configure the upper-limit and lower-limit
@@ -100,6 +102,22 @@ type SafetyOptions struct {
 	// Period (in minutes) used to poll for overshooting
 	// of machine objects backing a machineSet by safety controller
 	MachineSafetyOvershootingPeriod int32
+}
+
+// ExternalDriverManagerOptions are used to configure the ExternalDriverManager
+type ExternalDriverManagerOptions struct {
+	//Enabled indicates that external driver support should be enabled
+	Enabled bool
+	//Port on which to listen for external drivers
+	Port uint16
+}
+
+// ExternalDriverManagerOptions are used to configure the ExternalDriverManager
+type ExternalDriverManagerOptions struct {
+	//Enabled indicates that external driver support should be enabled
+	Enabled bool
+	//Port on which to listen for external drivers
+	Port uint16
 }
 
 // LeaderElectionConfiguration defines the configuration of leader election

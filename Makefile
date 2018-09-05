@@ -19,6 +19,7 @@ COVERPROFILE       := test/output/coverprofile.out
 CONTROL_NAMESPACE  := default
 CONTROL_KUBECONFIG := dev/target-kubeconfig.yaml
 TARGET_KUBECONFIG  := dev/target-kubeconfig.yaml
+GRPC_PORT          := 50000
 
 #########################################
 # Rules for local development scenarios #
@@ -38,6 +39,25 @@ start:
 			--machine-safety-orphan-vms-period=30 \
 			--machine-safety-overshooting-period=1 \
 			--v=2
+
+.PHONY: start-with-grpc
+start-with-grpc:
+	@go run cmd/machine-controller-manager/controller_manager.go \
+			--control-kubeconfig=$(CONTROL_KUBECONFIG) \
+			--target-kubeconfig=$(TARGET_KUBECONFIG) \
+			--namespace=$(CONTROL_NAMESPACE) \
+			--safety-up=2 \
+			--safety-down=1 \
+			--machine-drain-timeout=5 \
+			--machine-health-timeout=10 \
+			--machine-set-scale-timeout=20 \
+			--v=2 \
+                        --external-driver-manager-enabled="true" \
+                        --external-driver-manager-port=$(GRPC_PORT)
+
+.PHONY: start-aws-client
+start-aws-client:
+	@go run cmd/external-aws-client/external-aws-client.go
 
 #################################################################
 # Rules related to binary build, Docker image build and release #
