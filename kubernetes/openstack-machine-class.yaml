@@ -15,6 +15,7 @@ spec:
   - <security_group_name> # List of security groups which should be used for this machine
   region: <region> # Region where to place the machine
   availabilityZone: <availability_zone> # Availability zone where to place the machine
+  podNetworkCidr: <pod_network_cidr> # CIDR of the overlay Calico IP pool
   # OpenStack machine metadata block
   # Be aware, that metadata keys (tags) in OpenStack can not contain special characters likes "/"
   tags:
