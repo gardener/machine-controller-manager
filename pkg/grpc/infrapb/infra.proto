@@ -1,0 +1,115 @@
+/*
+Copyright (c) 2018 SAP SE or an SAP affiliate company. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+syntax = "proto3";
+
+package infra;
+
+// The Infragrpc service definition.
+service Infragrpc {
+  // infra operations
+  rpc Register(stream DriverSide) returns (stream MCMside) {}
+
+  // Get Machine Class
+  rpc GetMachineClass(MachineClassMeta) returns (MachineClass) {}
+
+  // Get Cloud Config
+  rpc GetCloudConfig(CloudConfigMeta) returns (CloudConfig) {}
+}
+
+message MachineClassMeta {
+    string name = 1;
+    int32 revision = 2;
+}
+
+message CloudConfigMeta {
+    string secretName = 1;
+    string nameSpace = 2;
+    int32 revision = 3;
+}
+
+message MachineClass {
+    string data = 1;
+    string error = 2;
+}
+
+message CloudConfig {
+    string data = 1;
+    string error = 2;
+}
+
+// The message containing driver side structures
+message DriverSide {
+
+    // operationID to match response with asynchronous requests
+    int32 operationID = 1;
+
+    // operationType can be register, create, delete, getVMs
+    string operationType = 2;
+
+    message registerationResp {
+        string name = 1;
+        string group = 2;
+        string kind = 3;
+        string version = 4;
+    }
+
+    message createResp {
+        string providerID = 1;
+        string nodename = 2;
+        string error = 3;
+    }
+
+    message deleteResp {
+        string error = 1;
+    }
+
+    message machine{
+        string machineID = 1;
+        string machineName = 2;
+    }
+
+    message listResp {
+        repeated machine list = 1;
+        string error = 2;
+    }
+
+    oneof response {
+        registerationResp registerResp = 3;
+        createResp createresponse = 4;
+        deleteResp deleteresponse = 5;
+        listResp listresponse = 6;
+    }
+}
+
+// The message containing the MCM side structures
+message MCMside {
+
+    // operationID to match response with asynchronous requests
+    int32 operationID = 1;
+    
+    // operationType can be register, create, delete, getVMs
+    string operationType = 2;
+
+    message operationParams {
+        MachineClassMeta machineClassMetaData = 1;
+        string credentials = 2;
+        string machineID = 3;
+        string machineName = 4;
+    }
+
+    operationParams operationparams = 3;
+}
