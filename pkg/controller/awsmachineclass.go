@@ -115,7 +115,7 @@ func (c *controller) reconcileClusterAWSMachineClass(class *v1alpha1.AWSMachineC
 	// TODO this should be put in own API server
 	validationerr := validation.ValidateAWSMachineClass(internalClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of %s failed %s", AWSMachineClassKind, validationerr.ToAggregate().Error())
+		glog.Errorf("Validation of %s failed %s", AWSMachineClassKind, validationerr.ToAggregate().Error())
 		return nil
 	}
 

@@ -240,7 +240,7 @@ func (m *MachineControllerRefManager) AdoptMachine(machine *v1alpha1.Machine) er
 // ReleaseMachine sends a patch to free the Machine from the control of the controller.
 // It returns the error if the patching fails. 404 and 422 errors are ignored.
 func (m *MachineControllerRefManager) ReleaseMachine(machine *v1alpha1.Machine) error {
-	glog.V(2).Infof("patching machine %s_%s to remove its controllerRef to %s/%s:%s",
+	glog.V(4).Infof("patching machine %s_%s to remove its controllerRef to %s/%s:%s",
 		machine.Namespace, machine.Name, m.controllerKind.GroupVersion(), m.controllerKind.Kind, m.Controller.GetName())
 	deleteOwnerRefPatch := fmt.Sprintf(
 		`{"metadata":{"ownerReferences":[{"$patch":"delete", "apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
@@ -369,7 +369,7 @@ func (m *MachineSetControllerRefManager) AdoptMachineSet(is *v1alpha1.MachineSet
 // ReleaseMachineSet sends a patch to free the MachineSet from the control of the MachineDeployment controller.
 // It returns the error if the patching fails. 404 and 422 errors are ignored.
 func (m *MachineSetControllerRefManager) ReleaseMachineSet(machineSet *v1alpha1.MachineSet) error {
-	glog.V(2).Infof("patching MachineSet %s_%s to remove its controllerRef to %s:%s",
+	glog.V(4).Infof("patching MachineSet %s_%s to remove its controllerRef to %s:%s",
 		machineSet.Name, m.controllerKind.GroupVersion(), m.controllerKind.Kind, m.Controller.GetName())
 	//deleteOwnerRefPatch := fmt.Sprintf(`{"metadata":{"ownerReferences":[{"$patch":"delete","uid":"%s"}],"uid":"%s"}}`, m.Controller.GetUID(), machineSet.UID)
 	deleteOwnerRefPatch := fmt.Sprintf(

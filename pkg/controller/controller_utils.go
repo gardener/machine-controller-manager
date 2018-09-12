@@ -172,7 +172,7 @@ func (r *ContExpectations) GetExpectations(controllerKey string) (*ControlleeExp
 func (r *ContExpectations) DeleteExpectations(controllerKey string) {
 	if exp, exists, err := r.GetByKey(controllerKey); err == nil && exists {
 		if err := r.Delete(exp); err != nil {
-			glog.V(2).Infof("Error deleting expectations for controller %v: %v", controllerKey, err)
+			glog.V(4).Infof("Error deleting expectations for controller %v: %v", controllerKey, err)
 		}
 	}
 }
