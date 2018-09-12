@@ -103,9 +103,6 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&s.ExternalDriverManagerOptions.Enabled, "external-driver-manager-enabled", s.ExternalDriverManagerOptions.Enabled, "If true, enable support for external drivers")
 	fs.Uint16Var(&s.ExternalDriverManagerOptions.Port, "external-driver-manager-port", s.ExternalDriverManagerOptions.Port, "Port on which to listen for external drivers")
 
-	fs.BoolVar(&s.ExternalDriverManagerOptions.Enabled, "external-driver-manager-enabled", s.ExternalDriverManagerOptions.Enabled, "If true, enable support for external drivers")
-	fs.Uint16Var(&s.ExternalDriverManagerOptions.Port, "external-driver-manager-port", s.ExternalDriverManagerOptions.Port, "Port on which to listen for external drivers")
-
 	leaderelectionconfig.BindFlags(&s.LeaderElection, fs)
 	// TODO: DefaultFeatureGate is global and it adds all k8s flags
 	// utilfeature.DefaultFeatureGate.AddFlag(fs)

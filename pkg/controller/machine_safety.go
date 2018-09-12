@@ -333,7 +333,10 @@ func (c *controller) checkAlicloudMachineClass() {
 			machineClassInterface,
 			machineClass.Spec.SecretRef,
 			machineClass.Name,
-			machineClass.Kind,
+			&v1alpha1.ClassSpec{
+				APIGroup: machineClass.TypeMeta.GroupVersionKind().GroupVersion().String(),
+				Kind:     machineClass.Kind,
+			},
 		)
 	}
 }
