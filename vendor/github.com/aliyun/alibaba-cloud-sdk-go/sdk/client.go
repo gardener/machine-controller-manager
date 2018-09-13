@@ -151,8 +151,7 @@ func (client *Client) DoAction(request requests.AcsRequest, response responses.A
 	return client.DoActionWithSigner(request, response, nil)
 }
 
-func (client *Client) DoActionWithSigner(request requests.AcsRequest, response responses.AcsResponse, signer auth.Signer) (err error) {
-
+func (client *Client) BuildRequestWithSigner(request requests.AcsRequest, signer auth.Signer) (err error) {
 	// add clientVersion
 	request.GetHeaders()["x-sdk-core-version"] = Version
 
@@ -193,6 +192,54 @@ func (client *Client) DoActionWithSigner(request requests.AcsRequest, response r
 	if client.config.UserAgent != "" {
 		httpRequest.Header.Set("User-Agent", client.config.UserAgent)
 	}
+	return err
+}
+
+func (client *Client) DoActionWithSigner(request requests.AcsRequest, response responses.AcsResponse, signer auth.Signer) (err error) {
+
+	// add clientVersion
+	request.GetHeaders()["x-sdk-core-version"] = Version
+
+	regionId := client.regionId
+	if len(request.GetRegionId()) > 0 {
+		regionId = request.GetRegionId()
+	}
+
+	// resolve endpoint
+	resolveParam := &endpoints.ResolveParam{
+		Domain:               request.GetDomain(),
+		Product:              request.GetProduct(),
+		RegionId:             regionId,
+		LocationProduct:      request.GetLocationServiceCode(),
+		LocationEndpointType: request.GetLocationEndpointType(),
+		CommonApi:            client.ProcessCommonRequest,
+	}
+	endpoint, err := endpoints.Resolve(resolveParam)
+	if err != nil {
+		return
+	}
+	request.SetDomain(endpoint)
+
+	if request.GetScheme() == "" {
+		request.SetScheme(client.config.Scheme)
+	}
+	// init request params
+	err = requests.InitParams(request)
+	if err != nil {
+		return
+	}
+
+	// signature
+	var finalSigner auth.Signer
+	if signer != nil {
+		finalSigner = signer
+	} else {
+		finalSigner = client.signer
+	}
+	httpRequest, err := buildHttpRequest(request, finalSigner, regionId)
+	if client.config.UserAgent != "" {
+		httpRequest.Header.Set("User-Agent", client.config.UserAgent)
+	}
 	if err != nil {
 		return
 	}
@@ -203,7 +250,9 @@ func (client *Client) DoActionWithSigner(request requests.AcsRequest, response r
 		var timeout bool
 		// receive error
 		if err != nil {
-			if timeout = isTimeout(err); !timeout {
+			if !client.config.AutoRetry {
+				return
+			} else if timeout = isTimeout(err); !timeout {
 				// if not timeout error, return
 				return
 			} else if retryTimes >= client.config.MaxRetryTime {
@@ -284,6 +333,10 @@ func (client *Client) AddAsyncTask(task func()) (err error) {
 		err = errors.NewClientError(errors.AsyncFunctionNotEnabledCode, errors.AsyncFunctionNotEnabledMessage, nil)
 	}
 	return
+}
+
+func (client *Client) GetConfig() *Config {
+	return client.config
 }
 
 func NewClient() (client *Client, err error) {

@@ -72,4 +72,4 @@ required = [
 
 [[constraint]]
   name = "github.com/aliyun/alibaba-cloud-sdk-go"
-  version = "1.9.1"
+  version = "1.27.7"
