@@ -8,6 +8,13 @@ Example of managing machine:
 ```
 kubectl create/get/delete machine vm1
 ```
+## Cluster-api branch
+This branch implements the machine-api aspect of the [cluster-api project](https://github.com/kubernetes-sigs/cluster-api). Cluster-api is heavily under development, and this branch of MCM will implement the APIs on the best-effort basis.
+
+### What does it mean ?
+* In layman terms, it means user can expect MCM to process the machine-*.yamls [machine, machineset, machinedeployment] files defined in the cluster-api project. 
+* Technically it means, [mcm-apis](https://github.com/gardener/machine-controller-manager/tree/cluster-api/pkg/apis) are imported from the cluster-api's [machine-api](https://github.com/gardener/machine-controller-manager/tree/cluster-api/pkg/apis).
+
 
 ### Key terminologies
 
