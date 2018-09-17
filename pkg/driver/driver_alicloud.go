@@ -60,10 +60,10 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 	request := ecs.CreateRunInstancesRequest()
 	//request.DryRun = requests.NewBoolean(true)
 
-	request.ImageId = c.AlicloudMachineClass.Spec.ImageName
+	request.ImageId = c.AlicloudMachineClass.Spec.ImageID
 	request.InstanceType = c.AlicloudMachineClass.Spec.InstanceType
 	request.RegionId = c.AlicloudMachineClass.Spec.Region
-	request.ZoneId = c.AlicloudMachineClass.Spec.Zone
+	request.ZoneId = c.AlicloudMachineClass.Spec.ZoneID
 	request.SecurityGroupId = c.AlicloudMachineClass.Spec.SecurityGroupID
 	request.VSwitchId = c.AlicloudMachineClass.Spec.VSwitchID
 	request.PrivateIpAddress = c.AlicloudMachineClass.Spec.PrivateIPAddress
@@ -129,7 +129,8 @@ func (c *AlicloudDriver) Delete() error {
 		return err
 	} else if len(result) == 0 {
 		// No running instance exists with the given machineID
-		return fmt.Errorf("No VM matching the machineID found on the provider %s", c.MachineID)
+		glog.V(2).Infof("No VM matching the machineID found on the provider %q", c.MachineID)
+		return nil
 	}
 
 	if result[0].Status != "Running" && result[0].Status != "Stopped" {

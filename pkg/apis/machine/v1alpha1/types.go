@@ -1193,10 +1193,10 @@ type AlicloudMachineClassList struct {
 
 // AlicloudMachineClassSpec is the specification of a cluster.
 type AlicloudMachineClassSpec struct {
-	ImageName               string                  `json:"imageName"`
+	ImageID                 string                  `json:"imageID"`
 	InstanceType            string                  `json:"instanceType"`
 	Region                  string                  `json:"region"`
-	Zone                    string                  `json:"zone,omitempty"`
+	ZoneID                  string                  `json:"zoneID,omitempty"`
 	SecurityGroupID         string                  `json:"securityGroupID,omitempty"`
 	VSwitchID               string                  `json:"vSwitchID"`
 	PrivateIPAddress        string                  `json:"privateIPAddress,omitempty"`

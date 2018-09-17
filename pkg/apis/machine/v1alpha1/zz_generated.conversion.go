@@ -413,10 +413,10 @@ func Convert_machine_AlicloudMachineClassList_To_v1alpha1_AlicloudMachineClassLi
 }
 
 func autoConvert_v1alpha1_AlicloudMachineClassSpec_To_machine_AlicloudMachineClassSpec(in *AlicloudMachineClassSpec, out *machine.AlicloudMachineClassSpec, s conversion.Scope) error {
-	out.ImageName = in.ImageName
+	out.ImageID = in.ImageID
 	out.InstanceType = in.InstanceType
 	out.Region = in.Region
-	out.Zone = in.Zone
+	out.ZoneID = in.ZoneID
 	out.SecurityGroupID = in.SecurityGroupID
 	out.VSwitchID = in.VSwitchID
 	out.PrivateIPAddress = in.PrivateIPAddress
@@ -439,10 +439,10 @@ func Convert_v1alpha1_AlicloudMachineClassSpec_To_machine_AlicloudMachineClassSp
 }
 
 func autoConvert_machine_AlicloudMachineClassSpec_To_v1alpha1_AlicloudMachineClassSpec(in *machine.AlicloudMachineClassSpec, out *AlicloudMachineClassSpec, s conversion.Scope) error {
-	out.ImageName = in.ImageName
+	out.ImageID = in.ImageID
 	out.InstanceType = in.InstanceType
 	out.Region = in.Region
-	out.Zone = in.Zone
+	out.ZoneID = in.ZoneID
 	out.SecurityGroupID = in.SecurityGroupID
 	out.VSwitchID = in.VSwitchID
 	out.PrivateIPAddress = in.PrivateIPAddress
