@@ -355,6 +355,7 @@ func (c *controller) checkMachineClass(
 		return
 	}
 
+	class.Name = className
 	// Dummy driver object being created to invoke GetVMs
 	dvr := driver.NewDriver(
 		"",
