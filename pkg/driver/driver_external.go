@@ -27,7 +27,7 @@ import (
 // ExternalDriver implements the support for out-of-tree drivers
 type ExternalDriver struct {
 	driver       infraserver.Driver
-	machineClass interface{}
+	machineClass string
 	credentials  *corev1.Secret
 	userData     string
 	machineID    string
@@ -35,7 +35,7 @@ type ExternalDriver struct {
 }
 
 // NewExternalDriver returns an empty AWSDriver object
-func NewExternalDriver(driver infraserver.Driver, machineClass interface{}, credentials *corev1.Secret, userData, machineID, machineName string) Driver {
+func NewExternalDriver(driver infraserver.Driver, machineClass string, credentials *corev1.Secret, userData, machineID, machineName string) Driver {
 	return &ExternalDriver{
 		driver:       driver,
 		machineClass: machineClass,
@@ -48,8 +48,13 @@ func NewExternalDriver(driver infraserver.Driver, machineClass interface{}, cred
 
 // Create method is used to create a machine
 func (d *ExternalDriver) Create() (string, string, error) {
-	//TODO
-	machineID, machineName, err := d.driver.Create(nil, "", d.machineID, d.machineName)
+	meta := infraserver.MachineClassMeta{
+		Name:     d.machineClass,
+		Revision: 1,
+		//TODO
+		//Revision: machineclass.Metadata.ResourceVersion,
+	}
+	machineID, machineName, err := d.driver.Create(&meta, "", d.machineID, d.machineName)
 	if err == nil {
 		d.machineID = machineID
 		d.machineName = machineName
@@ -59,6 +64,12 @@ func (d *ExternalDriver) Create() (string, string, error) {
 
 // Delete method is used to delete a AWS machine
 func (d *ExternalDriver) Delete() error {
+	meta := infraserver.MachineClassMeta{
+		Name:     d.machineClass,
+		Revision: 1,
+		//TODO
+		//Revision: machineclass.Metadata.ResourceVersion,
+	}
 	result, err := d.GetVMs(d.machineID)
 	if err != nil {
 		return err
@@ -69,7 +80,7 @@ func (d *ExternalDriver) Delete() error {
 	}
 
 	//TODO
-	err = d.driver.Delete("", d.machineID)
+	err = d.driver.Delete(&meta, "", d.machineID)
 	if err != nil {
 		glog.Errorf("Could not terminate machine: %s", err.Error())
 	}
@@ -84,7 +95,13 @@ func (d *ExternalDriver) GetExisting() (string, error) {
 // GetVMs returns a VM matching the machineID
 // If machineID is an empty string then it returns all matching instances
 func (d *ExternalDriver) GetVMs(machineID string) (VMs, error) {
-	result, err := d.driver.GetVMs("", machineID)
+	meta := infraserver.MachineClassMeta{
+		Name:     d.machineClass,
+		Revision: 1,
+		//TODO
+		//Revision: machineclass.Metadata.ResourceVersion,
+	}
+	result, err := d.driver.GetVMs(&meta, "", machineID)
 	if err != nil {
 		glog.Errorf("Could not get list of VMs. Error: %s", err.Error())
 		return nil, err

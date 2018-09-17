@@ -37,8 +37,8 @@ type MachineClassMeta struct {
 // Driver interface mediates the communication with the external driver
 type Driver interface {
 	Create(machineClass *MachineClassMeta, credentials, machineID, machineName string) (string, string, error)
-	Delete(credentials, machineID string) error
-	GetVMs(credentials, machineID string) (map[string]string, error)
+	Delete(machineClass *MachineClassMeta, credentials, machineID string) error
+	GetVMs(machineClass *MachineClassMeta, credentials, machineID string) (map[string]string, error)
 }
 
 // driver also implements the interface Infragrpc_RegisterServer as a proxy to unregister the driver automatically on error during Send or Recv.
@@ -179,10 +179,16 @@ func (d *driver) Create(machineClass *MachineClassMeta, credentials, machineID, 
 }
 
 // Delete sends delete request to the driver over the grpc stream
-func (d *driver) Delete(credentials, machineID string) error {
+func (d *driver) Delete(machineClass *MachineClassMeta, credentials, machineID string) error {
 	deleteParams := pb.MCMsideOperationParams{
 		Credentials: credentials,
 		MachineID:   machineID,
+	}
+	if machineClass != nil {
+		deleteParams.MachineClassMetaData = &pb.MachineClassMeta{
+			Name:     machineClass.Name,
+			Revision: machineClass.Revision,
+		}
 	}
 
 	deleteResp, err := d.sendAndWait(&deleteParams, "delete")
@@ -201,10 +207,16 @@ func (d *driver) Delete(credentials, machineID string) error {
 	return nil
 }
 
-func (d *driver) GetVMs(credentials, machineID string) (map[string]string, error) {
+func (d *driver) GetVMs(machineClass *MachineClassMeta, credentials, machineID string) (map[string]string, error) {
 	listParams := pb.MCMsideOperationParams{
 		Credentials: credentials,
 		MachineID:   machineID,
+	}
+	if machineClass != nil {
+		listParams.MachineClassMetaData = &pb.MachineClassMeta{
+			Name:     machineClass.Name,
+			Revision: machineClass.Revision,
+		}
 	}
 
 	listResp, err := d.sendAndWait(&listParams, "list")

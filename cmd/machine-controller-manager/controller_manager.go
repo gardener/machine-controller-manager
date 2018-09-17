@@ -27,8 +27,6 @@ import (
 
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app"
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
-	"github.com/gardener/machine-controller-manager/pkg/driver"
-	"github.com/gardener/machine-controller-manager/pkg/grpc/infraserver"
 	_ "github.com/gardener/machine-controller-manager/pkg/util/client/metrics/prometheus" // for client metric registration
 	_ "github.com/gardener/machine-controller-manager/pkg/util/reflector/prometheus"      // for reflector metric registration
 	_ "github.com/gardener/machine-controller-manager/pkg/util/workqueue/prometheus"      // for workqueue metric registration
@@ -50,13 +48,59 @@ func main() {
 
 	// verflag.PrintAndExitIfRequested()
 
-	if s.ExternalDriverManagerOptions.Enabled {
+	/*if s.ExternalDriverManagerOptions.Enabled {
+
+		//kubeconfig for the cluster for which machine-controller-manager will create machines.
+		controlkubeconfig, err := clientcmd.BuildConfigFromFlags("", s.TargetKubeconfig)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
+		}
+
+		if s.ControlKubeconfig != "" {
+			if s.ControlKubeconfig == "inClusterConfig" {
+				//use inClusterConfig when controller is running inside clus
+				controlkubeconfig, err = clientcmd.BuildConfigFromFlags("", "")
+			} else {
+				//kubeconfig for the seedcluster where MachineCRDs are supposed to be registered.
+				controlkubeconfig, err = clientcmd.BuildConfigFromFlags("", s.ControlKubeconfig)
+			}
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%v\n", err)
+				os.Exit(1)
+			}
+		}
+
+		// PROTOBUF WONT WORK
+		// kubeconfig.ContentConfig.ContentType = s.ContentType
+		// Override kubeconfig qps/burst settings from flags
+		controlkubeconfig.QPS = s.KubeAPIQPS
+		controlkubeconfig.Burst = int(s.KubeAPIBurst)
+
+		controlkubeconfig = rest.AddUserAgent(controlkubeconfig, "machine-controller-manager")
+		controlCoreClient, err := kubernetes.NewForConfig(controlkubeconfig)
+		if err != nil {
+			glog.Fatal(err)
+		}
+
+		controlCoreClientBuilder := corecontroller.SimpleControllerClientBuilder{
+			ClientConfig: controlkubeconfig,
+		}
+		controlCoreInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
+			controlCoreClientBuilder.ClientOrDie("control-core-shared-informers"),
+			s.MinResyncPeriod.Duration,
+			s.Namespace,
+			nil,
+		)
+
 		externalDriverManager := &infraserver.ExternalDriverManager{
-			Port: s.ExternalDriverManagerOptions.Port,
+			Port:         s.ExternalDriverManagerOptions.Port,
+			Client:       controlCoreClient,
+			SecretLister: controlCoreInformerFactory.Core().V1().Secrets().Lister(),
 		}
 		driver.ExternalDriverManager = externalDriverManager
 		externalDriverManager.Start()
-	}
+	}*/
 
 	if err := app.Run(s); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)

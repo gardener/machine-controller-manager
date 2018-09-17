@@ -39,6 +39,8 @@ import (
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
+	"github.com/gardener/machine-controller-manager/pkg/driver"
+	"github.com/gardener/machine-controller-manager/pkg/grpc/infraserver"
 	"github.com/gardener/machine-controller-manager/pkg/handlers"
 	"github.com/gardener/machine-controller-manager/pkg/util/configz"
 	"github.com/golang/glog"
@@ -273,6 +275,16 @@ func StartControllers(s *options.MCMServer,
 
 		glog.V(5).Info("Running controller")
 		go machineController.Run(int(s.ConcurrentNodeSyncs), stop)
+
+		if s.ExternalDriverManagerOptions.Enabled {
+			externalDriverManager := &infraserver.ExternalDriverManager{
+				Port:         s.ExternalDriverManagerOptions.Port,
+				Client:       controlCoreClient,
+				SecretLister: controlCoreInformerFactory.Core().V1().Secrets().Lister(),
+			}
+			driver.ExternalDriverManager = externalDriverManager
+			externalDriverManager.Start()
+		}
 
 	} else {
 		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q or %q or %q is not available; found %#v", awsGVR, azureGVR, gcpGVR, openStackGVR, alicloudGVR, availableResources)

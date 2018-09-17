@@ -18,6 +18,7 @@ package aws
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
@@ -31,7 +32,6 @@ import (
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/grpc/infraclient"
 	"github.com/golang/glog"
-	yaml "gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -285,7 +285,7 @@ func (d *awsDriverProvider) getMachineClassData(machineClassMeta *infraclient.Ma
 	}
 
 	var machineClass v1alpha1.AWSMachineClass
-	err = yaml.Unmarshal([]byte(sMachineClass.(string)), &machineClass)
+	err = json.Unmarshal([]byte(sMachineClass.(string)), &machineClass)
 	if err != nil {
 		return nil, "", err
 	}
