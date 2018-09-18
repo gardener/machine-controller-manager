@@ -1152,10 +1152,10 @@ type AlicloudMachineClassList struct {
 
 // AlicloudMachineClassSpec is the specification of a cluster.
 type AlicloudMachineClassSpec struct {
-	ImageName               string
+	ImageID                 string
 	InstanceType            string
 	Region                  string
-	Zone                    string
+	ZoneID                  string
 	SecurityGroupID         string
 	VSwitchID               string
 	PrivateIPAddress        string

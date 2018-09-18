@@ -442,7 +442,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				SchemaProps: spec.SchemaProps{
 					Description: "AlicloudMachineClassSpec is the specification of a cluster.",
 					Properties: map[string]spec.Schema{
-						"imageName": {
+						"imageID": {
 							SchemaProps: spec.SchemaProps{
 								Type:   []string{"string"},
 								Format: "",
@@ -460,7 +460,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format: "",
 							},
 						},
-						"zone": {
+						"zoneID": {
 							SchemaProps: spec.SchemaProps{
 								Type:   []string{"string"},
 								Format: "",
@@ -550,7 +550,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 							},
 						},
 					},
-					Required: []string{"imageName", "instanceType", "region", "vSwitchID", "keyPairName"},
+					Required: []string{"imageID", "instanceType", "region", "vSwitchID", "keyPairName"},
 				},
 			},
 			Dependencies: []string{
