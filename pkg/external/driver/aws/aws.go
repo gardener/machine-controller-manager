@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -32,6 +31,7 @@ import (
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/grpc/infraclient"
 	"github.com/golang/glog"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -54,14 +54,16 @@ func (d *awsDriverProvider) Register(machineClassDataProvider infraclient.Machin
 }
 
 func (d *awsDriverProvider) Create(machineClassMeta *infraclient.MachineClassMeta, credentials, machineID, machineName string) (string, string, error) {
-	machineClass, cloudConfig, err := d.getMachineClassData(machineClassMeta)
+	machineClass, secret, err := d.getMachineClassData(machineClassMeta)
 	if err != nil {
 		return "", "", err
 	}
-	svc, err := d.createSVC(machineClass, credentials)
+	svc, err := d.createSVC(machineClass, secret)
 	if err != nil {
 		return "", "", err
 	}
+
+	fmt.Println("Creating machine", machineName)
 
 	var imageIds []*string
 	imageID := aws.String(machineClass.Spec.AMI)
@@ -112,6 +114,8 @@ func (d *awsDriverProvider) Create(machineClassMeta *infraclient.MachineClassMet
 		Tags:         tagList,
 	}
 
+	userData := base64.StdEncoding.EncodeToString([]byte(string(secret.Data["userData"])))
+
 	// Specify the details of the machine that you want to create.
 	inputConfig := ec2.RunInstancesInput{
 		// An Amazon Linux AMI ID for t2.micro machines in the us-west-2 region
@@ -119,7 +123,7 @@ func (d *awsDriverProvider) Create(machineClassMeta *infraclient.MachineClassMet
 		InstanceType: aws.String(machineClass.Spec.MachineType),
 		MinCount:     aws.Int64(1),
 		MaxCount:     aws.Int64(1),
-		UserData:     &cloudConfig,
+		UserData:     &userData,
 		KeyName:      aws.String(machineClass.Spec.KeyName),
 		SubnetId:     aws.String(machineClass.Spec.NetworkInterfaces[0].SubnetID),
 		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
@@ -148,13 +152,15 @@ func (d *awsDriverProvider) Delete(machineClassMeta *infraclient.MachineClassMet
 		return nil
 	}
 
+	fmt.Println("Deleting machine", machineID)
+
 	machineID = d.decodeMachineID(machineID)
 
-	machineClass, _, err := d.getMachineClassData(machineClassMeta)
+	machineClass, secretData, err := d.getMachineClassData(machineClassMeta)
 	if err != nil {
 		return err
 	}
-	svc, err := d.createSVC(machineClass, credentials)
+	svc, err := d.createSVC(machineClass, secretData)
 	if err != nil {
 		return err
 	}
@@ -196,11 +202,11 @@ func (d *awsDriverProvider) List(machineClassMeta *infraclient.MachineClassMeta,
 	clusterName := ""
 	nodeRole := ""
 
-	machineClass, _, err := d.getMachineClassData(machineClassMeta)
+	machineClass, secret, err := d.getMachineClassData(machineClassMeta)
 	if err != nil {
 		return listOfVMs, err
 	}
-	svc, err := d.createSVC(machineClass, credentials)
+	svc, err := d.createSVC(machineClass, secret)
 	if err != nil {
 		return listOfVMs, err
 	}
@@ -278,45 +284,51 @@ func (d *awsDriverProvider) List(machineClassMeta *infraclient.MachineClassMeta,
 	return listOfVMs, nil
 }
 
-func (d *awsDriverProvider) getMachineClassData(machineClassMeta *infraclient.MachineClassMeta) (*v1alpha1.AWSMachineClass, string, error) {
+func (d *awsDriverProvider) getMachineClassData(machineClassMeta *infraclient.MachineClassMeta) (*v1alpha1.AWSMachineClass, *corev1.Secret, error) {
+	var (
+		secret corev1.Secret
+	)
+
 	sMachineClass, err := d.machineClassDataProvider.GetMachineClass(machineClassMeta)
 	if err != nil {
-		return nil, "", err
+		return nil, &secret, err
 	}
 
 	var machineClass v1alpha1.AWSMachineClass
 	err = json.Unmarshal([]byte(sMachineClass.(string)), &machineClass)
 	if err != nil {
-		return nil, "", err
+		return nil, &secret, err
 	}
 
-	secret := infraclient.CloudConfigMeta{
+	requiredSecret := infraclient.CloudConfigMeta{
 		SecretName:      machineClass.Spec.SecretRef.Name,
 		SecretNameSpace: machineClass.Spec.SecretRef.Namespace,
 		Revision:        1,
 	}
-	userData, err := d.machineClassDataProvider.GetCloudConfig(&secret)
+
+	encodedData, err := d.machineClassDataProvider.GetCloudConfig(&requiredSecret)
 	if err != nil {
-		return nil, "", err
+		return nil, &secret, err
 	}
 
-	UserDataEnc := base64.StdEncoding.EncodeToString([]byte(userData))
+	err = json.Unmarshal([]byte(encodedData), &secret)
+	if err != nil {
+		glog.Errorf("Failed to unmarshal")
+		return nil, &secret, err
+	}
 
-	return &machineClass, UserDataEnc, nil
+	return &machineClass, &secret, nil
 }
 
 // Helper function to create SVC
-func (d *awsDriverProvider) createSVC(machineClass *v1alpha1.AWSMachineClass, cred string) (*ec2.EC2, error) {
-	dir, file := path.Split(cred)
-	accessKeyID := strings.TrimSpace(dir)
-	secretAccessKey := strings.TrimSpace(file)
+func (d *awsDriverProvider) createSVC(machineClass *v1alpha1.AWSMachineClass, secret *corev1.Secret) (*ec2.EC2, error) {
 
-	if accessKeyID != "" && secretAccessKey != "" {
+	if secret.Data["providerAccessKeyID"] != nil && secret.Data["providerSecretAccessKey"] != nil {
 		return ec2.New(session.New(&aws.Config{
 			Region: aws.String(machineClass.Spec.Region),
 			Credentials: credentials.NewStaticCredentialsFromCreds(credentials.Value{
-				AccessKeyID:     accessKeyID,
-				SecretAccessKey: secretAccessKey,
+				AccessKeyID:     string(secret.Data["providerAccessKeyID"]),
+				SecretAccessKey: string(secret.Data["providerSecretAccessKey"]),
 			}),
 		})), nil
 	}
