@@ -18,6 +18,7 @@ package infraserver
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -161,8 +162,6 @@ func (s *ExternalDriverManager) Register(stream pb.Infragrpc_RegisterServer) err
 
 //GetCloudConfig share metadata
 func (s *ExternalDriverManager) GetCloudConfig(ctx context.Context, in *pb.CloudConfigMeta) (*pb.CloudConfig, error) {
-	var userData []byte
-
 	secretName := in.GetSecretName()
 	if secretName == "" {
 		return nil, fmt.Errorf("Secret name not provided")
@@ -179,14 +178,21 @@ func (s *ExternalDriverManager) GetCloudConfig(ctx context.Context, in *pb.Cloud
 		return nil, err
 	}
 
-	if data, ok := secretRef.Data["userData"]; ok {
-		userData = data
-	} else {
-		return nil, fmt.Errorf("Cloud config not found in the provided secret")
+	/*
+		if data, ok := secretRef.Data["userData"]; ok {
+			userData = data
+		} else {
+			return nil, fmt.Errorf("Cloud config not found in the provided secret")
+		}
+	*/
+	encodedData, err := json.Marshal(secretRef)
+	if err != nil {
+		glog.Errorf("Error occurred while encoding secret data into json")
+		return nil, err
 	}
 
 	cloudConfig := &pb.CloudConfig{
-		Data:  string(userData),
+		Data:  string(encodedData),
 		Error: "",
 	}
 
