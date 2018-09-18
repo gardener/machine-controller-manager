@@ -50,6 +50,33 @@ func (c *AlicloudDriver) runInstances(client *ecs.Client, request *ecs.RunInstan
 	return
 }
 
+func toInstanceTags(tags map[string]string) ([]ecs.RunInstancesTag, error) {
+	result := []ecs.RunInstancesTag{{}, {}}
+	hasCluster := false
+	hasRole := false
+
+	for k, v := range tags {
+		if strings.Contains(k, "kubernetes.io/cluster/") {
+			hasCluster = true
+			result[0].Key = k
+			result[0].Value = v
+		} else if strings.Contains(k, "kubernetes.io/role/") {
+			hasRole = true
+			result[1].Key = k
+			result[1].Value = v
+		} else {
+			result = append(result, ecs.RunInstancesTag{Key: k, Value: v})
+		}
+	}
+
+	if !hasCluster || !hasRole {
+		err := fmt.Errorf("Tags should at least contains 2 keys, which are prefixed with kubernetes.io/cluster and kubernetes.io/role")
+		return nil, err
+	}
+
+	return result, nil
+}
+
 // Create is used to create a VM
 func (c *AlicloudDriver) Create() (string, string, error) {
 	client, err := c.getEcsClient()
