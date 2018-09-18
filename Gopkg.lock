@@ -56,8 +56,8 @@
     "sdk/utils",
     "services/ecs"
   ]
-  revision = "5913e81470def98715e5f1d14adce6bdbe8dbd28"
-  version = "1.9.1"
+  revision = "cad214d7d71fba7883fcf3b7e550ba782c15b400"
+  version = "1.27.7"
 
 [[projects]]
   name = "github.com/aws/aws-sdk-go"
@@ -221,6 +221,7 @@
     "openstack/identity/v2/tenants",
     "openstack/identity/v2/tokens",
     "openstack/identity/v3/tokens",
+    "openstack/networking/v2/ports",
     "openstack/utils",
     "pagination"
   ]
@@ -345,18 +346,6 @@
   ]
   revision = "62bff4df71bdbc266561a0caee19f0594b17c240"
   version = "v1.4.0"
-
-[[projects]]
-  name = "github.com/modern-go/concurrent"
-  packages = ["."]
-  revision = "bacd9c7ef1dd9b15be4a9909b8ac7a4e313eec94"
-  version = "1.0.3"
-
-[[projects]]
-  name = "github.com/modern-go/reflect2"
-  packages = ["."]
-  revision = "1df9eeb2bb81f327b96228865c5687bc2194af3f"
-  version = "1.0.0"
 
 [[projects]]
   branch = "master"
@@ -634,7 +623,6 @@
 [[projects]]
   name = "k8s.io/apiserver"
   packages = [
-    "pkg/server/healthz",
     "pkg/util/feature",
     "pkg/util/flag",
     "pkg/util/logs"
@@ -849,6 +837,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "de7c567b8ffd27440b636e3a45f7397a23155a55b5d78af9c313a92a80f525df"
+  inputs-digest = "c1462110b13174c650488285564f0f7b8171e5dcabc5345c0735c47aae855d9e"
   solver-name = "gps-cdcl"
   solver-version = 1

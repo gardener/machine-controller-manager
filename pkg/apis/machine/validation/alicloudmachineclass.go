@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
+// ValidateAlicloudMachineClass is to validate Alicoud machine class
 func ValidateAlicloudMachineClass(AlicloudMachineClass *machine.AlicloudMachineClass) field.ErrorList {
 	return internalValidateAlicloudMachineClass(AlicloudMachineClass)
 }
@@ -43,7 +44,7 @@ func internalValidateAlicloudMachineClass(AlicloudMachineClass *machine.Alicloud
 func validateAlicloudMachineClassSpec(spec *machine.AlicloudMachineClassSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	if "" == spec.ImageName {
+	if "" == spec.ImageID {
 		allErrs = append(allErrs, field.Required(fldPath.Child("imageName"), "ImageName is required"))
 	}
 	if "" == spec.Region {

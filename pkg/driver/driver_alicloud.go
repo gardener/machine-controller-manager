@@ -23,8 +23,9 @@ import (
 	"fmt"
 	"strings"
 
-	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/golang/glog"
+
+	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
@@ -41,68 +42,39 @@ type AlicloudDriver struct {
 	MachineName          string
 }
 
-// runInstanceRequest is the request struct for api RunInstances
-type runInstancesRequest struct {
-	*requests.RpcRequest
-	InstanceName            string           `position:"Query" name:"InstanceName"`
-	Description             string           `position:"Query" name:"Description"`
-	UserData                string           `position:"Query" name:"UserData"`
-	ClusterID               string           `position:"Query" name:"ClusterId"`
-	ClientToken             string           `position:"Query" name:"ClientToken"`
-	ImageName               string           `position:"Query" name:"ImageId"`
-	InstanceType            string           `position:"Query" name:"InstanceType"`
-	Zone                    string           `position:"Query" name:"ZoneId"`
-	SecurityGroupID         string           `position:"Query" name:"SecurityGroupId"`
-	VSwitchID               string           `position:"Query" name:"VSwitchId"`
-	PrivateIPAddress        string           `position:"Query" name:"PrivateIpAddress"`
-	InnerIPAddress          string           `position:"Query" name:"InnerIpAddress"`
-	SystemDiskSize          requests.Integer `position:"Query" name:"SystemDisk.Size"`
-	SystemDiskCategory      string           `position:"Query" name:"SystemDisk.Category"`
-	InstanceChargeType      string           `position:"Query" name:"InstanceChargeType"`
-	InternetChargeType      string           `position:"Query" name:"InternetChargeType"`
-	InternetMaxBandwidthIn  requests.Integer `position:"Query" name:"InternetMaxBandwidthIn"`
-	InternetMaxBandwidthOut requests.Integer `position:"Query" name:"InternetMaxBandwidthOut"`
-	SpotStrategy            string           `position:"Query" name:"SpotStrategy"`
-	IoOptimized             string           `position:"Query" name:"IoOptimized"`
-	Tag1Key                 string           `position:"Query" name:"Tag.1.Key"`
-	Tag2Key                 string           `position:"Query" name:"Tag.2.Key"`
-	Tag3Key                 string           `position:"Query" name:"Tag.3.Key"`
-	Tag4Key                 string           `position:"Query" name:"Tag.4.Key"`
-	Tag5Key                 string           `position:"Query" name:"Tag.5.Key"`
-	Tag6Key                 string           `position:"Query" name:"Tag.6.Key"`
-	Tag7Key                 string           `position:"Query" name:"Tag.7.Key"`
-	Tag8Key                 string           `position:"Query" name:"Tag.8.Key"`
-	Tag9Key                 string           `position:"Query" name:"Tag.9.Key"`
-	Tag10Key                string           `position:"Query" name:"Tag.10.Key"`
-	Tag1Value               string           `position:"Query" name:"Tag.1.Value"`
-	Tag2Value               string           `position:"Query" name:"Tag.2.Value"`
-	Tag3Value               string           `position:"Query" name:"Tag.3.Value"`
-	Tag4Value               string           `position:"Query" name:"Tag.4.Value"`
-	Tag5Value               string           `position:"Query" name:"Tag.5.Value"`
-	Tag6Value               string           `position:"Query" name:"Tag.6.Value"`
-	Tag7Value               string           `position:"Query" name:"Tag.7.Value"`
-	Tag8Value               string           `position:"Query" name:"Tag.8.Value"`
-	Tag9Value               string           `position:"Query" name:"Tag.9.Value"`
-	Tag10Value              string           `position:"Query" name:"Tag.10.Value"`
-	KeyPairName             string           `position:"Query" name:"KeyPairName"`
-	DryRun                  requests.Boolean `position:"Query" name:"DryRun"`
-}
-
-// createRunInstancesRequest creates a request to invoke RunInstances API
-func (c *AlicloudDriver) createRunInstancesRequest() (request *runInstancesRequest) {
-	request = &runInstancesRequest{
-		RpcRequest: &requests.RpcRequest{},
-	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "RunInstances", "ecs", "openAPI")
-	return
-}
-
 // RunInstances invokes the ecs.RunInstances API synchronously
 // api document: https://help.aliyun.com/api/ecs/runinstances.html
-func (c *AlicloudDriver) runInstances(client *ecs.Client, request *runInstancesRequest) (response *ecs.RunInstancesResponse, err error) {
+func (c *AlicloudDriver) runInstances(client *ecs.Client, request *ecs.RunInstancesRequest) (response *ecs.RunInstancesResponse, err error) {
 	response = ecs.CreateRunInstancesResponse()
 	err = client.DoAction(request, response)
 	return
+}
+
+func toInstanceTags(tags map[string]string) ([]ecs.RunInstancesTag, error) {
+	result := []ecs.RunInstancesTag{{}, {}}
+	hasCluster := false
+	hasRole := false
+
+	for k, v := range tags {
+		if strings.Contains(k, "kubernetes.io/cluster/") {
+			hasCluster = true
+			result[0].Key = k
+			result[0].Value = v
+		} else if strings.Contains(k, "kubernetes.io/role/") {
+			hasRole = true
+			result[1].Key = k
+			result[1].Value = v
+		} else {
+			result = append(result, ecs.RunInstancesTag{Key: k, Value: v})
+		}
+	}
+
+	if !hasCluster || !hasRole {
+		err := fmt.Errorf("Tags should at least contains 2 keys, which are prefixed with kubernetes.io/cluster and kubernetes.io/role")
+		return nil, err
+	}
+
+	return result, nil
 }
 
 // Create is used to create a VM
@@ -112,16 +84,16 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 		return "", "", err
 	}
 
-	request := c.createRunInstancesRequest()
+	request := ecs.CreateRunInstancesRequest()
 	//request.DryRun = requests.NewBoolean(true)
 
-	request.ImageName = c.AlicloudMachineClass.Spec.ImageName
+	request.ImageId = c.AlicloudMachineClass.Spec.ImageID
 	request.InstanceType = c.AlicloudMachineClass.Spec.InstanceType
 	request.RegionId = c.AlicloudMachineClass.Spec.Region
-	request.Zone = c.AlicloudMachineClass.Spec.Zone
-	request.SecurityGroupID = c.AlicloudMachineClass.Spec.SecurityGroupID
-	request.VSwitchID = c.AlicloudMachineClass.Spec.VSwitchID
-	request.PrivateIPAddress = c.AlicloudMachineClass.Spec.PrivateIPAddress
+	request.ZoneId = c.AlicloudMachineClass.Spec.ZoneID
+	request.SecurityGroupId = c.AlicloudMachineClass.Spec.SecurityGroupID
+	request.VSwitchId = c.AlicloudMachineClass.Spec.VSwitchID
+	request.PrivateIpAddress = c.AlicloudMachineClass.Spec.PrivateIPAddress
 	request.InstanceChargeType = c.AlicloudMachineClass.Spec.InstanceChargeType
 	request.InternetChargeType = c.AlicloudMachineClass.Spec.InternetChargeType
 	request.SpotStrategy = c.AlicloudMachineClass.Spec.SpotStrategy
@@ -138,43 +110,33 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 
 	if c.AlicloudMachineClass.Spec.SystemDisk != nil {
 		request.SystemDiskCategory = c.AlicloudMachineClass.Spec.SystemDisk.Category
-		request.SystemDiskSize = requests.NewInteger(c.AlicloudMachineClass.Spec.SystemDisk.Size)
+		request.SystemDiskSize = fmt.Sprintf("%d", c.AlicloudMachineClass.Spec.SystemDisk.Size)
 	}
 
-	for key, value := range c.AlicloudMachineClass.Spec.Tags {
-		if strings.Contains(key, "kubernetes.io/cluster/") {
-			request.Tag1Key = key
-			request.Tag1Value = value
-		} else if strings.Contains(key, "kubernetes.io/role/") {
-			request.Tag2Key = key
-			request.Tag2Value = value
-		} else if request.Tag3Key == "" {
-			request.Tag3Key = key
-			request.Tag3Value = value
-		} else if request.Tag4Key == "" {
-			request.Tag4Key = key
-			request.Tag4Value = value
-		} else if request.Tag5Key == "" {
-			request.Tag5Key = key
-			request.Tag5Value = value
-		} else if request.Tag6Key == "" {
-			request.Tag6Key = key
-			request.Tag6Value = value
-		} else if request.Tag7Key == "" {
-			request.Tag7Key = key
-			request.Tag7Value = value
-		} else if request.Tag8Key == "" {
-			request.Tag8Key = key
-			request.Tag8Value = value
-		} else if request.Tag9Key == "" {
-			request.Tag9Key = key
-			request.Tag9Value = value
-		} else if request.Tag10Key == "" {
-			request.Tag10Key = key
-			request.Tag10Value = value
+	hasCluster := false
+	hasRole := false
+
+	tags := []ecs.RunInstancesTag{{}, {}}
+	for k, v := range c.AlicloudMachineClass.Spec.Tags {
+		if strings.Contains(k, "kubernetes.io/cluster/") {
+			hasCluster = true
+			tags[0].Key = k
+			tags[0].Value = v
+		} else if strings.Contains(k, "kubernetes.io/role/") {
+			hasRole = true
+			tags[1].Key = k
+			tags[1].Value = v
+		} else {
+			tags = append(tags, ecs.RunInstancesTag{Key: k, Value: v})
 		}
 	}
 
+	if !hasCluster || !hasRole {
+		err := fmt.Errorf("Tags should at least contains 2 keys, which are prefixed with kubernetes.io/cluster and kubernetes.io/role")
+		return "", "", err
+	}
+
+	request.Tag = &tags
 	request.InstanceName = c.MachineName
 	request.ClientToken = utils.GetUUIDV4()
 	request.UserData = base64.StdEncoding.EncodeToString([]byte(c.UserData))
@@ -195,6 +157,7 @@ func (c *AlicloudDriver) Delete() error {
 	} else if len(result) == 0 {
 		// No running instance exists with the given machineID
 		glog.V(2).Infof("No VM matching the machineID found on the provider %q", c.MachineID)
+		return nil
 	}
 
 	if result[0].Status != "Running" && result[0].Status != "Stopped" {
@@ -238,33 +201,41 @@ func (c *AlicloudDriver) GetExisting() (string, error) {
 }
 
 func (c *AlicloudDriver) getVMDetails(machineID string) ([]ecs.Instance, error) {
-	searchClusterName := ""
-	searchNodeRole := ""
-
-	for key := range c.AlicloudMachineClass.Spec.Tags {
-		if strings.Contains(key, "kubernetes.io/cluster/") {
-			searchClusterName = key
-		} else if strings.Contains(key, "kubernetes.io/role/") {
-			searchNodeRole = key
-		}
-	}
-
-	if searchClusterName == "" || searchNodeRole == "" {
-		return nil, nil
-	}
-
 	client, err := c.getEcsClient()
 	if err != nil {
 		return nil, err
 	}
 
 	request := ecs.CreateDescribeInstancesRequest()
-	request.Tag1Key = searchClusterName
-	request.Tag2Key = searchNodeRole
 
 	if machineID != "" {
 		machineID = c.decodeMachineID(machineID)
 		request.InstanceIds = "[\"" + machineID + "\"]"
+	} else {
+		searchClusterName := ""
+		searchNodeRole := ""
+		searchClusterNameValue := ""
+		searchNodeRoleValue := ""
+
+		for k, v := range c.AlicloudMachineClass.Spec.Tags {
+			if strings.Contains(k, "kubernetes.io/cluster/") {
+				searchClusterName = k
+				searchClusterNameValue = v
+			} else if strings.Contains(k, "kubernetes.io/role/") {
+				searchNodeRole = k
+				searchNodeRoleValue = v
+			}
+		}
+
+		if searchClusterName == "" || searchNodeRole == "" {
+			return nil, fmt.Errorf("Can't find VMs with none of machineID/Tag[kubernetes.io/cluster/*]/Tag[kubernetes.io/role/*]")
+		}
+
+		request.Tag = &[]ecs.DescribeInstancesTag{
+			{Key: searchClusterName, Value: searchClusterNameValue},
+			{Key: searchNodeRole, Value: searchNodeRoleValue},
+		}
+		glog.Warningf("Tags: %v", request.Tag)
 	}
 
 	response, err := client.DescribeInstances(request)
