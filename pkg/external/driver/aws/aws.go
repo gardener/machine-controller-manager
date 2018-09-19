@@ -323,12 +323,12 @@ func (d *awsDriverProvider) getMachineClassData(machineClassMeta *infraclient.Ma
 // Helper function to create SVC
 func (d *awsDriverProvider) createSVC(machineClass *v1alpha1.AWSMachineClass, secret *corev1.Secret) (*ec2.EC2, error) {
 
-	if secret.Data["providerAccessKeyId"] != nil && secret.Data["providerSecretAccessKey"] != nil {
+	if secret.Data[v1alpha1.AWSAccessKeyID] != nil && secret.Data[v1alpha1.AWSSecretAccessKey] != nil {
 		return ec2.New(session.New(&aws.Config{
 			Region: aws.String(machineClass.Spec.Region),
 			Credentials: credentials.NewStaticCredentialsFromCreds(credentials.Value{
-				AccessKeyID:     string(secret.Data["providerAccessKeyId"]),
-				SecretAccessKey: string(secret.Data["providerSecretAccessKey"]),
+				AccessKeyID:     string(secret.Data[v1alpha1.AWSAccessKeyID]),
+				SecretAccessKey: string(secret.Data[v1alpha1.AWSSecretAccessKey]),
 			}),
 		})), nil
 	}

@@ -27,3 +27,4 @@ spec:
       class:
         kind: AWSMachineClass # Machine class template used to create machine, could be AWS/GCP/Azure/Other-cloud-providers
         name: test-aws # Name of the machine class
+        APIGroup: machine.sapcloud.io/v1alpha1 # APIGroup of the machine class
