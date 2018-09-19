@@ -1,41 +1,62 @@
 # Creating/Deleting machines (VM)
+<!-- TOC -->
 
+- [Creating/Deleting machines (VM)](#creatingdeleting-machines-vm)
+  - [Setting up your usage environment](#setting-up-your-usage-environment)
+  - [Important :](#important)
+  - [Creating machine](#creating-machine)
+  - [Inspect status of machine](#inspect-status-of-machine)
+  - [Delete machine](#delete-machine)
+
+<!-- /TOC -->
 ## Setting up your usage environment
 
 * Follow the [steps described here](prerequisite.md)
 
-## Important :warning: 
-- Make sure that the `kubernetes/machine.yaml` points to the same class name as the `kubernetes/aws-machine-class.yaml`.
-- Similarily `kubernetes/aws-machine-class.yaml` secret name and namespace should be same as that mentioned in `kubernetes/aws-secret.yaml`
+## Important :
+
+> Make sure that the `kubernetes/machine_objects/machine.yaml` points to the same class name as the `kubernetes/machine_classes/aws-machine-class.yaml`.
+
+> Similarily `kubernetes/machine_objects/aws-machine-class.yaml` secret name and namespace should be same as that mentioned in `kubernetes/secrets/aws-secret.yaml`
 
 ## Creating machine
 
-- Modify `kubernetes/machine.yaml` as per your requirement and create the VM as shown below
+- Modify `kubernetes/machine_objects/machine.yaml` as per your requirement and create the VM as shown below:
+
 ```bash
-$ kubectl apply -f kubernetes/machine.yaml
+$ kubectl apply -f kubernetes/machine_objects/machine.yaml
 ```
+
 You should notice that the Machine Controller Manager has immediately picked up your manifest and started to create a new machine by talking to the cloud provider.
 
 - Check Machine Controller Manager machines in the cluster
+
 ```bash
 $ kubectl get machine
-test-machine	Machine.v1alpha1.machine.sapcloud.io
+test-machine Machine.v1alpha1.machine.sapcloud.io
 ```
-A new machine is created with the name provided in the `kubernetes/machine.yaml` file.
 
-- After a few minutes (~3 minutes for AWS), you should notice a new node joining the cluster. You can verify this by running,
+A new machine is created with the name provided in the `kubernetes/machine_objects/machine.yaml` file.
+
+- After a few minutes (~3 minutes for AWS), you should notice a new node joining the cluster. You can verify this by running:
+
 ```bash
 $ kubectl get nodes
 NAME                                         STATUS     AGE     VERSION
 ip-10-250-14-52.eu-east-1.compute.internal.  Ready      1m      v1.8.0
-``` 
+```
+
 This shows that a new node has successfully joined the cluster.
 
 ## Inspect status of machine
 
-- To inspect the status of any created machine, run the command given below.
+To inspect the status of any created machine, run the command given below.
+
 ```bash
 $ kubectl get machine test-machine -o yaml
+```
+
+```yaml
 apiVersion: machine.sapcloud.io/v1alpha1
 kind: Machine
 metadata:
@@ -100,8 +121,10 @@ status:
 
 ## Delete machine
 
-- To delete the VM using the `kubernetes/machine.yaml` as shown below
+To delete the VM using the `kubernetes/machine_objects/machine.yaml` as shown below
+
 ```bash
-$ kubectl delete -f kubernetes/machine.yaml
+$ kubectl delete -f kubernetes/machine_objects/machine.yaml
 ```
+
 Now the Machine Controller Manager picks up the manifest immediately and starts to delete the existing VM by talking to the cloud provider. The node should be detached from the cluster in a few minutes (~1min for AWS).

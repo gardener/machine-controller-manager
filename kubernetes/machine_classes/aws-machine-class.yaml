@@ -17,8 +17,8 @@ spec:
       securityGroupIDs: ["sg-xyz12345"] # The security groups to which it is attached to
   tags:
     Name: sample-machine-name # Name tag that can be used to identify a machine at AWS
-    kubernetes.io/cluster/****: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired cluster name.
-    kubernetes.io/role/****: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by by this controller. Replace **** string with your desired role name.
+    kubernetes.io/cluster/YOUR_CLUSTER_NAME: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller.
+    kubernetes.io/role/YOUR_ROLE_NAME: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by by this controller.
     tag1: tag1-value # A set of additional tags attached to a machine (optional)
     tag2: tag2-value # A set of additional tags attached to a machine (optional)
   secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig

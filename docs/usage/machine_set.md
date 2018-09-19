@@ -1,22 +1,37 @@
 # Maintaining machine replicas using machines-sets
+<!-- TOC -->
 
+- [Maintaining machine replicas using machines-sets](#maintaining-machine-replicas-using-machines-sets)
+  - [Setting up your usage environment](#setting-up-your-usage-environment)
+  - [Important :warning:](#important-warning)
+  - [Creating machine-set](#creating-machine-set)
+  - [Inspect status of machine-set](#inspect-status-of-machine-set)
+  - [Health monitoring](#health-monitoring)
+  - [Delete machine-set](#delete-machine-set)
+
+<!-- /TOC -->
 ## Setting up your usage environment
 
 * Follow the [steps described here](prerequisite.md)
 
-## Important :warning: 
-- Make sure that the `kubernetes/machine-set.yaml` points to the same class name as the `kubernetes/aws-machine-class.yaml`.
-- Similarily `kubernetes/aws-machine-class.yaml` secret name and namespace should be same as that mentioned in `kubernetes/aws-secret.yaml`
+## Important :warning:
+
+> Make sure that the `kubernetes/machines_objects/machine-set.yaml` points to the same class name as the `kubernetes/machine_classes/aws-machine-class.yaml`.
+
+> Similarily `kubernetes/machine_classes/aws-machine-class.yaml` secret name and namespace should be same as that mentioned in `kubernetes/secrets/aws-secret.yaml`
 
 ## Creating machine-set
 
-- Modify `kubernetes/machine-set.yaml` as per your requirement. You can modify the number of replicas to the desired number of machines. Then, create an machine-set
+- Modify `kubernetes/machine_objects/machine-set.yaml` as per your requirement. You can modify the number of replicas to the desired number of machines. Then, create an machine-set:
+
 ```bash
-$ kubectl apply -f kubernetes/machine-set.yaml
+$ kubectl apply -f kubernetes/machine_objects/machine-set.yaml
 ```
+
 You should notice that the Machine Controller Manager has immediately picked up your manifest and started to create a new machines based on the number of replicas you have provided in the manifest.
 
 - Check Machine Controller Manager machine-sets in the cluster
+
 ```bash
 $ kubectl get machineset
 NAME                KIND
@@ -24,7 +39,8 @@ test-machine-set   MachineSet.v1alpha1.machine.sapcloud.io
 ```
 You will see a new machine-set with your given name
 
-- Check Machine Controller Manager machines in the cluster
+- Check Machine Controller Manager machines in the cluster:
+
 ```bash
 $ kubectl get machine
 NAME                      KIND
@@ -32,23 +48,30 @@ test-machine-set-b57zs   Machine.v1alpha1.machine.sapcloud.io
 test-machine-set-c4bg8   Machine.v1alpha1.machine.sapcloud.io
 test-machine-set-kvskg   Machine.v1alpha1.machine.sapcloud.io
 ```
+
 Now you will see N (number of replicas specified in the manifest) new machines whose names are prefixed with the machine-set object name that you created.
 
-- After a few minutes (~3 minutes for AWS), you should notice new nodes joining the cluster. You can verify this by running,
+- After a few minutes (~3 minutes for AWS), you should notice new nodes joining the cluster. You can verify this by running:
+
 ```bash
 $ kubectl get nodes
 NAME                                         STATUS    AGE       VERSION
 ip-10-250-0-234.eu-west-1.compute.internal   Ready     3m        v1.8.0
 ip-10-250-15-98.eu-west-1.compute.internal   Ready     3m        v1.8.0
 ip-10-250-6-21.eu-west-1.compute.internal    Ready     2m        v1.8.0
-``` 
+```
+
 This shows how new nodes have joined your cluster
 
 ## Inspect status of machine-set
 
-- To inspect the status of any created machine-set run the following command,
+- To inspect the status of any created machine-set run the following command:
+
 ```bash
 $ kubectl get machineset test-machine-set -o yaml
+```
+
+```yaml
 apiVersion: machine.sapcloud.io/v1alpha1
 kind: MachineSet
 metadata:
@@ -95,13 +118,15 @@ status:
 
 ## Health monitoring
 
-- If you try to delete/terminate any of the machines backing the machine-set by either talking to the Machine Controller Manager or from the cloud provider, the Machine Controller Manager recreates a matching healthy machine to replace the deleted machine. 
+- If you try to delete/terminate any of the machines backing the machine-set by either talking to the Machine Controller Manager or from the cloud provider, the Machine Controller Manager recreates a matching healthy machine to replace the deleted machine.
 - Similarly, if any of your machines are unreachable or in an unhealthy state (kubelet not ready / disk pressure) for longer than the configured timeout (~ 5mins), the Machine Controller Manager recreates the nodes to replace the unhealthy nodes.
 
 ## Delete machine-set
 
-- To delete the VM using the `kubernetes/machine-set.yaml`
+- To delete the VM using the `kubernetes/machine_objects/machine-set.yaml`:
+
 ```bash
 $ kubectl delete -f kubernetes/machine-set.yaml
 ```
+
 Now the Machine Controller Manager has immediately picked up your manifest and started to delete the existing VMs by talking to the cloud provider. Your nodes should be detached from the cluster in a few minutes (~1min for AWS).

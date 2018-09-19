@@ -21,8 +21,8 @@ spec:
   internetMaxBandwidthOut: 0 # 0-100
   spotStrategy: NoSpot # NoSpot, SpotWithPriceLimit, SpotAsPriceGo
   tags:
-    kubernetes.io/cluster/****: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired cluster name.
-    kubernetes.io/role/****: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired role name.
+    kubernetes.io/cluster/YOUR_CLUSTER_NAME: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller.
+    kubernetes.io/role/YOUR_ROLE_NAME: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller.
     tag1: tag1-value # A set of additional tags attached to a machine (optional)
     tag2: tag2-value # A set of additional tags attached to a machine (optional)
   keyPairName: test-keypair # keypair used to access Alicloud ECS machine

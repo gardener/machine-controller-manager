@@ -15,8 +15,8 @@ spec:
     name: "test-secret" # Name of the secret
     namespace: "default" # Namespace of secret
   tags:
-    kubernetes.io-cluster-****: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired cluster name.
-    kubernetes.io-role-****: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired role name.
+    kubernetes.io-cluster-YOUR_CLUSTER_NAME: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller.
+    kubernetes.io-role-YOUR_ROLE_NAME: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller.
     tag1: "key1" # A set of additional tags attached to a machine (optional)
     tag2: "key2" # A set of additional tags attached to a machine (optional)
   properties:
@@ -28,17 +28,17 @@ spec:
         offer: "image-reference-offer" # Image reference offer (Eg- CoreOS)
         sku: "image-reference-sku" # Image reference sku (Eg- Beta)
         version: "image-reference-version" # Image reference version (Eg- 1000.0.0)
-      osDisk: 
+      osDisk:
         caching: "None" # Caching Strategy (None/ReadOnly/ReadWrite)
         diskSizeGB: 50 # Size of disk to be created in GB
         createOption: "FromImage" # Create option for disk (Empty/Attach/FromImage)
-    osProfile: 
+    osProfile:
       adminUserName: "admin-name" # Admin user name
       linuxConfiguration:
         disablePasswordAuthentication: true # Disable password authentication
         ssh:
           publicKeys:
             path: "/path/to/public-key/in/machine" # Path to public key
-            keyData: "public-key-data" # Public key data 
+            keyData: "public-key-data" # Public key data
     availabilitySet:
       id: "/subscriptions/subscription-id/resourceGroups/resource-group-name/providers/Microsoft.Compute/availabilitySets/availablity-set-name" # ID of availability set to attach the machine to
