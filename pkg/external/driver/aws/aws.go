@@ -114,7 +114,7 @@ func (d *awsDriverProvider) Create(machineClassMeta *infraclient.MachineClassMet
 		Tags:         tagList,
 	}
 
-	userData := base64.StdEncoding.EncodeToString([]byte(string(secret.Data["userData"])))
+	userData := base64.StdEncoding.EncodeToString(secret.Data["userData"])
 
 	// Specify the details of the machine that you want to create.
 	inputConfig := ec2.RunInstancesInput{
@@ -323,11 +323,11 @@ func (d *awsDriverProvider) getMachineClassData(machineClassMeta *infraclient.Ma
 // Helper function to create SVC
 func (d *awsDriverProvider) createSVC(machineClass *v1alpha1.AWSMachineClass, secret *corev1.Secret) (*ec2.EC2, error) {
 
-	if secret.Data["providerAccessKeyID"] != nil && secret.Data["providerSecretAccessKey"] != nil {
+	if secret.Data["providerAccessKeyId"] != nil && secret.Data["providerSecretAccessKey"] != nil {
 		return ec2.New(session.New(&aws.Config{
 			Region: aws.String(machineClass.Spec.Region),
 			Credentials: credentials.NewStaticCredentialsFromCreds(credentials.Value{
-				AccessKeyID:     string(secret.Data["providerAccessKeyID"]),
+				AccessKeyID:     string(secret.Data["providerAccessKeyId"]),
 				SecretAccessKey: string(secret.Data["providerSecretAccessKey"]),
 			}),
 		})), nil
