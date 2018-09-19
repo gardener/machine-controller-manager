@@ -26,7 +26,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/integer"
@@ -75,9 +75,9 @@ func (dc *controller) reconcileNewMachineSet(allISs []*v1alpha1.MachineSet, newI
 		// Scaling not required.
 		return false, nil
 	}
-	if (newIS.Spec.Replicas) > (deployment.Spec.Replicas) {
+	if *(newIS.Spec.Replicas) > *(deployment.Spec.Replicas) {
 		// Scale down.
-		scaled, _, err := dc.scaleMachineSetAndRecordEvent(newIS, (deployment.Spec.Replicas), deployment)
+		scaled, _, err := dc.scaleMachineSetAndRecordEvent(newIS, *(deployment.Spec.Replicas), deployment)
 		return scaled, err
 	}
 	newReplicasCount, err := NewISNewReplicas(deployment, allISs, newIS)
@@ -129,8 +129,8 @@ func (dc *controller) reconcileOldMachineSets(allISs []*v1alpha1.MachineSet, old
 	// * The new machine set created must start with 0 replicas because allmachinesCount is already at 13.
 	// * However, newRSmachinesUnavailable would also be 0, so the 2 old machine sets could be scaled down by 5 (13 - 8 - 0), which would then
 	// allow the new machine set to be scaled up by 5.
-	minAvailable := (deployment.Spec.Replicas) - maxUnavailable
-	newISUnavailableMachineCount := (newIS.Spec.Replicas) - newIS.Status.AvailableReplicas
+	minAvailable := *(deployment.Spec.Replicas) - maxUnavailable
+	newISUnavailableMachineCount := *(newIS.Spec.Replicas) - newIS.Status.AvailableReplicas
 	maxScaledDown := allMachinesCount - minAvailable - newISUnavailableMachineCount
 	if maxScaledDown <= 0 {
 		return false, nil
@@ -167,19 +167,19 @@ func (dc *controller) cleanupUnhealthyReplicas(oldISs []*v1alpha1.MachineSet, de
 		if totalScaledDown >= maxCleanupCount {
 			break
 		}
-		if (targetIS.Spec.Replicas) == 0 {
+		if *(targetIS.Spec.Replicas) == 0 {
 			// cannot scale down this machine set.
 			continue
 		}
 		glog.V(4).Infof("Found %d available machine in old IS %s", targetIS.Status.AvailableReplicas, targetIS.Name)
-		if (targetIS.Spec.Replicas) == targetIS.Status.AvailableReplicas {
+		if *(targetIS.Spec.Replicas) == targetIS.Status.AvailableReplicas {
 			// no unhealthy replicas found, no scaling required.
 			continue
 		}
 
-		scaledDownCount := int32(integer.IntMin(int(maxCleanupCount-totalScaledDown), int((targetIS.Spec.Replicas)-targetIS.Status.AvailableReplicas)))
-		newReplicasCount := (targetIS.Spec.Replicas) - scaledDownCount
-		if newReplicasCount > (targetIS.Spec.Replicas) {
+		scaledDownCount := int32(integer.IntMin(int(maxCleanupCount-totalScaledDown), int(*(targetIS.Spec.Replicas)-targetIS.Status.AvailableReplicas)))
+		newReplicasCount := *(targetIS.Spec.Replicas) - scaledDownCount
+		if newReplicasCount > *(targetIS.Spec.Replicas) {
 			return nil, 0, fmt.Errorf("when cleaning up unhealthy replicas, got invalid request to scale down %s %d -> %d", targetIS.Name, (targetIS.Spec.Replicas), newReplicasCount)
 		}
 		_, updatedOldIS, err := dc.scaleMachineSetAndRecordEvent(targetIS, newReplicasCount, deployment)
@@ -198,7 +198,7 @@ func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(allISs []*v1alpha1
 	maxUnavailable := MaxUnavailable(*deployment)
 
 	// Check if we can scale down.
-	minAvailable := (deployment.Spec.Replicas) - maxUnavailable
+	minAvailable := *(deployment.Spec.Replicas) - maxUnavailable
 	// Find the number of available machines.
 	availableMachineCount := GetAvailableReplicaCountForMachineSets(allISs)
 	if availableMachineCount <= minAvailable {
@@ -216,14 +216,14 @@ func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(allISs []*v1alpha1
 			// No further scaling required.
 			break
 		}
-		if (targetIS.Spec.Replicas) == 0 {
+		if *(targetIS.Spec.Replicas) == 0 {
 			// cannot scale down this ReplicaSet.
 			continue
 		}
 		// Scale down.
-		scaleDownCount := int32(integer.IntMin(int((targetIS.Spec.Replicas)), int(totalScaleDownCount-totalScaledDown)))
-		newReplicasCount := (targetIS.Spec.Replicas) - scaleDownCount
-		if newReplicasCount > (targetIS.Spec.Replicas) {
+		scaleDownCount := int32(integer.IntMin(int(*(targetIS.Spec.Replicas)), int(totalScaleDownCount-totalScaledDown)))
+		newReplicasCount := *(targetIS.Spec.Replicas) - scaleDownCount
+		if newReplicasCount > *(targetIS.Spec.Replicas) {
 			return 0, fmt.Errorf("when scaling down old IS, got invalid request to scale down %s %d -> %d", targetIS.Name, (targetIS.Spec.Replicas), newReplicasCount)
 		}
 		_, _, err := dc.scaleMachineSetAndRecordEvent(targetIS, newReplicasCount, deployment)

@@ -32,8 +32,9 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	common "github.com/gardener/machine-controller-manager/pkg/apis/cluster/common"
+	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
+	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/cluster/v1alpha1"
 	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
 	"k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -47,7 +48,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/integer"
 
-	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
+	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/cluster/v1alpha1"
 )
 
 // MachineDeploymentListerExpansion allows custom methods to be added to MachineDeploymentLister.
@@ -331,7 +332,7 @@ func SetNewMachineSetAnnotations(deployment *v1alpha1.MachineDeployment, newIS *
 		}
 	}
 	// If the new machine set is about to be created, we need to add replica annotations to it.
-	if !exists && SetReplicasAnnotations(newIS, (deployment.Spec.Replicas), (deployment.Spec.Replicas)+MaxSurge(*deployment)) {
+	if !exists && SetReplicasAnnotations(newIS, *(deployment.Spec.Replicas), *(deployment.Spec.Replicas)+MaxSurge(*deployment)) {
 		annotationChanged = true
 	}
 	return annotationChanged
@@ -462,13 +463,13 @@ func SetReplicasAnnotations(is *v1alpha1.MachineSet, desiredReplicas, maxReplica
 
 // MaxUnavailable returns the maximum unavailable machines a rolling deployment can take.
 func MaxUnavailable(deployment v1alpha1.MachineDeployment) int32 {
-	if !IsRollingUpdate(&deployment) || (deployment.Spec.Replicas) == 0 {
+	if !IsRollingUpdate(&deployment) || *(deployment.Spec.Replicas) == 0 {
 		return int32(0)
 	}
 	// Error caught by validation
-	_, maxUnavailable, _ := ResolveFenceposts(deployment.Spec.Strategy.RollingUpdate.MaxSurge, deployment.Spec.Strategy.RollingUpdate.MaxUnavailable, (deployment.Spec.Replicas))
-	if maxUnavailable > deployment.Spec.Replicas {
-		return deployment.Spec.Replicas
+	_, maxUnavailable, _ := ResolveFenceposts(deployment.Spec.Strategy.RollingUpdate.MaxSurge, deployment.Spec.Strategy.RollingUpdate.MaxUnavailable, *(deployment.Spec.Replicas))
+	if maxUnavailable > *deployment.Spec.Replicas {
+		return *deployment.Spec.Replicas
 	}
 	return maxUnavailable
 }
@@ -478,7 +479,7 @@ func MinAvailable(deployment *v1alpha1.MachineDeployment) int32 {
 	if !IsRollingUpdate(deployment) {
 		return int32(0)
 	}
-	return (deployment.Spec.Replicas) - MaxUnavailable(*deployment)
+	return *(deployment.Spec.Replicas) - MaxUnavailable(*deployment)
 }
 
 // MaxSurge returns the maximum surge machines a rolling deployment can take.
@@ -487,7 +488,7 @@ func MaxSurge(deployment v1alpha1.MachineDeployment) int32 {
 		return int32(0)
 	}
 	// Error caught by validation
-	maxSurge, _, _ := ResolveFenceposts(deployment.Spec.Strategy.RollingUpdate.MaxSurge, deployment.Spec.Strategy.RollingUpdate.MaxUnavailable, (deployment.Spec.Replicas))
+	maxSurge, _, _ := ResolveFenceposts(deployment.Spec.Strategy.RollingUpdate.MaxSurge, deployment.Spec.Strategy.RollingUpdate.MaxUnavailable, *(deployment.Spec.Replicas))
 	return maxSurge
 }
 
@@ -495,7 +496,7 @@ func MaxSurge(deployment v1alpha1.MachineDeployment) int32 {
 // of the parent deployment, 2. the replica count that needs be added on the machine sets of the
 // deployment, and 3. the total replicas added in the machine sets of the deployment so far.
 func GetProportion(is *v1alpha1.MachineSet, d v1alpha1.MachineDeployment, deploymentReplicasToAdd, deploymentReplicasAdded int32) int32 {
-	if is == nil || (is.Spec.Replicas) == 0 || deploymentReplicasToAdd == 0 || deploymentReplicasToAdd == deploymentReplicasAdded {
+	if is == nil || *(is.Spec.Replicas) == 0 || deploymentReplicasToAdd == 0 || deploymentReplicasToAdd == deploymentReplicasAdded {
 		return int32(0)
 	}
 
@@ -518,11 +519,11 @@ func GetProportion(is *v1alpha1.MachineSet, d v1alpha1.MachineDeployment, deploy
 // 1. a scaling event during a rollout or 2. when scaling a paused deployment.
 func getMachineSetFraction(is v1alpha1.MachineSet, d v1alpha1.MachineDeployment) int32 {
 	// If we are scaling down to zero then the fraction of this machine set is its whole size (negative)
-	if (d.Spec.Replicas) == int32(0) {
-		return -(is.Spec.Replicas)
+	if *(d.Spec.Replicas) == int32(0) {
+		return -*(is.Spec.Replicas)
 	}
 
-	deploymentReplicas := (d.Spec.Replicas) + MaxSurge(d)
+	deploymentReplicas := *(d.Spec.Replicas) + MaxSurge(d)
 	annotatedReplicas, ok := getMaxReplicasAnnotation(&is)
 	if !ok {
 		// If we cannot find the annotation then fallback to the current deployment size. Note that this
@@ -534,14 +535,14 @@ func getMachineSetFraction(is v1alpha1.MachineSet, d v1alpha1.MachineDeployment)
 
 	// We should never proportionally scale up from zero which means rs.spec.replicas and annotatedReplicas
 	// will never be zero here.
-	newISsize := (float64((is.Spec.Replicas) * deploymentReplicas)) / float64(annotatedReplicas)
-	return integer.RoundToInt32(newISsize) - (is.Spec.Replicas)
+	newISsize := (float64((*is.Spec.Replicas) * deploymentReplicas)) / float64(annotatedReplicas)
+	return integer.RoundToInt32(newISsize) - *(is.Spec.Replicas)
 }
 
 // GetAllMachineSets returns the old and new machine sets targeted by the given Deployment. It gets MachineList and MachineSetList from client interface.
 // Note that the first set of old machine sets doesn't include the ones with no machines, and the second set of old machine sets include all old machine sets.
 // The third returned value is the new machine set, and it may be nil if it doesn't exist yet.
-func GetAllMachineSets(deployment *v1alpha1.MachineDeployment, c v1alpha1client.MachineV1alpha1Interface) ([]*v1alpha1.MachineSet, []*v1alpha1.MachineSet, *v1alpha1.MachineSet, error) {
+func GetAllMachineSets(deployment *v1alpha1.MachineDeployment, c v1alpha1client.ClusterV1alpha1Interface) ([]*v1alpha1.MachineSet, []*v1alpha1.MachineSet, *v1alpha1.MachineSet, error) {
 	isList, err := ListMachineSets(deployment, IsListFromClient(c))
 	if err != nil {
 		return nil, nil, nil, err
@@ -553,7 +554,7 @@ func GetAllMachineSets(deployment *v1alpha1.MachineDeployment, c v1alpha1client.
 
 // GetOldMachineSets returns the old machine sets targeted by the given Deployment; get MachineList and MachineSetList from client interface.
 // Note that the first set of old machine sets doesn't include the ones with no machines, and the second set of old machine sets include all old machine sets.
-func GetOldMachineSets(deployment *v1alpha1.MachineDeployment, c v1alpha1client.MachineV1alpha1Interface) ([]*v1alpha1.MachineSet, []*v1alpha1.MachineSet, error) {
+func GetOldMachineSets(deployment *v1alpha1.MachineDeployment, c v1alpha1client.ClusterV1alpha1Interface) ([]*v1alpha1.MachineSet, []*v1alpha1.MachineSet, error) {
 	rsList, err := ListMachineSets(deployment, IsListFromClient(c))
 	if err != nil {
 		return nil, nil, err
@@ -564,7 +565,7 @@ func GetOldMachineSets(deployment *v1alpha1.MachineDeployment, c v1alpha1client.
 
 // GetNewMachineSet returns a machine set that matches the intent of the given deployment; get MachineSetList from client interface.
 // Returns nil if the new machine set doesn't exist yet.
-func GetNewMachineSet(deployment *v1alpha1.MachineDeployment, c v1alpha1client.MachineV1alpha1Interface) (*v1alpha1.MachineSet, error) {
+func GetNewMachineSet(deployment *v1alpha1.MachineDeployment, c v1alpha1client.ClusterV1alpha1Interface) (*v1alpha1.MachineSet, error) {
 	rsList, err := ListMachineSets(deployment, IsListFromClient(c))
 	if err != nil {
 		return nil, err
@@ -573,7 +574,7 @@ func GetNewMachineSet(deployment *v1alpha1.MachineDeployment, c v1alpha1client.M
 }
 
 // IsListFromClient returns an rsListFunc that wraps the given client.
-func IsListFromClient(c v1alpha1client.MachineV1alpha1Interface) IsListFunc {
+func IsListFromClient(c v1alpha1client.ClusterV1alpha1Interface) IsListFunc {
 	return func(namespace string, options metav1.ListOptions) ([]*v1alpha1.MachineSet, error) {
 		isList, err := c.MachineSets(namespace).List(options)
 		if err != nil {
@@ -724,7 +725,7 @@ func FindOldMachineSets(deployment *v1alpha1.MachineDeployment, isList []*v1alph
 			continue
 		}
 		allISs = append(allISs, is)
-		if (is.Spec.Replicas) != 0 {
+		if *(is.Spec.Replicas) != 0 {
 			requiredISs = append(requiredISs, is)
 		}
 	}
@@ -750,12 +751,12 @@ func WaitForMachinesHashPopulated(c v1alpha1listers.MachineSetLister, desiredGen
 			return false, err
 		}
 		return is.Status.ObservedGeneration >= desiredGeneration &&
-			is.Status.FullyLabeledReplicas == (is.Spec.Replicas), nil
+			is.Status.FullyLabeledReplicas == *(is.Spec.Replicas), nil
 	})
 }
 
 // LabelMachinesWithHash labels all machines in the given machineList with the new hash label.
-func LabelMachinesWithHash(machineList *v1alpha1.MachineList, c v1alpha1client.MachineV1alpha1Interface, machineLister v1alpha1listers.MachineLister, namespace, name, hash string) error {
+func LabelMachinesWithHash(machineList *v1alpha1.MachineList, c v1alpha1client.ClusterV1alpha1Interface, machineLister v1alpha1listers.MachineLister, namespace, name, hash string) error {
 	for _, machine := range machineList.Items {
 		// Ignore inactive Machines.
 		if !IsMachineActive(&machine) {
@@ -796,7 +797,7 @@ func GetReplicaCountForMachineSets(MachineSets []*v1alpha1.MachineSet) int32 {
 	totalReplicas := int32(0)
 	for _, is := range MachineSets {
 		if is != nil {
-			totalReplicas += (is.Spec.Replicas)
+			totalReplicas += *(is.Spec.Replicas)
 		}
 	}
 	return totalReplicas
@@ -837,15 +838,15 @@ func GetAvailableReplicaCountForMachineSets(MachineSets []*v1alpha1.MachineSet) 
 
 // IsRollingUpdate returns true if the strategy type is a rolling update.
 func IsRollingUpdate(deployment *v1alpha1.MachineDeployment) bool {
-	return deployment.Spec.Strategy.Type == v1alpha1.RollingUpdateMachineDeploymentStrategyType
+	return deployment.Spec.Strategy.Type == common.RollingUpdateMachineDeploymentStrategyType
 }
 
 // MachineDeploymentComplete considers a deployment to be complete once all of its desired replicas
 // are updated and available, and no old machines are running.
 func MachineDeploymentComplete(deployment *v1alpha1.MachineDeployment, newStatus *v1alpha1.MachineDeploymentStatus) bool {
-	return newStatus.UpdatedReplicas == (deployment.Spec.Replicas) &&
-		newStatus.Replicas == (deployment.Spec.Replicas) &&
-		newStatus.AvailableReplicas == (deployment.Spec.Replicas) &&
+	return newStatus.UpdatedReplicas == *(deployment.Spec.Replicas) &&
+		newStatus.Replicas == *(deployment.Spec.Replicas) &&
+		newStatus.AvailableReplicas == *(deployment.Spec.Replicas) &&
 		newStatus.ObservedGeneration >= deployment.Generation
 }
 
@@ -920,26 +921,26 @@ func MachineDeploymentTimedOut(deployment *v1alpha1.MachineDeployment, newStatus
 // 2) Max number of machines allowed is reached: deployment's replicas + maxSurge == all RSs' replicas
 func NewISNewReplicas(deployment *v1alpha1.MachineDeployment, allISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet) (int32, error) {
 	switch deployment.Spec.Strategy.Type {
-	case v1alpha1.RollingUpdateMachineDeploymentStrategyType:
+	case common.RollingUpdateMachineDeploymentStrategyType:
 		// Check if we can scale up.
-		maxSurge, err := intstrutil.GetValueFromIntOrPercent(deployment.Spec.Strategy.RollingUpdate.MaxSurge, int((deployment.Spec.Replicas)), true)
+		maxSurge, err := intstrutil.GetValueFromIntOrPercent(deployment.Spec.Strategy.RollingUpdate.MaxSurge, int(*(deployment.Spec.Replicas)), true)
 		if err != nil {
 			return 0, err
 		}
 		// Find the total number of machines
 		currentMachineCount := GetReplicaCountForMachineSets(allISs)
-		maxTotalMachines := (deployment.Spec.Replicas) + int32(maxSurge)
+		maxTotalMachines := *(deployment.Spec.Replicas) + int32(maxSurge)
 		if currentMachineCount >= maxTotalMachines {
 			// Cannot scale up.
-			return (newIS.Spec.Replicas), nil
+			return *(newIS.Spec.Replicas), nil
 		}
 		// Scale up.
 		scaleUpCount := maxTotalMachines - currentMachineCount
 		// Do not exceed the number of desired replicas.
-		scaleUpCount = int32(integer.IntMin(int(scaleUpCount), int((deployment.Spec.Replicas)-(newIS.Spec.Replicas))))
-		return (newIS.Spec.Replicas) + scaleUpCount, nil
-	case v1alpha1.RecreateMachineDeploymentStrategyType:
-		return (deployment.Spec.Replicas), nil
+		scaleUpCount = int32(integer.IntMin(int(scaleUpCount), int(*(deployment.Spec.Replicas)-*(newIS.Spec.Replicas))))
+		return *(newIS.Spec.Replicas) + scaleUpCount, nil
+	case common.RecreateMachineDeploymentStrategyType:
+		return *(deployment.Spec.Replicas), nil
 	default:
 		return 0, fmt.Errorf("machine deployment type %v isn't supported", deployment.Spec.Strategy.Type)
 	}
@@ -958,9 +959,9 @@ func IsSaturated(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet
 	if err != nil {
 		return false
 	}
-	return (is.Spec.Replicas) == (deployment.Spec.Replicas) &&
-		int32(desired) == (deployment.Spec.Replicas) &&
-		is.Status.AvailableReplicas == (deployment.Spec.Replicas)
+	return *(is.Spec.Replicas) == *(deployment.Spec.Replicas) &&
+		int32(desired) == *(deployment.Spec.Replicas) &&
+		is.Status.AvailableReplicas == *(deployment.Spec.Replicas)
 }
 
 // WaitForObservedMachineDeployment polls for deployment to be updated so that deployment.Status.ObservedGeneration >= desiredGeneration.

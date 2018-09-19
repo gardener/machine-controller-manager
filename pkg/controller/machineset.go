@@ -40,9 +40,8 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	machine "github.com/gardener/machine-controller-manager/pkg/apis/cluster"
+	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
 )
 
 const (
@@ -139,8 +138,8 @@ func (c *controller) machineSetUpdate(old, cur interface{}) {
 	// this function), but in general extra resyncs shouldn't be
 	// that bad as MachineSets that haven't met expectations yet won't
 	// sync, and all the listing is done using local stores.
-	if oldMachineSet.Spec.Replicas != currentMachineSet.Spec.Replicas {
-		glog.V(4).Infof("%v updated. Desired machine count change: %d->%d", currentMachineSet.Name, oldMachineSet.Spec.Replicas, currentMachineSet.Spec.Replicas)
+	if *oldMachineSet.Spec.Replicas != *currentMachineSet.Spec.Replicas {
+		glog.V(4).Infof("%v %v updated. Desired machine count change: %d->%d", currentMachineSet.Name, *oldMachineSet.Spec.Replicas, *currentMachineSet.Spec.Replicas)
 	}
 	c.enqueueMachineSet(currentMachineSet)
 }
@@ -339,7 +338,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 	}
 	c.terminateMachines(staleMachines, machineSet)
 
-	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
+	diff := len(activeMachines) - int(*machineSet.Spec.Replicas)
 	glog.V(3).Infof("Difference between current active replicas and desired replicas - %d", diff)
 
 	if diff < 0 {
@@ -359,7 +358,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 		// into a performance bottleneck. We should generate a UID for the machine
 		// beforehand and store it via ExpectCreations.
 		c.expectations.ExpectCreations(machineSetKey, diff)
-		glog.V(2).Infof("Too few replicas for MachineSet %s, need %d, creating %d", machineSet.Name, (machineSet.Spec.Replicas), diff)
+		glog.V(1).Infof("Too few replicas for MachineSet %s, need %d, creating %d", machineSet.Name, (*machineSet.Spec.Replicas), diff)
 		// Batch the machine creates. Batch sizes start at SlowStartInitialBatchSize
 		// and double with each successful iteration in a kind of "slow start".
 		// This handles attempts to start large numbers of machines that would
@@ -409,7 +408,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 		if diff > BurstReplicas {
 			diff = BurstReplicas
 		}
-		glog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (machineSet.Spec.Replicas), diff)
+		glog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (*machineSet.Spec.Replicas), diff)
 
 		machinesToDelete := getMachinesToDelete(activeMachines, diff)
 
@@ -459,17 +458,18 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	if err != nil {
 		return err
 	}
-	validationerr := validation.ValidateMachineSet(internalMachineSet)
-	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of MachineSet failed %s", validationerr.ToAggregate().Error())
-		return nil
-	}
+	// TODO: Un-comment it later.
+	// validationerr := validation.ValidateMachineSet(internalMachineSet)
+	// if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+	// 	glog.V(2).Infof("Validation of MachineSet failed %s", validationerr.ToAggregate().Error())
+	// 	return nil
+	// }
 
-	// Validate MachineClass
-	_, secretRef, err := c.validateMachineClass(&machineSet.Spec.Template.Spec.Class)
-	if err != nil || secretRef == nil {
-		return err
-	}
+	// // Validate MachineClass
+	// _, secretRef, err := c.validateMachineClass(&machineSet.Spec.Template.Spec.Class)
+	// if err != nil || secretRef == nil {
+	// 	return err
+	// }
 
 	// Manipulate finalizers
 	if machineSet.DeletionTimestamp == nil {

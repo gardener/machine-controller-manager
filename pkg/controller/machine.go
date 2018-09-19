@@ -34,9 +34,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/cluster"
+	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/driver"
 )
 
@@ -124,19 +123,38 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	if err != nil {
 		return err
 	}
-	validationerr := validation.ValidateMachine(internalMachine)
-	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.Errorf("Validation of Machine failed %s", validationerr.ToAggregate().Error())
-		return nil
-	}
+	// validationerr := validation.ValidateMachine(internalMachine)
+	// if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+	// 	glog.V(2).Infof("Validation of Machine failed %s", validationerr.ToAggregate().Error())
+	// 	return nil
+	// }
 
 	// Validate MachineClass
-	MachineClass, secretRef, err := c.validateMachineClass(&machine.Spec.Class)
+	_, secretRef, err := c.validateMachineClass(machine.Spec.ProviderConfig.ValueFrom.MachineClass)
 	if err != nil || secretRef == nil {
 		return err
 	}
 
-	driver := driver.NewDriver(machine.Spec.ProviderID, secretRef, machine.Spec.Class.Kind, MachineClass, machine.Name)
+	machineClass, err := c.controlMachineClient.MachineClasses(machine.Namespace).Get(machine.Spec.ProviderConfig.ValueFrom.MachineClass.Name, metav1.GetOptions{})
+
+	// _ , codecFactory, err := v1alpha1.NewCodec()
+	// if err != nil {
+	// 	return err
+	// }
+	// obj, gvk, err := runtime.Serializer.CodecFactory.UniversalDecoder(openstackconfigv1.SchemeGroupVersion).Decode(providerConfig.Value.Raw, nil, nil)
+
+	codec, err := v1alpha1.NewCodec()
+	if err != nil {
+		return err
+	}
+	//type config v1alpha1.AWSMachineClass
+	//config := v1alpha1.AWSMachineClass{}
+	var config v1alpha1.AWSMachineClass
+	_ = codec.DecodeFromProviderConfig(machineClass, &config)
+
+	//codec.decoder.Decode(machineClass.ProviderConfig.Raw, nil, config)
+
+	driver := driver.NewDriver(machine.Status.ProviderID, secretRef, machine.Spec.ProviderConfig.ValueFrom.MachineClass.Kind, &config, machine.Name)
 	actualProviderID, err := driver.GetExisting()
 	if err != nil {
 		return err
@@ -177,7 +195,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 			if err := c.machineCreate(machine, driver); err != nil {
 				return err
 			}
-		} else if actualProviderID != machine.Spec.ProviderID {
+		} else if actualProviderID != machine.Status.ProviderID {
 			if err := c.machineUpdate(machine, actualProviderID); err != nil {
 				return err
 			}
@@ -245,13 +263,13 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 
 func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
 
-	if machine.Status.Node == "" {
+	if machine.Status.NodeRef == nil {
 		// There are no objects mapped to this machine object
 		// Hence node status need not be propogated to machine object
 		return machine, nil
 	}
 
-	node, err := c.nodeLister.Get(machine.Status.Node)
+	node, err := c.nodeLister.Get(machine.Status.NodeRef.Name)
 	if err != nil && apierrors.IsNotFound(err) {
 		// Node object is not found
 
@@ -359,8 +377,13 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 			clone.Annotations[MachinePriority] = "3"
 		}
 
-		clone.Spec.ProviderID = actualProviderID
-		clone.Status.Node = nodeName
+		nodeRef := &v1.ObjectReference{
+			Name: nodeName,
+		}
+
+		clone.Status.ProviderID = actualProviderID
+		//clone.Status.NodeRef.Name = nodeName
+		clone.Status.NodeRef = nodeRef
 		clone.Status.LastOperation = lastOperation
 		clone.Status.CurrentStatus = currentStatus
 
@@ -385,7 +408,7 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 		}
 
 		clone := machine.DeepCopy()
-		clone.Spec.ProviderID = actualProviderID
+		clone.Status.ProviderID = actualProviderID
 		lastOperation := v1alpha1.LastOperation{
 			Description:    "Updated provider ID",
 			State:          v1alpha1.MachineStateSuccessful,
@@ -774,7 +797,7 @@ func shouldReconcileMachine(machine *v1alpha1.Machine, now time.Time) bool {
 	if machine.DeletionTimestamp != nil {
 		return true
 	}
-	if machine.Spec.ProviderID == "" {
+	if machine.Status.ProviderID == "" {
 		return true
 	}
 	// TODO add more cases where this will be false

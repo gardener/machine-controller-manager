@@ -31,7 +31,32 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSBlockDeviceMappingSpec": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.APIEndpoint": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "APIEndpoint represents a reachable Kubernetes API endpoint.",
+					Properties: map[string]spec.Schema{
+						"host": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The hostname on which the API server is serving.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"port": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The port on which the API server is serving.",
+								Type:        []string{"integer"},
+								Format:      "int32",
+							},
+						},
+					},
+					Required: []string{"host", "port"},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSBlockDeviceMappingSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Properties: map[string]spec.Schema{
@@ -45,7 +70,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"ebs": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Parameters used to automatically set up EBS volumes when the machine is launched.",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSEbsBlockDeviceSpec"),
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSEbsBlockDeviceSpec"),
 							},
 						},
 						"noDevice": {
@@ -66,9 +91,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSEbsBlockDeviceSpec"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSEbsBlockDeviceSpec"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSEbsBlockDeviceSpec": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSEbsBlockDeviceSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "Describes a block device for an EBS volume. Please also see https://docs.aws.amazon.com/goto/WebAPI/ec2-2016-11-15/EbsBlockDevice",
@@ -113,7 +138,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSIAMProfileSpec": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSIAMProfileSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "Describes an IAM machine profile.",
@@ -137,7 +162,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClass": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSMachineClass": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AWSMachineClass TODO",
@@ -163,16 +188,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClassSpec"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSMachineClassSpec"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSMachineClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClassList": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSMachineClassList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AWSMachineClassList is a collection of AWSMachineClasses.",
@@ -202,7 +227,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClass"),
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSMachineClass"),
 										},
 									},
 								},
@@ -212,9 +237,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSMachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClassSpec": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSMachineClassSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AWSMachineClassSpec is the specification of a cluster.",
@@ -237,7 +262,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSBlockDeviceMappingSpec"),
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSBlockDeviceMappingSpec"),
 										},
 									},
 								},
@@ -251,7 +276,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"iam": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSIAMProfileSpec"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSIAMProfileSpec"),
 							},
 						},
 						"machineType": {
@@ -278,7 +303,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSNetworkInterfaceSpec"),
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSNetworkInterfaceSpec"),
 										},
 									},
 								},
@@ -306,9 +331,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSBlockDeviceMappingSpec", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSIAMProfileSpec", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSNetworkInterfaceSpec", "k8s.io/api/core/v1.SecretReference"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSBlockDeviceMappingSpec", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSIAMProfileSpec", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSNetworkInterfaceSpec", "k8s.io/api/core/v1.SecretReference"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSNetworkInterfaceSpec": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AWSNetworkInterfaceSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "Describes a network interface. Please also see https://docs.aws.amazon.com/goto/WebAPI/ec2-2016-11-15/MachineAWSNetworkInterfaceSpecification",
@@ -360,226 +385,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClass": {
-			Schema: spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					Description: "AlicloudMachineClass TODO",
-					Properties: map[string]spec.Schema{
-						"metadata": {
-							SchemaProps: spec.SchemaProps{
-								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
-							},
-						},
-						"kind": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"apiVersion": {
-							SchemaProps: spec.SchemaProps{
-								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"spec": {
-							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClassSpec"),
-							},
-						},
-					},
-				},
-			},
-			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
-		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClassList": {
-			Schema: spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					Description: "AlicloudMachineClassList is a collection of AlicloudMachineClasses.",
-					Properties: map[string]spec.Schema{
-						"kind": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"apiVersion": {
-							SchemaProps: spec.SchemaProps{
-								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"metadata": {
-							SchemaProps: spec.SchemaProps{
-								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
-							},
-						},
-						"items": {
-							SchemaProps: spec.SchemaProps{
-								Type: []string{"array"},
-								Items: &spec.SchemaOrArray{
-									Schema: &spec.Schema{
-										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClass"),
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
-		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClassSpec": {
-			Schema: spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					Description: "AlicloudMachineClassSpec is the specification of a cluster.",
-					Properties: map[string]spec.Schema{
-						"imageName": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
-							},
-						},
-						"instanceType": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
-							},
-						},
-						"region": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
-							},
-						},
-						"zone": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
-							},
-						},
-						"securityGroupID": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
-							},
-						},
-						"vSwitchID": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
-							},
-						},
-						"privateIPAddress": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
-							},
-						},
-						"systemDisk": {
-							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudSystemDisk"),
-							},
-						},
-						"instanceChargeType": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
-							},
-						},
-						"internetChargeType": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
-							},
-						},
-						"internetMaxBandwidthIn": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"integer"},
-								Format: "int32",
-							},
-						},
-						"internetMaxBandwidthOut": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"integer"},
-								Format: "int32",
-							},
-						},
-						"spotStrategy": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
-							},
-						},
-						"IoOptimized": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
-							},
-						},
-						"tags": {
-							SchemaProps: spec.SchemaProps{
-								Type: []string{"object"},
-								AdditionalProperties: &spec.SchemaOrBool{
-									Schema: &spec.Schema{
-										SchemaProps: spec.SchemaProps{
-											Type:   []string{"string"},
-											Format: "",
-										},
-									},
-								},
-							},
-						},
-						"keyPairName": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
-							},
-						},
-						"secretRef": {
-							SchemaProps: spec.SchemaProps{
-								Ref: ref("k8s.io/api/core/v1.SecretReference"),
-							},
-						},
-					},
-					Required: []string{"imageName", "instanceType", "region", "vSwitchID", "keyPairName"},
-				},
-			},
-			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudSystemDisk", "k8s.io/api/core/v1.SecretReference"},
-		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudSystemDisk": {
-			Schema: spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					Description: "AlicloudSystemDisk describes SystemDisk for Alicloud.",
-					Properties: map[string]spec.Schema{
-						"category": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
-							},
-						},
-						"size": {
-							SchemaProps: spec.SchemaProps{
-								Type:   []string{"integer"},
-								Format: "int32",
-							},
-						},
-					},
-					Required: []string{"category", "size"},
-				},
-			},
-			Dependencies: []string{},
-		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureHardwareProfile": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureHardwareProfile": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureHardwareProfile is specifies the hardware settings for the virtual machine. Refer github.com/Azure/azure-sdk-for-go/arm/compute/models.go for VMSizes",
@@ -595,7 +401,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureImageReference": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureImageReference": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureImageReference is specifies information about the image to use. You can specify information about platform images, marketplace images, or virtual machine images. This element is required when you want to use a platform image, marketplace image, or virtual machine image, but is not used in other creation operations.",
@@ -635,7 +441,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureLinuxConfiguration": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureLinuxConfiguration": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureLinuxConfiguration is specifies the Linux operating system settings on the virtual machine. <br><br>For a list of supported Linux distributions, see [Linux on Azure-Endorsed Distributions](https://docs.microsoft.com/azure/virtual-machines/virtual-machines-linux-endorsed-distros?toc=%2fazure%2fvirtual-machines%2flinux%2ftoc.json) <br><br> For running non-endorsed distributions, see [Information for Non-Endorsed Distributions](https://docs.microsoft.com/azure/virtual-machines/virtual-machines-linux-create-upload-generic?toc=%2fazure%2fvirtual-machines%2flinux%2ftoc.json).",
@@ -648,16 +454,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"ssh": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSSHConfiguration"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureSSHConfiguration"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSSHConfiguration"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureSSHConfiguration"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClass": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureMachineClass": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureMachineClass TODO",
@@ -683,16 +489,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClassSpec"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureMachineClassSpec"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureMachineClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClassList": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureMachineClassList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureMachineClassList is a collection of AzureMachineClasses.",
@@ -722,7 +528,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClass"),
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureMachineClass"),
 										},
 									},
 								},
@@ -732,9 +538,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureMachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClassSpec": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureMachineClassSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureMachineClassSpec is the specification of a cluster.",
@@ -760,7 +566,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"properties": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureVirtualMachineProperties"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureVirtualMachineProperties"),
 							},
 						},
 						"resourceGroup": {
@@ -771,7 +577,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"subnetInfo": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSubnetInfo"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureSubnetInfo"),
 							},
 						},
 						"secretRef": {
@@ -783,9 +589,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSubnetInfo", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureVirtualMachineProperties", "k8s.io/api/core/v1.SecretReference"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureSubnetInfo", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureVirtualMachineProperties", "k8s.io/api/core/v1.SecretReference"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureManagedDiskParameters": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureManagedDiskParameters": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureManagedDiskParameters is the parameters of a managed disk.",
@@ -807,7 +613,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkInterfaceReference": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureNetworkInterfaceReference": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureNetworkInterfaceReference is describes a network interface reference.",
@@ -820,16 +626,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"properties": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkInterfaceReferenceProperties"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureNetworkInterfaceReferenceProperties"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkInterfaceReferenceProperties"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureNetworkInterfaceReferenceProperties"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkInterfaceReferenceProperties": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureNetworkInterfaceReferenceProperties": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureNetworkInterfaceReferenceProperties is describes a network interface reference properties.",
@@ -845,23 +651,23 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkProfile": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureNetworkProfile": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureNetworkProfile is specifies the network interfaces of the virtual machine.",
 					Properties: map[string]spec.Schema{
 						"networkInterfaces": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkInterfaceReference"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureNetworkInterfaceReference"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkInterfaceReference"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureNetworkInterfaceReference"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureOSDisk": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureOSDisk": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureOSDisk is specifies information about the operating system disk used by the virtual machine. <br><br> For more information about disks, see [About disks and VHDs for Azure virtual machines](https://docs.microsoft.com/azure/virtual-machines/virtual-machines-windows-about-disks-vhds?toc=%2fazure%2fvirtual-machines%2fwindows%2ftoc.json).",
@@ -880,7 +686,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"managedDisk": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureManagedDiskParameters"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureManagedDiskParameters"),
 							},
 						},
 						"diskSizeGB": {
@@ -899,9 +705,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureManagedDiskParameters"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureManagedDiskParameters"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureOSProfile": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureOSProfile": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureOSProfile is specifies the operating system settings for the virtual machine.",
@@ -932,32 +738,32 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"linuxConfiguration": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureLinuxConfiguration"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureLinuxConfiguration"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureLinuxConfiguration"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureLinuxConfiguration"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSSHConfiguration": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureSSHConfiguration": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureSSHConfiguration is SSH configuration for Linux based VMs running on Azure",
 					Properties: map[string]spec.Schema{
 						"publicKeys": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSSHPublicKey"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureSSHPublicKey"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSSHPublicKey"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureSSHPublicKey"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSSHPublicKey": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureSSHPublicKey": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureSSHPublicKey is contains information about SSH certificate public key and the path on the Linux VM where the public key is placed.",
@@ -979,28 +785,28 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureStorageProfile": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureStorageProfile": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureStorageProfile is specifies the storage settings for the virtual machine disks.",
 					Properties: map[string]spec.Schema{
 						"imageReference": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureImageReference"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureImageReference"),
 							},
 						},
 						"osDisk": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureOSDisk"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureOSDisk"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureImageReference", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureOSDisk"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureImageReference", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureOSDisk"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSubResource": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureSubResource": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureSubResource is the Sub Resource definition.",
@@ -1016,7 +822,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSubnetInfo": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureSubnetInfo": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureSubnetInfo is the information containing the subnet details",
@@ -1038,74 +844,274 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureVirtualMachineProperties": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureVirtualMachineProperties": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "AzureVirtualMachineProperties is describes the properties of a Virtual Machine.",
 					Properties: map[string]spec.Schema{
 						"hardwareProfile": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureHardwareProfile"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureHardwareProfile"),
 							},
 						},
 						"storageProfile": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureStorageProfile"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureStorageProfile"),
 							},
 						},
 						"osProfile": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureOSProfile"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureOSProfile"),
 							},
 						},
 						"networkProfile": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkProfile"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureNetworkProfile"),
 							},
 						},
 						"availabilitySet": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSubResource"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureSubResource"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureHardwareProfile", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkProfile", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureOSProfile", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureStorageProfile", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSubResource"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureHardwareProfile", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureNetworkProfile", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureOSProfile", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureStorageProfile", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.AzureSubResource"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.Cluster": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "ClassSpec is the class specification of machine",
+					Description: "Cluster",
 					Properties: map[string]spec.Schema{
-						"apiGroup": {
-							SchemaProps: spec.SchemaProps{
-								Description: "API group to which it belongs",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
 						"kind": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Kind for machine class",
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
 								Type:        []string{"string"},
 								Format:      "",
 							},
 						},
-						"name": {
+						"apiVersion": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Name of machine class",
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
 								Type:        []string{"string"},
 								Format:      "",
+							},
+						},
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							},
+						},
+						"spec": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ClusterSpec"),
+							},
+						},
+						"status": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ClusterStatus"),
 							},
 						},
 					},
 				},
 			},
-			Dependencies: []string{},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ClusterSpec", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ClusterStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.CurrentStatus": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ClusterList": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+							},
+						},
+						"items": {
+							SchemaProps: spec.SchemaProps{
+								Type: []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.Cluster"),
+										},
+									},
+								},
+							},
+						},
+					},
+					Required: []string{"items"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.Cluster", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ClusterNetworkingConfig": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "ClusterNetworkingConfig specifies the different networking parameters for a cluster.",
+					Properties: map[string]spec.Schema{
+						"services": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The network ranges from which service VIPs are allocated.",
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.NetworkRanges"),
+							},
+						},
+						"pods": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The network ranges from which POD networks are allocated.",
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.NetworkRanges"),
+							},
+						},
+						"serviceDomain": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Domain name for services.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"services", "pods", "serviceDomain"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.NetworkRanges"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ClusterSchemeFns": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "Cluster Functions and Structs",
+					Properties: map[string]spec.Schema{
+						"DefaultSchemeFns": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultSchemeFns"),
+							},
+						},
+					},
+					Required: []string{"DefaultSchemeFns"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultSchemeFns"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ClusterSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "ClusterSpec defines the desired state of Cluster",
+					Properties: map[string]spec.Schema{
+						"clusterNetwork": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Cluster network configuration",
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ClusterNetworkingConfig"),
+							},
+						},
+						"providerConfig": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Provider-specific serialized configuration to use during cluster creation. It is recommended that providers maintain their own versioned API types that should be serialized/deserialized from this field.",
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ProviderConfig"),
+							},
+						},
+					},
+					Required: []string{"clusterNetwork"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ClusterNetworkingConfig", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ProviderConfig"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ClusterStatus": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "ClusterStatus defines the observed state of Cluster",
+					Properties: map[string]spec.Schema{
+						"apiEndpoints": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIEndpoint represents the endpoint to communicate with the IP.",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.APIEndpoint"),
+										},
+									},
+								},
+							},
+						},
+						"errorReason": {
+							SchemaProps: spec.SchemaProps{
+								Description: "If set, indicates that there is a problem reconciling the state, and will be set to a token value suitable for programmatic interpretation.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"errorMessage": {
+							SchemaProps: spec.SchemaProps{
+								Description: "If set, indicates that there is a problem reconciling the state, and will be set to a descriptive error message.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"providerStatus": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Provider-specific status. It is recommended that providers maintain their own versioned API types that should be serialized/deserialized from this field.",
+								Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
+							},
+						},
+					},
+					Required: []string{"apiEndpoints", "errorReason", "errorMessage", "providerStatus"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.APIEndpoint", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ClusterStatusStrategy": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"DefaultStatusStorageStrategy": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStatusStorageStrategy"),
+							},
+						},
+					},
+					Required: []string{"DefaultStatusStorageStrategy"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStatusStorageStrategy"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ClusterStrategy": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"DefaultStorageStrategy": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStorageStrategy"),
+							},
+						},
+					},
+					Required: []string{"DefaultStorageStrategy"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStorageStrategy"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.CurrentStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "type CurrentStatus",
@@ -1136,7 +1142,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPDisk": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPDisk": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "GCPDisk describes disks for GCP.",
@@ -1190,7 +1196,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPMachineClass": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPMachineClass": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "GCPMachineClass TODO",
@@ -1216,16 +1222,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPMachineClassSpec"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPMachineClassSpec"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPMachineClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPMachineClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPMachineClassList": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPMachineClassList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "GCPMachineClassList is a collection of GCPMachineClasses.",
@@ -1255,7 +1261,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPMachineClass"),
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPMachineClass"),
 										},
 									},
 								},
@@ -1265,9 +1271,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPMachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPMachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPMachineClassSpec": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPMachineClassSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "GCPMachineClassSpec is the specification of a cluster.",
@@ -1296,7 +1302,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPDisk"),
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPDisk"),
 										},
 									},
 								},
@@ -1327,7 +1333,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPMetadata"),
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPMetadata"),
 										},
 									},
 								},
@@ -1339,7 +1345,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPNetworkInterface"),
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPNetworkInterface"),
 										},
 									},
 								},
@@ -1347,7 +1353,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"scheduling": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPScheduling"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPScheduling"),
 							},
 						},
 						"secretRef": {
@@ -1361,7 +1367,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPServiceAccount"),
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPServiceAccount"),
 										},
 									},
 								},
@@ -1397,9 +1403,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPDisk", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPMetadata", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPNetworkInterface", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPScheduling", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPServiceAccount", "k8s.io/api/core/v1.SecretReference"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPDisk", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPMetadata", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPNetworkInterface", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPScheduling", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPServiceAccount", "k8s.io/api/core/v1.SecretReference"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPMetadata": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPMetadata": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "GCPMetadata describes metadata for GCP.",
@@ -1422,7 +1428,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPNetworkInterface": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPNetworkInterface": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "GCPNetworkInterface describes network interfaces for GCP",
@@ -1444,7 +1450,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPScheduling": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPScheduling": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "GCPScheduling describes scheduling configuration for GCP.",
@@ -1473,7 +1479,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPServiceAccount": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.GCPServiceAccount": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "GCPServiceAccount describes service accounts for GCP.",
@@ -1503,7 +1509,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.LastOperation": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.LastOperation": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "LastOperation suggests the last operation performed on the object",
@@ -1541,53 +1547,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.Machine": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.Machine": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "Machine TODO",
-					Properties: map[string]spec.Schema{
-						"metadata": {
-							SchemaProps: spec.SchemaProps{
-								Description: "ObjectMeta for machine object",
-								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
-							},
-						},
-						"kind": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"apiVersion": {
-							SchemaProps: spec.SchemaProps{
-								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"spec": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Spec contains the specification of the machine",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec"),
-							},
-						},
-						"status": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Status contains fields depicting the status",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineStatus"),
-							},
-						},
-					},
-				},
-			},
-			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
-		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeployment": {
-			Schema: spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					Description: "Deployment enables declarative updates for machines and MachineSets.",
+					Description: "Machine",
 					Properties: map[string]spec.Schema{
 						"kind": {
 							SchemaProps: spec.SchemaProps{
@@ -1605,29 +1568,270 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"metadata": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Standard object metadata.",
-								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 							},
 						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Specification of the desired behavior of the MachineDeployment.",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentSpec"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSpec"),
 							},
 						},
 						"status": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Most recently observed status of the MachineDeployment.",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStatus"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineStatus"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentSpec", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSpec", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentCondition": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineClass": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "MachineClass can be used to templatize and re-use provider configuration across multiple Machines / MachineSets / MachineDeployments.",
+					Properties: map[string]spec.Schema{
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							},
+						},
+						"capacity": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The total capacity available on this machine type (cpu/memory/disk).\n\nWARNING: It is up to the creator of the MachineClass to ensure that this field is consistent with the underlying machine that will be provisioned when this class is used, to inform higher level automation (e.g. the cluster autoscaler).",
+								Type:        []string{"object"},
+								AdditionalProperties: &spec.SchemaOrBool{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("k8s.io/apimachinery/pkg/api/resource.Quantity"),
+										},
+									},
+								},
+							},
+						},
+						"allocatable": {
+							SchemaProps: spec.SchemaProps{
+								Description: "How much capacity is actually allocatable on this machine. Must be equal to or less than the capacity, and when less indicates the resources reserved for system overhead.\n\nWARNING: It is up to the creator of the MachineClass to ensure that this field is consistent with the underlying machine that will be provisioned when this class is used, to inform higher level automation (e.g. the cluster autoscaler).",
+								Type:        []string{"object"},
+								AdditionalProperties: &spec.SchemaOrBool{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("k8s.io/apimachinery/pkg/api/resource.Quantity"),
+										},
+									},
+								},
+							},
+						},
+						"providerConfig": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Provider-specific configuration to use during node creation.",
+								Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
+							},
+						},
+						"secretRef": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/api/core/v1.SecretReference"),
+							},
+						},
+						"provider": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Cloud-provider name",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"capacity", "allocatable", "providerConfig", "provider"},
+				},
+			},
+			Dependencies: []string{
+				"k8s.io/api/core/v1.SecretReference", "k8s.io/apimachinery/pkg/api/resource.Quantity", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineClassList": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+							},
+						},
+						"items": {
+							SchemaProps: spec.SchemaProps{
+								Type: []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineClass"),
+										},
+									},
+								},
+							},
+						},
+					},
+					Required: []string{"items"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineClassRef": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"Name": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The name of the MachineClass.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"Parameters": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Parameters allow basic substitution to be applied to a MachineClass (where supported). Keys must not be empty. The maximum number of parameters is 512, with a cumulative max size of 256K.",
+								Type:        []string{"object"},
+								AdditionalProperties: &spec.SchemaOrBool{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+						"Kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind represents the cloud-provider",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"Name", "Kind"},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineClassSchemeFns": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "MachineClass Functions and Structs",
+					Properties: map[string]spec.Schema{
+						"DefaultSchemeFns": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultSchemeFns"),
+							},
+						},
+					},
+					Required: []string{"DefaultSchemeFns"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultSchemeFns"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineClassStatusStrategy": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"DefaultStatusStorageStrategy": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStatusStorageStrategy"),
+							},
+						},
+					},
+					Required: []string{"DefaultStatusStorageStrategy"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStatusStorageStrategy"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineClassStrategy": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"DefaultStorageStrategy": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStorageStrategy"),
+							},
+						},
+					},
+					Required: []string{"DefaultStorageStrategy"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStorageStrategy"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeployment": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "MachineDeployment",
+					Properties: map[string]spec.Schema{
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							},
+						},
+						"spec": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentSpec"),
+							},
+						},
+						"status": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentStatus"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentSpec", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentCondition": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "MachineDeploymentCondition describes the state of a MachineDeployment at a certain point.",
@@ -1679,10 +1883,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentList": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "MachineDeploymentList is a list of MachineDeployments.",
 					Properties: map[string]spec.Schema{
 						"kind": {
 							SchemaProps: spec.SchemaProps{
@@ -1700,18 +1903,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"metadata": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Standard list metadata.",
-								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 							},
 						},
 						"items": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Items is the list of MachineDeployments.",
-								Type:        []string{"array"},
+								Type: []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeployment"),
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeployment"),
 										},
 									},
 								},
@@ -1722,9 +1923,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeployment", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeployment", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentRollback": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentRollback": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "DEPRECATED. MachineDeploymentRollback stores the information required to rollback a MachineDeployment.",
@@ -1767,7 +1968,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"rollbackTo": {
 							SchemaProps: spec.SchemaProps{
 								Description: "The config of this MachineDeployment rollback.",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig"),
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.RollbackConfig"),
 							},
 						},
 					},
@@ -1775,60 +1976,72 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.RollbackConfig"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentSpec": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentSchemeFns": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "MachineDeploymentSpec is the specification of the desired behavior of the MachineDeployment.",
+					Description: "MachineDeployment Functions and Structs",
+					Properties: map[string]spec.Schema{
+						"DefaultSchemeFns": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultSchemeFns"),
+							},
+						},
+					},
+					Required: []string{"DefaultSchemeFns"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultSchemeFns"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "MachineDeploymentSpec defines the desired state of MachineDeployment",
 					Properties: map[string]spec.Schema{
 						"replicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Number of desired machines. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.",
+								Description: "Number of desired machines. Defaults to 1. This is a pointer to distinguish between explicit zero and not specified.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
 						},
 						"selector": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Label selector for machines. Existing MachineSets whose machines are selected by this will be the ones affected by this MachineDeployment.",
+								Description: "Label selector for machines. Existing MachineSets whose machines are selected by this will be the ones affected by this deployment. It must match the machine template's labels.",
 								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 							},
 						},
 						"template": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Template describes the machines that will be created.",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec"),
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineTemplateSpec"),
 							},
 						},
 						"strategy": {
-							VendorExtensible: spec.VendorExtensible{
-								Extensions: spec.Extensions{
-									"x-kubernetes-patch-strategy": "retainKeys",
-								},
-							},
 							SchemaProps: spec.SchemaProps{
-								Description: "The MachineDeployment strategy to use to replace existing machines with new ones.",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStrategy"),
+								Description: "The deployment strategy to use to replace existing machines with new ones.",
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentStrategy"),
 							},
 						},
 						"minReadySeconds": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Minimum number of seconds for which a newly created machine should be ready without any of its container crashing, for it to be considered available. Defaults to 0 (machine will be considered available as soon as it is ready)",
+								Description: "Minimum number of seconds for which a newly created machine should be ready. Defaults to 0 (machine will be considered available as soon as it is ready)",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
 						},
 						"revisionHistoryLimit": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The number of old MachineSets to retain to allow rollback. This is a pointer to distinguish between explicit zero and not specified.",
+								Description: "The number of old MachineSets to retain to allow rollback. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
 						},
 						"paused": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Indicates that the MachineDeployment is paused and will not be processed by the MachineDeployment controller.",
+								Description: "Indicates that the deployment is paused.",
 								Type:        []string{"boolean"},
 								Format:      "",
 							},
@@ -1836,66 +2049,66 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"rollbackTo": {
 							SchemaProps: spec.SchemaProps{
 								Description: "DEPRECATED. The config this MachineDeployment is rolling back to. Will be cleared after rollback is done.",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig"),
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.RollbackConfig"),
 							},
 						},
 						"progressDeadlineSeconds": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The maximum time in seconds for a MachineDeployment to make progress before it is considered to be failed. The MachineDeployment controller will continue to process failed MachineDeployments and a condition with a ProgressDeadlineExceeded reason will be surfaced in the MachineDeployment status. Note that progress will not be estimated during the time a MachineDeployment is paused. This is not set by default.",
+								Description: "The maximum time in seconds for a deployment to make progress before it is considered to be failed. The deployment controller will continue to process failed deployments and a condition with a ProgressDeadlineExceeded reason will be surfaced in the deployment status. Note that progress will not be estimated during the time a deployment is paused. Defaults to 600s.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
 						},
 					},
-					Required: []string{"template"},
+					Required: []string{"selector", "template"},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStrategy", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentStrategy", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineTemplateSpec", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.RollbackConfig", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStatus": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "MachineDeploymentStatus is the most recently observed status of the MachineDeployment.",
+					Description: "MachineDeploymentStatus defines the observed state of MachineDeployment",
 					Properties: map[string]spec.Schema{
 						"observedGeneration": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The generation observed by the MachineDeployment controller.",
+								Description: "The generation observed by the deployment controller.",
 								Type:        []string{"integer"},
 								Format:      "int64",
 							},
 						},
 						"replicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Total number of non-terminated machines targeted by this MachineDeployment (their labels match the selector).",
+								Description: "Total number of non-terminated machines targeted by this deployment (their labels match the selector).",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
 						},
 						"updatedReplicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Total number of non-terminated machines targeted by this MachineDeployment that have the desired template spec.",
+								Description: "Total number of non-terminated machines targeted by this deployment that have the desired template spec.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
 						},
 						"readyReplicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Total number of ready machines targeted by this MachineDeployment.",
+								Description: "Total number of ready machines targeted by this deployment.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
 						},
 						"availableReplicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Total number of available machines (ready for at least minReadySeconds) targeted by this MachineDeployment.",
+								Description: "Total number of available machines (ready for at least minReadySeconds) targeted by this deployment.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
 						},
 						"unavailableReplicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Total number of unavailable machines targeted by this MachineDeployment. This is the total number of machines that are still required for the MachineDeployment to have 100% available capacity. They may either be machines that are running but not yet available or machines that still have not been created.",
+								Description: "Total number of unavailable machines targeted by this deployment. This is the total number of machines that are still required for the deployment to have 100% available capacity. They may either be machines that are running but not yet available or machines that still have not been created.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
@@ -1913,7 +2126,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentCondition"),
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentCondition"),
 										},
 									},
 								},
@@ -1933,7 +2146,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary"),
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSummary"),
 										},
 									},
 								},
@@ -1943,16 +2156,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentCondition", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentCondition", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSummary"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStrategy": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentStrategy": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "MachineDeploymentStrategy describes how to replace existing machines with new ones.",
 					Properties: map[string]spec.Schema{
 						"type": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Type of MachineDeployment. Can be \"Recreate\" or \"RollingUpdate\". Default is RollingUpdate.",
+								Description: "Type of deployment. Currently the only supported strategy is \"RollingUpdate\". Default is RollingUpdate.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -1960,19 +2173,50 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"rollingUpdate": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Rolling update config params. Present only if MachineDeploymentStrategyType = RollingUpdate.",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.RollingUpdateMachineDeployment"),
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineRollingUpdateDeployment"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.RollingUpdateMachineDeployment"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineRollingUpdateDeployment"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineList": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentValidationStatusStrategy": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "MachineList is a collection of Machines.",
+					Properties: map[string]spec.Schema{
+						"DefaultStatusStorageStrategy": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStatusStorageStrategy"),
+							},
+						},
+					},
+					Required: []string{"DefaultStatusStorageStrategy"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStatusStorageStrategy"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineDeploymentValidationStrategy": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"DefaultStorageStrategy": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStorageStrategy"),
+							},
+						},
+					},
+					Required: []string{"DefaultStorageStrategy"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStorageStrategy"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineList": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
 					Properties: map[string]spec.Schema{
 						"kind": {
 							SchemaProps: spec.SchemaProps{
@@ -1990,18 +2234,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"metadata": {
 							SchemaProps: spec.SchemaProps{
-								Description: "TypeMeta for MachineList object",
-								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 							},
 						},
 						"items": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Items contains the list of machines",
-								Type:        []string{"array"},
+								Type: []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.Machine"),
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.Machine"),
 										},
 									},
 								},
@@ -2012,18 +2254,53 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.Machine", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.Machine", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSet": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineRollingUpdateDeployment": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "MachineSet TODO",
+					Description: "Spec to control the desired behavior of rolling update.",
 					Properties: map[string]spec.Schema{
-						"metadata": {
+						"maxUnavailable": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+								Description: "The maximum number of machines that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. Defaults to 0. Example: when this is set to 30%, the old MachineSet can be scaled down to 70% of desired machines immediately when the rolling update starts. Once new machines are ready, old MachineSet can be scaled down further, followed by scaling up the new MachineSet, ensuring that the total number of machines available at all times during the update is at least 70% of desired machines.",
+								Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 							},
 						},
+						"maxSurge": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The maximum number of machines that can be scheduled above the desired number of machines. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. Defaults to 1. Example: when this is set to 30%, the new MachineSet can be scaled up immediately when the rolling update starts, such that the total number of old and new machines do not exceed 130% of desired machines. Once old machines have been killed, new MachineSet can be scaled up further, ensuring that total number of machines running at any time during the update is at most 130% of desired machines.",
+								Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSchemeFns": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "Machine Functions and Structs",
+					Properties: map[string]spec.Schema{
+						"DefaultSchemeFns": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultSchemeFns"),
+							},
+						},
+					},
+					Required: []string{"DefaultSchemeFns"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultSchemeFns"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSet": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "MachineSet ensures that a specified number of machines replicas are running at any given time.",
+					Properties: map[string]spec.Schema{
 						"kind": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
@@ -2038,23 +2315,28 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format:      "",
 							},
 						},
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							},
+						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSetSpec"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSetSpec"),
 							},
 						},
 						"status": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSetStatus"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSetStatus"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSetSpec", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSetSpec", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSetCondition": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSetCondition": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "MachineSetCondition describes the state of a machine set at a certain point.",
@@ -2100,10 +2382,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSetList": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSetList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "MachineSetList is a collection of MachineSet.",
 					Properties: map[string]spec.Schema{
 						"kind": {
 							SchemaProps: spec.SchemaProps{
@@ -2130,100 +2411,278 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSet"),
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSet"),
 										},
 									},
 								},
 							},
 						},
 					},
+					Required: []string{"items"},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSet", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSet", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSetSpec": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSetSchemeFns": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "MachineSetSpec is the specification of a cluster.",
+					Description: "MachineSet Functions and Structs",
 					Properties: map[string]spec.Schema{
-						"selector": {
+						"DefaultSchemeFns": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+								Ref: ref("github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultSchemeFns"),
 							},
 						},
-						"machineClass": {
+					},
+					Required: []string{"DefaultSchemeFns"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultSchemeFns"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSetSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "MachineSetSpec defines the desired state of MachineSet",
+					Properties: map[string]spec.Schema{
+						"replicas": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec"),
+								Description: "Replicas is the number of desired replicas. This is a pointer to distinguish between explicit zero and unspecified. Defaults to 1.",
+								Type:        []string{"integer"},
+								Format:      "int32",
+							},
+						},
+						"minReadySeconds": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Minimum number of seconds for which a newly created machine should be ready. Defaults to 0 (machine will be considered available as soon as it is ready)",
+								Type:        []string{"integer"},
+								Format:      "int32",
+							},
+						},
+						"selector": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Selector is a label query over machines that should match the replica count. Label keys and values that must match in order to be controlled by this MachineSet. It must match the machine template's labels. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors",
+								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 							},
 						},
 						"template": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec"),
+								Description: "Template is the object that describes the machine that will be created if insufficient replicas are detected.",
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineTemplateSpec"),
 							},
 						},
 					},
+					Required: []string{"selector"},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSetStatus": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSetStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "MachineSetStatus represents the status of a machineSet object",
+					Description: "MachineSetStatus defines the observed state of MachineSet",
 					Properties: map[string]spec.Schema{
+						"replicas": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Replicas is the most recently observed number of replicas.",
+								Type:        []string{"integer"},
+								Format:      "int32",
+							},
+						},
+						"fullyLabeledReplicas": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The number of replicas that have labels matching the labels of the machine template of the MachineSet.",
+								Type:        []string{"integer"},
+								Format:      "int32",
+							},
+						},
+						"readyReplicas": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The number of ready replicas for this MachineSet. A machine is considered ready when the node has been created and is \"Ready\".",
+								Type:        []string{"integer"},
+								Format:      "int32",
+							},
+						},
+						"availableReplicas": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The number of available replicas (ready for at least minReadySeconds) for this MachineSet.",
+								Type:        []string{"integer"},
+								Format:      "int32",
+							},
+						},
+						"observedGeneration": {
+							SchemaProps: spec.SchemaProps{
+								Description: "ObservedGeneration reflects the generation of the most recently observed MachineSet.",
+								Type:        []string{"integer"},
+								Format:      "int64",
+							},
+						},
+						"errorReason": {
+							SchemaProps: spec.SchemaProps{
+								Description: "In the event that there is a terminal problem reconciling the replicas, both ErrorReason and ErrorMessage will be set. ErrorReason will be populated with a succinct value suitable for machine interpretation, while ErrorMessage will contain a more verbose string suitable for logging and human consumption.\n\nThese fields should not be set for transitive errors that a controller faces that are expected to be fixed automatically over time (like service outages), but instead indicate that something is fundamentally wrong with the MachineTemplates's spec or the configuration of the machine controller, and that manual intervention is required. Examples of terminal errors would be invalid combinations of settings in the spec, values that are unsupported by the machine controller, or the responsible machine controller itself being critically misconfigured.\n\nAny transient errors that occur during the reconcilation of Machines can be added as events to the MachineSet object and/or logged in the controller's output.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"errorMessage": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
 						"lastOperation": {
 							SchemaProps: spec.SchemaProps{
 								Description: "LastOperation performed",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.LastOperation"),
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.LastOperation"),
+							},
+						},
+					},
+					Required: []string{"replicas"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.LastOperation"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSetStatusStrategy": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"DefaultStatusStorageStrategy": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStatusStorageStrategy"),
+							},
+						},
+					},
+					Required: []string{"DefaultStatusStorageStrategy"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStatusStorageStrategy"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSetStrategy": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"DefaultStorageStrategy": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStorageStrategy"),
+							},
+						},
+					},
+					Required: []string{"DefaultStorageStrategy"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStorageStrategy"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "MachineSpec defines the desired state of Machine",
+					Properties: map[string]spec.Schema{
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Description: "This ObjectMeta will autopopulate the Node created. Use this to indicate what labels, annotations, name prefix, etc., should be used when creating the Node.",
+								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							},
+						},
+						"taints": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The full, authoritative list of taints to apply to the corresponding Node. This list will overwrite any modifications made to the Node on an ongoing basis.",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("k8s.io/api/core/v1.Taint"),
+										},
+									},
+								},
+							},
+						},
+						"providerConfig": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Provider-specific configuration to use during node creation.",
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ProviderConfig"),
+							},
+						},
+						"versions": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Versions of key software to use. This field is optional at cluster creation time, and omitting the field indicates that the cluster installation tool should select defaults for the user. These defaults may differ based on the cluster installer, but the tool should populate the values it uses when persisting Machine objects. A Machine spec missing this field at runtime is invalid.",
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineVersionInfo"),
+							},
+						},
+						"configSource": {
+							SchemaProps: spec.SchemaProps{
+								Description: "To populate in the associated Node for dynamic kubelet config. This field already exists in Node, so any updates to it in the Machine spec will be automatially copied to the linked NodeRef from the status. The rest of dynamic kubelet config support should then work as-is.",
+								Ref:         ref("k8s.io/api/core/v1.NodeConfigSource"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.LastOperation"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineVersionInfo", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ProviderConfig", "k8s.io/api/core/v1.NodeConfigSource", "k8s.io/api/core/v1.Taint", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "MachineSpec is the specification of a machine.",
+					Description: "MachineStatus defines the observed state of Machine",
 					Properties: map[string]spec.Schema{
-						"class": {
+						"nodeRef": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Class contains the machineclass attributes of a machine",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec"),
+								Description: "If the corresponding Node exists, this will point to its object.",
+								Ref:         ref("k8s.io/api/core/v1.ObjectReference"),
 							},
 						},
-						"providerID": {
+						"lastUpdated": {
 							SchemaProps: spec.SchemaProps{
-								Description: "ProviderID represents the provider's unique ID given to a machine",
+								Description: "When was this status last observed",
+								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+							},
+						},
+						"versions": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The current versions of software on the corresponding Node (if it exists). This is provided for a few reasons:\n\n1) It is more convenient than checking the NodeRef, traversing it to\n   the Node, and finding the appropriate field in Node.Status.NodeInfo\n   (which uses different field names and formatting).\n2) It removes some of the dependency on the structure of the Node,\n   so that if the structure of Node.Status.NodeInfo changes, only\n   machine controllers need to be updated, rather than every client\n   of the Machines API.\n3) There is no other simple way to check the ControlPlane\n   version. A client would have to connect directly to the apiserver\n   running on the target node in order to find out its version.",
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineVersionInfo"),
+							},
+						},
+						"errorReason": {
+							SchemaProps: spec.SchemaProps{
+								Description: "In the event that there is a terminal problem reconciling the Machine, both ErrorReason and ErrorMessage will be set. ErrorReason will be populated with a succinct value suitable for machine interpretation, while ErrorMessage will contain a more verbose string suitable for logging and human consumption.\n\nThese fields should not be set for transitive errors that a controller faces that are expected to be fixed automatically over time (like service outages), but instead indicate that something is fundamentally wrong with the Machine's spec or the configuration of the controller, and that manual intervention is required. Examples of terminal errors would be invalid combinations of settings in the spec, values that are unsupported by the controller, or the responsible controller itself being critically misconfigured.\n\nAny transient errors that occur during the reconcilation of Machines can be added as events to the Machine object and/or logged in the controller's output.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
 						},
-					},
-				},
-			},
-			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec"},
-		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineStatus": {
-			Schema: spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					Description: "MachineStatus TODO",
-					Properties: map[string]spec.Schema{
-						"node": {
+						"errorMessage": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Node string",
-								Type:        []string{"string"},
-								Format:      "",
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"providerStatus": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Provider-specific status. It is recommended that providers maintain their own versioned API types that should be serialized/deserialized from this field.",
+								Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
+							},
+						},
+						"addresses": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Addresses is a list of addresses assigned to the machine. Queried from cloud provider, if available.",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("k8s.io/api/core/v1.NodeAddress"),
+										},
+									},
+								},
 							},
 						},
 						"conditions": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Conditions of this machine, same as node",
+								Description: "Conditions of this machine, same as node FROMMCM",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -2236,23 +2695,63 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"lastOperation": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Last operation refers to the status of the last operation performed",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.LastOperation"),
+								Description: "Last operation refers to the status of the last operation performed FROMMCM",
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.LastOperation"),
 							},
 						},
 						"currentStatus": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Current status of the machine object",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.CurrentStatus"),
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.CurrentStatus"),
+							},
+						},
+						"providerID": {
+							SchemaProps: spec.SchemaProps{
+								Description: "ProviderID is the fixed ID Machines get from Nodes.",
+								Type:        []string{"string"},
+								Format:      "",
 							},
 						},
 					},
+					Required: []string{"providerStatus"},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.CurrentStatus", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.LastOperation", "k8s.io/api/core/v1.NodeCondition"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.CurrentStatus", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.LastOperation", "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineVersionInfo", "k8s.io/api/core/v1.NodeAddress", "k8s.io/api/core/v1.NodeCondition", "k8s.io/api/core/v1.ObjectReference", "k8s.io/apimachinery/pkg/apis/meta/v1.Time", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineStatusStrategy": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"DefaultStatusStorageStrategy": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStatusStorageStrategy"),
+							},
+						},
+					},
+					Required: []string{"DefaultStatusStorageStrategy"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStatusStorageStrategy"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineStrategy": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"DefaultStorageStrategy": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStorageStrategy"),
+							},
+						},
+					},
+					Required: []string{"DefaultStorageStrategy"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/kubernetes-incubator/apiserver-builder/pkg/builders.DefaultStorageStrategy"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSummary": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "MachineSummary store the summary of machine.",
@@ -2274,7 +2773,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"lastOperation": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Last operation refers to the status of the last operation performed",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.LastOperation"),
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.LastOperation"),
 							},
 						},
 						"ownerRef": {
@@ -2288,91 +2787,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.LastOperation"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.LastOperation"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplate": {
-			Schema: spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					Description: "MachineTemplate describes a template for creating copies of a predefined machine.",
-					Properties: map[string]spec.Schema{
-						"kind": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"apiVersion": {
-							SchemaProps: spec.SchemaProps{
-								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"metadata": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata",
-								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
-							},
-						},
-						"template": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Template defines the machines that will be created from this machine template. https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec"),
-							},
-						},
-					},
-				},
-			},
-			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
-		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateList": {
-			Schema: spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					Description: "MachineTemplateList is a list of MachineTemplates.",
-					Properties: map[string]spec.Schema{
-						"kind": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"apiVersion": {
-							SchemaProps: spec.SchemaProps{
-								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"metadata": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Standard list metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
-								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
-							},
-						},
-						"items": {
-							SchemaProps: spec.SchemaProps{
-								Description: "List of machine templates",
-								Type:        []string{"array"},
-								Items: &spec.SchemaOrArray{
-									Schema: &spec.Schema{
-										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplate"),
-										},
-									},
-								},
-							},
-						},
-					},
-					Required: []string{"items"},
-				},
-			},
-			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
-		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineTemplateSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "MachineTemplateSpec describes the data a machine should have when created from a template",
@@ -2386,16 +2803,64 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"spec": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Specification of the desired behavior of the machine. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec"),
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSpec"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClass": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineVersionInfo": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"kubelet": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Semantic version of kubelet to run",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"controlPlane": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Semantic version of the Kubernetes control plane to run. This should only be populated when the machine is a master.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"kubelet"},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.NetworkRanges": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "NetworkRanges represents ranges of network addresses.",
+					Properties: map[string]spec.Schema{
+						"cidrBlocks": {
+							SchemaProps: spec.SchemaProps{
+								Type: []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+					},
+					Required: []string{"cidrBlocks"},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.OpenStackMachineClass": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "OpenStackMachineClass TODO",
@@ -2421,16 +2886,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClassSpec"),
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.OpenStackMachineClassSpec"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.OpenStackMachineClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClassList": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.OpenStackMachineClassList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "OpenStackMachineClassList is a collection of OpenStackMachineClasses.",
@@ -2460,7 +2925,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
-											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClass"),
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.OpenStackMachineClass"),
 										},
 									},
 								},
@@ -2470,9 +2935,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.OpenStackMachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClassSpec": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.OpenStackMachineClassSpec": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Description: "OpenStackMachineClassSpec is the specification of a cluster.",
@@ -2557,7 +3022,69 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/api/core/v1.SecretReference"},
 		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig": {
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ProviderConfig": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "ProviderConfig defines the configuration to use during node creation.",
+					Properties: map[string]spec.Schema{
+						"value": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Value is an inlined, serialized representation of the resource configuration. It is recommended that providers maintain their own versioned API types that should be serialized/deserialized from this field, akin to component config.",
+								Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
+							},
+						},
+						"ValueFrom": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Source for the provider configuration. Cannot be used if value is not empty.",
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ProviderConfigSource"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ProviderConfigSource", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ProviderConfigCodec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"encoder": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/runtime.Encoder"),
+							},
+						},
+						"decoder": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/runtime.Decoder"),
+							},
+						},
+					},
+					Required: []string{"encoder", "decoder"},
+				},
+			},
+			Dependencies: []string{
+				"k8s.io/apimachinery/pkg/runtime.Decoder", "k8s.io/apimachinery/pkg/runtime.Encoder"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.ProviderConfigSource": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "ProviderConfigSource represents a source for the provider-specific resource configuration.",
+					Properties: map[string]spec.Schema{
+						"MachineClass": {
+							SchemaProps: spec.SchemaProps{
+								Description: "No more than one of the following may be specified. The machine class from which the provider config should be sourced.",
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineClassRef"),
+							},
+						},
+					},
+					Required: []string{"MachineClass"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.MachineClassRef"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1.RollbackConfig": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					Properties: map[string]spec.Schema{
@@ -2572,121 +3099,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{},
-		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.RollingUpdateMachineDeployment": {
-			Schema: spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					Description: "Spec to control the desired behavior of rolling update.",
-					Properties: map[string]spec.Schema{
-						"maxUnavailable": {
-							SchemaProps: spec.SchemaProps{
-								Description: "The maximum number of machines that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. By default, a fixed value of 1 is used. Example: when this is set to 30%, the old MC can be scaled down to 70% of desired machines immediately when the rolling update starts. Once new machines are ready, old MC can be scaled down further, followed by scaling up the new MC, ensuring that the total number of machines available at all times during the update is at least 70% of desired machines.",
-								Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
-							},
-						},
-						"maxSurge": {
-							SchemaProps: spec.SchemaProps{
-								Description: "The maximum number of machines that can be scheduled above the desired number of machines. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. By default, a value of 1 is used. Example: when this is set to 30%, the new MC can be scaled up immediately when the rolling update starts, such that the total number of old and new machines do not exceed 130% of desired machines. Once old machines have been killed, new MC can be scaled up further, ensuring that total number of machines running at any time during the update is atmost 130% of desired machines.",
-								Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
-							},
-						},
-					},
-				},
-			},
-			Dependencies: []string{
-				"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
-		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.Scale": {
-			Schema: spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					Description: "represents a scaling request for a resource.",
-					Properties: map[string]spec.Schema{
-						"kind": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"apiVersion": {
-							SchemaProps: spec.SchemaProps{
-								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"metadata": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Standard object metadata; More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata.",
-								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
-							},
-						},
-						"spec": {
-							SchemaProps: spec.SchemaProps{
-								Description: "defines the behavior of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status.",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ScaleSpec"),
-							},
-						},
-						"status": {
-							SchemaProps: spec.SchemaProps{
-								Description: "current status of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status. Read-only.",
-								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ScaleStatus"),
-							},
-						},
-					},
-				},
-			},
-			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ScaleSpec", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ScaleStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
-		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ScaleSpec": {
-			Schema: spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					Description: "describes the attributes of a scale subresource",
-					Properties: map[string]spec.Schema{
-						"replicas": {
-							SchemaProps: spec.SchemaProps{
-								Description: "desired number of machines for the scaled object.",
-								Type:        []string{"integer"},
-								Format:      "int32",
-							},
-						},
-					},
-				},
-			},
-			Dependencies: []string{},
-		},
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ScaleStatus": {
-			Schema: spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					Description: "represents the current status of a scale subresource.",
-					Properties: map[string]spec.Schema{
-						"replicas": {
-							SchemaProps: spec.SchemaProps{
-								Description: "actual number of observed machines of the scaled object.",
-								Type:        []string{"integer"},
-								Format:      "int32",
-							},
-						},
-						"selector": {
-							SchemaProps: spec.SchemaProps{
-								Description: "label query over machines that should match the replicas count. More info: http://kubernetes.io/docs/user-guide/labels#label-selectors",
-								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
-							},
-						},
-						"targetSelector": {
-							SchemaProps: spec.SchemaProps{
-								Description: "label selector for machines that should match the replicas count. This is a serializated version of both map-based and more expressive set-based selectors. This is done to avoid introspection in the clients. The string will be in the same format as the query-param syntax. If the target type only supports map-based selectors, both this field and map-based selector field are populated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-					},
-					Required: []string{"replicas"},
-				},
-			},
-			Dependencies: []string{
-				"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 		},
 		"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource": {
 			Schema: spec.Schema{

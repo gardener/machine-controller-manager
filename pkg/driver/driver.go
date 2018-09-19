@@ -18,7 +18,7 @@ limitations under the License.
 package driver
 
 import (
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -39,7 +39,7 @@ type VMs map[string]string
 func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, machineClass interface{}, machineName string) Driver {
 
 	switch classKind {
-	case "OpenStackMachineClass":
+	case "OpenStack":
 		return &OpenStackDriver{
 			OpenStackMachineClass: machineClass.(*v1alpha1.OpenStackMachineClass),
 			CloudConfig:           secretRef,
@@ -48,7 +48,7 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 			MachineName:           machineName,
 		}
 
-	case "AWSMachineClass":
+	case "AWS":
 		return &AWSDriver{
 			AWSMachineClass: machineClass.(*v1alpha1.AWSMachineClass),
 			CloudConfig:     secretRef,
@@ -57,7 +57,7 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 			MachineName:     machineName,
 		}
 
-	case "AzureMachineClass":
+	case "Azure":
 		return &AzureDriver{
 			AzureMachineClass: machineClass.(*v1alpha1.AzureMachineClass),
 			CloudConfig:       secretRef,
@@ -66,22 +66,13 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 			MachineName:       machineName,
 		}
 
-	case "GCPMachineClass":
+	case "GCP":
 		return &GCPDriver{
 			GCPMachineClass: machineClass.(*v1alpha1.GCPMachineClass),
 			CloudConfig:     secretRef,
 			UserData:        string(secretRef.Data["userData"]),
 			MachineID:       machineID,
 			MachineName:     machineName,
-		}
-
-	case "AlicloudMachineClass":
-		return &AlicloudDriver{
-			AlicloudMachineClass: machineClass.(*v1alpha1.AlicloudMachineClass),
-			CloudConfig:          secretRef,
-			UserData:             string(secretRef.Data["userData"]),
-			MachineID:            machineID,
-			MachineName:          machineName,
 		}
 	}
 

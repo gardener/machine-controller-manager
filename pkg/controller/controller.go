@@ -24,11 +24,11 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 
-	machine_internal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	machine_v1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
-	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions/machine/v1alpha1"
-	machinelisters "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
+	machine_internal "github.com/gardener/machine-controller-manager/pkg/apis/cluster"
+	machine_v1 "github.com/gardener/machine-controller-manager/pkg/apis/cluster/v1alpha1"
+	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/cluster/v1alpha1"
+	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions/cluster/v1alpha1"
+	machinelisters "github.com/gardener/machine-controller-manager/pkg/client/listers/cluster/v1alpha1"
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/api/core/v1"
@@ -63,16 +63,12 @@ const (
 // NewController returns a new Node controller.
 func NewController(
 	namespace string,
-	controlMachineClient machineapi.MachineV1alpha1Interface,
+	controlMachineClient machineapi.ClusterV1alpha1Interface,
 	controlCoreClient kubernetes.Interface,
 	targetCoreClient kubernetes.Interface,
 	secretInformer coreinformers.SecretInformer,
 	nodeInformer coreinformers.NodeInformer,
-	openStackMachineClassInformer machineinformers.OpenStackMachineClassInformer,
-	awsMachineClassInformer machineinformers.AWSMachineClassInformer,
-	azureMachineClassInformer machineinformers.AzureMachineClassInformer,
-	gcpMachineClassInformer machineinformers.GCPMachineClassInformer,
-	alicloudMachineClassInformer machineinformers.AlicloudMachineClassInformer,
+	machineClassInformer machineinformers.MachineClassInformer,
 	machineInformer machineinformers.MachineInformer,
 	machineSetInformer machineinformers.MachineSetInformer,
 	machineDeploymentInformer machineinformers.MachineDeploymentInformer,
@@ -88,11 +84,7 @@ func NewController(
 		expectations:                   NewUIDTrackingContExpectations(NewContExpectations()),
 		secretQueue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
 		nodeQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
-		openStackMachineClassQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "openstackmachineclass"),
-		awsMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
-		azureMachineClassQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
-		gcpMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "gcpmachineclass"),
-		alicloudMachineClassQueue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "alicloudmachineclass"),
+		machineClassQueue:              workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineclass"),
 		machineQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
 		machineSetQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
 		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
@@ -127,11 +119,7 @@ func NewController(
 
 	// Controller listers
 	controller.secretLister = secretInformer.Lister()
-	controller.openStackMachineClassLister = openStackMachineClassInformer.Lister()
-	controller.awsMachineClassLister = awsMachineClassInformer.Lister()
-	controller.azureMachineClassLister = azureMachineClassInformer.Lister()
-	controller.gcpMachineClassLister = gcpMachineClassInformer.Lister()
-	controller.alicloudMachineClassLister = alicloudMachineClassInformer.Lister()
+	controller.machineClassLister = machineClassInformer.Lister()
 	controller.nodeLister = nodeInformer.Lister()
 	controller.machineLister = machineInformer.Lister()
 	controller.machineSetLister = machineSetInformer.Lister()
@@ -139,11 +127,7 @@ func NewController(
 
 	// Controller syncs
 	controller.secretSynced = secretInformer.Informer().HasSynced
-	controller.openStackMachineClassSynced = openStackMachineClassInformer.Informer().HasSynced
-	controller.awsMachineClassSynced = awsMachineClassInformer.Informer().HasSynced
-	controller.azureMachineClassSynced = azureMachineClassInformer.Informer().HasSynced
-	controller.gcpMachineClassSynced = gcpMachineClassInformer.Informer().HasSynced
-	controller.alicloudMachineClassSynced = alicloudMachineClassInformer.Informer().HasSynced
+	controller.machineClassSynced = machineClassInformer.Informer().HasSynced
 	controller.nodeSynced = nodeInformer.Informer().HasSynced
 	controller.machineSynced = machineInformer.Informer().HasSynced
 	controller.machineSetSynced = machineSetInformer.Informer().HasSynced
@@ -155,118 +139,28 @@ func NewController(
 		DeleteFunc: controller.secretDelete,
 	})
 
-	openStackMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.openStackMachineClassToSecretAdd,
-		UpdateFunc: controller.openStackMachineClassToSecretUpdate,
-		DeleteFunc: controller.openStackMachineClassToSecretDelete,
+	machineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.machineClassToSecretAdd,
+		UpdateFunc: controller.machineClassToSecretUpdate,
+		DeleteFunc: controller.machineClassToSecretDelete,
 	})
 
-	gcpMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.gcpMachineClassToSecretAdd,
-		UpdateFunc: controller.gcpMachineClassToSecretUpdate,
-		DeleteFunc: controller.gcpMachineClassToSecretDelete,
-	})
-
-	azureMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.azureMachineClassToSecretAdd,
-		UpdateFunc: controller.azureMachineClassToSecretUpdate,
-		DeleteFunc: controller.azureMachineClassToSecretDelete,
-	})
-
-	awsMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.awsMachineClassToSecretAdd,
-		UpdateFunc: controller.awsMachineClassToSecretUpdate,
-		DeleteFunc: controller.awsMachineClassToSecretDelete,
-	})
-
-	// Openstack Controller Informers
+	// MachineClass Controller Informers
 	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineDeploymentToOpenStackMachineClassDelete,
+		DeleteFunc: controller.machineDeploymentToMachineClassDelete,
 	})
 
 	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineSetToOpenStackMachineClassDelete,
+		DeleteFunc: controller.machineSetToMachineClassDelete,
 	})
 
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineToOpenStackMachineClassDelete,
+		DeleteFunc: controller.machineToMachineClassDelete,
 	})
 
-	openStackMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.openStackMachineClassAdd,
-		UpdateFunc: controller.openStackMachineClassUpdate,
-	})
-
-	// AWS Controller Informers
-	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineDeploymentToAWSMachineClassDelete,
-	})
-
-	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineSetToAWSMachineClassDelete,
-	})
-
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineToAWSMachineClassDelete,
-	})
-
-	awsMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.awsMachineClassAdd,
-		UpdateFunc: controller.awsMachineClassUpdate,
-	})
-
-	// Azure Controller Informers
-	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineDeploymentToAzureMachineClassDelete,
-	})
-
-	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineSetToAzureMachineClassDelete,
-	})
-
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineToAzureMachineClassDelete,
-	})
-
-	azureMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.azureMachineClassAdd,
-		UpdateFunc: controller.azureMachineClassUpdate,
-	})
-
-	// GCP Controller Informers
-	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineDeploymentToGCPMachineClassDelete,
-	})
-
-	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineSetToGCPMachineClassDelete,
-	})
-
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineToGCPMachineClassDelete,
-	})
-
-	gcpMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.gcpMachineClassAdd,
-		UpdateFunc: controller.gcpMachineClassUpdate,
-	})
-
-	// Alicloud Controller Informers
-	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineDeploymentToAlicloudMachineClassDelete,
-	})
-
-	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineSetToAlicloudMachineClassDelete,
-	})
-
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineToAlicloudMachineClassDelete,
-	})
-
-	alicloudMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.alicloudMachineClassAdd,
-		UpdateFunc: controller.alicloudMachineClassUpdate,
+	machineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.machineClassAdd,
+		UpdateFunc: controller.machineClassUpdate,
 	})
 
 	/* Node Controller Informers - Don't remove this, saved for future use case.
@@ -362,7 +256,7 @@ type Controller interface {
 type controller struct {
 	namespace string
 
-	controlMachineClient machineapi.MachineV1alpha1Interface
+	controlMachineClient machineapi.ClusterV1alpha1Interface
 	controlCoreClient    kubernetes.Interface
 	targetCoreClient     kubernetes.Interface
 
@@ -374,40 +268,28 @@ type controller struct {
 
 	internalExternalScheme *runtime.Scheme
 	// listers
-	secretLister                corelisters.SecretLister
-	nodeLister                  corelisters.NodeLister
-	openStackMachineClassLister machinelisters.OpenStackMachineClassLister
-	awsMachineClassLister       machinelisters.AWSMachineClassLister
-	azureMachineClassLister     machinelisters.AzureMachineClassLister
-	gcpMachineClassLister       machinelisters.GCPMachineClassLister
-	alicloudMachineClassLister  machinelisters.AlicloudMachineClassLister
-	machineLister               machinelisters.MachineLister
-	machineSetLister            machinelisters.MachineSetLister
-	machineDeploymentLister     machinelisters.MachineDeploymentLister
+	secretLister            corelisters.SecretLister
+	nodeLister              corelisters.NodeLister
+	machineClassLister      machinelisters.MachineClassLister
+	machineLister           machinelisters.MachineLister
+	machineSetLister        machinelisters.MachineSetLister
+	machineDeploymentLister machinelisters.MachineDeploymentLister
 	// queues
 	secretQueue                    workqueue.RateLimitingInterface
 	nodeQueue                      workqueue.RateLimitingInterface
-	openStackMachineClassQueue     workqueue.RateLimitingInterface
-	awsMachineClassQueue           workqueue.RateLimitingInterface
-	azureMachineClassQueue         workqueue.RateLimitingInterface
-	gcpMachineClassQueue           workqueue.RateLimitingInterface
-	alicloudMachineClassQueue      workqueue.RateLimitingInterface
+	machineClassQueue              workqueue.RateLimitingInterface
 	machineQueue                   workqueue.RateLimitingInterface
 	machineSetQueue                workqueue.RateLimitingInterface
 	machineDeploymentQueue         workqueue.RateLimitingInterface
 	machineSafetyOrphanVMsQueue    workqueue.RateLimitingInterface
 	machineSafetyOvershootingQueue workqueue.RateLimitingInterface
 	// syncs
-	secretSynced                cache.InformerSynced
-	nodeSynced                  cache.InformerSynced
-	openStackMachineClassSynced cache.InformerSynced
-	awsMachineClassSynced       cache.InformerSynced
-	azureMachineClassSynced     cache.InformerSynced
-	gcpMachineClassSynced       cache.InformerSynced
-	alicloudMachineClassSynced  cache.InformerSynced
-	machineSynced               cache.InformerSynced
-	machineSetSynced            cache.InformerSynced
-	machineDeploymentSynced     cache.InformerSynced
+	secretSynced            cache.InformerSynced
+	nodeSynced              cache.InformerSynced
+	machineClassSynced      cache.InformerSynced
+	machineSynced           cache.InformerSynced
+	machineSetSynced        cache.InformerSynced
+	machineDeploymentSynced cache.InformerSynced
 }
 
 func (c *controller) Run(workers int, stopCh <-chan struct{}) {
@@ -419,18 +301,14 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer runtimeutil.HandleCrash()
 	defer c.nodeQueue.ShutDown()
 	defer c.secretQueue.ShutDown()
-	defer c.openStackMachineClassQueue.ShutDown()
-	defer c.awsMachineClassQueue.ShutDown()
-	defer c.azureMachineClassQueue.ShutDown()
-	defer c.gcpMachineClassQueue.ShutDown()
-	defer c.alicloudMachineClassQueue.ShutDown()
+	defer c.machineClassQueue.ShutDown()
 	defer c.machineQueue.ShutDown()
 	defer c.machineSetQueue.ShutDown()
 	defer c.machineDeploymentQueue.ShutDown()
 	defer c.machineSafetyOrphanVMsQueue.ShutDown()
 	defer c.machineSafetyOvershootingQueue.ShutDown()
 
-	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.openStackMachineClassSynced, c.awsMachineClassSynced, c.azureMachineClassSynced, c.gcpMachineClassSynced, c.alicloudMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
+	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.machineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
 		runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
@@ -445,11 +323,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	prometheus.MustRegister(c)
 
 	for i := 0; i < workers; i++ {
-		createWorker(c.openStackMachineClassQueue, "ClusterOpenStackMachineClass", maxRetries, true, c.reconcileClusterOpenStackMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.awsMachineClassQueue, "ClusterAWSMachineClass", maxRetries, true, c.reconcileClusterAWSMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.azureMachineClassQueue, "ClusterAzureMachineClass", maxRetries, true, c.reconcileClusterAzureMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.gcpMachineClassQueue, "ClusterGCPMachineClass", maxRetries, true, c.reconcileClusterGCPMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.alicloudMachineClassQueue, "ClusterAlicloudMachineClass", maxRetries, true, c.reconcileClusterAlicloudMachineClassKey, stopCh, &waitGroup)
+		createWorker(c.machineClassQueue, "ClusterMachineClass", maxRetries, true, c.reconcileClusterMachineClassKey, stopCh, &waitGroup)
 		createWorker(c.secretQueue, "ClusterSecret", maxRetries, true, c.reconcileClusterSecretKey, stopCh, &waitGroup)
 		createWorker(c.nodeQueue, "ClusterNode", maxRetries, true, c.reconcileClusterNodeKey, stopCh, &waitGroup)
 		createWorker(c.machineQueue, "ClusterMachine", maxRetries, true, c.reconcileClusterMachineKey, stopCh, &waitGroup)

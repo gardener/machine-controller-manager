@@ -4,8 +4,8 @@ package fake
 
 import (
 	clientset "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion"
-	machineinternalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion/typed/machine/internalversion"
-	fakemachineinternalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion/typed/machine/internalversion/fake"
+	clusterinternalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion/typed/cluster/internalversion"
+	fakeclusterinternalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion/typed/cluster/internalversion/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -46,7 +46,7 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 
 var _ clientset.Interface = &Clientset{}
 
-// Machine retrieves the MachineClient
-func (c *Clientset) Machine() machineinternalversion.MachineInterface {
-	return &fakemachineinternalversion.FakeMachine{Fake: &c.Fake}
+// Cluster retrieves the ClusterClient
+func (c *Clientset) Cluster() clusterinternalversion.ClusterInterface {
+	return &fakeclusterinternalversion.FakeCluster{Fake: &c.Fake}
 }
