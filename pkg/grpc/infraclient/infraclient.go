@@ -113,7 +113,7 @@ func (d *ExternalDriver) serveMCM(client pb.InfragrpcClient) error {
 
 		glog.Infof("Operation %s", in.OperationType)
 		opParams := in.GetOperationparams()
-		glog.Infof("create parameters: %v", opParams)
+		glog.Infof("parameters received: %v", opParams)
 
 		resp := pb.DriverSide{}
 		resp.OperationID = in.OperationID
@@ -121,7 +121,7 @@ func (d *ExternalDriver) serveMCM(client pb.InfragrpcClient) error {
 
 		switch in.OperationType {
 		case "register":
-			machineClassType := d.provider.Register(d)
+			machineClassType := d.provider.GetMachineClassType(d)
 			pMachineClassType := &machineClassType
 			gvk := pMachineClassType.GroupVersionKind()
 			resp.Response = &pb.DriverSide_RegisterResp{

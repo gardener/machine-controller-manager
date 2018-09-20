@@ -48,7 +48,7 @@ func NewAWSDriverProvider(machineClassType *metav1.TypeMeta) infraclient.Externa
 	}
 }
 
-func (d *awsDriverProvider) Register(machineClassDataProvider infraclient.MachineClassDataProvider) metav1.TypeMeta {
+func (d *awsDriverProvider) GetMachineClassType(machineClassDataProvider infraclient.MachineClassDataProvider) metav1.TypeMeta {
 	d.machineClassDataProvider = machineClassDataProvider
 	return *d.machineClassType
 }

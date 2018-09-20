@@ -42,7 +42,7 @@ type MachineClassDataProvider interface {
 
 // ExternalDriverProvider interface must be implemented by the providers.
 type ExternalDriverProvider interface {
-	Register(machineClassDataProvider MachineClassDataProvider) metav1.TypeMeta
+	GetMachineClassType(machineClassDataProvider MachineClassDataProvider) metav1.TypeMeta
 	Create(machineclass *MachineClassMeta, credentials, machineID, machineName string) (string, string, error)
 	Delete(machineclass *MachineClassMeta, credentials, machineID string) error
 	List(machineclass *MachineClassMeta, credentials, machineID string) (map[string]string, error)
