@@ -300,13 +300,13 @@ func (d *awsDriverProvider) getMachineClassData(machineClassMeta *infraclient.Ma
 		return nil, &secret, err
 	}
 
-	requiredSecret := infraclient.CloudConfigMeta{
+	requiredSecret := infraclient.SecretMeta{
 		SecretName:      machineClass.Spec.SecretRef.Name,
 		SecretNameSpace: machineClass.Spec.SecretRef.Namespace,
 		Revision:        1,
 	}
 
-	encodedData, err := d.machineClassDataProvider.GetCloudConfig(&requiredSecret)
+	encodedData, err := d.machineClassDataProvider.GetSecret(&requiredSecret)
 	if err != nil {
 		return nil, &secret, err
 	}

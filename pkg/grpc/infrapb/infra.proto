@@ -27,7 +27,7 @@ service Infragrpc {
   rpc GetMachineClass(MachineClassMeta) returns (MachineClass) {}
 
   // Get Cloud Config
-  rpc GetCloudConfig(CloudConfigMeta) returns (CloudConfig) {}
+  rpc GetSecret(SecretMeta) returns (Secret) {}
 }
 
 message MachineClassMeta {
@@ -35,7 +35,7 @@ message MachineClassMeta {
     int32 revision = 2;
 }
 
-message CloudConfigMeta {
+message SecretMeta {
     string secretName = 1;
     string nameSpace = 2;
     int32 revision = 3;
@@ -46,7 +46,7 @@ message MachineClass {
     string error = 2;
 }
 
-message CloudConfig {
+message Secret {
     string data = 1;
     string error = 2;
 }
