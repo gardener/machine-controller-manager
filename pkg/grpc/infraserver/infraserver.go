@@ -160,8 +160,8 @@ func (s *ExternalDriverManager) Register(stream pb.Infragrpc_RegisterServer) err
 	return nil
 }
 
-//GetCloudConfig share metadata
-func (s *ExternalDriverManager) GetCloudConfig(ctx context.Context, in *pb.CloudConfigMeta) (*pb.CloudConfig, error) {
+//GetSecret share metadata
+func (s *ExternalDriverManager) GetSecret(ctx context.Context, in *pb.SecretMeta) (*pb.Secret, error) {
 	secretName := in.GetSecretName()
 	if secretName == "" {
 		return nil, fmt.Errorf("Secret name not provided")
@@ -191,7 +191,7 @@ func (s *ExternalDriverManager) GetCloudConfig(ctx context.Context, in *pb.Cloud
 		return nil, err
 	}
 
-	cloudConfig := &pb.CloudConfig{
+	cloudConfig := &pb.Secret{
 		Data:  string(encodedData),
 		Error: "",
 	}

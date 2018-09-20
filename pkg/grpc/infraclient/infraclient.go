@@ -232,15 +232,15 @@ func (d *ExternalDriver) GetMachineClass(machineClassMeta *MachineClassMeta) (in
 	return resp.Data, nil
 }
 
-// GetCloudConfig contacts the grpc server to get the cloud config.
-func (d *ExternalDriver) GetCloudConfig(cloudConfigMeta *CloudConfigMeta) (string, error) {
+// GetSecret contacts the grpc server to get the secret
+func (d *ExternalDriver) GetSecret(secretMeta *SecretMeta) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	resp, err := d.client.GetCloudConfig(ctx, &pb.CloudConfigMeta{
-		SecretName: cloudConfigMeta.SecretName,
-		NameSpace:  cloudConfigMeta.SecretNameSpace,
-		Revision:   cloudConfigMeta.Revision,
+	resp, err := d.client.GetSecret(ctx, &pb.SecretMeta{
+		SecretName: secretMeta.SecretName,
+		NameSpace:  secretMeta.SecretNameSpace,
+		Revision:   secretMeta.Revision,
 	})
 
 	if err != nil {

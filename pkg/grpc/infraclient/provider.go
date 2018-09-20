@@ -26,8 +26,8 @@ type MachineClassMeta struct {
 	Revision int32
 }
 
-// CloudConfigMeta has metadata about the machine class.
-type CloudConfigMeta struct {
+// SecretMeta has metadata about the machine class.
+type SecretMeta struct {
 	SecretName      string
 	SecretNameSpace string
 	Revision        int32
@@ -37,7 +37,7 @@ type CloudConfigMeta struct {
 // can use to access machine class data.
 type MachineClassDataProvider interface {
 	GetMachineClass(machineClassMeta *MachineClassMeta) (interface{}, error)
-	GetCloudConfig(cloudConfigMeta *CloudConfigMeta) (string, error)
+	GetSecret(SecretMeta *SecretMeta) (string, error)
 }
 
 // ExternalDriverProvider interface must be implemented by the providers.
