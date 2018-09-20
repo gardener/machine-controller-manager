@@ -16,7 +16,7 @@ This branch implements the machine-api aspect of the [cluster-api project](https
 * Technically it means, [mcm-apis](https://github.com/gardener/machine-controller-manager/tree/cluster-api/pkg/apis) are imported from the cluster-api's [machine-api](https://github.com/gardener/machine-controller-manager/tree/cluster-api/pkg/apis).
 
 
-### Key terminologies
+## Key terminologies
 
 Nodes/Machines/VMs are different terminologies used to represent similar things. We use these terms in the following way
 

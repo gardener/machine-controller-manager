@@ -1,6 +1,6 @@
 # Sample machine-set object
 
-apiVersion: machine.sapcloud.io/v1alpha1
+apiVersion: cluster.k8s.io/v1alpha1
 kind: MachineSet
 metadata:
   name: test-machine-set # Name of machine-set
@@ -8,7 +8,7 @@ metadata:
   labels:
     test-label: test-label # Label to match the selector (XXXXX)
 spec:
-  replicas: 3 # Number of healthy replicas that should always be healthy
+  replicas: 2 # Number of healthy replicas that should always be healthy
   minReadySeconds: 200 # Minimum time to wait for machine to be ready
   selector:
     matchLabels:
@@ -18,6 +18,9 @@ spec:
       labels:
         test-label: test-label # Label to match the selector (XXXXX)
     spec: 
-      class:
-        kind: AWSMachineClass
-        name: test-aws
+      providerConfig:
+        valueFrom:
+          machineClass: 
+            kind: AWS
+            name: test-aws
+

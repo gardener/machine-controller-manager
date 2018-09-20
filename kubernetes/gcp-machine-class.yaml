@@ -1,46 +1,48 @@
 # Sample GCP machine class
 
-apiVersion: machine.sapcloud.io/v1alpha1 # API version of object
-kind: GCPMachineClass # Machine Class Kind
+apiVersion: cluster.k8s.io/v1alpha1
+kind: MachineClass
 metadata:
-  name: test-gcp # Name of GCP machine class goes here
-  namespace: default # Namespace in which the machine class is to be deployed
-spec:
-  canIpForward: true # Allows this instance to send and receive packets with non-matching destination or source IPs
-  deletionProtection: false # DeletionProtection: Whether the resource should be protected against deletion
-  description: An optional description for machines created by that class. # Description of this resource
-  disks: # Array of disks associated with this instance
-  - autoDelete: true # Specifies whether the disk will be auto-deleted when the instance is deleted
-    boot: true # Indicates that this is a boot disk
-    sizeGb: 50 # Size of disk
-    type: pd-standard # Specifies the type of the disk
-    image: projects/coreos-cloud/global/images/image-name-goes-here # Disk image name
+  name: test-gcp
+  namespace: default
+providerConfig:
+  spec:
+    canIpForward: true # Allows this instance to send and receive packets with non-matching destination or source IPs
+    deletionProtection: false # DeletionProtection: Whether the resource should be protected against deletion
+    description: An optional description for machines created by that class. # Description of this resource
+    disks: # Array of disks associated with this instance
+    - autoDelete: true # Specifies whether the disk will be auto-deleted when the instance is deleted
+      boot: true # Indicates that this is a boot disk
+      sizeGb: 50 # Size of disk
+      type: pd-standard # Specifies the type of the disk
+      image: projects/coreos-cloud/global/images/image-name-goes-here # Disk image name
+      labels:
+        name: my-disk # Label assigned to the disk
     labels:
-      name: my-disk # Label assigned to the disk
-  labels:
-    name: my-instance # Label assigned to the instance
-  machineType: n1-standard-4 # Type of GCP instance to launch
-  metadata: # Metadata key-value pairs
-  - key: my-key
-    value: my-value
-  networkInterfaces:
-  - network: network-name # Network name to attach the instance to
-    subnetwork: sub-net-name # Subnet name to attach the instance to
-  scheduling:
-    automaticRestart: true # Automatic restart of instance
-    onHostMaintenance: MIGRATE # Host maintainance
-    preemptible: false # Instance is premeptiable
-  secretRef: # Kubernetes secret containing values for provider secrets and user-data
-    name: "test-secret" # Name of the secret
-    namespace: "default" # Namespace of secret
-  serviceAccounts:
-  - email: default@project.iam.gserviceaccount.com # Service account email
-    scopes: # List of scopes
-    - https://www.googleapis.com/auth/compute
-  tags:
-  - kubernetes-io-cluster-**** # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired cluster name.
-  - kubernetes-io-role-**** # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired role name.
-  - key1 # A set of additional tags attached to a machine (optional)
-  - key2 # A set of additional tags attached to a machine (optional)
-  region: europe-west1 # Region to attach the instance
-  zone: europe-west1-b # Zone to attach the instance
+      name: my-instance # Label assigned to the instance
+    machineType: n1-standard-4 # Type of GCP instance to launch
+    metadata: # Metadata key-value pairs
+    - key: my-key
+      value: my-value
+    networkInterfaces:
+    - network: network-name # Network name to attach the instance to
+      subnetwork: sub-net-name # Subnet name to attach the instance to
+    scheduling:
+      automaticRestart: true # Automatic restart of instance
+      onHostMaintenance: MIGRATE # Host maintainance
+      preemptible: false # Instance is premeptiable
+    serviceAccounts:
+    - email: default@project.iam.gserviceaccount.com # Service account email
+      scopes: # List of scopes
+      - https://www.googleapis.com/auth/compute
+    tags:
+    - kubernetes-io-cluster-**** # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired cluster name.
+    - kubernetes-io-role-**** # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired role name.
+    - key1 # A set of additional tags attached to a machine (optional)
+    - key2 # A set of additional tags attached to a machine (optional)
+    region: europe-west1 # Region to attach the instance
+    zone: europe-west1-b # Zone to attach the instance
+secretRef: # Kubernetes secret containing values for provider secrets and user-data
+  name: "test-secret" # Name of the secret
+  namespace: "default" # Namespace of secret
+provider: GCP
