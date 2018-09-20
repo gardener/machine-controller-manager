@@ -21,3 +21,4 @@ spec:
       class:
         kind: AWSMachineClass
         name: test-aws
+        APIGroup: machine.sapcloud.io/v1alpha1

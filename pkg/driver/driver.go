@@ -47,13 +47,14 @@ func NewDriver(machineID string, secretRef *corev1.Secret, class *v1alpha1.Class
 
 	if ExternalDriverManager != nil {
 		external, err := ExternalDriverManager.GetDriver(metav1.TypeMeta{
-			// TODO: but here class (coming from machine.spec.class) doesn't have APIGroup populated
+			// TODO: but here class (coming from machine.spec.class) doesn't have APIGroup populated. This needs to be fixed in Gardener
 			APIVersion: class.APIGroup,
 			Kind:       class.Kind,
 		})
 		if err == nil {
-			// /apis/machine.sapcloud.io/v1alpha1/namespaces/default/awsmachineclasses/awsmc
-			name := "/" + "apis" + "/" + class.APIGroup + "/" + "namespaces" + "/" + "default" + "/" + strings.ToLower(class.Kind) + "es" + "/" + class.Name
+			// TODO: Currently the name of the machine class needs to be absolute path, which will be used in GetMachineClass() in infraserver package
+			// Once the machineClass object is standardized for all providers, this will not be required
+			name := "/" + "apis" + "/" + class.APIGroup + "/" + "namespaces" + "/" + secretRef.GetNamespace() + "/" + strings.ToLower(class.Kind) + "es" + "/" + class.Name
 			return NewExternalDriver(external, name, secretRef, string(secretRef.Data["userData"]), machineID, machineName)
 		}
 	}
