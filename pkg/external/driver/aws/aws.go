@@ -302,6 +302,7 @@ func (d *AwsDriverProvider) getMachineClassData(machineClassMeta *infraclient.Ma
 	}
 
 	encodedData, err := d.MachineClassDataProvider.GetSecret(&requiredSecret)
+
 	if err != nil {
 		return nil, &secret, err
 	}
