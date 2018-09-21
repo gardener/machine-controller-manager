@@ -16,10 +16,6 @@ limitations under the License.
 
 package infraclient
 
-import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
 // MachineClassMeta has metadata about the machine class.
 type MachineClassMeta struct {
 	Name     string
@@ -42,7 +38,6 @@ type MachineClassDataProvider interface {
 
 // ExternalDriverProvider interface must be implemented by the providers.
 type ExternalDriverProvider interface {
-	GetMachineClassType(machineClassDataProvider MachineClassDataProvider) metav1.TypeMeta
 	Create(machineclass *MachineClassMeta, credentials, machineID, machineName string) (string, string, error)
 	Delete(machineclass *MachineClassMeta, credentials, machineID string) error
 	List(machineclass *MachineClassMeta, credentials, machineID string) (map[string]string, error)

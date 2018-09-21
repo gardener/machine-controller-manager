@@ -32,28 +32,21 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/grpc/infraclient"
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// awsDriverProvider implements infraclient.ExternalDriverProvider.
-type awsDriverProvider struct {
-	machineClassType         *metav1.TypeMeta
-	machineClassDataProvider infraclient.MachineClassDataProvider
+// AwsDriverProvider implements infraclient.ExternalDriverProvider.
+type AwsDriverProvider struct {
+	MachineClassDataProvider infraclient.MachineClassDataProvider
 }
 
 // NewAWSDriverProvider creates a new instance of awsDriverProvider.
-func NewAWSDriverProvider(machineClassType *metav1.TypeMeta) infraclient.ExternalDriverProvider {
-	return &awsDriverProvider{
-		machineClassType: machineClassType,
-	}
+func NewAWSDriverProvider() infraclient.ExternalDriverProvider {
+	d := AwsDriverProvider{}
+	return &d
 }
 
-func (d *awsDriverProvider) GetMachineClassType(machineClassDataProvider infraclient.MachineClassDataProvider) metav1.TypeMeta {
-	d.machineClassDataProvider = machineClassDataProvider
-	return *d.machineClassType
-}
-
-func (d *awsDriverProvider) Create(machineClassMeta *infraclient.MachineClassMeta, credentials, machineID, machineName string) (string, string, error) {
+// Create creates a machine
+func (d *AwsDriverProvider) Create(machineClassMeta *infraclient.MachineClassMeta, credentials, machineID, machineName string) (string, string, error) {
 	machineClass, secret, err := d.getMachineClassData(machineClassMeta)
 	if err != nil {
 		return "", "", err
@@ -142,7 +135,8 @@ func (d *awsDriverProvider) Create(machineClassMeta *infraclient.MachineClassMet
 	return d.encodeMachineID(machineClass.Spec.Region, *runResult.Instances[0].InstanceId), *runResult.Instances[0].PrivateDnsName, nil
 }
 
-func (d *awsDriverProvider) Delete(machineClassMeta *infraclient.MachineClassMeta, credentials, machineID string) error {
+// Delete deletes a machine
+func (d *AwsDriverProvider) Delete(machineClassMeta *infraclient.MachineClassMeta, credentials, machineID string) error {
 	result, err := d.List(machineClassMeta, credentials, machineID)
 	if err != nil {
 		return err
@@ -196,7 +190,8 @@ func (d *awsDriverProvider) Delete(machineClassMeta *infraclient.MachineClassMet
 	return err
 }
 
-func (d *awsDriverProvider) List(machineClassMeta *infraclient.MachineClassMeta, credentials, machineID string) (map[string]string, error) {
+// List lists machines
+func (d *AwsDriverProvider) List(machineClassMeta *infraclient.MachineClassMeta, credentials, machineID string) (map[string]string, error) {
 	listOfVMs := make(map[string]string)
 
 	clusterName := ""
@@ -284,12 +279,12 @@ func (d *awsDriverProvider) List(machineClassMeta *infraclient.MachineClassMeta,
 	return listOfVMs, nil
 }
 
-func (d *awsDriverProvider) getMachineClassData(machineClassMeta *infraclient.MachineClassMeta) (*v1alpha1.AWSMachineClass, *corev1.Secret, error) {
+func (d *AwsDriverProvider) getMachineClassData(machineClassMeta *infraclient.MachineClassMeta) (*v1alpha1.AWSMachineClass, *corev1.Secret, error) {
 	var (
 		secret corev1.Secret
 	)
 
-	sMachineClass, err := d.machineClassDataProvider.GetMachineClass(machineClassMeta)
+	sMachineClass, err := d.MachineClassDataProvider.GetMachineClass(machineClassMeta)
 	if err != nil {
 		return nil, &secret, err
 	}
@@ -306,7 +301,8 @@ func (d *awsDriverProvider) getMachineClassData(machineClassMeta *infraclient.Ma
 		Revision:        1,
 	}
 
-	encodedData, err := d.machineClassDataProvider.GetSecret(&requiredSecret)
+	encodedData, err := d.MachineClassDataProvider.GetSecret(&requiredSecret)
+
 	if err != nil {
 		return nil, &secret, err
 	}
@@ -321,7 +317,7 @@ func (d *awsDriverProvider) getMachineClassData(machineClassMeta *infraclient.Ma
 }
 
 // Helper function to create SVC
-func (d *awsDriverProvider) createSVC(machineClass *v1alpha1.AWSMachineClass, secret *corev1.Secret) (*ec2.EC2, error) {
+func (d *AwsDriverProvider) createSVC(machineClass *v1alpha1.AWSMachineClass, secret *corev1.Secret) (*ec2.EC2, error) {
 
 	if secret.Data[v1alpha1.AWSAccessKeyID] != nil && secret.Data[v1alpha1.AWSSecretAccessKey] != nil {
 		return ec2.New(session.New(&aws.Config{
@@ -338,11 +334,11 @@ func (d *awsDriverProvider) createSVC(machineClass *v1alpha1.AWSMachineClass, se
 	})), nil
 }
 
-func (d *awsDriverProvider) encodeMachineID(region, machineID string) string {
+func (d *AwsDriverProvider) encodeMachineID(region, machineID string) string {
 	return fmt.Sprintf("aws:///%s/%s", region, machineID)
 }
 
-func (d *awsDriverProvider) decodeMachineID(id string) string {
+func (d *AwsDriverProvider) decodeMachineID(id string) string {
 	splitProviderID := strings.Split(id, "/")
 	return splitProviderID[len(splitProviderID)-1]
 }
