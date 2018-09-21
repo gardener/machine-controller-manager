@@ -25,24 +25,27 @@ import (
 	pb "github.com/gardener/machine-controller-manager/pkg/grpc/infrapb"
 	"github.com/golang/glog"
 	"google.golang.org/grpc"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ExternalDriver structure mediates the communication with the machine-controller-manager
 type ExternalDriver struct {
-	serverAddr string
-	options    []grpc.DialOption
-	provider   ExternalDriverProvider
-	connection *grpc.ClientConn
-	client     pb.InfragrpcClient
-	stream     pb.Infragrpc_RegisterClient
+	serverAddr       string
+	options          []grpc.DialOption
+	provider         ExternalDriverProvider
+	machineClassType *metav1.TypeMeta
+	connection       *grpc.ClientConn
+	client           pb.InfragrpcClient
+	stream           pb.Infragrpc_RegisterClient
 }
 
 // NewExternalDriver creates a new Driver instance.
-func NewExternalDriver(serverAddr string, options []grpc.DialOption, provider ExternalDriverProvider) *ExternalDriver {
+func NewExternalDriver(serverAddr string, options []grpc.DialOption, provider ExternalDriverProvider, machineClassType *metav1.TypeMeta) *ExternalDriver {
 	return &ExternalDriver{
-		serverAddr: serverAddr,
-		options:    options,
-		provider:   provider,
+		serverAddr:       serverAddr,
+		options:          options,
+		provider:         provider,
+		machineClassType: machineClassType,
 	}
 }
 
@@ -121,8 +124,7 @@ func (d *ExternalDriver) serveMCM(client pb.InfragrpcClient) error {
 
 		switch in.OperationType {
 		case "register":
-			machineClassType := d.provider.GetMachineClassType(d)
-			pMachineClassType := &machineClassType
+			pMachineClassType := d.machineClassType
 			gvk := pMachineClassType.GroupVersionKind()
 			resp.Response = &pb.DriverSide_RegisterResp{
 				RegisterResp: &pb.DriverSideRegisterationResp{

@@ -36,11 +36,13 @@ func main() {
 		Kind:       "AWSMachineClass",
 		APIVersion: "machine.sapcloud.io/v1alpha1",
 	}
-	awsDriver := aws.NewAWSDriverProvider(&meta)
+	awsDriver := aws.NewAWSDriverProvider()
 
 	externalDriver := infraclient.NewExternalDriver(serverAddr, []grpc.DialOption{
 		grpc.WithInsecure(),
-	}, awsDriver)
+	}, awsDriver, &meta)
+
+	awsDriver.(*aws.AwsDriverProvider).MachineClassDataProvider = externalDriver
 
 	defer externalDriver.Stop()
 	externalDriver.Start()
