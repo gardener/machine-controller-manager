@@ -45,7 +45,7 @@ func main() {
 	awsDriver.(*aws.AwsDriverProvider).MachineClassDataProvider = externalDriver
 
 	defer externalDriver.Stop()
-	externalDriver.Start()
+	go externalDriver.Start()
 	log.Printf("Started external aws client")
 	<-stopCh
 }

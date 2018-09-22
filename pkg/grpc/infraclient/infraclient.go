@@ -19,6 +19,7 @@ package infraclient
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -49,20 +50,27 @@ func NewExternalDriver(serverAddr string, options []grpc.DialOption, provider Ex
 	}
 }
 
-// Start starts the external driver.
+// Start calls internal function to start external driver
 func (d *ExternalDriver) Start() error {
+	for {
+		d.StartDriver()
+		fmt.Println("Retrying in 5 seconds")
+		time.Sleep(5 * time.Second)
+	}
+}
+
+// StartDriver starts the external driver.
+func (d *ExternalDriver) StartDriver() error {
 	conn, err := grpc.Dial(d.serverAddr, d.options...)
 	if err != nil {
-		glog.Fatalf("fail to dial: %v", err)
+		fmt.Println("Error in dialing: ", err)
 		return err
 	}
 	d.connection = conn
 	client := pb.NewInfragrpcClient(conn)
 	d.client = client
 
-	go func() {
-		d.serveMCM(client)
-	}()
+	d.serveMCM(client)
 
 	return nil
 }
@@ -97,7 +105,7 @@ func (d *ExternalDriver) serveMCM(client pb.InfragrpcClient) error {
 
 	stream, err := client.Register(ctx)
 	if err != nil {
-		glog.Fatalf("%v.Register(_) = _, %v: ", client, err)
+		fmt.Println("Error in registering: ", err)
 		return err
 	}
 
@@ -110,7 +118,7 @@ func (d *ExternalDriver) serveMCM(client pb.InfragrpcClient) error {
 			return err
 		}
 		if err != nil {
-			glog.Fatalf("Failed to receive: %v", err)
+			fmt.Println("Failed to receive from stream: ", err)
 			return err
 		}
 
