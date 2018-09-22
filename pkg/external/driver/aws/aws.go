@@ -276,6 +276,7 @@ func (d *AwsDriverProvider) List(machineClassMeta *infraclient.MachineClassMeta,
 		}
 	}
 
+	fmt.Println("List() returned: ", listOfVMs)
 	return listOfVMs, nil
 }
 
