@@ -19,8 +19,8 @@ package main
 import (
 	"log"
 
+	"github.com/gardener/machine-controller-manager/pkg/driver/grpc/client"
 	aws "github.com/gardener/machine-controller-manager/pkg/external/driver/aws"
-	"github.com/gardener/machine-controller-manager/pkg/grpc/infraclient"
 	"google.golang.org/grpc"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -38,7 +38,7 @@ func main() {
 	}
 	awsDriver := aws.NewAWSDriverProvider()
 
-	externalDriver := infraclient.NewExternalDriver(serverAddr, []grpc.DialOption{
+	externalDriver := client.NewExternalDriver(serverAddr, []grpc.DialOption{
 		grpc.WithInsecure(),
 	}, awsDriver, &meta)
 

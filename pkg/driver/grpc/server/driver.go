@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package infraserver
+package server
 
 import (
 	"errors"
@@ -24,7 +24,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	pb "github.com/gardener/machine-controller-manager/pkg/grpc/infrapb"
+	pb "github.com/gardener/machine-controller-manager/pkg/driver/grpc/service"
 	"github.com/golang/glog"
 )
 
@@ -41,10 +41,10 @@ type Driver interface {
 	GetVMs(machineClass *MachineClassMeta, credentials, machineID string) (map[string]string, error)
 }
 
-// driver also implements the interface Infragrpc_RegisterServer as a proxy to unregister the driver automatically on error during Send or Recv.
+// driver also implements the interface Servicegrpc_RegisterServer as a proxy to unregister the driver automatically on error during Send or Recv.
 type driver struct {
 	machineClassType metav1.TypeMeta
-	stream           pb.Infragrpc_RegisterServer
+	stream           pb.Servicegrpc_RegisterServer
 	stopCh           chan interface{}
 	requestCounter   int32
 	pendingRequests  *sync.Map

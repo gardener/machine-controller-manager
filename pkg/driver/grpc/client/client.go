@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package infraclient
+package client
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 	"io"
 	"time"
 
-	pb "github.com/gardener/machine-controller-manager/pkg/grpc/infrapb"
+	pb "github.com/gardener/machine-controller-manager/pkg/driver/grpc/service"
 	"github.com/golang/glog"
 	"google.golang.org/grpc"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,8 +36,8 @@ type ExternalDriver struct {
 	provider         ExternalDriverProvider
 	machineClassType *metav1.TypeMeta
 	connection       *grpc.ClientConn
-	client           pb.InfragrpcClient
-	stream           pb.Infragrpc_RegisterClient
+	client           pb.ServicegrpcClient
+	stream           pb.Servicegrpc_RegisterClient
 }
 
 // NewExternalDriver creates a new Driver instance.
@@ -67,7 +67,7 @@ func (d *ExternalDriver) StartDriver() error {
 		return err
 	}
 	d.connection = conn
-	client := pb.NewInfragrpcClient(conn)
+	client := pb.NewServicegrpcClient(conn)
 	d.client = client
 
 	d.serveMCM(client)
@@ -99,7 +99,7 @@ func (d *ExternalDriver) Stop() error {
 	return err
 }
 
-func (d *ExternalDriver) serveMCM(client pb.InfragrpcClient) error {
+func (d *ExternalDriver) serveMCM(client pb.ServicegrpcClient) error {
 	glog.Infof("Registering with MCM...")
 	ctx := context.Background()
 

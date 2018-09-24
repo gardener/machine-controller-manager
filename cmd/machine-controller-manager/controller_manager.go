@@ -93,7 +93,7 @@ func main() {
 			nil,
 		)
 
-		externalDriverManager := &infraserver.ExternalDriverManager{
+		externalDriverManager := &server.ExternalDriverManager{
 			Port:         s.ExternalDriverManagerOptions.Port,
 			Client:       controlCoreClient,
 			SecretLister: controlCoreInformerFactory.Core().V1().Secrets().Lister(),

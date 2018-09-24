@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/grpc/infraserver"
+	"github.com/gardener/machine-controller-manager/pkg/driver/grpc/server"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -40,7 +40,7 @@ type Driver interface {
 type VMs map[string]string
 
 // ExternalDriverManager is the central manager of all the external drivers.
-var ExternalDriverManager *infraserver.ExternalDriverManager
+var ExternalDriverManager *server.ExternalDriverManager
 
 // NewDriver creates a new driver object based on the classKind
 func NewDriver(machineID string, secretRef *corev1.Secret, class *v1alpha1.ClassSpec, machineClass interface{}, machineName string) Driver {
@@ -52,7 +52,7 @@ func NewDriver(machineID string, secretRef *corev1.Secret, class *v1alpha1.Class
 			Kind:       class.Kind,
 		})
 		if err == nil {
-			// TODO: Currently the name of the machine class needs to be absolute path, which will be used in GetMachineClass() in infraserver package
+			// TODO: Currently the name of the machine class needs to be absolute path, which will be used in GetMachineClass() in server package
 			// Once the machineClass object is standardized for all providers, this will not be required
 			name := "/" + "apis" + "/" + class.APIGroup + "/" + "namespaces" + "/" + secretRef.GetNamespace() + "/" + strings.ToLower(class.Kind) + "es" + "/" + class.Name
 			return NewExternalDriver(external, name, secretRef, string(secretRef.Data["userData"]), machineID, machineName)

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package infraclient
+package client
 
 // MachineClassMeta has metadata about the machine class.
 type MachineClassMeta struct {

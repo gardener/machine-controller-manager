@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package infraserver
+package server
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 	"google.golang.org/grpc"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	pb "github.com/gardener/machine-controller-manager/pkg/grpc/infrapb"
+	pb "github.com/gardener/machine-controller-manager/pkg/driver/grpc/service"
 	"github.com/golang/glog"
 	"k8s.io/client-go/kubernetes"
 	corelisters "k8s.io/client-go/listers/core/v1"
@@ -64,7 +64,7 @@ func (s *ExternalDriverManager) GetDriver(machineClassType metav1.TypeMeta) (Dri
 	return driver, nil
 }
 
-func (s *ExternalDriverManager) registerDriver(machineClassType metav1.TypeMeta, stream pb.Infragrpc_RegisterServer) (*driver, error) {
+func (s *ExternalDriverManager) registerDriver(machineClassType metav1.TypeMeta, stream pb.Servicegrpc_RegisterServer) (*driver, error) {
 	if stream == nil {
 		return nil, fmt.Errorf("Cannot register invalid driver stream for machine class type %v", machineClassType)
 	}
@@ -121,7 +121,7 @@ func (s *ExternalDriverManager) Stop() {
 }
 
 // Register Requests driver to send it's details, and sets up stream
-func (s *ExternalDriverManager) Register(stream pb.Infragrpc_RegisterServer) error {
+func (s *ExternalDriverManager) Register(stream pb.Servicegrpc_RegisterServer) error {
 	regReq := pb.MCMside{
 		OperationID:   1,
 		OperationType: "register",
@@ -227,7 +227,7 @@ func (s *ExternalDriverManager) Start() {
 
 	glog.Infof("Starting grpc server...")
 	s.grpcServer = grpc.NewServer(s.Options...)
-	pb.RegisterInfragrpcServer(s.grpcServer, s)
+	pb.RegisterServicegrpcServer(s.grpcServer, s)
 
 	go func() {
 		s.grpcServer.Serve(lis)

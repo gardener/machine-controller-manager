@@ -40,7 +40,7 @@ import (
 
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
 	"github.com/gardener/machine-controller-manager/pkg/driver"
-	"github.com/gardener/machine-controller-manager/pkg/grpc/infraserver"
+	"github.com/gardener/machine-controller-manager/pkg/driver/grpc/server"
 	"github.com/gardener/machine-controller-manager/pkg/handlers"
 	"github.com/gardener/machine-controller-manager/pkg/util/configz"
 	"github.com/golang/glog"
@@ -277,7 +277,7 @@ func StartControllers(s *options.MCMServer,
 		go machineController.Run(int(s.ConcurrentNodeSyncs), stop)
 
 		if s.ExternalDriverManagerOptions.Enabled {
-			externalDriverManager := &infraserver.ExternalDriverManager{
+			externalDriverManager := &server.ExternalDriverManager{
 				Port:         s.ExternalDriverManagerOptions.Port,
 				Client:       controlCoreClient,
 				SecretLister: controlCoreInformerFactory.Core().V1().Secrets().Lister(),

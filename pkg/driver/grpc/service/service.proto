@@ -16,11 +16,11 @@ limitations under the License.
 
 syntax = "proto3";
 
-package infra;
+package service;
 
-// The Infragrpc service definition.
-service Infragrpc {
-  // infra operations
+// The Servicegrpc service definition.
+service Servicegrpc {
+  // Register with MCM
   rpc Register(stream DriverSide) returns (stream MCMside) {}
 
   // Get Machine Class

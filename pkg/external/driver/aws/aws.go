@@ -29,24 +29,24 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/grpc/infraclient"
+	"github.com/gardener/machine-controller-manager/pkg/driver/grpc/client"
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // AwsDriverProvider implements infraclient.ExternalDriverProvider.
 type AwsDriverProvider struct {
-	MachineClassDataProvider infraclient.MachineClassDataProvider
+	MachineClassDataProvider client.MachineClassDataProvider
 }
 
 // NewAWSDriverProvider creates a new instance of awsDriverProvider.
-func NewAWSDriverProvider() infraclient.ExternalDriverProvider {
+func NewAWSDriverProvider() client.ExternalDriverProvider {
 	d := AwsDriverProvider{}
 	return &d
 }
 
 // Create creates a machine
-func (d *AwsDriverProvider) Create(machineClassMeta *infraclient.MachineClassMeta, credentials, machineID, machineName string) (string, string, error) {
+func (d *AwsDriverProvider) Create(machineClassMeta *client.MachineClassMeta, credentials, machineID, machineName string) (string, string, error) {
 	machineClass, secret, err := d.getMachineClassData(machineClassMeta)
 	if err != nil {
 		return "", "", err
@@ -136,7 +136,7 @@ func (d *AwsDriverProvider) Create(machineClassMeta *infraclient.MachineClassMet
 }
 
 // Delete deletes a machine
-func (d *AwsDriverProvider) Delete(machineClassMeta *infraclient.MachineClassMeta, credentials, machineID string) error {
+func (d *AwsDriverProvider) Delete(machineClassMeta *client.MachineClassMeta, credentials, machineID string) error {
 	result, err := d.List(machineClassMeta, credentials, machineID)
 	if err != nil {
 		return err
@@ -191,7 +191,7 @@ func (d *AwsDriverProvider) Delete(machineClassMeta *infraclient.MachineClassMet
 }
 
 // List lists machines
-func (d *AwsDriverProvider) List(machineClassMeta *infraclient.MachineClassMeta, credentials, machineID string) (map[string]string, error) {
+func (d *AwsDriverProvider) List(machineClassMeta *client.MachineClassMeta, credentials, machineID string) (map[string]string, error) {
 	listOfVMs := make(map[string]string)
 
 	clusterName := ""
@@ -280,7 +280,7 @@ func (d *AwsDriverProvider) List(machineClassMeta *infraclient.MachineClassMeta,
 	return listOfVMs, nil
 }
 
-func (d *AwsDriverProvider) getMachineClassData(machineClassMeta *infraclient.MachineClassMeta) (*v1alpha1.AWSMachineClass, *corev1.Secret, error) {
+func (d *AwsDriverProvider) getMachineClassData(machineClassMeta *client.MachineClassMeta) (*v1alpha1.AWSMachineClass, *corev1.Secret, error) {
 	var (
 		secret corev1.Secret
 	)
@@ -296,7 +296,7 @@ func (d *AwsDriverProvider) getMachineClassData(machineClassMeta *infraclient.Ma
 		return nil, &secret, err
 	}
 
-	requiredSecret := infraclient.SecretMeta{
+	requiredSecret := client.SecretMeta{
 		SecretName:      machineClass.Spec.SecretRef.Name,
 		SecretNameSpace: machineClass.Spec.SecretRef.Namespace,
 		Revision:        1,

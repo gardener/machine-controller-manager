@@ -20,13 +20,13 @@ package driver
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/gardener/machine-controller-manager/pkg/grpc/infraserver"
+	"github.com/gardener/machine-controller-manager/pkg/driver/grpc/server"
 	"github.com/golang/glog"
 )
 
 // ExternalDriver implements the support for out-of-tree drivers
 type ExternalDriver struct {
-	driver       infraserver.Driver
+	driver       server.Driver
 	machineClass string
 	credentials  *corev1.Secret
 	userData     string
@@ -35,7 +35,7 @@ type ExternalDriver struct {
 }
 
 // NewExternalDriver returns an empty AWSDriver object
-func NewExternalDriver(driver infraserver.Driver, machineClass string, credentials *corev1.Secret, userData, machineID, machineName string) Driver {
+func NewExternalDriver(driver server.Driver, machineClass string, credentials *corev1.Secret, userData, machineID, machineName string) Driver {
 	return &ExternalDriver{
 		driver:       driver,
 		machineClass: machineClass,
@@ -48,7 +48,7 @@ func NewExternalDriver(driver infraserver.Driver, machineClass string, credentia
 
 // Create method is used to create a machine
 func (d *ExternalDriver) Create() (string, string, error) {
-	meta := infraserver.MachineClassMeta{
+	meta := server.MachineClassMeta{
 		Name:     d.machineClass,
 		Revision: 1,
 		//TODO
@@ -64,7 +64,7 @@ func (d *ExternalDriver) Create() (string, string, error) {
 
 // Delete method is used to delete a AWS machine
 func (d *ExternalDriver) Delete() error {
-	meta := infraserver.MachineClassMeta{
+	meta := server.MachineClassMeta{
 		Name:     d.machineClass,
 		Revision: 1,
 		//TODO
@@ -95,7 +95,7 @@ func (d *ExternalDriver) GetExisting() (string, error) {
 // GetVMs returns a VM matching the machineID
 // If machineID is an empty string then it returns all matching instances
 func (d *ExternalDriver) GetVMs(machineID string) (VMs, error) {
-	meta := infraserver.MachineClassMeta{
+	meta := server.MachineClassMeta{
 		Name:     d.machineClass,
 		Revision: 1,
 		//TODO
