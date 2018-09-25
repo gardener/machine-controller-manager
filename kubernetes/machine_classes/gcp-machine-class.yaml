@@ -38,8 +38,8 @@ spec:
     scopes: # List of scopes
     - https://www.googleapis.com/auth/compute
   tags:
-  - kubernetes-io-cluster-**** # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired cluster name.
-  - kubernetes-io-role-**** # This is mandatory as the safety controller uses this tag to identify VMs created by this controller. Replace **** string with your desired role name.
+  - kubernetes-io-cluster-YOUR_CLUSTER_NAME # This is mandatory as the safety controller uses this tag to identify VMs created by this controller.
+  - kubernetes-io-role-YOUR_ROLE_NAME # This is mandatory as the safety controller uses this tag to identify VMs created by this controller.
   - key1 # A set of additional tags attached to a machine (optional)
   - key2 # A set of additional tags attached to a machine (optional)
   region: europe-west1 # Region to attach the instance

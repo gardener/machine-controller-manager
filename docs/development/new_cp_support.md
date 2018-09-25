@@ -1,4 +1,5 @@
 # Adding support for a new cloud provider
+
 For adding support for a new cloud provider in the Machine Controller Manager, follow the steps described below. Replace provider with your provider-name.
 
 1. Add a ProviderMachineClass CRD similar to existing AWSMachineClass into `kubernetes/crds.yaml`.

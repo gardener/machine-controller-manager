@@ -1,5 +1,15 @@
 # Deploying the Machine Controller Manager into a Kubernetes cluster
 
+<!-- TOC -->
+
+- [Deploying the Machine Controller Manager into a Kubernetes cluster](#deploying-the-machine-controller-manager-into-a-kubernetes-cluster)
+	- [Prepare the cluster](#prepare-the-cluster)
+	- [Build the Docker image](#build-the-docker-image)
+	- [Configuring optional parameters while deploying](#configuring-optional-parameters-while-deploying)
+	- [Usage](#usage)
+
+<!-- /TOC -->
+
 As already mentioned, the Machine Controller Manager is designed to run as controller in a Kubernetes cluster. The existing source code can be compiled and tested on a local machine as described in [Setting up a local development environment](../development/local_setup.md). You can deploy the Machine Controller Manager using the steps described below.
 
 ## Prepare the cluster
@@ -12,7 +22,7 @@ $ kubectl apply -f kubernetes/crds.yaml
 
 ## Build the Docker image
 
-:warning: Modify the `Makefile` to refer to your own registry.
+> :warning: Modify the `Makefile` to refer to your own registry.
 
 - Run the build which generates the binary to `bin/machine-controller-manager`
 ```bash
@@ -37,7 +47,7 @@ $ kubectl apply -f kubernetes/deployment/clusterrole.yaml
 $ kubectl apply -f kubernetes/deployment/clusterrolebinding.yaml
 ```
 
-## Configuring optional paramaters while deploying
+## Configuring optional parameters while deploying
 
 Machine-controller-manager supports several configurable parameters while deploying. Refer to [the following lines](/kubernetes/deployment/deployment.yaml#L21-L30), to know how each parameter can be configured, and what it's purpose is for.
 

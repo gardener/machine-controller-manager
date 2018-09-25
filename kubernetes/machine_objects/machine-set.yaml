@@ -17,7 +17,7 @@ spec:
     metadata:
       labels:
         test-label: test-label # Label to match the selector (XXXXX)
-    spec: 
+    spec:
       class:
         kind: AWSMachineClass
         name: test-aws
