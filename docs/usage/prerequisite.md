@@ -1,9 +1,21 @@
 # Setting up the usage environment
+<!-- TOC -->
 
-:warning: All paths are relative to the root location of this project repository.
+- [Setting up the usage environment](#setting-up-the-usage-environment)
+	- [Important :warning:](#important-warning)
+	- [Set KUBECONFIG](#set-kubeconfig)
+	- [Replace provider credentials and desired VM configurations](#replace-provider-credentials-and-desired-vm-configurations)
+	- [Deploy required CRDs and Objects](#deploy-required-crds-and-objects)
+	- [Check current cluster state](#check-current-cluster-state)
 
-- Run the Machine Controller Manager either as described in [Setting up a local development environment](../development/local_setup.md) or [Deploying the Machine Controller Manager into a Kubernetes cluster](../deployment/kubernetes.md).
-- Make sure that the following steps are run before managing machines/ machine-sets/ machine-deploys.
+<!-- /TOC -->
+## Important :warning:
+
+> All paths are relative to the root location of this project repository.
+
+> Run the Machine Controller Manager either as described in [Setting up a local development environment](../development/local_setup.md) or [Deploying the Machine Controller Manager into a Kubernetes cluster](../deployment/kubernetes.md).
+
+> Make sure that the following steps are run before managing machines/ machine-sets/ machine-deploys.
 
 ## Set KUBECONFIG
 
@@ -15,9 +27,9 @@ $ export KUBECONFIG=$GOPATH/src/github.com/gardener/machine-controller-manager/d
 
 ## Replace provider credentials and desired VM configurations
 
-Open `kubernetes/aws-machine-class.yaml` and replace required values there with the desired VM configurations. 
+Open `kubernetes/machine_classes/aws-machine-class.yaml` and replace required values there with the desired VM configurations. 
 
-Similarily open `kubernetes/aws-secret.yaml` and replace - *userData, providerAccessKeyId, providerSecretAccessKey* with base64 encoded values of cloudconfig file, AWS access key id, and AWS secret access key respectively. Use the following command to get the base64 encoded value of your details
+Similarily open `kubernetes/secrets/aws-secret.yaml` and replace - *userData, providerAccessKeyId, providerSecretAccessKey* with base64 encoded values of cloudconfig file, AWS access key id, and AWS secret access key respectively. Use the following command to get the base64 encoded value of your details
 
 ```bash
 $ echo "sample-cloud-config" | base64
@@ -33,14 +45,14 @@ Create all the required CRDs in the cluster using `kubernetes/crds.yaml`
 $ kubectl apply -f kubernetes/crds.yaml
 ```
 
-Create the class template that will be used as an machine template to create VMs using `kubernetes/aws-machine-class.yaml`
+Create the class template that will be used as an machine template to create VMs using `kubernetes/machine_classes/aws-machine-class.yaml`
 ```bash
-$ kubectl apply -f kubernetes/aws-machine-class.yaml
+$ kubectl apply -f kubernetes/machine_classes/aws-machine-class.yaml
 ```
 
-Create the secret used for the cloud credentials and cloudconfig using `kubernetes/aws-secret.yaml`
+Create the secret used for the cloud credentials and cloudconfig using `kubernetes/secrets/aws-secret.yaml`
 ```bash
-$ kubectl apply -f kubernetes/aws-secret.yaml
+$ kubectl apply -f kubernetes/secrets/aws-secret.yaml
 ```
 
 ## Check current cluster state
@@ -48,6 +60,7 @@ $ kubectl apply -f kubernetes/aws-secret.yaml
 Get to know the current cluster state using the following commands,
 
 - Checking aws-machine-class in the cluster
+
 ```bash
 $ kubectl get awsmachineclass
 NAME       KIND
@@ -55,6 +68,7 @@ test-aws   AWSMachineClass.v1alpha1.machine.sapcloud.io
 ```
 
 - Checking kubernetes secrets in the cluster
+
 ```bash
 $ kubectl get secret
 NAME                  TYPE                                  DATA      AGE
@@ -62,24 +76,29 @@ test-secret           Opaque                                3         21h
 ```
 
 - Checking kubernetes nodes in the cluster
+
 ```bash
 $ kubectl get nodes
 ```
+
 Lists the default set of nodes attached to your cluster
 
 - Checking Machine Controller Manager machines in the cluster
+
 ```bash
 $ kubectl get machine
 No resources found.
 ```
 
 - Checking Machine Controller Manager machine-sets in the cluster
+
 ```bash
 $ kubectl get machineset
 No resources found.
 ```
 
 - Checking Machine Controller Manager machine-deploys in the cluster
+
 ```bash
 $ kubectl get machinedeployment
 No resources found.
