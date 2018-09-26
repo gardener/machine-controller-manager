@@ -59,13 +59,13 @@ function check_cluster_state() {
     printf "\t\t\t----- Checking Test Environment -------\n"
 
     printf "\nChecking existance of machine objects\n"
-    # Wait 20mins for any existing PRs to cleanup machines
-    hf_wait_on "hf_num_of_objects" mach 0 1200
+    # Wait 60mins for any existing PRs to cleanup machines
+    hf_wait_on "hf_num_of_objects" mach 0 3600
     printf "No machine objects in target test cluster\n"
 
     printf "\nChecking existance of node objects\n"
-    # Wait 20mins for any existing PRs to cleanup nodes
-    hf_wait_on "hf_num_of_ready_nodes" nodes 0 1200
+    # Wait 60mins for any existing PRs to cleanup nodes
+    hf_wait_on "hf_num_of_ready_nodes" nodes 0 3600
     printf "No additional node objects in target test cluster\n"
 
     printf "\nCluster state looks clean\n"
@@ -219,13 +219,13 @@ function tc_machine() {
 
     # Wait until 1 nodes have joined the cluster
     hf_object_create $provider/machine.yaml
-    printf "\n\tWaiting 1200s for machine to join the cluster"
-    hf_wait_on "hf_num_of_ready_nodes" nodes 1 1200
+    printf "\n\tWaiting 1800s for machine to join the cluster"
+    hf_wait_on "hf_num_of_ready_nodes" nodes 1 1800
 
     # Wait for deletion of machine
     hf_object_delete $provider/machine.yaml
-    printf "\n\tWaiting 1200s for machine to be deleted"
-    hf_wait_on "hf_num_of_objects" mach 0 1200
+    printf "\n\tWaiting 1800s for machine to be deleted"
+    hf_wait_on "hf_num_of_objects" mach 0 1800
 
     printf "\nCompleted TestCase\n"
 }
@@ -236,13 +236,13 @@ function tc_machine_deployment() {
 
     # Wait until 3 nodes have joined the cluster
     hf_object_create $provider/md.yaml
-    printf "\n\tWaiting 1200s for 3 machines to join the cluster"
-    hf_wait_on "hf_num_of_ready_nodes" nodes 3 1200
+    printf "\n\tWaiting 1800s for 3 machines to join the cluster"
+    hf_wait_on "hf_num_of_ready_nodes" nodes 3 1800
 
     # Scale down the number of nodes to 2
     hf_object_configure $provider/md-scale-down.yaml
-    printf "\n\tWaiting 1200s for machines to scale-down to 2"
-    hf_wait_on "hf_num_of_ready_nodes" nodes 2 1200
+    printf "\n\tWaiting 1800s for machines to scale-down to 2"
+    hf_wait_on "hf_num_of_ready_nodes" nodes 2 1800
 
     # Update the machines to v2 and double the number of replicas
     hf_object_configure $provider/md-update.yaml
@@ -251,8 +251,8 @@ function tc_machine_deployment() {
 
     # Delete the machine-deployment
     hf_object_delete $provider/md.yaml
-    printf "\n\tWaiting 1200s for machine to be deleted"
-    hf_wait_on "hf_num_of_objects" machdeploy 0 1200
+    printf "\n\tWaiting 1800s for machine to be deleted"
+    hf_wait_on "hf_num_of_objects" machdeploy 0 1800
 
     printf "\nCompleted TestCase\n"
 }
@@ -275,8 +275,8 @@ function clean_up() {
         # Delete the machine-deployment
         output=$(kubectl delete machdeploy --context=control --namespace="$provider" --all 2>&1)
         printf "\n\t%s" "$output"
-        printf "\n\tWaiting 1200s for machine-deployment to be deleted"
-        hf_wait_on "hf_num_of_objects" machdeploy 0 1200 $5
+        printf "\n\tWaiting 1800s for machine-deployment to be deleted"
+        hf_wait_on "hf_num_of_objects" machdeploy 0 1800 $5
     fi
 
     if
@@ -287,8 +287,8 @@ function clean_up() {
         # Delete the machine-set
         output=$(kubectl delete machset --context=control --namespace="$provider" --all 2>&1)
         printf "\n\t%s" "$output"
-        printf "\n\tWaiting 1200s for machine-set to be deleted"
-        hf_wait_on "hf_num_of_objects" machdeploy 0 1200 $5
+        printf "\n\tWaiting 1800s for machine-set to be deleted"
+        hf_wait_on "hf_num_of_objects" machdeploy 0 1800 $5
     fi
 
     if
@@ -299,8 +299,8 @@ function clean_up() {
         # Delete the machine
         output=$(kubectl delete mach --context=control --namespace="$provider" --all 2>&1)
         printf "\n\t%s" "$output"
-        printf "\n\tWaiting 1200s for machine to be deleted"
-        hf_wait_on "hf_num_of_objects" mach 0 1200 $5
+        printf "\n\tWaiting 1800s for machine to be deleted"
+        hf_wait_on "hf_num_of_objects" mach 0 1800 $5
     fi
 
     hf_scale_deploy machine-controller-manager 0
