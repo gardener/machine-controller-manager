@@ -313,6 +313,7 @@ function cleanup_all_providers() {
     for cp in "${cloud_providers[@]}"; do
         clean_up ${cp} > logs/${cp}-cleanup.out & pids[${i}]=$!
         printf "\n\t\t\tStarted clean-up for provider: $cp"
+        ((i++))
     done
 
     # wait for all pids
@@ -397,9 +398,9 @@ printf "\n\t\t\t----- Start of Test Script -----------\n"
 
 setup_environment
 test_all_providers
+pkill controller_manager
 cleanup_all_providers
 print_logs
-pkill controller_manager
 print_results
 
 printf "\n\t\t\t----- End of Test Script -----------\n"
