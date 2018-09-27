@@ -45,10 +45,13 @@ func validateAlicloudMachineClassSpec(spec *machine.AlicloudMachineClassSpec, fl
 	allErrs := field.ErrorList{}
 
 	if "" == spec.ImageID {
-		allErrs = append(allErrs, field.Required(fldPath.Child("imageName"), "ImageName is required"))
+		allErrs = append(allErrs, field.Required(fldPath.Child("imageID"), "ImageID is required"))
 	}
 	if "" == spec.Region {
 		allErrs = append(allErrs, field.Required(fldPath.Child("region"), "Region is required"))
+	}
+	if "" == spec.ZoneID {
+		allErrs = append(allErrs, field.Required(fldPath.Child("zoneID"), "ZoneID is required"))
 	}
 	if "" == spec.InstanceType {
 		allErrs = append(allErrs, field.Required(fldPath.Child("instanceType"), "InstanceType is required"))
