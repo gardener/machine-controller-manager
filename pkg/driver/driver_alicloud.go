@@ -283,7 +283,7 @@ func (c *AlicloudDriver) getEcsClient() (*ecs.Client, error) {
 	if accessKeyID != "" && accessKeySecret != "" && region != "" {
 		ecsClient, err = ecs.NewClientWithAccessKey(region, accessKeyID, accessKeySecret)
 	} else {
-		ecsClient, err = ecs.NewClient()
+		err = errors.New("alicloudAccessKeyID or alicloudAccessKeySecret can't be empty")
 	}
 	return ecsClient, err
 }
