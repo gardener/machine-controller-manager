@@ -423,6 +423,11 @@ func (t *watchableObjectTracker) Delete(gvr schema.GroupVersionResource, ns, nam
 	return nil
 }
 
+func (t *watchableObjectTracker) Watch(gvr schema.GroupVersionResource, name string) (watch.Interface, error) {
+	// TODO: Fix this
+	return nil, errors.New("Cannot watch on a tracker with no watch support")
+}
+
 func (t *watchableObjectTracker) watchReactionfunc(action k8stesting.Action) (bool, watch.Interface, error) {
 	if t.FakeWatcher == nil {
 		return false, nil, errors.New("Cannot watch on a tracker with no watch support")
