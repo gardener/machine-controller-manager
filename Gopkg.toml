@@ -26,23 +26,23 @@ required = [
 
 [[constraint]]
   name = "k8s.io/api"
-  version = "kubernetes-1.9.2"
+  version = "kubernetes-1.10.8"
 
 [[constraint]]
   name = "k8s.io/apimachinery"
-  version = "kubernetes-1.9.2"
+  version = "kubernetes-1.10.4"
 
 [[constraint]]
   name = "k8s.io/apiserver"
-  version = "kubernetes-1.9.2"
+  version = "kubernetes-1.10.8"
 
 [[constraint]]
-  branch = "release-6.0"
+  branch = "release-7.0"
   name = "k8s.io/client-go"
 
 [[constraint]]
   name = "k8s.io/code-generator"
-  version = "kubernetes-1.9.2"
+  version = "kubernetes-1.10.8"
 
 # [[override]]
 #   name = "k8s.io/gengo"
