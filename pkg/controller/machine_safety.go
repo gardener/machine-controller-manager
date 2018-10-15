@@ -68,6 +68,105 @@ func (c *controller) reconcileClusterMachineSafetyOvershooting(key string) error
 	return nil
 }
 
+// reconcileClusterMachineSafetyAPIServer checks control and target clusters
+// and checks if their APIServer's are reachable
+// If they are not reachable, they set a machineControllerFreeze flag
+func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
+	inactivePeriod := c.safetyOptions.MachineSafetyAPIServerStatusTimeout.Duration
+	sleepPeriod := c.safetyOptions.MachineSafetyAPIServerStatusPeriod.Duration
+
+	glog.V(3).Infof("reconcileClusterMachineSafetyAPIServer: Start")
+	defer glog.V(3).Infof("reconcileClusterMachineSafetyAPIServer: Stop")
+
+	if c.safetyOptions.MachineControllerFrozen {
+		// MachineController is frozen
+		if c.isAPIServerUp() {
+			// APIServer is up now, hence we need reset all machine health checks (to avoid unwanted freezes) and unfreeze
+			machines, err := c.machineLister.List(labels.Everything())
+			if err != nil {
+				glog.Warning(err)
+				return err
+			}
+			for _, machine := range machines {
+				if machine.Status.CurrentStatus.Phase == v1alpha1.MachineUnknown {
+					machine, err := c.controlMachineClient.Machines(c.namespace).Get(machine.Name, metav1.GetOptions{})
+					if err != nil {
+						glog.Warning(err)
+						return err
+					}
+
+					machine.Status.CurrentStatus = v1alpha1.CurrentStatus{
+						Phase:          v1alpha1.MachineRunning,
+						TimeoutActive:  false,
+						LastUpdateTime: metav1.Now(),
+					}
+					machine.Status.LastOperation = v1alpha1.LastOperation{
+						Description:    "Machine Health Timeout was reset due to APIServer being unreachable",
+						LastUpdateTime: metav1.Now(),
+						State:          v1alpha1.MachineStateSuccessful,
+						Type:           v1alpha1.MachineOperationHealthCheck,
+					}
+					_, err = c.controlMachineClient.Machines(c.namespace).Update(machine)
+					if err != nil {
+						glog.Warning(err)
+						return err
+					}
+
+					glog.Info("reconcileClusterMachineSafetyAPIServer: Reinitializing machine health check for ", machine.Name)
+				}
+
+				// En-queue after 30 seconds, to ensure all machine states are reconciled
+				c.enqueueMachineAfter(machine, 30*time.Second)
+			}
+
+			// Wait 30 seconds for machines to rejoin
+			time.Sleep(30 * time.Second)
+			c.safetyOptions.MachineControllerFrozen = false
+			c.safetyOptions.APIserverInactiveStartTime = time.Time{}
+			glog.V(2).Infof("reconcileClusterMachineSafetyAPIServer: UnFreezing Machine Controller")
+		}
+	} else {
+		// MachineController is not frozen
+		if !c.isAPIServerUp() {
+			// If APIServer is not up
+			if c.safetyOptions.APIserverInactiveStartTime.Equal(time.Time{}) {
+				// If timeout has not started
+				c.safetyOptions.APIserverInactiveStartTime = time.Now()
+			}
+			if time.Now().Sub(c.safetyOptions.APIserverInactiveStartTime) > inactivePeriod {
+				// If APIServer has been down for more than inactivePeriod
+				c.safetyOptions.MachineControllerFrozen = true
+				glog.V(2).Infof("reconcileClusterMachineSafetyAPIServer: Freezing Machine Controller")
+			}
+
+			// Re-enqueue the safety check more often if APIServer is not active and is not frozen yet
+			defer c.machineSafetyAPIServerQueue.AddAfter("", sleepPeriod/5)
+			return nil
+		}
+	}
+
+	defer c.machineSafetyAPIServerQueue.AddAfter("", sleepPeriod)
+	return nil
+}
+
+// isAPIServerUp returns true if APIServers are up
+// Both control and target APIServers
+func (c *controller) isAPIServerUp() bool {
+	_, err := c.controlMachineClient.Machines(c.namespace).List(metav1.ListOptions{})
+	if err != nil {
+		glog.Warning("Unable to list on machine objects", err)
+		return false
+	}
+
+	_, err = c.targetCoreClient.CoreV1().Nodes().List(metav1.ListOptions{})
+	if err != nil {
+		glog.Warning("Unable to list on node objects", err)
+		return false
+	}
+
+	return true
+}
+
 // checkAndFreezeORUnfreezeMachineSets freezes/unfreezes machineSets/machineDeployments
 // which have much greater than desired number of replicas of machine objects
 func (c *controller) checkAndFreezeORUnfreezeMachineSets() {

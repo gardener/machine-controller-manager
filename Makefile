@@ -37,6 +37,8 @@ start:
 			--machine-set-scale-timeout=20 \
 			--machine-safety-orphan-vms-period=30 \
 			--machine-safety-overshooting-period=1 \
+			--machine-safety-apiserver-period=1m \
+			--machine-safety-apiserver-timeout=30s \
 			--v=2
 
 #################################################################
