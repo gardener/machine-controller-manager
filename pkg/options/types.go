@@ -18,6 +18,8 @@ limitations under the License.
 package options
 
 import (
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -100,6 +102,19 @@ type SafetyOptions struct {
 	// Period (in minutes) used to poll for overshooting
 	// of machine objects backing a machineSet by safety controller
 	MachineSafetyOvershootingPeriod int32
+
+	// APIserverInactiveStartTime to keep track of the
+	// start time of when the APIServers were not reachable
+	APIserverInactiveStartTime time.Time
+	// MachineControllerFrozen indicates if the machine controller
+	// is frozen due to Unreachable APIServers
+	MachineControllerFrozen bool
+	// Period (in duration) used to poll for APIServer's health
+	// by safety controller
+	MachineSafetyAPIServerStatusPeriod metav1.Duration
+	// Timeout (in duration) for which the APIServer can be down before
+	// declare the machine controller frozen by safety controller
+	MachineSafetyAPIServerStatusTimeout metav1.Duration
 }
 
 // LeaderElectionConfiguration defines the configuration of leader election

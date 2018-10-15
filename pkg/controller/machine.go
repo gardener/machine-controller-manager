@@ -73,7 +73,7 @@ func (c *controller) deleteMachine(obj interface{}) {
 }
 
 func (c *controller) enqueueMachine(obj interface{}) {
-	key, err := KeyFunc(obj)
+	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
 		return
 	}
@@ -81,7 +81,7 @@ func (c *controller) enqueueMachine(obj interface{}) {
 }
 
 func (c *controller) enqueueMachineAfter(obj interface{}, after time.Duration) {
-	key, err := KeyFunc(obj)
+	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
 		return
 	}
@@ -111,8 +111,15 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	glog.V(3).Info("Start Reconciling machine: ", machine.Name)
 	defer func() {
+		c.enqueueMachineAfter(machine, 10*time.Minute)
 		glog.V(3).Info("Stop Reconciling machine: ", machine.Name)
 	}()
+
+	if c.safetyOptions.MachineControllerFrozen && machine.DeletionTimestamp == nil {
+		message := "Machine controller has frozen. Retrying reconcile after 10 minutes"
+		glog.V(3).Info(message)
+		return errors.New(message)
+	}
 
 	if !shouldReconcileMachine(machine, time.Now()) {
 		return nil
@@ -184,7 +191,6 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		}
 	}
 
-	c.enqueueMachineAfter(machine, 10*time.Minute)
 	return nil
 }
 
