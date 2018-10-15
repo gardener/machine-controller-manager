@@ -216,8 +216,11 @@ var _ = Describe("machine", func() {
 				defer close(stop)
 
 				objects := []runtime.Object{}
-				c, w := createController(stop, namespace, objects, nil)
-				defer w.Stop()
+				c, watches := createController(stop, namespace, objects, nil, nil)
+				for _, watch := range watches {
+					defer watch.Stop()
+					Expect(watch).NotTo(BeNil())
+				}
 
 				testMachine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
@@ -254,8 +257,11 @@ var _ = Describe("machine", func() {
 				objects := []runtime.Object{}
 				objects = append(objects, testMachine)
 
-				c, w := createController(stop, namespace, objects, nil)
-				defer w.Stop()
+				c, watches := createController(stop, namespace, objects, nil, nil)
+				for _, watch := range watches {
+					defer watch.Stop()
+					Expect(watch).NotTo(BeNil())
+				}
 
 				var updatedMachine, err = c.updateMachineConditions(testMachine, conditions)
 				Expect(updatedMachine.Status.Conditions).Should(BeEquivalentTo(conditions))
@@ -343,8 +349,11 @@ var _ = Describe("machine", func() {
 					coreObjects = append(coreObjects, o)
 				}
 
-				controller, w := createController(stop, objMeta.Namespace, machineObjects, coreObjects)
-				defer w.Stop()
+				controller, watches := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
+				for _, watch := range watches {
+					defer watch.Stop()
+					Expect(watch).NotTo(BeNil())
+				}
 
 				waitForCacheSync(stop, controller)
 				machineClass, secret, err := controller.validateMachineClass(data.action)
@@ -487,8 +496,11 @@ var _ = Describe("machine", func() {
 					coreObjects = append(coreObjects, o)
 				}
 
-				controller, w := createController(stop, objMeta.Namespace, machineObjects, coreObjects)
-				defer w.Stop()
+				controller, watches := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
+				for _, watch := range watches {
+					defer watch.Stop()
+					Expect(watch).NotTo(BeNil())
+				}
 
 				waitForCacheSync(stop, controller)
 
@@ -603,8 +615,11 @@ var _ = Describe("machine", func() {
 
 				coreObjects := []runtime.Object{}
 
-				controller, watch := createController(stop, objMeta.Namespace, machineObjects, coreObjects)
-				defer watch.Stop()
+				controller, watches := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
+				for _, watch := range watches {
+					defer watch.Stop()
+					Expect(watch).NotTo(BeNil())
+				}
 				waitForCacheSync(stop, controller)
 
 				action := data.action
@@ -823,8 +838,11 @@ var _ = Describe("machine", func() {
 					coreObjects = append(coreObjects, o)
 				}
 
-				controller, w := createController(stop, objMeta.Namespace, machineObjects, coreObjects)
-				defer w.Stop()
+				controller, watches := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
+				for _, watch := range watches {
+					defer watch.Stop()
+					Expect(watch).NotTo(BeNil())
+				}
 				waitForCacheSync(stop, controller)
 
 				action := data.action

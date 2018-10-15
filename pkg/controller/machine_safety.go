@@ -140,7 +140,7 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 			}
 
 			// Re-enqueue the safety check more often if APIServer is not active and is not frozen yet
-			defer c.machineSafetyAPIServerQueue.AddAfter("", sleepPeriod/5)
+			defer c.machineSafetyAPIServerQueue.AddAfter("", inactivePeriod/5)
 			return nil
 		}
 	}
