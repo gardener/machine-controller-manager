@@ -37,12 +37,15 @@ var _ = Describe("machine", func() {
 			const freezeReason = OverShootingReplicaCount
 			const freezeMessage = OverShootingReplicaCount
 
-			objects := []runtime.Object{}
+			controlMachineObjects := []runtime.Object{}
 			if machineSet != nil {
-				objects = append(objects, machineSet)
+				controlMachineObjects = append(controlMachineObjects, machineSet)
 			}
-			c, w := createController(stop, namespace, objects, nil)
-			defer w.Stop()
+			c, watches := createController(stop, namespace, controlMachineObjects, nil, nil)
+			for _, watch := range watches {
+				defer watch.Stop()
+				Expect(watch).NotTo(BeNil())
+			}
 
 			machineSets, err := c.controlMachineClient.MachineSets(machineSet.Namespace).List(metav1.ListOptions{})
 			Expect(err).To(BeNil())
@@ -105,15 +108,18 @@ var _ = Describe("machine", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
-			objects := []runtime.Object{}
+			controlMachineObjects := []runtime.Object{}
 			if machineSetExists {
-				objects = append(objects, testMachineSet)
+				controlMachineObjects = append(controlMachineObjects, testMachineSet)
 			}
 			if parentExists {
-				objects = append(objects, testMachineDeployment)
+				controlMachineObjects = append(controlMachineObjects, testMachineDeployment)
 			}
-			c, w := createController(stop, namespace, objects, nil)
-			defer w.Stop()
+			c, watches := createController(stop, namespace, controlMachineObjects, nil, nil)
+			for _, watch := range watches {
+				defer watch.Stop()
+				Expect(watch).NotTo(BeNil())
+			}
 
 			Expect(cache.WaitForCacheSync(stop, c.machineSetSynced, c.machineDeploymentSynced)).To(BeTrue())
 
@@ -145,17 +151,20 @@ var _ = Describe("machine", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
-			objects := []runtime.Object{}
+			controlMachineObjects := []runtime.Object{}
 			if machineSet != nil {
-				objects = append(objects, machineSet)
+				controlMachineObjects = append(controlMachineObjects, machineSet)
 			}
-			c, w := createController(stop, namespace, objects, nil)
-			defer w.Stop()
+			c, watches := createController(stop, namespace, controlMachineObjects, nil, nil)
+			for _, watch := range watches {
+				defer watch.Stop()
+				Expect(watch).NotTo(BeNil())
+			}
 
 			waitForCacheSync(stop, c)
 			machineSets, err := c.machineSetLister.List(labels.Everything())
 			Expect(err).To(BeNil())
-			Expect(len(machineSets)).To(Equal(len(objects)))
+			Expect(len(machineSets)).To(Equal(len(controlMachineObjects)))
 
 			c.checkAndFreezeORUnfreezeMachineSets()
 		},

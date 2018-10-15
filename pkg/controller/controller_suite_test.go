@@ -18,40 +18,30 @@ package controller
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
-	"errors"
+	"testing"
 
 	machine_internal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	fakeuntyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/fake"
 	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
+	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	"github.com/gardener/machine-controller-manager/pkg/options"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/watch"
 	coreinformers "k8s.io/client-go/informers"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
-	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-
-	"testing"
 )
 
 func TestMachineControllerManagerSuite(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Machine Controller Manager suite")
+	RunSpecs(t, "Machine Controller Manager Suite")
 }
 
 var (
@@ -227,25 +217,37 @@ func newSecretReference(meta *metav1.ObjectMeta, index int) *corev1.SecretRefere
 	return r
 }
 
-func createController(stop <-chan struct{}, namespace string, machineObjects, coreObjects []runtime.Object) (*controller, *watchableObjectTracker) {
-	// TODO controlCoreClient
-	fakeCoreClient := k8sfake.NewSimpleClientset(coreObjects...)
-	coreInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
-		fakeCoreClient,
+func createController(stop <-chan struct{}, namespace string, controlMachineObjects, controlCoreObjects, targetCoreObjects []runtime.Object) (*controller, []*customfake.FakeObjectTracker) {
+
+	var (
+		watchableObjectTrackers []*customfake.FakeObjectTracker
+	)
+
+	fakeMachineClient, w := customfake.NewMachineClientSet(controlMachineObjects...)
+	go w.Start()
+	watchableObjectTrackers = append(watchableObjectTrackers, w)
+	fakeTypedMachineClient := &faketyped.FakeMachineV1alpha1{
+		Fake: &fakeMachineClient.Fake,
+	}
+
+	fakeControlCoreClient, w := customfake.NewCoreClientSet(controlCoreObjects...)
+	go w.Start()
+	watchableObjectTrackers = append(watchableObjectTrackers, w)
+
+	fakeTargetCoreClient, w := customfake.NewCoreClientSet(targetCoreObjects...)
+	go w.Start()
+	watchableObjectTrackers = append(watchableObjectTrackers, w)
+
+	coreTargetInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
+		fakeTargetCoreClient,
 		100*time.Millisecond,
 		namespace,
 		nil,
 	)
-	defer coreInformerFactory.Start(stop)
+	defer coreTargetInformerFactory.Start(stop)
+	coreTargetSharedInformers := coreTargetInformerFactory.Core().V1()
+	nodes := coreTargetSharedInformers.Nodes()
 
-	coreSharedInformers := coreInformerFactory.Core().V1()
-	nodes := coreSharedInformers.Nodes()
-
-	fakeMachineClient, w := newMachineClientSet(machineObjects...)
-	go w.Start()
-	fakeTypedMachineClient := &faketyped.FakeMachineV1alpha1{
-		Fake: &fakeMachineClient.Fake,
-	}
 	controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
 		fakeMachineClient,
 		100*time.Millisecond,
@@ -285,7 +287,8 @@ func createController(stop <-chan struct{}, namespace string, machineObjects, co
 		azureMachineClassLister:        azure.Lister(),
 		gcpMachineClassLister:          gcp.Lister(),
 		openStackMachineClassLister:    openstack.Lister(),
-		controlCoreClient:              fakeCoreClient,
+		targetCoreClient:               fakeTargetCoreClient,
+		controlCoreClient:              fakeControlCoreClient,
 		controlMachineClient:           fakeTypedMachineClient,
 		internalExternalScheme:         internalExternalScheme,
 		nodeLister:                     nodes.Lister(),
@@ -306,7 +309,8 @@ func createController(stop <-chan struct{}, namespace string, machineObjects, co
 		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
 		machineSafetyOrphanVMsQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
 		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
-	}, w
+		machineSafetyAPIServerQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
+	}, watchableObjectTrackers
 }
 
 func waitForCacheSync(stop <-chan struct{}, controller *controller) {
@@ -317,254 +321,6 @@ func waitForCacheSync(stop <-chan struct{}, controller *controller) {
 		controller.machineSetSynced,
 		controller.machineDeploymentSynced,
 	)).To(BeTrue())
-}
-
-func newMachineClientSet(objects ...runtime.Object) (*fakeuntyped.Clientset, *watchableObjectTracker) {
-	var scheme = runtime.NewScheme()
-	var codecs = serializer.NewCodecFactory(scheme)
-
-	metav1.AddToGroupVersion(scheme, schema.GroupVersion{Version: "v1"})
-	fakeuntyped.AddToScheme(scheme)
-
-	o := &watchableObjectTracker{
-		FakeWatcher: watch.NewFake(),
-		delegatee:   k8stesting.NewObjectTracker(scheme, codecs.UniversalDecoder()),
-	}
-
-	for _, obj := range objects {
-		if err := o.Add(obj); err != nil {
-			panic(err)
-		}
-	}
-
-	cs := &fakeuntyped.Clientset{}
-	cs.Fake.AddReactor("*", "*", k8stesting.ObjectReaction(o))
-	cs.Fake.AddWatchReactor("*", o.watchReactionfunc)
-
-	return cs, o
-}
-
-//watchableObjectTracker implements both k8stesting.ObjectTracker as well as watch.Interface.
-type watchableObjectTracker struct {
-	*watch.FakeWatcher
-	delegatee    k8stesting.ObjectTracker
-	watchers     []*watcher
-	trackerMutex sync.Mutex
-}
-
-func (t *watchableObjectTracker) Add(obj runtime.Object) error {
-	return t.delegatee.Add(obj)
-}
-
-func (t *watchableObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string) (runtime.Object, error) {
-	return t.delegatee.Get(gvr, ns, name)
-}
-
-func (t *watchableObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.Object, ns string) error {
-	err := t.delegatee.Create(gvr, obj, ns)
-	if err != nil {
-		return err
-	}
-
-	if t.FakeWatcher == nil {
-		return errors.New("Error sending event on a tracker with no watch support")
-	}
-
-	if t.IsStopped() {
-		return errors.New("Error sending event on a stopped tracker")
-	}
-
-	t.FakeWatcher.Add(obj)
-	return nil
-}
-
-func (t *watchableObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.Object, ns string) error {
-	err := t.delegatee.Update(gvr, obj, ns)
-	if err != nil {
-		return err
-	}
-
-	if t.FakeWatcher == nil {
-		return errors.New("Error sending event on a tracker with no watch support")
-	}
-
-	if t.IsStopped() {
-		return errors.New("Error sending event on a stopped tracker")
-	}
-
-	t.FakeWatcher.Modify(obj)
-	return nil
-}
-
-func (t *watchableObjectTracker) List(gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, ns string) (runtime.Object, error) {
-	return t.delegatee.List(gvr, gvk, ns)
-}
-
-func (t *watchableObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name string) error {
-	obj, errGet := t.delegatee.Get(gvr, ns, name)
-	err := t.delegatee.Delete(gvr, ns, name)
-	if err != nil {
-		return err
-	}
-
-	if errGet != nil {
-		return errGet
-	}
-
-	if t.FakeWatcher == nil {
-		return errors.New("Error sending event on a tracker with no watch support")
-	}
-
-	if t.IsStopped() {
-		return errors.New("Error sending event on a stopped tracker")
-	}
-
-	t.FakeWatcher.Delete(obj)
-	return nil
-}
-
-func (t *watchableObjectTracker) Watch(gvr schema.GroupVersionResource, name string) (watch.Interface, error) {
-	// TODO: Fix this
-	return nil, errors.New("Cannot watch on a tracker with no watch support")
-}
-
-func (t *watchableObjectTracker) watchReactionfunc(action k8stesting.Action) (bool, watch.Interface, error) {
-	if t.FakeWatcher == nil {
-		return false, nil, errors.New("Cannot watch on a tracker with no watch support")
-	}
-
-	switch a := action.(type) {
-	case k8stesting.WatchAction:
-		w := &watcher{
-			FakeWatcher: watch.NewFake(),
-			action:      a,
-		}
-		go w.dispatchInitialObjects(a, t)
-		t.trackerMutex.Lock()
-		defer t.trackerMutex.Unlock()
-		t.watchers = append(t.watchers, w)
-		return true, w, nil
-	default:
-		return false, nil, fmt.Errorf("Expected WatchAction but got %v", action)
-	}
-}
-
-func (t *watchableObjectTracker) Start() error {
-	if t.FakeWatcher == nil {
-		return errors.New("Tracker has no watch support")
-	}
-
-	for event := range t.ResultChan() {
-		t.dispatch(&event)
-	}
-
-	return nil
-}
-
-func (t *watchableObjectTracker) dispatch(event *watch.Event) {
-	for _, w := range t.watchers {
-		go w.dispatch(event)
-	}
-}
-
-func (t *watchableObjectTracker) Stop() {
-	if t.FakeWatcher == nil {
-		panic(errors.New("Tracker has no watch support"))
-	}
-
-	t.trackerMutex.Lock()
-	defer t.trackerMutex.Unlock()
-
-	t.FakeWatcher.Stop()
-	for _, w := range t.watchers {
-		w.Stop()
-	}
-	t.watchers = []*watcher{}
-}
-
-type watcher struct {
-	*watch.FakeWatcher
-	action      k8stesting.WatchAction
-	updateMutex sync.Mutex
-}
-
-func (w *watcher) Stop() {
-	w.updateMutex.Lock()
-	defer w.updateMutex.Unlock()
-
-	w.FakeWatcher.Stop()
-}
-
-func (w *watcher) handles(event *watch.Event) bool {
-	if w.IsStopped() {
-		return false
-	}
-
-	t, err := meta.TypeAccessor(event.Object)
-	if err != nil {
-		return false
-	}
-
-	gvr, _ := meta.UnsafeGuessKindToResource(schema.FromAPIVersionAndKind(t.GetAPIVersion(), t.GetKind()))
-	if !(&k8stesting.SimpleWatchReactor{Resource: gvr.Resource}).Handles(w.action) {
-		return false
-	}
-
-	o, err := meta.Accessor(event.Object)
-	if err != nil {
-		return false
-	}
-
-	info := w.action.GetWatchRestrictions()
-	rv, fs, ls := info.ResourceVersion, info.Fields, info.Labels
-	if rv != "" && o.GetResourceVersion() != rv {
-		return false
-	}
-
-	if fs != nil && !fs.Matches(fields.Set{
-		"metadata.name":      o.GetName(),
-		"metadata.namespace": o.GetNamespace(),
-	}) {
-		return false
-	}
-
-	if ls != nil && !ls.Matches(labels.Set(o.GetLabels())) {
-		return false
-	}
-
-	return true
-}
-
-func (w *watcher) dispatch(event *watch.Event) {
-	w.updateMutex.Lock()
-	defer w.updateMutex.Unlock()
-
-	if !w.handles(event) {
-		return
-	}
-	w.Action(event.Type, event.Object)
-}
-
-func (w *watcher) dispatchInitialObjects(action k8stesting.WatchAction, t k8stesting.ObjectTracker) error {
-	listObj, err := t.List(action.GetResource(), action.GetResource().GroupVersion().WithKind(action.GetResource().Resource), action.GetNamespace())
-	if err != nil {
-		return err
-	}
-
-	itemsPtr, err := meta.GetItemsPtr(listObj)
-	if err != nil {
-		return err
-	}
-
-	items := itemsPtr.([]runtime.Object)
-	for _, o := range items {
-		w.dispatch(&watch.Event{
-			Type:   watch.Added,
-			Object: o,
-		})
-	}
-
-	return nil
 }
 
 var _ = Describe("#createController", func() {
@@ -581,13 +337,15 @@ var _ = Describe("#createController", func() {
 		stop := make(chan struct{})
 		defer close(stop)
 
-		c, w := createController(stop, objMeta.Namespace, nil, nil)
-		defer w.Stop()
+		c, watches := createController(stop, objMeta.Namespace, nil, nil, nil)
+		for _, watch := range watches {
+			defer watch.Stop()
+			Expect(watch).NotTo(BeNil())
+		}
 
 		waitForCacheSync(stop, c)
 
 		Expect(c).NotTo(BeNil())
-		Expect(w).NotTo(BeNil())
 
 		allMachineWatch, err := c.controlMachineClient.Machines(objMeta.Namespace).Watch(metav1.ListOptions{})
 		Expect(err).NotTo(HaveOccurred())
