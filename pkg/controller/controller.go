@@ -98,6 +98,7 @@ func NewController(
 		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
 		machineSafetyOrphanVMsQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
 		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
+		machineSafetyAPIServerQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
 		safetyOptions:                  safetyOptions,
 	}
 
@@ -334,6 +335,7 @@ func NewController(
 	// running of different safety loop on MCM startup.
 	controller.machineSafetyOrphanVMsQueue.Add("")
 	controller.machineSafetyOvershootingQueue.Add("")
+	controller.machineSafetyAPIServerQueue.Add("")
 
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		// addMachineToSafety makes sure machine objects does not overshoot
@@ -397,6 +399,7 @@ type controller struct {
 	machineDeploymentQueue         workqueue.RateLimitingInterface
 	machineSafetyOrphanVMsQueue    workqueue.RateLimitingInterface
 	machineSafetyOvershootingQueue workqueue.RateLimitingInterface
+	machineSafetyAPIServerQueue    workqueue.RateLimitingInterface
 	// syncs
 	secretSynced                cache.InformerSynced
 	nodeSynced                  cache.InformerSynced
@@ -429,6 +432,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer c.machineDeploymentQueue.ShutDown()
 	defer c.machineSafetyOrphanVMsQueue.ShutDown()
 	defer c.machineSafetyOvershootingQueue.ShutDown()
+	defer c.machineSafetyAPIServerQueue.ShutDown()
 
 	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.openStackMachineClassSynced, c.awsMachineClassSynced, c.azureMachineClassSynced, c.gcpMachineClassSynced, c.alicloudMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
 		runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
@@ -457,6 +461,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 		createWorker(c.machineDeploymentQueue, "ClusterMachineDeployment", maxRetries, true, c.reconcileClusterMachineDeployment, stopCh, &waitGroup)
 		createWorker(c.machineSafetyOrphanVMsQueue, "ClusterMachineSafetyOrphanVMs", maxRetries, true, c.reconcileClusterMachineSafetyOrphanVMs, stopCh, &waitGroup)
 		createWorker(c.machineSafetyOvershootingQueue, "ClusterMachineSafetyOvershooting", maxRetries, true, c.reconcileClusterMachineSafetyOvershooting, stopCh, &waitGroup)
+		createWorker(c.machineSafetyAPIServerQueue, "ClusterMachineAPIServer", maxRetries, true, c.reconcileClusterMachineSafetyAPIServer, stopCh, &waitGroup)
 	}
 
 	<-stopCh
