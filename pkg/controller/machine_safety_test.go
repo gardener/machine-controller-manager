@@ -16,7 +16,10 @@ limitations under the License.
 package controller
 
 import (
+	"time"
+
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -27,6 +30,11 @@ import (
 )
 
 const namespace = "test"
+
+var (
+	fiveSecondsBeforeNow = time.Now().Add(-time.Duration(5 * time.Second))
+	fiveMinutesBeforeNow = time.Now().Add(-time.Duration(5 * time.Minute))
+)
 
 var _ = Describe("machine", func() {
 	DescribeTable("##freezeMachineSetsAndDeployments",
@@ -175,5 +183,109 @@ var _ = Describe("machine", func() {
 				Namespace: "test",
 			},
 		}, 1, 10, nil, nil)),
+	)
+
+	DescribeTable("##reconcileClusterMachineSafetyAPIServer",
+		func(
+			controlAPIServerIsUp bool,
+			targetAPIServerIsUp bool,
+			apiServerInactiveStartTime time.Time,
+			preMachineControllerIsFrozen bool,
+			postMachineControllerFrozen bool,
+		) {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			testMachine := &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "testmachine1",
+					Namespace: machinenamespace,
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: v1alpha1.MachineUnknown,
+					},
+				},
+			}
+			controlMachineObjects := []runtime.Object{}
+			controlMachineObjects = append(controlMachineObjects, testMachine)
+
+			c, watches := createController(stop, namespace, controlMachineObjects, nil, nil)
+			for _, watch := range watches {
+				defer watch.Stop()
+				Expect(watch).NotTo(BeNil())
+			}
+			waitForCacheSync(stop, c)
+
+			c.safetyOptions.APIserverInactiveStartTime = apiServerInactiveStartTime
+			c.safetyOptions.MachineControllerFrozen = preMachineControllerIsFrozen
+			if !controlAPIServerIsUp {
+				watches[0].SetError("APIServer is Not Reachable")
+				watches[1].SetError("APIServer is Not Reachable")
+			}
+			if !targetAPIServerIsUp {
+				watches[2].SetError("APIServer is Not Reachable")
+			}
+
+			c.reconcileClusterMachineSafetyAPIServer("")
+
+			Expect(c.safetyOptions.MachineControllerFrozen).Should(Equal(postMachineControllerFrozen))
+		},
+
+		// Both APIServers are reachable
+		Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Inactive, Pre-Frozen: false = Post-Frozen: false",
+			true, true, time.Time{}, false, false),
+		Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Inactive, Pre-Frozen: true = Post-Frozen: false",
+			true, true, time.Time{}, true, false),
+		Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Started, Pre-Frozen: false = Post-Frozen: false",
+			true, true, fiveSecondsBeforeNow, false, false),
+		Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Started, Pre-Frozen: true = Post-Frozen: false",
+			true, true, fiveSecondsBeforeNow, true, false),
+		Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Elapsed, Pre-Frozen: false = Post-Frozen: false",
+			true, true, fiveMinutesBeforeNow, false, false),
+		Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Elapsed, Pre-Frozen: true = Post-Frozen: false",
+			true, true, fiveMinutesBeforeNow, true, false),
+
+		// Target APIServer is not reachable
+		Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Inactive, Pre-Frozen: false = Post-Frozen: false",
+			true, false, time.Time{}, false, false),
+		Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Inactive, Pre-Frozen: true = Post-Frozen: true",
+			true, false, time.Time{}, true, true),
+		Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Started, Pre-Frozen: false = Post-Frozen: false",
+			true, false, fiveSecondsBeforeNow, false, false),
+		Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Started, Pre-Frozen: true = Post-Frozen: true",
+			true, false, fiveSecondsBeforeNow, true, true),
+		Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Elapsed, Pre-Frozen: false = Post-Frozen: true",
+			true, false, fiveMinutesBeforeNow, false, true),
+		Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Elapsed, Pre-Frozen: true = Post-Frozen: true",
+			true, false, fiveMinutesBeforeNow, true, true),
+
+		// Control APIServer is not reachable
+		Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Inactive, Pre-Frozen: false = Post-Frozen: false",
+			false, true, time.Time{}, false, false),
+		Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Inactive, Pre-Frozen: true = Post-Frozen: true",
+			false, true, time.Time{}, true, true),
+		Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Started, Pre-Frozen: false = Post-Frozen: false",
+			false, true, fiveSecondsBeforeNow, false, false),
+		Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Started, Pre-Frozen: true = Post-Frozen: true",
+			false, true, fiveSecondsBeforeNow, true, true),
+		Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Elapsed, Pre-Frozen: false = Post-Frozen: true",
+			false, true, fiveMinutesBeforeNow, false, true),
+		Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Elapsed, Pre-Frozen: true = Post-Frozen: true",
+			false, true, fiveMinutesBeforeNow, true, true),
+
+		// Both APIServers are not reachable
+		Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Inactive, Pre-Frozen: false = Post-Frozen: false",
+			false, false, time.Time{}, false, false),
+		Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Inactive, Pre-Frozen: true = Post-Frozen: true",
+			false, false, time.Time{}, true, true),
+		Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Started, Pre-Frozen: false = Post-Frozen: false",
+			false, false, fiveSecondsBeforeNow, false, false),
+		Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Started, Pre-Frozen: true = Post-Frozen: true",
+			false, false, fiveSecondsBeforeNow, true, true),
+		Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Elapsed, Pre-Frozen: false = Post-Frozen: true",
+			false, false, fiveMinutesBeforeNow, false, true),
+		Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Elapsed, Pre-Frozen: true = Post-Frozen: true",
+			false, false, fiveMinutesBeforeNow, true, true),
 	)
 })

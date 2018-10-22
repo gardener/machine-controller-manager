@@ -119,8 +119,6 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 				c.enqueueMachineAfter(machine, 30*time.Second)
 			}
 
-			// Wait 30 seconds for machines to rejoin
-			time.Sleep(30 * time.Second)
 			c.safetyOptions.MachineControllerFrozen = false
 			c.safetyOptions.APIserverInactiveStartTime = time.Time{}
 			glog.V(2).Infof("reconcileClusterMachineSafetyAPIServer: UnFreezing Machine Controller")
