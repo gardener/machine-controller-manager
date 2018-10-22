@@ -270,13 +270,15 @@ func createController(stop <-chan struct{}, namespace string, controlMachineObje
 	Expect(v1alpha1.AddToScheme(internalExternalScheme)).To(Succeed())
 
 	safetyOptions := options.SafetyOptions{
-		SafetyUp:                        2,
-		SafetyDown:                      1,
-		MachineDrainTimeout:             5,
-		MachineHealthTimeout:            10,
-		MachineSetScaleTimeout:          2,
-		MachineSafetyOrphanVMsPeriod:    30,
-		MachineSafetyOvershootingPeriod: 1,
+		SafetyUp:                            2,
+		SafetyDown:                          1,
+		MachineDrainTimeout:                 5,
+		MachineHealthTimeout:                10,
+		MachineSetScaleTimeout:              2,
+		MachineSafetyOrphanVMsPeriod:        30,
+		MachineSafetyOvershootingPeriod:     1,
+		MachineSafetyAPIServerStatusPeriod:  metav1.Duration{Duration: 1 * time.Minute},
+		MachineSafetyAPIServerStatusTimeout: metav1.Duration{Duration: 30 * time.Second},
 	}
 
 	return &controller{
