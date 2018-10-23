@@ -216,11 +216,8 @@ var _ = Describe("machine", func() {
 				defer close(stop)
 
 				objects := []runtime.Object{}
-				c, watches := createController(stop, namespace, objects, nil, nil)
-				for _, watch := range watches {
-					defer watch.Stop()
-					Expect(watch).NotTo(BeNil())
-				}
+				c, trackers := createController(stop, namespace, objects, nil, nil)
+				defer trackers.Stop()
 
 				testMachine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
@@ -257,11 +254,8 @@ var _ = Describe("machine", func() {
 				objects := []runtime.Object{}
 				objects = append(objects, testMachine)
 
-				c, watches := createController(stop, namespace, objects, nil, nil)
-				for _, watch := range watches {
-					defer watch.Stop()
-					Expect(watch).NotTo(BeNil())
-				}
+				c, trackers := createController(stop, namespace, objects, nil, nil)
+				defer trackers.Stop()
 
 				var updatedMachine, err = c.updateMachineConditions(testMachine, conditions)
 				Expect(updatedMachine.Status.Conditions).Should(BeEquivalentTo(conditions))
@@ -349,11 +343,8 @@ var _ = Describe("machine", func() {
 					coreObjects = append(coreObjects, o)
 				}
 
-				controller, watches := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
-				for _, watch := range watches {
-					defer watch.Stop()
-					Expect(watch).NotTo(BeNil())
-				}
+				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
+				defer trackers.Stop()
 
 				waitForCacheSync(stop, controller)
 				machineClass, secret, err := controller.validateMachineClass(data.action)
@@ -496,11 +487,8 @@ var _ = Describe("machine", func() {
 					coreObjects = append(coreObjects, o)
 				}
 
-				controller, watches := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
-				for _, watch := range watches {
-					defer watch.Stop()
-					Expect(watch).NotTo(BeNil())
-				}
+				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
+				defer trackers.Stop()
 
 				waitForCacheSync(stop, controller)
 
@@ -615,11 +603,8 @@ var _ = Describe("machine", func() {
 
 				coreObjects := []runtime.Object{}
 
-				controller, watches := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
-				for _, watch := range watches {
-					defer watch.Stop()
-					Expect(watch).NotTo(BeNil())
-				}
+				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
+				defer trackers.Stop()
 				waitForCacheSync(stop, controller)
 
 				action := data.action
@@ -838,11 +823,8 @@ var _ = Describe("machine", func() {
 					coreObjects = append(coreObjects, o)
 				}
 
-				controller, watches := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
-				for _, watch := range watches {
-					defer watch.Stop()
-					Expect(watch).NotTo(BeNil())
-				}
+				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
+				defer trackers.Stop()
 				waitForCacheSync(stop, controller)
 
 				action := data.action

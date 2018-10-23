@@ -61,15 +61,15 @@ func NewMCMServer() *MCMServer {
 			LeaderElection:          leaderelectionconfig.DefaultLeaderElectionConfiguration(),
 			ControllerStartInterval: metav1.Duration{Duration: 0 * time.Second},
 			SafetyOptions: machineconfig.SafetyOptions{
-				SafetyUp:                            2,
-				SafetyDown:                          1,
-				MachineHealthTimeout:                10,
-				MachineDrainTimeout:                 5,
-				MachineSetScaleTimeout:              20,
-				MachineSafetyOrphanVMsPeriod:        30,
-				MachineSafetyOvershootingPeriod:     1,
-				MachineSafetyAPIServerStatusPeriod:  metav1.Duration{Duration: 1 * time.Minute},
-				MachineSafetyAPIServerStatusTimeout: metav1.Duration{Duration: 30 * time.Second},
+				SafetyUp:                                 2,
+				SafetyDown:                               1,
+				MachineHealthTimeout:                     10,
+				MachineDrainTimeout:                      5,
+				MachineSetScaleTimeout:                   20,
+				MachineSafetyOrphanVMsPeriod:             30,
+				MachineSafetyOvershootingPeriod:          1,
+				MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
+				MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
 			},
 		},
 	}
@@ -102,8 +102,8 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&s.SafetyOptions.MachineSafetyOrphanVMsPeriod, "machine-safety-orphan-vms-period", s.SafetyOptions.MachineSafetyOrphanVMsPeriod, "Time period (in minutes) used to poll for orphan VMs by safety controller.")
 	fs.Int32Var(&s.SafetyOptions.MachineSafetyOvershootingPeriod, "machine-safety-overshooting-period", s.SafetyOptions.MachineSafetyOvershootingPeriod, "Time period (in minutes) used to poll for overshooting of machine objects backing a machineSet by safety controller.")
 
-	fs.DurationVar(&s.SafetyOptions.MachineSafetyAPIServerStatusTimeout.Duration, "machine-safety-apiserver-timeout", s.SafetyOptions.MachineSafetyAPIServerStatusTimeout.Duration, "Timeout (in duration) for which the APIServer can be down before declare the machine controller frozen by safety controller")
-	fs.DurationVar(&s.SafetyOptions.MachineSafetyAPIServerStatusPeriod.Duration, "machine-safety-apiserver-period", s.SafetyOptions.MachineSafetyAPIServerStatusPeriod.Duration, "Period (in duration) used to poll for APIServer's health by safety controller")
+	fs.DurationVar(&s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration, "machine-safety-apiserver-statuscheck-timeout", s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration, "Timeout (in duration) for which the APIServer can be down before declare the machine controller frozen by safety controller")
+	fs.DurationVar(&s.SafetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration, "machine-safety-apiserver-statuscheck-period", s.SafetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration, "Period (in duration) used to poll for APIServer's health by safety controller")
 
 	leaderelectionconfig.BindFlags(&s.LeaderElection, fs)
 	// TODO: DefaultFeatureGate is global and it adds all k8s flags
