@@ -72,8 +72,8 @@ func (c *controller) reconcileClusterMachineSafetyOvershooting(key string) error
 // and checks if their APIServer's are reachable
 // If they are not reachable, they set a machineControllerFreeze flag
 func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
-	inactivePeriod := c.safetyOptions.MachineSafetyAPIServerStatusTimeout.Duration
-	sleepPeriod := c.safetyOptions.MachineSafetyAPIServerStatusPeriod.Duration
+	statusCheckTimeout := c.safetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration
+	statusCheckPeriod := c.safetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration
 
 	glog.V(3).Infof("reconcileClusterMachineSafetyAPIServer: Start")
 	defer glog.V(3).Infof("reconcileClusterMachineSafetyAPIServer: Stop")
@@ -131,33 +131,37 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 				// If timeout has not started
 				c.safetyOptions.APIserverInactiveStartTime = time.Now()
 			}
-			if time.Now().Sub(c.safetyOptions.APIserverInactiveStartTime) > inactivePeriod {
-				// If APIServer has been down for more than inactivePeriod
+			if time.Now().Sub(c.safetyOptions.APIserverInactiveStartTime) > statusCheckTimeout {
+				// If APIServer has been down for more than statusCheckTimeout
 				c.safetyOptions.MachineControllerFrozen = true
 				glog.V(2).Infof("reconcileClusterMachineSafetyAPIServer: Freezing Machine Controller")
 			}
 
 			// Re-enqueue the safety check more often if APIServer is not active and is not frozen yet
-			defer c.machineSafetyAPIServerQueue.AddAfter("", inactivePeriod/5)
+			defer c.machineSafetyAPIServerQueue.AddAfter("", statusCheckTimeout/5)
 			return nil
 		}
 	}
 
-	defer c.machineSafetyAPIServerQueue.AddAfter("", sleepPeriod)
+	defer c.machineSafetyAPIServerQueue.AddAfter("", statusCheckPeriod)
 	return nil
 }
 
 // isAPIServerUp returns true if APIServers are up
 // Both control and target APIServers
 func (c *controller) isAPIServerUp() bool {
-	_, err := c.controlMachineClient.Machines(c.namespace).List(metav1.ListOptions{})
-	if err != nil {
+	// Dummy get call to check if control APIServer is reachable
+	_, err := c.controlMachineClient.Machines(c.namespace).Get("", metav1.GetOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		// Get returns an error other than object not found = Assume APIServer is not reachable
 		glog.Warning("Unable to list on machine objects", err)
 		return false
 	}
 
-	_, err = c.targetCoreClient.CoreV1().Nodes().List(metav1.ListOptions{})
-	if err != nil {
+	// Dummy get call to check if target APIServer is reachable
+	_, err = c.targetCoreClient.CoreV1().Nodes().Get("", metav1.GetOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		// Get returns an error other than object not found = Assume APIServer is not reachable
 		glog.Warning("Unable to list on node objects", err)
 		return false
 	}

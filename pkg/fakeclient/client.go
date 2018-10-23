@@ -48,7 +48,7 @@ type FakeObjectTracker struct {
 // Add recieves an add event with the object
 func (t *FakeObjectTracker) Add(obj runtime.Object) error {
 	if t.fakingEnabled {
-		err := t.RunFakeInvokations()
+		err := t.RunFakeInvocations()
 		if err != nil {
 			return err
 		}
@@ -60,7 +60,7 @@ func (t *FakeObjectTracker) Add(obj runtime.Object) error {
 // Get recieves an get event with the object
 func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string) (runtime.Object, error) {
 	if t.fakingEnabled {
-		err := t.RunFakeInvokations()
+		err := t.RunFakeInvocations()
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +72,7 @@ func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string
 // Create recieves an create event with the object
 func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.Object, ns string) error {
 	if t.fakingEnabled {
-		err := t.RunFakeInvokations()
+		err := t.RunFakeInvocations()
 		if err != nil {
 			return err
 		}
@@ -98,7 +98,7 @@ func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.
 // Update recieves an update event with the object
 func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.Object, ns string) error {
 	if t.fakingEnabled {
-		err := t.RunFakeInvokations()
+		err := t.RunFakeInvocations()
 		if err != nil {
 			return err
 		}
@@ -124,7 +124,7 @@ func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.
 // List recieves an list event with the object
 func (t *FakeObjectTracker) List(gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, ns string) (runtime.Object, error) {
 	if t.fakingEnabled {
-		err := t.RunFakeInvokations()
+		err := t.RunFakeInvocations()
 		if err != nil {
 			return nil, err
 		}
@@ -135,7 +135,7 @@ func (t *FakeObjectTracker) List(gvr schema.GroupVersionResource, gvk schema.Gro
 // Delete recieves an delete event with the object
 func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name string) error {
 	if t.fakingEnabled {
-		err := t.RunFakeInvokations()
+		err := t.RunFakeInvocations()
 		if err != nil {
 			return err
 		}
@@ -166,7 +166,7 @@ func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name str
 // Watch recieves an watch event with the object
 func (t *FakeObjectTracker) Watch(gvr schema.GroupVersionResource, name string) (watch.Interface, error) {
 	if t.fakingEnabled {
-		err := t.RunFakeInvokations()
+		err := t.RunFakeInvocations()
 		if err != nil {
 			return nil, err
 		}
@@ -345,8 +345,8 @@ func (o *fakingOptions) ClearOptions(message string) error {
 	return nil
 }
 
-// RunFakeInvokations runs any custom fake configurations/methods before invoking standard ObjectTrackers
-func (o *fakingOptions) RunFakeInvokations() error {
+// RunFakeInvocations runs any custom fake configurations/methods before invoking standard ObjectTrackers
+func (o *fakingOptions) RunFakeInvocations() error {
 	if o.delay != 0 {
 		time.Sleep(o.delay)
 	}
@@ -384,6 +384,41 @@ func NewMachineClientSet(objects ...runtime.Object) (*fakeuntyped.Clientset, *Fa
 	cs.Fake.AddWatchReactor("*", o.watchReactionfunc)
 
 	return cs, o
+}
+
+// FakeObjectTrackers is a struct containing all the controller fake object trackers
+type FakeObjectTrackers struct {
+	ControlMachine, ControlCore, TargetCore *FakeObjectTracker
+}
+
+// NewFakeObjectTrackers initialize's fakeObjectTrackers initializes the fake object trackers
+func NewFakeObjectTrackers(controlMachine, controlCore, targetCore *FakeObjectTracker) *FakeObjectTrackers {
+
+	fakeObjectTrackers := &FakeObjectTrackers{
+		ControlMachine: controlMachine,
+		ControlCore:    controlCore,
+		TargetCore:     targetCore,
+	}
+
+	return fakeObjectTrackers
+}
+
+// Start starts all object trackers as go routines
+func (o *FakeObjectTrackers) Start() error {
+	go o.ControlMachine.Start()
+	go o.ControlCore.Start()
+	go o.TargetCore.Start()
+
+	return nil
+}
+
+// Stop stops all object trackers
+func (o *FakeObjectTrackers) Stop() error {
+	o.ControlMachine.Stop()
+	o.ControlCore.Stop()
+	o.TargetCore.Stop()
+
+	return nil
 }
 
 // NewCoreClientSet returns a clientset that will respond with the provided objects.
