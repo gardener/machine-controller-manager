@@ -49,11 +49,8 @@ var _ = Describe("machine", func() {
 			if machineSet != nil {
 				controlMachineObjects = append(controlMachineObjects, machineSet)
 			}
-			c, watches := createController(stop, namespace, controlMachineObjects, nil, nil)
-			for _, watch := range watches {
-				defer watch.Stop()
-				Expect(watch).NotTo(BeNil())
-			}
+			c, trackers := createController(stop, namespace, controlMachineObjects, nil, nil)
+			defer trackers.Stop()
 
 			machineSets, err := c.controlMachineClient.MachineSets(machineSet.Namespace).List(metav1.ListOptions{})
 			Expect(err).To(BeNil())
@@ -123,11 +120,8 @@ var _ = Describe("machine", func() {
 			if parentExists {
 				controlMachineObjects = append(controlMachineObjects, testMachineDeployment)
 			}
-			c, watches := createController(stop, namespace, controlMachineObjects, nil, nil)
-			for _, watch := range watches {
-				defer watch.Stop()
-				Expect(watch).NotTo(BeNil())
-			}
+			c, trackers := createController(stop, namespace, controlMachineObjects, nil, nil)
+			defer trackers.Stop()
 
 			Expect(cache.WaitForCacheSync(stop, c.machineSetSynced, c.machineDeploymentSynced)).To(BeTrue())
 
@@ -163,11 +157,8 @@ var _ = Describe("machine", func() {
 			if machineSet != nil {
 				controlMachineObjects = append(controlMachineObjects, machineSet)
 			}
-			c, watches := createController(stop, namespace, controlMachineObjects, nil, nil)
-			for _, watch := range watches {
-				defer watch.Stop()
-				Expect(watch).NotTo(BeNil())
-			}
+			c, trackers := createController(stop, namespace, controlMachineObjects, nil, nil)
+			defer trackers.Stop()
 
 			waitForCacheSync(stop, c)
 			machineSets, err := c.machineSetLister.List(labels.Everything())
@@ -210,21 +201,18 @@ var _ = Describe("machine", func() {
 			controlMachineObjects := []runtime.Object{}
 			controlMachineObjects = append(controlMachineObjects, testMachine)
 
-			c, watches := createController(stop, namespace, controlMachineObjects, nil, nil)
-			for _, watch := range watches {
-				defer watch.Stop()
-				Expect(watch).NotTo(BeNil())
-			}
+			c, trackers := createController(stop, namespace, controlMachineObjects, nil, nil)
+			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
 			c.safetyOptions.APIserverInactiveStartTime = apiServerInactiveStartTime
 			c.safetyOptions.MachineControllerFrozen = preMachineControllerIsFrozen
 			if !controlAPIServerIsUp {
-				watches[0].SetError("APIServer is Not Reachable")
-				watches[1].SetError("APIServer is Not Reachable")
+				trackers.ControlMachine.SetError("APIServer is Not Reachable")
+				trackers.ControlCore.SetError("APIServer is Not Reachable")
 			}
 			if !targetAPIServerIsUp {
-				watches[2].SetError("APIServer is Not Reachable")
+				trackers.TargetCore.SetError("APIServer is Not Reachable")
 			}
 
 			c.reconcileClusterMachineSafetyAPIServer("")

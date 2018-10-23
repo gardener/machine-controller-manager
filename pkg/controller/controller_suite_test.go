@@ -217,26 +217,20 @@ func newSecretReference(meta *metav1.ObjectMeta, index int) *corev1.SecretRefere
 	return r
 }
 
-func createController(stop <-chan struct{}, namespace string, controlMachineObjects, controlCoreObjects, targetCoreObjects []runtime.Object) (*controller, []*customfake.FakeObjectTracker) {
+func createController(stop <-chan struct{}, namespace string, controlMachineObjects, controlCoreObjects, targetCoreObjects []runtime.Object) (*controller, *customfake.FakeObjectTrackers) {
 
-	var (
-		watchableObjectTrackers []*customfake.FakeObjectTracker
-	)
-
-	fakeMachineClient, w := customfake.NewMachineClientSet(controlMachineObjects...)
-	go w.Start()
-	watchableObjectTrackers = append(watchableObjectTrackers, w)
+	fakeControlMachineClient, controlMachineObjectTracker := customfake.NewMachineClientSet(controlMachineObjects...)
 	fakeTypedMachineClient := &faketyped.FakeMachineV1alpha1{
-		Fake: &fakeMachineClient.Fake,
+		Fake: &fakeControlMachineClient.Fake,
 	}
-
-	fakeControlCoreClient, w := customfake.NewCoreClientSet(controlCoreObjects...)
-	go w.Start()
-	watchableObjectTrackers = append(watchableObjectTrackers, w)
-
-	fakeTargetCoreClient, w := customfake.NewCoreClientSet(targetCoreObjects...)
-	go w.Start()
-	watchableObjectTrackers = append(watchableObjectTrackers, w)
+	fakeControlCoreClient, controlCoreObjectTracker := customfake.NewCoreClientSet(controlCoreObjects...)
+	fakeTargetCoreClient, targetCoreObjectTracker := customfake.NewCoreClientSet(targetCoreObjects...)
+	fakeObjectTrackers := customfake.NewFakeObjectTrackers(
+		controlMachineObjectTracker,
+		controlCoreObjectTracker,
+		targetCoreObjectTracker,
+	)
+	fakeObjectTrackers.Start()
 
 	coreTargetInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
 		fakeTargetCoreClient,
@@ -249,7 +243,7 @@ func createController(stop <-chan struct{}, namespace string, controlMachineObje
 	nodes := coreTargetSharedInformers.Nodes()
 
 	controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
-		fakeMachineClient,
+		fakeControlMachineClient,
 		100*time.Millisecond,
 		namespace,
 		nil,
@@ -270,15 +264,15 @@ func createController(stop <-chan struct{}, namespace string, controlMachineObje
 	Expect(v1alpha1.AddToScheme(internalExternalScheme)).To(Succeed())
 
 	safetyOptions := options.SafetyOptions{
-		SafetyUp:                            2,
-		SafetyDown:                          1,
-		MachineDrainTimeout:                 5,
-		MachineHealthTimeout:                10,
-		MachineSetScaleTimeout:              2,
-		MachineSafetyOrphanVMsPeriod:        30,
-		MachineSafetyOvershootingPeriod:     1,
-		MachineSafetyAPIServerStatusPeriod:  metav1.Duration{Duration: 1 * time.Minute},
-		MachineSafetyAPIServerStatusTimeout: metav1.Duration{Duration: 30 * time.Second},
+		SafetyUp:                                 2,
+		SafetyDown:                               1,
+		MachineDrainTimeout:                      5,
+		MachineHealthTimeout:                     10,
+		MachineSetScaleTimeout:                   2,
+		MachineSafetyOrphanVMsPeriod:             30,
+		MachineSafetyOvershootingPeriod:          1,
+		MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
+		MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
 	}
 
 	return &controller{
@@ -312,7 +306,7 @@ func createController(stop <-chan struct{}, namespace string, controlMachineObje
 		machineSafetyOrphanVMsQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
 		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
 		machineSafetyAPIServerQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
-	}, watchableObjectTrackers
+	}, fakeObjectTrackers
 }
 
 func waitForCacheSync(stop <-chan struct{}, controller *controller) {
@@ -339,11 +333,8 @@ var _ = Describe("#createController", func() {
 		stop := make(chan struct{})
 		defer close(stop)
 
-		c, watches := createController(stop, objMeta.Namespace, nil, nil, nil)
-		for _, watch := range watches {
-			defer watch.Stop()
-			Expect(watch).NotTo(BeNil())
-		}
+		c, trackers := createController(stop, objMeta.Namespace, nil, nil, nil)
+		defer trackers.Stop()
 
 		waitForCacheSync(stop, c)
 

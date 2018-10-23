@@ -111,10 +111,10 @@ type SafetyOptions struct {
 	MachineControllerFrozen bool
 	// Period (in duration) used to poll for APIServer's health
 	// by safety controller
-	MachineSafetyAPIServerStatusPeriod metav1.Duration
+	MachineSafetyAPIServerStatusCheckPeriod metav1.Duration
 	// Timeout (in duration) for which the APIServer can be down before
 	// declare the machine controller frozen by safety controller
-	MachineSafetyAPIServerStatusTimeout metav1.Duration
+	MachineSafetyAPIServerStatusCheckTimeout metav1.Duration
 }
 
 // LeaderElectionConfiguration defines the configuration of leader election
