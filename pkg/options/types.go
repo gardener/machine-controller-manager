@@ -88,8 +88,11 @@ type SafetyOptions struct {
 	// SafetyDown
 	SafetyDown int32
 
-	// Timeout (in durartion) used while creation/failing of
-	// machine before it is declared as failed
+	// Timeout (in durartion) used while creation of
+	// a machine before it is declared as failed
+	MachineCreationTimeout metav1.Duration
+	// Timeout (in durartion) used while health-check of
+	// a machine before it is declared as failed
 	MachineHealthTimeout metav1.Duration
 	// Timeout (in durartion) used while draining of machine before deletion,
 	// beyond which it forcefully deletes machine
