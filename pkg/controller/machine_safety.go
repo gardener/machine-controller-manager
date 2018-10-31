@@ -151,18 +151,18 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 // Both control and target APIServers
 func (c *controller) isAPIServerUp() bool {
 	// Dummy get call to check if control APIServer is reachable
-	_, err := c.controlMachineClient.Machines(c.namespace).Get("", metav1.GetOptions{})
+	_, err := c.controlMachineClient.Machines(c.namespace).Get("dummy_name", metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		// Get returns an error other than object not found = Assume APIServer is not reachable
-		glog.Warning("Unable to list on machine objects", err)
+		glog.Warning("Unable to get on machine objects ", err)
 		return false
 	}
 
 	// Dummy get call to check if target APIServer is reachable
-	_, err = c.targetCoreClient.CoreV1().Nodes().Get("", metav1.GetOptions{})
+	_, err = c.targetCoreClient.CoreV1().Nodes().Get("dummy_name", metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		// Get returns an error other than object not found = Assume APIServer is not reachable
-		glog.Warning("Unable to list on node objects", err)
+		glog.Warning("Unable to get on node objects ", err)
 		return false
 	}
 
