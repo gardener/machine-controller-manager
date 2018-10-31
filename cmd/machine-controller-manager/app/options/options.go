@@ -63,6 +63,7 @@ func NewMCMServer() *MCMServer {
 			SafetyOptions: machineconfig.SafetyOptions{
 				SafetyUp:                                 2,
 				SafetyDown:                               1,
+				MachineCreationTimeout:                   metav1.Duration{Duration: 20 * time.Minute},
 				MachineHealthTimeout:                     metav1.Duration{Duration: 10 * time.Minute},
 				MachineDrainTimeout:                      metav1.Duration{Duration: 5 * time.Minute},
 				MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 30 * time.Minute},
@@ -96,7 +97,8 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&s.SafetyOptions.SafetyUp, "safety-up", s.SafetyOptions.SafetyUp, "The number of excess machine objects permitted for any machineSet/machineDeployment beyond its expected number of replicas based on desired and max-surge, we call this the upper-limit. When this upper-limit is reached, the objects are temporarily frozen until the number of objects reduce. upper-limit = desired + maxSurge (if applicable) + safetyUp.")
 	fs.Int32Var(&s.SafetyOptions.SafetyDown, "safety-down", s.SafetyOptions.SafetyDown, "Upper-limit minus safety-down value gives the lower-limit. This is the limits below which any temporarily frozen machineSet/machineDeployment object is unfrozen. lower-limit = desired + maxSurge (if applicable) + safetyUp - safetyDown.")
 
-	fs.DurationVar(&s.SafetyOptions.MachineHealthTimeout.Duration, "machine-health-timeout", s.SafetyOptions.MachineHealthTimeout.Duration, "Timeout (in durartion) used while joining (during creation) or re-joining (in case of temporary health issues) of machine before it is declared as failed.")
+	fs.DurationVar(&s.SafetyOptions.MachineCreationTimeout.Duration, "machine-creation-timeout", s.SafetyOptions.MachineCreationTimeout.Duration, "Timeout (in durartion) used while joining (during creation) of machine before it is declared as failed.")
+	fs.DurationVar(&s.SafetyOptions.MachineHealthTimeout.Duration, "machine-health-timeout", s.SafetyOptions.MachineHealthTimeout.Duration, "Timeout (in durartion) used while re-joining (in case of temporary health issues) of machine before it is declared as failed.")
 	fs.DurationVar(&s.SafetyOptions.MachineDrainTimeout.Duration, "machine-drain-timeout", s.SafetyOptions.MachineDrainTimeout.Duration, "Timeout (in durartion) used while draining of machine before deletion, beyond which MCM forcefully deletes machine.")
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration, "machine-safety-apiserver-statuscheck-timeout", s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration, "Timeout (in duration) for which the APIServer can be down before declare the machine controller frozen by safety controller")
 
