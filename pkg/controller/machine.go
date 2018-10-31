@@ -445,7 +445,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 		}
 
 		if machineID != "" {
-			timeOutDuration := time.Duration(c.safetyOptions.MachineDrainTimeout) * time.Minute
+			timeOutDuration := c.safetyOptions.MachineDrainTimeout.Duration
 			// Timeout value obtained by subtracting last operation with expected time out period
 			timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 
@@ -726,7 +726,7 @@ func (c *controller) checkMachineTimeout(machine *v1alpha1.Machine) {
 			currentStatus v1alpha1.CurrentStatus
 		)
 
-		timeOutDuration := time.Duration(c.safetyOptions.MachineHealthTimeout) * time.Minute
+		timeOutDuration := c.safetyOptions.MachineHealthTimeout.Duration
 		sleepTime := 1 * time.Minute
 
 		// Timeout value obtained by subtracting last operation with expected time out period

@@ -266,11 +266,9 @@ func createController(stop <-chan struct{}, namespace string, controlMachineObje
 	safetyOptions := options.SafetyOptions{
 		SafetyUp:                                 2,
 		SafetyDown:                               1,
-		MachineDrainTimeout:                      5,
-		MachineHealthTimeout:                     10,
-		MachineSetScaleTimeout:                   2,
-		MachineSafetyOrphanVMsPeriod:             30,
-		MachineSafetyOvershootingPeriod:          1,
+		MachineHealthTimeout:                     metav1.Duration{Duration: 10 * time.Minute},
+		MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 30 * time.Minute},
+		MachineSafetyOvershootingPeriod:          metav1.Duration{Duration: 1 * time.Minute},
 		MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
 		MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
 	}

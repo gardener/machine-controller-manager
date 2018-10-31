@@ -45,7 +45,7 @@ const (
 
 // reconcileClusterMachineSafetyOrphanVMs checks for any orphan VMs and deletes them
 func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
-	reSyncAfter := time.Duration(c.safetyOptions.MachineSafetyOrphanVMsPeriod) * time.Minute
+	reSyncAfter := c.safetyOptions.MachineSafetyOrphanVMsPeriod.Duration
 
 	defer c.machineSafetyOrphanVMsQueue.AddAfter("", reSyncAfter)
 	glog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: Start")
@@ -58,7 +58,7 @@ func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
 // reconcileClusterMachineSafetyOvershooting checks all machineSet/machineDeployment
 // if the number of machine objects backing them is way beyond its desired replicas
 func (c *controller) reconcileClusterMachineSafetyOvershooting(key string) error {
-	reSyncAfter := time.Duration(c.safetyOptions.MachineSafetyOvershootingPeriod) * time.Minute
+	reSyncAfter := c.safetyOptions.MachineSafetyOvershootingPeriod.Duration
 
 	defer c.machineSafetyOvershootingQueue.AddAfter("", reSyncAfter)
 	glog.V(3).Infof("reconcileClusterMachineSafetyOvershooting: Start")
@@ -257,64 +257,6 @@ func (c *controller) checkVMObjects() {
 	c.checkAzureMachineClass()
 	c.checkGCPMachineClass()
 	c.checkAlicloudMachineClass()
-}
-
-// checkAndFreezeMachineSetTimeout permanently freezes any
-// machineSet/machineDeployment whose creation times out
-// TBD: Call this while implementing back-off while melt down
-func (c *controller) checkAndFreezeMachineSetTimeout() {
-	timeout := time.Duration(c.safetyOptions.MachineSetScaleTimeout) * time.Minute
-
-	machineSets, err := c.machineSetLister.List(labels.Everything())
-	if err != nil {
-		glog.Error("Safety-Net: Error getting machineSets - ", err)
-		return
-	}
-
-	for _, ms := range machineSets {
-		if ms.Annotations != nil {
-			timestampString, ok := ms.Annotations[LastReplicaUpdate]
-			if ok {
-
-				if ms.Labels["freeze"] == "True" &&
-					ms.Status.Conditions != nil &&
-					GetCondition(&ms.Status, v1alpha1.MachineSetFrozen).Reason == TimeoutOccurred {
-					// MachineSet already frozen permanently due to timeout
-					continue
-				}
-
-				layout := "2006-01-02 15:04:05 MST"
-				timestamp, err := time.Parse(layout, timestampString)
-				if err != nil {
-					glog.Error("Error parsing time: ", err)
-					return
-				}
-
-				if ms.Status.ReadyReplicas == ms.Spec.Replicas {
-					for {
-						// Get the latest version of the machineSet so that we can avoid conflicts
-						ms, err := c.controlMachineClient.MachineSets(ms.Namespace).Get(ms.Name, metav1.GetOptions{})
-						if err != nil {
-							// Some error occued while fetching object from API server
-							glog.Error(err)
-							break
-						}
-						clone := ms.DeepCopy()
-						delete(clone.Annotations, LastReplicaUpdate)
-						_, err = c.controlMachineClient.MachineSets(clone.Namespace).Update(clone)
-						if err == nil {
-							break
-						}
-						// Keep retrying until update goes through
-						glog.Warning("Updated failed, retrying - ", err)
-					}
-				} else if time.Since(timestamp) > timeout {
-					message := "MachineSet has timed out while scaling replicas"
-					c.freezeMachineSetsAndDeployments(ms, TimeoutOccurred, message)
-				}
-			}
-		}
-	}
 }
 
 // checkAWSMachineClass checks for orphan VMs in AWSMachinesClasses

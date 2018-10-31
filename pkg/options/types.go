@@ -87,21 +87,26 @@ type SafetyOptions struct {
 	SafetyUp int32
 	// SafetyDown
 	SafetyDown int32
-	// Timeout (in minutes) used while creation/failing of
+
+	// Timeout (in durartion) used while creation/failing of
 	// machine before it is declared as failed
-	MachineHealthTimeout int32
-	// Timeout (in minutes) used while draining of machine before deletion,
+	MachineHealthTimeout metav1.Duration
+	// Timeout (in durartion) used while draining of machine before deletion,
 	// beyond which it forcefully deletes machine
-	MachineDrainTimeout int32
-	// Timeout (in minutes) used while scaling machineSet
-	// if timeout occurs machineSet is permanently frozen
-	MachineSetScaleTimeout int32
-	// Period (in minutes) used to poll for orphan VMs
+	MachineDrainTimeout metav1.Duration
+	// Timeout (in duration) for which the APIServer can be down before
+	// declare the machine controller frozen by safety controller
+	MachineSafetyAPIServerStatusCheckTimeout metav1.Duration
+
+	// Period (in durartion) used to poll for orphan VMs
 	// by safety controller
-	MachineSafetyOrphanVMsPeriod int32
-	// Period (in minutes) used to poll for overshooting
+	MachineSafetyOrphanVMsPeriod metav1.Duration
+	// Period (in durartion) used to poll for overshooting
 	// of machine objects backing a machineSet by safety controller
-	MachineSafetyOvershootingPeriod int32
+	MachineSafetyOvershootingPeriod metav1.Duration
+	// Period (in duration) used to poll for APIServer's health
+	// by safety controller
+	MachineSafetyAPIServerStatusCheckPeriod metav1.Duration
 
 	// APIserverInactiveStartTime to keep track of the
 	// start time of when the APIServers were not reachable
@@ -109,12 +114,6 @@ type SafetyOptions struct {
 	// MachineControllerFrozen indicates if the machine controller
 	// is frozen due to Unreachable APIServers
 	MachineControllerFrozen bool
-	// Period (in duration) used to poll for APIServer's health
-	// by safety controller
-	MachineSafetyAPIServerStatusCheckPeriod metav1.Duration
-	// Timeout (in duration) for which the APIServer can be down before
-	// declare the machine controller frozen by safety controller
-	MachineSafetyAPIServerStatusCheckTimeout metav1.Duration
 }
 
 // LeaderElectionConfiguration defines the configuration of leader election
