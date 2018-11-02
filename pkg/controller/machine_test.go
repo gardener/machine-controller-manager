@@ -587,9 +587,10 @@ var _ = Describe("machine", func() {
 		}
 
 		machineName := "machine-0"
-		timeOutOccurred := -11 * time.Minute
+		timeOutOccurred := -21 * time.Minute
 		timeOutNotOccurred := -5 * time.Minute
-		timeOut := 10 * time.Minute
+		creationTimeOut := 20 * time.Minute
+		healthTimeOut := 10 * time.Minute
 
 		DescribeTable("##Machine Timeout Scenarios",
 			func(data *data) {
@@ -728,7 +729,7 @@ var _ = Describe("machine", func() {
 							Description: fmt.Sprintf(
 								"Machine %s failed to join the cluster in %s minutes.",
 								machineName,
-								timeOut,
+								creationTimeOut,
 							),
 							State: machinev1.MachineStateFailed,
 							Type:  machinev1.MachineOperationCreate,
@@ -769,7 +770,7 @@ var _ = Describe("machine", func() {
 							Description: fmt.Sprintf(
 								"Machine %s is not healthy since %s minutes. Changing status to failed. Node Conditions: %+v",
 								machineName,
-								timeOut,
+								healthTimeOut,
 								[]corev1.NodeCondition{},
 							),
 							State: machinev1.MachineStateFailed,
