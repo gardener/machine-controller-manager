@@ -445,7 +445,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 		}
 
 		if machineID != "" {
-			timeOutDuration := time.Duration(c.safetyOptions.MachineDrainTimeout) * time.Minute
+			timeOutDuration := c.safetyOptions.MachineDrainTimeout.Duration
 			// Timeout value obtained by subtracting last operation with expected time out period
 			timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 
@@ -721,20 +721,27 @@ func (c *controller) checkMachineTimeout(machine *v1alpha1.Machine) {
 	if machine.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 
 		var (
-			description   string
-			lastOperation v1alpha1.LastOperation
-			currentStatus v1alpha1.CurrentStatus
+			description     string
+			lastOperation   v1alpha1.LastOperation
+			currentStatus   v1alpha1.CurrentStatus
+			timeOutDuration time.Duration
 		)
 
-		timeOutDuration := time.Duration(c.safetyOptions.MachineHealthTimeout) * time.Minute
+		checkCreationTimeout := machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending
 		sleepTime := 1 * time.Minute
+
+		if checkCreationTimeout {
+			timeOutDuration = c.safetyOptions.MachineCreationTimeout.Duration
+		} else {
+			timeOutDuration = c.safetyOptions.MachineHealthTimeout.Duration
+		}
 
 		// Timeout value obtained by subtracting last operation with expected time out period
 		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 		if timeOut > 0 {
 			// Machine health timeout occurs while joining or rejoining of machine
 
-			if machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending {
+			if checkCreationTimeout {
 				// Timeout occurred while machine creation
 				description = fmt.Sprintf(
 					"Machine %s failed to join the cluster in %s minutes.",

@@ -32,13 +32,13 @@ start:
 			--namespace=$(CONTROL_NAMESPACE) \
 			--safety-up=2 \
 			--safety-down=1 \
-			--machine-drain-timeout=5 \
-			--machine-health-timeout=10 \
-			--machine-set-scale-timeout=20 \
-			--machine-safety-orphan-vms-period=30 \
-			--machine-safety-overshooting-period=1 \
-			--machine-safety-apiserver-period=1m \
-			--machine-safety-apiserver-timeout=30s \
+			--machine-creation-timeout=20m \
+			--machine-drain-timeout=5m \
+			--machine-health-timeout=10m \
+			--machine-safety-apiserver-statuscheck-timeout=30s \
+			--machine-safety-apiserver-statuscheck-period=1m \
+			--machine-safety-orphan-vms-period=30m \
+			--machine-safety-overshooting-period=1m \
 			--v=2
 
 #################################################################
