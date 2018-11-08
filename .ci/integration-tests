@@ -61,7 +61,7 @@ function check_cluster_state() {
     printf "\nChecking existance of machine objects\n"
     # Wait 60mins for any existing PRs to cleanup machines
     hf_wait_on "hf_num_of_objects" mach 0 3600
-    printf "No machine objects in target test cluster\n"
+    printf "No machine objects in control test cluster\n"
 
     printf "\nChecking existance of node objects\n"
     # Wait 60mins for any existing PRs to cleanup nodes
