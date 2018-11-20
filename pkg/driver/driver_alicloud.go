@@ -42,14 +42,6 @@ type AlicloudDriver struct {
 	MachineName          string
 }
 
-// RunInstances invokes the ecs.RunInstances API synchronously
-// api document: https://help.aliyun.com/api/ecs/runinstances.html
-func (c *AlicloudDriver) runInstances(client *ecs.Client, request *ecs.RunInstancesRequest) (response *ecs.RunInstancesResponse, err error) {
-	response = ecs.CreateRunInstancesResponse()
-	err = client.DoAction(request, response)
-	return
-}
-
 func toInstanceTags(tags map[string]string) ([]ecs.RunInstancesTag, error) {
 	result := []ecs.RunInstancesTag{{}, {}}
 	hasCluster := false
@@ -139,9 +131,10 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 	request.Tag = &tags
 	request.InstanceName = c.MachineName
 	request.ClientToken = utils.GetUUIDV4()
-	request.UserData = base64.StdEncoding.EncodeToString([]byte(c.UserData))
+	userData := strings.Replace(c.UserData, "${HOSTNAME}", c.MachineName, -1)
+	request.UserData = base64.StdEncoding.EncodeToString([]byte(userData))
 
-	response, err := c.runInstances(client, request)
+	response, err := client.RunInstances(request)
 	if err != nil {
 		return "", "", err
 	}
@@ -235,7 +228,6 @@ func (c *AlicloudDriver) getVMDetails(machineID string) ([]ecs.Instance, error) 
 			{Key: searchClusterName, Value: searchClusterNameValue},
 			{Key: searchNodeRole, Value: searchNodeRoleValue},
 		}
-		glog.Warningf("Tags: %v", request.Tag)
 	}
 
 	response, err := client.DescribeInstances(request)
