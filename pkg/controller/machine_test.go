@@ -446,9 +446,10 @@ var _ = Describe("machine", func() {
 
 	Describe("#machineCreate", func() {
 		type setup struct {
-			secrets  []*corev1.Secret
-			aws      []*machinev1.AWSMachineClass
-			machines []*machinev1.Machine
+			secrets   []*corev1.Secret
+			aws       []*machinev1.AWSMachineClass
+			openstack []*machinev1.OpenStackMachineClass
+			machines  []*machinev1.Machine
 		}
 		type action struct {
 			machine        string
@@ -469,13 +470,16 @@ var _ = Describe("machine", func() {
 			GenerateName: "machine",
 			Namespace:    "test",
 		}
-		DescribeTable("##happy path",
+		DescribeTable("##table",
 			func(data *data) {
 				stop := make(chan struct{})
 				defer close(stop)
 
 				machineObjects := []runtime.Object{}
 				for _, o := range data.setup.aws {
+					machineObjects = append(machineObjects, o)
+				}
+				for _, o := range data.setup.openstack {
 					machineObjects = append(machineObjects, o)
 				}
 				for _, o := range data.setup.machines {
@@ -504,6 +508,10 @@ var _ = Describe("machine", func() {
 
 				if data.expect.err {
 					Expect(err).To(HaveOccurred())
+					actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+					Expect(err).To(BeNil())
+					Expect(actual.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
+					Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
 					return
 				}
 
@@ -514,7 +522,58 @@ var _ = Describe("machine", func() {
 				Expect(actual.Status.Node).To(Equal(data.expect.machine.Status.Node))
 				//TODO Conditions
 			},
-			Entry("simple", &data{
+			Entry("OpenStackSimple", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						&corev1.Secret{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					openstack: []*machinev1.OpenStackMachineClass{
+						&machinev1.OpenStackMachineClass{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.OpenStackMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "OpenStackMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil),
+				},
+				action: action{
+					machine:        "machine-0",
+					fakeProviderID: "fakeID-0",
+					fakeNodeName:   "fakeNode-0",
+					fakeError:      fmt.Errorf("Test Error"),
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "OpenStackMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, &machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase: "Failed",
+						},
+						LastOperation: machinev1.LastOperation{
+							Description: "Cloud provider message - Test Error",
+						},
+					}, nil),
+					err: true,
+				},
+			}),
+			Entry("AWSSimple", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
 						&corev1.Secret{
