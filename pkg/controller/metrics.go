@@ -21,6 +21,7 @@ import (
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -31,8 +32,19 @@ var (
 
 	MachineCreated = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_created",
-		Help: "Creation time of machines currently managed by the mcm.",
-	}, []string{"Name", "Namespace", "UID", "Generation"})
+		Help: "Creation time of the machines currently managed by the mcm.",
+	}, []string{"Name", "Namespace", "UID"})
+
+	MachineInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_info",
+		Help: "Information of the machines currently managed by the mcm.",
+	}, []string{"Name", "Namespace", "UID", "Generation", "Kind", "APIVersion",
+		"spec_ProviderID", "spec_class_APIGroup", "spec_class_kind", "spec_class_name"})
+
+	MachineStatusCondition = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_status_condition",
+		Help: "Information of the mcm managed machines' status conditions.",
+	}, []string{"Machine", "Namespace", "Condition", "Status", "LastTransitionTime"})
 
 	// ScrapeFailedCounter is a Prometheus metric, which counts errors during metrics collection.
 	ScrapeFailedCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -44,6 +56,8 @@ var (
 func init() {
 	prometheus.MustRegister(ScrapeFailedCounter)
 	prometheus.MustRegister(MachineCreated)
+	prometheus.MustRegister(MachineInfo)
+	prometheus.MustRegister(MachineStatusCondition)
 }
 
 // Describe is method required to implement the prometheus.Collect interface.
@@ -61,16 +75,46 @@ func (c *controller) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for _, machine := range machineList {
-		meta := machine.ObjectMeta
+		mMeta := machine.ObjectMeta
+		mType := machine.TypeMeta
+		mSpec := machine.Spec
+
 		MachineCreated.With(prometheus.Labels{
-			"Name":       meta.Name,
-			"Namespace":  meta.Namespace,
-			"UID":        string(meta.UID),
-			"Generation": strconv.FormatInt(meta.Generation, 16)}).Set(
-			float64(meta.GetCreationTimestamp().Time.Unix()))
-		if err != nil {
-			ScrapeFailedCounter.With(prometheus.Labels{"kind": "machine"}).Inc()
-			return
+			"Name":      mMeta.Name,
+			"Namespace": mMeta.Namespace,
+			"UID":       string(mMeta.UID)}).Set(
+			float64(mMeta.GetCreationTimestamp().Time.Unix()))
+
+		MachineInfo.With(prometheus.Labels{
+			"Name":                mMeta.Name,
+			"Namespace":           mMeta.Namespace,
+			"UID":                 string(mMeta.UID),
+			"Generation":          strconv.FormatInt(mMeta.Generation, 10),
+			"Kind":                mType.Kind,
+			"APIVersion":          mType.APIVersion,
+			"spec_ProviderID":     mSpec.ProviderID,
+			"spec_class_APIGroup": mSpec.Class.APIGroup,
+			"spec_class_kind":     mSpec.Class.Kind,
+			"spec_class_name":     mSpec.Class.Name}).Set(float64(1))
+
+		for _, condition := range machine.Status.Conditions {
+			status := 0
+			switch condition.Status {
+			case v1.ConditionTrue:
+				status = 1
+			case v1.ConditionFalse:
+				status = 0
+			case v1.ConditionUnknown:
+				status = 2
+			}
+
+			MachineStatusCondition.With(prometheus.Labels{
+				"Machine":            mMeta.Name,
+				"Namespace":          mMeta.Namespace,
+				"Condition":          string(condition.Type),
+				"Status":             string(condition.Status),
+				"LastTransitionTime": strconv.FormatInt(condition.LastTransitionTime.Time.Unix(), 10)}).Set(float64(status))
+
 		}
 	}
 
