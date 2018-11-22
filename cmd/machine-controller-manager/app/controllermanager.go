@@ -22,6 +22,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package app
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -121,7 +122,8 @@ func Run(s *options.MCMServer) error {
 
 	recorder := createRecorder(kubeClientControl)
 
-	run := func(stop <-chan struct{}) {
+	run := func(ctx context.Context) {
+		var stop <-chan struct{}
 		// Control plane client used to interact with machine APIs
 		controlMachineClientBuilder := machinecontroller.SimpleClientBuilder{
 			ClientConfig: controlkubeconfig,
@@ -173,7 +175,8 @@ func Run(s *options.MCMServer) error {
 		glog.Fatalf("error creating lock: %v", err)
 	}
 
-	leaderelection.RunOrDie(leaderelection.LeaderElectionConfig{
+	ctx := context.TODO()
+	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 		Lock:          rl,
 		LeaseDuration: s.LeaderElection.LeaseDuration.Duration,
 		RenewDeadline: s.LeaderElection.RenewDeadline.Duration,

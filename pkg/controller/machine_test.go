@@ -171,7 +171,7 @@ var _ = Describe("machine", func() {
 						Status: corev1.ConditionFalse,
 					},
 					{
-						Type:   corev1.NodeKubeletConfigOk,
+						Type:   corev1.NodeReady,
 						Status: corev1.ConditionTrue,
 					},
 				}
@@ -203,9 +203,9 @@ var _ = Describe("machine", func() {
 			Entry("with NodeNetworkUnavailable is Unknown", corev1.NodeNetworkUnavailable, corev1.ConditionUnknown, true),
 			Entry("with NodeNetworkUnavailable is False", corev1.NodeNetworkUnavailable, corev1.ConditionFalse, true),
 
-			Entry("with NodeKubeletConfigOk is True", corev1.NodeKubeletConfigOk, corev1.ConditionTrue, true),
-			Entry("with NodeKubeletConfigOk is Unknown", corev1.NodeKubeletConfigOk, corev1.ConditionUnknown, true),
-			Entry("with NodeKubeletConfigOk is False", corev1.NodeKubeletConfigOk, corev1.ConditionFalse, true),
+			Entry("with NodeReady is True", corev1.NodeReady, corev1.ConditionTrue, true),
+			Entry("with NodeReady is Unknown", corev1.NodeReady, corev1.ConditionUnknown, false),
+			Entry("with NodeReady is False", corev1.NodeReady, corev1.ConditionFalse, false),
 		)
 	})
 
