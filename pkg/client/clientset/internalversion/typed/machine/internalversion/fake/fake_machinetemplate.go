@@ -46,7 +46,7 @@ func (c *FakeMachineTemplates) List(opts v1.ListOptions) (result *machine.Machin
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &machine.MachineTemplateList{}
+	list := &machine.MachineTemplateList{ListMeta: obj.(*machine.MachineTemplateList).ListMeta}
 	for _, item := range obj.(*machine.MachineTemplateList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
