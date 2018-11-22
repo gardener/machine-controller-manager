@@ -89,6 +89,9 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 
 	glog.V(3).Infof("creating machine")
 	server, err := servers.Create(client, createOpts).Extract()
+	if err != nil {
+		return "", "", err
+	}
 
 	d.MachineID = d.encodeMachineID(d.OpenStackMachineClass.Spec.Region, server.ID)
 
