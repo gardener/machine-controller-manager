@@ -27,8 +27,9 @@ import (
 )
 
 var (
-	machineCountDesc = prometheus.NewDesc("mcm_machine_items_total", "Count of machines currently managed by the mcm.", nil, nil)
-	MachineCreated   = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	machineControllerFrozenDesc = prometheus.NewDesc("mcm_machine_controller_frozen", "Frozen status of the machine controller manager.", nil, nil)
+	machineCountDesc            = prometheus.NewDesc("mcm_machine_items_total", "Count of machines currently managed by the mcm.", nil, nil)
+	MachineCreated              = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_created",
 		Help: "Creation time of the machines currently managed by the mcm.",
 	}, []string{"name", "namespace", "uid"})
@@ -421,9 +422,24 @@ func (c *controller) CollectMachineMetrics(ch chan<- prometheus.Metric) {
 
 }
 
+// CollectMachines is method to collect Machine related metrics.
+func (c *controller) CollectMachineControllerFrozenStatus(ch chan<- prometheus.Metric) {
+	frozen_status := 0
+	if c.safetyOptions.MachineControllerFrozen {
+		frozen_status = 1
+	}
+	metric, err := prometheus.NewConstMetric(machineControllerFrozenDesc, prometheus.GaugeValue, float64(frozen_status))
+	if err != nil {
+		ScrapeFailedCounter.With(prometheus.Labels{"kind": "machine-count"}).Inc()
+		return
+	}
+	ch <- metric
+}
+
 // Collect is method required to implement the prometheus.Collect interface.
 func (c *controller) Collect(ch chan<- prometheus.Metric) {
 	c.CollectMachineMetrics(ch)
 	c.CollectMachineSetMetrics(ch)
 	c.CollectMachineDeploymentMetrics(ch)
+	c.CollectMachineControllerFrozenStatus(ch)
 }
