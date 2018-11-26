@@ -66,6 +66,13 @@ var (
 		Help: "Information of the mcm managed machinesets' status conditions.",
 	}, []string{"name", "namespace", "uid", "condition", "status"})
 
+	MachineSetStatusFailedMachines = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_set_failed_machines",
+		Help: "Information of the mcm managed machinesets' failed machines.",
+	}, []string{"name", "namespace", "uid", "failed_machine_name", "failed_machine_provider_id", "failed_machine_owner_ref",
+		"failed_machine_last_operation_description", "failed_machine_last_operation_last_update_time", "failed_machine_last_operation_state",
+		"failed_machine_last_operation_machine_operation_type"})
+
 	MachineSetStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_set_status",
 		Help: "Information of the mcm managed machinesets' status conditions.",
@@ -73,6 +80,33 @@ var (
 		"fully_labeled_replicas", "ready_replicas", "replicas"})
 
 	machineDeploymentCountDesc = prometheus.NewDesc("mcm_machinedeployment_items_total", "Count of machinedeployments currently managed by the mcm.", nil, nil)
+	MachineDeploymentCreated   = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_created",
+		Help: "Creation time of the machinedeployments currently managed by the mcm.",
+	}, []string{"name", "namespace", "uid"})
+	MachineDeploymentInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_info",
+		Help: "Information of the machinedeployments currently managed by the mcm.",
+	}, []string{"name", "namespace", "uid", "generation", "kind", "api_version", "spec_replicas", "spec_strategy_type",
+		"spec_paused", "spec_revision_history_limit", "spec_progress_deadline_seconds", "spec_min_ready_seconds", "spec_rollbackto_revision",
+		"spec_strategy_rolling_update_max_surge", "spec_strategy_rolling_update_max_unavailable"})
+
+	MachineDeploymentStatusCondition = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_status_condition",
+		Help: "Information of the mcm managed machinedeployments' status conditions.",
+	}, []string{"name", "namespace", "uid", "condition", "status"})
+
+	MachineDeploymentStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_status",
+		Help: "Information of the mcm managed machinedeployments' status conditions.",
+	}, []string{"name", "namespace", "uid", "available_replicas", "unavailable_replicas", "ready_replicas",
+		"updated_replicas", "collision_count", "replicas"})
+	MachineDeploymentStatusFailedMachines = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_failed_machines",
+		Help: "Information of the mcm managed machinedeployments' failed machines.",
+	}, []string{"name", "namespace", "uid", "failed_machine_name", "failed_machine_provider_id", "failed_machine_owner_ref",
+		"failed_machine_last_operation_description", "failed_machine_last_operation_last_update_time", "failed_machine_last_operation_state",
+		"failed_machine_last_operation_machine_operation_type"})
 
 	// ScrapeFailedCounter is a Prometheus metric, which counts errors during metrics collection.
 	ScrapeFailedCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -91,6 +125,12 @@ func init() {
 	prometheus.MustRegister(MachineSetInfo)
 	prometheus.MustRegister(MachineSetStatus)
 	prometheus.MustRegister(MachineSetStatusCondition)
+	prometheus.MustRegister(MachineSetStatusFailedMachines)
+	prometheus.MustRegister(MachineDeploymentCreated)
+	prometheus.MustRegister(MachineDeploymentInfo)
+	prometheus.MustRegister(MachineDeploymentStatus)
+	prometheus.MustRegister(MachineDeploymentStatusCondition)
+	prometheus.MustRegister(MachineDeploymentStatusFailedMachines)
 }
 
 // Describe is method required to implement the prometheus.Collect interface.
@@ -99,7 +139,7 @@ func (c *controller) Describe(ch chan<- *prometheus.Desc) {
 }
 
 // CollectMachineDeploymentMetrics is method to collect MachineSet related metrics.
-func (c *controller) CollectMachinedeploymentMetrics(ch chan<- prometheus.Metric) {
+func (c *controller) CollectMachineDeploymentMetrics(ch chan<- prometheus.Metric) {
 	machineDeploymentList, err := c.machineDeploymentLister.MachineDeployments(c.namespace).List(labels.Everything())
 	if err != nil {
 		ScrapeFailedCounter.With(prometheus.Labels{"kind": "machinedeployment-count"}).Inc()
@@ -111,6 +151,104 @@ func (c *controller) CollectMachinedeploymentMetrics(ch chan<- prometheus.Metric
 		return
 	}
 	ch <- metric
+
+	for _, machineDeployment := range machineDeploymentList {
+
+		mdMeta := machineDeployment.ObjectMeta
+		mdType := machineDeployment.TypeMeta
+		mdSpec := machineDeployment.Spec
+
+		MachineDeploymentCreated.With(prometheus.Labels{
+			"name":      mdMeta.Name,
+			"uid":       string(mdMeta.UID),
+			"namespace": mdMeta.Namespace}).Set(
+			float64(mdMeta.GetCreationTimestamp().Time.Unix()))
+
+		infoLabels := prometheus.Labels{
+			"name":                                   mdMeta.Labels["name"],
+			"namespace":                              mdMeta.Namespace,
+			"uid":                                    string(mdMeta.UID),
+			"generation":                             strconv.FormatInt(mdMeta.Generation, 10),
+			"kind":                                   mdType.Kind,
+			"api_version":                            mdType.APIVersion,
+			"spec_replicas":                          strconv.FormatInt(int64(mdSpec.Replicas), 10),
+			"spec_strategy_type":                     string(mdSpec.Strategy.Type),
+			"spec_paused":                            strconv.FormatBool(mdSpec.Paused),
+			"spec_min_ready_seconds":                 strconv.FormatInt(int64(mdSpec.MinReadySeconds), 10),
+			"spec_strategy_rolling_update_max_surge": "",
+			"spec_strategy_rolling_update_max_unavailable": "",
+			"spec_revision_history_limit":                  "",
+			"spec_progress_deadline_seconds":               "",
+			"spec_rollbackto_revision":                     ""}
+		if mdSpec.Strategy.Type == "" {
+			infoLabels["spec_strategy_rolling_update_max_surge"] = mdSpec.Strategy.RollingUpdate.MaxSurge.String()
+			infoLabels["spec_strategy_rolling_update_max_unavailable"] = mdSpec.Strategy.RollingUpdate.MaxUnavailable.String()
+		}
+		if mdSpec.RevisionHistoryLimit != nil {
+			infoLabels["spec_revision_history_limit"] = strconv.FormatInt(int64(*mdSpec.RevisionHistoryLimit), 10)
+		}
+		if mdSpec.ProgressDeadlineSeconds != nil {
+			infoLabels["spec_progress_deadline_seconds"] = strconv.FormatInt(int64(*mdSpec.ProgressDeadlineSeconds), 10)
+		}
+		if mdSpec.RollbackTo != nil {
+			infoLabels["spec_rollbackto_revision"] = strconv.FormatInt(int64(mdSpec.RollbackTo.Revision), 10)
+		}
+		MachineDeploymentInfo.With(infoLabels).Set(float64(1))
+
+		for _, condition := range machineDeployment.Status.Conditions {
+			status := 0
+			switch condition.Status {
+			case v1alpha1.ConditionTrue:
+				status = 1
+			case v1alpha1.ConditionFalse:
+				status = 0
+			case v1alpha1.ConditionUnknown:
+				status = 2
+			}
+
+			MachineDeploymentStatusCondition.With(prometheus.Labels{
+				"name":      mdMeta.Name,
+				"namespace": mdMeta.Namespace,
+				"uid":       string(mdMeta.UID),
+				"condition": string(condition.Type),
+				"status":    string(condition.Status)}).Set(float64(status))
+
+		}
+
+		statusLabels := prometheus.Labels{
+			"name":                 mdMeta.Name,
+			"namespace":            mdMeta.Namespace,
+			"uid":                  string(mdMeta.UID),
+			"available_replicas":   strconv.FormatInt(int64(machineDeployment.Status.AvailableReplicas), 10),
+			"unavailable_replicas": strconv.FormatInt(int64(machineDeployment.Status.UnavailableReplicas), 10),
+			"ready_replicas":       strconv.FormatInt(int64(machineDeployment.Status.ReadyReplicas), 10),
+			"updated_replicas":     strconv.FormatInt(int64(machineDeployment.Status.UpdatedReplicas), 10),
+			"collision_count":      "",
+			"replicas":             strconv.FormatInt(int64(machineDeployment.Status.Replicas), 10)}
+
+		if machineDeployment.Status.CollisionCount != nil {
+			strconv.FormatInt(int64(*machineDeployment.Status.CollisionCount), 10)
+		}
+		MachineDeploymentStatus.With(statusLabels).Set(float64(machineDeployment.Status.ReadyReplicas - machineDeployment.Status.Replicas))
+
+		if machineDeployment.Status.FailedMachines != nil {
+			for _, failed_machine := range machineDeployment.Status.FailedMachines {
+				MachineDeploymentStatusFailedMachines.With(prometheus.Labels{
+					"name":                       mdMeta.Labels["name"],
+					"namespace":                  mdMeta.Namespace,
+					"uid":                        string(mdMeta.UID),
+					"failed_machine_name":        failed_machine.Name,
+					"failed_machine_provider_id": failed_machine.ProviderID,
+					"failed_machine_last_operation_description":            failed_machine.LastOperation.Description,
+					"failed_machine_last_operation_last_update_time":       strconv.FormatInt(failed_machine.LastOperation.LastUpdateTime.Unix(), 10),
+					"failed_machine_last_operation_state":                  string(failed_machine.LastOperation.State),
+					"failed_machine_last_operation_machine_operation_type": string(failed_machine.LastOperation.Type),
+					"failed_machine_owner_ref":                             failed_machine.OwnerRef}).Set(float64(1))
+
+			}
+		}
+
+	}
 }
 
 // CollectMachineSetMetrics is method to collect MachineSet related metrics.
@@ -169,7 +307,6 @@ func (c *controller) CollectMachineSetMetrics(ch chan<- prometheus.Metric) {
 				"uid":       string(msMeta.UID),
 				"condition": string(condition.Type),
 				"status":    string(condition.Status)}).Set(float64(status))
-
 		}
 
 		MachineSetStatus.With(prometheus.Labels{
@@ -180,6 +317,24 @@ func (c *controller) CollectMachineSetMetrics(ch chan<- prometheus.Metric) {
 			"fully_labeled_replicas": string(machineSet.Status.FullyLabeledReplicas),
 			"ready_replicas":         string(machineSet.Status.ReadyReplicas),
 			"replicas":               string(machineSet.Status.Replicas)}).Set(float64(machineSet.Status.ReadyReplicas - machineSet.Status.Replicas))
+
+		if machineSet.Status.FailedMachines != nil {
+
+			for _, failed_machine := range *machineSet.Status.FailedMachines {
+				MachineSetStatusFailedMachines.With(prometheus.Labels{
+					"name":                       msMeta.Labels["name"],
+					"namespace":                  msMeta.Namespace,
+					"uid":                        string(msMeta.UID),
+					"failed_machine_name":        failed_machine.Name,
+					"failed_machine_provider_id": failed_machine.ProviderID,
+					"failed_machine_last_operation_description":            failed_machine.LastOperation.Description,
+					"failed_machine_last_operation_last_update_time":       strconv.FormatInt(failed_machine.LastOperation.LastUpdateTime.Unix(), 10),
+					"failed_machine_last_operation_state":                  string(failed_machine.LastOperation.State),
+					"failed_machine_last_operation_machine_operation_type": string(failed_machine.LastOperation.Type),
+					"failed_machine_owner_ref":                             failed_machine.OwnerRef}).Set(float64(1))
+
+			}
+		}
 	}
 }
 
@@ -270,5 +425,5 @@ func (c *controller) CollectMachineMetrics(ch chan<- prometheus.Metric) {
 func (c *controller) Collect(ch chan<- prometheus.Metric) {
 	c.CollectMachineMetrics(ch)
 	c.CollectMachineSetMetrics(ch)
-	c.CollectMachinedeploymentMetrics(ch)
+	c.CollectMachineDeploymentMetrics(ch)
 }
