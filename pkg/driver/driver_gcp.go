@@ -26,7 +26,9 @@ import (
 	"time"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/metrics"
 	"github.com/golang/glog"
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	compute "google.golang.org/api/compute/v1"
@@ -137,8 +139,10 @@ func (d *GCPDriver) Create() (string, string, error) {
 
 	operation, err := computeService.Instances.Insert(project, zone, instance).Context(ctx).Do()
 	if err != nil {
+		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
 		return "Error", "Error", err
 	}
+	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
 
 	if err := waitUntilOperationCompleted(computeService, project, zone, operation.Name); err != nil {
 		return "Error", "Error", err
@@ -173,12 +177,14 @@ func (d *GCPDriver) Delete() error {
 
 	operation, err := computeService.Instances.Delete(project, zone, name).Context(ctx).Do()
 	if err != nil {
+		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
 		if ae, ok := err.(*googleapi.Error); ok && ae.Code == http.StatusNotFound {
 			return nil
 		}
 		glog.Error(err)
 		return err
 	}
+	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
 
 	return waitUntilOperationCompleted(computeService, project, zone, operation.Name)
 }
@@ -249,9 +255,11 @@ func (d *GCPDriver) GetVMs(machineID string) (VMs, error) {
 		}
 		return nil
 	}); err != nil {
+		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
 		glog.Error(err)
 		return listOfVMs, err
 	}
+	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
 
 	return listOfVMs, nil
 }

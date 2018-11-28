@@ -25,7 +25,9 @@ import (
 	"strings"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/metrics"
 	"github.com/golang/glog"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/gophercloud/gophercloud"
@@ -67,8 +69,10 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 
 	imageRef, err := d.recentImageIDFromName(client, imageName)
 	if err != nil {
+		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 		return "", "", fmt.Errorf("failed to get image id for image name %s: %s", imageName, err)
 	}
+	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 
 	createOpts = &servers.CreateOpts{
 		ServiceClient:    client,
@@ -90,8 +94,10 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	glog.V(3).Infof("creating machine")
 	server, err := servers.Create(client, createOpts).Extract()
 	if err != nil {
+		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 		return "", "", err
 	}
+	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 
 	d.MachineID = d.encodeMachineID(d.OpenStackMachineClass.Spec.Region, server.ID)
 
@@ -109,8 +115,10 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 
 	allPages, err := ports.List(nwClient, listOpts).AllPages()
 	if err != nil {
+		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
 		return "", "", fmt.Errorf("failed to get ports for network ID %s: %s", networkID, err)
 	}
+	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
 
 	allPorts, err := ports.ExtractPorts(allPages)
 	if err != nil {
@@ -125,8 +133,10 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 		AllowedAddressPairs: &[]ports.AddressPair{ports.AddressPair{IPAddress: podNetworkCidr}},
 	}).Extract()
 	if err != nil {
+		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
 		return "", "", fmt.Errorf("failed to update allowed address pair for port ID %s: %s", port.ID, err)
 	}
+	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
 
 	return d.MachineID, d.MachineName, err
 }
@@ -150,8 +160,10 @@ func (d *OpenStackDriver) Delete() error {
 
 	result := servers.Delete(client, machineID)
 	if result.Err == nil {
+		metrics.ApiRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 		glog.V(3).Infof("Deleted machine with ID: %s", d.MachineID)
 	} else {
+		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 		glog.Errorf("Failed to delete machine with ID: %s", d.MachineID)
 	}
 
@@ -192,9 +204,11 @@ func (d *OpenStackDriver) GetVMs(machineID string) (VMs, error) {
 	// Retrieve a pager (i.e. a paginated collection)
 	pager := servers.List(client, servers.ListOpts{})
 	if pager.Err != nil {
+		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 		glog.Errorf("Could not list instances. Error Message - %s", err)
 		return listOfVMs, err
 	}
+	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 
 	// Define an anonymous function to be executed on each page's iteration
 	err = pager.EachPage(func(page pagination.Page) (bool, error) {
@@ -424,8 +438,10 @@ func (d *OpenStackDriver) decodeMachineID(id string) string {
 func (d *OpenStackDriver) recentImageIDFromName(client *gophercloud.ServiceClient, imageName string) (string, error) {
 	allPages, err := images.ListDetail(client, nil).AllPages()
 	if err != nil {
+		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 		return "", err
 	}
+	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 	all, err := images.ExtractImages(allPages)
 	if err != nil {
 		return "", err

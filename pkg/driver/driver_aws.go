@@ -24,6 +24,8 @@ import (
 	"strings"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -63,8 +65,10 @@ func (d *AWSDriver) Create() (string, string, error) {
 	}
 	output, err := svc.DescribeImages(&describeImagesRequest)
 	if err != nil {
+		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 		return "Error", "Error", err
 	}
+	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 
 	var blkDeviceMappings []*ec2.BlockDeviceMapping
 	deviceName := output.Images[0].RootDeviceName
@@ -126,8 +130,10 @@ func (d *AWSDriver) Create() (string, string, error) {
 
 	runResult, err := svc.RunInstances(&inputConfig)
 	if err != nil {
+		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 		return "Error", "Error", err
 	}
+	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 
 	return d.encodeMachineID(d.AWSMachineClass.Spec.Region, *runResult.Instances[0].InstanceId), *runResult.Instances[0].PrivateDnsName, nil
 }
@@ -154,14 +160,17 @@ func (d *AWSDriver) Delete() error {
 		DryRun: aws.Bool(true),
 	}
 	_, err = svc.TerminateInstances(input)
+	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 	awsErr, ok := err.(awserr.Error)
 	if ok && awsErr.Code() == "DryRunOperation" {
 		input.DryRun = aws.Bool(false)
 		output, err := svc.TerminateInstances(input)
 		if err != nil {
+			metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 			glog.Errorf("Could not terminate machine: %s", err.Error())
 			return err
 		}
+		metrics.ApiRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 
 		vmState := output.TerminatingInstances[0]
 		//glog.Info(vmState.PreviousState, vmState.CurrentState)
@@ -244,9 +253,11 @@ func (d *AWSDriver) GetVMs(machineID string) (VMs, error) {
 
 	runResult, err := svc.DescribeInstances(&input)
 	if err != nil {
+		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 		glog.Errorf("AWS driver is returning error while describe instances request is sent: %s", err)
 		return listOfVMs, err
 	}
+	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 
 	for _, reservation := range runResult.Reservations {
 		for _, instance := range reservation.Instances {
