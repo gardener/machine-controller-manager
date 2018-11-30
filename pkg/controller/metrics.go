@@ -111,32 +111,29 @@ func (c *controller) CollectMachineDeploymentMetrics(ch chan<- prometheus.Metric
 		}
 
 		statusLabels := prometheus.Labels{
-			"name":                 mdMeta.Name,
-			"namespace":            mdMeta.Namespace,
-			"uid":                  string(mdMeta.UID),
-			"available_replicas":   strconv.FormatInt(int64(machineDeployment.Status.AvailableReplicas), 10),
-			"unavailable_replicas": strconv.FormatInt(int64(machineDeployment.Status.UnavailableReplicas), 10),
-			"ready_replicas":       strconv.FormatInt(int64(machineDeployment.Status.ReadyReplicas), 10),
-			"updated_replicas":     strconv.FormatInt(int64(machineDeployment.Status.UpdatedReplicas), 10),
-			"collision_count":      "",
-			"replicas":             strconv.FormatInt(int64(machineDeployment.Status.Replicas), 10)}
+			"name":      mdMeta.Name,
+			"namespace": mdMeta.Namespace,
+			"uid":       string(mdMeta.UID),
+		}
+		metrics.MachineDeploymentStatusAvailableReplicas.With(statusLabels).Set(float64(machineDeployment.Status.AvailableReplicas))
+		metrics.MachineDeploymentStatusUnavailableReplicas.With(statusLabels).Set(float64(machineDeployment.Status.UnavailableReplicas))
+		metrics.MachineDeploymentStatusReadyReplicas.With(statusLabels).Set(float64(machineDeployment.Status.ReadyReplicas))
+		metrics.MachineDeploymentStatusUpdatedReplicas.With(statusLabels).Set(float64(machineDeployment.Status.UpdatedReplicas))
+		metrics.MachineDeploymentStatusReplicas.With(statusLabels).Set(float64(machineDeployment.Status.Replicas))
 
 		if machineDeployment.Status.CollisionCount != nil {
-			strconv.FormatInt(int64(*machineDeployment.Status.CollisionCount), 10)
+			metrics.MachineDeploymentStatusCollisionCount.With(statusLabels).Set(float64(*machineDeployment.Status.CollisionCount))
 		}
-		metrics.MachineDeploymentStatus.With(statusLabels).Set(float64(machineDeployment.Status.ReadyReplicas - machineDeployment.Status.Replicas))
 
 		if machineDeployment.Status.FailedMachines != nil {
 			for _, failed_machine := range machineDeployment.Status.FailedMachines {
 				metrics.MachineDeploymentStatusFailedMachines.With(prometheus.Labels{
-					"name":                       mdMeta.Labels["name"],
-					"namespace":                  mdMeta.Namespace,
-					"uid":                        string(mdMeta.UID),
-					"failed_machine_name":        failed_machine.Name,
-					"failed_machine_provider_id": failed_machine.ProviderID,
-					"failed_machine_last_operation_description":            failed_machine.LastOperation.Description,
-					"failed_machine_last_operation_last_update_time":       strconv.FormatInt(failed_machine.LastOperation.LastUpdateTime.Unix(), 10),
-					"failed_machine_last_operation_state":                  string(failed_machine.LastOperation.State),
+					"name":                                mdMeta.Labels["name"],
+					"namespace":                           mdMeta.Namespace,
+					"uid":                                 string(mdMeta.UID),
+					"failed_machine_name":                 failed_machine.Name,
+					"failed_machine_provider_id":          failed_machine.ProviderID,
+					"failed_machine_last_operation_state": string(failed_machine.LastOperation.State),
 					"failed_machine_last_operation_machine_operation_type": string(failed_machine.LastOperation.Type),
 					"failed_machine_owner_ref":                             failed_machine.OwnerRef}).Set(float64(1))
 
@@ -179,11 +176,18 @@ func (c *controller) CollectMachineSetMetrics(ch chan<- prometheus.Metric) {
 			"generation":                   strconv.FormatInt(msMeta.Generation, 10),
 			"kind":                         msType.Kind,
 			"api_version":                  msType.APIVersion,
-			"spec_replicas":                strconv.FormatInt(int64(msSpec.Replicas), 10),
-			"spec_min_ready_reconds":       strconv.FormatInt(int64(msSpec.MinReadySeconds), 10),
 			"spec_machine_class_api_group": msSpec.MachineClass.APIGroup,
 			"spec_machine_class_kind":      msSpec.MachineClass.Kind,
 			"spec_machine_class_name":      msSpec.MachineClass.Name}).Set(float64(1))
+
+		metrics.MachineSetInfoSpecReplicas.With(prometheus.Labels{
+			"name":      msMeta.Labels["name"],
+			"namespace": msMeta.Namespace,
+			"uid":       string(msMeta.UID)}).Set(float64(msSpec.Replicas))
+		metrics.MachineSetInfoSpecMinReadySeconds.With(prometheus.Labels{
+			"name":      msMeta.Labels["name"],
+			"namespace": msMeta.Namespace,
+			"uid":       string(msMeta.UID)}).Set(float64(msSpec.MinReadySeconds))
 
 		for _, condition := range machineSet.Status.Conditions {
 			status := 0
@@ -217,17 +221,14 @@ func (c *controller) CollectMachineSetMetrics(ch chan<- prometheus.Metric) {
 
 			for _, failed_machine := range *machineSet.Status.FailedMachines {
 				metrics.MachineSetStatusFailedMachines.With(prometheus.Labels{
-					"name":                       msMeta.Labels["name"],
-					"namespace":                  msMeta.Namespace,
-					"uid":                        string(msMeta.UID),
-					"failed_machine_name":        failed_machine.Name,
-					"failed_machine_provider_id": failed_machine.ProviderID,
-					"failed_machine_last_operation_description":            failed_machine.LastOperation.Description,
-					"failed_machine_last_operation_last_update_time":       strconv.FormatInt(failed_machine.LastOperation.LastUpdateTime.Unix(), 10),
-					"failed_machine_last_operation_state":                  string(failed_machine.LastOperation.State),
+					"name":                                msMeta.Labels["name"],
+					"namespace":                           msMeta.Namespace,
+					"uid":                                 string(msMeta.UID),
+					"failed_machine_name":                 failed_machine.Name,
+					"failed_machine_provider_id":          failed_machine.ProviderID,
+					"failed_machine_last_operation_state": string(failed_machine.LastOperation.State),
 					"failed_machine_last_operation_machine_operation_type": string(failed_machine.LastOperation.Type),
 					"failed_machine_owner_ref":                             failed_machine.OwnerRef}).Set(float64(1))
-
 			}
 		}
 	}

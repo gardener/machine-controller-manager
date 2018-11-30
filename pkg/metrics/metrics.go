@@ -37,8 +37,18 @@ var (
 	MachineSetInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_set_info",
 		Help: "Information of the Machinesets currently managed by the mcm.",
-	}, []string{"name", "namespace", "uid", "generation", "kind", "api_version", "spec_replicas",
-		"spec_min_ready_reconds", "spec_machine_class_api_group", "spec_machine_class_kind", "spec_machine_class_name"})
+	}, []string{"name", "namespace", "uid", "generation", "kind", "api_version",
+		"spec_machine_class_api_group", "spec_machine_class_kind", "spec_machine_class_name"})
+
+	MachineSetInfoSpecReplicas = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_set_info_spec_replicas",
+		Help: "enca countof the Machinesets currently managed by the mcm.",
+	}, []string{"name", "namespace", "uid"})
+
+	MachineSetInfoSpecMinReadySeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_set_info_spec_min_ready_seconds",
+		Help: "Information of the Machinesets currently managed by the mcm.",
+	}, []string{"name", "namespace", "uid"})
 
 	MachineSetStatusCondition = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_set_status_condition",
@@ -48,9 +58,9 @@ var (
 	MachineSetStatusFailedMachines = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_set_failed_machines",
 		Help: "Information of the mcm managed Machinesets' failed machines.",
-	}, []string{"name", "namespace", "uid", "failed_Machine_name", "failed_machine_provider_id", "failed_machine_owner_ref",
-		"failed_Machine_last_operation_description", "failed_machine_last_operation_last_update_time", "failed_machine_last_operation_state",
-		"failed_Machine_last_operation_machine_operation_type"})
+	}, []string{"name", "namespace", "uid", "failed_machine_name", "failed_machine_provider_id", "failed_machine_owner_ref",
+		"failed_machine_last_operation_state",
+		"failed_machine_last_operation_machine_operation_type"})
 
 	MachineSetStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_set_status",
@@ -75,17 +85,37 @@ var (
 		Help: "Information of the mcm managed Machinedeployments' status conditions.",
 	}, []string{"name", "namespace", "uid", "condition", "status"})
 
-	MachineDeploymentStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "mcm_machine_deployment_status",
-		Help: "Information of the mcm managed Machinedeployments' status conditions.",
-	}, []string{"name", "namespace", "uid", "available_replicas", "unavailable_replicas", "ready_replicas",
-		"updated_replicas", "collision_count", "replicas"})
+	MachineDeploymentStatusAvailableReplicas = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_status_available_replicas",
+		Help: "Count of the mcm managed Machinedeployments available replicas.",
+	}, []string{"name", "namespace", "uid"})
+	MachineDeploymentStatusUnavailableReplicas = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_status_unavailable_replicas",
+		Help: "Count of the mcm managed Machinedeployments unavailable replicas.",
+	}, []string{"name", "namespace", "uid"})
+	MachineDeploymentStatusReadyReplicas = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_status_ready_replicas",
+		Help: "Count of the mcm managed Machinedeployments ready replicas.",
+	}, []string{"name", "namespace", "uid"})
+	MachineDeploymentStatusUpdatedReplicas = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_status_updated_replicas",
+		Help: "Count of the mcm managed Machinedeployments updated replicas.",
+	}, []string{"name", "namespace", "uid"})
+	MachineDeploymentStatusCollisionCount = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_status_collision_count",
+		Help: "Mcm managed Machinedeployments collision count.",
+	}, []string{"name", "namespace", "uid"})
+	MachineDeploymentStatusReplicas = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_status_replicas",
+		Help: "Count of the mcm managed Machinedeployments replicas.",
+	}, []string{"name", "namespace", "uid"})
+
 	MachineDeploymentStatusFailedMachines = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_deployment_failed_machines",
 		Help: "Information of the mcm managed Machinedeployments' failed machines.",
-	}, []string{"name", "namespace", "uid", "failed_Machine_name", "failed_machine_provider_id", "failed_machine_owner_ref",
-		"failed_Machine_last_operation_description", "failed_machine_last_operation_last_update_time", "failed_machine_last_operation_state",
-		"failed_Machine_last_operation_machine_operation_type"})
+	}, []string{"name", "namespace", "uid", "failed_machine_name", "failed_machine_provider_id", "failed_machine_owner_ref",
+		"failed_machine_last_operation_state",
+		"failed_machine_last_operation_machine_operation_type"})
 
 	ApiRequestCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "mcm_cloud_api_requests_total",
@@ -113,13 +143,20 @@ func init() {
 	prometheus.MustRegister(MachineCSPhase)
 	prometheus.MustRegister(MachineSetCreated)
 	prometheus.MustRegister(MachineSetInfo)
+	prometheus.MustRegister(MachineSetInfoSpecReplicas)
+	prometheus.MustRegister(MachineSetInfoSpecMinReadySeconds)
 	prometheus.MustRegister(MachineSetStatus)
 	prometheus.MustRegister(MachineSetStatusCondition)
 	prometheus.MustRegister(MachineSetStatusFailedMachines)
 	prometheus.MustRegister(MachineDeploymentCreated)
 	prometheus.MustRegister(MachineDeploymentInfo)
-	prometheus.MustRegister(MachineDeploymentStatus)
 	prometheus.MustRegister(MachineDeploymentStatusCondition)
+	prometheus.MustRegister(MachineDeploymentStatusAvailableReplicas)
+	prometheus.MustRegister(MachineDeploymentStatusUnavailableReplicas)
+	prometheus.MustRegister(MachineDeploymentStatusReadyReplicas)
+	prometheus.MustRegister(MachineDeploymentStatusUpdatedReplicas)
+	prometheus.MustRegister(MachineDeploymentStatusCollisionCount)
+	prometheus.MustRegister(MachineDeploymentStatusReplicas)
 	prometheus.MustRegister(MachineDeploymentStatusFailedMachines)
 	prometheus.MustRegister(ApiRequestCount)
 	prometheus.MustRegister(ApiFailedRequestCount)
