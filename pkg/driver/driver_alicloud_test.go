@@ -14,7 +14,8 @@ func TestTagsOrdered(t *testing.T) {
 		"tagb": "tagvalb",
 		"tagc": "tagvalc",
 	}
-	res, err := toInstanceTags(tags)
+	c := &AlicloudDriver{}
+	res, err := c.toInstanceTags(tags)
 	if err != nil {
 		t.Errorf("toInstanceTags in TestTagsOrdered should not generate error: %v", err)
 	}
@@ -51,8 +52,8 @@ func TestNoClusterTags(t *testing.T) {
 		"tagb": "tagvalb",
 		"tagc": "tagvalc",
 	}
-
-	_, err := toInstanceTags(tags)
+	c := &AlicloudDriver{}
+	_, err := c.toInstanceTags(tags)
 	if err == nil {
 		t.Errorf("toInstanceTags in TestRandomOrderTags should return an error")
 	}
@@ -65,7 +66,8 @@ func TestRandomOrderTags(t *testing.T) {
 		"kubernetes.io/role/worker":      "1",
 		"tagc": "tagvalc",
 	}
-	res, err := toInstanceTags(tags)
+	c := &AlicloudDriver{}
+	res, err := c.toInstanceTags(tags)
 	if err != nil {
 		t.Errorf("toInstanceTags in TestRandomOrderTags should not generate error: %v", err)
 	}
@@ -93,6 +95,14 @@ func TestRandomOrderTags(t *testing.T) {
 		},
 	}
 	checkRunInstanceTags("Function TestRandomOrderTags: ", t, res, expected)
+}
+func TestIDToName(t *testing.T) {
+	id := "i-uf69zddmom11ci7est12"
+
+	c := &AlicloudDriver{}
+	if "iZuf69zddmom11ci7est12Z" != c.idToName(id) {
+		t.Error("idToName() is not working")
+	}
 }
 
 // real[2..]'s order is NOT predicted as tags which generated them is a MAP!!!
