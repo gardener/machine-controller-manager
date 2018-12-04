@@ -148,7 +148,7 @@ func (c *controller) reconcileClusterGCPMachineClass(class *v1alpha1.GCPMachineC
 			return nil
 		}
 
-		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", GCPMachineClassKind, class.Name)
+		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
@@ -193,7 +193,7 @@ func (c *controller) updateGCPMachineClassFinalizers(class *v1alpha1.GCPMachineC
 	_, err = c.controlMachineClient.GCPMachineClasses(class.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
-		glog.Warning("Updated failed, retrying")
+		glog.Warning("Updated failed, retrying: ", err)
 		c.updateGCPMachineClassFinalizers(class, finalizers)
 	}
 }
