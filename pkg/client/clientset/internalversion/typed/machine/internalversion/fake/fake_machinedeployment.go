@@ -46,7 +46,7 @@ func (c *FakeMachineDeployments) List(opts v1.ListOptions) (result *machine.Mach
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &machine.MachineDeploymentList{}
+	list := &machine.MachineDeploymentList{ListMeta: obj.(*machine.MachineDeploymentList).ListMeta}
 	for _, item := range obj.(*machine.MachineDeploymentList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)

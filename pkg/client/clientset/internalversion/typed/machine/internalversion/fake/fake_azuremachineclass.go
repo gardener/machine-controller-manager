@@ -46,7 +46,7 @@ func (c *FakeAzureMachineClasses) List(opts v1.ListOptions) (result *machine.Azu
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &machine.AzureMachineClassList{}
+	list := &machine.AzureMachineClassList{ListMeta: obj.(*machine.AzureMachineClassList).ListMeta}
 	for _, item := range obj.(*machine.AzureMachineClassList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)

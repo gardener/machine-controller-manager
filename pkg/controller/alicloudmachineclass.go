@@ -147,7 +147,7 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 			return nil
 		}
 
-		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", AlicloudMachineClassKind, class.Name)
+		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
@@ -192,7 +192,7 @@ func (c *controller) updateAlicloudMachineClassFinalizers(class *v1alpha1.Aliclo
 	_, err = c.controlMachineClient.AlicloudMachineClasses(class.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
-		glog.Warning("Updated failed, retrying: %v", err)
+		glog.Warning("Updated failed, retrying: ", err)
 		c.updateAlicloudMachineClassFinalizers(class, finalizers)
 	}
 }

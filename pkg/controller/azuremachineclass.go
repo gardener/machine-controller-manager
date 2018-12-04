@@ -148,7 +148,7 @@ func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMach
 			return nil
 		}
 
-		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", AzureMachineClassKind, class.Name)
+		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 

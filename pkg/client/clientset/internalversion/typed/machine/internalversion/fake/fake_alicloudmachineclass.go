@@ -46,7 +46,7 @@ func (c *FakeAlicloudMachineClasses) List(opts v1.ListOptions) (result *machine.
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &machine.AlicloudMachineClassList{}
+	list := &machine.AlicloudMachineClassList{ListMeta: obj.(*machine.AlicloudMachineClassList).ListMeta}
 	for _, item := range obj.(*machine.AlicloudMachineClassList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
