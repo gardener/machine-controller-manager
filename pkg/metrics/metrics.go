@@ -7,37 +7,29 @@ import (
 var (
 	MachineControllerFrozenDesc = prometheus.NewDesc("mcm_machine_controller_frozen", "Frozen status of the machine controller manager.", nil, nil)
 	MachineCountDesc            = prometheus.NewDesc("mcm_machine_items_total", "Count of machines currently managed by the mcm.", nil, nil)
-	MachineCreated              = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "mcm_machine_created",
-		Help: "Creation time of the Machines currently managed by the mcm.",
-	}, []string{"name", "namespace", "uid"})
 
 	MachineCSPhase = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_current_status_phase",
 		Help: "Current status phase of the Machines currently managed by the mcm.",
-	}, []string{"name", "namespace", "uid", "phase"})
+	}, []string{"name", "namespace", "uid"})
 
 	MachineInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_info",
 		Help: "Information of the Machines currently managed by the mcm.",
-	}, []string{"name", "namespace", "uid", "generation", "kind", "api_version",
+	}, []string{"name", "namespace", "uid", "created",
 		"spec_provider_id", "spec_class_api_group", "spec_class_kind", "spec_class_name"})
 
 	MachineStatusCondition = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_status_condition",
 		Help: "Information of the mcm managed Machines' status conditions.",
-	}, []string{"name", "namespace", "uid", "condition", "status"})
+	}, []string{"name", "namespace", "uid", "condition"})
 
 	MachineSetCountDesc = prometheus.NewDesc("mcm_machineset_items_total", "Count of machinesets currently managed by the mcm.", nil, nil)
-	MachineSetCreated   = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "mcm_machine_set_created",
-		Help: "Creation time of the Machinesets currently managed by the mcm.",
-	}, []string{"name", "namespace", "uid"})
 
 	MachineSetInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_set_info",
 		Help: "Information of the Machinesets currently managed by the mcm.",
-	}, []string{"name", "namespace", "uid", "generation", "kind", "api_version",
+	}, []string{"name", "namespace", "uid", "created",
 		"spec_machine_class_api_group", "spec_machine_class_kind", "spec_machine_class_name"})
 
 	MachineSetInfoSpecReplicas = prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -53,7 +45,7 @@ var (
 	MachineSetStatusCondition = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_set_status_condition",
 		Help: "Information of the mcm managed Machinesets' status conditions.",
-	}, []string{"name", "namespace", "uid", "condition", "status"})
+	}, []string{"name", "namespace", "uid", "condition"})
 
 	MachineSetStatusFailedMachines = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_set_failed_machines",
@@ -62,28 +54,76 @@ var (
 		"failed_machine_last_operation_state",
 		"failed_machine_last_operation_machine_operation_type"})
 
-	MachineSetStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "mcm_machine_set_status",
-		Help: "Information of the mcm managed Machinesets' status conditions.",
-	}, []string{"name", "namespace", "uid", "available_replicas",
-		"fully_labeled_replicas", "ready_replicas", "replicas"})
+	MachineSetStatusAvailableReplicas = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_set_status_availabla_replicas",
+		Help: "Information of the mcm managed Machinesets' status for available replicas.",
+	}, []string{"name", "namespace", "uid"})
+
+	MachineSetStatusFullyLabelledReplicas = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_set_status_fully_labelled_replicas",
+		Help: "Information of the mcm managed Machinesets' status for fully labelled replicas.",
+	}, []string{"name", "namespace", "uid"})
+
+	MachineSetStatusReadyReplicas = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_set_status_ready_replicas",
+		Help: "Information of the mcm managed Machinesets' status for ready replicas.",
+	}, []string{"name", "namespace", "uid"})
+
+	MachineSetStatusReplicas = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_set_status_replicas",
+		Help: "Information of the mcm managed Machinesets' status for replicas.",
+	}, []string{"name", "namespace", "uid"})
 
 	MachineDeploymentCountDesc = prometheus.NewDesc("mcm_machinedeployment_items_total", "Count of machinedeployments currently managed by the mcm.", nil, nil)
-	MachineDeploymentCreated   = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "mcm_machine_deployment_created",
-		Help: "Creation time of the Machinedeployments currently managed by the mcm.",
-	}, []string{"name", "namespace", "uid"})
-	MachineDeploymentInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	MachineDeploymentInfo      = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_deployment_info",
 		Help: "Information of the Machinedeployments currently managed by the mcm.",
-	}, []string{"name", "namespace", "uid", "generation", "kind", "api_version", "spec_replicas", "spec_strategy_type",
-		"spec_paused", "spec_revision_history_limit", "spec_progress_deadline_seconds", "spec_min_ready_seconds", "spec_rollbackto_revision",
-		"spec_strategy_rolling_update_max_surge", "spec_strategy_rolling_update_max_unavailable"})
+	}, []string{"name", "namespace", "uid", "created", "spec_strategy_type"})
+
+	MachineDeploymentInfoSpecPaused = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_info_spec_paused",
+		Help: "Information of the Machinedeployments paused status.",
+	}, []string{"name", "namespace", "uid"})
+
+	MachineDeploymentInfoSpecReplicas = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_info_spec_replicas",
+		Help: "Information of the Machinedeployments spec replicas.",
+	}, []string{"name", "namespace", "uid"})
+
+	MachineDeploymentInfoSpecMinReadySeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_info_spec_min_ready_seconds",
+		Help: "Information of the Machinedeployments spec min ready seconds.",
+	}, []string{"name", "namespace", "uid"})
+
+	MachineDeploymentInfoSpecRollingUpdateMaxSurge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_info_spec_rolling_update_max_surge",
+		Help: "Information of the Machinedeployments spec rolling update max surge.",
+	}, []string{"name", "namespace", "uid"})
+
+	MachineDeploymentInfoSpecRollingUpdateMaxUnavailable = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_info_spec_rolling_update_max_unavailable",
+		Help: "Information of the Machinedeployments spec rolling update max unavailable.",
+	}, []string{"name", "namespace", "uid"})
+
+	MachineDeploymentInfoSpecRevisionHistoryLimit = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_info_spec_revision_history_limit",
+		Help: "Information of the Machinedeployments spec revision history limit.",
+	}, []string{"name", "namespace", "uid"})
+
+	MachineDeploymentInfoSpecProgressDeadlineSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_info_spec_progress_deadline_seconds",
+		Help: "Information of the Machinedeployments spec deadline seconds.",
+	}, []string{"name", "namespace", "uid"})
+
+	MachineDeploymentInfoSpecRollbackToRevision = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "mcm_machine_deployment_info_spec_rollback_to_revision",
+		Help: "Information of the Machinedeployments spec rollback to revision.",
+	}, []string{"name", "namespace", "uid"})
 
 	MachineDeploymentStatusCondition = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_deployment_status_condition",
 		Help: "Information of the mcm managed Machinedeployments' status conditions.",
-	}, []string{"name", "namespace", "uid", "condition", "status"})
+	}, []string{"name", "namespace", "uid", "condition"})
 
 	MachineDeploymentStatusAvailableReplicas = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "mcm_machine_deployment_status_available_replicas",
@@ -137,19 +177,27 @@ var (
 
 func init() {
 	prometheus.MustRegister(ScrapeFailedCounter)
-	prometheus.MustRegister(MachineCreated)
 	prometheus.MustRegister(MachineInfo)
 	prometheus.MustRegister(MachineStatusCondition)
 	prometheus.MustRegister(MachineCSPhase)
-	prometheus.MustRegister(MachineSetCreated)
 	prometheus.MustRegister(MachineSetInfo)
 	prometheus.MustRegister(MachineSetInfoSpecReplicas)
 	prometheus.MustRegister(MachineSetInfoSpecMinReadySeconds)
-	prometheus.MustRegister(MachineSetStatus)
+	prometheus.MustRegister(MachineSetStatusAvailableReplicas)
+	prometheus.MustRegister(MachineSetStatusFullyLabelledReplicas)
+	prometheus.MustRegister(MachineSetStatusReadyReplicas)
+	prometheus.MustRegister(MachineSetStatusReplicas)
 	prometheus.MustRegister(MachineSetStatusCondition)
 	prometheus.MustRegister(MachineSetStatusFailedMachines)
-	prometheus.MustRegister(MachineDeploymentCreated)
 	prometheus.MustRegister(MachineDeploymentInfo)
+	prometheus.MustRegister(MachineDeploymentInfoSpecPaused)
+	prometheus.MustRegister(MachineDeploymentInfoSpecReplicas)
+	prometheus.MustRegister(MachineDeploymentInfoSpecRevisionHistoryLimit)
+	prometheus.MustRegister(MachineDeploymentInfoSpecMinReadySeconds)
+	prometheus.MustRegister(MachineDeploymentInfoSpecRollingUpdateMaxSurge)
+	prometheus.MustRegister(MachineDeploymentInfoSpecRollingUpdateMaxUnavailable)
+	prometheus.MustRegister(MachineDeploymentInfoSpecProgressDeadlineSeconds)
+	prometheus.MustRegister(MachineDeploymentInfoSpecRollbackToRevision)
 	prometheus.MustRegister(MachineDeploymentStatusCondition)
 	prometheus.MustRegister(MachineDeploymentStatusAvailableReplicas)
 	prometheus.MustRegister(MachineDeploymentStatusUnavailableReplicas)
