@@ -40,7 +40,7 @@ const (
 // DefaultLeaderElectionConfiguration the default configurations used for leader election
 func DefaultLeaderElectionConfiguration() options.LeaderElectionConfiguration {
 	return options.LeaderElectionConfiguration{
-		LeaderElect:   false,
+		LeaderElect:   true,
 		LeaseDuration: metav1.Duration{Duration: DefaultLeaseDuration},
 		RenewDeadline: metav1.Duration{Duration: DefaultRenewDeadline},
 		RetryPeriod:   metav1.Duration{Duration: DefaultRetryPeriod},
