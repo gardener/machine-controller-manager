@@ -48,6 +48,10 @@ func (c *FakeMachine) OpenStackMachineClasses(namespace string) internalversion.
 	return &FakeOpenStackMachineClasses{c, namespace}
 }
 
+func (c *FakeMachine) PacketMachineClasses(namespace string) internalversion.PacketMachineClassInterface {
+	return &FakePacketMachineClasses{c, namespace}
+}
+
 func (c *FakeMachine) Scales(namespace string) internalversion.ScaleInterface {
 	return &FakeScales{c, namespace}
 }
