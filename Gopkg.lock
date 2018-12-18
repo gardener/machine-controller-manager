@@ -345,7 +345,7 @@
   revision = "0b12d6b5"
 
 [[projects]]
-  digest = "0:"
+  digest = "1:8e36686e8b139f8fe240c1d5cf3a145bc675c22ff8e707857cdd3ae17b00d728"
   name = "github.com/json-iterator/go"
   packages = ["."]
   pruneopts = "NUT"
