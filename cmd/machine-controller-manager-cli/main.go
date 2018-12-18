@@ -86,6 +86,11 @@ func main() {
 		machineclass = &class
 		classKind = "AlicloudMachineClass"
 
+	case "PacketMachineClass", "packet":
+		class := v1alpha1.PacketMachineClass{}
+		machineclass = &class
+		classKind = "PacketMachineClass"
+
 	default:
 		log.Fatalf("Unknown class kind %s", classKind)
 	}

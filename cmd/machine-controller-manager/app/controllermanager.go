@@ -69,6 +69,7 @@ var awsGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: 
 var azureGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "azuremachineclasses"}
 var gcpGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "gcpmachineclasses"}
 var alicloudGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "alicloudmachineclasses"}
+var packetGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "packetmachineclasses"}
 
 // Run runs the MCMServer.  This should never exit.
 func Run(s *options.MCMServer) error {
@@ -221,7 +222,7 @@ func StartControllers(s *options.MCMServer,
 		glog.Fatal(err)
 	}
 
-	if availableResources[awsGVR] || availableResources[azureGVR] || availableResources[gcpGVR] || availableResources[openStackGVR] || availableResources[alicloudGVR] {
+	if availableResources[awsGVR] || availableResources[azureGVR] || availableResources[gcpGVR] || availableResources[openStackGVR] || availableResources[alicloudGVR] || availableResources[packetGVR] {
 		glog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
 		controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
@@ -259,6 +260,7 @@ func StartControllers(s *options.MCMServer,
 			machineSharedInformers.AzureMachineClasses(),
 			machineSharedInformers.GCPMachineClasses(),
 			machineSharedInformers.AlicloudMachineClasses(),
+			machineSharedInformers.PacketMachineClasses(),
 			machineSharedInformers.Machines(),
 			machineSharedInformers.MachineSets(),
 			machineSharedInformers.MachineDeployments(),
@@ -278,7 +280,7 @@ func StartControllers(s *options.MCMServer,
 		go machineController.Run(int(s.ConcurrentNodeSyncs), stop)
 
 	} else {
-		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q or %q or %q is not available; found %#v", awsGVR, azureGVR, gcpGVR, openStackGVR, alicloudGVR, availableResources)
+		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q or %q or %q or %q is not available; found %#v", awsGVR, azureGVR, gcpGVR, openStackGVR, alicloudGVR, packetGVR, availableResources)
 	}
 
 	select {}

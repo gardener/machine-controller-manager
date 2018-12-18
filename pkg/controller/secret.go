@@ -256,3 +256,32 @@ func (c *controller) awsMachineClassToSecretUpdate(oldObj interface{}, newObj in
 func (c *controller) awsMachineClassToSecretDelete(obj interface{}) {
 	c.awsMachineClassToSecretAdd(obj)
 }
+
+func (c *controller) packetMachineClassToSecretAdd(obj interface{}) {
+	machineClass, ok := obj.(*v1alpha1.PacketMachineClass)
+	if machineClass == nil || !ok {
+		return
+	}
+	c.secretQueue.Add(machineClass.Spec.SecretRef.Namespace + "/" + machineClass.Spec.SecretRef.Name)
+}
+
+func (c *controller) packetMachineClassToSecretUpdate(oldObj interface{}, newObj interface{}) {
+	oldMachineClass, ok := oldObj.(*v1alpha1.PacketMachineClass)
+	if oldMachineClass == nil || !ok {
+		return
+	}
+	newMachineClass, ok := newObj.(*v1alpha1.PacketMachineClass)
+	if newMachineClass == nil || !ok {
+		return
+	}
+
+	if oldMachineClass.Spec.SecretRef.Name != newMachineClass.Spec.SecretRef.Name ||
+		oldMachineClass.Spec.SecretRef.Namespace != newMachineClass.Spec.SecretRef.Namespace {
+		c.secretQueue.Add(oldMachineClass.Spec.SecretRef.Namespace + "/" + oldMachineClass.Spec.SecretRef.Name)
+		c.secretQueue.Add(newMachineClass.Spec.SecretRef.Namespace + "/" + newMachineClass.Spec.SecretRef.Name)
+	}
+}
+
+func (c *controller) packetMachineClassToSecretDelete(obj interface{}) {
+	c.packetMachineClassToSecretAdd(obj)
+}

@@ -405,7 +405,7 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 			glog.V(2).Infof("MachineID %s was successfully set to Machine %s", actualProviderID, machine.Name)
 			break
 		}
-		glog.Warningf("Updated failed, retrying, error: %s", err)
+		glog.Warningf("Updated failed, retrying, error: %q", err)
 	}
 
 	return nil

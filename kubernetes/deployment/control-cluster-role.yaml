@@ -11,6 +11,7 @@ rules:
    - gcpmachineclasses
    - openstackmachineclasses
    - alicloudmachineclasses
+   - packetmachineclasses
    - machinedeployments
    - machines
    - machinesets
