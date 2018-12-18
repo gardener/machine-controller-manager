@@ -60,6 +60,10 @@ required = [
   name = "github.com/gophercloud/gophercloud"
   revision = "fe85f9519740a5b5c09ecb0909609b58e59e5dec"
 
+[[constraint]]
+  name = "github.com/packethost/packngo"
+  revision = "b3b45f1b4979af3ace1cd5450768ab387b40ae5b"
+
 [prune]
   unused-packages = true
   go-tests = true
