@@ -83,6 +83,14 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 			MachineID:            machineID,
 			MachineName:          machineName,
 		}
+	case "PacketMachineClass":
+		return &PacketDriver{
+			PacketMachineClass: machineClass.(*v1alpha1.PacketMachineClass),
+			CloudConfig:        secretRef,
+			UserData:           string(secretRef.Data["userData"]),
+			MachineID:          machineID,
+			MachineName:        machineName,
+		}
 	}
 
 	return NewFakeDriver(
