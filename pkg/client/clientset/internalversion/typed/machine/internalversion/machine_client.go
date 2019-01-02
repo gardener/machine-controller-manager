@@ -18,6 +18,7 @@ type MachineInterface interface {
 	MachineSetsGetter
 	MachineTemplatesGetter
 	OpenStackMachineClassesGetter
+	PacketMachineClassesGetter
 	ScalesGetter
 }
 
@@ -62,6 +63,10 @@ func (c *MachineClient) OpenStackMachineClasses(namespace string) OpenStackMachi
 	return newOpenStackMachineClasses(c, namespace)
 }
 
+func (c *MachineClient) PacketMachineClasses(namespace string) PacketMachineClassInterface {
+	return newPacketMachineClasses(c, namespace)
+}
+
 func (c *MachineClient) Scales(namespace string) ScaleInterface {
 	return newScales(c, namespace)
 }
@@ -95,17 +100,12 @@ func New(c rest.Interface) *MachineClient {
 }
 
 func setConfigDefaults(config *rest.Config) error {
-	g, err := scheme.Registry.Group("machine.sapcloud.io")
-	if err != nil {
-		return err
-	}
-
 	config.APIPath = "/apis"
 	if config.UserAgent == "" {
 		config.UserAgent = rest.DefaultKubernetesUserAgent()
 	}
-	if config.GroupVersion == nil || config.GroupVersion.Group != g.GroupVersion.Group {
-		gv := g.GroupVersion
+	if config.GroupVersion == nil || config.GroupVersion.Group != scheme.Scheme.PrioritizedVersionsForGroup("machine.sapcloud.io")[0].Group {
+		gv := scheme.Scheme.PrioritizedVersionsForGroup("machine.sapcloud.io")[0]
 		config.GroupVersion = &gv
 	}
 	config.NegotiatedSerializer = scheme.Codecs

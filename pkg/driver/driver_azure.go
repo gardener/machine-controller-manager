@@ -77,7 +77,7 @@ func (d *AzureDriver) Create() (string, string, error) {
 		d.AzureMachineClass.Spec.SubnetInfo.SubnetName,
 		"",
 	)
-	err = onErrorFail(err, fmt.Sprintf("subnetClient.Get failed for subnet %q", subnet.Name))
+	err = onErrorFail(err, fmt.Sprintf("subnetClient.Get failed for subnet %q", *subnet.Name))
 	if err != nil {
 		return "Error", "Error", err
 	}
@@ -230,15 +230,26 @@ func (d *AzureDriver) Delete() error {
 	listOfResources := make(map[string]string)
 	d.getvms(d.MachineID, listOfResources)
 	if len(listOfResources) != 0 {
-		_, errChan := vmClient.Delete(resourceGroup, vmName, cancel)
+
+		_, errChan := vmClient.PowerOff(resourceGroup, vmName, cancel)
+		err = onErrorFail(<-errChan, fmt.Sprintf("vmClient.PowerOff failed for '%s'", vmName))
+		if err != nil {
+			return err
+		}
+		glog.V(2).Infof("VM poweroff was successful for %s", vmName)
+
+		_, errChan = vmClient.Delete(resourceGroup, vmName, cancel)
 		err = onErrorFail(<-errChan, fmt.Sprintf("vmClient.Delete failed for '%s'", vmName))
 		if err != nil {
 			metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
 			return err
 		}
 		metrics.ApiRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
+		glog.V(2).Infof("VM deletion was successful for %s", vmName)
+
+	} else {
+		glog.Warningf("VM was not found for %s", vmName)
 	}
-	glog.V(3).Infof("Deleted VM %s", vmName)
 
 	listOfResources = make(map[string]string)
 	d.getnics(d.MachineID, listOfResources)
@@ -250,21 +261,25 @@ func (d *AzureDriver) Delete() error {
 			return err
 		}
 		metrics.ApiRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
+		glog.V(2).Infof("NIC deletion was successful for %s", nicName)
+	} else {
+		glog.Warningf("NIC was not found for %s", nicName)
 	}
-	glog.V(3).Infof("Deleted NIC %s", nicName)
 
 	listOfResources = make(map[string]string)
 	d.getdisks(d.MachineID, listOfResources)
 	if len(listOfResources) != 0 {
 		_, errChan := diskClient.Delete(resourceGroup, diskName, cancel)
-		err = onErrorFail(<-errChan, fmt.Sprintf("diskClient.Delete for NIC '%s' failed", nicName))
+		err = onErrorFail(<-errChan, fmt.Sprintf("diskClient.Delete for NIC '%s' failed", diskName))
 		if err != nil {
 			metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
 			return err
 		}
 		metrics.ApiRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
+		glog.V(2).Infof("OS-Disk deletion was successful for %s", diskName)
+	} else {
+		glog.Warningf("OS-Disk was not found for %s", diskName)
 	}
-	glog.V(3).Infof("Deleted OS-Disk %s", nicName)
 
 	return err
 }

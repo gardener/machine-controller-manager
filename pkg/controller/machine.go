@@ -162,7 +162,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 
 	machine, err = c.updateMachineState(machine)
 	if err != nil {
-		glog.Error("Could not update machine state for: %s", machine.Name)
+		glog.Errorf("Could not update machine state for: %s", machine.Name)
 		return err
 	}
 
@@ -207,7 +207,7 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 
 	machine, err := c.getMachineFromNode(key)
 	if err != nil {
-		glog.Error("Couldn't fetch machine %s, Error: ", key, err)
+		glog.Errorf("Couldn't fetch machine %s, Error: %s", key, err)
 		return
 	} else if machine == nil {
 		return
@@ -374,7 +374,7 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 		if err == nil {
 			break
 		}
-		glog.Warning("Updated failed, retrying, error: %q", err)
+		glog.Warningf("Updated failed, retrying, error: %s", err)
 	}
 
 	return nil
@@ -405,7 +405,7 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 			glog.V(2).Infof("MachineID %s was successfully set to Machine %s", actualProviderID, machine.Name)
 			break
 		}
-		glog.Warning("Updated failed, retrying, error: %q", err)
+		glog.Warningf("Updated failed, retrying, error: %q", err)
 	}
 
 	return nil

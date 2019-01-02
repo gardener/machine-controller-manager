@@ -26,23 +26,23 @@ required = [
 
 [[constraint]]
   name = "k8s.io/api"
-  version = "kubernetes-1.10.8"
+  version = "kubernetes-1.12.1"
 
 [[constraint]]
   name = "k8s.io/apimachinery"
-  version = "kubernetes-1.10.4"
+  version = "kubernetes-1.12.1"
 
 [[constraint]]
   name = "k8s.io/apiserver"
-  version = "kubernetes-1.10.8"
+  version = "kubernetes-1.12.1"
 
 [[constraint]]
-  branch = "release-7.0"
   name = "k8s.io/client-go"
+  version = "kubernetes-1.12.1"
 
 [[constraint]]
   name = "k8s.io/code-generator"
-  version = "kubernetes-1.10.8"
+  version = "kubernetes-1.12.1"
 
 # [[override]]
 #   name = "k8s.io/gengo"
@@ -59,6 +59,10 @@ required = [
 [[constraint]]
   name = "github.com/gophercloud/gophercloud"
   revision = "fe85f9519740a5b5c09ecb0909609b58e59e5dec"
+
+[[constraint]]
+  name = "github.com/packethost/packngo"
+  revision = "b3b45f1b4979af3ace1cd5450768ab387b40ae5b"
 
 [prune]
   unused-packages = true

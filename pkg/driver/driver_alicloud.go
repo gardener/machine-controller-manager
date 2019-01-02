@@ -44,33 +44,6 @@ type AlicloudDriver struct {
 	MachineName          string
 }
 
-func toInstanceTags(tags map[string]string) ([]ecs.RunInstancesTag, error) {
-	result := []ecs.RunInstancesTag{{}, {}}
-	hasCluster := false
-	hasRole := false
-
-	for k, v := range tags {
-		if strings.Contains(k, "kubernetes.io/cluster/") {
-			hasCluster = true
-			result[0].Key = k
-			result[0].Value = v
-		} else if strings.Contains(k, "kubernetes.io/role/") {
-			hasRole = true
-			result[1].Key = k
-			result[1].Value = v
-		} else {
-			result = append(result, ecs.RunInstancesTag{Key: k, Value: v})
-		}
-	}
-
-	if !hasCluster || !hasRole {
-		err := fmt.Errorf("Tags should at least contains 2 keys, which are prefixed with kubernetes.io/cluster and kubernetes.io/role")
-		return nil, err
-	}
-
-	return result, nil
-}
-
 // Create is used to create a VM
 func (c *AlicloudDriver) Create() (string, string, error) {
 	client, err := c.getEcsClient()
@@ -107,34 +80,14 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 		request.SystemDiskSize = fmt.Sprintf("%d", c.AlicloudMachineClass.Spec.SystemDisk.Size)
 	}
 
-	hasCluster := false
-	hasRole := false
-
-	tags := []ecs.RunInstancesTag{{}, {}}
-	for k, v := range c.AlicloudMachineClass.Spec.Tags {
-		if strings.Contains(k, "kubernetes.io/cluster/") {
-			hasCluster = true
-			tags[0].Key = k
-			tags[0].Value = v
-		} else if strings.Contains(k, "kubernetes.io/role/") {
-			hasRole = true
-			tags[1].Key = k
-			tags[1].Value = v
-		} else {
-			tags = append(tags, ecs.RunInstancesTag{Key: k, Value: v})
-		}
-	}
-
-	if !hasCluster || !hasRole {
-		err := fmt.Errorf("Tags should at least contains 2 keys, which are prefixed with kubernetes.io/cluster and kubernetes.io/role")
+	tags, err := c.toInstanceTags(c.AlicloudMachineClass.Spec.Tags)
+	if err != nil {
 		return "", "", err
 	}
-
 	request.Tag = &tags
 	request.InstanceName = c.MachineName
 	request.ClientToken = utils.GetUUIDV4()
-	userData := strings.Replace(c.UserData, "${HOSTNAME}", c.MachineName, -1)
-	request.UserData = base64.StdEncoding.EncodeToString([]byte(userData))
+	request.UserData = base64.StdEncoding.EncodeToString([]byte(c.UserData))
 
 	response, err := client.RunInstances(request)
 	if err != nil {
@@ -143,7 +96,14 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 	}
 	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "alicloud", "service": "ecs"}).Inc()
 
-	return c.encodeMachineID(c.AlicloudMachineClass.Spec.Region, response.InstanceIdSets.InstanceIdSet[0]), c.MachineName, nil
+	instanceID := response.InstanceIdSets.InstanceIdSet[0]
+	machineID := c.encodeMachineID(c.AlicloudMachineClass.Spec.Region, instanceID)
+
+	// Hostname can't be fetched immediately from Alicloud API.
+	// Even using DescribeInstances by Instance ID, it will return empty.
+	// However, for Alicloud hostname, it can be transformed by Instance ID by default
+	// Please be noted that returned node name should be in LOWER case
+	return machineID, strings.ToLower(c.idToName(instanceID)), nil
 }
 
 // Delete method is used to delete an alicloud machine
@@ -292,4 +252,37 @@ func (c *AlicloudDriver) getEcsClient() (*ecs.Client, error) {
 		err = errors.New("alicloudAccessKeyID or alicloudAccessKeySecret can't be empty")
 	}
 	return ecsClient, err
+}
+
+// Host name in Alicloud has relationship with Instance ID
+// i-uf69zddmom11ci7est12 => iZuf69zddmom11ci7est12Z
+func (c *AlicloudDriver) idToName(instanceID string) string {
+	return strings.Replace(instanceID, "-", "Z", 1) + "Z"
+}
+
+func (c *AlicloudDriver) toInstanceTags(tags map[string]string) ([]ecs.RunInstancesTag, error) {
+	result := []ecs.RunInstancesTag{{}, {}}
+	hasCluster := false
+	hasRole := false
+
+	for k, v := range tags {
+		if strings.Contains(k, "kubernetes.io/cluster/") {
+			hasCluster = true
+			result[0].Key = k
+			result[0].Value = v
+		} else if strings.Contains(k, "kubernetes.io/role/") {
+			hasRole = true
+			result[1].Key = k
+			result[1].Value = v
+		} else {
+			result = append(result, ecs.RunInstancesTag{Key: k, Value: v})
+		}
+	}
+
+	if !hasCluster || !hasRole {
+		err := fmt.Errorf("Tags should at least contains 2 keys, which are prefixed with kubernetes.io/cluster and kubernetes.io/role")
+		return nil, err
+	}
+
+	return result, nil
 }

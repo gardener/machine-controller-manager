@@ -86,6 +86,11 @@ func main() {
 		machineclass = &class
 		classKind = "AlicloudMachineClass"
 
+	case "PacketMachineClass", "packet":
+		class := v1alpha1.PacketMachineClass{}
+		machineclass = &class
+		classKind = "PacketMachineClass"
+
 	default:
 		log.Fatalf("Unknown class kind %s", classKind)
 	}
@@ -101,8 +106,8 @@ func main() {
 		if err != nil {
 			log.Fatalf("Could not create %s : %s", machineName, err)
 		}
-		fmt.Printf("Machine id: %s", id)
-		fmt.Printf("Name: %s", name)
+		fmt.Printf("Machine id: %s\n", id)
+		fmt.Printf("Name: %s\n", name)
 	} else {
 		err = driver.Delete()
 		if err != nil {

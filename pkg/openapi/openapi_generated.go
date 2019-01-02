@@ -2557,6 +2557,191 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/api/core/v1.SecretReference"},
 		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.PacketMachineClass": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "PacketMachineClass TODO",
+					Properties: map[string]spec.Schema{
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							},
+						},
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"spec": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.PacketMachineClassSpec"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.PacketMachineClassSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.PacketMachineClassList": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "PacketMachineClassList is a collection of PacketMachineClasses.",
+					Properties: map[string]spec.Schema{
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+							},
+						},
+						"items": {
+							SchemaProps: spec.SchemaProps{
+								Type: []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.PacketMachineClass"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.PacketMachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.PacketMachineClassSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "PacketMachineClassSpec is the specification of a cluster.",
+					Properties: map[string]spec.Schema{
+						"facility": {
+							SchemaProps: spec.SchemaProps{
+								Type: []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+						"machineType": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"billingCycle": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"OS": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"projectID": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"tags": {
+							SchemaProps: spec.SchemaProps{
+								Type: []string{"object"},
+								AdditionalProperties: &spec.SchemaOrBool{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+						"sshKeys": {
+							SchemaProps: spec.SchemaProps{
+								Type: []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.PacketSSHKeySpec"),
+										},
+									},
+								},
+							},
+						},
+						"userdata": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"secretRef": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/api/core/v1.SecretReference"),
+							},
+						},
+					},
+					Required: []string{"facility", "machineType", "billingCycle", "OS", "projectID"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.PacketSSHKeySpec", "k8s.io/api/core/v1.SecretReference"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.PacketSSHKeySpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "PacketSSHKeySpec describes ssh keys for packet",
+					Properties: map[string]spec.Schema{
+						"id": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"fingerprint": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+					},
+					Required: []string{"id", "fingerprint"},
+				},
+			},
+			Dependencies: []string{},
+		},
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -2970,7 +3155,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"k8s.io/api/core/v1.CSIPersistentVolumeSource": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "Represents storage that is managed by an external CSI volume driver",
+					Description: "Represents storage that is managed by an external CSI volume driver (Beta feature)",
 					Properties: map[string]spec.Schema{
 						"driver": {
 							SchemaProps: spec.SchemaProps{
@@ -2993,11 +3178,51 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format:      "",
 							},
 						},
+						"fsType": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\".",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"volumeAttributes": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Attributes of the volume to publish.",
+								Type:        []string{"object"},
+								AdditionalProperties: &spec.SchemaOrBool{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+						"controllerPublishSecretRef": {
+							SchemaProps: spec.SchemaProps{
+								Description: "ControllerPublishSecretRef is a reference to the secret object containing sensitive information to pass to the CSI driver to complete the CSI ControllerPublishVolume and ControllerUnpublishVolume calls. This field is optional, and  may be empty if no secret is required. If the secret object contains more than one secret, all secrets are passed.",
+								Ref:         ref("k8s.io/api/core/v1.SecretReference"),
+							},
+						},
+						"nodeStageSecretRef": {
+							SchemaProps: spec.SchemaProps{
+								Description: "NodeStageSecretRef is a reference to the secret object containing sensitive information to pass to the CSI driver to complete the CSI NodeStageVolume and NodeStageVolume and NodeUnstageVolume calls. This field is optional, and  may be empty if no secret is required. If the secret object contains more than one secret, all secrets are passed.",
+								Ref:         ref("k8s.io/api/core/v1.SecretReference"),
+							},
+						},
+						"nodePublishSecretRef": {
+							SchemaProps: spec.SchemaProps{
+								Description: "NodePublishSecretRef is a reference to the secret object containing sensitive information to pass to the CSI driver to complete the CSI NodePublishVolume and NodeUnpublishVolume calls. This field is optional, and  may be empty if no secret is required. If the secret object contains more than one secret, all secrets are passed.",
+								Ref:         ref("k8s.io/api/core/v1.SecretReference"),
+							},
+						},
 					},
 					Required: []string{"driver", "volumeHandle"},
 				},
 			},
-			Dependencies: []string{},
+			Dependencies: []string{
+				"k8s.io/api/core/v1.SecretReference"},
 		},
 		"k8s.io/api/core/v1.Capabilities": {
 			Schema: spec.Schema{
@@ -3157,6 +3382,45 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/api/core/v1.LocalObjectReference"},
 		},
+		"k8s.io/api/core/v1.CinderPersistentVolumeSource": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "Represents a cinder volume resource in Openstack. A Cinder volume must exist before mounting to a container. The volume must also be in the same region as the kubelet. Cinder volumes support ownership management and SELinux relabeling.",
+					Properties: map[string]spec.Schema{
+						"volumeID": {
+							SchemaProps: spec.SchemaProps{
+								Description: "volume id used to identify the volume in cinder More info: https://releases.k8s.io/HEAD/examples/mysql-cinder-pd/README.md",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"fsType": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Examples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified. More info: https://releases.k8s.io/HEAD/examples/mysql-cinder-pd/README.md",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"readOnly": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Optional: Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts. More info: https://releases.k8s.io/HEAD/examples/mysql-cinder-pd/README.md",
+								Type:        []string{"boolean"},
+								Format:      "",
+							},
+						},
+						"secretRef": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Optional: points to a secret object containing parameters used to connect to OpenStack.",
+								Ref:         ref("k8s.io/api/core/v1.SecretReference"),
+							},
+						},
+					},
+					Required: []string{"volumeID"},
+				},
+			},
+			Dependencies: []string{
+				"k8s.io/api/core/v1.SecretReference"},
+		},
 		"k8s.io/api/core/v1.CinderVolumeSource": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -3183,11 +3447,18 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format:      "",
 							},
 						},
+						"secretRef": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Optional: points to a secret object containing parameters used to connect to OpenStack.",
+								Ref:         ref("k8s.io/api/core/v1.LocalObjectReference"),
+							},
+						},
 					},
 					Required: []string{"volumeID"},
 				},
 			},
-			Dependencies: []string{},
+			Dependencies: []string{
+				"k8s.io/api/core/v1.LocalObjectReference"},
 		},
 		"k8s.io/api/core/v1.ClientIPConfig": {
 			Schema: spec.Schema{
@@ -3367,13 +3638,27 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"data": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Data contains the configuration data. Each key must consist of alphanumeric characters, '-', '_' or '.'.",
+								Description: "Data contains the configuration data. Each key must consist of alphanumeric characters, '-', '_' or '.'. Values with non-UTF-8 byte sequences must use the BinaryData field. The keys stored in Data must not overlap with the keys in the BinaryData field, this is enforced during validation process.",
 								Type:        []string{"object"},
 								AdditionalProperties: &spec.SchemaOrBool{
 									Schema: &spec.Schema{
 										SchemaProps: spec.SchemaProps{
 											Type:   []string{"string"},
 											Format: "",
+										},
+									},
+								},
+							},
+						},
+						"binaryData": {
+							SchemaProps: spec.SchemaProps{
+								Description: "BinaryData contains the binary data. Each key must consist of alphanumeric characters, '-', '_' or '.'. BinaryData can contain byte sequences that are not in the UTF-8 range. The keys stored in BinaryData must not overlap with the ones in the Data field, this is enforced during validation process. Using this field will require 1.10+ apiserver and kubelet.",
+								Type:        []string{"object"},
+								AdditionalProperties: &spec.SchemaOrBool{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "byte",
 										},
 									},
 								},
@@ -3485,6 +3770,52 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{
 				"k8s.io/api/core/v1.ConfigMap", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+		},
+		"k8s.io/api/core/v1.ConfigMapNodeConfigSource": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "ConfigMapNodeConfigSource contains the information to reference a ConfigMap as a config source for the Node.",
+					Properties: map[string]spec.Schema{
+						"namespace": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Namespace is the metadata.namespace of the referenced ConfigMap. This field is required in all cases.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"name": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Name is the metadata.name of the referenced ConfigMap. This field is required in all cases.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"uid": {
+							SchemaProps: spec.SchemaProps{
+								Description: "UID is the metadata.UID of the referenced ConfigMap. This field is forbidden in Node.Spec, and required in Node.Status.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"resourceVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "ResourceVersion is the metadata.ResourceVersion of the referenced ConfigMap. This field is forbidden in Node.Spec, and required in Node.Status.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"kubeletConfigKey": {
+							SchemaProps: spec.SchemaProps{
+								Description: "KubeletConfigKey declares which key of the referenced ConfigMap corresponds to the KubeletConfiguration structure This field is required in all cases.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"namespace", "name", "kubeletConfigKey"},
+				},
+			},
+			Dependencies: []string{},
 		},
 		"k8s.io/api/core/v1.ConfigMapProjection": {
 			Schema: spec.Schema{
@@ -3676,7 +4007,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"resources": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Compute Resources required by this container. Cannot be updated. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources",
+								Description: "Compute Resources required by this container. Cannot be updated. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/",
 								Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
 							},
 						},
@@ -3798,7 +4129,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 					Properties: map[string]spec.Schema{
 						"names": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Names by which this image is known. e.g. [\"gcr.io/google_containers/hyperkube:v1.0.7\", \"dockerhub.io/google_containers/hyperkube:v1.0.7\"]",
+								Description: "Names by which this image is known. e.g. [\"k8s.gcr.io/hyperkube:v1.0.7\", \"dockerhub.io/google_containers/hyperkube:v1.0.7\"]",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -3851,7 +4182,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"protocol": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Protocol for port. Must be UDP or TCP. Defaults to \"TCP\".",
+								Description: "Protocol for port. Must be UDP, TCP, or SCTP. Defaults to \"TCP\".",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -4259,7 +4590,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"protocol": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The IP protocol for this port. Must be UDP or TCP. Default is TCP.",
+								Description: "The IP protocol for this port. Must be UDP, TCP, or SCTP. Default is TCP.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -4359,7 +4690,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 							},
 						},
 					},
-					Required: []string{"subsets"},
 				},
 			},
 			Dependencies: []string{
@@ -4417,7 +4747,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 					Properties: map[string]spec.Schema{
 						"prefix": {
 							SchemaProps: spec.SchemaProps{
-								Description: "An optional identifer to prepend to each key in the ConfigMap. Must be a C_IDENTIFIER.",
+								Description: "An optional identifier to prepend to each key in the ConfigMap. Must be a C_IDENTIFIER.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -4678,7 +5008,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"k8s.io/api/core/v1.EventSeries": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "EventSeries contain information on series of events, i.e. thing that was/is happening continously for some time.",
+					Description: "EventSeries contain information on series of events, i.e. thing that was/is happening continuously for some time.",
 					Properties: map[string]spec.Schema{
 						"count": {
 							SchemaProps: spec.SchemaProps{
@@ -4689,7 +5019,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"lastObservedTime": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Time of the last occurence observed",
+								Description: "Time of the last occurrence observed",
 								Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.MicroTime"),
 							},
 						},
@@ -4813,6 +5143,59 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
+		"k8s.io/api/core/v1.FlexPersistentVolumeSource": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "FlexPersistentVolumeSource represents a generic persistent volume resource that is provisioned/attached using an exec based plugin.",
+					Properties: map[string]spec.Schema{
+						"driver": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Driver is the name of the driver to use for this volume.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"fsType": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". The default filesystem depends on FlexVolume script.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"secretRef": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Optional: SecretRef is reference to the secret object containing sensitive information to pass to the plugin scripts. This may be empty if no secret object is specified. If the secret object contains more than one secret, all secrets are passed to the plugin scripts.",
+								Ref:         ref("k8s.io/api/core/v1.SecretReference"),
+							},
+						},
+						"readOnly": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Optional: Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
+								Type:        []string{"boolean"},
+								Format:      "",
+							},
+						},
+						"options": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Optional: Extra command options if any.",
+								Type:        []string{"object"},
+								AdditionalProperties: &spec.SchemaOrBool{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+					},
+					Required: []string{"driver"},
+				},
+			},
+			Dependencies: []string{
+				"k8s.io/api/core/v1.SecretReference"},
+		},
 		"k8s.io/api/core/v1.FlexVolumeSource": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -4932,7 +5315,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"k8s.io/api/core/v1.GitRepoVolumeSource": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "Represents a volume that is populated with the contents of a git repository. Git repo volumes do not support ownership management. Git repo volumes support SELinux relabeling.",
+					Description: "Represents a volume that is populated with the contents of a git repository. Git repo volumes do not support ownership management. Git repo volumes support SELinux relabeling.\n\nDEPRECATED: GitRepo is deprecated. To provision a container with a git repo, mount an EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir into the Pod's container.",
 					Properties: map[string]spec.Schema{
 						"repository": {
 							SchemaProps: spec.SchemaProps{
@@ -5703,11 +6086,18 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"k8s.io/api/core/v1.LocalVolumeSource": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "Local represents directly-attached storage with node affinity",
+					Description: "Local represents directly-attached storage with node affinity (Beta feature)",
 					Properties: map[string]spec.Schema{
 						"path": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The full path to the volume on the node For alpha, this path must be a directory Once block as a source is supported, then this path can point to a block device",
+								Description: "The full path to the volume on the node. It can be either a directory or block device (disk, partition, ...).",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"fsType": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Filesystem type to mount. It applies only when the Path is a block device. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". The default value is to auto-select a fileystem if unspecified.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -6034,30 +6424,53 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				SchemaProps: spec.SchemaProps{
 					Description: "NodeConfigSource specifies a source of node configuration. Exactly one subfield (excluding metadata) must be non-nil.",
 					Properties: map[string]spec.Schema{
-						"kind": {
+						"configMap": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"apiVersion": {
-							SchemaProps: spec.SchemaProps{
-								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"configMapRef": {
-							SchemaProps: spec.SchemaProps{
-								Ref: ref("k8s.io/api/core/v1.ObjectReference"),
+								Description: "ConfigMap is a reference to a Node's ConfigMap",
+								Ref:         ref("k8s.io/api/core/v1.ConfigMapNodeConfigSource"),
 							},
 						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"k8s.io/api/core/v1.ObjectReference"},
+				"k8s.io/api/core/v1.ConfigMapNodeConfigSource"},
+		},
+		"k8s.io/api/core/v1.NodeConfigStatus": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "NodeConfigStatus describes the status of the config assigned by Node.Spec.ConfigSource.",
+					Properties: map[string]spec.Schema{
+						"assigned": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Assigned reports the checkpointed config the node will try to use. When Node.Spec.ConfigSource is updated, the node checkpoints the associated config payload to local disk, along with a record indicating intended config. The node refers to this record to choose its config checkpoint, and reports this record in Assigned. Assigned only updates in the status after the record has been checkpointed to disk. When the Kubelet is restarted, it tries to make the Assigned config the Active config by loading and validating the checkpointed payload identified by Assigned.",
+								Ref:         ref("k8s.io/api/core/v1.NodeConfigSource"),
+							},
+						},
+						"active": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Active reports the checkpointed config the node is actively using. Active will represent either the current version of the Assigned config, or the current LastKnownGood config, depending on whether attempting to use the Assigned config results in an error.",
+								Ref:         ref("k8s.io/api/core/v1.NodeConfigSource"),
+							},
+						},
+						"lastKnownGood": {
+							SchemaProps: spec.SchemaProps{
+								Description: "LastKnownGood reports the checkpointed config the node will fall back to when it encounters an error attempting to use the Assigned config. The Assigned config becomes the LastKnownGood config when the node determines that the Assigned config is stable and correct. This is currently implemented as a 10-minute soak period starting when the local record of Assigned config is updated. If the Assigned config is Active at the end of this period, it becomes the LastKnownGood. Note that if Spec.ConfigSource is reset to nil (use local defaults), the LastKnownGood is also immediately reset to nil, because the local default config is always assumed good. You should not make assumptions about the node's method of determining config stability and correctness, as this may change or become configurable in the future.",
+								Ref:         ref("k8s.io/api/core/v1.NodeConfigSource"),
+							},
+						},
+						"error": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Error describes any problems reconciling the Spec.ConfigSource to the Active config. Errors may occur, for example, attempting to checkpoint Spec.ConfigSource to the local Assigned record, attempting to checkpoint the payload associated with Spec.ConfigSource, attempting to load or validate the Assigned config, etc. Errors may occur at different points while syncing config. Earlier errors (e.g. download or checkpointing errors) will not result in a rollback to LastKnownGood, and may resolve across Kubelet retries. Later errors (e.g. loading or validating a checkpointed config) will result in a rollback to LastKnownGood. In the latter case, it is usually possible to resolve the error by fixing the config assigned in Spec.ConfigSource. You can find additional information for debugging by searching the error message in the Kubelet log. Error is a human-readable description of the error state; machines can check whether or not Error is empty, but should not rely on the stability of the Error text across Kubelet versions.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"k8s.io/api/core/v1.NodeConfigSource"},
 		},
 		"k8s.io/api/core/v1.NodeDaemonEndpoints": {
 			Schema: spec.Schema{
@@ -6244,11 +6657,24 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"k8s.io/api/core/v1.NodeSelectorTerm": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "A null or empty node selector term matches no objects.",
+					Description: "A null or empty node selector term matches no objects. The requirements of them are ANDed. The TopologySelectorTerm type implements a subset of the NodeSelectorTerm.",
 					Properties: map[string]spec.Schema{
 						"matchExpressions": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Required. A list of node selector requirements. The requirements are ANDed.",
+								Description: "A list of node selector requirements by node's labels.",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("k8s.io/api/core/v1.NodeSelectorRequirement"),
+										},
+									},
+								},
+							},
+						},
+						"matchFields": {
+							SchemaProps: spec.SchemaProps{
+								Description: "A list of node selector requirements by node's fields.",
 								Type:        []string{"array"},
 								Items: &spec.SchemaOrArray{
 									Schema: &spec.Schema{
@@ -6260,7 +6686,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 							},
 						},
 					},
-					Required: []string{"matchExpressions"},
 				},
 			},
 			Dependencies: []string{
@@ -6274,13 +6699,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"podCIDR": {
 							SchemaProps: spec.SchemaProps{
 								Description: "PodCIDR represents the pod IP range assigned to the node.",
-								Type:        []string{"string"},
-								Format:      "",
-							},
-						},
-						"externalID": {
-							SchemaProps: spec.SchemaProps{
-								Description: "External ID of the node assigned by some machine database (e.g. a cloud provider). Deprecated.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -6316,6 +6734,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 							SchemaProps: spec.SchemaProps{
 								Description: "If specified, the source to get node configuration from The DynamicKubeletConfig feature gate must be enabled for the Kubelet to use this field",
 								Ref:         ref("k8s.io/api/core/v1.NodeConfigSource"),
+							},
+						},
+						"externalID": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Deprecated. Not all kubelets will set this field. Remove field after 1.13. see: https://issues.k8s.io/61966",
+								Type:        []string{"string"},
+								Format:      "",
 							},
 						},
 					},
@@ -6452,11 +6877,17 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								},
 							},
 						},
+						"config": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Status of the config assigned to the node via the dynamic Kubelet config feature.",
+								Ref:         ref("k8s.io/api/core/v1.NodeConfigStatus"),
+							},
+						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"k8s.io/api/core/v1.AttachedVolume", "k8s.io/api/core/v1.ContainerImage", "k8s.io/api/core/v1.NodeAddress", "k8s.io/api/core/v1.NodeCondition", "k8s.io/api/core/v1.NodeDaemonEndpoints", "k8s.io/api/core/v1.NodeSystemInfo", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
+				"k8s.io/api/core/v1.AttachedVolume", "k8s.io/api/core/v1.ContainerImage", "k8s.io/api/core/v1.NodeAddress", "k8s.io/api/core/v1.NodeCondition", "k8s.io/api/core/v1.NodeConfigStatus", "k8s.io/api/core/v1.NodeDaemonEndpoints", "k8s.io/api/core/v1.NodeSystemInfo", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
 		},
 		"k8s.io/api/core/v1.NodeSystemInfo": {
 			Schema: spec.Schema{
@@ -6856,11 +7287,17 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format:      "",
 							},
 						},
+						"dataSource": {
+							SchemaProps: spec.SchemaProps{
+								Description: "This field requires the VolumeSnapshotDataSource alpha feature gate to be enabled and currently VolumeSnapshot is the only supported data source. If the provisioner can support VolumeSnapshot data source, it will create a new volume and data will be restored to the volume at the same time. If the provisioner does not support VolumeSnapshot data source, volume will not be created and the failure will be reported as an event. In the future, we plan to support more data source types and the behavior of the provisioner may change.",
+								Ref:         ref("k8s.io/api/core/v1.TypedLocalObjectReference"),
+							},
+						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"k8s.io/api/core/v1.ResourceRequirements", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+				"k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.TypedLocalObjectReference", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 		},
 		"k8s.io/api/core/v1.PersistentVolumeClaimStatus": {
 			Schema: spec.Schema{
@@ -7046,7 +7483,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"cinder": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Cinder represents a cinder volume attached and mounted on kubelets host machine More info: https://releases.k8s.io/HEAD/examples/mysql-cinder-pd/README.md",
-								Ref:         ref("k8s.io/api/core/v1.CinderVolumeSource"),
+								Ref:         ref("k8s.io/api/core/v1.CinderPersistentVolumeSource"),
 							},
 						},
 						"cephfs": {
@@ -7070,7 +7507,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"flexVolume": {
 							SchemaProps: spec.SchemaProps{
 								Description: "FlexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin.",
-								Ref:         ref("k8s.io/api/core/v1.FlexVolumeSource"),
+								Ref:         ref("k8s.io/api/core/v1.FlexPersistentVolumeSource"),
 							},
 						},
 						"azureFile": {
@@ -7129,7 +7566,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"csi": {
 							SchemaProps: spec.SchemaProps{
-								Description: "CSI represents storage that handled by an external CSI driver",
+								Description: "CSI represents storage that handled by an external CSI driver (Beta feature).",
 								Ref:         ref("k8s.io/api/core/v1.CSIPersistentVolumeSource"),
 							},
 						},
@@ -7137,7 +7574,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource", "k8s.io/api/core/v1.AzureDiskVolumeSource", "k8s.io/api/core/v1.AzureFilePersistentVolumeSource", "k8s.io/api/core/v1.CSIPersistentVolumeSource", "k8s.io/api/core/v1.CephFSPersistentVolumeSource", "k8s.io/api/core/v1.CinderVolumeSource", "k8s.io/api/core/v1.FCVolumeSource", "k8s.io/api/core/v1.FlexVolumeSource", "k8s.io/api/core/v1.FlockerVolumeSource", "k8s.io/api/core/v1.GCEPersistentDiskVolumeSource", "k8s.io/api/core/v1.GlusterfsVolumeSource", "k8s.io/api/core/v1.HostPathVolumeSource", "k8s.io/api/core/v1.ISCSIPersistentVolumeSource", "k8s.io/api/core/v1.LocalVolumeSource", "k8s.io/api/core/v1.NFSVolumeSource", "k8s.io/api/core/v1.PhotonPersistentDiskVolumeSource", "k8s.io/api/core/v1.PortworxVolumeSource", "k8s.io/api/core/v1.QuobyteVolumeSource", "k8s.io/api/core/v1.RBDPersistentVolumeSource", "k8s.io/api/core/v1.ScaleIOPersistentVolumeSource", "k8s.io/api/core/v1.StorageOSPersistentVolumeSource", "k8s.io/api/core/v1.VsphereVirtualDiskVolumeSource"},
+				"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource", "k8s.io/api/core/v1.AzureDiskVolumeSource", "k8s.io/api/core/v1.AzureFilePersistentVolumeSource", "k8s.io/api/core/v1.CSIPersistentVolumeSource", "k8s.io/api/core/v1.CephFSPersistentVolumeSource", "k8s.io/api/core/v1.CinderPersistentVolumeSource", "k8s.io/api/core/v1.FCVolumeSource", "k8s.io/api/core/v1.FlexPersistentVolumeSource", "k8s.io/api/core/v1.FlockerVolumeSource", "k8s.io/api/core/v1.GCEPersistentDiskVolumeSource", "k8s.io/api/core/v1.GlusterfsVolumeSource", "k8s.io/api/core/v1.HostPathVolumeSource", "k8s.io/api/core/v1.ISCSIPersistentVolumeSource", "k8s.io/api/core/v1.LocalVolumeSource", "k8s.io/api/core/v1.NFSVolumeSource", "k8s.io/api/core/v1.PhotonPersistentDiskVolumeSource", "k8s.io/api/core/v1.PortworxVolumeSource", "k8s.io/api/core/v1.QuobyteVolumeSource", "k8s.io/api/core/v1.RBDPersistentVolumeSource", "k8s.io/api/core/v1.ScaleIOPersistentVolumeSource", "k8s.io/api/core/v1.StorageOSPersistentVolumeSource", "k8s.io/api/core/v1.VsphereVirtualDiskVolumeSource"},
 		},
 		"k8s.io/api/core/v1.PersistentVolumeSpec": {
 			Schema: spec.Schema{
@@ -7202,7 +7639,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"cinder": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Cinder represents a cinder volume attached and mounted on kubelets host machine More info: https://releases.k8s.io/HEAD/examples/mysql-cinder-pd/README.md",
-								Ref:         ref("k8s.io/api/core/v1.CinderVolumeSource"),
+								Ref:         ref("k8s.io/api/core/v1.CinderPersistentVolumeSource"),
 							},
 						},
 						"cephfs": {
@@ -7226,7 +7663,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"flexVolume": {
 							SchemaProps: spec.SchemaProps{
 								Description: "FlexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin.",
-								Ref:         ref("k8s.io/api/core/v1.FlexVolumeSource"),
+								Ref:         ref("k8s.io/api/core/v1.FlexPersistentVolumeSource"),
 							},
 						},
 						"azureFile": {
@@ -7285,7 +7722,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"csi": {
 							SchemaProps: spec.SchemaProps{
-								Description: "CSI represents storage that handled by an external CSI driver",
+								Description: "CSI represents storage that handled by an external CSI driver (Beta feature).",
 								Ref:         ref("k8s.io/api/core/v1.CSIPersistentVolumeSource"),
 							},
 						},
@@ -7311,7 +7748,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"persistentVolumeReclaimPolicy": {
 							SchemaProps: spec.SchemaProps{
-								Description: "What happens to a persistent volume when released from its claim. Valid options are Retain (default) and Recycle. Recycling must be supported by the volume plugin underlying this persistent volume. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#reclaiming",
+								Description: "What happens to a persistent volume when released from its claim. Valid options are Retain (default for manually created PersistentVolumes), Delete (default for dynamically provisioned PersistentVolumes), and Recycle (deprecated). Recycle must be supported by the volume plugin underlying this PersistentVolume. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#reclaiming",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -7344,11 +7781,17 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format:      "",
 							},
 						},
+						"nodeAffinity": {
+							SchemaProps: spec.SchemaProps{
+								Description: "NodeAffinity defines constraints that limit what nodes this volume can be accessed from. This field influences the scheduling of pods that use this volume.",
+								Ref:         ref("k8s.io/api/core/v1.VolumeNodeAffinity"),
+							},
+						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource", "k8s.io/api/core/v1.AzureDiskVolumeSource", "k8s.io/api/core/v1.AzureFilePersistentVolumeSource", "k8s.io/api/core/v1.CSIPersistentVolumeSource", "k8s.io/api/core/v1.CephFSPersistentVolumeSource", "k8s.io/api/core/v1.CinderVolumeSource", "k8s.io/api/core/v1.FCVolumeSource", "k8s.io/api/core/v1.FlexVolumeSource", "k8s.io/api/core/v1.FlockerVolumeSource", "k8s.io/api/core/v1.GCEPersistentDiskVolumeSource", "k8s.io/api/core/v1.GlusterfsVolumeSource", "k8s.io/api/core/v1.HostPathVolumeSource", "k8s.io/api/core/v1.ISCSIPersistentVolumeSource", "k8s.io/api/core/v1.LocalVolumeSource", "k8s.io/api/core/v1.NFSVolumeSource", "k8s.io/api/core/v1.ObjectReference", "k8s.io/api/core/v1.PhotonPersistentDiskVolumeSource", "k8s.io/api/core/v1.PortworxVolumeSource", "k8s.io/api/core/v1.QuobyteVolumeSource", "k8s.io/api/core/v1.RBDPersistentVolumeSource", "k8s.io/api/core/v1.ScaleIOPersistentVolumeSource", "k8s.io/api/core/v1.StorageOSPersistentVolumeSource", "k8s.io/api/core/v1.VsphereVirtualDiskVolumeSource", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
+				"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource", "k8s.io/api/core/v1.AzureDiskVolumeSource", "k8s.io/api/core/v1.AzureFilePersistentVolumeSource", "k8s.io/api/core/v1.CSIPersistentVolumeSource", "k8s.io/api/core/v1.CephFSPersistentVolumeSource", "k8s.io/api/core/v1.CinderPersistentVolumeSource", "k8s.io/api/core/v1.FCVolumeSource", "k8s.io/api/core/v1.FlexPersistentVolumeSource", "k8s.io/api/core/v1.FlockerVolumeSource", "k8s.io/api/core/v1.GCEPersistentDiskVolumeSource", "k8s.io/api/core/v1.GlusterfsVolumeSource", "k8s.io/api/core/v1.HostPathVolumeSource", "k8s.io/api/core/v1.ISCSIPersistentVolumeSource", "k8s.io/api/core/v1.LocalVolumeSource", "k8s.io/api/core/v1.NFSVolumeSource", "k8s.io/api/core/v1.ObjectReference", "k8s.io/api/core/v1.PhotonPersistentDiskVolumeSource", "k8s.io/api/core/v1.PortworxVolumeSource", "k8s.io/api/core/v1.QuobyteVolumeSource", "k8s.io/api/core/v1.RBDPersistentVolumeSource", "k8s.io/api/core/v1.ScaleIOPersistentVolumeSource", "k8s.io/api/core/v1.StorageOSPersistentVolumeSource", "k8s.io/api/core/v1.VolumeNodeAffinity", "k8s.io/api/core/v1.VsphereVirtualDiskVolumeSource", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
 		},
 		"k8s.io/api/core/v1.PersistentVolumeStatus": {
 			Schema: spec.Schema{
@@ -7628,7 +8071,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 					Properties: map[string]spec.Schema{
 						"type": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Type is the type of the condition. Currently only Ready. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-conditions",
+								Description: "Type is the type of the condition. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-conditions",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -8016,6 +8459,24 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
+		"k8s.io/api/core/v1.PodReadinessGate": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "PodReadinessGate contains the reference to a pod condition",
+					Properties: map[string]spec.Schema{
+						"conditionType": {
+							SchemaProps: spec.SchemaProps{
+								Description: "ConditionType refers to a condition in the pod's condition list with matching type.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"conditionType"},
+				},
+			},
+			Dependencies: []string{},
+		},
 		"k8s.io/api/core/v1.PodSecurityContext": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -8030,6 +8491,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"runAsUser": {
 							SchemaProps: spec.SchemaProps{
 								Description: "The UID to run the entrypoint of the container process. Defaults to user specified in image metadata if unspecified. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container.",
+								Type:        []string{"integer"},
+								Format:      "int64",
+							},
+						},
+						"runAsGroup": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The GID to run the entrypoint of the container process. Uses runtime default if unset. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container.",
 								Type:        []string{"integer"},
 								Format:      "int64",
 							},
@@ -8062,11 +8530,24 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format:      "int64",
 							},
 						},
+						"sysctls": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported sysctls (by the container runtime) might fail to launch.",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("k8s.io/api/core/v1.Sysctl"),
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"k8s.io/api/core/v1.SELinuxOptions"},
+				"k8s.io/api/core/v1.SELinuxOptions", "k8s.io/api/core/v1.Sysctl"},
 		},
 		"k8s.io/api/core/v1.PodSignature": {
 			Schema: spec.Schema{
@@ -8170,7 +8651,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"dnsPolicy": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Set DNS policy for the pod. Defaults to \"ClusterFirst\". Valid values are 'ClusterFirstWithHostNet', 'ClusterFirst', 'Default' or 'None'. DNS parameters given in DNSConfig will be merged with the policy selected with DNSPolicy. To have DNS options set along with hostNetwork, you have to specify DNS policy explicitly to 'ClusterFirstWithHostNet'. Note that 'None' policy is an alpha feature introduced in v1.9 and CustomPodDNS feature gate must be enabled to use it.",
+								Description: "Set DNS policy for the pod. Defaults to \"ClusterFirst\". Valid values are 'ClusterFirstWithHostNet', 'ClusterFirst', 'Default' or 'None'. DNS parameters given in DNSConfig will be merged with the policy selected with DNSPolicy. To have DNS options set along with hostNetwork, you have to specify DNS policy explicitly to 'ClusterFirstWithHostNet'.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -8234,6 +8715,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"hostIPC": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Use the host's ipc namespace. Optional: Default to false.",
+								Type:        []string{"boolean"},
+								Format:      "",
+							},
+						},
+						"shareProcessNamespace": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Share a single process namespace between all of the containers in a pod. When this is set containers will be able to view and signal processes from other containers in the same pod, and the first process in each container will not be assigned PID 1. HostPID and ShareProcessNamespace cannot both be set. Optional: Default to false. This field is beta-level and may be disabled with the PodShareProcessNamespace feature.",
 								Type:        []string{"boolean"},
 								Format:      "",
 							},
@@ -8324,7 +8812,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"priorityClassName": {
 							SchemaProps: spec.SchemaProps{
-								Description: "If specified, indicates the pod's priority. \"SYSTEM\" is a special keyword which indicates the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default.",
+								Description: "If specified, indicates the pod's priority. \"system-node-critical\" and \"system-cluster-critical\" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -8338,8 +8826,28 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"dnsConfig": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Specifies the DNS parameters of a pod. Parameters specified here will be merged to the generated DNS configuration based on DNSPolicy. This is an alpha feature introduced in v1.9 and CustomPodDNS feature gate must be enabled to use it.",
+								Description: "Specifies the DNS parameters of a pod. Parameters specified here will be merged to the generated DNS configuration based on DNSPolicy.",
 								Ref:         ref("k8s.io/api/core/v1.PodDNSConfig"),
+							},
+						},
+						"readinessGates": {
+							SchemaProps: spec.SchemaProps{
+								Description: "If specified, all readiness gates will be evaluated for pod readiness. A pod is ready when all its containers are ready AND all conditions specified in the readiness gates have status equal to \"True\" More info: https://github.com/kubernetes/community/blob/master/keps/sig-network/0007-pod-ready%2B%2B.md",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("k8s.io/api/core/v1.PodReadinessGate"),
+										},
+									},
+								},
+							},
+						},
+						"runtimeClassName": {
+							SchemaProps: spec.SchemaProps{
+								Description: "RuntimeClassName refers to a RuntimeClass object in the node.k8s.io group, which should be used to run this pod.  If no RuntimeClass resource matches the named class, the pod will not be run. If unset or empty, the \"legacy\" RuntimeClass will be used, which is an implicit class with an empty definition that uses the default runtime handler. More info: https://github.com/kubernetes/community/blob/master/keps/sig-node/0014-runtime-class.md This is an alpha feature and may change in the future.",
+								Type:        []string{"string"},
+								Format:      "",
 							},
 						},
 					},
@@ -8347,16 +8855,16 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.HostAlias", "k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.PodDNSConfig", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume"},
+				"k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.HostAlias", "k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.PodDNSConfig", "k8s.io/api/core/v1.PodReadinessGate", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume"},
 		},
 		"k8s.io/api/core/v1.PodStatus": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					Description: "PodStatus represents information about the status of a pod. Status may trail the actual state of a system.",
+					Description: "PodStatus represents information about the status of a pod. Status may trail the actual state of a system, especially if the node that hosts the pod cannot contact the control plane.",
 					Properties: map[string]spec.Schema{
 						"phase": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Current condition of the pod. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-phase",
+								Description: "The phase of a Pod is a simple, high-level summary of where the Pod is in its lifecycle. The conditions array, the reason and message fields, and the individual container status arrays contain more detail about the pod's status. There are five possible phase values:\n\nPending: The pod has been accepted by the Kubernetes system, but one or more of the container images has not been created. This includes time before being scheduled as well as time spent downloading images over the network, which could take a while. Running: The pod has been bound to a node, and all of the containers have been created. At least one container is still running, or is in the process of starting or restarting. Succeeded: All containers in the pod have terminated in success, and will not be restarted. Failed: All containers in the pod have terminated, and at least one container has terminated in failure. The container either exited with non-zero status or was terminated by the system. Unknown: For some reason the state of the pod could not be obtained, typically due to an error in communicating with the host of the pod.\n\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-phase",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -8390,6 +8898,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						"reason": {
 							SchemaProps: spec.SchemaProps{
 								Description: "A brief CamelCase message indicating details about why the pod is in this state. e.g. 'Evicted'",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"nominatedNodeName": {
+							SchemaProps: spec.SchemaProps{
+								Description: "nominatedNodeName is set only when this pod preempts other pods on the node, but it cannot be scheduled right away as preemption victims receive their graceful termination periods. This field does not guarantee that the pod will be scheduled on this node. Scheduler may decide to place the pod elsewhere if other nodes become available sooner. Scheduler may also decide to give the resources on this node to a higher priority pod that is created after preemption. As a result, this field may be different than PodSpec.nodeName when the pod is scheduled.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -8442,7 +8957,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"qosClass": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The Quality of Service (QOS) classification assigned to the pod based on resource requirements See PodQOSClass type for available QOS classes More info: https://github.com/kubernetes/kubernetes/blob/master/docs/design/resource-qos.md",
+								Description: "The Quality of Service (QOS) classification assigned to the pod based on resource requirements See PodQOSClass type for available QOS classes More info: https://git.k8s.io/community/contributors/design-proposals/node/resource-qos.md",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -9398,7 +9913,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 					Properties: map[string]spec.Schema{
 						"hard": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Hard is the set of desired hard limits for each named resource. More info: https://kubernetes.io/docs/concepts/policy/resource-quotas/",
+								Description: "hard is the set of desired hard limits for each named resource. More info: https://kubernetes.io/docs/concepts/policy/resource-quotas/",
 								Type:        []string{"object"},
 								AdditionalProperties: &spec.SchemaOrBool{
 									Schema: &spec.Schema{
@@ -9423,11 +9938,17 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								},
 							},
 						},
+						"scopeSelector": {
+							SchemaProps: spec.SchemaProps{
+								Description: "scopeSelector is also a collection of filters like scopes that must match each object tracked by a quota but expressed using ScopeSelectorOperator in combination with possible values. For a resource to match, both scopes AND scopeSelector (if specified in spec), must be matched.",
+								Ref:         ref("k8s.io/api/core/v1.ScopeSelector"),
+							},
+						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"k8s.io/apimachinery/pkg/api/resource.Quantity"},
+				"k8s.io/api/core/v1.ScopeSelector", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
 		},
 		"k8s.io/api/core/v1.ResourceQuotaStatus": {
 			Schema: spec.Schema{
@@ -9589,7 +10110,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"storageMode": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Indicates whether the storage for a volume should be ThickProvisioned or ThinProvisioned.",
+								Description: "Indicates whether the storage for a volume should be ThickProvisioned or ThinProvisioned. Default is ThinProvisioned.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -9603,7 +10124,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"fsType": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
+								Description: "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Default is \"xfs\"",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -9670,7 +10191,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"storageMode": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Indicates whether the storage for a volume should be ThickProvisioned or ThinProvisioned.",
+								Description: "Indicates whether the storage for a volume should be ThickProvisioned or ThinProvisioned. Default is ThinProvisioned.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -9684,7 +10205,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"fsType": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
+								Description: "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Default is \"xfs\".",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -9702,6 +10223,69 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{
 				"k8s.io/api/core/v1.LocalObjectReference"},
+		},
+		"k8s.io/api/core/v1.ScopeSelector": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "A scope selector represents the AND of the selectors represented by the scoped-resource selector requirements.",
+					Properties: map[string]spec.Schema{
+						"matchExpressions": {
+							SchemaProps: spec.SchemaProps{
+								Description: "A list of scope selector requirements by scope of the resources.",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("k8s.io/api/core/v1.ScopedResourceSelectorRequirement"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"k8s.io/api/core/v1.ScopedResourceSelectorRequirement"},
+		},
+		"k8s.io/api/core/v1.ScopedResourceSelectorRequirement": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "A scoped-resource selector requirement is a selector that contains values, a scope name, and an operator that relates the scope name and values.",
+					Properties: map[string]spec.Schema{
+						"scopeName": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The name of the scope that the selector applies to.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"operator": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Represents a scope's relationship to a set of values. Valid operators are In, NotIn, Exists, DoesNotExist.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"values": {
+							SchemaProps: spec.SchemaProps{
+								Description: "An array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+					},
+					Required: []string{"scopeName", "operator"},
+				},
+			},
+			Dependencies: []string{},
 		},
 		"k8s.io/api/core/v1.Secret": {
 			Schema: spec.Schema{
@@ -10008,6 +10592,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format:      "int64",
 							},
 						},
+						"runAsGroup": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The GID to run the entrypoint of the container process. Uses runtime default if unset. May also be set in PodSecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.",
+								Type:        []string{"integer"},
+								Format:      "int64",
+							},
+						},
 						"runAsNonRoot": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Indicates that the container must run as a non-root user. If true, the Kubelet will validate the image at runtime to ensure that it does not run as UID 0 (root) and fail to start the container if it does. If unset or false, no such validation will be performed. May also be set in PodSecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.",
@@ -10026,6 +10617,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 							SchemaProps: spec.SchemaProps{
 								Description: "AllowPrivilegeEscalation controls whether a process can gain more privileges than its parent process. This bool directly controls if the no_new_privs flag will be set on the container process. AllowPrivilegeEscalation is true always when the container is: 1) run as Privileged 2) has CAP_SYS_ADMIN",
 								Type:        []string{"boolean"},
+								Format:      "",
+							},
+						},
+						"procMount": {
+							SchemaProps: spec.SchemaProps{
+								Description: "procMount denotes the type of proc mount to use for the containers. The default is DefaultProcMount which uses the container runtime defaults for readonly paths and masked paths. This requires the ProcMountType feature flag to be enabled.",
+								Type:        []string{"string"},
 								Format:      "",
 							},
 						},
@@ -10224,6 +10822,38 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/api/core/v1.ServiceAccount", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 		},
+		"k8s.io/api/core/v1.ServiceAccountTokenProjection": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "ServiceAccountTokenProjection represents a projected service account token volume. This projection can be used to insert a service account token into the pods runtime filesystem for use against APIs (Kubernetes API Server or otherwise).",
+					Properties: map[string]spec.Schema{
+						"audience": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Audience is the intended audience of the token. A recipient of a token must identify itself with an identifier specified in the audience of the token, and otherwise should reject the token. The audience defaults to the identifier of the apiserver.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"expirationSeconds": {
+							SchemaProps: spec.SchemaProps{
+								Description: "ExpirationSeconds is the requested duration of validity of the service account token. As the token approaches expiration, the kubelet volume plugin will proactively rotate the service account token. The kubelet will start trying to rotate the token if the token is older than 80 percent of its time to live or if the token is older than 24 hours.Defaults to 1 hour and must be at least 10 minutes.",
+								Type:        []string{"integer"},
+								Format:      "int64",
+							},
+						},
+						"path": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Path is the path relative to the mount point of the file to project the token into.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"path"},
+				},
+			},
+			Dependencies: []string{},
+		},
 		"k8s.io/api/core/v1.ServiceList": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -10283,7 +10913,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"protocol": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The IP protocol for this port. Supports \"TCP\" and \"UDP\". Default is TCP.",
+								Description: "The IP protocol for this port. Supports \"TCP\", \"UDP\", and \"SCTP\". Default is TCP.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -10463,7 +11093,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"publishNotReadyAddresses": {
 							SchemaProps: spec.SchemaProps{
-								Description: "publishNotReadyAddresses, when set to true, indicates that DNS implementations must publish the notReadyAddresses of subsets for the Endpoints associated with the Service. The default value is false. The primary use case for setting this field is to use a StatefulSet's Headless Service to propagate SRV records for its Pods without respect to their readiness for purpose of peer discovery. This field will replace the service.alpha.kubernetes.io/tolerate-unready-endpoints when that annotation is deprecated and all clients have been converted to use this field.",
+								Description: "publishNotReadyAddresses, when set to true, indicates that DNS implementations must publish the notReadyAddresses of subsets for the Endpoints associated with the Service. The default value is false. The primary use case for setting this field is to use a StatefulSet's Headless Service to propagate SRV records for its Pods without respect to their readiness for purpose of peer discovery.",
 								Type:        []string{"boolean"},
 								Format:      "",
 							},
@@ -10609,14 +11239,14 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				SchemaProps: spec.SchemaProps{
 					Description: "Sysctl defines a kernel parameter to be set",
 					Properties: map[string]spec.Schema{
-						"Name": {
+						"name": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Name of a property to set",
 								Type:        []string{"string"},
 								Format:      "",
 							},
 						},
-						"Value": {
+						"value": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Value of a property to set",
 								Type:        []string{"string"},
@@ -10624,7 +11254,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 							},
 						},
 					},
-					Required: []string{"Name", "Value"},
+					Required: []string{"name", "value"},
 				},
 			},
 			Dependencies: []string{},
@@ -10738,6 +11368,94 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
+		"k8s.io/api/core/v1.TopologySelectorLabelRequirement": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "A topology selector requirement is a selector that matches given label. This is an alpha feature and may change in the future.",
+					Properties: map[string]spec.Schema{
+						"key": {
+							SchemaProps: spec.SchemaProps{
+								Description: "The label key that the selector applies to.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"values": {
+							SchemaProps: spec.SchemaProps{
+								Description: "An array of string values. One value must match the label to be selected. Each entry in Values is ORed.",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+					},
+					Required: []string{"key", "values"},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"k8s.io/api/core/v1.TopologySelectorTerm": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "A topology selector term represents the result of label queries. A null or empty topology selector term matches no objects. The requirements of them are ANDed. It provides a subset of functionality as NodeSelectorTerm. This is an alpha feature and may change in the future.",
+					Properties: map[string]spec.Schema{
+						"matchLabelExpressions": {
+							SchemaProps: spec.SchemaProps{
+								Description: "A list of topology selector requirements by labels.",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("k8s.io/api/core/v1.TopologySelectorLabelRequirement"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"k8s.io/api/core/v1.TopologySelectorLabelRequirement"},
+		},
+		"k8s.io/api/core/v1.TypedLocalObjectReference": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "TypedLocalObjectReference contains enough information to let you locate the typed referenced object inside the same namespace.",
+					Properties: map[string]spec.Schema{
+						"apiGroup": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIGroup is the group for the resource being referenced. If APIGroup is not specified, the specified Kind must be in the core API group. For any other third-party types, APIGroup is required.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is the type of resource being referenced",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"name": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Name is the name of resource being referenced",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"kind", "name"},
+				},
+			},
+			Dependencies: []string{},
+		},
 		"k8s.io/api/core/v1.Volume": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -10776,7 +11494,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"gitRepo": {
 							SchemaProps: spec.SchemaProps{
-								Description: "GitRepo represents a git repository at a particular revision.",
+								Description: "GitRepo represents a git repository at a particular revision. DEPRECATED: GitRepo is deprecated. To provision a container with a git repo, mount an EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir into the Pod's container.",
 								Ref:         ref("k8s.io/api/core/v1.GitRepoVolumeSource"),
 							},
 						},
@@ -10979,7 +11697,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"mountPropagation": {
 							SchemaProps: spec.SchemaProps{
-								Description: "mountPropagation determines how mounts are propagated from the host to container and the other way around. When not set, MountPropagationHostToContainer is used. This field is alpha in 1.8 and can be reworked or removed in a future release.",
+								Description: "mountPropagation determines how mounts are propagated from the host to container and the other way around. When not set, MountPropagationNone is used. This field is beta in 1.10.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -10989,6 +11707,23 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{},
+		},
+		"k8s.io/api/core/v1.VolumeNodeAffinity": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "VolumeNodeAffinity defines constraints that limit what nodes this volume can be accessed from.",
+					Properties: map[string]spec.Schema{
+						"required": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Required specifies hard node constraints that must be met.",
+								Ref:         ref("k8s.io/api/core/v1.NodeSelector"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"k8s.io/api/core/v1.NodeSelector"},
 		},
 		"k8s.io/api/core/v1.VolumeProjection": {
 			Schema: spec.Schema{
@@ -11013,11 +11748,17 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Ref:         ref("k8s.io/api/core/v1.ConfigMapProjection"),
 							},
 						},
+						"serviceAccountToken": {
+							SchemaProps: spec.SchemaProps{
+								Description: "information about the serviceAccountToken data to project",
+								Ref:         ref("k8s.io/api/core/v1.ServiceAccountTokenProjection"),
+							},
+						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"k8s.io/api/core/v1.ConfigMapProjection", "k8s.io/api/core/v1.DownwardAPIProjection", "k8s.io/api/core/v1.SecretProjection"},
+				"k8s.io/api/core/v1.ConfigMapProjection", "k8s.io/api/core/v1.DownwardAPIProjection", "k8s.io/api/core/v1.SecretProjection", "k8s.io/api/core/v1.ServiceAccountTokenProjection"},
 		},
 		"k8s.io/api/core/v1.VolumeSource": {
 			Schema: spec.Schema{
@@ -11050,7 +11791,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"gitRepo": {
 							SchemaProps: spec.SchemaProps{
-								Description: "GitRepo represents a git repository at a particular revision.",
+								Description: "GitRepo represents a git repository at a particular revision. DEPRECATED: GitRepo is deprecated. To provision a container with a git repo, mount an EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir into the Pod's container.",
 								Ref:         ref("k8s.io/api/core/v1.GitRepoVolumeSource"),
 							},
 						},
@@ -11256,7 +11997,14 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/api/core/v1.PodAffinityTerm"},
 		},
-		"k8s.io/apimachinery/pkg/api/resource.Quantity": resource.Quantity{}.OpenAPIDefinition(),
+		"k8s.io/apimachinery/pkg/api/resource.Quantity": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Type:   resource.Quantity{}.OpenAPISchemaType(),
+					Format: resource.Quantity{}.OpenAPISchemaFormat(),
+				},
+			},
+		},
 		"k8s.io/apimachinery/pkg/api/resource.int64Amount": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -11339,7 +12087,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 							},
 						},
 					},
-					Required: []string{"name", "versions", "serverAddressByClientCIDRs"},
+					Required: []string{"name", "versions"},
 				},
 			},
 			Dependencies: []string{
@@ -11578,6 +12326,51 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/apimachinery/pkg/apis/meta/v1.ServerAddressByClientCIDR"},
 		},
+		"k8s.io/apimachinery/pkg/apis/meta/v1.CreateOptions": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "CreateOptions may be provided when creating an API object.",
+					Properties: map[string]spec.Schema{
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"dryRun": {
+							SchemaProps: spec.SchemaProps{
+								Description: "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
+							},
+						},
+						"includeUninitialized": {
+							SchemaProps: spec.SchemaProps{
+								Description: "If IncludeUninitialized is specified, the object may be returned without completing initialization.",
+								Type:        []string{"boolean"},
+								Format:      "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{},
+		},
 		"k8s.io/apimachinery/pkg/apis/meta/v1.DeleteOptions": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -11622,6 +12415,20 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Description: "Whether and how garbage collection will be performed. Either this field or OrphanDependents may be set, but not both. The default policy is decided by the existing finalizer set in the metadata.finalizers and the resource-specific default policy. Acceptable values are: 'Orphan' - orphan the dependents; 'Background' - allow the garbage collector to delete the dependents in the background; 'Foreground' - a cascading policy that deletes all dependents in the foreground.",
 								Type:        []string{"string"},
 								Format:      "",
+							},
+						},
+						"dryRun": {
+							SchemaProps: spec.SchemaProps{
+								Description: "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -12104,7 +12911,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"continue": {
 							SchemaProps: spec.SchemaProps{
-								Description: "continue may be set if the user set a limit on the number of items returned, and indicates that the server has more data available. The value is opaque and may be used to issue another request to the endpoint that served this list to retrieve the next set of available objects. Continuing a list may not be possible if the server configuration has changed or more than a few minutes have passed. The resourceVersion field returned when using this continue value will be identical to the value in the first response.",
+								Description: "continue may be set if the user set a limit on the number of items returned, and indicates that the server has more data available. The value is opaque and may be used to issue another request to the endpoint that served this list to retrieve the next set of available objects. Continuing a consistent list may not be possible if the server configuration has changed or more than a few minutes have passed. The resourceVersion field returned when using this continue value will be identical to the value in the first response, unless you have received this token from an error message.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -12170,7 +12977,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"timeoutSeconds": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Timeout for the list/watch call.",
+								Description: "Timeout for the list/watch call. This limits the duration of the call, regardless of any activity or inactivity.",
 								Type:        []string{"integer"},
 								Format:      "int64",
 							},
@@ -12184,7 +12991,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"continue": {
 							SchemaProps: spec.SchemaProps{
-								Description: "The continue option should be set when retrieving more results from the server. Since this value is server defined, clients may only use the continue value from a previous query result with identical query parameters (except for the value of continue) and the server may reject a continue value it does not recognize. If the specified continue value is no longer valid whether due to expiration (generally five to fifteen minutes) or a configuration change on the server the server will respond with a 410 ResourceExpired error indicating the client must restart their list without the continue field. This field is not supported when watch is true. Clients may start a watch from the last resourceVersion value returned by the server and not miss any modifications.",
+								Description: "The continue option should be set when retrieving more results from the server. Since this value is server defined, clients may only use the continue value from a previous query result with identical query parameters (except for the value of continue) and the server may reject a continue value it does not recognize. If the specified continue value is no longer valid whether due to expiration (generally five to fifteen minutes) or a configuration change on the server, the server will respond with a 410 ResourceExpired error together with a continue token. If the client needs a consistent list, it must restart their list without the continue field. Otherwise, the client may send another list request with the token received with the 410 error, the server will respond with a list starting from the next key, but from the latest snapshot, which is inconsistent from the previous list results - objects that are created, modified, or deleted after the first list request will be included in the response, as long as their keys are after the \"next key\".\n\nThis field is not supported when watch is true. Clients may start a watch from the last resourceVersion value returned by the server and not miss any modifications.",
 								Type:        []string{"string"},
 								Format:      "",
 							},
@@ -12194,7 +13001,14 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
-		"k8s.io/apimachinery/pkg/apis/meta/v1.MicroTime": v1.MicroTime{}.OpenAPIDefinition(),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.MicroTime": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Type:   v1.MicroTime{}.OpenAPISchemaType(),
+					Format: v1.MicroTime{}.OpenAPISchemaFormat(),
+				},
+			},
+		},
 		"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -12637,7 +13451,14 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"k8s.io/apimachinery/pkg/apis/meta/v1.StatusCause"},
 		},
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Time": v1.Time{}.OpenAPIDefinition(),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Time": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Type:   v1.Time{}.OpenAPISchemaType(),
+					Format: v1.Time{}.OpenAPISchemaFormat(),
+				},
+			},
+		},
 		"k8s.io/apimachinery/pkg/apis/meta/v1.Timestamp": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -12680,6 +13501,44 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
 								Type:        []string{"string"},
 								Format:      "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{},
+		},
+		"k8s.io/apimachinery/pkg/apis/meta/v1.UpdateOptions": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "UpdateOptions may be provided when updating an API object.",
+					Properties: map[string]spec.Schema{
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"dryRun": {
+							SchemaProps: spec.SchemaProps{
+								Description: "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+								Type:        []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Type:   []string{"string"},
+											Format: "",
+										},
+									},
+								},
 							},
 						},
 					},
