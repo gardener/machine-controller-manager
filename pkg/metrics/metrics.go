@@ -55,7 +55,7 @@ var (
 		"failed_machine_last_operation_machine_operation_type"})
 
 	MachineSetStatusAvailableReplicas = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "mcm_machine_set_status_availabla_replicas",
+		Name: "mcm_machine_set_status_available_replicas",
 		Help: "Information of the mcm managed Machinesets' status for available replicas.",
 	}, []string{"name", "namespace", "uid"})
 
