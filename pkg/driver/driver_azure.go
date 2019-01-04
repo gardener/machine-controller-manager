@@ -23,6 +23,8 @@ import (
 	"strings"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/Azure/azure-sdk-for-go/arm/compute"
@@ -103,22 +105,28 @@ func (d *AzureDriver) Create() (string, string, error) {
 	_, errChan := interfacesClient.CreateOrUpdate(resourceGroup, nicName, nicParameters, cancel)
 	err = onErrorFail(<-errChan, fmt.Sprintf("interfacesClient.CreateOrUpdate for NIC '%s' failed", nicName))
 	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 		return "Error", "Error", err
 	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 
 	nicParameters, err = interfacesClient.Get(resourceGroup, nicName, "")
 	err = onErrorFail(err, fmt.Sprintf("interfaces.Get for NIC '%s' failed", nicName))
 	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 		// Delete the created NIC
 		_, errChan = interfacesClient.Delete(resourceGroup, nicName, cancel)
 		errNIC := onErrorFail(<-errChan, fmt.Sprintf("Getting NIC details failed, inturn deletion for corresponding newly created NIC '%s' failed", nicName))
 		if errNIC != nil {
+			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 			// When deletion of NIC returns an error
 			return "Error", "Error", errNIC
 		}
+		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 
 		return "Error", "Error", err
 	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 
 	vm := compute.VirtualMachine{
 		Location: &location,
@@ -180,16 +188,20 @@ func (d *AzureDriver) Create() (string, string, error) {
 	_, errChan = vmClient.CreateOrUpdate(resourceGroup, vmName, vm, cancel)
 	err = onErrorFail(<-errChan, "createVM failed")
 	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
 		// Delete the created NIC
 		_, errChan = interfacesClient.Delete(resourceGroup, nicName, cancel)
 		errNIC := onErrorFail(<-errChan, fmt.Sprintf("Creation of VM failed, inturn deletion for corresponding newly created NIC '%s' failed", nicName))
 		if errNIC != nil {
 			// When deletion of NIC returns an error
+			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 			return "Error", "Error", errNIC
 		}
+		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 
 		return "Error", "Error", err
 	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
 
 	return d.encodeMachineID(location, vmName), vmName, err
 }
@@ -229,8 +241,10 @@ func (d *AzureDriver) Delete() error {
 		_, errChan = vmClient.Delete(resourceGroup, vmName, cancel)
 		err = onErrorFail(<-errChan, fmt.Sprintf("vmClient.Delete failed for '%s'", vmName))
 		if err != nil {
+			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
 			return err
 		}
+		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
 		glog.V(2).Infof("VM deletion was successful for %s", vmName)
 
 	} else {
@@ -243,8 +257,10 @@ func (d *AzureDriver) Delete() error {
 		_, errChan := interfacesClient.Delete(resourceGroup, nicName, cancel)
 		err = onErrorFail(<-errChan, fmt.Sprintf("interfacesClient.Delete for NIC '%s' failed", nicName))
 		if err != nil {
+			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 			return err
 		}
+		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 		glog.V(2).Infof("NIC deletion was successful for %s", nicName)
 	} else {
 		glog.Warningf("NIC was not found for %s", nicName)
@@ -256,8 +272,10 @@ func (d *AzureDriver) Delete() error {
 		_, errChan := diskClient.Delete(resourceGroup, diskName, cancel)
 		err = onErrorFail(<-errChan, fmt.Sprintf("diskClient.Delete for NIC '%s' failed", diskName))
 		if err != nil {
+			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
 			return err
 		}
+		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
 		glog.V(2).Infof("OS-Disk deletion was successful for %s", diskName)
 	} else {
 		glog.Warningf("OS-Disk was not found for %s", diskName)
@@ -284,13 +302,16 @@ func (d *AzureDriver) GetVMs(machineID string) (VMs, error) {
 	if err != nil {
 		return listOfVMs, err
 	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
 
 	err = d.getnics(machineID, listOfVMs)
 	if err != nil {
 		return listOfVMs, err
 	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 
 	err = d.getdisks(machineID, listOfVMs)
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
 	return listOfVMs, err
 }
 
@@ -317,9 +338,11 @@ func (d *AzureDriver) getvms(machineID string, listOfVMs VMs) error {
 	d.setup()
 	result, err := vmClient.List(d.AzureMachineClass.Spec.ResourceGroup)
 	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
 		glog.Errorf("Failed to list VMs. Error Message - %s", err)
 		return err
 	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
 
 	if result.Value != nil && len(*result.Value) > 0 {
 		for _, server := range *result.Value {
@@ -380,9 +403,11 @@ func (d *AzureDriver) getnics(machineID string, listOfVMs VMs) error {
 	d.setup()
 	result, err := interfacesClient.List(d.AzureMachineClass.Spec.ResourceGroup)
 	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 		glog.Errorf("Failed to list NICs. Error Message - %s", err)
 		return err
 	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 
 	if result.Value != nil && len(*result.Value) > 0 {
 		for _, nic := range *result.Value {
@@ -446,9 +471,11 @@ func (d *AzureDriver) getdisks(machineID string, listOfVMs VMs) error {
 	d.setup()
 	result, err := diskClient.List()
 	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
 		glog.Errorf("Failed to list OS Disks. Error Message - %s", err)
 		return err
 	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
 
 	if result.Value != nil && len(*result.Value) > 0 {
 		for _, disk := range *result.Value {
