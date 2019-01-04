@@ -25,11 +25,21 @@ package controller
 import (
 	"fmt"
 	"sort"
+	"time"
+
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/integer"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/integer"
+)
+
+var (
+	maxRetryDeadline      = 1 * time.Minute
+	conflictRetryInterval = 5 * time.Second
 )
 
 // rolloutRolling implements the logic for rolling a new machine set.
@@ -39,6 +49,11 @@ func (dc *controller) rolloutRolling(d *v1alpha1.MachineDeployment, isList []*v1
 		return err
 	}
 	allISs := append(oldISs, newIS)
+
+	err = dc.taintNodesBackingMachineSets(oldISs)
+	if err != nil {
+		glog.Warningf("Failed to add %s on all nodes. Error: %s", PreferNoSchedule, err)
+	}
 
 	// Scale up, if we can.
 	scaledUp, err := dc.reconcileNewMachineSet(allISs, newIS, d)
@@ -235,4 +250,93 @@ func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(allISs []*v1alpha1
 	}
 
 	return totalScaledDown, nil
+}
+
+// taintNodesBackingMachineSets taints all nodes backing the machineSets
+func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.MachineSet) error {
+
+	for _, machineSet := range MachineSets {
+
+		if machineSet.Annotations[PreferNoSchedule] != "" {
+			continue
+		}
+
+		glog.V(3).Infof("Trying to taint MachineSet object %q with %s to avoid scheduling of pods", machineSet.Name, PreferNoSchedule)
+		selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
+		if err != nil {
+			return err
+		}
+
+		// list all machines to include the machines that don't match the ms`s selector
+		// anymore but has the stale controller ref.
+		// TODO: Do the List and Filter in a single pass, or use an index.
+		filteredMachines, err := dc.machineLister.List(labels.Everything())
+		if err != nil {
+			return err
+		}
+		// NOTE: filteredMachines are pointing to objects from cache - if you need to
+		// modify them, you need to copy it first.
+		filteredMachines, err = dc.claimMachines(machineSet, selector, filteredMachines)
+		if err != nil {
+			return err
+		}
+
+		taints := v1.Taint{
+			Key:    PreferNoSchedule,
+			Value:  "True",
+			Effect: "PreferNoSchedule",
+		}
+
+		// Iterate through all machines and place the PreferNoSchedule taint
+		// to avoid scheduling on older machines
+		for _, machine := range filteredMachines {
+			if machine.Status.Node != "" {
+				err = AddOrUpdateTaintOnNode(
+					dc.targetCoreClient,
+					machine.Status.Node,
+					&taints,
+				)
+				if err != nil {
+					glog.Warningf("Node tainting failed for node: %s, %s", machine.Status.Node, err)
+				}
+			}
+		}
+
+		retryDeadline := time.Now().Add(maxRetryDeadline)
+		for {
+			machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
+			if err != nil && time.Now().Before(retryDeadline) {
+				glog.Warningf("Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
+				time.Sleep(conflictRetryInterval)
+				continue
+			} else if err != nil {
+				// Timeout occurred
+				glog.Errorf("Timeout occurred: Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
+				return err
+			}
+
+			msCopy := machineSet.DeepCopy()
+			if msCopy.Annotations == nil {
+				msCopy.Annotations = make(map[string]string, 0)
+			}
+			msCopy.Annotations[PreferNoSchedule] = "True"
+
+			_, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(msCopy)
+			if err != nil && time.Now().Before(retryDeadline) {
+				glog.Warningf("Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
+				time.Sleep(conflictRetryInterval)
+				continue
+			} else if err != nil {
+				// Timeout occurred
+				glog.Errorf("Timeout occurred: Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
+				return err
+			}
+
+			// Break out of loop when update succeeds
+			break
+		}
+		glog.V(2).Infof("Tainted MachineSet object %q with %s to avoid scheduling of pods", machineSet.Name, PreferNoSchedule)
+	}
+
+	return nil
 }

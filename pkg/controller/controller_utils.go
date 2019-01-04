@@ -38,7 +38,7 @@ import (
 	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	hashutil "github.com/gardener/machine-controller-manager/pkg/util/hash"
 	taintutils "github.com/gardener/machine-controller-manager/pkg/util/taints"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -820,7 +820,7 @@ func AddOrUpdateTaintOnNode(c clientset.Interface, nodeName string, taints ...*v
 		if !updated {
 			return nil
 		}
-		return PatchNodeTaints(c, nodeName, oldNode, newNode)
+		return UpdateNodeTaints(c, nodeName, oldNode, newNode)
 	})
 }
 
@@ -877,7 +877,7 @@ func RemoveTaintOffNode(c clientset.Interface, nodeName string, node *v1.Node, t
 		if !updated {
 			return nil
 		}
-		return PatchNodeTaints(c, nodeName, oldNode, newNode)
+		return UpdateNodeTaints(c, nodeName, oldNode, newNode)
 	})
 }
 
@@ -902,6 +902,15 @@ func PatchNodeTaints(c clientset.Interface, nodeName string, oldNode *v1.Node, n
 	}
 
 	_, err = c.Core().Nodes().Patch(string(nodeName), types.StrategicMergePatchType, patchBytes)
+	return err
+}
+
+// UpdateNodeTaints updates node's taints.
+func UpdateNodeTaints(c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
+	newNodeClone := oldNode.DeepCopy()
+	newNodeClone.Spec.Taints = newNode.Spec.Taints
+
+	_, err := c.Core().Nodes().Update(newNodeClone)
 	return err
 }
 
