@@ -91,8 +91,8 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 
 	response, err := client.RunInstances(request)
 	if err != nil {
-		return "", "", err
 		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "alicloud", "service": "ecs"}).Inc()
+		return "", "", err
 	}
 	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "alicloud", "service": "ecs"}).Inc()
 
