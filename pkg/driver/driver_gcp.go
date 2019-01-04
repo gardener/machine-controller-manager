@@ -139,10 +139,10 @@ func (d *GCPDriver) Create() (string, string, error) {
 
 	operation, err := computeService.Instances.Insert(project, zone, instance).Context(ctx).Do()
 	if err != nil {
-		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
 		return "Error", "Error", err
 	}
-	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
 
 	if err := waitUntilOperationCompleted(computeService, project, zone, operation.Name); err != nil {
 		return "Error", "Error", err
@@ -177,14 +177,14 @@ func (d *GCPDriver) Delete() error {
 
 	operation, err := computeService.Instances.Delete(project, zone, name).Context(ctx).Do()
 	if err != nil {
-		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
 		if ae, ok := err.(*googleapi.Error); ok && ae.Code == http.StatusNotFound {
 			return nil
 		}
 		glog.Error(err)
 		return err
 	}
-	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
 
 	return waitUntilOperationCompleted(computeService, project, zone, operation.Name)
 }
@@ -255,11 +255,11 @@ func (d *GCPDriver) GetVMs(machineID string) (VMs, error) {
 		}
 		return nil
 	}); err != nil {
-		metrics.ApiFailedRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
 		glog.Error(err)
 		return listOfVMs, err
 	}
-	metrics.ApiRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
 
 	return listOfVMs, nil
 }

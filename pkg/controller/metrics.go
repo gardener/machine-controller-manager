@@ -59,7 +59,7 @@ func (c *controller) CollectMachineDeploymentMetrics(ch chan<- prometheus.Metric
 			"spec_strategy_type": string(mdSpec.Strategy.Type),
 		}).Set(float64(1))
 
-		var paused float64 = 0
+		var paused float64
 		if mdSpec.Paused {
 			paused = 1
 		}
@@ -100,7 +100,7 @@ func (c *controller) CollectMachineDeploymentMetrics(ch chan<- prometheus.Metric
 		}
 
 		for _, condition := range machineDeployment.Status.Conditions {
-			var status float64 = 0
+			var status float64
 			switch condition.Status {
 			case v1alpha1.ConditionTrue:
 				status = 1
@@ -132,15 +132,15 @@ func (c *controller) CollectMachineDeploymentMetrics(ch chan<- prometheus.Metric
 		}
 
 		if machineDeployment.Status.FailedMachines != nil {
-			for _, failed_machine := range machineDeployment.Status.FailedMachines {
+			for _, failedMachine := range machineDeployment.Status.FailedMachines {
 				metrics.MachineDeploymentStatusFailedMachines.With(prometheus.Labels{
-					"name":                                mdMeta.Name,
-					"namespace":                           mdMeta.Namespace,
-					"failed_machine_name":                 failed_machine.Name,
-					"failed_machine_provider_id":          failed_machine.ProviderID,
-					"failed_machine_last_operation_state": string(failed_machine.LastOperation.State),
-					"failed_machine_last_operation_machine_operation_type": string(failed_machine.LastOperation.Type),
-					"failed_machine_owner_ref":                             failed_machine.OwnerRef}).Set(float64(1))
+					"name":                               mdMeta.Name,
+					"namespace":                          mdMeta.Namespace,
+					"failedMachine_name":                 failedMachine.Name,
+					"failedMachine_provider_id":          failedMachine.ProviderID,
+					"failedMachine_last_operation_state": string(failedMachine.LastOperation.State),
+					"failedMachine_last_operation_machine_operation_type": string(failedMachine.LastOperation.Type),
+					"failedMachine_owner_ref":                             failedMachine.OwnerRef}).Set(float64(1))
 
 			}
 		}
@@ -183,7 +183,7 @@ func (c *controller) CollectMachineSetMetrics(ch chan<- prometheus.Metric) {
 			"namespace": msMeta.Namespace}).Set(float64(msSpec.MinReadySeconds))
 
 		for _, condition := range machineSet.Status.Conditions {
-			var status float64 = 0
+			var status float64
 			switch condition.Status {
 			case v1alpha1.ConditionTrue:
 				status = 1
@@ -222,15 +222,15 @@ func (c *controller) CollectMachineSetMetrics(ch chan<- prometheus.Metric) {
 
 		if machineSet.Status.FailedMachines != nil {
 
-			for _, failed_machine := range *machineSet.Status.FailedMachines {
+			for _, failedMachine := range *machineSet.Status.FailedMachines {
 				metrics.MachineSetStatusFailedMachines.With(prometheus.Labels{
-					"name":                                msMeta.Name,
-					"namespace":                           msMeta.Namespace,
-					"failed_machine_name":                 failed_machine.Name,
-					"failed_machine_provider_id":          failed_machine.ProviderID,
-					"failed_machine_last_operation_state": string(failed_machine.LastOperation.State),
-					"failed_machine_last_operation_machine_operation_type": string(failed_machine.LastOperation.Type),
-					"failed_machine_owner_ref":                             failed_machine.OwnerRef}).Set(float64(1))
+					"name":                               msMeta.Name,
+					"namespace":                          msMeta.Namespace,
+					"failedMachine_name":                 failedMachine.Name,
+					"failedMachine_provider_id":          failedMachine.ProviderID,
+					"failedMachine_last_operation_state": string(failedMachine.LastOperation.State),
+					"failedMachine_last_operation_machine_operation_type": string(failedMachine.LastOperation.Type),
+					"failedMachine_owner_ref":                             failedMachine.OwnerRef}).Set(float64(1))
 			}
 		}
 	}
@@ -259,7 +259,7 @@ func (c *controller) CollectMachineMetrics(ch chan<- prometheus.Metric) {
 			"spec_class_name":      mSpec.Class.Name}).Set(float64(1))
 
 		for _, condition := range machine.Status.Conditions {
-			var status float64 = 0
+			var status float64
 			switch condition.Status {
 			case v1.ConditionTrue:
 				status = 1
@@ -276,7 +276,7 @@ func (c *controller) CollectMachineMetrics(ch chan<- prometheus.Metric) {
 			}).Set(status)
 		}
 
-		var phase float64 = 0
+		var phase float64
 		switch machine.Status.CurrentStatus.Phase {
 		case v1alpha1.MachinePending:
 			phase = -2
@@ -309,11 +309,11 @@ func (c *controller) CollectMachineMetrics(ch chan<- prometheus.Metric) {
 
 // CollectMachines is method to collect Machine related metrics.
 func (c *controller) CollectMachineControllerFrozenStatus(ch chan<- prometheus.Metric) {
-	var frozen_status float64 = 0
+	var frozenStatus float64
 	if c.safetyOptions.MachineControllerFrozen {
-		frozen_status = 1
+		frozenStatus = 1
 	}
-	metric, err := prometheus.NewConstMetric(metrics.MachineControllerFrozenDesc, prometheus.GaugeValue, frozen_status)
+	metric, err := prometheus.NewConstMetric(metrics.MachineControllerFrozenDesc, prometheus.GaugeValue, frozenStatus)
 	if err != nil {
 		metrics.ScrapeFailedCounter.With(prometheus.Labels{"kind": "Machine-count"}).Inc()
 		return

@@ -157,12 +157,12 @@ var (
 		"failed_machine_last_operation_state",
 		"failed_machine_last_operation_machine_operation_type"})
 
-	ApiRequestCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+	APIRequestCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "mcm_cloud_api_requests_total",
 		Help: "Number of Cloud Service API requests, partitioned by provider, and service.",
 	}, []string{"provider", "service"},
 	)
-	ApiFailedRequestCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+	APIFailedRequestCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "mcm_cloud_api_requests_failed_total",
 		Help: "Number of Failed Cloud Service API requests, partitioned by provider, and service.",
 	}, []string{"provider", "service"},
@@ -206,6 +206,6 @@ func init() {
 	prometheus.MustRegister(MachineDeploymentStatusCollisionCount)
 	prometheus.MustRegister(MachineDeploymentStatusReplicas)
 	prometheus.MustRegister(MachineDeploymentStatusFailedMachines)
-	prometheus.MustRegister(ApiRequestCount)
-	prometheus.MustRegister(ApiFailedRequestCount)
+	prometheus.MustRegister(APIRequestCount)
+	prometheus.MustRegister(APIFailedRequestCount)
 }
