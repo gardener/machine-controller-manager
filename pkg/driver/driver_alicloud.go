@@ -24,8 +24,10 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
+	"github.com/prometheus/client_golang/prometheus"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/metrics"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
@@ -89,8 +91,10 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 
 	response, err := client.RunInstances(request)
 	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "alicloud", "service": "ecs"}).Inc()
 		return "", "", err
 	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "alicloud", "service": "ecs"}).Inc()
 
 	instanceID := response.InstanceIdSets.InstanceIdSet[0]
 	machineID := c.encodeMachineID(c.AlicloudMachineClass.Spec.Region, instanceID)
@@ -135,6 +139,10 @@ func (c *AlicloudDriver) stopInstance(client *ecs.Client, machineID string) erro
 	request.ForceStop = requests.NewBoolean(true)
 
 	_, err := client.StopInstance(request)
+	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "alicloud", "service": "ecs"}).Inc()
+	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "alicloud", "service": "ecs"}).Inc()
 
 	return err
 }
@@ -145,6 +153,10 @@ func (c *AlicloudDriver) deleteInstance(client *ecs.Client, machineID string) er
 	request.Force = requests.NewBoolean(true)
 
 	_, err := client.DeleteInstance(request)
+	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "alicloud", "service": "ecs"}).Inc()
+	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "alicloud", "service": "ecs"}).Inc()
 	return err
 }
 
@@ -192,8 +204,10 @@ func (c *AlicloudDriver) getVMDetails(machineID string) ([]ecs.Instance, error) 
 
 	response, err := client.DescribeInstances(request)
 	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "alicloud", "service": "ecs"}).Inc()
 		return nil, err
 	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "alicloud", "service": "ecs"}).Inc()
 
 	return response.Instances.Instance, nil
 }
