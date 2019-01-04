@@ -35,7 +35,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -106,6 +106,9 @@ const (
 	// is deployment.spec.replicas + maxSurge. Used by the underlying machine sets to estimate their
 	// proportions in case the deployment has surge replicas.
 	MaxReplicasAnnotation = "deployment.kubernetes.io/max-replicas"
+	// PreferNoSchedule is used to identify machineSet nodes on which PreferNoSchedule taint is added on
+	// older machineSets during a rolling update
+	PreferNoSchedule = "deployment.machine.sapcloud.io/prefer-no-schedule"
 
 	// RollbackRevisionNotFound is not found rollback event reason
 	RollbackRevisionNotFound = "DeploymentRollbackRevisionNotFound"
@@ -343,6 +346,8 @@ var annotationsToSkip = map[string]bool{
 	RevisionHistoryAnnotation:      true,
 	DesiredReplicasAnnotation:      true,
 	MaxReplicasAnnotation:          true,
+	LastReplicaUpdate:              true,
+	PreferNoSchedule:               true,
 }
 
 // skipCopyAnnotation returns true if we should skip copying the annotation with the given annotation key
