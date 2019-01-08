@@ -12,6 +12,7 @@ rules:
    - openstackmachineclasses
    - alicloudmachineclasses
    - packetmachineclasses
+   - machineclasses
    - machinedeployments
    - machines
    - machinesets
