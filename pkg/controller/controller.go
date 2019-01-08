@@ -74,6 +74,7 @@ func NewController(
 	gcpMachineClassInformer machineinformers.GCPMachineClassInformer,
 	alicloudMachineClassInformer machineinformers.AlicloudMachineClassInformer,
 	packetMachineClassInformer machineinformers.PacketMachineClassInformer,
+	machineClassInformer machineinformers.MachineClassInformer,
 	machineInformer machineinformers.MachineInformer,
 	machineSetInformer machineinformers.MachineSetInformer,
 	machineDeploymentInformer machineinformers.MachineDeploymentInformer,
@@ -95,6 +96,7 @@ func NewController(
 		gcpMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "gcpmachineclass"),
 		alicloudMachineClassQueue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "alicloudmachineclass"),
 		packetMachineClassQueue:        workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "packetmachineclass"),
+		machineClassQueue:              workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineclass"),
 		machineQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
 		machineSetQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
 		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
@@ -136,6 +138,7 @@ func NewController(
 	controller.gcpMachineClassLister = gcpMachineClassInformer.Lister()
 	controller.alicloudMachineClassLister = alicloudMachineClassInformer.Lister()
 	controller.packetMachineClassLister = packetMachineClassInformer.Lister()
+	controller.machineClassLister = machineClassInformer.Lister()
 	controller.nodeLister = nodeInformer.Lister()
 	controller.machineLister = machineInformer.Lister()
 	controller.machineSetLister = machineSetInformer.Lister()
@@ -149,6 +152,7 @@ func NewController(
 	controller.gcpMachineClassSynced = gcpMachineClassInformer.Informer().HasSynced
 	controller.alicloudMachineClassSynced = alicloudMachineClassInformer.Informer().HasSynced
 	controller.packetMachineClassSynced = packetMachineClassInformer.Informer().HasSynced
+	controller.machineClassSynced = machineClassInformer.Informer().HasSynced
 	controller.nodeSynced = nodeInformer.Informer().HasSynced
 	controller.machineSynced = machineInformer.Informer().HasSynced
 	controller.machineSetSynced = machineSetInformer.Informer().HasSynced
@@ -188,6 +192,12 @@ func NewController(
 		AddFunc:    controller.packetMachineClassToSecretAdd,
 		UpdateFunc: controller.packetMachineClassToSecretUpdate,
 		DeleteFunc: controller.packetMachineClassToSecretDelete,
+	})
+
+	machineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.machineClassToSecretAdd,
+		UpdateFunc: controller.machineClassToSecretUpdate,
+		DeleteFunc: controller.machineClassToSecretDelete,
 	})
 
 	// Openstack Controller Informers
@@ -296,6 +306,24 @@ func NewController(
 	packetMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.packetMachineClassAdd,
 		UpdateFunc: controller.packetMachineClassUpdate,
+	})
+
+	// MachineClass Controller Informers
+	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineDeploymentToMachineClassDelete,
+	})
+
+	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineSetToMachineClassDelete,
+	})
+
+	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: controller.machineToMachineClassDelete,
+	})
+
+	machineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.machineClassAdd,
+		UpdateFunc: controller.machineClassUpdate,
 	})
 
 	/* Node Controller Informers - Don't remove this, saved for future use case.
@@ -412,6 +440,7 @@ type controller struct {
 	gcpMachineClassLister       machinelisters.GCPMachineClassLister
 	alicloudMachineClassLister  machinelisters.AlicloudMachineClassLister
 	packetMachineClassLister    machinelisters.PacketMachineClassLister
+	machineClassLister          machinelisters.MachineClassLister
 	machineLister               machinelisters.MachineLister
 	machineSetLister            machinelisters.MachineSetLister
 	machineDeploymentLister     machinelisters.MachineDeploymentLister
@@ -422,6 +451,7 @@ type controller struct {
 	awsMachineClassQueue           workqueue.RateLimitingInterface
 	azureMachineClassQueue         workqueue.RateLimitingInterface
 	gcpMachineClassQueue           workqueue.RateLimitingInterface
+	machineClassQueue              workqueue.RateLimitingInterface
 	alicloudMachineClassQueue      workqueue.RateLimitingInterface
 	packetMachineClassQueue        workqueue.RateLimitingInterface
 	machineQueue                   workqueue.RateLimitingInterface
@@ -439,6 +469,7 @@ type controller struct {
 	gcpMachineClassSynced       cache.InformerSynced
 	alicloudMachineClassSynced  cache.InformerSynced
 	packetMachineClassSynced    cache.InformerSynced
+	machineClassSynced          cache.InformerSynced
 	machineSynced               cache.InformerSynced
 	machineSetSynced            cache.InformerSynced
 	machineDeploymentSynced     cache.InformerSynced
@@ -459,6 +490,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer c.gcpMachineClassQueue.ShutDown()
 	defer c.alicloudMachineClassQueue.ShutDown()
 	defer c.packetMachineClassQueue.ShutDown()
+	defer c.machineClassQueue.ShutDown()
 	defer c.machineQueue.ShutDown()
 	defer c.machineSetQueue.ShutDown()
 	defer c.machineDeploymentQueue.ShutDown()
@@ -466,7 +498,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer c.machineSafetyOvershootingQueue.ShutDown()
 	defer c.machineSafetyAPIServerQueue.ShutDown()
 
-	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.openStackMachineClassSynced, c.awsMachineClassSynced, c.azureMachineClassSynced, c.gcpMachineClassSynced, c.alicloudMachineClassSynced, c.packetMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
+	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.openStackMachineClassSynced, c.awsMachineClassSynced, c.azureMachineClassSynced, c.gcpMachineClassSynced, c.alicloudMachineClassSynced, c.packetMachineClassSynced, c.machineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
 		runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
@@ -487,6 +519,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 		createWorker(c.gcpMachineClassQueue, "ClusterGCPMachineClass", maxRetries, true, c.reconcileClusterGCPMachineClassKey, stopCh, &waitGroup)
 		createWorker(c.alicloudMachineClassQueue, "ClusterAlicloudMachineClass", maxRetries, true, c.reconcileClusterAlicloudMachineClassKey, stopCh, &waitGroup)
 		createWorker(c.packetMachineClassQueue, "ClusterPacketMachineClass", maxRetries, true, c.reconcileClusterPacketMachineClassKey, stopCh, &waitGroup)
+		createWorker(c.machineClassQueue, "ClusterMachineClass", maxRetries, true, c.reconcileClusterMachineClassKey, stopCh, &waitGroup)
 		createWorker(c.secretQueue, "ClusterSecret", maxRetries, true, c.reconcileClusterSecretKey, stopCh, &waitGroup)
 		createWorker(c.nodeQueue, "ClusterNode", maxRetries, true, c.reconcileClusterNodeKey, stopCh, &waitGroup)
 		createWorker(c.machineQueue, "ClusterMachine", maxRetries, true, c.reconcileClusterMachineKey, stopCh, &waitGroup)

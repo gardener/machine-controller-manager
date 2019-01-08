@@ -70,6 +70,7 @@ var azureGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version
 var gcpGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "gcpmachineclasses"}
 var alicloudGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "alicloudmachineclasses"}
 var packetGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "packetmachineclasses"}
+var machineclassGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "machineclasses"}
 
 // Run runs the MCMServer.  This should never exit.
 func Run(s *options.MCMServer) error {
@@ -222,7 +223,7 @@ func StartControllers(s *options.MCMServer,
 		glog.Fatal(err)
 	}
 
-	if availableResources[awsGVR] || availableResources[azureGVR] || availableResources[gcpGVR] || availableResources[openStackGVR] || availableResources[alicloudGVR] || availableResources[packetGVR] {
+	if availableResources[awsGVR] || availableResources[azureGVR] || availableResources[gcpGVR] || availableResources[openStackGVR] || availableResources[alicloudGVR] || availableResources[packetGVR] || availableResources[machineclassGVR] {
 		glog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
 		controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
@@ -261,6 +262,7 @@ func StartControllers(s *options.MCMServer,
 			machineSharedInformers.GCPMachineClasses(),
 			machineSharedInformers.AlicloudMachineClasses(),
 			machineSharedInformers.PacketMachineClasses(),
+			machineSharedInformers.MachineClasses(),
 			machineSharedInformers.Machines(),
 			machineSharedInformers.MachineSets(),
 			machineSharedInformers.MachineDeployments(),

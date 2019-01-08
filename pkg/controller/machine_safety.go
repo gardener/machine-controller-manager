@@ -1,20 +1,20 @@
-/*
-Copyright (c) 2018 SAP SE or an SAP affiliate company. All rights reserved.
+// /*
+// Copyright (c) 2018 SAP SE or an SAP affiliate company. All rights reserved.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// */
 
-// Package controller is used to provide the core functionalities of machine-controller-manager
+//Package controller is used to provide the core functionalities of machine-controller-manager
 package controller
 
 import (
@@ -258,6 +258,29 @@ func (c *controller) checkVMObjects() {
 	c.checkGCPMachineClass()
 	c.checkAlicloudMachineClass()
 	c.checkPacketMachineClass()
+	c.checkCommonMachineClass()
+}
+
+// checkMachineClass checks for orphan VMs in MachinesClasses
+func (c *controller) checkCommonMachineClass() {
+	MachineClasses, err := c.machineClassLister.List(labels.Everything())
+	if err != nil {
+		glog.Error("Safety-Net: Error getting machineClasses")
+		return
+	}
+
+	for _, machineClass := range MachineClasses {
+
+		var machineClassInterface interface{}
+		machineClassInterface = machineClass
+
+		c.checkMachineClass(
+			machineClassInterface,
+			machineClass.SecretRef,
+			machineClass.Name,
+			machineClass.Kind,
+		)
+	}
 }
 
 // checkAWSMachineClass checks for orphan VMs in AWSMachinesClasses
@@ -407,13 +430,14 @@ func (c *controller) checkMachineClass(
 	}
 
 	// Dummy driver object being created to invoke GetVMs
-	dvr := driver.NewDriver(
+	dvr := driver.NewCmiDriverClient(
 		"",
-		secret,
 		classKind,
+		secret,
 		machineClass,
 		"",
 	)
+
 	listOfVMs, err := dvr.GetVMs("")
 	if err != nil {
 		glog.Warningf("Failed to list VMs at provider. Err - %s", err)
@@ -535,15 +559,15 @@ func (c *controller) deleteOrphanVM(vm driver.VMs, secretRef *corev1.Secret, kin
 		machineName = v
 	}
 
-	dvr := driver.NewDriver(
+	dvr := driver.NewCmiDriverClient(
 		machineID,
-		secretRef,
 		kind,
+		secretRef,
 		machineClass,
 		machineName,
 	)
 
-	err := dvr.Delete()
+	err := dvr.DeleteMachine()
 	if err != nil {
 		glog.Errorf("Error while deleting VM on CP - %s. Shall retry in next safety controller sync.", err)
 	} else {
