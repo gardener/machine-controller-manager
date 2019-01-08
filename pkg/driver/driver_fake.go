@@ -1,56 +1,51 @@
-/*
-Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights reserved.
+// /*
+// Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights reserved.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// */
 
-// Package driver contains the cloud provider specific implementations to manage machines
+// // Package driver contains the cloud provider specific implementations to manage machines
 package driver
 
-// FakeDriver is a fake driver returned when none of the actual drivers match
-type FakeDriver struct {
-	create func() (string, string, error)
-	delete func() error
-	//existing func() (string, v1alpha1.MachinePhase, error)
-	existing func() (string, error)
-}
+// import (
+// 	"context"
+// 	cmipb "github.com/gardener/machine-spec/lib/go/cmi"
+// )
 
-// NewFakeDriver returns a new fakedriver object
-func NewFakeDriver(create func() (string, string, error), delete func() error, existing func() (string, error)) Driver {
-	return &FakeDriver{
-		create:   create,
-		delete:   delete,
-		existing: existing,
-	}
-}
+// // FakeDriver is a fake driver returned when none of the actual drivers match
+// type FakeCmiDriverClient struct {
+// 	CreateMachine(ctx context.Context) (string, string, error)
+// 	DeleteMachine(ctx context.Context) error
+// 	ListMachines(ctx context.Context) (string, error)
+// }
 
-// Create returns a newly created fake driver
-func (d *FakeDriver) Create() (string, string, error) {
-	return d.create()
-}
+// // NewFakeDriver returns a new fakedriver object
+// func NewFakeDriver(create func() (string, string, error), delete func() error, existing func() (string, error)) Driver {
+// 	return &FakeDriver{
+// 		create:   create,
+// 		delete:   delete,
+// 		existing: existing,
+// 	}
+// }
 
-// Delete deletes a fake driver
-func (d *FakeDriver) Delete() error {
-	return d.delete()
-}
+// func (cs *DefaultMachineServer) CreateMachine(ctx context.Context, req *cmi.CreateMachineRequest) (*cmi.CreateMachineResponse, error) {
+// 	return nil, status.Error(codes.Unimplemented, "")
+// }
 
-// GetExisting returns the existing fake driver
-func (d *FakeDriver) GetExisting() (string, error) {
-	return d.existing()
-}
+// func (cs *DefaultMachineServer) DeleteMachine(ctx context.Context, req *cmi.DeleteMachineRequest) (*cmi.DeleteMachineResponse, error) {
+// 	return nil, status.Error(codes.Unimplemented, "")
+// }
 
-// GetVMs returns a list of VMs
-func (d *FakeDriver) GetVMs(name string) (VMs, error) {
-	listOfVMs := make(map[string]string)
-	return listOfVMs, nil
-}
+// func (cs *DefaultMachineServer) ListMachines(ctx context.Context, req *cmi.ListMachinesRequest) (*cmi.ListMachinesResponse, error) {
+// 	return nil, status.Error(codes.Unimplemented, "")
+// }
