@@ -333,3 +333,33 @@ func (c *controller) packetMachineClassToSecretUpdate(oldObj interface{}, newObj
 func (c *controller) packetMachineClassToSecretDelete(obj interface{}) {
 	c.packetMachineClassToSecretAdd(obj)
 }
+
+// For Generic machineclass
+func (c *controller) machineClassToSecretAdd(obj interface{}) {
+	machineClass, ok := obj.(*v1alpha1.MachineClass)
+	if machineClass == nil || !ok {
+		return
+	}
+	c.secretQueue.Add(machineClass.SecretRef.Namespace + "/" + machineClass.SecretRef.Name)
+}
+
+func (c *controller) machineClassToSecretUpdate(oldObj interface{}, newObj interface{}) {
+	oldMachineClass, ok := oldObj.(*v1alpha1.MachineClass)
+	if oldMachineClass == nil || !ok {
+		return
+	}
+	newMachineClass, ok := newObj.(*v1alpha1.MachineClass)
+	if newMachineClass == nil || !ok {
+		return
+	}
+
+	if oldMachineClass.SecretRef.Name != newMachineClass.SecretRef.Name ||
+		oldMachineClass.SecretRef.Namespace != newMachineClass.SecretRef.Namespace {
+		c.secretQueue.Add(oldMachineClass.SecretRef.Namespace + "/" + oldMachineClass.SecretRef.Name)
+		c.secretQueue.Add(newMachineClass.SecretRef.Namespace + "/" + newMachineClass.SecretRef.Name)
+	}
+}
+
+func (c *controller) machineClassToSecretDelete(obj interface{}) {
+	c.machineClassToSecretAdd(obj)
+}

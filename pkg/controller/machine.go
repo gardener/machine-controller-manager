@@ -142,9 +142,12 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	if err != nil || secretRef == nil {
 		return err
 	}
+	//driver := driver.NewDriver(machine.Spec.ProviderID, secretRef, machine.Spec.Class.Kind, //MachineClass, machine.Name)
 
-	driver := driver.NewDriver(machine.Spec.ProviderID, secretRef, machine.Spec.Class.Kind, MachineClass, machine.Name)
-	actualProviderID, err := driver.GetExisting()
+	// TODO: Make cloud-provider configurable via machine.spec.provider or machineclass.provider
+	driver := driver.NewCmiDriverClient(machine.Spec.ProviderID, "AWS", secretRef, MachineClass, machine.Name)
+
+	actualProviderID, err := machine.Spec.ProviderID, nil
 	if err != nil {
 		return err
 	} else if actualProviderID == "fake" {
@@ -152,6 +155,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		return nil
 	}
 
+	// Get the latest version of the machine so that we can avoid conflicts
 	machine, err = c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
 	if err != nil {
 		glog.Errorf("Could not fetch machine object %s", err)
@@ -176,7 +180,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 
 	if machine.DeletionTimestamp != nil {
 		// Processing of delete event
-		if err := c.machineDelete(machine, driver); err != nil {
+		if err := c.machineDelete(machine, *driver); err != nil {
 			return err
 		}
 	} else if machine.Status.CurrentStatus.TimeoutActive {
@@ -189,7 +193,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		if machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
 			return nil
 		} else if actualProviderID == "" {
-			if err := c.machineCreate(machine, driver); err != nil {
+			if err := c.machineCreate(machine, *driver); err != nil {
 				return err
 			}
 		} else if actualProviderID != machine.Spec.ProviderID {
@@ -335,10 +339,10 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 	Machine operations - Create, Update, Delete
 */
 
-func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driver) error {
-	glog.V(2).Infof("Creating machine %q, please wait!", machine.Name)
+func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.CmiDriverClient) error {
+	glog.V(2).Infof("Creating machine %s, please wait!", machine.Name)
 
-	actualProviderID, nodeName, err := driver.Create()
+	actualProviderID, nodeName, err := driver.CreateMachine()
 	if err != nil {
 		glog.Errorf("Error while creating machine %s: %s", machine.Name, err.Error())
 		lastOperation := v1alpha1.LastOperation{
@@ -449,7 +453,7 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 	return nil
 }
 
-func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driver) error {
+func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CmiDriverClient) error {
 	var err error
 	nodeName := machine.Status.Node
 
@@ -560,8 +564,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				glog.Warningf("Drain failed for machine %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
 				return err
 			}
-
-			err = driver.Delete()
+			err = driver.DeleteMachine()
 		}
 
 		if err != nil {
