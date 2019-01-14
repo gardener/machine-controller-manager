@@ -165,7 +165,7 @@ func (dc *controller) removeTaintNodesBackingMachineSets(machineSet *v1alpha1.Ma
 		Effect: "PreferNoSchedule",
 	}
 
-	// Iterate through all machines and place the PreferNoSchedule taint
+	// Iterate through all machines and remove the PreferNoSchedule taint
 	// to avoid scheduling on older machines
 	for _, machine := range filteredMachines {
 		if machine.Status.Node != "" {
