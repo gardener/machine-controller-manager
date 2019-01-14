@@ -25,7 +25,7 @@ import (
 
 	"github.com/golang/glog"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -354,10 +354,6 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 
 		clone := machine.DeepCopy()
 
-		if clone.Labels == nil {
-			clone.Labels = make(map[string]string)
-		}
-		clone.Labels["node"] = nodeName
 		if clone.Annotations == nil {
 			clone.Annotations = make(map[string]string)
 		}
@@ -456,7 +452,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				buf := bytes.NewBuffer([]byte{})
 				errBuf := bytes.NewBuffer([]byte{})
 
-				nodeName := machine.Labels["node"]
+				nodeName := machine.Status.Node
 				drainOptions := NewDrainOptions(
 					c.targetCoreClient,
 					timeOutDuration, // TODO: Will need to configure timeout
