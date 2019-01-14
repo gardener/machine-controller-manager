@@ -61,22 +61,42 @@ func newMachineSetsFromMachineDeployment(machineSetCount int, machineDeployment 
 		UID:                machineDeployment.UID,
 		BlockOwnerDeletion: boolPtr(true),
 		Controller:         boolPtr(true),
-	})
+	}, nil)
 }
 
-func newMachineSet(specTemplate *v1alpha1.MachineTemplateSpec, replicas, minReadySeconds int32, statusTemplate *v1alpha1.MachineSetStatus, owner *metav1.OwnerReference) *v1alpha1.MachineSet {
-	return newMachineSets(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner)[0]
+func newMachineSet(
+	specTemplate *v1alpha1.MachineTemplateSpec,
+	replicas int32,
+	minReadySeconds int32,
+	statusTemplate *v1alpha1.MachineSetStatus,
+	owner *metav1.OwnerReference,
+	annotations map[string]string,
+) *v1alpha1.MachineSet {
+	return newMachineSets(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner, annotations)[0]
 }
 
-func newMachineSets(machineSetCount int, specTemplate *v1alpha1.MachineTemplateSpec, replicas, minReadySeconds int32, statusTemplate *v1alpha1.MachineSetStatus, owner *metav1.OwnerReference) []*v1alpha1.MachineSet {
-	machineSets := make([]*v1alpha1.MachineSet, replicas)
+func newMachineSets(
+	machineSetCount int,
+	specTemplate *v1alpha1.MachineTemplateSpec,
+	replicas int32,
+	minReadySeconds int32,
+	statusTemplate *v1alpha1.MachineSetStatus,
+	owner *metav1.OwnerReference,
+	annotations map[string]string,
+) []*v1alpha1.MachineSet {
+
+	machineSets := make([]*v1alpha1.MachineSet, machineSetCount)
 	for i := range machineSets {
 		ms := &v1alpha1.MachineSet{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "machine.sapcloud.io",
 				Kind:       "MachineSet",
 			},
-			ObjectMeta: *newObjectMeta(&specTemplate.ObjectMeta, i),
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("machineset-%d", i),
+				Namespace: testNamespace,
+				Labels:    make(map[string]string, 0),
+			},
 			Spec: v1alpha1.MachineSetSpec{
 				MachineClass:    *specTemplate.Spec.Class.DeepCopy(),
 				MinReadySeconds: minReadySeconds,
@@ -94,6 +114,10 @@ func newMachineSets(machineSetCount int, specTemplate *v1alpha1.MachineTemplateS
 
 		if owner != nil {
 			ms.OwnerReferences = append(ms.OwnerReferences, *owner.DeepCopy())
+		}
+
+		if annotations != nil {
+			ms.Annotations = annotations
 		}
 
 		machineSets[i] = ms
@@ -137,8 +161,12 @@ func newMachines(machineCount int, specTemplate *v1alpha1.MachineTemplateSpec, s
 				APIVersion: "machine.sapcloud.io",
 				Kind:       "Machine",
 			},
-			ObjectMeta: *newObjectMeta(&specTemplate.ObjectMeta, i),
-			Spec:       *newMachineSpec(&specTemplate.Spec, i),
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("machine-%d", i),
+				Namespace: testNamespace,
+				Labels:    make(map[string]string, 0),
+			},
+			Spec: *newMachineSpec(&specTemplate.Spec, i),
 		}
 
 		if statusTemplate != nil {
@@ -152,6 +180,38 @@ func newMachines(machineCount int, specTemplate *v1alpha1.MachineTemplateSpec, s
 		machines[i] = m
 	}
 	return machines
+}
+
+func nodeNodes(
+	nodeCount int,
+	nodeSpec *corev1.NodeSpec,
+	nodeStatus *corev1.NodeStatus,
+) *corev1.Node {
+	return newNodes(1, nodeSpec, nodeStatus)[0]
+}
+
+func newNodes(
+	nodeCount int,
+	nodeSpec *corev1.NodeSpec,
+	nodeStatus *corev1.NodeStatus,
+) []*corev1.Node {
+
+	nodes := make([]*corev1.Node, nodeCount)
+	for i := range nodes {
+		node := &corev1.Node{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Node",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: fmt.Sprintf("node-%d", i),
+			},
+			Spec: *nodeSpec.DeepCopy(),
+		}
+
+		nodes[i] = node
+	}
+	return nodes
 }
 
 func boolPtr(b bool) *bool {
@@ -217,7 +277,11 @@ func newSecretReference(meta *metav1.ObjectMeta, index int) *corev1.SecretRefere
 	return r
 }
 
-func createController(stop <-chan struct{}, namespace string, controlMachineObjects, controlCoreObjects, targetCoreObjects []runtime.Object) (*controller, *customfake.FakeObjectTrackers) {
+func createController(
+	stop <-chan struct{},
+	namespace string,
+	controlMachineObjects, controlCoreObjects, targetCoreObjects []runtime.Object,
+) (*controller, *customfake.FakeObjectTrackers) {
 
 	fakeControlMachineClient, controlMachineObjectTracker := customfake.NewMachineClientSet(controlMachineObjects...)
 	fakeTypedMachineClient := &faketyped.FakeMachineV1alpha1{
