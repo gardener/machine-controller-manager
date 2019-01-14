@@ -35,7 +35,7 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 )
 
-const machinenamespace = "test"
+const testNamespace = "test"
 
 var _ = Describe("machine", func() {
 	var (
@@ -60,7 +60,7 @@ var _ = Describe("machine", func() {
 			machine = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "machine-1",
-					Namespace: machinenamespace,
+					Namespace: testNamespace,
 				},
 			}
 			lastOperation = machinev1.LastOperation{
@@ -141,7 +141,7 @@ var _ = Describe("machine", func() {
 		testMachine := machinev1.Machine{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "testmachine",
-				Namespace: machinenamespace,
+				Namespace: testNamespace,
 			},
 			Status: machinev1.MachineStatus{
 				Conditions: []corev1.NodeCondition{},
@@ -216,13 +216,13 @@ var _ = Describe("machine", func() {
 				defer close(stop)
 
 				objects := []runtime.Object{}
-				c, trackers := createController(stop, namespace, objects, nil, nil)
+				c, trackers := createController(stop, testNamespace, objects, nil, nil)
 				defer trackers.Stop()
 
 				testMachine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "testmachine",
-						Namespace: machinenamespace,
+						Namespace: testNamespace,
 					},
 					Status: machinev1.MachineStatus{
 						CurrentStatus: machinev1.CurrentStatus{
@@ -243,7 +243,7 @@ var _ = Describe("machine", func() {
 				testMachine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "testmachine",
-						Namespace: machinenamespace,
+						Namespace: testNamespace,
 					},
 					Status: machinev1.MachineStatus{
 						CurrentStatus: machinev1.CurrentStatus{
@@ -254,7 +254,7 @@ var _ = Describe("machine", func() {
 				objects := []runtime.Object{}
 				objects = append(objects, testMachine)
 
-				c, trackers := createController(stop, namespace, objects, nil, nil)
+				c, trackers := createController(stop, testNamespace, objects, nil, nil)
 				defer trackers.Stop()
 
 				var updatedMachine, err = c.updateMachineConditions(testMachine, conditions)
@@ -325,7 +325,7 @@ var _ = Describe("machine", func() {
 
 		objMeta := &metav1.ObjectMeta{
 			GenerateName: "class",
-			Namespace:    namespace,
+			Namespace:    testNamespace,
 		}
 
 		DescribeTable("##table",

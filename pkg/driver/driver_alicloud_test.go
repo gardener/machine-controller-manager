@@ -10,9 +10,9 @@ func TestTagsOrdered(t *testing.T) {
 	tags := map[string]string{
 		"kubernetes.io/cluster/ali-test": "1",
 		"kubernetes.io/role/worker":      "1",
-		"taga": "tagvala",
-		"tagb": "tagvalb",
-		"tagc": "tagvalc",
+		"taga":                           "tagvala",
+		"tagb":                           "tagvalb",
+		"tagc":                           "tagvalc",
 	}
 	c := &AlicloudDriver{}
 	res, err := c.toInstanceTags(tags)
@@ -48,9 +48,9 @@ func TestTagsOrdered(t *testing.T) {
 func TestNoClusterTags(t *testing.T) {
 	tags := map[string]string{
 		"kubernetes.io/role/worker": "1",
-		"taga": "tagvala",
-		"tagb": "tagvalb",
-		"tagc": "tagvalc",
+		"taga":                      "tagvala",
+		"tagb":                      "tagvalb",
+		"tagc":                      "tagvalc",
 	}
 	c := &AlicloudDriver{}
 	_, err := c.toInstanceTags(tags)
@@ -60,11 +60,11 @@ func TestNoClusterTags(t *testing.T) {
 }
 func TestRandomOrderTags(t *testing.T) {
 	tags := map[string]string{
-		"taga": "tagvala",
-		"tagb": "tagvalb",
+		"taga":                           "tagvala",
+		"tagb":                           "tagvalb",
 		"kubernetes.io/cluster/ali-test": "1",
 		"kubernetes.io/role/worker":      "1",
-		"tagc": "tagvalc",
+		"tagc":                           "tagvalc",
 	}
 	c := &AlicloudDriver{}
 	res, err := c.toInstanceTags(tags)
