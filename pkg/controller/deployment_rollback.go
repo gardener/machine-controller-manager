@@ -62,9 +62,16 @@ func (dc *controller) rollback(d *v1alpha1.MachineDeployment, isList []*v1alpha1
 			glog.V(4).Infof("Found machine set %q with desired revision %d", is.Name, v)
 
 			// Remove PreferNoSchedule taints from nodes which were backing the machineSet
-			err = dc.removeTaintNodesBackingMachineSets(is)
+			err = dc.removeTaintNodesBackingMachineSet(
+				is,
+				&v1.Taint{
+					Key:    PreferNoScheduleKey,
+					Value:  "True",
+					Effect: "PreferNoSchedule",
+				},
+			)
 			if err != nil {
-				glog.Warningf("Failed to remove taints %s off nodes. Error: %s", PreferNoSchedule, err)
+				glog.Warningf("Failed to remove taints %s off nodes. Error: %s", PreferNoScheduleKey, err)
 			}
 
 			// rollback by copying podTemplate.Spec from the machine set
@@ -130,16 +137,16 @@ func (dc *controller) updateMachineDeploymentAndClearRollbackTo(d *v1alpha1.Mach
 	return err
 }
 
-// removeTaintNodesBackingMachineSets removes taints from all nodes backing the machineSets
-func (dc *controller) removeTaintNodesBackingMachineSets(machineSet *v1alpha1.MachineSet) error {
+// removeTaintNodesBackingMachineSet removes taints from all nodes backing the machineSets
+func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.MachineSet, taint *v1.Taint) error {
 
-	if machineSet.Annotations[PreferNoSchedule] == "" {
+	if _, exists := machineSet.Annotations[taint.Key]; !exists {
 		// No taint exists
-		glog.Warningf("No taint exits on machineSet: %s. Hence not removing.", machineSet.Name)
+		glog.Warningf("No taint exists on machineSet: %s. Hence not removing.", machineSet.Name)
 		return nil
 	}
 
-	glog.V(2).Infof("Trying to untaint MachineSet object %q with %s to enable scheduling of pods", machineSet.Name, PreferNoSchedule)
+	glog.V(2).Infof("Trying to untaint MachineSet object %q with %s to enable scheduling of pods", machineSet.Name, taint.Key)
 	selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
 	if err != nil {
 		return err
@@ -159,12 +166,6 @@ func (dc *controller) removeTaintNodesBackingMachineSets(machineSet *v1alpha1.Ma
 		return err
 	}
 
-	taints := v1.Taint{
-		Key:    PreferNoSchedule,
-		Value:  "True",
-		Effect: "PreferNoSchedule",
-	}
-
 	// Iterate through all machines and remove the PreferNoSchedule taint
 	// to avoid scheduling on older machines
 	for _, machine := range filteredMachines {
@@ -179,7 +180,7 @@ func (dc *controller) removeTaintNodesBackingMachineSets(machineSet *v1alpha1.Ma
 				dc.targetCoreClient,
 				machine.Status.Node,
 				node,
-				&taints,
+				taint,
 			)
 			if err != nil {
 				glog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Status.Node, err)
@@ -202,7 +203,7 @@ func (dc *controller) removeTaintNodesBackingMachineSets(machineSet *v1alpha1.Ma
 		}
 
 		msCopy := machineSet.DeepCopy()
-		delete(msCopy.Annotations, PreferNoSchedule)
+		delete(msCopy.Annotations, taint.Key)
 
 		machineSet, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(msCopy)
 
@@ -219,7 +220,7 @@ func (dc *controller) removeTaintNodesBackingMachineSets(machineSet *v1alpha1.Ma
 		// Break out of loop when update succeeds
 		break
 	}
-	glog.V(2).Infof("Removed taint %s from MachineSet object %q", PreferNoSchedule, machineSet.Name)
+	glog.V(2).Infof("Removed taint %s from MachineSet object %q", taint.Key, machineSet.Name)
 
 	return nil
 }

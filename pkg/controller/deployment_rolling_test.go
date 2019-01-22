@@ -21,6 +21,7 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -91,8 +92,14 @@ var _ = Describe("deployment_rolling", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, controller)
 
-				err := controller.taintNodesBackingMachineSets(data.action)
-
+				err := controller.taintNodesBackingMachineSets(
+					data.action,
+					&v1.Taint{
+						Key:    PreferNoScheduleKey,
+						Value:  "True",
+						Effect: "PreferNoSchedule",
+					},
+				)
 				if !data.expect.err {
 					Expect(err).To(BeNil())
 				} else {
@@ -164,7 +171,7 @@ var _ = Describe("deployment_rolling", func() {
 						nil,
 						nil,
 						map[string]string{
-							PreferNoSchedule: "True",
+							PreferNoScheduleKey: "True",
 						},
 					),
 					nodes: newNodes(
@@ -172,7 +179,7 @@ var _ = Describe("deployment_rolling", func() {
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{
 								corev1.Taint{
-									Key:    PreferNoSchedule,
+									Key:    PreferNoScheduleKey,
 									Value:  "True",
 									Effect: "PreferNoSchedule",
 								},
