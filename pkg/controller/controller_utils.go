@@ -881,7 +881,9 @@ func RemoveTaintOffNode(c clientset.Interface, nodeName string, node *v1.Node, t
 	})
 }
 
-// PatchNodeTaints patches node's taints.
+// PatchNodeTaints is for updating the node taints from oldNode to the newNode
+// It makes a TwoWayMergePatch by comparing the two objects
+// It calls the Patch() method to do the final patch
 func PatchNodeTaints(c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
 	oldData, err := json.Marshal(oldNode)
 	if err != nil {
@@ -905,13 +907,18 @@ func PatchNodeTaints(c clientset.Interface, nodeName string, oldNode *v1.Node, n
 	return err
 }
 
-// UpdateNodeTaints updates node's taints.
+// UpdateNodeTaints is for updating the node taints from oldNode to the newNode
+// using the nodes Update() method
 func UpdateNodeTaints(c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
 	newNodeClone := oldNode.DeepCopy()
 	newNodeClone.Spec.Taints = newNode.Spec.Taints
 
 	_, err := c.Core().Nodes().Update(newNodeClone)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to create update taints for node %q: %v", nodeName, err)
+	}
+
+	return nil
 }
 
 // WaitForCacheSync is a wrapper around cache.WaitForCacheSync that generates log messages
