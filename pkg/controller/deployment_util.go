@@ -106,9 +106,9 @@ const (
 	// is deployment.spec.replicas + maxSurge. Used by the underlying machine sets to estimate their
 	// proportions in case the deployment has surge replicas.
 	MaxReplicasAnnotation = "deployment.kubernetes.io/max-replicas"
-	// PreferNoSchedule is used to identify machineSet nodes on which PreferNoSchedule taint is added on
+	// PreferNoScheduleKey is used to identify machineSet nodes on which PreferNoSchedule taint is added on
 	// older machineSets during a rolling update
-	PreferNoSchedule = "deployment.machine.sapcloud.io/prefer-no-schedule"
+	PreferNoScheduleKey = "deployment.machine.sapcloud.io/prefer-no-schedule"
 
 	// RollbackRevisionNotFound is not found rollback event reason
 	RollbackRevisionNotFound = "DeploymentRollbackRevisionNotFound"
@@ -347,7 +347,7 @@ var annotationsToSkip = map[string]bool{
 	DesiredReplicasAnnotation:      true,
 	MaxReplicasAnnotation:          true,
 	LastReplicaUpdate:              true,
-	PreferNoSchedule:               true,
+	PreferNoScheduleKey:            true,
 }
 
 // skipCopyAnnotation returns true if we should skip copying the annotation with the given annotation key

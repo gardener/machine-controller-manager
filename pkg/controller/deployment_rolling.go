@@ -50,9 +50,15 @@ func (dc *controller) rolloutRolling(d *v1alpha1.MachineDeployment, isList []*v1
 	}
 	allISs := append(oldISs, newIS)
 
-	err = dc.taintNodesBackingMachineSets(oldISs)
+	err = dc.taintNodesBackingMachineSets(
+		oldISs, &v1.Taint{
+			Key:    PreferNoScheduleKey,
+			Value:  "True",
+			Effect: "PreferNoSchedule",
+		},
+	)
 	if err != nil {
-		glog.Warningf("Failed to add %s on all nodes. Error: %s", PreferNoSchedule, err)
+		glog.Warningf("Failed to add %s on all nodes. Error: %s", PreferNoScheduleKey, err)
 	}
 
 	// Scale up, if we can.
@@ -253,15 +259,16 @@ func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(allISs []*v1alpha1
 }
 
 // taintNodesBackingMachineSets taints all nodes backing the machineSets
-func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.MachineSet) error {
+func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.MachineSet, taint *v1.Taint) error {
 
 	for _, machineSet := range MachineSets {
 
-		if machineSet.Annotations[PreferNoSchedule] != "" {
+		if _, exists := machineSet.Annotations[taint.Key]; exists {
+			// Taint exists, hence just continue
 			continue
 		}
 
-		glog.V(3).Infof("Trying to taint MachineSet object %q with %s to avoid scheduling of pods", machineSet.Name, PreferNoSchedule)
+		glog.V(3).Infof("Trying to taint MachineSet object %q with %s to avoid scheduling of pods", machineSet.Name, taint.Key)
 		selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
 		if err != nil {
 			return err
@@ -281,12 +288,6 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 			return err
 		}
 
-		taints := v1.Taint{
-			Key:    PreferNoSchedule,
-			Value:  "True",
-			Effect: "PreferNoSchedule",
-		}
-
 		// Iterate through all machines and place the PreferNoSchedule taint
 		// to avoid scheduling on older machines
 		for _, machine := range filteredMachines {
@@ -294,7 +295,7 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 				err = AddOrUpdateTaintOnNode(
 					dc.targetCoreClient,
 					machine.Status.Node,
-					&taints,
+					taint,
 				)
 				if err != nil {
 					glog.Warningf("Node tainting failed for node: %s, %s", machine.Status.Node, err)
@@ -319,7 +320,7 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 			if msCopy.Annotations == nil {
 				msCopy.Annotations = make(map[string]string, 0)
 			}
-			msCopy.Annotations[PreferNoSchedule] = "True"
+			msCopy.Annotations[taint.Key] = "True"
 
 			_, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(msCopy)
 			if err != nil && time.Now().Before(retryDeadline) {
@@ -335,7 +336,7 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 			// Break out of loop when update succeeds
 			break
 		}
-		glog.V(2).Infof("Tainted MachineSet object %q with %s to avoid scheduling of pods", machineSet.Name, PreferNoSchedule)
+		glog.V(2).Infof("Tainted MachineSet object %q with %s to avoid scheduling of pods", machineSet.Name, taint.Key)
 	}
 
 	return nil
