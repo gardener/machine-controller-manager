@@ -19,9 +19,9 @@ Steps to be followed while implementing a new (hyperscale) provider are mentione
     ```bash
     cd machine-controller-manager-provider-{provider-name}
     ```
-1. Rename github project from `gardener` to `{github-project/your-github-username}` where ever you have forked the repository above. Use the hack script given below to do the same.
+1. Rename github project from `gardener` to `{github-org}` or `{your-github-username}` where ever you have forked the repository above. Use the hack script given below to do the same.
     ```bash
-    make rename-project PROJECT_NAME={github-project/your-github-username}
+    make rename-project PROJECT_NAME={github-org/your-github-username}
     eg:
         make rename-project PROJECT_NAME=gardener (or)
         make rename-project PROJECT_NAME=githubusername
