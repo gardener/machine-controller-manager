@@ -440,7 +440,8 @@ func (c *controller) checkMachineClass(
 
 	listOfVMs, err := dvr.ListMachines()
 	if err != nil {
-		glog.Warningf("Failed to list VMs at provider. Err - %s", err)
+		glog.Warningf("Orphan VM handler is not running. Failed to list VMs at provider. Err - %s", err)
+		return
 	}
 
 	// Making sure that its not a VM just being created, machine object not yet updated at API server

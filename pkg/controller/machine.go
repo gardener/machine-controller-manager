@@ -23,7 +23,10 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/grpc/codes"
+
 	"github.com/golang/glog"
+	"google.golang.org/grpc/status"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -484,32 +487,27 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMID
 					c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
 
 					// Machine still tries to terminate after drain failure
-					glog.Warningf("Drain failed for machine %s - \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+					glog.Warningf("Drain failed for machine %q - \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
 					return err
 				}
-				glog.V(2).Infof("Drain successful for machine %s - %v %v", machine.Name, buf, errBuf)
+				glog.V(2).Infof("Drain successful for machine %q", machine.Name)
 			}
 
-			// Check for existance of machine
-			exists, err := driver.GetMachine(machineID)
-			if err != nil {
-				// If error occurred while fetching machine status
-				return err
-			} else if !exists {
-				// If VM was not found
-				glog.V(2).Info("Couldn't find VM")
-			} else {
+			// Check for existance of machine at cloud provider
+			_, err := driver.GetMachine(machineID)
+			if err == nil || status.Code(err) == codes.Unimplemented {
+				// Either there is no err
+				// or the GetMachine is not implemented
+				// then continue
+
 				err = driver.ShutDownMachine(machineID)
-				if err != nil {
-					return err
-				}
-
-				err = driver.DeleteMachine(machineID)
-				if err != nil {
-					return err
+				if err == nil || status.Code(err) == codes.Unimplemented {
+					// Either there is no err
+					// or the ShutDownMachine is not implemented
+					// then continue
+					err = driver.DeleteMachine(machineID)
 				}
 			}
-
 		}
 
 		if err != nil {
