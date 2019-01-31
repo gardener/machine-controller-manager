@@ -46,10 +46,13 @@ Steps to be followed while implementing a new (hyperscale) provider are mentione
     ```bash
     vim pkg/{provider-name}/apis/provider-spec.go
     ```
-1. Fill in the create/list/delete methods `pkg/{provider-name}/machineserver.go` to create/list/delete VMs on your cloud provider. A sample provider implementation for these methods can be found [here](https://github.com/prashanth26/machine-controller-manager-provider-gcp/blob/master/pkg/gcp/machineserver.go).
+1. Fill in the create/get/delete/list/shutdown methods `pkg/{provider-name}/machineserver.go` to create/list/delete VMs on your cloud provider. A sample provider implementation for these methods can be found [here](https://github.com/prashanth26/machine-controller-manager-provider-gcp/blob/master/pkg/gcp/machineserver.go).
     ```bash
     vim pkg/{provider-name}/machineserver.go
     ```
+1. Fill in the validate method
+1. Fill in utils method
+1. Update driver docs to show machine class object
 1. Re-generate the vendors, to update any new vendors imported.
     ```bash
     make revendor
@@ -60,11 +63,11 @@ Steps to be followed while implementing a new (hyperscale) provider are mentione
 Make sure `$KUBECONFIG` points to the cluster where you wish to manage machines. `$NAMESPACE` represents the namespaces where MCM is looking for machine objects.
 
 1. Run the provider driver
-```bash
+    ```bash
    go run app/controller/main.go --endpoint=tcp://127.0.0.1:8080
-```
+    ```
 1. Run the machine-controller-manager in the `cmi-client` branch
-```bash
+    ```bash
    go run cmd/machine-controller-manager/controller_manager.go --control-kubeconfig=$KUBECONFIG --target-kubeconfig=$KUBECONFIG --namespace=$NAMESPACE
-```
+    ```
 1. Create machineClass, secrets, machines and machinedeployment

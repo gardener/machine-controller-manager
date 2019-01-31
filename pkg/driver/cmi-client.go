@@ -37,7 +37,8 @@ type cmiClient interface {
 	ListMachines(ctx context.Context) (string, error)
 }
 
-type CmiDriverClient struct {
+// CMIDriverClient is the interface used to create a generic driver to make gRPC calls
+type CMIDriverClient struct {
 	DriverName           string
 	MachineClientCreator machineClientCreator
 	MachineClass         *v1alpha1.MachineClass
@@ -53,6 +54,7 @@ type machineClientCreator func(driverName string) (
 	err error,
 )
 
+// VMs contains the map from Machine-ID to Machine-Name
 type VMs map[string]string
 
 func newMachineClient(driverName string) (machineClient cmipb.MachineClient, closer io.Closer, err error) {
@@ -66,9 +68,9 @@ func newMachineClient(driverName string) (machineClient cmipb.MachineClient, clo
 	return machineClient, conn, nil
 }
 
-// NewCmiDriverClient
-func NewCmiDriverClient(machineID string, driverName string, secret *corev1.Secret, machineClass interface{}, machineName string) *CmiDriverClient {
-	c := &CmiDriverClient{
+// NewCMIDriverClient returns a new cmi client
+func NewCMIDriverClient(machineID string, driverName string, secret *corev1.Secret, machineClass interface{}, machineName string) *CMIDriverClient {
+	c := &CMIDriverClient{
 		DriverName:           driverName,
 		MachineClientCreator: newMachineClient,
 		MachineClass:         machineClass.(*v1alpha1.MachineClass),
@@ -81,8 +83,8 @@ func NewCmiDriverClient(machineID string, driverName string, secret *corev1.Secr
 }
 
 // CreateMachine makes a gRPC call to the driver to create the machine.
-func (c *CmiDriverClient) CreateMachine() (string, string, error) {
-	glog.V(2).Info("Calling CreateMachine rpc", c.MachineName)
+func (c *CMIDriverClient) CreateMachine() (string, string, error) {
+	glog.V(2).Infof("Calling CreateMachine rpc for %q", c.MachineName)
 
 	machineClient, closer, err := c.MachineClientCreator(c.DriverName)
 	if err != nil {
@@ -107,7 +109,7 @@ func (c *CmiDriverClient) CreateMachine() (string, string, error) {
 }
 
 // DeleteMachine make a grpc call to the driver to delete the machine.
-func (c *CmiDriverClient) DeleteMachine() error {
+func (c *CMIDriverClient) DeleteMachine(MachineID string) error {
 	glog.V(4).Info("Calling DeleteMachine rpc", c.MachineName)
 
 	machineClient, closer, err := c.MachineClientCreator(c.DriverName)
@@ -117,13 +119,12 @@ func (c *CmiDriverClient) DeleteMachine() error {
 	defer closer.Close()
 
 	req := &cmipb.DeleteMachineRequest{
-		MachineID:    c.MachineID,
-		Secrets:      c.Secret.Data,
-		ProviderSpec: c.MachineClass.ProviderSpec.Raw,
+		MachineID: c.MachineID,
+		Secrets:   c.Secret.Data,
 	}
 	ctx := context.Background()
-	resp, err := machineClient.DeleteMachine(ctx, req)
-	if err != nil || resp.Error != "" {
+	_, err = machineClient.DeleteMachine(ctx, req)
+	if err != nil {
 		glog.Error("Delete machine rpc failed")
 		return err
 	}
@@ -132,7 +133,32 @@ func (c *CmiDriverClient) DeleteMachine() error {
 	return err
 }
 
-func (c *CmiDriverClient) ListMachines(MachineID string) (map[string]string, error) {
+// GetMachine makes a gRPC call to the driver to check existance of machine
+func (c *CMIDriverClient) GetMachine(MachineID string) (bool, error) {
+	glog.V(2).Infof("Calling GetMachine rpc for %q", c.MachineName)
+
+	machineClient, closer, err := c.MachineClientCreator(c.DriverName)
+	if err != nil {
+		return false, err
+	}
+	defer closer.Close()
+
+	req := &cmipb.GetMachineRequest{
+		MachineID: c.MachineID,
+		Secrets:   c.Secret.Data,
+	}
+	ctx := context.Background()
+	_, err = machineClient.GetMachine(ctx, req)
+	if err != nil {
+		return false, err
+	}
+
+	glog.V(2).Info("Get call successful for ", c.MachineName)
+	return true, nil
+}
+
+// ListMachines have to list machines
+func (c *CMIDriverClient) ListMachines() (map[string]string, error) {
 	glog.V(2).Info("Calling ListMachine rpc")
 
 	machineClient, closer, err := c.MachineClientCreator(c.DriverName)
@@ -142,7 +168,6 @@ func (c *CmiDriverClient) ListMachines(MachineID string) (map[string]string, err
 	defer closer.Close()
 
 	req := &cmipb.ListMachinesRequest{
-		MachineID:    MachineID,
 		Secrets:      c.Secret.Data,
 		ProviderSpec: c.MachineClass.ProviderSpec.Raw,
 	}
@@ -150,21 +175,35 @@ func (c *CmiDriverClient) ListMachines(MachineID string) (map[string]string, err
 
 	resp, err := machineClient.ListMachines(ctx, req)
 	if err != nil {
-		glog.Error("List machine rpc failed", err, resp)
 		return nil, err
 	}
 
 	return resp.MachineList, err
 }
 
-func (c *CmiDriverClient) GetVMs(machineID string) (map[string]string, error) {
-	glog.V(4).Info("Calling GetVMs rpc")
-	return c.ListMachines(machineID)
-}
+// ShutDownMachine implements shutdownmachine
+func (c *CMIDriverClient) ShutDownMachine(MachineID string) error {
+	glog.V(2).Infof("Calling ShutDownMachine rpc for %q", c.MachineName)
 
-func (c *CmiDriverClient) GetExisting() (string, error) {
-	glog.V(4).Info("Calling GetExisting rpc")
-	return c.MachineID, nil
+	machineClient, closer, err := c.MachineClientCreator(c.DriverName)
+	if err != nil {
+		return err
+	}
+	defer closer.Close()
+
+	req := &cmipb.ShutDownMachineRequest{
+		MachineID: MachineID,
+		Secrets:   c.Secret.Data,
+	}
+
+	ctx := context.Background()
+	_, err = machineClient.ShutDownMachine(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	glog.V(2).Infof("ShutDownMachine successful for %q", c.MachineName)
+	return nil
 }
 
 func newGrpcConn(driverName string) (*grpc.ClientConn, error) {

@@ -430,7 +430,7 @@ func (c *controller) checkMachineClass(
 	}
 
 	// Dummy driver object being created to invoke GetVMs
-	dvr := driver.NewCmiDriverClient(
+	dvr := driver.NewCMIDriverClient(
 		"",
 		classKind,
 		secret,
@@ -438,7 +438,7 @@ func (c *controller) checkMachineClass(
 		"",
 	)
 
-	listOfVMs, err := dvr.GetVMs("")
+	listOfVMs, err := dvr.ListMachines()
 	if err != nil {
 		glog.Warningf("Failed to list VMs at provider. Err - %s", err)
 	}
@@ -469,16 +469,14 @@ func (c *controller) checkMachineClass(
 
 			// Re-check VM object existence
 			// before deleting orphan VM
-			result, _ := dvr.GetVMs(machineID)
-			for reMachineID := range result {
-				if reMachineID == machineID {
-					// Get latest version of machine object and verfiy again
-					machine, err := c.controlMachineClient.Machines(c.namespace).Get(machineName, metav1.GetOptions{})
-					if (err != nil && apierrors.IsNotFound(err)) || machine.Spec.ProviderID != machineID {
-						vm := make(map[string]string)
-						vm[machineID] = machineName
-						c.deleteOrphanVM(vm, secret, classKind, machineClass)
-					}
+			exists, _ := dvr.GetMachine(machineID)
+			if exists {
+				// Get latest version of machine object and verfiy again
+				machine, err := c.controlMachineClient.Machines(c.namespace).Get(machineName, metav1.GetOptions{})
+				if (err != nil && apierrors.IsNotFound(err)) || machine.Spec.ProviderID != machineID {
+					vm := make(map[string]string)
+					vm[machineID] = machineName
+					c.deleteOrphanVM(vm, secret, classKind, machineClass)
 				}
 			}
 
@@ -559,7 +557,7 @@ func (c *controller) deleteOrphanVM(vm driver.VMs, secretRef *corev1.Secret, kin
 		machineName = v
 	}
 
-	dvr := driver.NewCmiDriverClient(
+	dvr := driver.NewCMIDriverClient(
 		machineID,
 		kind,
 		secretRef,
@@ -567,7 +565,7 @@ func (c *controller) deleteOrphanVM(vm driver.VMs, secretRef *corev1.Secret, kin
 		machineName,
 	)
 
-	err := dvr.DeleteMachine()
+	err := dvr.DeleteMachine(machineID)
 	if err != nil {
 		glog.Errorf("Error while deleting VM on CP - %s. Shall retry in next safety controller sync.", err)
 	} else {
