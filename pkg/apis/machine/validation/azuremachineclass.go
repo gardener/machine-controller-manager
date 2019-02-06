@@ -121,7 +121,7 @@ func validateAzureProperties(properties machine.AzureVirtualMachineProperties, f
 	}
 
 	if properties.OsProfile.AdminUsername == "" {
-		allErrs = append(allErrs, field.Required(fldPath.Child("osProfile.adminUserName"), "AdminUsername is required"))
+		allErrs = append(allErrs, field.Required(fldPath.Child("osProfile.adminUsername"), "AdminUsername is required"))
 	}
 
 	/*
