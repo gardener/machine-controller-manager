@@ -65,7 +65,8 @@ Steps to be followed while implementing a new (hyperscale) provider are mentione
     ```bash
     make revendor
     ```
-1. Update `README.md` to reflect any documentation changes
+1. Update the sample YAML files on `kubernetes/` directory to provide sample files through which the working of the cmi-server can be tested.
+1. Update `README.md` to reflect any additional changes
 
 ### Testing your code changes
 
