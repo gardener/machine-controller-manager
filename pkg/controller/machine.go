@@ -145,7 +145,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	//driver := driver.NewDriver(machine.Spec.ProviderID, secretRef, machine.Spec.Class.Kind, //MachineClass, machine.Name)
 
 	// TODO: Make cloud-provider configurable via machine.spec.provider or machineclass.provider
-	driver := driver.NewCmiDriverClient(machine.Spec.ProviderID, "AWS", secretRef, MachineClass, machine.Name)
+	driver := driver.NewCMIDriverClient(machine.Spec.ProviderID, "AWS", secretRef, MachineClass, machine.Name)
 
 	actualProviderID, err := machine.Spec.ProviderID, nil
 	if err != nil {
@@ -339,7 +339,7 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 	Machine operations - Create, Update, Delete
 */
 
-func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.CmiDriverClient) error {
+func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.CMIDriverClient) error {
 	glog.V(2).Infof("Creating machine %s, please wait!", machine.Name)
 
 	actualProviderID, nodeName, err := driver.CreateMachine()
@@ -453,16 +453,18 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 	return nil
 }
 
-func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CmiDriverClient) error {
+func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMIDriverClient) error {
 	var err error
 	nodeName := machine.Status.Node
 
+	// If Finalizers are present
 	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		glog.V(2).Infof("Deleting Machine %q", machine.Name)
 
-		// If machine was created on the cloud provider
-		machineID, _ := driver.GetExisting()
+		// Getting the machine-ID on the cloud provider
+		machineID := driver.MachineID
 
+		// If machine status has not been set to terminating
 		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating {
 			lastOperation := v1alpha1.LastOperation{
 				Description:    "Deleting machine from cloud provider",
@@ -487,6 +489,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CmiD
 			}
 		}
 
+		// If machine is created on the cloud provider
 		if machineID != "" {
 			var (
 				forceDeletePods         = false
@@ -564,7 +567,6 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CmiD
 				glog.Warningf("Drain failed for machine %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
 				return err
 			}
-			err = driver.DeleteMachine()
 		}
 
 		if err != nil {
