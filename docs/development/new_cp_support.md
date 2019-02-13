@@ -22,7 +22,7 @@ Steps to be followed while implementing a new (hyperscale) provider are mentione
     ```bash
     mv machine-controller-manager-provider-sampleprovider machine-controller-manager-provider-{provider-name}
     ```
-1. Navigate into the newly directory.
+1. Navigate into the newly created directory.
     ```bash
     cd machine-controller-manager-provider-{provider-name}
     ```
@@ -55,9 +55,9 @@ Steps to be followed while implementing a new (hyperscale) provider are mentione
 
 1. Update the `pkg/{provider-name}/apis/provider-spec.go` specification file to reflect the structure of the objects exchanged between the machine-controller-manager (AKA cmi-client) and the driver (AKA cmi-server). It typically contains the machine details and secrets (if required). Follow the sample spec provided already in the file. A sample provider specification can be found [here](https://github.com/prashanth26/machine-controller-manager-provider-gcp/blob/master/pkg/gcp/apis/provider-spec.go).
 1. Fill in the methods described at `pkg/{provider-name}/machineserver.go` to manage VMs on your cloud provider.
-    - To test the basic working of your driver, implementing just the create & delete would suffice.
+    - Fill in the required methods CREATE/GET/DELETE and LIST methods.
     - The request and response parameters for each of the methods to be implemented are well documented as comments and sample codes at `pkg/{provider-name}/machineserver.go`.
-    - Once, create and delete methods behave as expected, you can fill in the rest of the methods.
+    - Optional methods like SHUTDOWN are optional as implicit, however we strongly recommend you to implement them as well.
     - A sample provider implementation for these methods can be found [here](https://github.com/prashanth26/machine-controller-manager-provider-gcp/blob/master/pkg/gcp/machineserver.go).
 1. Perform validation of APIs that you have described and make it a part of your methods as required.
 1. Write unit tests to make it work with your implementation by running `make test`.
