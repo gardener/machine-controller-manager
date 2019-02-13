@@ -1,0 +1,33 @@
+apiVersion: machine.sapcloud.io/v1alpha1
+kind: AWSMachineClass
+metadata:
+  creationTimestamp: 2019-02-12T11:33:01Z
+  finalizers:
+  - machine.sapcloud.io/machine-controller-manager
+  generation: 1
+  name: awsmachineclass
+  namespace: migration
+  resourceVersion: "15926400"
+  selfLink: /apis/machine.sapcloud.io/v1alpha1/namespaces/migration/awsmachineclasses/awsmachineclass
+  uid: f4392698-2eb9-11e9-915d-020647f09a37
+spec:
+  ami: ami-01234567
+  blockDevices:
+  - ebs:
+      volumeSize: 50
+      volumeType: gp2
+  iam:
+    name: shoot--demo-proj--grpc-test-nodes
+  keyName: shoot--demo-proj--grpc-test-ssh-publickey
+  machineType: m4.large
+  networkInterfaces:
+  - securityGroupIDs:
+    - sg-12345612345567
+    subnetID: subnet-123456123456
+  region: eu-west-1
+  secretRef:
+    name: grpc-secret
+    namespace: migration
+  tags:
+    kubernetes.io/cluster/shoot--demo-proj--grpc-test: "1"
+    kubernetes.io/role/mcmtest: "1"

@@ -1,0 +1,149 @@
+apiVersion: v1
+items:
+- apiVersion: machine.sapcloud.io/v1alpha1
+  kind: Machine
+  metadata:
+    annotations:
+      machinepriority.machine.sapcloud.io: "3"
+    creationTimestamp: 2019-02-13T05:22:06Z
+    finalizers:
+    - machine.sapcloud.io/machine-controller-manager
+    generateName: machine-deployment-old-86df5ddd9c-
+    generation: 1
+    labels:
+      machine-template-hash: "4289188857"
+      name: machine-deployment-old
+    name: machine-deployment-old-86df5ddd9c-2j869
+    namespace: migration
+    ownerReferences:
+    - apiVersion: machine.sapcloud.io/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: MachineSet
+      name: machine-deployment-old-86df5ddd9c
+      uid: 4cf96350-2f4f-11e9-a316-22e101db01c7
+    resourceVersion: "16093095"
+    selfLink: /apis/machine.sapcloud.io/v1alpha1/namespaces/migration/machines/machine-deployment-old-86df5ddd9c-2j869
+    uid: 4dd6973d-2f4f-11e9-a316-22e101db01c7
+  spec:
+    class:
+      kind: AWSMachineClass
+      name: awsmachineclass
+    providerID: aws:///eu-west-1/i-12345
+  status:
+    conditions:
+    - lastHeartbeatTime: 2019-02-13T05:24:03Z
+      lastTransitionTime: 2019-02-13T05:23:42Z
+      message: kubelet has sufficient disk space available
+      reason: KubeletHasSufficientDisk
+      status: "False"
+      type: OutOfDisk
+    - lastHeartbeatTime: 2019-02-13T05:24:03Z
+      lastTransitionTime: 2019-02-13T05:23:42Z
+      message: kubelet has sufficient memory available
+      reason: KubeletHasSufficientMemory
+      status: "False"
+      type: MemoryPressure
+    - lastHeartbeatTime: 2019-02-13T05:24:03Z
+      lastTransitionTime: 2019-02-13T05:23:42Z
+      message: kubelet has no disk pressure
+      reason: KubeletHasNoDiskPressure
+      status: "False"
+      type: DiskPressure
+    - lastHeartbeatTime: 2019-02-13T05:24:03Z
+      lastTransitionTime: 2019-02-13T05:23:42Z
+      message: kubelet has sufficient PID available
+      reason: KubeletHasSufficientPID
+      status: "False"
+      type: PIDPressure
+    - lastHeartbeatTime: 2019-02-13T05:24:03Z
+      lastTransitionTime: 2019-02-13T05:24:03Z
+      message: kubelet is posting ready status
+      reason: KubeletReady
+      status: "True"
+      type: Ready
+    currentStatus:
+      lastUpdateTime: 2019-02-13T05:24:10Z
+      phase: Running
+    lastOperation:
+      description: Machine machine-deployment-old-86df5ddd9c-2j869 successfully joined
+        the cluster
+      lastUpdateTime: 2019-02-13T05:24:10Z
+      state: Successful
+      type: Create
+    node: ip-10-ABC-13-XYZ.eu-west-1.compute.internal
+- apiVersion: machine.sapcloud.io/v1alpha1
+  kind: Machine
+  metadata:
+    annotations:
+      machinepriority.machine.sapcloud.io: "3"
+    creationTimestamp: 2019-02-13T05:22:06Z
+    finalizers:
+    - machine.sapcloud.io/machine-controller-manager
+    generateName: machine-deployment-old-86df5ddd9c-
+    generation: 1
+    labels:
+      machine-template-hash: "4289188857"
+      name: machine-deployment-old
+    name: machine-deployment-old-86df5ddd9c-9p72f
+    namespace: migration
+    ownerReferences:
+    - apiVersion: machine.sapcloud.io/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: MachineSet
+      name: machine-deployment-old-86df5ddd9c
+      uid: 4cf96350-2f4f-11e9-a316-22e101db01c7
+    resourceVersion: "16093098"
+    selfLink: /apis/machine.sapcloud.io/v1alpha1/namespaces/migration/machines/machine-deployment-old-86df5ddd9c-9p72f
+    uid: 4dbd9562-2f4f-11e9-a316-22e101db01c7
+  spec:
+    class:
+      kind: AWSMachineClass
+      name: awsmachineclass
+    providerID: aws:///eu-west-1/i-1234
+  status:
+    conditions:
+    - lastHeartbeatTime: 2019-02-13T05:24:03Z
+      lastTransitionTime: 2019-02-13T05:23:43Z
+      message: kubelet has sufficient disk space available
+      reason: KubeletHasSufficientDisk
+      status: "False"
+      type: OutOfDisk
+    - lastHeartbeatTime: 2019-02-13T05:24:03Z
+      lastTransitionTime: 2019-02-13T05:23:43Z
+      message: kubelet has sufficient memory available
+      reason: KubeletHasSufficientMemory
+      status: "False"
+      type: MemoryPressure
+    - lastHeartbeatTime: 2019-02-13T05:24:03Z
+      lastTransitionTime: 2019-02-13T05:23:43Z
+      message: kubelet has no disk pressure
+      reason: KubeletHasNoDiskPressure
+      status: "False"
+      type: DiskPressure
+    - lastHeartbeatTime: 2019-02-13T05:24:03Z
+      lastTransitionTime: 2019-02-13T05:23:43Z
+      message: kubelet has sufficient PID available
+      reason: KubeletHasSufficientPID
+      status: "False"
+      type: PIDPressure
+    - lastHeartbeatTime: 2019-02-13T05:24:03Z
+      lastTransitionTime: 2019-02-13T05:24:03Z
+      message: kubelet is posting ready status
+      reason: KubeletReady
+      status: "True"
+      type: Ready
+    currentStatus:
+      lastUpdateTime: 2019-02-13T05:24:11Z
+      phase: Running
+    lastOperation:
+      description: Machine machine-deployment-old-86df5ddd9c-9p72f successfully joined
+        the cluster
+      lastUpdateTime: 2019-02-13T05:24:11Z
+      state: Successful
+      type: Create
+    node: ip-10-ABC-0-XYZ.eu-west-1.compute.internal
+metadata:
+  resourceVersion: ""
+  selfLink: ""

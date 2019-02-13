@@ -1,0 +1,61 @@
+apiVersion: v1
+items:
+- apiVersion: machine.sapcloud.io/v1alpha1
+  kind: MachineSet
+  metadata:
+    annotations:
+      deployment.kubernetes.io/desired-replicas: "2"
+      deployment.kubernetes.io/max-replicas: "3"
+      deployment.kubernetes.io/revision: "1"
+      safety.machine.sapcloud.io/lastreplicaupdate: 2019-02-12 20:00:19 IST
+    creationTimestamp: 2019-02-12T14:30:19Z
+    finalizers:
+    - machine.sapcloud.io/machine-controller-manager
+    generation: 1
+    labels:
+      machine-template-hash: "1299516027"
+      name: machine-deployment-old
+    name: machine-deployment-old-86df5ddd9c
+    namespace: migration
+    ownerReferences:
+    - apiVersion: machine.sapcloud.io/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: MachineDeployment
+      name: machine-deployment-old
+      uid: 8bbf5418-2ed2-11e9-915d-020647f09a37
+    resourceVersion: "15946120"
+    selfLink: /apis/machine.sapcloud.io/v1alpha1/namespaces/migration/machinesets/machine-deployment-old-86df5ddd9c
+    uid: b92cbff6-2ed2-11e9-915d-020647f09a37
+  spec:
+    machineClass: {}
+    minReadySeconds: 500
+    replicas: 2
+    selector:
+      matchLabels:
+        machine-template-hash: "1299516027"
+        name: machine-deployment-old
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          machine-template-hash: "1299516027"
+          name: machine-deployment-old
+      spec:
+        class:
+          kind: AWSMachineClass
+          name: awsmachineclass
+  status:
+    availableReplicas: 2
+    failedMachines: null
+    fullyLabeledReplicas: 2
+    lastOperation:
+      lastUpdateTime: null
+    machineSetCondition: null
+    observedGeneration: 1
+    readyReplicas: 2
+    replicas: 2
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""

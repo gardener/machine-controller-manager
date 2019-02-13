@@ -1,0 +1,52 @@
+apiVersion: v1
+items:
+- apiVersion: machine.sapcloud.io/v1alpha1
+  kind: MachineDeployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "1"
+    creationTimestamp: 2019-02-12T14:29:03Z
+    finalizers:
+    - machine.sapcloud.io/machine-controller-manager
+    generation: 1
+    name: machine-deployment-old
+    namespace: migration
+    resourceVersion: "15946124"
+    selfLink: /apis/machine.sapcloud.io/v1alpha1/namespaces/migration/machinedeployments/machine-deployment-old
+    uid: 8bbf5418-2ed2-11e9-915d-020647f09a37
+  spec:
+    minReadySeconds: 500
+    replicas: 2
+    selector:
+      matchLabels:
+        name: machine-deployment-old
+    strategy:
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+      type: RollingUpdate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          name: machine-deployment-old
+      spec:
+        class:
+          kind: AWSMachineClass
+          name: awsmachineclass
+  status:
+    availableReplicas: 2
+    conditions:
+    - lastTransitionTime: 2019-02-12T14:32:25Z
+      lastUpdateTime: 2019-02-12T14:32:25Z
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    observedGeneration: 1
+    readyReplicas: 2
+    replicas: 2
+    updatedReplicas: 2
+kind: List
+metadata:
+  resourceVersion: ""

@@ -1,0 +1,21 @@
+apiVersion: machine.sapcloud.io/v1alpha1
+kind: MachineSet
+metadata:
+  labels:
+    name: machine-deployment-old
+  name: machine-deployment-old-86df5ddd9c
+  namespace: migration
+spec:
+  minReadySeconds: 500
+  replicas: 2
+  selector:
+    matchLabels:
+      name: machine-deployment-old
+  template:
+    metadata:
+      labels:
+        name: machine-deployment-old
+    spec:
+      class:
+        kind: MachineClass    #Updated from AWSMachineClass
+        name: machineclass
