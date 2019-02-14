@@ -115,7 +115,7 @@ func (dc *controller) syncRolloutStatus(allISs []*v1alpha1.MachineSet, newIS *v1
 
 	newDeployment := d
 	newDeployment.Status = newStatus
-	_, err := dc.controlMachineClient.MachineDeployments(newDeployment.Namespace).Update(newDeployment)
+	_, err := dc.controlMachineClient.MachineDeployments(newDeployment.Namespace).UpdateStatus(newDeployment)
 	return err
 }
 

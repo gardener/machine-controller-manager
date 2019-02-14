@@ -536,7 +536,7 @@ func (c *controller) updateMachineStatus(
 	clone.Status.LastOperation = lastOperation
 	clone.Status.CurrentStatus = currentStatus
 
-	clone, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
+	clone, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 	if err != nil {
 		// Keep retrying until update goes through
 		glog.V(3).Infof("Warning: Updated failed, retrying, error: %q", err)
@@ -621,7 +621,7 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 	}
 
 	if objectRequiresUpdate {
-		clone, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
+		clone, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 		if err != nil {
 			// Keep retrying until update goes through
 			glog.Warningf("Updated failed, retrying, error: %q", err)
