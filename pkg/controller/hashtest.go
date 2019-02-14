@@ -44,8 +44,8 @@ var machineSpec = `
    "spec": {
       "class": {
          "apiGroup": "machine.sapcloud.io/v1alpha1",
-         "kind": "AWSMachineClass",
-         "name": "test-aws"
+         "kind": "MachineClass",
+         "name": "test-cloud"
       }
    }
 }
