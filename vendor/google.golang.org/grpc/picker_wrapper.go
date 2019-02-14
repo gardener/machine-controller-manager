@@ -101,7 +101,14 @@ func doneChannelzWrapper(acw *acBalancerWrapper, done func(balancer.DoneInfo)) f
 // - the subConn returned by the current picker is not READY
 // When one of these situations happens, pick blocks until the picker gets updated.
 func (bp *pickerWrapper) pick(ctx context.Context, failfast bool, opts balancer.PickOptions) (transport.ClientTransport, func(balancer.DoneInfo), error) {
+<<<<<<< HEAD
 	var ch chan struct{}
+=======
+	var (
+		p  balancer.Picker
+		ch chan struct{}
+	)
+>>>>>>> Update vendor after removing the provider-specific machineclass
 
 	for {
 		bp.mu.Lock()
@@ -127,7 +134,11 @@ func (bp *pickerWrapper) pick(ctx context.Context, failfast bool, opts balancer.
 		}
 
 		ch = bp.blockingCh
+<<<<<<< HEAD
 		p := bp.picker
+=======
+		p = bp.picker
+>>>>>>> Update vendor after removing the provider-specific machineclass
 		bp.mu.Unlock()
 
 		subConn, done, err := p.Pick(ctx, opts)
@@ -141,6 +152,7 @@ func (bp *pickerWrapper) pick(ctx context.Context, failfast bool, opts balancer.
 					continue
 				}
 				return nil, nil, status.Errorf(codes.Unavailable, "%v, latest connection error: %v", err, bp.connectionError())
+<<<<<<< HEAD
 			case context.DeadlineExceeded:
 				return nil, nil, status.Error(codes.DeadlineExceeded, err.Error())
 			case context.Canceled:
@@ -151,12 +163,21 @@ func (bp *pickerWrapper) pick(ctx context.Context, failfast bool, opts balancer.
 				}
 				// err is some other error.
 				return nil, nil, status.Error(codes.Unknown, err.Error())
+=======
+			default:
+				// err is some other error.
+				return nil, nil, toRPCErr(err)
+>>>>>>> Update vendor after removing the provider-specific machineclass
 			}
 		}
 
 		acw, ok := subConn.(*acBalancerWrapper)
 		if !ok {
+<<<<<<< HEAD
 			grpclog.Error("subconn returned from pick is not *acBalancerWrapper")
+=======
+			grpclog.Infof("subconn returned from pick is not *acBalancerWrapper")
+>>>>>>> Update vendor after removing the provider-specific machineclass
 			continue
 		}
 		if t, ok := acw.getAddrConn().getReadyTransport(); ok {

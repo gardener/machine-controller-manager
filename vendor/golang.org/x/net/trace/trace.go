@@ -64,14 +64,20 @@ package trace // import "golang.org/x/net/trace"
 
 import (
 	"bytes"
+<<<<<<< HEAD
 	"context"
+=======
+>>>>>>> Update vendor after removing the provider-specific machineclass
 	"fmt"
 	"html/template"
 	"io"
 	"log"
 	"net"
 	"net/http"
+<<<<<<< HEAD
 	"net/url"
+=======
+>>>>>>> Update vendor after removing the provider-specific machineclass
 	"runtime"
 	"sort"
 	"strconv"
@@ -86,12 +92,15 @@ import (
 // FOR DEBUGGING ONLY. This will slow down the program.
 var DebugUseAfterFinish = false
 
+<<<<<<< HEAD
 // HTTP ServeMux paths.
 const (
 	debugRequestsPath = "/debug/requests"
 	debugEventsPath   = "/debug/events"
 )
 
+=======
+>>>>>>> Update vendor after removing the provider-specific machineclass
 // AuthRequest determines whether a specific request is permitted to load the
 // /debug/requests or /debug/events pages.
 //
@@ -118,6 +127,7 @@ var AuthRequest = func(req *http.Request) (any, sensitive bool) {
 }
 
 func init() {
+<<<<<<< HEAD
 	_, pat := http.DefaultServeMux.Handler(&http.Request{URL: &url.URL{Path: debugRequestsPath}})
 	if pat == debugRequestsPath {
 		panic("/debug/requests is already registered. You may have two independent copies of " +
@@ -141,6 +151,12 @@ func NewContext(ctx context.Context, tr Trace) context.Context {
 func FromContext(ctx context.Context) (tr Trace, ok bool) {
 	tr, ok = ctx.Value(contextKey).(Trace)
 	return
+=======
+	// TODO(jbd): Serve Traces from /debug/traces in the future?
+	// There is no requirement for a request to be present to have traces.
+	http.HandleFunc("/debug/requests", Traces)
+	http.HandleFunc("/debug/events", Events)
+>>>>>>> Update vendor after removing the provider-specific machineclass
 }
 
 // Traces responds with traces from the program.

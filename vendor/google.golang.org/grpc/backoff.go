@@ -17,7 +17,11 @@
  */
 
 // See internal/backoff package for the backoff implementation. This file is
+<<<<<<< HEAD
 // kept for the exported types and API backward compatibility.
+=======
+// kept for the exported types and API backward compatility.
+>>>>>>> Update vendor after removing the provider-specific machineclass
 
 package grpc
 

@@ -322,9 +322,13 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr TargetInfo, opts Conne
 		}
 	}
 
+<<<<<<< HEAD
 	if err := t.framer.writer.Flush(); err != nil {
 		return nil, err
 	}
+=======
+	t.framer.writer.Flush()
+>>>>>>> Update vendor after removing the provider-specific machineclass
 	go func() {
 		t.loopy = newLoopyWriter(clientSide, t.framer, t.controlBuf, t.bdpEst)
 		err := t.loopy.run()
@@ -419,7 +423,11 @@ func (t *http2Client) createHeaderFields(ctx context.Context, callHdr *CallHdr) 
 	if dl, ok := ctx.Deadline(); ok {
 		// Send out timeout regardless its value. The server can detect timeout context by itself.
 		// TODO(mmukhi): Perhaps this field should be updated when actually writing out to the wire.
+<<<<<<< HEAD
 		timeout := time.Until(dl)
+=======
+		timeout := dl.Sub(time.Now())
+>>>>>>> Update vendor after removing the provider-specific machineclass
 		headerFields = append(headerFields, hpack.HeaderField{Name: "grpc-timeout", Value: encodeTimeout(timeout)})
 	}
 	for k, v := range authData {

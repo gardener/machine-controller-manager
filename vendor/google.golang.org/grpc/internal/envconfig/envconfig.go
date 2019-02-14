@@ -59,7 +59,10 @@ var (
 func init() {
 	switch strings.ToLower(os.Getenv(requireHandshakeStr)) {
 	case "on":
+<<<<<<< HEAD
 		fallthrough
+=======
+>>>>>>> Update vendor after removing the provider-specific machineclass
 	default:
 		RequireHandshake = RequireHandshakeOn
 	case "off":

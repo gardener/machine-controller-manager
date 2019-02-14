@@ -235,7 +235,11 @@ func newClientStream(ctx context.Context, desc *StreamDesc, cc *ClientConn, meth
 		trInfo.tr = trace.New("grpc.Sent."+methodFamily(method), method)
 		trInfo.firstLine.client = true
 		if deadline, ok := ctx.Deadline(); ok {
+<<<<<<< HEAD
 			trInfo.firstLine.deadline = time.Until(deadline)
+=======
+			trInfo.firstLine.deadline = deadline.Sub(time.Now())
+>>>>>>> Update vendor after removing the provider-specific machineclass
 		}
 		trInfo.tr.LazyLog(&trInfo.firstLine, false)
 		ctx = trace.NewContext(ctx, trInfo.tr)
@@ -297,7 +301,11 @@ func newClientStream(ctx context.Context, desc *StreamDesc, cc *ClientConn, meth
 			Authority:    cs.cc.authority,
 		}
 		if deadline, ok := ctx.Deadline(); ok {
+<<<<<<< HEAD
 			logEntry.Timeout = time.Until(deadline)
+=======
+			logEntry.Timeout = deadline.Sub(time.Now())
+>>>>>>> Update vendor after removing the provider-specific machineclass
 			if logEntry.Timeout < 0 {
 				logEntry.Timeout = 0
 			}
@@ -1086,6 +1094,10 @@ type addrConnStream struct {
 	dc        Decompressor
 	decomp    encoding.Compressor
 	p         *parser
+<<<<<<< HEAD
+=======
+	done      func(balancer.DoneInfo)
+>>>>>>> Update vendor after removing the provider-specific machineclass
 	mu        sync.Mutex
 	finished  bool
 }

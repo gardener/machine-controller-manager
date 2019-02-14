@@ -281,8 +281,14 @@ func (bw *balancerWrapper) Close() {
 }
 
 // The picker is the balancerWrapper itself.
+<<<<<<< HEAD
 // It either blocks or returns error, consistent with v1 balancer Get().
 func (bw *balancerWrapper) Pick(ctx context.Context, opts balancer.PickOptions) (sc balancer.SubConn, done func(balancer.DoneInfo), err error) {
+=======
+// Pick should never return ErrNoSubConnAvailable.
+// It either blocks or returns error, consistent with v1 balancer Get().
+func (bw *balancerWrapper) Pick(ctx context.Context, opts balancer.PickOptions) (balancer.SubConn, func(balancer.DoneInfo), error) {
+>>>>>>> Update vendor after removing the provider-specific machineclass
 	failfast := true // Default failfast is true.
 	if ss, ok := rpcInfoFromContext(ctx); ok {
 		failfast = ss.failfast
@@ -291,6 +297,7 @@ func (bw *balancerWrapper) Pick(ctx context.Context, opts balancer.PickOptions) 
 	if err != nil {
 		return nil, nil, err
 	}
+<<<<<<< HEAD
 	if p != nil {
 		done = func(balancer.DoneInfo) { p() }
 		defer func() {
@@ -300,10 +307,18 @@ func (bw *balancerWrapper) Pick(ctx context.Context, opts balancer.PickOptions) 
 		}()
 	}
 
+=======
+	var done func(balancer.DoneInfo)
+	if p != nil {
+		done = func(i balancer.DoneInfo) { p() }
+	}
+	var sc balancer.SubConn
+>>>>>>> Update vendor after removing the provider-specific machineclass
 	bw.mu.Lock()
 	defer bw.mu.Unlock()
 	if bw.pickfirst {
 		// Get the first sc in conns.
+<<<<<<< HEAD
 		for _, sc := range bw.conns {
 			return sc, done, nil
 		}
@@ -338,4 +353,28 @@ func (bw *balancerWrapper) Pick(ctx context.Context, opts balancer.PickOptions) 
 		// connected.
 		return nil, nil, balancer.ErrNoSubConnAvailable
 	}
+=======
+		for _, sc = range bw.conns {
+			break
+		}
+	} else {
+		var ok bool
+		sc, ok = bw.conns[resolver.Address{
+			Addr:       a.Addr,
+			Type:       resolver.Backend,
+			ServerName: "",
+			Metadata:   a.Metadata,
+		}]
+		if !ok && failfast {
+			return nil, nil, balancer.ErrTransientFailure
+		}
+		if s, ok := bw.connSt[sc]; failfast && (!ok || s.s != connectivity.Ready) {
+			// If the returned sc is not ready and RPC is failfast,
+			// return error, and this RPC will fail.
+			return nil, nil, balancer.ErrTransientFailure
+		}
+	}
+
+	return sc, done, nil
+>>>>>>> Update vendor after removing the provider-specific machineclass
 }

@@ -23,7 +23,11 @@ const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 // The JSON representation for `DoubleValue` is JSON number.
 type DoubleValue struct {
 	// The double value.
+<<<<<<< HEAD
 	Value                float64  `protobuf:"fixed64,1,opt,name=value,proto3" json:"value,omitempty"`
+=======
+	Value                float64  `protobuf:"fixed64,1,opt,name=value" json:"value,omitempty"`
+>>>>>>> Update vendor after removing the provider-specific machineclass
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -66,7 +70,11 @@ func (m *DoubleValue) GetValue() float64 {
 // The JSON representation for `FloatValue` is JSON number.
 type FloatValue struct {
 	// The float value.
+<<<<<<< HEAD
 	Value                float32  `protobuf:"fixed32,1,opt,name=value,proto3" json:"value,omitempty"`
+=======
+	Value                float32  `protobuf:"fixed32,1,opt,name=value" json:"value,omitempty"`
+>>>>>>> Update vendor after removing the provider-specific machineclass
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -109,7 +117,11 @@ func (m *FloatValue) GetValue() float32 {
 // The JSON representation for `Int64Value` is JSON string.
 type Int64Value struct {
 	// The int64 value.
+<<<<<<< HEAD
 	Value                int64    `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
+=======
+	Value                int64    `protobuf:"varint,1,opt,name=value" json:"value,omitempty"`
+>>>>>>> Update vendor after removing the provider-specific machineclass
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -152,7 +164,11 @@ func (m *Int64Value) GetValue() int64 {
 // The JSON representation for `UInt64Value` is JSON string.
 type UInt64Value struct {
 	// The uint64 value.
+<<<<<<< HEAD
 	Value                uint64   `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
+=======
+	Value                uint64   `protobuf:"varint,1,opt,name=value" json:"value,omitempty"`
+>>>>>>> Update vendor after removing the provider-specific machineclass
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -195,7 +211,11 @@ func (m *UInt64Value) GetValue() uint64 {
 // The JSON representation for `Int32Value` is JSON number.
 type Int32Value struct {
 	// The int32 value.
+<<<<<<< HEAD
 	Value                int32    `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
+=======
+	Value                int32    `protobuf:"varint,1,opt,name=value" json:"value,omitempty"`
+>>>>>>> Update vendor after removing the provider-specific machineclass
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -238,7 +258,11 @@ func (m *Int32Value) GetValue() int32 {
 // The JSON representation for `UInt32Value` is JSON number.
 type UInt32Value struct {
 	// The uint32 value.
+<<<<<<< HEAD
 	Value                uint32   `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
+=======
+	Value                uint32   `protobuf:"varint,1,opt,name=value" json:"value,omitempty"`
+>>>>>>> Update vendor after removing the provider-specific machineclass
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -281,7 +305,11 @@ func (m *UInt32Value) GetValue() uint32 {
 // The JSON representation for `BoolValue` is JSON `true` and `false`.
 type BoolValue struct {
 	// The bool value.
+<<<<<<< HEAD
 	Value                bool     `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
+=======
+	Value                bool     `protobuf:"varint,1,opt,name=value" json:"value,omitempty"`
+>>>>>>> Update vendor after removing the provider-specific machineclass
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -324,7 +352,11 @@ func (m *BoolValue) GetValue() bool {
 // The JSON representation for `StringValue` is JSON string.
 type StringValue struct {
 	// The string value.
+<<<<<<< HEAD
 	Value                string   `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+=======
+	Value                string   `protobuf:"bytes,1,opt,name=value" json:"value,omitempty"`
+>>>>>>> Update vendor after removing the provider-specific machineclass
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`

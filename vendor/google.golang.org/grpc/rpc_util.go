@@ -370,6 +370,7 @@ func (o CompressorCallOption) after(c *callInfo) {}
 // https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md#requests for
 // more details.
 //
+<<<<<<< HEAD
 // If ForceCodec is not also used, the content-subtype will be used to look up
 // the Codec to use in the registry controlled by RegisterCodec. See the
 // documentation on RegisterCodec for details on registration. The lookup of
@@ -377,6 +378,15 @@ func (o CompressorCallOption) after(c *callInfo) {}
 // will result in an error with code codes.Internal.
 //
 // If ForceCodec is also used, that Codec will be used for all request and
+=======
+// If CallCustomCodec is not also used, the content-subtype will be used to
+// look up the Codec to use in the registry controlled by RegisterCodec. See
+// the documentation on RegisterCodec for details on registration. The lookup
+// of content-subtype is case-insensitive. If no such Codec is found, the call
+// will result in an error with code codes.Internal.
+//
+// If CallCustomCodec is also used, that Codec will be used for all request and
+>>>>>>> Update vendor after removing the provider-specific machineclass
 // response messages, with the content-subtype set to the given contentSubtype
 // here for requests.
 func CallContentSubtype(contentSubtype string) CallOption {
@@ -396,7 +406,11 @@ func (o ContentSubtypeCallOption) before(c *callInfo) error {
 }
 func (o ContentSubtypeCallOption) after(c *callInfo) {}
 
+<<<<<<< HEAD
 // ForceCodec returns a CallOption that will set the given Codec to be
+=======
+// CallCustomCodec returns a CallOption that will set the given Codec to be
+>>>>>>> Update vendor after removing the provider-specific machineclass
 // used for all request and response messages for a call. The result of calling
 // String() will be used as the content-subtype in a case-insensitive manner.
 //
@@ -408,6 +422,7 @@ func (o ContentSubtypeCallOption) after(c *callInfo) {}
 //
 // This function is provided for advanced users; prefer to use only
 // CallContentSubtype to select a registered codec instead.
+<<<<<<< HEAD
 //
 // This is an EXPERIMENTAL API.
 func ForceCodec(codec encoding.Codec) CallOption {
@@ -432,13 +447,18 @@ func (o ForceCodecCallOption) after(c *callInfo) {}
 // an encoding.Codec.
 //
 // Deprecated: use ForceCodec instead.
+=======
+>>>>>>> Update vendor after removing the provider-specific machineclass
 func CallCustomCodec(codec Codec) CallOption {
 	return CustomCodecCallOption{Codec: codec}
 }
 
 // CustomCodecCallOption is a CallOption that indicates the codec used for
 // marshaling messages.
+<<<<<<< HEAD
 //
+=======
+>>>>>>> Update vendor after removing the provider-specific machineclass
 // This is an EXPERIMENTAL API.
 type CustomCodecCallOption struct {
 	Codec Codec
@@ -661,9 +681,13 @@ func recvAndDecompress(p *parser, s *transport.Stream, dc Decompressor, maxRecei
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "grpc: failed to decompress the received message %v", err)
 			}
+<<<<<<< HEAD
 			// Read from LimitReader with limit max+1. So if the underlying
 			// reader is over limit, the result will be bigger than max.
 			d, err = ioutil.ReadAll(io.LimitReader(dcReader, int64(maxReceiveMessageSize)+1))
+=======
+			d, err = ioutil.ReadAll(dcReader)
+>>>>>>> Update vendor after removing the provider-specific machineclass
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "grpc: failed to decompress the received message %v", err)
 			}
