@@ -37,14 +37,6 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=machine.sapcloud.io, Version=internalVersion
-	case machine.SchemeGroupVersion.WithResource("awsmachineclasses"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().AWSMachineClasses().Informer()}, nil
-	case machine.SchemeGroupVersion.WithResource("alicloudmachineclasses"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().AlicloudMachineClasses().Informer()}, nil
-	case machine.SchemeGroupVersion.WithResource("azuremachineclasses"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().AzureMachineClasses().Informer()}, nil
-	case machine.SchemeGroupVersion.WithResource("gcpmachineclasses"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().GCPMachineClasses().Informer()}, nil
 	case machine.SchemeGroupVersion.WithResource("machines"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().Machines().Informer()}, nil
 	case machine.SchemeGroupVersion.WithResource("machineclasses"):
@@ -55,10 +47,6 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().MachineSets().Informer()}, nil
 	case machine.SchemeGroupVersion.WithResource("machinetemplates"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().MachineTemplates().Informer()}, nil
-	case machine.SchemeGroupVersion.WithResource("openstackmachineclasses"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().OpenStackMachineClasses().Informer()}, nil
-	case machine.SchemeGroupVersion.WithResource("packetmachineclasses"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Machine().InternalVersion().PacketMachineClasses().Informer()}, nil
 
 	}
 

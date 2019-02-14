@@ -18,6 +18,8 @@
 package validation
 
 import (
+	"regexp"
+
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
@@ -25,6 +27,11 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 )
+
+const nameFmt string = `[-a-z0-9]+`
+const nameMaxLength int = 63
+
+var nameRegexp = regexp.MustCompile("^" + nameFmt + "$")
 
 // validateName is the validation function for object names.
 func validateMachineClassName(value string, prefix bool) []string {
@@ -60,4 +67,17 @@ func validateMachineClassSpec(spec *runtime.RawExtension, fldPath *field.Path) f
 
 	// TODO: think of good validation here.
 	return allErrs
+}
+
+// validateName is the validation function for object names.
+func validateName(value string, prefix bool) []string {
+	var errs []string
+	if len(value) > nameMaxLength {
+		errs = append(errs, utilvalidation.MaxLenError(nameMaxLength))
+	}
+	if !nameRegexp.MatchString(value) {
+		errs = append(errs, utilvalidation.RegexError(nameFmt, "name-40d-0983-1b89"))
+	}
+
+	return errs
 }
