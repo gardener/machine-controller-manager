@@ -31,7 +31,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
 	"github.com/golang/glog"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -104,7 +104,7 @@ func (dc *controller) checkPausedConditions(d *v1alpha1.MachineDeployment) error
 	}
 
 	var err error
-	d, err = dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d)
+	d, err = dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(d)
 	return err
 }
 
@@ -273,7 +273,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 
 		if needsUpdate {
 			var err error
-			if d, err = dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d); err != nil {
+			if d, err = dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(d); err != nil {
 				return nil, err
 			}
 		}
@@ -345,7 +345,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 			*d.Status.CollisionCount++
 			// Update the collisionCount for the Deployment and let it requeue by returning the original
 			// error.
-			_, dErr := dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d)
+			_, dErr := dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(d)
 			if dErr == nil {
 				glog.V(2).Infof("Found a hash collision for machine deployment %q - bumping collisionCount (%d->%d) to resolve it", d.Name, preCollisionCount, *d.Status.CollisionCount)
 			}
@@ -362,7 +362,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 			// We don't really care about this error at this point, since we have a bigger issue to report.
 			// TODO: Identify which errors are permanent and switch DeploymentIsFailed to take into account
 			// these reasons as well. Related issue: https://github.com/kubernetes/kubernetes/issues/18568
-			_, _ = dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d)
+			_, _ = dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(d)
 		}
 		dc.recorder.Eventf(d, v1.EventTypeWarning, FailedISCreateReason, msg)
 		return nil, err
@@ -379,7 +379,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 		needsUpdate = true
 	}
 	if needsUpdate {
-		_, err = dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d)
+		_, err = dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(d)
 	}
 	return createdIS, err
 }
@@ -573,7 +573,7 @@ func (dc *controller) syncMachineDeploymentStatus(allISs []*v1alpha1.MachineSet,
 
 	newDeployment := d
 	newDeployment.Status = newStatus
-	_, err := dc.controlMachineClient.MachineDeployments(newDeployment.Namespace).Update(newDeployment)
+	_, err := dc.controlMachineClient.MachineDeployments(newDeployment.Namespace).UpdateStatus(newDeployment)
 	return err
 }
 
