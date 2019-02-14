@@ -9,5 +9,5 @@ metadata:
     test-label: test-label # Label used by machine-set to match (optional)
 spec:
   class:
-    kind: AWSMachineClass # Machine class template used to create machine, could be AWS/GCP/Azure/Other-cloud-providers
-    name: test-aws # Name of the machine class
+    kind: MachineClass # Machine class template used to create machine, could be AWS/GCP/Azure/Other-cloud-providers
+    name: test-cloud # Name of the machine class
