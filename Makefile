@@ -47,7 +47,7 @@ start:
 
 .PHONY: revendor
 revendor:
-	@dep ensure -update
+	@dep ensure -update -v
 
 .PHONY: build
 build:

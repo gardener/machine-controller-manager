@@ -1,11 +1,11 @@
 # Sample GCP machine class
 
-apiVersion: machine.sapcloud.io/v1alpha1 # API version of object
-kind: GCPMachineClass # Machine Class Kind
+apiVersion: machine.sapcloud.io/v1alpha1
+kind: MachineClass
 metadata:
   name: test-gcp # Name of GCP machine class goes here
   namespace: default # Namespace in which the machine class is to be deployed
-spec:
+providerSpec:
   canIpForward: true # Allows this instance to send and receive packets with non-matching destination or source IPs
   deletionProtection: false # DeletionProtection: Whether the resource should be protected against deletion
   description: An optional description for machines created by that class. # Description of this resource
@@ -30,9 +30,6 @@ spec:
     automaticRestart: true # Automatic restart of instance
     onHostMaintenance: MIGRATE # Host maintainance
     preemptible: false # Instance is premeptiable
-  secretRef: # Kubernetes secret containing values for provider secrets and user-data
-    name: "test-secret" # Name of the secret
-    namespace: "default" # Namespace of secret
   serviceAccounts:
   - email: default@project.iam.gserviceaccount.com # Service account email
     scopes: # List of scopes
@@ -44,3 +41,6 @@ spec:
   - key2 # A set of additional tags attached to a machine (optional)
   region: europe-west1 # Region to attach the instance
   zone: europe-west1-b # Zone to attach the instance
+secretRef: # Kubernetes secret containing values for provider secrets and user-data
+  name: "test-secret" # Name of the secret
+  namespace: "default" # Namespace of secret

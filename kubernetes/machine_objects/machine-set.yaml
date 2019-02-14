@@ -19,5 +19,5 @@ spec:
         test-label: test-label # Label to match the selector (XXXXX)
     spec:
       class:
-        kind: AWSMachineClass
-        name: test-aws
+        kind: MachineClass
+        name: test-cloud
