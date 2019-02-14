@@ -49,24 +49,6 @@ var (
 
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&OpenStackMachineClass{},
-		&OpenStackMachineClassList{},
-
-		&AWSMachineClass{},
-		&AWSMachineClassList{},
-
-		&AzureMachineClass{},
-		&AzureMachineClassList{},
-
-		&GCPMachineClass{},
-		&GCPMachineClassList{},
-
-		&AlicloudMachineClass{},
-		&AlicloudMachineClassList{},
-
-		&PacketMachineClass{},
-		&PacketMachineClassList{},
-
 		&MachineClass{},
 		&MachineClassList{},
 
