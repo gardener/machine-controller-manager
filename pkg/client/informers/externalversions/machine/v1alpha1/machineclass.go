@@ -5,7 +5,7 @@ package v1alpha1
 import (
 	time "time"
 
-	machine_v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	machinev1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	versioned "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions/internalinterfaces"
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
@@ -54,7 +54,7 @@ func NewFilteredMachineClassInformer(client versioned.Interface, namespace strin
 				return client.MachineV1alpha1().MachineClasses(namespace).Watch(options)
 			},
 		},
-		&machine_v1alpha1.MachineClass{},
+		&machinev1alpha1.MachineClass{},
 		resyncPeriod,
 		indexers,
 	)
@@ -65,7 +65,7 @@ func (f *machineClassInformer) defaultInformer(client versioned.Interface, resyn
 }
 
 func (f *machineClassInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&machine_v1alpha1.MachineClass{}, f.defaultInformer)
+	return f.factory.InformerFor(&machinev1alpha1.MachineClass{}, f.defaultInformer)
 }
 
 func (f *machineClassInformer) Lister() v1alpha1.MachineClassLister {
