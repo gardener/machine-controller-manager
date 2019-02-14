@@ -403,12 +403,12 @@ function print_results() {
 
 printf "\n\t\t\t----- Start of Test Script -----------\n"
 
-setup_environment
-test_all_providers
-pkill controller_manager
-cleanup_all_providers
-print_logs
-print_results
+#setup_environment
+#test_all_providers
+#pkill controller_manager
+#cleanup_all_providers
+#print_logs
+#print_results
 
 printf "\n\t\t\t----- End of Test Script -----------\n"
 

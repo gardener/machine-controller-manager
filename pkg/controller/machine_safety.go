@@ -106,7 +106,7 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 						State:          v1alpha1.MachineStateSuccessful,
 						Type:           v1alpha1.MachineOperationHealthCheck,
 					}
-					_, err = c.controlMachineClient.Machines(c.namespace).Update(machine)
+					_, err = c.controlMachineClient.Machines(c.namespace).UpdateStatus(machine)
 					if err != nil {
 						glog.Warning(err)
 						return err
