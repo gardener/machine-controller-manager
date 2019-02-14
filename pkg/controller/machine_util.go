@@ -86,177 +86,8 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 	var MachineClass interface{}
 	var secretRef *v1.Secret
 
-	switch classSpec.Kind {
-	case "AWSMachineClass":
-		AWSMachineClass, err := c.awsMachineClassLister.AWSMachineClasses(c.namespace).Get(classSpec.Name)
-		if err != nil {
-			glog.V(2).Infof("AWSMachineClass %q/%q not found. Skipping. %v", c.namespace, classSpec.Name, err)
-			return MachineClass, secretRef, err
-		}
-		MachineClass = AWSMachineClass
+	if classSpec.Kind == "MachineClass" {
 
-		// Validate AWSMachineClass
-		internalAWSMachineClass := &machineapi.AWSMachineClass{}
-		err = c.internalExternalScheme.Convert(AWSMachineClass, internalAWSMachineClass, nil)
-		if err != nil {
-			glog.V(2).Info("Error in scheme conversion")
-			return MachineClass, secretRef, err
-		}
-
-		validationerr := validation.ValidateAWSMachineClass(internalAWSMachineClass)
-		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-			glog.V(2).Infof("Validation of AWSMachineClass failed %s", validationerr.ToAggregate().Error())
-			return MachineClass, secretRef, nil
-		}
-
-		// Get secretRef
-		secretRef, err = c.getSecret(AWSMachineClass.Spec.SecretRef, AWSMachineClass.Name)
-		if err != nil || secretRef == nil {
-			glog.V(2).Info("Secret reference not found")
-			return MachineClass, secretRef, err
-		}
-	case "AzureMachineClass":
-		AzureMachineClass, err := c.azureMachineClassLister.AzureMachineClasses(c.namespace).Get(classSpec.Name)
-		if err != nil {
-			glog.V(2).Infof("AzureMachineClass %q not found. Skipping. %v", classSpec.Name, err)
-			return MachineClass, secretRef, err
-		}
-		MachineClass = AzureMachineClass
-
-		// Validate AzureMachineClass
-		internalAzureMachineClass := &machineapi.AzureMachineClass{}
-		err = c.internalExternalScheme.Convert(AzureMachineClass, internalAzureMachineClass, nil)
-		if err != nil {
-			glog.V(2).Info("Error in scheme conversion")
-			return MachineClass, secretRef, err
-		}
-
-		validationerr := validation.ValidateAzureMachineClass(internalAzureMachineClass)
-		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-			glog.V(2).Infof("Validation of AzureMachineClass failed %s", validationerr.ToAggregate().Error())
-			return MachineClass, secretRef, nil
-		}
-
-		// Get secretRef
-		secretRef, err = c.getSecret(AzureMachineClass.Spec.SecretRef, AzureMachineClass.Name)
-		if err != nil || secretRef == nil {
-			glog.V(2).Info("Secret reference not found")
-			return MachineClass, secretRef, err
-
-		}
-	case "GCPMachineClass":
-		GCPMachineClass, err := c.gcpMachineClassLister.GCPMachineClasses(c.namespace).Get(classSpec.Name)
-		if err != nil {
-			glog.V(2).Infof("GCPMachineClass %q not found. Skipping. %v", classSpec.Name, err)
-			return MachineClass, secretRef, err
-		}
-		MachineClass = GCPMachineClass
-
-		// Validate GCPMachineClass
-		internalGCPMachineClass := &machineapi.GCPMachineClass{}
-		err = c.internalExternalScheme.Convert(GCPMachineClass, internalGCPMachineClass, nil)
-		if err != nil {
-			glog.V(2).Info("Error in scheme conversion")
-			return MachineClass, secretRef, err
-		}
-
-		validationerr := validation.ValidateGCPMachineClass(internalGCPMachineClass)
-		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-			glog.V(2).Infof("Validation of GCPMachineClass failed %s", validationerr.ToAggregate().Error())
-			return MachineClass, secretRef, nil
-		}
-
-		// Get secretRef
-		secretRef, err = c.getSecret(GCPMachineClass.Spec.SecretRef, GCPMachineClass.Name)
-		if err != nil || secretRef == nil {
-			glog.V(2).Info("Secret reference not found")
-			return MachineClass, secretRef, err
-		}
-	case "OpenStackMachineClass":
-		OpenStackMachineClass, err := c.openStackMachineClassLister.OpenStackMachineClasses(c.namespace).Get(classSpec.Name)
-		if err != nil {
-			glog.V(2).Infof("OpenStackMachineClass %q not found. Skipping. %v", classSpec.Name, err)
-			return MachineClass, secretRef, err
-		}
-		MachineClass = OpenStackMachineClass
-
-		// Validate OpenStackMachineClass
-		internalOpenStackMachineClass := &machineapi.OpenStackMachineClass{}
-		err = c.internalExternalScheme.Convert(OpenStackMachineClass, internalOpenStackMachineClass, nil)
-		if err != nil {
-			glog.V(2).Info("Error in scheme conversion")
-			return MachineClass, secretRef, err
-		}
-
-		validationerr := validation.ValidateOpenStackMachineClass(internalOpenStackMachineClass)
-		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-			glog.V(2).Infof("Validation of OpenStackMachineClass failed %s", validationerr.ToAggregate().Error())
-			return MachineClass, secretRef, nil
-		}
-
-		// Get secretRef
-		secretRef, err = c.getSecret(OpenStackMachineClass.Spec.SecretRef, OpenStackMachineClass.Name)
-		if err != nil || secretRef == nil {
-			glog.V(2).Info("Secret reference not found")
-			return MachineClass, secretRef, err
-		}
-	case "AlicloudMachineClass":
-		AlicloudMachineClass, err := c.alicloudMachineClassLister.AlicloudMachineClasses(c.namespace).Get(classSpec.Name)
-		if err != nil {
-			glog.V(2).Infof("AlicloudMachineClass %q/%q not found. Skipping. %v", c.namespace, classSpec.Name, err)
-			return MachineClass, secretRef, err
-		}
-		MachineClass = AlicloudMachineClass
-
-		// Validate AlicloudMachineClass
-		internalAlicloudMachineClass := &machineapi.AlicloudMachineClass{}
-		err = c.internalExternalScheme.Convert(AlicloudMachineClass, internalAlicloudMachineClass, nil)
-		if err != nil {
-			glog.V(2).Info("Error in scheme conversion")
-			return MachineClass, secretRef, err
-		}
-
-		validationerr := validation.ValidateAlicloudMachineClass(internalAlicloudMachineClass)
-		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-			glog.V(2).Infof("Validation of AlicloudMachineClass failed %s", validationerr.ToAggregate().Error())
-			return MachineClass, secretRef, nil
-		}
-
-		// Get secretRef
-		secretRef, err = c.getSecret(AlicloudMachineClass.Spec.SecretRef, AlicloudMachineClass.Name)
-		if err != nil || secretRef == nil {
-			glog.V(2).Info("Secret reference not found")
-			return MachineClass, secretRef, err
-		}
-	case "PacketMachineClass":
-		PacketMachineClass, err := c.packetMachineClassLister.PacketMachineClasses(c.namespace).Get(classSpec.Name)
-		if err != nil {
-			glog.V(2).Infof("PacketMachineClass %q/%q not found. Skipping. %v", c.namespace, classSpec.Name, err)
-			return MachineClass, secretRef, err
-		}
-		MachineClass = PacketMachineClass
-
-		// Validate PacketMachineClass
-		internalPacketMachineClass := &machineapi.PacketMachineClass{}
-		err = c.internalExternalScheme.Convert(PacketMachineClass, internalPacketMachineClass, nil)
-		if err != nil {
-			glog.V(2).Info("Error in scheme conversion")
-			return MachineClass, secretRef, err
-		}
-
-		validationerr := validation.ValidatePacketMachineClass(internalPacketMachineClass)
-		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-			glog.V(2).Infof("Validation of PacketMachineClass failed %s", validationerr.ToAggregate().Error())
-			return MachineClass, secretRef, nil
-		}
-
-		// Get secretRef
-		secretRef, err = c.getSecret(PacketMachineClass.Spec.SecretRef, PacketMachineClass.Name)
-		if err != nil || secretRef == nil {
-			glog.V(2).Info("Secret reference not found")
-			return MachineClass, secretRef, err
-		}
-	case "MachineClass":
 		CommonMachineClass, err := c.machineClassLister.MachineClasses(c.namespace).Get(classSpec.Name)
 		if err != nil {
 			glog.V(2).Infof("MachineClass %q/%q not found. Skipping. %v", c.namespace, classSpec.Name, err)
@@ -274,7 +105,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 
 		validationerr := validation.ValidateMachineClass(internalMachineClass)
 		if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-			glog.V(2).Infof("Validation of AWSMachineClass failed %s", validationerr.ToAggregate().Error())
+			glog.V(2).Infof("Validation of MachineClass failed %s", validationerr.ToAggregate().Error())
 			return MachineClass, secretRef, nil
 		}
 
@@ -284,10 +115,9 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 			glog.V(2).Info("Secret reference not found")
 			return MachineClass, secretRef, err
 		}
-	default:
+	} else {
 		glog.V(2).Infof("ClassKind %q not found", classSpec.Kind)
 	}
-
 	return MachineClass, secretRef, nil
 }
 
