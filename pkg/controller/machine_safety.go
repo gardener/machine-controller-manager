@@ -252,16 +252,10 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets() {
 
 // checkVMObjects checks for orphan VMs (VMs that don't have a machine object backing)
 func (c *controller) checkVMObjects() {
-	c.checkAWSMachineClass()
-	c.checkOSMachineClass()
-	c.checkAzureMachineClass()
-	c.checkGCPMachineClass()
-	c.checkAlicloudMachineClass()
-	c.checkPacketMachineClass()
 	c.checkCommonMachineClass()
 }
 
-// checkMachineClass checks for orphan VMs in MachinesClasses
+// checkCommonMachineClass checks for orphan VMs in MachinesClasses
 func (c *controller) checkCommonMachineClass() {
 	MachineClasses, err := c.machineClassLister.List(labels.Everything())
 	if err != nil {
@@ -277,138 +271,6 @@ func (c *controller) checkCommonMachineClass() {
 		c.checkMachineClass(
 			machineClassInterface,
 			machineClass.SecretRef,
-			machineClass.Name,
-			machineClass.Kind,
-		)
-	}
-}
-
-// checkAWSMachineClass checks for orphan VMs in AWSMachinesClasses
-func (c *controller) checkAWSMachineClass() {
-	AWSMachineClasses, err := c.awsMachineClassLister.List(labels.Everything())
-	if err != nil {
-		glog.Error("Safety-Net: Error getting machineClasses")
-		return
-	}
-
-	for _, machineClass := range AWSMachineClasses {
-
-		var machineClassInterface interface{}
-		machineClassInterface = machineClass
-
-		c.checkMachineClass(
-			machineClassInterface,
-			machineClass.Spec.SecretRef,
-			machineClass.Name,
-			machineClass.Kind,
-		)
-	}
-}
-
-// checkOSMachineClass checks for orphan VMs in OSMachinesClasses
-func (c *controller) checkOSMachineClass() {
-	OSMachineClasses, err := c.openStackMachineClassLister.List(labels.Everything())
-	if err != nil {
-		glog.Error("Safety-Net: Error getting machineClasses")
-		return
-	}
-
-	for _, machineClass := range OSMachineClasses {
-
-		var machineClassInterface interface{}
-		machineClassInterface = machineClass
-
-		c.checkMachineClass(
-			machineClassInterface,
-			machineClass.Spec.SecretRef,
-			machineClass.Name,
-			machineClass.Kind,
-		)
-	}
-}
-
-// checkOSMachineClass checks for orphan VMs in AzureMachinesClasses
-func (c *controller) checkAzureMachineClass() {
-	AzureMachineClasses, err := c.azureMachineClassLister.List(labels.Everything())
-	if err != nil {
-		glog.Error("Safety-Net: Error getting machineClasses")
-		return
-	}
-
-	for _, machineClass := range AzureMachineClasses {
-
-		var machineClassInterface interface{}
-		machineClassInterface = machineClass
-
-		c.checkMachineClass(
-			machineClassInterface,
-			machineClass.Spec.SecretRef,
-			machineClass.Name,
-			machineClass.Kind,
-		)
-	}
-}
-
-// checkGCPMachineClass checks for orphan VMs in GCPMachinesClasses
-func (c *controller) checkGCPMachineClass() {
-	GCPMachineClasses, err := c.gcpMachineClassLister.List(labels.Everything())
-	if err != nil {
-		glog.Error("Safety-Net: Error getting machineClasses")
-		return
-	}
-
-	for _, machineClass := range GCPMachineClasses {
-
-		var machineClassInterface interface{}
-		machineClassInterface = machineClass
-
-		c.checkMachineClass(
-			machineClassInterface,
-			machineClass.Spec.SecretRef,
-			machineClass.Name,
-			machineClass.Kind,
-		)
-	}
-}
-
-// checkAlicloudMachineClass checks for orphan VMs in AlicloudMachinesClasses
-func (c *controller) checkAlicloudMachineClass() {
-	AlicloudMachineClasses, err := c.alicloudMachineClassLister.List(labels.Everything())
-	if err != nil {
-		glog.Error("Safety-Net: Error getting machineClasses")
-		return
-	}
-
-	for _, machineClass := range AlicloudMachineClasses {
-
-		var machineClassInterface interface{}
-		machineClassInterface = machineClass
-
-		c.checkMachineClass(
-			machineClassInterface,
-			machineClass.Spec.SecretRef,
-			machineClass.Name,
-			machineClass.Kind,
-		)
-	}
-}
-
-// checkPacketMachineClass checks for orphan VMs in PacketMachinesClasses
-func (c *controller) checkPacketMachineClass() {
-	PacketMachineClasses, err := c.packetMachineClassLister.List(labels.Everything())
-	if err != nil {
-		glog.Error("Safety-Net: Error getting machineClasses")
-		return
-	}
-
-	for _, machineClass := range PacketMachineClasses {
-
-		var machineClassInterface interface{}
-		machineClassInterface = machineClass
-
-		c.checkMachineClass(
-			machineClassInterface,
-			machineClass.Spec.SecretRef,
 			machineClass.Name,
 			machineClass.Kind,
 		)
@@ -432,7 +294,7 @@ func (c *controller) checkMachineClass(
 	// Dummy driver object being created to invoke GetVMs
 	dvr := driver.NewCMIDriverClient(
 		"",
-		classKind,
+		machineClass.(*v1alpha1.MachineClass).Provider,
 		secret,
 		machineClass,
 		"",

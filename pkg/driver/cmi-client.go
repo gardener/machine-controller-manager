@@ -18,9 +18,9 @@ package driver
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net"
+	"strings"
 	"time"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -206,13 +206,20 @@ func (c *CMIDriverClient) ShutDownMachine(MachineID string) error {
 }
 
 func newGrpcConn(driverName string) (*grpc.ClientConn, error) {
-	if driverName == "" {
-		return nil, fmt.Errorf("driver name is empty")
+
+	var name, addr string
+	driverInfo := strings.Split(driverName, "//")
+	if driverName != "" && len(driverInfo) == 2 {
+		name = driverInfo[0]
+		addr = driverInfo[1]
+	} else {
+		name = "grpc-default-driver"
+		addr = "127.0.0.1:8080"
 	}
 
 	network := "tcp"
-	addr := "127.0.0.1:8080"
-	glog.V(4).Infof("creating new gRPC connection for [%s://%s]", network, addr)
+
+	glog.V(2).Infof("Creating new gRPC connection for [%s://%s] for driver: %s", network, addr, name)
 
 	return grpc.Dial(
 		addr,

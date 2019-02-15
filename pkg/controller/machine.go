@@ -145,10 +145,8 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	if err != nil || secretRef == nil {
 		return err
 	}
-	//driver := driver.NewDriver(machine.Spec.ProviderID, secretRef, machine.Spec.Class.Kind, //MachineClass, machine.Name)
 
-	// TODO: Make cloud-provider configurable via machine.spec.provider or machineclass.provider
-	driver := driver.NewCMIDriverClient(machine.Spec.ProviderID, "AWS", secretRef, MachineClass, machine.Name)
+	driver := driver.NewCMIDriverClient(machine.Spec.ProviderID, MachineClass.(*v1alpha1.MachineClass).Provider, secretRef, MachineClass, machine.Name)
 
 	actualProviderID, err := machine.Spec.ProviderID, nil
 	if err != nil {

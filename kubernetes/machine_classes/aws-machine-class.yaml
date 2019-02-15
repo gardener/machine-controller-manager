@@ -1,11 +1,11 @@
 # Sample AWS machine class
 
 apiVersion: machine.sapcloud.io/v1alpha1
-kind: AWSMachineClass
+kind: MachineClass
 metadata:
   name: test-aws # Name of aws machine class goes here
   namespace: default # Namespace in which the machine class is to be deployed
-spec:
+providerSpec:
   ami: ami-123456 # Amazon machine image name goes here
   region: eu-east-1 # Region in which machine is to be deployed
   machineType: t2.large # Type of ec2 machine
@@ -21,10 +21,11 @@ spec:
     kubernetes.io/role/YOUR_ROLE_NAME: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by by this controller.
     tag1: tag1-value # A set of additional tags attached to a machine (optional)
     tag2: tag2-value # A set of additional tags attached to a machine (optional)
-  secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig
-    namespace: default  # Namespace
-    name: test-secret # Name of the secret
   blockDevices:
     - ebs:
         volumeSize: 50  # Size of the root block device
         volumeType: gp2 # Type of the root block device
+secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig
+  namespace: default  # Namespace
+  name: test-secret # Name of the secret
+provider: awsdriver//127.0.0.1:8080 # Provider information of gRPC driver. Default: grpc-default-driver//127.0.0.1:8080

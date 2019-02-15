@@ -1,11 +1,11 @@
 # Sample OpenStack machine class
 
 apiVersion: machine.sapcloud.io/v1alpha1
-kind: OpenStackMachineClass
+kind: MachineClass
 metadata:
   name: test-openstack # Name of OpenStack machine class goes here
   namespace: default # Namespace in which the machine class is to be deployed
-spec:
+providerSpec:
   flavorName: <flavor_name> # Name of the machine flavor
   keyName: <keypair_name> # Name of the ssh key pair
   imageName: <image_name> # Machine image name
@@ -22,6 +22,8 @@ spec:
     kubernetes.io-role-YOUR_ROLE_NAME: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller.
     tag1: tag1-value # A set of additional tags attached to a machine (optional)
     tag2: tag2-value # A set of additional tags attached to a machine (optional)
-  secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig
-    namespace: default  # Namespace
-    name: test-secret # Name of the secret
+secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig
+  namespace: default  # Namespace
+  name: test-secret # Name of the secret
+provider: osdriver//127.0.0.1:8080 # Provider information of gRPC driver. Default: grpc-default-driver//127.0.0.1:8080
+  
