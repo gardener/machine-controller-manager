@@ -714,6 +714,8 @@ type MachineClass struct {
 	ProviderSpec runtime.RawExtension `json:"providerSpec"`
 	// SecretRef stores the necessary secrets such as credetials or userdata.
 	SecretRef *corev1.SecretReference `json:"secretRef,omitempty"`
+	// Provider is the combination of name and location of cloud-specific drivers.
+	Provider string `json:"provider,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

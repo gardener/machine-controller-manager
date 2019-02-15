@@ -25,4 +25,5 @@ providerSpec:
 secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig
   namespace: default  # Namespace
   name: test-secret # Name of the secret
+provider: osdriver//127.0.0.1:8080 # Provider information of gRPC driver. Default: grpc-default-driver//127.0.0.1:8080
   

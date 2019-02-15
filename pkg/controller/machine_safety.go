@@ -443,7 +443,7 @@ func (c *controller) checkMachineClass(
 	// Dummy driver object being created to invoke GetVMs
 	dvr := driver.NewCMIDriverClient(
 		"",
-		classKind,
+		machineClass.(*v1alpha1.MachineClass).Provider,
 		secret,
 		machineClass,
 		"",

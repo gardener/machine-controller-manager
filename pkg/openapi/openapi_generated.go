@@ -210,6 +210,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Ref:         ref("k8s.io/api/core/v1.SecretReference"),
 							},
 						},
+						"provider": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Provider is the combination of name and location of cloud-specific drivers.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
 					},
 					Required: []string{"providerSpec"},
 				},
