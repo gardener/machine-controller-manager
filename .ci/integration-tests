@@ -18,7 +18,7 @@ mkdir -p dev
 mkdir -p logs
 
 # TODO add support for azure and openstack
-declare -a cloud_providers=("aws" "az" "gcp")
+declare -a cloud_providers=("aws" "gcp")
 declare failed_logs=""
 num_of_existing_nodes=1
 
