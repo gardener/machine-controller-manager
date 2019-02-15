@@ -435,6 +435,7 @@ func autoConvert_v1alpha1_MachineClass_To_machine_MachineClass(in *MachineClass,
 	out.ObjectMeta = in.ObjectMeta
 	out.ProviderSpec = in.ProviderSpec
 	out.SecretRef = (*v1.SecretReference)(unsafe.Pointer(in.SecretRef))
+	out.Provider = in.Provider
 	return nil
 }
 
@@ -447,6 +448,7 @@ func autoConvert_machine_MachineClass_To_v1alpha1_MachineClass(in *machine.Machi
 	out.ObjectMeta = in.ObjectMeta
 	out.ProviderSpec = in.ProviderSpec
 	out.SecretRef = (*v1.SecretReference)(unsafe.Pointer(in.SecretRef))
+	out.Provider = in.Provider
 	return nil
 }
 

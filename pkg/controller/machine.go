@@ -23,9 +23,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
+	"google.golang.org/grpc/codes"
 
-	"k8s.io/api/core/v1"
+	"github.com/golang/glog"
+	"google.golang.org/grpc/status"
+
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -142,10 +145,8 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	if err != nil || secretRef == nil {
 		return err
 	}
-	//driver := driver.NewDriver(machine.Spec.ProviderID, secretRef, machine.Spec.Class.Kind, //MachineClass, machine.Name)
 
-	// TODO: Make cloud-provider configurable via machine.spec.provider or machineclass.provider
-	driver := driver.NewCmiDriverClient(machine.Spec.ProviderID, "AWS", secretRef, MachineClass, machine.Name)
+	driver := driver.NewCMIDriverClient(machine.Spec.ProviderID, MachineClass.(*v1alpha1.MachineClass).Provider, secretRef, MachineClass, machine.Name)
 
 	actualProviderID, err := machine.Spec.ProviderID, nil
 	if err != nil {
@@ -313,7 +314,7 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 	Machine operations - Create, Update, Delete
 */
 
-func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.CmiDriverClient) error {
+func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.CMIDriverClient) error {
 	glog.V(2).Infof("Creating machine %s, please wait!", machine.Name)
 
 	actualProviderID, nodeName, err := driver.CreateMachine()
@@ -413,15 +414,17 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 	return nil
 }
 
-func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CmiDriverClient) error {
+func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMIDriverClient) error {
 	var err error
 
+	// If Finalizers are present
 	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		glog.V(2).Infof("Deleting Machine %s", machine.Name)
 
-		// If machine was created on the cloud provider
-		machineID, _ := driver.GetExisting()
+		// Getting the machine-ID on the cloud provider
+		machineID := driver.MachineID
 
+		// If machine status has not been set to terminating
 		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating {
 			lastOperation := v1alpha1.LastOperation{
 				Description:    "Deleting machine from cloud provider",
@@ -446,6 +449,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CmiD
 			}
 		}
 
+		// If machine is created on the cloud provider
 		if machineID != "" {
 			timeOutDuration := c.safetyOptions.MachineDrainTimeout.Duration
 			// Timeout value obtained by subtracting last operation with expected time out period
@@ -481,12 +485,27 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CmiD
 					c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
 
 					// Machine still tries to terminate after drain failure
-					glog.Warningf("Drain failed for machine %s - \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+					glog.Warningf("Drain failed for machine %q - \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
 					return err
 				}
-				glog.V(2).Infof("Drain successful for machine %s - %v %v", machine.Name, buf, errBuf)
+				glog.V(2).Infof("Drain successful for machine %q", machine.Name)
 			}
-			err = driver.DeleteMachine()
+
+			// Check for existance of machine at cloud provider
+			_, err := driver.GetMachine(machineID)
+			if err == nil || status.Code(err) == codes.Unimplemented {
+				// Either there is no err
+				// or the GetMachine is not implemented
+				// then continue
+
+				err = driver.ShutDownMachine(machineID)
+				if err == nil || status.Code(err) == codes.Unimplemented {
+					// Either there is no err
+					// or the ShutDownMachine is not implemented
+					// then continue
+					err = driver.DeleteMachine(machineID)
+				}
+			}
 		}
 
 		if err != nil {

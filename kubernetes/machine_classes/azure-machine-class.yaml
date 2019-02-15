@@ -42,3 +42,4 @@ providerSpec:
 secretRef: # Kubernetes secret containing values for provider secrets and user-data
   name: "test-secret" # Name of the secret
   namespace: "default" # Namespace of secret
+provider: azuredriver//127.0.0.1:8080 # Provider information of gRPC driver. Default: grpc-default-driver//127.0.0.1:8080
