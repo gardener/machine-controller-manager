@@ -371,10 +371,12 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 		clone.Status.LastOperation = lastOperation
 		clone.Status.CurrentStatus = currentStatus
 		_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
-		if err == nil {
-			break
+		if err != nil {
+			glog.Warningf("Machine/status update failed. Retrying, error: %s", err)
+			continue
 		}
-		glog.Warningf("Machine/status update failed. Retrying, error: %s", err)
+		// Update went through, exit out of infinite loop
+		break
 	}
 
 	return nil
@@ -407,10 +409,12 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 		}
 		clone.Status.LastOperation = lastOperation
 		_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
-		if err == nil {
-			break
+		if err != nil {
+			glog.Warningf("Machine/status update failed. Retrying, error: %s", err)
+			continue
 		}
-		glog.Warningf("Machine/status update failed. Retrying, error: %s", err)
+		// Update went through, exit out of infinite loop
+		break
 	}
 
 	return nil

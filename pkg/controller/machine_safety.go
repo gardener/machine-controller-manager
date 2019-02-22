@@ -583,10 +583,12 @@ func (c *controller) freezeMachineSetsAndDeployments(machineSet *v1alpha1.Machin
 		SetCondition(&newStatus, mscond)
 		clone.Status = newStatus
 		_, err = c.controlMachineClient.MachineSets(clone.Namespace).UpdateStatus(clone)
-		if err == nil {
-			break
+		if err != nil {
+			glog.Warningf("MachineSet/status update failed. Retrying, error: %s", err)
+			continue
 		}
-		glog.Warningf("MachineSet/status update failed. Retrying, error: %s", err)
+		// Update went through, exit out of infinite loop
+		break
 	}
 
 	machineDeployments := c.getMachineDeploymentsForMachineSet(machineSet)
@@ -619,10 +621,12 @@ func (c *controller) freezeMachineSetsAndDeployments(machineSet *v1alpha1.Machin
 				clone = machineDeployment.DeepCopy()
 				clone.Status = newStatus
 				_, err = c.controlMachineClient.MachineDeployments(clone.Namespace).UpdateStatus(clone)
-				if err == nil {
-					break
+				if err != nil {
+					glog.Warningf("MachineDeployment/status update failed. Retrying, error: %s", err)
+					continue
 				}
-				glog.Warningf("MachineDeployment/status update failed. Retrying, error: %s", err)
+				// Update went through, exit out of infinite loop
+				break
 			}
 		}
 	}
@@ -645,7 +649,7 @@ func (c *controller) unfreezeMachineSetsAndDeployments(machineSet *v1alpha1.Mach
 		delete(clone.Labels, "freeze")
 		machineSet, err = c.controlMachineClient.MachineSets(clone.Namespace).UpdateStatus(clone)
 		if err != nil {
-			glog.Warningf("MachineDeployment update failed. Retrying, error: %s", err)
+			glog.Warningf("MachineSet update failed. Retrying, error: %s", err)
 			continue
 		}
 
@@ -654,10 +658,12 @@ func (c *controller) unfreezeMachineSetsAndDeployments(machineSet *v1alpha1.Mach
 		RemoveCondition(&newStatus, v1alpha1.MachineSetFrozen)
 		clone.Status = newStatus
 		_, err = c.controlMachineClient.MachineSets(clone.Namespace).UpdateStatus(clone)
-		if err == nil {
-			break
+		if err != nil {
+			glog.Warningf("MachineSet/status update failed. Retrying, error: %s", err)
+			continue
 		}
-		glog.Warningf("MachineDeployment/status update failed. Retrying, error: %s", err)
+		// Update went through, exit out of infinite loop
+		break
 	}
 
 	machineDeployments := c.getMachineDeploymentsForMachineSet(machineSet)
@@ -687,10 +693,12 @@ func (c *controller) unfreezeMachineSetsAndDeployments(machineSet *v1alpha1.Mach
 				RemoveMachineDeploymentCondition(&newStatus, v1alpha1.MachineDeploymentFrozen)
 				clone.Status = newStatus
 				_, err = c.controlMachineClient.MachineDeployments(clone.Namespace).UpdateStatus(clone)
-				if err == nil {
-					break
+				if err != nil {
+					glog.Warningf("MachineDeployment/status update failed. Retrying, error: %s", err)
+					continue
 				}
-				glog.Warningf("MachineDeployment/status update failed. Retrying, error: %s", err)
+				// Update went through, exit out of infinite loop
+				break
 			}
 		}
 	}
