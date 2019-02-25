@@ -77,7 +77,7 @@ func (d *AzureDriver) Create() (string, string, error) {
 		d.AzureMachineClass.Spec.SubnetInfo.SubnetName,
 		"",
 	)
-	err = onErrorFail(err, fmt.Sprintf("subnetClient.Get failed for subnet %q", *subnet.Name))
+	err = onErrorFail(err, fmt.Sprintf("subnetClient.Get failed for subnet %q", d.AzureMachineClass.Spec.SubnetInfo.SubnetName))
 	if err != nil {
 		return "Error", "Error", err
 	}
