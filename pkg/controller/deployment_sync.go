@@ -273,10 +273,12 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 
 		if needsUpdate {
 			var err error
+			newStatus := d.Status
 			if d, err = dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d); err != nil {
 				return nil, err
 			}
 			dCopy := d.DeepCopy()
+			dCopy.Status = newStatus
 			if d, err = dc.controlMachineClient.MachineDeployments(dCopy.Namespace).UpdateStatus(dCopy); err != nil {
 				return nil, err
 			}
