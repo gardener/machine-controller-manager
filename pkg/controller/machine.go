@@ -353,24 +353,30 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 		}
 
 		clone := machine.DeepCopy()
-
 		if clone.Annotations == nil {
 			clone.Annotations = make(map[string]string)
 		}
 		if clone.Annotations[MachinePriority] == "" {
 			clone.Annotations[MachinePriority] = "3"
 		}
-
 		clone.Spec.ProviderID = actualProviderID
+		machine, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
+		if err != nil {
+			glog.Warningf("Machine update failed. Retrying, error: %s", err)
+			continue
+		}
+
+		clone = machine.DeepCopy()
 		clone.Status.Node = nodeName
 		clone.Status.LastOperation = lastOperation
 		clone.Status.CurrentStatus = currentStatus
-
-		_, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
-		if err == nil {
-			break
+		_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
+		if err != nil {
+			glog.Warningf("Machine/status update failed. Retrying, error: %s", err)
+			continue
 		}
-		glog.Warningf("Updated failed, retrying, error: %s", err)
+		// Update went through, exit out of infinite loop
+		break
 	}
 
 	return nil
@@ -388,6 +394,13 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 
 		clone := machine.DeepCopy()
 		clone.Spec.ProviderID = actualProviderID
+		machine, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
+		if err != nil {
+			glog.Warningf("Machine update failed. Retrying, error: %s", err)
+			continue
+		}
+
+		clone = machine.DeepCopy()
 		lastOperation := v1alpha1.LastOperation{
 			Description:    "Updated provider ID",
 			State:          v1alpha1.MachineStateSuccessful,
@@ -395,13 +408,13 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 			LastUpdateTime: metav1.Now(),
 		}
 		clone.Status.LastOperation = lastOperation
-
-		_, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
-		if err == nil {
-			glog.V(2).Infof("MachineID %s was successfully set to Machine %s", actualProviderID, machine.Name)
-			break
+		_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
+		if err != nil {
+			glog.Warningf("Machine/status update failed. Retrying, error: %s", err)
+			continue
 		}
-		glog.Warningf("Updated failed, retrying, error: %q", err)
+		// Update went through, exit out of infinite loop
+		break
 	}
 
 	return nil
@@ -536,7 +549,7 @@ func (c *controller) updateMachineStatus(
 	clone.Status.LastOperation = lastOperation
 	clone.Status.CurrentStatus = currentStatus
 
-	clone, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
+	clone, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 	if err != nil {
 		// Keep retrying until update goes through
 		glog.V(3).Infof("Warning: Updated failed, retrying, error: %q", err)
@@ -621,7 +634,7 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 	}
 
 	if objectRequiresUpdate {
-		clone, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
+		clone, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 		if err != nil {
 			// Keep retrying until update goes through
 			glog.Warningf("Updated failed, retrying, error: %q", err)

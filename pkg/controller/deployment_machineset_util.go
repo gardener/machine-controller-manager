@@ -68,7 +68,7 @@ func updateMachineSetStatus(machineClient machineapi.MachineV1alpha1Interface, i
 			fmt.Sprintf("sequence No: %v->%v", is.Status.ObservedGeneration, newStatus.ObservedGeneration))
 
 		is.Status = newStatus
-		updatedIS, updateErr = c.Update(is)
+		updatedIS, updateErr = c.UpdateStatus(is)
 
 		if updateErr == nil {
 			return updatedIS, nil
