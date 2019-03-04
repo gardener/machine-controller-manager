@@ -451,7 +451,7 @@ func (c *controller) checkMachineClass(
 
 	listOfVMs, err := dvr.ListMachines()
 	if err != nil {
-		glog.Warningf("Orphan VM handler is not running. Failed to list VMs at provider. Err - %s", err)
+		glog.Warningf("Orphan VM handler is not running. Failed to list VMs at provider. \nErr - %s", err)
 		return
 	}
 

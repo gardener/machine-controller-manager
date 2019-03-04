@@ -457,7 +457,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMID
 
 	// If Finalizers are present
 	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
-		glog.V(2).Infof("Deleting Machine %q", machine.Name)
+		glog.V(2).Infof("Deleting Machine %q with MachineID %q", machine.Name, driver.MachineID)
 
 		// Getting the machine-ID on the cloud provider
 		machineID := driver.MachineID
@@ -565,6 +565,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMID
 				glog.Warningf("Drain failed for machine %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
 				return err
 			}
+			err = driver.DeleteMachine(machineID)
 		}
 
 		if err != nil {

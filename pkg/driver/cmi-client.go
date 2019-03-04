@@ -142,7 +142,7 @@ func (c *CMIDriverClient) GetMachine(MachineID string) (bool, error) {
 	defer closer.Close()
 
 	req := &cmipb.GetMachineRequest{
-		MachineID: c.MachineID,
+		MachineID: MachineID,
 		Secrets:   c.Secret.Data,
 	}
 	ctx := context.Background()
@@ -219,7 +219,7 @@ func newGrpcConn(driverName string) (*grpc.ClientConn, error) {
 
 	network := "tcp"
 
-	glog.V(2).Infof("Creating new gRPC connection for [%s://%s] for driver: %s", network, addr, name)
+	glog.V(5).Infof("Creating new gRPC connection for [%s://%s] for driver: %s", network, addr, name)
 
 	return grpc.Dial(
 		addr,
