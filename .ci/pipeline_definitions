@@ -19,11 +19,11 @@ machine-controller-manager:
             image: 'eu.gcr.io/gardener-project/gardener/machine-controller-manager'
     steps:
       check:
-        image: 'golang:1.11.5'
+        image: 'golang:1.12.0'
       test:
         image: 'eu.gcr.io/gardener-project/cc/job-image-golang:0.4.0'
       build:
-        image: 'golang:1.11.5'
+        image: 'golang:1.12.0'
         output_dir: 'binary'
   variants:
     head-update:
