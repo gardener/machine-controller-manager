@@ -419,7 +419,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMID
 
 	// If Finalizers are present
 	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
-		glog.V(2).Infof("Deleting Machine %s", machine.Name)
+		glog.V(2).Infof("Deleting Machine %q with MachineID %q", machine.Name, driver.MachineID)
 
 		// Getting the machine-ID on the cloud provider
 		machineID := driver.MachineID
@@ -492,20 +492,17 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMID
 			}
 
 			// Check for existance of machine at cloud provider
-			_, err := driver.GetMachine(machineID)
-			if err == nil || status.Code(err) == codes.Unimplemented {
-				// Either there is no err
-				// or the GetMachine is not implemented
-				// then continue
-
-				err = driver.ShutDownMachine(machineID)
-				if err == nil || status.Code(err) == codes.Unimplemented {
-					// Either there is no err
-					// or the ShutDownMachine is not implemented
-					// then continue
-					err = driver.DeleteMachine(machineID)
-				}
+			_, err = driver.GetMachine(machineID)
+			if err != nil && status.Code(err) != codes.Unimplemented {
+				// If GetMachine was implemented and error occurred
+				glog.V(2).Infof("GetMachine call failed with the following error: %s", err)
 			}
+			err = driver.ShutDownMachine(machineID)
+			if err != nil && status.Code(err) != codes.Unimplemented {
+				// If ShutDownMachine was implemented and error occurred
+				glog.V(2).Infof("ShutdownMachine call failed with the following error: %s", err)
+			}
+			err = driver.DeleteMachine(machineID)
 		}
 
 		if err != nil {
