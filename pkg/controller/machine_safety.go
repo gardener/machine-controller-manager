@@ -647,7 +647,7 @@ func (c *controller) unfreezeMachineSetsAndDeployments(machineSet *v1alpha1.Mach
 		}
 		clone := machineSet.DeepCopy()
 		delete(clone.Labels, "freeze")
-		machineSet, err = c.controlMachineClient.MachineSets(clone.Namespace).UpdateStatus(clone)
+		machineSet, err = c.controlMachineClient.MachineSets(clone.Namespace).Update(clone)
 		if err != nil {
 			glog.Warningf("MachineSet update failed. Retrying, error: %s", err)
 			continue
