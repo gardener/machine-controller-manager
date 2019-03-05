@@ -231,11 +231,11 @@ func (c *AlicloudDriver) GetVMs(machineID string) (VMs, error) {
 }
 
 func (c *AlicloudDriver) encodeMachineID(region, machineID string) string {
-	return fmt.Sprintf("aliyun:///%s/%s", region, machineID)
+	return fmt.Sprintf("%s.%s", region, machineID)
 }
 
 func (c *AlicloudDriver) decodeMachineID(id string) string {
-	splitProviderID := strings.Split(id, "/")
+	splitProviderID := strings.Split(id, ".")
 	return splitProviderID[len(splitProviderID)-1]
 }
 
