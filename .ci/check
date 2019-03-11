@@ -49,7 +49,11 @@ if [[ "${SOURCE_PATH}" != *"src/github.com/gardener/gardener" ]]; then
 fi
 
 # Install Golint (linting tool).
-go get -u github.com/golang/lint/golint
+if ! which golint 1>/dev/null; then
+  echo -n "Installing golint... "
+  go get -u golang.org/x/lint/golint
+  echo "done."
+fi
 
 ###############################################################################
 
