@@ -625,6 +625,7 @@ func (r RealMachineControl) DeleteMachine(namespace string, machineID string, ob
 
 // -- Fake Machine Control -- //
 
+// FakeMachineControl is the fake implementation of machineControlInterface.
 type FakeMachineControl struct {
 	controlMachineClient *fakemachineapi.FakeMachineV1alpha1
 	Recorder             record.EventRecorder
@@ -692,7 +693,7 @@ func (r FakeMachineControl) DeleteMachine(namespace string, machineID string, ob
 	return nil
 }
 
-// GetMachineFromTemplate passes the machine template spec to return the machine object
+// GetFakeMachineFromTemplate passes the machine template spec to return the machine object
 func GetFakeMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject runtime.Object, controllerRef *metav1.OwnerReference) (*v1alpha1.Machine, error) {
 
 	//glog.Info("Template details \n", template.Spec.Class)

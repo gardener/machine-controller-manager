@@ -16,12 +16,14 @@ limitations under the License.
 package controller
 
 import (
+	"errors"
 	"sync"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	k8sError "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -170,7 +172,7 @@ var _ = Describe("machineset", func() {
 
 			MachineSet := c.resolveMachineSetControllerRef(testNamespace, testControllerRef)
 			Expect(MachineSet).Should(Not(BeNil()))
-			Expect(MachineSet).Should(BeIdenticalTo(testMachineSet))
+			Expect(MachineSet).Should(Equal(testMachineSet))
 		})
 
 		// Testcase: It should return MachineSet if name and UID matches.
@@ -476,13 +478,13 @@ var _ = Describe("machineset", func() {
 			waitForCacheSync(stop, c)
 
 			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
-			Expect(len(machines.Items)).To(HaveLen(int(testMachineSet.Spec.Replicas)))
+			Expect(len(machines.Items)).To(Equal(int(0)))
 
 			Key := testNamespace + "/" + testMachineSet.Name
 			Err := c.reconcileClusterMachineSet(Key)
 
 			waitForCacheSync(stop, c)
-		machines, _ = c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			machines, _ = c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
 			//Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
 			Expect(Err).Should(BeNil())
 		})
@@ -563,10 +565,6 @@ var _ = Describe("machineset", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
-			testActiveMachine1.Labels = map[string]string{
-				"dummy-label": "dummy-label",
-			}
-
 			objects := []runtime.Object{}
 			objects = append(objects, testMachineSet, testActiveMachine1)
 			c, trackers := createController(stop, testNamespace, objects, nil, nil)
@@ -578,10 +576,19 @@ var _ = Describe("machineset", func() {
 			filteredMachines, Err := c.claimMachines(testMachineSet, Selector, filteredMachines)
 
 			waitForCacheSync(stop, c)
+			Expect(filteredMachines[0].Name).To(Equal(testActiveMachine1.Name))
+			Expect(Err).Should(BeNil())
+
+			testActiveMachine1.Labels = map[string]string{
+				"dummy-label": "dummy-label",
+			}
+
+			filteredMachines, Err = c.claimMachines(testMachineSet, Selector, filteredMachines)
+
+			waitForCacheSync(stop, c)
 			Expect(len(filteredMachines)).To(Equal(0))
 			Expect(Err).Should(BeNil())
 		})
-
 	})
 
 	Describe("#slowStartBatch", func() {
@@ -589,12 +596,18 @@ var _ = Describe("machineset", func() {
 			count            int
 			initialBatchSize int
 			f                func() error
+			fError           func() error
 		)
 
 		BeforeEach(func() {
 			f = func() error {
 				// Do nothing
 				return nil
+			}
+			fError = func() error {
+				//Throw Error
+				err := errors.New("Some Error..")
+				return err
 			}
 		})
 
@@ -614,6 +627,15 @@ var _ = Describe("machineset", func() {
 			successes, Err := slowStartBatch(count, initialBatchSize, f)
 			Expect(successes).Should(Equal(0))
 			Expect(Err).Should(BeNil())
+		})
+
+		// It should return errors as fError throws one.
+		It("should return error", func() {
+			count = 10
+			initialBatchSize = 2
+			successes, Err := slowStartBatch(count, initialBatchSize, fError)
+			Expect(successes).Should(Equal(0))
+			Expect(Err).Should(Not(BeNil()))
 		})
 	})
 
@@ -774,7 +796,7 @@ var _ = Describe("machineset", func() {
 			waitForCacheSync(stop, c)
 			_, err := c.controlMachineClient.Machines(testNamespace).Get(targetMachine.Name, metav1.GetOptions{})
 
-			Expect(err).Should(Not(BeNil()))
+			Expect(k8sError.IsNotFound(err)).Should(BeTrue())
 		})
 	})
 
@@ -928,6 +950,7 @@ var _ = Describe("machineset", func() {
 	Describe("#deleteMachineSetFinalizers", func() {
 		var (
 			testMachineSet *machinev1.MachineSet
+			finalizers     []string
 		)
 
 		BeforeEach(func() {
@@ -956,6 +979,7 @@ var _ = Describe("machineset", func() {
 					},
 				},
 			}
+			finalizers = []string{"finalizer1"}
 
 		})
 
@@ -971,8 +995,9 @@ var _ = Describe("machineset", func() {
 			waitForCacheSync(stop, c)
 
 			testMachineSet, _ := c.controlMachineClient.MachineSets(testNamespace).Get(testMachineSet.Name, metav1.GetOptions{})
+			testMachineSet.Finalizers = finalizers
 			Expect(testMachineSet.Finalizers).Should(Not(BeEmpty()))
-			
+
 			c.deleteMachineSetFinalizers(testMachineSet)
 
 			waitForCacheSync(stop, c)
