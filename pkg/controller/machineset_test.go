@@ -99,6 +99,8 @@ var _ = Describe("machineset", func() {
 			MachineSet, err := c.getMachineMachineSets(testMachine)
 			Expect(err).Should(BeNil())
 			Expect(MachineSet).Should(Not(BeNil()))
+			Expect(MachineSet).Should(HaveLen(1))
+			Expect(MachineSet).Should(ContainElement(testMachineSet))
 		})
 	})
 
@@ -168,6 +170,7 @@ var _ = Describe("machineset", func() {
 
 			MachineSet := c.resolveMachineSetControllerRef(testNamespace, testControllerRef)
 			Expect(MachineSet).Should(Not(BeNil()))
+			Expect(MachineSet).Should(BeIdenticalTo(testMachineSet))
 		})
 
 		// Testcase: It should return MachineSet if name and UID matches.
@@ -288,7 +291,7 @@ var _ = Describe("machineset", func() {
 
 		//Testcase: ActiveMachines < DesiredMachines
 		//It should create new machines and should not return erros.
-		It("should not return error", func() {
+		It("should create new machines and should not return errors.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -298,18 +301,21 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
+			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas) - 1))
+
 			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2}
 			Err := c.manageReplicas(activeMachines, testMachineSet)
 			waitForCacheSync(stop, c)
 			//TODO: Could not use Listers here, need to check more.
-			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			machines, _ = c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
 			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
 			Expect(Err).Should(BeNil())
 		})
 
 		//TestCase: ActiveMachines = DesiredMachines
 		//Testcase: It should not return error.
-		It("should not return error", func() {
+		It("should not create or delete machined and should not return error", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -339,17 +345,20 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
+			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
+
 			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2, testActiveMachine3}
 			Err := c.manageReplicas(activeMachines, testMachineSet)
 			waitForCacheSync(stop, c)
-			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			machines, _ = c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
 			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
 			Expect(Err).Should(BeNil())
 		})
 
 		//TestCase: ActiveMachines > DesiredMachines
 		//Testcase: It should not return error and delete extra machine.
-		It("should not return error", func() {
+		It("should not return error and should delete extra machine.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -399,10 +408,13 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
+			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas + 1)))
+
 			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2, testActiveMachine3, testActiveMachine4}
 			Err := c.manageReplicas(activeMachines, testMachineSet)
 			waitForCacheSync(stop, c)
-			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			machines, _ = c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
 			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
 			Expect(Err).Should(BeNil())
 		})
@@ -453,7 +465,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		//Testcase: It should create new machines.
-		It("should not return error", func() {
+		It("It should create new machines.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -463,11 +475,14 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
+			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			Expect(len(machines.Items)).To(HaveLen(int(testMachineSet.Spec.Replicas)))
+
 			Key := testNamespace + "/" + testMachineSet.Name
 			Err := c.reconcileClusterMachineSet(Key)
 
 			waitForCacheSync(stop, c)
-			_, _ = c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+		machines, _ = c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
 			//Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
 			Expect(Err).Should(BeNil())
 		})
@@ -524,7 +539,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		//Testcase: It should adopt new machines.
-		It("should not return error", func() {
+		It("should adopt new machines.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -544,7 +559,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		//Testcase: It should release the machine due to not matching machine-labels.
-		It("should not return error", func() {
+		It("should release the machine due to not matching machine-labels.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -584,7 +599,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// It should return number of success call which should be equal to count.
-		It("should not return error", func() {
+		It("should return number of success call which should be equal to count.", func() {
 			count = 10
 			initialBatchSize = 2
 			successes, Err := slowStartBatch(count, initialBatchSize, f)
@@ -593,7 +608,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// It should fail initialBatchSize is 0
-		It("should not return error", func() {
+		It("should fail initialBatchSize is 0", func() {
 			count = 10
 			initialBatchSize = 0
 			successes, Err := slowStartBatch(count, initialBatchSize, f)
@@ -645,7 +660,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// Testcase: It should return the Failed machines first.
-		It("should not return error", func() {
+		It("should return the Failed machines first.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 			diff = 1
@@ -681,10 +696,10 @@ var _ = Describe("machineset", func() {
 		})
 
 		// It should return number of success call which should be equal to count.
-		It("should not return error", func() {
+		It("should return number of success call which should be equal to count.", func() {
 			filteredMachines := []*machinev1.Machine{testMachine1, testMachine2}
 			Keys := getMachineKeys(filteredMachines)
-			Expect(len(Keys)).To(Equal(len(filteredMachines)))
+			Expect(Keys).To(HaveLen(len(filteredMachines)))
 			for k := range Keys {
 				Expect(Keys[k]).To(Equal(filteredMachines[k].Name))
 			}
@@ -743,7 +758,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		//TestCase: It should delete the target machine.
-		It("should not return error", func() {
+		It("should delete the target machine.", func() {
 			stop := make(chan struct{})
 			var errCh *chan error
 			defer close(stop)
@@ -832,7 +847,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// Testcase: It should delete the inactive machines.
-		It("should not return error", func() {
+		It("It should delete the inactive machines.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -890,7 +905,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// Testcase: It should add finalizer on MachineSet.
-		It("should not return error", func() {
+		It("should add finalizer on MachineSet.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -905,7 +920,8 @@ var _ = Describe("machineset", func() {
 			waitForCacheSync(stop, c)
 			testMachineSet, _ := c.controlMachineClient.MachineSets(testNamespace).Get(testMachineSet.Name, metav1.GetOptions{})
 
-			Expect(testMachineSet.Finalizers[0]).To(Equal(DeleteFinalizerName))
+			Expect(testMachineSet.Finalizers).To(HaveLen(1))
+			Expect(testMachineSet.Finalizers).To(ContainElement(DeleteFinalizerName))
 		})
 	})
 
@@ -944,7 +960,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// Testcase: It should delete the finalizer from MachineSet.
-		It("should not return error", func() {
+		It("should delete the finalizer from MachineSet.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -954,10 +970,13 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
+			testMachineSet, _ := c.controlMachineClient.MachineSets(testNamespace).Get(testMachineSet.Name, metav1.GetOptions{})
+			Expect(testMachineSet.Finalizers).Should(Not(BeEmpty()))
+			
 			c.deleteMachineSetFinalizers(testMachineSet)
 
 			waitForCacheSync(stop, c)
-			testMachineSet, _ := c.controlMachineClient.MachineSets(testNamespace).Get(testMachineSet.Name, metav1.GetOptions{})
+			testMachineSet, _ = c.controlMachineClient.MachineSets(testNamespace).Get(testMachineSet.Name, metav1.GetOptions{})
 
 			Expect(testMachineSet.Finalizers).Should(BeNil())
 		})
@@ -1001,7 +1020,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// Testcase: It should update the finalizer on MachineSet.
-		It("should not return error", func() {
+		It("should update the finalizer on MachineSet.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
