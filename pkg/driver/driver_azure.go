@@ -244,10 +244,10 @@ func (d *AzureDriver) Delete() error {
 			return err
 		}
 		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
-		glog.V(2).Infof("VM deletion was successful for %s", vmName)
+		glog.V(2).Infof("VM deletion was successful for %q", vmName)
 
 	} else {
-		glog.Warningf("VM was not found for %s", vmName)
+		glog.Warningf("VM was not found for %q", vmName)
 	}
 
 	listOfResources = make(map[string]string)
@@ -260,9 +260,9 @@ func (d *AzureDriver) Delete() error {
 			return err
 		}
 		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
-		glog.V(2).Infof("NIC deletion was successful for %s", nicName)
+		glog.V(2).Infof("NIC deletion was successful for %q", nicName)
 	} else {
-		glog.Warningf("NIC was not found for %s", nicName)
+		glog.Warningf("NIC was not found for %q", nicName)
 	}
 
 	listOfResources = make(map[string]string)
@@ -275,9 +275,9 @@ func (d *AzureDriver) Delete() error {
 			return err
 		}
 		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
-		glog.V(2).Infof("OS-Disk deletion was successful for %s", diskName)
+		glog.V(2).Infof("OS-Disk deletion was successful for %q", diskName)
 	} else {
-		glog.Warningf("OS-Disk was not found for %s", diskName)
+		glog.Warningf("OS-Disk was not found for %q", diskName)
 	}
 
 	return err
