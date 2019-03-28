@@ -470,7 +470,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 					c.targetCoreClient,
 					timeOutDuration, // TODO: Will need to configure timeout
 					nodeName,
-					-1,
+					int(timeOutDuration.Seconds()),
 					true,
 					true,
 					true,
