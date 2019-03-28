@@ -231,14 +231,13 @@ func (d *AzureDriver) Delete() error {
 	d.getvms(d.MachineID, listOfResources)
 	if len(listOfResources) != 0 {
 
-		_, errChan := vmClient.PowerOff(resourceGroup, vmName, cancel)
-		err = onErrorFail(<-errChan, fmt.Sprintf("vmClient.PowerOff failed for '%s'", vmName))
+		err = d.waitForDataDiskDetachment(vmName)
 		if err != nil {
 			return err
 		}
-		glog.V(2).Infof("VM poweroff was successful for %s", vmName)
+		glog.V(2).Infof("Disk detachment was successful for %q", vmName)
 
-		_, errChan = vmClient.Delete(resourceGroup, vmName, cancel)
+		_, errChan := vmClient.Delete(resourceGroup, vmName, cancel)
 		err = onErrorFail(<-errChan, fmt.Sprintf("vmClient.Delete failed for '%s'", vmName))
 		if err != nil {
 			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
@@ -374,6 +373,33 @@ func (d *AzureDriver) getvms(machineID string, listOfVMs VMs) error {
 				}
 			}
 
+		}
+	}
+
+	return nil
+}
+
+// waitForDataDiskDetachment waits for data disks to be detached
+func (d *AzureDriver) waitForDataDiskDetachment(machineID string) error {
+	var cancel <-chan struct{}
+	d.setup()
+
+	vm, err := vmClient.Get(d.AzureMachineClass.Spec.ResourceGroup, machineID, compute.InstanceView)
+	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
+		glog.Errorf("Failed to list VMs. Error Message - %s", err)
+		return err
+	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
+
+	if len(*vm.StorageProfile.DataDisks) > 0 {
+		// There are disks attached hence need to detach them
+		vm.StorageProfile.DataDisks = &[]compute.DataDisk{}
+
+		_, errChan := vmClient.CreateOrUpdate(d.AzureMachineClass.Spec.ResourceGroup, machineID, vm, cancel)
+		err = onErrorFail(<-errChan, fmt.Sprintf("vmClient.CreateOrUpdate failed for '%s'", machineID))
+		if err != nil {
+			return fmt.Errorf("Cannot detach disks for machine. Error: %v", err)
 		}
 	}
 
