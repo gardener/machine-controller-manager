@@ -35,6 +35,7 @@ var (
 )
 
 var _ = Describe("#machine_safety", func() {
+
 	DescribeTable("##freezeMachineSetsAndDeployments",
 		func(machineSet *v1alpha1.MachineSet) {
 			stop := make(chan struct{})
@@ -66,7 +67,7 @@ var _ = Describe("#machine_safety", func() {
 				Name:      "machine",
 				Namespace: testNamespace,
 			},
-		}, 1, 10, nil, nil, nil)),
+		}, 1, 10, nil, nil, nil, nil)),
 	)
 
 	DescribeTable("##unfreezeMachineSetsAndDeployments",
@@ -79,7 +80,7 @@ var _ = Describe("#machine_safety", func() {
 						"name": "testMachineDeployment",
 					},
 				},
-			}, 1, 10, nil, nil, nil)
+			}, 1, 10, nil, nil, nil, map[string]string{})
 			if machineSetIsFrozen {
 				testMachineSet.Labels["freeze"] = "True"
 				msStatus := testMachineSet.Status
