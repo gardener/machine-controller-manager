@@ -68,6 +68,7 @@ var _ = Describe("deployment_rolling", func() {
 			nil,
 			nil,
 			nil,
+			nil,
 		)
 
 		DescribeTable("##table",
@@ -128,6 +129,8 @@ var _ = Describe("deployment_rolling", func() {
 						&machinev1.MachineStatus{
 							Node: "node",
 						},
+						nil,
+						nil,
 					),
 					nodes: newNodes(
 						1,
@@ -153,6 +156,7 @@ var _ = Describe("deployment_rolling", func() {
 					nil,
 					nil,
 					nil,
+					nil,
 				),
 				expect: expect{
 					machineSets: newMachineSets(
@@ -173,6 +177,7 @@ var _ = Describe("deployment_rolling", func() {
 						map[string]string{
 							PreferNoScheduleKey: "True",
 						},
+						nil,
 					),
 					nodes: newNodes(
 						1,
