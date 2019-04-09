@@ -545,7 +545,7 @@ var _ = Describe("machine", func() {
 								Name: "machine-0",
 							},
 						},
-					}, nil, nil),
+					}, nil, nil, nil, nil),
 				},
 				action: action{
 					machine:        "machine-0",
@@ -569,7 +569,7 @@ var _ = Describe("machine", func() {
 						LastOperation: machinev1.LastOperation{
 							Description: "Cloud provider message - Test Error",
 						},
-					}, nil),
+					}, nil, nil, nil),
 					err: true,
 				},
 			}),
@@ -596,7 +596,7 @@ var _ = Describe("machine", func() {
 								Name: "machine-0",
 							},
 						},
-					}, nil, nil),
+					}, nil, nil, nil, nil),
 				},
 				action: action{
 					machine:        "machine-0",
@@ -617,7 +617,7 @@ var _ = Describe("machine", func() {
 					}, &machinev1.MachineStatus{
 						Node: "fakeNode",
 						//TODO conditions
-					}, nil),
+					}, nil, nil, nil),
 					err: false,
 				},
 			}),
@@ -697,7 +697,7 @@ var _ = Describe("machine", func() {
 							Type:           machinev1.MachineOperationCreate,
 							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 				action: action{
 					machine: machineName,
@@ -715,7 +715,7 @@ var _ = Describe("machine", func() {
 							State:       machinev1.MachineStateSuccessful,
 							Type:        machinev1.MachineOperationCreate,
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 			}),
 			Entry("Machine creation has still not timed out", &data{
@@ -734,7 +734,7 @@ var _ = Describe("machine", func() {
 							Type:           machinev1.MachineOperationCreate,
 							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 				action: action{
 					machine: machineName,
@@ -752,7 +752,7 @@ var _ = Describe("machine", func() {
 							State:       machinev1.MachineStateProcessing,
 							Type:        machinev1.MachineOperationCreate,
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 			}),
 			Entry("Machine creation has timed out", &data{
@@ -771,7 +771,7 @@ var _ = Describe("machine", func() {
 							Type:           machinev1.MachineOperationCreate,
 							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 				action: action{
 					machine: machineName,
@@ -793,7 +793,7 @@ var _ = Describe("machine", func() {
 							State: machinev1.MachineStateFailed,
 							Type:  machinev1.MachineOperationCreate,
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 			}),
 			Entry("Machine health has timed out", &data{
@@ -812,7 +812,7 @@ var _ = Describe("machine", func() {
 							Type:           machinev1.MachineOperationHealthCheck,
 							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 				action: action{
 					machine: machineName,
@@ -835,7 +835,7 @@ var _ = Describe("machine", func() {
 							State: machinev1.MachineStateFailed,
 							Type:  machinev1.MachineOperationHealthCheck,
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 			}),
 		)
@@ -914,7 +914,7 @@ var _ = Describe("machine", func() {
 				setup: setup{
 					machines: newMachines(1, &machinev1.MachineTemplateSpec{
 						ObjectMeta: *newObjectMeta(objMeta, 0),
-					}, &machinev1.MachineStatus{}, nil),
+					}, &machinev1.MachineStatus{}, nil, nil, nil),
 				},
 				action: action{
 					machine: machineName,
@@ -922,7 +922,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					machine: newMachine(&machinev1.MachineTemplateSpec{
 						ObjectMeta: *newObjectMeta(objMeta, 0),
-					}, &machinev1.MachineStatus{}, nil),
+					}, &machinev1.MachineStatus{}, nil, nil, nil),
 				},
 			}),
 			Entry("Node object backing machine not found and machine conditions are empty", &data{
@@ -931,7 +931,7 @@ var _ = Describe("machine", func() {
 						ObjectMeta: *newObjectMeta(objMeta, 0),
 					}, &machinev1.MachineStatus{
 						Node: "dummy-node",
-					}, nil),
+					}, nil, nil, nil),
 				},
 				action: action{
 					machine: machineName,
@@ -941,7 +941,7 @@ var _ = Describe("machine", func() {
 						ObjectMeta: *newObjectMeta(objMeta, 0),
 					}, &machinev1.MachineStatus{
 						Node: "dummy-node",
-					}, nil),
+					}, nil, nil, nil),
 				},
 			}),
 			Entry("Machine is running but node object is lost", &data{
@@ -969,7 +969,7 @@ var _ = Describe("machine", func() {
 								Type:    "Ready",
 							},
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 				action: action{
 					machine: machineName,
@@ -1001,7 +1001,7 @@ var _ = Describe("machine", func() {
 								Type:    "Ready",
 							},
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 			}),
 			Entry("Machine and node both are present and kubelet ready status is updated", &data{
@@ -1029,7 +1029,7 @@ var _ = Describe("machine", func() {
 								Type:    "Ready",
 							},
 						},
-					}, nil),
+					}, nil, nil, nil),
 					nodes: []*corev1.Node{
 						&corev1.Node{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1073,7 +1073,7 @@ var _ = Describe("machine", func() {
 								Type:    "Ready",
 							},
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 			}),
 		)

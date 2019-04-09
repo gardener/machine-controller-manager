@@ -70,6 +70,7 @@ var _ = Describe("deployment_rollback", func() {
 			map[string]string{
 				PreferNoScheduleKey: "True",
 			},
+			nil,
 		)
 
 		DescribeTable("##table",
@@ -130,6 +131,8 @@ var _ = Describe("deployment_rollback", func() {
 						&machinev1.MachineStatus{
 							Node: "node",
 						},
+						nil,
+						nil,
 					),
 					nodes: newNodes(
 						1,
@@ -163,6 +166,7 @@ var _ = Describe("deployment_rollback", func() {
 					map[string]string{
 						PreferNoScheduleKey: "True",
 					},
+					nil,
 				)[0],
 				expect: expect{
 					machineSets: newMachineSets(
@@ -181,6 +185,7 @@ var _ = Describe("deployment_rollback", func() {
 						nil,
 						nil,
 						map[string]string{},
+						nil,
 					),
 					nodes: newNodes(
 						1,
