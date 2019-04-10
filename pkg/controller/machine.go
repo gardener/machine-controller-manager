@@ -456,41 +456,45 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			// Timeout value obtained by subtracting last operation with expected time out period
 			timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 
-			// To perform drain 2 conditions must be satified
-			// 1. force-deletion: "True" label must not be present
-			// 2. Deletion operation must be less than 5 minutes old
-			if machine.Labels["force-deletion"] != "True" && timeOut < 0 {
-				buf := bytes.NewBuffer([]byte{})
-				errBuf := bytes.NewBuffer([]byte{})
-
-				nodeName := machine.Status.Node
-				drainOptions := NewDrainOptions(
-					c.targetCoreClient,
-					timeOutDuration, // TODO: Will need to configure timeout
-					nodeName,
-					int(timeOutDuration.Seconds()),
-					true,
-					true,
-					true,
-					buf,
-					errBuf,
-				)
-				err = drainOptions.RunDrain()
-				if err != nil {
-					lastOperation := v1alpha1.LastOperation{
-						Description:    "Drain failed - " + err.Error(),
-						State:          v1alpha1.MachineStateFailed,
-						Type:           v1alpha1.MachineOperationDelete,
-						LastUpdateTime: metav1.Now(),
-					}
-					c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
-
-					// Machine still tries to terminate after drain failure
-					glog.Warningf("Drain failed for machine %q \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
-					return err
-				}
-				glog.V(2).Infof("Drain successful for machine %q \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
+			// To perform forceful drain either one of the below conditions must be satified
+			// 1. force-deletion: "True" label must be present
+			// 2. Deletion operation is more than drain-timeout minutes old
+			if machine.Labels["force-deletion"] == "True" || timeOut > 0 {
+				timeOutDuration = 30 * time.Second
+				glog.V(2).Infof("Force deletion has been triggerred for machine %q", machine.Name)
 			}
+
+			buf := bytes.NewBuffer([]byte{})
+			errBuf := bytes.NewBuffer([]byte{})
+
+			nodeName := machine.Status.Node
+			drainOptions := NewDrainOptions(
+				c.targetCoreClient,
+				timeOutDuration, // TODO: Will need to configure timeout
+				nodeName,
+				-1,
+				true,
+				true,
+				true,
+				buf,
+				errBuf,
+			)
+			err = drainOptions.RunDrain()
+			if err != nil {
+				lastOperation := v1alpha1.LastOperation{
+					Description:    "Drain failed - " + err.Error(),
+					State:          v1alpha1.MachineStateFailed,
+					Type:           v1alpha1.MachineOperationDelete,
+					LastUpdateTime: metav1.Now(),
+				}
+				c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
+
+				// Machine still tries to terminate after drain failure
+				glog.Warningf("Drain failed for machine %q \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+				return err
+			}
+			glog.V(2).Infof("Drain successful for machine %q \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
+
 			err = driver.Delete()
 		}
 
