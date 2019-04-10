@@ -59,7 +59,7 @@ var _ = Describe("#machine_safety", func() {
 					continue
 				}
 
-				c.freezeMachineSetsAndDeployments(&ms, freezeReason, freezeMessage)
+				c.freezeMachineSetAndDeployment(&ms, freezeReason, freezeMessage)
 			}
 		},
 		Entry("one machineset", newMachineSet(&v1alpha1.MachineTemplateSpec{
@@ -124,7 +124,7 @@ var _ = Describe("#machine_safety", func() {
 
 			Expect(cache.WaitForCacheSync(stop, c.machineSetSynced, c.machineDeploymentSynced)).To(BeTrue())
 
-			c.unfreezeMachineSetsAndDeployments(testMachineSet)
+			c.unfreezeMachineSetAndDeployment(testMachineSet)
 			machineSet, err := c.controlMachineClient.MachineSets(testMachineSet.Namespace).Get(testMachineSet.Name, metav1.GetOptions{})
 			if machineSetExists {
 				Expect(machineSet.Labels["freeze"]).Should((BeEmpty()))
