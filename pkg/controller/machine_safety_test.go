@@ -59,7 +59,7 @@ var _ = Describe("#machine_safety", func() {
 					continue
 				}
 
-				c.freezeMachineSetsAndDeployments(&ms, freezeReason, freezeMessage)
+				c.freezeMachineSetAndDeployment(&ms, freezeReason, freezeMessage)
 			}
 		},
 		Entry("one machineset", newMachineSet(&v1alpha1.MachineTemplateSpec{
@@ -124,7 +124,7 @@ var _ = Describe("#machine_safety", func() {
 
 			Expect(cache.WaitForCacheSync(stop, c.machineSetSynced, c.machineDeploymentSynced)).To(BeTrue())
 
-			c.unfreezeMachineSetsAndDeployments(testMachineSet)
+			c.unfreezeMachineSetAndDeployment(testMachineSet)
 			machineSet, err := c.controlMachineClient.MachineSets(testMachineSet.Namespace).Get(testMachineSet.Name, metav1.GetOptions{})
 			if machineSetExists {
 				Expect(machineSet.Labels["freeze"]).Should((BeEmpty()))
@@ -148,19 +148,23 @@ var _ = Describe("#machine_safety", func() {
 	)
 
 	type setup struct {
-		machineReplicas             int
-		machineSetLabels            map[string]string
-		machineSetConditions        []v1alpha1.MachineSetCondition
-		machineDeploymentLabels     map[string]string
-		machineDeploymentConditions []v1alpha1.MachineDeploymentCondition
+		machineReplicas              int
+		machineSetAnnotations        map[string]string
+		machineSetLabels             map[string]string
+		machineSetConditions         []v1alpha1.MachineSetCondition
+		machineDeploymentAnnotations map[string]string
+		machineDeploymentLabels      map[string]string
+		machineDeploymentConditions  []v1alpha1.MachineDeploymentCondition
 	}
 	type action struct {
 	}
 	type expect struct {
-		machineSetLabels            map[string]string
-		machineSetConditions        []v1alpha1.MachineSetCondition
-		machineDeploymentLabels     map[string]string
-		machineDeploymentConditions []v1alpha1.MachineDeploymentCondition
+		machineSetAnnotations        map[string]string
+		machineSetLabels             map[string]string
+		machineSetConditions         []v1alpha1.MachineSetCondition
+		machineDeploymentAnnotations map[string]string
+		machineDeploymentLabels      map[string]string
+		machineDeploymentConditions  []v1alpha1.MachineDeploymentCondition
 	}
 	type data struct {
 		setup  setup
@@ -168,7 +172,7 @@ var _ = Describe("#machine_safety", func() {
 		expect expect
 	}
 
-	DescribeTable("##checkAndFreezeORUnfreezeMachineSets",
+	DescribeTable("##reconcileClusterMachineSafetyOvershooting",
 		func(data *data) {
 			stop := make(chan struct{})
 			defer close(stop)
@@ -189,7 +193,7 @@ var _ = Describe("#machine_safety", func() {
 					Conditions: data.setup.machineDeploymentConditions,
 				},
 				nil,
-				nil,
+				data.setup.machineDeploymentAnnotations,
 				data.setup.machineDeploymentLabels,
 			)
 			machineSet := newMachineSetFromMachineDeployment(
@@ -198,7 +202,7 @@ var _ = Describe("#machine_safety", func() {
 				&v1alpha1.MachineSetStatus{
 					Conditions: data.setup.machineSetConditions,
 				},
-				nil,
+				data.setup.machineSetAnnotations,
 				data.setup.machineSetLabels,
 			)
 			machines := newMachinesFromMachineSet(
@@ -228,7 +232,7 @@ var _ = Describe("#machine_safety", func() {
 			Expect(err).To(BeNil())
 			Expect(len(machines)).To(Equal(data.setup.machineReplicas))
 
-			c.checkAndFreezeORUnfreezeMachineSets()
+			c.reconcileClusterMachineSafetyOvershooting("")
 			waitForCacheSync(stop, c)
 
 			ms, err := c.controlMachineClient.MachineSets(testNamespace).List(metav1.ListOptions{})
@@ -241,6 +245,7 @@ var _ = Describe("#machine_safety", func() {
 			} else {
 				Expect(len(ms.Items[0].Status.Conditions)).To(Equal(0))
 			}
+			Expect(len(ms.Items[0].Annotations)).To(Equal(len(data.expect.machineSetAnnotations)))
 
 			machineDeploy, err := c.controlMachineClient.MachineDeployments(testNamespace).List(metav1.ListOptions{})
 			Expect(err).To(BeNil())
@@ -250,6 +255,7 @@ var _ = Describe("#machine_safety", func() {
 			} else {
 				Expect(len(machineDeploy.Items[0].Status.Conditions)).To(Equal(0))
 			}
+			Expect(len(machineDeploy.Items[0].Annotations)).To(Equal(len(data.expect.machineDeploymentAnnotations)))
 		},
 
 		Entry("Freeze a machineSet and its machineDeployment", &data{
@@ -427,10 +433,132 @@ var _ = Describe("#machine_safety", func() {
 				},
 			},
 			expect: expect{
+				machineSetAnnotations: map[string]string{},
 				machineSetLabels: map[string]string{
 					"machine": "test",
 				},
-				machineDeploymentLabels: map[string]string{},
+				machineDeploymentAnnotations: map[string]string{},
+				machineDeploymentLabels:      map[string]string{},
+			},
+		}),
+		Entry("Unfreeze machineSet manually and let machineDeployment continue to be frozen", &data{
+			setup: setup{
+				machineReplicas: 4,
+				machineSetAnnotations: map[string]string{
+					UnfreezeAnnotation: "True",
+				},
+				machineSetLabels: map[string]string{
+					"freeze": "True",
+				},
+				machineSetConditions: []v1alpha1.MachineSetCondition{
+					v1alpha1.MachineSetCondition{
+						Type:    v1alpha1.MachineSetFrozen,
+						Status:  v1alpha1.ConditionTrue,
+						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
+					},
+				},
+				machineDeploymentLabels: map[string]string{
+					"freeze": "True",
+				},
+				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+					v1alpha1.MachineDeploymentCondition{
+						Type:    v1alpha1.MachineDeploymentFrozen,
+						Status:  v1alpha1.ConditionTrue,
+						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
+					},
+				},
+			},
+			expect: expect{
+				machineSetAnnotations: map[string]string{},
+				machineSetLabels: map[string]string{
+					"machine": "test",
+				},
+				machineDeploymentLabels: map[string]string{
+					"freeze": "True",
+				},
+				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+					v1alpha1.MachineDeploymentCondition{
+						Type:    v1alpha1.MachineDeploymentFrozen,
+						Status:  v1alpha1.ConditionTrue,
+						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
+					},
+				},
+			},
+		}),
+		Entry("Unfreeze machineDeployment manually and also triggers machineSet to be unfrozen", &data{
+			setup: setup{
+				machineReplicas: 4,
+				machineSetLabels: map[string]string{
+					"freeze": "True",
+				},
+				machineSetConditions: []v1alpha1.MachineSetCondition{
+					v1alpha1.MachineSetCondition{
+						Type:    v1alpha1.MachineSetFrozen,
+						Status:  v1alpha1.ConditionTrue,
+						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
+					},
+				},
+				machineDeploymentAnnotations: map[string]string{
+					UnfreezeAnnotation: "True",
+				},
+				machineDeploymentLabels: map[string]string{
+					"freeze": "True",
+				},
+				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+					v1alpha1.MachineDeploymentCondition{
+						Type:    v1alpha1.MachineDeploymentFrozen,
+						Status:  v1alpha1.ConditionTrue,
+						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
+					},
+				},
+			},
+			expect: expect{
+
+				machineSetLabels: map[string]string{
+					"machine": "test",
+				},
+
+				machineDeploymentAnnotations: map[string]string{},
+				machineDeploymentLabels:      map[string]string{},
+			},
+		}),
+		Entry("Unfreeze both machineSet & machineDeployment manually", &data{
+			setup: setup{
+				machineReplicas: 4,
+				machineSetAnnotations: map[string]string{
+					UnfreezeAnnotation: "True",
+				},
+				machineSetLabels: map[string]string{
+					"freeze": "True",
+				},
+				machineSetConditions: []v1alpha1.MachineSetCondition{
+					v1alpha1.MachineSetCondition{
+						Type:    v1alpha1.MachineSetFrozen,
+						Status:  v1alpha1.ConditionTrue,
+						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
+					},
+				},
+				machineDeploymentAnnotations: map[string]string{
+					UnfreezeAnnotation: "True",
+				},
+				machineDeploymentLabels: map[string]string{
+					"freeze": "True",
+				},
+				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+					v1alpha1.MachineDeploymentCondition{
+						Type:    v1alpha1.MachineDeploymentFrozen,
+						Status:  v1alpha1.ConditionTrue,
+						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
+					},
+				},
+			},
+			expect: expect{
+				machineSetAnnotations: map[string]string{},
+				machineSetLabels: map[string]string{
+					"machine": "test",
+				},
+				machineDeploymentAnnotations: map[string]string{},
+				machineDeploymentLabels:      map[string]string{},
 			},
 		}),
 	)

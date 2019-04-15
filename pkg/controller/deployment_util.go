@@ -348,6 +348,7 @@ var annotationsToSkip = map[string]bool{
 	MaxReplicasAnnotation:          true,
 	LastReplicaUpdate:              true,
 	PreferNoScheduleKey:            true,
+	UnfreezeAnnotation:             true,
 }
 
 // skipCopyAnnotation returns true if we should skip copying the annotation with the given annotation key
