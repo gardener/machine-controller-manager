@@ -152,8 +152,6 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		return nil
 	}
 
-	//glog.Info("REACHED ", actualProviderID, " ", machineID)
-	// Get the latest version of the machine so that we can avoid conflicts
 	machine, err = c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
 	if err != nil {
 		glog.Errorf("Could not fetch machine object %s", err)
@@ -312,7 +310,7 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 */
 
 func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driver) error {
-	glog.V(2).Infof("Creating machine %s, please wait!", machine.Name)
+	glog.V(2).Infof("Creating machine %q, please wait!", machine.Name)
 
 	actualProviderID, nodeName, err := driver.Create()
 	if err != nil {
@@ -331,7 +329,7 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 		c.updateMachineStatus(machine, lastOperation, currentStatus)
 		return err
 	}
-	glog.V(2).Infof("Created machine: %s, MachineID: %s", machine.Name, actualProviderID)
+	glog.V(2).Infof("Created machine: %q, MachineID: %s", machine.Name, actualProviderID)
 
 	for {
 		// Get the latest version of the machine so that we can avoid conflicts
@@ -424,7 +422,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 	var err error
 
 	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
-		glog.V(2).Infof("Deleting Machine %s", machine.Name)
+		glog.V(2).Infof("Deleting Machine %q", machine.Name)
 
 		// If machine was created on the cloud provider
 		machineID, _ := driver.GetExisting()
@@ -458,47 +456,51 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			// Timeout value obtained by subtracting last operation with expected time out period
 			timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 
-			// To perform drain 2 conditions must be satified
-			// 1. force-deletion: "True" label must not be present
-			// 2. Deletion operation must be less than 5 minutes old
-			if machine.Labels["force-deletion"] != "True" && timeOut < 0 {
-				buf := bytes.NewBuffer([]byte{})
-				errBuf := bytes.NewBuffer([]byte{})
-
-				nodeName := machine.Status.Node
-				drainOptions := NewDrainOptions(
-					c.targetCoreClient,
-					timeOutDuration, // TODO: Will need to configure timeout
-					nodeName,
-					-1,
-					true,
-					true,
-					true,
-					buf,
-					errBuf,
-				)
-				err = drainOptions.RunDrain()
-				if err != nil {
-					lastOperation := v1alpha1.LastOperation{
-						Description:    "Drain failed - " + err.Error(),
-						State:          v1alpha1.MachineStateFailed,
-						Type:           v1alpha1.MachineOperationDelete,
-						LastUpdateTime: metav1.Now(),
-					}
-					c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
-
-					// Machine still tries to terminate after drain failure
-					glog.Warningf("Drain failed for machine %s - \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
-					return err
-				}
-				glog.V(2).Infof("Drain successful for machine %s - %v %v", machine.Name, buf, errBuf)
+			// To perform forceful drain either one of the below conditions must be satified
+			// 1. force-deletion: "True" label must be present
+			// 2. Deletion operation is more than drain-timeout minutes old
+			if machine.Labels["force-deletion"] == "True" || timeOut > 0 {
+				timeOutDuration = 30 * time.Second
+				glog.V(2).Infof("Force deletion has been triggerred for machine %q", machine.Name)
 			}
+
+			buf := bytes.NewBuffer([]byte{})
+			errBuf := bytes.NewBuffer([]byte{})
+
+			nodeName := machine.Status.Node
+			drainOptions := NewDrainOptions(
+				c.targetCoreClient,
+				timeOutDuration, // TODO: Will need to configure timeout
+				nodeName,
+				-1,
+				true,
+				true,
+				true,
+				buf,
+				errBuf,
+			)
+			err = drainOptions.RunDrain()
+			if err != nil {
+				lastOperation := v1alpha1.LastOperation{
+					Description:    "Drain failed - " + err.Error(),
+					State:          v1alpha1.MachineStateFailed,
+					Type:           v1alpha1.MachineOperationDelete,
+					LastUpdateTime: metav1.Now(),
+				}
+				c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
+
+				// Machine still tries to terminate after drain failure
+				glog.Warningf("Drain failed for machine %q \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+				return err
+			}
+			glog.V(2).Infof("Drain successful for machine %q \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
+
 			err = driver.Delete()
 		}
 
 		if err != nil {
 			// When machine deletion fails
-			glog.Errorf("Deletion failed: %s", err)
+			glog.Errorf("Deletion failed for machine %q: %s", machine.Name, err)
 
 			lastOperation := v1alpha1.LastOperation{
 				Description:    "Cloud provider message - " + err.Error(),
@@ -512,7 +514,6 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				LastUpdateTime: metav1.Now(),
 			}
 			c.updateMachineStatus(machine, lastOperation, currentStatus)
-
 			return err
 		}
 
@@ -524,7 +525,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			return err
 		}
 
-		glog.V(2).Infof("Machine %s deleted successfully", machine.Name)
+		glog.V(2).Infof("Machine %q deleted successfully", machine.Name)
 	}
 	return nil
 }

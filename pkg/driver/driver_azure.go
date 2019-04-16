@@ -231,24 +231,23 @@ func (d *AzureDriver) Delete() error {
 	d.getvms(d.MachineID, listOfResources)
 	if len(listOfResources) != 0 {
 
-		_, errChan := vmClient.PowerOff(resourceGroup, vmName, cancel)
-		err = onErrorFail(<-errChan, fmt.Sprintf("vmClient.PowerOff failed for '%s'", vmName))
+		err = d.waitForDataDiskDetachment(vmName)
 		if err != nil {
 			return err
 		}
-		glog.V(2).Infof("VM poweroff was successful for %s", vmName)
+		glog.V(2).Infof("Disk detachment was successful for %q", vmName)
 
-		_, errChan = vmClient.Delete(resourceGroup, vmName, cancel)
+		_, errChan := vmClient.Delete(resourceGroup, vmName, cancel)
 		err = onErrorFail(<-errChan, fmt.Sprintf("vmClient.Delete failed for '%s'", vmName))
 		if err != nil {
 			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
 			return err
 		}
 		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
-		glog.V(2).Infof("VM deletion was successful for %s", vmName)
+		glog.V(2).Infof("VM deletion was successful for %q", vmName)
 
 	} else {
-		glog.Warningf("VM was not found for %s", vmName)
+		glog.Warningf("VM was not found for %q", vmName)
 	}
 
 	listOfResources = make(map[string]string)
@@ -261,9 +260,9 @@ func (d *AzureDriver) Delete() error {
 			return err
 		}
 		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
-		glog.V(2).Infof("NIC deletion was successful for %s", nicName)
+		glog.V(2).Infof("NIC deletion was successful for %q", nicName)
 	} else {
-		glog.Warningf("NIC was not found for %s", nicName)
+		glog.Warningf("NIC was not found for %q", nicName)
 	}
 
 	listOfResources = make(map[string]string)
@@ -276,9 +275,9 @@ func (d *AzureDriver) Delete() error {
 			return err
 		}
 		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
-		glog.V(2).Infof("OS-Disk deletion was successful for %s", diskName)
+		glog.V(2).Infof("OS-Disk deletion was successful for %q", diskName)
 	} else {
-		glog.Warningf("OS-Disk was not found for %s", diskName)
+		glog.Warningf("OS-Disk was not found for %q", diskName)
 	}
 
 	return err
@@ -374,6 +373,33 @@ func (d *AzureDriver) getvms(machineID string, listOfVMs VMs) error {
 				}
 			}
 
+		}
+	}
+
+	return nil
+}
+
+// waitForDataDiskDetachment waits for data disks to be detached
+func (d *AzureDriver) waitForDataDiskDetachment(machineID string) error {
+	var cancel <-chan struct{}
+	d.setup()
+
+	vm, err := vmClient.Get(d.AzureMachineClass.Spec.ResourceGroup, machineID, compute.InstanceView)
+	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
+		glog.Errorf("Failed to list VMs. Error Message - %s", err)
+		return err
+	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
+
+	if len(*vm.StorageProfile.DataDisks) > 0 {
+		// There are disks attached hence need to detach them
+		vm.StorageProfile.DataDisks = &[]compute.DataDisk{}
+
+		_, errChan := vmClient.CreateOrUpdate(d.AzureMachineClass.Spec.ResourceGroup, machineID, vm, cancel)
+		err = onErrorFail(<-errChan, fmt.Sprintf("vmClient.CreateOrUpdate failed for '%s'", machineID))
+		if err != nil {
+			return fmt.Errorf("Cannot detach disks for machine. Error: %v", err)
 		}
 	}
 
