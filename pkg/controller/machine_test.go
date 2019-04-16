@@ -740,7 +740,7 @@ var _ = Describe("machine", func() {
 								Name: "machine-0",
 							},
 						},
-					}, nil, nil),
+					}, nil, nil, nil, nil),
 				},
 				action: action{
 					machine:        "machine-0",
@@ -775,7 +775,7 @@ var _ = Describe("machine", func() {
 								Name: "machine-0",
 							},
 						},
-					}, nil, nil),
+					}, nil, nil, nil, nil),
 				},
 				action: action{
 					machine:        "machine-0",
