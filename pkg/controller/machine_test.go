@@ -624,6 +624,173 @@ var _ = Describe("machine", func() {
 		)
 	})
 
+	Describe("#machineDelete", func() {
+		type setup struct {
+			secrets  []*corev1.Secret
+			aws      []*machinev1.AWSMachineClass
+			machines []*machinev1.Machine
+		}
+		type action struct {
+			machine        string
+			fakeProviderID string
+			fakeNodeName   string
+			fakeError      error
+			forceDelete    bool
+		}
+		type expect struct {
+			machine     *machinev1.Machine
+			errOccurred bool
+		}
+		type data struct {
+			setup  setup
+			action action
+			expect expect
+		}
+		objMeta := &metav1.ObjectMeta{
+			GenerateName: "machine",
+			Namespace:    "test",
+		}
+		DescribeTable("##table",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				machineObjects := []runtime.Object{}
+				for _, o := range data.setup.aws {
+					machineObjects = append(machineObjects, o)
+				}
+				for _, o := range data.setup.machines {
+					machineObjects = append(machineObjects, o)
+				}
+
+				coreObjects := []runtime.Object{}
+				for _, o := range data.setup.secrets {
+					coreObjects = append(coreObjects, o)
+				}
+
+				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
+				defer trackers.Stop()
+
+				waitForCacheSync(stop, controller)
+
+				action := data.action
+				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+
+				fakeDriver := driver.NewFakeDriver(
+					func() (string, string, error) {
+						return action.fakeProviderID, action.fakeNodeName, action.fakeError
+					},
+					func() error {
+						return nil
+					},
+					func() (string, error) {
+						return action.fakeProviderID, action.fakeError
+					},
+				)
+
+				// Create a machine that is to be deleted later
+				err = controller.machineCreate(machine, fakeDriver)
+				Expect(err).ToNot(HaveOccurred())
+
+				// Add finalizers
+				controller.addMachineFinalizers(machine)
+
+				// Fetch the latest machine version
+				machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+
+				if data.action.forceDelete {
+					// Add labels for force deletion
+					clone := machine.DeepCopy()
+					clone.Labels["force-deletion"] = "True"
+					machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Update(clone)
+					Expect(err).ToNot(HaveOccurred())
+				}
+
+				// Deletion of machine is triggered
+				err = controller.machineDelete(machine, fakeDriver)
+				Expect(err).To(BeNil())
+
+				machine, err = controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+				if data.expect.errOccurred {
+					Expect(err).To(HaveOccurred())
+				}
+			},
+			Entry("Simple machine delete", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						&corev1.Secret{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						&machinev1.AWSMachineClass{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil),
+				},
+				action: action{
+					machine:        "machine-0",
+					fakeProviderID: "fakeID-0",
+					fakeNodeName:   "fakeNode-0",
+					fakeError:      nil,
+				},
+				expect: expect{
+					errOccurred: true,
+				},
+			}),
+			Entry("Machine force deletion", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						&corev1.Secret{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						&machinev1.AWSMachineClass{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil),
+				},
+				action: action{
+					machine:        "machine-0",
+					fakeProviderID: "fakeID-0",
+					fakeNodeName:   "fakeNode-0",
+					fakeError:      nil,
+					forceDelete:    true,
+				},
+				expect: expect{
+					errOccurred: true,
+				},
+			}),
+		)
+	})
+
 	Describe("#checkMachineTimeout", func() {
 		type setup struct {
 			machines []*machinev1.Machine

@@ -259,10 +259,9 @@ func (o *DrainOptions) getPodsForDeletion() (pods []api.Pod, err error) {
 
 func (o *DrainOptions) deletePod(pod api.Pod) error {
 	deleteOptions := &metav1.DeleteOptions{}
-	if o.GracePeriodSeconds >= 0 {
-		gracePeriodSeconds := int64(o.GracePeriodSeconds)
-		deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
-	}
+	gracePeriodSeconds := int64(0)
+	deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
+
 	return o.client.Core().Pods(pod.Namespace).Delete(pod.Name, deleteOptions)
 }
 
@@ -303,7 +302,12 @@ func (o *DrainOptions) deleteOrEvictPods(pods []api.Pod) error {
 	}
 
 	if len(policyGroupVersion) > 0 {
-		return o.evictPods(pods, policyGroupVersion, getPodFn)
+		err := o.evictPods(pods, policyGroupVersion, getPodFn)
+		if err != nil {
+			glog.Warningf("Pod eviction was timed out, Error: %v. \nHowever, drain will continue to forcefully delete the pods by setting graceful termination period to 0s", err)
+		} else {
+			return nil
+		}
 	}
 	return o.deletePods(pods, getPodFn)
 }
