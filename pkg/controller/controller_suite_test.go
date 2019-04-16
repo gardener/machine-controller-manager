@@ -302,6 +302,14 @@ func newMachines(
 	labels map[string]string,
 ) []*v1alpha1.Machine {
 	machines := make([]*v1alpha1.Machine, machineCount)
+
+	if annotations == nil {
+		annotations = make(map[string]string, 0)
+	}
+	if labels == nil {
+		labels = make(map[string]string, 0)
+	}
+
 	for i := range machines {
 		m := &v1alpha1.Machine{
 			TypeMeta: metav1.TypeMeta{
