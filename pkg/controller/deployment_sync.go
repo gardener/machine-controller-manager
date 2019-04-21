@@ -108,7 +108,7 @@ func (dc *controller) checkPausedConditions(d *v1alpha1.MachineDeployment) error
 	return err
 }
 
-// getAllReplicaSetsAndSyncRevision returns all the machine sets for the provided deployment (new and all old), with new RS's and deployment's revision updated.
+// getAllMachineSetsAndSyncRevision returns all the machine sets for the provided deployment (new and all old), with new MS's and deployment's revision updated.
 //
 // rsList should come from getReplicaSetsForDeployment(d).
 // machineMap should come from getmachineMapForDeployment(d, rsList).
@@ -253,7 +253,9 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 		// Set existing new machine set's annotation
 		annotationsUpdated := SetNewMachineSetAnnotations(d, isCopy, newRevision, true)
 		minReadySecondsNeedsUpdate := isCopy.Spec.MinReadySeconds != d.Spec.MinReadySeconds
-		if annotationsUpdated || minReadySecondsNeedsUpdate {
+		nodeTemplateUpdated := SetNewMachineSetNodeTemplate(d, isCopy, newRevision, true)
+
+		if annotationsUpdated || minReadySecondsNeedsUpdate || nodeTemplateUpdated {
 			isCopy.Spec.MinReadySeconds = d.Spec.MinReadySeconds
 			return dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(isCopy)
 		}
