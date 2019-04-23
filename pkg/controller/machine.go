@@ -28,7 +28,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	runtimeutil "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 
@@ -210,10 +209,6 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	Machine controller - nodeToMachine
 */
 func (c *controller) addNodeToMachine(obj interface{}) {
-	if !cache.WaitForCacheSync(nil, c.nodeSynced) {
-		runtimeutil.HandleError(fmt.Errorf("Timed out waiting for node-caches to sync"))
-		return
-	}
 
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {

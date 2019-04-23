@@ -23,8 +23,6 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
-	"fmt"
-
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 	"github.com/golang/glog"
 
@@ -274,7 +272,7 @@ func nodeConditionsHaveChanged(machineConditions []v1.NodeCondition, nodeConditi
 // Although there could be more elements already available on node-object which will not be touched.
 func (c *controller) syncMachineNodeTemplates(machine *v1alpha1.Machine) error {
 	if machine.Status.Node == "" {
-		return fmt.Errorf("Error: Node field is empty on Machine-object, %q", machine.Name)
+		glog.Warning("Warning: Node field is empty on Machine-object, %q", machine.Name)
 	}
 	node, err := c.nodeLister.Get(machine.Status.Node)
 	if err != nil || node == nil {
@@ -322,12 +320,7 @@ func SyncMachineLabels(machine *v1alpha1.Machine, node *v1.Node) bool {
 		}
 		nCopy[mkey] = mvalue
 	}
-	// Update is not required.
-	if updateNeeded != true {
-		return updateNeeded
-	}
 
-	node.Labels = nCopy
 	return updateNeeded
 }
 
@@ -351,12 +344,7 @@ func SyncMachineAnnotations(machine *v1alpha1.Machine, node *v1.Node) bool {
 		}
 		nCopy[mkey] = mvalue
 	}
-	// Update is not required.
-	if updateNeeded != true {
-		return updateNeeded
-	}
 
-	node.Annotations = nCopy
 	return updateNeeded
 }
 
@@ -383,6 +371,6 @@ func SyncMachineTaints(machine *v1alpha1.Machine, node *v1.Node) bool {
 			updateNeeded = true
 		}
 	}
-	node.Spec.Taints = nTaintsCopy
+
 	return updateNeeded
 }
