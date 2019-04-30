@@ -272,12 +272,13 @@ func nodeConditionsHaveChanged(machineConditions []v1.NodeCondition, nodeConditi
 // Although there could be more elements already available on node-object which will not be touched.
 func (c *controller) syncMachineNodeTemplates(machine *v1alpha1.Machine) error {
 	if machine.Status.Node == "" {
-		glog.Warning("Warning: Node field is empty on Machine-object, %q", machine.Name)
+		glog.Warningf("Warning: Node field is empty on Machine-object %s", machine.Name)
 	}
 	node, err := c.nodeLister.Get(machine.Status.Node)
 	if err != nil || node == nil {
 		glog.Errorf("Error: Could not get the node-object or node-object is missing - err: %q", err)
-		return err
+		// Dont return error so that other steps can be executed.
+		return nil
 	}
 	nodeCopy := node.DeepCopy()
 
@@ -321,6 +322,10 @@ func SyncMachineLabels(machine *v1alpha1.Machine, node *v1.Node) bool {
 		nCopy[mkey] = mvalue
 	}
 
+	if updateNeeded {
+		node.Labels = nCopy
+	}
+
 	return updateNeeded
 }
 
@@ -343,6 +348,9 @@ func SyncMachineAnnotations(machine *v1alpha1.Machine, node *v1.Node) bool {
 			updateNeeded = true
 		}
 		nCopy[mkey] = mvalue
+	}
+	if updateNeeded {
+		node.Annotations = nCopy
 	}
 
 	return updateNeeded
@@ -370,6 +378,9 @@ func SyncMachineTaints(machine *v1alpha1.Machine, node *v1.Node) bool {
 			nTaintsCopy = append(nTaintsCopy, mTaintsCopy[i])
 			updateNeeded = true
 		}
+	}
+	if updateNeeded {
+		node.Spec.Taints = nTaintsCopy
 	}
 
 	return updateNeeded

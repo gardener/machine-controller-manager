@@ -2205,7 +2205,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"nodeTemplate": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.NodeTemplateSpec"),
+								Description: "NodeTemplateSpec describes the data a node should have when created from a template",
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.NodeTemplateSpec"),
 							},
 						},
 					},
@@ -2412,7 +2413,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"spec": {
 							SchemaProps: spec.SchemaProps{
-								Ref: ref("k8s.io/api/core/v1.NodeSpec"),
+								Description: "NodeSpec describes the attributes that a node is created with.",
+								Ref:         ref("k8s.io/api/core/v1.NodeSpec"),
 							},
 						},
 					},

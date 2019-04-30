@@ -343,7 +343,7 @@ func SetNewMachineSetAnnotations(deployment *v1alpha1.MachineDeployment, newIS *
 // SetNewMachineSetNodeTemplate sets new machine set's nodeTemplates appropriately by updating its revision and
 // copying required deployment nodeTemplates to it; it returns true if machine set's nodeTemplate is changed.
 func SetNewMachineSetNodeTemplate(deployment *v1alpha1.MachineDeployment, newIS *v1alpha1.MachineSet, newRevision string, exists bool) bool {
-	// First, copy deployment's annotations (except for apply and revision annotations)
+	// First, copy deployment's nodeTemplate
 	nodeTemplateChanged := copyMachineDeploymentNodeTemplatesToMachineSet(deployment, newIS)
 	// Then, update machine set's revision annotation
 	if newIS.Annotations == nil {
@@ -432,15 +432,11 @@ func copyMachineDeploymentAnnotationsToMachineSet(deployment *v1alpha1.MachineDe
 // and returns true if machine set's nodeTemplate is changed.
 // Note that apply and revision nodeTemplates are not copied.
 func copyMachineDeploymentNodeTemplatesToMachineSet(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet) bool {
-	isNodeTemplateChanged := false
 
-	deploymentNodeTemplateCopy := deployment.Spec.Template.Spec.NodeTemplateSpec.DeepCopy()
-	machineSetNodeTemplateCopy := is.Spec.Template.Spec.NodeTemplateSpec.DeepCopy()
-
-	isNodeTemplateChanged = !(apiequality.Semantic.DeepEqual(deploymentNodeTemplateCopy, machineSetNodeTemplateCopy))
+	isNodeTemplateChanged := !(apiequality.Semantic.DeepEqual(deployment.Spec.Template.Spec.NodeTemplateSpec, is.Spec.Template.Spec.NodeTemplateSpec))
 
 	if isNodeTemplateChanged {
-		is.Spec.Template.Spec.NodeTemplateSpec = deployment.Spec.Template.Spec.NodeTemplateSpec
+		is.Spec.Template.Spec.NodeTemplateSpec = *deployment.Spec.Template.Spec.NodeTemplateSpec.DeepCopy()
 	}
 	return isNodeTemplateChanged
 }
