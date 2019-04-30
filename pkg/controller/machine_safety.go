@@ -710,8 +710,11 @@ func (c *controller) freezeMachineSetAndDeployment(machineSet *v1alpha1.MachineS
 				return err
 			}
 
+			glog.V(2).Infof("SafetyController: Froze MachineDeployment %q due to overshooting of replicas", machineSet.Name)
 		}
 	}
+
+	glog.V(2).Infof("SafetyController: Froze MachineSet %q due to overshooting of replicas", machineSet.Name)
 	return nil
 }
 
