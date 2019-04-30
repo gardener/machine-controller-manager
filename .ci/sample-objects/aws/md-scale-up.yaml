@@ -1,0 +1,27 @@
+# Sample machine-deploy object
+
+apiVersion: machine.sapcloud.io/v1alpha1
+kind: MachineDeployment
+metadata:
+  name: test-md # Name of the machine deploy
+  namespace: aws
+spec:
+  replicas: 6 # Number of healthy replicas that should always be healthy
+  minReadySeconds: 500 # Minimum time to wait for machine to be ready
+  progressDeadlineSeconds: 1200
+  strategy:
+    type: RollingUpdate # Strategy for update RollingUpdate/Recreate
+    rollingUpdate:
+      maxSurge: 0 # Maximum addition machines that spawned over the desired replicas during update
+      maxUnavailable: 1 # Maximum unavailable machines that the cluster can tolerate
+  selector:
+    matchLabels:
+      test-label: test-label # Label to match the template (XXXXX)
+  template:
+    metadata:
+      labels:
+        test-label: test-label # Label to match with selector (XXXXX)
+    spec:
+      class:
+        kind: AWSMachineClass # Machine class template used to create machine, could be AWS/GCP/Azure/Other-cloud-providers
+        name: mc-v1 # Name of the machine class
