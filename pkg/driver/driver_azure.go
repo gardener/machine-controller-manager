@@ -118,6 +118,7 @@ func (d *AzureDriver) Delete() error {
 	return clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName)
 }
 
+/*
 func (d *AzureDriver) deleteOldImplementation() error {
 	clients, err := d.setup()
 	if err != nil {
@@ -147,7 +148,6 @@ func (d *AzureDriver) deleteOldImplementation() error {
 		return nil
 	}
 
-<<<<<<< HEAD
 	d.setup()
 	var (
 		vmName        = d.decodeMachineID(d.MachineID)
@@ -176,7 +176,6 @@ func (d *AzureDriver) deleteOldImplementation() error {
 		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
 		glog.V(2).Infof("VM deletion was successful for %q", vmName)
 
-=======
 	if listOfVMs, _ := clients.getRelevantVMs(ctx, d.MachineID, resourceGroupName, location, tags); len(listOfVMs) != 0 {
 		if err := clients.powerOffVM(ctx, resourceGroupName, vmName); err != nil {
 			return err
@@ -184,7 +183,6 @@ func (d *AzureDriver) deleteOldImplementation() error {
 		if err := clients.deleteVM(ctx, resourceGroupName, vmName); err != nil {
 			return err
 		}
->>>>>>> 20771aed... Update Azure SDK, move from imperative calls to declarative / idempotent ARM deployment. Concurrent resource deletion (NIC / disk) where possible. Ensure 'x-ms-request-id' header is logged in case of API failures.
 	} else {
 		glog.Warningf("VM was not found for %q", vmName)
 	}
@@ -193,11 +191,8 @@ func (d *AzureDriver) deleteOldImplementation() error {
 		if err := clients.deleteNIC(ctx, resourceGroupName, nicName); err != nil {
 			return err
 		}
-<<<<<<< HEAD
 		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 		glog.V(2).Infof("NIC deletion was successful for %q", nicName)
-=======
->>>>>>> 20771aed... Update Azure SDK, move from imperative calls to declarative / idempotent ARM deployment. Concurrent resource deletion (NIC / disk) where possible. Ensure 'x-ms-request-id' header is logged in case of API failures.
 	} else {
 		glog.Warningf("NIC was not found for %q", nicName)
 	}
@@ -206,17 +201,15 @@ func (d *AzureDriver) deleteOldImplementation() error {
 		if err := clients.deleteDisk(ctx, resourceGroupName, diskName); err != nil {
 			return err
 		}
-<<<<<<< HEAD
 		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
 		glog.V(2).Infof("OS-Disk deletion was successful for %q", diskName)
-=======
->>>>>>> 20771aed... Update Azure SDK, move from imperative calls to declarative / idempotent ARM deployment. Concurrent resource deletion (NIC / disk) where possible. Ensure 'x-ms-request-id' header is logged in case of API failures.
 	} else {
 		glog.Warningf("OS-Disk was not found for %q", diskName)
 	}
 
 	return err
 }
+*/
 
 // GetExisting method is used to fetch the machineID for an azure machine
 func (d *AzureDriver) GetExisting() (string, error) {
@@ -384,8 +377,8 @@ func (clients *azureDriverClients) getTemplate() string {
 				"name":       "[parameters('vmName')]",
 				"location":   "[parameters('location')]",
 				"tags":       "[parameters('tags')]",
-				"dependsOn": [ 
-					"[concat('Microsoft.Network/networkInterfaces/', parameters('nicName'))]" 
+				"dependsOn": [
+					"[concat('Microsoft.Network/networkInterfaces/', parameters('nicName'))]"
 				],
 				"properties": {
 					"hardwareProfile": { "vmSize": "[parameters('vmSize')]" },
@@ -401,8 +394,8 @@ func (clients *azureDriverClients) getTemplate() string {
 							"name":         "[parameters('diskName')]",
 							"caching":      "[parameters('osDiskCaching')]",
 							"diskSizeGB":   "[parameters('osDiskSizeGB')]",
-							"managedDisk": { 
-								"storageAccountType": "[parameters('diskStorageAccountType')]" 
+							"managedDisk": {
+								"storageAccountType": "[parameters('diskStorageAccountType')]"
 							}
 						}
 					},
@@ -423,7 +416,7 @@ func (clients *azureDriverClients) getTemplate() string {
 							}
 						}
 					},
-					"networkProfile": { 
+					"networkProfile": {
 						"networkInterfaces": [
 							{
 								"id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('nicName'))]",
@@ -609,33 +602,6 @@ func (clients *azureDriverClients) getRelevantVMs(ctx context.Context, machineID
 	return listOfVMs, nil
 }
 
-// waitForDataDiskDetachment waits for data disks to be detached
-func (d *AzureDriver) waitForDataDiskDetachment(machineID string) error {
-	var cancel <-chan struct{}
-	d.setup()
-
-	vm, err := vmClient.Get(d.AzureMachineClass.Spec.ResourceGroup, machineID, compute.InstanceView)
-	if err != nil {
-		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
-		glog.Errorf("Failed to list VMs. Error Message - %s", err)
-		return err
-	}
-	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
-
-	if len(*vm.StorageProfile.DataDisks) > 0 {
-		// There are disks attached hence need to detach them
-		vm.StorageProfile.DataDisks = &[]compute.DataDisk{}
-
-		_, errChan := vmClient.CreateOrUpdate(d.AzureMachineClass.Spec.ResourceGroup, machineID, vm, cancel)
-		err = onErrorFail(<-errChan, fmt.Sprintf("vmClient.CreateOrUpdate failed for '%s'", machineID))
-		if err != nil {
-			return fmt.Errorf("Cannot detach disks for machine. Error: %v", err)
-		}
-	}
-
-	return nil
-}
-
 // getRelevantNICs is helper method used to list NICs
 func (clients *azureDriverClients) getRelevantNICs(ctx context.Context, machineID string, resourceGroupName string, location string, tags azureTags) (VMs, error) {
 	var (
@@ -785,65 +751,79 @@ func (clients *azureDriverClients) fetchAttachedVMfromDisk(ctx context.Context, 
 	return *disk.ManagedBy, nil
 }
 
-func (clients *azureDriverClients) deleteVMNicDisk(ctx context.Context, resourceGroupName string, VMName string) error {
+func (clients *azureDriverClients) deleteVMNicDisk(ctx context.Context, resourceGroupName string, VMName string, nicName string, diskName string) error {
 
-	if _, vmErr := clients.vm.Get(ctx, resourceGroupName, VMName, ""); vmErr == nil {
-		if powerOffErr := clients.powerOffVM(ctx, resourceGroupName, VMName); powerOffErr == nil {
+	// We try to fetch the VM, detach its data disks and finally delete it
+	if vm, vmErr := clients.vm.Get(ctx, resourceGroupName, VMName, ""); vmErr == nil {
+		if dataDiskDetachmentErr := clients.waitForDataDiskDetachment(ctx, resourceGroupName, vm); dataDiskDetachmentErr == nil {
 			if deleteErr := clients.deleteVM(ctx, resourceGroupName, VMName); deleteErr != nil {
 				return deleteErr
 			}
 		} else {
-			return powerOffErr
+			return dataDiskDetachmentErr
 		}
+		onARMAPISuccess(prometheusServiceVM, "VM Get was successful for %s", *vm.Name)
 	} else if !notFound(vmErr) {
 		// If some other error occurred, which is not 404 Not Found, because the VM doesn't exist, then bubble up
 		return onARMAPIErrorFail(prometheusServiceVM, vmErr, "vm.Get")
 	}
 
-	// Now VM is deleted
-
-	nicName := dependencyNameFromVMName(VMName, nicSuffix)
-	diskName := dependencyNameFromVMName(VMName, diskSuffix)
-
+	// Fetch the NIC and deleted it
 	nicDeleter := func() error {
 		if vmHoldingNic, err := clients.fetchAttachedVMfromNIC(ctx, resourceGroupName, nicName); err != nil {
 			if notFound(err) {
-				return nil // Resource doesn't exist, do no need to delete
+				return nil // Resource doesn't exist, no need to delete
 			}
 			return err
 		} else if vmHoldingNic != "" {
 			return fmt.Errorf("Cannot delete NIC %s because it is attached to VM %s", nicName, vmHoldingNic)
 		}
 
-		glog.V(2).Infof("NIC delete started")
-		defer glog.V(2).Infof("NIC deleted")
 		return clients.deleteNIC(ctx, resourceGroupName, nicName)
 	}
 
+	// Fetch the system disk and delete it
 	diskDeleter := func() error {
 		if vmHoldingDisk, err := clients.fetchAttachedVMfromDisk(ctx, resourceGroupName, diskName); err != nil {
 			if notFound(err) {
-				return nil // Resource doesn't exist, do no need to delete
+				return nil // Resource doesn't exist, no need to delete
 			}
 			return err
 		} else if vmHoldingDisk != "" {
 			return fmt.Errorf("Cannot delete disk %s because it is attached to VM %s", diskName, vmHoldingDisk)
 		}
 
-		glog.V(2).Infof("Disk delete started")
-		defer glog.V(2).Infof("Disk deleted")
 		return clients.deleteDisk(ctx, resourceGroupName, diskName)
 	}
-
-	// var dataDisks []string
-	// for _, disk := range *vm.StorageProfile.DataDisks {
-	// 	dataDisks = append(dataDisks, *disk.ManagedDisk.ID)
-	// }
 
 	return runInParallel(nicDeleter, diskDeleter)
 }
 
+// waitForDataDiskDetachment waits for data disks to be detached
+func (clients *azureDriverClients) waitForDataDiskDetachment(ctx context.Context, resourceGroupName string, vm compute.VirtualMachine) error {
+	glog.V(2).Infof("Data disk detachment began for %q", *vm.Name)
+	defer glog.V(2).Infof("Data disk detached for %q", *vm.Name)
+
+	if len(*vm.StorageProfile.DataDisks) > 0 {
+		// There are disks attached hence need to detach them
+		vm.StorageProfile.DataDisks = &[]compute.DataDisk{}
+
+		future, err := clients.vm.CreateOrUpdate(ctx, resourceGroupName, *vm.Name, vm)
+		err = future.WaitForCompletionRef(ctx, clients.vm.Client)
+		if err != nil {
+			glog.Errorf("Failed to CreateOrUpdate. Error Message - %s", err)
+			return onARMAPIErrorFail(prometheusServiceVM, err, "vm.CreateOrUpdate")
+		}
+		onARMAPISuccess(prometheusServiceVM, "VM CreateOrUpdate was successful for %s", *vm.Name)
+	}
+
+	return nil
+}
+
 func (clients *azureDriverClients) powerOffVM(ctx context.Context, resourceGroupName string, vmName string) error {
+	glog.V(2).Infof("VM power-off began for %q", vmName)
+	defer glog.V(2).Infof("VM power-off done for %q", vmName)
+
 	future, err := clients.vm.PowerOff(ctx, resourceGroupName, vmName)
 	if err != nil {
 		return onARMAPIErrorFail(prometheusServiceVM, err, "vm.PowerOff")
@@ -852,11 +832,14 @@ func (clients *azureDriverClients) powerOffVM(ctx context.Context, resourceGroup
 	if err != nil {
 		return onARMAPIErrorFail(prometheusServiceVM, err, "vm.PowerOff")
 	}
-	onARMAPISuccess(prometheusServiceDisk, "VM poweroff was successful for %s", vmName)
+	onARMAPISuccess(prometheusServiceVM, "VM poweroff was successful for %s", vmName)
 	return nil
 }
 
 func (clients *azureDriverClients) deleteVM(ctx context.Context, resourceGroupName string, vmName string) error {
+	glog.V(2).Infof("VM deletion has began for %q", vmName)
+	defer glog.V(2).Infof("VM deleted for %q", vmName)
+
 	future, err := clients.vm.Delete(ctx, resourceGroupName, vmName)
 	if err != nil {
 		return onARMAPIErrorFail(prometheusServiceVM, err, "vm.Delete")
@@ -865,12 +848,15 @@ func (clients *azureDriverClients) deleteVM(ctx context.Context, resourceGroupNa
 	if err != nil {
 		return onARMAPIErrorFail(prometheusServiceVM, err, "vm.Delete")
 	}
-	onARMAPISuccess(prometheusServiceDisk, "VM deletion was successful for %s", vmName)
+	onARMAPISuccess(prometheusServiceVM, "VM deletion was successful for %s", vmName)
 	return nil
 }
 
-func (clients *azureDriverClients) deleteNIC(ctx context.Context, resourceGroupName string, networkInterfaceName string) error {
-	future, err := clients.nic.Delete(ctx, resourceGroupName, networkInterfaceName)
+func (clients *azureDriverClients) deleteNIC(ctx context.Context, resourceGroupName string, nicName string) error {
+	glog.V(2).Infof("NIC delete started for %q", nicName)
+	defer glog.V(2).Infof("NIC deleted for %q", nicName)
+
+	future, err := clients.nic.Delete(ctx, resourceGroupName, nicName)
 	if err != nil {
 		return onARMAPIErrorFail(prometheusServiceNIC, err, "nic.Delete")
 	}
@@ -878,11 +864,14 @@ func (clients *azureDriverClients) deleteNIC(ctx context.Context, resourceGroupN
 	if err != nil {
 		return onARMAPIErrorFail(prometheusServiceNIC, err, "nic.Delete")
 	}
-	onARMAPISuccess(prometheusServiceDisk, "NIC deletion was successful for %s", networkInterfaceName)
+	onARMAPISuccess(prometheusServiceNIC, "NIC deletion was successful for %s", nicName)
 	return nil
 }
 
 func (clients *azureDriverClients) deleteDisk(ctx context.Context, resourceGroupName string, diskName string) error {
+	glog.V(2).Infof("System disk delete started for %q", diskName)
+	defer glog.V(2).Infof("System disk deleted for %q", diskName)
+
 	future, err := clients.disk.Delete(ctx, resourceGroupName, diskName)
 	if err != nil {
 		return onARMAPIErrorFail(prometheusServiceDisk, err, "disk.Delete")
@@ -907,7 +896,6 @@ func onARMAPIErrorFail(prometheusService string, err error, format string, v ...
 
 func notFound(err error) bool {
 	isDetailedError, _, detailedError := retrieveRequestID(err)
-
 	return isDetailedError && detailedError.Response.StatusCode == 404
 }
 
