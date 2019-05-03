@@ -266,3 +266,122 @@ func nodeConditionsHaveChanged(machineConditions []v1.NodeCondition, nodeConditi
 
 	return false
 }
+
+// syncMachineNodeTemplate syncs nodeTemplates between machine and corresponding node-object.
+// It ensures, that any nodeTemplate element available on Machine should be available on node-object.
+// Although there could be more elements already available on node-object which will not be touched.
+func (c *controller) syncMachineNodeTemplates(machine *v1alpha1.Machine) error {
+	if machine.Status.Node == "" {
+		glog.Warningf("Warning: Node field is empty on Machine-object %s", machine.Name)
+	}
+	node, err := c.nodeLister.Get(machine.Status.Node)
+	if err != nil || node == nil {
+		glog.Errorf("Error: Could not get the node-object or node-object is missing - err: %q", err)
+		// Dont return error so that other steps can be executed.
+		return nil
+	}
+	nodeCopy := node.DeepCopy()
+
+	// Sync Labels
+	labelsChanged := SyncMachineLabels(machine, nodeCopy)
+
+	// Sync Annotations
+	annotationsChanged := SyncMachineAnnotations(machine, nodeCopy)
+
+	// Sync Taints
+	taintsChanged := SyncMachineTaints(machine, nodeCopy)
+
+	// Update node-object with latest nodeTemplate elements if elements have changed.
+	if labelsChanged || annotationsChanged || taintsChanged {
+		_, err := c.targetCoreClient.Core().Nodes().Update(nodeCopy)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// SyncMachineLabels syncs the labels of the machine with node-objects.
+// It returns true if update is needed else false.
+func SyncMachineLabels(machine *v1alpha1.Machine, node *v1.Node) bool {
+	mCopy, nCopy := machine.Spec.NodeTemplateSpec.Labels, node.Labels
+	updateNeeded := false
+
+	if mCopy == nil {
+		return false
+	}
+	if nCopy == nil {
+		nCopy = make(map[string]string)
+	}
+
+	for mkey, mvalue := range mCopy {
+		// if key doesnt exists or value does not match
+		if _, ok := nCopy[mkey]; !ok || mvalue != nCopy[mkey] {
+			updateNeeded = true
+		}
+		nCopy[mkey] = mvalue
+	}
+
+	if updateNeeded {
+		node.Labels = nCopy
+	}
+
+	return updateNeeded
+}
+
+// SyncMachineAnnotations syncs the annotations of the machine with node-objects.
+// It returns true if update is needed else false.
+func SyncMachineAnnotations(machine *v1alpha1.Machine, node *v1.Node) bool {
+	mCopy, nCopy := machine.Spec.NodeTemplateSpec.Annotations, node.Annotations
+	updateNeeded := false
+
+	if mCopy == nil {
+		return false
+	}
+	if nCopy == nil {
+		nCopy = make(map[string]string)
+	}
+
+	for mkey, mvalue := range mCopy {
+		// if key doesnt exists or value does not match
+		if _, ok := nCopy[mkey]; !ok || mvalue != nCopy[mkey] {
+			updateNeeded = true
+		}
+		nCopy[mkey] = mvalue
+	}
+	if updateNeeded {
+		node.Annotations = nCopy
+	}
+
+	return updateNeeded
+}
+
+// SyncMachineTaints syncs the annotations of the machine with node-objects.
+// It returns true if update is needed else false.
+func SyncMachineTaints(machine *v1alpha1.Machine, node *v1.Node) bool {
+	mTaintsCopy, nTaintsCopy := machine.Spec.NodeTemplateSpec.Spec.Taints, node.Spec.Taints
+	updateNeeded := false
+
+	for i := range mTaintsCopy {
+		elementFound := false
+		for j := range nTaintsCopy {
+			if mTaintsCopy[i] == nTaintsCopy[j] {
+				elementFound = true
+				break
+			} else if mTaintsCopy[i].Key == nTaintsCopy[j].Key {
+				elementFound, updateNeeded = true, true
+				nTaintsCopy[j] = mTaintsCopy[i]
+				break
+			}
+		}
+		if elementFound == false {
+			nTaintsCopy = append(nTaintsCopy, mTaintsCopy[i])
+			updateNeeded = true
+		}
+	}
+	if updateNeeded {
+		node.Spec.Taints = nTaintsCopy
+	}
+
+	return updateNeeded
+}

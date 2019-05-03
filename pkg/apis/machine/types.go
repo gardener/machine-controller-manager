@@ -71,6 +71,18 @@ type MachineSpec struct {
 	// ProviderID represents the provider's unique ID given to a machine
 	// +optional
 	ProviderID string
+
+	// +optional
+	NodeTemplateSpec NodeTemplateSpec
+}
+
+// NodeTemplateSpec describes the data a node should have when created from a template
+type NodeTemplateSpec struct {
+	// +optional
+	metav1.ObjectMeta
+
+	// +optional
+	Spec corev1.NodeSpec
 }
 
 // MachineTemplateSpec describes the data a machine should have when created from a template

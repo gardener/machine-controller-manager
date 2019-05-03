@@ -606,7 +606,7 @@ var _ = Describe("machineset", func() {
 			}
 			fError = func() error {
 				//Throw Error
-				err := errors.New("Some Error..")
+				err := errors.New("some error")
 				return err
 			}
 		})

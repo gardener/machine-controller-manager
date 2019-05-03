@@ -164,6 +164,16 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		return err
 	}
 
+	// Sync nodeTemplate between machine and node-objects.
+	node, _ := c.nodeLister.Get(machine.Status.Node)
+	if node != nil {
+		err = c.syncMachineNodeTemplates(machine)
+		if err != nil {
+			glog.Errorf("Could not update nodeTemplate for machine %s err: %q", machine.Name, err)
+			return err
+		}
+	}
+
 	if machine.DeletionTimestamp != nil {
 		// Processing of delete event
 		if err := c.machineDelete(machine, driver); err != nil {
@@ -197,6 +207,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	Machine controller - nodeToMachine
 */
 func (c *controller) addNodeToMachine(obj interface{}) {
+
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
@@ -351,6 +362,11 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 		}
 
 		clone := machine.DeepCopy()
+		if clone.Labels == nil {
+			clone.Labels = make(map[string]string)
+		}
+		clone.Labels["node"] = nodeName
+
 		if clone.Annotations == nil {
 			clone.Annotations = make(map[string]string)
 		}

@@ -2203,11 +2203,17 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format:      "",
 							},
 						},
+						"nodeTemplate": {
+							SchemaProps: spec.SchemaProps{
+								Description: "NodeTemplateSpec describes the data a node should have when created from a template",
+								Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.NodeTemplateSpec"),
+							},
+						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.NodeTemplateSpec"},
 		},
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineStatus": {
 			Schema: spec.Schema{
@@ -2394,6 +2400,28 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{
 				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.NodeTemplateSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "NodeTemplateSpec describes the data a node should have when created from a template",
+					Properties: map[string]spec.Schema{
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							},
+						},
+						"spec": {
+							SchemaProps: spec.SchemaProps{
+								Description: "NodeSpec describes the attributes that a node is created with.",
+								Ref:         ref("k8s.io/api/core/v1.NodeSpec"),
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{
+				"k8s.io/api/core/v1.NodeSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClass": {
 			Schema: spec.Schema{

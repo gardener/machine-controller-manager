@@ -338,7 +338,7 @@ func newMachines(
 	return machines
 }
 
-func nodeNodes(
+func newNode(
 	nodeCount int,
 	nodeSpec *corev1.NodeSpec,
 	nodeStatus *corev1.NodeStatus,
@@ -514,6 +514,7 @@ func createController(
 		machineSynced:                  machines.Informer().HasSynced,
 		machineSetSynced:               machineSets.Informer().HasSynced,
 		machineDeploymentSynced:        machineDeployments.Informer().HasSynced,
+		nodeSynced:                     nodes.Informer().HasSynced,
 		secretQueue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
 		nodeQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
 		openStackMachineClassQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "openstackmachineclass"),
@@ -527,6 +528,7 @@ func createController(
 		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
 		machineSafetyAPIServerQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
 		expectations:                   NewUIDTrackingContExpectations(NewContExpectations()),
+		recorder:                       record.NewBroadcaster().NewRecorder(nil, corev1.EventSource{Component: ""}),
 	}
 
 	// controller.internalExternalScheme = runtime.NewScheme()
@@ -549,6 +551,7 @@ func waitForCacheSync(stop <-chan struct{}, controller *controller) {
 		controller.machineSynced,
 		controller.machineSetSynced,
 		controller.machineDeploymentSynced,
+		controller.nodeSynced,
 	)).To(BeTrue())
 }
 

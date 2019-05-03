@@ -495,6 +495,12 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		return err
 	}
 
+	// SyncNodeTemplate syncs the nodeTemplate with claimedMachines if any of the machine's nodeTemplate has changed.
+	err = c.syncMachinesNodeTemplates(filteredMachines, machineSet)
+	if err != nil {
+		return err
+	}
+
 	// TODO: Fix working of expectations to reflect correct behaviour
 	//machineSetNeedsSync := c.expectations.SatisfiedExpectations(key)
 	var manageReplicasErr error
