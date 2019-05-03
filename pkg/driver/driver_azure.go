@@ -118,99 +118,6 @@ func (d *AzureDriver) Delete() error {
 	return clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName)
 }
 
-/*
-func (d *AzureDriver) deleteOldImplementation() error {
-	clients, err := d.setup()
-	if err != nil {
-		return err
-	}
-
-	var (
-		ctx               = context.Background()
-		vmName            = decodeMachineID(d.MachineID)
-		resourceGroupName = d.AzureMachineClass.Spec.ResourceGroup
-		location          = d.AzureMachineClass.Spec.Location
-		tags              = d.AzureMachineClass.Spec.Tags
-		nicName           = dependencyNameFromVMName(vmName, nicSuffix)
-		diskName          = dependencyNameFromVMName(vmName, diskSuffix)
-	)
-
-	//
-	// TODO Check why SAP uses this
-	//
-
-	result, err := d.GetVMs(d.MachineID)
-	if err != nil {
-		return err
-	} else if len(result) == 0 {
-		// No running instance exists with the given machine-ID
-		glog.V(2).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
-		return nil
-	}
-
-	d.setup()
-	var (
-		vmName        = d.decodeMachineID(d.MachineID)
-		nicName       = vmName + "-nic"
-		diskName      = vmName + "-os-disk"
-		resourceGroup = d.AzureMachineClass.Spec.ResourceGroup
-		cancel        = make(chan struct{})
-	)
-
-	listOfResources := make(map[string]string)
-	d.getvms(d.MachineID, listOfResources)
-	if len(listOfResources) != 0 {
-
-		err = d.waitForDataDiskDetachment(vmName)
-		if err != nil {
-			return err
-		}
-		glog.V(2).Infof("Disk detachment was successful for %q", vmName)
-
-		_, errChan := vmClient.Delete(resourceGroup, vmName, cancel)
-		err = onErrorFail(<-errChan, fmt.Sprintf("vmClient.Delete failed for '%s'", vmName))
-		if err != nil {
-			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
-			return err
-		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
-		glog.V(2).Infof("VM deletion was successful for %q", vmName)
-
-	if listOfVMs, _ := clients.getRelevantVMs(ctx, d.MachineID, resourceGroupName, location, tags); len(listOfVMs) != 0 {
-		if err := clients.powerOffVM(ctx, resourceGroupName, vmName); err != nil {
-			return err
-		}
-		if err := clients.deleteVM(ctx, resourceGroupName, vmName); err != nil {
-			return err
-		}
-	} else {
-		glog.Warningf("VM was not found for %q", vmName)
-	}
-
-	if listOfVMs, _ := clients.getRelevantNICs(ctx, d.MachineID, resourceGroupName, location, tags); len(listOfVMs) != 0 {
-		if err := clients.deleteNIC(ctx, resourceGroupName, nicName); err != nil {
-			return err
-		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
-		glog.V(2).Infof("NIC deletion was successful for %q", nicName)
-	} else {
-		glog.Warningf("NIC was not found for %q", nicName)
-	}
-
-	if listOfVMs, _ := clients.getRelevantDisks(ctx, d.MachineID, resourceGroupName, location, tags); len(listOfVMs) != 0 {
-		if err := clients.deleteDisk(ctx, resourceGroupName, diskName); err != nil {
-			return err
-		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
-		glog.V(2).Infof("OS-Disk deletion was successful for %q", diskName)
-	} else {
-		glog.Warningf("OS-Disk was not found for %q", diskName)
-	}
-
-	return err
-}
-*/
-
 // GetExisting method is used to fetch the machineID for an azure machine
 func (d *AzureDriver) GetExisting() (string, error) {
 	return d.MachineID, nil
@@ -571,30 +478,14 @@ func (clients *azureDriverClients) getRelevantVMs(ctx context.Context, machineID
 
 	if len(machines) > 0 {
 		for _, server := range machines {
-			clusterName := ""
-			nodeRole := ""
+			instanceID := encodeMachineID(location, *server.Name)
 
-			if server.Tags == nil {
-				continue
-			}
-			for key := range server.Tags {
-				if strings.Contains(key, "kubernetes.io-cluster-") {
-					clusterName = key
-				} else if strings.Contains(key, "kubernetes.io-role-") {
-					nodeRole = key
-				}
-			}
-
-			if clusterName == searchClusterName && nodeRole == searchNodeRole {
-				instanceID := encodeMachineID(location, *server.Name)
-
-				if machineID == "" {
-					listOfVMs[instanceID] = *server.Name
-				} else if machineID == instanceID {
-					listOfVMs[instanceID] = *server.Name
-					glog.V(3).Infof("Found machine with name: %q", *server.Name)
-					break
-				}
+			if machineID == "" {
+				listOfVMs[instanceID] = *server.Name
+			} else if machineID == instanceID {
+				listOfVMs[instanceID] = *server.Name
+				glog.V(3).Infof("Found machine with name: %q", *server.Name)
+				break
 			}
 		}
 	}
@@ -629,36 +520,20 @@ func (clients *azureDriverClients) getRelevantNICs(ctx context.Context, machineI
 
 	if len(interfaces) > 0 {
 		for _, nic := range interfaces {
-			clusterName := ""
-			nodeRole := ""
-
-			if nic.Tags == nil {
+			isNic, machineName := vmNameFromDependencyName(*nic.Name, nicSuffix)
+			if !isNic {
 				continue
 			}
-			for key := range nic.Tags {
-				if strings.Contains(key, "kubernetes.io-cluster-") {
-					clusterName = key
-				} else if strings.Contains(key, "kubernetes.io-role-") {
-					nodeRole = key
-				}
+			instanceID := encodeMachineID(location, machineName)
+
+			if machineID == "" {
+				listOfVMs[instanceID] = machineName
+			} else if machineID == instanceID {
+				listOfVMs[instanceID] = machineName
+				glog.V(3).Infof("Found nic with name %q, hence appending machine %q", *nic.Name, machineName)
+				break
 			}
 
-			if clusterName == searchClusterName && nodeRole == searchNodeRole {
-				isNic, machineName := vmNameFromDependencyName(*nic.Name, nicSuffix)
-				if !isNic {
-					continue
-				}
-
-				instanceID := encodeMachineID(location, machineName)
-
-				if machineID == "" {
-					listOfVMs[instanceID] = machineName
-				} else if machineID == instanceID {
-					listOfVMs[instanceID] = machineName
-					glog.V(3).Infof("Found nic with name %q, hence appending machine %q", *nic.Name, machineName)
-					break
-				}
-			}
 		}
 	}
 
@@ -694,21 +569,7 @@ func (clients *azureDriverClients) getRelevantDisks(ctx context.Context, machine
 
 	if disks != nil && len(disks) > 0 {
 		for _, disk := range disks {
-			clusterName := ""
-			nodeRole := ""
-
-			if disk.Tags == nil {
-				continue
-			}
-			for key := range disk.Tags {
-				if strings.Contains(key, "kubernetes.io-cluster-") {
-					clusterName = key
-				} else if strings.Contains(key, "kubernetes.io-role-") {
-					nodeRole = key
-				}
-			}
-
-			if clusterName == searchClusterName && nodeRole == searchNodeRole {
+			if disk.OsType != "" {
 				isDisk, machineName := vmNameFromDependencyName(*disk.Name, diskSuffix)
 				if !isDisk {
 					continue
@@ -886,7 +747,6 @@ func (clients *azureDriverClients) deleteDisk(ctx context.Context, resourceGroup
 
 func onARMAPISuccess(prometheusService string, format string, v ...interface{}) {
 	prometheusSuccess(prometheusService)
-	glog.V(2).Infof(format, v...)
 }
 
 func onARMAPIErrorFail(prometheusService string, err error, format string, v ...interface{}) error {
