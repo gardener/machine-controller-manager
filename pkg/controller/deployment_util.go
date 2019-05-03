@@ -340,6 +340,56 @@ func SetNewMachineSetAnnotations(deployment *v1alpha1.MachineDeployment, newIS *
 	return annotationChanged
 }
 
+// SetNewMachineSetNodeTemplate sets new machine set's nodeTemplates appropriately by updating its revision and
+// copying required deployment nodeTemplates to it; it returns true if machine set's nodeTemplate is changed.
+func SetNewMachineSetNodeTemplate(deployment *v1alpha1.MachineDeployment, newIS *v1alpha1.MachineSet, newRevision string, exists bool) bool {
+	// First, copy deployment's nodeTemplate
+	nodeTemplateChanged := copyMachineDeploymentNodeTemplatesToMachineSet(deployment, newIS)
+	// Then, update machine set's revision annotation
+	if newIS.Annotations == nil {
+		newIS.Annotations = make(map[string]string)
+	}
+	oldRevision, ok := newIS.Annotations[RevisionAnnotation]
+
+	oldRevisionInt, err := strconv.ParseInt(oldRevision, 10, 64)
+	if err != nil {
+		if oldRevision != "" {
+			glog.Warningf("Updating machine set revision OldRevision not int %s", err)
+			return false
+		}
+		//If the RS annotation is empty then initialise it to 0
+		oldRevisionInt = 0
+	}
+	newRevisionInt, err := strconv.ParseInt(newRevision, 10, 64)
+	if err != nil {
+		glog.Warningf("Updating machine set revision NewRevision not int %s", err)
+		return false
+	}
+	if oldRevisionInt < newRevisionInt {
+		newIS.Annotations[RevisionAnnotation] = newRevision
+		nodeTemplateChanged = true
+		glog.V(4).Infof("Updating machine set %q revision to %s", newIS.Name, newRevision)
+	}
+	// If a revision annotation already existed and this machine set was updated with a new revision
+	// then that means we are rolling back to this machine set. We need to preserve the old revisions
+	// for historical information.
+	if ok && nodeTemplateChanged {
+		revisionHistoryAnnotation := newIS.Annotations[RevisionHistoryAnnotation]
+		oldRevisions := strings.Split(revisionHistoryAnnotation, ",")
+		if len(oldRevisions[0]) == 0 {
+			newIS.Annotations[RevisionHistoryAnnotation] = oldRevision
+		} else {
+			oldRevisions = append(oldRevisions, oldRevision)
+			newIS.Annotations[RevisionHistoryAnnotation] = strings.Join(oldRevisions, ",")
+		}
+	}
+	// If the new machine set is about to be created, we need to add replica annotations to it.
+	if !exists && SetReplicasAnnotations(newIS, (deployment.Spec.Replicas), (deployment.Spec.Replicas)+MaxSurge(*deployment)) {
+		nodeTemplateChanged = true
+	}
+	return nodeTemplateChanged
+}
+
 var annotationsToSkip = map[string]bool{
 	v1.LastAppliedConfigAnnotation: true,
 	RevisionAnnotation:             true,
@@ -377,6 +427,19 @@ func copyMachineDeploymentAnnotationsToMachineSet(deployment *v1alpha1.MachineDe
 		isAnnotationsChanged = true
 	}
 	return isAnnotationsChanged
+}
+
+// copyDeploymentNodetemplateToMachineSet copies deployment's nodeTemplate to machine set's nodeTemplate,
+// and returns true if machine set's nodeTemplate is changed.
+// Note that apply and revision nodeTemplates are not copied.
+func copyMachineDeploymentNodeTemplatesToMachineSet(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet) bool {
+
+	isNodeTemplateChanged := !(apiequality.Semantic.DeepEqual(deployment.Spec.Template.Spec.NodeTemplateSpec, is.Spec.Template.Spec.NodeTemplateSpec))
+
+	if isNodeTemplateChanged {
+		is.Spec.Template.Spec.NodeTemplateSpec = *deployment.Spec.Template.Spec.NodeTemplateSpec.DeepCopy()
+	}
+	return isNodeTemplateChanged
 }
 
 // SetMachineDeploymentAnnotationsTo sets deployment's annotations as given RS's annotations.
@@ -697,8 +760,9 @@ func EqualIgnoreHash(template1, template2 *v1alpha1.MachineTemplateSpec) bool {
 			return false
 		}
 	}
-	// Then, compare the templates without comparing their labels
+	// Then, compare the templates without comparing their labels and nodeTemplates.
 	t1Copy.Labels, t2Copy.Labels = nil, nil
+	t1Copy.Spec.NodeTemplateSpec, t2Copy.Spec.NodeTemplateSpec = v1alpha1.NodeTemplateSpec{}, v1alpha1.NodeTemplateSpec{}
 	return apiequality.Semantic.DeepEqual(t1Copy, t2Copy)
 }
 

@@ -460,7 +460,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 
 	validationerr := validation.ValidateMachineDeployment(internalMachineDeployment)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.Errorf("Validation of MachineDeployment failled %s", validationerr.ToAggregate().Error())
+		glog.Errorf("Validation of MachineDeployment failed %s", validationerr.ToAggregate().Error())
 		return nil
 	}
 

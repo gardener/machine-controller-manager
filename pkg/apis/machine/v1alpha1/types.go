@@ -69,6 +69,20 @@ type MachineSpec struct {
 	// ProviderID represents the provider's unique ID given to a machine
 	// +optional
 	ProviderID string `json:"providerID,omitempty"`
+
+	// NodeTemplateSpec describes the data a node should have when created from a template
+	// +optional
+	NodeTemplateSpec NodeTemplateSpec `json:"nodeTemplate,omitempty"`
+}
+
+// NodeTemplateSpec describes the data a node should have when created from a template
+type NodeTemplateSpec struct {
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+
+	// NodeSpec describes the attributes that a node is created with.
+	// +optional
+	Spec corev1.NodeSpec `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 }
 
 // MachineTemplateSpec describes the data a machine should have when created from a template
