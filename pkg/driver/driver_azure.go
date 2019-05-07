@@ -19,7 +19,7 @@ package driver
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"sync"
@@ -36,6 +36,7 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/golang/glog"
 )
 
@@ -48,51 +49,123 @@ type AzureDriver struct {
 	MachineName       string
 }
 
-func (d *AzureDriver) getDeploymentParameters(vmName string) map[string]interface{} {
-	return map[string]interface{}{
-		"vmName":                        vmName,
-		"nicName":                       dependencyNameFromVMName(vmName, nicSuffix),
-		"diskName":                      dependencyNameFromVMName(vmName, diskSuffix),
-		"location":                      d.AzureMachineClass.Spec.Location,
-		"vnetName":                      d.AzureMachineClass.Spec.SubnetInfo.VnetName,
-		"subnetName":                    d.AzureMachineClass.Spec.SubnetInfo.SubnetName,
-		"nicEnableIPForwarding":         true,
-		"vmSize":                        d.AzureMachineClass.Spec.Properties.HardwareProfile.VMSize,
-		"adminUsername":                 d.AzureMachineClass.Spec.Properties.OsProfile.AdminUsername,
-		"customData":                    d.UserData,
-		"disablePasswordAuthentication": d.AzureMachineClass.Spec.Properties.OsProfile.LinuxConfiguration.DisablePasswordAuthentication,
-		"sshPublicKeyPath":              d.AzureMachineClass.Spec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.Path,
-		"sshPublicKeyData":              d.AzureMachineClass.Spec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.KeyData,
-		"osDiskCaching":                 d.AzureMachineClass.Spec.Properties.StorageProfile.OsDisk.Caching,
-		"osDiskSizeGB":                  d.AzureMachineClass.Spec.Properties.StorageProfile.OsDisk.DiskSizeGB,
-		"diskStorageAccountType":        d.AzureMachineClass.Spec.Properties.StorageProfile.OsDisk.ManagedDisk.StorageAccountType,
-		"diskImagePublisher":            d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Publisher,
-		"diskImageOffer":                d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Offer,
-		"diskImageSku":                  d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Sku,
-		"diskImageVersion":              d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Version,
-		"availabilitySetID":             d.AzureMachineClass.Spec.Properties.AvailabilitySet.ID,
-		"tags":                          d.AzureMachineClass.Spec.Tags,
+func (d *AzureDriver) getNICParameters(vmName string, subnet *network.Subnet) network.Interface {
+
+	var (
+		nicName            = dependencyNameFromVMName(vmName, nicSuffix)
+		location           = d.AzureMachineClass.Spec.Location
+		enableIPForwarding = true
+	)
+
+	// Add tags to the machine resources
+	tagList := map[string]*string{}
+	for idx, element := range d.AzureMachineClass.Spec.Tags {
+		tagList[idx] = to.StringPtr(element)
 	}
+
+	NICParameters := network.Interface{
+		Name:     &nicName,
+		Location: &location,
+		InterfacePropertiesFormat: &network.InterfacePropertiesFormat{
+			IPConfigurations: &[]network.InterfaceIPConfiguration{
+				{
+					Name: &nicName,
+					InterfaceIPConfigurationPropertiesFormat: &network.InterfaceIPConfigurationPropertiesFormat{
+						PrivateIPAllocationMethod: network.Dynamic,
+						Subnet:                    subnet,
+					},
+				},
+			},
+			EnableIPForwarding: &enableIPForwarding,
+		},
+		Tags: tagList,
+	}
+
+	return NICParameters
+}
+
+func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID string) compute.VirtualMachine {
+
+	var (
+		diskName    = dependencyNameFromVMName(vmName, diskSuffix)
+		UserDataEnc = base64.StdEncoding.EncodeToString([]byte(d.UserData))
+		location    = d.AzureMachineClass.Spec.Location
+	)
+
+	// Add tags to the machine resources
+	tagList := map[string]*string{}
+	for idx, element := range d.AzureMachineClass.Spec.Tags {
+		tagList[idx] = to.StringPtr(element)
+	}
+
+	VMParameters := compute.VirtualMachine{
+		Name:     &vmName,
+		Location: &location,
+		VirtualMachineProperties: &compute.VirtualMachineProperties{
+			HardwareProfile: &compute.HardwareProfile{
+				VMSize: compute.VirtualMachineSizeTypes(d.AzureMachineClass.Spec.Properties.HardwareProfile.VMSize),
+			},
+			StorageProfile: &compute.StorageProfile{
+				ImageReference: &compute.ImageReference{
+					Publisher: &d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Publisher,
+					Offer:     &d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Offer,
+					Sku:       &d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Sku,
+					Version:   &d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Version,
+				},
+				OsDisk: &compute.OSDisk{
+					Name:    &diskName,
+					Caching: compute.CachingTypes(d.AzureMachineClass.Spec.Properties.StorageProfile.OsDisk.Caching),
+					ManagedDisk: &compute.ManagedDiskParameters{
+						StorageAccountType: compute.StorageAccountTypes(d.AzureMachineClass.Spec.Properties.StorageProfile.OsDisk.ManagedDisk.StorageAccountType),
+					},
+					DiskSizeGB:   &d.AzureMachineClass.Spec.Properties.StorageProfile.OsDisk.DiskSizeGB,
+					CreateOption: compute.DiskCreateOptionTypes(d.AzureMachineClass.Spec.Properties.StorageProfile.OsDisk.CreateOption),
+				},
+			},
+			OsProfile: &compute.OSProfile{
+				ComputerName:  &vmName,
+				AdminUsername: &d.AzureMachineClass.Spec.Properties.OsProfile.AdminUsername,
+				CustomData:    &UserDataEnc,
+				LinuxConfiguration: &compute.LinuxConfiguration{
+					DisablePasswordAuthentication: &d.AzureMachineClass.Spec.Properties.OsProfile.LinuxConfiguration.DisablePasswordAuthentication,
+					SSH: &compute.SSHConfiguration{
+						PublicKeys: &[]compute.SSHPublicKey{
+							{
+								Path:    &d.AzureMachineClass.Spec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.Path,
+								KeyData: &d.AzureMachineClass.Spec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.KeyData,
+							},
+						},
+					},
+				},
+			},
+			NetworkProfile: &compute.NetworkProfile{
+				NetworkInterfaces: &[]compute.NetworkInterfaceReference{
+					{
+						ID: &networkInterfaceReferenceID,
+						NetworkInterfaceReferenceProperties: &compute.NetworkInterfaceReferenceProperties{
+							Primary: to.BoolPtr(true),
+						},
+					},
+				},
+			},
+			AvailabilitySet: &compute.SubResource{
+				ID: &d.AzureMachineClass.Spec.Properties.AvailabilitySet.ID,
+			},
+		},
+		Tags: tagList,
+	}
+
+	return VMParameters
 }
 
 // Create method is used to create an azure machine
 func (d *AzureDriver) Create() (string, string, error) {
-	clients, err := d.setup()
-	if err != nil {
-		return "Error", "Error", err
-	}
-
 	var (
-		ctx                  = context.Background()
-		vmName               = strings.ToLower(d.MachineName)
-		location             = d.AzureMachineClass.Spec.Location
-		resourceGroupName    = d.AzureMachineClass.Spec.ResourceGroup
-		deploymentName       = fmt.Sprintf("gardener-shoot-deployment-%s", vmName) // Deployments per resource group in the deployment history == 800
-		deploymentTemplate   = clients.getTemplate()
-		deploymentParameters = d.getDeploymentParameters(vmName)
+		vmName   = strings.ToLower(d.MachineName)
+		location = d.AzureMachineClass.Spec.Location
 	)
 
-	_, err = clients.createDeployment(ctx, resourceGroupName, deploymentName, deploymentTemplate, deploymentParameters)
+	_, err := d.createVMNicDisk()
 	if err != nil {
 		return "Error", "Error", err
 	}
@@ -222,164 +295,67 @@ func newClients(subscriptionID, tenantID, clientID, clientSecret string, env azu
 	return &azureDriverClients{subnet: subnetClient, nic: interfacesClient, vm: vmClient, disk: diskClient, deployments: deploymentsClient}, nil
 }
 
-func (clients *azureDriverClients) getTemplate() string {
-	return `{
-		"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
-		"contentVersion": "1.0.0.0",
-		"parameters": {
-			"vmName":                        { "type": "string" },
-			"nicName":                       { "type": "string" },
-			"diskName":                      { "type": "string" },
-			"location":                      { "type": "string" },
-			"vnetName":                      { "type": "string" },
-			"subnetName":                    { "type": "string" },
-			"nicEnableIPForwarding":         { "type": "bool"   },
-			"vmSize":                        { "type": "string" },
-			"adminUsername":                 { "type": "string" },
-			"disablePasswordAuthentication": { "type": "bool"   },
-			"sshPublicKeyPath":              { "type": "string" },
-			"sshPublicKeyData":              { "type": "string" },
-			"customData":                    { "type": "string" },
-			"diskStorageAccountType":        { "type": "string" },
-			"diskImagePublisher":            { "type": "string" },
-			"diskImageOffer":                { "type": "string" },
-			"diskImageSku":                  { "type": "string" },
-			"diskImageVersion":              { "type": "string" },
-			"osDiskCaching":                 { "type": "string" },
-			"osDiskSizeGB":                  { "type": "int"    },
-			"availabilitySetID":             { "type": "string" },
-			"tags":                          { "type": "object" }
-		},
-		"variables": {
-			"apiVersions": {
-				"networkInterfaces": "2018-11-01",
-				"virtualMachines":   "2018-10-01"
-			}
-		},
-		"resources": [
-			{
-				"type":       "Microsoft.Network/networkInterfaces",
-				"apiVersion": "[variables('apiVersions').networkInterfaces]",
-				"name":       "[parameters('nicName')]",
-				"location":   "[parameters('location')]",
-				"tags":       "[parameters('tags')]",
-				"properties": {
-					"enableIPForwarding": "[parameters('nicEnableIPForwarding')]",
-					"ipConfigurations": [
-						{
-							"name": "[parameters('nicName')]",
-							"properties": {
-								"privateIPAllocationMethod": "Dynamic",
-								"subnet": {
-									"id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName')), '/subnets/', parameters('subnetName'))]"
-								}
-							}
-						}
-					]
-				}
-			},
-			{
-				"type":       "Microsoft.Compute/virtualMachines",
-				"apiVersion": "[variables('apiVersions').virtualMachines]",
-				"name":       "[parameters('vmName')]",
-				"location":   "[parameters('location')]",
-				"tags":       "[parameters('tags')]",
-				"dependsOn": [
-					"[concat('Microsoft.Network/networkInterfaces/', parameters('nicName'))]"
-				],
-				"properties": {
-					"hardwareProfile": { "vmSize": "[parameters('vmSize')]" },
-					"storageProfile": {
-						"imageReference": {
-							"publisher": "[parameters('diskImagePublisher')]",
-							"offer":     "[parameters('diskImageOffer')]",
-							"sku":       "[parameters('diskImageSku')]",
-							"version":   "[parameters('diskImageVersion')]"
-						},
-						"osDisk": {
-							"createOption": "FromImage",
-							"name":         "[parameters('diskName')]",
-							"caching":      "[parameters('osDiskCaching')]",
-							"diskSizeGB":   "[parameters('osDiskSizeGB')]",
-							"managedDisk": {
-								"storageAccountType": "[parameters('diskStorageAccountType')]"
-							}
-						}
-					},
-					"osProfile": {
-						"computerName": "[parameters('vmName')]",
-						"adminUsername": "[parameters('adminUsername')]",
-						"customData": "[base64(string(parameters('customData')))]",
-						"linuxConfiguration": {
-							"provisionVMAgent": false,
-							"disablePasswordAuthentication": "[parameters('disablePasswordAuthentication')]",
-							"ssh": {
-								"publicKeys": [
-									{
-										"path":    "[parameters('sshPublicKeyPath')]",
-										"keyData": "[parameters('sshPublicKeyData')]"
-									}
-								]
-							}
-						}
-					},
-					"networkProfile": {
-						"networkInterfaces": [
-							{
-								"id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('nicName'))]",
-								"properties": { "primary": false }
-							}
-						]
-					},
-					"availabilitySet": { "id" : "[parameters('availabilitySetID')]" }
-				}
-			}
-		]
-	}`
-}
+func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 
-func (clients *azureDriverClients) createDeployment(ctx context.Context, resourceGroupName string, deploymentName string, templateJSON string, plainParameters map[string]interface{}) (resources.DeploymentExtended, error) {
-	template := make(map[string]interface{})
-	err := json.Unmarshal([]byte(templateJSON), &template)
+	var (
+		ctx               = context.Background()
+		vmName            = strings.ToLower(d.MachineName)
+		resourceGroupName = d.AzureMachineClass.Spec.ResourceGroup
+		vnetName          = d.AzureMachineClass.Spec.SubnetInfo.VnetName
+		subnetName        = d.AzureMachineClass.Spec.SubnetInfo.SubnetName
+	)
+
+	clients, err := d.setup()
 	if err != nil {
-		return resources.DeploymentExtended{}, err
+		return nil, err
 	}
 
-	// little helper to wrap values in that { "value": foo } structure
-	createARMParameters := func(m map[string]interface{}) map[string]interface{} {
-		result := make(map[string]interface{})
-		for k, v := range m {
-			result[k] = map[string]interface{}{"value": v}
-		}
-		return result
-	}
-
-	deploymentFuture, err := clients.deployments.CreateOrUpdate(
-		ctx, resourceGroupName, deploymentName,
-		resources.Deployment{
-			Properties: &resources.DeploymentProperties{
-				Template:   template,
-				Parameters: createARMParameters(plainParameters),
-				Mode:       resources.Incremental,
-			},
-		},
+	subnet, err := clients.subnet.Get(
+		ctx,
+		resourceGroupName,
+		vnetName,
+		subnetName,
+		"",
 	)
 	if err != nil {
-		return resources.DeploymentExtended{}, onARMAPIErrorFail(prometheusServiceDeployment, err, "deployments.CreateOrUpdate")
+		return nil, onARMAPIErrorFail(prometheusServiceSubnet, err, "Subnet.Get failed for %s due to %s", subnetName, err)
 	}
+	onARMAPISuccess(prometheusServiceSubnet, "subnet.Get")
 
-	err = deploymentFuture.Future.WaitForCompletionRef(ctx, clients.deployments.BaseClient.Client)
+	NICParameters := d.getNICParameters(vmName, &subnet)
+	NICFuture, err := clients.nic.CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name, NICParameters)
 	if err != nil {
-		return resources.DeploymentExtended{}, err
+		return nil, onARMAPIErrorFail(prometheusServiceNIC, err, "NIC.CreateOrUpdate failed for %s", *NICParameters.Name)
 	}
-
-	de, err := deploymentFuture.Result(clients.deployments)
+	err = NICFuture.WaitForCompletionRef(ctx, clients.nic.Client)
 	if err != nil {
-		return de, onARMAPIErrorFail(prometheusServiceDeployment, err, "deployments.CreateOrUpdate")
+		return nil, onARMAPIErrorFail(prometheusServiceNIC, err, "NIC.CreateOrUpdate failed for %s", *NICParameters.Name)
+	}
+	onARMAPISuccess(prometheusServiceNIC, "NIC.CreateOrUpdate")
+
+	NIC, err := NICFuture.Result(clients.nic)
+	if err != nil {
+		err := fmt.Errorf("NIC.CreateOrUpdate still pending for %s", *NICParameters.Name)
+		glog.Error(err)
+		return nil, err
 	}
 
-	onARMAPISuccess(prometheusServiceDeployment, "deployments.CreateOrUpdate")
-	return de, err
+	VMParameters := d.getVMParameters(vmName, *NIC.ID)
+	VMFuture, err := clients.vm.CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
+	if err != nil {
+		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VM.CreateOrUpdate failed for %s", *NICParameters.Name)
+	}
+	err = VMFuture.WaitForCompletionRef(ctx, clients.vm.Client)
+	if err != nil {
+		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VM.CreateOrUpdate failed for %s", *NICParameters.Name)
+	}
+	VM, err := VMFuture.Result(clients.vm)
+	if err != nil {
+		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VMFuture.CreateOrUpdate")
+	}
+	onARMAPISuccess(prometheusServiceVM, "VM.CreateOrUpdate")
+
+	return &VM, nil
 }
 
 func (clients *azureDriverClients) getAllVMs(ctx context.Context, resourceGroupName string) ([]compute.VirtualMachine, error) {
@@ -400,7 +376,7 @@ func (clients *azureDriverClients) getAllVMs(ctx context.Context, resourceGroupN
 			items = append(items, item)
 		}
 	}
-	onARMAPISuccess(prometheusServiceVM, "deployments.CreateOrUpdate")
+	onARMAPISuccess(prometheusServiceVM, "vm.List")
 	return items, nil
 }
 
@@ -616,13 +592,12 @@ func (clients *azureDriverClients) deleteVMNicDisk(ctx context.Context, resource
 
 	// We try to fetch the VM, detach its data disks and finally delete it
 	if vm, vmErr := clients.vm.Get(ctx, resourceGroupName, VMName, ""); vmErr == nil {
-		if dataDiskDetachmentErr := clients.waitForDataDiskDetachment(ctx, resourceGroupName, vm); dataDiskDetachmentErr == nil {
-			if deleteErr := clients.deleteVM(ctx, resourceGroupName, VMName); deleteErr != nil {
-				return deleteErr
-			}
-		} else {
-			return dataDiskDetachmentErr
+
+		clients.waitForDataDiskDetachment(ctx, resourceGroupName, vm)
+		if deleteErr := clients.deleteVM(ctx, resourceGroupName, VMName); deleteErr != nil {
+			return deleteErr
 		}
+
 		onARMAPISuccess(prometheusServiceVM, "VM Get was successful for %s", *vm.Name)
 	} else if !notFound(vmErr) {
 		// If some other error occurred, which is not 404 Not Found, because the VM doesn't exist, then bubble up
@@ -670,10 +645,12 @@ func (clients *azureDriverClients) waitForDataDiskDetachment(ctx context.Context
 		vm.StorageProfile.DataDisks = &[]compute.DataDisk{}
 
 		future, err := clients.vm.CreateOrUpdate(ctx, resourceGroupName, *vm.Name, vm)
+		if err != nil {
+			return onARMAPIErrorFail(prometheusServiceVM, err, "Failed to CreateOrUpdate. Error Message - %s", err)
+		}
 		err = future.WaitForCompletionRef(ctx, clients.vm.Client)
 		if err != nil {
-			glog.Errorf("Failed to CreateOrUpdate. Error Message - %s", err)
-			return onARMAPIErrorFail(prometheusServiceVM, err, "vm.CreateOrUpdate")
+			return onARMAPIErrorFail(prometheusServiceVM, err, "Failed to CreateOrUpdate. Error Message - %s", err)
 		}
 		onARMAPISuccess(prometheusServiceVM, "VM CreateOrUpdate was successful for %s", *vm.Name)
 	}
@@ -847,10 +824,10 @@ func vmNameFromDependencyName(dependencyName, suffix string) (hasProperSuffix bo
 }
 
 const (
-	prometheusServiceDeployment = "deployment"
-	prometheusServiceVM         = "virtual_machine"
-	prometheusServiceNIC        = "network_interfaces"
-	prometheusServiceDisk       = "disks"
+	prometheusServiceSubnet = "subnet"
+	prometheusServiceVM     = "virtual_machine"
+	prometheusServiceNIC    = "network_interfaces"
+	prometheusServiceDisk   = "disks"
 )
 
 func prometheusSuccess(service string) {
