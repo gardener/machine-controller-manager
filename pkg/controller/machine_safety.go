@@ -36,6 +36,8 @@ import (
 const (
 	// OverShootingReplicaCount freeze reason when replica count overshoots
 	OverShootingReplicaCount = "OverShootingReplicaCount"
+	// MachineDeploymentStateSync freeze reason when machineDeployment was found with inconsistent state
+	MachineDeploymentStateSync = "MachineDeploymentStateSync"
 	// TimeoutOccurred freeze reason when machineSet timeout occurs
 	TimeoutOccurred = "MachineSetTimeoutOccurred"
 	// LastReplicaUpdate contains the last timestamp when the
@@ -73,6 +75,12 @@ func (c *controller) reconcileClusterMachineSafetyOvershooting(key string) error
 		glog.Errorf("SafetyController: %v", err)
 	}
 	cache.WaitForCacheSync(stopCh, c.machineSetSynced, c.machineDeploymentSynced)
+
+	err = c.syncMachineDeploymentFreezeState()
+	if err != nil {
+		glog.Errorf("SafetyController: %v", err)
+	}
+	cache.WaitForCacheSync(stopCh, c.machineDeploymentSynced)
 
 	err = c.unfreezeMachineDeploymentsWithUnfreezeAnnotation()
 	if err != nil {
@@ -201,7 +209,7 @@ func (c *controller) unfreezeMachineDeploymentsWithUnfreezeAnnotation() error {
 		if _, exists := machineDeployment.Annotations[UnfreezeAnnotation]; exists {
 			glog.V(2).Infof("SafetyController: UnFreezing MachineDeployment %q due to setting unfreeze annotation", machineDeployment.Name)
 
-			err := c.unfreezeMachineDeployment(machineDeployment)
+			err := c.unfreezeMachineDeployment(machineDeployment, "UnfreezeAnnotation")
 			if err != nil {
 				return err
 			}
@@ -250,6 +258,60 @@ func (c *controller) unfreezeMachineSetsWithUnfreezeAnnotation() error {
 			err := c.unfreezeMachineSet(machineSet)
 			if err != nil {
 				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// syncMachineDeploymentFreezeState syncs freeze labels and conditions to keep it consistent
+func (c *controller) syncMachineDeploymentFreezeState() error {
+	machineDeployments, err := c.machineDeploymentLister.List(labels.Everything())
+	if err != nil {
+		glog.Error("SafetyController: Error while trying to LIST machineDeployments - ", err)
+		return err
+	}
+
+	for _, machineDeployment := range machineDeployments {
+
+		machineDeploymentFreezeLabelPresent := (machineDeployment.Labels["freeze"] == "True")
+		machineDeploymentFrozenConditionPresent := (GetMachineDeploymentCondition(machineDeployment.Status, v1alpha1.MachineDeploymentFrozen) != nil)
+
+		machineDeploymentHasFrozenMachineSet := false
+		machineSets, err := c.getMachineSetsForMachineDeployment(machineDeployment)
+		if err == nil {
+			for _, machineSet := range machineSets {
+				machineSetFreezeLabelPresent := (machineSet.Labels["freeze"] == "True")
+				machineSetFrozenConditionPresent := (GetCondition(&machineSet.Status, v1alpha1.MachineSetFrozen) != nil)
+
+				if machineSetFreezeLabelPresent || machineSetFrozenConditionPresent {
+					machineDeploymentHasFrozenMachineSet = true
+					break
+				}
+			}
+		}
+
+		if machineDeploymentHasFrozenMachineSet {
+			// If machineDeployment has atleast one frozen machine set backing it
+
+			if !machineDeploymentFreezeLabelPresent || !machineDeploymentFrozenConditionPresent {
+				// Either the freeze label or freeze condition is not present on the machineDeployment
+				message := "MachineDeployment State was inconsistent, hence safety controller has fixed this and frozen it"
+				err := c.freezeMachineDeployment(machineDeployment, MachineDeploymentStateSync, message)
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			// If machineDeployment has no frozen machine set backing it
+
+			if machineDeploymentFreezeLabelPresent || machineDeploymentFrozenConditionPresent {
+				// Either the freeze label or freeze condition is present present on the machineDeployment
+				err := c.unfreezeMachineDeployment(machineDeployment, MachineDeploymentStateSync)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -680,37 +742,10 @@ func (c *controller) freezeMachineSetAndDeployment(machineSet *v1alpha1.MachineS
 	if len(machineDeployments) >= 1 {
 		machineDeployment := machineDeployments[0]
 		if machineDeployment != nil {
-
-			// Get the latest version of the machineDeployment so that we can avoid conflicts
-			machineDeployment, err := c.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Get(machineDeployment.Name, metav1.GetOptions{})
+			err := c.freezeMachineDeployment(machineDeployment, reason, message)
 			if err != nil {
-				glog.Errorf("SafetyController: Failed to GET machineDeployment. Error: %s", err)
 				return err
 			}
-
-			clone := machineDeployment.DeepCopy()
-			newStatus := clone.Status
-			mdcond := NewMachineDeploymentCondition(v1alpha1.MachineDeploymentFrozen, v1alpha1.ConditionTrue, reason, message)
-			SetMachineDeploymentCondition(&newStatus, *mdcond)
-			clone.Status = newStatus
-			machineDeployment, err = c.controlMachineClient.MachineDeployments(clone.Namespace).UpdateStatus(clone)
-			if err != nil {
-				glog.Errorf("SafetyController: MachineDeployment/status UPDATE failed. Error: %s", err)
-				return err
-			}
-
-			clone = machineDeployment.DeepCopy()
-			if clone.Labels == nil {
-				clone.Labels = make(map[string]string)
-			}
-			clone.Labels["freeze"] = "True"
-			_, err = c.controlMachineClient.MachineDeployments(clone.Namespace).Update(clone)
-			if err != nil {
-				glog.Errorf("SafetyController: MachineDeployment UPDATE failed. Error: %s", err)
-				return err
-			}
-
-			glog.V(2).Infof("SafetyController: Froze MachineDeployment %q due to overshooting of replicas", machineSet.Name)
 		}
 	}
 
@@ -726,7 +761,7 @@ func (c *controller) unfreezeMachineSetAndDeployment(machineSet *v1alpha1.Machin
 	machineDeployments := c.getMachineDeploymentsForMachineSet(machineSet)
 	if len(machineDeployments) >= 1 {
 		machineDeployment := machineDeployments[0]
-		err := c.unfreezeMachineDeployment(machineDeployment)
+		err := c.unfreezeMachineDeployment(machineDeployment, "UnderShootingReplicaCount")
 		if err != nil {
 			return err
 		}
@@ -786,8 +821,43 @@ func (c *controller) unfreezeMachineSet(machineSet *v1alpha1.MachineSet) error {
 	return nil
 }
 
+// freezeMachineDeployment freezes the machineDeployment
+func (c *controller) freezeMachineDeployment(machineDeployment *v1alpha1.MachineDeployment, reason string, message string) error {
+	// Get the latest version of the machineDeployment so that we can avoid conflicts
+	machineDeployment, err := c.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Get(machineDeployment.Name, metav1.GetOptions{})
+	if err != nil {
+		glog.Errorf("SafetyController: Failed to GET machineDeployment. Error: %s", err)
+		return err
+	}
+
+	clone := machineDeployment.DeepCopy()
+	newStatus := clone.Status
+	mdcond := NewMachineDeploymentCondition(v1alpha1.MachineDeploymentFrozen, v1alpha1.ConditionTrue, reason, message)
+	SetMachineDeploymentCondition(&newStatus, *mdcond)
+	clone.Status = newStatus
+	machineDeployment, err = c.controlMachineClient.MachineDeployments(clone.Namespace).UpdateStatus(clone)
+	if err != nil {
+		glog.Errorf("SafetyController: MachineDeployment/status UPDATE failed. Error: %s", err)
+		return err
+	}
+
+	clone = machineDeployment.DeepCopy()
+	if clone.Labels == nil {
+		clone.Labels = make(map[string]string)
+	}
+	clone.Labels["freeze"] = "True"
+	_, err = c.controlMachineClient.MachineDeployments(clone.Namespace).Update(clone)
+	if err != nil {
+		glog.Errorf("SafetyController: MachineDeployment UPDATE failed. Error: %s", err)
+		return err
+	}
+
+	glog.V(2).Infof("SafetyController: Froze MachineDeployment %q due to %s", machineDeployment.Name, reason)
+	return nil
+}
+
 // unfreezeMachineDeployment unfreezes the machineDeployment
-func (c *controller) unfreezeMachineDeployment(machineDeployment *v1alpha1.MachineDeployment) error {
+func (c *controller) unfreezeMachineDeployment(machineDeployment *v1alpha1.MachineDeployment, reason string) error {
 
 	if machineDeployment == nil {
 		err := fmt.Errorf("SafetyController: Machine Deployment not passed")
@@ -828,6 +898,6 @@ func (c *controller) unfreezeMachineDeployment(machineDeployment *v1alpha1.Machi
 		return err
 	}
 
-	glog.V(2).Infof("SafetyController: Unfroze MachineDeployment %q", machineDeployment.Name)
+	glog.V(2).Infof("SafetyController: Unfroze MachineDeployment %q due to %s", machineDeployment.Name, reason)
 	return nil
 }
