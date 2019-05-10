@@ -396,7 +396,6 @@ var annotationsToSkip = map[string]bool{
 	RevisionHistoryAnnotation:      true,
 	DesiredReplicasAnnotation:      true,
 	MaxReplicasAnnotation:          true,
-	LastReplicaUpdate:              true,
 	PreferNoScheduleKey:            true,
 	UnfreezeAnnotation:             true,
 }

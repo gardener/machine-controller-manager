@@ -40,9 +40,6 @@ const (
 	MachineDeploymentStateSync = "MachineDeploymentStateSync"
 	// TimeoutOccurred freeze reason when machineSet timeout occurs
 	TimeoutOccurred = "MachineSetTimeoutOccurred"
-	// LastReplicaUpdate contains the last timestamp when the
-	// number of replicas was changed
-	LastReplicaUpdate = "safety.machine.sapcloud.io/lastreplicaupdate"
 	// UnfreezeAnnotation indicates the controllers to unfreeze this object
 	UnfreezeAnnotation = "safety.machine.sapcloud.io/unfreeze"
 )
@@ -614,21 +611,6 @@ func (c *controller) checkMachineClass(
 	}
 }
 
-// addMachineSetToSafety enqueues into machineSafetyQueue when a new machineSet is added
-func (c *controller) addMachineSetToSafety(obj interface{}) {
-	machineSet := obj.(*v1alpha1.MachineSet)
-	c.updateTimeStamp(machineSet)
-}
-
-// updateMachineSetToSafety adds update timestamp
-func (c *controller) updateMachineSetToSafety(old, new interface{}) {
-	oldMS := old.(*v1alpha1.MachineSet)
-	newMS := new.(*v1alpha1.MachineSet)
-	if oldMS.Spec.Replicas != newMS.Spec.Replicas {
-		c.updateTimeStamp(newMS)
-	}
-}
-
 // addMachineToSafety enqueues into machineSafetyQueue when a new machine is added
 func (c *controller) addMachineToSafety(obj interface{}) {
 	machine := obj.(*v1alpha1.Machine)
@@ -639,31 +621,6 @@ func (c *controller) addMachineToSafety(obj interface{}) {
 func (c *controller) deleteMachineToSafety(obj interface{}) {
 	machine := obj.(*v1alpha1.Machine)
 	c.enqueueMachineSafetyOrphanVMsKey(machine)
-}
-
-// updateTimeStamp adds an annotation indicating the last time the number of replicas
-// of machineSet was changed
-func (c *controller) updateTimeStamp(ms *v1alpha1.MachineSet) {
-	for {
-		// Get the latest version of the machineSet so that we can avoid conflicts
-		ms, err := c.controlMachineClient.MachineSets(ms.Namespace).Get(ms.Name, metav1.GetOptions{})
-		if err != nil {
-			// Some error occurred while fetching object from API server
-			glog.Error(err)
-			break
-		}
-		clone := ms.DeepCopy()
-		if clone.Annotations == nil {
-			clone.Annotations = make(map[string]string)
-		}
-		clone.Annotations[LastReplicaUpdate] = metav1.Now().Format("2006-01-02 15:04:05 MST")
-		_, err = c.controlMachineClient.MachineSets(clone.Namespace).Update(clone)
-		if err == nil {
-			break
-		}
-		// Keep retrying until update goes through
-		glog.Error("SafetyController: Failure while trying to UPDATE timestamp, Error: ", err)
-	}
 }
 
 // enqueueMachineSafetyOvershootingKey enqueues into machineSafetyOvershootingQueue
