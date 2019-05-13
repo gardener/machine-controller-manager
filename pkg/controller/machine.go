@@ -308,11 +308,26 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 		return machine, err
 	}
 
-	clone, err := c.updateMachineConditions(machine, node.Status.Conditions)
+	machine, err = c.updateMachineConditions(machine, node.Status.Conditions)
 	if err != nil {
 		return machine, err
 	}
-	return clone, nil
+
+	clone := machine.DeepCopy()
+	if clone.Labels == nil {
+		clone.Labels = make(map[string]string)
+	}
+
+	if _, ok := clone.Labels["node"]; !ok {
+		clone.Labels["node"] = machine.Status.Node
+		machine, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
+		if err != nil {
+			glog.Warningf("Machine update failed. Retrying, error: %s", err)
+			return machine, err
+		}
+	}
+
+	return machine, nil
 }
 
 /*

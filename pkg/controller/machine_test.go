@@ -1070,6 +1070,12 @@ var _ = Describe("machine", func() {
 				Expect(actual.Status.LastOperation.Type).To(Equal(data.expect.machine.Status.LastOperation.Type))
 				Expect(actual.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
 
+				if data.expect.machine.Labels != nil {
+					if _, ok := data.expect.machine.Labels["node"]; ok {
+						Expect(actual.Labels["node"]).To(Equal(data.expect.machine.Labels["node"]))
+					}
+				}
+
 				for i := range actual.Status.Conditions {
 					Expect(actual.Status.Conditions[i].Type).To(Equal(data.expect.machine.Status.Conditions[i].Type))
 					Expect(actual.Status.Conditions[i].Status).To(Equal(data.expect.machine.Status.Conditions[i].Status))
@@ -1241,6 +1247,38 @@ var _ = Describe("machine", func() {
 							},
 						},
 					}, nil, nil, nil),
+				},
+			}),
+			Entry("Machine object does not have node-label and node exists", &data{
+				setup: setup{
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						Node: "node",
+					}, nil, nil, nil),
+					nodes: []*corev1.Node{
+						&corev1.Node{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-0",
+							},
+						},
+					},
+				},
+				action: action{
+					machine: machineName,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "machine-0",
+						},
+					}, &machinev1.MachineStatus{
+						Node: "node",
+					}, nil, nil,
+						map[string]string{
+							"node": "node-0",
+						},
+					),
 				},
 			}),
 		)
