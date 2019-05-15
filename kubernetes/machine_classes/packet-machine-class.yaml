@@ -13,11 +13,11 @@ spec:
     - AMS1
   machineType: x1.small # Type of packet bare-metal machine
   tags:
-    Name: sample-machine-name # Name tag that can be used to identify a machine at Packet
-    kubernetes.io/cluster/YOUR_CLUSTER_NAME: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller.
-    kubernetes.io/role/YOUR_ROLE_NAME: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by by this controller.
-    tag1: tag1-value # A set of additional tags attached to a machine (optional)
-    tag2: tag2-value # A set of additional tags attached to a machine (optional)
+    - "Name: sample-machine-name" # Name tag that can be used to identify a machine at Packet
+    - "kubernetes.io/cluster/YOUR_CLUSTER_NAME" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller.
+    - "kubernetes.io/role/YOUR_ROLE_NAME" # This is mandatory as the safety controller uses this tag to identify VMs created by by this controller.
+    - "tag1-value" # A set of additional tags attached to a machine (optional)
+    - "tag2-value" # A set of additional tags attached to a machine (optional)
   secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig
     namespace: default  # Namespace
     name: test-secret # Name of the secret
