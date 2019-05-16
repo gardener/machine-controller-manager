@@ -740,8 +740,11 @@ func retrieveRequestID(err error) (bool, string, *autorest.DetailedError) {
 	switch err.(type) {
 	case autorest.DetailedError:
 		detailedErr := autorest.DetailedError(err.(autorest.DetailedError))
-		requestID := strings.Join(detailedErr.Response.Header["X-Ms-Request-Id"], "")
-		return true, requestID, &detailedErr
+		if detailedErr.Response != nil {
+			requestID := strings.Join(detailedErr.Response.Header["X-Ms-Request-Id"], "")
+			return true, requestID, &detailedErr
+		}
+		return false, "", nil
 	default:
 		return false, "", nil
 	}
