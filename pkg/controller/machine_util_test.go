@@ -687,6 +687,60 @@ var _ = Describe("machine_util", func() {
 					labelsChanged: true,
 				},
 			}),
+
+			Entry("when labels values are updated manually on node object", &data{
+				setup: setup{},
+				action: action{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Labels: map[string]string{
+								"key1": "value2",
+							},
+							Annotations: map[string]string{
+								LastAppliedALTAnnotation: "{\"metadata\":{\"creationTimestamp\":null,\"labels\":{\"key1\":\"value1\"}}}",
+							},
+						},
+					},
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{
+									"test-label": "test-label",
+								},
+							},
+							Spec: machinev1.MachineSpec{
+								NodeTemplateSpec: machinev1.NodeTemplateSpec{
+									ObjectMeta: metav1.ObjectMeta{
+										Labels: map[string]string{
+											"key1": "value1",
+										},
+									},
+								},
+							},
+						},
+						nil, nil, nil, nil),
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Labels: map[string]string{
+								"key1": "value1",
+							},
+						},
+					},
+					labelsChanged: true,
+				},
+			}),
 		)
 
 	})
@@ -792,7 +846,7 @@ var _ = Describe("machine_util", func() {
 				},
 			}),
 
-			Entry("when annoatations values are updated ", &data{
+			Entry("when annotations values are updated ", &data{
 				setup: setup{},
 				action: action{
 					node: &corev1.Node{
@@ -918,6 +972,58 @@ var _ = Describe("machine_util", func() {
 					machine: newMachine(
 						&machinev1.MachineTemplateSpec{
 							ObjectMeta: metav1.ObjectMeta{},
+							Spec: machinev1.MachineSpec{
+								NodeTemplateSpec: machinev1.NodeTemplateSpec{
+									ObjectMeta: metav1.ObjectMeta{
+										Annotations: map[string]string{
+											"anno1": "anno1",
+										},
+									},
+								},
+							},
+						},
+						nil, nil, nil, nil),
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1": "anno1",
+							},
+						},
+					},
+					annotationsChanged: true,
+				},
+			}),
+
+			Entry("when annotations values are updated manually on node object", &data{
+				setup: setup{},
+				action: action{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1":                  "anno2",
+								LastAppliedALTAnnotation: "{\"metadata\":{\"creationTimestamp\":null,\"annotations\":{\"anno1\":\"anno1\"}}}",
+							},
+						},
+					},
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{
+									"test-label": "test-label",
+								},
+							},
 							Spec: machinev1.MachineSpec{
 								NodeTemplateSpec: machinev1.NodeTemplateSpec{
 									ObjectMeta: metav1.ObjectMeta{
