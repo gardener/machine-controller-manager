@@ -17,6 +17,7 @@ package controller
 
 import (
 	"encoding/json"
+	"reflect"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -992,7 +993,7 @@ var _ = Describe("machine_util", func() {
 
 				waitForCacheSync(stop, c)
 
-				Expect(testNode.Spec.Taints).Should(Equal(expectedNode.Spec.Taints))
+				Expect(reflect.DeepEqual(testNode.Spec.Taints, expectedNode.Spec.Taints)).To(Equal(true))
 				Expect(taintsChanged).To(Equal(data.expect.taintsChanged))
 			},
 

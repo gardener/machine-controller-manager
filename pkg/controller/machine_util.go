@@ -45,8 +45,6 @@ const (
 var (
 	// emptyMap is a dummy emptyMap to compare with
 	emptyMap = make(map[string]string)
-	// emptyTaintList is a dummy empty taint list to compare with
-	emptyTaintList = []v1.Taint{}
 )
 
 // TODO: use client library instead when it starts to support update retries
@@ -377,7 +375,7 @@ func SyncMachineAnnotations(
 
 	// Add/Update any key that doesn't exist or whose value as changed
 	for mKey, mValue := range mAnnotations {
-		if _, exists := nAnnotations[mKey]; !exists || mValue != nAnnotations[mKey] {
+		if nValue, exists := nAnnotations[mKey]; !exists || mValue != nValue {
 			nAnnotations[mKey] = mValue
 			toBeUpdated = true
 		}
@@ -416,7 +414,7 @@ func SyncMachineLabels(
 
 	// Add/Update any key that doesn't exist or whose value as changed
 	for mKey, mValue := range mLabels {
-		if _, exists := nLabels[mKey]; !exists || mValue != nLabels[mKey] {
+		if nValue, exists := nLabels[mKey]; !exists || mValue != nValue {
 			nLabels[mKey] = mValue
 			toBeUpdated = true
 		}
@@ -444,15 +442,6 @@ func SyncMachineTaints(
 	mTaintsMap := make(map[taintKeyEffect]*v1.Taint, 0)
 	nTaintsMap := make(map[taintKeyEffect]*v1.Taint, 0)
 
-	// Initialize node taints if nil
-	if nTaints == nil {
-		nTaints = []v1.Taint{}
-	}
-	// Intialize machine taints to empty map if nil
-	if mTaints == nil {
-		mTaints = emptyTaintList
-	}
-
 	// Convert the slice of taints to map of taint [key, effect] = Taint
 	// Helps with indexed searching
 	for i := range mTaints {
@@ -472,7 +461,7 @@ func SyncMachineTaints(
 		nTaintsMap[taintKE] = nTaint
 	}
 
-	// Delete taints that existed on the machine object in the last update but anymore
+	// Delete taints that existed on the machine object in the last update but deleted now
 	for _, lastAppliedTaint := range lastAppliedTaints {
 
 		lastAppliedKE := taintKeyEffect{
@@ -496,9 +485,11 @@ func SyncMachineTaints(
 
 	if toBeUpdated {
 		// Convert the map of taints to slice of taints
-		nTaints = []v1.Taint{}
+		nTaints = make([]v1.Taint, len(nTaintsMap))
+		i := 0
 		for _, nV := range nTaintsMap {
-			nTaints = append(nTaints, *nV)
+			nTaints[i] = *nV
+			i++
 		}
 		node.Spec.Taints = nTaints
 	}
