@@ -37,6 +37,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 )
@@ -313,13 +314,12 @@ func (o *DrainOptions) deleteOrEvictPods(pods []api.Pod) error {
 }
 
 func (o *DrainOptions) evictPods(pods []api.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error)) error {
-	doneCh := make(chan bool, len(pods))
-	errCh := make(chan error, 1)
+	returnCh := make(chan error, 1)
 
 	glog.V(3).Info("The following pods were evicted -")
 
 	for _, pod := range pods {
-		go func(pod api.Pod, doneCh chan bool, errCh chan error) {
+		go func(pod api.Pod, returnCh chan error) {
 			var err error
 			glog.V(3).Info("\t", pod.Name)
 			for {
@@ -328,26 +328,28 @@ func (o *DrainOptions) evictPods(pods []api.Pod, policyGroupVersion string, getP
 					break
 				} else if apierrors.IsNotFound(err) {
 					glog.V(3).Info("\t", pod.Name, " evicted")
-					doneCh <- true
+					returnCh <- nil
 					return
 				} else if apierrors.IsTooManyRequests(err) {
 					time.Sleep(5 * time.Second)
 				} else {
-					errCh <- fmt.Errorf("error when evicting pod %q: %v", pod.Name, err)
+					returnCh <- fmt.Errorf("error when evicting pod %q: %v", pod.Name, err)
 					return
 				}
 			}
 			podArray := []api.Pod{pod}
 			_, err = o.waitForDelete(podArray, Interval, time.Duration(math.MaxInt64), true, getPodFn)
 			if err == nil {
-				doneCh <- true
+				returnCh <- nil
 			} else {
-				errCh <- fmt.Errorf("error when waiting for pod %q terminating: %v", pod.Name, err)
+				returnCh <- fmt.Errorf("error when waiting for pod %q terminating: %v", pod.Name, err)
 			}
-		}(pod, doneCh, errCh)
+		}(pod, returnCh)
 	}
 
 	doneCount := 0
+	var errors []error
+
 	// 0 timeout means infinite, we use MaxInt64 to represent it.
 	var globalTimeout time.Duration
 	if o.Timeout == 0 {
@@ -355,19 +357,20 @@ func (o *DrainOptions) evictPods(pods []api.Pod, policyGroupVersion string, getP
 	} else {
 		globalTimeout = o.Timeout
 	}
-	for {
+	globalTimeoutCh := time.After(globalTimeout)
+	numPods := len(pods)
+	for doneCount < numPods {
 		select {
-		case err := <-errCh:
-			return err
-		case <-doneCh:
+		case err := <-returnCh:
 			doneCount++
-			if doneCount == len(pods) {
-				return nil
+			if err != nil {
+				errors = append(errors, err)
 			}
-		case <-time.After(globalTimeout):
+		case <-globalTimeoutCh:
 			return fmt.Errorf("Drain did not complete within %v", globalTimeout)
 		}
 	}
+	return utilerrors.NewAggregate(errors)
 }
 
 func (o *DrainOptions) deletePods(pods []api.Pod, getPodFn func(namespace, name string) (*api.Pod, error)) error {
