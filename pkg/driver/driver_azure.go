@@ -598,3 +598,17 @@ func (d *AzureDriver) decodeMachineID(id string) string {
 	splitProviderID := strings.Split(id, "/")
 	return splitProviderID[len(splitProviderID)-1]
 }
+
+// GetVolNames parses volume names from pv specs
+func (d *AzureDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, error) {
+	names := []string{}
+	for _, spec := range specs {
+		if spec.AzureDisk == nil {
+			// Not an azure volume
+			continue
+		}
+		name := spec.AzureDisk.DiskName
+		names = append(names, name)
+	}
+	return names, nil
+}

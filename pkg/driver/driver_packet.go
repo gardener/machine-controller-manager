@@ -170,3 +170,9 @@ func packetTagsStringToMap(tags []string) map[string]string {
 	}
 	return ret
 }
+
+// GetVolNames parses volume names from pv specs
+func (d *PacketDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, error) {
+	names := []string{}
+	return names, fmt.Errorf("Not implemented yet")
+}

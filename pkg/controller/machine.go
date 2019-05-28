@@ -483,6 +483,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 		}
 
 		if machineID != "" {
+			pvDetachTimeOut := c.safetyOptions.PvDetachTimeout.Duration
 			timeOutDuration := c.safetyOptions.MachineDrainTimeout.Duration
 			// Timeout value obtained by subtracting last operation with expected time out period
 			timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
@@ -499,16 +500,20 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			errBuf := bytes.NewBuffer([]byte{})
 
 			nodeName := machine.Status.Node
+			machineName := machine.Name
 			drainOptions := NewDrainOptions(
 				c.targetCoreClient,
 				timeOutDuration, // TODO: Will need to configure timeout
+				pvDetachTimeOut,
 				nodeName,
+				machineName,
 				-1,
 				true,
 				true,
 				true,
 				buf,
 				errBuf,
+				driver,
 			)
 			err = drainOptions.RunDrain()
 			if err != nil {
