@@ -178,6 +178,12 @@ func NewController(
 		DeleteFunc: controller.azureMachineClassToSecretDelete,
 	})
 
+	alicloudMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.alicloudMachineClassToSecretAdd,
+		UpdateFunc: controller.alicloudMachineClassToSecretUpdate,
+		DeleteFunc: controller.alicloudMachineClassToSecretDelete,
+	})
+
 	awsMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.awsMachineClassToSecretAdd,
 		UpdateFunc: controller.awsMachineClassToSecretUpdate,
