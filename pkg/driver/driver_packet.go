@@ -46,16 +46,20 @@ func NewPacketDriver(create func() (string, error), delete func() error, existin
 func (d *PacketDriver) Create() (string, string, error) {
 
 	svc := d.createSVC()
+	if svc == nil {
+		return "", "", fmt.Errorf("nil Packet service returned")
+	}
 	// packet tags are strings only
-	tags := packetTagsMapToString(d.PacketMachineClass.Spec.Tags)
 	createRequest := &packngo.DeviceCreateRequest{
-		UserData:     d.UserData,
-		Plan:         d.PacketMachineClass.Spec.MachineType,
-		ProjectID:    d.PacketMachineClass.Spec.ProjectID,
-		BillingCycle: d.PacketMachineClass.Spec.BillingCycle,
-		Facility:     d.PacketMachineClass.Spec.Facility,
-		OS:           d.PacketMachineClass.Spec.OS,
-		Tags:         tags,
+		Hostname:       d.MachineName,
+		UserData:       d.UserData,
+		Plan:           d.PacketMachineClass.Spec.MachineType,
+		ProjectID:      d.PacketMachineClass.Spec.ProjectID,
+		BillingCycle:   d.PacketMachineClass.Spec.BillingCycle,
+		Facility:       d.PacketMachineClass.Spec.Facility,
+		OS:             d.PacketMachineClass.Spec.OS,
+		ProjectSSHKeys: d.PacketMachineClass.Spec.SSHKeys,
+		Tags:           d.PacketMachineClass.Spec.Tags,
 	}
 
 	device, _, err := svc.Devices.Create(createRequest)
@@ -70,6 +74,9 @@ func (d *PacketDriver) Create() (string, string, error) {
 func (d *PacketDriver) Delete() error {
 
 	svc := d.createSVC()
+	if svc == nil {
+		return fmt.Errorf("nil Packet service returned")
+	}
 	machineID := d.decodeMachineID(d.MachineID)
 	resp, err := svc.Devices.Delete(machineID)
 	if err != nil {
@@ -96,7 +103,7 @@ func (d *PacketDriver) GetVMs(machineID string) (VMs, error) {
 	clusterName := ""
 	nodeRole := ""
 
-	for key := range d.PacketMachineClass.Spec.Tags {
+	for _, key := range d.PacketMachineClass.Spec.Tags {
 		if strings.Contains(key, "kubernetes.io/cluster/") {
 			clusterName = key
 		} else if strings.Contains(key, "kubernetes.io/role/") {
@@ -109,6 +116,9 @@ func (d *PacketDriver) GetVMs(machineID string) (VMs, error) {
 	}
 
 	svc := d.createSVC()
+	if svc == nil {
+		return nil, fmt.Errorf("nil Packet service returned")
+	}
 	if machineID == "" {
 		devices, _, err := svc.Devices.List(d.PacketMachineClass.Spec.ProjectID, &packngo.ListOptions{})
 		if err != nil {
@@ -116,8 +126,17 @@ func (d *PacketDriver) GetVMs(machineID string) (VMs, error) {
 			return nil, err
 		}
 		for _, d := range devices {
-			tags := packetTagsStringToMap(d.Tags)
-			if v, ok := tags[clusterName]; ok && v == nodeRole {
+			matchedCluster := false
+			matchedRole := false
+			for _, tag := range d.Tags {
+				switch tag {
+				case clusterName:
+					matchedCluster = true
+				case nodeRole:
+					matchedRole = true
+				}
+			}
+			if matchedCluster && matchedRole {
 				listOfVMs[d.ID] = d.Hostname
 			}
 		}
@@ -152,21 +171,4 @@ func (d *PacketDriver) encodeMachineID(facility, machineID string) string {
 func (d *PacketDriver) decodeMachineID(id string) string {
 	splitProviderID := strings.Split(id, "/")
 	return splitProviderID[len(splitProviderID)-1]
-}
-
-func packetTagsMapToString(tags map[string]string) []string {
-	ret := make([]string, 0)
-	for k, v := range tags {
-		ret = append(ret, fmt.Sprintf("%s:%s", k, v))
-	}
-	return ret
-}
-
-func packetTagsStringToMap(tags []string) map[string]string {
-	ret := map[string]string{}
-	for _, t := range tags {
-		parts := strings.SplitN(t, ":", 2)
-		ret[parts[0]] = parts[1]
-	}
-	return ret
 }
