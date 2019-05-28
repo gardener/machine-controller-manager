@@ -45,6 +45,11 @@ func (c *controller) existsMachineClassForSecret(name string) (bool, error) {
 		return false, err
 	}
 
+	alicloudMachineClasses, err := c.findAlicloudMachineClassForSecret(name)
+	if err != nil {
+		return false, err
+	}
+
 	packetMachineClasses, err := c.findPacketMachineClassForSecret(name)
 	if err != nil {
 		return false, err
@@ -54,6 +59,7 @@ func (c *controller) existsMachineClassForSecret(name string) (bool, error) {
 		len(gcpMachineClasses) == 0 &&
 		len(azureMachineClasses) == 0 &&
 		len(packetMachineClasses) == 0 &&
+		len(alicloudMachineClasses) == 0 &&
 		len(awsMachineClasses) == 0 {
 		return false, nil
 	}
@@ -101,6 +107,22 @@ func (c *controller) findAzureMachineClassForSecret(name string) ([]*v1alpha1.Az
 		return nil, err
 	}
 	var filtered []*v1alpha1.AzureMachineClass
+	for _, machineClass := range machineClasses {
+		if machineClass.Spec.SecretRef.Name == name {
+			filtered = append(filtered, machineClass)
+		}
+	}
+	return filtered, nil
+}
+
+// findAlicloudClassForSecret returns the set of
+// AlicloudMachineClasses referring to the passed secret
+func (c *controller) findAlicloudMachineClassForSecret(name string) ([]*v1alpha1.AlicloudMachineClass, error) {
+	machineClasses, err := c.alicloudMachineClassLister.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+	var filtered []*v1alpha1.AlicloudMachineClass
 	for _, machineClass := range machineClasses {
 		if machineClass.Spec.SecretRef.Name == name {
 			filtered = append(filtered, machineClass)
