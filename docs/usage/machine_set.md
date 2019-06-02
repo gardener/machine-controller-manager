@@ -34,19 +34,18 @@ You should notice that the Machine Controller Manager has immediately picked up 
 
 ```bash
 $ kubectl get machineset
-NAME                KIND
-test-machine-set   MachineSet.v1alpha1.machine.sapcloud.io
+NAME               DESIRED   CURRENT   READY   AGE
+test-machine-set   3         3         0       1m
 ```
 You will see a new machine-set with your given name
 
 - Check Machine Controller Manager machines in the cluster:
-
 ```bash
 $ kubectl get machine
-NAME                      KIND
-test-machine-set-b57zs   Machine.v1alpha1.machine.sapcloud.io
-test-machine-set-c4bg8   Machine.v1alpha1.machine.sapcloud.io
-test-machine-set-kvskg   Machine.v1alpha1.machine.sapcloud.io
+NAME                     STATUS    AGE
+test-machine-set-b57zs   Pending   5m
+test-machine-set-c4bg8   Pending   5m
+test-machine-set-kvskg   Pending   5m
 ```
 
 Now you will see N (number of replicas specified in the manifest) new machines whose names are prefixed with the machine-set object name that you created.

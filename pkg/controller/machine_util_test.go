@@ -788,7 +788,7 @@ var _ = Describe("machine_util", func() {
 
 				waitForCacheSync(stop, c)
 
-				// ignore LastAppliedALTAnnotation for comparision
+				// ignore LastAppliedALTAnnotation for comparison
 				delete(testNode.Annotations, LastAppliedALTAnnotation)
 				Expect(testNode.Annotations).Should(Equal(expectedNode.Annotations))
 				Expect(annotationsChanged).To(Equal(data.expect.annotationsChanged))
