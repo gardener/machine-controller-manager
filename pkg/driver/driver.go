@@ -28,7 +28,6 @@ type Driver interface {
 	Delete() error
 	GetExisting() (string, error)
 	GetVMs(string) (VMs, error)
-	GetVolNames([]corev1.PersistentVolumeSpec) ([]string, error)
 }
 
 // VMs maintains a list of VM returned by the provider
