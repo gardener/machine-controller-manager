@@ -1226,17 +1226,11 @@ type PacketMachineClassSpec struct {
 	OS           string   // required
 	ProjectID    string   // required
 	BillingCycle string
-	Tags         map[string]string
-	SSHKeys      []PacketSSHKeySpec
+	Tags         []string
+	SSHKeys      []string
 	UserData     string
 
 	SecretRef *corev1.SecretReference
 
 	// TODO add more here
-}
-
-// PacketSSHKeySpec represents a single ssh key
-type PacketSSHKeySpec struct {
-	ID          string
-	Fingerprint string
 }
