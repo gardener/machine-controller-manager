@@ -116,7 +116,7 @@ var _ = Describe("deployment_rolling", func() {
 				for _, expectedNode := range data.expect.nodes {
 					actualNode, err := controller.targetCoreClient.CoreV1().Nodes().Get(expectedNode.Name, metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
-					Expect(actualNode.Spec.Taints).Should(Equal(expectedNode.Spec.Taints))
+					Expect(actualNode.Spec.Taints).Should(ConsistOf(expectedNode.Spec.Taints))
 				}
 
 			},

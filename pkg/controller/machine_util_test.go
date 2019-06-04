@@ -17,7 +17,6 @@ package controller
 
 import (
 	"encoding/json"
-	"reflect"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -82,7 +81,7 @@ var _ = Describe("machine_util", func() {
 				updatedNodeObject, _ := c.targetCoreClient.Core().Nodes().Get(nodeObject.Name, metav1.GetOptions{})
 
 				if data.expect.node != nil {
-					Expect(updatedNodeObject.Spec.Taints).Should(Equal(data.expect.node.Spec.Taints))
+					Expect(updatedNodeObject.Spec.Taints).Should(ConsistOf(data.expect.node.Spec.Taints))
 					Expect(updatedNodeObject.Labels).Should(Equal(data.expect.node.Labels))
 
 					// ignore LastAppliedALTAnnotataion
@@ -1099,7 +1098,7 @@ var _ = Describe("machine_util", func() {
 
 				waitForCacheSync(stop, c)
 
-				Expect(reflect.DeepEqual(testNode.Spec.Taints, expectedNode.Spec.Taints)).To(Equal(true))
+				Expect(testNode.Spec.Taints).Should(ConsistOf(expectedNode.Spec.Taints))
 				Expect(taintsChanged).To(Equal(data.expect.taintsChanged))
 			},
 
