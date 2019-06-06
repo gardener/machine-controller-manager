@@ -212,7 +212,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 		internalAlicloudMachineClass := &machineapi.AlicloudMachineClass{}
 		err = c.internalExternalScheme.Convert(AlicloudMachineClass, internalAlicloudMachineClass, nil)
 		if err != nil {
-			glog.V(2).Info("Error in scheme convertion")
+			glog.V(2).Info("Error in scheme conversion")
 			return MachineClass, secretRef, err
 		}
 

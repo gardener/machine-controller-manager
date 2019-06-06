@@ -43,8 +43,8 @@ Now the Machine Controller Manager picks up the manifest immediately and starts 
 
 ```bash
 $ kubectl get machinedeployment
-NAME                       KIND
-test-machine-deployment   MachineDeployment.v1alpha1.machine.sapcloud.io
+NAME                      READY   DESIRED   UP-TO-DATE   AVAILABLE   AGE
+test-machine-deployment   3       3         3            0           10m
 ```
 
 You will notice a new machine-deployment with your given name
@@ -53,8 +53,8 @@ You will notice a new machine-deployment with your given name
 
 ```bash
 $ kubectl get machineset
-NAME                                  KIND
-test-machine-deployment-5bc6dd7c8f   MachineSet.v1alpha1.machine.sapcloud.io
+NAME                                 DESIRED   CURRENT   READY   AGE
+test-machine-deployment-5bc6dd7c8f   3         3         0       10m
 ```
 
 You will notice a new machine-set backing your machine-deployment
@@ -63,10 +63,10 @@ You will notice a new machine-set backing your machine-deployment
 
 ```bash
 $ kubectl get machine
-NAME                                        KIND
-test-machine-deployment-5bc6dd7c8f-5d24b   Machine.v1alpha1.machine.sapcloud.io
-test-machine-deployment-5bc6dd7c8f-6mpn4   Machine.v1alpha1.machine.sapcloud.io
-test-machine-deployment-5bc6dd7c8f-dpt2q   Machine.v1alpha1.machine.sapcloud.io
+NAME                                       STATUS    AGE
+test-machine-deployment-5bc6dd7c8f-5d24b   Pending   5m
+test-machine-deployment-5bc6dd7c8f-6mpn4   Pending   5m
+test-machine-deployment-5bc6dd7c8f-dpt2q   Pending   5m
 ```
 
 Now you will notice N (number of replicas specified in the manifest) new machines whose name are prefixed with the machine-deployment object name that you created.
@@ -151,7 +151,7 @@ Health monitor is also applied similar to how it's described for [machine-sets](
 
 ## Update your machines
 
-Let us consider the scenario where you wish to update all nodes of your cluster from t2.xlarge machines to m4.xlarge machines. Assume that your current *test-aws* has its **spec.machineType: t2.xlarge** and your deployment *test-machine-deployment* points to this AWSMachineClass. 
+Let us consider the scenario where you wish to update all nodes of your cluster from t2.xlarge machines to m5.xlarge machines. Assume that your current *test-aws* has its **spec.machineType: t2.xlarge** and your deployment *test-machine-deployment* points to this AWSMachineClass. 
 
 #### Inspect existing cluster configuration
 
@@ -169,15 +169,15 @@ ip-10-250-31-80.eu-west-1.compute.internal    Ready     1m        v1.8.0
 
 ```bash
 $ kubectl get machineset
-NAME                                  KIND
-test-machine-deployment-5bc6dd7c8f   MachineSet.v1alpha1.machine.sapcloud.io
+NAME                                 DESIRED   CURRENT   READY   AGE
+test-machine-deployment-5bc6dd7c8f   3         3         3       10m
 ```
 
 - Login to your cloud provider (AWS). In the VM management console, you will find N VMs created of type t2.xlarge.
 
 #### Perform a rolling update
 
-To update this machine-deployment VMs to m4.xlarge, we would do the following:
+To update this machine-deployment VMs to `m5.xlarge`, we would do the following:
 
 - Copy your existing aws-machine-class.yaml
 
@@ -185,7 +185,7 @@ To update this machine-deployment VMs to m4.xlarge, we would do the following:
 cp kubernetes/machine_classes/aws-machine-class.yaml kubernetes/machine_classes/aws-machine-class-new.yaml
 ```
 
-- Modify aws-machine-class-new.yaml, and update its *metadata.name: test-aws2* and  *spec.machineType: m4.xlarge*
+- Modify aws-machine-class-new.yaml, and update its *metadata.name: test-aws2* and  *spec.machineType: m5.xlarge*
 - Now create this modified MachineClass
 
 ```bash
@@ -202,7 +202,7 @@ kubectl edit machinedeployment test-machine-deployment
 
 #### Re-check cluster configuration
 
-After a few minutes (~ 3mins)
+After a few minutes (~3mins)
 
 - Check nodes present in cluster now. They are different nodes.
 
@@ -218,14 +218,14 @@ ip-10-250-31-81.eu-west-1.compute.internal    Ready     5m        v1.8.0
 
 ```bash
 $ kubectl get machineset
-NAME                                  KIND
-test-machine-deployment-5bc6dd7c8f   MachineSet.v1alpha1.machine.sapcloud.io
-test-machine-deployment-86ff45cc5    MachineSet.v1alpha1.machine.sapcloud.io
+NAME                                 DESIRED   CURRENT   READY   AGE
+test-machine-deployment-5bc6dd7c8f   0         0         0       1h
+test-machine-deployment-86ff45cc5    3         3         3       20m
 ```
 
-- Login to your cloud provider (AWS). In the VM management console, you will find N VMs created of type t2.xlarge in terminated state, and N new VMs of type m4.xlarge in running state.
+- Login to your cloud provider (AWS). In the VM management console, you will find N VMs created of type t2.xlarge in terminated state, and N new VMs of type m5.xlarge in running state.
 
-This shows how a rolling update of a cluster from nodes with t2.xlarge to m4.xlarge went through.
+This shows how a rolling update of a cluster from nodes with t2.xlarge to m5.xlarge went through.
 
 #### More variants of updates
 
