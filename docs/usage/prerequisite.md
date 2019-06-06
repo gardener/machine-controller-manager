@@ -63,8 +63,8 @@ Get to know the current cluster state using the following commands,
 
 ```bash
 $ kubectl get awsmachineclass
-NAME       KIND
-test-aws   AWSMachineClass.v1alpha1.machine.sapcloud.io
+NAME       MACHINE TYPE   AMI          AGE
+test-aws   t2.large       ami-123456   5m
 ```
 
 - Checking kubernetes secrets in the cluster
