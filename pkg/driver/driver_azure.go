@@ -844,7 +844,8 @@ func prometheusFail(service string) {
 // GetVolNames parses volume names from pv specs
 func (d *AzureDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, error) {
 	names := []string{}
-	for _, spec := range specs {
+	for i := range specs {
+		spec := &specs[i]
 		if spec.AzureDisk == nil {
 			// Not an azure volume
 			continue

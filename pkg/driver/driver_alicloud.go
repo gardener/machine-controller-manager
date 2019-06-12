@@ -290,7 +290,8 @@ func (c *AlicloudDriver) toInstanceTags(tags map[string]string) ([]ecs.RunInstan
 // GetVolNames parses volume names from pv specs
 func (c *AlicloudDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, error) {
 	names := []string{}
-	for _, spec := range specs {
+	for i := range specs {
+		spec := &specs[i]
 		if spec.FlexVolume == nil || spec.FlexVolume.Options == nil {
 			// Not an aliCloud volume
 			continue

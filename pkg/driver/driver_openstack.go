@@ -457,7 +457,8 @@ func (d *OpenStackDriver) recentImageIDFromName(client *gophercloud.ServiceClien
 // GetVolNames parses volume names from pv specs
 func (d *OpenStackDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, error) {
 	names := []string{}
-	for _, spec := range specs {
+	for i := range specs {
+		spec := &specs[i]
 		if spec.Cinder == nil {
 			// Not a openStack volume
 			continue

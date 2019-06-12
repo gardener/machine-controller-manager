@@ -512,6 +512,8 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				buf,
 				errBuf,
 				driver,
+				c.pvcLister,
+				c.pvLister,
 			)
 			err = drainOptions.RunDrain()
 			if err != nil {
