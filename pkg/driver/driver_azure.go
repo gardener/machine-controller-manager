@@ -18,18 +18,21 @@ limitations under the License.
 package driver
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"strings"
+	"sync"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/Azure/azure-sdk-for-go/arm/compute"
-	"github.com/Azure/azure-sdk-for-go/arm/disk"
-	"github.com/Azure/azure-sdk-for-go/arm/network"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-10-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2018-11-01/network"
+	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources"
+
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -46,23 +49,12 @@ type AzureDriver struct {
 	MachineName       string
 }
 
-var (
-	interfacesClient network.InterfacesClient
-	vmClient         compute.VirtualMachinesClient
-	subnetClient     network.SubnetsClient
-	diskClient       disk.DisksClient
-)
+func (d *AzureDriver) getNICParameters(vmName string, subnet *network.Subnet) network.Interface {
 
-// Create method is used to create an azure machine
-func (d *AzureDriver) Create() (string, string, error) {
-	d.setup()
 	var (
-		vmName        = d.MachineName //VM-name has to be in small letters
-		nicName       = vmName + "-nic"
-		diskName      = vmName + "-os-disk"
-		location      = d.AzureMachineClass.Spec.Location
-		resourceGroup = d.AzureMachineClass.Spec.ResourceGroup
-		UserDataEnc   = base64.StdEncoding.EncodeToString([]byte(d.UserData))
+		nicName            = dependencyNameFromVMName(vmName, nicSuffix)
+		location           = d.AzureMachineClass.Spec.Location
+		enableIPForwarding = true
 	)
 
 	// Add tags to the machine resources
@@ -71,19 +63,8 @@ func (d *AzureDriver) Create() (string, string, error) {
 		tagList[idx] = to.StringPtr(element)
 	}
 
-	subnet, err := subnetClient.Get(
-		resourceGroup,
-		d.AzureMachineClass.Spec.SubnetInfo.VnetName,
-		d.AzureMachineClass.Spec.SubnetInfo.SubnetName,
-		"",
-	)
-	err = onErrorFail(err, fmt.Sprintf("subnetClient.Get failed for subnet %q", d.AzureMachineClass.Spec.SubnetInfo.SubnetName))
-	if err != nil {
-		return "Error", "Error", err
-	}
-
-	enableIPForwarding := true
-	nicParameters := network.Interface{
+	NICParameters := network.Interface{
+		Name:     &nicName,
 		Location: &location,
 		InterfacePropertiesFormat: &network.InterfacePropertiesFormat{
 			IPConfigurations: &[]network.InterfaceIPConfiguration{
@@ -91,44 +72,34 @@ func (d *AzureDriver) Create() (string, string, error) {
 					Name: &nicName,
 					InterfaceIPConfigurationPropertiesFormat: &network.InterfaceIPConfigurationPropertiesFormat{
 						PrivateIPAllocationMethod: network.Dynamic,
-						Subnet:                    &subnet,
+						Subnet:                    subnet,
 					},
 				},
 			},
 			EnableIPForwarding: &enableIPForwarding,
 		},
-		Tags: &tagList,
+		Tags: tagList,
 	}
 
-	var cancel chan struct{}
+	return NICParameters
+}
 
-	_, errChan := interfacesClient.CreateOrUpdate(resourceGroup, nicName, nicParameters, cancel)
-	err = onErrorFail(<-errChan, fmt.Sprintf("interfacesClient.CreateOrUpdate for NIC '%s' failed", nicName))
-	if err != nil {
-		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
-		return "Error", "Error", err
+func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID string) compute.VirtualMachine {
+
+	var (
+		diskName    = dependencyNameFromVMName(vmName, diskSuffix)
+		UserDataEnc = base64.StdEncoding.EncodeToString([]byte(d.UserData))
+		location    = d.AzureMachineClass.Spec.Location
+	)
+
+	// Add tags to the machine resources
+	tagList := map[string]*string{}
+	for idx, element := range d.AzureMachineClass.Spec.Tags {
+		tagList[idx] = to.StringPtr(element)
 	}
-	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 
-	nicParameters, err = interfacesClient.Get(resourceGroup, nicName, "")
-	err = onErrorFail(err, fmt.Sprintf("interfaces.Get for NIC '%s' failed", nicName))
-	if err != nil {
-		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
-		// Delete the created NIC
-		_, errChan = interfacesClient.Delete(resourceGroup, nicName, cancel)
-		errNIC := onErrorFail(<-errChan, fmt.Sprintf("Getting NIC details failed, inturn deletion for corresponding newly created NIC '%s' failed", nicName))
-		if errNIC != nil {
-			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
-			// When deletion of NIC returns an error
-			return "Error", "Error", errNIC
-		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
-
-		return "Error", "Error", err
-	}
-	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
-
-	vm := compute.VirtualMachine{
+	VMParameters := compute.VirtualMachine{
+		Name:     &vmName,
 		Location: &location,
 		VirtualMachineProperties: &compute.VirtualMachineProperties{
 			HardwareProfile: &compute.HardwareProfile{
@@ -170,9 +141,9 @@ func (d *AzureDriver) Create() (string, string, error) {
 			NetworkProfile: &compute.NetworkProfile{
 				NetworkInterfaces: &[]compute.NetworkInterfaceReference{
 					{
-						ID: nicParameters.ID,
+						ID: &networkInterfaceReferenceID,
 						NetworkInterfaceReferenceProperties: &compute.NetworkInterfaceReferenceProperties{
-							Primary: to.BoolPtr(false),
+							Primary: to.BoolPtr(true),
 						},
 					},
 				},
@@ -181,106 +152,43 @@ func (d *AzureDriver) Create() (string, string, error) {
 				ID: &d.AzureMachineClass.Spec.Properties.AvailabilitySet.ID,
 			},
 		},
-		Tags: &tagList,
+		Tags: tagList,
 	}
 
-	cancel = nil
-	_, errChan = vmClient.CreateOrUpdate(resourceGroup, vmName, vm, cancel)
-	err = onErrorFail(<-errChan, "createVM failed")
-	if err != nil {
-		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
-		// Delete the created NIC
-		_, errChan = interfacesClient.Delete(resourceGroup, nicName, cancel)
-		errNIC := onErrorFail(<-errChan, fmt.Sprintf("Creation of VM failed, inturn deletion for corresponding newly created NIC '%s' failed", nicName))
-		if errNIC != nil {
-			// When deletion of NIC returns an error
-			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
-			return "Error", "Error", errNIC
-		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
+	return VMParameters
+}
 
+// Create method is used to create an azure machine
+func (d *AzureDriver) Create() (string, string, error) {
+	var (
+		vmName   = strings.ToLower(d.MachineName)
+		location = d.AzureMachineClass.Spec.Location
+	)
+
+	_, err := d.createVMNicDisk()
+	if err != nil {
 		return "Error", "Error", err
 	}
-	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
 
-	return d.encodeMachineID(location, vmName), vmName, err
+	return encodeMachineID(location, vmName), vmName, nil
 }
 
 // Delete method is used to delete an azure machine
 func (d *AzureDriver) Delete() error {
-
-	result, err := d.GetVMs(d.MachineID)
+	clients, err := d.setup()
 	if err != nil {
 		return err
-	} else if len(result) == 0 {
-		// No running instance exists with the given machine-ID
-		glog.V(2).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
-		return nil
 	}
 
-	d.setup()
 	var (
-		vmName        = d.decodeMachineID(d.MachineID)
-		nicName       = vmName + "-nic"
-		diskName      = vmName + "-os-disk"
-		resourceGroup = d.AzureMachineClass.Spec.ResourceGroup
-		cancel        = make(chan struct{})
+		ctx               = context.Background()
+		vmName            = decodeMachineID(d.MachineID)
+		nicName           = dependencyNameFromVMName(vmName, nicSuffix)
+		diskName          = dependencyNameFromVMName(vmName, diskSuffix)
+		resourceGroupName = d.AzureMachineClass.Spec.ResourceGroup
 	)
 
-	listOfResources := make(map[string]string)
-	d.getvms(d.MachineID, listOfResources)
-	if len(listOfResources) != 0 {
-
-		err = d.waitForDataDiskDetachment(vmName)
-		if err != nil {
-			return err
-		}
-		glog.V(2).Infof("Disk detachment was successful for %q", vmName)
-
-		_, errChan := vmClient.Delete(resourceGroup, vmName, cancel)
-		err = onErrorFail(<-errChan, fmt.Sprintf("vmClient.Delete failed for '%s'", vmName))
-		if err != nil {
-			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
-			return err
-		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
-		glog.V(2).Infof("VM deletion was successful for %q", vmName)
-
-	} else {
-		glog.Warningf("VM was not found for %q", vmName)
-	}
-
-	listOfResources = make(map[string]string)
-	d.getnics(d.MachineID, listOfResources)
-	if len(listOfResources) != 0 {
-		_, errChan := interfacesClient.Delete(resourceGroup, nicName, cancel)
-		err = onErrorFail(<-errChan, fmt.Sprintf("interfacesClient.Delete for NIC '%s' failed", nicName))
-		if err != nil {
-			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
-			return err
-		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
-		glog.V(2).Infof("NIC deletion was successful for %q", nicName)
-	} else {
-		glog.Warningf("NIC was not found for %q", nicName)
-	}
-
-	listOfResources = make(map[string]string)
-	d.getdisks(d.MachineID, listOfResources)
-	if len(listOfResources) != 0 {
-		_, errChan := diskClient.Delete(resourceGroup, diskName, cancel)
-		err = onErrorFail(<-errChan, fmt.Sprintf("diskClient.Delete for NIC '%s' failed", diskName))
-		if err != nil {
-			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
-			return err
-		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
-		glog.V(2).Infof("OS-Disk deletion was successful for %q", diskName)
-	} else {
-		glog.Warningf("OS-Disk was not found for %q", diskName)
-	}
-
-	return err
+	return clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName)
 }
 
 // GetExisting method is used to fetch the machineID for an azure machine
@@ -293,267 +201,70 @@ func (d *AzureDriver) GetExisting() (string, error) {
 // as a single resource and atomically created/deleted them in the driver interface.
 // This caused issues when the controller crashes, during deletions. To fix this,
 // now GetVMs interface checks for all resources instead of just VMs.
-func (d *AzureDriver) GetVMs(machineID string) (VMs, error) {
-	var err error
-	listOfVMs := make(map[string]string)
+func (d *AzureDriver) GetVMs(machineID string) (result VMs, err error) {
+	result = make(VMs)
 
-	err = d.getvms(machineID, listOfVMs)
-	if err != nil {
-		return listOfVMs, err
+	mergeIntoResult := func(source VMs) {
+		for k, v := range source {
+			result[k] = v
+		}
 	}
-	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
 
-	err = d.getnics(machineID, listOfVMs)
+	clients, err := d.setup()
 	if err != nil {
-		return listOfVMs, err
+		return
 	}
-	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
 
-	err = d.getdisks(machineID, listOfVMs)
-	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
-	return listOfVMs, err
+	var (
+		ctx               = context.Background()
+		resourceGroupName = d.AzureMachineClass.Spec.ResourceGroup
+		location          = d.AzureMachineClass.Spec.Location
+		tags              = d.AzureMachineClass.Spec.Tags
+	)
+
+	listOfVMs, err := clients.getRelevantVMs(ctx, machineID, resourceGroupName, location, tags)
+	if err != nil {
+		return
+	}
+	mergeIntoResult(listOfVMs)
+
+	listOfVMsByNIC, err := clients.getRelevantNICs(ctx, machineID, resourceGroupName, location, tags)
+	if err != nil {
+		return
+	}
+	mergeIntoResult(listOfVMsByNIC)
+
+	listOfVMsByDisk, err := clients.getRelevantDisks(ctx, machineID, resourceGroupName, location, tags)
+	if err != nil {
+		return
+	}
+	mergeIntoResult(listOfVMsByDisk)
+
+	return
 }
 
-// getvms is a helper method used to list actual vm instances
-func (d *AzureDriver) getvms(machineID string, listOfVMs VMs) error {
-
-	searchClusterName := ""
-	searchNodeRole := ""
-
-	for key := range d.AzureMachineClass.Spec.Tags {
-		if strings.Contains(key, "kubernetes.io-cluster-") {
-			searchClusterName = key
-		} else if strings.Contains(key, "kubernetes.io-role-") {
-			searchNodeRole = key
-		}
-	}
-
-	if searchClusterName == "" ||
-		searchNodeRole == "" ||
-		d.AzureMachineClass.Spec.ResourceGroup == "" {
-		return nil
-	}
-
-	d.setup()
-	result, err := vmClient.List(d.AzureMachineClass.Spec.ResourceGroup)
-	if err != nil {
-		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
-		glog.Errorf("Failed to list VMs. Error Message - %s", err)
-		return err
-	}
-	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
-
-	if result.Value != nil && len(*result.Value) > 0 {
-		for _, server := range *result.Value {
-
-			clusterName := ""
-			nodeRole := ""
-
-			if server.Tags == nil {
-				continue
-			}
-			for key := range *server.Tags {
-				if strings.Contains(key, "kubernetes.io-cluster-") {
-					clusterName = key
-				} else if strings.Contains(key, "kubernetes.io-role-") {
-					nodeRole = key
-				}
-			}
-
-			if clusterName == searchClusterName && nodeRole == searchNodeRole {
-
-				instanceID := d.encodeMachineID(d.AzureMachineClass.Spec.Location, *server.Name)
-
-				if machineID == "" {
-					listOfVMs[instanceID] = *server.Name
-				} else if machineID == instanceID {
-					listOfVMs[instanceID] = *server.Name
-					glog.V(3).Infof("Found machine with name: %q", *server.Name)
-					break
-				}
-			}
-
-		}
-	}
-
-	return nil
+func (d *AzureDriver) setup() (*azureDriverClients, error) {
+	var (
+		subscriptionID = strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureSubscriptionID]))
+		tenantID       = strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureTenantID]))
+		clientID       = strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureClientID]))
+		clientSecret   = strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureClientSecret]))
+		env            = azure.PublicCloud
+	)
+	return newClients(subscriptionID, tenantID, clientID, clientSecret, env)
 }
 
-// waitForDataDiskDetachment waits for data disks to be detached
-func (d *AzureDriver) waitForDataDiskDetachment(machineID string) error {
-	var cancel <-chan struct{}
-	d.setup()
-
-	vm, err := vmClient.Get(d.AzureMachineClass.Spec.ResourceGroup, machineID, compute.InstanceView)
-	if err != nil {
-		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
-		glog.Errorf("Failed to list VMs. Error Message - %s", err)
-		return err
-	}
-	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "virtual_machine"}).Inc()
-
-	if len(*vm.StorageProfile.DataDisks) > 0 {
-		// There are disks attached hence need to detach them
-		vm.StorageProfile.DataDisks = &[]compute.DataDisk{}
-
-		_, errChan := vmClient.CreateOrUpdate(d.AzureMachineClass.Spec.ResourceGroup, machineID, vm, cancel)
-		err = onErrorFail(<-errChan, fmt.Sprintf("vmClient.CreateOrUpdate failed for '%s'", machineID))
-		if err != nil {
-			return fmt.Errorf("Cannot detach disks for machine. Error: %v", err)
-		}
-	}
-
-	return nil
+type azureDriverClients struct {
+	subnet      network.SubnetsClient
+	nic         network.InterfacesClient
+	vm          compute.VirtualMachinesClient
+	disk        compute.DisksClient
+	deployments resources.DeploymentsClient
 }
 
-// getnics is helper method used to list NICs
-func (d *AzureDriver) getnics(machineID string, listOfVMs VMs) error {
+type azureTags map[string]string
 
-	searchClusterName := ""
-	searchNodeRole := ""
-
-	for key := range d.AzureMachineClass.Spec.Tags {
-		if strings.Contains(key, "kubernetes.io-cluster-") {
-			searchClusterName = key
-		} else if strings.Contains(key, "kubernetes.io-role-") {
-			searchNodeRole = key
-		}
-	}
-
-	if searchClusterName == "" ||
-		searchNodeRole == "" ||
-		d.AzureMachineClass.Spec.ResourceGroup == "" {
-		return nil
-	}
-
-	d.setup()
-	result, err := interfacesClient.List(d.AzureMachineClass.Spec.ResourceGroup)
-	if err != nil {
-		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
-		glog.Errorf("Failed to list NICs. Error Message - %s", err)
-		return err
-	}
-	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "network_interfaces"}).Inc()
-
-	if result.Value != nil && len(*result.Value) > 0 {
-		for _, nic := range *result.Value {
-
-			clusterName := ""
-			nodeRole := ""
-
-			if nic.Tags == nil {
-				continue
-			}
-			for key := range *nic.Tags {
-				if strings.Contains(key, "kubernetes.io-cluster-") {
-					clusterName = key
-				} else if strings.Contains(key, "kubernetes.io-role-") {
-					nodeRole = key
-				}
-			}
-
-			if clusterName == searchClusterName && nodeRole == searchNodeRole {
-
-				machineName := *nic.Name
-				// Removing last 4 characters from NIC name to get the machine object name
-				machineName = machineName[:len(machineName)-4]
-				instanceID := d.encodeMachineID(d.AzureMachineClass.Spec.Location, machineName)
-
-				if machineID == "" {
-					listOfVMs[instanceID] = machineName
-				} else if machineID == instanceID {
-					listOfVMs[instanceID] = machineName
-					glog.V(3).Infof("Found nic with name %q, hence appending machine %q", *nic.Name, machineName)
-					break
-				}
-			}
-
-		}
-	}
-
-	return nil
-}
-
-// getdisks is a helper method used to list disks
-func (d *AzureDriver) getdisks(machineID string, listOfVMs VMs) error {
-
-	searchClusterName := ""
-	searchNodeRole := ""
-
-	for key := range d.AzureMachineClass.Spec.Tags {
-		if strings.Contains(key, "kubernetes.io-cluster-") {
-			searchClusterName = key
-		} else if strings.Contains(key, "kubernetes.io-role-") {
-			searchNodeRole = key
-		}
-	}
-
-	if searchClusterName == "" ||
-		searchNodeRole == "" ||
-		d.AzureMachineClass.Spec.ResourceGroup == "" {
-		return nil
-	}
-
-	d.setup()
-	result, err := diskClient.List()
-	if err != nil {
-		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
-		glog.Errorf("Failed to list OS Disks. Error Message - %s", err)
-		return err
-	}
-	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": "disks"}).Inc()
-
-	if result.Value != nil && len(*result.Value) > 0 {
-		for _, disk := range *result.Value {
-
-			clusterName := ""
-			nodeRole := ""
-
-			if disk.Tags == nil {
-				continue
-			}
-			for key := range *disk.Tags {
-				if strings.Contains(key, "kubernetes.io-cluster-") {
-					clusterName = key
-				} else if strings.Contains(key, "kubernetes.io-role-") {
-					nodeRole = key
-				}
-			}
-
-			if clusterName == searchClusterName && nodeRole == searchNodeRole {
-
-				machineName := *disk.Name
-				// Removing last 8 characters from disk name to get the machine object name
-				machineName = machineName[:len(machineName)-8]
-				instanceID := d.encodeMachineID(d.AzureMachineClass.Spec.Location, machineName)
-
-				if machineID == "" {
-					listOfVMs[instanceID] = machineName
-				} else if machineID == instanceID {
-					listOfVMs[instanceID] = machineName
-					glog.V(3).Infof("Found disk with name %q, hence appending machine %q", *disk.Name, machineName)
-					break
-				}
-			}
-
-		}
-	}
-
-	return nil
-}
-
-func (d *AzureDriver) setup() {
-	subscriptionID := strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureSubscriptionID]))
-	authorizer, err := d.getAuthorizer(azure.PublicCloud)
-	onErrorFail(err, "utils.GetAuthorizer failed")
-	createClients(subscriptionID, authorizer)
-}
-
-func (d *AzureDriver) getAuthorizer(env azure.Environment) (*autorest.BearerAuthorizer, error) {
-	tenantID := strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureTenantID]))
-	clientID := strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureClientID]))
-	clientSecret := strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureClientSecret]))
-
+func newClients(subscriptionID, tenantID, clientID, clientSecret string, env azure.Environment) (*azureDriverClients, error) {
 	oauthConfig, err := adal.NewOAuthConfig(env.ActiveDirectoryEndpoint, tenantID)
 	if err != nil {
 		return nil, err
@@ -564,37 +275,568 @@ func (d *AzureDriver) getAuthorizer(env azure.Environment) (*autorest.BearerAuth
 		return nil, err
 	}
 
-	return autorest.NewBearerAuthorizer(spToken), nil
-}
+	authorizer := autorest.NewBearerAuthorizer(spToken)
 
-func createClients(subscriptionID string, authorizer *autorest.BearerAuthorizer) {
-	subnetClient = network.NewSubnetsClient(subscriptionID)
+	subnetClient := network.NewSubnetsClient(subscriptionID)
 	subnetClient.Authorizer = authorizer
 
-	interfacesClient = network.NewInterfacesClient(subscriptionID)
+	interfacesClient := network.NewInterfacesClient(subscriptionID)
 	interfacesClient.Authorizer = authorizer
 
-	vmClient = compute.NewVirtualMachinesClient(subscriptionID)
+	vmClient := compute.NewVirtualMachinesClient(subscriptionID)
 	vmClient.Authorizer = authorizer
 
-	diskClient = disk.NewDisksClient(subscriptionID)
+	diskClient := compute.NewDisksClient(subscriptionID)
 	diskClient.Authorizer = authorizer
+
+	deploymentsClient := resources.NewDeploymentsClient(subscriptionID)
+	deploymentsClient.Authorizer = authorizer
+
+	return &azureDriverClients{subnet: subnetClient, nic: interfacesClient, vm: vmClient, disk: diskClient, deployments: deploymentsClient}, nil
+}
+
+func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
+
+	var (
+		ctx               = context.Background()
+		vmName            = strings.ToLower(d.MachineName)
+		resourceGroupName = d.AzureMachineClass.Spec.ResourceGroup
+		vnetName          = d.AzureMachineClass.Spec.SubnetInfo.VnetName
+		subnetName        = d.AzureMachineClass.Spec.SubnetInfo.SubnetName
+	)
+
+	clients, err := d.setup()
+	if err != nil {
+		return nil, err
+	}
+
+	subnet, err := clients.subnet.Get(
+		ctx,
+		resourceGroupName,
+		vnetName,
+		subnetName,
+		"",
+	)
+	if err != nil {
+		return nil, onARMAPIErrorFail(prometheusServiceSubnet, err, "Subnet.Get failed for %s due to %s", subnetName, err)
+	}
+	onARMAPISuccess(prometheusServiceSubnet, "subnet.Get")
+
+	NICParameters := d.getNICParameters(vmName, &subnet)
+	NICFuture, err := clients.nic.CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name, NICParameters)
+	if err != nil {
+		return nil, onARMAPIErrorFail(prometheusServiceNIC, err, "NIC.CreateOrUpdate failed for %s", *NICParameters.Name)
+	}
+	err = NICFuture.WaitForCompletionRef(ctx, clients.nic.Client)
+	if err != nil {
+		return nil, onARMAPIErrorFail(prometheusServiceNIC, err, "NIC.CreateOrUpdate failed for %s", *NICParameters.Name)
+	}
+	onARMAPISuccess(prometheusServiceNIC, "NIC.CreateOrUpdate")
+
+	NIC, err := NICFuture.Result(clients.nic)
+	if err != nil {
+		err := fmt.Errorf("NIC.CreateOrUpdate still pending for %s", *NICParameters.Name)
+		glog.Error(err)
+		return nil, err
+	}
+
+	VMParameters := d.getVMParameters(vmName, *NIC.ID)
+	VMFuture, err := clients.vm.CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
+	if err != nil {
+		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VM.CreateOrUpdate failed for %s", *NICParameters.Name)
+	}
+	err = VMFuture.WaitForCompletionRef(ctx, clients.vm.Client)
+	if err != nil {
+		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VM.CreateOrUpdate failed for %s", *NICParameters.Name)
+	}
+	VM, err := VMFuture.Result(clients.vm)
+	if err != nil {
+		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VMFuture.CreateOrUpdate")
+	}
+	onARMAPISuccess(prometheusServiceVM, "VM.CreateOrUpdate")
+
+	return &VM, nil
+}
+
+func (clients *azureDriverClients) getAllVMs(ctx context.Context, resourceGroupName string) ([]compute.VirtualMachine, error) {
+	var items []compute.VirtualMachine
+	result, err := clients.vm.List(ctx, resourceGroupName)
+	if err != nil {
+		return items, onARMAPIErrorFail(prometheusServiceVM, err, "vm.List")
+	}
+	for _, item := range result.Values() {
+		items = append(items, item)
+	}
+	for result.NotDone() {
+		err = result.NextWithContext(ctx)
+		if err != nil {
+			return items, onARMAPIErrorFail(prometheusServiceVM, err, "vm.List")
+		}
+		for _, item := range result.Values() {
+			items = append(items, item)
+		}
+	}
+	onARMAPISuccess(prometheusServiceVM, "vm.List")
+	return items, nil
+}
+
+func (clients *azureDriverClients) getAllNICs(ctx context.Context, resourceGroupName string) ([]network.Interface, error) {
+	var items []network.Interface
+	result, err := clients.nic.List(ctx, resourceGroupName)
+	if err != nil {
+		return items, onARMAPIErrorFail(prometheusServiceNIC, err, "nic.List")
+	}
+	for _, item := range result.Values() {
+		items = append(items, item)
+	}
+	for result.NotDone() {
+		err = result.NextWithContext(ctx)
+		if err != nil {
+			return items, onARMAPIErrorFail(prometheusServiceNIC, err, "nic.List")
+		}
+		for _, item := range result.Values() {
+			items = append(items, item)
+		}
+
+	}
+	onARMAPISuccess(prometheusServiceNIC, "nic.List")
+	return items, nil
+}
+
+func (clients *azureDriverClients) getAllDisks(ctx context.Context, resourceGroupName string) ([]compute.Disk, error) {
+	var items []compute.Disk
+	result, err := clients.disk.ListByResourceGroup(ctx, resourceGroupName)
+	if err != nil {
+		return items, onARMAPIErrorFail(prometheusServiceDisk, err, "disk.ListByResourceGroup")
+	}
+	for _, item := range result.Values() {
+		items = append(items, item)
+	}
+	for result.NotDone() {
+		err = result.NextWithContext(ctx)
+		if err != nil {
+			return items, onARMAPIErrorFail(prometheusServiceDisk, err, "disk.ListByResourceGroup")
+		}
+		for _, item := range result.Values() {
+			items = append(items, item)
+		}
+	}
+	onARMAPISuccess(prometheusServiceDisk, "disk.ListByResourceGroup")
+	return items, nil
+}
+
+// getRelevantVMs is a helper method used to list actual vm instances
+func (clients *azureDriverClients) getRelevantVMs(ctx context.Context, machineID string, resourceGroupName string, location string, tags azureTags) (VMs, error) {
+	var (
+		listOfVMs         = make(VMs)
+		searchClusterName = ""
+		searchNodeRole    = ""
+	)
+
+	for key := range tags {
+		if strings.Contains(key, "kubernetes.io-cluster-") {
+			searchClusterName = key
+		} else if strings.Contains(key, "kubernetes.io-role-") {
+			searchNodeRole = key
+		}
+	}
+
+	if searchClusterName == "" ||
+		searchNodeRole == "" ||
+		resourceGroupName == "" {
+		return listOfVMs, nil
+	}
+
+	machines, err := clients.getAllVMs(ctx, resourceGroupName)
+	if err != nil {
+		return listOfVMs, err
+	}
+
+	if len(machines) > 0 {
+		for _, server := range machines {
+			instanceID := encodeMachineID(location, *server.Name)
+
+			if machineID == "" {
+				listOfVMs[instanceID] = *server.Name
+			} else if machineID == instanceID {
+				listOfVMs[instanceID] = *server.Name
+				glog.V(3).Infof("Found machine with name: %q", *server.Name)
+				break
+			}
+		}
+	}
+
+	return listOfVMs, nil
+}
+
+// getRelevantNICs is helper method used to list NICs
+func (clients *azureDriverClients) getRelevantNICs(ctx context.Context, machineID string, resourceGroupName string, location string, tags azureTags) (VMs, error) {
+	var (
+		listOfVMs         = make(VMs)
+		searchClusterName = ""
+		searchNodeRole    = ""
+	)
+
+	for key := range tags {
+		if strings.Contains(key, "kubernetes.io-cluster-") {
+			searchClusterName = key
+		} else if strings.Contains(key, "kubernetes.io-role-") {
+			searchNodeRole = key
+		}
+	}
+
+	if searchClusterName == "" || searchNodeRole == "" || resourceGroupName == "" {
+		return listOfVMs, nil
+	}
+
+	interfaces, err := clients.getAllNICs(ctx, resourceGroupName)
+	if err != nil {
+		return listOfVMs, err
+	}
+
+	if len(interfaces) > 0 {
+		for _, nic := range interfaces {
+			isNic, machineName := vmNameFromDependencyName(*nic.Name, nicSuffix)
+			if !isNic {
+				continue
+			}
+			instanceID := encodeMachineID(location, machineName)
+
+			if machineID == "" {
+				listOfVMs[instanceID] = machineName
+			} else if machineID == instanceID {
+				listOfVMs[instanceID] = machineName
+				glog.V(3).Infof("Found nic with name %q, hence appending machine %q", *nic.Name, machineName)
+				break
+			}
+
+		}
+	}
+
+	return listOfVMs, nil
+}
+
+// getRelevantDisks is a helper method used to list disks
+func (clients *azureDriverClients) getRelevantDisks(ctx context.Context, machineID string, resourceGroupName string, location string, tags azureTags) (VMs, error) {
+	var (
+		listOfVMs         = make(VMs)
+		searchClusterName = ""
+		searchNodeRole    = ""
+	)
+
+	for key := range tags {
+		if strings.Contains(key, "kubernetes.io-cluster-") {
+			searchClusterName = key
+		} else if strings.Contains(key, "kubernetes.io-role-") {
+			searchNodeRole = key
+		}
+	}
+
+	if searchClusterName == "" ||
+		searchNodeRole == "" ||
+		resourceGroupName == "" {
+		return listOfVMs, nil
+	}
+
+	disks, err := clients.getAllDisks(ctx, resourceGroupName)
+	if err != nil {
+		return listOfVMs, err
+	}
+
+	if disks != nil && len(disks) > 0 {
+		for _, disk := range disks {
+			if disk.OsType != "" {
+				isDisk, machineName := vmNameFromDependencyName(*disk.Name, diskSuffix)
+				if !isDisk {
+					continue
+				}
+				instanceID := encodeMachineID(location, machineName)
+
+				if machineID == "" {
+					listOfVMs[instanceID] = machineName
+				} else if machineID == instanceID {
+					listOfVMs[instanceID] = machineName
+					glog.V(3).Infof("Found disk with name %q, hence appending machine %q", *disk.Name, machineName)
+					break
+				}
+			}
+		}
+	}
+
+	return listOfVMs, nil
+}
+
+func (clients *azureDriverClients) fetchAttachedVMfromNIC(ctx context.Context, resourceGroupName, nicName string) (string, error) {
+	nic, err := clients.nic.Get(ctx, resourceGroupName, nicName, "")
+	if err != nil {
+		return "", err
+	}
+	if nic.VirtualMachine == nil {
+		return "", nil
+	}
+	return *nic.VirtualMachine.ID, nil
+}
+
+func (clients *azureDriverClients) fetchAttachedVMfromDisk(ctx context.Context, resourceGroupName, diskName string) (string, error) {
+	disk, err := clients.disk.Get(ctx, resourceGroupName, diskName)
+	if err != nil {
+		return "", err
+	}
+	if disk.ManagedBy == nil {
+		return "", nil
+	}
+	return *disk.ManagedBy, nil
+}
+
+func (clients *azureDriverClients) deleteVMNicDisk(ctx context.Context, resourceGroupName string, VMName string, nicName string, diskName string) error {
+
+	// We try to fetch the VM, detach its data disks and finally delete it
+	if vm, vmErr := clients.vm.Get(ctx, resourceGroupName, VMName, ""); vmErr == nil {
+
+		clients.waitForDataDiskDetachment(ctx, resourceGroupName, vm)
+		if deleteErr := clients.deleteVM(ctx, resourceGroupName, VMName); deleteErr != nil {
+			return deleteErr
+		}
+
+		onARMAPISuccess(prometheusServiceVM, "VM Get was successful for %s", *vm.Name)
+	} else if !notFound(vmErr) {
+		// If some other error occurred, which is not 404 Not Found, because the VM doesn't exist, then bubble up
+		return onARMAPIErrorFail(prometheusServiceVM, vmErr, "vm.Get")
+	}
+
+	// Fetch the NIC and deleted it
+	nicDeleter := func() error {
+		if vmHoldingNic, err := clients.fetchAttachedVMfromNIC(ctx, resourceGroupName, nicName); err != nil {
+			if notFound(err) {
+				return nil // Resource doesn't exist, no need to delete
+			}
+			return err
+		} else if vmHoldingNic != "" {
+			return fmt.Errorf("Cannot delete NIC %s because it is attached to VM %s", nicName, vmHoldingNic)
+		}
+
+		return clients.deleteNIC(ctx, resourceGroupName, nicName)
+	}
+
+	// Fetch the system disk and delete it
+	diskDeleter := func() error {
+		if vmHoldingDisk, err := clients.fetchAttachedVMfromDisk(ctx, resourceGroupName, diskName); err != nil {
+			if notFound(err) {
+				return nil // Resource doesn't exist, no need to delete
+			}
+			return err
+		} else if vmHoldingDisk != "" {
+			return fmt.Errorf("Cannot delete disk %s because it is attached to VM %s", diskName, vmHoldingDisk)
+		}
+
+		return clients.deleteDisk(ctx, resourceGroupName, diskName)
+	}
+
+	return runInParallel(nicDeleter, diskDeleter)
+}
+
+// waitForDataDiskDetachment waits for data disks to be detached
+func (clients *azureDriverClients) waitForDataDiskDetachment(ctx context.Context, resourceGroupName string, vm compute.VirtualMachine) error {
+	glog.V(2).Infof("Data disk detachment began for %q", *vm.Name)
+	defer glog.V(2).Infof("Data disk detached for %q", *vm.Name)
+
+	if len(*vm.StorageProfile.DataDisks) > 0 {
+		// There are disks attached hence need to detach them
+		vm.StorageProfile.DataDisks = &[]compute.DataDisk{}
+
+		future, err := clients.vm.CreateOrUpdate(ctx, resourceGroupName, *vm.Name, vm)
+		if err != nil {
+			return onARMAPIErrorFail(prometheusServiceVM, err, "Failed to CreateOrUpdate. Error Message - %s", err)
+		}
+		err = future.WaitForCompletionRef(ctx, clients.vm.Client)
+		if err != nil {
+			return onARMAPIErrorFail(prometheusServiceVM, err, "Failed to CreateOrUpdate. Error Message - %s", err)
+		}
+		onARMAPISuccess(prometheusServiceVM, "VM CreateOrUpdate was successful for %s", *vm.Name)
+	}
+
+	return nil
+}
+
+func (clients *azureDriverClients) powerOffVM(ctx context.Context, resourceGroupName string, vmName string) error {
+	glog.V(2).Infof("VM power-off began for %q", vmName)
+	defer glog.V(2).Infof("VM power-off done for %q", vmName)
+
+	future, err := clients.vm.PowerOff(ctx, resourceGroupName, vmName)
+	if err != nil {
+		return onARMAPIErrorFail(prometheusServiceVM, err, "vm.PowerOff")
+	}
+	err = future.WaitForCompletionRef(ctx, clients.vm.Client)
+	if err != nil {
+		return onARMAPIErrorFail(prometheusServiceVM, err, "vm.PowerOff")
+	}
+	onARMAPISuccess(prometheusServiceVM, "VM poweroff was successful for %s", vmName)
+	return nil
+}
+
+func (clients *azureDriverClients) deleteVM(ctx context.Context, resourceGroupName string, vmName string) error {
+	glog.V(2).Infof("VM deletion has began for %q", vmName)
+	defer glog.V(2).Infof("VM deleted for %q", vmName)
+
+	future, err := clients.vm.Delete(ctx, resourceGroupName, vmName)
+	if err != nil {
+		return onARMAPIErrorFail(prometheusServiceVM, err, "vm.Delete")
+	}
+	err = future.WaitForCompletionRef(ctx, clients.vm.Client)
+	if err != nil {
+		return onARMAPIErrorFail(prometheusServiceVM, err, "vm.Delete")
+	}
+	onARMAPISuccess(prometheusServiceVM, "VM deletion was successful for %s", vmName)
+	return nil
+}
+
+func (clients *azureDriverClients) deleteNIC(ctx context.Context, resourceGroupName string, nicName string) error {
+	glog.V(2).Infof("NIC delete started for %q", nicName)
+	defer glog.V(2).Infof("NIC deleted for %q", nicName)
+
+	future, err := clients.nic.Delete(ctx, resourceGroupName, nicName)
+	if err != nil {
+		return onARMAPIErrorFail(prometheusServiceNIC, err, "nic.Delete")
+	}
+	err = future.WaitForCompletion(ctx, clients.nic.Client)
+	if err != nil {
+		return onARMAPIErrorFail(prometheusServiceNIC, err, "nic.Delete")
+	}
+	onARMAPISuccess(prometheusServiceNIC, "NIC deletion was successful for %s", nicName)
+	return nil
+}
+
+func (clients *azureDriverClients) deleteDisk(ctx context.Context, resourceGroupName string, diskName string) error {
+	glog.V(2).Infof("System disk delete started for %q", diskName)
+	defer glog.V(2).Infof("System disk deleted for %q", diskName)
+
+	future, err := clients.disk.Delete(ctx, resourceGroupName, diskName)
+	if err != nil {
+		return onARMAPIErrorFail(prometheusServiceDisk, err, "disk.Delete")
+	}
+	err = future.WaitForCompletionRef(ctx, clients.disk.Client)
+	if err != nil {
+		return onARMAPIErrorFail(prometheusServiceDisk, err, "disk.Delete")
+	}
+	onARMAPISuccess(prometheusServiceDisk, "OS-Disk deletion was successful for %s", diskName)
+	return nil
+}
+
+func onARMAPISuccess(prometheusService string, format string, v ...interface{}) {
+	prometheusSuccess(prometheusService)
+}
+
+func onARMAPIErrorFail(prometheusService string, err error, format string, v ...interface{}) error {
+	prometheusFail(prometheusService)
+	return onErrorFail(err, format, v...)
+}
+
+func notFound(err error) bool {
+	isDetailedError, _, detailedError := retrieveRequestID(err)
+	return isDetailedError && detailedError.Response.StatusCode == 404
+}
+
+func retrieveRequestID(err error) (bool, string, *autorest.DetailedError) {
+	switch err.(type) {
+	case autorest.DetailedError:
+		detailedErr := autorest.DetailedError(err.(autorest.DetailedError))
+		if detailedErr.Response != nil {
+			requestID := strings.Join(detailedErr.Response.Header["X-Ms-Request-Id"], "")
+			return true, requestID, &detailedErr
+		}
+		return false, "", nil
+	default:
+		return false, "", nil
+	}
 }
 
 // onErrorFail prints a failure message and exits the program if err is not nil.
-func onErrorFail(err error, message string) error {
+func onErrorFail(err error, format string, v ...interface{}) error {
 	if err != nil {
-		glog.Errorf("%s: %s\n", message, err)
-		return err
+		message := fmt.Sprintf(format, v...)
+		if hasRequestID, requestID, detailedErr := retrieveRequestID(err); hasRequestID {
+			glog.Errorf("Azure ARM API call with x-ms-request-id=%s failed. %s: %s\n", requestID, message, *detailedErr)
+		} else {
+			glog.Errorf("%s: %s\n", message, err)
+		}
+	}
+	return err
+}
+
+func runInParallel(funcs ...(func() error)) error {
+	//
+	// Execute multiple functions (which return an error) as go functions concurrently.
+	//
+	var wg sync.WaitGroup
+	wg.Add(len(funcs))
+
+	errors := make([]error, len(funcs))
+	for i, funOuter := range funcs {
+		go func(results []error, idx int, funInner func() error) {
+			defer wg.Done()
+			if funInner == nil {
+				results[idx] = fmt.Errorf("Received nil function")
+				return
+			}
+			err := funInner()
+			results[idx] = err
+		}(errors, i, funOuter)
+	}
+
+	wg.Wait()
+
+	var trimmedErrorMessages []string
+	for _, e := range errors {
+		if e != nil {
+			trimmedErrorMessages = append(trimmedErrorMessages, e.Error())
+		}
+	}
+	if len(trimmedErrorMessages) > 0 {
+		return fmt.Errorf(strings.Join(trimmedErrorMessages, "\n"))
 	}
 	return nil
 }
 
-func (d *AzureDriver) encodeMachineID(location, vmName string) string {
+func encodeMachineID(location, vmName string) string {
 	return fmt.Sprintf("azure:///%s/%s", location, vmName)
 }
 
-func (d *AzureDriver) decodeMachineID(id string) string {
+func decodeMachineID(id string) string {
 	splitProviderID := strings.Split(id, "/")
 	return splitProviderID[len(splitProviderID)-1]
+}
+
+const (
+	nicSuffix  = "-nic"
+	diskSuffix = "-os-disk"
+)
+
+func dependencyNameFromVMName(vmName, suffix string) string {
+	return vmName + suffix
+}
+
+func vmNameFromDependencyName(dependencyName, suffix string) (hasProperSuffix bool, vmName string) {
+	if strings.HasSuffix(dependencyName, suffix) {
+		hasProperSuffix = true
+		vmName = dependencyName[:len(dependencyName)-len(suffix)]
+	} else {
+		hasProperSuffix = false
+		vmName = ""
+	}
+	return
+}
+
+const (
+	prometheusServiceSubnet = "subnet"
+	prometheusServiceVM     = "virtual_machine"
+	prometheusServiceNIC    = "network_interfaces"
+	prometheusServiceDisk   = "disks"
+)
+
+func prometheusSuccess(service string) {
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "azure", "service": service}).Inc()
+}
+
+func prometheusFail(service string) {
+	metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": service}).Inc()
 }
