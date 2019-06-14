@@ -47,7 +47,8 @@ start:
 
 .PHONY: revendor
 revendor:
-	@dep ensure -update
+	@GO111MODULE=on go mod vendor
+	@GO111MODULE=on go mod tidy
 
 .PHONY: build
 build:
