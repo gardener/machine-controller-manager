@@ -70,6 +70,10 @@ func (d *AWSDriver) Create() (string, string, error) {
 	}
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 
+	if len(output.Images) < 1 {
+		return "Error", "Error", fmt.Errorf("Image %s not found", *imageID)
+	}
+
 	var blkDeviceMappings []*ec2.BlockDeviceMapping
 	deviceName := output.Images[0].RootDeviceName
 	volumeSize := d.AWSMachineClass.Spec.BlockDevices[0].Ebs.VolumeSize
