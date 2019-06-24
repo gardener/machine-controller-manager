@@ -25,10 +25,12 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 	fakemachineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	"github.com/gardener/machine-controller-manager/pkg/driver"
+	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -626,9 +628,10 @@ var _ = Describe("machine", func() {
 
 	Describe("#machineDelete", func() {
 		type setup struct {
-			secrets  []*corev1.Secret
-			aws      []*machinev1.AWSMachineClass
-			machines []*machinev1.Machine
+			secrets             []*corev1.Secret
+			aws                 []*machinev1.AWSMachineClass
+			machines            []*machinev1.Machine
+			fakeResourceActions *customfake.ResourceActions
 		}
 		type action struct {
 			machine        string
@@ -638,8 +641,9 @@ var _ = Describe("machine", func() {
 			forceDelete    bool
 		}
 		type expect struct {
-			machine     *machinev1.Machine
-			errOccurred bool
+			machine        *machinev1.Machine
+			errOccurred    bool
+			machineDeleted bool
 		}
 		type data struct {
 			setup  setup
@@ -670,7 +674,6 @@ var _ = Describe("machine", func() {
 
 				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
 				defer trackers.Stop()
-
 				waitForCacheSync(stop, controller)
 
 				action := data.action
@@ -679,6 +682,14 @@ var _ = Describe("machine", func() {
 
 				fakeDriver := driver.NewFakeDriver(
 					func() (string, string, error) {
+						_, err := controller.targetCoreClient.Core().Nodes().Create(&v1.Node{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: action.fakeNodeName,
+							},
+						})
+						if err != nil {
+							return "", "", err
+						}
 						return action.fakeProviderID, action.fakeNodeName, action.fakeError
 					},
 					func() error {
@@ -708,16 +719,27 @@ var _ = Describe("machine", func() {
 					Expect(err).ToNot(HaveOccurred())
 				}
 
+				if data.setup.fakeResourceActions != nil {
+					trackers.TargetCore.SetFakeResourceActions(data.setup.fakeResourceActions)
+				}
+
 				// Deletion of machine is triggered
 				err = controller.machineDelete(machine, fakeDriver)
-				Expect(err).To(BeNil())
-
-				machine, err = controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
 				if data.expect.errOccurred {
 					Expect(err).To(HaveOccurred())
+				} else {
+					Expect(err).ToNot(HaveOccurred())
+				}
+
+				machine, err = controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+				if data.expect.machineDeleted {
+					Expect(err).To(HaveOccurred())
+				} else {
+					Expect(err).ToNot(HaveOccurred())
+					Expect(machine).ToNot(BeNil())
 				}
 			},
-			Entry("Simple machine delete", &data{
+			Entry("Machine deletion", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
 						&corev1.Secret{
@@ -749,7 +771,49 @@ var _ = Describe("machine", func() {
 					fakeError:      nil,
 				},
 				expect: expect{
-					errOccurred: true,
+					errOccurred:    false,
+					machineDeleted: true,
+				},
+			}),
+			Entry("Machine deletion when drain fails", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						&corev1.Secret{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						&machinev1.AWSMachineClass{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil),
+					fakeResourceActions: &customfake.ResourceActions{
+						Node: customfake.Actions{
+							Update: "Failed to update nodes",
+						},
+					},
+				},
+				action: action{
+					machine:        "machine-0",
+					fakeProviderID: "fakeID-0",
+					fakeNodeName:   "fakeNode-0",
+					fakeError:      nil,
+				},
+				expect: expect{
+					errOccurred:    true,
+					machineDeleted: false,
 				},
 			}),
 			Entry("Machine force deletion", &data{
@@ -785,7 +849,50 @@ var _ = Describe("machine", func() {
 					forceDelete:    true,
 				},
 				expect: expect{
-					errOccurred: true,
+					errOccurred:    false,
+					machineDeleted: true,
+				},
+			}),
+			Entry("Machine force deletion when drain call fails (APIServer call fails)", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						&corev1.Secret{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						&machinev1.AWSMachineClass{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil),
+					fakeResourceActions: &customfake.ResourceActions{
+						Node: customfake.Actions{
+							Update: "Failed to update nodes",
+						},
+					},
+				},
+				action: action{
+					machine:        "machine-0",
+					fakeProviderID: "fakeID-0",
+					fakeNodeName:   "fakeNode-0",
+					fakeError:      nil,
+					forceDelete:    true,
+				},
+				expect: expect{
+					errOccurred:    false,
+					machineDeleted: true,
 				},
 			}),
 		)
