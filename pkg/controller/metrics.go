@@ -135,11 +135,11 @@ func (c *controller) CollectMachineDeploymentMetrics(ch chan<- prometheus.Metric
 		if machineDeployment.Status.FailedMachines != nil {
 			for _, failedMachine := range machineDeployment.Status.FailedMachines {
 				metrics.MachineDeploymentStatusFailedMachines.With(prometheus.Labels{
-					"name":                                                 mdMeta.Name,
-					"namespace":                                            mdMeta.Namespace,
-					"failed_machine_name":                                  failedMachine.Name,
-					"failed_machine_provider_id":                           failedMachine.ProviderID,
-					"failed_machine_last_operation_state":                  string(failedMachine.LastOperation.State),
+					"name":                                mdMeta.Name,
+					"namespace":                           mdMeta.Namespace,
+					"failed_machine_name":                 failedMachine.Name,
+					"failed_machine_provider_id":          failedMachine.ProviderID,
+					"failed_machine_last_operation_state": string(failedMachine.LastOperation.State),
 					"failed_machine_last_operation_machine_operation_type": string(failedMachine.LastOperation.Type),
 					"failed_machine_owner_ref":                             failedMachine.OwnerRef}).Set(float64(1))
 
@@ -225,11 +225,11 @@ func (c *controller) CollectMachineSetMetrics(ch chan<- prometheus.Metric) {
 
 			for _, failedMachine := range *machineSet.Status.FailedMachines {
 				metrics.MachineSetStatusFailedMachines.With(prometheus.Labels{
-					"name":                                                 msMeta.Name,
-					"namespace":                                            msMeta.Namespace,
-					"failed_machine_name":                                  failedMachine.Name,
-					"failed_machine_provider_id":                           failedMachine.ProviderID,
-					"failed_machine_last_operation_state":                  string(failedMachine.LastOperation.State),
+					"name":                                msMeta.Name,
+					"namespace":                           msMeta.Namespace,
+					"failed_machine_name":                 failedMachine.Name,
+					"failed_machine_provider_id":          failedMachine.ProviderID,
+					"failed_machine_last_operation_state": string(failedMachine.LastOperation.State),
 					"failed_machine_last_operation_machine_operation_type": string(failedMachine.LastOperation.Type),
 					"failed_machine_owner_ref":                             failedMachine.OwnerRef}).Set(float64(1))
 			}
