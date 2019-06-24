@@ -22,7 +22,7 @@
 Using the existing [Kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/authenticate-across-clusters-kubeconfig/), open another Terminal panel/window with the `KUBECONFIG` environment variable pointing to this Kubeconfig file as shown below,
 
 ```bash
-$ export KUBECONFIG=$GOPATH/src/github.com/gardener/machine-controller-manager/dev/kubeconfig.yaml
+$ export KUBECONFIG=<PATH_TO_REPO>/dev/kubeconfig.yaml
 ```
 
 ## Replace provider credentials and desired VM configurations
