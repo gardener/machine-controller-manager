@@ -315,7 +315,7 @@ func (o *DrainOptions) evictPod(pod api.Pod, policyGroupVersion string) error {
 // deleteOrEvictPods deletes or evicts the pods on the api server
 func (o *DrainOptions) deleteOrEvictPods(pods []api.Pod) error {
 	// Closing stop channel makes sure that all go routines started later are stopped.
-	stopCh := make(chan bool, 1)
+	stopCh := make(chan struct{})
 	defer close(stopCh)
 
 	if len(pods) == 0 {
@@ -369,7 +369,7 @@ func filterPodsWithPv(pods []api.Pod) ([]*api.Pod, []*api.Pod) {
 	return podsWithPv, podsWithoutPv
 }
 
-func (o *DrainOptions) evictPods(pods []api.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error), stopCh chan bool) error {
+func (o *DrainOptions) evictPods(pods []api.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error), stopCh <-chan struct{}) error {
 	returnCh := make(chan error, len(pods))
 
 	podsWithPv, podsWithoutPv := filterPodsWithPv(pods)
@@ -409,7 +409,7 @@ func (o *DrainOptions) evictPodsWithoutPv(pods []*corev1.Pod,
 	policyGroupVersion string,
 	getPodFn func(namespace, name string) (*api.Pod, error),
 	returnCh chan error,
-	stopCh chan bool,
+	stopCh <-chan struct{},
 ) {
 	for _, pod := range pods {
 		go o.evictPodInternal(pod, policyGroupVersion, getPodFn, returnCh, stopCh)
@@ -491,7 +491,7 @@ func (o *DrainOptions) evictPodsWithPv(pods []*corev1.Pod,
 	policyGroupVersion string,
 	getPodFn func(namespace, name string) (*api.Pod, error),
 	returnCh chan error,
-	stopCh chan bool,
+	stopCh <-chan struct{},
 ) {
 	remainingPods := 0
 
@@ -604,7 +604,7 @@ func (o *DrainOptions) getPvs(pod *corev1.Pod) ([]string, error) {
 	return pvs, nil
 }
 
-func (o *DrainOptions) waitForDetach(volumeIDs []string, nodeName string, stopCh chan bool) error {
+func (o *DrainOptions) waitForDetach(volumeIDs []string, nodeName string, stopCh <-chan struct{}) error {
 	if volumeIDs == nil || len(volumeIDs) == 0 || nodeName == "" {
 		// If volume or node name is not available, nothing to do. Just log this as warning
 		glog.Warningf("Node name: %v, list of pod PVs to wait for detach: %v", nodeName, volumeIDs)
@@ -700,7 +700,7 @@ func (o *DrainOptions) getVolIDsFromDriver(pvNames []string) ([]string, error) {
 	return o.Driver.GetVolNames(pvSpecs)
 }
 
-func (o *DrainOptions) evictPodInternal(pod *corev1.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error), returnCh chan error, stopCh chan bool) {
+func (o *DrainOptions) evictPodInternal(pod *corev1.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error), returnCh chan error, stopCh <-chan struct{}) {
 	var err error
 	glog.V(3).Info("Evicting ", pod.Name)
 
@@ -738,7 +738,7 @@ func (o *DrainOptions) evictPodInternal(pod *corev1.Pod, policyGroupVersion stri
 	}
 }
 
-func (o *DrainOptions) deletePods(pods []api.Pod, getPodFn func(namespace, name string) (*api.Pod, error), stopCh chan bool) error {
+func (o *DrainOptions) deletePods(pods []api.Pod, getPodFn func(namespace, name string) (*api.Pod, error), stopCh <-chan struct{}) error {
 	// 0 timeout means infinite, we use MaxInt64 to represent it.
 	var globalTimeout time.Duration
 	if o.Timeout == 0 {
@@ -756,7 +756,7 @@ func (o *DrainOptions) deletePods(pods []api.Pod, getPodFn func(namespace, name 
 	return err
 }
 
-func (o *DrainOptions) waitForDelete(pods []api.Pod, interval, timeout time.Duration, usingEviction bool, getPodFn func(string, string) (*api.Pod, error), stopCh chan bool) ([]api.Pod, error) {
+func (o *DrainOptions) waitForDelete(pods []api.Pod, interval, timeout time.Duration, usingEviction bool, getPodFn func(string, string) (*api.Pod, error), stopCh <-chan struct{}) ([]api.Pod, error) {
 	err := wait.PollImmediate(interval, timeout, func() (bool, error) {
 		pendingPods := []api.Pod{}
 		for i, pod := range pods {
