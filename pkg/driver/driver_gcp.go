@@ -329,3 +329,18 @@ func extractProject(serviceaccount []byte) (string, error) {
 	}
 	return j.Project, nil
 }
+
+// GetVolNames parses volume names from pv specs
+func (d *GCPDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, error) {
+	names := []string{}
+	for i := range specs {
+		spec := &specs[i]
+		if spec.GCEPersistentDisk == nil {
+			// Not a GCE volume
+			continue
+		}
+		name := spec.GCEPersistentDisk.PDName
+		names = append(names, name)
+	}
+	return names, nil
+}

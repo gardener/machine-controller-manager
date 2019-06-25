@@ -840,3 +840,18 @@ func prometheusSuccess(service string) {
 func prometheusFail(service string) {
 	metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "azure", "service": service}).Inc()
 }
+
+// GetVolNames parses volume names from pv specs
+func (d *AzureDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, error) {
+	names := []string{}
+	for i := range specs {
+		spec := &specs[i]
+		if spec.AzureDisk == nil {
+			// Not an azure volume
+			continue
+		}
+		name := spec.AzureDisk.DiskName
+		names = append(names, name)
+	}
+	return names, nil
+}

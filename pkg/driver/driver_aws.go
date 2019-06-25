@@ -309,3 +309,18 @@ func (d *AWSDriver) decodeMachineID(id string) string {
 	splitProviderID := strings.Split(id, "/")
 	return splitProviderID[len(splitProviderID)-1]
 }
+
+// GetVolNames parses volume names from pv specs
+func (d *AWSDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, error) {
+	names := []string{}
+	for i := range specs {
+		spec := &specs[i]
+		if spec.AWSElasticBlockStore == nil {
+			// Not an aws volume
+			continue
+		}
+		name := spec.AWSElasticBlockStore.VolumeID
+		names = append(names, name)
+	}
+	return names, nil
+}
