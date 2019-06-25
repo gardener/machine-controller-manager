@@ -172,3 +172,9 @@ func (d *PacketDriver) decodeMachineID(id string) string {
 	splitProviderID := strings.Split(id, "/")
 	return splitProviderID[len(splitProviderID)-1]
 }
+
+// GetVolNames parses volume names from pv specs
+func (d *PacketDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, error) {
+	names := []string{}
+	return names, fmt.Errorf("Not implemented yet")
+}

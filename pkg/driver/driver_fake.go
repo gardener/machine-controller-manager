@@ -17,12 +17,15 @@ limitations under the License.
 // Package driver contains the cloud provider specific implementations to manage machines
 package driver
 
+import corev1 "k8s.io/api/core/v1"
+
 // FakeDriver is a fake driver returned when none of the actual drivers match
 type FakeDriver struct {
 	create func() (string, string, error)
 	delete func() error
 	//existing func() (string, v1alpha1.MachinePhase, error)
-	existing func() (string, error)
+	existing    func() (string, error)
+	getVolNames func([]corev1.PersistentVolumeSpec) ([]string, error)
 }
 
 // NewFakeDriver returns a new fakedriver object
@@ -53,4 +56,10 @@ func (d *FakeDriver) GetExisting() (string, error) {
 func (d *FakeDriver) GetVMs(name string) (VMs, error) {
 	listOfVMs := make(map[string]string)
 	return listOfVMs, nil
+}
+
+// GetVolNames parses volume names from pv specs
+func (d *FakeDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, error) {
+	volNames := []string{}
+	return volNames, nil
 }

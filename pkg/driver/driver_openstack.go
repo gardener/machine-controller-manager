@@ -453,3 +453,18 @@ func (d *OpenStackDriver) recentImageIDFromName(client *gophercloud.ServiceClien
 	}
 	return "", fmt.Errorf("could not find an image id for image name %s", imageName)
 }
+
+// GetVolNames parses volume names from pv specs
+func (d *OpenStackDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, error) {
+	names := []string{}
+	for i := range specs {
+		spec := &specs[i]
+		if spec.Cinder == nil {
+			// Not a openStack volume
+			continue
+		}
+		name := spec.Cinder.VolumeID
+		names = append(names, name)
+	}
+	return names, nil
+}

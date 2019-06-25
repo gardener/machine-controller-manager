@@ -97,6 +97,8 @@ type SafetyOptions struct {
 	// Timeout (in durartion) used while draining of machine before deletion,
 	// beyond which it forcefully deletes machine
 	MachineDrainTimeout metav1.Duration
+	// Timeout (in duration) used while waiting for PV to detach
+	PvDetachTimeout metav1.Duration
 	// Timeout (in duration) for which the APIServer can be down before
 	// declare the machine controller frozen by safety controller
 	MachineSafetyAPIServerStatusCheckTimeout metav1.Duration
