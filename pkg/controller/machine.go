@@ -516,7 +516,16 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				c.pvLister,
 			)
 			err = drainOptions.RunDrain()
-			if err != nil {
+			if err == nil {
+				// Drain successful
+				glog.V(2).Infof("Drain successful for machine %q. \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
+
+			} else if err != nil && machine.Labels["force-deletion"] == "True" {
+				// Drain failed on force deletion
+				glog.Warningf("Drain failed for machine %q. However, since it's a force deletion shall continue deletion of VM. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+
+			} else {
+				// Drain failed on normal (non-force) deletion, return error for retry
 				lastOperation := v1alpha1.LastOperation{
 					Description:    "Drain failed - " + err.Error(),
 					State:          v1alpha1.MachineStateFailed,
@@ -525,11 +534,9 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				}
 				c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
 
-				// Machine still tries to terminate after drain failure
-				glog.Warningf("Drain failed for machine %q \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+				glog.Warningf("Drain failed for machine %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
 				return err
 			}
-			glog.V(2).Infof("Drain successful for machine %q \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
 
 			err = driver.Delete()
 		}
