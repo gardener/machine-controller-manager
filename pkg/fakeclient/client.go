@@ -97,10 +97,17 @@ func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.
 
 // Update recieves an update event with the object
 func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.Object, ns string) error {
+
 	if t.fakingEnabled {
 		err := t.RunFakeInvocations()
 		if err != nil {
 			return err
+		}
+
+		if gvr.Resource == "nodes" {
+			if t.fakingOptions.failAt.Node.Update != "" {
+				return errors.New(t.fakingOptions.failAt.Node.Update)
+			}
 		}
 	}
 
@@ -316,11 +323,25 @@ func (w *watcher) dispatchInitialObjects(action k8stesting.WatchAction, t k8stes
 	return nil
 }
 
+// ResourceActions contains of Kubernetes/MCM resources whose response can be faked
+type ResourceActions struct {
+	Node Actions
+}
+
+// Actions contains the actions whose response can be faked
+type Actions struct {
+	Create string
+	Get    string
+	Delete string
+	Update string
+}
+
 // fakingOptions are options that can be set while trying to fake object tracker returns
 type fakingOptions struct {
 	fakingEnabled bool
 	errorMessage  string
 	delay         time.Duration
+	failAt        ResourceActions
 }
 
 // SetDelay sets delay while invoking any interface exposed by standard ObjectTrackers
@@ -337,6 +358,13 @@ func (o *fakingOptions) SetError(message string) error {
 	return nil
 }
 
+// SetFakeResourceActions sets up the errorMessage to be returned on specific calls
+func (o *fakingOptions) SetFakeResourceActions(resourceActions *ResourceActions) error {
+	o.fakingEnabled = true
+	o.failAt = *resourceActions
+	return nil
+}
+
 // ClearOptions clears any faking options that have been sets
 func (o *fakingOptions) ClearOptions(message string) error {
 	o.fakingEnabled = false
@@ -347,9 +375,12 @@ func (o *fakingOptions) ClearOptions(message string) error {
 
 // RunFakeInvocations runs any custom fake configurations/methods before invoking standard ObjectTrackers
 func (o *fakingOptions) RunFakeInvocations() error {
+	// Delay while returning call
 	if o.delay != 0 {
 		time.Sleep(o.delay)
 	}
+
+	// If error message has been set
 	if o.errorMessage != "" {
 		return errors.New(o.errorMessage)
 	}
