@@ -31,7 +31,7 @@ import (
 	machinelisters "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
@@ -236,11 +236,6 @@ func NewController(
 		AddFunc: controller.addMachineToSafety,
 		// deleteMachineToSafety makes sure that orphan VM handler is invoked
 		DeleteFunc: controller.deleteMachineToSafety,
-	})
-
-	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.addMachineSetToSafety,
-		UpdateFunc: controller.updateMachineSetToSafety,
 	})
 
 	return controller, nil

@@ -30,7 +30,7 @@ providerSpec:
         diskSizeGB: 50 # Size of disk to be created in GB
         createOption: "FromImage" # Create option for disk (Empty/Attach/FromImage)
     osProfile:
-      adminUserName: "admin-name" # Admin user name
+      adminUsername: "admin-name" # Admin user name
       linuxConfiguration:
         disablePasswordAuthentication: true # Disable password authentication
         ssh:

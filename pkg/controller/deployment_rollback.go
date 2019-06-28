@@ -24,11 +24,13 @@ package controller
 
 import (
 	"fmt"
-
-	"github.com/golang/glog"
+	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"k8s.io/api/core/v1"
+	"github.com/golang/glog"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -58,6 +60,20 @@ func (dc *controller) rollback(d *v1alpha1.MachineDeployment, isList []*v1alpha1
 		}
 		if v == *toRevision {
 			glog.V(4).Infof("Found machine set %q with desired revision %d", is.Name, v)
+
+			// Remove PreferNoSchedule taints from nodes which were backing the machineSet
+			err = dc.removeTaintNodesBackingMachineSet(
+				is,
+				&v1.Taint{
+					Key:    PreferNoScheduleKey,
+					Value:  "True",
+					Effect: "PreferNoSchedule",
+				},
+			)
+			if err != nil {
+				glog.Warningf("Failed to remove taints %s off nodes. Error: %s", PreferNoScheduleKey, err)
+			}
+
 			// rollback by copying podTemplate.Spec from the machine set
 			// revision number will be incremented during the next getAllMachineSetsAndSyncRevision call
 			// no-op if the spec matches current deployment's podTemplate.Spec
@@ -119,4 +135,92 @@ func (dc *controller) updateMachineDeploymentAndClearRollbackTo(d *v1alpha1.Mach
 	d.Spec.RollbackTo = nil
 	_, err := dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d)
 	return err
+}
+
+// removeTaintNodesBackingMachineSet removes taints from all nodes backing the machineSets
+func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.MachineSet, taint *v1.Taint) error {
+
+	if _, exists := machineSet.Annotations[taint.Key]; !exists {
+		// No taint exists
+		glog.Warningf("No taint exists on machineSet: %s. Hence not removing.", machineSet.Name)
+		return nil
+	}
+
+	glog.V(2).Infof("Trying to untaint MachineSet object %q with %s to enable scheduling of pods", machineSet.Name, taint.Key)
+	selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
+	if err != nil {
+		return err
+	}
+
+	// list all machines to include the machines that don't match the ms`s selector
+	// anymore but has the stale controller ref.
+	// TODO: Do the List and Filter in a single pass, or use an index.
+	filteredMachines, err := dc.machineLister.List(labels.Everything())
+	if err != nil {
+		return err
+	}
+	// NOTE: filteredMachines are pointing to objects from cache - if you need to
+	// modify them, you need to copy it first.
+	filteredMachines, err = dc.claimMachines(machineSet, selector, filteredMachines)
+	if err != nil {
+		return err
+	}
+
+	// Iterate through all machines and remove the PreferNoSchedule taint
+	// to avoid scheduling on older machines
+	for _, machine := range filteredMachines {
+		if machine.Status.Node != "" {
+			node, err := dc.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
+			if err != nil {
+				glog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Status.Node, err)
+				continue
+			}
+
+			err = RemoveTaintOffNode(
+				dc.targetCoreClient,
+				machine.Status.Node,
+				node,
+				taint,
+			)
+			if err != nil {
+				glog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Status.Node, err)
+			}
+			node, err = dc.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
+		}
+	}
+
+	retryDeadline := time.Now().Add(maxRetryDeadline)
+	for {
+		machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
+		if err != nil && time.Now().Before(retryDeadline) {
+			glog.Warningf("Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
+			time.Sleep(conflictRetryInterval)
+			continue
+		} else if err != nil {
+			// Timeout occurred
+			glog.Errorf("Timeout occurred: Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
+			return err
+		}
+
+		msCopy := machineSet.DeepCopy()
+		delete(msCopy.Annotations, taint.Key)
+
+		machineSet, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(msCopy)
+
+		if err != nil && time.Now().Before(retryDeadline) {
+			glog.Warningf("Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
+			time.Sleep(conflictRetryInterval)
+			continue
+		} else if err != nil {
+			// Timeout occurred
+			glog.Errorf("Timeout occurred: Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
+			return err
+		}
+
+		// Break out of loop when update succeeds
+		break
+	}
+	glog.V(2).Infof("Removed taint %s from MachineSet object %q", taint.Key, machineSet.Name)
+
+	return nil
 }

@@ -378,7 +378,6 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 				BlockOwnerDeletion: boolPtr(true),
 				Controller:         boolPtr(true),
 			}
-			//glog.Info("Printing MachineSet details ... %v", &is)
 			err := c.machineControl.CreateMachinesWithControllerRef(machineSet.Namespace, &machineSet.Spec.Template, machineSet, controllerRef)
 			if err != nil && apierrors.IsTimeout(err) {
 				// Machine is created but its initialization has timed out.
@@ -392,7 +391,6 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 			}
 			return err
 		})
-		//glog.Info("Stop Create:", diff)
 
 		// Any skipped machines that we never attempted to start shouldn't be expected.
 		// The skipped machines will be retried later. The next controller resync will
@@ -493,6 +491,12 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	// NOTE: filteredMachines are pointing to objects from cache - if you need to
 	// modify them, you need to copy it first.
 	filteredMachines, err = c.claimMachines(machineSet, selector, filteredMachines)
+	if err != nil {
+		return err
+	}
+
+	// SyncNodeTemplate syncs the nodeTemplate with claimedMachines if any of the machine's nodeTemplate has changed.
+	err = c.syncMachinesNodeTemplates(filteredMachines, machineSet)
 	if err != nil {
 		return err
 	}

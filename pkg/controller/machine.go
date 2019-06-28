@@ -23,10 +23,7 @@ import (
 	"fmt"
 	"time"
 
-	"google.golang.org/grpc/codes"
-
 	"github.com/golang/glog"
-	"google.golang.org/grpc/status"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -169,6 +166,16 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		return err
 	}
 
+	// Sync nodeTemplate between machine and node-objects.
+	node, _ := c.nodeLister.Get(machine.Status.Node)
+	if node != nil {
+		err = c.syncMachineNodeTemplates(machine)
+		if err != nil {
+			glog.Errorf("Could not update nodeTemplate for machine %s err: %q", machine.Name, err)
+			return err
+		}
+	}
+
 	if machine.DeletionTimestamp != nil {
 		// Processing of delete event
 		if err := c.machineDelete(machine, *driver); err != nil {
@@ -202,6 +209,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	Machine controller - nodeToMachine
 */
 func (c *controller) addNodeToMachine(obj interface{}) {
+
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
@@ -302,11 +310,26 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 		return machine, err
 	}
 
-	clone, err := c.updateMachineConditions(machine, node.Status.Conditions)
+	machine, err = c.updateMachineConditions(machine, node.Status.Conditions)
 	if err != nil {
 		return machine, err
 	}
-	return clone, nil
+
+	clone := machine.DeepCopy()
+	if clone.Labels == nil {
+		clone.Labels = make(map[string]string)
+	}
+
+	if _, ok := clone.Labels["node"]; !ok {
+		clone.Labels["node"] = machine.Status.Node
+		machine, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
+		if err != nil {
+			glog.Warningf("Machine update failed. Retrying, error: %s", err)
+			return machine, err
+		}
+	}
+
+	return machine, nil
 }
 
 /*
@@ -334,7 +357,7 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.CMID
 		c.updateMachineStatus(machine, lastOperation, currentStatus)
 		return err
 	}
-	glog.V(2).Infof("Created machine: %s, MachineID: %s", machine.Name, actualProviderID)
+	glog.V(2).Infof("Created machine: %q, MachineID: %s", machine.Name, actualProviderID)
 
 	for {
 		// Get the latest version of the machine so that we can avoid conflicts
@@ -356,28 +379,35 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.CMID
 		}
 
 		clone := machine.DeepCopy()
-
 		if clone.Labels == nil {
 			clone.Labels = make(map[string]string)
 		}
 		clone.Labels["node"] = nodeName
+
 		if clone.Annotations == nil {
 			clone.Annotations = make(map[string]string)
 		}
 		if clone.Annotations[MachinePriority] == "" {
 			clone.Annotations[MachinePriority] = "3"
 		}
-
 		clone.Spec.ProviderID = actualProviderID
+		machine, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
+		if err != nil {
+			glog.Warningf("Machine update failed. Retrying, error: %s", err)
+			continue
+		}
+
+		clone = machine.DeepCopy()
 		clone.Status.Node = nodeName
 		clone.Status.LastOperation = lastOperation
 		clone.Status.CurrentStatus = currentStatus
-
-		_, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
-		if err == nil {
-			break
+		_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
+		if err != nil {
+			glog.Warningf("Machine/status update failed. Retrying, error: %s", err)
+			continue
 		}
-		glog.Warningf("Updated failed, retrying, error: %s", err)
+		// Update went through, exit out of infinite loop
+		break
 	}
 
 	return nil
@@ -395,6 +425,13 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 
 		clone := machine.DeepCopy()
 		clone.Spec.ProviderID = actualProviderID
+		machine, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
+		if err != nil {
+			glog.Warningf("Machine update failed. Retrying, error: %s", err)
+			continue
+		}
+
+		clone = machine.DeepCopy()
 		lastOperation := v1alpha1.LastOperation{
 			Description:    "Updated provider ID",
 			State:          v1alpha1.MachineStateSuccessful,
@@ -402,13 +439,13 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 			LastUpdateTime: metav1.Now(),
 		}
 		clone.Status.LastOperation = lastOperation
-
-		_, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
-		if err == nil {
-			glog.V(2).Infof("MachineID %s was successfully set to Machine %s", actualProviderID, machine.Name)
-			break
+		_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
+		if err != nil {
+			glog.Warningf("Machine/status update failed. Retrying, error: %s", err)
+			continue
 		}
-		glog.Warningf("Updated failed, retrying, error: %q", err)
+		// Update went through, exit out of infinite loop
+		break
 	}
 
 	return nil
@@ -455,59 +492,51 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMID
 			// Timeout value obtained by subtracting last operation with expected time out period
 			timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 
-			// To perform drain 2 conditions must be satified
-			// 1. force-deletion: "True" label must not be present
-			// 2. Deletion operation must be less than 5 minutes old
-			if machine.Labels["force-deletion"] != "True" && timeOut < 0 {
-				buf := bytes.NewBuffer([]byte{})
-				errBuf := bytes.NewBuffer([]byte{})
+			// To perform forceful drain either one of the below conditions must be satified
+			// 1. force-deletion: "True" label must be present
+			// 2. Deletion operation is more than drain-timeout minutes old
+			if machine.Labels["force-deletion"] == "True" || timeOut > 0 {
+				timeOutDuration = 30 * time.Second
+				glog.V(2).Infof("Force deletion has been triggerred for machine %q", machine.Name)
+			}
 
-				nodeName := machine.Labels["node"]
-				drainOptions := NewDrainOptions(
-					c.targetCoreClient,
-					timeOutDuration, // TODO: Will need to configure timeout
-					nodeName,
-					-1,
-					true,
-					true,
-					true,
-					buf,
-					errBuf,
-				)
-				err = drainOptions.RunDrain()
-				if err != nil {
-					lastOperation := v1alpha1.LastOperation{
-						Description:    "Drain failed - " + err.Error(),
-						State:          v1alpha1.MachineStateFailed,
-						Type:           v1alpha1.MachineOperationDelete,
-						LastUpdateTime: metav1.Now(),
-					}
-					c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
+			buf := bytes.NewBuffer([]byte{})
+			errBuf := bytes.NewBuffer([]byte{})
 
-					// Machine still tries to terminate after drain failure
-					glog.Warningf("Drain failed for machine %q - \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
-					return err
+			nodeName := machine.Status.Node
+			drainOptions := NewDrainOptions(
+				c.targetCoreClient,
+				timeOutDuration, // TODO: Will need to configure timeout
+				nodeName,
+				-1,
+				true,
+				true,
+				true,
+				buf,
+				errBuf,
+			)
+			err = drainOptions.RunDrain()
+			if err != nil {
+				lastOperation := v1alpha1.LastOperation{
+					Description:    "Drain failed - " + err.Error(),
+					State:          v1alpha1.MachineStateFailed,
+					Type:           v1alpha1.MachineOperationDelete,
+					LastUpdateTime: metav1.Now(),
 				}
-				glog.V(2).Infof("Drain successful for machine %q", machine.Name)
-			}
+				c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
 
-			// Check for existance of machine at cloud provider
-			_, err = driver.GetMachine(machineID)
-			if err != nil && status.Code(err) != codes.Unimplemented {
-				// If GetMachine was implemented and error occurred
-				glog.V(2).Infof("GetMachine call failed with the following error: %s", err)
+				// Machine still tries to terminate after drain failure
+				glog.Warningf("Drain failed for machine %q \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+				return err
 			}
-			err = driver.ShutDownMachine(machineID)
-			if err != nil && status.Code(err) != codes.Unimplemented {
-				// If ShutDownMachine was implemented and error occurred
-				glog.V(2).Infof("ShutdownMachine call failed with the following error: %s", err)
-			}
+			glog.V(2).Infof("Drain successful for machine %q \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
+
 			err = driver.DeleteMachine(machineID)
 		}
 
 		if err != nil {
 			// When machine deletion fails
-			glog.Errorf("Deletion failed: %s", err)
+			glog.Errorf("Deletion failed for machine %q: %s", machine.Name, err)
 
 			lastOperation := v1alpha1.LastOperation{
 				Description:    "Cloud provider message - " + err.Error(),
@@ -521,7 +550,6 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMID
 				LastUpdateTime: metav1.Now(),
 			}
 			c.updateMachineStatus(machine, lastOperation, currentStatus)
-
 			return err
 		}
 
@@ -533,7 +561,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMID
 			return err
 		}
 
-		glog.V(2).Infof("Machine %s deleted successfully", machine.Name)
+		glog.V(2).Infof("Machine %q deleted successfully", machine.Name)
 	}
 	return nil
 }
@@ -558,7 +586,7 @@ func (c *controller) updateMachineStatus(
 	clone.Status.LastOperation = lastOperation
 	clone.Status.CurrentStatus = currentStatus
 
-	clone, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
+	clone, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 	if err != nil {
 		// Keep retrying until update goes through
 		glog.V(3).Infof("Warning: Updated failed, retrying, error: %q", err)
@@ -643,7 +671,7 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 	}
 
 	if objectRequiresUpdate {
-		clone, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
+		clone, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 		if err != nil {
 			// Keep retrying until update goes through
 			glog.Warningf("Updated failed, retrying, error: %q", err)

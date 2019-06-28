@@ -27,6 +27,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"math/rand"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -38,7 +39,7 @@ import (
 	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	hashutil "github.com/gardener/machine-controller-manager/pkg/util/hash"
 	taintutils "github.com/gardener/machine-controller-manager/pkg/util/taints"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -54,6 +55,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	clientretry "k8s.io/client-go/util/retry"
 
+	fakemachineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	"github.com/golang/glog"
 )
 
@@ -621,6 +623,113 @@ func (r RealMachineControl) DeleteMachine(namespace string, machineID string, ob
 
 // --- //
 
+// -- Fake Machine Control -- //
+
+// FakeMachineControl is the fake implementation of machineControlInterface.
+type FakeMachineControl struct {
+	controlMachineClient *fakemachineapi.FakeMachineV1alpha1
+	Recorder             record.EventRecorder
+}
+
+// CreateMachines initiates a create machine for a RealMachineControl
+func (r FakeMachineControl) CreateMachines(namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object) error {
+	return r.createMachines(namespace, template, object, nil)
+}
+
+func (r FakeMachineControl) createMachines(namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
+	machine, err := GetFakeMachineFromTemplate(template, object, controllerRef)
+	if err != nil {
+		return err
+	}
+
+	if labels.Set(machine.Labels).AsSelectorPreValidated().Empty() {
+		return fmt.Errorf("unable to create machines, no labels")
+	}
+
+	var newMachine *v1alpha1.Machine
+	if newMachine, err = r.controlMachineClient.Machines(namespace).Create(machine); err != nil {
+		glog.Error(err)
+		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedCreateMachineReason, "Error creating: %v", err)
+		return err
+	}
+	accessor, err := meta.Accessor(object)
+	if err != nil {
+		glog.Errorf("parentObject does not have ObjectMeta, %v", err)
+		return nil
+	}
+
+	glog.V(2).Infof("Controller %v created machine %v", accessor.GetName(), newMachine.Name)
+
+	return nil
+}
+
+// CreateMachinesWithControllerRef creates a machine with controller reference
+func (r FakeMachineControl) CreateMachinesWithControllerRef(namespace string, template *v1alpha1.MachineTemplateSpec, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
+	if err := validateControllerRef(controllerRef); err != nil {
+		return err
+	}
+	return r.createMachines(namespace, template, controllerObject, controllerRef)
+}
+
+// PatchMachine applies a patch on machine
+func (r FakeMachineControl) PatchMachine(namespace string, name string, data []byte) error {
+	_, err := r.controlMachineClient.Machines(namespace).Patch(name, types.MergePatchType, data)
+	return err
+}
+
+// DeleteMachine deletes a machine attached to the RealMachineControl
+func (r FakeMachineControl) DeleteMachine(namespace string, machineID string, object runtime.Object) error {
+	accessor, err := meta.Accessor(object)
+	if err != nil {
+		return fmt.Errorf("object does not have ObjectMeta, %v", err)
+	}
+	glog.V(2).Infof("Controller %v deleting machine %v", accessor.GetName(), machineID)
+
+	if err := r.controlMachineClient.Machines(namespace).Delete(machineID, nil); err != nil {
+		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeleteMachineReason, "Error deleting: %v", err)
+		return fmt.Errorf("unable to delete machines: %v", err)
+	}
+
+	return nil
+}
+
+// GetFakeMachineFromTemplate passes the machine template spec to return the machine object
+func GetFakeMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject runtime.Object, controllerRef *metav1.OwnerReference) (*v1alpha1.Machine, error) {
+
+	//glog.Info("Template details \n", template.Spec.Class)
+	desiredLabels := getMachinesLabelSet(template)
+	//glog.Info(desiredLabels)
+	desiredFinalizers := getMachinesFinalizers(template)
+	desiredAnnotations := getMachinesAnnotationSet(template, parentObject)
+
+	accessor, err := meta.Accessor(parentObject)
+	if err != nil {
+		return nil, fmt.Errorf("parentObject does not have ObjectMeta, %v", err)
+	}
+	prefix := getMachinesPrefix(accessor.GetName())
+	rand.Seed(time.Now().UnixNano())
+	prefix = prefix + strconv.Itoa(rand.Intn(100000))
+	machine := &v1alpha1.Machine{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:      desiredLabels,
+			Annotations: desiredAnnotations,
+			Name:        prefix,
+			Finalizers:  desiredFinalizers,
+		},
+		Spec: v1alpha1.MachineSpec{
+			Class: template.Spec.Class,
+		},
+	}
+	if controllerRef != nil {
+		machine.OwnerReferences = append(machine.OwnerReferences, *controllerRef)
+	}
+	machine.Spec = *template.Spec.DeepCopy()
+	//glog.Info("3")
+	return machine, nil
+}
+
+// --- //
+
 // ActiveMachines type allows custom sorting of machines so a controller can pick the best ones to delete.
 type ActiveMachines []*v1alpha1.Machine
 
@@ -820,7 +929,7 @@ func AddOrUpdateTaintOnNode(c clientset.Interface, nodeName string, taints ...*v
 		if !updated {
 			return nil
 		}
-		return PatchNodeTaints(c, nodeName, oldNode, newNode)
+		return UpdateNodeTaints(c, nodeName, oldNode, newNode)
 	})
 }
 
@@ -877,11 +986,13 @@ func RemoveTaintOffNode(c clientset.Interface, nodeName string, node *v1.Node, t
 		if !updated {
 			return nil
 		}
-		return PatchNodeTaints(c, nodeName, oldNode, newNode)
+		return UpdateNodeTaints(c, nodeName, oldNode, newNode)
 	})
 }
 
-// PatchNodeTaints patches node's taints.
+// PatchNodeTaints is for updating the node taints from oldNode to the newNode
+// It makes a TwoWayMergePatch by comparing the two objects
+// It calls the Patch() method to do the final patch
 func PatchNodeTaints(c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
 	oldData, err := json.Marshal(oldNode)
 	if err != nil {
@@ -903,6 +1014,20 @@ func PatchNodeTaints(c clientset.Interface, nodeName string, oldNode *v1.Node, n
 
 	_, err = c.Core().Nodes().Patch(string(nodeName), types.StrategicMergePatchType, patchBytes)
 	return err
+}
+
+// UpdateNodeTaints is for updating the node taints from oldNode to the newNode
+// using the nodes Update() method
+func UpdateNodeTaints(c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
+	newNodeClone := oldNode.DeepCopy()
+	newNodeClone.Spec.Taints = newNode.Spec.Taints
+
+	_, err := c.Core().Nodes().Update(newNodeClone)
+	if err != nil {
+		return fmt.Errorf("failed to create update taints for node %q: %v", nodeName, err)
+	}
+
+	return nil
 }
 
 // WaitForCacheSync is a wrapper around cache.WaitForCacheSync that generates log messages

@@ -68,7 +68,7 @@ func updateMachineSetStatus(machineClient machineapi.MachineV1alpha1Interface, i
 			fmt.Sprintf("sequence No: %v->%v", is.Status.ObservedGeneration, newStatus.ObservedGeneration))
 
 		is.Status = newStatus
-		updatedIS, updateErr = c.Update(is)
+		updatedIS, updateErr = c.UpdateStatus(is)
 
 		if updateErr == nil {
 			return updatedIS, nil
@@ -117,7 +117,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 			machineSummary.Name = machine.Name
 			machineSummary.ProviderID = machine.Spec.ProviderID
 			machineSummary.LastOperation = machine.Status.LastOperation
-			//ownerRef populated here, so that deployment controller doesn't have to add it seperately
+			//ownerRef populated here, so that deployment controller doesn't have to add it separately
 			if controller := metav1.GetControllerOf(machine); controller != nil {
 				machineSummary.OwnerRef = controller.Name
 			}

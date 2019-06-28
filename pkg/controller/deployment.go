@@ -30,7 +30,7 @@ import (
 
 	"github.com/golang/glog"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -460,7 +460,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 
 	validationerr := validation.ValidateMachineDeployment(internalMachineDeployment)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.Errorf("Validation of MachineDeployment failled %s", validationerr.ToAggregate().Error())
+		glog.Errorf("Validation of MachineDeployment failed %s", validationerr.ToAggregate().Error())
 		return nil
 	}
 
@@ -487,7 +487,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		dc.recorder.Eventf(d, v1.EventTypeWarning, "SelectingAll", "This deployment is selecting all machines. A non-empty selector is required.")
 		if d.Status.ObservedGeneration < d.Generation {
 			d.Status.ObservedGeneration = d.Generation
-			dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d)
+			dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(d)
 		}
 		return nil
 	}

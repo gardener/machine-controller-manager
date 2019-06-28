@@ -25,13 +25,12 @@ import (
 )
 
 // WARNING!
-// IF YOU MODIFY ANY OF THE TYPES HERE COPY THEM TO ../types.go
+// IF YOU MODIFY ANY OF THE TYPES HERE COPY THEM TO ./v1alpha1/types.go
 // AND RUN  ./hack/generate-code
 
 /********************** Machine APIs ***************/
 
 // +genclient
-// +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Machine TODO
@@ -73,6 +72,18 @@ type MachineSpec struct {
 	// ProviderID represents the provider's unique ID given to a machine
 	// +optional
 	ProviderID string
+
+	// +optional
+	NodeTemplateSpec NodeTemplateSpec
+}
+
+// NodeTemplateSpec describes the data a node should have when created from a template
+type NodeTemplateSpec struct {
+	// +optional
+	metav1.ObjectMeta
+
+	// +optional
+	Spec corev1.NodeSpec
 }
 
 // MachineTemplateSpec describes the data a machine should have when created from a template

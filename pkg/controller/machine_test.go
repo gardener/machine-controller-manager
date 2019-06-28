@@ -35,7 +35,7 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 )
 
-const machinenamespace = "test"
+const testNamespace = "test"
 
 var _ = Describe("machine", func() {
 	var (
@@ -60,7 +60,7 @@ var _ = Describe("machine", func() {
 			machine = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "machine-1",
-					Namespace: machinenamespace,
+					Namespace: testNamespace,
 				},
 			}
 			lastOperation = machinev1.LastOperation{
@@ -141,7 +141,7 @@ var _ = Describe("machine", func() {
 		testMachine := machinev1.Machine{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "testmachine",
-				Namespace: machinenamespace,
+				Namespace: testNamespace,
 			},
 			Status: machinev1.MachineStatus{
 				Conditions: []corev1.NodeCondition{},
@@ -216,13 +216,13 @@ var _ = Describe("machine", func() {
 				defer close(stop)
 
 				objects := []runtime.Object{}
-				c, trackers := createController(stop, namespace, objects, nil, nil)
+				c, trackers := createController(stop, testNamespace, objects, nil, nil)
 				defer trackers.Stop()
 
 				testMachine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "testmachine",
-						Namespace: machinenamespace,
+						Namespace: testNamespace,
 					},
 					Status: machinev1.MachineStatus{
 						CurrentStatus: machinev1.CurrentStatus{
@@ -243,7 +243,7 @@ var _ = Describe("machine", func() {
 				testMachine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "testmachine",
-						Namespace: machinenamespace,
+						Namespace: testNamespace,
 					},
 					Status: machinev1.MachineStatus{
 						CurrentStatus: machinev1.CurrentStatus{
@@ -254,7 +254,7 @@ var _ = Describe("machine", func() {
 				objects := []runtime.Object{}
 				objects = append(objects, testMachine)
 
-				c, trackers := createController(stop, namespace, objects, nil, nil)
+				c, trackers := createController(stop, testNamespace, objects, nil, nil)
 				defer trackers.Stop()
 
 				var updatedMachine, err = c.updateMachineConditions(testMachine, conditions)
@@ -325,7 +325,7 @@ var _ = Describe("machine", func() {
 
 		objMeta := &metav1.ObjectMeta{
 			GenerateName: "class",
-			Namespace:    namespace,
+			Namespace:    testNamespace,
 		}
 
 		DescribeTable("##table",
@@ -545,7 +545,7 @@ var _ = Describe("machine", func() {
 								Name: "machine-0",
 							},
 						},
-					}, nil, nil),
+					}, nil, nil, nil, nil),
 				},
 				action: action{
 					machine:        "machine-0",
@@ -569,7 +569,7 @@ var _ = Describe("machine", func() {
 						LastOperation: machinev1.LastOperation{
 							Description: "Cloud provider message - Test Error",
 						},
-					}, nil),
+					}, nil, nil, nil),
 					err: true,
 				},
 			}),
@@ -596,7 +596,7 @@ var _ = Describe("machine", func() {
 								Name: "machine-0",
 							},
 						},
-					}, nil, nil),
+					}, nil, nil, nil, nil),
 				},
 				action: action{
 					machine:        "machine-0",
@@ -617,8 +617,175 @@ var _ = Describe("machine", func() {
 					}, &machinev1.MachineStatus{
 						Node: "fakeNode",
 						//TODO conditions
-					}, nil),
+					}, nil, nil, nil),
 					err: false,
+				},
+			}),
+		)
+	})
+
+	Describe("#machineDelete", func() {
+		type setup struct {
+			secrets  []*corev1.Secret
+			aws      []*machinev1.AWSMachineClass
+			machines []*machinev1.Machine
+		}
+		type action struct {
+			machine        string
+			fakeProviderID string
+			fakeNodeName   string
+			fakeError      error
+			forceDelete    bool
+		}
+		type expect struct {
+			machine     *machinev1.Machine
+			errOccurred bool
+		}
+		type data struct {
+			setup  setup
+			action action
+			expect expect
+		}
+		objMeta := &metav1.ObjectMeta{
+			GenerateName: "machine",
+			Namespace:    "test",
+		}
+		DescribeTable("##table",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				machineObjects := []runtime.Object{}
+				for _, o := range data.setup.aws {
+					machineObjects = append(machineObjects, o)
+				}
+				for _, o := range data.setup.machines {
+					machineObjects = append(machineObjects, o)
+				}
+
+				coreObjects := []runtime.Object{}
+				for _, o := range data.setup.secrets {
+					coreObjects = append(coreObjects, o)
+				}
+
+				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
+				defer trackers.Stop()
+
+				waitForCacheSync(stop, controller)
+
+				action := data.action
+				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+
+				fakeDriver := driver.NewFakeDriver(
+					func() (string, string, error) {
+						return action.fakeProviderID, action.fakeNodeName, action.fakeError
+					},
+					func() error {
+						return nil
+					},
+					func() (string, error) {
+						return action.fakeProviderID, action.fakeError
+					},
+				)
+
+				// Create a machine that is to be deleted later
+				err = controller.machineCreate(machine, fakeDriver)
+				Expect(err).ToNot(HaveOccurred())
+
+				// Add finalizers
+				controller.addMachineFinalizers(machine)
+
+				// Fetch the latest machine version
+				machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+
+				if data.action.forceDelete {
+					// Add labels for force deletion
+					clone := machine.DeepCopy()
+					clone.Labels["force-deletion"] = "True"
+					machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Update(clone)
+					Expect(err).ToNot(HaveOccurred())
+				}
+
+				// Deletion of machine is triggered
+				err = controller.machineDelete(machine, fakeDriver)
+				Expect(err).To(BeNil())
+
+				machine, err = controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+				if data.expect.errOccurred {
+					Expect(err).To(HaveOccurred())
+				}
+			},
+			Entry("Simple machine delete", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						&corev1.Secret{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						&machinev1.AWSMachineClass{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil),
+				},
+				action: action{
+					machine:        "machine-0",
+					fakeProviderID: "fakeID-0",
+					fakeNodeName:   "fakeNode-0",
+					fakeError:      nil,
+				},
+				expect: expect{
+					errOccurred: true,
+				},
+			}),
+			Entry("Machine force deletion", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						&corev1.Secret{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						&machinev1.AWSMachineClass{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil),
+				},
+				action: action{
+					machine:        "machine-0",
+					fakeProviderID: "fakeID-0",
+					fakeNodeName:   "fakeNode-0",
+					fakeError:      nil,
+					forceDelete:    true,
+				},
+				expect: expect{
+					errOccurred: true,
 				},
 			}),
 		)
@@ -697,7 +864,7 @@ var _ = Describe("machine", func() {
 							Type:           machinev1.MachineOperationCreate,
 							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 				action: action{
 					machine: machineName,
@@ -715,7 +882,7 @@ var _ = Describe("machine", func() {
 							State:       machinev1.MachineStateSuccessful,
 							Type:        machinev1.MachineOperationCreate,
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 			}),
 			Entry("Machine creation has still not timed out", &data{
@@ -734,7 +901,7 @@ var _ = Describe("machine", func() {
 							Type:           machinev1.MachineOperationCreate,
 							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 				action: action{
 					machine: machineName,
@@ -752,7 +919,7 @@ var _ = Describe("machine", func() {
 							State:       machinev1.MachineStateProcessing,
 							Type:        machinev1.MachineOperationCreate,
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 			}),
 			Entry("Machine creation has timed out", &data{
@@ -771,7 +938,7 @@ var _ = Describe("machine", func() {
 							Type:           machinev1.MachineOperationCreate,
 							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 				action: action{
 					machine: machineName,
@@ -793,7 +960,7 @@ var _ = Describe("machine", func() {
 							State: machinev1.MachineStateFailed,
 							Type:  machinev1.MachineOperationCreate,
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 			}),
 			Entry("Machine health has timed out", &data{
@@ -812,7 +979,7 @@ var _ = Describe("machine", func() {
 							Type:           machinev1.MachineOperationHealthCheck,
 							LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 				action: action{
 					machine: machineName,
@@ -835,7 +1002,7 @@ var _ = Describe("machine", func() {
 							State: machinev1.MachineStateFailed,
 							Type:  machinev1.MachineOperationHealthCheck,
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 			}),
 		)
@@ -903,6 +1070,12 @@ var _ = Describe("machine", func() {
 				Expect(actual.Status.LastOperation.Type).To(Equal(data.expect.machine.Status.LastOperation.Type))
 				Expect(actual.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
 
+				if data.expect.machine.Labels != nil {
+					if _, ok := data.expect.machine.Labels["node"]; ok {
+						Expect(actual.Labels["node"]).To(Equal(data.expect.machine.Labels["node"]))
+					}
+				}
+
 				for i := range actual.Status.Conditions {
 					Expect(actual.Status.Conditions[i].Type).To(Equal(data.expect.machine.Status.Conditions[i].Type))
 					Expect(actual.Status.Conditions[i].Status).To(Equal(data.expect.machine.Status.Conditions[i].Status))
@@ -914,7 +1087,7 @@ var _ = Describe("machine", func() {
 				setup: setup{
 					machines: newMachines(1, &machinev1.MachineTemplateSpec{
 						ObjectMeta: *newObjectMeta(objMeta, 0),
-					}, &machinev1.MachineStatus{}, nil),
+					}, &machinev1.MachineStatus{}, nil, nil, nil),
 				},
 				action: action{
 					machine: machineName,
@@ -922,7 +1095,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					machine: newMachine(&machinev1.MachineTemplateSpec{
 						ObjectMeta: *newObjectMeta(objMeta, 0),
-					}, &machinev1.MachineStatus{}, nil),
+					}, &machinev1.MachineStatus{}, nil, nil, nil),
 				},
 			}),
 			Entry("Node object backing machine not found and machine conditions are empty", &data{
@@ -931,7 +1104,7 @@ var _ = Describe("machine", func() {
 						ObjectMeta: *newObjectMeta(objMeta, 0),
 					}, &machinev1.MachineStatus{
 						Node: "dummy-node",
-					}, nil),
+					}, nil, nil, nil),
 				},
 				action: action{
 					machine: machineName,
@@ -941,7 +1114,7 @@ var _ = Describe("machine", func() {
 						ObjectMeta: *newObjectMeta(objMeta, 0),
 					}, &machinev1.MachineStatus{
 						Node: "dummy-node",
-					}, nil),
+					}, nil, nil, nil),
 				},
 			}),
 			Entry("Machine is running but node object is lost", &data{
@@ -969,7 +1142,7 @@ var _ = Describe("machine", func() {
 								Type:    "Ready",
 							},
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 				action: action{
 					machine: machineName,
@@ -1001,7 +1174,7 @@ var _ = Describe("machine", func() {
 								Type:    "Ready",
 							},
 						},
-					}, nil),
+					}, nil, nil, nil),
 				},
 			}),
 			Entry("Machine and node both are present and kubelet ready status is updated", &data{
@@ -1029,7 +1202,7 @@ var _ = Describe("machine", func() {
 								Type:    "Ready",
 							},
 						},
-					}, nil),
+					}, nil, nil, nil),
 					nodes: []*corev1.Node{
 						&corev1.Node{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1073,7 +1246,39 @@ var _ = Describe("machine", func() {
 								Type:    "Ready",
 							},
 						},
-					}, nil),
+					}, nil, nil, nil),
+				},
+			}),
+			Entry("Machine object does not have node-label and node exists", &data{
+				setup: setup{
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+					}, &machinev1.MachineStatus{
+						Node: "node",
+					}, nil, nil, nil),
+					nodes: []*corev1.Node{
+						&corev1.Node{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-0",
+							},
+						},
+					},
+				},
+				action: action{
+					machine: machineName,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "machine-0",
+						},
+					}, &machinev1.MachineStatus{
+						Node: "node",
+					}, nil, nil,
+						map[string]string{
+							"node": "node-0",
+						},
+					),
 				},
 			}),
 		)

@@ -23,6 +23,8 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"encoding/json"
+
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 	"github.com/golang/glog"
 
@@ -30,9 +32,19 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
+)
+
+const (
+	// LastAppliedALTAnnotation contains the last configuration of annotations, labels & taints applied on the node object
+	LastAppliedALTAnnotation = "node.machine.sapcloud.io/last-applied-anno-labels-taints"
+)
+
+var (
+	// emptyMap is a dummy emptyMap to compare with
+	emptyMap = make(map[string]string)
 )
 
 // TODO: use client library instead when it starts to support update retries
@@ -123,4 +135,222 @@ func nodeConditionsHaveChanged(machineConditions []v1.NodeCondition, nodeConditi
 	}
 
 	return false
+}
+
+// syncMachineNodeTemplate syncs nodeTemplates between machine and corresponding node-object.
+// It ensures, that any nodeTemplate element available on Machine should be available on node-object.
+// Although there could be more elements already available on node-object which will not be touched.
+func (c *controller) syncMachineNodeTemplates(machine *v1alpha1.Machine) error {
+	var (
+		initializedNodeAnnotation   = false
+		lastAppliedALT              v1alpha1.NodeTemplateSpec
+		currentlyAppliedALTJSONByte []byte
+	)
+
+	node, err := c.nodeLister.Get(machine.Status.Node)
+	if err != nil || node == nil {
+		glog.Errorf("Error: Could not get the node-object or node-object is missing - err: %q", err)
+		// Dont return error so that other steps can be executed.
+		return nil
+	}
+	nodeCopy := node.DeepCopy()
+
+	// Initialize node annotations if empty
+	if nodeCopy.Annotations == nil {
+		nodeCopy.Annotations = make(map[string]string)
+		initializedNodeAnnotation = true
+	}
+
+	// Extracts the last applied annotations to lastAppliedLabels
+	lastAppliedALTJSONString, exists := node.Annotations[LastAppliedALTAnnotation]
+	if exists {
+		err = json.Unmarshal([]byte(lastAppliedALTJSONString), &lastAppliedALT)
+		if err != nil {
+			glog.Errorf("Error occurred while syncing node annotations, labels & taints: %s", err)
+			return err
+		}
+	}
+
+	annotationsChanged := SyncMachineAnnotations(machine, nodeCopy, lastAppliedALT.Annotations)
+	labelsChanged := SyncMachineLabels(machine, nodeCopy, lastAppliedALT.Labels)
+	taintsChanged := SyncMachineTaints(machine, nodeCopy, lastAppliedALT.Spec.Taints)
+
+	// Update node-object with latest nodeTemplate elements if elements have changed.
+	if initializedNodeAnnotation || labelsChanged || annotationsChanged || taintsChanged {
+
+		glog.V(2).Infof(
+			"Updating machine annotations:%v, labels:%v, taints:%v for machine: %q",
+			annotationsChanged,
+			labelsChanged,
+			taintsChanged,
+			machine.Name,
+		)
+
+		// Update the LastAppliedALTAnnotation
+		lastAppliedALT = machine.Spec.NodeTemplateSpec
+		currentlyAppliedALTJSONByte, err = json.Marshal(lastAppliedALT)
+		if err != nil {
+			glog.Errorf("Error occurred while syncing node annotations, labels & taints: %s", err)
+			return err
+		}
+		nodeCopy.Annotations[LastAppliedALTAnnotation] = string(currentlyAppliedALTJSONByte)
+
+		_, err := c.targetCoreClient.Core().Nodes().Update(nodeCopy)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// SyncMachineAnnotations syncs the annotations of the machine with node-objects.
+// It returns true if update is needed else false.
+func SyncMachineAnnotations(
+	machine *v1alpha1.Machine,
+	node *v1.Node,
+	lastAppliedAnnotations map[string]string,
+) bool {
+	toBeUpdated := false
+	mAnnotations, nAnnotations := machine.Spec.NodeTemplateSpec.Annotations, node.Annotations
+
+	// Initialize node annotations if nil
+	if nAnnotations == nil {
+		nAnnotations = make(map[string]string)
+		node.Annotations = nAnnotations
+	}
+	// Intialize machine annotations to empty map if nil
+	if mAnnotations == nil {
+		mAnnotations = emptyMap
+	}
+
+	// Delete any annotation that existed in the past but has been deleted now
+	for lastAppliedAnnotationKey := range lastAppliedAnnotations {
+		if _, exists := mAnnotations[lastAppliedAnnotationKey]; !exists {
+			delete(nAnnotations, lastAppliedAnnotationKey)
+			toBeUpdated = true
+		}
+	}
+
+	// Add/Update any key that doesn't exist or whose value as changed
+	for mKey, mValue := range mAnnotations {
+		if nValue, exists := nAnnotations[mKey]; !exists || mValue != nValue {
+			nAnnotations[mKey] = mValue
+			toBeUpdated = true
+		}
+	}
+
+	return toBeUpdated
+}
+
+// SyncMachineLabels syncs the labels of the machine with node-objects.
+// It returns true if update is needed else false.
+func SyncMachineLabels(
+	machine *v1alpha1.Machine,
+	node *v1.Node,
+	lastAppliedLabels map[string]string,
+) bool {
+	toBeUpdated := false
+	mLabels, nLabels := machine.Spec.NodeTemplateSpec.Labels, node.Labels
+
+	// Initialize node labels if nil
+	if nLabels == nil {
+		nLabels = make(map[string]string)
+		node.Labels = nLabels
+	}
+	// Intialize machine labels to empty map if nil
+	if mLabels == nil {
+		mLabels = emptyMap
+	}
+
+	// Delete any labels that existed in the past but has been deleted now
+	for lastAppliedLabelKey := range lastAppliedLabels {
+		if _, exists := mLabels[lastAppliedLabelKey]; !exists {
+			delete(nLabels, lastAppliedLabelKey)
+			toBeUpdated = true
+		}
+	}
+
+	// Add/Update any key that doesn't exist or whose value as changed
+	for mKey, mValue := range mLabels {
+		if nValue, exists := nLabels[mKey]; !exists || mValue != nValue {
+			nLabels[mKey] = mValue
+			toBeUpdated = true
+		}
+	}
+
+	return toBeUpdated
+}
+
+type taintKeyEffect struct {
+	// Required. The taint key to be applied to a node.
+	Key string
+	// Valid effects are NoSchedule, PreferNoSchedule and NoExecute.
+	Effect v1.TaintEffect
+}
+
+// SyncMachineTaints syncs the taints of the machine with node-objects.
+// It returns true if update is needed else false.
+func SyncMachineTaints(
+	machine *v1alpha1.Machine,
+	node *v1.Node,
+	lastAppliedTaints []v1.Taint,
+) bool {
+	toBeUpdated := false
+	mTaints, nTaints := machine.Spec.NodeTemplateSpec.Spec.Taints, node.Spec.Taints
+	mTaintsMap := make(map[taintKeyEffect]*v1.Taint, 0)
+	nTaintsMap := make(map[taintKeyEffect]*v1.Taint, 0)
+
+	// Convert the slice of taints to map of taint [key, effect] = Taint
+	// Helps with indexed searching
+	for i := range mTaints {
+		mTaint := &mTaints[i]
+		taintKE := taintKeyEffect{
+			Key:    mTaint.Key,
+			Effect: mTaint.Effect,
+		}
+		mTaintsMap[taintKE] = mTaint
+	}
+	for i := range nTaints {
+		nTaint := &nTaints[i]
+		taintKE := taintKeyEffect{
+			Key:    nTaint.Key,
+			Effect: nTaint.Effect,
+		}
+		nTaintsMap[taintKE] = nTaint
+	}
+
+	// Delete taints that existed on the machine object in the last update but deleted now
+	for _, lastAppliedTaint := range lastAppliedTaints {
+
+		lastAppliedKE := taintKeyEffect{
+			Key:    lastAppliedTaint.Key,
+			Effect: lastAppliedTaint.Effect,
+		}
+
+		if _, exists := mTaintsMap[lastAppliedKE]; !exists {
+			delete(nTaintsMap, lastAppliedKE)
+			toBeUpdated = true
+		}
+	}
+
+	// Add any taints that exists in the machine object but not on the node object
+	for mKE, mV := range mTaintsMap {
+		if nV, exists := nTaintsMap[mKE]; !exists || *nV != *mV {
+			nTaintsMap[mKE] = mV
+			toBeUpdated = true
+		}
+	}
+
+	if toBeUpdated {
+		// Convert the map of taints to slice of taints
+		nTaints = make([]v1.Taint, len(nTaintsMap))
+		i := 0
+		for _, nV := range nTaintsMap {
+			nTaints[i] = *nV
+			i++
+		}
+		node.Spec.Taints = nTaints
+	}
+
+	return toBeUpdated
 }

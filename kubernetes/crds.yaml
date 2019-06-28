@@ -14,6 +14,28 @@ spec:
     singular: machineclass
     shortNames:
     - machcls
+  subresources:
+    status: {}
+  # TODO: Add below field later.
+  # additionalPrinterColumns:
+  # - name: Machine Type
+  #   type: string
+  #   JSONPath: .spec.machineType
+  # - name: AMI
+  #   type: string
+  #   JSONPath: .spec.ami
+  # - name: Region
+  #   type: string
+  #   priority: 1
+  #   JSONPath: .spec.region
+  # - name: Age
+  #   type: date
+  #   description: >
+  #     CreationTimestamp is a timestamp representing the server time when this object was created.
+  #     It is not guaranteed to be set in happens-before order across separate operations.
+  #     Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+  #     Populated by the system. Read-only. Null for lists. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata
+  #   JSONPath: .metadata.creationTimestamp
 
 ---
 
@@ -31,6 +53,21 @@ spec:
     singular: machine
     shortNames:
     - mach
+  subresources:
+    status: {}
+  additionalPrinterColumns:
+  - name: Status
+    type: string
+    description: Current status of the machine.
+    JSONPath: .status.currentStatus.phase
+  - name: Age
+    type: date
+    description: >
+      CreationTimestamp is a timestamp representing the server time when this object was created.
+      It is not guaranteed to be set in happens-before order across separate operations.
+      Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+      Populated by the system. Read-only. Null for lists. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata
+    JSONPath: .metadata.creationTimestamp
 
 ---
 
@@ -48,6 +85,29 @@ spec:
     singular: machineset
     shortNames:
     - machset
+  subresources:
+    status: {}
+  additionalPrinterColumns:
+  - name: Desired
+    type: integer
+    description: Number of desired replicas.
+    JSONPath: .spec.replicas
+  - name: Current
+    type: integer
+    description: Number of actual replicas.
+    JSONPath: .status.replicas
+  - name: Ready
+    type: integer
+    description: Number of ready replicas for this machine set.
+    JSONPath: .status.readyReplicas
+  - name: Age
+    type: date
+    description: >
+      CreationTimestamp is a timestamp representing the server time when this object was created.
+      It is not guaranteed to be set in happens-before order across separate operations.
+      Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+      Populated by the system. Read-only. Null for lists. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata
+    JSONPath: .metadata.creationTimestamp
 
 ---
 
@@ -65,3 +125,30 @@ spec:
     singular: machinedeployment
     shortNames:
     - machdeploy
+  subresources:
+    status: {}
+  additionalPrinterColumns:
+  - name: Ready
+    type: integer
+    description: Total number of ready machines targeted by this machine deployment.
+    JSONPath: .status.readyReplicas
+  - name: Desired
+    type: integer
+    description: Number of desired machines.
+    JSONPath: .spec.replicas
+  - name: Up-to-date
+    type: integer
+    description: Total number of non-terminated machines targeted by this machine deployment that have the desired template spec.
+    JSONPath: .status.updatedReplicas
+  - name: Available
+    type: integer
+    description: Total number of available machines (ready for at least minReadySeconds) targeted by this machine deployment.
+    JSONPath: .status.availableReplicas
+  - name: Age
+    type: date
+    description: >
+      CreationTimestamp is a timestamp representing the server time when this object was created.
+      It is not guaranteed to be set in happens-before order across separate operations.
+      Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+      Populated by the system. Read-only. Null for lists. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata
+    JSONPath: .metadata.creationTimestamp

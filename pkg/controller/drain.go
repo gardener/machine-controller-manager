@@ -37,6 +37,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 )
@@ -71,7 +72,7 @@ const (
 	EvictionSubresource = "pods/eviction"
 
 	// Interval is the default Poll interval
-	Interval = time.Second * 1
+	Interval = time.Second * 5
 
 	daemonsetFatal      = "DaemonSet-managed pods (use --ignore-daemonsets to ignore)"
 	daemonsetWarning    = "Ignoring DaemonSet-managed pods"
@@ -138,38 +139,8 @@ func (o *DrainOptions) deleteOrEvictPodsSimple() error {
 	return err
 }
 
-func (o *DrainOptions) getController(namespace string, controllerRef *metav1.OwnerReference) (interface{}, error) {
-	switch controllerRef.Kind {
-	case "ReplicationController":
-		return o.client.Core().ReplicationControllers(namespace).Get(controllerRef.Name, metav1.GetOptions{})
-	case "DaemonSet":
-		return o.client.Extensions().DaemonSets(namespace).Get(controllerRef.Name, metav1.GetOptions{})
-	case "Job":
-		return o.client.Batch().Jobs(namespace).Get(controllerRef.Name, metav1.GetOptions{})
-	case "ReplicaSet":
-		return o.client.Extensions().ReplicaSets(namespace).Get(controllerRef.Name, metav1.GetOptions{})
-	case "StatefulSet":
-		return o.client.Apps().StatefulSets(namespace).Get(controllerRef.Name, metav1.GetOptions{})
-	}
-	return nil, fmt.Errorf("Unknown controller kind %q", controllerRef.Kind)
-}
-
-func (o *DrainOptions) getPodController(pod api.Pod) (*metav1.OwnerReference, error) {
-	controllerRef := metav1.GetControllerOf(&pod)
-	if controllerRef == nil {
-		return nil, nil
-	}
-
-	// We assume the only reason for an error is because the controller is
-	// gone/missing, not for any other cause.
-	// TODO(mml): something more sophisticated than this
-	// TODO(juntee): determine if it's safe to remove getController(),
-	// so that drain can work for controller types that we don't know about
-	_, err := o.getController(pod.Namespace, controllerRef)
-	if err != nil {
-		return nil, err
-	}
-	return controllerRef, nil
+func (o *DrainOptions) getPodController(pod api.Pod) *metav1.OwnerReference {
+	return metav1.GetControllerOf(&pod)
 }
 
 func (o *DrainOptions) unreplicatedFilter(pod api.Pod) (bool, *warning, *fatal) {
@@ -178,14 +149,7 @@ func (o *DrainOptions) unreplicatedFilter(pod api.Pod) (bool, *warning, *fatal) 
 		return true, nil, nil
 	}
 
-	controllerRef, err := o.getPodController(pod)
-	if err != nil {
-		// if we're forcing, remove orphaned pods with a warning
-		if apierrors.IsNotFound(err) && o.Force {
-			return true, &warning{err.Error()}, nil
-		}
-		return false, nil, &fatal{err.Error()}
-	}
+	controllerRef := o.getPodController(pod)
 	if controllerRef != nil {
 		return true, nil, nil
 	}
@@ -203,14 +167,7 @@ func (o *DrainOptions) daemonsetFilter(pod api.Pod) (bool, *warning, *fatal) {
 	// The exception is for pods that are orphaned (the referencing
 	// management resource - including DaemonSet - is not found).
 	// Such pods will be deleted if --force is used.
-	controllerRef, err := o.getPodController(pod)
-	if err != nil {
-		// if we're forcing, remove orphaned pods with a warning
-		if apierrors.IsNotFound(err) && o.Force {
-			return true, &warning{err.Error()}, nil
-		}
-		return false, nil, &fatal{err.Error()}
-	}
+	controllerRef := o.getPodController(pod)
 	if controllerRef == nil || controllerRef.Kind != "DaemonSet" {
 		return true, nil, nil
 	}
@@ -303,10 +260,9 @@ func (o *DrainOptions) getPodsForDeletion() (pods []api.Pod, err error) {
 
 func (o *DrainOptions) deletePod(pod api.Pod) error {
 	deleteOptions := &metav1.DeleteOptions{}
-	if o.GracePeriodSeconds >= 0 {
-		gracePeriodSeconds := int64(o.GracePeriodSeconds)
-		deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
-	}
+	gracePeriodSeconds := int64(0)
+	deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
+
 	return o.client.Core().Pods(pod.Namespace).Delete(pod.Name, deleteOptions)
 }
 
@@ -347,19 +303,23 @@ func (o *DrainOptions) deleteOrEvictPods(pods []api.Pod) error {
 	}
 
 	if len(policyGroupVersion) > 0 {
-		return o.evictPods(pods, policyGroupVersion, getPodFn)
+		err := o.evictPods(pods, policyGroupVersion, getPodFn)
+		if err != nil {
+			glog.Warningf("Pod eviction was timed out, Error: %v. \nHowever, drain will continue to forcefully delete the pods by setting graceful termination period to 0s", err)
+		} else {
+			return nil
+		}
 	}
 	return o.deletePods(pods, getPodFn)
 }
 
 func (o *DrainOptions) evictPods(pods []api.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error)) error {
-	doneCh := make(chan bool, len(pods))
-	errCh := make(chan error, 1)
+	returnCh := make(chan error, 1)
 
 	glog.V(3).Info("The following pods were evicted -")
 
 	for _, pod := range pods {
-		go func(pod api.Pod, doneCh chan bool, errCh chan error) {
+		go func(pod api.Pod, returnCh chan error) {
 			var err error
 			glog.V(3).Info("\t", pod.Name)
 			for {
@@ -368,26 +328,28 @@ func (o *DrainOptions) evictPods(pods []api.Pod, policyGroupVersion string, getP
 					break
 				} else if apierrors.IsNotFound(err) {
 					glog.V(3).Info("\t", pod.Name, " evicted")
-					doneCh <- true
+					returnCh <- nil
 					return
 				} else if apierrors.IsTooManyRequests(err) {
 					time.Sleep(5 * time.Second)
 				} else {
-					errCh <- fmt.Errorf("error when evicting pod %q: %v", pod.Name, err)
+					returnCh <- fmt.Errorf("error when evicting pod %q: %v", pod.Name, err)
 					return
 				}
 			}
 			podArray := []api.Pod{pod}
 			_, err = o.waitForDelete(podArray, Interval, time.Duration(math.MaxInt64), true, getPodFn)
 			if err == nil {
-				doneCh <- true
+				returnCh <- nil
 			} else {
-				errCh <- fmt.Errorf("error when waiting for pod %q terminating: %v", pod.Name, err)
+				returnCh <- fmt.Errorf("error when waiting for pod %q terminating: %v", pod.Name, err)
 			}
-		}(pod, doneCh, errCh)
+		}(pod, returnCh)
 	}
 
 	doneCount := 0
+	var errors []error
+
 	// 0 timeout means infinite, we use MaxInt64 to represent it.
 	var globalTimeout time.Duration
 	if o.Timeout == 0 {
@@ -395,19 +357,20 @@ func (o *DrainOptions) evictPods(pods []api.Pod, policyGroupVersion string, getP
 	} else {
 		globalTimeout = o.Timeout
 	}
-	for {
+	globalTimeoutCh := time.After(globalTimeout)
+	numPods := len(pods)
+	for doneCount < numPods {
 		select {
-		case err := <-errCh:
-			return err
-		case <-doneCh:
+		case err := <-returnCh:
 			doneCount++
-			if doneCount == len(pods) {
-				return nil
+			if err != nil {
+				errors = append(errors, err)
 			}
-		case <-time.After(globalTimeout):
+		case <-globalTimeoutCh:
 			return fmt.Errorf("Drain did not complete within %v", globalTimeout)
 		}
 	}
+	return utilerrors.NewAggregate(errors)
 }
 
 func (o *DrainOptions) deletePods(pods []api.Pod, getPodFn func(namespace, name string) (*api.Pod, error)) error {

@@ -18,12 +18,13 @@ limitations under the License.
 package controller
 
 import (
+	"strconv"
+
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"strconv"
 )
 
 // Describe is method required to implement the prometheus.Collect interface.
@@ -134,13 +135,13 @@ func (c *controller) CollectMachineDeploymentMetrics(ch chan<- prometheus.Metric
 		if machineDeployment.Status.FailedMachines != nil {
 			for _, failedMachine := range machineDeployment.Status.FailedMachines {
 				metrics.MachineDeploymentStatusFailedMachines.With(prometheus.Labels{
-					"name":                               mdMeta.Name,
-					"namespace":                          mdMeta.Namespace,
-					"failedMachine_name":                 failedMachine.Name,
-					"failedMachine_provider_id":          failedMachine.ProviderID,
-					"failedMachine_last_operation_state": string(failedMachine.LastOperation.State),
-					"failedMachine_last_operation_machine_operation_type": string(failedMachine.LastOperation.Type),
-					"failedMachine_owner_ref":                             failedMachine.OwnerRef}).Set(float64(1))
+					"name":                                                 mdMeta.Name,
+					"namespace":                                            mdMeta.Namespace,
+					"failed_machine_name":                                  failedMachine.Name,
+					"failed_machine_provider_id":                           failedMachine.ProviderID,
+					"failed_machine_last_operation_state":                  string(failedMachine.LastOperation.State),
+					"failed_machine_last_operation_machine_operation_type": string(failedMachine.LastOperation.Type),
+					"failed_machine_owner_ref":                             failedMachine.OwnerRef}).Set(float64(1))
 
 			}
 		}
@@ -224,13 +225,13 @@ func (c *controller) CollectMachineSetMetrics(ch chan<- prometheus.Metric) {
 
 			for _, failedMachine := range *machineSet.Status.FailedMachines {
 				metrics.MachineSetStatusFailedMachines.With(prometheus.Labels{
-					"name":                               msMeta.Name,
-					"namespace":                          msMeta.Namespace,
-					"failedMachine_name":                 failedMachine.Name,
-					"failedMachine_provider_id":          failedMachine.ProviderID,
-					"failedMachine_last_operation_state": string(failedMachine.LastOperation.State),
-					"failedMachine_last_operation_machine_operation_type": string(failedMachine.LastOperation.Type),
-					"failedMachine_owner_ref":                             failedMachine.OwnerRef}).Set(float64(1))
+					"name":                                                 msMeta.Name,
+					"namespace":                                            msMeta.Namespace,
+					"failed_machine_name":                                  failedMachine.Name,
+					"failed_machine_provider_id":                           failedMachine.ProviderID,
+					"failed_machine_last_operation_state":                  string(failedMachine.LastOperation.State),
+					"failed_machine_last_operation_machine_operation_type": string(failedMachine.LastOperation.Type),
+					"failed_machine_owner_ref":                             failedMachine.OwnerRef}).Set(float64(1))
 			}
 		}
 	}

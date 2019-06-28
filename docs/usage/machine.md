@@ -33,7 +33,8 @@ You should notice that the Machine Controller Manager has immediately picked up 
 
 ```bash
 $ kubectl get machine
-test-machine Machine.v1alpha1.machine.sapcloud.io
+NAME           STATUS    AGE
+test-machine   Running   5m
 ```
 
 A new machine is created with the name provided in the `kubernetes/machine_objects/machine.yaml` file.
