@@ -44,7 +44,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/configz"
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -248,6 +248,8 @@ func StartControllers(s *options.MCMServer,
 			controlMachineClient,
 			controlCoreClient,
 			targetCoreClient,
+			targetCoreInformerFactory.Core().V1().PersistentVolumeClaims(),
+			targetCoreInformerFactory.Core().V1().PersistentVolumes(),
 			controlCoreInformerFactory.Core().V1().Secrets(),
 			targetCoreInformerFactory.Core().V1().Nodes(),
 			machineSharedInformers.MachineClasses(),

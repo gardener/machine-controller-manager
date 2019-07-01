@@ -14,6 +14,7 @@
 	- [Usage](#usage)
 
 <!-- /TOC -->
+
 Conceptionally, the Machine Controller Manager is designed to run in a container within a Pod inside a Kubernetes cluster. For development purposes, you can run the Machine Controller Manager as a Go process on your local machine. This process connects to your remote cluster to manage VMs for that cluster. That means that the Machine Controller Manager runs outside a Kubernetes cluster which requires providing a [Kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/authenticate-across-clusters-kubeconfig/) in your local filesystem and point the Machine Controller Manager to it when running it (see below).
 
 Although the following installation instructions are for Mac OS X, similar alternate commands could be found for any Linux distribution.
@@ -26,19 +27,10 @@ Install the latest version of Golang (at least `v1.8.3` is required) by using [H
 $ brew install golang
 ```
 
-Make sure to set your `$GOPATH` environment variable properly (conventionally, it points to `$HOME/go`).
-
-For your convenience, you can add the `bin` directory of the `$GOPATH` to your `$PATH`: `PATH=$PATH:$GOPATH/bin`, but it is not necessarily required.
-
 In order to perform linting on the Go source code, install [Golint](https://github.com/golang/lint):
 
 ```bash
-$ go get -u github.com/golang/lint/golint
-```
-
-[Dep](https://github.com/golang/dep) is used for managing Golang package dependencies. Install it:
-```bash
-$ brew install dep
+$ go get -u golang.org/x/lint/golint
 ```
 
 ## Installing `Docker` (Optional)
@@ -57,11 +49,9 @@ Create a Docker hub account at [Docker Hub](https://hub.docker.com/) if you don'
 The development of the Machine Controller Manager could happen by targetting any cluster. You basically need a Kubernetes cluster running on a set of machines. You just need the [Kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/authenticate-across-clusters-kubeconfig/) file with the required access permissions attached to it.
 
 ### Installing the Machine Controller Manager locally
-Clone the repository from GitHub into your `$GOPATH`.
+Clone the repository from GitHub.
 
 ```bash
-$ mkdir -p $GOPATH/src/github.com/gardener
-$ cd $GOPATH/src/github.com/gardener
 $ git clone git@github.com:gardener/machine-controller-manager.git
 $ cd machine-controller-manager
 ```

@@ -34,6 +34,7 @@ start:
 			--safety-down=1 \
 			--machine-creation-timeout=20m \
 			--machine-drain-timeout=5m \
+			--machine-pv-detach-timeout=2m \
 			--machine-health-timeout=10m \
 			--machine-safety-apiserver-statuscheck-timeout=30s \
 			--machine-safety-apiserver-statuscheck-period=1m \
@@ -47,7 +48,8 @@ start:
 
 .PHONY: revendor
 revendor:
-	@dep ensure -update -v
+	@GO111MODULE=on go mod vendor
+	@GO111MODULE=on go mod tidy
 
 .PHONY: build
 build:

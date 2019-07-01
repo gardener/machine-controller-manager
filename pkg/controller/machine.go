@@ -488,6 +488,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMID
 
 		// If machine is created on the cloud provider
 		if machineID != "" {
+			pvDetachTimeOut := c.safetyOptions.PvDetachTimeout.Duration
 			timeOutDuration := c.safetyOptions.MachineDrainTimeout.Duration
 			// Timeout value obtained by subtracting last operation with expected time out period
 			timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
@@ -507,6 +508,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMID
 			drainOptions := NewDrainOptions(
 				c.targetCoreClient,
 				timeOutDuration, // TODO: Will need to configure timeout
+				pvDetachTimeOut,
 				nodeName,
 				-1,
 				true,
@@ -514,9 +516,21 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMID
 				true,
 				buf,
 				errBuf,
+				driver,
+				c.pvcLister,
+				c.pvLister,
 			)
 			err = drainOptions.RunDrain()
-			if err != nil {
+			if err == nil {
+				// Drain successful
+				glog.V(2).Infof("Drain successful for machine %q. \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
+
+			} else if err != nil && machine.Labels["force-deletion"] == "True" {
+				// Drain failed on force deletion
+				glog.Warningf("Drain failed for machine %q. However, since it's a force deletion shall continue deletion of VM. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+
+			} else {
+				// Drain failed on normal (non-force) deletion, return error for retry
 				lastOperation := v1alpha1.LastOperation{
 					Description:    "Drain failed - " + err.Error(),
 					State:          v1alpha1.MachineStateFailed,
@@ -525,11 +539,9 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMID
 				}
 				c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
 
-				// Machine still tries to terminate after drain failure
-				glog.Warningf("Drain failed for machine %q \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+				glog.Warningf("Drain failed for machine %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
 				return err
 			}
-			glog.V(2).Infof("Drain successful for machine %q \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
 
 			err = driver.DeleteMachine(machineID)
 		}
