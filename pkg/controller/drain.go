@@ -32,7 +32,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gardener/machine-controller-manager/pkg/driver"
 	"github.com/golang/glog"
 	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -58,9 +57,9 @@ type DrainOptions struct {
 	nodeName           string
 	Out                io.Writer
 	ErrOut             io.Writer
-	Driver             driver.Driver
-	pvcLister          corelisters.PersistentVolumeClaimLister
-	pvLister           corelisters.PersistentVolumeLister
+	//Driver             driver.Driver
+	pvcLister corelisters.PersistentVolumeClaimLister
+	pvLister  corelisters.PersistentVolumeLister
 }
 
 // Takes a pod and returns a bool indicating whether or not to operate on the
@@ -111,7 +110,7 @@ func NewDrainOptions(
 	deleteLocalData bool,
 	out io.Writer,
 	errOut io.Writer,
-	driver driver.Driver,
+	//driver driver.Driver,
 	pvcLister corelisters.PersistentVolumeClaimLister,
 	pvLister corelisters.PersistentVolumeLister,
 ) *DrainOptions {
@@ -127,9 +126,9 @@ func NewDrainOptions(
 		nodeName:           nodeName,
 		Out:                out,
 		ErrOut:             errOut,
-		Driver:             driver,
-		pvcLister:          pvcLister,
-		pvLister:           pvLister,
+		//Driver:             driver,
+		pvcLister: pvcLister,
+		pvLister:  pvLister,
 	}
 
 }
