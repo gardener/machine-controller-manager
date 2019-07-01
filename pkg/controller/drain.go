@@ -24,6 +24,7 @@ package controller
 
 import (
 	"context"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"io"
@@ -32,7 +33,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gardener/machine-controller-manager/pkg/driver"
 	"github.com/golang/glog"
 	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -127,7 +127,7 @@ func NewDrainOptions(
 	deleteLocalData bool,
 	out io.Writer,
 	errOut io.Writer,
-	driver driver.Driver,
+	//driver driver.Driver,
 	pvcLister corelisters.PersistentVolumeClaimLister,
 	pvLister corelisters.PersistentVolumeLister,
 ) *DrainOptions {
