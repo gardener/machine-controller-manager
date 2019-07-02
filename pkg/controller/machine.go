@@ -483,6 +483,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 		}
 
 		if machineID != "" {
+			maxEvictRetries := c.safetyOptions.MaxEvictRetries
 			pvDetachTimeOut := c.safetyOptions.PvDetachTimeout.Duration
 			timeOutDuration := c.safetyOptions.MachineDrainTimeout.Duration
 			// Timeout value obtained by subtracting last operation with expected time out period
@@ -502,7 +503,8 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			nodeName := machine.Status.Node
 			drainOptions := NewDrainOptions(
 				c.targetCoreClient,
-				timeOutDuration, // TODO: Will need to configure timeout
+				timeOutDuration, // TODO: Need to remove this
+				maxEvictRetries,
 				pvDetachTimeOut,
 				nodeName,
 				-1,
