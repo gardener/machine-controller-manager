@@ -477,9 +477,16 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	// TODO: Deep-copy only when needed.
 	d := deployment.DeepCopy()
 
-	// Manipulate finalizers
-	if d.DeletionTimestamp == nil {
-		dc.addMachineDeploymentFinalizers(d)
+	// TODO: Remove this finalizer logic after 1-2 releases.
+	// Remove old finalizers
+	if finalizers := sets.NewString(d.Finalizers...); finalizers.Has(DeleteFinalizerName) {
+		finalizers.Delete(DeleteFinalizerName)
+		d.Finalizers = finalizers.List()
+		_, err = dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d)
+		if err != nil {
+			glog.Warningf("could not remove finalizer %v", err)
+		}
+		return err
 	}
 
 	everything := metav1.LabelSelector{}
@@ -509,13 +516,6 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	}
 
 	if d.DeletionTimestamp != nil {
-		if finalizers := sets.NewString(d.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
-			return nil
-		}
-		if len(machineSets) == 0 {
-			dc.deleteMachineDeploymentFinalizers(d)
-			return nil
-		}
 		glog.V(4).Infof("Deleting all child MachineSets as MachineDeployment %s has set deletionTimestamp", d.Name)
 		dc.terminateMachineSets(machineSets, d)
 		return dc.syncStatusOnly(d, machineSets, machineMap)
@@ -575,44 +575,4 @@ func (dc *controller) terminateMachineSets(machineSets []*v1alpha1.MachineSet, d
 		}(machineSet)
 	}
 	wg.Wait()
-}
-
-/*
-	SECTION
-	Manipulate Finalizers
-*/
-
-func (dc *controller) addMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment) {
-	clone := machineDeployment.DeepCopy()
-
-	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
-		finalizers.Insert(DeleteFinalizerName)
-		dc.updateMachineDeploymentFinalizers(clone, finalizers.List())
-	}
-}
-
-func (dc *controller) deleteMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment) {
-	clone := machineDeployment.DeepCopy()
-
-	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
-		finalizers.Delete(DeleteFinalizerName)
-		dc.updateMachineDeploymentFinalizers(clone, finalizers.List())
-	}
-}
-
-func (dc *controller) updateMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment, finalizers []string) {
-	// Get the latest version of the machineDeployment so that we can avoid conflicts
-	machineDeployment, err := dc.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Get(machineDeployment.Name, metav1.GetOptions{})
-	if err != nil {
-		return
-	}
-
-	clone := machineDeployment.DeepCopy()
-	clone.Finalizers = finalizers
-	_, err = dc.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Update(clone)
-	if err != nil {
-		// Keep retrying until update goes through
-		glog.Warning("Updated failed, retrying")
-		dc.updateMachineDeploymentFinalizers(machineDeployment, finalizers)
-	}
 }

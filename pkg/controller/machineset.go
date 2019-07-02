@@ -469,9 +469,17 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		return err
 	}
 
-	// Manipulate finalizers
-	if machineSet.DeletionTimestamp == nil {
-		c.addMachineSetFinalizers(machineSet)
+	// TODO: Remove this finalizer logic after 1-2 releases.
+	// Remove old finalizers
+	if finalizers := sets.NewString(machineSet.Finalizers...); finalizers.Has(DeleteFinalizerName) {
+		finalizers.Delete(DeleteFinalizerName)
+		copy := machineSet.DeepCopy()
+		copy.Finalizers = finalizers.List()
+		_, err = c.controlMachineClient.MachineSets(copy.Namespace).Update(copy)
+		if err != nil {
+			glog.Warningf("could not remove finalizer %v", err)
+		}
+		return err
 	}
 
 	selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
@@ -510,18 +518,9 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		// It is not called when deletion timestamp is set
 		manageReplicasErr = c.manageReplicas(filteredMachines, machineSet)
 
-	} else if machineSet.DeletionTimestamp != nil {
-		// When machineSet if triggered for deletion
-
-		if len(filteredMachines) == 0 {
-			// If machines backing a machineSet are zero,
-			// remove the machineSetFinalizer
-			c.deleteMachineSetFinalizers(machineSet)
-		} else if finalizers := sets.NewString(machineSet.Finalizers...); finalizers.Has(DeleteFinalizerName) {
-			// Trigger deletion of machines backing the machineSet
-			glog.V(4).Infof("Deleting all child machines as MachineSet %s has set deletionTimestamp", machineSet.Name)
-			c.terminateMachines(filteredMachines, machineSet)
-		}
+	} else if machineSet.DeletionTimestamp != nil && len(filteredMachines) > 0 {
+		glog.V(4).Infof("Deleting all child machines as MachineSet %s has set deletionTimestamp", machineSet.Name)
+		c.terminateMachines(filteredMachines, machineSet)
 	}
 
 	machineSet = machineSet.DeepCopy()
@@ -682,44 +681,4 @@ func (c *controller) terminateMachines(inactiveMachines []*v1alpha1.Machine, mac
 	}
 
 	return nil
-}
-
-/*
-	SECTION
-	Manipulate Finalizers
-*/
-
-func (c *controller) addMachineSetFinalizers(machineSet *v1alpha1.MachineSet) {
-	clone := machineSet.DeepCopy()
-
-	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
-		finalizers.Insert(DeleteFinalizerName)
-		c.updateMachineSetFinalizers(clone, finalizers.List())
-	}
-}
-
-func (c *controller) deleteMachineSetFinalizers(machineSet *v1alpha1.MachineSet) {
-	clone := machineSet.DeepCopy()
-
-	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
-		finalizers.Delete(DeleteFinalizerName)
-		c.updateMachineSetFinalizers(clone, finalizers.List())
-	}
-}
-
-func (c *controller) updateMachineSetFinalizers(machineSet *v1alpha1.MachineSet, finalizers []string) {
-	// Get the latest version of the machineSet so that we can avoid conflicts
-	machineSet, err := c.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
-	if err != nil {
-		return
-	}
-
-	clone := machineSet.DeepCopy()
-	clone.Finalizers = finalizers
-	_, err = c.controlMachineClient.MachineSets(clone.Namespace).Update(clone)
-	if err != nil {
-		// Keep retrying until update goes through
-		glog.Warning("Updated failed, retrying")
-		c.updateMachineSetFinalizers(machineSet, finalizers)
-	}
 }
