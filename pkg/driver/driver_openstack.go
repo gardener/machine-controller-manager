@@ -95,7 +95,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	server, err := servers.Create(client, createOpts).Extract()
 	if err != nil {
 		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
-		return "", "", err
+		return "", "", fmt.Errorf("error creating the server: %s", err)
 	}
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 
@@ -108,7 +108,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 
 	err = waitForStatus(client, server.ID, []string{"BUILD"}, []string{"ACTIVE"}, 300)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("error waiting for the %q server status: %s", server.ID, err)
 	}
 
 	listOpts := &ports.ListOpts{
@@ -141,7 +141,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	}
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
 
-	return d.MachineID, d.MachineName, err
+	return d.MachineID, d.MachineName, nil
 }
 
 // Delete method is used to delete an OS machine
