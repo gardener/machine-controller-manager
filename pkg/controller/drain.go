@@ -518,29 +518,24 @@ func (o *DrainOptions) evictPodsWithPv(attemptEvict bool, pods []*corev1.Pod,
 
 			glog.V(4).Info("Eviction for some pods will be retried after ", PodEvictionRetryInterval)
 			pods = remainingPods
-			remainingPods = nil
 			time.Sleep(PodEvictionRetryInterval)
 		}
 
-		if fastTrack {
-			// Fast tract the return (node deletion detected)
-			for range remainingPods {
-				glog.V(4).Info("Returning success for remaining pods")
-				// This is executed when node is not found anymore.
-				// Return success to caller for all non-processed pods so that the caller function can move on.
-				returnCh <- nil
-			}
-		}
-
-		if len(remainingPods) > 0 {
-			// Force delete the pods remaining after evict retries. No pods are expected to survive this and errors
-			// are returned via returnCh anyway.
-			_, _ = o.evictPodsWithPVInternal(false, pods, volMap, policyGroupVersion, getPodFn, returnCh)
+		if !fastTrack && len(remainingPods) > 0 {
+			// Force delete the pods remaining after evict retries.
+			pods = remainingPods
+			remainingPods, _ = o.evictPodsWithPVInternal(false, pods, volMap, policyGroupVersion, getPodFn, returnCh)
 		}
 	} else {
-		// Force delete the pods remaining after evict retries. No pods are expected to survive this and errors
-		// are returned via returnCh anyway.
-		_, _ = o.evictPodsWithPVInternal(false, pods, volMap, policyGroupVersion, getPodFn, returnCh)
+		remainingPods, _ = o.evictPodsWithPVInternal(false, pods, volMap, policyGroupVersion, getPodFn, returnCh)
+	}
+
+	// Placate the caller by returning the nil status for the remaining pods.
+	for range remainingPods {
+		glog.V(4).Info("Returning success for remaining pods")
+		// This is executed when node is not found anymore.
+		// Return success to caller for all non-processed pods so that the caller function can move on.
+		returnCh <- nil
 	}
 
 	return
