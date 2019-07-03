@@ -106,7 +106,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 		return "", "", err
 	}
 
-	err = waitForStatus(client, server.ID, []string{"BUILD"}, []string{"ACTIVE"}, 300)
+	err = waitForStatus(client, server.ID, []string{"BUILD"}, []string{"ACTIVE"}, 600)
 	if err != nil {
 		return "", "", fmt.Errorf("error waiting for the %q server status: %s", server.ID, err)
 	}
