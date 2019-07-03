@@ -67,7 +67,7 @@ func NewMCMServer() *MCMServer {
 				MachineCreationTimeout:                   metav1.Duration{Duration: 20 * time.Minute},
 				MachineHealthTimeout:                     metav1.Duration{Duration: 10 * time.Minute},
 				MachineDrainTimeout:                      metav1.Duration{Duration: 5 * time.Minute},
-				MaxEvictRetries:                          3,
+				MaxEvictRetries:                          controller.DefaultMaxEvictRetries,
 				PvDetachTimeout:                          metav1.Duration{Duration: 2 * time.Minute},
 				MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 30 * time.Minute},
 				MachineSafetyOvershootingPeriod:          metav1.Duration{Duration: 1 * time.Minute},

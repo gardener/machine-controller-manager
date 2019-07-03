@@ -531,11 +531,17 @@ func (o *DrainOptions) evictPodsWithPv(attemptEvict bool, pods []*corev1.Pod,
 	}
 
 	// Placate the caller by returning the nil status for the remaining pods.
-	for range remainingPods {
+	for _, pod := range remainingPods {
 		glog.V(4).Info("Returning success for remaining pods")
 		// This is executed when node is not found anymore.
 		// Return success to caller for all non-processed pods so that the caller function can move on.
-		returnCh <- nil
+		if fastTrack {
+			returnCh <- nil
+		} else if attemptEvict {
+			returnCh <- fmt.Errorf("Error evicting pod %s/%s", pod.Namespace, pod.Name)
+		} else {
+			returnCh <- fmt.Errorf("Error deleting pod %s/%s", pod.Namespace, pod.Name)
+		}
 	}
 
 	return
@@ -570,16 +576,10 @@ func (o *DrainOptions) evictPodsWithPVInternal(attemptEvict bool, pods []*corev1
 		}
 
 		// Eviction was successful. Wait for pvs for this pod to detach
-		glog.V(3).Info("Eviction/delete succeeded. Waiting for the pod to terminate: ", pod.Name)
-		_, err = o.waitForDelete([]api.Pod{*pod}, Interval, o.getTerminationGracePeriod(pod), true, getPodFn)
-		if err != nil {
-			returnCh <- fmt.Errorf("error when waiting for pod %q terminating: %v", pod.Name, err)
-			continue
-		}
-
-		glog.V(3).Info("Pod terminated. Waiting for PVs to detach from node for pod: ", pod.Name)
+		glog.V(3).Info("Eviction/delete succeeded. Waiting for the volumes to detach: ", pod.Name)
 		pvs := volMap[pod.Namespace+"/"+pod.Name]
-		err = o.waitForDetach(pvs, o.nodeName)
+		timeout := o.getTerminationGracePeriod(pod) + o.PvDetachTimeout
+		err = o.waitForDetach(pvs, o.nodeName, timeout)
 
 		if apierrors.IsNotFound(err) {
 			glog.V(3).Info("Node not found anymore")
@@ -633,7 +633,7 @@ func (o *DrainOptions) getPvs(pod *corev1.Pod) ([]string, error) {
 	return pvs, nil
 }
 
-func (o *DrainOptions) waitForDetach(volumeIDs []string, nodeName string) error {
+func (o *DrainOptions) waitForDetach(volumeIDs []string, nodeName string, timeout time.Duration) error {
 	if volumeIDs == nil || len(volumeIDs) == 0 || nodeName == "" {
 		// If volume or node name is not available, nothing to do. Just log this as warning
 		glog.Warningf("Node name: %v, list of pod PVs to wait for detach: %v", nodeName, volumeIDs)
@@ -642,12 +642,12 @@ func (o *DrainOptions) waitForDetach(volumeIDs []string, nodeName string) error 
 
 	glog.V(4).Info("waiting for following volumes to detach: ", volumeIDs)
 
-	timeout := time.After(o.PvDetachTimeout)
+	timeoutCh := time.After(timeout)
 	found := true
 
 	for found {
 		select {
-		case <-timeout:
+		case <-timeoutCh:
 			glog.Warningf("Timeout while waiting for PVs to detach from node")
 			return fmt.Errorf("Timeout while waiting for PVs to detach from node")
 
