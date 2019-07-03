@@ -106,7 +106,10 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 		return "", "", err
 	}
 
-	servers.WaitForStatus(client, server.ID, "ACTIVE", 300)
+	err = waitForStatus(client, server.ID, []string{"BUILD"}, []string{"ACTIVE"}, 300)
+	if err != nil {
+		return "", "", err
+	}
 
 	listOpts := &ports.ListOpts{
 		NetworkID: networkID,
@@ -467,4 +470,32 @@ func (d *OpenStackDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]st
 		names = append(names, name)
 	}
 	return names, nil
+}
+
+func waitForStatus(c *gophercloud.ServiceClient, id, pending []string, target []string, secs int) error {
+	return gophercloud.WaitFor(secs, func() (bool, error) {
+		current, err := servers.Get(c, id).Extract()
+		if err != nil {
+			return false, err
+		}
+
+		if strSliceContains(target, current.Status) {
+			return true, nil
+		}
+
+		if strSliceContains(pending, current.Status) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("unexpected status '%s', wanted target '%s'", current.Status, strings.Join(target, ", "))
+	})
+}
+
+func strSliceContains(haystack []string, needle string) bool {
+	for _, s := range haystack {
+		if s == needle {
+			return true
+		}
+	}
+	return false
 }
