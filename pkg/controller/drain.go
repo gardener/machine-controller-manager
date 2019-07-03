@@ -560,7 +560,7 @@ func (o *DrainOptions) evictPodsWithPVInternal(attemptEvict bool, pods []*corev1
 			err = o.deletePod(pod)
 		}
 
-		if apierrors.IsTooManyRequests(err) {
+		if attemptEvict && apierrors.IsTooManyRequests(err) {
 			// Pod eviction failed because of PDB violation, we will retry one we are done with this list.
 			glog.V(3).Info("Pod ", pod.Namespace, "/", pod.Name, " couldn't be evicted because of PDB violation. Will be retried.")
 			retryPods = append(retryPods, pod)
@@ -747,7 +747,7 @@ func (o *DrainOptions) evictPodWithoutPVInternal(attemptEvict bool, pod *corev1.
 			glog.V(3).Info("\t", pod.Name, " evicted")
 			returnCh <- nil
 			return
-		} else if apierrors.IsTooManyRequests(err) {
+		} else if attemptEvict && apierrors.IsTooManyRequests(err) {
 			// Pod couldn't be evicted because of PDB violation
 			time.Sleep(PodEvictionRetryInterval)
 		} else {
