@@ -574,6 +574,7 @@ func (o *DrainOptions) evictPodsWithPVInternal(attemptEvict bool, pods []*corev1
 		_, err = o.waitForDelete([]api.Pod{*pod}, Interval, o.getTerminationGracePeriod(pod), true, getPodFn)
 		if err != nil {
 			returnCh <- fmt.Errorf("error when waiting for pod %q terminating: %v", pod.Name, err)
+			continue
 		}
 
 		glog.V(3).Info("Pod terminated. Waiting for PVs to detach from node for pod: ", pod.Name)
