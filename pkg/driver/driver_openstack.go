@@ -95,7 +95,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	server, err := servers.Create(client, createOpts).Extract()
 	if err != nil {
 		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
-		return "", "", err
+		return "", "", fmt.Errorf("error creating the server: %s", err)
 	}
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 
@@ -106,7 +106,10 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 		return "", "", err
 	}
 
-	servers.WaitForStatus(client, server.ID, "ACTIVE", 300)
+	err = waitForStatus(client, server.ID, []string{"BUILD"}, []string{"ACTIVE"}, 600)
+	if err != nil {
+		return "", "", fmt.Errorf("error waiting for the %q server status: %s", server.ID, err)
+	}
 
 	listOpts := &ports.ListOpts{
 		NetworkID: networkID,
@@ -138,7 +141,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	}
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
 
-	return d.MachineID, d.MachineName, err
+	return d.MachineID, d.MachineName, nil
 }
 
 // Delete method is used to delete an OS machine
@@ -467,4 +470,32 @@ func (d *OpenStackDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]st
 		names = append(names, name)
 	}
 	return names, nil
+}
+
+func waitForStatus(c *gophercloud.ServiceClient, id string, pending []string, target []string, secs int) error {
+	return gophercloud.WaitFor(secs, func() (bool, error) {
+		current, err := servers.Get(c, id).Extract()
+		if err != nil {
+			return false, err
+		}
+
+		if strSliceContains(target, current.Status) {
+			return true, nil
+		}
+
+		if strSliceContains(pending, current.Status) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("unexpected status %q, wanted target %q", current.Status, strings.Join(target, ", "))
+	})
+}
+
+func strSliceContains(haystack []string, needle string) bool {
+	for _, s := range haystack {
+		if s == needle {
+			return true
+		}
+	}
+	return false
 }
