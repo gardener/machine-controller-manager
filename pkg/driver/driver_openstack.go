@@ -472,7 +472,7 @@ func (d *OpenStackDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]st
 	return names, nil
 }
 
-func waitForStatus(c *gophercloud.ServiceClient, id, pending []string, target []string, secs int) error {
+func waitForStatus(c *gophercloud.ServiceClient, id string, pending []string, target []string, secs int) error {
 	return gophercloud.WaitFor(secs, func() (bool, error) {
 		current, err := servers.Get(c, id).Extract()
 		if err != nil {
