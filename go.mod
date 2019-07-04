@@ -9,13 +9,12 @@ require (
 	github.com/Azure/go-autorest v11.5.0+incompatible
 	github.com/PuerkitoBio/purell v1.1.0 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
-	github.com/Sirupsen/logrus v1.0.6 // indirect
 	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20180828111155-cad214d7d71f
 	github.com/aws/aws-sdk-go v1.13.54
 	github.com/census-instrumentation/opencensus-proto v0.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
-	github.com/docker/docker v1.13.1 // indirect
+	github.com/docker/docker v0.7.3-0.20180612054059-a9fbbdc8dd87 // indirect
 	github.com/emicklei/go-restful v2.7.0+incompatible // indirect
 	github.com/go-ini/ini v1.36.0 // indirect
 	github.com/go-openapi/jsonpointer v0.0.0-20180322222829-3a0015ad55fa // indirect
@@ -29,6 +28,7 @@ require (
 	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf // indirect
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/gophercloud/gophercloud v0.0.0-20180204183631-fe85f9519740
+	github.com/gotestyourself/gotestyourself v2.2.0+incompatible // indirect
 	github.com/gregjones/httpcache v0.0.0-20181110185634-c63ab54fda8f // indirect
 	github.com/hashicorp/golang-lru v0.0.0-20180201235237-0fb14efe8c47 // indirect
 	github.com/imdario/mergo v0.3.4 // indirect
@@ -41,9 +41,10 @@ require (
 	github.com/onsi/gomega v1.4.0
 	github.com/packethost/packngo v0.0.0-20181217122008-b3b45f1b4979
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
+	github.com/pkg/errors v0.8.1 // indirect
 	github.com/prometheus/client_golang v0.8.0
 	github.com/satori/go.uuid v1.2.0 // indirect
-	github.com/sirupsen/logrus v1.4.2 // indirect
+	github.com/sirupsen/logrus v1.2.0 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/spf13/pflag v1.0.1
 	github.com/stretchr/testify v1.3.0 // indirect
@@ -52,10 +53,9 @@ require (
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2 // indirect
 	google.golang.org/api v0.0.0-20180910000450-7ca32eb868bf
 	google.golang.org/genproto v0.0.0-20190227213309-4f5b463f9597 // indirect
-	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
-	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.42.0 // indirect
+	gotest.tools v2.2.0+incompatible // indirect
 	k8s.io/api v0.0.0-20181005203742-357ec6384fa7
 	k8s.io/apimachinery v0.0.0-20180913025736-6dd46049f395
 	k8s.io/apiserver v0.0.0-20181005205051-9f398e330d7f

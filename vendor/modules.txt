@@ -23,8 +23,6 @@ github.com/Azure/go-autorest/logger
 github.com/PuerkitoBio/purell
 # github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578
 github.com/PuerkitoBio/urlesc
-# github.com/Sirupsen/logrus v1.0.6
-github.com/Sirupsen/logrus
 # github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20180828111155-cad214d7d71f
 github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests
 github.com/aliyun/alibaba-cloud-sdk-go/sdk/utils
@@ -71,11 +69,11 @@ github.com/census-instrumentation/opencensus-proto/gen-go/agent/common/v1
 github.com/census-instrumentation/opencensus-proto/gen-go/agent/trace/v1
 github.com/census-instrumentation/opencensus-proto/gen-go/trace/v1
 github.com/census-instrumentation/opencensus-proto/gen-go/resource/v1
-# github.com/davecgh/go-spew v1.1.0
+# github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
 # github.com/dgrijalva/jwt-go v3.2.0+incompatible
 github.com/dgrijalva/jwt-go
-# github.com/docker/docker v1.13.1
+# github.com/docker/docker v0.7.3-0.20180612054059-a9fbbdc8dd87
 github.com/docker/docker/pkg/term
 github.com/docker/docker/pkg/term/windows
 # github.com/emicklei/go-restful v2.7.0+incompatible
@@ -140,6 +138,8 @@ github.com/imdario/mergo
 github.com/jmespath/go-jmespath
 # github.com/json-iterator/go v1.1.5
 github.com/json-iterator/go
+# github.com/konsorten/go-windows-terminal-sequences v1.0.1
+github.com/konsorten/go-windows-terminal-sequences
 # github.com/mailru/easyjson v0.0.0-20180323154445-8b799c424f57
 github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
@@ -202,6 +202,8 @@ github.com/prometheus/procfs/xfs
 github.com/prometheus/procfs/internal/util
 # github.com/satori/go.uuid v1.2.0
 github.com/satori/go.uuid
+# github.com/sirupsen/logrus v1.2.0
+github.com/sirupsen/logrus
 # github.com/spf13/pflag v1.0.1
 github.com/spf13/pflag
 # go.opencensus.io v0.18.0
@@ -220,9 +222,9 @@ go.opencensus.io/internal/tagencoding
 go.opencensus.io/stats/internal
 go.opencensus.io/internal
 go.opencensus.io/trace/internal
-# golang.org/x/crypto v0.0.0-20180524125353-159ae71589f3
+# golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20190213061140-3a22650c66bd
+# golang.org/x/net v0.0.0-20190311183353-d8887717615a
 golang.org/x/net/http2
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -242,7 +244,7 @@ golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20180909124046-d0be0721c37e
+# golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/text v0.3.0
