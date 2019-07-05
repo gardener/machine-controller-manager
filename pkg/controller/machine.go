@@ -178,7 +178,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 
 	if machine.DeletionTimestamp != nil {
 		// Processing of delete event
-		if err := c.machineDelete(machine, *driver); err != nil {
+		if err := c.machineDelete(machine, driver); err != nil {
 			return err
 		}
 	} else if machine.Status.CurrentStatus.TimeoutActive {
@@ -191,7 +191,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		if machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
 			return nil
 		} else if actualProviderID == "" {
-			if err := c.machineCreate(machine, *driver); err != nil {
+			if err := c.machineCreate(machine, driver); err != nil {
 				return err
 			}
 		} else if actualProviderID != machine.Spec.ProviderID {
@@ -337,7 +337,7 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 	Machine operations - Create, Update, Delete
 */
 
-func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.CMIDriverClient) error {
+func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.CMIClient) error {
 	glog.V(2).Infof("Creating machine %s, please wait!", machine.Name)
 
 	actualProviderID, nodeName, err := driver.CreateMachine()
@@ -451,15 +451,15 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 	return nil
 }
 
-func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMIDriverClient) error {
+func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMIClient) error {
 	var err error
 
 	// If Finalizers are present
 	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
-		glog.V(2).Infof("Deleting Machine %q with MachineID %q", machine.Name, driver.MachineID)
+		glog.V(2).Infof("Deleting Machine %q with MachineID %q", machine.Name, driver.GetMachineID())
 
 		// Getting the machine-ID on the cloud provider
-		machineID := driver.MachineID
+		machineID := driver.GetMachineID()
 
 		// If machine status has not been set to terminating
 		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating {
@@ -758,19 +758,6 @@ func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 		}
 	}
 	return true
-}
-
-func (c *controller) getSecret(ref *v1.SecretReference, MachineClassName string) (*v1.Secret, error) {
-	secretRef, err := c.secretLister.Secrets(ref.Namespace).Get(ref.Name)
-	if apierrors.IsNotFound(err) {
-		glog.V(3).Infof("No secret %q: found for MachineClass %q", ref, MachineClassName)
-		return nil, nil
-	}
-	if err != nil {
-		glog.Errorf("Unable get secret %q for MachineClass %q: %v", MachineClassName, ref, err)
-		return nil, err
-	}
-	return secretRef, err
 }
 
 func (c *controller) checkMachineTimeout(machine *v1alpha1.Machine) {

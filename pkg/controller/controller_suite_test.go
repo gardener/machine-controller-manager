@@ -452,6 +452,16 @@ func createController(
 	)
 	fakeObjectTrackers.Start()
 
+	coreControlInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
+		fakeControlCoreClient,
+		100*time.Millisecond,
+		namespace,
+		nil,
+	)
+	defer coreControlInformerFactory.Start(stop)
+	coreControlSharedInformers := coreControlInformerFactory.Core().V1()
+	secrets := coreControlSharedInformers.Secrets()
+
 	coreTargetInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
 		fakeTargetCoreClient,
 		100*time.Millisecond,
@@ -471,10 +481,7 @@ func createController(
 	defer controlMachineInformerFactory.Start(stop)
 
 	machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
-	aws := machineSharedInformers.AWSMachineClasses()
-	azure := machineSharedInformers.AzureMachineClasses()
-	gcp := machineSharedInformers.GCPMachineClasses()
-	openstack := machineSharedInformers.OpenStackMachineClasses()
+	machineClasses := machineSharedInformers.MachineClasses()
 	machines := machineSharedInformers.Machines()
 	machineSets := machineSharedInformers.MachineSets()
 	machineDeployments := machineSharedInformers.MachineDeployments()
@@ -498,29 +505,25 @@ func createController(
 	controller := &controller{
 		namespace:                      namespace,
 		safetyOptions:                  safetyOptions,
-		awsMachineClassLister:          aws.Lister(),
-		awsMachineClassSynced:          aws.Informer().HasSynced,
-		azureMachineClassLister:        azure.Lister(),
-		gcpMachineClassLister:          gcp.Lister(),
-		openStackMachineClassLister:    openstack.Lister(),
 		targetCoreClient:               fakeTargetCoreClient,
 		controlCoreClient:              fakeControlCoreClient,
 		controlMachineClient:           fakeTypedMachineClient,
 		internalExternalScheme:         internalExternalScheme,
+		secretLister:                   secrets.Lister(),
 		nodeLister:                     nodes.Lister(),
 		machineLister:                  machines.Lister(),
+		machineClassLister:             machineClasses.Lister(),
 		machineSetLister:               machineSets.Lister(),
 		machineDeploymentLister:        machineDeployments.Lister(),
+		machineClassSynced:             machineClasses.Informer().HasSynced,
 		machineSynced:                  machines.Informer().HasSynced,
 		machineSetSynced:               machineSets.Informer().HasSynced,
 		machineDeploymentSynced:        machineDeployments.Informer().HasSynced,
 		nodeSynced:                     nodes.Informer().HasSynced,
+		secretSynced:                   secrets.Informer().HasSynced,
 		secretQueue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
 		nodeQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
-		openStackMachineClassQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "openstackmachineclass"),
-		awsMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
-		azureMachineClassQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
-		gcpMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "gcpmachineclass"),
+		machineClassQueue:              workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineclass"),
 		machineQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
 		machineSetQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
 		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
@@ -547,7 +550,7 @@ func createController(
 func waitForCacheSync(stop <-chan struct{}, controller *controller) {
 	Expect(cache.WaitForCacheSync(
 		stop,
-		controller.awsMachineClassSynced,
+		controller.machineClassSynced,
 		controller.machineSynced,
 		controller.machineSetSynced,
 		controller.machineDeploymentSynced,

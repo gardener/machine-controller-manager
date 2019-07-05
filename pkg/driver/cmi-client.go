@@ -31,13 +31,17 @@ import (
 	"google.golang.org/grpc"
 )
 
-type cmiClient interface {
-	CreateMachine(ctx context.Context) (string, string, error)
-	DeleteMachine(ctx context.Context) error
-	ListMachines(ctx context.Context) (string, error)
+// CMIClient is the client used to communicate with the CMIServer
+type CMIClient interface {
+	CreateMachine() (string, string, error)
+	GetMachine(string) (bool, error)
+	DeleteMachine(string) error
+	ListMachines() (map[string]string, error)
+	ShutDownMachine(string) error
+	GetMachineID() string
 }
 
-// CMIDriverClient is the interface used to create a generic driver to make gRPC calls
+// CMIDriverClient is the struct used to create a generic driver to make gRPC calls
 type CMIDriverClient struct {
 	DriverName           string
 	MachineClientCreator machineClientCreator
@@ -203,6 +207,11 @@ func (c *CMIDriverClient) ShutDownMachine(MachineID string) error {
 
 	glog.V(4).Infof("ShutDownMachine successful for %q", c.MachineName)
 	return nil
+}
+
+// GetMachineID returns the machineID
+func (c *CMIDriverClient) GetMachineID() string {
+	return c.MachineID
 }
 
 func newGrpcConn(driverName string) (*grpc.ClientConn, error) {
