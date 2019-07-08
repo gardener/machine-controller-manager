@@ -25,14 +25,14 @@ package controller
 import (
 	"encoding/json"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
-	"github.com/golang/glog"
-
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
+	"github.com/golang/glog"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
 )
@@ -119,6 +119,19 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 		glog.V(2).Infof("ClassKind %q not found", classSpec.Kind)
 	}
 	return MachineClass, secretRef, nil
+}
+
+// getSecret retrives the kubernetes secret if found
+func (c *controller) getSecret(ref *v1.SecretReference, MachineClassName string) (*v1.Secret, error) {
+	secretRef, err := c.secretLister.Secrets(ref.Namespace).Get(ref.Name)
+	if err != nil && apierrors.IsNotFound(err) {
+		glog.V(3).Infof("No secret %q: found for MachineClass %q", ref, MachineClassName)
+		return nil, nil
+	} else if err != nil {
+		glog.Errorf("Unable get secret %q for MachineClass %q: %v", MachineClassName, ref, err)
+		return nil, err
+	}
+	return secretRef, err
 }
 
 // nodeConditionsHaveChanged compares two node statuses to see if any of the statuses have changed
