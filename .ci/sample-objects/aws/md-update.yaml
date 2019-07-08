@@ -4,7 +4,7 @@ apiVersion: machine.sapcloud.io/v1alpha1
 kind: MachineDeployment
 metadata:
   name: test-md # Name of the machine deploy
-  namespace: aws
+  namespace: grpc
 spec:
   replicas: 4 # Number of healthy replicas that should always be healthy
   minReadySeconds: 500 # Minimum time to wait for machine to be ready
@@ -23,5 +23,6 @@ spec:
         test-label: test-label # Label to match with selector (XXXXX)
     spec:
       class:
-        kind: AWSMachineClass # Machine class template used to create machine, could be AWS/GCP/Azure/Other-cloud-providers
+        kind: MachineClass # Machine class template used to create machine, could be AWS/GCP/Azure/Other-cloud-providers
         name: mc-v2 # Name of the machine class
+        namespace: grpc
