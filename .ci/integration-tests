@@ -91,21 +91,26 @@ function setup_environment() {
         terminate_script
     fi
 
+    echo "GOPATH: ", $GOPATH
+    echo "PWD:", $PWD
+    old_WD=$PWD
+    mkdir -p $GOPATH/src/github.com/gardener
+    cd $GOPATH/src/github.com/gardener
+
     # TODO: fetch the latest release and not master of aws-provider
     printf "\n Download machiine-controller-manager-provider-aws latest release"
-    git clone https://github.com/gardener/machine-controller-manager-provider-aws.git $PWD/../machine-controller-manager-provider-aws
+    git clone https://github.com/gardener/machine-controller-manager-provider-aws.git
     printf "\...Done \n"
 
-
-    cd ../machine-controller-manager-provider-aws
+    cd machine-controller-manager-provider-aws
     printf "\nBuilding MCM-Provider-AWS binary\n"
-    if go build  -o ../machine-controller-manager/cmi-server -i app/aws/cmi-server.go; then
+    if go build -o $old_WD/cmi-server -i app/aws/cmi-server.go; then
         printf "Go build Successful for provider AWS\n"
     else
         printf "Go build Failure for provider AWS\n"
         terminate_script
     fi
-    cd ../machine-controller-manager
+    cd $old_WD
     ls
 }
 
