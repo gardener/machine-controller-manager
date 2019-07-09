@@ -83,9 +83,9 @@ const (
 	// DefaultMaxEvictRetries is the default value for MaxEvictRetries
 	DefaultMaxEvictRetries = int32(3)
 
-	// PodsWithuotPVDrainGracePeriod defines the grace period to wait for the pods without PV during machine drain.
+	// PodsWithoutPVDrainGracePeriod defines the grace period to wait for the pods without PV during machine drain.
 	// This is in addition to the maximum terminationGracePeriod amount the pods.
-	PodsWithuotPVDrainGracePeriod = 3 * time.Minute
+	PodsWithoutPVDrainGracePeriod = 3 * time.Minute
 
 	// Interval is the default Poll interval
 	Interval = time.Second * 5
@@ -385,7 +385,7 @@ func (o *DrainOptions) getGlobalTimeoutForPodsWithoutPV(pods []*api.Pod) time.Du
 		}
 	}
 
-	return time.Duration(tgpsMax)*time.Second + PodsWithuotPVDrainGracePeriod
+	return tgpsMax + PodsWithoutPVDrainGracePeriod
 }
 
 func (o *DrainOptions) evictPods(attemptEvict bool, pods []api.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error)) error {
@@ -516,7 +516,7 @@ func (o *DrainOptions) evictPodsWithPv(attemptEvict bool, pods []*corev1.Pod,
 				break
 			}
 
-			glog.V(4).Info("Eviction for some pods will be retried after ", PodEvictionRetryInterval)
+			glog.V(4).Info("Eviction/deletion for some pods will be retried after ", PodEvictionRetryInterval)
 			pods = remainingPods
 			time.Sleep(PodEvictionRetryInterval)
 		}
@@ -533,9 +533,9 @@ func (o *DrainOptions) evictPodsWithPv(attemptEvict bool, pods []*corev1.Pod,
 	// Placate the caller by returning the nil status for the remaining pods.
 	for _, pod := range remainingPods {
 		glog.V(4).Info("Returning success for remaining pods")
-		// This is executed when node is not found anymore.
-		// Return success to caller for all non-processed pods so that the caller function can move on.
 		if fastTrack {
+			// This is executed when node is not found anymore.
+			// Return success to caller for all non-processed pods so that the caller function can move on.
 			returnCh <- nil
 		} else if attemptEvict {
 			returnCh <- fmt.Errorf("Error evicting pod %s/%s", pod.Namespace, pod.Name)

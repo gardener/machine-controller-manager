@@ -31,8 +31,8 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/util/client/leaderelectionconfig"
 
-	// add the machine feature gates
 	"github.com/gardener/machine-controller-manager/pkg/controller"
+	// add the machine feature gates
 	_ "github.com/gardener/machine-controller-manager/pkg/features"
 )
 
