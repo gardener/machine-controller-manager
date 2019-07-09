@@ -61,36 +61,10 @@ func main() {
 	}
 
 	switch classKind {
-	case "OpenStackMachineClass", "openstack":
-		class := v1alpha1.OpenStackMachineClass{}
+	case "MachineClass", "machineclass":
+		class := v1alpha1.MachineClass{}
 		machineclass = &class
-		classKind = "OpenStackMachineClass"
-
-	case "AWSMachineClass", "aws":
-		class := v1alpha1.AWSMachineClass{}
-		machineclass = &class
-		classKind = "AWSMachineClass"
-
-	case "AzureMachineClass", "azure":
-		class := v1alpha1.AzureMachineClass{}
-		machineclass = &class
-		classKind = "AzureMachineClass"
-
-	case "GCPMachineClass", "gcp":
-		class := v1alpha1.GCPMachineClass{}
-		machineclass = &class
-		classKind = "GCPMachineClass"
-
-	case "AlicloudMachineClass", "alicloud":
-		class := v1alpha1.AlicloudMachineClass{}
-		machineclass = &class
-		classKind = "AlicloudMachineClass"
-
-	case "PacketMachineClass", "packet":
-		class := v1alpha1.PacketMachineClass{}
-		machineclass = &class
-		classKind = "PacketMachineClass"
-
+		classKind = "MachineClass"
 	default:
 		log.Fatalf("Unknown class kind %s", classKind)
 	}
@@ -99,17 +73,17 @@ func main() {
 		log.Fatalf("Could not parse machine class yaml: %s", err)
 	}
 
-	driver := driver.NewDriver(machineID, &secret, classKind, machineclass, machineName)
+	driver := driver.NewCMIDriverClient(machineID, classKind, &secret, machineclass, machineName)
 
 	if machineID == "" {
-		id, name, err := driver.Create()
+		id, name, err := driver.CreateMachine()
 		if err != nil {
 			log.Fatalf("Could not create %s : %s", machineName, err)
 		}
 		fmt.Printf("Machine id: %s\n", id)
 		fmt.Printf("Name: %s\n", name)
 	} else {
-		err = driver.Delete()
+		err = driver.DeleteMachine(machineID)
 		if err != nil {
 			log.Fatalf("Could not delete %s : %s", machineID, err)
 		}

@@ -94,15 +94,19 @@ function setup_environment() {
     # TODO: fetch the latest release and not master of aws-provider
     printf "\n Download machiine-controller-manager-provider-aws latest release"
     git clone https://github.com/gardener/machine-controller-manager-provider-aws.git $PWD/../machine-controller-manager-provider-aws
-    
-    
+    printf "\...Done \n"
+
+
+    cd ../machine-controller-manager-provider-aws
     printf "\nBuilding MCM-Provider-AWS binary\n"
-    if go build -i $PWD/../machine-controller-manager-provider-aws/app/aws/cmi-server.go; then
-        printf "Go build Successful\n"
+    if go build  -o ../machine-controller-manager/cmi-server -i app/aws/cmi-server.go; then
+        printf "Go build Successful for provider AWS\n"
     else
-        printf "Go build Failure\n"
+        printf "Go build Failure for provider AWS\n"
         terminate_script
     fi
+    cd ../machine-controller-manager
+    ls
 }
 
 # run_controller runs MCM controller in background
@@ -127,7 +131,7 @@ function run_controller() {
         --leader-elect-renew-deadline=30s \
         --leader-elect-retry-period=15s \
         --v=2 > logs/${provider}-mcm.out 2>&1 &
-    
+
     printf "\nRunning MCM-Provider-AWS in background\n"
     ./cmi-server \
         --endpoint=tcp://127.0.0.1:8080 > logs/${provider}-mcm-provider.out 2>&1 &
