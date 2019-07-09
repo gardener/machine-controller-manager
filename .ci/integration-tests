@@ -21,6 +21,7 @@ mkdir -p logs
 declare -a cloud_providers=("aws")
 declare failed_logs=""
 num_of_existing_nodes=1
+namespace="grpc"
 
 if [ -n "$1" ]; then
     printf "Local test"
@@ -91,8 +92,6 @@ function setup_environment() {
         terminate_script
     fi
 
-    echo "GOPATH: ", $GOPATH
-    echo "PWD:", $PWD
     old_WD=$PWD
     mkdir -p $GOPATH/src/github.com/gardener
     cd $GOPATH/src/github.com/gardener
@@ -111,7 +110,6 @@ function setup_environment() {
         terminate_script
     fi
     cd $old_WD
-    ls
 }
 
 # run_controller runs MCM controller in background
@@ -121,7 +119,7 @@ function run_controller() {
     ./controller_manager \
         --control-kubeconfig=dev/control_kubeconfig_${provider}.yaml \
         --target-kubeconfig=dev/target_kubeconfig_${provider}.yaml \
-        --namespace=grpc \
+        --namespace=$namespace \
         --port=$1 \
         --safety-up=2 \
         --safety-down=1 \
@@ -182,7 +180,7 @@ function hf_object_delete() {
 }
 
 function hf_scale_deploy() {
-    output=$(kubectl scale deployment "$1" --replicas="$2" --context=control --namespace="$provider" 2>&1)
+    output=$(kubectl scale deployment "$1" --replicas="$2" --context=control --namespace="$namespace" 2>&1)
     outputSucccess=$(echo "$output" | grep scaled -c)
     if [[ outputSucccess -ne 1 ]]; then
         printf "\tFailed: To scale deployment object. Exiting Test to avoid further conflicts.\n"
@@ -192,7 +190,7 @@ function hf_scale_deploy() {
 }
 
 function hf_num_of_objects() {
-    output=$(kubectl -n $provider get "$1" --context=control 2>&1)
+    output=$(kubectl -n $namespace get "$1" --context=control 2>&1)
     if [[ $output == *"No resources found."* ]]; then
         return 0
     fi
@@ -330,7 +328,7 @@ function clean_up() {
         [[ $ret -ne 0 ]]
     then
         # Delete the machine-deployment
-        output=$(kubectl delete machdeploy --context=control --namespace="$provider" --all 2>&1)
+        output=$(kubectl delete machdeploy --context=control --namespace="$namespace" --all 2>&1)
         printf "\n\t%s" "$output"
         printf "\n\tWaiting 1800s for machine-deployment to be deleted"
         hf_wait_on "hf_num_of_objects" machdeploy 0 1800 $5
@@ -342,7 +340,7 @@ function clean_up() {
         [[ $ret -ne 0 ]]
     then
         # Delete the machine-set
-        output=$(kubectl delete machset --context=control --namespace="$provider" --all 2>&1)
+        output=$(kubectl delete machset --context=control --namespace="$namespace" --all 2>&1)
         printf "\n\t%s" "$output"
         printf "\n\tWaiting 1800s for machine-set to be deleted"
         hf_wait_on "hf_num_of_objects" machdeploy 0 1800 $5
@@ -354,7 +352,7 @@ function clean_up() {
         [[ $ret -ne 0 ]]
     then
         # Delete the machine
-        output=$(kubectl delete mach --context=control --namespace="$provider" --all 2>&1)
+        output=$(kubectl delete mach --context=control --namespace="$namespace" --all 2>&1)
         printf "\n\t%s" "$output"
         printf "\n\tWaiting 1800s for machine to be deleted"
         hf_wait_on "hf_num_of_objects" mach 0 1800 $5
