@@ -45,16 +45,18 @@ cd "${SOURCE_PATH}"
 # If no LOCAL_BUILD environment variable is set, we configure the `go build` command
 # to build for linux OS, amd64 architectures and without CGO enablement.
 if [[ -z "$LOCAL_BUILD" ]]; then
-  CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+  CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build \
     -a \
     -v \
+    -mod=vendor \
     -o ${BINARY_PATH}/rel/machine-controller-manager \
     cmd/machine-controller-manager/controller_manager.go
 
 # If the LOCAL_BUILD environment variable is set, we simply run `go build`.
 else
-  go build \
+  GO111MODULE=on go build \
     -v \
+    -mod=vendor \
     -o ${BINARY_PATH}/machine-controller-manager \
     cmd/machine-controller-manager/controller_manager.go
 fi

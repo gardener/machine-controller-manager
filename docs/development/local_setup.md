@@ -86,7 +86,7 @@ The Machine Controller Manager should now be ready to manage the VMs in your kub
 To test the creation/deletion of a single instance for one particular machine class you can use the `managevm` cli. The corresponding `INFRASTRUCTURE-machine-class.yaml` and the `INFRASTRUCTURE-secret.yaml` need to be defined upfront. To build and run it
 
 ```bash
-go build -o managevm cmd/machine-controller-manager-cli/main.go
+go build -mod=vendor -o managevm cmd/machine-controller-manager-cli/main.go
 # create machine
 ./managevm --secret PATH_TO/INFRASTRUCTURE-secret.yaml --machineclass PATH_TO/INFRASTRUCTURE-machine-class.yaml --classkind INFRASTRUCTURE --machinename test
 # delete machine
