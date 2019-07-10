@@ -25,7 +25,7 @@ machine-controller-manager:
       build:
         image: 'golang:1.12.6'
         output_dir: 'binary'
-  variants:
+  jobs:
     head-update:
       traits:
         draft_release: ~
