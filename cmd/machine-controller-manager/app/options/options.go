@@ -66,7 +66,7 @@ func NewMCMServer() *MCMServer {
 				SafetyDown:                               1,
 				MachineCreationTimeout:                   metav1.Duration{Duration: 20 * time.Minute},
 				MachineHealthTimeout:                     metav1.Duration{Duration: 10 * time.Minute},
-				MachineDrainTimeout:                      metav1.Duration{Duration: 5 * time.Minute},
+				MachineDrainTimeout:                      metav1.Duration{Duration: controller.DefaultMachineDrainTimeout},
 				MaxEvictRetries:                          controller.DefaultMaxEvictRetries,
 				PvDetachTimeout:                          metav1.Duration{Duration: 2 * time.Minute},
 				MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 30 * time.Minute},
@@ -102,7 +102,7 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 
 	fs.DurationVar(&s.SafetyOptions.MachineCreationTimeout.Duration, "machine-creation-timeout", s.SafetyOptions.MachineCreationTimeout.Duration, "Timeout (in durartion) used while joining (during creation) of machine before it is declared as failed.")
 	fs.DurationVar(&s.SafetyOptions.MachineHealthTimeout.Duration, "machine-health-timeout", s.SafetyOptions.MachineHealthTimeout.Duration, "Timeout (in durartion) used while re-joining (in case of temporary health issues) of machine before it is declared as failed.")
-	fs.DurationVar(&s.SafetyOptions.MachineDrainTimeout.Duration, "machine-drain-timeout", s.SafetyOptions.MachineDrainTimeout.Duration, "(Deprecated) No effect. Timeout (in durartion) used while draining of machine before deletion, beyond which MCM forcefully deletes machine.")
+	fs.DurationVar(&s.SafetyOptions.MachineDrainTimeout.Duration, "machine-drain-timeout", controller.DefaultMachineDrainTimeout, "Timeout (in durartion) used while draining of machine before deletion, beyond which MCM forcefully deletes machine.")
 	fs.Int32Var(&s.SafetyOptions.MaxEvictRetries, "machine-max-evict-retries", controller.DefaultMaxEvictRetries, "Maximum number of times evicts would be attempted on a pod before it is forcibly deleted during draining of a machine.")
 	fs.DurationVar(&s.SafetyOptions.PvDetachTimeout.Duration, "machine-pv-detach-timeout", s.SafetyOptions.PvDetachTimeout.Duration, "Timeout (in duration) used while waiting for detach of PV while evicting/deleting pods")
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration, "machine-safety-apiserver-statuscheck-timeout", s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration, "Timeout (in duration) for which the APIServer can be down before declare the machine controller frozen by safety controller")
