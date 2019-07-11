@@ -26,7 +26,9 @@ TARGET_KUBECONFIG  := dev/target-kubeconfig.yaml
 
 .PHONY: start
 start:
-	@go run cmd/machine-controller-manager/controller_manager.go \
+	@GO111MODULE=on go run \
+			-mod=vendor \
+			cmd/machine-controller-manager/controller_manager.go \
 			--control-kubeconfig=$(CONTROL_KUBECONFIG) \
 			--target-kubeconfig=$(TARGET_KUBECONFIG) \
 			--namespace=$(CONTROL_NAMESPACE) \

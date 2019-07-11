@@ -84,7 +84,7 @@ function setup_environment() {
     fi
 
     printf "\nBuilding MCM binary\n"
-    if go build -i cmd/machine-controller-manager/controller_manager.go; then
+    if GO111MODULE=on go build -mod=vendor -i cmd/machine-controller-manager/controller_manager.go; then
         printf "Go build Successful\n"
     else
         printf "Go build Failure\n"
