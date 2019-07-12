@@ -13,7 +13,8 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/docker/docker v0.7.3-0.20180612054059-a9fbbdc8dd87 // indirect
-	github.com/emicklei/go-restful v2.9.6+incompatible // indirect
+	github.com/emicklei/go-restful v2.7.0+incompatible // indirect
+	github.com/gardener/machine-spec v0.0.0-20190712061432-dc51f1763f22
 	github.com/go-ini/ini v1.36.0 // indirect
 	github.com/go-openapi/spec v0.19.2
 	github.com/gogo/protobuf v1.2.1 // indirect

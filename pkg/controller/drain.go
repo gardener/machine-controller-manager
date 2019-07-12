@@ -774,7 +774,7 @@ func (o *DrainOptions) waitForDetach(ctx context.Context, volumeIDs []string, no
 }
 
 func (o *DrainOptions) getVolIDsFromDriver(pvNames []string) ([]string, error) {
-	pvSpecs := []corev1.PersistentVolumeSpec{}
+	pvSpecs := []*corev1.PersistentVolumeSpec{}
 
 	for _, pvName := range pvNames {
 		try := 0
@@ -795,12 +795,12 @@ func (o *DrainOptions) getVolIDsFromDriver(pvNames []string) ([]string, error) {
 			}
 
 			// Found PV; append and exit
-			pvSpecs = append(pvSpecs, pv.Spec)
+			pvSpecs = append(pvSpecs, &pv.Spec)
 			break
 		}
 	}
 
-	return o.Driver.GetVolNames(pvSpecs)
+	return o.Driver.GetListOfVolumeIDsForExistingPVs(pvSpecs)
 }
 
 func (o *DrainOptions) evictPodWithoutPVInternal(attemptEvict bool, pod *corev1.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error), returnCh chan error) {

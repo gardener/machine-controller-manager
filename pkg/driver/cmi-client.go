@@ -39,6 +39,7 @@ type CMIClient interface {
 	ListMachines() (map[string]string, error)
 	ShutDownMachine(string) error
 	GetMachineID() string
+	GetListOfVolumeIDsForExistingPVs([]*corev1.PersistentVolumeSpec) ([]string, error)
 }
 
 // CMIDriverClient is the struct used to create a generic driver to make gRPC calls
@@ -212,6 +213,31 @@ func (c *CMIDriverClient) ShutDownMachine(MachineID string) error {
 // GetMachineID returns the machineID
 func (c *CMIDriverClient) GetMachineID() string {
 	return c.MachineID
+}
+
+// GetListOfVolumeIDsForExistingPVs returns a list of VolumeIDs for the PV spec list supplied
+func (c *CMIDriverClient) GetListOfVolumeIDsForExistingPVs(pvSpecs []*corev1.PersistentVolumeSpec) ([]string, error) {
+	glog.V(4).Info("Calling GetListOfVolumeIDsForExistingPVs rpc")
+
+	machineClient, closer, err := c.MachineClientCreator(c.DriverName)
+	if err != nil {
+		return nil, err
+	}
+	defer closer.Close()
+
+	req := &cmipb.ListMachinesRequest{
+		Secrets:      c.Secret.Data,
+		ProviderSpec: c.MachineClass.ProviderSpec.Raw,
+	}
+	ctx := context.Background()
+
+	resp, err := machineClient.ListMachines(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	glog.V(4).Info("ListMachine rpc was processed succesfully")
+	return resp.MachineList, err
 }
 
 func newGrpcConn(driverName string) (*grpc.ClientConn, error) {
