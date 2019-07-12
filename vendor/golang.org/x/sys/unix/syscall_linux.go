@@ -1685,6 +1685,7 @@ type fileHandle struct {
 	Type  int32
 }
 
+<<<<<<< HEAD
 // FileHandle represents the C struct file_handle used by
 // name_to_handle_at (see NameToHandleAt) and open_by_handle_at (see
 // OpenByHandleAt).
@@ -1748,6 +1749,8 @@ func OpenByHandleAt(mountFD int, handle FileHandle, flags int) (fd int, err erro
 	return openByHandleAt(mountFD, handle.fileHandle, flags)
 }
 
+=======
+>>>>>>> Revendored dependencies
 /*
  * Unimplemented
  */

@@ -4,11 +4,15 @@
 
 package windows
 
+<<<<<<< HEAD
 import (
 	"net"
 	"syscall"
 	"unsafe"
 )
+=======
+import "syscall"
+>>>>>>> Revendored dependencies
 
 const (
 	// Invented values to support what package os expects.

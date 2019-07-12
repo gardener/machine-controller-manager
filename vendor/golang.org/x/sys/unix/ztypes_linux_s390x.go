@@ -2166,6 +2166,7 @@ type FanotifyResponse struct {
 	Fd       int32
 	Response uint32
 }
+<<<<<<< HEAD
 
 const (
 	CRYPTO_MSG_BASE      = 0x10
@@ -2483,3 +2484,5 @@ const (
 	BPF_FD_TYPE_UPROBE                  = 0x4
 	BPF_FD_TYPE_URETPROBE               = 0x5
 )
+=======
+>>>>>>> Revendored dependencies

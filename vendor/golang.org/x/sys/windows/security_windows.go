@@ -170,7 +170,10 @@ const (
 //sys	CopySid(destSidLen uint32, destSid *SID, srcSid *SID) (err error) = advapi32.CopySid
 //sys	AllocateAndInitializeSid(identAuth *SidIdentifierAuthority, subAuth byte, subAuth0 uint32, subAuth1 uint32, subAuth2 uint32, subAuth3 uint32, subAuth4 uint32, subAuth5 uint32, subAuth6 uint32, subAuth7 uint32, sid **SID) (err error) = advapi32.AllocateAndInitializeSid
 //sys	createWellKnownSid(sidType WELL_KNOWN_SID_TYPE, domainSid *SID, sid *SID, sizeSid *uint32) (err error) = advapi32.CreateWellKnownSid
+<<<<<<< HEAD
 //sys	isWellKnownSid(sid *SID, sidType WELL_KNOWN_SID_TYPE) (isWellKnown bool) = advapi32.IsWellKnownSid
+=======
+>>>>>>> Revendored dependencies
 //sys	FreeSid(sid *SID) (err error) [failretval!=0] = advapi32.FreeSid
 //sys	EqualSid(sid1 *SID, sid2 *SID) (isEqual bool) = advapi32.EqualSid
 //sys	getSidIdentifierAuthority(sid *SID) (authority *SidIdentifierAuthority) = advapi32.GetSidIdentifierAuthority
@@ -326,7 +329,11 @@ func (sid *SID) LookupAccount(system string) (account, domain string, accType ui
 	}
 }
 
+<<<<<<< HEAD
 // Various types of pre-specified SIDs that can be synthesized and compared at runtime.
+=======
+// Various types of pre-specified sids that can be synthesized at runtime.
+>>>>>>> Revendored dependencies
 type WELL_KNOWN_SID_TYPE uint32
 
 const (
@@ -452,13 +459,21 @@ const (
 	WinBuiltinDeviceOwnersSid                     = 119
 )
 
+<<<<<<< HEAD
 // Creates a SID for a well-known predefined alias, generally using the constants of the form
+=======
+// Creates a sid for a well-known predefined alias, generally using the constants of the form
+>>>>>>> Revendored dependencies
 // Win*Sid, for the local machine.
 func CreateWellKnownSid(sidType WELL_KNOWN_SID_TYPE) (*SID, error) {
 	return CreateWellKnownDomainSid(sidType, nil)
 }
 
+<<<<<<< HEAD
 // Creates a SID for a well-known predefined alias, generally using the constants of the form
+=======
+// Creates a sid for a well-known predefined alias, generally using the constants of the form
+>>>>>>> Revendored dependencies
 // Win*Sid, for the domain specified by the domainSid parameter.
 func CreateWellKnownDomainSid(sidType WELL_KNOWN_SID_TYPE, domainSid *SID) (*SID, error) {
 	n := uint32(50)
@@ -763,6 +778,7 @@ func (t Token) GetUserProfileDirectory() (string, error) {
 	}
 }
 
+<<<<<<< HEAD
 // IsElevated returns whether the current token is elevated from a UAC perspective.
 func (token Token) IsElevated() bool {
 	var isElevated uint32
@@ -785,6 +801,8 @@ func (token Token) GetLinkedToken() (Token, error) {
 	return linkedToken, nil
 }
 
+=======
+>>>>>>> Revendored dependencies
 // GetSystemDirectory retrieves path to current location of the system
 // directory, which is typically, though not always, C:\Windows\System32.
 func GetSystemDirectory() (string, error) {

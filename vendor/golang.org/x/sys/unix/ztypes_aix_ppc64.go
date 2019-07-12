@@ -97,9 +97,15 @@ type Stat_t struct {
 	Gid      uint32
 	Rdev     uint64
 	Ssize    int32
+<<<<<<< HEAD
 	Atim     Timespec
 	Mtim     Timespec
 	Ctim     Timespec
+=======
+	Atim     StTimespec
+	Mtim     StTimespec
+	Ctim     StTimespec
+>>>>>>> Revendored dependencies
 	Blksize  int64
 	Blocks   int64
 	Vfstype  int32

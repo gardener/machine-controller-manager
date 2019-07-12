@@ -280,7 +280,10 @@ var (
 	procCopySid                            = modadvapi32.NewProc("CopySid")
 	procAllocateAndInitializeSid           = modadvapi32.NewProc("AllocateAndInitializeSid")
 	procCreateWellKnownSid                 = modadvapi32.NewProc("CreateWellKnownSid")
+<<<<<<< HEAD
 	procIsWellKnownSid                     = modadvapi32.NewProc("IsWellKnownSid")
+=======
+>>>>>>> Revendored dependencies
 	procFreeSid                            = modadvapi32.NewProc("FreeSid")
 	procEqualSid                           = modadvapi32.NewProc("EqualSid")
 	procGetSidIdentifierAuthority          = modadvapi32.NewProc("GetSidIdentifierAuthority")
@@ -301,9 +304,12 @@ var (
 	procDuplicateTokenEx                   = modadvapi32.NewProc("DuplicateTokenEx")
 	procGetUserProfileDirectoryW           = moduserenv.NewProc("GetUserProfileDirectoryW")
 	procGetSystemDirectoryW                = modkernel32.NewProc("GetSystemDirectoryW")
+<<<<<<< HEAD
 	procWTSQueryUserToken                  = modwtsapi32.NewProc("WTSQueryUserToken")
 	procWTSEnumerateSessionsW              = modwtsapi32.NewProc("WTSEnumerateSessionsW")
 	procWTSFreeMemory                      = modwtsapi32.NewProc("WTSFreeMemory")
+=======
+>>>>>>> Revendored dependencies
 )
 
 func RegisterEventSource(uncServerName *uint16, sourceName *uint16) (handle Handle, err error) {
@@ -3062,12 +3068,15 @@ func createWellKnownSid(sidType WELL_KNOWN_SID_TYPE, domainSid *SID, sid *SID, s
 	return
 }
 
+<<<<<<< HEAD
 func isWellKnownSid(sid *SID, sidType WELL_KNOWN_SID_TYPE) (isWellKnown bool) {
 	r0, _, _ := syscall.Syscall(procIsWellKnownSid.Addr(), 2, uintptr(unsafe.Pointer(sid)), uintptr(sidType), 0)
 	isWellKnown = r0 != 0
 	return
 }
 
+=======
+>>>>>>> Revendored dependencies
 func FreeSid(sid *SID) (err error) {
 	r1, _, e1 := syscall.Syscall(procFreeSid.Addr(), 1, uintptr(unsafe.Pointer(sid)), 0, 0)
 	if r1 != 0 {
@@ -3296,6 +3305,7 @@ func getSystemDirectory(dir *uint16, dirLen uint32) (len uint32, err error) {
 	}
 	return
 }
+<<<<<<< HEAD
 
 func WTSQueryUserToken(session uint32, token *Token) (err error) {
 	r1, _, e1 := syscall.Syscall(procWTSQueryUserToken.Addr(), 2, uintptr(session), uintptr(unsafe.Pointer(token)), 0)
@@ -3325,3 +3335,5 @@ func WTSFreeMemory(ptr uintptr) {
 	syscall.Syscall(procWTSFreeMemory.Addr(), 1, uintptr(ptr), 0, 0)
 	return
 }
+=======
+>>>>>>> Revendored dependencies
