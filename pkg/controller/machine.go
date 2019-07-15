@@ -539,7 +539,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMIC
 				true,
 				buf,
 				errBuf,
-				//driver,
+				driver,
 				c.pvcLister,
 				c.pvLister,
 			)

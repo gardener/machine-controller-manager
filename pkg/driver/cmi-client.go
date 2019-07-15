@@ -18,6 +18,7 @@ package driver
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net"
 	"strings"
@@ -225,19 +226,23 @@ func (c *CMIDriverClient) GetListOfVolumeIDsForExistingPVs(pvSpecs []*corev1.Per
 	}
 	defer closer.Close()
 
-	req := &cmipb.ListMachinesRequest{
-		Secrets:      c.Secret.Data,
-		ProviderSpec: c.MachineClass.ProviderSpec.Raw,
-	}
-	ctx := context.Background()
-
-	resp, err := machineClient.ListMachines(ctx, req)
+	pvSpecsMarshalled, err := json.Marshal(pvSpecs)
 	if err != nil {
 		return nil, err
 	}
 
-	glog.V(4).Info("ListMachine rpc was processed succesfully")
-	return resp.MachineList, err
+	req := &cmipb.GetListOfVolumeIDsForExistingPVsRequest{
+		PVSpecList: pvSpecsMarshalled,
+	}
+	ctx := context.Background()
+
+	resp, err := machineClient.GetListOfVolumeIDsForExistingPVs(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	glog.V(4).Info("GetListOfVolumeIDsForExistingPVs rpc was processed succesfully")
+	return resp.GetVolumeIDs(), nil
 }
 
 func newGrpcConn(driverName string) (*grpc.ClientConn, error) {

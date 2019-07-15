@@ -17,6 +17,10 @@ limitations under the License.
 // Package driver contains the cloud provider specific implementations to manage machines
 package driver
 
+import (
+	corev1 "k8s.io/api/core/v1"
+)
+
 // FakeCMIDriverClient is a fake driver returned when none of the actual drivers match
 type FakeCMIDriverClient struct {
 	MachineID string
@@ -66,4 +70,9 @@ func (c *FakeCMIDriverClient) ShutDownMachine(MachineID string) error {
 // GetMachineID returns the machineID
 func (c *FakeCMIDriverClient) GetMachineID() string {
 	return c.MachineID
+}
+
+// GetListOfVolumeIDsForExistingPVs returns a list of VolumeIDs for the PV spec list supplied
+func (c *FakeCMIDriverClient) GetListOfVolumeIDsForExistingPVs(pvSpecs []*corev1.PersistentVolumeSpec) ([]string, error) {
+	return []string{}, c.Err
 }
