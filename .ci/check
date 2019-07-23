@@ -16,6 +16,8 @@
 
 set -e
 
+export GO111MODULE=on
+
 # For the check step concourse will set the following environment variables:
 # SOURCE_PATH - path to component repository root directory.
 
@@ -33,25 +35,28 @@ fi
 
 cd "${SOURCE_PATH}"
 
-# Install Golint (linting tool).
-if ! which golint 1>/dev/null; then
-  echo -n "Installing golint... "
-  GO111MODULE=off go get -u golang.org/x/lint/golint
-  echo "done."
-fi
+# Build Golint.
+go install -mod=vendor ./vendor/golang.org/x/lint/golint
 
 ###############################################################################
 
-PACKAGES="$(go list -e ./... | grep -vE '/tmp/|/vendor/|/pkg/client|/pkg/apis|/pkg/openapi')"
-LINT_FOLDERS="$(echo ${PACKAGES} | sed "s|github.com/gardener/machine-controller-manager|.|g")"
+PACKAGES="$(go list -mod=vendor -e ./... | grep -vE '/pkg/client|/pkg/apis|/pkg/openapi')"
+PACKAGES_DIRS="$(echo ${PACKAGES} | sed "s|github.com/gardener/machine-controller-manager|.|g")"
 
 # Execute static code checks.
-go vet ${PACKAGES}
+echo "Running go vet..."
+go vet -mod=vendor ${PACKAGES}
+
+# go fmt ignores -mod=vendor and performs module lookup (https://github.com/golang/go/issues/27841).
+# Also go fmt is just alias for gofmt -l -w and does not support flags that gofmt does.
+# That is why gofmt is used.
 
 # Execute automatic code formatting directive.
-go fmt ${PACKAGES}
+echo "Running gofmt..."
+gofmt -s -l -w ${PACKAGES_DIRS}
 
 # Execute lint checks.
-for package in ${LINT_FOLDERS}; do
-  golint -set_exit_status $(find $package -maxdepth 1 -name "*.go" | grep -vE 'zz_generated|_test.go')
+echo "Running golint..."
+for dir in ${PACKAGES_DIRS}; do
+  golint -set_exit_status $(find $dir -maxdepth 1 -name "*.go" | grep -vE 'zz_generated|_test.go')
 done

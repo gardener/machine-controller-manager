@@ -183,7 +183,7 @@ var _ = Describe("deployment_rolling", func() {
 						1,
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{
-								corev1.Taint{
+								{
 									Key:    PreferNoScheduleKey,
 									Value:  "True",
 									Effect: "PreferNoSchedule",
