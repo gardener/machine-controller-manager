@@ -133,7 +133,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	}
 
 	port, err := ports.Update(nwClient, allPorts[0].ID, ports.UpdateOpts{
-		AllowedAddressPairs: &[]ports.AddressPair{ports.AddressPair{IPAddress: podNetworkCidr}},
+		AllowedAddressPairs: &[]ports.AddressPair{{IPAddress: podNetworkCidr}},
 	}).Extract()
 	if err != nil {
 		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()

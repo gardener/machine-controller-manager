@@ -269,7 +269,7 @@ var _ = Describe("#machine_safety", func() {
 					"machine": "test",
 				},
 				machineSetConditions: []v1alpha1.MachineSetCondition{
-					v1alpha1.MachineSetCondition{
+					{
 						Type:    v1alpha1.MachineSetFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -279,7 +279,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
-					v1alpha1.MachineDeploymentCondition{
+					{
 						Type:    v1alpha1.MachineDeploymentFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -294,7 +294,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineSetConditions: []v1alpha1.MachineSetCondition{
-					v1alpha1.MachineSetCondition{
+					{
 						Type:    v1alpha1.MachineSetFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -304,7 +304,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
-					v1alpha1.MachineDeploymentCondition{
+					{
 						Type:    v1alpha1.MachineDeploymentFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -325,7 +325,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineSetConditions: []v1alpha1.MachineSetCondition{
-					v1alpha1.MachineSetCondition{
+					{
 						Type:    v1alpha1.MachineSetFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -335,7 +335,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
-					v1alpha1.MachineDeploymentCondition{
+					{
 						Type:    v1alpha1.MachineDeploymentFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -348,7 +348,7 @@ var _ = Describe("#machine_safety", func() {
 					"machine": "test",
 				},
 				machineSetConditions: []v1alpha1.MachineSetCondition{
-					v1alpha1.MachineSetCondition{
+					{
 						Type:    v1alpha1.MachineSetFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -358,7 +358,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
-					v1alpha1.MachineDeploymentCondition{
+					{
 						Type:    v1alpha1.MachineDeploymentFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -370,7 +370,7 @@ var _ = Describe("#machine_safety", func() {
 			setup: setup{
 				machineReplicas: 3,
 				machineSetConditions: []v1alpha1.MachineSetCondition{
-					v1alpha1.MachineSetCondition{
+					{
 						Type:    v1alpha1.MachineSetFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -402,14 +402,14 @@ var _ = Describe("#machine_safety", func() {
 			setup: setup{
 				machineReplicas: 3,
 				machineSetConditions: []v1alpha1.MachineSetCondition{
-					v1alpha1.MachineSetCondition{
+					{
 						Type:    v1alpha1.MachineSetFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
 				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
-					v1alpha1.MachineDeploymentCondition{
+					{
 						Type:    v1alpha1.MachineDeploymentFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -452,7 +452,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineSetConditions: []v1alpha1.MachineSetCondition{
-					v1alpha1.MachineSetCondition{
+					{
 						Type:    v1alpha1.MachineSetFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -462,7 +462,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
-					v1alpha1.MachineDeploymentCondition{
+					{
 						Type:    v1alpha1.MachineDeploymentFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -478,7 +478,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
-					v1alpha1.MachineDeploymentCondition{
+					{
 						Type:    v1alpha1.MachineDeploymentFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -493,7 +493,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineSetConditions: []v1alpha1.MachineSetCondition{
-					v1alpha1.MachineSetCondition{
+					{
 						Type:    v1alpha1.MachineSetFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -506,7 +506,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
-					v1alpha1.MachineDeploymentCondition{
+					{
 						Type:    v1alpha1.MachineDeploymentFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -533,7 +533,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineSetConditions: []v1alpha1.MachineSetCondition{
-					v1alpha1.MachineSetCondition{
+					{
 						Type:    v1alpha1.MachineSetFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -546,7 +546,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
-					v1alpha1.MachineDeploymentCondition{
+					{
 						Type:    v1alpha1.MachineDeploymentFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -566,7 +566,7 @@ var _ = Describe("#machine_safety", func() {
 			setup: setup{
 				machineReplicas: 1,
 				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
-					v1alpha1.MachineDeploymentCondition{
+					{
 						Type:    v1alpha1.MachineDeploymentFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -601,14 +601,14 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineSetConditions: []v1alpha1.MachineSetCondition{
-					v1alpha1.MachineSetCondition{
+					{
 						Type:    v1alpha1.MachineSetFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
 				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
-					v1alpha1.MachineDeploymentCondition{
+					{
 						Type:    v1alpha1.MachineDeploymentFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -621,7 +621,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze":  "True",
 				},
 				machineSetConditions: []v1alpha1.MachineSetCondition{
-					v1alpha1.MachineSetCondition{
+					{
 						Type:    v1alpha1.MachineSetFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -631,7 +631,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
-					v1alpha1.MachineDeploymentCondition{
+					{
 						Type:    v1alpha1.MachineDeploymentFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -646,7 +646,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineSetConditions: []v1alpha1.MachineSetCondition{
-					v1alpha1.MachineSetCondition{
+					{
 						Type:    v1alpha1.MachineSetFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -659,7 +659,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze":  "True",
 				},
 				machineSetConditions: []v1alpha1.MachineSetCondition{
-					v1alpha1.MachineSetCondition{
+					{
 						Type:    v1alpha1.MachineSetFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
@@ -669,7 +669,7 @@ var _ = Describe("#machine_safety", func() {
 					"freeze": "True",
 				},
 				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
-					v1alpha1.MachineDeploymentCondition{
+					{
 						Type:    v1alpha1.MachineDeploymentFrozen,
 						Status:  v1alpha1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
