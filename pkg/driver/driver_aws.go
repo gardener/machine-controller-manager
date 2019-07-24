@@ -219,19 +219,19 @@ func (d *AWSDriver) GetVMs(machineID string) (VMs, error) {
 	svc := d.createSVC()
 	input := ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
-			&ec2.Filter{
+			{
 				Name: aws.String("tag-key"),
 				Values: []*string{
 					&clusterName,
 				},
 			},
-			&ec2.Filter{
+			{
 				Name: aws.String("tag-key"),
 				Values: []*string{
 					&nodeRole,
 				},
 			},
-			&ec2.Filter{
+			{
 				Name: aws.String("instance-state-name"),
 				Values: []*string{
 					aws.String("pending"),

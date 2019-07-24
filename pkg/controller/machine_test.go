@@ -370,7 +370,7 @@ var _ = Describe("machine", func() {
 			Entry("non-existing machine class", &data{
 				setup: setup{
 					aws: []*machinev1.AWSMachineClass{
-						&machinev1.AWSMachineClass{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 						},
 					},
@@ -386,12 +386,12 @@ var _ = Describe("machine", func() {
 			Entry("non-existing secret", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
-						&corev1.Secret{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 						},
 					},
 					aws: []*machinev1.AWSMachineClass{
-						&machinev1.AWSMachineClass{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							Spec: machinev1.AWSMachineClassSpec{
 								SecretRef: newSecretReference(objMeta, 0),
@@ -416,12 +416,12 @@ var _ = Describe("machine", func() {
 			Entry("valid", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
-						&corev1.Secret{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 						},
 					},
 					aws: []*machinev1.AWSMachineClass{
-						&machinev1.AWSMachineClass{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							Spec: machinev1.AWSMachineClassSpec{
 								SecretRef: newSecretReference(objMeta, 0),
@@ -527,12 +527,12 @@ var _ = Describe("machine", func() {
 			Entry("OpenStackSimple", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
-						&corev1.Secret{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 						},
 					},
 					openstack: []*machinev1.OpenStackMachineClass{
-						&machinev1.OpenStackMachineClass{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							Spec: machinev1.OpenStackMachineClassSpec{
 								SecretRef: newSecretReference(objMeta, 0),
@@ -578,12 +578,12 @@ var _ = Describe("machine", func() {
 			Entry("AWSSimple", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
-						&corev1.Secret{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 						},
 					},
 					aws: []*machinev1.AWSMachineClass{
-						&machinev1.AWSMachineClass{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							Spec: machinev1.AWSMachineClassSpec{
 								SecretRef: newSecretReference(objMeta, 0),
@@ -742,12 +742,12 @@ var _ = Describe("machine", func() {
 			Entry("Machine deletion", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
-						&corev1.Secret{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 						},
 					},
 					aws: []*machinev1.AWSMachineClass{
-						&machinev1.AWSMachineClass{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							Spec: machinev1.AWSMachineClassSpec{
 								SecretRef: newSecretReference(objMeta, 0),
@@ -778,12 +778,12 @@ var _ = Describe("machine", func() {
 			Entry("Machine deletion when drain fails", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
-						&corev1.Secret{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 						},
 					},
 					aws: []*machinev1.AWSMachineClass{
-						&machinev1.AWSMachineClass{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							Spec: machinev1.AWSMachineClassSpec{
 								SecretRef: newSecretReference(objMeta, 0),
@@ -819,12 +819,12 @@ var _ = Describe("machine", func() {
 			Entry("Machine force deletion", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
-						&corev1.Secret{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 						},
 					},
 					aws: []*machinev1.AWSMachineClass{
-						&machinev1.AWSMachineClass{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							Spec: machinev1.AWSMachineClassSpec{
 								SecretRef: newSecretReference(objMeta, 0),
@@ -856,12 +856,12 @@ var _ = Describe("machine", func() {
 			Entry("Machine force deletion when drain call fails (APIServer call fails)", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
-						&corev1.Secret{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 						},
 					},
 					aws: []*machinev1.AWSMachineClass{
-						&machinev1.AWSMachineClass{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							Spec: machinev1.AWSMachineClassSpec{
 								SecretRef: newSecretReference(objMeta, 0),
@@ -1242,7 +1242,7 @@ var _ = Describe("machine", func() {
 							LastUpdateTime: metav1.Now(),
 						},
 						Conditions: []corev1.NodeCondition{
-							corev1.NodeCondition{
+							{
 								Message: "kubelet is posting ready status",
 								Reason:  "KubeletReady",
 								Status:  "True",
@@ -1274,7 +1274,7 @@ var _ = Describe("machine", func() {
 							LastUpdateTime: metav1.Now(),
 						},
 						Conditions: []corev1.NodeCondition{
-							corev1.NodeCondition{
+							{
 								Message: "kubelet is posting ready status",
 								Reason:  "KubeletReady",
 								Status:  "True",
@@ -1302,7 +1302,7 @@ var _ = Describe("machine", func() {
 							LastUpdateTime: metav1.Now(),
 						},
 						Conditions: []corev1.NodeCondition{
-							corev1.NodeCondition{
+							{
 								Message: "kubelet is not ready",
 								Reason:  "KubeletReady",
 								Status:  "False",
@@ -1311,11 +1311,11 @@ var _ = Describe("machine", func() {
 						},
 					}, nil, nil, nil),
 					nodes: []*corev1.Node{
-						&corev1.Node{
+						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							Status: corev1.NodeStatus{
 								Conditions: []corev1.NodeCondition{
-									corev1.NodeCondition{
+									{
 										Message: "kubelet is posting ready status",
 										Reason:  "KubeletReady",
 										Status:  "True",
@@ -1346,7 +1346,7 @@ var _ = Describe("machine", func() {
 							LastUpdateTime: metav1.Now(),
 						},
 						Conditions: []corev1.NodeCondition{
-							corev1.NodeCondition{
+							{
 								Message: "kubelet is posting ready status",
 								Reason:  "KubeletReady",
 								Status:  "True",
@@ -1364,7 +1364,7 @@ var _ = Describe("machine", func() {
 						Node: "node",
 					}, nil, nil, nil),
 					nodes: []*corev1.Node{
-						&corev1.Node{
+						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "node-0",
 							},
