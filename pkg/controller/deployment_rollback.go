@@ -192,14 +192,16 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 	retryDeadline := time.Now().Add(maxRetryDeadline)
 	for {
 		machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
-		if err != nil && time.Now().Before(retryDeadline) {
-			glog.Warningf("Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
-			time.Sleep(conflictRetryInterval)
-			continue
-		} else if err != nil {
-			// Timeout occurred
-			glog.Errorf("Timeout occurred: Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
-			return err
+		if err != nil {
+			if time.Now().Before(retryDeadline) {
+				glog.Warningf("Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
+				time.Sleep(conflictRetryInterval)
+				continue
+			} else {
+				// Timeout occurred
+				glog.Errorf("Timeout occurred: Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
+				return err
+			}
 		}
 
 		msCopy := machineSet.DeepCopy()
@@ -207,14 +209,16 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 
 		machineSet, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(msCopy)
 
-		if err != nil && time.Now().Before(retryDeadline) {
-			glog.Warningf("Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
-			time.Sleep(conflictRetryInterval)
-			continue
-		} else if err != nil {
-			// Timeout occurred
-			glog.Errorf("Timeout occurred: Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
-			return err
+		if err != nil {
+			if time.Now().Before(retryDeadline) {
+				glog.Warningf("Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
+				time.Sleep(conflictRetryInterval)
+				continue
+			} else {
+				// Timeout occurred
+				glog.Errorf("Timeout occurred: Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
+				return err
+			}
 		}
 
 		// Break out of loop when update succeeds
