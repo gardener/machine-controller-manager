@@ -52,19 +52,18 @@ type DrainOptions struct {
 	Force              bool
 	GracePeriodSeconds int
 	IgnoreDaemonsets   bool
-	// Timeout has been deprecated and has no effect.
-	Timeout         time.Duration
-	MaxEvictRetries int32
-	PvDetachTimeout time.Duration
-	DeleteLocalData bool
-	nodeName        string
-	Out             io.Writer
-	ErrOut          io.Writer
-	Driver          driver.Driver
-	pvcLister       corelisters.PersistentVolumeClaimLister
-	pvLister        corelisters.PersistentVolumeLister
-	drainStartedOn  time.Time
-	drainEndedOn    time.Time
+	Timeout            time.Duration
+	MaxEvictRetries    int32
+	PvDetachTimeout    time.Duration
+	DeleteLocalData    bool
+	nodeName           string
+	Out                io.Writer
+	ErrOut             io.Writer
+	Driver             driver.Driver
+	pvcLister          corelisters.PersistentVolumeClaimLister
+	pvLister           corelisters.PersistentVolumeLister
+	drainStartedOn     time.Time
+	drainEndedOn       time.Time
 }
 
 // Takes a pod and returns a bool indicating whether or not to operate on the
