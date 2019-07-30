@@ -176,11 +176,15 @@ var _ = Describe("drain", func() {
 							remainingVolumesAttached = append(remainingVolumesAttached, *va)
 							continue
 						}
+
+						found := false
 						for _, pv := range pvs {
 							if va.Name == corev1.UniqueVolumeName(getDrainTestVolumeName(&pv.Spec)) {
-								//skip volumes from the pod
-								continue
+								found = true
+								break
 							}
+						}
+						if !found {
 							remainingVolumesAttached = append(remainingVolumesAttached, *va)
 						}
 					}
@@ -502,7 +506,7 @@ var _ = Describe("drain", func() {
 				nEvictions:       2,
 				minDrainDuration: 0,
 			}),
-		XEntry("Successful drain without support for eviction of pods with exclusive and shared volumes",
+		Entry("Successful drain without support for eviction of pods with exclusive and shared volumes",
 			&setup{
 				stats: stats{
 					nPodsWithoutPV:                0,
@@ -522,14 +526,14 @@ var _ = Describe("drain", func() {
 					nPodsWithExclusiveAndSharedPV: 0,
 				},
 				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
-				timeout:      terminationGracePeriodLong,
+				timeout:      terminationGracePeriodDefault,
 				drainTimeout: false,
 				drainError:   nil,
 				nEvictions:   0,
 				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
-				minDrainDuration: terminationGracePeriodDefault,
+				minDrainDuration: terminationGracePeriodMedium,
 			}),
-		XEntry("Successful drain with support for eviction of pods with exclusive and shared volumes",
+		Entry("Successful drain with support for eviction of pods with exclusive and shared volumes",
 			&setup{
 				stats: stats{
 					nPodsWithoutPV:                0,
@@ -549,12 +553,12 @@ var _ = Describe("drain", func() {
 					nPodsWithExclusiveAndSharedPV: 0,
 				},
 				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
-				timeout:      terminationGracePeriodLong,
+				timeout:      terminationGracePeriodDefault,
 				drainTimeout: false,
 				drainError:   nil,
 				nEvictions:   2,
 				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
-				minDrainDuration: terminationGracePeriodDefault,
+				minDrainDuration: terminationGracePeriodMedium,
 			}),
 		Entry("Successful drain without support for eviction of pods with and without volume",
 			&setup{
