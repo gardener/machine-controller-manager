@@ -580,12 +580,12 @@ var _ = Describe("drain", func() {
 					nPodsWithExclusiveAndSharedPV: 0,
 				},
 				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
-				timeout:      terminationGracePeriodMedium,
+				timeout:      terminationGracePeriodDefault,
 				drainTimeout: false,
 				drainError:   nil,
 				nEvictions:   0,
 				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
-				minDrainDuration: terminationGracePeriodShort,
+				minDrainDuration: terminationGracePeriodMedium,
 			}),
 		Entry("Successful drain with support for eviction of pods with and without volume",
 			&setup{
@@ -607,12 +607,12 @@ var _ = Describe("drain", func() {
 					nPodsWithExclusiveAndSharedPV: 0,
 				},
 				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
-				timeout:      terminationGracePeriodMedium,
+				timeout:      terminationGracePeriodDefault,
 				drainTimeout: false,
 				drainError:   nil,
 				nEvictions:   12,
 				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
-				minDrainDuration: terminationGracePeriodShort,
+				minDrainDuration: terminationGracePeriodMedium,
 			}))
 })
 
