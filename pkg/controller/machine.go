@@ -109,10 +109,10 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 }
 
 func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
-	glog.V(3).Info("Start Reconciling machine: ", machine.Name)
+	glog.V(4).Info("Start Reconciling machine: ", machine.Name)
 	defer func() {
 		c.enqueueMachineAfter(machine, 10*time.Minute)
-		glog.V(3).Info("Stop Reconciling machine: ", machine.Name)
+		glog.V(4).Info("Stop Reconciling machine: ", machine.Name)
 	}()
 
 	if c.safetyOptions.MachineControllerFrozen && machine.DeletionTimestamp == nil {
@@ -222,7 +222,7 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 		return
 	}
 
-	glog.V(3).Infof("Add machine object backing node %q", machine.Name)
+	glog.V(4).Infof("Add machine object backing node %q", machine.Name)
 	c.enqueueMachine(machine)
 }
 
@@ -506,7 +506,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			nodeName := machine.Status.Node
 			drainOptions := NewDrainOptions(
 				c.targetCoreClient,
-				timeOutDuration, // TODO: Need to remove this
+				timeOutDuration,
 				maxEvictRetries,
 				pvDetachTimeOut,
 				nodeName,
