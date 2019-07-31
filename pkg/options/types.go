@@ -94,9 +94,12 @@ type SafetyOptions struct {
 	// Timeout (in durartion) used while health-check of
 	// a machine before it is declared as failed
 	MachineHealthTimeout metav1.Duration
-	// Timeout (in durartion) used while draining of machine before deletion,
+	// Deprecated. No effect. Timeout (in durartion) used while draining of machine before deletion,
 	// beyond which it forcefully deletes machine
 	MachineDrainTimeout metav1.Duration
+	// Maximum number of times evicts would be attempted on a pod for it is forcibly deleted
+	// during draining of a machine.
+	MaxEvictRetries int32
 	// Timeout (in duration) used while waiting for PV to detach
 	PvDetachTimeout metav1.Duration
 	// Timeout (in duration) for which the APIServer can be down before
