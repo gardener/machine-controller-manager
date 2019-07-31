@@ -29,6 +29,7 @@ import (
 	. "github.com/onsi/gomega"
 	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -56,6 +57,9 @@ var _ = Describe("drain", func() {
 		stats
 		attemptEviction        bool
 		terminationGracePeriod time.Duration
+		force                  bool
+		evictError             error
+		deleteError            error
 	}
 
 	type expectation struct {
@@ -112,7 +116,7 @@ var _ = Describe("drain", func() {
 			DeleteLocalData:    true,
 			Driver:             &drainDriver{},
 			ErrOut:             GinkgoWriter,
-			Force:              false,
+			Force:              setup.force,
 			GracePeriodSeconds: 30,
 			IgnoreDaemonsets:   true,
 			MaxEvictRetries:    3,
@@ -225,6 +229,10 @@ var _ = Describe("drain", func() {
 
 			// Fake eviction
 			fakeTargetCoreClient.PrependReactor("post", "pods", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+				if setup.evictError != nil {
+					return true, nil, setup.evictError
+				}
+
 				start := time.Now()
 				switch ga := action.(type) {
 				case k8stesting.GetAction:
@@ -257,6 +265,10 @@ var _ = Describe("drain", func() {
 			// Work-around: Use a non-handling reactor in place of watch (because watch is not working).
 			fakeTargetCoreClient := c.targetCoreClient.(*fakeclient.Clientset)
 			fakeTargetCoreClient.PrependReactor("delete", "pods", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+				if setup.deleteError != nil {
+					return true, nil, setup.deleteError
+				}
+
 				start := time.Now()
 				switch ga := action.(type) {
 				case k8stesting.DeleteAction:
@@ -613,6 +625,85 @@ var _ = Describe("drain", func() {
 				nEvictions:   12,
 				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
 				minDrainDuration: terminationGracePeriodMedium,
+			}),
+		Entry("Successful forced drain without support for eviction of pods with and without volume",
+			&setup{
+				stats: stats{
+					nPodsWithoutPV:                10,
+					nPodsWithOnlyExclusivePV:      2,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+				},
+				attemptEviction:        false,
+				terminationGracePeriod: terminationGracePeriodShort,
+				force:                  true,
+			},
+			nil,
+			&expectation{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      0,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+				},
+				timeout:          terminationGracePeriodShort,
+				drainTimeout:     false,
+				drainError:       nil,
+				nEvictions:       0,
+				minDrainDuration: 0,
+			}),
+		Entry("Successful forced drain with support for eviction of pods with and without volume",
+			&setup{
+				stats: stats{
+					nPodsWithoutPV:                10,
+					nPodsWithOnlyExclusivePV:      2,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+				},
+				attemptEviction:        true,
+				terminationGracePeriod: terminationGracePeriodShort,
+				force:                  true,
+			},
+			[]podDrainHandler{deletePod},
+			&expectation{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      0,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+				},
+				timeout:          terminationGracePeriodShort,
+				drainTimeout:     false,
+				drainError:       nil,
+				nEvictions:       12,
+				minDrainDuration: 0,
+			}),
+		XEntry("Success forced drain with support for eviction of pods with and without volume when eviction fails",
+			&setup{
+				stats: stats{
+					nPodsWithoutPV:                10,
+					nPodsWithOnlyExclusivePV:      2,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+				},
+				attemptEviction:        true,
+				terminationGracePeriod: terminationGracePeriodShort,
+				force:                  true,
+				evictError:             apierrors.NewTooManyRequestsError(""),
+			},
+			nil,
+			&expectation{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      0,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+				},
+				timeout:          terminationGracePeriodMedium,
+				drainTimeout:     false,
+				drainError:       nil,
+				nEvictions:       0,
+				minDrainDuration: 0,
 			}))
 })
 

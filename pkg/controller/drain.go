@@ -402,12 +402,24 @@ func (o *DrainOptions) getGlobalTimeoutForPodsWithoutPV(pods []*api.Pod) time.Du
 func (o *DrainOptions) evictPods(attemptEvict bool, pods []api.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error)) error {
 	returnCh := make(chan error, len(pods))
 
-	podsWithPv, podsWithoutPv := filterPodsWithPv(pods)
+	if o.Force {
+		podsToDrain := make([]*api.Pod, len(pods))
+		for i := range pods {
+			podsToDrain[i] = &pods[i]
+		}
 
-	glog.V(3).Info("Evicting pods on the node: ", o.nodeName)
+		glog.V(3).Info("Force evicting pods on the node: ", o.nodeName)
 
-	go o.evictPodsWithPv(attemptEvict, podsWithPv, policyGroupVersion, getPodFn, returnCh)
-	go o.evictPodsWithoutPv(attemptEvict, podsWithoutPv, policyGroupVersion, getPodFn, returnCh)
+		// evict all pods in parallel without waiting for pods or volume detachment
+		go o.evictPodsWithoutPv(attemptEvict, podsToDrain, policyGroupVersion, getPodFn, returnCh)
+	} else {
+		podsWithPv, podsWithoutPv := filterPodsWithPv(pods)
+
+		glog.V(3).Info("Evicting pods on the node: ", o.nodeName)
+
+		go o.evictPodsWithPv(attemptEvict, podsWithPv, policyGroupVersion, getPodFn, returnCh)
+		go o.evictPodsWithoutPv(attemptEvict, podsWithoutPv, policyGroupVersion, getPodFn, returnCh)
+	}
 
 	doneCount := 0
 	var errors []error
@@ -780,6 +792,16 @@ func (o *DrainOptions) evictPodWithoutPVInternal(attemptEvict bool, pod *corev1.
 			returnCh <- fmt.Errorf("error when evicting pod %q: %v", pod.Name, err)
 			return
 		}
+	}
+
+	if o.Force {
+		// Skip waiting for pod termination in case of forced drain
+		if err == nil {
+			returnCh <- nil
+		} else {
+			returnCh <- err
+		}
+		return
 	}
 
 	podArray := []*api.Pod{pod}
