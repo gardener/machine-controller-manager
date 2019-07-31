@@ -461,6 +461,8 @@ func createController(
 	defer coreTargetInformerFactory.Start(stop)
 	coreTargetSharedInformers := coreTargetInformerFactory.Core().V1()
 	nodes := coreTargetSharedInformers.Nodes()
+	pvcs := coreTargetSharedInformers.PersistentVolumeClaims()
+	pvs := coreTargetSharedInformers.PersistentVolumes()
 
 	controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
 		fakeControlMachineClient,
@@ -508,6 +510,8 @@ func createController(
 		controlMachineClient:           fakeTypedMachineClient,
 		internalExternalScheme:         internalExternalScheme,
 		nodeLister:                     nodes.Lister(),
+		pvcLister:                      pvcs.Lister(),
+		pvLister:                       pvs.Lister(),
 		machineLister:                  machines.Lister(),
 		machineSetLister:               machineSets.Lister(),
 		machineDeploymentLister:        machineDeployments.Lister(),
