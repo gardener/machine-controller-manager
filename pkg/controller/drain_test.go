@@ -56,6 +56,7 @@ var _ = Describe("drain", func() {
 	type setup struct {
 		stats
 		attemptEviction        bool
+		maxEvictRetries        int32
 		terminationGracePeriod time.Duration
 		force                  bool
 		evictError             error
@@ -112,6 +113,10 @@ var _ = Describe("drain", func() {
 
 		Expect(cache.WaitForCacheSync(stop, c.machineSetSynced, c.machineDeploymentSynced)).To(BeTrue())
 
+		maxEvictRetries := setup.maxEvictRetries
+		if maxEvictRetries <= 0 {
+			maxEvictRetries = 3
+		}
 		d := &DrainOptions{
 			DeleteLocalData:    true,
 			Driver:             &drainDriver{},
@@ -119,7 +124,7 @@ var _ = Describe("drain", func() {
 			Force:              setup.force,
 			GracePeriodSeconds: 30,
 			IgnoreDaemonsets:   true,
-			MaxEvictRetries:    3,
+			MaxEvictRetries:    maxEvictRetries,
 			Out:                GinkgoWriter,
 			PvDetachTimeout:    3 * time.Minute,
 			Timeout:            time.Minute,
@@ -678,7 +683,7 @@ var _ = Describe("drain", func() {
 				nEvictions:       12,
 				minDrainDuration: 0,
 			}),
-		XEntry("Success forced drain with support for eviction of pods with and without volume when eviction fails",
+		Entry("Successful forced drain with support for eviction of pods with and without volume when eviction fails",
 			&setup{
 				stats: stats{
 					nPodsWithoutPV:                10,
@@ -686,6 +691,7 @@ var _ = Describe("drain", func() {
 					nPodsWithOnlySharedPV:         0,
 					nPodsWithExclusiveAndSharedPV: 0,
 				},
+				maxEvictRetries:        1,
 				attemptEviction:        true,
 				terminationGracePeriod: terminationGracePeriodShort,
 				force:                  true,
