@@ -427,9 +427,9 @@ func (dc *controller) getMachineMapForMachineDeployment(d *v1alpha1.MachineDeplo
 // This function is not meant to be invoked concurrently with the same key.
 func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	startTime := time.Now()
-	glog.V(3).Infof("Started syncing deployment %q (%v)", key, startTime)
+	glog.V(4).Infof("Started syncing machine deployment %q (%v)", key, startTime)
 	defer func() {
-		glog.V(3).Infof("Finished syncing deployment %q (%v)", key, time.Since(startTime))
+		glog.V(4).Infof("Finished syncing machine deployment %q (%v)", key, time.Since(startTime))
 	}()
 
 	_, name, err := cache.SplitMetaNamespaceKey(key)
