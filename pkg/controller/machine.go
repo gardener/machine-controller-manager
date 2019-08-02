@@ -488,13 +488,13 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			timeOutDuration := c.safetyOptions.MachineDrainTimeout.Duration
 			// Timeout value obtained by subtracting last operation with expected time out period
 			timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
-			force := false
+			forceDeletePods := false
 
 			// To perform forceful drain either one of the below conditions must be satified
 			// 1. force-deletion: "True" label must be present
 			// 2. Deletion operation is more than drain-timeout minutes old
 			if machine.Labels["force-deletion"] == "True" || timeOut > 0 {
-				force = true
+				forceDeletePods = true
 				timeOutDuration = 30 * time.Second
 				maxEvictRetries = 1
 				glog.V(2).Infof("Force deletion has been triggerred for machine %q", machine.Name)
@@ -511,7 +511,8 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				pvDetachTimeOut,
 				nodeName,
 				-1,
-				force,
+				forceDeletePods,
+				true,
 				true,
 				true,
 				buf,
