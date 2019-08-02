@@ -48,22 +48,23 @@ import (
 
 // DrainOptions are configurable options while draining a node before deletion
 type DrainOptions struct {
-	client             kubernetes.Interface
-	Force              bool
-	GracePeriodSeconds int
-	IgnoreDaemonsets   bool
-	Timeout            time.Duration
-	MaxEvictRetries    int32
-	PvDetachTimeout    time.Duration
-	DeleteLocalData    bool
-	nodeName           string
-	Out                io.Writer
-	ErrOut             io.Writer
-	Driver             driver.Driver
-	pvcLister          corelisters.PersistentVolumeClaimLister
-	pvLister           corelisters.PersistentVolumeLister
-	drainStartedOn     time.Time
-	drainEndedOn       time.Time
+	client                       kubernetes.Interface
+	ForceDeletePods              bool
+	IgnorePodsWithoutControllers bool
+	GracePeriodSeconds           int
+	IgnoreDaemonsets             bool
+	Timeout                      time.Duration
+	MaxEvictRetries              int32
+	PvDetachTimeout              time.Duration
+	DeleteLocalData              bool
+	nodeName                     string
+	Out                          io.Writer
+	ErrOut                       io.Writer
+	Driver                       driver.Driver
+	pvcLister                    corelisters.PersistentVolumeClaimLister
+	pvLister                     corelisters.PersistentVolumeLister
+	drainStartedOn               time.Time
+	drainEndedOn                 time.Time
 }
 
 // Takes a pod and returns a bool indicating whether or not to operate on the
@@ -120,7 +121,8 @@ func NewDrainOptions(
 	pvDetachTimeout time.Duration,
 	nodeName string,
 	gracePeriodSeconds int,
-	force bool,
+	forceDeletePods bool,
+	ignorePodsWithoutControllers bool,
 	ignoreDaemonsets bool,
 	deleteLocalData bool,
 	out io.Writer,
@@ -131,20 +133,21 @@ func NewDrainOptions(
 ) *DrainOptions {
 
 	return &DrainOptions{
-		client:             client,
-		Force:              force,
-		GracePeriodSeconds: gracePeriodSeconds,
-		IgnoreDaemonsets:   ignoreDaemonsets,
-		MaxEvictRetries:    maxEvictRetries,
-		Timeout:            timeout,
-		PvDetachTimeout:    pvDetachTimeout,
-		DeleteLocalData:    deleteLocalData,
-		nodeName:           nodeName,
-		Out:                out,
-		ErrOut:             errOut,
-		Driver:             driver,
-		pvcLister:          pvcLister,
-		pvLister:           pvLister,
+		client:                       client,
+		ForceDeletePods:              forceDeletePods,
+		IgnorePodsWithoutControllers: ignorePodsWithoutControllers,
+		GracePeriodSeconds:           gracePeriodSeconds,
+		IgnoreDaemonsets:             ignoreDaemonsets,
+		MaxEvictRetries:              maxEvictRetries,
+		Timeout:                      timeout,
+		PvDetachTimeout:              pvDetachTimeout,
+		DeleteLocalData:              deleteLocalData,
+		nodeName:                     nodeName,
+		Out:                          out,
+		ErrOut:                       errOut,
+		Driver:                       driver,
+		pvcLister:                    pvcLister,
+		pvLister:                     pvLister,
 	}
 
 }
@@ -200,7 +203,7 @@ func (o *DrainOptions) unreplicatedFilter(pod api.Pod) (bool, *warning, *fatal) 
 	if controllerRef != nil {
 		return true, nil, nil
 	}
-	if !o.Force {
+	if !o.IgnorePodsWithoutControllers {
 		return false, nil, &fatal{unmanagedFatal}
 	}
 	return true, &warning{unmanagedWarning}, nil
@@ -402,7 +405,7 @@ func (o *DrainOptions) getGlobalTimeoutForPodsWithoutPV(pods []*api.Pod) time.Du
 func (o *DrainOptions) evictPods(attemptEvict bool, pods []api.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error)) error {
 	returnCh := make(chan error, len(pods))
 
-	if o.Force {
+	if o.ForceDeletePods {
 		podsToDrain := make([]*api.Pod, len(pods))
 		for i := range pods {
 			podsToDrain[i] = &pods[i]
@@ -794,7 +797,7 @@ func (o *DrainOptions) evictPodWithoutPVInternal(attemptEvict bool, pod *corev1.
 		}
 	}
 
-	if o.Force {
+	if o.ForceDeletePods {
 		// Skip waiting for pod termination in case of forced drain
 		if err == nil {
 			returnCh <- nil

@@ -118,20 +118,21 @@ var _ = Describe("drain", func() {
 			maxEvictRetries = 3
 		}
 		d := &DrainOptions{
-			DeleteLocalData:    true,
-			Driver:             &drainDriver{},
-			ErrOut:             GinkgoWriter,
-			Force:              setup.force,
-			GracePeriodSeconds: 30,
-			IgnoreDaemonsets:   true,
-			MaxEvictRetries:    maxEvictRetries,
-			Out:                GinkgoWriter,
-			PvDetachTimeout:    3 * time.Minute,
-			Timeout:            time.Minute,
-			client:             c.targetCoreClient,
-			nodeName:           testNodeName,
-			pvcLister:          c.pvcLister,
-			pvLister:           c.pvLister,
+			DeleteLocalData:              true,
+			Driver:                       &drainDriver{},
+			ErrOut:                       GinkgoWriter,
+			ForceDeletePods:              setup.force,
+			IgnorePodsWithoutControllers: true,
+			GracePeriodSeconds:           30,
+			IgnoreDaemonsets:             true,
+			MaxEvictRetries:              maxEvictRetries,
+			Out:                          GinkgoWriter,
+			PvDetachTimeout:              3 * time.Minute,
+			Timeout:                      time.Minute,
+			client:                       c.targetCoreClient,
+			nodeName:                     testNodeName,
+			pvcLister:                    c.pvcLister,
+			pvLister:                     c.pvLister,
 		}
 
 		// Get the pod directly from the ObjectTracker to avoid locking issues in the Fake object.
