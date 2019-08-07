@@ -22,7 +22,7 @@ package v1alpha1
 
 import (
 	v1 "k8s.io/api/core/v1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -161,12 +161,8 @@ func (in *AWSMachineClassSpec) DeepCopyInto(out *AWSMachineClassSpec) {
 	}
 	if in.SecretRef != nil {
 		in, out := &in.SecretRef, &out.SecretRef
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(v1.SecretReference)
-			**out = **in
-		}
+		*out = new(v1.SecretReference)
+		**out = **in
 	}
 	return
 }
@@ -267,30 +263,18 @@ func (in *AlicloudMachineClassSpec) DeepCopyInto(out *AlicloudMachineClassSpec) 
 	*out = *in
 	if in.SystemDisk != nil {
 		in, out := &in.SystemDisk, &out.SystemDisk
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(AlicloudSystemDisk)
-			**out = **in
-		}
+		*out = new(AlicloudSystemDisk)
+		**out = **in
 	}
 	if in.InternetMaxBandwidthIn != nil {
 		in, out := &in.InternetMaxBandwidthIn, &out.InternetMaxBandwidthIn
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(int)
-			**out = **in
-		}
+		*out = new(int)
+		**out = **in
 	}
 	if in.InternetMaxBandwidthOut != nil {
 		in, out := &in.InternetMaxBandwidthOut, &out.InternetMaxBandwidthOut
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(int)
-			**out = **in
-		}
+		*out = new(int)
+		**out = **in
 	}
 	if in.Tags != nil {
 		in, out := &in.Tags, &out.Tags
@@ -301,12 +285,8 @@ func (in *AlicloudMachineClassSpec) DeepCopyInto(out *AlicloudMachineClassSpec) 
 	}
 	if in.SecretRef != nil {
 		in, out := &in.SecretRef, &out.SecretRef
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(v1.SecretReference)
-			**out = **in
-		}
+		*out = new(v1.SecretReference)
+		**out = **in
 	}
 	return
 }
@@ -460,12 +440,8 @@ func (in *AzureMachineClassSpec) DeepCopyInto(out *AzureMachineClassSpec) {
 	out.SubnetInfo = in.SubnetInfo
 	if in.SecretRef != nil {
 		in, out := &in.SecretRef, &out.SecretRef
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(v1.SecretReference)
-			**out = **in
-		}
+		*out = new(v1.SecretReference)
+		**out = **in
 	}
 	return
 }
@@ -501,12 +477,8 @@ func (in *AzureNetworkInterfaceReference) DeepCopyInto(out *AzureNetworkInterfac
 	*out = *in
 	if in.AzureNetworkInterfaceReferenceProperties != nil {
 		in, out := &in.AzureNetworkInterfaceReferenceProperties, &out.AzureNetworkInterfaceReferenceProperties
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(AzureNetworkInterfaceReferenceProperties)
-			**out = **in
-		}
+		*out = new(AzureNetworkInterfaceReferenceProperties)
+		**out = **in
 	}
 	return
 }
@@ -813,22 +785,17 @@ func (in *GCPMachineClassSpec) DeepCopyInto(out *GCPMachineClassSpec) {
 	*out = *in
 	if in.Description != nil {
 		in, out := &in.Description, &out.Description
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(string)
-			**out = **in
-		}
+		*out = new(string)
+		**out = **in
 	}
 	if in.Disks != nil {
 		in, out := &in.Disks, &out.Disks
 		*out = make([]*GCPDisk, len(*in))
 		for i := range *in {
-			if (*in)[i] == nil {
-				(*out)[i] = nil
-			} else {
-				(*out)[i] = new(GCPDisk)
-				(*in)[i].DeepCopyInto((*out)[i])
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(GCPDisk)
+				(*in).DeepCopyInto(*out)
 			}
 		}
 	}
@@ -843,11 +810,10 @@ func (in *GCPMachineClassSpec) DeepCopyInto(out *GCPMachineClassSpec) {
 		in, out := &in.Metadata, &out.Metadata
 		*out = make([]*GCPMetadata, len(*in))
 		for i := range *in {
-			if (*in)[i] == nil {
-				(*out)[i] = nil
-			} else {
-				(*out)[i] = new(GCPMetadata)
-				(*in)[i].DeepCopyInto((*out)[i])
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(GCPMetadata)
+				(*in).DeepCopyInto(*out)
 			}
 		}
 	}
@@ -855,23 +821,18 @@ func (in *GCPMachineClassSpec) DeepCopyInto(out *GCPMachineClassSpec) {
 		in, out := &in.NetworkInterfaces, &out.NetworkInterfaces
 		*out = make([]*GCPNetworkInterface, len(*in))
 		for i := range *in {
-			if (*in)[i] == nil {
-				(*out)[i] = nil
-			} else {
-				(*out)[i] = new(GCPNetworkInterface)
-				(*in)[i].DeepCopyInto((*out)[i])
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(GCPNetworkInterface)
+				**out = **in
 			}
 		}
 	}
 	out.Scheduling = in.Scheduling
 	if in.SecretRef != nil {
 		in, out := &in.SecretRef, &out.SecretRef
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(v1.SecretReference)
-			**out = **in
-		}
+		*out = new(v1.SecretReference)
+		**out = **in
 	}
 	if in.ServiceAccounts != nil {
 		in, out := &in.ServiceAccounts, &out.ServiceAccounts
@@ -903,12 +864,8 @@ func (in *GCPMetadata) DeepCopyInto(out *GCPMetadata) {
 	*out = *in
 	if in.Value != nil {
 		in, out := &in.Value, &out.Value
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(string)
-			**out = **in
-		}
+		*out = new(string)
+		**out = **in
 	}
 	return
 }
@@ -1138,41 +1095,25 @@ func (in *MachineDeploymentSpec) DeepCopyInto(out *MachineDeploymentSpec) {
 	*out = *in
 	if in.Selector != nil {
 		in, out := &in.Selector, &out.Selector
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(meta_v1.LabelSelector)
-			(*in).DeepCopyInto(*out)
-		}
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
 	}
 	in.Template.DeepCopyInto(&out.Template)
 	in.Strategy.DeepCopyInto(&out.Strategy)
 	if in.RevisionHistoryLimit != nil {
 		in, out := &in.RevisionHistoryLimit, &out.RevisionHistoryLimit
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(int32)
-			**out = **in
-		}
+		*out = new(int32)
+		**out = **in
 	}
 	if in.RollbackTo != nil {
 		in, out := &in.RollbackTo, &out.RollbackTo
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(RollbackConfig)
-			**out = **in
-		}
+		*out = new(RollbackConfig)
+		**out = **in
 	}
 	if in.ProgressDeadlineSeconds != nil {
 		in, out := &in.ProgressDeadlineSeconds, &out.ProgressDeadlineSeconds
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(int32)
-			**out = **in
-		}
+		*out = new(int32)
+		**out = **in
 	}
 	return
 }
@@ -1199,22 +1140,17 @@ func (in *MachineDeploymentStatus) DeepCopyInto(out *MachineDeploymentStatus) {
 	}
 	if in.CollisionCount != nil {
 		in, out := &in.CollisionCount, &out.CollisionCount
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(int32)
-			**out = **in
-		}
+		*out = new(int32)
+		**out = **in
 	}
 	if in.FailedMachines != nil {
 		in, out := &in.FailedMachines, &out.FailedMachines
 		*out = make([]*MachineSummary, len(*in))
 		for i := range *in {
-			if (*in)[i] == nil {
-				(*out)[i] = nil
-			} else {
-				(*out)[i] = new(MachineSummary)
-				(*in)[i].DeepCopyInto((*out)[i])
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(MachineSummary)
+				(*in).DeepCopyInto(*out)
 			}
 		}
 	}
@@ -1236,12 +1172,8 @@ func (in *MachineDeploymentStrategy) DeepCopyInto(out *MachineDeploymentStrategy
 	*out = *in
 	if in.RollingUpdate != nil {
 		in, out := &in.RollingUpdate, &out.RollingUpdate
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(RollingUpdateMachineDeployment)
-			(*in).DeepCopyInto(*out)
-		}
+		*out = new(RollingUpdateMachineDeployment)
+		(*in).DeepCopyInto(*out)
 	}
 	return
 }
@@ -1372,12 +1304,8 @@ func (in *MachineSetSpec) DeepCopyInto(out *MachineSetSpec) {
 	*out = *in
 	if in.Selector != nil {
 		in, out := &in.Selector, &out.Selector
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(meta_v1.LabelSelector)
-			(*in).DeepCopyInto(*out)
-		}
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
 	}
 	out.MachineClass = in.MachineClass
 	in.Template.DeepCopyInto(&out.Template)
@@ -1407,16 +1335,12 @@ func (in *MachineSetStatus) DeepCopyInto(out *MachineSetStatus) {
 	in.LastOperation.DeepCopyInto(&out.LastOperation)
 	if in.FailedMachines != nil {
 		in, out := &in.FailedMachines, &out.FailedMachines
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new([]MachineSummary)
-			if **in != nil {
-				in, out := *in, *out
-				*out = make([]MachineSummary, len(*in))
-				for i := range *in {
-					(*in)[i].DeepCopyInto(&(*out)[i])
-				}
+		*out = new([]MachineSummary)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make([]MachineSummary, len(*in))
+			for i := range *in {
+				(*in)[i].DeepCopyInto(&(*out)[i])
 			}
 		}
 	}
@@ -1666,12 +1590,8 @@ func (in *OpenStackMachineClassSpec) DeepCopyInto(out *OpenStackMachineClassSpec
 	}
 	if in.SecretRef != nil {
 		in, out := &in.SecretRef, &out.SecretRef
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(v1.SecretReference)
-			**out = **in
-		}
+		*out = new(v1.SecretReference)
+		**out = **in
 	}
 	return
 }
@@ -1766,12 +1686,8 @@ func (in *PacketMachineClassSpec) DeepCopyInto(out *PacketMachineClassSpec) {
 	}
 	if in.SecretRef != nil {
 		in, out := &in.SecretRef, &out.SecretRef
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(v1.SecretReference)
-			**out = **in
-		}
+		*out = new(v1.SecretReference)
+		**out = **in
 	}
 	return
 }
@@ -1807,21 +1723,13 @@ func (in *RollingUpdateMachineDeployment) DeepCopyInto(out *RollingUpdateMachine
 	*out = *in
 	if in.MaxUnavailable != nil {
 		in, out := &in.MaxUnavailable, &out.MaxUnavailable
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(intstr.IntOrString)
-			**out = **in
-		}
+		*out = new(intstr.IntOrString)
+		**out = **in
 	}
 	if in.MaxSurge != nil {
 		in, out := &in.MaxSurge, &out.MaxSurge
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(intstr.IntOrString)
-			**out = **in
-		}
+		*out = new(intstr.IntOrString)
+		**out = **in
 	}
 	return
 }
@@ -1885,12 +1793,8 @@ func (in *ScaleStatus) DeepCopyInto(out *ScaleStatus) {
 	*out = *in
 	if in.Selector != nil {
 		in, out := &in.Selector, &out.Selector
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(meta_v1.LabelSelector)
-			(*in).DeepCopyInto(*out)
-		}
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
 	}
 	return
 }

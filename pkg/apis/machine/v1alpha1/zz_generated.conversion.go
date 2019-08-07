@@ -9,7 +9,7 @@ import (
 
 	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	v1 "k8s.io/api/core/v1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
@@ -1983,7 +1983,7 @@ func Convert_machine_MachineDeploymentRollback_To_v1alpha1_MachineDeploymentRoll
 
 func autoConvert_v1alpha1_MachineDeploymentSpec_To_machine_MachineDeploymentSpec(in *MachineDeploymentSpec, out *machine.MachineDeploymentSpec, s conversion.Scope) error {
 	out.Replicas = in.Replicas
-	out.Selector = (*meta_v1.LabelSelector)(unsafe.Pointer(in.Selector))
+	out.Selector = (*metav1.LabelSelector)(unsafe.Pointer(in.Selector))
 	if err := Convert_v1alpha1_MachineTemplateSpec_To_machine_MachineTemplateSpec(&in.Template, &out.Template, s); err != nil {
 		return err
 	}
@@ -2005,7 +2005,7 @@ func Convert_v1alpha1_MachineDeploymentSpec_To_machine_MachineDeploymentSpec(in 
 
 func autoConvert_machine_MachineDeploymentSpec_To_v1alpha1_MachineDeploymentSpec(in *machine.MachineDeploymentSpec, out *MachineDeploymentSpec, s conversion.Scope) error {
 	out.Replicas = in.Replicas
-	out.Selector = (*meta_v1.LabelSelector)(unsafe.Pointer(in.Selector))
+	out.Selector = (*metav1.LabelSelector)(unsafe.Pointer(in.Selector))
 	if err := Convert_machine_MachineTemplateSpec_To_v1alpha1_MachineTemplateSpec(&in.Template, &out.Template, s); err != nil {
 		return err
 	}
@@ -2189,7 +2189,7 @@ func Convert_machine_MachineSetList_To_v1alpha1_MachineSetList(in *machine.Machi
 
 func autoConvert_v1alpha1_MachineSetSpec_To_machine_MachineSetSpec(in *MachineSetSpec, out *machine.MachineSetSpec, s conversion.Scope) error {
 	out.Replicas = in.Replicas
-	out.Selector = (*meta_v1.LabelSelector)(unsafe.Pointer(in.Selector))
+	out.Selector = (*metav1.LabelSelector)(unsafe.Pointer(in.Selector))
 	if err := Convert_v1alpha1_ClassSpec_To_machine_ClassSpec(&in.MachineClass, &out.MachineClass, s); err != nil {
 		return err
 	}
@@ -2207,7 +2207,7 @@ func Convert_v1alpha1_MachineSetSpec_To_machine_MachineSetSpec(in *MachineSetSpe
 
 func autoConvert_machine_MachineSetSpec_To_v1alpha1_MachineSetSpec(in *machine.MachineSetSpec, out *MachineSetSpec, s conversion.Scope) error {
 	out.Replicas = in.Replicas
-	out.Selector = (*meta_v1.LabelSelector)(unsafe.Pointer(in.Selector))
+	out.Selector = (*metav1.LabelSelector)(unsafe.Pointer(in.Selector))
 	if err := Convert_machine_ClassSpec_To_v1alpha1_ClassSpec(&in.MachineClass, &out.MachineClass, s); err != nil {
 		return err
 	}
@@ -2719,7 +2719,7 @@ func Convert_machine_ScaleSpec_To_v1alpha1_ScaleSpec(in *machine.ScaleSpec, out 
 
 func autoConvert_v1alpha1_ScaleStatus_To_machine_ScaleStatus(in *ScaleStatus, out *machine.ScaleStatus, s conversion.Scope) error {
 	out.Replicas = in.Replicas
-	out.Selector = (*meta_v1.LabelSelector)(unsafe.Pointer(in.Selector))
+	out.Selector = (*metav1.LabelSelector)(unsafe.Pointer(in.Selector))
 	out.TargetSelector = in.TargetSelector
 	return nil
 }
@@ -2731,7 +2731,7 @@ func Convert_v1alpha1_ScaleStatus_To_machine_ScaleStatus(in *ScaleStatus, out *m
 
 func autoConvert_machine_ScaleStatus_To_v1alpha1_ScaleStatus(in *machine.ScaleStatus, out *ScaleStatus, s conversion.Scope) error {
 	out.Replicas = in.Replicas
-	out.Selector = (*meta_v1.LabelSelector)(unsafe.Pointer(in.Selector))
+	out.Selector = (*metav1.LabelSelector)(unsafe.Pointer(in.Selector))
 	out.TargetSelector = in.TargetSelector
 	return nil
 }
