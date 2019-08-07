@@ -6,7 +6,7 @@ import (
 	time "time"
 
 	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	clientset_internalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion"
+	clientsetinternalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion"
 	internalinterfaces "github.com/gardener/machine-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
 	internalversion "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/internalversion"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,14 +31,14 @@ type azureMachineClassInformer struct {
 // NewAzureMachineClassInformer constructs a new informer for AzureMachineClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewAzureMachineClassInformer(client clientset_internalversion.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+func NewAzureMachineClassInformer(client clientsetinternalversion.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewFilteredAzureMachineClassInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
 // NewFilteredAzureMachineClassInformer constructs a new informer for AzureMachineClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredAzureMachineClassInformer(client clientset_internalversion.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredAzureMachineClassInformer(client clientsetinternalversion.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
@@ -60,7 +60,7 @@ func NewFilteredAzureMachineClassInformer(client clientset_internalversion.Inter
 	)
 }
 
-func (f *azureMachineClassInformer) defaultInformer(client clientset_internalversion.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+func (f *azureMachineClassInformer) defaultInformer(client clientsetinternalversion.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
 	return NewFilteredAzureMachineClassInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 

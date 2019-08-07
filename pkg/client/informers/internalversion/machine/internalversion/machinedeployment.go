@@ -6,7 +6,7 @@ import (
 	time "time"
 
 	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	clientset_internalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion"
+	clientsetinternalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion"
 	internalinterfaces "github.com/gardener/machine-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
 	internalversion "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/internalversion"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,14 +31,14 @@ type machineDeploymentInformer struct {
 // NewMachineDeploymentInformer constructs a new informer for MachineDeployment type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewMachineDeploymentInformer(client clientset_internalversion.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+func NewMachineDeploymentInformer(client clientsetinternalversion.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewFilteredMachineDeploymentInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
 // NewFilteredMachineDeploymentInformer constructs a new informer for MachineDeployment type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredMachineDeploymentInformer(client clientset_internalversion.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredMachineDeploymentInformer(client clientsetinternalversion.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
@@ -60,7 +60,7 @@ func NewFilteredMachineDeploymentInformer(client clientset_internalversion.Inter
 	)
 }
 
-func (f *machineDeploymentInformer) defaultInformer(client clientset_internalversion.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+func (f *machineDeploymentInformer) defaultInformer(client clientsetinternalversion.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
 	return NewFilteredMachineDeploymentInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 

@@ -6,7 +6,7 @@ import (
 	time "time"
 
 	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	clientset_internalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion"
+	clientsetinternalversion "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion"
 	internalinterfaces "github.com/gardener/machine-controller-manager/pkg/client/informers/internalversion/internalinterfaces"
 	internalversion "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/internalversion"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,14 +31,14 @@ type openStackMachineClassInformer struct {
 // NewOpenStackMachineClassInformer constructs a new informer for OpenStackMachineClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewOpenStackMachineClassInformer(client clientset_internalversion.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+func NewOpenStackMachineClassInformer(client clientsetinternalversion.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewFilteredOpenStackMachineClassInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
 // NewFilteredOpenStackMachineClassInformer constructs a new informer for OpenStackMachineClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredOpenStackMachineClassInformer(client clientset_internalversion.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredOpenStackMachineClassInformer(client clientsetinternalversion.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
@@ -60,7 +60,7 @@ func NewFilteredOpenStackMachineClassInformer(client clientset_internalversion.I
 	)
 }
 
-func (f *openStackMachineClassInformer) defaultInformer(client clientset_internalversion.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+func (f *openStackMachineClassInformer) defaultInformer(client clientsetinternalversion.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
 	return NewFilteredOpenStackMachineClassInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
