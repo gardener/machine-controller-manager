@@ -89,7 +89,6 @@ func (c *controller) getMachineMachineSets(machine *v1alpha1.Machine) ([]*v1alph
 			continue
 		}
 		machineSets = append(machineSets, machineSet)
-		//glog.Info("D", len(machineSets))
 	}
 
 	if len(machineSets) == 0 {

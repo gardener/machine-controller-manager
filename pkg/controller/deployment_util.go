@@ -436,6 +436,8 @@ func copyMachineDeploymentNodeTemplatesToMachineSet(deployment *v1alpha1.Machine
 	isNodeTemplateChanged := !(apiequality.Semantic.DeepEqual(deployment.Spec.Template.Spec.NodeTemplateSpec, is.Spec.Template.Spec.NodeTemplateSpec))
 
 	if isNodeTemplateChanged {
+		glog.V(2).Infof("Observed a change in NodeTemplate of Machine Deployment %s. Changing NodeTemplate from %+v to \n %+v.", deployment.Name, is.Spec.Template.Spec.NodeTemplateSpec, deployment.Spec.Template.Spec.NodeTemplateSpec)
+
 		is.Spec.Template.Spec.NodeTemplateSpec = *deployment.Spec.Template.Spec.NodeTemplateSpec.DeepCopy()
 	}
 	return isNodeTemplateChanged
