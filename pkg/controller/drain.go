@@ -564,9 +564,9 @@ func (o *DrainOptions) evictPodsWithPv(attemptEvict bool, pods []*corev1.Pod,
 			// Return success to caller for all non-processed pods so that the caller function can move on.
 			returnCh <- nil
 		} else if attemptEvict {
-			returnCh <- fmt.Errorf("Error evicting pod %s/%s", pod.Namespace, pod.Name)
+			returnCh <- fmt.Errorf("Error evicting pod %s/%s from node %s", pod.Namespace, pod.Name, pod.Spec.NodeName)
 		} else {
-			returnCh <- fmt.Errorf("Error deleting pod %s/%s", pod.Namespace, pod.Name)
+			returnCh <- fmt.Errorf("Error deleting pod %s/%s from node %s", pod.Namespace, pod.Name, pod.Spec.NodeName)
 		}
 	}
 
@@ -603,21 +603,21 @@ func (o *DrainOptions) evictPodsWithPVInternal(attemptEvict bool, pods []*corev1
 
 		if attemptEvict && apierrors.IsTooManyRequests(err) {
 			// Pod eviction failed because of PDB violation, we will retry one we are done with this list.
-			glog.V(3).Info("Pod ", pod.Namespace, "/", pod.Name, " couldn't be evicted because of PDB violation. Will be retried.")
+			glog.V(3).Info("Pod ", pod.Namespace, "/", pod.Name, " from node ", pod.Spec.NodeName, " couldn't be evicted. This may also occur due to PDB violation. Will be retried. Error:", err)
 			retryPods = append(retryPods, pod)
 			continue
 		} else if apierrors.IsNotFound(err) {
-			glog.V(3).Info("\t", pod.Name, " is already gone")
+			glog.V(3).Info("\t", pod.Name, " from node ", pod.Spec.NodeName, " is already gone")
 			returnCh <- nil
 			continue
 		} else if err != nil {
-			glog.V(4).Infof("Error when evicting pod: %v/%v. Will be retried. Err: %v", pod.Namespace, pod.Name, err)
+			glog.V(4).Infof("Error when evicting pod: %v/%v from node %v. Will be retried. Err: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
 			retryPods = append(retryPods, pod)
 			continue
 		}
 
 		// Eviction was successful. Wait for pvs for this pod to detach
-		glog.V(3).Info("Eviction/delete succeeded. Waiting for the volumes to detach: ", pod.Name)
+		glog.V(3).Info("Eviction/delete succeeded. Waiting for the volumes to detach: ", pod.Name, pod.Spec.NodeName)
 		pvs := volMap[pod.Namespace+"/"+pod.Name]
 		ctx, cancelFn := context.WithTimeout(mainContext, o.getTerminationGracePeriod(pod)+o.PvDetachTimeout)
 		err = o.waitForDetach(ctx, pvs, o.nodeName)
@@ -632,7 +632,7 @@ func (o *DrainOptions) evictPodsWithPVInternal(attemptEvict bool, pods []*corev1
 			returnCh <- err
 			continue
 		}
-		glog.V(3).Info("Detached pv for pod: ", pod.Name)
+		glog.V(3).Info("Detached pv for pod: ", pod.Name, " from node ", pod.Spec.NodeName)
 		returnCh <- nil
 	}
 
@@ -768,7 +768,7 @@ func (o *DrainOptions) getVolIDsFromDriver(pvNames []string) ([]string, error) {
 
 func (o *DrainOptions) evictPodWithoutPVInternal(attemptEvict bool, pod *corev1.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error), returnCh chan error) {
 	var err error
-	glog.V(3).Info("Evicting ", pod.Name)
+	glog.V(3).Info("Evicting ", pod.Name, " from node ", pod.Spec.NodeName)
 
 	nretries := int(o.MaxEvictRetries)
 	for i := 0; ; i++ {
@@ -785,14 +785,14 @@ func (o *DrainOptions) evictPodWithoutPVInternal(attemptEvict bool, pod *corev1.
 		if err == nil {
 			break
 		} else if apierrors.IsNotFound(err) {
-			glog.V(3).Info("\t", pod.Name, " evicted")
+			glog.V(3).Info("\t", pod.Name, " evicted from node ", pod.Spec.NodeName)
 			returnCh <- nil
 			return
 		} else if attemptEvict && apierrors.IsTooManyRequests(err) {
 			// Pod couldn't be evicted because of PDB violation
 			time.Sleep(PodEvictionRetryInterval)
 		} else {
-			returnCh <- fmt.Errorf("error when evicting pod %q: %v", pod.Name, err)
+			returnCh <- fmt.Errorf("error when evicting pod %q: %v scheduled on node %v", pod.Name, err, pod.Spec.NodeName)
 			return
 		}
 	}
@@ -818,12 +818,12 @@ func (o *DrainOptions) evictPodWithoutPVInternal(attemptEvict bool, pod *corev1.
 	podArray, err = o.waitForDelete(podArray, Interval, timeout, true, getPodFn)
 	if err == nil {
 		if len(podArray) > 0 {
-			returnCh <- fmt.Errorf("timeout expired while waiting for pod %q terminatin", pod.Name)
+			returnCh <- fmt.Errorf("timeout expired while waiting for pod %q terminating scheduled on node %v", pod.Name, pod.Spec.NodeName)
 		} else {
 			returnCh <- nil
 		}
 	} else {
-		returnCh <- fmt.Errorf("error when waiting for pod %q terminating: %v", pod.Name, err)
+		returnCh <- fmt.Errorf("error when waiting for pod %q/%v terminating: %v", pod.Name, pod.Spec.NodeName, err)
 	}
 }
 
