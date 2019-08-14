@@ -566,6 +566,14 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			return err
 		}
 
+		// Delete node object
+		err = c.targetCoreClient.CoreV1().Nodes().Delete(nodeName, &metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			// If its an error, and anyother error than object not found
+			glog.Errorf("Deletion of Node Object %q failed due to error: %s", nodeName, err)
+			return err
+		}
+
 		// Remove finalizers from machine object
 		c.deleteMachineFinalizers(machine)
 
@@ -574,14 +582,6 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 		if err != nil && !apierrors.IsNotFound(err) {
 			// If its an error, and anyother error than object not found
 			glog.Errorf("Deletion of Machine Object %q failed due to error: %s", machine.Name, err)
-			return err
-		}
-
-		// Delete node object
-		err = c.targetCoreClient.CoreV1().Nodes().Delete(nodeName, &metav1.DeleteOptions{})
-		if err != nil && !apierrors.IsNotFound(err) {
-			// If its an error, and anyother error than object not found
-			glog.Errorf("Deletion of Node Object %q failed due to error: %s", nodeName, err)
 			return err
 		}
 
