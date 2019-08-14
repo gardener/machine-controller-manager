@@ -731,12 +731,18 @@ var _ = Describe("machine", func() {
 					Expect(err).ToNot(HaveOccurred())
 				}
 
-				machine, err = controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+				node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
+				machine, machineErr := controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+
 				if data.expect.machineDeleted {
-					Expect(err).To(HaveOccurred())
+					Expect(machineErr).To(HaveOccurred())
+					Expect(nodeErr).To(HaveOccurred())
 				} else {
-					Expect(err).ToNot(HaveOccurred())
+					Expect(machineErr).ToNot(HaveOccurred())
 					Expect(machine).ToNot(BeNil())
+
+					Expect(nodeErr).ToNot(HaveOccurred())
+					Expect(node).ToNot(BeNil())
 				}
 			},
 			Entry("Machine deletion", &data{
