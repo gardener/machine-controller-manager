@@ -451,6 +451,7 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 
 func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driver) error {
 	var err error
+	nodeName := machine.Status.Node
 
 	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		glog.V(2).Infof("Deleting Machine %q", machine.Name)
@@ -503,7 +504,6 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			buf := bytes.NewBuffer([]byte{})
 			errBuf := bytes.NewBuffer([]byte{})
 
-			nodeName := machine.Status.Node
 			drainOptions := NewDrainOptions(
 				c.targetCoreClient,
 				timeOutDuration,
@@ -566,11 +566,22 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			return err
 		}
 
+		// Delete node object
+		err = c.targetCoreClient.CoreV1().Nodes().Delete(nodeName, &metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			// If its an error, and anyother error than object not found
+			glog.Errorf("Deletion of Node Object %q failed due to error: %s", nodeName, err)
+			return err
+		}
+
+		// Remove finalizers from machine object
 		c.deleteMachineFinalizers(machine)
+
+		// Delete machine object
 		err = c.controlMachineClient.Machines(machine.Namespace).Delete(machine.Name, &metav1.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			// If its an error, and anyother error than object not found
-			glog.Errorf("Deletion of Machine Object %s failed due to error: %s", machine.Name, err)
+			glog.Errorf("Deletion of Machine Object %q failed due to error: %s", machine.Name, err)
 			return err
 		}
 
