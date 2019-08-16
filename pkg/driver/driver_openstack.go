@@ -37,6 +37,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
 	"github.com/gophercloud/gophercloud/pagination"
+	"github.com/gophercloud/utils/openstack/clientconfig"
 )
 
 // OpenStackDriver is the driver struct for holding OS machine information
@@ -252,83 +253,9 @@ func (d *OpenStackDriver) GetVMs(machineID string) (VMs, error) {
 // createNovaClient is used to create a Nova client
 func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error) {
 
-	config := &tls.Config{}
-
-	authURL, ok := d.CloudConfig.Data[v1alpha1.OpenStackAuthURL]
-	if !ok {
-		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackAuthURL)
-	}
-	username, ok := d.CloudConfig.Data[v1alpha1.OpenStackUsername]
-	if !ok {
-		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackUsername)
-	}
-	password, ok := d.CloudConfig.Data[v1alpha1.OpenStackPassword]
-	if !ok {
-		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackPassword)
-	}
-	domainName, ok := d.CloudConfig.Data[v1alpha1.OpenStackDomainName]
-	if !ok {
-		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackDomainName)
-	}
-	tenantName, ok := d.CloudConfig.Data[v1alpha1.OpenStackTenantName]
-	if !ok {
-		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackTenantName)
-	}
-
 	region := d.OpenStackMachineClass.Spec.Region
-	caCert, ok := d.CloudConfig.Data[v1alpha1.OpenStackCACert]
-	if !ok {
-		caCert = nil
-	}
 
-	insecure, ok := d.CloudConfig.Data[v1alpha1.OpenStackInsecure]
-	if ok && strings.TrimSpace(string(insecure)) == "true" {
-		config.InsecureSkipVerify = true
-	}
-
-	if caCert != nil {
-		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM([]byte(caCert))
-		config.RootCAs = caCertPool
-	}
-
-	clientCert, ok := d.CloudConfig.Data[v1alpha1.OpenStackClientCert]
-	if ok {
-		clientKey, ok := d.CloudConfig.Data[v1alpha1.OpenStackClientKey]
-		if ok {
-			cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
-			if err != nil {
-				return nil, err
-			}
-			config.Certificates = []tls.Certificate{cert}
-			config.BuildNameToCertificate()
-		} else {
-			return nil, fmt.Errorf("%s missing in secret", v1alpha1.OpenStackClientKey)
-		}
-	}
-
-	opts := gophercloud.AuthOptions{
-		IdentityEndpoint: strings.TrimSpace(string(authURL)),
-		Username:         strings.TrimSpace(string(username)),
-		Password:         strings.TrimSpace(string(password)),
-		DomainName:       strings.TrimSpace(string(domainName)),
-		TenantName:       strings.TrimSpace(string(tenantName)),
-	}
-
-	client, err := openstack.NewClient(opts.IdentityEndpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	// Set UserAgent
-	client.UserAgent.Prepend("Machine Controller 08/15")
-
-	transport := &http.Transport{Proxy: http.ProxyFromEnvironment, TLSClientConfig: config}
-	client.HTTPClient = http.Client{
-		Transport: transport,
-	}
-
-	err = openstack.Authenticate(client, opts)
+	client, err := d.createOpenStackClient()
 	if err != nil {
 		return nil, err
 	}
@@ -339,9 +266,8 @@ func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error)
 	})
 }
 
-// createNeutronClient is used to create a Neutron client
-func (d *OpenStackDriver) createNeutronClient() (*gophercloud.ServiceClient, error) {
-
+// createOpenStackClient creates and authenticates a base OpenStack client
+func (d *OpenStackDriver) createOpenStackClient() (*gophercloud.ProviderClient, error) {
 	config := &tls.Config{}
 
 	authURL, ok := d.CloudConfig.Data[v1alpha1.OpenStackAuthURL]
@@ -356,16 +282,21 @@ func (d *OpenStackDriver) createNeutronClient() (*gophercloud.ServiceClient, err
 	if !ok {
 		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackPassword)
 	}
+
+	// optional OS_USER_DOMAIN_NAME
+	userDomainName := d.CloudConfig.Data[v1alpha1.OpenStackUserDomainName]
+
 	domainName, ok := d.CloudConfig.Data[v1alpha1.OpenStackDomainName]
-	if !ok {
-		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackDomainName)
+	domainID, ok2 := d.CloudConfig.Data[v1alpha1.OpenStackDomainID]
+	if !ok && !ok2 {
+		return nil, fmt.Errorf("missing %s or %s in secret", v1alpha1.OpenStackDomainName, v1alpha1.OpenStackDomainID)
 	}
 	tenantName, ok := d.CloudConfig.Data[v1alpha1.OpenStackTenantName]
-	if !ok {
-		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackTenantName)
+	tenantID, ok2 := d.CloudConfig.Data[v1alpha1.OpenStackTenantID]
+	if !ok && !ok2 {
+		return nil, fmt.Errorf("missing %s or %s in secret", v1alpha1.OpenStackTenantName, v1alpha1.OpenStackTenantID)
 	}
 
-	region := d.OpenStackMachineClass.Spec.Region
 	caCert, ok := d.CloudConfig.Data[v1alpha1.OpenStackCACert]
 	if !ok {
 		caCert = nil
@@ -397,15 +328,25 @@ func (d *OpenStackDriver) createNeutronClient() (*gophercloud.ServiceClient, err
 		}
 	}
 
-	opts := gophercloud.AuthOptions{
-		IdentityEndpoint: strings.TrimSpace(string(authURL)),
-		Username:         strings.TrimSpace(string(username)),
-		Password:         strings.TrimSpace(string(password)),
-		DomainName:       strings.TrimSpace(string(domainName)),
-		TenantName:       strings.TrimSpace(string(tenantName)),
+	clientOpts := new(clientconfig.ClientOpts)
+	authInfo := &clientconfig.AuthInfo{
+		AuthURL:        strings.TrimSpace(string(authURL)),
+		Username:       strings.TrimSpace(string(username)),
+		Password:       strings.TrimSpace(string(password)),
+		DomainName:     strings.TrimSpace(string(domainName)),
+		DomainID:       strings.TrimSpace(string(domainID)),
+		ProjectName:    strings.TrimSpace(string(tenantName)),
+		ProjectID:      strings.TrimSpace(string(tenantID)),
+		UserDomainName: strings.TrimSpace(string(userDomainName)),
+	}
+	clientOpts.AuthInfo = authInfo
+
+	ao, err := clientconfig.AuthOptions(clientOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client auth options: %+v", err)
 	}
 
-	client, err := openstack.NewClient(opts.IdentityEndpoint)
+	client, err := openstack.NewClient(ao.IdentityEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -418,7 +359,20 @@ func (d *OpenStackDriver) createNeutronClient() (*gophercloud.ServiceClient, err
 		Transport: transport,
 	}
 
-	err = openstack.Authenticate(client, opts)
+	err = openstack.Authenticate(client, *ao)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
+}
+
+// createNeutronClient is used to create a Neutron client
+func (d *OpenStackDriver) createNeutronClient() (*gophercloud.ServiceClient, error) {
+
+	region := d.OpenStackMachineClass.Spec.Region
+
+	client, err := d.createOpenStackClient()
 	if err != nil {
 		return nil, err
 	}
