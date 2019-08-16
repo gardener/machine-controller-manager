@@ -1156,8 +1156,14 @@ const (
 	OpenStackInsecure string = "insecure"
 	// OpenStackDomainName is a constant for a key name that is part of the OpenStack cloud credentials.
 	OpenStackDomainName string = "domainName"
+	// OpenStackDomainID is a constant for a key name that is part of the OpenStack cloud credentials.
+	OpenStackDomainID string = "domainID"
 	// OpenStackTenantName is a constant for a key name that is part of the OpenStack cloud credentials.
 	OpenStackTenantName string = "tenantName"
+	// OpenStackTenantID is a constant for a key name that is part of the OpenStack cloud credentials.
+	OpenStackTenantID string = "tenantID"
+	// OpenStackUserDomainName is a constant for a key name that is part of the OpenStack cloud credentials.
+	OpenStackUserDomainName string = "userDomainName"
 	// OpenStackUsername is a constant for a key name that is part of the OpenStack cloud credentials.
 	OpenStackUsername string = "username"
 	// OpenStackPassword is a constant for a key name that is part of the OpenStack cloud credentials.
