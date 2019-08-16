@@ -1093,6 +1093,7 @@ func autoConvert_v1alpha1_AzureImageReference_To_machine_AzureImageReference(in 
 	out.Offer = in.Offer
 	out.Sku = in.Sku
 	out.Version = in.Version
+	out.URN = (*string)(unsafe.Pointer(in.URN))
 	return nil
 }
 
@@ -1107,6 +1108,7 @@ func autoConvert_machine_AzureImageReference_To_v1alpha1_AzureImageReference(in 
 	out.Offer = in.Offer
 	out.Sku = in.Sku
 	out.Version = in.Version
+	out.URN = (*string)(unsafe.Pointer(in.URN))
 	return nil
 }
 

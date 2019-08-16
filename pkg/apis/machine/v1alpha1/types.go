@@ -964,11 +964,17 @@ type AzureStorageProfile struct {
 // marketplace images, or virtual machine images. This element is required when you want to use a platform image,
 // marketplace image, or virtual machine image, but is not used in other creation operations.
 type AzureImageReference struct {
-	ID        string `json:"id,omitempty"`
+	ID string `json:"id,omitempty"`
+	// DEPRECATED: This field will be removed in a future version.
 	Publisher string `json:"publisher,omitempty"`
-	Offer     string `json:"offer,omitempty"`
-	Sku       string `json:"sku,omitempty"`
-	Version   string `json:"version,omitempty"`
+	// DEPRECATED: This field will be removed in a future version.
+	Offer string `json:"offer,omitempty"`
+	// DEPRECATED: This field will be removed in a future version.
+	Sku string `json:"sku,omitempty"`
+	// DEPRECATED: This field will be removed in a future version.
+	Version string `json:"version,omitempty"`
+	// Uniform Resource Name of the OS image to be used , it has the format 'publisher:offer:sku:version'
+	URN *string `json:"urn,omitempty"`
 }
 
 // AzureOSDisk is specifies information about the operating system disk used by the virtual machine. <br><br> For more
@@ -1273,14 +1279,14 @@ type PacketMachineClassList struct {
 
 // PacketMachineClassSpec is the specification of a cluster.
 type PacketMachineClassSpec struct {
-	Facility     []string           `json:"facility"`
-	MachineType  string             `json:"machineType"`
-	BillingCycle string             `json:"billingCycle"`
-	OS           string             `json:"OS"`
-	ProjectID    string             `json:"projectID"`
-	Tags         []string  `json:"tags,omitempty"`
+	Facility     []string `json:"facility"`
+	MachineType  string   `json:"machineType"`
+	BillingCycle string   `json:"billingCycle"`
+	OS           string   `json:"OS"`
+	ProjectID    string   `json:"projectID"`
+	Tags         []string `json:"tags,omitempty"`
 	SSHKeys      []string `json:"sshKeys,omitempty"`
-	UserData     string             `json:"userdata,omitempty"`
+	UserData     string   `json:"userdata,omitempty"`
 
 	SecretRef *corev1.SecretReference `json:"secretRef,omitempty"`
 }
