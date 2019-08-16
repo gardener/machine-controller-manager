@@ -191,9 +191,9 @@ func (o *DrainOptions) deleteOrEvictPodsSimple() error {
 		if newErr != nil {
 			return newErr
 		}
-		glog.Errorf("There are pending pods when an error occurred: %v \nList of pending pods", err)
+		fmt.Fprintf(o.ErrOut, "There are pending pods when an error occurred: %v\n", err)
 		for _, pendingPod := range pendingPods {
-			glog.Errorf("\t%s/%s", pendingPod.Namespace, pendingPod.Name)
+			fmt.Fprintf(o.ErrOut, "%s/%s\n", pendingPod.Namespace, pendingPod.Name)
 		}
 	}
 	return err
@@ -313,7 +313,7 @@ func (o *DrainOptions) getPodsForDeletion() (pods []api.Pod, err error) {
 		return []api.Pod{}, errors.New(fs.Message())
 	}
 	if len(ws) > 0 {
-		glog.Warningf("%s", ws.Message())
+		fmt.Fprintf(o.ErrOut, "WARNING: %s\n", ws.Message())
 	}
 	return pods, nil
 }
