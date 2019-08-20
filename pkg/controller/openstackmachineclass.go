@@ -130,7 +130,10 @@ func (c *controller) reconcileClusterOpenStackMachineClass(class *v1alpha1.OpenS
 
 	// Manipulate finalizers
 	if class.DeletionTimestamp == nil {
-		c.addOpenStackMachineClassFinalizers(class)
+		err := c.addOpenStackMachineClassFinalizers(class)
+		if err != nil {
+			return err
+		}
 	}
 
 	machines, err := c.findMachinesForClass(OpenStackMachineClassKind, class.Name)
@@ -152,8 +155,7 @@ func (c *controller) reconcileClusterOpenStackMachineClass(class *v1alpha1.OpenS
 			return err
 		}
 		if len(machineDeployments) == 0 && len(machineSets) == 0 && len(machines) == 0 {
-			c.deleteOpenStackMachineClassFinalizers(class)
-			return nil
+			return c.deleteOpenStackMachineClassFinalizers(class)
 		}
 
 		glog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
@@ -171,39 +173,42 @@ func (c *controller) reconcileClusterOpenStackMachineClass(class *v1alpha1.OpenS
 	Manipulate Finalizers
 */
 
-func (c *controller) addOpenStackMachineClassFinalizers(class *v1alpha1.OpenStackMachineClass) {
+func (c *controller) addOpenStackMachineClassFinalizers(class *v1alpha1.OpenStackMachineClass) error {
 	clone := class.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
 		finalizers.Insert(DeleteFinalizerName)
-		c.updateOpenStackMachineClassFinalizers(clone, finalizers.List())
+		return c.updateOpenStackMachineClassFinalizers(clone, finalizers.List())
 	}
+	return nil
 }
 
-func (c *controller) deleteOpenStackMachineClassFinalizers(class *v1alpha1.OpenStackMachineClass) {
+func (c *controller) deleteOpenStackMachineClassFinalizers(class *v1alpha1.OpenStackMachineClass) error {
 	clone := class.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		finalizers.Delete(DeleteFinalizerName)
-		c.updateOpenStackMachineClassFinalizers(clone, finalizers.List())
+		return c.updateOpenStackMachineClassFinalizers(clone, finalizers.List())
 	}
+	return nil
 }
 
-func (c *controller) updateOpenStackMachineClassFinalizers(class *v1alpha1.OpenStackMachineClass, finalizers []string) {
+func (c *controller) updateOpenStackMachineClassFinalizers(class *v1alpha1.OpenStackMachineClass, finalizers []string) error {
 	// Get the latest version of the class so that we can avoid conflicts
 	class, err := c.controlMachineClient.OpenStackMachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
 	if err != nil {
-		return
+		return err
 	}
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
 	_, err = c.controlMachineClient.OpenStackMachineClasses(class.Namespace).Update(clone)
 	if err != nil {
-		// Keep retrying until update goes through
-		glog.Warning("Updated failed, retrying")
-		c.updateOpenStackMachineClassFinalizers(class, finalizers)
+		glog.Warning("Updating OpenStackMachineClass failed, retrying. ", class.Name, err)
+		return err
 	}
+	glog.V(3).Infof("Successfully added/removed finalizer on the openstackmachineclass %q", class.Name)
+	return err
 }
 
 func (c *controller) enqueueOpenStackMachineClassAfter(obj interface{}, after time.Duration) {
