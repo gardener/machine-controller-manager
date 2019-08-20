@@ -60,6 +60,7 @@ func (c *controller) reconcileClusterSecret(secret *v1.Secret) error {
 
 	glog.V(4).Infof("Start syncing %q", secret.Name)
 	defer func() {
+		c.enqueueSecretAfter(secret, 10*time.Minute)
 		glog.V(4).Infof("Finished syncing %q (%v)", secret.Name, time.Since(startTime))
 	}()
 
@@ -139,6 +140,14 @@ func (c *controller) secretAdd(obj interface{}) {
 
 func (c *controller) secretDelete(obj interface{}) {
 	c.secretAdd(obj)
+}
+
+func (c *controller) enqueueSecretAfter(obj interface{}, after time.Duration) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		return
+	}
+	c.secretQueue.AddAfter(key, after)
 }
 
 func (c *controller) openStackMachineClassToSecretAdd(obj interface{}) {

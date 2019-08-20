@@ -18,6 +18,8 @@ limitations under the License.
 package controller
 
 import (
+	"time"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -107,6 +109,12 @@ func (c *controller) reconcileClusterAWSMachineClassKey(key string) error {
 }
 
 func (c *controller) reconcileClusterAWSMachineClass(class *v1alpha1.AWSMachineClass) error {
+	glog.V(4).Info("Start Reconciling awsmachineclass: ", class.Name)
+	defer func() {
+		c.enqueueAwsMachineClassAfter(class, 10*time.Minute)
+		glog.V(4).Info("Stop Reconciling awsmachineclass: ", class.Name)
+	}()
+
 	internalClass := &machine.AWSMachineClass{}
 	err := c.internalExternalScheme.Convert(class, internalClass, nil)
 	if err != nil {
@@ -147,7 +155,7 @@ func (c *controller) reconcileClusterAWSMachineClass(class *v1alpha1.AWSMachineC
 			return nil
 		}
 
-		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
+		glog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
@@ -195,4 +203,12 @@ func (c *controller) updateAWSMachineClassFinalizers(class *v1alpha1.AWSMachineC
 		glog.Warning("Updated failed, retrying: ", err)
 		c.updateAWSMachineClassFinalizers(class, finalizers)
 	}
+}
+
+func (c *controller) enqueueAwsMachineClassAfter(obj interface{}, after time.Duration) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		return
+	}
+	c.awsMachineClassQueue.AddAfter(key, after)
 }

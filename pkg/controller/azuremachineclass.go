@@ -18,6 +18,8 @@ limitations under the License.
 package controller
 
 import (
+	"time"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -108,6 +110,12 @@ func (c *controller) reconcileClusterAzureMachineClassKey(key string) error {
 }
 
 func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMachineClass) error {
+	glog.V(4).Info("Start Reconciling azuremachineclass: ", class.Name)
+	defer func() {
+		c.enqueueAzureMachineClassAfter(class, 10*time.Minute)
+		glog.V(4).Info("Stop Reconciling azuremachineclass: ", class.Name)
+	}()
+
 	internalClass := &machine.AzureMachineClass{}
 	err := c.internalExternalScheme.Convert(class, internalClass, nil)
 	if err != nil {
@@ -148,7 +156,7 @@ func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMach
 			return nil
 		}
 
-		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
+		glog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
@@ -196,4 +204,12 @@ func (c *controller) updateAzureMachineClassFinalizers(class *v1alpha1.AzureMach
 		glog.Warning("Updated failed, retrying")
 		c.updateAzureMachineClassFinalizers(class, finalizers)
 	}
+}
+
+func (c *controller) enqueueAzureMachineClassAfter(obj interface{}, after time.Duration) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		return
+	}
+	c.azureMachineClassQueue.AddAfter(key, after)
 }
