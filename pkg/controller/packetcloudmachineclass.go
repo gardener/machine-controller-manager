@@ -16,6 +16,8 @@ limitations under the License.
 package controller
 
 import (
+	"time"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -105,6 +107,12 @@ func (c *controller) reconcileClusterPacketMachineClassKey(key string) error {
 }
 
 func (c *controller) reconcileClusterPacketMachineClass(class *v1alpha1.PacketMachineClass) error {
+	glog.V(4).Info("Start Reconciling packetmachineclass: ", class.Name)
+	defer func() {
+		c.enqueuePacketMachineClassAfter(class, 10*time.Minute)
+		glog.V(4).Info("Stop Reconciling packetmachineclass: ", class.Name)
+	}()
+
 	internalClass := &machine.PacketMachineClass{}
 	err := c.internalExternalScheme.Convert(class, internalClass, nil)
 	if err != nil {
@@ -145,7 +153,7 @@ func (c *controller) reconcileClusterPacketMachineClass(class *v1alpha1.PacketMa
 			return nil
 		}
 
-		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
+		glog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
@@ -193,4 +201,12 @@ func (c *controller) updatePacketMachineClassFinalizers(class *v1alpha1.PacketMa
 		glog.Warningf("Updated failed, retrying: %v", err)
 		c.updatePacketMachineClassFinalizers(class, finalizers)
 	}
+}
+
+func (c *controller) enqueuePacketMachineClassAfter(obj interface{}, after time.Duration) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		return
+	}
+	c.openStackMachineClassQueue.AddAfter(key, after)
 }
