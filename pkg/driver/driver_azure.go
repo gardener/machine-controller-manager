@@ -303,6 +303,7 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 		resourceGroupName = d.AzureMachineClass.Spec.ResourceGroup
 		vnetName          = d.AzureMachineClass.Spec.SubnetInfo.VnetName
 		subnetName        = d.AzureMachineClass.Spec.SubnetInfo.SubnetName
+		nicName           = dependencyNameFromVMName(vmName, nicSuffix)
 	)
 
 	clients, err := d.setup()
@@ -310,6 +311,7 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 		return nil, err
 	}
 
+	// Getting the subnet object for subnetName
 	subnet, err := clients.subnet.Get(
 		ctx,
 		resourceGroupName,
@@ -322,6 +324,7 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 	}
 	onARMAPISuccess(prometheusServiceSubnet, "subnet.Get")
 
+	// Creating NICParameters for new NIC creation request
 	NICParameters := d.getNICParameters(vmName, &subnet)
 	NICFuture, err := clients.nic.CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name, NICParameters)
 	if err != nil {
@@ -329,7 +332,7 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 	}
 	err = NICFuture.WaitForCompletionRef(ctx, clients.nic.Client)
 	if err != nil {
-		return nil, onARMAPIErrorFail(prometheusServiceNIC, err, "NIC.CreateOrUpdate failed for %s", *NICParameters.Name)
+		return nil, onARMAPIErrorFail(prometheusServiceNIC, err, "NIC.WaitForCompletionRef failed for %s", *NICParameters.Name)
 	}
 	onARMAPISuccess(prometheusServiceNIC, "NIC.CreateOrUpdate")
 
@@ -343,15 +346,27 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 	VMParameters := d.getVMParameters(vmName, *NIC.ID)
 	VMFuture, err := clients.vm.CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
 	if err != nil {
-		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VM.CreateOrUpdate failed for %s", *NICParameters.Name)
+		// Since VM creation failed, delete the NIC created for the same
+		if nicDeleteErr := clients.deleteNIC(ctx, resourceGroupName, nicName); nicDeleteErr != nil {
+			glog.Error("Error while trying to delete nic: ", nicDeleteErr)
+		}
+		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VM.CreateOrUpdate failed for %s", *VMParameters.Name)
 	}
 	err = VMFuture.WaitForCompletionRef(ctx, clients.vm.Client)
 	if err != nil {
-		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VM.CreateOrUpdate failed for %s", *NICParameters.Name)
+		// Since VM creation failed, delete the NIC created for the same
+		if nicDeleteErr := clients.deleteNIC(ctx, resourceGroupName, nicName); nicDeleteErr != nil {
+			glog.Error("Error while trying to delete nic: ", nicDeleteErr)
+		}
+		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VM.WaitForCompletionRef failed for %s", *VMParameters.Name)
 	}
 	VM, err := VMFuture.Result(clients.vm)
 	if err != nil {
-		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VMFuture.CreateOrUpdate")
+		// Since VM creation failed, delete the NIC created for the same
+		if nicDeleteErr := clients.deleteNIC(ctx, resourceGroupName, nicName); nicDeleteErr != nil {
+			glog.Error("Error while trying to delete nic: ", nicDeleteErr)
+		}
+		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VMFuture.Result failed for %s", *VMParameters.Name)
 	}
 	onARMAPISuccess(prometheusServiceVM, "VM.CreateOrUpdate")
 
