@@ -852,8 +852,8 @@ func (o *DrainOptions) evictPodWithoutPVInternal(attemptEvict bool, pod *corev1.
 	podArray := []*api.Pod{pod}
 
 	timeout := o.getTerminationGracePeriod(pod)
-	if timeout < o.Timeout {
-		glog.V(3).Infof("Overriding large termination grace period (%s) for the pod %s/%s", timeout.String(), pod.Namespace, pod.Name)
+	if timeout > o.Timeout {
+		glog.V(3).Infof("Overriding large termination grace period (%s) for the pod %s/%s and setting it to %s", timeout.String(), pod.Namespace, pod.Name, o.Timeout)
 		timeout = o.Timeout
 	}
 
