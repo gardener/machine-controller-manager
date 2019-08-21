@@ -18,6 +18,8 @@ limitations under the License.
 package controller
 
 import (
+	"time"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -107,6 +109,12 @@ func (c *controller) reconcileClusterAlicloudMachineClassKey(key string) error {
 }
 
 func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.AlicloudMachineClass) error {
+	glog.V(4).Info("Start Reconciling alicloudmachineclass: ", class.Name)
+	defer func() {
+		c.enqueueAlicloudMachineClassAfter(class, 10*time.Minute)
+		glog.V(4).Info("Stop Reconciling alicloudmachineclass: ", class.Name)
+	}()
+
 	internalClass := &machine.AlicloudMachineClass{}
 	err := c.internalExternalScheme.Convert(class, internalClass, nil)
 	if err != nil {
@@ -121,7 +129,10 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 
 	// Manipulate finalizers
 	if class.DeletionTimestamp == nil {
-		c.addAlicloudMachineClassFinalizers(class)
+		err = c.addAlicloudMachineClassFinalizers(class)
+		if err != nil {
+			return err
+		}
 	}
 
 	machines, err := c.findMachinesForClass(AlicloudMachineClassKind, class.Name)
@@ -143,11 +154,10 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 			return err
 		}
 		if len(machineDeployments) == 0 && len(machineSets) == 0 && len(machines) == 0 {
-			c.deleteAlicloudMachineClassFinalizers(class)
-			return nil
+			return c.deleteAlicloudMachineClassFinalizers(class)
 		}
 
-		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
+		glog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
@@ -162,37 +172,48 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 	Manipulate Finalizers
 */
 
-func (c *controller) addAlicloudMachineClassFinalizers(class *v1alpha1.AlicloudMachineClass) {
+func (c *controller) addAlicloudMachineClassFinalizers(class *v1alpha1.AlicloudMachineClass) error {
 	clone := class.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
 		finalizers.Insert(DeleteFinalizerName)
-		c.updateAlicloudMachineClassFinalizers(clone, finalizers.List())
+		return c.updateAlicloudMachineClassFinalizers(clone, finalizers.List())
 	}
+	return nil
 }
 
-func (c *controller) deleteAlicloudMachineClassFinalizers(class *v1alpha1.AlicloudMachineClass) {
+func (c *controller) deleteAlicloudMachineClassFinalizers(class *v1alpha1.AlicloudMachineClass) error {
 	clone := class.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		finalizers.Delete(DeleteFinalizerName)
-		c.updateAlicloudMachineClassFinalizers(clone, finalizers.List())
+		return c.updateAlicloudMachineClassFinalizers(clone, finalizers.List())
 	}
+	return nil
 }
 
-func (c *controller) updateAlicloudMachineClassFinalizers(class *v1alpha1.AlicloudMachineClass, finalizers []string) {
+func (c *controller) updateAlicloudMachineClassFinalizers(class *v1alpha1.AlicloudMachineClass, finalizers []string) error {
 	// Get the latest version of the class so that we can avoid conflicts
 	class, err := c.controlMachineClient.AlicloudMachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
 	if err != nil {
-		return
+		return err
 	}
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
 	_, err = c.controlMachineClient.AlicloudMachineClasses(class.Namespace).Update(clone)
 	if err != nil {
-		// Keep retrying until update goes through
-		glog.Warning("Updated failed, retrying: ", err)
-		c.updateAlicloudMachineClassFinalizers(class, finalizers)
+		glog.Warning("Updating AlicloudMachineClass failed, retrying. ", class.Name, err)
+		return err
 	}
+	glog.V(3).Infof("Successfully added/removed finalizer on the alicloudmachineclass %q", class.Name)
+	return err
+}
+
+func (c *controller) enqueueAlicloudMachineClassAfter(obj interface{}, after time.Duration) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		return
+	}
+	c.alicloudMachineClassQueue.AddAfter(key, after)
 }

@@ -18,6 +18,8 @@ limitations under the License.
 package controller
 
 import (
+	"time"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -108,6 +110,12 @@ func (c *controller) reconcileClusterAzureMachineClassKey(key string) error {
 }
 
 func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMachineClass) error {
+	glog.V(4).Info("Start Reconciling azuremachineclass: ", class.Name)
+	defer func() {
+		c.enqueueAzureMachineClassAfter(class, 10*time.Minute)
+		glog.V(4).Info("Stop Reconciling azuremachineclass: ", class.Name)
+	}()
+
 	internalClass := &machine.AzureMachineClass{}
 	err := c.internalExternalScheme.Convert(class, internalClass, nil)
 	if err != nil {
@@ -122,7 +130,10 @@ func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMach
 
 	// Manipulate finalizers
 	if class.DeletionTimestamp == nil {
-		c.addAzureMachineClassFinalizers(class)
+		err = c.addAzureMachineClassFinalizers(class)
+		if err != nil {
+			return err
+		}
 	}
 
 	machines, err := c.findMachinesForClass(AzureMachineClassKind, class.Name)
@@ -144,11 +155,10 @@ func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMach
 			return err
 		}
 		if len(machineDeployments) == 0 && len(machineSets) == 0 && len(machines) == 0 {
-			c.deleteAzureMachineClassFinalizers(class)
-			return nil
+			return c.deleteAzureMachineClassFinalizers(class)
 		}
 
-		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
+		glog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
@@ -163,37 +173,48 @@ func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMach
 	Manipulate Finalizers
 */
 
-func (c *controller) addAzureMachineClassFinalizers(class *v1alpha1.AzureMachineClass) {
+func (c *controller) addAzureMachineClassFinalizers(class *v1alpha1.AzureMachineClass) error {
 	clone := class.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
 		finalizers.Insert(DeleteFinalizerName)
-		c.updateAzureMachineClassFinalizers(clone, finalizers.List())
+		return c.updateAzureMachineClassFinalizers(clone, finalizers.List())
 	}
+	return nil
 }
 
-func (c *controller) deleteAzureMachineClassFinalizers(class *v1alpha1.AzureMachineClass) {
+func (c *controller) deleteAzureMachineClassFinalizers(class *v1alpha1.AzureMachineClass) error {
 	clone := class.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		finalizers.Delete(DeleteFinalizerName)
-		c.updateAzureMachineClassFinalizers(clone, finalizers.List())
+		return c.updateAzureMachineClassFinalizers(clone, finalizers.List())
 	}
+	return nil
 }
 
-func (c *controller) updateAzureMachineClassFinalizers(class *v1alpha1.AzureMachineClass, finalizers []string) {
+func (c *controller) updateAzureMachineClassFinalizers(class *v1alpha1.AzureMachineClass, finalizers []string) error {
 	// Get the latest version of the class so that we can avoid conflicts
 	class, err := c.controlMachineClient.AzureMachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
 	if err != nil {
-		return
+		return err
 	}
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
 	_, err = c.controlMachineClient.AzureMachineClasses(class.Namespace).Update(clone)
 	if err != nil {
-		// Keep retrying until update goes through
-		glog.Warning("Updated failed, retrying")
-		c.updateAzureMachineClassFinalizers(class, finalizers)
+		glog.Warning("Updating AzureMachineClass failed, retrying. ", class.Name, err)
+		return err
 	}
+	glog.V(3).Infof("Successfully added/removed finalizer on the azuremachineclass %q", class.Name)
+	return err
+}
+
+func (c *controller) enqueueAzureMachineClassAfter(obj interface{}, after time.Duration) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		return
+	}
+	c.azureMachineClassQueue.AddAfter(key, after)
 }

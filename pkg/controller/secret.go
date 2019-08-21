@@ -60,6 +60,7 @@ func (c *controller) reconcileClusterSecret(secret *v1.Secret) error {
 
 	glog.V(4).Infof("Start syncing %q", secret.Name)
 	defer func() {
+		c.enqueueSecretAfter(secret, 10*time.Minute)
 		glog.V(4).Infof("Finished syncing %q (%v)", secret.Name, time.Since(startTime))
 	}()
 
@@ -71,13 +72,19 @@ func (c *controller) reconcileClusterSecret(secret *v1.Secret) error {
 
 	if exists {
 		// If one or more machineClasses refer this, add finalizer (if it doesn't exist)
-		c.addSecretFinalizers(secret)
+		err = c.addSecretFinalizers(secret)
+		if err != nil {
+			return err
+		}
 	} else {
 		if finalizers := sets.NewString(secret.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
 			// Finalizer doesn't exist, simply return nil
 			return nil
 		}
-		c.deleteSecretFinalizers(secret)
+		err = c.deleteSecretFinalizers(secret)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -88,39 +95,43 @@ func (c *controller) reconcileClusterSecret(secret *v1.Secret) error {
 	Manipulate Finalizers
 */
 
-func (c *controller) addSecretFinalizers(secret *v1.Secret) {
+func (c *controller) addSecretFinalizers(secret *v1.Secret) error {
 	clone := secret.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
 		finalizers.Insert(DeleteFinalizerName)
-		c.updateSecretFinalizers(clone, finalizers.List())
+		return c.updateSecretFinalizers(clone, finalizers.List())
 	}
+	return nil
 }
 
-func (c *controller) deleteSecretFinalizers(secret *v1.Secret) {
+func (c *controller) deleteSecretFinalizers(secret *v1.Secret) error {
 	clone := secret.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		finalizers.Delete(DeleteFinalizerName)
-		c.updateSecretFinalizers(clone, finalizers.List())
+		return c.updateSecretFinalizers(clone, finalizers.List())
 	}
+	return nil
 }
 
-func (c *controller) updateSecretFinalizers(secret *v1.Secret, finalizers []string) {
+func (c *controller) updateSecretFinalizers(secret *v1.Secret, finalizers []string) error {
 	// Get the latest version of the secret so that we can avoid conflicts
 	secret, err := c.controlCoreClient.Core().Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
 	if err != nil {
-		return
+		return err
 	}
 
 	clone := secret.DeepCopy()
 	clone.Finalizers = finalizers
 	_, err = c.controlCoreClient.Core().Secrets(clone.Namespace).Update(clone)
+
 	if err != nil {
-		// Keep retrying until update goes through
-		glog.Warning("Updated failed, retrying")
-		c.updateSecretFinalizers(secret, finalizers)
+		glog.Warning("Updating secret finalizers failed, retrying", secret.Name, err)
+		return err
 	}
+	glog.V(3).Infof("Successfully added/removed finalizer on the secret %q", secret.Name)
+	return err
 }
 
 /*
@@ -139,6 +150,14 @@ func (c *controller) secretAdd(obj interface{}) {
 
 func (c *controller) secretDelete(obj interface{}) {
 	c.secretAdd(obj)
+}
+
+func (c *controller) enqueueSecretAfter(obj interface{}, after time.Duration) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		return
+	}
+	c.secretQueue.AddAfter(key, after)
 }
 
 func (c *controller) openStackMachineClassToSecretAdd(obj interface{}) {
