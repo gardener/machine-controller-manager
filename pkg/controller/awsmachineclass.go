@@ -18,6 +18,8 @@ limitations under the License.
 package controller
 
 import (
+	"time"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -107,6 +109,12 @@ func (c *controller) reconcileClusterAWSMachineClassKey(key string) error {
 }
 
 func (c *controller) reconcileClusterAWSMachineClass(class *v1alpha1.AWSMachineClass) error {
+	glog.V(4).Info("Start Reconciling awsmachineclass: ", class.Name)
+	defer func() {
+		c.enqueueAwsMachineClassAfter(class, 10*time.Minute)
+		glog.V(4).Info("Stop Reconciling awsmachineclass: ", class.Name)
+	}()
+
 	internalClass := &machine.AWSMachineClass{}
 	err := c.internalExternalScheme.Convert(class, internalClass, nil)
 	if err != nil {
@@ -121,7 +129,10 @@ func (c *controller) reconcileClusterAWSMachineClass(class *v1alpha1.AWSMachineC
 
 	// Manipulate finalizers
 	if class.DeletionTimestamp == nil {
-		c.addAWSMachineClassFinalizers(class)
+		err = c.addAWSMachineClassFinalizers(class)
+		if err != nil {
+			return err
+		}
 	}
 
 	machines, err := c.findMachinesForClass(AWSMachineClassKind, class.Name)
@@ -143,11 +154,10 @@ func (c *controller) reconcileClusterAWSMachineClass(class *v1alpha1.AWSMachineC
 			return err
 		}
 		if len(machineDeployments) == 0 && len(machineSets) == 0 && len(machines) == 0 {
-			c.deleteAWSMachineClassFinalizers(class)
-			return nil
+			return c.deleteAWSMachineClassFinalizers(class)
 		}
 
-		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
+		glog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
@@ -162,37 +172,48 @@ func (c *controller) reconcileClusterAWSMachineClass(class *v1alpha1.AWSMachineC
 	Manipulate Finalizers
 */
 
-func (c *controller) addAWSMachineClassFinalizers(class *v1alpha1.AWSMachineClass) {
+func (c *controller) addAWSMachineClassFinalizers(class *v1alpha1.AWSMachineClass) error {
 	clone := class.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
 		finalizers.Insert(DeleteFinalizerName)
-		c.updateAWSMachineClassFinalizers(clone, finalizers.List())
+		return c.updateAWSMachineClassFinalizers(clone, finalizers.List())
 	}
+	return nil
 }
 
-func (c *controller) deleteAWSMachineClassFinalizers(class *v1alpha1.AWSMachineClass) {
+func (c *controller) deleteAWSMachineClassFinalizers(class *v1alpha1.AWSMachineClass) error {
 	clone := class.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		finalizers.Delete(DeleteFinalizerName)
-		c.updateAWSMachineClassFinalizers(clone, finalizers.List())
+		return c.updateAWSMachineClassFinalizers(clone, finalizers.List())
 	}
+	return nil
 }
 
-func (c *controller) updateAWSMachineClassFinalizers(class *v1alpha1.AWSMachineClass, finalizers []string) {
+func (c *controller) updateAWSMachineClassFinalizers(class *v1alpha1.AWSMachineClass, finalizers []string) error {
 	// Get the latest version of the class so that we can avoid conflicts
 	class, err := c.controlMachineClient.AWSMachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
 	if err != nil {
-		return
+		return err
 	}
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
 	_, err = c.controlMachineClient.AWSMachineClasses(class.Namespace).Update(clone)
 	if err != nil {
-		// Keep retrying until update goes through
-		glog.Warning("Updated failed, retrying: ", err)
-		c.updateAWSMachineClassFinalizers(class, finalizers)
+		glog.Warning("Updating AWSMachineClass failed, retrying. ", class.Name, err)
+		return err
 	}
+	glog.V(3).Infof("Successfully added/removed finalizer on the awsmachineclass %q", class.Name)
+	return err
+}
+
+func (c *controller) enqueueAwsMachineClassAfter(obj interface{}, after time.Duration) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		return
+	}
+	c.awsMachineClassQueue.AddAfter(key, after)
 }

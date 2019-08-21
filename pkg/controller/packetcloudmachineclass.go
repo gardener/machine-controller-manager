@@ -16,6 +16,8 @@ limitations under the License.
 package controller
 
 import (
+	"time"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -105,6 +107,12 @@ func (c *controller) reconcileClusterPacketMachineClassKey(key string) error {
 }
 
 func (c *controller) reconcileClusterPacketMachineClass(class *v1alpha1.PacketMachineClass) error {
+	glog.V(4).Info("Start Reconciling packetmachineclass: ", class.Name)
+	defer func() {
+		c.enqueuePacketMachineClassAfter(class, 10*time.Minute)
+		glog.V(4).Info("Stop Reconciling packetmachineclass: ", class.Name)
+	}()
+
 	internalClass := &machine.PacketMachineClass{}
 	err := c.internalExternalScheme.Convert(class, internalClass, nil)
 	if err != nil {
@@ -119,7 +127,10 @@ func (c *controller) reconcileClusterPacketMachineClass(class *v1alpha1.PacketMa
 
 	// Manipulate finalizers
 	if class.DeletionTimestamp == nil {
-		c.addPacketMachineClassFinalizers(class)
+		err = c.addPacketMachineClassFinalizers(class)
+		if err != nil {
+			return err
+		}
 	}
 
 	machines, err := c.findMachinesForClass(PacketMachineClassKind, class.Name)
@@ -141,11 +152,10 @@ func (c *controller) reconcileClusterPacketMachineClass(class *v1alpha1.PacketMa
 			return err
 		}
 		if len(machineDeployments) == 0 && len(machineSets) == 0 && len(machines) == 0 {
-			c.deletePacketMachineClassFinalizers(class)
-			return nil
+			return c.deletePacketMachineClassFinalizers(class)
 		}
 
-		glog.V(4).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
+		glog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
@@ -160,37 +170,48 @@ func (c *controller) reconcileClusterPacketMachineClass(class *v1alpha1.PacketMa
 	Manipulate Finalizers
 */
 
-func (c *controller) addPacketMachineClassFinalizers(class *v1alpha1.PacketMachineClass) {
+func (c *controller) addPacketMachineClassFinalizers(class *v1alpha1.PacketMachineClass) error {
 	clone := class.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
 		finalizers.Insert(DeleteFinalizerName)
-		c.updatePacketMachineClassFinalizers(clone, finalizers.List())
+		return c.updatePacketMachineClassFinalizers(clone, finalizers.List())
 	}
+	return nil
 }
 
-func (c *controller) deletePacketMachineClassFinalizers(class *v1alpha1.PacketMachineClass) {
+func (c *controller) deletePacketMachineClassFinalizers(class *v1alpha1.PacketMachineClass) error {
 	clone := class.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		finalizers.Delete(DeleteFinalizerName)
-		c.updatePacketMachineClassFinalizers(clone, finalizers.List())
+		return c.updatePacketMachineClassFinalizers(clone, finalizers.List())
 	}
+	return nil
 }
 
-func (c *controller) updatePacketMachineClassFinalizers(class *v1alpha1.PacketMachineClass, finalizers []string) {
+func (c *controller) updatePacketMachineClassFinalizers(class *v1alpha1.PacketMachineClass, finalizers []string) error {
 	// Get the latest version of the class so that we can avoid conflicts
 	class, err := c.controlMachineClient.PacketMachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
 	if err != nil {
-		return
+		return err
 	}
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
 	_, err = c.controlMachineClient.PacketMachineClasses(class.Namespace).Update(clone)
 	if err != nil {
-		// Keep retrying until update goes through
-		glog.Warningf("Updated failed, retrying: %v", err)
-		c.updatePacketMachineClassFinalizers(class, finalizers)
+		glog.Warning("Updating PacketMachineClass failed, retrying. ", class.Name, err)
+		return err
 	}
+	glog.V(3).Infof("Successfully added/removed finalizer on the packetmachineclass %q", class.Name)
+	return err
+}
+
+func (c *controller) enqueuePacketMachineClassAfter(obj interface{}, after time.Duration) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		return
+	}
+	c.openStackMachineClassQueue.AddAfter(key, after)
 }
