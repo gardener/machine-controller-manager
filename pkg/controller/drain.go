@@ -857,7 +857,8 @@ func (o *DrainOptions) evictPodWithoutPVInternal(attemptEvict bool, pod *corev1.
 		timeout = o.Timeout
 	}
 
-	podArray, err = o.waitForDelete(podArray, Interval, timeout, true, getPodFn)
+	bufferPeriod := 30 * time.Second
+	podArray, err = o.waitForDelete(podArray, Interval, timeout+bufferPeriod, true, getPodFn)
 	if err == nil {
 		if len(podArray) > 0 {
 			returnCh <- fmt.Errorf("timeout expired while waiting for pod %q terminating scheduled on node %v", pod.Name, pod.Spec.NodeName)
