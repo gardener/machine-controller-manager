@@ -583,12 +583,22 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			return err
 		}
 
-		// Delete node object
-		err = c.targetCoreClient.CoreV1().Nodes().Delete(nodeName, &metav1.DeleteOptions{})
-		if err != nil && !apierrors.IsNotFound(err) {
-			// If its an error, and anyother error than object not found
-			glog.Errorf("Deletion of Node Object %q failed due to error: %s", nodeName, err)
-			return err
+		if nodeName != "" {
+			// Delete node object
+			err = c.targetCoreClient.CoreV1().Nodes().Delete(nodeName, &metav1.DeleteOptions{})
+			if err != nil && !apierrors.IsNotFound(err) {
+				// If its an error, and anyother error than object not found
+				message := fmt.Sprintf("Deletion of Node Object %q failed due to error: %s", nodeName, err)
+				lastOperation := v1alpha1.LastOperation{
+					Description:    message,
+					State:          v1alpha1.MachineStateFailed,
+					Type:           v1alpha1.MachineOperationDelete,
+					LastUpdateTime: metav1.Now(),
+				}
+				c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
+				glog.Errorf(message)
+				return err
+			}
 		}
 
 		// Remove finalizers from machine object
