@@ -45,7 +45,7 @@ var _ = Describe("drain", func() {
 	const terminationGracePeriodShortBy8 = terminationGracePeriodShort / 8
 	const terminationGracePeriodMedium = 10 * time.Second
 	const terminationGracePeriodDefault = 20 * time.Second
-	const terminationGracePeriodLong = 40 * time.Second
+	const terminationGracePeriodLong = 2 * time.Minute
 
 	type stats struct {
 		nPodsWithoutPV                int
@@ -711,7 +711,35 @@ var _ = Describe("drain", func() {
 				drainError:       nil,
 				nEvictions:       0,
 				minDrainDuration: 0,
-			}))
+			}),
+		Entry("Successful drain for pods with long termination grace period",
+			&setup{
+				stats: stats{
+					nPodsWithoutPV:                10,
+					nPodsWithOnlyExclusivePV:      2,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+				},
+				attemptEviction:        true,
+				terminationGracePeriod: terminationGracePeriodLong,
+			},
+			[]podDrainHandler{deletePod, sleepFor(terminationGracePeriodShortBy8), detachExclusiveVolumes},
+			&expectation{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      0,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+				},
+				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
+				timeout:      terminationGracePeriodLong,
+				drainTimeout: false,
+				drainError:   nil,
+				nEvictions:   12,
+				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
+				minDrainDuration: terminationGracePeriodMedium,
+			}),
+	)
 })
 
 func getPodWithoutPV(ns, name, nodeName string, terminationGracePeriod time.Duration, labels map[string]string) *corev1.Pod {
