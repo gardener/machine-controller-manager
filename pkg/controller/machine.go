@@ -484,21 +484,38 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 		}
 
 		if machineID != "" {
-			maxEvictRetries := c.safetyOptions.MaxEvictRetries
-			pvDetachTimeOut := c.safetyOptions.PvDetachTimeout.Duration
-			timeOutDuration := c.safetyOptions.MachineDrainTimeout.Duration
+			var (
+				forceDeletePods         = false
+				forceDeleteMachine      = false
+				timeOutOccurred         = false
+				maxEvictRetries         = c.safetyOptions.MaxEvictRetries
+				pvDetachTimeOut         = c.safetyOptions.PvDetachTimeout.Duration
+				timeOutDuration         = c.safetyOptions.MachineDrainTimeout.Duration
+				forceDeleteLabelPresent = machine.Labels["force-deletion"] == "True"
+				lastDrainFailed         = machine.Status.LastOperation.Description[0:12] == "Drain failed"
+			)
+
 			// Timeout value obtained by subtracting last operation with expected time out period
 			timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
-			forceDeletePods := false
+			timeOutOccurred = timeOut > 0
 
-			// To perform forceful drain either one of the below conditions must be satified
-			// 1. force-deletion: "True" label must be present
-			// 2. Deletion operation is more than drain-timeout minutes old
-			if machine.Labels["force-deletion"] == "True" || timeOut > 0 {
+			if forceDeleteLabelPresent || timeOutOccurred || lastDrainFailed {
+				// To perform forceful machine drain/delete either one of the below conditions must be satified
+				// 1. force-deletion: "True" label must be present
+				// 2. Deletion operation is more than drain-timeout minutes old
+				// 3. Last machine drain had failed
+				forceDeleteMachine = true
 				forceDeletePods = true
-				timeOutDuration = 30 * time.Second
+				timeOutDuration = 1 * time.Minute
 				maxEvictRetries = 1
-				glog.V(2).Infof("Force deletion has been triggerred for machine %q", machine.Name)
+
+				glog.V(2).Infof(
+					"Force deletion has been triggerred for machine %q due to Label:%t, timeout:%t, lastDrainFailed:%t",
+					machine.Name,
+					forceDeleteLabelPresent,
+					timeOutOccurred,
+					lastDrainFailed,
+				)
 			}
 
 			buf := bytes.NewBuffer([]byte{})
@@ -526,7 +543,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				// Drain successful
 				glog.V(2).Infof("Drain successful for machine %q. \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
 
-			} else if err != nil && machine.Labels["force-deletion"] == "True" {
+			} else if err != nil && forceDeleteMachine {
 				// Drain failed on force deletion
 				glog.Warningf("Drain failed for machine %q. However, since it's a force deletion shall continue deletion of VM. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
 

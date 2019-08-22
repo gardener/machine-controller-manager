@@ -339,7 +339,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 	c.terminateMachines(staleMachines, machineSet)
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
-	glog.V(3).Infof("Difference between current active replicas and desired replicas - %d", diff)
+	glog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
 
 	if diff < 0 {
 		// If MachineSet is frozen and no deletion timestamp, don't process it
