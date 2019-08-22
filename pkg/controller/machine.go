@@ -451,6 +451,7 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 
 func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driver) error {
 	var err error
+	nodeName := machine.Status.Node
 
 	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		glog.V(2).Infof("Deleting Machine %q", machine.Name)
@@ -492,7 +493,6 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				timeOutDuration         = c.safetyOptions.MachineDrainTimeout.Duration
 				forceDeleteLabelPresent = machine.Labels["force-deletion"] == "True"
 				lastDrainFailed         = machine.Status.LastOperation.Description[0:12] == "Drain failed"
-				nodeName                = machine.Status.Node
 			)
 
 			// Timeout value obtained by subtracting last operation with expected time out period
@@ -562,16 +562,6 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			}
 
 			err = driver.Delete()
-
-			// Delete node object if exists
-			if nodeName != "" {
-				err = c.targetCoreClient.CoreV1().Nodes().Delete(nodeName, &metav1.DeleteOptions{})
-				if err != nil && !apierrors.IsNotFound(err) {
-					// If its an error, and anyother error than object not found
-					glog.Errorf("Deletion of Node Object %q failed due to error: %s", nodeName, err)
-					return err
-				}
-			}
 		}
 
 		if err != nil {
@@ -590,6 +580,14 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				LastUpdateTime: metav1.Now(),
 			}
 			c.updateMachineStatus(machine, lastOperation, currentStatus)
+			return err
+		}
+
+		// Delete node object
+		err = c.targetCoreClient.CoreV1().Nodes().Delete(nodeName, &metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			// If its an error, and anyother error than object not found
+			glog.Errorf("Deletion of Node Object %q failed due to error: %s", nodeName, err)
 			return err
 		}
 
