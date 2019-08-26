@@ -740,6 +740,116 @@ var _ = Describe("machine_util", func() {
 					labelsChanged: true,
 				},
 			}),
+
+			Entry("when new labels are added on node-object ", &data{
+				setup: setup{},
+				action: action{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Labels: map[string]string{
+								"key1":   "value1",
+								"keyNew": "valueNew",
+							},
+							Annotations: map[string]string{
+								LastAppliedALTAnnotation: "{\"metadata\":{\"creationTimestamp\":null,\"labels\":{\"key1\":\"value1\"}}}",
+							},
+						},
+					},
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{
+									"test-label": "test-label",
+								},
+							},
+							Spec: machinev1.MachineSpec{
+								NodeTemplateSpec: machinev1.NodeTemplateSpec{
+									ObjectMeta: metav1.ObjectMeta{
+										Labels: map[string]string{
+											"key1": "value1",
+										},
+									},
+								},
+							},
+						},
+						nil, nil, nil, nil),
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Labels: map[string]string{
+								"key1":   "value1",
+								"keyNew": "valueNew",
+							},
+						},
+					},
+					labelsChanged: false,
+				},
+			}),
+
+			Entry("when existing labels are deleted from node-object ", &data{
+				setup: setup{},
+				action: action{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:   "test-node-0",
+							Labels: map[string]string{},
+							Annotations: map[string]string{
+								LastAppliedALTAnnotation: "{\"metadata\":{\"creationTimestamp\":null,\"labels\":{\"key1\":\"value1\"}}}",
+							},
+						},
+					},
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{
+									"test-label": "test-label",
+								},
+							},
+							Spec: machinev1.MachineSpec{
+								NodeTemplateSpec: machinev1.NodeTemplateSpec{
+									ObjectMeta: metav1.ObjectMeta{
+										Labels: map[string]string{
+											"key1": "value1",
+											"key2": "value2",
+										},
+									},
+								},
+							},
+						},
+						nil, nil, nil, nil),
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Labels: map[string]string{
+								"key1": "value1",
+								"key2": "value2",
+							},
+						},
+					},
+					labelsChanged: true,
+				},
+			}),
 		)
 
 	})
@@ -1045,6 +1155,113 @@ var _ = Describe("machine_util", func() {
 							Name: "test-node-0",
 							Annotations: map[string]string{
 								"anno1": "anno1",
+							},
+						},
+					},
+					annotationsChanged: true,
+				},
+			}),
+
+			Entry("when new annotations are added on node-objects.", &data{
+				setup: setup{},
+				action: action{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1":                  "anno1",
+								"annoNew":                "annoNew",
+								LastAppliedALTAnnotation: "{\"metadata\":{\"creationTimestamp\":null,\"annotations\":{\"anno1\":\"anno1\"}}}",
+							},
+						},
+					},
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{
+									"test-label": "test-label",
+								},
+							},
+							Spec: machinev1.MachineSpec{
+								NodeTemplateSpec: machinev1.NodeTemplateSpec{
+									ObjectMeta: metav1.ObjectMeta{
+										Annotations: map[string]string{
+											"anno1": "anno1",
+										},
+									},
+								},
+							},
+						},
+						nil, nil, nil, nil),
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1":   "anno1",
+								"annoNew": "annoNew",
+							},
+						},
+					},
+					annotationsChanged: false,
+				},
+			}),
+
+			Entry("when existing annotations are deleted from node-objects. ", &data{
+				setup: setup{},
+				action: action{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								LastAppliedALTAnnotation: "{\"metadata\":{\"creationTimestamp\":null,\"annotations\":{\"anno1\":\"anno1\"}}}",
+							},
+						},
+					},
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{
+									"test-label": "test-label",
+								},
+							},
+							Spec: machinev1.MachineSpec{
+								NodeTemplateSpec: machinev1.NodeTemplateSpec{
+									ObjectMeta: metav1.ObjectMeta{
+										Annotations: map[string]string{
+											"anno1": "anno1",
+											"anno2": "anno2",
+										},
+									},
+								},
+							},
+						},
+						nil, nil, nil, nil),
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1": "anno1",
+								"anno2": "anno2",
 							},
 						},
 					},
@@ -1469,6 +1686,160 @@ var _ = Describe("machine_util", func() {
 									Key:    "Key1",
 									Value:  "Value1",
 									Effect: "NoExecute",
+								},
+							},
+						},
+					},
+					taintsChanged: true,
+				},
+			}),
+
+			Entry("when new taints are added on node-object ", &data{
+				setup: setup{},
+				action: action{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								LastAppliedALTAnnotation: "{\"metadata\":{\"creationTimestamp\":null},\"spec\":{\"taints\":[{\"key\":\"Key1\",\"value\":\"Value1\",\"effect\":\"NoSchedule\"}]}}",
+							},
+						},
+						Spec: corev1.NodeSpec{
+							Taints: []corev1.Taint{
+								{
+									Key:    "Key1",
+									Value:  "Value1",
+									Effect: "NoSchedule",
+								},
+								{
+									Key:    "KeyNew",
+									Value:  "ValueNew",
+									Effect: "NoSchedule",
+								},
+							},
+						},
+					},
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{
+									"test-label": "test-label",
+								},
+							},
+							Spec: machinev1.MachineSpec{
+								NodeTemplateSpec: machinev1.NodeTemplateSpec{
+									Spec: corev1.NodeSpec{
+										Taints: []corev1.Taint{
+											{
+												Key:    "Key1",
+												Value:  "Value1",
+												Effect: "NoSchedule",
+											},
+										},
+									},
+								},
+							},
+						},
+						nil, nil, nil, nil),
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+						},
+						Spec: corev1.NodeSpec{
+							Taints: []corev1.Taint{
+								{
+									Key:    "Key1",
+									Value:  "Value1",
+									Effect: "NoSchedule",
+								},
+								{
+									Key:    "KeyNew",
+									Value:  "ValueNew",
+									Effect: "NoSchedule",
+								},
+							},
+						},
+					},
+					taintsChanged: false,
+				},
+			}),
+
+			Entry("when existing taints are deleted from node-objects ", &data{
+				setup: setup{},
+				action: action{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								LastAppliedALTAnnotation: "{\"metadata\":{\"creationTimestamp\":null},\"spec\":{\"taints\":[{\"key\":\"Key1\",\"value\":\"Value1\",\"effect\":\"NoSchedule\"}]}}",
+							},
+						},
+						Spec: corev1.NodeSpec{
+							Taints: []corev1.Taint{},
+						},
+					},
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{
+									"test-label": "test-label",
+								},
+							},
+							Spec: machinev1.MachineSpec{
+								NodeTemplateSpec: machinev1.NodeTemplateSpec{
+									Spec: corev1.NodeSpec{
+										Taints: []corev1.Taint{
+											{
+												Key:    "Key1",
+												Value:  "Value1",
+												Effect: "NoSchedule",
+											},
+											{
+												Key:    "Key2",
+												Value:  "Value2",
+												Effect: "NoSchedule",
+											},
+										},
+									},
+								},
+							},
+						},
+						nil, nil, nil, nil),
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+						},
+						Spec: corev1.NodeSpec{
+							Taints: []corev1.Taint{
+								{
+									Key:    "Key1",
+									Value:  "Value1",
+									Effect: "NoSchedule",
+								},
+								{
+									Key:    "Key2",
+									Value:  "Value2",
+									Effect: "NoSchedule",
 								},
 							},
 						},
