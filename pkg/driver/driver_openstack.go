@@ -285,6 +285,8 @@ func (d *OpenStackDriver) createOpenStackClient() (*gophercloud.ProviderClient, 
 
 	// optional OS_USER_DOMAIN_NAME
 	userDomainName := d.CloudConfig.Data[v1alpha1.OpenStackUserDomainName]
+	// optional OS_USER_DOMAIN_ID
+	userDomainID := d.CloudConfig.Data[v1alpha1.OpenStackUserDomainID]
 
 	domainName, ok := d.CloudConfig.Data[v1alpha1.OpenStackDomainName]
 	domainID, ok2 := d.CloudConfig.Data[v1alpha1.OpenStackDomainID]
@@ -338,6 +340,7 @@ func (d *OpenStackDriver) createOpenStackClient() (*gophercloud.ProviderClient, 
 		ProjectName:    strings.TrimSpace(string(tenantName)),
 		ProjectID:      strings.TrimSpace(string(tenantID)),
 		UserDomainName: strings.TrimSpace(string(userDomainName)),
+		UserDomainID:   strings.TrimSpace(string(userDomainID)),
 	}
 	clientOpts.AuthInfo = authInfo
 
