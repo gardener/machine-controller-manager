@@ -1164,6 +1164,8 @@ const (
 	OpenStackTenantID string = "tenantID"
 	// OpenStackUserDomainName is a constant for a key name that is part of the OpenStack cloud credentials.
 	OpenStackUserDomainName string = "userDomainName"
+	// OpenStackUserDomainID is a constant for a key name that is part of the OpenStack cloud credentials.
+	OpenStackUserDomainID string = "userDomainID"
 	// OpenStackUsername is a constant for a key name that is part of the OpenStack cloud credentials.
 	OpenStackUsername string = "username"
 	// OpenStackPassword is a constant for a key name that is part of the OpenStack cloud credentials.
@@ -1273,14 +1275,14 @@ type PacketMachineClassList struct {
 
 // PacketMachineClassSpec is the specification of a cluster.
 type PacketMachineClassSpec struct {
-	Facility     []string           `json:"facility"`
-	MachineType  string             `json:"machineType"`
-	BillingCycle string             `json:"billingCycle"`
-	OS           string             `json:"OS"`
-	ProjectID    string             `json:"projectID"`
-	Tags         []string  `json:"tags,omitempty"`
+	Facility     []string `json:"facility"`
+	MachineType  string   `json:"machineType"`
+	BillingCycle string   `json:"billingCycle"`
+	OS           string   `json:"OS"`
+	ProjectID    string   `json:"projectID"`
+	Tags         []string `json:"tags,omitempty"`
 	SSHKeys      []string `json:"sshKeys,omitempty"`
-	UserData     string             `json:"userdata,omitempty"`
+	UserData     string   `json:"userdata,omitempty"`
 
 	SecretRef *corev1.SecretReference `json:"secretRef,omitempty"`
 }
