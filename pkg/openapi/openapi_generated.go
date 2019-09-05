@@ -608,26 +608,37 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 						},
 						"publisher": {
 							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
+								Description: "DEPRECATED: This field will be removed in a future version.",
+								Type:        []string{"string"},
+								Format:      "",
 							},
 						},
 						"offer": {
 							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
+								Description: "DEPRECATED: This field will be removed in a future version.",
+								Type:        []string{"string"},
+								Format:      "",
 							},
 						},
 						"sku": {
 							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
+								Description: "DEPRECATED: This field will be removed in a future version.",
+								Type:        []string{"string"},
+								Format:      "",
 							},
 						},
 						"version": {
 							SchemaProps: spec.SchemaProps{
-								Type:   []string{"string"},
-								Format: "",
+								Description: "DEPRECATED: This field will be removed in a future version.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"urn": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Uniform Resource Name of the OS image to be used , it has the format 'publisher:offer:sku:version'",
+								Type:        []string{"string"},
+								Format:      "",
 							},
 						},
 					},
