@@ -98,6 +98,8 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 		tagList[idx] = to.StringPtr(element)
 	}
 
+	publisher, offer, sku, version := getAzureImageDetails(d)
+
 	VMParameters := compute.VirtualMachine{
 		Name:     &vmName,
 		Location: &location,
@@ -107,10 +109,10 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 			},
 			StorageProfile: &compute.StorageProfile{
 				ImageReference: &compute.ImageReference{
-					Publisher: &d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Publisher,
-					Offer:     &d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Offer,
-					Sku:       &d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Sku,
-					Version:   &d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Version,
+					Publisher: &publisher,
+					Offer:     &offer,
+					Sku:       &sku,
+					Version:   &version,
 				},
 				OsDisk: &compute.OSDisk{
 					Name:    &diskName,
@@ -156,6 +158,27 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 	}
 
 	return VMParameters
+}
+
+func isUrnProvided(d *AzureDriver) bool {
+	return d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.URN != nil &&
+		*d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.URN != ""
+}
+
+func getAzureImageDetails(d *AzureDriver) (publisher, offer, sku, version string) {
+	if isUrnProvided(d) {
+		splits := strings.Split(*d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.URN, ":")
+		publisher = splits[0]
+		offer = splits[1]
+		sku = splits[2]
+		version = splits[3]
+		return
+	}
+	publisher = d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Publisher
+	offer = d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Offer
+	sku = d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Sku
+	version = d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Version
+	return
 }
 
 // Create method is used to create an azure machine

@@ -888,6 +888,7 @@ type AzureImageReference struct {
 	Offer     string
 	Sku       string
 	Version   string
+	URN       *string
 }
 
 // AzureOSDisk is specifies information about the operating system disk used by the virtual machine. <br><br> For more
