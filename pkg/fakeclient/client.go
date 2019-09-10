@@ -18,6 +18,7 @@ package fakeclient
 
 import (
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -65,10 +66,19 @@ func (t *FakeObjectTracker) Add(obj runtime.Object) error {
 // Get recieves an get event with the object
 func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string) (runtime.Object, error) {
 	if t.fakingEnabled {
+		defer t.DecrementCounter()
+
 		err := t.RunFakeInvocations()
 		if err != nil {
 			return nil, err
 		}
+
+		if gvr.Resource == "machines" {
+			if t.fakingOptions.failAt.Machine.Get != "" {
+				return nil, errors.New(t.fakingOptions.failAt.Machine.Get)
+			}
+		}
+
 	}
 
 	return t.delegatee.Get(gvr, ns, name)
@@ -77,6 +87,8 @@ func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string
 // Create recieves an create event with the object
 func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.Object, ns string) error {
 	if t.fakingEnabled {
+		defer t.DecrementCounter()
+
 		err := t.RunFakeInvocations()
 		if err != nil {
 			return err
@@ -104,6 +116,8 @@ func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.
 func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.Object, ns string) error {
 
 	if t.fakingEnabled {
+		defer t.DecrementCounter()
+
 		err := t.RunFakeInvocations()
 		if err != nil {
 			return err
@@ -136,6 +150,8 @@ func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.
 // List recieves an list event with the object
 func (t *FakeObjectTracker) List(gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, ns string) (runtime.Object, error) {
 	if t.fakingEnabled {
+		defer t.DecrementCounter()
+
 		err := t.RunFakeInvocations()
 		if err != nil {
 			return nil, err
@@ -147,6 +163,8 @@ func (t *FakeObjectTracker) List(gvr schema.GroupVersionResource, gvk schema.Gro
 // Delete recieves an delete event with the object
 func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name string) error {
 	if t.fakingEnabled {
+		defer t.DecrementCounter()
+
 		err := t.RunFakeInvocations()
 		if err != nil {
 			return err
@@ -178,6 +196,8 @@ func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name str
 // Watch recieves an watch event with the object
 func (t *FakeObjectTracker) Watch(gvr schema.GroupVersionResource, name string) (watch.Interface, error) {
 	if t.fakingEnabled {
+		defer t.DecrementCounter()
+
 		err := t.RunFakeInvocations()
 		if err != nil {
 			return nil, err
@@ -328,9 +348,10 @@ func (w *watcher) dispatchInitialObjects(action k8stesting.WatchAction, t k8stes
 	return nil
 }
 
-// ResourceActions contains of Kubernetes/MCM resources whose response can be faked
+// ResourceActions contains of Kubernetes/Machine resources whose response can be faked
 type ResourceActions struct {
-	Node Actions
+	Node    Actions
+	Machine Actions
 }
 
 // Actions contains the actions whose response can be faked
@@ -343,16 +364,23 @@ type Actions struct {
 
 // fakingOptions are options that can be set while trying to fake object tracker returns
 type fakingOptions struct {
+	// To check if faking is enabled
 	fakingEnabled bool
-	errorMessage  string
-	delay         time.Duration
-	failAt        ResourceActions
+	// Number of times faking is to occur
+	counter int
+	// Error message to be displayed
+	errorMessage string
+	// Delay in providing response
+	delay time.Duration
+	// Fail at different resource action
+	failAt *ResourceActions
 }
 
 // SetDelay sets delay while invoking any interface exposed by standard ObjectTrackers
 func (o *fakingOptions) SetDelay(delay time.Duration) error {
 	o.fakingEnabled = true
 	o.delay = delay
+	o.counter = math.MaxInt32
 	return nil
 }
 
@@ -360,21 +388,33 @@ func (o *fakingOptions) SetDelay(delay time.Duration) error {
 func (o *fakingOptions) SetError(message string) error {
 	o.fakingEnabled = true
 	o.errorMessage = message
+	o.counter = math.MaxInt32
 	return nil
 }
 
 // SetFakeResourceActions sets up the errorMessage to be returned on specific calls
-func (o *fakingOptions) SetFakeResourceActions(resourceActions *ResourceActions) error {
+func (o *fakingOptions) SetFakeResourceActions(resourceActions *ResourceActions, counter int) error {
 	o.fakingEnabled = true
-	o.failAt = *resourceActions
+	o.failAt = resourceActions
+	o.counter = counter
 	return nil
 }
 
 // ClearOptions clears any faking options that have been sets
-func (o *fakingOptions) ClearOptions(message string) error {
+func (o *fakingOptions) ClearOptions() error {
 	o.fakingEnabled = false
 	o.errorMessage = ""
 	o.delay = 0
+	o.failAt = nil
+	o.counter = 0
+	return nil
+}
+
+func (o *fakingOptions) DecrementCounter() error {
+	o.counter--
+	if o.counter == 0 {
+		o.ClearOptions()
+	}
 	return nil
 }
 
