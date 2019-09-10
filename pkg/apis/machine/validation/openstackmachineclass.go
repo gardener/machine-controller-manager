@@ -58,15 +58,38 @@ func validateOpenStackMachineClassSpec(spec *machine.OpenStackMachineClassSpec, 
 	if "" == spec.KeyName {
 		allErrs = append(allErrs, field.Required(fldPath.Child("keyName"), "KeyName is required"))
 	}
-	if "" == spec.NetworkID {
-		allErrs = append(allErrs, field.Required(fldPath.Child("networkID"), "NetworkID is required"))
+	if "" != spec.NetworkID && len(spec.Networks) > 0 {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("networks"), "\"networks\" list should not be specified along with \"spec.NetworkID\""))
+	}
+	if "" == spec.NetworkID && len(spec.Networks) == 0 {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("networks"), "both \"networks\" and \"networkID\" should not be empty"))
 	}
 	if "" == spec.PodNetworkCidr {
 		allErrs = append(allErrs, field.Required(fldPath.Child("podNetworkCidr"), "PodNetworkCidr is required"))
 	}
 
+	allErrs = append(allErrs, validateOsNetworks(spec.Networks, spec.PodNetworkCidr, field.NewPath("spec.networks"))...)
 	allErrs = append(allErrs, validateSecretRef(spec.SecretRef, field.NewPath("spec.secretRef"))...)
 	allErrs = append(allErrs, validateOSClassSpecTags(spec.Tags, field.NewPath("spec.tags"))...)
+
+	return allErrs
+}
+
+func validateOsNetworks(networks []machine.OpenStackNetwork, podNetworkCidr string, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	for index, network := range networks {
+		fldPath := fldPath.Index(index)
+		if "" == network.Id && "" == network.Name {
+			allErrs = append(allErrs, field.Required(fldPath, "at least on of network \"id\" or \"name\" is required"))
+		}
+		if "" != network.Id && "" != network.Name {
+			allErrs = append(allErrs, field.Forbidden(fldPath, "simultaneous use of network \"id\" and \"name\" is forbidden"))
+		}
+		if "" == podNetworkCidr && network.PodNetwork {
+			allErrs = append(allErrs, field.Required(fldPath.Child("podNetwork"), "\"podNetwork\" switch should not be used in absence of \"spec.podNetworkCidr\""))
+		}
+	}
 
 	return allErrs
 }
