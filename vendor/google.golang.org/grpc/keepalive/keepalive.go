@@ -33,10 +33,7 @@ import (
 type ClientParameters struct {
 	// After a duration of this time if the client doesn't see any activity it
 	// pings the server to see if the transport is still alive.
-<<<<<<< HEAD
 	// If set below 10s, a minimum value of 10s will be used instead.
-=======
->>>>>>> Update vendor after removing the provider-specific machineclass
 	Time time.Duration // The current default value is infinity.
 	// After having pinged for keepalive check, the client waits for a duration
 	// of Timeout and if no activity is seen even after that the connection is
@@ -66,10 +63,7 @@ type ServerParameters struct {
 	MaxConnectionAgeGrace time.Duration // The current default value is infinity.
 	// After a duration of this time if the server doesn't see any activity it
 	// pings the client to see if the transport is still alive.
-<<<<<<< HEAD
 	// If set below 1s, a minimum value of 1s will be used instead.
-=======
->>>>>>> Update vendor after removing the provider-specific machineclass
 	Time time.Duration // The current default value is 2 hours.
 	// After having pinged for keepalive check, the server waits for a duration
 	// of Timeout and if no activity is seen even after that the connection is

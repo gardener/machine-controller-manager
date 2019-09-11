@@ -52,11 +52,7 @@ func (s State) String() string {
 const (
 	// Idle indicates the ClientConn is idle.
 	Idle State = iota
-<<<<<<< HEAD
 	// Connecting indicates the ClientConn is connecting.
-=======
-	// Connecting indicates the ClienConn is connecting.
->>>>>>> Update vendor after removing the provider-specific machineclass
 	Connecting
 	// Ready indicates the ClientConn is ready for work.
 	Ready

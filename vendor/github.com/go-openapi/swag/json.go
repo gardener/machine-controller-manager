@@ -34,13 +34,9 @@ var DefaultJSONNameProvider = NewNameProvider()
 
 const comma = byte(',')
 
-var closers map[byte]byte
-
-func init() {
-	closers = map[byte]byte{
-		'{': '}',
-		'[': ']',
-	}
+var closers = map[byte]byte{
+	'{': '}',
+	'[': ']',
 }
 
 type ejMarshaler interface {
@@ -68,16 +64,15 @@ func WriteJSON(data interface{}) ([]byte, error) {
 // ReadJSON reads json data, prefers finding an appropriate interface to short-circuit the unmarshaller
 // so it takes the fastes option available
 func ReadJSON(data []byte, value interface{}) error {
-	trimmedData := bytes.Trim(data, "\x00")
 	if d, ok := value.(ejUnmarshaler); ok {
-		jl := &jlexer.Lexer{Data: trimmedData}
+		jl := &jlexer.Lexer{Data: data}
 		d.UnmarshalEasyJSON(jl)
 		return jl.Error()
 	}
 	if d, ok := value.(json.Unmarshaler); ok {
-		return d.UnmarshalJSON(trimmedData)
+		return d.UnmarshalJSON(data)
 	}
-	return json.Unmarshal(trimmedData, value)
+	return json.Unmarshal(data, value)
 }
 
 // DynamicJSONToStruct converts an untyped json structure into a struct
@@ -87,7 +82,10 @@ func DynamicJSONToStruct(data interface{}, target interface{}) error {
 	if err != nil {
 		return err
 	}
-	return ReadJSON(b, target)
+	if err := ReadJSON(b, target); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ConcatJSON concatenates multiple json objects efficiently
@@ -262,7 +260,7 @@ func (n *NameProvider) GetJSONNames(subject interface{}) []string {
 		names = n.makeNameIndex(tpe)
 	}
 
-	res := make([]string, 0, len(names.jsonNames))
+	var res []string
 	for k := range names.jsonNames {
 		res = append(res, k)
 	}

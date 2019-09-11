@@ -377,14 +377,7 @@ func metadataKeyOmit(key string) bool {
 	case "grpc-trace-bin": // grpc-trace-bin is special because it's visiable to users.
 		return false
 	}
-<<<<<<< HEAD
 	return strings.HasPrefix(key, "grpc-")
-=======
-	if strings.HasPrefix(key, "grpc-") {
-		return true
-	}
-	return false
->>>>>>> Update vendor after removing the provider-specific machineclass
 }
 
 func mdToMetadataProto(md metadata.MD) *pb.Metadata {
