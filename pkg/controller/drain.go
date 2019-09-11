@@ -24,7 +24,6 @@ package controller
 
 import (
 	"context"
-	"database/sql/driver"
 	"errors"
 	"fmt"
 	"io"
@@ -33,7 +32,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gardener/machine-controller-manager/pkg/driver"
+	cmiclient "github.com/gardener/machine-controller-manager/pkg/cmiclient"
 	"github.com/golang/glog"
 	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -61,7 +60,7 @@ type DrainOptions struct {
 	nodeName                     string
 	Out                          io.Writer
 	ErrOut                       io.Writer
-	Driver                       driver.Driver
+	CMIClient                    cmiclient.CMIClient
 	pvcLister                    corelisters.PersistentVolumeClaimLister
 	pvLister                     corelisters.PersistentVolumeLister
 	drainStartedOn               time.Time
@@ -128,7 +127,7 @@ func NewDrainOptions(
 	deleteLocalData bool,
 	out io.Writer,
 	errOut io.Writer,
-	driver driver.CMIClient,
+	CMIClient cmiclient.CMIClient,
 	pvcLister corelisters.PersistentVolumeClaimLister,
 	pvLister corelisters.PersistentVolumeLister,
 ) *DrainOptions {
@@ -146,7 +145,7 @@ func NewDrainOptions(
 		nodeName:                     nodeName,
 		Out:                          out,
 		ErrOut:                       errOut,
-		Driver:                       driver,
+		CMIClient:                    CMIClient,
 		pvcLister:                    pvcLister,
 		pvLister:                     pvLister,
 	}
@@ -801,7 +800,7 @@ func (o *DrainOptions) getVolIDsFromDriver(pvNames []string) ([]string, error) {
 		}
 	}
 
-	return o.Driver.GetListOfVolumeIDsForExistingPVs(pvSpecs)
+	return o.CMIClient.GetListOfVolumeIDsForExistingPVs(pvSpecs)
 }
 
 func (o *DrainOptions) evictPodWithoutPVInternal(attemptEvict bool, pod *corev1.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error), returnCh chan error) {

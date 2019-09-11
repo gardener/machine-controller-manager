@@ -29,7 +29,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/driver"
+	"github.com/gardener/machine-controller-manager/pkg/cmiclient"
 	"github.com/golang/glog"
 )
 
@@ -441,7 +441,7 @@ func (c *controller) checkMachineClass(
 	}
 
 	// Dummy driver object being created to invoke GetVMs
-	dvr := driver.NewCMIDriverClient(
+	dvr := cmiclient.NewCMIDriverClient(
 		"",
 		machineClass.(*v1alpha1.MachineClass).Provider,
 		secret,
@@ -519,7 +519,7 @@ func (c *controller) enqueueMachineSafetyOrphanVMsKey(obj interface{}) {
 }
 
 // deleteOrphanVM teriminates's the VM on the cloud provider passed to it
-func (c *controller) deleteOrphanVM(vm driver.VMs, secretRef *corev1.Secret, kind string, machineClass interface{}) {
+func (c *controller) deleteOrphanVM(vm cmiclient.VMs, secretRef *corev1.Secret, kind string, machineClass interface{}) {
 
 	var machineID string
 	var machineName string
@@ -529,7 +529,7 @@ func (c *controller) deleteOrphanVM(vm driver.VMs, secretRef *corev1.Secret, kin
 		machineName = v
 	}
 
-	dvr := driver.NewCMIDriverClient(
+	dvr := cmiclient.NewCMIDriverClient(
 		machineID,
 		kind,
 		secretRef,

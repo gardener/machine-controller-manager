@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gardener/machine-controller-manager/pkg/driver"
+	"github.com/gardener/machine-controller-manager/pkg/cmiclient"
 	"github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -119,7 +119,7 @@ var _ = Describe("drain", func() {
 		}
 		d := &DrainOptions{
 			DeleteLocalData:              true,
-			Driver:                       &drainDriver{},
+			CMIClient:                    &drainDriver{},
 			ErrOut:                       GinkgoWriter,
 			ForceDeletePods:              setup.force,
 			IgnorePodsWithoutControllers: true,
@@ -904,13 +904,13 @@ func getDrainTestVolumeName(pvSpec *corev1.PersistentVolumeSpec) string {
 }
 
 type drainDriver struct {
-	*driver.FakeDriver
+	*cmiclient.FakeCMIClient
 }
 
-func (d *drainDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, error) {
-	volNames := make([]string, len(specs))
-	for i := range specs {
-		volNames[i] = getDrainTestVolumeName(&specs[i])
+func (d *drainDriver) GetListOfVolumeIDsForExistingPVs(pvSpecs []*corev1.PersistentVolumeSpec) ([]string, error) {
+	volNames := make([]string, len(pvSpecs))
+	for i := range pvSpecs {
+		volNames[i] = getDrainTestVolumeName(pvSpecs[i])
 	}
 	return volNames, nil
 }

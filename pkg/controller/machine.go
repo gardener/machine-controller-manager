@@ -37,7 +37,7 @@ import (
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
-	"github.com/gardener/machine-controller-manager/pkg/driver"
+	"github.com/gardener/machine-controller-manager/pkg/cmiclient"
 )
 
 const (
@@ -143,7 +143,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		return err
 	}
 
-	driver := driver.NewCMIDriverClient(machine.Spec.ProviderID, MachineClass.(*v1alpha1.MachineClass).Provider, secretRef, MachineClass, machine.Name)
+	driver := cmiclient.NewCMIDriverClient(machine.Spec.ProviderID, MachineClass.(*v1alpha1.MachineClass).Provider, secretRef, MachineClass, machine.Name)
 
 	actualProviderID, err := machine.Spec.ProviderID, nil
 	if err != nil {
@@ -337,7 +337,7 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 	Machine operations - Create, Update, Delete
 */
 
-func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.CMIClient) error {
+func (c *controller) machineCreate(machine *v1alpha1.Machine, driver cmiclient.CMIClient) error {
 	glog.V(2).Infof("Creating machine %s, please wait!", machine.Name)
 
 	actualProviderID, nodeName, err := driver.CreateMachine()
@@ -451,7 +451,7 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 	return nil
 }
 
-func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.CMIClient) error {
+func (c *controller) machineDelete(machine *v1alpha1.Machine, driver cmiclient.CMIClient) error {
 	var err error
 	nodeName := machine.Status.Node
 

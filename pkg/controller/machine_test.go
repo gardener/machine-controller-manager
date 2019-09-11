@@ -25,7 +25,7 @@ import (
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 	fakemachineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
-	"github.com/gardener/machine-controller-manager/pkg/driver"
+	"github.com/gardener/machine-controller-manager/pkg/cmiclient"
 	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -493,7 +493,7 @@ var _ = Describe("machine", func() {
 
 				err = controller.machineCreate(
 					machine,
-					driver.NewFakeDriver(
+					cmiclient.NewFakeCMIClient(
 						action.fakeProviderID,
 						action.fakeNodeName,
 						action.fakeError,
@@ -620,14 +620,14 @@ var _ = Describe("machine", func() {
 				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
-				fakeDriver := driver.NewFakeDriver(
+				fakeCMIClient := cmiclient.NewFakeCMIClient(
 					action.fakeProviderID,
 					action.fakeNodeName,
 					action.fakeError,
 				)
 
 				// Create a machine that is to be deleted later
-				err = controller.machineCreate(machine, fakeDriver)
+				err = controller.machineCreate(machine, fakeCMIClient)
 				Expect(err).ToNot(HaveOccurred())
 
 				_, err = controller.targetCoreClient.Core().Nodes().Create(&v1.Node{
@@ -664,7 +664,7 @@ var _ = Describe("machine", func() {
 				}
 
 				// Deletion of machine is triggered
-				err = controller.machineDelete(machine, fakeDriver)
+				err = controller.machineDelete(machine, fakeCMIClient)
 				if data.expect.errOccurred {
 					Expect(err).To(HaveOccurred())
 				} else {

@@ -8,7 +8,7 @@ import (
 	"log"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/driver"
+	"github.com/gardener/machine-controller-manager/pkg/cmiclient"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
@@ -73,17 +73,17 @@ func main() {
 		log.Fatalf("Could not parse machine class yaml: %s", err)
 	}
 
-	driver := driver.NewCMIDriverClient(machineID, classKind, &secret, machineclass, machineName)
+	cmiclient := cmiclient.NewCMIDriverClient(machineID, classKind, &secret, machineclass, machineName)
 
 	if machineID == "" {
-		id, name, err := driver.CreateMachine()
+		id, name, err := cmiclient.CreateMachine()
 		if err != nil {
 			log.Fatalf("Could not create %s : %s", machineName, err)
 		}
 		fmt.Printf("Machine id: %s\n", id)
 		fmt.Printf("Name: %s\n", name)
 	} else {
-		err = driver.DeleteMachine(machineID)
+		err = cmiclient.DeleteMachine(machineID)
 		if err != nil {
 			log.Fatalf("Could not delete %s : %s", machineID, err)
 		}
