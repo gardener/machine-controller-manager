@@ -53,6 +53,14 @@ func (c *controller) reconcileClusterSecretKey(key string) error {
 	return c.reconcileClusterSecret(secret)
 }
 
+func (c *controller) enqueueSecretAfter(obj interface{}, after time.Duration) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		return
+	}
+	c.secretQueue.AddAfter(key, after)
+}
+
 // reconcileClusterSecret manipulates finalizers based on
 // machineClass references
 func (c *controller) reconcileClusterSecret(secret *v1.Secret) error {
