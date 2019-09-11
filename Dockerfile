@@ -1,10 +1,6 @@
-FROM alpine:3.6
+FROM alpine:3.10
 
-RUN apk add --update bash curl
-
-# Resources used by Golang libary
-ENV ZONEINFO=/zone-info/zoneinfo.zip
-ADD ./assets/zoneinfo.zip /zone-info/zoneinfo.zip
+RUN apk add --update bash curl tzdata
 
 COPY bin/rel/machine-controller-manager /machine-controller-manager
 WORKDIR /
