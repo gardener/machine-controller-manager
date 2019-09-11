@@ -358,10 +358,11 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 	glog.V(2).Infof("Created machine: %q, MachineID: %s", machine.Name, actualProviderID)
 
 	for {
+		machineName := machine.Name
 		// Get the latest version of the machine so that we can avoid conflicts
 		machine, err := c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
 		if err != nil {
-			glog.Warningf("Machine GET failed. Retrying, error: %s", err)
+			glog.Warningf("Machine GET failed for %q. Retrying, error: %s", machineName, err)
 			continue
 		}
 
@@ -392,7 +393,7 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 		clone.Spec.ProviderID = actualProviderID
 		machine, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
 		if err != nil {
-			glog.Warningf("Machine UPDATE failed. Retrying, error: %s", err)
+			glog.Warningf("Machine UPDATE failed for %q. Retrying, error: %s", machineName, err)
 			continue
 		}
 
@@ -402,7 +403,7 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 		clone.Status.CurrentStatus = currentStatus
 		_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 		if err != nil {
-			glog.Warningf("Machine/status UPDATE failed. Retrying, error: %s", err)
+			glog.Warningf("Machine/status UPDATE failed for %q. Retrying, error: %s", machineName, err)
 			continue
 		}
 		// Update went through, exit out of infinite loop
