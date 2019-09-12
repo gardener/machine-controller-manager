@@ -139,7 +139,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 
 	// Validate MachineClass
 	MachineClass, secretRef, err := c.validateMachineClass(&machine.Spec.Class)
-	if err != nil || secretRef == nil {
+	if err != nil {
 		return err
 	}
 

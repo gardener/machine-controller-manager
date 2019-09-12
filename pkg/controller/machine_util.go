@@ -109,9 +109,8 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 			return MachineClass, secretRef, nil
 		}
 
-		// Get secretRef
 		secretRef, err = c.getSecret(CommonMachineClass.SecretRef, CommonMachineClass.Name)
-		if err != nil || secretRef == nil {
+		if err != nil {
 			glog.V(2).Info("Secret reference not found")
 			return MachineClass, secretRef, err
 		}
@@ -123,6 +122,11 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 
 // getSecret retrives the kubernetes secret if found
 func (c *controller) getSecret(ref *v1.SecretReference, MachineClassName string) (*v1.Secret, error) {
+	if ref == nil {
+		// If no secretRef, return nil
+		return nil, nil
+	}
+
 	secretRef, err := c.secretLister.Secrets(ref.Namespace).Get(ref.Name)
 	if err != nil && apierrors.IsNotFound(err) {
 		glog.V(3).Infof("No secret %q: found for MachineClass %q", ref, MachineClassName)

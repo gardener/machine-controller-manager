@@ -435,7 +435,7 @@ func (c *controller) checkMachineClass(
 
 	// Get secret
 	secret, err := c.getSecret(secretRef, className)
-	if err != nil || secret == nil {
+	if err != nil {
 		glog.Errorf("SafetyController: Secret reference not found for MachineClass: %q", className)
 		return
 	}

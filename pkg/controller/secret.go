@@ -166,7 +166,9 @@ func (c *controller) machineClassToSecretAdd(obj interface{}) {
 	if machineClass == nil || !ok {
 		return
 	}
-	c.secretQueue.Add(machineClass.SecretRef.Namespace + "/" + machineClass.SecretRef.Name)
+	if machineClass.SecretRef != nil {
+		c.secretQueue.Add(machineClass.SecretRef.Namespace + "/" + machineClass.SecretRef.Name)
+	}
 }
 
 func (c *controller) machineClassToSecretUpdate(oldObj interface{}, newObj interface{}) {
@@ -179,10 +181,13 @@ func (c *controller) machineClassToSecretUpdate(oldObj interface{}, newObj inter
 		return
 	}
 
-	if oldMachineClass.SecretRef.Name != newMachineClass.SecretRef.Name ||
-		oldMachineClass.SecretRef.Namespace != newMachineClass.SecretRef.Namespace {
-		c.secretQueue.Add(oldMachineClass.SecretRef.Namespace + "/" + oldMachineClass.SecretRef.Name)
-		c.secretQueue.Add(newMachineClass.SecretRef.Namespace + "/" + newMachineClass.SecretRef.Name)
+	if oldMachineClass.SecretRef != newMachineClass.SecretRef {
+		if oldMachineClass.SecretRef != nil {
+			c.secretQueue.Add(oldMachineClass.SecretRef.Namespace + "/" + oldMachineClass.SecretRef.Name)
+		}
+		if newMachineClass.SecretRef != nil {
+			c.secretQueue.Add(newMachineClass.SecretRef.Namespace + "/" + newMachineClass.SecretRef.Name)
+		}
 	}
 }
 

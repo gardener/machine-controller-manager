@@ -76,12 +76,19 @@ func newMachineClient(driverName string) (machineClient cmipb.MachineClient, clo
 
 // NewCMIDriverClient returns a new cmi client
 func NewCMIDriverClient(machineID string, driverName string, secret *corev1.Secret, machineClass interface{}, machineName string) *CMIDriverClient {
+	var (
+		userData string
+	)
+	if secret != nil && secret.Data != nil {
+		userData = string(secret.Data["userData"])
+	}
+
 	c := &CMIDriverClient{
 		DriverName:           driverName,
 		MachineClientCreator: newMachineClient,
 		MachineClass:         machineClass.(*v1alpha1.MachineClass),
 		Secret:               secret,
-		UserData:             string(secret.Data["userData"]),
+		UserData:             userData,
 		MachineID:            machineID,
 		MachineName:          machineName,
 	}
@@ -99,9 +106,9 @@ func (c *CMIDriverClient) CreateMachine() (string, string, error) {
 	defer closer.Close()
 
 	req := &cmipb.CreateMachineRequest{
-		ProviderSpec: c.MachineClass.ProviderSpec.Raw,
 		Name:         c.MachineName,
-		Secrets:      c.Secret.Data,
+		ProviderSpec: c.MachineClass.ProviderSpec.Raw,
+		Secrets:      getSecretData(c.Secret),
 	}
 	ctx := context.Background()
 	resp, err := machineClient.CreateMachine(ctx, req)
@@ -125,7 +132,7 @@ func (c *CMIDriverClient) DeleteMachine(MachineID string) error {
 
 	req := &cmipb.DeleteMachineRequest{
 		MachineID: c.MachineID,
-		Secrets:   c.Secret.Data,
+		Secrets:   getSecretData(c.Secret),
 	}
 	ctx := context.Background()
 	_, err = machineClient.DeleteMachine(ctx, req)
@@ -149,7 +156,7 @@ func (c *CMIDriverClient) GetMachine(MachineID string) (bool, error) {
 
 	req := &cmipb.GetMachineRequest{
 		MachineID: MachineID,
-		Secrets:   c.Secret.Data,
+		Secrets:   getSecretData(c.Secret),
 	}
 	ctx := context.Background()
 	_, err = machineClient.GetMachine(ctx, req)
@@ -172,8 +179,8 @@ func (c *CMIDriverClient) ListMachines() (map[string]string, error) {
 	defer closer.Close()
 
 	req := &cmipb.ListMachinesRequest{
-		Secrets:      c.Secret.Data,
 		ProviderSpec: c.MachineClass.ProviderSpec.Raw,
+		Secrets:      getSecretData(c.Secret),
 	}
 	ctx := context.Background()
 
@@ -198,7 +205,7 @@ func (c *CMIDriverClient) ShutDownMachine(MachineID string) error {
 
 	req := &cmipb.ShutDownMachineRequest{
 		MachineID: MachineID,
-		Secrets:   c.Secret.Data,
+		Secrets:   getSecretData(c.Secret),
 	}
 
 	ctx := context.Background()
@@ -243,6 +250,18 @@ func (c *CMIDriverClient) GetListOfVolumeIDsForExistingPVs(pvSpecs []*corev1.Per
 
 	glog.V(4).Info("GetListOfVolumeIDsForExistingPVs rpc was processed succesfully")
 	return resp.GetVolumeIDs(), nil
+}
+
+func getSecretData(secret *corev1.Secret) map[string][]byte {
+	var (
+		secretData map[string][]byte
+	)
+
+	if secret != nil {
+		secretData = secret.Data
+	}
+
+	return secretData
 }
 
 func newGrpcConn(driverName string) (*grpc.ClientConn, error) {
