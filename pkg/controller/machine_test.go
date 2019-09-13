@@ -18,6 +18,7 @@ package controller
 import (
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -449,10 +450,11 @@ var _ = Describe("machine", func() {
 
 	Describe("#machineCreate", func() {
 		type setup struct {
-			secrets   []*corev1.Secret
-			aws       []*machinev1.AWSMachineClass
-			openstack []*machinev1.OpenStackMachineClass
-			machines  []*machinev1.Machine
+			secrets             []*corev1.Secret
+			aws                 []*machinev1.AWSMachineClass
+			openstack           []*machinev1.OpenStackMachineClass
+			machines            []*machinev1.Machine
+			fakeResourceActions *customfake.ResourceActions
 		}
 		type action struct {
 			machine        string
@@ -502,6 +504,10 @@ var _ = Describe("machine", func() {
 				action := data.action
 				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
+
+				if data.setup.fakeResourceActions != nil {
+					trackers.ControlMachine.SetFakeResourceActions(data.setup.fakeResourceActions, 1)
+				}
 
 				err = controller.machineCreate(machine, driver.NewFakeDriver(
 					func() (string, string, error) {
@@ -600,6 +606,59 @@ var _ = Describe("machine", func() {
 							},
 						},
 					}, nil, nil, nil, nil),
+				},
+				action: action{
+					machine:        "machine-0",
+					fakeProviderID: "fakeID-0",
+					fakeNodeName:   "fakeNode-0",
+					fakeError:      nil,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+							ProviderID: "fakeID",
+						},
+					}, &machinev1.MachineStatus{
+						Node: "fakeNode",
+						//TODO conditions
+					}, nil, nil, nil),
+					err: false,
+				},
+			}),
+			Entry("Machine creation success even on temporary APIServer disruption", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil),
+					fakeResourceActions: &customfake.ResourceActions{
+						Machine: customfake.Actions{
+							Get: "Failed to GET machine",
+						},
+					},
 				},
 				action: action{
 					machine:        "machine-0",
@@ -729,7 +788,7 @@ var _ = Describe("machine", func() {
 				}
 
 				if data.setup.fakeResourceActions != nil {
-					trackers.TargetCore.SetFakeResourceActions(data.setup.fakeResourceActions)
+					trackers.TargetCore.SetFakeResourceActions(data.setup.fakeResourceActions, math.MaxInt32)
 				}
 
 				// Deletion of machine is triggered
