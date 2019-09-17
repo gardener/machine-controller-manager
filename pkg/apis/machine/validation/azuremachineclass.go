@@ -137,6 +137,13 @@ func validateAzureProperties(properties machine.AzureVirtualMachineProperties, f
 		allErrs = append(allErrs, field.Required(fldPath.Child("osProfile.adminUsername"), "AdminUsername is required"))
 	}
 
+	if properties.Zone == nil && properties.AvailabilitySet == nil {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("zone|.availabilitySet"), "Machine need to be assigned to a zone or an AvailabilitySet"))
+	}
+	if properties.Zone != nil && properties.AvailabilitySet != nil {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("zone|.availabilitySet"), "Machine cannot be assigned to a zone and an AvailabilitySet in parallel"))
+	}
+
 	/*
 		if properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.Path == "" {
 			allErrs = append(allErrs, field.Required(fldPath.Child("osProfile.linuxConfiguration.ssh.publicKeys.path"), "PublicKey path is required"))
