@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -150,11 +151,16 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 					},
 				},
 			},
-			AvailabilitySet: &compute.SubResource{
-				ID: &d.AzureMachineClass.Spec.Properties.AvailabilitySet.ID,
-			},
 		},
 		Tags: tagList,
+	}
+
+	if d.AzureMachineClass.Spec.Properties.Zone != nil {
+		VMParameters.Zones = &[]string{strconv.Itoa(*d.AzureMachineClass.Spec.Properties.Zone)}
+	} else if d.AzureMachineClass.Spec.Properties.AvailabilitySet != nil {
+		VMParameters.VirtualMachineProperties.AvailabilitySet = &compute.SubResource{
+			ID: &d.AzureMachineClass.Spec.Properties.AvailabilitySet.ID,
+		}
 	}
 
 	return VMParameters
