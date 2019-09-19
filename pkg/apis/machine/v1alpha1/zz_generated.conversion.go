@@ -1512,9 +1512,8 @@ func autoConvert_v1alpha1_AzureVirtualMachineProperties_To_machine_AzureVirtualM
 	if err := Convert_v1alpha1_AzureNetworkProfile_To_machine_AzureNetworkProfile(&in.NetworkProfile, &out.NetworkProfile, s); err != nil {
 		return err
 	}
-	if err := Convert_v1alpha1_AzureSubResource_To_machine_AzureSubResource(&in.AvailabilitySet, &out.AvailabilitySet, s); err != nil {
-		return err
-	}
+	out.AvailabilitySet = (*machine.AzureSubResource)(unsafe.Pointer(in.AvailabilitySet))
+	out.Zone = (*int)(unsafe.Pointer(in.Zone))
 	return nil
 }
 
@@ -1536,9 +1535,8 @@ func autoConvert_machine_AzureVirtualMachineProperties_To_v1alpha1_AzureVirtualM
 	if err := Convert_machine_AzureNetworkProfile_To_v1alpha1_AzureNetworkProfile(&in.NetworkProfile, &out.NetworkProfile, s); err != nil {
 		return err
 	}
-	if err := Convert_machine_AzureSubResource_To_v1alpha1_AzureSubResource(&in.AvailabilitySet, &out.AvailabilitySet, s); err != nil {
-		return err
-	}
+	out.AvailabilitySet = (*AzureSubResource)(unsafe.Pointer(in.AvailabilitySet))
+	out.Zone = (*int)(unsafe.Pointer(in.Zone))
 	return nil
 }
 

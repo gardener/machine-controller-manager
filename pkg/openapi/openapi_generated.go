@@ -1079,6 +1079,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSubResource"),
 							},
 						},
+						"zone": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"integer"},
+								Format: "int32",
+							},
+						},
 					},
 				},
 			},
