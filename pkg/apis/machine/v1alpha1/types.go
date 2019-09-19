@@ -945,7 +945,8 @@ type AzureVirtualMachineProperties struct {
 	StorageProfile  AzureStorageProfile  `json:"storageProfile,omitempty"`
 	OsProfile       AzureOSProfile       `json:"osProfile,omitempty"`
 	NetworkProfile  AzureNetworkProfile  `json:"networkProfile,omitempty"`
-	AvailabilitySet AzureSubResource     `json:"availabilitySet,omitempty"`
+	AvailabilitySet *AzureSubResource    `json:"availabilitySet,omitempty"`
+	Zone            *int                 `json:"zone,omitempty"`
 }
 
 // AzureHardwareProfile is specifies the hardware settings for the virtual machine.

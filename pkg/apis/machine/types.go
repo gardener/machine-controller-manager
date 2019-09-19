@@ -864,7 +864,8 @@ type AzureVirtualMachineProperties struct {
 	StorageProfile  AzureStorageProfile
 	OsProfile       AzureOSProfile
 	NetworkProfile  AzureNetworkProfile
-	AvailabilitySet AzureSubResource
+	AvailabilitySet *AzureSubResource
+	Zone            *int
 }
 
 // AzureHardwareProfile is specifies the hardware settings for the virtual machine.

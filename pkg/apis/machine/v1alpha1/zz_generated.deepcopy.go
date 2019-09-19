@@ -655,7 +655,16 @@ func (in *AzureVirtualMachineProperties) DeepCopyInto(out *AzureVirtualMachinePr
 	in.StorageProfile.DeepCopyInto(&out.StorageProfile)
 	out.OsProfile = in.OsProfile
 	in.NetworkProfile.DeepCopyInto(&out.NetworkProfile)
-	out.AvailabilitySet = in.AvailabilitySet
+	if in.AvailabilitySet != nil {
+		in, out := &in.AvailabilitySet, &out.AvailabilitySet
+		*out = new(AzureSubResource)
+		**out = **in
+	}
+	if in.Zone != nil {
+		in, out := &in.Zone, &out.Zone
+		*out = new(int)
+		**out = **in
+	}
 	return
 }
 
