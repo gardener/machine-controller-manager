@@ -576,6 +576,8 @@ func slowStartBatch(count int, initialBatchSize int, fn func() error) (int, erro
 	successes := 0
 	for batchSize := integer.IntMin(remaining, initialBatchSize); batchSize > 0; batchSize = integer.IntMin(2*batchSize, remaining) {
 		errCh := make(chan error, batchSize)
+		defer close(errCh)
+
 		var wg sync.WaitGroup
 		wg.Add(batchSize)
 		for i := 0; i < batchSize; i++ {
@@ -664,6 +666,8 @@ func (c *controller) terminateMachines(inactiveMachines []*v1alpha1.Machine, mac
 		numOfInactiveMachines = len(inactiveMachines)
 		errCh                 = make(chan error, numOfInactiveMachines)
 	)
+	defer close(errCh)
+
 	wg.Add(numOfInactiveMachines)
 
 	for _, machine := range inactiveMachines {

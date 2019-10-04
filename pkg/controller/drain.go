@@ -414,6 +414,7 @@ func (o *DrainOptions) getGlobalTimeoutForPodsWithoutPV(pods []*api.Pod) time.Du
 
 func (o *DrainOptions) evictPods(attemptEvict bool, pods []api.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error)) error {
 	returnCh := make(chan error, len(pods))
+	defer close(returnCh)
 
 	if o.ForceDeletePods {
 		podsToDrain := make([]*api.Pod, len(pods))
