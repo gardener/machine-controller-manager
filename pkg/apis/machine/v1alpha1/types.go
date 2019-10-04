@@ -1121,8 +1121,9 @@ type GCPMetadata struct {
 
 // GCPNetworkInterface describes network interfaces for GCP
 type GCPNetworkInterface struct {
-	Network    string `json:"network,omitempty"`
-	Subnetwork string `json:"subnetwork,omitempty"`
+	AttachExternalIP bool   `json:"attachExternalIP,omitempty"`
+	Network          string `json:"network,omitempty"`
+	Subnetwork       string `json:"subnetwork,omitempty"`
 }
 
 // GCPScheduling describes scheduling configuration for GCP.
