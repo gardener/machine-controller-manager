@@ -781,8 +781,8 @@ var _ = Describe("machineset", func() {
 
 		//TestCase: It should delete the target machine.
 		It("should delete the target machine.", func() {
+			var errCh chan error
 			stop := make(chan struct{})
-			var errCh *chan error
 			defer close(stop)
 
 			objects := []runtime.Object{}
