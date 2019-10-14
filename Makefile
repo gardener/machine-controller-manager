@@ -66,7 +66,6 @@ release: build build-local docker-image docker-login docker-push rename-binaries
 
 .PHONY: docker-image
 docker-images:
-	@if [[ ! -f bin/rel/machine-controller-manager ]]; then echo "No binary found. Please run 'make build'"; false; fi
 	@docker build -t $(IMAGE_REPOSITORY):$(IMAGE_TAG) --rm .
 
 .PHONY: docker-login
