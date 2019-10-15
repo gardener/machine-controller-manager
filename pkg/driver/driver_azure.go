@@ -331,6 +331,7 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 		vmName            = strings.ToLower(d.MachineName)
 		resourceGroupName = d.AzureMachineClass.Spec.ResourceGroup
 		vnetName          = d.AzureMachineClass.Spec.SubnetInfo.VnetName
+		vnetResourceGroup = resourceGroupName
 		subnetName        = d.AzureMachineClass.Spec.SubnetInfo.SubnetName
 		nicName           = dependencyNameFromVMName(vmName, nicSuffix)
 	)
@@ -340,10 +341,15 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 		return nil, err
 	}
 
+	// Check if the machine should assigned to a vnet in a different resource group.
+	if d.AzureMachineClass.Spec.SubnetInfo.VnetResourceGroup != nil {
+		vnetResourceGroup = *d.AzureMachineClass.Spec.SubnetInfo.VnetResourceGroup
+	}
+
 	// Getting the subnet object for subnetName
 	subnet, err := clients.subnet.Get(
 		ctx,
-		resourceGroupName,
+		vnetResourceGroup,
 		vnetName,
 		subnetName,
 		"",

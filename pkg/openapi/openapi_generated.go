@@ -1038,6 +1038,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format: "",
 							},
 						},
+						"vnetResourceGroup": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
 						"subnetName": {
 							SchemaProps: spec.SchemaProps{
 								Type:   []string{"string"},
