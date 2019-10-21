@@ -1049,8 +1049,9 @@ type AzureSubResource struct {
 
 // AzureSubnetInfo is the information containing the subnet details
 type AzureSubnetInfo struct {
-	VnetName   string `json:"vnetName,omitempty"`
-	SubnetName string `json:"subnetName,omitempty"`
+	VnetName          string  `json:"vnetName,omitempty"`
+	VnetResourceGroup *string `json:"vnetResourceGroup,omitempty"`
+	SubnetName        string  `json:"subnetName,omitempty"`
 }
 
 /********************** GCPMachineClass APIs ***************/

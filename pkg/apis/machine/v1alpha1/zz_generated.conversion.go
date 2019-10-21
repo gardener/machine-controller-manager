@@ -1479,6 +1479,7 @@ func Convert_machine_AzureSubResource_To_v1alpha1_AzureSubResource(in *machine.A
 
 func autoConvert_v1alpha1_AzureSubnetInfo_To_machine_AzureSubnetInfo(in *AzureSubnetInfo, out *machine.AzureSubnetInfo, s conversion.Scope) error {
 	out.VnetName = in.VnetName
+	out.VnetResourceGroup = (*string)(unsafe.Pointer(in.VnetResourceGroup))
 	out.SubnetName = in.SubnetName
 	return nil
 }
@@ -1490,6 +1491,7 @@ func Convert_v1alpha1_AzureSubnetInfo_To_machine_AzureSubnetInfo(in *AzureSubnet
 
 func autoConvert_machine_AzureSubnetInfo_To_v1alpha1_AzureSubnetInfo(in *machine.AzureSubnetInfo, out *AzureSubnetInfo, s conversion.Scope) error {
 	out.VnetName = in.VnetName
+	out.VnetResourceGroup = (*string)(unsafe.Pointer(in.VnetResourceGroup))
 	out.SubnetName = in.SubnetName
 	return nil
 }
