@@ -114,7 +114,8 @@ func (d *GCPDriver) Create() (string, string, error) {
 	for _, nic := range d.GCPMachineClass.Spec.NetworkInterfaces {
 		computeNIC := &compute.NetworkInterface{}
 
-		if nic.AttachExternalIP == true {
+		if nic.DisableExternalIP == false {
+			// When DisableExternalIP is false, implies Attach an external IP to VM
 			computeNIC.AccessConfigs = []*compute.AccessConfig{{}}
 		}
 		if len(nic.Network) != 0 {

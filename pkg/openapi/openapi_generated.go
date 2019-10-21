@@ -1450,7 +1450,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				SchemaProps: spec.SchemaProps{
 					Description: "GCPNetworkInterface describes network interfaces for GCP",
 					Properties: map[string]spec.Schema{
-						"attachExternalIP": {
+						"disableExternalIP": {
 							SchemaProps: spec.SchemaProps{
 								Type:   []string{"boolean"},
 								Format: "",
