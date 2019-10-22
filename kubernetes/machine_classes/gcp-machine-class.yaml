@@ -24,7 +24,8 @@ spec:
   - key: my-key
     value: my-value
   networkInterfaces:
-  - network: network-name # Network name to attach the instance to
+  - disableExternalIP: false # If external IP is not required for the NIC, set this to true
+    network: network-name # Network name to attach the instance to
     subnetwork: sub-net-name # Subnet name to attach the instance to
   scheduling:
     automaticRestart: true # Automatic restart of instance
