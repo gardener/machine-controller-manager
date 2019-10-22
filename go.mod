@@ -57,13 +57,14 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.42.0 // indirect
 	gotest.tools v2.2.0+incompatible // indirect
-	k8s.io/api v0.0.0-20181005203742-357ec6384fa7
-	k8s.io/apimachinery v0.0.0-20180913025736-6dd46049f395
+	k8s.io/api v0.0.0-20191010143144-fbf594f18f80
+	k8s.io/apimachinery v0.0.0-20191016060620-86f2f1b9c076
 	k8s.io/apiserver v0.0.0-20181005205051-9f398e330d7f
 	k8s.io/client-go v0.0.0-20181005204318-cb4883f3dea0
+	k8s.io/cluster-bootstrap v0.0.0-20191016114958-5aa5f2bc1590
 	k8s.io/code-generator v0.0.0-20180823001027-3dcf91f64f63
 	k8s.io/gengo v0.0.0-20190327210449-e17681d19d3a // indirect
-	k8s.io/klog v0.3.3 // indirect
+	k8s.io/klog v1.0.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20180216212618-50ae88d24ede
 )
 
@@ -74,6 +75,7 @@ replace (
 	k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20180913025736-6dd46049f395 // kubernetes-1.12.1
 	k8s.io/apiserver => k8s.io/apiserver v0.0.0-20181005205051-9f398e330d7f // kubernetes-1.12.1
 	k8s.io/client-go => k8s.io/client-go v0.0.0-20181005204318-cb4883f3dea0 // kubernetes-1.12.1
+	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.0.0-20181213155137-5f9271efc2e7 // kubernetes-1.13.1
 	k8s.io/code-generator => k8s.io/code-generator v0.0.0-20180823001027-3dcf91f64f63 // kubernetes-1.12.1
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20180216212618-50ae88d24ede
 )

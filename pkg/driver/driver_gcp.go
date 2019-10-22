@@ -358,3 +358,13 @@ func (d *GCPDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, 
 	}
 	return names, nil
 }
+
+//GetUserData return the used data whit which the VM will be booted
+func (d *GCPDriver) GetUserData() string {
+	return d.UserData
+}
+
+//SetUserData set the used data whit which the VM will be booted
+func (d *GCPDriver) SetUserData(userData string) {
+	d.UserData = userData
+}
