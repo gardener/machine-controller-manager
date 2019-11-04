@@ -28,7 +28,7 @@ spec:
           - --machine-set-scale-timeout=20 # Optional Parameter - Default value 20mins - Timeout (in minutes) used while scaling machineSet if timeout occurs machineSet is frozen.
           - --machine-safety-orphan-vms-period=30 # Optional Parameter - Default value 30mins - Time period (in minutes) used to poll for orphan VMs by safety controller.
           - --machine-safety-overshooting-period=1 # Optional Parameter - Default value 1min - Time period (in minutes) used to poll for overshooting of machine objects backing a machineSet by safety controller.
-          - --node-conditions=ReadonlyFilesystem,KernelDeadlock,DiskPressure # If any of these NodeConditions are set on a node-object for configurable timeout, than machine will be declared failed and will be replaced.
+          - --node-conditions=ReadonlyFilesystem,KernelDeadlock,DiskPressure # List of comma-separated/case-sensitive node-conditions which when set to True will change machine to a failed state after MachineHealthTimeout duration. It may further be replaced with a new machine if the machine is backed by a machine-set object.
         livenessProbe:
           failureThreshold: 3
           httpGet:
