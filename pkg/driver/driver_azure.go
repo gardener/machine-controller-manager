@@ -334,6 +334,7 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 		vnetResourceGroup = resourceGroupName
 		subnetName        = d.AzureMachineClass.Spec.SubnetInfo.SubnetName
 		nicName           = dependencyNameFromVMName(vmName, nicSuffix)
+		diskName          = dependencyNameFromVMName(vmName, diskSuffix)
 	)
 
 	clients, err := d.setup()
@@ -346,6 +347,9 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 		vnetResourceGroup = *d.AzureMachineClass.Spec.SubnetInfo.VnetResourceGroup
 	}
 
+	/*
+		Subnet fetching
+	*/
 	// Getting the subnet object for subnetName
 	subnet, err := clients.subnet.Get(
 		ctx,
@@ -359,48 +363,90 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 	}
 	onARMAPISuccess(prometheusServiceSubnet, "subnet.Get")
 
+	/*
+		NIC creation
+	*/
+
 	// Creating NICParameters for new NIC creation request
 	NICParameters := d.getNICParameters(vmName, &subnet)
+
+	// NIC creation request
 	NICFuture, err := clients.nic.CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name, NICParameters)
 	if err != nil {
+		// Since machine creation failed, delete any infra resources created
+		deleteErr := clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName)
+		if deleteErr != nil {
+			glog.Errorf("Error occurred during resource clean up: %s", deleteErr)
+		}
+
 		return nil, onARMAPIErrorFail(prometheusServiceNIC, err, "NIC.CreateOrUpdate failed for %s", *NICParameters.Name)
 	}
+
+	// Wait until NIC is created
 	err = NICFuture.WaitForCompletionRef(ctx, clients.nic.Client)
 	if err != nil {
+		// Since machine creation failed, delete any infra resources created
+		deleteErr := clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName)
+		if deleteErr != nil {
+			glog.Errorf("Error occurred during resource clean up: %s", deleteErr)
+		}
+
 		return nil, onARMAPIErrorFail(prometheusServiceNIC, err, "NIC.WaitForCompletionRef failed for %s", *NICParameters.Name)
 	}
 	onARMAPISuccess(prometheusServiceNIC, "NIC.CreateOrUpdate")
 
+	// Fetch NIC details
 	NIC, err := NICFuture.Result(clients.nic)
 	if err != nil {
-		err := fmt.Errorf("NIC.CreateOrUpdate still pending for %s", *NICParameters.Name)
-		glog.Error(err)
+		// Since machine creation failed, delete any infra resources created
+		deleteErr := clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName)
+		if deleteErr != nil {
+			glog.Errorf("Error occurred during resource clean up: %s", deleteErr)
+		}
+
 		return nil, err
 	}
 
+	/*
+		VM creation
+	*/
+
+	// Creating VMParameters for new VM creation request
 	VMParameters := d.getVMParameters(vmName, *NIC.ID)
+
+	// VM creation request
 	VMFuture, err := clients.vm.CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
 	if err != nil {
-		// Since VM creation failed, delete the NIC created for the same
-		if nicDeleteErr := clients.deleteNIC(ctx, resourceGroupName, nicName); nicDeleteErr != nil {
-			glog.Error("Error while trying to delete nic: ", nicDeleteErr)
+		//Since machine creation failed, delete any infra resources created
+		deleteErr := clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName)
+		if deleteErr != nil {
+			glog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
+
 		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VM.CreateOrUpdate failed for %s", *VMParameters.Name)
 	}
+
+	// Wait until VM is created
 	err = VMFuture.WaitForCompletionRef(ctx, clients.vm.Client)
 	if err != nil {
-		// Since VM creation failed, delete the NIC created for the same
-		if nicDeleteErr := clients.deleteNIC(ctx, resourceGroupName, nicName); nicDeleteErr != nil {
-			glog.Error("Error while trying to delete nic: ", nicDeleteErr)
+		// Since machine creation failed, delete any infra resources created
+		deleteErr := clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName)
+		if deleteErr != nil {
+			glog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
+
 		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VM.WaitForCompletionRef failed for %s", *VMParameters.Name)
 	}
+
+	// Fetch VM details
 	VM, err := VMFuture.Result(clients.vm)
 	if err != nil {
-		// Since VM creation failed, delete the NIC created for the same
-		if nicDeleteErr := clients.deleteNIC(ctx, resourceGroupName, nicName); nicDeleteErr != nil {
-			glog.Error("Error while trying to delete nic: ", nicDeleteErr)
+		// Since machine creation failed, delete any infra resources created
+		deleteErr := clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName)
+		if deleteErr != nil {
+			glog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
+
 		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VMFuture.Result failed for %s", *VMParameters.Name)
 	}
 	onARMAPISuccess(prometheusServiceVM, "VM.CreateOrUpdate")
@@ -650,7 +696,7 @@ func (clients *azureDriverClients) deleteVMNicDisk(ctx context.Context, resource
 
 		onARMAPISuccess(prometheusServiceVM, "VM Get was successful for %s", *vm.Name)
 	} else if !notFound(vmErr) {
-		// If some other error occurred, which is not 404 Not Found, because the VM doesn't exist, then bubble up
+		// If some other error occurred, which is not 404 Not Found (the VM doesn't exist) then bubble up
 		return onARMAPIErrorFail(prometheusServiceVM, vmErr, "vm.Get")
 	}
 
@@ -658,7 +704,8 @@ func (clients *azureDriverClients) deleteVMNicDisk(ctx context.Context, resource
 	nicDeleter := func() error {
 		if vmHoldingNic, err := clients.fetchAttachedVMfromNIC(ctx, resourceGroupName, nicName); err != nil {
 			if notFound(err) {
-				return nil // Resource doesn't exist, no need to delete
+				// Resource doesn't exist, no need to delete
+				return nil
 			}
 			return err
 		} else if vmHoldingNic != "" {
@@ -672,7 +719,8 @@ func (clients *azureDriverClients) deleteVMNicDisk(ctx context.Context, resource
 	diskDeleter := func() error {
 		if vmHoldingDisk, err := clients.fetchAttachedVMfromDisk(ctx, resourceGroupName, diskName); err != nil {
 			if notFound(err) {
-				return nil // Resource doesn't exist, no need to delete
+				// Resource doesn't exist, no need to delete
+				return nil
 			}
 			return err
 		} else if vmHoldingDisk != "" {
