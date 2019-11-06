@@ -1089,10 +1089,6 @@ func Convert_machine_AzureHardwareProfile_To_v1alpha1_AzureHardwareProfile(in *m
 
 func autoConvert_v1alpha1_AzureImageReference_To_machine_AzureImageReference(in *AzureImageReference, out *machine.AzureImageReference, s conversion.Scope) error {
 	out.ID = in.ID
-	out.Publisher = in.Publisher
-	out.Offer = in.Offer
-	out.Sku = in.Sku
-	out.Version = in.Version
 	out.URN = (*string)(unsafe.Pointer(in.URN))
 	return nil
 }
@@ -1104,10 +1100,6 @@ func Convert_v1alpha1_AzureImageReference_To_machine_AzureImageReference(in *Azu
 
 func autoConvert_machine_AzureImageReference_To_v1alpha1_AzureImageReference(in *machine.AzureImageReference, out *AzureImageReference, s conversion.Scope) error {
 	out.ID = in.ID
-	out.Publisher = in.Publisher
-	out.Offer = in.Offer
-	out.Sku = in.Sku
-	out.Version = in.Version
 	out.URN = (*string)(unsafe.Pointer(in.URN))
 	return nil
 }

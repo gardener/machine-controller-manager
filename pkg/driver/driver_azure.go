@@ -166,24 +166,12 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 	return VMParameters
 }
 
-func isUrnProvided(d *AzureDriver) bool {
-	return d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.URN != nil &&
-		*d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.URN != ""
-}
-
 func getAzureImageDetails(d *AzureDriver) (publisher, offer, sku, version string) {
-	if isUrnProvided(d) {
-		splits := strings.Split(*d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.URN, ":")
-		publisher = splits[0]
-		offer = splits[1]
-		sku = splits[2]
-		version = splits[3]
-		return
-	}
-	publisher = d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Publisher
-	offer = d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Offer
-	sku = d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Sku
-	version = d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.Version
+	splits := strings.Split(*d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.URN, ":")
+	publisher = splits[0]
+	offer = splits[1]
+	sku = splits[2]
+	version = splits[3]
 	return
 }
 
