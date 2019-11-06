@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -793,9 +794,12 @@ func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 		if condition.Type == v1.NodeReady && condition.Status != v1.ConditionTrue {
 			// If Kubelet is not ready
 			return false
-		} else if condition.Type == v1.NodeDiskPressure && condition.Status != v1.ConditionFalse {
-			// If DiskPressure has occurred on node
-			return false
+		}
+		conditions := strings.Split(c.nodeConditions, ",")
+		for _, c := range conditions {
+			if string(condition.Type) == c && condition.Status != v1.ConditionFalse {
+				return false
+			}
 		}
 	}
 	return true

@@ -139,6 +139,7 @@ var _ = Describe("machine", func() {
 			}
 			c = &controller{
 				controlMachineClient: fakeMachineClient,
+				nodeConditions:       "ReadonlyFilesystem,KernelDeadlock,DiskPressure",
 			}
 		})
 
