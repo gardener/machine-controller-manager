@@ -81,6 +81,7 @@ func NewController(
 	machineDeploymentInformer machineinformers.MachineDeploymentInformer,
 	recorder record.EventRecorder,
 	safetyOptions options.SafetyOptions,
+	nodeConditions string,
 ) (Controller, error) {
 	controller := &controller{
 		namespace:                      namespace,
@@ -104,6 +105,7 @@ func NewController(
 		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
 		machineSafetyAPIServerQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
 		safetyOptions:                  safetyOptions,
+		nodeConditions:                 nodeConditions,
 	}
 
 	controller.internalExternalScheme = runtime.NewScheme()
@@ -395,7 +397,8 @@ type Controller interface {
 
 // controller is a concrete Controller.
 type controller struct {
-	namespace string
+	namespace      string
+	nodeConditions string
 
 	controlMachineClient machineapi.MachineV1alpha1Interface
 	controlCoreClient    kubernetes.Interface

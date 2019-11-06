@@ -56,6 +56,7 @@ func NewMCMServer() *MCMServer {
 			Address:                 "0.0.0.0",
 			ConcurrentNodeSyncs:     5,
 			ContentType:             "application/vnd.kubernetes.protobuf",
+			NodeConditions:          "KernelDeadlock,ReadonlyFilesystem,DiskPressure",
 			MinResyncPeriod:         metav1.Duration{Duration: 12 * time.Hour},
 			KubeAPIQPS:              20.0,
 			KubeAPIBurst:            30,
@@ -110,6 +111,7 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyOrphanVMsPeriod.Duration, "machine-safety-orphan-vms-period", s.SafetyOptions.MachineSafetyOrphanVMsPeriod.Duration, "Time period (in durartion) used to poll for orphan VMs by safety controller.")
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration, "machine-safety-overshooting-period", s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration, "Time period (in durartion) used to poll for overshooting of machine objects backing a machineSet by safety controller.")
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration, "machine-safety-apiserver-statuscheck-period", s.SafetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration, "Time period (in duration) used to poll for APIServer's health by safety controller")
+	fs.StringVar(&s.NodeConditions, "node-conditions", s.NodeConditions, "List of comma-separated/case-sensitive node-conditions which when set to True will change machine to a failed state after MachineHealthTimeout duration. It may further be replaced with a new machine if the machine is backed by a machine-set object.")
 
 	leaderelectionconfig.BindFlags(&s.LeaderElection, fs)
 	// TODO: DefaultFeatureGate is global and it adds all k8s flags
