@@ -18,7 +18,7 @@ kubectl
 # Binary files of MCM
 ./machine-controller-manager
 ./managevm
-cmi-server
+cmi-plugin
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *coverprofile.out*

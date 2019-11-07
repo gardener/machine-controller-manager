@@ -103,7 +103,7 @@ function setup_environment() {
 
     cd machine-controller-manager-provider-aws
     printf "\nBuilding MCM-Provider-AWS binary\n"
-    if go build -o $old_WD/cmi-server -i app/aws/cmi-server.go; then
+    if go build -o $old_WD/cmi-plugin -i app/aws/cmi-plugin.go; then
         printf "Go build Successful for provider AWS\n"
     else
         printf "Go build Failure for provider AWS\n"
@@ -136,7 +136,7 @@ function run_controller() {
         --v=2 > logs/${provider}-mcm.out 2>&1 &
 
     printf "\nRunning MCM-Provider-AWS in background\n"
-    ./cmi-server \
+    ./cmi-plugin \
         --endpoint=tcp://127.0.0.1:8080 > logs/${provider}-mcm-provider.out 2>&1 &
 }
 

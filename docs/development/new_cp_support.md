@@ -53,7 +53,7 @@ Steps to be followed while implementing a new (hyperscale) provider are mentione
 
 ## Code changes required
 
-1. Update the `pkg/{provider-name}/apis/provider-spec.go` specification file to reflect the structure of the objects exchanged between the machine-controller-manager (AKA cmi-client) and the driver (AKA cmi-server). It typically contains the machine details and secrets (if required). Follow the sample spec provided already in the file. A sample provider specification can be found [here](https://github.com/prashanth26/machine-controller-manager-provider-gcp/blob/master/pkg/gcp/apis/provider-spec.go).
+1. Update the `pkg/{provider-name}/apis/provider-spec.go` specification file to reflect the structure of the objects exchanged between the machine-controller-manager (AKA cmi-client) and the plugin/driver (AKA cmi-plugin). It typically contains the machine details and secrets (if required). Follow the sample spec provided already in the file. A sample provider specification can be found [here](https://github.com/prashanth26/machine-controller-manager-provider-gcp/blob/master/pkg/gcp/apis/provider-spec.go).
 1. Fill in the methods described at `pkg/{provider-name}/machine-server.go` to manage VMs on your cloud provider.
     - Fill in the required methods `CreateMachine()`, `GetMachine()`, `DeleteMachine()`, `GetListOfVolumeIDsForExistingPVs()` and `ListMachines()` methods.
         - `GetListOfVolumeIDsForExistingPVs()` expects VolumeIDs to be decoded from the volumeSpec based on the cloud provider.
@@ -66,7 +66,7 @@ Steps to be followed while implementing a new (hyperscale) provider are mentione
     ```bash
     make revendor
     ```
-1. Update the sample YAML files on `kubernetes/` directory to provide sample files through which the working of the cmi-server can be tested.
+1. Update the sample YAML files on `kubernetes/` directory to provide sample files through which the working of the cmi-plugin can be tested.
 1. Update `README.md` to reflect any additional changes
 
 ## Testing your code changes
@@ -74,9 +74,9 @@ Steps to be followed while implementing a new (hyperscale) provider are mentione
 Make sure `$KUBECONFIG` points to the cluster where you wish to manage machines. `$NAMESPACE` represents the namespaces where MCM is looking for machine objects.
 
 1. On the first terminal,
-    - Run the cmi-server (driver) using the command below.
+    - Run the cmi-plugin (driver) using the command below.
         ```bash
-        go run app/controller/cmi-server.go --endpoint=tcp://127.0.0.1:8080
+        go run app/controller/cmi-plugin.go --endpoint=tcp://127.0.0.1:8080
         ```
 1. On the second terminal,
     - Clone the [latest MCM code](https://github.com/gardener/machine-controller-manager/tree/cmi-client) and switch to the `cmi-client` branch.
@@ -114,4 +114,4 @@ Make sure `$KUBECONFIG` points to the cluster where you wish to manage machines.
 ```bash
     make release IMAGE_REPOSITORY=<link-to-image-repo>
 ```
-1. A sample kubernetes deploy file can be found at `kubernetes/deployment.yaml`. Update the same (with your desired cmi-server and cmi-client images) to deploy your MCM.
+1. A sample kubernetes deploy file can be found at `kubernetes/deployment.yaml`. Update the same (with your desired cmi-plugin and cmi-client images) to deploy your MCM.

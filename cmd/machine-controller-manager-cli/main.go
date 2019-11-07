@@ -73,7 +73,10 @@ func main() {
 		log.Fatalf("Could not parse machine class yaml: %s", err)
 	}
 
-	cmiclient := cmiclient.NewCMIDriverClient(machineID, classKind, &secret, machineclass, machineName)
+	cmiclient, err := cmiclient.NewCMIDriverClient(machineID, classKind, &secret, machineclass, machineName)
+	if err != nil {
+		log.Fatalf("Couldn't create CMIDirver client : %s", err)
+	}
 
 	if machineID == "" {
 		id, name, err := cmiclient.CreateMachine()
