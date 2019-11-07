@@ -31,8 +31,11 @@ import (
 	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
 	"github.com/golang/glog"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
 )
@@ -40,6 +43,10 @@ import (
 const (
 	// LastAppliedALTAnnotation contains the last configuration of annotations, labels & taints applied on the node object
 	LastAppliedALTAnnotation = "node.machine.sapcloud.io/last-applied-anno-labels-taints"
+	// RetryOp tells the controller to retry after a while
+	RetryOp = true
+	// DoNotRetryOp tells the controller to not retry operation anymore
+	DoNotRetryOp = false
 )
 
 var (
@@ -370,4 +377,61 @@ func SyncMachineTaints(
 	}
 
 	return toBeUpdated
+}
+
+// machineCreateErrorHandler TODO
+func (c *controller) machineCreateErrorHandler(machine *v1alpha1.Machine, err error) (bool, error) {
+	var retryRequired = DoNotRetryOp
+
+	if grpcErr, ok := status.FromError(err); ok {
+		switch grpcErr.Code() {
+		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
+			retryRequired = RetryOp
+		}
+	}
+
+	lastOperation := v1alpha1.LastOperation{
+		Description:    "Cloud provider message - " + err.Error(),
+		State:          v1alpha1.MachineStateFailed,
+		Type:           v1alpha1.MachineOperationCreate,
+		LastUpdateTime: metav1.Now(),
+	}
+	currentStatus := v1alpha1.CurrentStatus{
+		Phase:          v1alpha1.MachineFailed,
+		TimeoutActive:  false,
+		LastUpdateTime: metav1.Now(),
+	}
+	c.updateMachineStatus(machine, lastOperation, currentStatus)
+	return retryRequired, err
+}
+
+// machineDeleteErrorHandler TODO
+func (c *controller) machineDeleteErrorHandler(machine *v1alpha1.Machine, err error) (bool, error) {
+	var retryRequired = DoNotRetryOp
+
+	glog.Errorf("Error while deleting machine %s: %s", machine.Name, err)
+
+	if grpcErr, ok := status.FromError(err); ok {
+		switch grpcErr.Code() {
+		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
+			retryRequired = RetryOp
+		}
+	} else {
+		glog.Errorf("Error occurred while decoding gRPC error for machine %q: %s", machine.Name, err)
+	}
+
+	lastOperation := v1alpha1.LastOperation{
+		Description:    "Cloud provider message - " + err.Error(),
+		State:          v1alpha1.MachineStateFailed,
+		Type:           v1alpha1.MachineOperationDelete,
+		LastUpdateTime: metav1.Now(),
+	}
+	currentStatus := v1alpha1.CurrentStatus{
+		Phase:          v1alpha1.MachineFailed,
+		TimeoutActive:  false,
+		LastUpdateTime: metav1.Now(),
+	}
+
+	c.updateMachineStatus(machine, lastOperation, currentStatus)
+	return retryRequired, err
 }

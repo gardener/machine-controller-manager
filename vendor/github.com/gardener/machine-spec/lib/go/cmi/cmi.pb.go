@@ -25,6 +25,60 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
+type PluginCapability_RPC_Type int32
+
+const (
+	// UNKNOWN is used to specific an capability beyond the set
+	// provided below
+	PluginCapability_RPC_UNKNOWN PluginCapability_RPC_Type = 0
+	// CREATE_MACHINE tells that the plugin implements the
+	// CreateMachine() RPC.
+	// Plugin is REQUIRED to provide this capability.
+	PluginCapability_RPC_CREATE_MACHINE PluginCapability_RPC_Type = 1
+	// DELETE_MACHINE tells that the plugin implements the
+	// DeleteMachine() RPC.
+	// Plugin is REQUIRED to provide this capability.
+	PluginCapability_RPC_DELETE_MACHINE PluginCapability_RPC_Type = 2
+	// GET_MACHINE tells that the plugin implements the
+	// GetMachine() RPC
+	PluginCapability_RPC_GET_MACHINE PluginCapability_RPC_Type = 3
+	// LIST_MACHINES tells that the plugin implements the
+	// ListMachines() RPC
+	PluginCapability_RPC_LIST_MACHINES PluginCapability_RPC_Type = 4
+	// SHUTDOWN_MACHINE tells that the plugin implements the
+	// ShutDownMachine() RPC
+	PluginCapability_RPC_SHUTDOWN_MACHINE PluginCapability_RPC_Type = 5
+	// GET_VOLUME_IDS tells if the plugin
+	// implements the GetVolumeIDs() RPC
+	PluginCapability_RPC_GET_VOLUME_IDS PluginCapability_RPC_Type = 6
+)
+
+var PluginCapability_RPC_Type_name = map[int32]string{
+	0: "UNKNOWN",
+	1: "CREATE_MACHINE",
+	2: "DELETE_MACHINE",
+	3: "GET_MACHINE",
+	4: "LIST_MACHINES",
+	5: "SHUTDOWN_MACHINE",
+	6: "GET_VOLUME_IDS",
+}
+var PluginCapability_RPC_Type_value = map[string]int32{
+	"UNKNOWN":          0,
+	"CREATE_MACHINE":   1,
+	"DELETE_MACHINE":   2,
+	"GET_MACHINE":      3,
+	"LIST_MACHINES":    4,
+	"SHUTDOWN_MACHINE": 5,
+	"GET_VOLUME_IDS":   6,
+}
+
+func (x PluginCapability_RPC_Type) String() string {
+	return proto.EnumName(PluginCapability_RPC_Type_name, int32(x))
+}
+func (PluginCapability_RPC_Type) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_cmi_3500c2b337883b22, []int{4, 0, 0}
+}
+
 // Status contains the possible status for machines running on the cloud
 type GetMachineResponse_Status int32
 
@@ -49,30 +103,415 @@ func (x GetMachineResponse_Status) String() string {
 	return proto.EnumName(GetMachineResponse_Status_name, int32(x))
 }
 func (GetMachineResponse_Status) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{5, 0}
+	return fileDescriptor_cmi_3500c2b337883b22, []int{12, 0}
 }
 
-type PluginCapability_Service_Type int32
-
-const (
-	PluginCapability_Service_UNKNOWN            PluginCapability_Service_Type = 0
-	PluginCapability_Service_CONTROLLER_SERVICE PluginCapability_Service_Type = 1
-)
-
-var PluginCapability_Service_Type_name = map[int32]string{
-	0: "UNKNOWN",
-	1: "CONTROLLER_SERVICE",
-}
-var PluginCapability_Service_Type_value = map[string]int32{
-	"UNKNOWN":            0,
-	"CONTROLLER_SERVICE": 1,
+type GetPluginInfoRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (x PluginCapability_Service_Type) String() string {
-	return proto.EnumName(PluginCapability_Service_Type_name, int32(x))
+func (m *GetPluginInfoRequest) Reset()         { *m = GetPluginInfoRequest{} }
+func (m *GetPluginInfoRequest) String() string { return proto.CompactTextString(m) }
+func (*GetPluginInfoRequest) ProtoMessage()    {}
+func (*GetPluginInfoRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cmi_3500c2b337883b22, []int{0}
 }
-func (PluginCapability_Service_Type) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{18, 0, 0}
+func (m *GetPluginInfoRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetPluginInfoRequest.Unmarshal(m, b)
+}
+func (m *GetPluginInfoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetPluginInfoRequest.Marshal(b, m, deterministic)
+}
+func (dst *GetPluginInfoRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetPluginInfoRequest.Merge(dst, src)
+}
+func (m *GetPluginInfoRequest) XXX_Size() int {
+	return xxx_messageInfo_GetPluginInfoRequest.Size(m)
+}
+func (m *GetPluginInfoRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetPluginInfoRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetPluginInfoRequest proto.InternalMessageInfo
+
+type GetPluginInfoResponse struct {
+	// The name MUST follow domain name notation format
+	// (https://tools.ietf.org/html/rfc1035#section-2.3.1). It SHOULD
+	// include the plugin's host company name and the plugin name,
+	// to minimize the possibility of collisions. It MUST be 63
+	// characters or less, beginning and ending with an alphanumeric
+	// character ([a-z0-9A-Z]) with dashes (-), dots (.), and
+	// alphanumerics between.
+	// This field is REQUIRED.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// The version specifies the plugin version
+	// Value of this field is opaque to the CMI-Client.
+	// This field is REQUIRED.
+	Version string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	// manifest contains a map of key-value pairs to pass
+	// any additonal information about the plugin.
+	// Values are opaque to the CMI-Client.
+	// This field is OPTIONAL.
+	Manifest             map[string]string `protobuf:"bytes,3,rep,name=manifest,proto3" json:"manifest,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
+}
+
+func (m *GetPluginInfoResponse) Reset()         { *m = GetPluginInfoResponse{} }
+func (m *GetPluginInfoResponse) String() string { return proto.CompactTextString(m) }
+func (*GetPluginInfoResponse) ProtoMessage()    {}
+func (*GetPluginInfoResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cmi_3500c2b337883b22, []int{1}
+}
+func (m *GetPluginInfoResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetPluginInfoResponse.Unmarshal(m, b)
+}
+func (m *GetPluginInfoResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetPluginInfoResponse.Marshal(b, m, deterministic)
+}
+func (dst *GetPluginInfoResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetPluginInfoResponse.Merge(dst, src)
+}
+func (m *GetPluginInfoResponse) XXX_Size() int {
+	return xxx_messageInfo_GetPluginInfoResponse.Size(m)
+}
+func (m *GetPluginInfoResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetPluginInfoResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetPluginInfoResponse proto.InternalMessageInfo
+
+func (m *GetPluginInfoResponse) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *GetPluginInfoResponse) GetVersion() string {
+	if m != nil {
+		return m.Version
+	}
+	return ""
+}
+
+func (m *GetPluginInfoResponse) GetManifest() map[string]string {
+	if m != nil {
+		return m.Manifest
+	}
+	return nil
+}
+
+type GetPluginCapabilitiesRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetPluginCapabilitiesRequest) Reset()         { *m = GetPluginCapabilitiesRequest{} }
+func (m *GetPluginCapabilitiesRequest) String() string { return proto.CompactTextString(m) }
+func (*GetPluginCapabilitiesRequest) ProtoMessage()    {}
+func (*GetPluginCapabilitiesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cmi_3500c2b337883b22, []int{2}
+}
+func (m *GetPluginCapabilitiesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetPluginCapabilitiesRequest.Unmarshal(m, b)
+}
+func (m *GetPluginCapabilitiesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetPluginCapabilitiesRequest.Marshal(b, m, deterministic)
+}
+func (dst *GetPluginCapabilitiesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetPluginCapabilitiesRequest.Merge(dst, src)
+}
+func (m *GetPluginCapabilitiesRequest) XXX_Size() int {
+	return xxx_messageInfo_GetPluginCapabilitiesRequest.Size(m)
+}
+func (m *GetPluginCapabilitiesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetPluginCapabilitiesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetPluginCapabilitiesRequest proto.InternalMessageInfo
+
+type GetPluginCapabilitiesResponse struct {
+	// All the capabilities that the controller service supports.
+	// This field is OPTIONAL.
+	Capabilities         []*PluginCapability `protobuf:"bytes,1,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
+	XXX_unrecognized     []byte              `json:"-"`
+	XXX_sizecache        int32               `json:"-"`
+}
+
+func (m *GetPluginCapabilitiesResponse) Reset()         { *m = GetPluginCapabilitiesResponse{} }
+func (m *GetPluginCapabilitiesResponse) String() string { return proto.CompactTextString(m) }
+func (*GetPluginCapabilitiesResponse) ProtoMessage()    {}
+func (*GetPluginCapabilitiesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cmi_3500c2b337883b22, []int{3}
+}
+func (m *GetPluginCapabilitiesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetPluginCapabilitiesResponse.Unmarshal(m, b)
+}
+func (m *GetPluginCapabilitiesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetPluginCapabilitiesResponse.Marshal(b, m, deterministic)
+}
+func (dst *GetPluginCapabilitiesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetPluginCapabilitiesResponse.Merge(dst, src)
+}
+func (m *GetPluginCapabilitiesResponse) XXX_Size() int {
+	return xxx_messageInfo_GetPluginCapabilitiesResponse.Size(m)
+}
+func (m *GetPluginCapabilitiesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetPluginCapabilitiesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetPluginCapabilitiesResponse proto.InternalMessageInfo
+
+func (m *GetPluginCapabilitiesResponse) GetCapabilities() []*PluginCapability {
+	if m != nil {
+		return m.Capabilities
+	}
+	return nil
+}
+
+// Specifies a capability of the CMI-Plugin.
+type PluginCapability struct {
+	// Types that are valid to be assigned to Type:
+	//	*PluginCapability_Rpc
+	Type                 isPluginCapability_Type `protobuf_oneof:"type"`
+	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
+	XXX_unrecognized     []byte                  `json:"-"`
+	XXX_sizecache        int32                   `json:"-"`
+}
+
+func (m *PluginCapability) Reset()         { *m = PluginCapability{} }
+func (m *PluginCapability) String() string { return proto.CompactTextString(m) }
+func (*PluginCapability) ProtoMessage()    {}
+func (*PluginCapability) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cmi_3500c2b337883b22, []int{4}
+}
+func (m *PluginCapability) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PluginCapability.Unmarshal(m, b)
+}
+func (m *PluginCapability) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PluginCapability.Marshal(b, m, deterministic)
+}
+func (dst *PluginCapability) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PluginCapability.Merge(dst, src)
+}
+func (m *PluginCapability) XXX_Size() int {
+	return xxx_messageInfo_PluginCapability.Size(m)
+}
+func (m *PluginCapability) XXX_DiscardUnknown() {
+	xxx_messageInfo_PluginCapability.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PluginCapability proto.InternalMessageInfo
+
+type isPluginCapability_Type interface {
+	isPluginCapability_Type()
+}
+
+type PluginCapability_Rpc struct {
+	Rpc *PluginCapability_RPC `protobuf:"bytes,1,opt,name=rpc,proto3,oneof"`
+}
+
+func (*PluginCapability_Rpc) isPluginCapability_Type() {}
+
+func (m *PluginCapability) GetType() isPluginCapability_Type {
+	if m != nil {
+		return m.Type
+	}
+	return nil
+}
+
+func (m *PluginCapability) GetRpc() *PluginCapability_RPC {
+	if x, ok := m.GetType().(*PluginCapability_Rpc); ok {
+		return x.Rpc
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*PluginCapability) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _PluginCapability_OneofMarshaler, _PluginCapability_OneofUnmarshaler, _PluginCapability_OneofSizer, []interface{}{
+		(*PluginCapability_Rpc)(nil),
+	}
+}
+
+func _PluginCapability_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*PluginCapability)
+	// type
+	switch x := m.Type.(type) {
+	case *PluginCapability_Rpc:
+		b.EncodeVarint(1<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.Rpc); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("PluginCapability.Type has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _PluginCapability_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*PluginCapability)
+	switch tag {
+	case 1: // type.rpc
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(PluginCapability_RPC)
+		err := b.DecodeMessage(msg)
+		m.Type = &PluginCapability_Rpc{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _PluginCapability_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*PluginCapability)
+	// type
+	switch x := m.Type.(type) {
+	case *PluginCapability_Rpc:
+		s := proto.Size(x.Rpc)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+type PluginCapability_RPC struct {
+	Type                 PluginCapability_RPC_Type `protobuf:"varint,1,opt,name=type,proto3,enum=cmi.v1.PluginCapability_RPC_Type" json:"type,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
+	XXX_unrecognized     []byte                    `json:"-"`
+	XXX_sizecache        int32                     `json:"-"`
+}
+
+func (m *PluginCapability_RPC) Reset()         { *m = PluginCapability_RPC{} }
+func (m *PluginCapability_RPC) String() string { return proto.CompactTextString(m) }
+func (*PluginCapability_RPC) ProtoMessage()    {}
+func (*PluginCapability_RPC) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cmi_3500c2b337883b22, []int{4, 0}
+}
+func (m *PluginCapability_RPC) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PluginCapability_RPC.Unmarshal(m, b)
+}
+func (m *PluginCapability_RPC) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PluginCapability_RPC.Marshal(b, m, deterministic)
+}
+func (dst *PluginCapability_RPC) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PluginCapability_RPC.Merge(dst, src)
+}
+func (m *PluginCapability_RPC) XXX_Size() int {
+	return xxx_messageInfo_PluginCapability_RPC.Size(m)
+}
+func (m *PluginCapability_RPC) XXX_DiscardUnknown() {
+	xxx_messageInfo_PluginCapability_RPC.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PluginCapability_RPC proto.InternalMessageInfo
+
+func (m *PluginCapability_RPC) GetType() PluginCapability_RPC_Type {
+	if m != nil {
+		return m.Type
+	}
+	return PluginCapability_RPC_UNKNOWN
+}
+
+type ProbeRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ProbeRequest) Reset()         { *m = ProbeRequest{} }
+func (m *ProbeRequest) String() string { return proto.CompactTextString(m) }
+func (*ProbeRequest) ProtoMessage()    {}
+func (*ProbeRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cmi_3500c2b337883b22, []int{5}
+}
+func (m *ProbeRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ProbeRequest.Unmarshal(m, b)
+}
+func (m *ProbeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ProbeRequest.Marshal(b, m, deterministic)
+}
+func (dst *ProbeRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProbeRequest.Merge(dst, src)
+}
+func (m *ProbeRequest) XXX_Size() int {
+	return xxx_messageInfo_ProbeRequest.Size(m)
+}
+func (m *ProbeRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ProbeRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ProbeRequest proto.InternalMessageInfo
+
+type ProbeResponse struct {
+	// Readiness allows a plugin to report its initialization status back
+	// to the CMI-Client. Initialization for some plugins MAY be time consuming
+	// and it is important for a CMI-Client to distinguish between the following
+	// cases:
+	//
+	// 1) The plugin is in an unhealthy state and MAY need restarting. In
+	//    this case a gRPC error code SHALL be returned.
+	// 2) The plugin is still initializing, but is otherwise perfectly
+	//    healthy. In this case a successful response SHALL be returned
+	//    with a readiness value of `false`. Calls to the plugin's
+	//    Machine services MAY fail due to an incomplete
+	//    initialization state.
+	// 3) The plugin has finished initializing and is ready to service
+	//    calls to its Machine services. A successful
+	//    response is returned with a readiness value of `true`.
+	//
+	// This field is OPTIONAL. If not present, the caller SHALL assume
+	// that the plugin is in a ready state and is accepting calls to its
+	// Machine services (according to the plugin's reported
+	// capabilities).
+	Ready                *wrappers.BoolValue `protobuf:"bytes,1,opt,name=ready,proto3" json:"ready,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
+	XXX_unrecognized     []byte              `json:"-"`
+	XXX_sizecache        int32               `json:"-"`
+}
+
+func (m *ProbeResponse) Reset()         { *m = ProbeResponse{} }
+func (m *ProbeResponse) String() string { return proto.CompactTextString(m) }
+func (*ProbeResponse) ProtoMessage()    {}
+func (*ProbeResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cmi_3500c2b337883b22, []int{6}
+}
+func (m *ProbeResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ProbeResponse.Unmarshal(m, b)
+}
+func (m *ProbeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ProbeResponse.Marshal(b, m, deterministic)
+}
+func (dst *ProbeResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProbeResponse.Merge(dst, src)
+}
+func (m *ProbeResponse) XXX_Size() int {
+	return xxx_messageInfo_ProbeResponse.Size(m)
+}
+func (m *ProbeResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ProbeResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ProbeResponse proto.InternalMessageInfo
+
+func (m *ProbeResponse) GetReady() *wrappers.BoolValue {
+	if m != nil {
+		return m.Ready
+	}
+	return nil
 }
 
 type CreateMachineRequest struct {
@@ -95,7 +534,7 @@ func (m *CreateMachineRequest) Reset()         { *m = CreateMachineRequest{} }
 func (m *CreateMachineRequest) String() string { return proto.CompactTextString(m) }
 func (*CreateMachineRequest) ProtoMessage()    {}
 func (*CreateMachineRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{0}
+	return fileDescriptor_cmi_3500c2b337883b22, []int{7}
 }
 func (m *CreateMachineRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CreateMachineRequest.Unmarshal(m, b)
@@ -155,7 +594,7 @@ func (m *CreateMachineResponse) Reset()         { *m = CreateMachineResponse{} }
 func (m *CreateMachineResponse) String() string { return proto.CompactTextString(m) }
 func (*CreateMachineResponse) ProtoMessage()    {}
 func (*CreateMachineResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{1}
+	return fileDescriptor_cmi_3500c2b337883b22, []int{8}
 }
 func (m *CreateMachineResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CreateMachineResponse.Unmarshal(m, b)
@@ -206,7 +645,7 @@ func (m *DeleteMachineRequest) Reset()         { *m = DeleteMachineRequest{} }
 func (m *DeleteMachineRequest) String() string { return proto.CompactTextString(m) }
 func (*DeleteMachineRequest) ProtoMessage()    {}
 func (*DeleteMachineRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{2}
+	return fileDescriptor_cmi_3500c2b337883b22, []int{9}
 }
 func (m *DeleteMachineRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DeleteMachineRequest.Unmarshal(m, b)
@@ -250,7 +689,7 @@ func (m *DeleteMachineResponse) Reset()         { *m = DeleteMachineResponse{} }
 func (m *DeleteMachineResponse) String() string { return proto.CompactTextString(m) }
 func (*DeleteMachineResponse) ProtoMessage()    {}
 func (*DeleteMachineResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{3}
+	return fileDescriptor_cmi_3500c2b337883b22, []int{10}
 }
 func (m *DeleteMachineResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DeleteMachineResponse.Unmarshal(m, b)
@@ -287,7 +726,7 @@ func (m *GetMachineRequest) Reset()         { *m = GetMachineRequest{} }
 func (m *GetMachineRequest) String() string { return proto.CompactTextString(m) }
 func (*GetMachineRequest) ProtoMessage()    {}
 func (*GetMachineRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{4}
+	return fileDescriptor_cmi_3500c2b337883b22, []int{11}
 }
 func (m *GetMachineRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetMachineRequest.Unmarshal(m, b)
@@ -335,7 +774,7 @@ func (m *GetMachineResponse) Reset()         { *m = GetMachineResponse{} }
 func (m *GetMachineResponse) String() string { return proto.CompactTextString(m) }
 func (*GetMachineResponse) ProtoMessage()    {}
 func (*GetMachineResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{5}
+	return fileDescriptor_cmi_3500c2b337883b22, []int{12}
 }
 func (m *GetMachineResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetMachineResponse.Unmarshal(m, b)
@@ -386,7 +825,7 @@ func (m *ListMachinesRequest) Reset()         { *m = ListMachinesRequest{} }
 func (m *ListMachinesRequest) String() string { return proto.CompactTextString(m) }
 func (*ListMachinesRequest) ProtoMessage()    {}
 func (*ListMachinesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{6}
+	return fileDescriptor_cmi_3500c2b337883b22, []int{13}
 }
 func (m *ListMachinesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListMachinesRequest.Unmarshal(m, b)
@@ -433,7 +872,7 @@ func (m *ListMachinesResponse) Reset()         { *m = ListMachinesResponse{} }
 func (m *ListMachinesResponse) String() string { return proto.CompactTextString(m) }
 func (*ListMachinesResponse) ProtoMessage()    {}
 func (*ListMachinesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{7}
+	return fileDescriptor_cmi_3500c2b337883b22, []int{14}
 }
 func (m *ListMachinesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListMachinesResponse.Unmarshal(m, b)
@@ -465,7 +904,7 @@ type ShutDownMachineRequest struct {
 	// It should uniquely identify the real machine in cloud-provider.
 	// This field is REQUIRED.
 	MachineID string `protobuf:"bytes,1,opt,name=MachineID,proto3" json:"MachineID,omitempty"`
-	// Secrets is the map containing necessary credentials for cloud-provider to delete the machine.
+	// Secrets is the map containing necessary credentials for cloud-provider to shut down the machine.
 	// This field is OPTIONAL.
 	Secrets              map[string][]byte `protobuf:"bytes,2,rep,name=Secrets,proto3" json:"Secrets,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
@@ -477,7 +916,7 @@ func (m *ShutDownMachineRequest) Reset()         { *m = ShutDownMachineRequest{}
 func (m *ShutDownMachineRequest) String() string { return proto.CompactTextString(m) }
 func (*ShutDownMachineRequest) ProtoMessage()    {}
 func (*ShutDownMachineRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{8}
+	return fileDescriptor_cmi_3500c2b337883b22, []int{15}
 }
 func (m *ShutDownMachineRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ShutDownMachineRequest.Unmarshal(m, b)
@@ -521,7 +960,7 @@ func (m *ShutDownMachineResponse) Reset()         { *m = ShutDownMachineResponse
 func (m *ShutDownMachineResponse) String() string { return proto.CompactTextString(m) }
 func (*ShutDownMachineResponse) ProtoMessage()    {}
 func (*ShutDownMachineResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{9}
+	return fileDescriptor_cmi_3500c2b337883b22, []int{16}
 }
 func (m *ShutDownMachineResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ShutDownMachineResponse.Unmarshal(m, b)
@@ -541,8 +980,8 @@ func (m *ShutDownMachineResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ShutDownMachineResponse proto.InternalMessageInfo
 
-type GetListOfVolumeIDsForExistingPVsRequest struct {
-	// PVSpecsList is a list PV specs for whom volume-IDs are required
+type GetVolumeIDsRequest struct {
+	// PVSpecsList is a list of PV specs for whom volume-IDs are required
 	// Driver should parse this raw data into pre-defined list of PVSpecs
 	// This field is REQUIRED.
 	PVSpecList           []byte   `protobuf:"bytes,1,opt,name=PVSpecList,proto3" json:"PVSpecList,omitempty"`
@@ -551,40 +990,38 @@ type GetListOfVolumeIDsForExistingPVsRequest struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetListOfVolumeIDsForExistingPVsRequest) Reset() {
-	*m = GetListOfVolumeIDsForExistingPVsRequest{}
+func (m *GetVolumeIDsRequest) Reset()         { *m = GetVolumeIDsRequest{} }
+func (m *GetVolumeIDsRequest) String() string { return proto.CompactTextString(m) }
+func (*GetVolumeIDsRequest) ProtoMessage()    {}
+func (*GetVolumeIDsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cmi_3500c2b337883b22, []int{17}
 }
-func (m *GetListOfVolumeIDsForExistingPVsRequest) String() string { return proto.CompactTextString(m) }
-func (*GetListOfVolumeIDsForExistingPVsRequest) ProtoMessage()    {}
-func (*GetListOfVolumeIDsForExistingPVsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{10}
+func (m *GetVolumeIDsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetVolumeIDsRequest.Unmarshal(m, b)
 }
-func (m *GetListOfVolumeIDsForExistingPVsRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetListOfVolumeIDsForExistingPVsRequest.Unmarshal(m, b)
+func (m *GetVolumeIDsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetVolumeIDsRequest.Marshal(b, m, deterministic)
 }
-func (m *GetListOfVolumeIDsForExistingPVsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetListOfVolumeIDsForExistingPVsRequest.Marshal(b, m, deterministic)
+func (dst *GetVolumeIDsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetVolumeIDsRequest.Merge(dst, src)
 }
-func (dst *GetListOfVolumeIDsForExistingPVsRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetListOfVolumeIDsForExistingPVsRequest.Merge(dst, src)
+func (m *GetVolumeIDsRequest) XXX_Size() int {
+	return xxx_messageInfo_GetVolumeIDsRequest.Size(m)
 }
-func (m *GetListOfVolumeIDsForExistingPVsRequest) XXX_Size() int {
-	return xxx_messageInfo_GetListOfVolumeIDsForExistingPVsRequest.Size(m)
-}
-func (m *GetListOfVolumeIDsForExistingPVsRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetListOfVolumeIDsForExistingPVsRequest.DiscardUnknown(m)
+func (m *GetVolumeIDsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetVolumeIDsRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetListOfVolumeIDsForExistingPVsRequest proto.InternalMessageInfo
+var xxx_messageInfo_GetVolumeIDsRequest proto.InternalMessageInfo
 
-func (m *GetListOfVolumeIDsForExistingPVsRequest) GetPVSpecList() []byte {
+func (m *GetVolumeIDsRequest) GetPVSpecList() []byte {
 	if m != nil {
 		return m.PVSpecList
 	}
 	return nil
 }
 
-type GetListOfVolumeIDsForExistingPVsResponse struct {
+type GetVolumeIDsResponse struct {
 	// VolumeIDs is a list of VolumeIDs.
 	// This field is REQUIRED.
 	VolumeIDs            []string `protobuf:"bytes,1,rep,name=VolumeIDs,proto3" json:"VolumeIDs,omitempty"`
@@ -593,479 +1030,33 @@ type GetListOfVolumeIDsForExistingPVsResponse struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetListOfVolumeIDsForExistingPVsResponse) Reset() {
-	*m = GetListOfVolumeIDsForExistingPVsResponse{}
+func (m *GetVolumeIDsResponse) Reset()         { *m = GetVolumeIDsResponse{} }
+func (m *GetVolumeIDsResponse) String() string { return proto.CompactTextString(m) }
+func (*GetVolumeIDsResponse) ProtoMessage()    {}
+func (*GetVolumeIDsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cmi_3500c2b337883b22, []int{18}
 }
-func (m *GetListOfVolumeIDsForExistingPVsResponse) String() string { return proto.CompactTextString(m) }
-func (*GetListOfVolumeIDsForExistingPVsResponse) ProtoMessage()    {}
-func (*GetListOfVolumeIDsForExistingPVsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{11}
+func (m *GetVolumeIDsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetVolumeIDsResponse.Unmarshal(m, b)
 }
-func (m *GetListOfVolumeIDsForExistingPVsResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetListOfVolumeIDsForExistingPVsResponse.Unmarshal(m, b)
+func (m *GetVolumeIDsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetVolumeIDsResponse.Marshal(b, m, deterministic)
 }
-func (m *GetListOfVolumeIDsForExistingPVsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetListOfVolumeIDsForExistingPVsResponse.Marshal(b, m, deterministic)
+func (dst *GetVolumeIDsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetVolumeIDsResponse.Merge(dst, src)
 }
-func (dst *GetListOfVolumeIDsForExistingPVsResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetListOfVolumeIDsForExistingPVsResponse.Merge(dst, src)
+func (m *GetVolumeIDsResponse) XXX_Size() int {
+	return xxx_messageInfo_GetVolumeIDsResponse.Size(m)
 }
-func (m *GetListOfVolumeIDsForExistingPVsResponse) XXX_Size() int {
-	return xxx_messageInfo_GetListOfVolumeIDsForExistingPVsResponse.Size(m)
-}
-func (m *GetListOfVolumeIDsForExistingPVsResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetListOfVolumeIDsForExistingPVsResponse.DiscardUnknown(m)
+func (m *GetVolumeIDsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetVolumeIDsResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetListOfVolumeIDsForExistingPVsResponse proto.InternalMessageInfo
+var xxx_messageInfo_GetVolumeIDsResponse proto.InternalMessageInfo
 
-func (m *GetListOfVolumeIDsForExistingPVsResponse) GetVolumeIDs() []string {
+func (m *GetVolumeIDsResponse) GetVolumeIDs() []string {
 	if m != nil {
 		return m.VolumeIDs
-	}
-	return nil
-}
-
-// TODO[hardikdr]: Make use of this field.
-type ControllerGetCapabilitiesRequest struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *ControllerGetCapabilitiesRequest) Reset()         { *m = ControllerGetCapabilitiesRequest{} }
-func (m *ControllerGetCapabilitiesRequest) String() string { return proto.CompactTextString(m) }
-func (*ControllerGetCapabilitiesRequest) ProtoMessage()    {}
-func (*ControllerGetCapabilitiesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{12}
-}
-func (m *ControllerGetCapabilitiesRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ControllerGetCapabilitiesRequest.Unmarshal(m, b)
-}
-func (m *ControllerGetCapabilitiesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ControllerGetCapabilitiesRequest.Marshal(b, m, deterministic)
-}
-func (dst *ControllerGetCapabilitiesRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ControllerGetCapabilitiesRequest.Merge(dst, src)
-}
-func (m *ControllerGetCapabilitiesRequest) XXX_Size() int {
-	return xxx_messageInfo_ControllerGetCapabilitiesRequest.Size(m)
-}
-func (m *ControllerGetCapabilitiesRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_ControllerGetCapabilitiesRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ControllerGetCapabilitiesRequest proto.InternalMessageInfo
-
-// TODO[hardikdr]: Make use of this field.
-type ControllerGetCapabilitiesResponse struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *ControllerGetCapabilitiesResponse) Reset()         { *m = ControllerGetCapabilitiesResponse{} }
-func (m *ControllerGetCapabilitiesResponse) String() string { return proto.CompactTextString(m) }
-func (*ControllerGetCapabilitiesResponse) ProtoMessage()    {}
-func (*ControllerGetCapabilitiesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{13}
-}
-func (m *ControllerGetCapabilitiesResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ControllerGetCapabilitiesResponse.Unmarshal(m, b)
-}
-func (m *ControllerGetCapabilitiesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ControllerGetCapabilitiesResponse.Marshal(b, m, deterministic)
-}
-func (dst *ControllerGetCapabilitiesResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ControllerGetCapabilitiesResponse.Merge(dst, src)
-}
-func (m *ControllerGetCapabilitiesResponse) XXX_Size() int {
-	return xxx_messageInfo_ControllerGetCapabilitiesResponse.Size(m)
-}
-func (m *ControllerGetCapabilitiesResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_ControllerGetCapabilitiesResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ControllerGetCapabilitiesResponse proto.InternalMessageInfo
-
-type GetPluginInfoRequest struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *GetPluginInfoRequest) Reset()         { *m = GetPluginInfoRequest{} }
-func (m *GetPluginInfoRequest) String() string { return proto.CompactTextString(m) }
-func (*GetPluginInfoRequest) ProtoMessage()    {}
-func (*GetPluginInfoRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{14}
-}
-func (m *GetPluginInfoRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetPluginInfoRequest.Unmarshal(m, b)
-}
-func (m *GetPluginInfoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetPluginInfoRequest.Marshal(b, m, deterministic)
-}
-func (dst *GetPluginInfoRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetPluginInfoRequest.Merge(dst, src)
-}
-func (m *GetPluginInfoRequest) XXX_Size() int {
-	return xxx_messageInfo_GetPluginInfoRequest.Size(m)
-}
-func (m *GetPluginInfoRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetPluginInfoRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_GetPluginInfoRequest proto.InternalMessageInfo
-
-type GetPluginInfoResponse struct {
-	// The name MUST follow domain name notation format
-	// (https://tools.ietf.org/html/rfc1035#section-2.3.1). It SHOULD
-	// include the plugin's host company name and the plugin name,
-	// to minimize the possibility of collisions. It MUST be 63
-	// characters or less, beginning and ending with an alphanumeric
-	// character ([a-z0-9A-Z]) with dashes (-), dots (.), and
-	// alphanumerics between. This field is REQUIRED.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// This field is REQUIRED. Value of this field is opaque to the CO.
-	VendorVersion string `protobuf:"bytes,2,opt,name=vendor_version,json=vendorVersion,proto3" json:"vendor_version,omitempty"`
-	// This field is OPTIONAL. Values are opaque to the CO.
-	Manifest             map[string]string `protobuf:"bytes,3,rep,name=manifest,proto3" json:"manifest,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
-	XXX_unrecognized     []byte            `json:"-"`
-	XXX_sizecache        int32             `json:"-"`
-}
-
-func (m *GetPluginInfoResponse) Reset()         { *m = GetPluginInfoResponse{} }
-func (m *GetPluginInfoResponse) String() string { return proto.CompactTextString(m) }
-func (*GetPluginInfoResponse) ProtoMessage()    {}
-func (*GetPluginInfoResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{15}
-}
-func (m *GetPluginInfoResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetPluginInfoResponse.Unmarshal(m, b)
-}
-func (m *GetPluginInfoResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetPluginInfoResponse.Marshal(b, m, deterministic)
-}
-func (dst *GetPluginInfoResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetPluginInfoResponse.Merge(dst, src)
-}
-func (m *GetPluginInfoResponse) XXX_Size() int {
-	return xxx_messageInfo_GetPluginInfoResponse.Size(m)
-}
-func (m *GetPluginInfoResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetPluginInfoResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_GetPluginInfoResponse proto.InternalMessageInfo
-
-func (m *GetPluginInfoResponse) GetName() string {
-	if m != nil {
-		return m.Name
-	}
-	return ""
-}
-
-func (m *GetPluginInfoResponse) GetVendorVersion() string {
-	if m != nil {
-		return m.VendorVersion
-	}
-	return ""
-}
-
-func (m *GetPluginInfoResponse) GetManifest() map[string]string {
-	if m != nil {
-		return m.Manifest
-	}
-	return nil
-}
-
-type GetPluginCapabilitiesRequest struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *GetPluginCapabilitiesRequest) Reset()         { *m = GetPluginCapabilitiesRequest{} }
-func (m *GetPluginCapabilitiesRequest) String() string { return proto.CompactTextString(m) }
-func (*GetPluginCapabilitiesRequest) ProtoMessage()    {}
-func (*GetPluginCapabilitiesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{16}
-}
-func (m *GetPluginCapabilitiesRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetPluginCapabilitiesRequest.Unmarshal(m, b)
-}
-func (m *GetPluginCapabilitiesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetPluginCapabilitiesRequest.Marshal(b, m, deterministic)
-}
-func (dst *GetPluginCapabilitiesRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetPluginCapabilitiesRequest.Merge(dst, src)
-}
-func (m *GetPluginCapabilitiesRequest) XXX_Size() int {
-	return xxx_messageInfo_GetPluginCapabilitiesRequest.Size(m)
-}
-func (m *GetPluginCapabilitiesRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetPluginCapabilitiesRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_GetPluginCapabilitiesRequest proto.InternalMessageInfo
-
-type GetPluginCapabilitiesResponse struct {
-	// All the capabilities that the controller service supports. This
-	// field is OPTIONAL.
-	Capabilities         []*PluginCapability `protobuf:"bytes,1,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
-	XXX_unrecognized     []byte              `json:"-"`
-	XXX_sizecache        int32               `json:"-"`
-}
-
-func (m *GetPluginCapabilitiesResponse) Reset()         { *m = GetPluginCapabilitiesResponse{} }
-func (m *GetPluginCapabilitiesResponse) String() string { return proto.CompactTextString(m) }
-func (*GetPluginCapabilitiesResponse) ProtoMessage()    {}
-func (*GetPluginCapabilitiesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{17}
-}
-func (m *GetPluginCapabilitiesResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetPluginCapabilitiesResponse.Unmarshal(m, b)
-}
-func (m *GetPluginCapabilitiesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetPluginCapabilitiesResponse.Marshal(b, m, deterministic)
-}
-func (dst *GetPluginCapabilitiesResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetPluginCapabilitiesResponse.Merge(dst, src)
-}
-func (m *GetPluginCapabilitiesResponse) XXX_Size() int {
-	return xxx_messageInfo_GetPluginCapabilitiesResponse.Size(m)
-}
-func (m *GetPluginCapabilitiesResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetPluginCapabilitiesResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_GetPluginCapabilitiesResponse proto.InternalMessageInfo
-
-func (m *GetPluginCapabilitiesResponse) GetCapabilities() []*PluginCapability {
-	if m != nil {
-		return m.Capabilities
-	}
-	return nil
-}
-
-// Specifies a capability of the plugin.
-type PluginCapability struct {
-	// Types that are valid to be assigned to Type:
-	//	*PluginCapability_Service_
-	Type                 isPluginCapability_Type `protobuf_oneof:"type"`
-	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
-	XXX_unrecognized     []byte                  `json:"-"`
-	XXX_sizecache        int32                   `json:"-"`
-}
-
-func (m *PluginCapability) Reset()         { *m = PluginCapability{} }
-func (m *PluginCapability) String() string { return proto.CompactTextString(m) }
-func (*PluginCapability) ProtoMessage()    {}
-func (*PluginCapability) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{18}
-}
-func (m *PluginCapability) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_PluginCapability.Unmarshal(m, b)
-}
-func (m *PluginCapability) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_PluginCapability.Marshal(b, m, deterministic)
-}
-func (dst *PluginCapability) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PluginCapability.Merge(dst, src)
-}
-func (m *PluginCapability) XXX_Size() int {
-	return xxx_messageInfo_PluginCapability.Size(m)
-}
-func (m *PluginCapability) XXX_DiscardUnknown() {
-	xxx_messageInfo_PluginCapability.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_PluginCapability proto.InternalMessageInfo
-
-type isPluginCapability_Type interface {
-	isPluginCapability_Type()
-}
-
-type PluginCapability_Service_ struct {
-	Service *PluginCapability_Service `protobuf:"bytes,1,opt,name=service,proto3,oneof"`
-}
-
-func (*PluginCapability_Service_) isPluginCapability_Type() {}
-
-func (m *PluginCapability) GetType() isPluginCapability_Type {
-	if m != nil {
-		return m.Type
-	}
-	return nil
-}
-
-func (m *PluginCapability) GetService() *PluginCapability_Service {
-	if x, ok := m.GetType().(*PluginCapability_Service_); ok {
-		return x.Service
-	}
-	return nil
-}
-
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*PluginCapability) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _PluginCapability_OneofMarshaler, _PluginCapability_OneofUnmarshaler, _PluginCapability_OneofSizer, []interface{}{
-		(*PluginCapability_Service_)(nil),
-	}
-}
-
-func _PluginCapability_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*PluginCapability)
-	// type
-	switch x := m.Type.(type) {
-	case *PluginCapability_Service_:
-		b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Service); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("PluginCapability.Type has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _PluginCapability_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*PluginCapability)
-	switch tag {
-	case 1: // type.service
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(PluginCapability_Service)
-		err := b.DecodeMessage(msg)
-		m.Type = &PluginCapability_Service_{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _PluginCapability_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*PluginCapability)
-	// type
-	switch x := m.Type.(type) {
-	case *PluginCapability_Service_:
-		s := proto.Size(x.Service)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
-}
-
-type PluginCapability_Service struct {
-	Type                 PluginCapability_Service_Type `protobuf:"varint,1,opt,name=type,proto3,enum=cmi.v1.PluginCapability_Service_Type" json:"type,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                      `json:"-"`
-	XXX_unrecognized     []byte                        `json:"-"`
-	XXX_sizecache        int32                         `json:"-"`
-}
-
-func (m *PluginCapability_Service) Reset()         { *m = PluginCapability_Service{} }
-func (m *PluginCapability_Service) String() string { return proto.CompactTextString(m) }
-func (*PluginCapability_Service) ProtoMessage()    {}
-func (*PluginCapability_Service) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{18, 0}
-}
-func (m *PluginCapability_Service) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_PluginCapability_Service.Unmarshal(m, b)
-}
-func (m *PluginCapability_Service) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_PluginCapability_Service.Marshal(b, m, deterministic)
-}
-func (dst *PluginCapability_Service) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PluginCapability_Service.Merge(dst, src)
-}
-func (m *PluginCapability_Service) XXX_Size() int {
-	return xxx_messageInfo_PluginCapability_Service.Size(m)
-}
-func (m *PluginCapability_Service) XXX_DiscardUnknown() {
-	xxx_messageInfo_PluginCapability_Service.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_PluginCapability_Service proto.InternalMessageInfo
-
-func (m *PluginCapability_Service) GetType() PluginCapability_Service_Type {
-	if m != nil {
-		return m.Type
-	}
-	return PluginCapability_Service_UNKNOWN
-}
-
-type ProbeRequest struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *ProbeRequest) Reset()         { *m = ProbeRequest{} }
-func (m *ProbeRequest) String() string { return proto.CompactTextString(m) }
-func (*ProbeRequest) ProtoMessage()    {}
-func (*ProbeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{19}
-}
-func (m *ProbeRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ProbeRequest.Unmarshal(m, b)
-}
-func (m *ProbeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ProbeRequest.Marshal(b, m, deterministic)
-}
-func (dst *ProbeRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProbeRequest.Merge(dst, src)
-}
-func (m *ProbeRequest) XXX_Size() int {
-	return xxx_messageInfo_ProbeRequest.Size(m)
-}
-func (m *ProbeRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_ProbeRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ProbeRequest proto.InternalMessageInfo
-
-type ProbeResponse struct {
-	Ready                *wrappers.BoolValue `protobuf:"bytes,1,opt,name=ready,proto3" json:"ready,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
-	XXX_unrecognized     []byte              `json:"-"`
-	XXX_sizecache        int32               `json:"-"`
-}
-
-func (m *ProbeResponse) Reset()         { *m = ProbeResponse{} }
-func (m *ProbeResponse) String() string { return proto.CompactTextString(m) }
-func (*ProbeResponse) ProtoMessage()    {}
-func (*ProbeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_15f40a34ecc38185, []int{20}
-}
-func (m *ProbeResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ProbeResponse.Unmarshal(m, b)
-}
-func (m *ProbeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ProbeResponse.Marshal(b, m, deterministic)
-}
-func (dst *ProbeResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProbeResponse.Merge(dst, src)
-}
-func (m *ProbeResponse) XXX_Size() int {
-	return xxx_messageInfo_ProbeResponse.Size(m)
-}
-func (m *ProbeResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_ProbeResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ProbeResponse proto.InternalMessageInfo
-
-func (m *ProbeResponse) GetReady() *wrappers.BoolValue {
-	if m != nil {
-		return m.Ready
 	}
 	return nil
 }
@@ -1080,6 +1071,15 @@ var E_CmiSecret = &proto.ExtensionDesc{
 }
 
 func init() {
+	proto.RegisterType((*GetPluginInfoRequest)(nil), "cmi.v1.GetPluginInfoRequest")
+	proto.RegisterType((*GetPluginInfoResponse)(nil), "cmi.v1.GetPluginInfoResponse")
+	proto.RegisterMapType((map[string]string)(nil), "cmi.v1.GetPluginInfoResponse.ManifestEntry")
+	proto.RegisterType((*GetPluginCapabilitiesRequest)(nil), "cmi.v1.GetPluginCapabilitiesRequest")
+	proto.RegisterType((*GetPluginCapabilitiesResponse)(nil), "cmi.v1.GetPluginCapabilitiesResponse")
+	proto.RegisterType((*PluginCapability)(nil), "cmi.v1.PluginCapability")
+	proto.RegisterType((*PluginCapability_RPC)(nil), "cmi.v1.PluginCapability.RPC")
+	proto.RegisterType((*ProbeRequest)(nil), "cmi.v1.ProbeRequest")
+	proto.RegisterType((*ProbeResponse)(nil), "cmi.v1.ProbeResponse")
 	proto.RegisterType((*CreateMachineRequest)(nil), "cmi.v1.CreateMachineRequest")
 	proto.RegisterMapType((map[string][]byte)(nil), "cmi.v1.CreateMachineRequest.SecretsEntry")
 	proto.RegisterType((*CreateMachineResponse)(nil), "cmi.v1.CreateMachineResponse")
@@ -1096,21 +1096,10 @@ func init() {
 	proto.RegisterType((*ShutDownMachineRequest)(nil), "cmi.v1.ShutDownMachineRequest")
 	proto.RegisterMapType((map[string][]byte)(nil), "cmi.v1.ShutDownMachineRequest.SecretsEntry")
 	proto.RegisterType((*ShutDownMachineResponse)(nil), "cmi.v1.ShutDownMachineResponse")
-	proto.RegisterType((*GetListOfVolumeIDsForExistingPVsRequest)(nil), "cmi.v1.GetListOfVolumeIDsForExistingPVsRequest")
-	proto.RegisterType((*GetListOfVolumeIDsForExistingPVsResponse)(nil), "cmi.v1.GetListOfVolumeIDsForExistingPVsResponse")
-	proto.RegisterType((*ControllerGetCapabilitiesRequest)(nil), "cmi.v1.ControllerGetCapabilitiesRequest")
-	proto.RegisterType((*ControllerGetCapabilitiesResponse)(nil), "cmi.v1.ControllerGetCapabilitiesResponse")
-	proto.RegisterType((*GetPluginInfoRequest)(nil), "cmi.v1.GetPluginInfoRequest")
-	proto.RegisterType((*GetPluginInfoResponse)(nil), "cmi.v1.GetPluginInfoResponse")
-	proto.RegisterMapType((map[string]string)(nil), "cmi.v1.GetPluginInfoResponse.ManifestEntry")
-	proto.RegisterType((*GetPluginCapabilitiesRequest)(nil), "cmi.v1.GetPluginCapabilitiesRequest")
-	proto.RegisterType((*GetPluginCapabilitiesResponse)(nil), "cmi.v1.GetPluginCapabilitiesResponse")
-	proto.RegisterType((*PluginCapability)(nil), "cmi.v1.PluginCapability")
-	proto.RegisterType((*PluginCapability_Service)(nil), "cmi.v1.PluginCapability.Service")
-	proto.RegisterType((*ProbeRequest)(nil), "cmi.v1.ProbeRequest")
-	proto.RegisterType((*ProbeResponse)(nil), "cmi.v1.ProbeResponse")
+	proto.RegisterType((*GetVolumeIDsRequest)(nil), "cmi.v1.GetVolumeIDsRequest")
+	proto.RegisterType((*GetVolumeIDsResponse)(nil), "cmi.v1.GetVolumeIDsResponse")
+	proto.RegisterEnum("cmi.v1.PluginCapability_RPC_Type", PluginCapability_RPC_Type_name, PluginCapability_RPC_Type_value)
 	proto.RegisterEnum("cmi.v1.GetMachineResponse_Status", GetMachineResponse_Status_name, GetMachineResponse_Status_value)
-	proto.RegisterEnum("cmi.v1.PluginCapability_Service_Type", PluginCapability_Service_Type_name, PluginCapability_Service_Type_value)
 	proto.RegisterExtension(E_CmiSecret)
 }
 
@@ -1121,6 +1110,148 @@ var _ grpc.ClientConn
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
+
+// IdentityClient is the client API for Identity service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type IdentityClient interface {
+	// GetPluginInfo returns basic details about the plugin
+	// This method is REQUIRED.
+	GetPluginInfo(ctx context.Context, in *GetPluginInfoRequest, opts ...grpc.CallOption) (*GetPluginInfoResponse, error)
+	// GetPluginCapabilities returns the set of capabilities for the plugin
+	// This method is REQUIRED.
+	GetPluginCapabilities(ctx context.Context, in *GetPluginCapabilitiesRequest, opts ...grpc.CallOption) (*GetPluginCapabilitiesResponse, error)
+	// Probe returns the status of the plugin
+	// This method is REQUIRED.
+	Probe(ctx context.Context, in *ProbeRequest, opts ...grpc.CallOption) (*ProbeResponse, error)
+}
+
+type identityClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewIdentityClient(cc *grpc.ClientConn) IdentityClient {
+	return &identityClient{cc}
+}
+
+func (c *identityClient) GetPluginInfo(ctx context.Context, in *GetPluginInfoRequest, opts ...grpc.CallOption) (*GetPluginInfoResponse, error) {
+	out := new(GetPluginInfoResponse)
+	err := c.cc.Invoke(ctx, "/cmi.v1.Identity/GetPluginInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) GetPluginCapabilities(ctx context.Context, in *GetPluginCapabilitiesRequest, opts ...grpc.CallOption) (*GetPluginCapabilitiesResponse, error) {
+	out := new(GetPluginCapabilitiesResponse)
+	err := c.cc.Invoke(ctx, "/cmi.v1.Identity/GetPluginCapabilities", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityClient) Probe(ctx context.Context, in *ProbeRequest, opts ...grpc.CallOption) (*ProbeResponse, error) {
+	out := new(ProbeResponse)
+	err := c.cc.Invoke(ctx, "/cmi.v1.Identity/Probe", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// IdentityServer is the server API for Identity service.
+type IdentityServer interface {
+	// GetPluginInfo returns basic details about the plugin
+	// This method is REQUIRED.
+	GetPluginInfo(context.Context, *GetPluginInfoRequest) (*GetPluginInfoResponse, error)
+	// GetPluginCapabilities returns the set of capabilities for the plugin
+	// This method is REQUIRED.
+	GetPluginCapabilities(context.Context, *GetPluginCapabilitiesRequest) (*GetPluginCapabilitiesResponse, error)
+	// Probe returns the status of the plugin
+	// This method is REQUIRED.
+	Probe(context.Context, *ProbeRequest) (*ProbeResponse, error)
+}
+
+func RegisterIdentityServer(s *grpc.Server, srv IdentityServer) {
+	s.RegisterService(&_Identity_serviceDesc, srv)
+}
+
+func _Identity_GetPluginInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPluginInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).GetPluginInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/cmi.v1.Identity/GetPluginInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).GetPluginInfo(ctx, req.(*GetPluginInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_GetPluginCapabilities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPluginCapabilitiesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).GetPluginCapabilities(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/cmi.v1.Identity/GetPluginCapabilities",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).GetPluginCapabilities(ctx, req.(*GetPluginCapabilitiesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Identity_Probe_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProbeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServer).Probe(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/cmi.v1.Identity/Probe",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServer).Probe(ctx, req.(*ProbeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _Identity_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "cmi.v1.Identity",
+	HandlerType: (*IdentityServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetPluginInfo",
+			Handler:    _Identity_GetPluginInfo_Handler,
+		},
+		{
+			MethodName: "GetPluginCapabilities",
+			Handler:    _Identity_GetPluginCapabilities_Handler,
+		},
+		{
+			MethodName: "Probe",
+			Handler:    _Identity_Probe_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "github.com/gardener/machine-spec/cmi.proto",
+}
 
 // MachineClient is the client API for Machine service.
 //
@@ -1141,11 +1272,10 @@ type MachineClient interface {
 	// ShutDownMachine is the gRPC call to shutdown/power-off a machine.
 	// This method is OPTIONAL.
 	ShutDownMachine(ctx context.Context, in *ShutDownMachineRequest, opts ...grpc.CallOption) (*ShutDownMachineResponse, error)
-	// GetListOfVolumeIDsForExistingPVs() ([]string, error)
-	GetListOfVolumeIDsForExistingPVs(ctx context.Context, in *GetListOfVolumeIDsForExistingPVsRequest, opts ...grpc.CallOption) (*GetListOfVolumeIDsForExistingPVsResponse, error)
-	// ControllerGetCapabilities specifies the set of capabilties enabled to the controller.
+	// GetVolumeIDs() is the gRPC call to list VolumeIDs
+	// (if exists) for PVs provided by PVSpecList.
 	// This method is OPTIONAL.
-	ControllerGetCapabilities(ctx context.Context, in *ControllerGetCapabilitiesRequest, opts ...grpc.CallOption) (*ControllerGetCapabilitiesResponse, error)
+	GetVolumeIDs(ctx context.Context, in *GetVolumeIDsRequest, opts ...grpc.CallOption) (*GetVolumeIDsResponse, error)
 }
 
 type machineClient struct {
@@ -1201,18 +1331,9 @@ func (c *machineClient) ShutDownMachine(ctx context.Context, in *ShutDownMachine
 	return out, nil
 }
 
-func (c *machineClient) GetListOfVolumeIDsForExistingPVs(ctx context.Context, in *GetListOfVolumeIDsForExistingPVsRequest, opts ...grpc.CallOption) (*GetListOfVolumeIDsForExistingPVsResponse, error) {
-	out := new(GetListOfVolumeIDsForExistingPVsResponse)
-	err := c.cc.Invoke(ctx, "/cmi.v1.Machine/GetListOfVolumeIDsForExistingPVs", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *machineClient) ControllerGetCapabilities(ctx context.Context, in *ControllerGetCapabilitiesRequest, opts ...grpc.CallOption) (*ControllerGetCapabilitiesResponse, error) {
-	out := new(ControllerGetCapabilitiesResponse)
-	err := c.cc.Invoke(ctx, "/cmi.v1.Machine/ControllerGetCapabilities", in, out, opts...)
+func (c *machineClient) GetVolumeIDs(ctx context.Context, in *GetVolumeIDsRequest, opts ...grpc.CallOption) (*GetVolumeIDsResponse, error) {
+	out := new(GetVolumeIDsResponse)
+	err := c.cc.Invoke(ctx, "/cmi.v1.Machine/GetVolumeIDs", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1236,11 +1357,10 @@ type MachineServer interface {
 	// ShutDownMachine is the gRPC call to shutdown/power-off a machine.
 	// This method is OPTIONAL.
 	ShutDownMachine(context.Context, *ShutDownMachineRequest) (*ShutDownMachineResponse, error)
-	// GetListOfVolumeIDsForExistingPVs() ([]string, error)
-	GetListOfVolumeIDsForExistingPVs(context.Context, *GetListOfVolumeIDsForExistingPVsRequest) (*GetListOfVolumeIDsForExistingPVsResponse, error)
-	// ControllerGetCapabilities specifies the set of capabilties enabled to the controller.
+	// GetVolumeIDs() is the gRPC call to list VolumeIDs
+	// (if exists) for PVs provided by PVSpecList.
 	// This method is OPTIONAL.
-	ControllerGetCapabilities(context.Context, *ControllerGetCapabilitiesRequest) (*ControllerGetCapabilitiesResponse, error)
+	GetVolumeIDs(context.Context, *GetVolumeIDsRequest) (*GetVolumeIDsResponse, error)
 }
 
 func RegisterMachineServer(s *grpc.Server, srv MachineServer) {
@@ -1337,38 +1457,20 @@ func _Machine_ShutDownMachine_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Machine_GetListOfVolumeIDsForExistingPVs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetListOfVolumeIDsForExistingPVsRequest)
+func _Machine_GetVolumeIDs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVolumeIDsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MachineServer).GetListOfVolumeIDsForExistingPVs(ctx, in)
+		return srv.(MachineServer).GetVolumeIDs(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/cmi.v1.Machine/GetListOfVolumeIDsForExistingPVs",
+		FullMethod: "/cmi.v1.Machine/GetVolumeIDs",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MachineServer).GetListOfVolumeIDsForExistingPVs(ctx, req.(*GetListOfVolumeIDsForExistingPVsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Machine_ControllerGetCapabilities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ControllerGetCapabilitiesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(MachineServer).ControllerGetCapabilities(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/cmi.v1.Machine/ControllerGetCapabilities",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MachineServer).ControllerGetCapabilities(ctx, req.(*ControllerGetCapabilitiesRequest))
+		return srv.(MachineServer).GetVolumeIDs(ctx, req.(*GetVolumeIDsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1398,142 +1500,8 @@ var _Machine_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Machine_ShutDownMachine_Handler,
 		},
 		{
-			MethodName: "GetListOfVolumeIDsForExistingPVs",
-			Handler:    _Machine_GetListOfVolumeIDsForExistingPVs_Handler,
-		},
-		{
-			MethodName: "ControllerGetCapabilities",
-			Handler:    _Machine_ControllerGetCapabilities_Handler,
-		},
-	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "github.com/gardener/machine-spec/cmi.proto",
-}
-
-// IdentityClient is the client API for Identity service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type IdentityClient interface {
-	GetPluginInfo(ctx context.Context, in *GetPluginInfoRequest, opts ...grpc.CallOption) (*GetPluginInfoResponse, error)
-	GetPluginCapabilities(ctx context.Context, in *GetPluginCapabilitiesRequest, opts ...grpc.CallOption) (*GetPluginCapabilitiesResponse, error)
-	Probe(ctx context.Context, in *ProbeRequest, opts ...grpc.CallOption) (*ProbeResponse, error)
-}
-
-type identityClient struct {
-	cc *grpc.ClientConn
-}
-
-func NewIdentityClient(cc *grpc.ClientConn) IdentityClient {
-	return &identityClient{cc}
-}
-
-func (c *identityClient) GetPluginInfo(ctx context.Context, in *GetPluginInfoRequest, opts ...grpc.CallOption) (*GetPluginInfoResponse, error) {
-	out := new(GetPluginInfoResponse)
-	err := c.cc.Invoke(ctx, "/cmi.v1.Identity/GetPluginInfo", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *identityClient) GetPluginCapabilities(ctx context.Context, in *GetPluginCapabilitiesRequest, opts ...grpc.CallOption) (*GetPluginCapabilitiesResponse, error) {
-	out := new(GetPluginCapabilitiesResponse)
-	err := c.cc.Invoke(ctx, "/cmi.v1.Identity/GetPluginCapabilities", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *identityClient) Probe(ctx context.Context, in *ProbeRequest, opts ...grpc.CallOption) (*ProbeResponse, error) {
-	out := new(ProbeResponse)
-	err := c.cc.Invoke(ctx, "/cmi.v1.Identity/Probe", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// IdentityServer is the server API for Identity service.
-type IdentityServer interface {
-	GetPluginInfo(context.Context, *GetPluginInfoRequest) (*GetPluginInfoResponse, error)
-	GetPluginCapabilities(context.Context, *GetPluginCapabilitiesRequest) (*GetPluginCapabilitiesResponse, error)
-	Probe(context.Context, *ProbeRequest) (*ProbeResponse, error)
-}
-
-func RegisterIdentityServer(s *grpc.Server, srv IdentityServer) {
-	s.RegisterService(&_Identity_serviceDesc, srv)
-}
-
-func _Identity_GetPluginInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetPluginInfoRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(IdentityServer).GetPluginInfo(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/cmi.v1.Identity/GetPluginInfo",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IdentityServer).GetPluginInfo(ctx, req.(*GetPluginInfoRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Identity_GetPluginCapabilities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetPluginCapabilitiesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(IdentityServer).GetPluginCapabilities(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/cmi.v1.Identity/GetPluginCapabilities",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IdentityServer).GetPluginCapabilities(ctx, req.(*GetPluginCapabilitiesRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Identity_Probe_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ProbeRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(IdentityServer).Probe(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/cmi.v1.Identity/Probe",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IdentityServer).Probe(ctx, req.(*ProbeRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-var _Identity_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "cmi.v1.Identity",
-	HandlerType: (*IdentityServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "GetPluginInfo",
-			Handler:    _Identity_GetPluginInfo_Handler,
-		},
-		{
-			MethodName: "GetPluginCapabilities",
-			Handler:    _Identity_GetPluginCapabilities_Handler,
-		},
-		{
-			MethodName: "Probe",
-			Handler:    _Identity_Probe_Handler,
+			MethodName: "GetVolumeIDs",
+			Handler:    _Machine_GetVolumeIDs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -1541,78 +1509,77 @@ var _Identity_serviceDesc = grpc.ServiceDesc{
 }
 
 func init() {
-	proto.RegisterFile("github.com/gardener/machine-spec/cmi.proto", fileDescriptor_cmi_15f40a34ecc38185)
+	proto.RegisterFile("github.com/gardener/machine-spec/cmi.proto", fileDescriptor_cmi_3500c2b337883b22)
 }
 
-var fileDescriptor_cmi_15f40a34ecc38185 = []byte{
-	// 1103 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x56, 0x4b, 0x6f, 0xe3, 0x44,
-	0x1c, 0x8f, 0xfb, 0xee, 0xbf, 0x0f, 0xc2, 0x90, 0x76, 0x53, 0xd3, 0x96, 0xac, 0xa1, 0xd0, 0xa5,
-	0x5a, 0x67, 0x09, 0x12, 0x82, 0xb2, 0x20, 0xd1, 0x36, 0x9b, 0x86, 0xed, 0x26, 0xc5, 0x29, 0x41,
-	0x42, 0x42, 0x95, 0xeb, 0x4c, 0xd2, 0xd1, 0x26, 0x33, 0xde, 0xf1, 0x24, 0x25, 0x9f, 0x80, 0x33,
-	0x37, 0xee, 0x48, 0xf0, 0x05, 0x38, 0x71, 0xd8, 0x2f, 0xc0, 0x95, 0x03, 0x9f, 0x85, 0xd3, 0xca,
-	0xf6, 0xd8, 0x71, 0x1c, 0x27, 0x69, 0x0f, 0xbd, 0xcd, 0xfc, 0x1f, 0xbf, 0xff, 0x63, 0xfe, 0x8f,
-	0x81, 0x8f, 0x5b, 0x44, 0x5c, 0x77, 0xaf, 0x74, 0x8b, 0x75, 0xf2, 0x2d, 0x93, 0x37, 0x30, 0xc5,
-	0x3c, 0xdf, 0x31, 0xad, 0x6b, 0x42, 0xf1, 0x63, 0xc7, 0xc6, 0x56, 0xde, 0xea, 0x10, 0xdd, 0xe6,
-	0x4c, 0x30, 0xb4, 0xe0, 0x1e, 0x7b, 0x9f, 0xa8, 0xb9, 0x16, 0x63, 0xad, 0x36, 0xce, 0x7b, 0xd4,
-	0xab, 0x6e, 0x33, 0xdf, 0xc0, 0x8e, 0xc5, 0x89, 0x2d, 0x18, 0xf7, 0x25, 0xd5, 0xdd, 0xb8, 0xc4,
-	0x0d, 0x37, 0x6d, 0x1b, 0x73, 0xc7, 0xe7, 0x6b, 0xff, 0x2a, 0x90, 0x39, 0xe6, 0xd8, 0x14, 0xf8,
-	0x85, 0x6f, 0xca, 0xc0, 0xaf, 0xba, 0xd8, 0x11, 0x08, 0xc1, 0x5c, 0xc5, 0xec, 0xe0, 0xac, 0x92,
-	0x53, 0xf6, 0x97, 0x0d, 0xef, 0x8c, 0x34, 0x58, 0x3d, 0xe7, 0xac, 0x47, 0x1a, 0x98, 0xd7, 0x6c,
-	0x6c, 0x65, 0x67, 0x72, 0xca, 0xfe, 0xaa, 0x31, 0x44, 0x43, 0xa7, 0xb0, 0x58, 0xc3, 0x16, 0xc7,
-	0xc2, 0xc9, 0xce, 0xe6, 0x66, 0xf7, 0x57, 0x0a, 0x8f, 0x74, 0xdf, 0x59, 0x3d, 0xc9, 0x8c, 0x2e,
-	0x65, 0x8b, 0x54, 0xf0, 0xfe, 0xd1, 0xec, 0x6f, 0x47, 0x8a, 0x11, 0xa8, 0xab, 0x87, 0xb0, 0x1a,
-	0xe5, 0xa2, 0x34, 0xcc, 0xbe, 0xc4, 0x7d, 0xe9, 0x90, 0x7b, 0x44, 0x19, 0x98, 0xef, 0x99, 0xed,
-	0x2e, 0x96, 0x8e, 0xf8, 0x97, 0xc3, 0x99, 0xcf, 0x15, 0xed, 0x3b, 0xd8, 0x88, 0x99, 0x73, 0x6c,
-	0x46, 0x1d, 0x8c, 0xb6, 0x61, 0x59, 0x92, 0xca, 0x27, 0x12, 0x6a, 0x40, 0x40, 0x2a, 0x2c, 0x55,
-	0x58, 0x03, 0x7b, 0x81, 0xcf, 0x78, 0xcc, 0xf0, 0xae, 0xfd, 0xad, 0x40, 0xe6, 0x04, 0xb7, 0xf1,
-	0x48, 0xa6, 0x26, 0x43, 0x46, 0xf2, 0x31, 0x33, 0x9c, 0x8f, 0x24, 0xb0, 0xfb, 0xca, 0xc7, 0x03,
-	0xd8, 0x88, 0x99, 0xf3, 0xf3, 0xa1, 0xfd, 0xa5, 0xc0, 0xdb, 0x25, 0x2c, 0xee, 0x14, 0x52, 0x31,
-	0x1e, 0xd2, 0x87, 0x41, 0x48, 0x23, 0x48, 0xf7, 0x15, 0xcf, 0x1f, 0x0a, 0xa0, 0xa8, 0x31, 0xf9,
-	0xba, 0x9b, 0xb0, 0x50, 0xfc, 0x99, 0x38, 0xc2, 0xf1, 0x50, 0x96, 0x0c, 0x79, 0x43, 0x25, 0x58,
-	0x93, 0xa2, 0x35, 0x61, 0x8a, 0xae, 0xe3, 0x01, 0xae, 0x17, 0x1e, 0x26, 0xf9, 0xed, 0x43, 0xe9,
-	0xbe, 0xa0, 0x31, 0xac, 0xa7, 0xe5, 0x61, 0xc1, 0x3f, 0xa1, 0x15, 0x58, 0xfc, 0x9e, 0xbe, 0xa4,
-	0xec, 0x86, 0xa6, 0x53, 0xee, 0xc5, 0xe8, 0x52, 0x4a, 0x68, 0x2b, 0xad, 0xb8, 0x97, 0x9a, 0x60,
-	0xb6, 0x8d, 0x1b, 0xe9, 0x19, 0xed, 0xb5, 0x02, 0xef, 0x9c, 0x11, 0x27, 0x80, 0x77, 0x82, 0x0c,
-	0xc7, 0x5b, 0x49, 0x49, 0x68, 0xa5, 0x52, 0x3c, 0xcf, 0xfb, 0x81, 0xbf, 0x09, 0x88, 0xf7, 0x95,
-	0xe9, 0x3f, 0x15, 0xc8, 0x0c, 0x9b, 0x93, 0xb9, 0xae, 0xc2, 0x8a, 0xa4, 0xb9, 0xec, 0xac, 0xe2,
-	0x79, 0xf8, 0x38, 0xd9, 0x43, 0x99, 0xd3, 0x88, 0xbc, 0xe7, 0x88, 0x11, 0x45, 0x50, 0xbf, 0x86,
-	0x74, 0x5c, 0x60, 0x9a, 0xa7, 0xcb, 0x51, 0x4f, 0x5f, 0x2b, 0xb0, 0x59, 0xbb, 0xee, 0x8a, 0x13,
-	0x76, 0x43, 0xef, 0x54, 0xcf, 0xdf, 0xc6, 0xf3, 0x7c, 0x10, 0x44, 0x91, 0x0c, 0x77, 0x5f, 0xa9,
-	0xde, 0x82, 0x07, 0x23, 0x06, 0x65, 0x9b, 0x96, 0xe1, 0xa3, 0x12, 0x16, 0x6e, 0x5e, 0xaa, 0xcd,
-	0x3a, 0x6b, 0x77, 0x3b, 0xb8, 0x7c, 0xe2, 0x3c, 0x63, 0xdc, 0xab, 0x6f, 0x42, 0x5b, 0xe7, 0xf5,
-	0xb0, 0xb2, 0x76, 0x01, 0xce, 0xeb, 0x6e, 0xfd, 0xc8, 0x67, 0x71, 0x8d, 0x44, 0x28, 0xda, 0x29,
-	0xec, 0x4f, 0x87, 0x1a, 0x4c, 0xcb, 0x50, 0xc4, 0x7b, 0xe1, 0x65, 0x63, 0x40, 0xd0, 0x34, 0xc8,
-	0x1d, 0x33, 0x2a, 0x38, 0x6b, 0xb7, 0x31, 0x2f, 0x61, 0x71, 0x6c, 0xda, 0xe6, 0x15, 0x69, 0x13,
-	0x41, 0xc2, 0xaa, 0xd4, 0xde, 0x87, 0x87, 0x13, 0x64, 0x64, 0x74, 0x9b, 0x90, 0x29, 0x61, 0x71,
-	0xde, 0xee, 0xb6, 0x08, 0x2d, 0xd3, 0x26, 0x0b, 0x94, 0xff, 0x53, 0x60, 0x23, 0xc6, 0x90, 0x8e,
-	0x21, 0x98, 0xa3, 0x91, 0xed, 0xe4, 0x9e, 0xd1, 0x1e, 0xac, 0xf7, 0x30, 0x6d, 0x30, 0x7e, 0xd9,
-	0xc3, 0xdc, 0x21, 0x8c, 0xca, 0x12, 0x59, 0xf3, 0xa9, 0x75, 0x9f, 0x88, 0x4a, 0xb0, 0xd4, 0x31,
-	0x29, 0x69, 0x62, 0x47, 0xc8, 0x0d, 0x75, 0x10, 0x19, 0x03, 0xa3, 0xb6, 0xf4, 0x17, 0x52, 0xda,
-	0x2f, 0xd9, 0x50, 0x59, 0xfd, 0xd2, 0x1d, 0x2a, 0x11, 0xd6, 0x9d, 0x8a, 0x75, 0x17, 0xb6, 0x43,
-	0x6b, 0x49, 0x79, 0xfb, 0x09, 0x76, 0xc6, 0xf0, 0x65, 0x06, 0x9e, 0xc2, 0xaa, 0x15, 0xa1, 0xcb,
-	0xfe, 0xcb, 0x06, 0xa1, 0xc4, 0x34, 0xfb, 0xc6, 0x90, 0xb4, 0xf6, 0x8f, 0x02, 0xe9, 0xb8, 0x08,
-	0x7a, 0x0a, 0x8b, 0x0e, 0xe6, 0x3d, 0x62, 0xf9, 0x79, 0x5d, 0x29, 0xe4, 0xc6, 0xa1, 0xe9, 0x35,
-	0x5f, 0xee, 0x34, 0x65, 0x04, 0x2a, 0xea, 0x2b, 0xb7, 0x8b, 0xbc, 0x23, 0xfa, 0x02, 0xe6, 0x44,
-	0xdf, 0xf6, 0x51, 0xd6, 0x0b, 0x7b, 0xd3, 0x50, 0xf4, 0x8b, 0xbe, 0x8d, 0x0d, 0x4f, 0x45, 0x3b,
-	0x80, 0x39, 0xf7, 0xe6, 0x8d, 0xd7, 0xca, 0xf3, 0x4a, 0xf5, 0x87, 0x4a, 0x3a, 0x85, 0x36, 0x01,
-	0x1d, 0x57, 0x2b, 0x17, 0x46, 0xf5, 0xec, 0xac, 0x68, 0x5c, 0xd6, 0x8a, 0x46, 0xbd, 0x7c, 0x5c,
-	0x4c, 0x2b, 0x47, 0x0b, 0xbe, 0x1d, 0x6d, 0xdd, 0x1b, 0xa6, 0x57, 0x41, 0x7f, 0x6a, 0xdf, 0xc0,
-	0x9a, 0xbc, 0xcb, 0x64, 0x3d, 0x81, 0x79, 0x8e, 0xcd, 0x46, 0x5f, 0xc6, 0xa5, 0xea, 0xfe, 0xaf,
-	0x48, 0x0f, 0x7e, 0x45, 0xfa, 0x11, 0x63, 0xed, 0xba, 0xfb, 0x38, 0x86, 0x2f, 0x58, 0xf8, 0x75,
-	0x1e, 0x16, 0x65, 0x13, 0xa2, 0x0a, 0xac, 0x0d, 0x7d, 0x26, 0xd0, 0xf6, 0xa4, 0x2f, 0x8d, 0xba,
-	0x33, 0x86, 0x2b, 0x8b, 0x3d, 0xe5, 0xe2, 0x0d, 0x2d, 0xe3, 0x01, 0x5e, 0xd2, 0x97, 0x60, 0x80,
-	0x97, 0xbc, 0xc1, 0x53, 0xa8, 0x08, 0x30, 0x58, 0x60, 0x68, 0x6b, 0xec, 0x32, 0x56, 0xd5, 0xf1,
-	0xfb, 0x4e, 0x4b, 0xa1, 0xe7, 0xb0, 0x1a, 0x9d, 0xda, 0xe8, 0xdd, 0x09, 0xdb, 0x46, 0xdd, 0x9e,
-	0x34, 0xe8, 0xb5, 0x14, 0xba, 0x80, 0xb7, 0x62, 0xb3, 0x0c, 0xed, 0x4e, 0x9e, 0xaa, 0xea, 0x7b,
-	0x63, 0xf9, 0x21, 0xea, 0x2f, 0x0a, 0xe4, 0xa6, 0x0d, 0x2f, 0x94, 0x8f, 0x44, 0x79, 0x9b, 0x89,
-	0xa9, 0x3e, 0xb9, 0xbd, 0x42, 0xe8, 0x09, 0x87, 0xad, 0xb1, 0x73, 0x0d, 0x85, 0x7b, 0x7a, 0xda,
-	0x78, 0x54, 0x1f, 0xdd, 0x42, 0x32, 0xb0, 0x59, 0xf8, 0x5f, 0x81, 0xa5, 0x72, 0x03, 0x53, 0xe1,
-	0x36, 0x6b, 0x05, 0xd6, 0x86, 0xc6, 0xd5, 0xa0, 0x88, 0x92, 0x46, 0xe9, 0xa0, 0x88, 0x12, 0x67,
-	0x9c, 0x96, 0x42, 0xcd, 0xc8, 0xa8, 0x1d, 0x0a, 0xe6, 0x83, 0x11, 0xcd, 0xa4, 0x40, 0xf6, 0xa6,
-	0x48, 0x85, 0x76, 0x3e, 0x83, 0x79, 0xaf, 0x37, 0x51, 0x26, 0x1c, 0x0b, 0x91, 0xd6, 0x55, 0x37,
-	0x62, 0xd4, 0x40, 0xef, 0xf0, 0x2b, 0x00, 0xab, 0x43, 0x2e, 0x1d, 0x6f, 0xb9, 0xa2, 0x9d, 0x91,
-	0x0e, 0x7e, 0x46, 0x70, 0xbb, 0x51, 0xb5, 0x05, 0x61, 0xd4, 0xc9, 0xfe, 0xbe, 0xe4, 0x7d, 0xff,
-	0x96, 0xad, 0x0e, 0xf1, 0xb7, 0xf1, 0xd1, 0xfc, 0x8f, 0xb3, 0x56, 0x87, 0x5c, 0x2d, 0x78, 0xf2,
-	0x9f, 0xbe, 0x09, 0x00, 0x00, 0xff, 0xff, 0x89, 0x69, 0xc4, 0x83, 0x6d, 0x0d, 0x00, 0x00,
+var fileDescriptor_cmi_3500c2b337883b22 = []byte{
+	// 1087 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x56, 0xdd, 0x6e, 0xe3, 0x44,
+	0x14, 0x8e, 0x93, 0x26, 0x4d, 0x4f, 0xd2, 0xae, 0x77, 0x36, 0xed, 0x66, 0x4d, 0x5a, 0x8a, 0x05,
+	0xa8, 0x80, 0xd6, 0x59, 0x02, 0x8b, 0x50, 0xf9, 0x91, 0x9a, 0xc4, 0xa4, 0x61, 0xdb, 0x24, 0x38,
+	0x69, 0x57, 0x42, 0x42, 0x95, 0xe3, 0x4c, 0x53, 0x6b, 0x13, 0xdb, 0xd8, 0x93, 0x96, 0x3c, 0x02,
+	0x4f, 0x00, 0xf7, 0x48, 0xf0, 0x02, 0x5c, 0x71, 0xb1, 0xd7, 0x48, 0xdc, 0xf2, 0x00, 0x3c, 0x07,
+	0x57, 0xc8, 0xe3, 0xb1, 0xe3, 0x38, 0x4e, 0xaa, 0x5e, 0x94, 0xbb, 0x99, 0x33, 0xe7, 0x7c, 0xe7,
+	0x67, 0xce, 0x1f, 0xbc, 0x3f, 0xd4, 0xc9, 0xd5, 0xa4, 0x2f, 0x69, 0xe6, 0xb8, 0x3c, 0x54, 0xed,
+	0x01, 0x36, 0xb0, 0x5d, 0x1e, 0xab, 0xda, 0x95, 0x6e, 0xe0, 0xa7, 0x8e, 0x85, 0xb5, 0xb2, 0x36,
+	0xd6, 0x25, 0xcb, 0x36, 0x89, 0x89, 0x32, 0xee, 0xf1, 0xfa, 0x43, 0x61, 0x7f, 0x68, 0x9a, 0xc3,
+	0x11, 0x2e, 0x53, 0x6a, 0x7f, 0x72, 0x59, 0x1e, 0x60, 0x47, 0xb3, 0x75, 0x8b, 0x98, 0xb6, 0xc7,
+	0x29, 0xec, 0x45, 0x39, 0x6e, 0x6c, 0xd5, 0xb2, 0xb0, 0xed, 0x78, 0xef, 0xe2, 0x0e, 0x14, 0x1a,
+	0x98, 0x74, 0x46, 0x93, 0xa1, 0x6e, 0x34, 0x8d, 0x4b, 0x53, 0xc1, 0xdf, 0x4f, 0xb0, 0x43, 0xc4,
+	0xbf, 0x38, 0xd8, 0x8e, 0x3c, 0x38, 0x96, 0x69, 0x38, 0x18, 0x21, 0x58, 0x33, 0xd4, 0x31, 0x2e,
+	0x72, 0xfb, 0xdc, 0xc1, 0x86, 0x42, 0xcf, 0xa8, 0x08, 0xeb, 0xd7, 0xd8, 0x76, 0x74, 0xd3, 0x28,
+	0x26, 0x29, 0xd9, 0xbf, 0xa2, 0x06, 0x64, 0xc7, 0xaa, 0xa1, 0x5f, 0x62, 0x87, 0x14, 0x53, 0xfb,
+	0xa9, 0x83, 0x5c, 0xe5, 0x03, 0xc9, 0x33, 0x5e, 0x8a, 0x85, 0x97, 0x4e, 0x19, 0xb7, 0x6c, 0x10,
+	0x7b, 0xaa, 0x04, 0xc2, 0xc2, 0x67, 0xb0, 0x39, 0xf7, 0x84, 0x78, 0x48, 0xbd, 0xc2, 0x53, 0x66,
+	0x86, 0x7b, 0x44, 0x05, 0x48, 0x5f, 0xab, 0xa3, 0x09, 0x66, 0x36, 0x78, 0x97, 0xc3, 0xe4, 0xa7,
+	0x9c, 0xb8, 0x07, 0xa5, 0x40, 0x5b, 0x4d, 0xb5, 0xd4, 0xbe, 0x3e, 0xd2, 0x89, 0x8e, 0x1d, 0xdf,
+	0xdb, 0xef, 0x60, 0x77, 0xc9, 0x3b, 0x73, 0xfa, 0x73, 0xc8, 0x6b, 0x21, 0x7a, 0x91, 0xa3, 0xae,
+	0x14, 0x7d, 0x57, 0x22, 0x92, 0x53, 0x65, 0x8e, 0x5b, 0xfc, 0x29, 0x09, 0x7c, 0x94, 0x05, 0x3d,
+	0x83, 0x94, 0x6d, 0x69, 0xd4, 0xfe, 0x5c, 0xa5, 0xb4, 0x0c, 0x49, 0x52, 0x3a, 0xb5, 0xe3, 0x84,
+	0xe2, 0xb2, 0x0a, 0x7f, 0x72, 0x90, 0x52, 0x3a, 0x35, 0xf4, 0x1c, 0xd6, 0xc8, 0xd4, 0xf2, 0x7e,
+	0x60, 0xab, 0xf2, 0xd6, 0x2a, 0x51, 0xa9, 0x37, 0xb5, 0xb0, 0x42, 0xd9, 0xc5, 0x1f, 0x39, 0x58,
+	0x73, 0xaf, 0x28, 0x07, 0xeb, 0x67, 0xad, 0x17, 0xad, 0xf6, 0xcb, 0x16, 0x9f, 0x40, 0x08, 0xb6,
+	0x6a, 0x8a, 0x7c, 0xd4, 0x93, 0x2f, 0x4e, 0x8f, 0x6a, 0xc7, 0xcd, 0x96, 0xcc, 0x73, 0x2e, 0xad,
+	0x2e, 0x9f, 0xc8, 0x21, 0x5a, 0x12, 0x3d, 0x80, 0x5c, 0x43, 0xee, 0x05, 0x84, 0x14, 0x7a, 0x08,
+	0x9b, 0x27, 0xcd, 0x6e, 0x40, 0xe9, 0xf2, 0x6b, 0xa8, 0x00, 0x7c, 0xf7, 0xf8, 0xac, 0x57, 0x6f,
+	0xbf, 0x6c, 0x05, 0x8c, 0x69, 0x17, 0xcd, 0x95, 0x3c, 0x6f, 0x9f, 0x9c, 0x9d, 0xca, 0x17, 0xcd,
+	0x7a, 0x97, 0xcf, 0x54, 0x33, 0x9e, 0x0b, 0xe2, 0x16, 0xe4, 0x3b, 0xb6, 0xd9, 0xc7, 0xfe, 0x47,
+	0x1c, 0xc1, 0x26, 0xbb, 0xb3, 0xc0, 0x3f, 0x83, 0xb4, 0x8d, 0xd5, 0xc1, 0x94, 0xc5, 0x49, 0x90,
+	0xbc, 0x7c, 0x96, 0xfc, 0x7c, 0x96, 0xaa, 0xa6, 0x39, 0x3a, 0x77, 0x3f, 0x5a, 0xf1, 0x18, 0xc5,
+	0xbf, 0x39, 0x28, 0xd4, 0x6c, 0xac, 0x12, 0x7c, 0xea, 0x15, 0x0f, 0xc3, 0x76, 0x13, 0xb7, 0x15,
+	0x4a, 0x5c, 0xf7, 0x8c, 0x44, 0xaa, 0xff, 0x5a, 0x1f, 0x60, 0xbb, 0x6b, 0x61, 0x8d, 0x66, 0x4e,
+	0x5e, 0x99, 0xa3, 0xa1, 0x63, 0x58, 0xef, 0x62, 0xcd, 0xc6, 0xc4, 0x61, 0x19, 0xfc, 0x9e, 0x1f,
+	0xf1, 0x38, 0x35, 0x12, 0xe3, 0xa5, 0x49, 0x5a, 0x4d, 0xfd, 0x5c, 0xe5, 0x14, 0x5f, 0x5c, 0x38,
+	0x84, 0x7c, 0xf8, 0xf5, 0xb6, 0x14, 0xce, 0x87, 0x53, 0xf8, 0x1b, 0xd8, 0x8e, 0xa8, 0x63, 0x11,
+	0x2a, 0xc1, 0x06, 0x23, 0x35, 0xeb, 0x0c, 0x6a, 0x46, 0x40, 0x02, 0x64, 0x5b, 0xe6, 0x00, 0x53,
+	0xc7, 0xbd, 0xb2, 0x08, 0xee, 0xe2, 0x1f, 0x1c, 0x14, 0xea, 0x78, 0x84, 0x17, 0x22, 0xb5, 0x1a,
+	0x32, 0x14, 0x8f, 0xe4, 0x7c, 0x3c, 0xe2, 0xc0, 0xee, 0x2b, 0x1e, 0x8f, 0x61, 0x3b, 0xa2, 0xce,
+	0x8b, 0x87, 0xf8, 0x3b, 0x07, 0x0f, 0x1b, 0x98, 0xdc, 0xc9, 0x25, 0x39, 0xea, 0xd2, 0xbb, 0xa1,
+	0x26, 0xf5, 0xff, 0xf8, 0xf3, 0x2b, 0x07, 0x28, 0xac, 0x8c, 0xfd, 0xee, 0x0e, 0x64, 0xe4, 0x1f,
+	0x74, 0x87, 0x38, 0x14, 0x25, 0xab, 0xb0, 0x1b, 0x6a, 0xb8, 0xed, 0x90, 0xb2, 0x76, 0x89, 0x4a,
+	0x26, 0x0e, 0x05, 0x0c, 0x35, 0x83, 0x45, 0x28, 0xc9, 0x63, 0x54, 0xe6, 0xe5, 0xc4, 0x32, 0x64,
+	0xbc, 0x13, 0x6d, 0x0b, 0xc6, 0x2b, 0xc3, 0xbc, 0x31, 0xf8, 0x84, 0x7b, 0x51, 0x26, 0x86, 0xa1,
+	0x1b, 0x43, 0x9e, 0x73, 0x2f, 0x5d, 0x62, 0x5a, 0x16, 0x1e, 0xf0, 0x49, 0xf1, 0x35, 0x07, 0x8f,
+	0x4e, 0x74, 0xc7, 0x87, 0xf7, 0x7b, 0xe8, 0x42, 0x29, 0x71, 0x31, 0xa5, 0xd4, 0x88, 0xc6, 0xf9,
+	0xc0, 0xb7, 0x37, 0x06, 0xf1, 0xbe, 0x22, 0xfd, 0x1b, 0x07, 0x85, 0x79, 0x75, 0x2c, 0xd6, 0x6d,
+	0xc8, 0x31, 0x9a, 0xfb, 0xcc, 0x7a, 0xfc, 0xd3, 0x78, 0x0b, 0x83, 0x69, 0x15, 0xf0, 0x7b, 0x03,
+	0x2b, 0x8c, 0x20, 0x7c, 0x09, 0x7c, 0x94, 0xe1, 0x4e, 0x63, 0xeb, 0x35, 0x07, 0x3b, 0xdd, 0xab,
+	0x09, 0xa9, 0x9b, 0x37, 0xc6, 0x9d, 0xf2, 0xf9, 0xeb, 0x68, 0x9c, 0x83, 0xa1, 0x1b, 0x0f, 0x77,
+	0x5f, 0xa1, 0x7e, 0x02, 0x8f, 0x17, 0x14, 0xb2, 0x32, 0x7d, 0x0e, 0x8f, 0x1a, 0x98, 0x9c, 0x9b,
+	0xa3, 0xc9, 0x18, 0x37, 0xeb, 0x41, 0x16, 0xed, 0x01, 0x74, 0xce, 0xdd, 0x5c, 0x61, 0x5f, 0xe0,
+	0x02, 0x86, 0x28, 0xe2, 0xc7, 0x74, 0x5f, 0x09, 0x89, 0xcd, 0xba, 0x60, 0x40, 0xa4, 0x3f, 0xb7,
+	0xa1, 0xcc, 0x08, 0x95, 0x7f, 0x39, 0xc8, 0x36, 0x07, 0xd8, 0x20, 0xee, 0xe0, 0x6d, 0xc1, 0xe6,
+	0xdc, 0xea, 0x81, 0x4a, 0x4b, 0x36, 0x12, 0x6a, 0x91, 0xb0, 0xbb, 0x72, 0x5f, 0x11, 0x13, 0xe8,
+	0x32, 0xb4, 0x29, 0x85, 0x97, 0x07, 0xf4, 0xf6, 0x82, 0x64, 0xcc, 0xee, 0x21, 0xbc, 0x73, 0x0b,
+	0x57, 0xa0, 0xe7, 0x13, 0x48, 0xd3, 0xd9, 0x88, 0x0a, 0xc1, 0xc4, 0x0f, 0x8d, 0x4e, 0x61, 0x3b,
+	0x42, 0xf5, 0xe5, 0x2a, 0xff, 0xa4, 0x60, 0x9d, 0x45, 0xdf, 0xf5, 0x7d, 0x6e, 0x8a, 0xcc, 0x7c,
+	0x8f, 0x9b, 0x65, 0x33, 0xdf, 0x63, 0x47, 0x8f, 0x98, 0x70, 0xf1, 0xe6, 0xba, 0xf0, 0x0c, 0x2f,
+	0x6e, 0x16, 0xcc, 0xf0, 0xe2, 0x5b, 0x77, 0x02, 0xc9, 0x00, 0xb3, 0xce, 0x85, 0x9e, 0x2c, 0xed,
+	0xc2, 0x82, 0xb0, 0xbc, 0xd1, 0x89, 0x09, 0xf4, 0x02, 0xf2, 0xe1, 0x72, 0x45, 0x6f, 0xac, 0x68,
+	0x33, 0x42, 0x69, 0x55, 0x85, 0x8b, 0x09, 0xd4, 0x83, 0x07, 0x91, 0x24, 0x46, 0x7b, 0xab, 0xcb,
+	0x49, 0x78, 0x73, 0xe9, 0x7b, 0xd8, 0xc4, 0x70, 0x22, 0xcf, 0x4c, 0x8c, 0xa9, 0x0a, 0xa1, 0x14,
+	0xff, 0xe8, 0x83, 0x1d, 0x7e, 0x01, 0xa0, 0x8d, 0xf5, 0x0b, 0x87, 0xd6, 0x29, 0xda, 0x5d, 0x58,
+	0x92, 0xbe, 0xd2, 0xf1, 0x68, 0xd0, 0xb6, 0x88, 0x6e, 0x1a, 0x4e, 0xf1, 0x97, 0x2c, 0x9d, 0x24,
+	0x1b, 0xda, 0x58, 0xf7, 0x0a, 0xbb, 0x9a, 0xfe, 0x36, 0xa5, 0x8d, 0xf5, 0x7e, 0x86, 0xf2, 0x7f,
+	0xf4, 0x5f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x7b, 0x4b, 0x07, 0xaa, 0x8a, 0x0c, 0x00, 0x00,
 }

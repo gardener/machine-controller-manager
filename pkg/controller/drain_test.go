@@ -907,7 +907,7 @@ type drainDriver struct {
 	*cmiclient.FakeCMIClient
 }
 
-func (d *drainDriver) GetListOfVolumeIDsForExistingPVs(pvSpecs []*corev1.PersistentVolumeSpec) ([]string, error) {
+func (d *drainDriver) GetVolumeIDs(pvSpecs []*corev1.PersistentVolumeSpec) ([]string, error) {
 	volNames := make([]string, len(pvSpecs))
 	for i := range pvSpecs {
 		volNames[i] = getDrainTestVolumeName(pvSpecs[i])

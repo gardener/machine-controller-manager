@@ -10,7 +10,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/docker v0.7.3-0.20180612054059-a9fbbdc8dd87 // indirect
 	github.com/emicklei/go-restful v2.7.0+incompatible // indirect
-	github.com/gardener/machine-spec v0.0.0-20190715065344-d64fa1932822
+	github.com/gardener/machine-spec v0.0.0-20190916105733-70a34003d1c6
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-openapi/jsonpointer v0.0.0-20180322222829-3a0015ad55fa // indirect
 	github.com/go-openapi/jsonreference v0.0.0-20180322222742-3fb327e6747d // indirect

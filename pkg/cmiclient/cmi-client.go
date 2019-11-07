@@ -20,40 +20,16 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"net"
-	"strings"
-	"time"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-spec/lib/go/cmi"
 	cmipb "github.com/gardener/machine-spec/lib/go/cmi"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/golang/glog"
-	"google.golang.org/grpc"
 )
 
-// CMIClient is the client used to communicate with the CMIServer
-type CMIClient interface {
-	CreateMachine() (string, string, error)
-	GetMachine(string) (bool, error)
-	DeleteMachine(string) error
-	ListMachines() (map[string]string, error)
-	ShutDownMachine(string) error
-	GetMachineID() string
-	GetListOfVolumeIDsForExistingPVs([]*corev1.PersistentVolumeSpec) ([]string, error)
-}
-
-// CMIDriverClient is the struct used to create a generic driver to make gRPC calls
-type CMIDriverClient struct {
-	DriverName           string
-	MachineClientCreator machineClientCreator
-	MachineClass         *v1alpha1.MachineClass
-	Secret               *corev1.Secret
-	UserData             string
-	MachineID            string
-	MachineName          string
-}
-
+// machineClientCreator is a helper struct
 type machineClientCreator func(driverName string) (
 	machineClient cmipb.MachineClient,
 	closer io.Closer,
@@ -63,21 +39,34 @@ type machineClientCreator func(driverName string) (
 // VMs contains the map from Machine-ID to Machine-Name
 type VMs map[string]string
 
-func newMachineClient(driverName string) (machineClient cmipb.MachineClient, closer io.Closer, err error) {
-	var conn *grpc.ClientConn
-	conn, err = newGrpcConn(driverName)
-	if err != nil {
-		return nil, nil, err
-	}
+// CMIClient is the client used to communicate with the CMIServer
+type CMIClient interface {
+	CreateMachine() (string, string, error)
+	GetMachine(string) (bool, error)
+	DeleteMachine(string) error
+	ListMachines() (map[string]string, error)
+	ShutDownMachine(string) error
+	GetMachineID() string
+	GetVolumeIDs([]*corev1.PersistentVolumeSpec) ([]string, error)
+}
 
-	machineClient = cmipb.NewMachineClient(conn)
-	return machineClient, conn, nil
+// CMIDriverClient is the struct used to create a generic driver to make gRPC calls
+type CMIDriverClient struct {
+	DriverName           string
+	MachineID            string
+	MachineName          string
+	UserData             string
+	MachineClientCreator machineClientCreator
+	MachineClass         *v1alpha1.MachineClass
+	Secret               *corev1.Secret
+	Capabilities         []*cmipb.PluginCapability
 }
 
 // NewCMIDriverClient returns a new cmi client
-func NewCMIDriverClient(machineID string, driverName string, secret *corev1.Secret, machineClass interface{}, machineName string) *CMIDriverClient {
+func NewCMIDriverClient(machineID string, driverName string, secret *corev1.Secret, machineClass interface{}, machineName string) (*CMIDriverClient, error) {
 	var (
 		userData string
+		ctx      = context.Background()
 	)
 	if secret != nil && secret.Data != nil {
 		userData = string(secret.Data["userData"])
@@ -92,12 +81,31 @@ func NewCMIDriverClient(machineID string, driverName string, secret *corev1.Secr
 		MachineID:            machineID,
 		MachineName:          machineName,
 	}
-	return c
+
+	identityClient, closer, err := newIdentityClient(c.DriverName)
+	if err != nil {
+		return nil, err
+	}
+	defer closer.Close()
+
+	resp, err := identityClient.GetPluginCapabilities(ctx, &cmipb.GetPluginCapabilitiesRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	c.Capabilities = resp.GetCapabilities()
+
+	return c, nil
 }
 
 // CreateMachine makes a gRPC call to the driver to create the machine.
 func (c *CMIDriverClient) CreateMachine() (string, string, error) {
 	glog.V(4).Infof("Calling CreateMachine rpc for %q", c.MachineName)
+
+	err := c.validatePluginRequest(cmi.PluginCapability_RPC_CREATE_MACHINE)
+	if err != nil {
+		return "", "", err
+	}
 
 	machineClient, closer, err := c.MachineClientCreator(c.DriverName)
 	if err != nil {
@@ -124,6 +132,11 @@ func (c *CMIDriverClient) CreateMachine() (string, string, error) {
 func (c *CMIDriverClient) DeleteMachine(MachineID string) error {
 	glog.V(4).Info("Calling DeleteMachine rpc", c.MachineName)
 
+	err := c.validatePluginRequest(cmi.PluginCapability_RPC_DELETE_MACHINE)
+	if err != nil {
+		return err
+	}
+
 	machineClient, closer, err := c.MachineClientCreator(c.DriverName)
 	if err != nil {
 		return err
@@ -148,6 +161,11 @@ func (c *CMIDriverClient) DeleteMachine(MachineID string) error {
 func (c *CMIDriverClient) GetMachine(MachineID string) (bool, error) {
 	glog.V(4).Infof("Calling GetMachine rpc for %q", c.MachineName)
 
+	err := c.validatePluginRequest(cmi.PluginCapability_RPC_GET_MACHINE)
+	if err != nil {
+		return false, err
+	}
+
 	machineClient, closer, err := c.MachineClientCreator(c.DriverName)
 	if err != nil {
 		return false, err
@@ -171,6 +189,11 @@ func (c *CMIDriverClient) GetMachine(MachineID string) (bool, error) {
 // ListMachines have to list machines
 func (c *CMIDriverClient) ListMachines() (map[string]string, error) {
 	glog.V(4).Info("Calling ListMachine rpc")
+
+	err := c.validatePluginRequest(cmi.PluginCapability_RPC_LIST_MACHINES)
+	if err != nil {
+		return nil, err
+	}
 
 	machineClient, closer, err := c.MachineClientCreator(c.DriverName)
 	if err != nil {
@@ -197,6 +220,11 @@ func (c *CMIDriverClient) ListMachines() (map[string]string, error) {
 func (c *CMIDriverClient) ShutDownMachine(MachineID string) error {
 	glog.V(4).Infof("Calling ShutDownMachine rpc for %q", c.MachineName)
 
+	err := c.validatePluginRequest(cmi.PluginCapability_RPC_SHUTDOWN_MACHINE)
+	if err != nil {
+		return err
+	}
+
 	machineClient, closer, err := c.MachineClientCreator(c.DriverName)
 	if err != nil {
 		return err
@@ -218,14 +246,14 @@ func (c *CMIDriverClient) ShutDownMachine(MachineID string) error {
 	return nil
 }
 
-// GetMachineID returns the machineID
-func (c *CMIDriverClient) GetMachineID() string {
-	return c.MachineID
-}
+// GetVolumeIDs returns a list of VolumeIDs for the PV spec list supplied
+func (c *CMIDriverClient) GetVolumeIDs(pvSpecs []*corev1.PersistentVolumeSpec) ([]string, error) {
+	glog.V(4).Info("Calling GetVolumeIDs rpc")
 
-// GetListOfVolumeIDsForExistingPVs returns a list of VolumeIDs for the PV spec list supplied
-func (c *CMIDriverClient) GetListOfVolumeIDsForExistingPVs(pvSpecs []*corev1.PersistentVolumeSpec) ([]string, error) {
-	glog.V(4).Info("Calling GetListOfVolumeIDsForExistingPVs rpc")
+	err := c.validatePluginRequest(cmi.PluginCapability_RPC_GET_VOLUME_IDS)
+	if err != nil {
+		return nil, err
+	}
 
 	machineClient, closer, err := c.MachineClientCreator(c.DriverName)
 	if err != nil {
@@ -238,53 +266,21 @@ func (c *CMIDriverClient) GetListOfVolumeIDsForExistingPVs(pvSpecs []*corev1.Per
 		return nil, err
 	}
 
-	req := &cmipb.GetListOfVolumeIDsForExistingPVsRequest{
+	req := &cmipb.GetVolumeIDsRequest{
 		PVSpecList: pvSpecsMarshalled,
 	}
 	ctx := context.Background()
 
-	resp, err := machineClient.GetListOfVolumeIDsForExistingPVs(ctx, req)
+	resp, err := machineClient.GetVolumeIDs(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	glog.V(4).Info("GetListOfVolumeIDsForExistingPVs rpc was processed succesfully")
+	glog.V(4).Info("GetVolumeIDs rpc was processed succesfully")
 	return resp.GetVolumeIDs(), nil
 }
 
-func getSecretData(secret *corev1.Secret) map[string][]byte {
-	var (
-		secretData map[string][]byte
-	)
-
-	if secret != nil {
-		secretData = secret.Data
-	}
-
-	return secretData
-}
-
-func newGrpcConn(driverName string) (*grpc.ClientConn, error) {
-
-	var name, addr string
-	driverInfo := strings.Split(driverName, "//")
-	if driverName != "" && len(driverInfo) == 2 {
-		name = driverInfo[0]
-		addr = driverInfo[1]
-	} else {
-		name = "grpc-default-driver"
-		addr = "127.0.0.1:8080"
-	}
-
-	network := "tcp"
-
-	glog.V(5).Infof("Creating new gRPC connection for [%s://%s] for driver: %s", network, addr, name)
-
-	return grpc.Dial(
-		addr,
-		grpc.WithInsecure(),
-		grpc.WithDialer(func(target string, timeout time.Duration) (net.Conn, error) {
-			return net.Dial(network, target)
-		}),
-	)
+// GetMachineID returns the machineID
+func (c *CMIDriverClient) GetMachineID() string {
+	return c.MachineID
 }

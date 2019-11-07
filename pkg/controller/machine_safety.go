@@ -21,16 +21,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/cmiclient"
+	"github.com/golang/glog"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/cache"
-
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/cmiclient"
-	"github.com/golang/glog"
 )
 
 const (
@@ -52,7 +53,13 @@ func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
 	glog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: Start")
 	defer glog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: End, reSync-Period: %v", reSyncAfter)
 
-	c.checkVMObjects()
+	retry, err := c.checkVMObjects()
+	if err != nil {
+		glog.Errorf("reconcileClusterMachineSafetyOrphanVMs: Error occurred while checking for orphan VMs: %s", err)
+		if retry {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -400,16 +407,16 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets() error {
 }
 
 // checkVMObjects checks for orphan VMs (VMs that don't have a machine object backing)
-func (c *controller) checkVMObjects() {
-	c.checkCommonMachineClass()
+func (c *controller) checkVMObjects() (bool, error) {
+	return c.checkCommonMachineClass()
 }
 
 // checkCommonMachineClass checks for orphan VMs in MachinesClasses
-func (c *controller) checkCommonMachineClass() {
+func (c *controller) checkCommonMachineClass() (bool, error) {
 	MachineClasses, err := c.machineClassLister.List(labels.Everything())
 	if err != nil {
 		glog.Error("Safety-Net: Error getting machineClasses")
-		return
+		return DoNotRetryOp, err
 	}
 
 	for _, machineClass := range MachineClasses {
@@ -417,13 +424,18 @@ func (c *controller) checkCommonMachineClass() {
 		var machineClassInterface interface{}
 		machineClassInterface = machineClass
 
-		c.checkMachineClass(
+		retry, err := c.checkMachineClass(
 			machineClassInterface,
 			machineClass.SecretRef,
 			machineClass.Name,
 			machineClass.Kind,
 		)
+		if err != nil {
+			return retry, err
+		}
 	}
+
+	return DoNotRetryOp, nil
 }
 
 // checkMachineClass checks a particular machineClass for orphan instances
@@ -431,28 +443,45 @@ func (c *controller) checkMachineClass(
 	machineClass interface{},
 	secretRef *corev1.SecretReference,
 	className string,
-	classKind string) {
+	classKind string) (bool, error) {
 
 	// Get secret
 	secret, err := c.getSecret(secretRef, className)
 	if err != nil {
 		glog.Errorf("SafetyController: Secret reference not found for MachineClass: %q", className)
-		return
+		return DoNotRetryOp, err
 	}
 
 	// Dummy driver object being created to invoke GetVMs
-	dvr := cmiclient.NewCMIDriverClient(
+	dvr, err := cmiclient.NewCMIDriverClient(
 		"",
 		machineClass.(*v1alpha1.MachineClass).Provider,
 		secret,
 		machineClass,
 		"",
 	)
+	if err != nil {
+		glog.Errorf("Error while creating CMIPluginClient: %s", err)
+		return DoNotRetryOp, err
+	}
 
 	listOfVMs, err := dvr.ListMachines()
 	if err != nil {
-		glog.Warningf("Orphan VM handler is not running. Failed to list VMs at provider. \nErr - %s", err)
-		return
+		if grpcErr, ok := status.FromError(err); ok {
+			switch grpcErr.Code() {
+			case codes.Unknown, codes.DeadlineExceeded, codes.Unavailable:
+				// If Unknown, Deadline exceed or Unavailable
+				// error out and retry it
+				return RetryOp, err
+			default:
+				// If Anyother case
+				// error out and don't retry
+				return DoNotRetryOp, err
+			}
+		} else {
+			glog.Errorf("Error occurred while decoding gRPC error for list opertation: %s", err)
+			return DoNotRetryOp, err
+		}
 	}
 
 	// Making sure that its not a VM just being created, machine object not yet updated at API server
@@ -460,7 +489,7 @@ func (c *controller) checkMachineClass(
 		stopCh := make(chan struct{})
 		if !cache.WaitForCacheSync(stopCh, c.machineSynced) {
 			glog.Errorf("SafetyController: Timed out waiting for caches to sync. Error: %s", err)
-			return
+			return RetryOp, err
 		}
 	}
 
@@ -494,6 +523,8 @@ func (c *controller) checkMachineClass(
 
 		}
 	}
+
+	return DoNotRetryOp, nil
 }
 
 // addMachineToSafety enqueues into machineSafetyQueue when a new machine is added
@@ -529,15 +560,19 @@ func (c *controller) deleteOrphanVM(vm cmiclient.VMs, secretRef *corev1.Secret, 
 		machineName = v
 	}
 
-	dvr := cmiclient.NewCMIDriverClient(
+	dvr, err := cmiclient.NewCMIDriverClient(
 		machineID,
 		kind,
 		secretRef,
 		machineClass,
 		machineName,
 	)
+	if err != nil {
+		glog.Errorf("Error while creating CMIPluginClient: %s", err)
+		return
+	}
 
-	err := dvr.DeleteMachine(machineID)
+	err = dvr.DeleteMachine(machineID)
 	if err != nil {
 		glog.Errorf("SafetyController: Error while trying to DELETE VM on CP - %s. Shall retry in next safety controller sync.", err)
 	} else {

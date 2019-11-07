@@ -491,7 +491,7 @@ var _ = Describe("machine", func() {
 				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
-				err = controller.machineCreate(
+				_, err = controller.machineCreate(
 					machine,
 					cmiclient.NewFakeCMIClient(
 						action.fakeProviderID,
@@ -627,7 +627,7 @@ var _ = Describe("machine", func() {
 				)
 
 				// Create a machine that is to be deleted later
-				err = controller.machineCreate(machine, fakeCMIClient)
+				_, err = controller.machineCreate(machine, fakeCMIClient)
 				Expect(err).ToNot(HaveOccurred())
 
 				_, err = controller.targetCoreClient.Core().Nodes().Create(&v1.Node{
@@ -664,7 +664,7 @@ var _ = Describe("machine", func() {
 				}
 
 				// Deletion of machine is triggered
-				err = controller.machineDelete(machine, fakeCMIClient)
+				_, err = controller.machineDelete(machine, fakeCMIClient)
 				if data.expect.errOccurred {
 					Expect(err).To(HaveOccurred())
 				} else {

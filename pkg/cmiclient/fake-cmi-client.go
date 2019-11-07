@@ -72,7 +72,7 @@ func (c *FakeCMIClient) GetMachineID() string {
 	return c.MachineID
 }
 
-// GetListOfVolumeIDsForExistingPVs returns a list of VolumeIDs for the PV spec list supplied
-func (c *FakeCMIClient) GetListOfVolumeIDsForExistingPVs(pvSpecs []*corev1.PersistentVolumeSpec) ([]string, error) {
+// GetVolumeIDs returns a list of VolumeIDs for the PV spec list supplied
+func (c *FakeCMIClient) GetVolumeIDs(pvSpecs []*corev1.PersistentVolumeSpec) ([]string, error) {
 	return []string{}, c.Err
 }

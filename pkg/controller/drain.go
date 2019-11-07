@@ -800,7 +800,7 @@ func (o *DrainOptions) getVolIDsFromDriver(pvNames []string) ([]string, error) {
 		}
 	}
 
-	return o.CMIClient.GetListOfVolumeIDsForExistingPVs(pvSpecs)
+	return o.CMIClient.GetVolumeIDs(pvSpecs)
 }
 
 func (o *DrainOptions) evictPodWithoutPVInternal(attemptEvict bool, pod *corev1.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error), returnCh chan error) {
