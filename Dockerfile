@@ -1,11 +1,19 @@
-FROM alpine:3.6
+#############      builder                                  #############
+FROM golang:1.13.1 AS builder
 
-RUN apk add --update bash curl
+WORKDIR /go/src/github.com/gardener/machine-controller-manager
+COPY . .
 
-# Resources used by Golang libary
-ENV ZONEINFO=/zone-info/zoneinfo.zip
-ADD ./assets/zoneinfo.zip /zone-info/zoneinfo.zip
+RUN .ci/build
 
-COPY bin/rel/machine-controller-manager /machine-controller-manager
+#############      base                                     #############
+FROM alpine:3.10 as base
+
+RUN apk add --update bash curl tzdata
 WORKDIR /
+
+#############      machine-controller-manager               #############
+FROM base AS machine-controller-manager
+
+COPY --from=builder /go/src/github.com/gardener/machine-controller-manager/bin/rel/machine-controller-manager /machine-controller-manager
 ENTRYPOINT ["/machine-controller-manager"]

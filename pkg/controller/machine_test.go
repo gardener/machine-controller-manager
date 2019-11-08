@@ -18,6 +18,7 @@ package controller
 import (
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -138,6 +139,7 @@ var _ = Describe("machine", func() {
 			}
 			c = &controller{
 				controlMachineClient: fakeMachineClient,
+				nodeConditions:       "ReadonlyFilesystem,KernelDeadlock,DiskPressure",
 			}
 		})
 
@@ -562,6 +564,59 @@ var _ = Describe("machine", func() {
 					err: false,
 				},
 			}),
+			Entry("Machine creation success even on temporary APIServer disruption", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil),
+					fakeResourceActions: &customfake.ResourceActions{
+						Machine: customfake.Actions{
+							Get: "Failed to GET machine",
+						},
+					},
+				},
+				action: action{
+					machine:        "machine-0",
+					fakeProviderID: "fakeID-0",
+					fakeNodeName:   "fakeNode-0",
+					fakeError:      nil,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+							ProviderID: "fakeID",
+						},
+					}, &machinev1.MachineStatus{
+						Node: "fakeNode",
+						//TODO conditions
+					}, nil, nil, nil),
+					err: false,
+				},
+			}),
 		)
 	})
 
@@ -660,7 +715,7 @@ var _ = Describe("machine", func() {
 				}
 
 				if data.setup.fakeResourceActions != nil {
-					trackers.TargetCore.SetFakeResourceActions(data.setup.fakeResourceActions)
+					trackers.TargetCore.SetFakeResourceActions(data.setup.fakeResourceActions, math.MaxInt32)
 				}
 
 				// Deletion of machine is triggered

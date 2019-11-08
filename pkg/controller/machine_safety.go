@@ -67,7 +67,9 @@ func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
 // reconcileClusterMachineSafetyOvershooting checks all machineSet/machineDeployment
 // if the number of machine objects backing them is way beyond its desired replicas
 func (c *controller) reconcileClusterMachineSafetyOvershooting(key string) error {
-	var stopCh <-chan struct{}
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+
 	reSyncAfter := c.safetyOptions.MachineSafetyOvershootingPeriod.Duration
 	defer c.machineSafetyOvershootingQueue.AddAfter("", reSyncAfter)
 
@@ -487,6 +489,8 @@ func (c *controller) checkMachineClass(
 	// Making sure that its not a VM just being created, machine object not yet updated at API server
 	if len(listOfVMs) > 1 {
 		stopCh := make(chan struct{})
+		defer close(stopCh)
+
 		if !cache.WaitForCacheSync(stopCh, c.machineSynced) {
 			glog.Errorf("SafetyController: Timed out waiting for caches to sync. Error: %s", err)
 			return RetryOp, err

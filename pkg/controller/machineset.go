@@ -576,6 +576,8 @@ func slowStartBatch(count int, initialBatchSize int, fn func() error) (int, erro
 	successes := 0
 	for batchSize := integer.IntMin(remaining, initialBatchSize); batchSize > 0; batchSize = integer.IntMin(2*batchSize, remaining) {
 		errCh := make(chan error, batchSize)
+		defer close(errCh)
+
 		var wg sync.WaitGroup
 		wg.Add(batchSize)
 		for i := 0; i < batchSize; i++ {
@@ -617,7 +619,7 @@ func getMachineKeys(machines []*v1alpha1.Machine) []string {
 	return machineKeys
 }
 
-func (c *controller) prepareMachineForDeletion(targetMachine *v1alpha1.Machine, machineSet *v1alpha1.MachineSet, wg *sync.WaitGroup, errCh *chan error) {
+func (c *controller) prepareMachineForDeletion(targetMachine *v1alpha1.Machine, machineSet *v1alpha1.MachineSet, wg *sync.WaitGroup, errCh chan<- error) {
 	defer wg.Done()
 
 	// Machine is already marked as 'to-be-deleted'
@@ -639,7 +641,7 @@ func (c *controller) prepareMachineForDeletion(targetMachine *v1alpha1.Machine, 
 		machineKey := MachineKey(targetMachine)
 		glog.V(2).Infof("Failed to delete %v, decrementing expectations for %v %s/%s", machineKey, machineSet.Kind, machineSet.Namespace, machineSet.Name)
 		c.expectations.DeletionObserved(machineSetKey, machineKey)
-		*errCh <- err
+		errCh <- err
 	}
 
 	// Force trigger deletion to reflect in machine status
@@ -664,10 +666,11 @@ func (c *controller) terminateMachines(inactiveMachines []*v1alpha1.Machine, mac
 		numOfInactiveMachines = len(inactiveMachines)
 		errCh                 = make(chan error, numOfInactiveMachines)
 	)
-	wg.Add(numOfInactiveMachines)
+	defer close(errCh)
 
+	wg.Add(numOfInactiveMachines)
 	for _, machine := range inactiveMachines {
-		go c.prepareMachineForDeletion(machine, machineSet, &wg, &errCh)
+		go c.prepareMachineForDeletion(machine, machineSet, &wg, errCh)
 	}
 	wg.Wait()
 
