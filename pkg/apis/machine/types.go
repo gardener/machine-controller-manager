@@ -884,12 +884,8 @@ type AzureStorageProfile struct {
 // marketplace images, or virtual machine images. This element is required when you want to use a platform image,
 // marketplace image, or virtual machine image, but is not used in other creation operations.
 type AzureImageReference struct {
-	ID        string
-	Publisher string
-	Offer     string
-	Sku       string
-	Version   string
-	URN       *string
+	ID  string
+	URN *string
 }
 
 // AzureOSDisk is specifies information about the operating system disk used by the virtual machine. <br><br> For more
