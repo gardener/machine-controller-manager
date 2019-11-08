@@ -98,18 +98,7 @@ func validateAzureProperties(properties machine.AzureVirtualMachineProperties, f
 	}
 
 	if properties.StorageProfile.ImageReference.URN == nil || *properties.StorageProfile.ImageReference.URN == "" {
-		if properties.StorageProfile.ImageReference.Publisher == "" {
-			allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.imageReference.publisher"), "Image publisher is required"))
-		}
-		if properties.StorageProfile.ImageReference.Offer == "" {
-			allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.imageReference.offer"), "Image offer is required"))
-		}
-		if properties.StorageProfile.ImageReference.Sku == "" {
-			allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.imageReference.sku"), "Image sku is required"))
-		}
-		if properties.StorageProfile.ImageReference.Version == "" {
-			allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.imageReference.version"), "Image version is required"))
-		}
+		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.imageReference.urn"), "Empty urn"))
 	} else {
 		splits := strings.Split(*properties.StorageProfile.ImageReference.URN, ":")
 		if len(splits) != 4 {

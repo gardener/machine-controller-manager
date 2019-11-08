@@ -966,14 +966,6 @@ type AzureStorageProfile struct {
 // marketplace image, or virtual machine image, but is not used in other creation operations.
 type AzureImageReference struct {
 	ID string `json:"id,omitempty"`
-	// DEPRECATED: This field will be removed in a future version.
-	Publisher string `json:"publisher,omitempty"`
-	// DEPRECATED: This field will be removed in a future version.
-	Offer string `json:"offer,omitempty"`
-	// DEPRECATED: This field will be removed in a future version.
-	Sku string `json:"sku,omitempty"`
-	// DEPRECATED: This field will be removed in a future version.
-	Version string `json:"version,omitempty"`
 	// Uniform Resource Name of the OS image to be used , it has the format 'publisher:offer:sku:version'
 	URN *string `json:"urn,omitempty"`
 }

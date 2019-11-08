@@ -24,10 +24,6 @@ spec:
       vmSize: "sample-azure-vm-size" # VMsize based on azure machine kinds (Eg- Standard_DS1_V2)
     storageProfile:
       imageReference:
-        publisher: "image-reference-publisher" # DEPRECATED: Image reference publisher (Eg- CoreOS)
-        offer: "image-reference-offer" # DEPRECATED: Image reference offer (Eg- CoreOS)
-        sku: "image-reference-sku" # DEPRECATED: Image reference sku (Eg- Beta)
-        version: "image-reference-version" # DEPRECATED: Image reference version (Eg- 1000.0.0)
         urn: "image-reference-urn" # Image reference urn, it has the format 'publisher:offer:sku:version' (Eg- "CoreOS:CoreOS:Beta:1000.0.0")
       osDisk:
         caching: "None" # Caching Strategy (None/ReadOnly/ReadWrite)
