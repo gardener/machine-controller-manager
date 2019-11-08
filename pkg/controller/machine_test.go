@@ -443,9 +443,10 @@ var _ = Describe("machine", func() {
 
 	Describe("#machineCreate", func() {
 		type setup struct {
-			secrets  []*corev1.Secret
-			aws      []*machinev1.MachineClass
-			machines []*machinev1.Machine
+			secrets             []*corev1.Secret
+			aws                 []*machinev1.MachineClass
+			machines            []*machinev1.Machine
+			fakeResourceActions *customfake.ResourceActions
 		}
 		type action struct {
 			machine        string
@@ -564,6 +565,7 @@ var _ = Describe("machine", func() {
 					err: false,
 				},
 			}),
+
 			Entry("Machine creation success even on temporary APIServer disruption", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
@@ -571,12 +573,10 @@ var _ = Describe("machine", func() {
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 						},
 					},
-					aws: []*machinev1.AWSMachineClass{
+					aws: []*machinev1.MachineClass{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
-							Spec: machinev1.AWSMachineClassSpec{
-								SecretRef: newSecretReference(objMeta, 0),
-							},
+							SecretRef:  newSecretReference(objMeta, 0),
 						},
 					},
 					machines: newMachines(1, &machinev1.MachineTemplateSpec{
