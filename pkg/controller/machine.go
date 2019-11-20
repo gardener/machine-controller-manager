@@ -354,6 +354,13 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 			LastUpdateTime: metav1.Now(),
 		}
 		c.updateMachineStatus(machine, lastOperation, currentStatus)
+
+		// make sure that the failed machine doesn't exist
+		if e := driver.Delete(); e != nil {
+			message := fmt.Sprintf("Error deleting machine %s (%s) after unsuccessful create attempt: %s", machine.Name, e.Error(), err.Error())
+			return errors.New(message)
+		}
+
 		return err
 	}
 	glog.V(2).Infof("Created machine: %q, MachineID: %s", machine.Name, actualProviderID)

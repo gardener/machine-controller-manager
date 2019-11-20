@@ -164,6 +164,11 @@ func (d *OpenStackDriver) Delete() error {
 
 	result := servers.Delete(client, machineID)
 	if result.Err == nil {
+		// waiting for the machine to be deleted to release consumed quota resources, 5 minutes should be enough
+		err = waitForStatus(client, machineID, []string{}, []string{"DELETED", "SOFT_DELETED"}, 300)
+		if err != nil {
+			return fmt.Errorf("error waiting for the %q server to be deleted: %s", machineID, err)
+		}
 		metrics.APIRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 		glog.V(3).Infof("Deleted machine with ID: %s", d.MachineID)
 	} else {
@@ -433,6 +438,9 @@ func waitForStatus(c *gophercloud.ServiceClient, id string, pending []string, ta
 	return gophercloud.WaitFor(secs, func() (bool, error) {
 		current, err := servers.Get(c, id).Extract()
 		if err != nil {
+			if _, ok := err.(gophercloud.ErrDefault404); ok && strSliceContains(target, "DELETED") {
+				return true, nil
+			}
 			return false, err
 		}
 
@@ -440,7 +448,8 @@ func waitForStatus(c *gophercloud.ServiceClient, id string, pending []string, ta
 			return true, nil
 		}
 
-		if strSliceContains(pending, current.Status) {
+		// if there is no pending statuses defined or current status is in the pending list, then continue polling
+		if len(pending) == 0 || strSliceContains(pending, current.Status) {
 			return false, nil
 		}
 
