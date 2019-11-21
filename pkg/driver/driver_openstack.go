@@ -49,6 +49,15 @@ type OpenStackDriver struct {
 	MachineName           string
 }
 
+// deleteOnFail method is used to delete the VM, which was created with an error
+func (d *OpenStackDriver) deleteOnFail(err error) error {
+	// this method is called after the d.MachineID has been set
+	if e := d.Delete(); e != nil {
+		return fmt.Errorf("Error deleting machine %s (%s) after unsuccessful create attempt: %s", d.MachineID, e.Error(), err.Error())
+	}
+	return err
+}
+
 // Create method is used to create an OS machine
 func (d *OpenStackDriver) Create() (string, string, error) {
 
@@ -104,12 +113,12 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 
 	nwClient, err := d.createNeutronClient()
 	if err != nil {
-		return "", "", err
+		return "", "", d.deleteOnFail(err)
 	}
 
 	err = waitForStatus(client, server.ID, []string{"BUILD"}, []string{"ACTIVE"}, 600)
 	if err != nil {
-		return "", "", fmt.Errorf("error waiting for the %q server status: %s", server.ID, err)
+		return "", "", d.deleteOnFail(fmt.Errorf("error waiting for the %q server status: %s", server.ID, err))
 	}
 
 	listOpts := &ports.ListOpts{
@@ -120,17 +129,17 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	allPages, err := ports.List(nwClient, listOpts).AllPages()
 	if err != nil {
 		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
-		return "", "", fmt.Errorf("failed to get ports for network ID %s: %s", networkID, err)
+		return "", "", d.deleteOnFail(fmt.Errorf("failed to get ports for network ID %s: %s", networkID, err))
 	}
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
 
 	allPorts, err := ports.ExtractPorts(allPages)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to extract ports for network ID %s: %s", networkID, err)
+		return "", "", d.deleteOnFail(fmt.Errorf("failed to extract ports for network ID %s: %s", networkID, err))
 	}
 
 	if len(allPorts) == 0 {
-		return "", "", fmt.Errorf("got an empty port list for network ID %s and server ID %s", networkID, server.ID)
+		return "", "", d.deleteOnFail(fmt.Errorf("got an empty port list for network ID %s and server ID %s", networkID, server.ID))
 	}
 
 	port, err := ports.Update(nwClient, allPorts[0].ID, ports.UpdateOpts{
@@ -138,7 +147,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	}).Extract()
 	if err != nil {
 		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
-		return "", "", fmt.Errorf("failed to update allowed address pair for port ID %s: %s", port.ID, err)
+		return "", "", d.deleteOnFail(fmt.Errorf("failed to update allowed address pair for port ID %s: %s", port.ID, err))
 	}
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
 
