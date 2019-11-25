@@ -39,9 +39,9 @@ const (
 	// DeleteMachine() RPC.
 	// Plugin is REQUIRED to provide this capability.
 	PluginCapability_RPC_DELETE_MACHINE PluginCapability_RPC_Type = 2
-	// GET_MACHINE tells that the plugin implements the
-	// GetMachine() RPC
-	PluginCapability_RPC_GET_MACHINE PluginCapability_RPC_Type = 3
+	// GET_MACHINE_STATUS tells that the plugin implements the
+	// GetMachineStatus() RPC
+	PluginCapability_RPC_GET_MACHINE_STATUS PluginCapability_RPC_Type = 3
 	// LIST_MACHINES tells that the plugin implements the
 	// ListMachines() RPC
 	PluginCapability_RPC_LIST_MACHINES PluginCapability_RPC_Type = 4
@@ -57,53 +57,26 @@ var PluginCapability_RPC_Type_name = map[int32]string{
 	0: "UNKNOWN",
 	1: "CREATE_MACHINE",
 	2: "DELETE_MACHINE",
-	3: "GET_MACHINE",
+	3: "GET_MACHINE_STATUS",
 	4: "LIST_MACHINES",
 	5: "SHUTDOWN_MACHINE",
 	6: "GET_VOLUME_IDS",
 }
 var PluginCapability_RPC_Type_value = map[string]int32{
-	"UNKNOWN":          0,
-	"CREATE_MACHINE":   1,
-	"DELETE_MACHINE":   2,
-	"GET_MACHINE":      3,
-	"LIST_MACHINES":    4,
-	"SHUTDOWN_MACHINE": 5,
-	"GET_VOLUME_IDS":   6,
+	"UNKNOWN":            0,
+	"CREATE_MACHINE":     1,
+	"DELETE_MACHINE":     2,
+	"GET_MACHINE_STATUS": 3,
+	"LIST_MACHINES":      4,
+	"SHUTDOWN_MACHINE":   5,
+	"GET_VOLUME_IDS":     6,
 }
 
 func (x PluginCapability_RPC_Type) String() string {
 	return proto.EnumName(PluginCapability_RPC_Type_name, int32(x))
 }
 func (PluginCapability_RPC_Type) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{4, 0, 0}
-}
-
-// Status contains the possible status for machines running on the cloud
-type GetMachineResponse_Status int32
-
-const (
-	GetMachineResponse_Unknown GetMachineResponse_Status = 0
-	GetMachineResponse_Running GetMachineResponse_Status = 1
-	GetMachineResponse_Stopped GetMachineResponse_Status = 2
-)
-
-var GetMachineResponse_Status_name = map[int32]string{
-	0: "Unknown",
-	1: "Running",
-	2: "Stopped",
-}
-var GetMachineResponse_Status_value = map[string]int32{
-	"Unknown": 0,
-	"Running": 1,
-	"Stopped": 2,
-}
-
-func (x GetMachineResponse_Status) String() string {
-	return proto.EnumName(GetMachineResponse_Status_name, int32(x))
-}
-func (GetMachineResponse_Status) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{12, 0}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{4, 0, 0}
 }
 
 type GetPluginInfoRequest struct {
@@ -116,7 +89,7 @@ func (m *GetPluginInfoRequest) Reset()         { *m = GetPluginInfoRequest{} }
 func (m *GetPluginInfoRequest) String() string { return proto.CompactTextString(m) }
 func (*GetPluginInfoRequest) ProtoMessage()    {}
 func (*GetPluginInfoRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{0}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{0}
 }
 func (m *GetPluginInfoRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetPluginInfoRequest.Unmarshal(m, b)
@@ -164,7 +137,7 @@ func (m *GetPluginInfoResponse) Reset()         { *m = GetPluginInfoResponse{} }
 func (m *GetPluginInfoResponse) String() string { return proto.CompactTextString(m) }
 func (*GetPluginInfoResponse) ProtoMessage()    {}
 func (*GetPluginInfoResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{1}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{1}
 }
 func (m *GetPluginInfoResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetPluginInfoResponse.Unmarshal(m, b)
@@ -215,7 +188,7 @@ func (m *GetPluginCapabilitiesRequest) Reset()         { *m = GetPluginCapabilit
 func (m *GetPluginCapabilitiesRequest) String() string { return proto.CompactTextString(m) }
 func (*GetPluginCapabilitiesRequest) ProtoMessage()    {}
 func (*GetPluginCapabilitiesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{2}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{2}
 }
 func (m *GetPluginCapabilitiesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetPluginCapabilitiesRequest.Unmarshal(m, b)
@@ -248,7 +221,7 @@ func (m *GetPluginCapabilitiesResponse) Reset()         { *m = GetPluginCapabili
 func (m *GetPluginCapabilitiesResponse) String() string { return proto.CompactTextString(m) }
 func (*GetPluginCapabilitiesResponse) ProtoMessage()    {}
 func (*GetPluginCapabilitiesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{3}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{3}
 }
 func (m *GetPluginCapabilitiesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetPluginCapabilitiesResponse.Unmarshal(m, b)
@@ -289,7 +262,7 @@ func (m *PluginCapability) Reset()         { *m = PluginCapability{} }
 func (m *PluginCapability) String() string { return proto.CompactTextString(m) }
 func (*PluginCapability) ProtoMessage()    {}
 func (*PluginCapability) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{4}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{4}
 }
 func (m *PluginCapability) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PluginCapability.Unmarshal(m, b)
@@ -399,7 +372,7 @@ func (m *PluginCapability_RPC) Reset()         { *m = PluginCapability_RPC{} }
 func (m *PluginCapability_RPC) String() string { return proto.CompactTextString(m) }
 func (*PluginCapability_RPC) ProtoMessage()    {}
 func (*PluginCapability_RPC) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{4, 0}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{4, 0}
 }
 func (m *PluginCapability_RPC) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PluginCapability_RPC.Unmarshal(m, b)
@@ -436,7 +409,7 @@ func (m *ProbeRequest) Reset()         { *m = ProbeRequest{} }
 func (m *ProbeRequest) String() string { return proto.CompactTextString(m) }
 func (*ProbeRequest) ProtoMessage()    {}
 func (*ProbeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{5}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{5}
 }
 func (m *ProbeRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProbeRequest.Unmarshal(m, b)
@@ -487,7 +460,7 @@ func (m *ProbeResponse) Reset()         { *m = ProbeResponse{} }
 func (m *ProbeResponse) String() string { return proto.CompactTextString(m) }
 func (*ProbeResponse) ProtoMessage()    {}
 func (*ProbeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{6}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{6}
 }
 func (m *ProbeResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProbeResponse.Unmarshal(m, b)
@@ -515,26 +488,31 @@ func (m *ProbeResponse) GetReady() *wrappers.BoolValue {
 }
 
 type CreateMachineRequest struct {
-	// Name is the name of the machine to be created by driver.
+	// MachineName is the name of the machine object CRD for whom a VM is to be created.
 	// This field is REQUIRED.
-	Name string `protobuf:"bytes,1,opt,name=Name,proto3" json:"Name,omitempty"`
+	MachineName string `protobuf:"bytes,1,opt,name=MachineName,proto3" json:"MachineName,omitempty"`
 	// ProviderSpec is the configuration needed to create a machine in bytes.
-	// Driver should parse this raw data into pre-defined spec in their respective projects.
+	// Plugin should parse this raw data into pre-defined spec in their respective projects.
 	// This field is REQUIRED.
 	ProviderSpec []byte `protobuf:"bytes,2,opt,name=ProviderSpec,proto3" json:"ProviderSpec,omitempty"`
 	// Secrets is the map containing necessary credentials for cloud-provider to create the machine.
 	// This field is OPTIONAL.
-	Secrets              map[string][]byte `protobuf:"bytes,3,rep,name=Secrets,proto3" json:"Secrets,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
-	XXX_unrecognized     []byte            `json:"-"`
-	XXX_sizecache        int32             `json:"-"`
+	Secrets map[string][]byte `protobuf:"bytes,3,rep,name=Secrets,proto3" json:"Secrets,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// LastKnownState is any additional information (if required) that can used by the plugin.
+	// It can be used by the plugin to recover from the last execution/error state.
+	// Plugin should parse this raw data into it's desired format.
+	// This field is OPTIONAL.
+	LastKnownState       []byte   `protobuf:"bytes,4,opt,name=LastKnownState,proto3" json:"LastKnownState,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *CreateMachineRequest) Reset()         { *m = CreateMachineRequest{} }
 func (m *CreateMachineRequest) String() string { return proto.CompactTextString(m) }
 func (*CreateMachineRequest) ProtoMessage()    {}
 func (*CreateMachineRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{7}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{7}
 }
 func (m *CreateMachineRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CreateMachineRequest.Unmarshal(m, b)
@@ -554,9 +532,9 @@ func (m *CreateMachineRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_CreateMachineRequest proto.InternalMessageInfo
 
-func (m *CreateMachineRequest) GetName() string {
+func (m *CreateMachineRequest) GetMachineName() string {
 	if m != nil {
-		return m.Name
+		return m.MachineName
 	}
 	return ""
 }
@@ -575,16 +553,29 @@ func (m *CreateMachineRequest) GetSecrets() map[string][]byte {
 	return nil
 }
 
+func (m *CreateMachineRequest) GetLastKnownState() []byte {
+	if m != nil {
+		return m.LastKnownState
+	}
+	return nil
+}
+
 type CreateMachineResponse struct {
-	// MachineID is the unique identification of the VM at the cloud provider.
+	// ProviderID is the unique identification of the VM at the cloud provider.
 	// This could be the same/different from req.Name.
-	// MachineID typically matches with the node.Spec.ProviderID on the node object.
-	// Eg: gce://project-name/region/vm-machineID
+	// ProviderID typically matches with the node.Spec.ProviderID on the node object.
+	// Eg: gce://project-name/region/vm-ID
 	// This field is REQUIRED.
-	MachineID string `protobuf:"bytes,1,opt,name=MachineID,proto3" json:"MachineID,omitempty"`
+	ProviderID string `protobuf:"bytes,1,opt,name=ProviderID,proto3" json:"ProviderID,omitempty"`
 	// NodeName is the name of the node-object registered to kubernetes.
 	// This field is REQUIRED.
-	NodeName             string   `protobuf:"bytes,2,opt,name=NodeName,proto3" json:"NodeName,omitempty"`
+	NodeName string `protobuf:"bytes,2,opt,name=NodeName,proto3" json:"NodeName,omitempty"`
+	// LastKnownState is any additional information (if required) that can used by the plugin.
+	// It can be the final state of the executing call.
+	// Could be used by the plugin to recover from the current execution/error state in any future calls.
+	// Plugin should return a raw bytes string.
+	// This field is OPTIONAL.
+	LastKnownState       []byte   `protobuf:"bytes,3,opt,name=LastKnownState,proto3" json:"LastKnownState,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -594,7 +585,7 @@ func (m *CreateMachineResponse) Reset()         { *m = CreateMachineResponse{} }
 func (m *CreateMachineResponse) String() string { return proto.CompactTextString(m) }
 func (*CreateMachineResponse) ProtoMessage()    {}
 func (*CreateMachineResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{8}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{8}
 }
 func (m *CreateMachineResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CreateMachineResponse.Unmarshal(m, b)
@@ -614,9 +605,9 @@ func (m *CreateMachineResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_CreateMachineResponse proto.InternalMessageInfo
 
-func (m *CreateMachineResponse) GetMachineID() string {
+func (m *CreateMachineResponse) GetProviderID() string {
 	if m != nil {
-		return m.MachineID
+		return m.ProviderID
 	}
 	return ""
 }
@@ -628,24 +619,39 @@ func (m *CreateMachineResponse) GetNodeName() string {
 	return ""
 }
 
+func (m *CreateMachineResponse) GetLastKnownState() []byte {
+	if m != nil {
+		return m.LastKnownState
+	}
+	return nil
+}
+
 type DeleteMachineRequest struct {
-	// MachineID is the id of the machine to be deleted.
-	// It should uniquely identify the real machine in cloud-provider.
+	// MachineName is the name of the machine object for which a VM is to be deleted.
 	// This field is REQUIRED.
-	MachineID string `protobuf:"bytes,1,opt,name=MachineID,proto3" json:"MachineID,omitempty"`
+	MachineName string `protobuf:"bytes,1,opt,name=MachineName,proto3" json:"MachineName,omitempty"`
+	// ProviderSpec is needed to filter VMs based a cluster before deleting.
+	// Plugin should parse this raw data into pre-defined spec in their respective projects.
+	// This field is REQUIRED.
+	ProviderSpec []byte `protobuf:"bytes,2,opt,name=ProviderSpec,proto3" json:"ProviderSpec,omitempty"`
 	// Secrets is the map containing necessary credentials for cloud-provider to delete the machine.
 	// This field is OPTIONAL.
-	Secrets              map[string][]byte `protobuf:"bytes,2,rep,name=Secrets,proto3" json:"Secrets,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
-	XXX_unrecognized     []byte            `json:"-"`
-	XXX_sizecache        int32             `json:"-"`
+	Secrets map[string][]byte `protobuf:"bytes,3,rep,name=Secrets,proto3" json:"Secrets,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// LastKnownState is any additional information (if required) that can used by the plugin.
+	// It can be used by the plugin to recover from the last execution/error state.
+	// Plugin should parse this raw data into it's desired format.
+	// This field is OPTIONAL.
+	LastKnownState       []byte   `protobuf:"bytes,4,opt,name=LastKnownState,proto3" json:"LastKnownState,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *DeleteMachineRequest) Reset()         { *m = DeleteMachineRequest{} }
 func (m *DeleteMachineRequest) String() string { return proto.CompactTextString(m) }
 func (*DeleteMachineRequest) ProtoMessage()    {}
 func (*DeleteMachineRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{9}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{9}
 }
 func (m *DeleteMachineRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DeleteMachineRequest.Unmarshal(m, b)
@@ -665,11 +671,18 @@ func (m *DeleteMachineRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_DeleteMachineRequest proto.InternalMessageInfo
 
-func (m *DeleteMachineRequest) GetMachineID() string {
+func (m *DeleteMachineRequest) GetMachineName() string {
 	if m != nil {
-		return m.MachineID
+		return m.MachineName
 	}
 	return ""
+}
+
+func (m *DeleteMachineRequest) GetProviderSpec() []byte {
+	if m != nil {
+		return m.ProviderSpec
+	}
+	return nil
 }
 
 func (m *DeleteMachineRequest) GetSecrets() map[string][]byte {
@@ -679,7 +692,20 @@ func (m *DeleteMachineRequest) GetSecrets() map[string][]byte {
 	return nil
 }
 
+func (m *DeleteMachineRequest) GetLastKnownState() []byte {
+	if m != nil {
+		return m.LastKnownState
+	}
+	return nil
+}
+
 type DeleteMachineResponse struct {
+	// LastKnownState is any additional information (if required) that can used by the plugin.
+	// It can be the final state of the executing call.
+	// Could be used by the plugin to recover from the current execution/error state in any future calls.
+	// Plugin should return a raw bytes string.
+	// This field is OPTIONAL.
+	LastKnownState       []byte   `protobuf:"bytes,1,opt,name=LastKnownState,proto3" json:"LastKnownState,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -689,7 +715,7 @@ func (m *DeleteMachineResponse) Reset()         { *m = DeleteMachineResponse{} }
 func (m *DeleteMachineResponse) String() string { return proto.CompactTextString(m) }
 func (*DeleteMachineResponse) ProtoMessage()    {}
 func (*DeleteMachineResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{10}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{10}
 }
 func (m *DeleteMachineResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DeleteMachineResponse.Unmarshal(m, b)
@@ -709,108 +735,131 @@ func (m *DeleteMachineResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_DeleteMachineResponse proto.InternalMessageInfo
 
-type GetMachineRequest struct {
-	// MachineID is the id of the machine whose status is to be determined.
-	// It should uniquely identify the real machine in cloud-provider.
+func (m *DeleteMachineResponse) GetLastKnownState() []byte {
+	if m != nil {
+		return m.LastKnownState
+	}
+	return nil
+}
+
+type GetMachineStatusRequest struct {
+	// MachineName is name of the machine object from which the VM is to be identified.
+	// The plugin is responsible to issuing a get call for a VM backed by this machine name.
 	// This field is REQUIRED.
-	MachineID string `protobuf:"bytes,1,opt,name=MachineID,proto3" json:"MachineID,omitempty"`
+	MachineName string `protobuf:"bytes,1,opt,name=MachineName,proto3" json:"MachineName,omitempty"`
+	// ProviderSpec is needed to filter VMs based a cluster before getting the status.
+	// Plugin should parse this raw data into pre-defined spec in their respective projects.
+	// This field is REQUIRED.
+	ProviderSpec []byte `protobuf:"bytes,2,opt,name=ProviderSpec,proto3" json:"ProviderSpec,omitempty"`
 	// Secrets is the map containing necessary credentials for cloud-provider to list the machines.
 	// This field is OPTIONAL.
-	Secrets              map[string][]byte `protobuf:"bytes,2,rep,name=Secrets,proto3" json:"Secrets,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Secrets              map[string][]byte `protobuf:"bytes,3,rep,name=Secrets,proto3" json:"Secrets,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
 	XXX_unrecognized     []byte            `json:"-"`
 	XXX_sizecache        int32             `json:"-"`
 }
 
-func (m *GetMachineRequest) Reset()         { *m = GetMachineRequest{} }
-func (m *GetMachineRequest) String() string { return proto.CompactTextString(m) }
-func (*GetMachineRequest) ProtoMessage()    {}
-func (*GetMachineRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{11}
+func (m *GetMachineStatusRequest) Reset()         { *m = GetMachineStatusRequest{} }
+func (m *GetMachineStatusRequest) String() string { return proto.CompactTextString(m) }
+func (*GetMachineStatusRequest) ProtoMessage()    {}
+func (*GetMachineStatusRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{11}
 }
-func (m *GetMachineRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetMachineRequest.Unmarshal(m, b)
+func (m *GetMachineStatusRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetMachineStatusRequest.Unmarshal(m, b)
 }
-func (m *GetMachineRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetMachineRequest.Marshal(b, m, deterministic)
+func (m *GetMachineStatusRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetMachineStatusRequest.Marshal(b, m, deterministic)
 }
-func (dst *GetMachineRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetMachineRequest.Merge(dst, src)
+func (dst *GetMachineStatusRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetMachineStatusRequest.Merge(dst, src)
 }
-func (m *GetMachineRequest) XXX_Size() int {
-	return xxx_messageInfo_GetMachineRequest.Size(m)
+func (m *GetMachineStatusRequest) XXX_Size() int {
+	return xxx_messageInfo_GetMachineStatusRequest.Size(m)
 }
-func (m *GetMachineRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetMachineRequest.DiscardUnknown(m)
+func (m *GetMachineStatusRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetMachineStatusRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetMachineRequest proto.InternalMessageInfo
+var xxx_messageInfo_GetMachineStatusRequest proto.InternalMessageInfo
 
-func (m *GetMachineRequest) GetMachineID() string {
+func (m *GetMachineStatusRequest) GetMachineName() string {
 	if m != nil {
-		return m.MachineID
+		return m.MachineName
 	}
 	return ""
 }
 
-func (m *GetMachineRequest) GetSecrets() map[string][]byte {
+func (m *GetMachineStatusRequest) GetProviderSpec() []byte {
+	if m != nil {
+		return m.ProviderSpec
+	}
+	return nil
+}
+
+func (m *GetMachineStatusRequest) GetSecrets() map[string][]byte {
 	if m != nil {
 		return m.Secrets
 	}
 	return nil
 }
 
-type GetMachineResponse struct {
-	// Exists tells if the machine exists on the cloud provider
+type GetMachineStatusResponse struct {
+	// ProviderID is the unique identification of the VM at the cloud provider.
+	// This could be the same/different from req.Name.
+	// ProviderID typically matches with the node.Spec.ProviderID on the node object.
+	// Eg: gce://project-name/region/vm-ID
 	// This field is REQUIRED.
-	Exists               bool                      `protobuf:"varint,1,opt,name=Exists,proto3" json:"Exists,omitempty"`
-	MachineStatus        GetMachineResponse_Status `protobuf:"varint,2,opt,name=MachineStatus,proto3,enum=cmi.v1.GetMachineResponse_Status" json:"MachineStatus,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
-	XXX_unrecognized     []byte                    `json:"-"`
-	XXX_sizecache        int32                     `json:"-"`
+	ProviderID string `protobuf:"bytes,1,opt,name=ProviderID,proto3" json:"ProviderID,omitempty"`
+	// NodeName is the name of the node-object registered to kubernetes.
+	// This field is REQUIRED.
+	NodeName             string   `protobuf:"bytes,2,opt,name=NodeName,proto3" json:"NodeName,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetMachineResponse) Reset()         { *m = GetMachineResponse{} }
-func (m *GetMachineResponse) String() string { return proto.CompactTextString(m) }
-func (*GetMachineResponse) ProtoMessage()    {}
-func (*GetMachineResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{12}
+func (m *GetMachineStatusResponse) Reset()         { *m = GetMachineStatusResponse{} }
+func (m *GetMachineStatusResponse) String() string { return proto.CompactTextString(m) }
+func (*GetMachineStatusResponse) ProtoMessage()    {}
+func (*GetMachineStatusResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{12}
 }
-func (m *GetMachineResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetMachineResponse.Unmarshal(m, b)
+func (m *GetMachineStatusResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetMachineStatusResponse.Unmarshal(m, b)
 }
-func (m *GetMachineResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetMachineResponse.Marshal(b, m, deterministic)
+func (m *GetMachineStatusResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetMachineStatusResponse.Marshal(b, m, deterministic)
 }
-func (dst *GetMachineResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetMachineResponse.Merge(dst, src)
+func (dst *GetMachineStatusResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetMachineStatusResponse.Merge(dst, src)
 }
-func (m *GetMachineResponse) XXX_Size() int {
-	return xxx_messageInfo_GetMachineResponse.Size(m)
+func (m *GetMachineStatusResponse) XXX_Size() int {
+	return xxx_messageInfo_GetMachineStatusResponse.Size(m)
 }
-func (m *GetMachineResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetMachineResponse.DiscardUnknown(m)
+func (m *GetMachineStatusResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetMachineStatusResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetMachineResponse proto.InternalMessageInfo
+var xxx_messageInfo_GetMachineStatusResponse proto.InternalMessageInfo
 
-func (m *GetMachineResponse) GetExists() bool {
+func (m *GetMachineStatusResponse) GetProviderID() string {
 	if m != nil {
-		return m.Exists
+		return m.ProviderID
 	}
-	return false
+	return ""
 }
 
-func (m *GetMachineResponse) GetMachineStatus() GetMachineResponse_Status {
+func (m *GetMachineStatusResponse) GetNodeName() string {
 	if m != nil {
-		return m.MachineStatus
+		return m.NodeName
 	}
-	return GetMachineResponse_Unknown
+	return ""
 }
 
 type ListMachinesRequest struct {
 	// ProviderSpec is the configuration needed to list machines.
-	// Driver should parse this raw data into pre-defined spec in their respective projects.
+	// Plugin should parse this raw data into pre-defined spec in their respective projects.
 	// This field is REQUIRED.
 	ProviderSpec []byte `protobuf:"bytes,1,opt,name=ProviderSpec,proto3" json:"ProviderSpec,omitempty"`
 	// Secrets is the map containing necessary credentials for cloud-provider to list the machines.
@@ -825,7 +874,7 @@ func (m *ListMachinesRequest) Reset()         { *m = ListMachinesRequest{} }
 func (m *ListMachinesRequest) String() string { return proto.CompactTextString(m) }
 func (*ListMachinesRequest) ProtoMessage()    {}
 func (*ListMachinesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{13}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{13}
 }
 func (m *ListMachinesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListMachinesRequest.Unmarshal(m, b)
@@ -860,7 +909,7 @@ func (m *ListMachinesRequest) GetSecrets() map[string][]byte {
 }
 
 type ListMachinesResponse struct {
-	// MachineList is the map of list of machines. Format for the map should be map<MachineID, MachineName>.
+	// MachineList is the map of list of machines. Format for the map should be map<ProviderID, MachineName>.
 	// This field is REQUIRED.
 	MachineList          map[string]string `protobuf:"bytes,1,rep,name=MachineList,proto3" json:"MachineList,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
@@ -872,7 +921,7 @@ func (m *ListMachinesResponse) Reset()         { *m = ListMachinesResponse{} }
 func (m *ListMachinesResponse) String() string { return proto.CompactTextString(m) }
 func (*ListMachinesResponse) ProtoMessage()    {}
 func (*ListMachinesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{14}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{14}
 }
 func (m *ListMachinesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListMachinesResponse.Unmarshal(m, b)
@@ -900,23 +949,32 @@ func (m *ListMachinesResponse) GetMachineList() map[string]string {
 }
 
 type ShutDownMachineRequest struct {
-	// MachineID is the id of the machine to be shut-down.
-	// It should uniquely identify the real machine in cloud-provider.
+	// MachineName is the machine object name for whose VM, the shutdown call is to be invoked.
+	// The plugin is responsible to issuing a shutdown call for a VM backed by this machine name.
 	// This field is REQUIRED.
-	MachineID string `protobuf:"bytes,1,opt,name=MachineID,proto3" json:"MachineID,omitempty"`
+	MachineName string `protobuf:"bytes,1,opt,name=MachineName,proto3" json:"MachineName,omitempty"`
+	// ProviderSpec is needed to filter VMs based a cluster before shutting down.
+	// Plugin should parse this raw data into pre-defined spec in their respective projects.
+	// This field is REQUIRED.
+	ProviderSpec []byte `protobuf:"bytes,2,opt,name=ProviderSpec,proto3" json:"ProviderSpec,omitempty"`
 	// Secrets is the map containing necessary credentials for cloud-provider to shut down the machine.
 	// This field is OPTIONAL.
-	Secrets              map[string][]byte `protobuf:"bytes,2,rep,name=Secrets,proto3" json:"Secrets,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
-	XXX_unrecognized     []byte            `json:"-"`
-	XXX_sizecache        int32             `json:"-"`
+	Secrets map[string][]byte `protobuf:"bytes,3,rep,name=Secrets,proto3" json:"Secrets,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// LastKnownState is any additional information (if required) that can used by the plugin.
+	// It can be used by the plugin to recover from the last execution/error state.
+	// Plugin should parse this raw data into it's desired format.
+	// This field is OPTIONAL.
+	LastKnownState       []byte   `protobuf:"bytes,4,opt,name=LastKnownState,proto3" json:"LastKnownState,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ShutDownMachineRequest) Reset()         { *m = ShutDownMachineRequest{} }
 func (m *ShutDownMachineRequest) String() string { return proto.CompactTextString(m) }
 func (*ShutDownMachineRequest) ProtoMessage()    {}
 func (*ShutDownMachineRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{15}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{15}
 }
 func (m *ShutDownMachineRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ShutDownMachineRequest.Unmarshal(m, b)
@@ -936,11 +994,18 @@ func (m *ShutDownMachineRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ShutDownMachineRequest proto.InternalMessageInfo
 
-func (m *ShutDownMachineRequest) GetMachineID() string {
+func (m *ShutDownMachineRequest) GetMachineName() string {
 	if m != nil {
-		return m.MachineID
+		return m.MachineName
 	}
 	return ""
+}
+
+func (m *ShutDownMachineRequest) GetProviderSpec() []byte {
+	if m != nil {
+		return m.ProviderSpec
+	}
+	return nil
 }
 
 func (m *ShutDownMachineRequest) GetSecrets() map[string][]byte {
@@ -950,7 +1015,20 @@ func (m *ShutDownMachineRequest) GetSecrets() map[string][]byte {
 	return nil
 }
 
+func (m *ShutDownMachineRequest) GetLastKnownState() []byte {
+	if m != nil {
+		return m.LastKnownState
+	}
+	return nil
+}
+
 type ShutDownMachineResponse struct {
+	// LastKnownState is any additional information (if required) that can used by the plugin.
+	// It can be the final state of the executing call.
+	// Could be used by the plugin to recover from the current execution/error state in any future calls.
+	// Plugin should return a raw bytes string.
+	// This field is OPTIONAL.
+	LastKnownState       []byte   `protobuf:"bytes,1,opt,name=LastKnownState,proto3" json:"LastKnownState,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -960,7 +1038,7 @@ func (m *ShutDownMachineResponse) Reset()         { *m = ShutDownMachineResponse
 func (m *ShutDownMachineResponse) String() string { return proto.CompactTextString(m) }
 func (*ShutDownMachineResponse) ProtoMessage()    {}
 func (*ShutDownMachineResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{16}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{16}
 }
 func (m *ShutDownMachineResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ShutDownMachineResponse.Unmarshal(m, b)
@@ -980,9 +1058,16 @@ func (m *ShutDownMachineResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ShutDownMachineResponse proto.InternalMessageInfo
 
+func (m *ShutDownMachineResponse) GetLastKnownState() []byte {
+	if m != nil {
+		return m.LastKnownState
+	}
+	return nil
+}
+
 type GetVolumeIDsRequest struct {
 	// PVSpecsList is a list of PV specs for whom volume-IDs are required
-	// Driver should parse this raw data into pre-defined list of PVSpecs
+	// Plugin should parse this raw data into pre-defined list of PVSpecs
 	// This field is REQUIRED.
 	PVSpecList           []byte   `protobuf:"bytes,1,opt,name=PVSpecList,proto3" json:"PVSpecList,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -994,7 +1079,7 @@ func (m *GetVolumeIDsRequest) Reset()         { *m = GetVolumeIDsRequest{} }
 func (m *GetVolumeIDsRequest) String() string { return proto.CompactTextString(m) }
 func (*GetVolumeIDsRequest) ProtoMessage()    {}
 func (*GetVolumeIDsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{17}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{17}
 }
 func (m *GetVolumeIDsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetVolumeIDsRequest.Unmarshal(m, b)
@@ -1034,7 +1119,7 @@ func (m *GetVolumeIDsResponse) Reset()         { *m = GetVolumeIDsResponse{} }
 func (m *GetVolumeIDsResponse) String() string { return proto.CompactTextString(m) }
 func (*GetVolumeIDsResponse) ProtoMessage()    {}
 func (*GetVolumeIDsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cmi_3500c2b337883b22, []int{18}
+	return fileDescriptor_cmi_9b8c0ecc87961c69, []int{18}
 }
 func (m *GetVolumeIDsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetVolumeIDsResponse.Unmarshal(m, b)
@@ -1086,9 +1171,9 @@ func init() {
 	proto.RegisterType((*DeleteMachineRequest)(nil), "cmi.v1.DeleteMachineRequest")
 	proto.RegisterMapType((map[string][]byte)(nil), "cmi.v1.DeleteMachineRequest.SecretsEntry")
 	proto.RegisterType((*DeleteMachineResponse)(nil), "cmi.v1.DeleteMachineResponse")
-	proto.RegisterType((*GetMachineRequest)(nil), "cmi.v1.GetMachineRequest")
-	proto.RegisterMapType((map[string][]byte)(nil), "cmi.v1.GetMachineRequest.SecretsEntry")
-	proto.RegisterType((*GetMachineResponse)(nil), "cmi.v1.GetMachineResponse")
+	proto.RegisterType((*GetMachineStatusRequest)(nil), "cmi.v1.GetMachineStatusRequest")
+	proto.RegisterMapType((map[string][]byte)(nil), "cmi.v1.GetMachineStatusRequest.SecretsEntry")
+	proto.RegisterType((*GetMachineStatusResponse)(nil), "cmi.v1.GetMachineStatusResponse")
 	proto.RegisterType((*ListMachinesRequest)(nil), "cmi.v1.ListMachinesRequest")
 	proto.RegisterMapType((map[string][]byte)(nil), "cmi.v1.ListMachinesRequest.SecretsEntry")
 	proto.RegisterType((*ListMachinesResponse)(nil), "cmi.v1.ListMachinesResponse")
@@ -1099,7 +1184,6 @@ func init() {
 	proto.RegisterType((*GetVolumeIDsRequest)(nil), "cmi.v1.GetVolumeIDsRequest")
 	proto.RegisterType((*GetVolumeIDsResponse)(nil), "cmi.v1.GetVolumeIDsResponse")
 	proto.RegisterEnum("cmi.v1.PluginCapability_RPC_Type", PluginCapability_RPC_Type_name, PluginCapability_RPC_Type_value)
-	proto.RegisterEnum("cmi.v1.GetMachineResponse_Status", GetMachineResponse_Status_name, GetMachineResponse_Status_value)
 	proto.RegisterExtension(E_CmiSecret)
 }
 
@@ -1263,9 +1347,9 @@ type MachineClient interface {
 	// DeleteMachine is the gRPC call to delete a machine.
 	// This method is REQUIRED.
 	DeleteMachine(ctx context.Context, in *DeleteMachineRequest, opts ...grpc.CallOption) (*DeleteMachineResponse, error)
-	// GetMachine is the gRPC call to get the status of a machine.
+	// GetMachineStatus is the gRPC call to get the status of a machine.
 	// This method is OPTIONAL.
-	GetMachine(ctx context.Context, in *GetMachineRequest, opts ...grpc.CallOption) (*GetMachineResponse, error)
+	GetMachineStatus(ctx context.Context, in *GetMachineStatusRequest, opts ...grpc.CallOption) (*GetMachineStatusResponse, error)
 	// ListMachines is the gRPC call to list machines backed by the providerSpec.
 	// This method is OPTIONAL.
 	ListMachines(ctx context.Context, in *ListMachinesRequest, opts ...grpc.CallOption) (*ListMachinesResponse, error)
@@ -1304,9 +1388,9 @@ func (c *machineClient) DeleteMachine(ctx context.Context, in *DeleteMachineRequ
 	return out, nil
 }
 
-func (c *machineClient) GetMachine(ctx context.Context, in *GetMachineRequest, opts ...grpc.CallOption) (*GetMachineResponse, error) {
-	out := new(GetMachineResponse)
-	err := c.cc.Invoke(ctx, "/cmi.v1.Machine/GetMachine", in, out, opts...)
+func (c *machineClient) GetMachineStatus(ctx context.Context, in *GetMachineStatusRequest, opts ...grpc.CallOption) (*GetMachineStatusResponse, error) {
+	out := new(GetMachineStatusResponse)
+	err := c.cc.Invoke(ctx, "/cmi.v1.Machine/GetMachineStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1348,9 +1432,9 @@ type MachineServer interface {
 	// DeleteMachine is the gRPC call to delete a machine.
 	// This method is REQUIRED.
 	DeleteMachine(context.Context, *DeleteMachineRequest) (*DeleteMachineResponse, error)
-	// GetMachine is the gRPC call to get the status of a machine.
+	// GetMachineStatus is the gRPC call to get the status of a machine.
 	// This method is OPTIONAL.
-	GetMachine(context.Context, *GetMachineRequest) (*GetMachineResponse, error)
+	GetMachineStatus(context.Context, *GetMachineStatusRequest) (*GetMachineStatusResponse, error)
 	// ListMachines is the gRPC call to list machines backed by the providerSpec.
 	// This method is OPTIONAL.
 	ListMachines(context.Context, *ListMachinesRequest) (*ListMachinesResponse, error)
@@ -1403,20 +1487,20 @@ func _Machine_DeleteMachine_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Machine_GetMachine_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetMachineRequest)
+func _Machine_GetMachineStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMachineStatusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MachineServer).GetMachine(ctx, in)
+		return srv.(MachineServer).GetMachineStatus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/cmi.v1.Machine/GetMachine",
+		FullMethod: "/cmi.v1.Machine/GetMachineStatus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MachineServer).GetMachine(ctx, req.(*GetMachineRequest))
+		return srv.(MachineServer).GetMachineStatus(ctx, req.(*GetMachineStatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1488,8 +1572,8 @@ var _Machine_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Machine_DeleteMachine_Handler,
 		},
 		{
-			MethodName: "GetMachine",
-			Handler:    _Machine_GetMachine_Handler,
+			MethodName: "GetMachineStatus",
+			Handler:    _Machine_GetMachineStatus_Handler,
 		},
 		{
 			MethodName: "ListMachines",
@@ -1509,77 +1593,76 @@ var _Machine_serviceDesc = grpc.ServiceDesc{
 }
 
 func init() {
-	proto.RegisterFile("github.com/gardener/machine-spec/cmi.proto", fileDescriptor_cmi_3500c2b337883b22)
+	proto.RegisterFile("github.com/gardener/machine-spec/cmi.proto", fileDescriptor_cmi_9b8c0ecc87961c69)
 }
 
-var fileDescriptor_cmi_3500c2b337883b22 = []byte{
-	// 1087 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x56, 0xdd, 0x6e, 0xe3, 0x44,
-	0x14, 0x8e, 0x93, 0x26, 0x4d, 0x4f, 0xd2, 0xae, 0x77, 0x36, 0xed, 0x66, 0x4d, 0x5a, 0x8a, 0x05,
-	0xa8, 0x80, 0xd6, 0x59, 0x02, 0x8b, 0x50, 0xf9, 0x91, 0x9a, 0xc4, 0xa4, 0x61, 0xdb, 0x24, 0x38,
-	0x69, 0x57, 0x42, 0x42, 0x95, 0xe3, 0x4c, 0x53, 0x6b, 0x13, 0xdb, 0xd8, 0x93, 0x96, 0x3c, 0x02,
-	0x4f, 0x00, 0xf7, 0x48, 0xf0, 0x02, 0x5c, 0x71, 0xb1, 0xd7, 0x48, 0xdc, 0xf2, 0x00, 0x3c, 0x07,
-	0x57, 0xc8, 0xe3, 0xb1, 0xe3, 0x38, 0x4e, 0xaa, 0x5e, 0x94, 0xbb, 0x99, 0x33, 0xe7, 0x7c, 0xe7,
-	0x67, 0xce, 0x1f, 0xbc, 0x3f, 0xd4, 0xc9, 0xd5, 0xa4, 0x2f, 0x69, 0xe6, 0xb8, 0x3c, 0x54, 0xed,
-	0x01, 0x36, 0xb0, 0x5d, 0x1e, 0xab, 0xda, 0x95, 0x6e, 0xe0, 0xa7, 0x8e, 0x85, 0xb5, 0xb2, 0x36,
-	0xd6, 0x25, 0xcb, 0x36, 0x89, 0x89, 0x32, 0xee, 0xf1, 0xfa, 0x43, 0x61, 0x7f, 0x68, 0x9a, 0xc3,
-	0x11, 0x2e, 0x53, 0x6a, 0x7f, 0x72, 0x59, 0x1e, 0x60, 0x47, 0xb3, 0x75, 0x8b, 0x98, 0xb6, 0xc7,
-	0x29, 0xec, 0x45, 0x39, 0x6e, 0x6c, 0xd5, 0xb2, 0xb0, 0xed, 0x78, 0xef, 0xe2, 0x0e, 0x14, 0x1a,
-	0x98, 0x74, 0x46, 0x93, 0xa1, 0x6e, 0x34, 0x8d, 0x4b, 0x53, 0xc1, 0xdf, 0x4f, 0xb0, 0x43, 0xc4,
-	0xbf, 0x38, 0xd8, 0x8e, 0x3c, 0x38, 0x96, 0x69, 0x38, 0x18, 0x21, 0x58, 0x33, 0xd4, 0x31, 0x2e,
-	0x72, 0xfb, 0xdc, 0xc1, 0x86, 0x42, 0xcf, 0xa8, 0x08, 0xeb, 0xd7, 0xd8, 0x76, 0x74, 0xd3, 0x28,
-	0x26, 0x29, 0xd9, 0xbf, 0xa2, 0x06, 0x64, 0xc7, 0xaa, 0xa1, 0x5f, 0x62, 0x87, 0x14, 0x53, 0xfb,
-	0xa9, 0x83, 0x5c, 0xe5, 0x03, 0xc9, 0x33, 0x5e, 0x8a, 0x85, 0x97, 0x4e, 0x19, 0xb7, 0x6c, 0x10,
-	0x7b, 0xaa, 0x04, 0xc2, 0xc2, 0x67, 0xb0, 0x39, 0xf7, 0x84, 0x78, 0x48, 0xbd, 0xc2, 0x53, 0x66,
-	0x86, 0x7b, 0x44, 0x05, 0x48, 0x5f, 0xab, 0xa3, 0x09, 0x66, 0x36, 0x78, 0x97, 0xc3, 0xe4, 0xa7,
-	0x9c, 0xb8, 0x07, 0xa5, 0x40, 0x5b, 0x4d, 0xb5, 0xd4, 0xbe, 0x3e, 0xd2, 0x89, 0x8e, 0x1d, 0xdf,
-	0xdb, 0xef, 0x60, 0x77, 0xc9, 0x3b, 0x73, 0xfa, 0x73, 0xc8, 0x6b, 0x21, 0x7a, 0x91, 0xa3, 0xae,
-	0x14, 0x7d, 0x57, 0x22, 0x92, 0x53, 0x65, 0x8e, 0x5b, 0xfc, 0x29, 0x09, 0x7c, 0x94, 0x05, 0x3d,
-	0x83, 0x94, 0x6d, 0x69, 0xd4, 0xfe, 0x5c, 0xa5, 0xb4, 0x0c, 0x49, 0x52, 0x3a, 0xb5, 0xe3, 0x84,
-	0xe2, 0xb2, 0x0a, 0x7f, 0x72, 0x90, 0x52, 0x3a, 0x35, 0xf4, 0x1c, 0xd6, 0xc8, 0xd4, 0xf2, 0x7e,
-	0x60, 0xab, 0xf2, 0xd6, 0x2a, 0x51, 0xa9, 0x37, 0xb5, 0xb0, 0x42, 0xd9, 0xc5, 0x1f, 0x39, 0x58,
-	0x73, 0xaf, 0x28, 0x07, 0xeb, 0x67, 0xad, 0x17, 0xad, 0xf6, 0xcb, 0x16, 0x9f, 0x40, 0x08, 0xb6,
-	0x6a, 0x8a, 0x7c, 0xd4, 0x93, 0x2f, 0x4e, 0x8f, 0x6a, 0xc7, 0xcd, 0x96, 0xcc, 0x73, 0x2e, 0xad,
-	0x2e, 0x9f, 0xc8, 0x21, 0x5a, 0x12, 0x3d, 0x80, 0x5c, 0x43, 0xee, 0x05, 0x84, 0x14, 0x7a, 0x08,
-	0x9b, 0x27, 0xcd, 0x6e, 0x40, 0xe9, 0xf2, 0x6b, 0xa8, 0x00, 0x7c, 0xf7, 0xf8, 0xac, 0x57, 0x6f,
-	0xbf, 0x6c, 0x05, 0x8c, 0x69, 0x17, 0xcd, 0x95, 0x3c, 0x6f, 0x9f, 0x9c, 0x9d, 0xca, 0x17, 0xcd,
-	0x7a, 0x97, 0xcf, 0x54, 0x33, 0x9e, 0x0b, 0xe2, 0x16, 0xe4, 0x3b, 0xb6, 0xd9, 0xc7, 0xfe, 0x47,
-	0x1c, 0xc1, 0x26, 0xbb, 0xb3, 0xc0, 0x3f, 0x83, 0xb4, 0x8d, 0xd5, 0xc1, 0x94, 0xc5, 0x49, 0x90,
-	0xbc, 0x7c, 0x96, 0xfc, 0x7c, 0x96, 0xaa, 0xa6, 0x39, 0x3a, 0x77, 0x3f, 0x5a, 0xf1, 0x18, 0xc5,
-	0xbf, 0x39, 0x28, 0xd4, 0x6c, 0xac, 0x12, 0x7c, 0xea, 0x15, 0x0f, 0xc3, 0x76, 0x13, 0xb7, 0x15,
-	0x4a, 0x5c, 0xf7, 0x8c, 0x44, 0xaa, 0xff, 0x5a, 0x1f, 0x60, 0xbb, 0x6b, 0x61, 0x8d, 0x66, 0x4e,
-	0x5e, 0x99, 0xa3, 0xa1, 0x63, 0x58, 0xef, 0x62, 0xcd, 0xc6, 0xc4, 0x61, 0x19, 0xfc, 0x9e, 0x1f,
-	0xf1, 0x38, 0x35, 0x12, 0xe3, 0xa5, 0x49, 0x5a, 0x4d, 0xfd, 0x5c, 0xe5, 0x14, 0x5f, 0x5c, 0x38,
-	0x84, 0x7c, 0xf8, 0xf5, 0xb6, 0x14, 0xce, 0x87, 0x53, 0xf8, 0x1b, 0xd8, 0x8e, 0xa8, 0x63, 0x11,
-	0x2a, 0xc1, 0x06, 0x23, 0x35, 0xeb, 0x0c, 0x6a, 0x46, 0x40, 0x02, 0x64, 0x5b, 0xe6, 0x00, 0x53,
-	0xc7, 0xbd, 0xb2, 0x08, 0xee, 0xe2, 0x1f, 0x1c, 0x14, 0xea, 0x78, 0x84, 0x17, 0x22, 0xb5, 0x1a,
-	0x32, 0x14, 0x8f, 0xe4, 0x7c, 0x3c, 0xe2, 0xc0, 0xee, 0x2b, 0x1e, 0x8f, 0x61, 0x3b, 0xa2, 0xce,
-	0x8b, 0x87, 0xf8, 0x3b, 0x07, 0x0f, 0x1b, 0x98, 0xdc, 0xc9, 0x25, 0x39, 0xea, 0xd2, 0xbb, 0xa1,
-	0x26, 0xf5, 0xff, 0xf8, 0xf3, 0x2b, 0x07, 0x28, 0xac, 0x8c, 0xfd, 0xee, 0x0e, 0x64, 0xe4, 0x1f,
-	0x74, 0x87, 0x38, 0x14, 0x25, 0xab, 0xb0, 0x1b, 0x6a, 0xb8, 0xed, 0x90, 0xb2, 0x76, 0x89, 0x4a,
-	0x26, 0x0e, 0x05, 0x0c, 0x35, 0x83, 0x45, 0x28, 0xc9, 0x63, 0x54, 0xe6, 0xe5, 0xc4, 0x32, 0x64,
-	0xbc, 0x13, 0x6d, 0x0b, 0xc6, 0x2b, 0xc3, 0xbc, 0x31, 0xf8, 0x84, 0x7b, 0x51, 0x26, 0x86, 0xa1,
-	0x1b, 0x43, 0x9e, 0x73, 0x2f, 0x5d, 0x62, 0x5a, 0x16, 0x1e, 0xf0, 0x49, 0xf1, 0x35, 0x07, 0x8f,
-	0x4e, 0x74, 0xc7, 0x87, 0xf7, 0x7b, 0xe8, 0x42, 0x29, 0x71, 0x31, 0xa5, 0xd4, 0x88, 0xc6, 0xf9,
-	0xc0, 0xb7, 0x37, 0x06, 0xf1, 0xbe, 0x22, 0xfd, 0x1b, 0x07, 0x85, 0x79, 0x75, 0x2c, 0xd6, 0x6d,
-	0xc8, 0x31, 0x9a, 0xfb, 0xcc, 0x7a, 0xfc, 0xd3, 0x78, 0x0b, 0x83, 0x69, 0x15, 0xf0, 0x7b, 0x03,
-	0x2b, 0x8c, 0x20, 0x7c, 0x09, 0x7c, 0x94, 0xe1, 0x4e, 0x63, 0xeb, 0x35, 0x07, 0x3b, 0xdd, 0xab,
-	0x09, 0xa9, 0x9b, 0x37, 0xc6, 0x9d, 0xf2, 0xf9, 0xeb, 0x68, 0x9c, 0x83, 0xa1, 0x1b, 0x0f, 0x77,
-	0x5f, 0xa1, 0x7e, 0x02, 0x8f, 0x17, 0x14, 0xb2, 0x32, 0x7d, 0x0e, 0x8f, 0x1a, 0x98, 0x9c, 0x9b,
-	0xa3, 0xc9, 0x18, 0x37, 0xeb, 0x41, 0x16, 0xed, 0x01, 0x74, 0xce, 0xdd, 0x5c, 0x61, 0x5f, 0xe0,
-	0x02, 0x86, 0x28, 0xe2, 0xc7, 0x74, 0x5f, 0x09, 0x89, 0xcd, 0xba, 0x60, 0x40, 0xa4, 0x3f, 0xb7,
-	0xa1, 0xcc, 0x08, 0x95, 0x7f, 0x39, 0xc8, 0x36, 0x07, 0xd8, 0x20, 0xee, 0xe0, 0x6d, 0xc1, 0xe6,
-	0xdc, 0xea, 0x81, 0x4a, 0x4b, 0x36, 0x12, 0x6a, 0x91, 0xb0, 0xbb, 0x72, 0x5f, 0x11, 0x13, 0xe8,
-	0x32, 0xb4, 0x29, 0x85, 0x97, 0x07, 0xf4, 0xf6, 0x82, 0x64, 0xcc, 0xee, 0x21, 0xbc, 0x73, 0x0b,
-	0x57, 0xa0, 0xe7, 0x13, 0x48, 0xd3, 0xd9, 0x88, 0x0a, 0xc1, 0xc4, 0x0f, 0x8d, 0x4e, 0x61, 0x3b,
-	0x42, 0xf5, 0xe5, 0x2a, 0xff, 0xa4, 0x60, 0x9d, 0x45, 0xdf, 0xf5, 0x7d, 0x6e, 0x8a, 0xcc, 0x7c,
-	0x8f, 0x9b, 0x65, 0x33, 0xdf, 0x63, 0x47, 0x8f, 0x98, 0x70, 0xf1, 0xe6, 0xba, 0xf0, 0x0c, 0x2f,
-	0x6e, 0x16, 0xcc, 0xf0, 0xe2, 0x5b, 0x77, 0x02, 0xc9, 0x00, 0xb3, 0xce, 0x85, 0x9e, 0x2c, 0xed,
-	0xc2, 0x82, 0xb0, 0xbc, 0xd1, 0x89, 0x09, 0xf4, 0x02, 0xf2, 0xe1, 0x72, 0x45, 0x6f, 0xac, 0x68,
-	0x33, 0x42, 0x69, 0x55, 0x85, 0x8b, 0x09, 0xd4, 0x83, 0x07, 0x91, 0x24, 0x46, 0x7b, 0xab, 0xcb,
-	0x49, 0x78, 0x73, 0xe9, 0x7b, 0xd8, 0xc4, 0x70, 0x22, 0xcf, 0x4c, 0x8c, 0xa9, 0x0a, 0xa1, 0x14,
-	0xff, 0xe8, 0x83, 0x1d, 0x7e, 0x01, 0xa0, 0x8d, 0xf5, 0x0b, 0x87, 0xd6, 0x29, 0xda, 0x5d, 0x58,
-	0x92, 0xbe, 0xd2, 0xf1, 0x68, 0xd0, 0xb6, 0x88, 0x6e, 0x1a, 0x4e, 0xf1, 0x97, 0x2c, 0x9d, 0x24,
-	0x1b, 0xda, 0x58, 0xf7, 0x0a, 0xbb, 0x9a, 0xfe, 0x36, 0xa5, 0x8d, 0xf5, 0x7e, 0x86, 0xf2, 0x7f,
-	0xf4, 0x5f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x7b, 0x4b, 0x07, 0xaa, 0x8a, 0x0c, 0x00, 0x00,
+var fileDescriptor_cmi_9b8c0ecc87961c69 = []byte{
+	// 1072 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x56, 0x4f, 0x6f, 0xe3, 0x54,
+	0x10, 0x8f, 0xe3, 0xa4, 0x4d, 0xa7, 0x69, 0x31, 0x6f, 0xd3, 0x6e, 0x64, 0xd2, 0x6e, 0xb0, 0x00,
+	0x95, 0x3f, 0xeb, 0x2c, 0x81, 0x45, 0xa8, 0xfc, 0x53, 0xfe, 0x91, 0x86, 0xa6, 0x49, 0x65, 0xa7,
+	0xa9, 0x84, 0x84, 0x2a, 0xc7, 0x79, 0x4d, 0x2d, 0x12, 0xdb, 0xd8, 0x2f, 0xad, 0x22, 0xbe, 0x01,
+	0x07, 0xc4, 0x91, 0x13, 0x17, 0x0e, 0x7c, 0x0b, 0xbe, 0x00, 0x07, 0xbe, 0x06, 0x67, 0x8e, 0x9c,
+	0x90, 0xed, 0x67, 0xc7, 0x71, 0x9c, 0x54, 0xab, 0x65, 0xd9, 0x9b, 0x3d, 0x6f, 0xe6, 0x37, 0x33,
+	0xbf, 0x99, 0xf7, 0x66, 0xe0, 0x9d, 0x91, 0x46, 0x6e, 0xa6, 0x03, 0x51, 0x35, 0x26, 0xa5, 0x91,
+	0x62, 0x0d, 0xb1, 0x8e, 0xad, 0xd2, 0x44, 0x51, 0x6f, 0x34, 0x1d, 0x3f, 0xb6, 0x4d, 0xac, 0x96,
+	0xd4, 0x89, 0x26, 0x9a, 0x96, 0x41, 0x0c, 0xb4, 0xe1, 0x7c, 0xde, 0xbe, 0xcf, 0x17, 0x47, 0x86,
+	0x31, 0x1a, 0xe3, 0x92, 0x2b, 0x1d, 0x4c, 0xaf, 0x4b, 0x43, 0x6c, 0xab, 0x96, 0x66, 0x12, 0xc3,
+	0xf2, 0x34, 0xf9, 0xc3, 0xa8, 0xc6, 0x9d, 0xa5, 0x98, 0x26, 0xb6, 0x6c, 0xef, 0x5c, 0xd8, 0x87,
+	0x5c, 0x13, 0x93, 0xf3, 0xf1, 0x74, 0xa4, 0xe9, 0x2d, 0xfd, 0xda, 0x90, 0xf0, 0x77, 0x53, 0x6c,
+	0x13, 0xe1, 0x0f, 0x06, 0xf6, 0x22, 0x07, 0xb6, 0x69, 0xe8, 0x36, 0x46, 0x08, 0x52, 0xba, 0x32,
+	0xc1, 0x79, 0xa6, 0xc8, 0x1c, 0x6d, 0x49, 0xee, 0x37, 0xca, 0xc3, 0xe6, 0x2d, 0xb6, 0x6c, 0xcd,
+	0xd0, 0xf3, 0x49, 0x57, 0xec, 0xff, 0xa2, 0x26, 0x64, 0x26, 0x8a, 0xae, 0x5d, 0x63, 0x9b, 0xe4,
+	0xd9, 0x22, 0x7b, 0xb4, 0x5d, 0x7e, 0x57, 0xf4, 0x82, 0x17, 0x63, 0xe1, 0xc5, 0x33, 0xaa, 0xdd,
+	0xd0, 0x89, 0x35, 0x93, 0x02, 0x63, 0xfe, 0x13, 0xd8, 0x59, 0x38, 0x42, 0x1c, 0xb0, 0xdf, 0xe2,
+	0x19, 0x0d, 0xc3, 0xf9, 0x44, 0x39, 0x48, 0xdf, 0x2a, 0xe3, 0x29, 0xa6, 0x31, 0x78, 0x3f, 0xc7,
+	0xc9, 0x8f, 0x19, 0xe1, 0x10, 0x0a, 0x81, 0xb7, 0x9a, 0x62, 0x2a, 0x03, 0x6d, 0xac, 0x11, 0x0d,
+	0xdb, 0x7e, 0xb6, 0xdf, 0xc0, 0xc1, 0x8a, 0x73, 0x9a, 0xf4, 0xa7, 0x90, 0x55, 0x43, 0xf2, 0x3c,
+	0xe3, 0xa6, 0x92, 0xf7, 0x53, 0x89, 0x58, 0xce, 0xa4, 0x05, 0x6d, 0xe1, 0x97, 0x24, 0x70, 0x51,
+	0x15, 0xf4, 0x04, 0x58, 0xcb, 0x54, 0xdd, 0xf8, 0xb7, 0xcb, 0x85, 0x55, 0x48, 0xa2, 0x74, 0x5e,
+	0x3b, 0x49, 0x48, 0x8e, 0x2a, 0xff, 0x27, 0x03, 0xac, 0x74, 0x5e, 0x43, 0x4f, 0x21, 0x45, 0x66,
+	0xa6, 0x57, 0x81, 0xdd, 0xf2, 0xeb, 0xeb, 0x4c, 0xc5, 0xde, 0xcc, 0xc4, 0x92, 0xab, 0x2e, 0xfc,
+	0xc4, 0x40, 0xca, 0xf9, 0x45, 0xdb, 0xb0, 0x79, 0xd1, 0x39, 0xed, 0x74, 0x2f, 0x3b, 0x5c, 0x02,
+	0x21, 0xd8, 0xad, 0x49, 0x8d, 0x4a, 0xaf, 0x71, 0x75, 0x56, 0xa9, 0x9d, 0xb4, 0x3a, 0x0d, 0x8e,
+	0x71, 0x64, 0xf5, 0x46, 0xbb, 0x11, 0x92, 0x25, 0xd1, 0x3e, 0xa0, 0x66, 0xa3, 0xe7, 0x0b, 0xae,
+	0xe4, 0x5e, 0xa5, 0x77, 0x21, 0x73, 0x2c, 0x7a, 0x15, 0x76, 0xda, 0x2d, 0x39, 0x38, 0x90, 0xb9,
+	0x14, 0xca, 0x01, 0x27, 0x9f, 0x5c, 0xf4, 0xea, 0xdd, 0xcb, 0x4e, 0x00, 0x90, 0x76, 0x40, 0x1d,
+	0x80, 0x7e, 0xb7, 0x7d, 0x71, 0xd6, 0xb8, 0x6a, 0xd5, 0x65, 0x6e, 0xa3, 0xba, 0xe1, 0x65, 0x22,
+	0xec, 0x42, 0xf6, 0xdc, 0x32, 0x06, 0xd8, 0xaf, 0x47, 0x05, 0x76, 0xe8, 0x3f, 0xe5, 0xff, 0x09,
+	0xa4, 0x2d, 0xac, 0x0c, 0x67, 0x94, 0x2e, 0x5e, 0xf4, 0xda, 0x5a, 0xf4, 0xdb, 0x5a, 0xac, 0x1a,
+	0xc6, 0xb8, 0xef, 0xd4, 0x5b, 0xf2, 0x14, 0x85, 0x1f, 0x92, 0x90, 0xab, 0x59, 0x58, 0x21, 0xf8,
+	0xcc, 0xbb, 0x43, 0x14, 0x1b, 0x15, 0x61, 0x9b, 0x4a, 0x3a, 0xf3, 0x36, 0x0e, 0x8b, 0x90, 0xe0,
+	0x46, 0x73, 0xab, 0x0d, 0xb1, 0x25, 0x9b, 0x58, 0x75, 0xdb, 0x29, 0x2b, 0x2d, 0xc8, 0xd0, 0x09,
+	0x6c, 0xca, 0x58, 0xb5, 0x30, 0xb1, 0x69, 0x5b, 0xbf, 0xed, 0x97, 0x21, 0xce, 0xa9, 0x48, 0x75,
+	0xdd, 0xce, 0xad, 0xb2, 0x3f, 0x57, 0x19, 0xc9, 0x37, 0x47, 0x6f, 0xc1, 0x6e, 0x5b, 0xb1, 0xc9,
+	0xa9, 0x6e, 0xdc, 0xe9, 0x32, 0x51, 0x08, 0xce, 0xa7, 0x5c, 0x7f, 0x11, 0x29, 0x7f, 0x0c, 0xd9,
+	0x30, 0xca, 0x7d, 0xfd, 0x9f, 0x0d, 0xf7, 0xff, 0xf7, 0xb0, 0x17, 0x09, 0x8b, 0xf2, 0x7a, 0x08,
+	0xe0, 0xa7, 0xd5, 0xaa, 0x53, 0xac, 0x90, 0x04, 0xf1, 0x90, 0xe9, 0x18, 0x43, 0x8f, 0x29, 0xef,
+	0x56, 0x05, 0xff, 0x31, 0x81, 0xb3, 0x71, 0x81, 0xbb, 0x95, 0xa8, 0xe3, 0x31, 0xfe, 0xdf, 0x2b,
+	0x11, 0xe7, 0xf4, 0x65, 0x57, 0xe2, 0x0b, 0xd8, 0x8b, 0x84, 0x45, 0x2b, 0xb1, 0xec, 0x9c, 0x89,
+	0x65, 0xf3, 0x2f, 0x06, 0x1e, 0x36, 0x31, 0xa1, 0xe6, 0x8e, 0x6c, 0x6a, 0xff, 0xb7, 0x84, 0x9e,
+	0x46, 0x09, 0x7d, 0x2f, 0xf4, 0x62, 0xc7, 0xf9, 0x5d, 0xc3, 0xe9, 0x73, 0x71, 0xd5, 0x87, 0xfc,
+	0xb2, 0xc7, 0xe7, 0x6f, 0x5c, 0xe1, 0x77, 0x06, 0x1e, 0xb4, 0x35, 0xdb, 0x47, 0x0e, 0xe8, 0x8b,
+	0x92, 0xc3, 0xc4, 0x90, 0xd3, 0x9c, 0x93, 0x93, 0x74, 0xc9, 0x39, 0xf2, 0xc9, 0x89, 0x41, 0x7c,
+	0x51, 0xc4, 0xfc, 0xc6, 0x40, 0x6e, 0xd1, 0x1d, 0x65, 0xa5, 0x1b, 0x34, 0x80, 0x73, 0x4c, 0xa7,
+	0xd4, 0xe3, 0xf8, 0x08, 0x83, 0x79, 0x1b, 0xe8, 0x7b, 0x23, 0x37, 0x8c, 0xc0, 0x7f, 0x0e, 0x5c,
+	0x54, 0xe1, 0x99, 0x06, 0xef, 0x8f, 0x49, 0xd8, 0x97, 0x6f, 0xa6, 0xa4, 0x6e, 0xdc, 0xe9, 0x2f,
+	0xe4, 0xf6, 0x7f, 0x15, 0x6d, 0xd6, 0x60, 0xbd, 0x88, 0x77, 0xfb, 0xb2, 0xef, 0x7f, 0x05, 0x1e,
+	0x2e, 0x05, 0xf6, 0x8c, 0x2f, 0xc0, 0x53, 0x78, 0xd0, 0xc4, 0xa4, 0x6f, 0x8c, 0xa7, 0x13, 0xdc,
+	0xaa, 0x07, 0xdd, 0xeb, 0xdc, 0x88, 0xbe, 0xc3, 0x09, 0x2d, 0xbd, 0x63, 0x1a, 0x92, 0x08, 0x1f,
+	0xba, 0x9b, 0x5e, 0xc8, 0x8c, 0xba, 0x2d, 0xc0, 0x56, 0x20, 0x74, 0x3b, 0x66, 0x4b, 0x9a, 0x0b,
+	0xca, 0xff, 0x30, 0x90, 0x69, 0x0d, 0xb1, 0x4e, 0x9c, 0x95, 0xa5, 0x03, 0x3b, 0x0b, 0x4b, 0x1b,
+	0x2a, 0xac, 0xd8, 0xe5, 0xdc, 0x88, 0xf8, 0x83, 0xb5, 0x9b, 0x9e, 0x90, 0x40, 0xd7, 0xa1, 0x1d,
+	0x33, 0xbc, 0x76, 0xa1, 0x37, 0x96, 0x2c, 0x63, 0xb6, 0x36, 0xfe, 0xcd, 0x7b, 0xb4, 0x02, 0x3f,
+	0x1f, 0x41, 0xda, 0x5d, 0x27, 0x50, 0x2e, 0xd8, 0x95, 0x42, 0xdb, 0x06, 0xbf, 0x17, 0x91, 0xfa,
+	0x76, 0xe5, 0xbf, 0x59, 0xd8, 0xa4, 0x55, 0x72, 0x72, 0x5f, 0x18, 0xa1, 0xf3, 0xdc, 0xe3, 0x06,
+	0xfe, 0x3c, 0xf7, 0xd8, 0xb9, 0x2b, 0x24, 0x1c, 0xbc, 0x85, 0x41, 0x30, 0xc7, 0x8b, 0x1b, 0x5b,
+	0x73, 0xbc, 0xd8, 0xe9, 0x21, 0x24, 0xd0, 0x25, 0x70, 0xd1, 0xc7, 0x12, 0x3d, 0xba, 0xe7, 0xe1,
+	0xe6, 0x8b, 0xab, 0x15, 0x02, 0xe0, 0x53, 0xc8, 0x86, 0x1f, 0x0e, 0xf4, 0xda, 0x9a, 0x07, 0x8f,
+	0x2f, 0xac, 0x7b, 0x6b, 0x84, 0x04, 0xea, 0xc1, 0x2b, 0x91, 0xf6, 0x47, 0x87, 0xeb, 0x2f, 0x2c,
+	0xff, 0x68, 0xe5, 0x79, 0x38, 0xc4, 0x70, 0x6b, 0xcf, 0x43, 0x8c, 0xb9, 0x27, 0x7c, 0x21, 0xfe,
+	0xd0, 0x07, 0x3b, 0xfe, 0x0c, 0x40, 0x9d, 0x68, 0x57, 0xb6, 0x7b, 0xc3, 0xd1, 0xc1, 0xd2, 0xa6,
+	0xf9, 0xa5, 0x86, 0xc7, 0xc3, 0xae, 0x49, 0x34, 0x43, 0xb7, 0xf3, 0xbf, 0x66, 0x8a, 0xcc, 0x51,
+	0x46, 0xda, 0x52, 0x27, 0x9a, 0xf7, 0x24, 0x54, 0xd3, 0x5f, 0xb3, 0xea, 0x44, 0x1b, 0x6c, 0xb8,
+	0xfa, 0x1f, 0xfc, 0x1b, 0x00, 0x00, 0xff, 0xff, 0xc6, 0xc6, 0xa4, 0xba, 0xd6, 0x0d, 0x00, 0x00,
 }
