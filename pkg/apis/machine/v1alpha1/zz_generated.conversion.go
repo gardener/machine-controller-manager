@@ -922,6 +922,7 @@ func autoConvert_v1alpha1_MachineStatus_To_machine_MachineStatus(in *MachineStat
 	if err := Convert_v1alpha1_CurrentStatus_To_machine_CurrentStatus(&in.CurrentStatus, &out.CurrentStatus, s); err != nil {
 		return err
 	}
+	out.LastKnownState = in.LastKnownState
 	return nil
 }
 
@@ -939,6 +940,7 @@ func autoConvert_machine_MachineStatus_To_v1alpha1_MachineStatus(in *machine.Mac
 	if err := Convert_machine_CurrentStatus_To_v1alpha1_CurrentStatus(&in.CurrentStatus, &out.CurrentStatus, s); err != nil {
 		return err
 	}
+	out.LastKnownState = in.LastKnownState
 	return nil
 }
 
