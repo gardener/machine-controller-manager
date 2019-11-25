@@ -463,7 +463,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	}
 
 	// Validate MachineClass
-	_, secretRef, err := c.validateMachineClass(&machineSet.Spec.Template.Spec.Class)
+	_, secretRef, err := c.ValidateMachineClass(&machineSet.Spec.Template.Spec.Class)
 	if err != nil || secretRef == nil {
 		return err
 	}
@@ -724,4 +724,26 @@ func (c *controller) updateMachineSetFinalizers(machineSet *v1alpha1.MachineSet,
 		glog.Warning("Updated failed, retrying")
 		c.updateMachineSetFinalizers(machineSet, finalizers)
 	}
+}
+
+/*
+	SECTION
+	Update machine object
+*/
+func (c *controller) updateMachineStatus(
+	machine *v1alpha1.Machine,
+	lastOperation v1alpha1.LastOperation,
+	currentStatus v1alpha1.CurrentStatus,
+) (bool, error) {
+	clone := machine.DeepCopy()
+	clone.Status.LastOperation = lastOperation
+	clone.Status.CurrentStatus = currentStatus
+
+	_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
+	if err != nil {
+		// Keep retrying until update goes through
+		glog.Warning("Updated failed for machine %q. Retrying, error: %q", machine.Name, err)
+		return c.updateMachineStatus(machine, lastOperation, currentStatus)
+	}
+	return DoNotRetryOp, nil
 }

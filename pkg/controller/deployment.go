@@ -465,7 +465,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	}
 
 	// Validate MachineClass
-	_, secretRef, err := dc.validateMachineClass(&deployment.Spec.Template.Spec.Class)
+	_, secretRef, err := dc.ValidateMachineClass(&deployment.Spec.Template.Spec.Class)
 	if err != nil || secretRef == nil {
 		return err
 	}

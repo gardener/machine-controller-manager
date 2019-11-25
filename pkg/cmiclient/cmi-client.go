@@ -41,29 +41,38 @@ type VMs map[string]string
 
 // CMIClient is the client used to communicate with the CMIServer
 type CMIClient interface {
-	CreateMachine() (string, string, error)
-	GetMachine(string) (bool, error)
-	DeleteMachine(string) error
+	CreateMachine() (string, string, string, error)
+	GetMachineStatus() (string, string, string, error)
+	DeleteMachine() (string, error)
 	ListMachines() (map[string]string, error)
-	ShutDownMachine(string) error
-	GetMachineID() string
+	ShutDownMachine() error
+	GetProviderID() string
 	GetVolumeIDs([]*corev1.PersistentVolumeSpec) ([]string, error)
 }
 
-// CMIDriverClient is the struct used to create a generic driver to make gRPC calls
-type CMIDriverClient struct {
+// CMIPluginClient is the struct used to create a generic driver to make gRPC calls
+type CMIPluginClient struct {
 	DriverName           string
-	MachineID            string
+	ProviderID           string
 	MachineName          string
 	UserData             string
+	LastKnownState       string
 	MachineClientCreator machineClientCreator
 	MachineClass         *v1alpha1.MachineClass
 	Secret               *corev1.Secret
 	Capabilities         []*cmipb.PluginCapability
 }
 
-// NewCMIDriverClient returns a new cmi client
-func NewCMIDriverClient(machineID string, driverName string, secret *corev1.Secret, machineClass interface{}, machineName string) (*CMIDriverClient, error) {
+// NewCMIPluginClient return a CMIPluginClient object
+// It also initializes the capabilities the Plugin supports
+func NewCMIPluginClient(
+	ProviderID string,
+	driverName string,
+	secret *corev1.Secret,
+	machineClass interface{},
+	machineName string,
+	lastKnownState string,
+) (*CMIPluginClient, error) {
 	var (
 		userData string
 		ctx      = context.Background()
@@ -72,14 +81,15 @@ func NewCMIDriverClient(machineID string, driverName string, secret *corev1.Secr
 		userData = string(secret.Data["userData"])
 	}
 
-	c := &CMIDriverClient{
+	c := &CMIPluginClient{
 		DriverName:           driverName,
 		MachineClientCreator: newMachineClient,
 		MachineClass:         machineClass.(*v1alpha1.MachineClass),
 		Secret:               secret,
 		UserData:             userData,
-		MachineID:            machineID,
+		ProviderID:           ProviderID,
 		MachineName:          machineName,
+		LastKnownState:       lastKnownState,
 	}
 
 	identityClient, closer, err := newIdentityClient(c.DriverName)
@@ -99,95 +109,100 @@ func NewCMIDriverClient(machineID string, driverName string, secret *corev1.Secr
 }
 
 // CreateMachine makes a gRPC call to the driver to create the machine.
-func (c *CMIDriverClient) CreateMachine() (string, string, error) {
+func (c *CMIPluginClient) CreateMachine() (string, string, string, error) {
 	glog.V(4).Infof("Calling CreateMachine rpc for %q", c.MachineName)
 
 	err := c.validatePluginRequest(cmi.PluginCapability_RPC_CREATE_MACHINE)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	machineClient, closer, err := c.MachineClientCreator(c.DriverName)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	defer closer.Close()
 
 	req := &cmipb.CreateMachineRequest{
-		Name:         c.MachineName,
-		ProviderSpec: c.MachineClass.ProviderSpec.Raw,
-		Secrets:      getSecretData(c.Secret),
+		MachineName:    c.MachineName,
+		ProviderSpec:   c.MachineClass.ProviderSpec.Raw,
+		Secrets:        getSecretData(c.Secret),
+		LastKnownState: []byte(c.LastKnownState),
 	}
 	ctx := context.Background()
 	resp, err := machineClient.CreateMachine(ctx, req)
 	if err != nil {
-		return "", "", err
+		return "", "", string(resp.LastKnownState), err
 	}
 
-	glog.V(4).Info("Machine Successfully Created, MachineID:", resp.MachineID)
-	return resp.MachineID, resp.NodeName, err
+	glog.V(4).Info("Machine Successfully Created, ProviderID:", resp.ProviderID)
+	return resp.ProviderID, resp.NodeName, string(resp.LastKnownState), err
 }
 
 // DeleteMachine make a grpc call to the driver to delete the machine.
-func (c *CMIDriverClient) DeleteMachine(MachineID string) error {
+func (c *CMIPluginClient) DeleteMachine() (string, error) {
 	glog.V(4).Info("Calling DeleteMachine rpc", c.MachineName)
 
 	err := c.validatePluginRequest(cmi.PluginCapability_RPC_DELETE_MACHINE)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	machineClient, closer, err := c.MachineClientCreator(c.DriverName)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer closer.Close()
 
 	req := &cmipb.DeleteMachineRequest{
-		MachineID: c.MachineID,
-		Secrets:   getSecretData(c.Secret),
+		MachineName:    c.MachineName,
+		ProviderSpec:   c.MachineClass.ProviderSpec.Raw,
+		Secrets:        getSecretData(c.Secret),
+		LastKnownState: []byte(c.LastKnownState),
 	}
+	glog.Infof("DECODED B:%s, S:%s)", []byte(c.LastKnownState), c.LastKnownState)
 	ctx := context.Background()
-	_, err = machineClient.DeleteMachine(ctx, req)
+	response, err := machineClient.DeleteMachine(ctx, req)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	glog.V(4).Info("Machine deletion is initiated successfully. MachineID", c.MachineID)
-	return err
+	glog.V(4).Info("Machine deletion is initiated successfully. ProviderID", c.ProviderID)
+	return string(response.LastKnownState), nil
 }
 
-// GetMachine makes a gRPC call to the driver to check existance of machine
-func (c *CMIDriverClient) GetMachine(MachineID string) (bool, error) {
+// GetMachineStatus makes a gRPC call to the driver to check existance of machine
+func (c *CMIPluginClient) GetMachineStatus() (string, string, string, error) {
 	glog.V(4).Infof("Calling GetMachine rpc for %q", c.MachineName)
 
-	err := c.validatePluginRequest(cmi.PluginCapability_RPC_GET_MACHINE)
+	err := c.validatePluginRequest(cmi.PluginCapability_RPC_GET_MACHINE_STATUS)
 	if err != nil {
-		return false, err
+		return "", "", "", err
 	}
 
 	machineClient, closer, err := c.MachineClientCreator(c.DriverName)
 	if err != nil {
-		return false, err
+		return "", "", "", err
 	}
 	defer closer.Close()
 
-	req := &cmipb.GetMachineRequest{
-		MachineID: MachineID,
-		Secrets:   getSecretData(c.Secret),
+	req := &cmipb.GetMachineStatusRequest{
+		MachineName:  c.MachineName,
+		ProviderSpec: c.MachineClass.ProviderSpec.Raw,
+		Secrets:      getSecretData(c.Secret),
 	}
 	ctx := context.Background()
-	_, err = machineClient.GetMachine(ctx, req)
+	response, err := machineClient.GetMachineStatus(ctx, req)
 	if err != nil {
-		return false, err
+		return "", "", "", err
 	}
 
 	glog.V(4).Info("Get call successful for ", c.MachineName)
-	return true, nil
+	return response.ProviderID, response.NodeName, c.LastKnownState, nil
 }
 
 // ListMachines have to list machines
-func (c *CMIDriverClient) ListMachines() (map[string]string, error) {
+func (c *CMIPluginClient) ListMachines() (map[string]string, error) {
 	glog.V(4).Info("Calling ListMachine rpc")
 
 	err := c.validatePluginRequest(cmi.PluginCapability_RPC_LIST_MACHINES)
@@ -217,7 +232,7 @@ func (c *CMIDriverClient) ListMachines() (map[string]string, error) {
 }
 
 // ShutDownMachine implements shutdownmachine
-func (c *CMIDriverClient) ShutDownMachine(MachineID string) error {
+func (c *CMIPluginClient) ShutDownMachine() error {
 	glog.V(4).Infof("Calling ShutDownMachine rpc for %q", c.MachineName)
 
 	err := c.validatePluginRequest(cmi.PluginCapability_RPC_SHUTDOWN_MACHINE)
@@ -232,8 +247,9 @@ func (c *CMIDriverClient) ShutDownMachine(MachineID string) error {
 	defer closer.Close()
 
 	req := &cmipb.ShutDownMachineRequest{
-		MachineID: MachineID,
-		Secrets:   getSecretData(c.Secret),
+		MachineName:  c.MachineName,
+		ProviderSpec: c.MachineClass.ProviderSpec.Raw,
+		Secrets:      getSecretData(c.Secret),
 	}
 
 	ctx := context.Background()
@@ -247,7 +263,7 @@ func (c *CMIDriverClient) ShutDownMachine(MachineID string) error {
 }
 
 // GetVolumeIDs returns a list of VolumeIDs for the PV spec list supplied
-func (c *CMIDriverClient) GetVolumeIDs(pvSpecs []*corev1.PersistentVolumeSpec) ([]string, error) {
+func (c *CMIPluginClient) GetVolumeIDs(pvSpecs []*corev1.PersistentVolumeSpec) ([]string, error) {
 	glog.V(4).Info("Calling GetVolumeIDs rpc")
 
 	err := c.validatePluginRequest(cmi.PluginCapability_RPC_GET_VOLUME_IDS)
@@ -280,7 +296,7 @@ func (c *CMIDriverClient) GetVolumeIDs(pvSpecs []*corev1.PersistentVolumeSpec) (
 	return resp.GetVolumeIDs(), nil
 }
 
-// GetMachineID returns the machineID
-func (c *CMIDriverClient) GetMachineID() string {
-	return c.MachineID
+// GetProviderID returns the ProviderID
+func (c *CMIPluginClient) GetProviderID() string {
+	return c.ProviderID
 }

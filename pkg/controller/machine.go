@@ -18,7 +18,6 @@ limitations under the License.
 package controller
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"strings"
@@ -31,7 +30,6 @@ import (
 	"github.com/golang/glog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -89,6 +87,7 @@ func (c *controller) enqueueMachineAfter(obj interface{}, after time.Duration) {
 }
 
 func (c *controller) reconcileClusterMachineKey(key string) error {
+	glog.Info(key)
 	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -99,122 +98,131 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 		glog.V(4).Infof("Machine %q: Not doing work because it is not found", key)
 		return nil
 	}
-
 	if err != nil {
 		glog.Errorf("Machine %q: Unable to retrieve object from store: %v", key, err)
 		return err
 	}
 
-	retry, err := c.reconcileClusterMachine(machine)
+	durationToNextSync := 10 * time.Minute
+	retryStatus, err := c.reconcileClusterMachine(machine)
+	glog.Info(retryStatus, err)
 	if err != nil {
-		glog.Errorf("Machine %q: Reconcile Cluster Machine errored out: %s", machine.Name, err)
-		if retry {
-			// Return the error only if the operation has to be re-tried
-			return err
+		if retryStatus == RetryOp {
+			durationToNextSync = 15 * time.Second
 		}
 	}
+
+	c.enqueueMachineAfter(machine, durationToNextSync)
 
 	return nil
 }
 
 func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (bool, error) {
-	glog.V(4).Info("Start Reconciling machine: ", machine.Name)
-	defer func() {
-		c.enqueueMachineAfter(machine, 10*time.Minute)
-		glog.V(4).Info("Stop Reconciling machine: ", machine.Name)
-	}()
+	glog.V(3).Infof("Start Reconciling machine %q", machine.Name)
+	defer glog.V(3).Infof("Stop Reconciling machine %q", machine.Name)
 
 	if c.safetyOptions.MachineControllerFrozen && machine.DeletionTimestamp == nil {
-		message := "Machine controller has frozen. Retrying reconcile after 10 minutes"
-		glog.Warning(message)
-		return DoNotRetryOp, errors.New(message)
-	}
-
-	// Validate Machine
-	internalMachine := &machineapi.Machine{}
-	err := c.internalExternalScheme.Convert(machine, internalMachine, nil)
-	if err != nil {
-		glog.Warning(err)
+		// If Machine controller is frozen and
+		// machine is not set for termination don't process it
+		err := fmt.Errorf("Machine controller has frozen. Retrying reconcile after resync period")
+		glog.Error(err)
 		return DoNotRetryOp, err
 	}
-	validationerr := validation.ValidateMachine(internalMachine)
-	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.Errorf("Validation of Machine failed %s", validationerr.ToAggregate().Error())
-		return DoNotRetryOp, nil
+
+	internalMachine := &machineapi.Machine{}
+	if err := c.internalExternalScheme.Convert(machine, internalMachine, nil); err != nil {
+		glog.Error(err)
+		return DoNotRetryOp, err
 	}
 
-	// Validate MachineClass
-	MachineClass, secretRef, err := c.validateMachineClass(&machine.Spec.Class)
+	validationerr := validation.ValidateMachine(internalMachine)
+	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
+		err := fmt.Errorf("Validation of Machine failed %s", validationerr.ToAggregate().Error())
+		glog.Error(err)
+		return DoNotRetryOp, err
+	}
+
+	MachineClass, secretRef, err := c.ValidateMachineClass(&machine.Spec.Class)
 	if err != nil {
 		glog.Error(err)
 		return DoNotRetryOp, err
 	}
 
-	driver, err := cmiclient.NewCMIDriverClient(
+	lastKnownState := machine.Status.LastKnownState
+	if lastKnownState == "" {
+		lastKnownState = machine.Annotations["lastKnownState"]
+	}
+
+	driver, err := cmiclient.NewCMIPluginClient(
 		machine.Spec.ProviderID,
 		MachineClass.(*v1alpha1.MachineClass).Provider,
 		secretRef,
 		MachineClass,
 		machine.Name,
+		lastKnownState,
 	)
 	if err != nil {
 		glog.Errorf("Error while creating CMIPluginClient: %s", err)
 		return RetryOp, err
 	}
 
-	actualProviderID := machine.Spec.ProviderID
 	/*
 		NOT NEEDED?
 		else if actualProviderID == "fake" {
 			glog.Warning("Fake driver type")
 			return false, nil
 		}
+		// Get the latest version of the machine so that we can avoid conflicts
+		machine, err = c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+		if err != nil {
+			glog.Errorf("Could GET machine object %s", err)
+			return RetryOp, err
+		}
 	*/
 
-	// Get the latest version of the machine so that we can avoid conflicts
-	machine, err = c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
-	if err != nil {
-		glog.Errorf("Could GET machine object %s", err)
-		return RetryOp, err
+	if machine.DeletionTimestamp != nil {
+		// Process a delete event
+		return c.triggerDeletionFlow(machine, driver)
 	}
 
-	machine, err = c.updateMachineState(machine)
+	// Add finalizers if not present
+	retry, err := c.addMachineFinalizers(machine)
 	if err != nil {
-		glog.Errorf("Could not UPDATE machine state for: %s", machine.Name)
-		return RetryOp, err
+		return retry, err
 	}
 
-	// Sync nodeTemplate between machine and node-objects.
-	node, _ := c.nodeLister.Get(machine.Status.Node)
-	if node != nil {
-		err = c.syncMachineNodeTemplates(machine)
+	if machine.Status.Node != "" {
+		// If reference to node object exists execute the below
+
+		retry, err := c.reconcileMachineHealth(machine)
 		if err != nil {
-			glog.Errorf("Could not UPDATE nodeTemplate for machine %s err: %q", machine.Name, err)
-			return RetryOp, err
+			return retry, err
+		}
+
+		retry, err = c.syncMachineNodeTemplates(machine)
+		if err != nil {
+			return retry, err
 		}
 	}
 
-	if machine.DeletionTimestamp != nil {
-		// Processing of delete event
-		return c.machineDelete(machine, driver)
-	} else if machine.Status.CurrentStatus.TimeoutActive {
-		// Processing machine
-		c.checkMachineTimeout(machine)
-	} else {
-		// Processing of create or update event
-		c.addMachineFinalizers(machine)
-
+	/*
 		if machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
 			// If machine status is failed, ignore it
 			return DoNotRetryOp, nil
-		} else if actualProviderID == "" {
-			// If provider-ID is missing, create the machine
-			return c.machineCreate(machine, driver)
-		} else if actualProviderID != machine.Spec.ProviderID {
-			// If provider-ID has changed, update the machine
-			return c.machineUpdate(machine, actualProviderID)
-		}
+		} else
+	*/
+
+	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" {
+		return c.triggerCreationFlow(machine, driver)
 	}
+
+	/*
+		TODO: re-introduce this when in-place updates can be done.
+		else if actualProviderID != machine.Spec.ProviderID {
+			// If provider-ID has changed, update the machine
+			return c.triggerUpdationFlow(machine, actualProviderID)
+		}
+	*/
 
 	return DoNotRetryOp, nil
 }
@@ -275,61 +283,8 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	return machines[0], nil
 }
 
-func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
-
-	if machine.Status.Node == "" {
-		// There are no objects mapped to this machine object
-		// Hence node status need not be propogated to machine object
-		return machine, nil
-	}
-
-	node, err := c.nodeLister.Get(machine.Status.Node)
-	if err != nil && apierrors.IsNotFound(err) {
-		// Node object is not found
-
-		if len(machine.Status.Conditions) > 0 &&
-			machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
-			// If machine has conditions on it,
-			// and corresponding node object went missing
-			// and machine is still healthy
-			msg := fmt.Sprintf(
-				"Node object went missing. Machine %s is unhealthy - changing MachineState to Unknown",
-				machine.Name,
-			)
-			glog.Warning(msg)
-
-			currentStatus := v1alpha1.CurrentStatus{
-				Phase:          v1alpha1.MachineUnknown,
-				TimeoutActive:  true,
-				LastUpdateTime: metav1.Now(),
-			}
-			lastOperation := v1alpha1.LastOperation{
-				Description:    msg,
-				State:          v1alpha1.MachineStateProcessing,
-				Type:           v1alpha1.MachineOperationHealthCheck,
-				LastUpdateTime: metav1.Now(),
-			}
-			clone, err := c.updateMachineStatus(machine, lastOperation, currentStatus)
-			if err != nil {
-				glog.Errorf("Machine updated failed for %s, Error: %q", machine.Name, err)
-				return machine, err
-			}
-			return clone, nil
-		}
-		// Cannot update node status as node doesn't exist
-		// Hence returning
-		return machine, nil
-	} else if err != nil {
-		// Any other types of errors while fetching node object
-		glog.Errorf("Could not fetch node object for machine %s", machine.Name)
-		return machine, err
-	}
-
-	machine, err = c.updateMachineConditions(machine, node.Status.Conditions)
-	if err != nil {
-		return machine, err
-	}
-
+/*
+	Move to update method?
 	clone := machine.DeepCopy()
 	if clone.Labels == nil {
 		clone.Labels = make(map[string]string)
@@ -343,83 +298,135 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 			return machine, err
 		}
 	}
-
-	return machine, nil
-}
+*/
 
 /*
 	SECTION
 	Machine operations - Create, Update, Delete
 */
 
-func (c *controller) machineCreate(machine *v1alpha1.Machine, driver cmiclient.CMIClient) (bool, error) {
-	glog.V(2).Infof("Creating machine %s, please wait!", machine.Name)
+func (c *controller) triggerCreationFlow(machine *v1alpha1.Machine, driver cmiclient.CMIClient) (bool, error) {
+	var (
+		providerID     string
+		nodeName       string
+		lastKnownState string
+		err            error
+	)
 
-	actualProviderID, nodeName, err := driver.CreateMachine()
-	if err != nil {
-		glog.Errorf("Error while creating machine %s: %s", machine.Name, err.Error())
-		return c.machineCreateErrorHandler(machine, err)
+	providerID, nodeName, lastKnownState, err = driver.GetMachineStatus()
+	if err == nil {
+		// Found VM with required machine name
+		glog.V(2).Infof("Found VM with required machine name. Adopting existing machine: %q with ProviderID: %s", machine.Name, providerID)
+	} else {
+		// VM with required name is not found.
+
+		grpcErr, ok := status.FromError(err)
+		if !ok {
+			// Error occurred with decoding gRPC error status, abort with retry.
+			glog.Errorf("Error occurred while decoding gRPC error for machine %q: %s", machine.Name, err)
+			return RetryOp, err
+		}
+
+		// Decoding gRPC error code
+		switch grpcErr.Code() {
+		case codes.NotFound, codes.Unimplemented:
+			// Either VM is not found
+			// or GetMachineStatus() call is not implemented
+			// In this case, invoke a CreateMachine() call
+			glog.V(2).Infof("Creating a VM for machine %q, please wait!", machine.Name)
+			if _, present := machine.Labels["node"]; !present {
+				// If node label is not present
+				providerID, nodeName, lastKnownState, err = driver.CreateMachine()
+				if err != nil {
+					// Create call returned an error.
+					glog.Errorf("Error while creating machine %s: %s", machine.Name, err.Error())
+					return c.machineCreateErrorHandler(machine, lastKnownState, err)
+				}
+			} else {
+				nodeName = machine.Labels["node"]
+				lastKnownState = machine.Annotations["lastKnownState"]
+			}
+
+			// Creation was successful
+			glog.V(2).Infof("Created new VM for machine: %q with ProviderID: %s", machine.Name, providerID)
+			break
+
+		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
+			// GetMachineStatus() returned with one of the above error codes.
+			// Retry operation.
+			return RetryOp, err
+
+		default:
+			return DoNotRetryOp, err
+		}
+
 	}
-	glog.V(2).Infof("Created machine: %q, MachineID: %s", machine.Name, actualProviderID)
 
-	for {
-		machineName := machine.Name
-		// Get the latest version of the machine so that we can avoid conflicts
-		machine, err := c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
-		if err != nil {
-			glog.Warningf("Machine GET failed for %q. Retrying, error: %s", machineName, err)
-			continue
-		}
+	_, machineNodeLabelPresent := machine.Labels["node"]
+	_, machinePriorityAnnotationPresent := machine.Annotations[MachinePriority]
 
-		lastOperation := v1alpha1.LastOperation{
-			Description:    "Creating machine on cloud provider",
-			State:          v1alpha1.MachineStateProcessing,
-			Type:           v1alpha1.MachineOperationCreate,
-			LastUpdateTime: metav1.Now(),
-		}
-		currentStatus := v1alpha1.CurrentStatus{
-			Phase:          v1alpha1.MachinePending,
-			TimeoutActive:  true,
-			LastUpdateTime: metav1.Now(),
-		}
-
+	if !machineNodeLabelPresent || !machinePriorityAnnotationPresent || machine.Spec.ProviderID == "" {
 		clone := machine.DeepCopy()
 		if clone.Labels == nil {
 			clone.Labels = make(map[string]string)
 		}
 		clone.Labels["node"] = nodeName
-
 		if clone.Annotations == nil {
 			clone.Annotations = make(map[string]string)
 		}
 		if clone.Annotations[MachinePriority] == "" {
 			clone.Annotations[MachinePriority] = "3"
 		}
-		clone.Spec.ProviderID = actualProviderID
-		machine, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
+		// TODO: To check if dependency can be eliminated
+		clone.Annotations["lastKnownState"] = lastKnownState
+		clone.Spec.ProviderID = providerID
+		_, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
 		if err != nil {
-			glog.Warningf("Machine UPDATE failed for %q. Retrying, error: %s", machineName, err)
-			continue
-		}
+			glog.Warningf("Machine UPDATE failed for %q. Retrying, error: %s", machine.Name, err)
+		} else {
+			glog.V(2).Infof("Machine labels/annotations UPDATE for %q", machine.Name)
 
-		clone = machine.DeepCopy()
+			// Return error even when machine object is updated
+			err = fmt.Errorf("Machine reconcilation in process")
+		}
+		return RetryOp, err
+	}
+
+	if machine.Status.Node == "" || machine.Status.CurrentStatus.Phase == "" {
+		clone := machine.DeepCopy()
+
 		clone.Status.Node = nodeName
-		clone.Status.LastOperation = lastOperation
-		clone.Status.CurrentStatus = currentStatus
+		clone.Status.LastOperation = v1alpha1.LastOperation{
+			Description:    "Creating machine on cloud provider",
+			State:          v1alpha1.MachineStateProcessing,
+			Type:           v1alpha1.MachineOperationCreate,
+			LastUpdateTime: metav1.Now(),
+		}
+		clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+			Phase:          v1alpha1.MachinePending,
+			TimeoutActive:  true,
+			LastUpdateTime: metav1.Now(),
+		}
+		clone.Status.LastKnownState = lastKnownState
+
 		_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 		if err != nil {
-			glog.Warningf("Machine/status UPDATE failed for %q. Retrying, error: %s", machineName, err)
-			continue
+			glog.Warningf("Machine/status UPDATE failed for %q. Retrying, error: %s", machine.Name, err)
+		} else {
+			glog.V(2).Infof("Machine/status UPDATE for %q during creation", machine.Name)
+
+			// Return error even when machine object is updated
+			err = fmt.Errorf("Machine reconcilation in process")
 		}
-		// Update went through, exit out of infinite loop
-		break
+
+		return RetryOp, err
 	}
 
 	return DoNotRetryOp, nil
 }
 
-func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID string) (bool, error) {
-	glog.V(2).Infof("Setting MachineId of %s to %s", machine.Name, actualProviderID)
+func (c *controller) triggerUpdationFlow(machine *v1alpha1.Machine, actualProviderID string) (bool, error) {
+	glog.V(2).Infof("Setting ProviderID of %s to %s", machine.Name, actualProviderID)
 
 	for {
 		machine, err := c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
@@ -456,436 +463,58 @@ func (c *controller) machineUpdate(machine *v1alpha1.Machine, actualProviderID s
 	return DoNotRetryOp, nil
 }
 
-func (c *controller) machineDelete(machine *v1alpha1.Machine, driver cmiclient.CMIClient) (bool, error) {
-	//var err error
-	nodeName := machine.Status.Node
+func (c *controller) triggerDeletionFlow(machine *v1alpha1.Machine, driver cmiclient.CMIClient) (bool, error) {
+	if finalizers := sets.NewString(machine.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
+		// If Finalizers are not present on machine
+		err := fmt.Errorf("Machine %q is missing finalizers. Deletion cannot proceed", machine.Name)
+		glog.Error(err)
+		return DoNotRetryOp, err
+	}
 
-	// If Finalizers are present
-	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
-		glog.V(2).Infof("Deleting Machine %q with MachineID %q", machine.Name, driver.GetMachineID())
+	switch {
+	case machine.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating:
+		return c.setMachineTerminationStatus(machine, driver)
 
-		// Getting the machine-ID on the cloud provider
-		machineID := driver.GetMachineID()
+	case machine.Status.LastOperation.Description == getVMStatus:
+		return c.getVMStatus(machine, driver)
 
-		// If machine status has not been set to terminating
-		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating {
-			lastOperation := v1alpha1.LastOperation{
-				Description:    "Deleting machine from cloud provider",
-				State:          v1alpha1.MachineStateProcessing,
-				Type:           v1alpha1.MachineOperationDelete,
-				LastUpdateTime: metav1.Now(),
-			}
-			currentStatus := v1alpha1.CurrentStatus{
-				Phase:          v1alpha1.MachineTerminating,
-				TimeoutActive:  false,
-				LastUpdateTime: metav1.Now(),
-			}
-			_, err := c.updateMachineStatus(machine, lastOperation, currentStatus)
-			if err != nil && apierrors.IsNotFound(err) {
-				// Object no longer exists and has been deleted
-				glog.Warning(err)
-				return DoNotRetryOp, nil
-			} else if err != nil {
-				// Any other type of errors
-				glog.Error(err)
-				return RetryOp, err
-			}
+	case strings.Contains(machine.Status.LastOperation.Description, initiateDrain):
+		return c.drainNode(machine, driver)
+
+	case strings.Contains(machine.Status.LastOperation.Description, initiateVMDeletion):
+		return c.deleteVM(machine, driver)
+
+	case strings.Contains(machine.Status.LastOperation.Description, initiateNodeDeletion):
+		return c.deleteNodeObject(machine)
+
+	case strings.Contains(machine.Status.LastOperation.Description, initiateFinalizerRemoval):
+		_, err := c.deleteMachineFinalizers(machine)
+		if err != nil {
+			// Keep retrying until update goes through
+			glog.Errorf("Machine finalizer REMOVAL failed for machine %q. Retrying, error: %s", machine.Name, err)
+			return RetryOp, err
 		}
 
-		// If machine is created on the cloud provider
-		if machineID != "" {
-			var (
-				forceDeletePods         = false
-				forceDeleteMachine      = false
-				timeOutOccurred         = false
-				maxEvictRetries         = c.safetyOptions.MaxEvictRetries
-				pvDetachTimeOut         = c.safetyOptions.PvDetachTimeout.Duration
-				timeOutDuration         = c.safetyOptions.MachineDrainTimeout.Duration
-				forceDeleteLabelPresent = machine.Labels["force-deletion"] == "True"
-				lastDrainFailed         = machine.Status.LastOperation.Description[0:12] == "Drain failed"
-			)
+	case strings.Contains(machine.Status.LastOperation.Description, permanentError):
+		err := fmt.Errorf("Permanent Error has occurred for machine %q: \t%s", machine.Name, machine.Status.LastOperation.Description)
+		glog.Error(err)
+		return DoNotRetryOp, err
 
-			// Timeout value obtained by subtracting last operation with expected time out period
-			timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
-			timeOutOccurred = timeOut > 0
+	default:
+		glog.Errorf("Unable to decode deletion flow state for machine %q", machine.Name)
+		return DoNotRetryOp, nil
+	}
 
-			if forceDeleteLabelPresent || timeOutOccurred || lastDrainFailed {
-				// To perform forceful machine drain/delete either one of the below conditions must be satified
-				// 1. force-deletion: "True" label must be present
-				// 2. Deletion operation is more than drain-timeout minutes old
-				// 3. Last machine drain had failed
-				forceDeleteMachine = true
-				forceDeletePods = true
-				timeOutDuration = 1 * time.Minute
-				maxEvictRetries = 1
-
-				glog.V(2).Infof(
-					"Force deletion has been triggerred for machine %q due to Label:%t, timeout:%t, lastDrainFailed:%t",
-					machine.Name,
-					forceDeleteLabelPresent,
-					timeOutOccurred,
-					lastDrainFailed,
-				)
-			}
-
-			buf := bytes.NewBuffer([]byte{})
-			errBuf := bytes.NewBuffer([]byte{})
-
-			drainOptions := NewDrainOptions(
-				c.targetCoreClient,
-				timeOutDuration,
-				maxEvictRetries,
-				pvDetachTimeOut,
-				nodeName,
-				-1,
-				forceDeletePods,
-				true,
-				true,
-				true,
-				buf,
-				errBuf,
-				driver,
-				c.pvcLister,
-				c.pvLister,
-			)
-			err := drainOptions.RunDrain()
-			if err == nil {
-				// Drain successful
-				glog.V(2).Infof("Drain successful for machine %q. \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
-
-			} else if err != nil && forceDeleteMachine {
-				// Drain failed on force deletion
-				glog.Warningf("Drain failed for machine %q. However, since it's a force deletion shall continue deletion of VM. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
-
-			} else {
-				// Drain failed on normal (non-force) deletion, return error for retry
-				lastOperation := v1alpha1.LastOperation{
-					Description:    "Drain failed - " + err.Error(),
-					State:          v1alpha1.MachineStateFailed,
-					Type:           v1alpha1.MachineOperationDelete,
-					LastUpdateTime: metav1.Now(),
-				}
-				c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
-
-				glog.Warningf("Drain failed for machine %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
-				return RetryOp, err
-			}
-
-			// TODO: Move this logic to an earlier place to check if VM with tag name exists
-			_, err = driver.GetMachine(machineID)
-			if err == nil {
-				deleteMachineErr := driver.DeleteMachine(machineID)
-				if deleteMachineErr != nil {
-					return c.machineDeleteErrorHandler(machine, deleteMachineErr)
-				}
-			} else {
-				if grpcErr, ok := status.FromError(err); ok {
-					switch grpcErr.Code() {
-					case codes.NotFound:
-						// If VM is not found
-						// do nothing and continue with deletion logic
-						// as VM doesn't exist
-						glog.V(2).Infof("VM not found at provider, continuing with deletion of machine %q", machine.Name)
-						break
-					case codes.Unknown, codes.DeadlineExceeded, codes.Unavailable:
-						// If Unknown, Deadline exceed or Unavailable
-						// error out and retry it
-						return RetryOp, err
-					default:
-						// If Anyother case
-						// error out and don't retry
-						return DoNotRetryOp, err
-					}
-				} else {
-					glog.Errorf("Error occurred while decoding gRPC error for machine %q: %s", machine.Name, err)
-					return DoNotRetryOp, err
-				}
-			}
-		}
-
-		if nodeName != "" {
-			// Delete node object
-			err := c.targetCoreClient.CoreV1().Nodes().Delete(nodeName, &metav1.DeleteOptions{})
-			if err != nil && !apierrors.IsNotFound(err) {
-				// If its an error, and anyother error than object not found
-				message := fmt.Sprintf("Deletion of Node Object %q failed due to error: %s", nodeName, err)
-				lastOperation := v1alpha1.LastOperation{
-					Description:    message,
-					State:          v1alpha1.MachineStateFailed,
-					Type:           v1alpha1.MachineOperationDelete,
-					LastUpdateTime: metav1.Now(),
-				}
-				c.updateMachineStatus(machine, lastOperation, machine.Status.CurrentStatus)
-				glog.Errorf(message)
-				return RetryOp, err
-			}
-		}
-
-		// Remove finalizers from machine object
-		c.deleteMachineFinalizers(machine)
-
+	/*
 		// Delete machine object
-		err := c.controlMachineClient.Machines(machine.Namespace).Delete(machine.Name, &metav1.DeleteOptions{})
+		err = c.controlMachineClient.Machines(machine.Namespace).Delete(machine.Name, &metav1.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			// If its an error, and anyother error than object not found
 			glog.Errorf("Deletion of Machine Object %q failed due to error: %s", machine.Name, err)
 			return RetryOp, err
 		}
+	*/
 
-		glog.V(2).Infof("Machine %q deleted successfully", machine.Name)
-	}
+	glog.V(2).Infof("Machine %q deleted successfully", machine.Name)
 	return DoNotRetryOp, nil
-}
-
-/*
-	SECTION
-	Update machine object
-*/
-
-func (c *controller) updateMachineStatus(
-	machine *v1alpha1.Machine,
-	lastOperation v1alpha1.LastOperation,
-	currentStatus v1alpha1.CurrentStatus,
-) (*v1alpha1.Machine, error) {
-	// Get the latest version of the machine so that we can avoid conflicts
-	clone, err := c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
-	if err != nil {
-		return machine, err
-	}
-
-	clone = clone.DeepCopy()
-	clone.Status.LastOperation = lastOperation
-	clone.Status.CurrentStatus = currentStatus
-
-	clone, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
-	if err != nil {
-		// Keep retrying until update goes through
-		glog.V(3).Infof("Warning: Updated failed, retrying, error: %q", err)
-		return c.updateMachineStatus(machine, lastOperation, currentStatus)
-	}
-	return clone, nil
-}
-
-func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditions []v1.NodeCondition) (*v1alpha1.Machine, error) {
-
-	var (
-		msg                  string
-		lastOperationType    v1alpha1.MachineOperationType
-		objectRequiresUpdate bool
-	)
-
-	// Get the latest version of the machine so that we can avoid conflicts
-	machine, err := c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
-	if err != nil {
-		return machine, err
-	}
-
-	clone := machine.DeepCopy()
-
-	if nodeConditionsHaveChanged(clone.Status.Conditions, conditions) {
-		clone.Status.Conditions = conditions
-		objectRequiresUpdate = true
-	}
-
-	if clone.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating {
-		// If machine is already in terminating state, don't update health status
-
-	} else if !c.isHealthy(clone) && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
-		// If machine is not healthy, and current state is running,
-		// change the machinePhase to unknown and activate health check timeout
-		msg = fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown", clone.Name)
-		glog.Warning(msg)
-
-		clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-			Phase:          v1alpha1.MachineUnknown,
-			TimeoutActive:  true,
-			LastUpdateTime: metav1.Now(),
-		}
-		clone.Status.LastOperation = v1alpha1.LastOperation{
-			Description:    msg,
-			State:          v1alpha1.MachineStateProcessing,
-			Type:           v1alpha1.MachineOperationHealthCheck,
-			LastUpdateTime: metav1.Now(),
-		}
-		objectRequiresUpdate = true
-
-	} else if c.isHealthy(clone) && clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
-		// If machine is healhy and current machinePhase is not running.
-		// indicates that the machine is not healthy and status needs to be updated.
-
-		if clone.Status.LastOperation.Type == v1alpha1.MachineOperationCreate &&
-			clone.Status.LastOperation.State != v1alpha1.MachineStateSuccessful {
-			// When machine creation went through
-			msg = fmt.Sprintf("Machine %s successfully joined the cluster", clone.Name)
-			lastOperationType = v1alpha1.MachineOperationCreate
-		} else {
-			// Machine rejoined the cluster after a healthcheck
-			msg = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
-			lastOperationType = v1alpha1.MachineOperationHealthCheck
-		}
-		glog.V(2).Infof(msg)
-
-		// Machine is ready and has joined/re-joined the cluster
-		clone.Status.LastOperation = v1alpha1.LastOperation{
-			Description:    msg,
-			State:          v1alpha1.MachineStateSuccessful,
-			Type:           lastOperationType,
-			LastUpdateTime: metav1.Now(),
-		}
-		clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-			Phase:          v1alpha1.MachineRunning,
-			TimeoutActive:  false,
-			LastUpdateTime: metav1.Now(),
-		}
-		objectRequiresUpdate = true
-
-	}
-
-	if objectRequiresUpdate {
-		clone, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
-		if err != nil {
-			// Keep retrying until update goes through
-			glog.Warningf("Updated failed, retrying, error: %q", err)
-			return c.updateMachineConditions(machine, conditions)
-		}
-
-		return clone, nil
-	}
-
-	return machine, nil
-}
-
-func (c *controller) updateMachineFinalizers(machine *v1alpha1.Machine, finalizers []string) {
-	// Get the latest version of the machine so that we can avoid conflicts
-	machine, err := c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
-	if err != nil {
-		return
-	}
-
-	clone := machine.DeepCopy()
-	clone.Finalizers = finalizers
-	_, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
-	if err != nil {
-		// Keep retrying until update goes through
-		glog.Warningf("Warning: Updated failed, retrying, error: %q", err)
-		c.updateMachineFinalizers(machine, finalizers)
-	}
-}
-
-/*
-	SECTION
-	Manipulate Finalizers
-*/
-
-func (c *controller) addMachineFinalizers(machine *v1alpha1.Machine) {
-	clone := machine.DeepCopy()
-
-	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
-		finalizers.Insert(DeleteFinalizerName)
-		c.updateMachineFinalizers(clone, finalizers.List())
-	}
-}
-
-func (c *controller) deleteMachineFinalizers(machine *v1alpha1.Machine) {
-	clone := machine.DeepCopy()
-
-	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
-		finalizers.Delete(DeleteFinalizerName)
-		c.updateMachineFinalizers(clone, finalizers.List())
-	}
-}
-
-/*
-	SECTION
-	Helper Functions
-*/
-func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
-	numOfConditions := len(machine.Status.Conditions)
-
-	if numOfConditions == 0 {
-		// Kubernetes node object for this machine hasn't been received
-		return false
-	}
-
-	for _, condition := range machine.Status.Conditions {
-		if condition.Type == v1.NodeReady && condition.Status != v1.ConditionTrue {
-			// If Kubelet is not ready
-			return false
-		}
-		conditions := strings.Split(c.nodeConditions, ",")
-		for _, c := range conditions {
-			if string(condition.Type) == c && condition.Status != v1.ConditionFalse {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func (c *controller) checkMachineTimeout(machine *v1alpha1.Machine) {
-
-	// If machine phase is running already, ignore this loop
-	if machine.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
-
-		var (
-			description     string
-			lastOperation   v1alpha1.LastOperation
-			currentStatus   v1alpha1.CurrentStatus
-			timeOutDuration time.Duration
-		)
-
-		checkCreationTimeout := machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending
-		sleepTime := 1 * time.Minute
-
-		if checkCreationTimeout {
-			timeOutDuration = c.safetyOptions.MachineCreationTimeout.Duration
-		} else {
-			timeOutDuration = c.safetyOptions.MachineHealthTimeout.Duration
-		}
-
-		// Timeout value obtained by subtracting last operation with expected time out period
-		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
-		if timeOut > 0 {
-			// Machine health timeout occurs while joining or rejoining of machine
-
-			if checkCreationTimeout {
-				// Timeout occurred while machine creation
-				description = fmt.Sprintf(
-					"Machine %s failed to join the cluster in %s minutes.",
-					machine.Name,
-					timeOutDuration,
-				)
-			} else {
-				// Timeour occurred due to machine being unhealthy for too long
-				description = fmt.Sprintf(
-					"Machine %s is not healthy since %s minutes. Changing status to failed. Node Conditions: %+v",
-					machine.Name,
-					timeOutDuration,
-					machine.Status.Conditions,
-				)
-			}
-
-			lastOperation = v1alpha1.LastOperation{
-				Description:    description,
-				State:          v1alpha1.MachineStateFailed,
-				Type:           machine.Status.LastOperation.Type,
-				LastUpdateTime: metav1.Now(),
-			}
-			currentStatus = v1alpha1.CurrentStatus{
-				Phase:          v1alpha1.MachineFailed,
-				TimeoutActive:  false,
-				LastUpdateTime: metav1.Now(),
-			}
-			// Log the error message for machine failure
-			glog.Error(description)
-
-			// Update the machine status to reflect the changes
-			c.updateMachineStatus(machine, lastOperation, currentStatus)
-
-		} else {
-			// If timeout has not occurred, re-enqueue the machine
-			// after a specified sleep time
-			c.enqueueMachineAfter(machine, sleepTime)
-		}
-	}
 }

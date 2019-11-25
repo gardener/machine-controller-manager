@@ -22,7 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-// ValidateMachine and returns a list of errors.
+// ValidateMachine validates the machine object
+// and returns a list of errors.
 func ValidateMachine(machine *machine.Machine) field.ErrorList {
 	return internalValidateMachine(machine)
 }

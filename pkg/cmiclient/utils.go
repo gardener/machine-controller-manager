@@ -78,7 +78,7 @@ func newGrpcConn(driverName string) (*grpc.ClientConn, error) {
 }
 
 // validatePluginRequest checks if plugin supports the request
-func (c *CMIDriverClient) validatePluginRequest(capability cmipb.PluginCapability_RPC_Type) error {
+func (c *CMIPluginClient) validatePluginRequest(capability cmipb.PluginCapability_RPC_Type) error {
 	if capability == cmipb.PluginCapability_RPC_UNKNOWN {
 		return nil
 	}
