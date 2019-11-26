@@ -132,7 +132,7 @@ func (c *CMIPluginClient) CreateMachine() (string, string, string, error) {
 	ctx := context.Background()
 	resp, err := machineClient.CreateMachine(ctx, req)
 	if err != nil {
-		return "", "", string(resp.LastKnownState), err
+		return "", "", "", err
 	}
 
 	glog.V(4).Info("Machine Successfully Created, ProviderID:", resp.ProviderID)
