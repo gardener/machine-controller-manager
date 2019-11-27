@@ -1236,6 +1236,7 @@ type AlicloudMachineClassSpec struct {
 	VSwitchID               string                  `json:"vSwitchID"`
 	PrivateIPAddress        string                  `json:"privateIPAddress,omitempty"`
 	SystemDisk              *AlicloudSystemDisk     `json:"systemDisk,omitempty"`
+	DataDisks               []*AlicloudDataDisk     `json:"disks,omitempty"`
 	InstanceChargeType      string                  `json:"instanceChargeType,omitempty"`
 	InternetChargeType      string                  `json:"internetChargeType,omitempty"`
 	InternetMaxBandwidthIn  *int                    `json:"internetMaxBandwidthIn,omitempty"`
@@ -1245,6 +1246,15 @@ type AlicloudMachineClassSpec struct {
 	Tags                    map[string]string       `json:"tags,omitempty"`
 	KeyPairName             string                  `json:"keyPairName"`
 	SecretRef               *corev1.SecretReference `json:"secretRef,omitempty"`
+}
+
+type AlicloudDataDisk struct {
+	Name        string `json:"name"`
+	Category    string `json:"category"`
+	// +optional
+	Description string `json:"description"`
+	Encrypted   bool   `json:"encrypted"`
+	Size        int    `json:"size"`
 }
 
 // AlicloudSystemDisk describes SystemDisk for Alicloud.

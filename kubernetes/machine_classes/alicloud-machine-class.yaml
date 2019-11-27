@@ -12,6 +12,19 @@ spec:
   zoneID: cn-hangzhou-e # Zone of the region
   securityGroupID: sg-1234567890 # ID of security group, it has to be within the same VPC of vSwitch
   vSwitchID: vsw-1234567890 # similar to AWS subnet ID
+  disks: # Array of disks to be associated with this instance
+    - name: disk1
+      size: 50
+      category: cloud_ssd
+      encrypted: true
+      description: 50 GB disk description
+
+    - name: disk2
+      size: 40
+      category: cloud_ssd
+      encrypted: true
+      description: 40 GB disk description
+
   systemDisk:
     category: cloud_efficiency # cloud, cloud_efficiency, cloud_ssd, ephemeral_ssd
     size: 30 # 20-500

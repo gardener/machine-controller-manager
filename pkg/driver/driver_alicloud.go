@@ -21,12 +21,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 
-	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/metrics"
 	corev1 "k8s.io/api/core/v1"
 
@@ -73,6 +74,32 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 
 	if c.AlicloudMachineClass.Spec.InternetMaxBandwidthOut != nil {
 		request.InternetMaxBandwidthOut = requests.NewInteger(*c.AlicloudMachineClass.Spec.InternetMaxBandwidthOut)
+	}
+
+	if ok := c.AlicloudMachineClass.Spec.DataDisks != nil; ok {
+		disks := c.AlicloudMachineClass.Spec.DataDisks
+		var dataDiskRequests []ecs.RunInstancesDataDisk
+
+		for _, disk := range disks {
+
+			dataDiskRequest := ecs.RunInstancesDataDisk{
+				Category:           disk.Category,
+				DeleteWithInstance: strconv.FormatBool(true),
+				Encrypted:          strconv.FormatBool(disk.Encrypted),
+				DiskName:           disk.Name,
+				Description:        disk.Description,
+			}
+
+			dataDiskRequest.Size = fmt.Sprintf("%d", disk.Size)
+
+			if disk.Category == "DiskEphemeralSSD" {
+				dataDiskRequest.DeleteWithInstance = ""
+			}
+
+			dataDiskRequests = append(dataDiskRequests, dataDiskRequest)
+		}
+
+		request.DataDisk = &dataDiskRequests
 	}
 
 	if c.AlicloudMachineClass.Spec.SystemDisk != nil {
