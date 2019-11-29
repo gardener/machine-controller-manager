@@ -247,7 +247,7 @@ func (c *controller) syncMachineNodeTemplates(machine *v1alpha1.Machine) (bool, 
 			glog.Errorf("Updated failed for node object of machine %q. Retrying, error: %q", machine.Name, err)
 		} else {
 			// Return error even when machine object is updated
-			err = fmt.Errorf("Machine reconcilation in process")
+			err = fmt.Errorf("Machine ALTs have been reconciled")
 		}
 
 		return RetryOp, err
@@ -436,7 +436,7 @@ func (c *controller) machineCreateErrorHandler(machine *v1alpha1.Machine, lastKn
 	_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 	if err != nil {
 		// Keep retrying until update goes through
-		glog.Error("Machine/status UPDATE failed for machine %q. Retrying, error: %q", machine.Name, err)
+		glog.Errorf("Machine/status UPDATE failed for machine %q. Retrying, error: %s", machine.Name, err)
 	} else {
 		glog.V(2).Infof("Machine/status UPDATE for %q during CREATE error", machine.Name)
 	}
@@ -721,7 +721,7 @@ func (c *controller) setMachineTerminationStatus(machine *v1alpha1.Machine, driv
 	_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 	if err != nil {
 		// Keep retrying until update goes through
-		glog.Error("Machine/status UPDATE failed for machine %q. Retrying, error: %q", machine.Name, err)
+		glog.Errorf("Machine/status UPDATE failed for machine %q. Retrying, error: %s", machine.Name, err)
 	} else {
 		glog.V(2).Infof("Machine %q status updated to terminating ", machine.Name)
 		// Return error even when machine object is updated to ensure reconcilation is restarted
@@ -946,7 +946,7 @@ func (c *controller) deleteVM(machine *v1alpha1.Machine, driver cmiclient.CMICli
 
 	} else {
 		retryRequired = RetryOp
-		description = fmt.Sprintf("%s. VM deletion was successful", initiateNodeDeletion, machine.Name, err)
+		description = fmt.Sprintf("%s. VM deletion was successful for %q: %s", initiateNodeDeletion, machine.Name, err)
 		state = v1alpha1.MachineStateProcessing
 
 		err = fmt.Errorf("Machine reconcilation in process")
@@ -993,16 +993,16 @@ func (c *controller) deleteNodeObject(machine *v1alpha1.Machine) (bool, error) {
 			description = fmt.Sprintf("%s. Deletion of Node Object %q failed due to error: %s", initiateNodeDeletion, machine.Name, err)
 			state = v1alpha1.MachineStateFailed
 		} else if err == nil {
-			description = fmt.Sprintf("%s. Deletion of Node Object %q is successful", initiateFinalizerRemoval, machine.Name, err)
+			description = fmt.Sprintf("%s. Deletion of Node Object %q is successful", initiateFinalizerRemoval, machine.Name)
 			state = v1alpha1.MachineStateProcessing
 
 			err = fmt.Errorf("Machine reconcilation in process")
 		} else {
-			description = fmt.Sprintf("%s. No node object found, continuing deletion", initiateFinalizerRemoval, machine.Name)
+			description = fmt.Sprintf("%s. No node object found for %q, continuing deletion", initiateFinalizerRemoval, machine.Name)
 			state = v1alpha1.MachineStateProcessing
 		}
 	} else {
-		description = fmt.Sprintf("%s. No node object found, continuing deletion", initiateFinalizerRemoval, machine.Name)
+		description = fmt.Sprintf("%s. No node object found for %q, continuing deletion", initiateFinalizerRemoval, machine.Name)
 		state = v1alpha1.MachineStateProcessing
 
 		err = fmt.Errorf("Machine reconcilation in process")

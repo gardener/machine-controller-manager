@@ -644,19 +644,22 @@ func (c *controller) prepareMachineForDeletion(targetMachine *v1alpha1.Machine, 
 		errCh <- err
 	}
 
-	// Force trigger deletion to reflect in machine status
-	lastOperation := v1alpha1.LastOperation{
-		Description:    "Deleting machine from cloud provider",
-		State:          "Processing",
-		Type:           "Delete",
-		LastUpdateTime: metav1.Now(),
-	}
-	currentStatus := v1alpha1.CurrentStatus{
-		Phase:          v1alpha1.MachineTerminating,
-		TimeoutActive:  false,
-		LastUpdateTime: metav1.Now(),
-	}
-	c.updateMachineStatus(targetMachine, lastOperation, currentStatus)
+	/*
+		// Not needed?
+		// Force trigger deletion to reflect in machine status
+		lastOperation := v1alpha1.LastOperation{
+			Description:    "Deleting machine from cloud provider",
+			State:          "Processing",
+			Type:           "Delete",
+			LastUpdateTime: metav1.Now(),
+		}
+		currentStatus := v1alpha1.CurrentStatus{
+			Phase:          v1alpha1.MachineTerminating,
+			TimeoutActive:  false,
+			LastUpdateTime: metav1.Now(),
+		}
+		c.updateMachineStatus(targetMachine, lastOperation, currentStatus)
+	*/
 	glog.V(2).Infof("Delete machine from machineset %q", targetMachine.Name)
 }
 
@@ -729,7 +732,6 @@ func (c *controller) updateMachineSetFinalizers(machineSet *v1alpha1.MachineSet,
 /*
 	SECTION
 	Update machine object
-*/
 func (c *controller) updateMachineStatus(
 	machine *v1alpha1.Machine,
 	lastOperation v1alpha1.LastOperation,
@@ -742,8 +744,9 @@ func (c *controller) updateMachineStatus(
 	_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 	if err != nil {
 		// Keep retrying until update goes through
-		glog.Warning("Updated failed for machine %q. Retrying, error: %q", machine.Name, err)
+		glog.Warningf("Updated failed for machine %q. Retrying, error: %s", machine.Name, err)
 		return c.updateMachineStatus(machine, lastOperation, currentStatus)
 	}
 	return DoNotRetryOp, nil
 }
+*/

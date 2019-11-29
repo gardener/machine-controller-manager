@@ -38,22 +38,22 @@ func NewFakeCMIClient(machineID string, nodeName string, err error) *FakeCMIClie
 }
 
 // CreateMachine makes a gRPC call to the driver to create the machine.
-func (c *FakeCMIClient) CreateMachine() (string, string, error) {
-	return c.MachineID, c.NodeName, c.Err
+func (c *FakeCMIClient) CreateMachine() (string, string, string, error) {
+	return c.MachineID, c.NodeName, "", c.Err
 }
 
 // DeleteMachine make a grpc call to the driver to delete the machine.
-func (c *FakeCMIClient) DeleteMachine(MachineID string) error {
-	return c.Err
+func (c *FakeCMIClient) DeleteMachine() (string, error) {
+	return "", c.Err
 }
 
-// GetMachine makes a gRPC call to the driver to check existance of machine
-func (c *FakeCMIClient) GetMachine(MachineID string) (bool, error) {
+// GetMachineStatus makes a gRPC call to the driver to check existance of machine
+func (c *FakeCMIClient) GetMachineStatus() (string, string, string, error) {
 	if c.Err == nil {
-		return true, nil
+		return "", "", "", nil
 	}
 
-	return false, c.Err
+	return "", "", "", c.Err
 }
 
 // ListMachines have to list machines
@@ -63,12 +63,12 @@ func (c *FakeCMIClient) ListMachines() (map[string]string, error) {
 }
 
 // ShutDownMachine implements shutdownmachine
-func (c *FakeCMIClient) ShutDownMachine(MachineID string) error {
+func (c *FakeCMIClient) ShutDownMachine() error {
 	return c.Err
 }
 
-// GetMachineID returns the machineID
-func (c *FakeCMIClient) GetMachineID() string {
+// GetProviderID returns the GetProviderID
+func (c *FakeCMIClient) GetProviderID() string {
 	return c.MachineID
 }
 

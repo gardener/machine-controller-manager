@@ -17,6 +17,7 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -41,7 +42,7 @@ var _ = Describe("machine_util", func() {
 		}
 		type expect struct {
 			node *corev1.Node
-			err  bool
+			err  error
 		}
 		type data struct {
 			setup  setup
@@ -67,14 +68,15 @@ var _ = Describe("machine_util", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
-				err := c.syncMachineNodeTemplates(machineObject)
+				_, err := c.syncMachineNodeTemplates(machineObject)
 
 				waitForCacheSync(stop, c)
 
-				if !data.expect.err {
+				if data.expect.err == nil {
 					Expect(err).To(BeNil())
 				} else {
 					Expect(err).To(HaveOccurred())
+					Expect(err).To(Equal(data.expect.err))
 				}
 
 				//updatedNodeObject, _ := c.nodeLister.Get(nodeObject.Name)
@@ -182,7 +184,7 @@ var _ = Describe("machine_util", func() {
 							},
 						},
 					},
-					err: false,
+					err: fmt.Errorf("Machine ALTs have been reconciled"),
 				},
 			}),
 
@@ -264,7 +266,7 @@ var _ = Describe("machine_util", func() {
 							},
 						},
 					},
-					err: false,
+					err: fmt.Errorf("Machine ALTs have been reconciled"),
 				},
 			}),
 
@@ -313,7 +315,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					node: &corev1.Node{},
-					err:  false, // we should not return error if node-object does not exist to ensure rest of the steps are then executed.
+					err:  nil, // we should not return error if node-object does not exist to ensure rest of the steps are then executed.
 				},
 			}),
 
@@ -414,7 +416,7 @@ var _ = Describe("machine_util", func() {
 							},
 						},
 					},
-					err: false,
+					err: fmt.Errorf("Machine ALTs have been reconciled"),
 				},
 			}),
 		)
