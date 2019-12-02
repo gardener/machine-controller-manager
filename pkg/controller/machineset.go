@@ -631,9 +631,6 @@ func (c *controller) prepareMachineForDeletion(targetMachine *v1alpha1.Machine, 
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Couldn't get key for %v %#v: %v", machineSet.Kind, machineSet, err))
 		return
-	} else if targetMachine.Status.CurrentStatus.Phase == "" {
-		// Machine is still not created properly
-		return
 	}
 
 	if err := c.machineControl.DeleteMachine(targetMachine.Namespace, targetMachine.Name, machineSet); err != nil {
