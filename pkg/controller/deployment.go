@@ -464,10 +464,12 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return nil
 	}
 
-	// Validate MachineClass
-	_, secretRef, err := dc.validateMachineClass(&deployment.Spec.Template.Spec.Class)
-	if err != nil || secretRef == nil {
-		return err
+	if deployment.DeletionTimestamp == nil {
+		// Validate MachineClass if the machineDeployment is not triggerred for deletion
+		_, secretRef, err := dc.validateMachineClass(&deployment.Spec.Template.Spec.Class)
+		if err != nil || secretRef == nil {
+			return err
+		}
 	}
 
 	// Resync the MachineDeployment after 10 minutes to avoid missing out on missed out events
