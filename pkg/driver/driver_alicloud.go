@@ -292,12 +292,12 @@ func (c *AlicloudDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]str
 	names := []string{}
 	for i := range specs {
 		spec := &specs[i]
-		if spec.FlexVolume == nil || spec.FlexVolume.Options == nil {
-			// Not an aliCloud volume
-			continue
-		}
-		if name, ok := spec.FlexVolume.Options["volumeId"]; ok {
-			names = append(names, name)
+		if spec.FlexVolume != nil && spec.FlexVolume.Options != nil {
+			if name, ok := spec.FlexVolume.Options["volumeId"]; ok {
+				names = append(names, name)
+			}
+		} else if spec.CSI != nil && spec.CSI.Driver == "diskplugin.csi.alibabacloud.com" && spec.CSI.VolumeHandle != "" {
+			names = append(names, spec.CSI.VolumeHandle)
 		}
 	}
 	return names, nil
