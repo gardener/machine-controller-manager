@@ -159,7 +159,7 @@ var _ = Describe("drain", func() {
 			}
 
 			if err != nil {
-				fmt.Fprintf(GinkgoWriter, "Error simulating evition for the pod %s/%s: %s", pod.Namespace, pod.Name, err)
+				fmt.Fprintf(GinkgoWriter, "Error simulating eviction for the pod %s/%s: %s", pod.Namespace, pod.Name, err)
 			}
 		}
 
@@ -642,7 +642,7 @@ var _ = Describe("drain", func() {
 				},
 				attemptEviction:        false,
 				terminationGracePeriod: terminationGracePeriodShort,
-				force:                  true,
+				force: true,
 			},
 			nil,
 			&expectation{
@@ -668,7 +668,7 @@ var _ = Describe("drain", func() {
 				},
 				attemptEviction:        true,
 				terminationGracePeriod: terminationGracePeriodShort,
-				force:                  true,
+				force: true,
 			},
 			[]podDrainHandler{deletePod},
 			&expectation{
@@ -695,8 +695,8 @@ var _ = Describe("drain", func() {
 				maxEvictRetries:        1,
 				attemptEviction:        true,
 				terminationGracePeriod: terminationGracePeriodShort,
-				force:                  true,
-				evictError:             apierrors.NewTooManyRequestsError(""),
+				force:      true,
+				evictError: apierrors.NewTooManyRequestsError(""),
 			},
 			nil,
 			&expectation{
@@ -707,7 +707,7 @@ var _ = Describe("drain", func() {
 					nPodsWithExclusiveAndSharedPV: 0,
 				},
 				timeout:          terminationGracePeriodMedium,
-				drainTimeout:     false,
+				drainTimeout:     true,
 				drainError:       nil,
 				nEvictions:       0,
 				minDrainDuration: 0,
