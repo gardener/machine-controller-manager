@@ -784,7 +784,7 @@ func (clients *azureDriverClients) deleteNIC(ctx context.Context, resourceGroupN
 	if err != nil {
 		return onARMAPIErrorFail(prometheusServiceNIC, err, "nic.Delete")
 	}
-	err = future.WaitForCompletion(ctx, clients.nic.Client)
+	err = future.WaitForCompletionRef(ctx, clients.nic.Client)
 	if err != nil {
 		return onARMAPIErrorFail(prometheusServiceNIC, err, "nic.Delete")
 	}

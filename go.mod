@@ -3,23 +3,27 @@ module github.com/gardener/machine-controller-manager
 go 1.13
 
 require (
-	contrib.go.opencensus.io/exporter/ocagent v0.2.0 // indirect
-	github.com/Azure/azure-sdk-for-go v26.1.0+incompatible
+	cloud.google.com/go v0.26.0 // indirect
+	github.com/Azure/azure-sdk-for-go v32.6.0+incompatible
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
-	github.com/Azure/go-autorest v11.5.0+incompatible
+	github.com/Azure/go-autorest/autorest v0.9.3
+	github.com/Azure/go-autorest/autorest/adal v0.8.0
+	github.com/Azure/go-autorest/autorest/to v0.3.0
+	github.com/Azure/go-autorest/autorest/validation v0.2.0 // indirect
 	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20180828111155-cad214d7d71f
 	github.com/aws/aws-sdk-go v1.13.54
-	github.com/census-instrumentation/opencensus-proto v0.1.0 // indirect
+	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 // indirect
 	github.com/davecgh/go-spew v1.1.1
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/docker/docker v0.7.3-0.20180612054059-a9fbbdc8dd87 // indirect
 	github.com/emicklei/go-restful v2.9.6+incompatible // indirect
+	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-ini/ini v1.36.0 // indirect
 	github.com/go-openapi/spec v0.19.2
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/groupcache v0.0.0-20180513044358-24b0969c4cb7 // indirect
 	github.com/google/btree v1.0.0 // indirect
+	github.com/google/go-cmp v0.2.0 // indirect
 	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf // indirect
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/gophercloud/gophercloud v0.0.0-20190212181753-892256c46858
@@ -30,6 +34,7 @@ require (
 	github.com/imdario/mergo v0.3.4 // indirect
 	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8 // indirect
 	github.com/json-iterator/go v1.1.6 // indirect
+	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/onsi/ginkgo v1.8.0
@@ -38,16 +43,17 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/prometheus/client_golang v0.8.0
+	github.com/prometheus/client_model v0.0.0-20180712105110-5c3871d89910 // indirect
+	github.com/prometheus/common v0.0.0-20180801064454-c7de2306084e // indirect
+	github.com/prometheus/procfs v0.0.0-20180725123919-05ee40e3a273 // indirect
 	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/sirupsen/logrus v1.2.0 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/spf13/pflag v1.0.3
-	go.opencensus.io v0.18.0 // indirect
 	golang.org/x/lint v0.0.0-20190227174305-5b3e6a55c961
 	golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2 // indirect
 	google.golang.org/api v0.0.0-20180910000450-7ca32eb868bf
-	google.golang.org/genproto v0.0.0-20190227213309-4f5b463f9597 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.42.0 // indirect
 	gotest.tools v2.2.0+incompatible // indirect
