@@ -175,6 +175,7 @@ func (o *DrainOptions) RunDrain() error {
 	}()
 
 	if err := o.RunCordonOrUncordon(true); err != nil {
+		glog.Errorf("Drain Error: Cordoninig of node failed with error: %v", err)
 		return err
 	}
 
@@ -942,7 +943,7 @@ func (o *DrainOptions) RunCordonOrUncordon(desired bool) error {
 	}
 	unsched := node.Spec.Unschedulable
 	if unsched == desired {
-		glog.V(3).Info("Already desired")
+		glog.V(3).Infof("Already desired state of cordoning or uncordoning for node: %q", node.Name)
 	} else {
 		clone := node.DeepCopy()
 		clone.Spec.Unschedulable = desired

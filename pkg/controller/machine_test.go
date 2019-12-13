@@ -1122,8 +1122,8 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					errOccurred:    false,
-					machineDeleted: true,
+					errOccurred:    true,
+					machineDeleted: false,
 				},
 			}),
 		)

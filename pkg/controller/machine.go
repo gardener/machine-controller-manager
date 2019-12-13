@@ -503,7 +503,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 			timeOutOccurred = timeOut > 0
 
-			if forceDeleteLabelPresent || timeOutOccurred || lastDrainFailed {
+			if forceDeleteLabelPresent || timeOutOccurred {
 				// To perform forceful machine drain/delete either one of the below conditions must be satified
 				// 1. force-deletion: "True" label must be present
 				// 2. Deletion operation is more than drain-timeout minutes old
