@@ -131,6 +131,7 @@ var _ = Describe("deployment_rolling", func() {
 						},
 						nil,
 						nil,
+						true,
 					),
 					nodes: newNodes(
 						1,

@@ -133,6 +133,7 @@ var _ = Describe("deployment_rollback", func() {
 						},
 						nil,
 						nil,
+						true,
 					),
 					nodes: newNodes(
 						1,

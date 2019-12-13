@@ -35,6 +35,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/watch"
 	coreinformers "k8s.io/client-go/informers"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -245,8 +246,9 @@ func newMachineFromMachineSet(
 	statusTemplate *v1alpha1.MachineStatus,
 	annotations map[string]string,
 	labels map[string]string,
+	addFinalizer bool,
 ) *v1alpha1.Machine {
-	return newMachinesFromMachineSet(1, machineSet, statusTemplate, annotations, labels)[0]
+	return newMachinesFromMachineSet(1, machineSet, statusTemplate, annotations, labels, addFinalizer)[0]
 }
 
 func newMachinesFromMachineSet(
@@ -255,6 +257,7 @@ func newMachinesFromMachineSet(
 	statusTemplate *v1alpha1.MachineStatus,
 	annotations map[string]string,
 	labels map[string]string,
+	addFinalizer bool,
 ) []*v1alpha1.Machine {
 	t := &machineSet.TypeMeta
 
@@ -280,6 +283,7 @@ func newMachinesFromMachineSet(
 		},
 		annotations,
 		finalLabels,
+		addFinalizer,
 	)
 }
 
@@ -289,8 +293,9 @@ func newMachine(
 	owner *metav1.OwnerReference,
 	annotations map[string]string,
 	labels map[string]string,
+	addFinalizer bool,
 ) *v1alpha1.Machine {
-	return newMachines(1, specTemplate, statusTemplate, owner, annotations, labels)[0]
+	return newMachines(1, specTemplate, statusTemplate, owner, annotations, labels, addFinalizer)[0]
 }
 
 func newMachines(
@@ -300,6 +305,7 @@ func newMachines(
 	owner *metav1.OwnerReference,
 	annotations map[string]string,
 	labels map[string]string,
+	addFinalizer bool,
 ) []*v1alpha1.Machine {
 	machines := make([]*v1alpha1.Machine, machineCount)
 
@@ -324,6 +330,12 @@ func newMachines(
 			},
 			Spec: *newMachineSpec(&specTemplate.Spec, i),
 		}
+		finalizers := sets.NewString(m.Finalizers...)
+
+		if addFinalizer {
+			finalizers.Insert(DeleteFinalizerName)
+		}
+		m.Finalizers = finalizers.List()
 
 		if statusTemplate != nil {
 			m.Status = *newMachineStatus(statusTemplate, i)
@@ -571,7 +583,7 @@ var _ = Describe("#createController", func() {
 	It("success", func() {
 		machine0 := newMachine(&v1alpha1.MachineTemplateSpec{
 			ObjectMeta: *objMeta,
-		}, nil, nil, nil, nil)
+		}, nil, nil, nil, nil, false)
 
 		stop := make(chan struct{})
 		defer close(stop)

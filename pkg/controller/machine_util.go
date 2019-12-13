@@ -53,12 +53,11 @@ const (
 	RetryOp = true
 	// DoNotRetryOp tells the controller to not retry for now. Resync after re-sync period
 	DoNotRetryOp             = false
-	getVMStatus              = "Get VM status from provider. "
-	initiateDrain            = "Initiate node drain. "
-	initiateVMDeletion       = "Initiate VM deletion. "
-	initiateNodeDeletion     = "Initiate node object deletion. "
-	initiateFinalizerRemoval = "Initiate machine object finalizer removal. "
-	permanentError           = "Permanent error occurred in VM deletion."
+	getVMStatus              = "Set machine status to termination. Now, getting VM Status"
+	initiateDrain            = "Initiate node drain"
+	initiateVMDeletion       = "Initiate VM deletion"
+	initiateNodeDeletion     = "Initiate node object deletion"
+	initiateFinalizerRemoval = "Initiate machine object finalizer removal"
 )
 
 var (
@@ -615,7 +614,7 @@ func (c *controller) reconcileMachineHealth(machine *v1alpha1.Machine) (bool, er
 		} else {
 			glog.V(2).Infof("Machine State has been updated for %q", machine.Name)
 			// Return error for continuing in next iteration
-			err = fmt.Errorf("Machine reconcilation in process")
+			err = fmt.Errorf("Machine creation is successful. Machine State has been UPDATED")
 		}
 
 		return RetryOp, err
@@ -642,7 +641,7 @@ func (c *controller) addMachineFinalizers(machine *v1alpha1.Machine) (bool, erro
 		} else {
 			// Return error even when machine object is updated
 			glog.V(2).Infof("Added finalizer to machine %q", machine.Name)
-			err = fmt.Errorf("Machine reconcilation in process")
+			err = fmt.Errorf("Machine creation in process. Machine finalizers are UPDATED")
 		}
 
 		return RetryOp, err
@@ -725,7 +724,7 @@ func (c *controller) setMachineTerminationStatus(machine *v1alpha1.Machine, driv
 	} else {
 		glog.V(2).Infof("Machine %q status updated to terminating ", machine.Name)
 		// Return error even when machine object is updated to ensure reconcilation is restarted
-		err = fmt.Errorf("Machine reconcilation in process")
+		err = fmt.Errorf("Machine deletion in process. Phase set to termination")
 	}
 	return RetryOp, err
 }
@@ -736,6 +735,7 @@ func (c *controller) getVMStatus(machine *v1alpha1.Machine, driver cmiclient.CMI
 		retry       bool
 		description string
 		state       v1alpha1.MachineState
+		phase       v1alpha1.MachinePhase
 	)
 
 	_, _, _, err := driver.GetMachineStatus()
@@ -743,15 +743,20 @@ func (c *controller) getVMStatus(machine *v1alpha1.Machine, driver cmiclient.CMI
 		// VM Found
 		description = initiateDrain
 		state = v1alpha1.MachineStateProcessing
+		retry = RetryOp
+		phase = v1alpha1.MachineTerminating
 		// Return error even when machine object is updated to ensure reconcilation is restarted
-		err = fmt.Errorf("Machine reconcilation in process")
+		err = fmt.Errorf("Machine deletion in process. VM with matching ID found")
 
 	} else {
 		if grpcErr, ok := status.FromError(err); !ok {
 			// Error occurred with decoding gRPC error status, aborting without retry.
-			description = permanentError + "Error occurred with decoding gRPC error status while getting VM status, aborting without retry."
+			description = "Error occurred with decoding gRPC error status while getting VM status, aborting without retry. " + getVMStatus
 			state = v1alpha1.MachineStateFailed
+			phase = v1alpha1.MachineFailed
 			retry = DoNotRetryOp
+
+			err = fmt.Errorf("Machine deletion has failed. " + description)
 		} else {
 			// Decoding gRPC error code
 			switch grpcErr.Code() {
@@ -761,23 +766,27 @@ func (c *controller) getVMStatus(machine *v1alpha1.Machine, driver cmiclient.CMI
 				// In this case, try to drain and delete
 				description = initiateDrain
 				state = v1alpha1.MachineStateProcessing
+				phase = v1alpha1.MachineTerminating
 				retry = RetryOp
 
 			case codes.NotFound:
 				// VM was not found at provder
-				description = initiateNodeDeletion
+				description = "VM was not found at provider. " + initiateNodeDeletion
 				state = v1alpha1.MachineStateProcessing
+				phase = v1alpha1.MachineTerminating
 				retry = RetryOp
 
 			case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
-				description = getVMStatus + "Error occurred with decoding gRPC error status while getting VM status, aborting with retry."
+				description = "Error occurred with decoding gRPC error status while getting VM status, aborting with retry. " + getVMStatus
 				state = v1alpha1.MachineStateFailed
+				phase = v1alpha1.MachineTerminating
 				retry = RetryOp
 
 			default:
 				// Error occurred with decoding gRPC error status, abort with retry.
-				description = getVMStatus + " Error occurred with decoding gRPC error status while getting VM status, aborting without retry. gRPC code: " + grpcErr.Message()
+				description = "Error occurred with decoding gRPC error status while getting VM status, aborting without retry. gRPC code: " + grpcErr.Message() + " " + getVMStatus
 				state = v1alpha1.MachineStateFailed
+				phase = v1alpha1.MachineTerminating
 				retry = DoNotRetryOp
 			}
 		}
@@ -792,8 +801,7 @@ func (c *controller) getVMStatus(machine *v1alpha1.Machine, driver cmiclient.CMI
 		LastUpdateTime: metav1.Now(),
 	}
 	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-		Phase: v1alpha1.MachineTerminating,
-		//TimeoutActive:  false,
+		Phase:          phase,
 		LastUpdateTime: metav1.Now(),
 	}
 
@@ -814,11 +822,11 @@ func (c *controller) drainNode(machine *v1alpha1.Machine, driver cmiclient.CMICl
 		timeOutOccurred         = false
 		description             = ""
 		state                   v1alpha1.MachineState
+		phase                   v1alpha1.MachinePhase
 		maxEvictRetries         = c.safetyOptions.MaxEvictRetries
 		pvDetachTimeOut         = c.safetyOptions.PvDetachTimeout.Duration
 		timeOutDuration         = c.safetyOptions.MachineDrainTimeout.Duration
 		forceDeleteLabelPresent = machine.Labels["force-deletion"] == "True"
-		lastDrainFailed         = machine.Status.LastOperation.Description[0:12] == "Drain failed"
 		nodeName                = machine.Labels["node"]
 	)
 
@@ -826,7 +834,7 @@ func (c *controller) drainNode(machine *v1alpha1.Machine, driver cmiclient.CMICl
 	timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 	timeOutOccurred = timeOut > 0
 
-	if forceDeleteLabelPresent || timeOutOccurred || lastDrainFailed {
+	if forceDeleteLabelPresent || timeOutOccurred {
 		// To perform forceful machine drain/delete either one of the below conditions must be satified
 		// 1. force-deletion: "True" label must be present
 		// 2. Deletion operation is more than drain-timeout minutes old
@@ -837,11 +845,10 @@ func (c *controller) drainNode(machine *v1alpha1.Machine, driver cmiclient.CMICl
 		maxEvictRetries = 1
 
 		glog.V(2).Infof(
-			"Force deletion has been triggerred for machine %q due to Label:%t, timeout:%t, lastDrainFailed:%t",
+			"Force deletion has been triggerred for machine %q due to Label:%t, timeout:%t",
 			machine.Name,
 			forceDeleteLabelPresent,
 			timeOutOccurred,
-			lastDrainFailed,
 		)
 	}
 
@@ -870,22 +877,25 @@ func (c *controller) drainNode(machine *v1alpha1.Machine, driver cmiclient.CMICl
 		// Drain successful
 		glog.V(2).Infof("Drain successful for machine %q. \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
 
-		description = fmt.Sprintf("%s. Drain successful", initiateVMDeletion)
+		description = fmt.Sprintf("Drain successful. %s", initiateVMDeletion)
 		state = v1alpha1.MachineStateProcessing
+		phase = v1alpha1.MachineTerminating
 
 		// Return error even when machine object is updated
-		err = fmt.Errorf("Machine reconcilation in process")
+		err = fmt.Errorf("Machine deletion in process. " + description)
 	} else if err != nil && forceDeleteMachine {
 		// Drain failed on force deletion
 		glog.Warningf("Drain failed for machine %q. However, since it's a force deletion shall continue deletion of VM. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
 
-		description = fmt.Sprintf("%s. Drain failed due to - %s. However, since it's a force deletion shall continue deletion of VM. ", initiateVMDeletion, err.Error())
+		description = fmt.Sprintf("Drain failed due to - %s. However, since it's a force deletion shall continue deletion of VM. %s", err.Error(), initiateVMDeletion)
 		state = v1alpha1.MachineStateProcessing
+		phase = v1alpha1.MachineTerminating
 	} else {
 		glog.Warningf("Drain failed for machine %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
 
-		description = fmt.Sprintf("%s. Drain failed due to - %s. Will retry in next sync.", initiateDrain, err.Error())
+		description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), initiateDrain)
 		state = v1alpha1.MachineStateFailed
+		phase = v1alpha1.MachineTerminating
 	}
 
 	clone := machine.DeepCopy()
@@ -896,8 +906,7 @@ func (c *controller) drainNode(machine *v1alpha1.Machine, driver cmiclient.CMICl
 		LastUpdateTime: metav1.Now(),
 	}
 	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-		Phase: v1alpha1.MachineTerminating,
-		//TimeoutActive:  false,
+		Phase:          phase,
 		LastUpdateTime: metav1.Now(),
 	}
 
@@ -916,6 +925,7 @@ func (c *controller) deleteVM(machine *v1alpha1.Machine, driver cmiclient.CMICli
 		retryRequired bool
 		description   string
 		state         v1alpha1.MachineState
+		phase         v1alpha1.MachinePhase
 	)
 
 	lastKnownState, err := driver.DeleteMachine()
@@ -927,29 +937,34 @@ func (c *controller) deleteVM(machine *v1alpha1.Machine, driver cmiclient.CMICli
 			switch grpcErr.Code() {
 			case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 				retryRequired = RetryOp
-				description = fmt.Sprintf("%s. VM deletion failed due to - %s. However, will re-try in the next resync.", initiateVMDeletion, err.Error())
+				description = fmt.Sprintf("VM deletion failed due to - %s. However, will re-try in the next resync. %s", err.Error(), initiateVMDeletion)
 				state = v1alpha1.MachineStateFailed
+				phase = v1alpha1.MachineTerminating
 			case codes.NotFound:
 				retryRequired = RetryOp
-				description = fmt.Sprintf("%s. VM not found. Continuing deletion", initiateNodeDeletion)
+				description = fmt.Sprintf("VM not found. Continuing deletion flow. %s", initiateNodeDeletion)
 				state = v1alpha1.MachineStateProcessing
+				phase = v1alpha1.MachineTerminating
 			default:
 				retryRequired = DoNotRetryOp
-				description = fmt.Sprintf("%s. VM deletion failed due to - %s. However, aborting operation", permanentError, err.Error())
+				description = fmt.Sprintf("VM deletion failed due to - %s. Aborting operation. %s", err.Error(), initiateVMDeletion)
 				state = v1alpha1.MachineStateFailed
+				phase = v1alpha1.MachineTerminating
 			}
 		} else {
 			retryRequired = DoNotRetryOp
-			description = fmt.Sprintf("%s. Error occurred while decoding gRPC error for machine %q: %s", permanentError, machine.Name, err)
+			description = fmt.Sprintf("Error occurred while decoding gRPC error: %s. %s", err.Error(), initiateVMDeletion)
 			state = v1alpha1.MachineStateFailed
+			phase = v1alpha1.MachineFailed
 		}
 
 	} else {
 		retryRequired = RetryOp
-		description = fmt.Sprintf("%s. VM deletion was successful for %q: %s", initiateNodeDeletion, machine.Name, err)
+		description = fmt.Sprintf("VM deletion was successful. %s", initiateNodeDeletion)
 		state = v1alpha1.MachineStateProcessing
+		phase = v1alpha1.MachineTerminating
 
-		err = fmt.Errorf("Machine reconcilation in process")
+		err = fmt.Errorf("Machine deletion in process. " + description)
 	}
 
 	clone := machine.DeepCopy()
@@ -960,8 +975,7 @@ func (c *controller) deleteVM(machine *v1alpha1.Machine, driver cmiclient.CMICli
 		LastUpdateTime: metav1.Now(),
 	}
 	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-		Phase: v1alpha1.MachineTerminating,
-		//TimeoutActive:  false,
+		Phase:          phase,
 		LastUpdateTime: metav1.Now(),
 	}
 	clone.Status.LastKnownState = lastKnownState
@@ -987,25 +1001,25 @@ func (c *controller) deleteNodeObject(machine *v1alpha1.Machine) (bool, error) {
 
 	if nodeName != "" {
 		// Delete node object
-		err := c.targetCoreClient.CoreV1().Nodes().Delete(nodeName, &metav1.DeleteOptions{})
+		err = c.targetCoreClient.CoreV1().Nodes().Delete(nodeName, &metav1.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			// If its an error, and anyother error than object not found
-			description = fmt.Sprintf("%s. Deletion of Node Object %q failed due to error: %s", initiateNodeDeletion, machine.Name, err)
+			description = fmt.Sprintf("Deletion of Node Object %q failed due to error: %s. %s", nodeName, err, initiateNodeDeletion)
 			state = v1alpha1.MachineStateFailed
 		} else if err == nil {
-			description = fmt.Sprintf("%s. Deletion of Node Object %q is successful", initiateFinalizerRemoval, machine.Name)
+			description = fmt.Sprintf("Deletion of Node Object %q is successful. %s", nodeName, initiateFinalizerRemoval)
 			state = v1alpha1.MachineStateProcessing
 
-			err = fmt.Errorf("Machine reconcilation in process")
+			err = fmt.Errorf("Machine deletion in process. Deletion of node object was succesful")
 		} else {
-			description = fmt.Sprintf("%s. No node object found for %q, continuing deletion", initiateFinalizerRemoval, machine.Name)
+			description = fmt.Sprintf("No node object found for %q, continuing deletion flow. %s", nodeName, initiateFinalizerRemoval)
 			state = v1alpha1.MachineStateProcessing
 		}
 	} else {
-		description = fmt.Sprintf("%s. No node object found for %q, continuing deletion", initiateFinalizerRemoval, machine.Name)
+		description = fmt.Sprintf("No node object found for machine, continuing deletion flow. %s", initiateFinalizerRemoval)
 		state = v1alpha1.MachineStateProcessing
 
-		err = fmt.Errorf("Machine reconcilation in process")
+		err = fmt.Errorf("Machine deletion in process. No node object found")
 	}
 
 	clone := machine.DeepCopy()
@@ -1016,8 +1030,7 @@ func (c *controller) deleteNodeObject(machine *v1alpha1.Machine) (bool, error) {
 		LastUpdateTime: metav1.Now(),
 	}
 	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-		Phase: v1alpha1.MachineTerminating,
-		//TimeoutActive:  false,
+		Phase:          v1alpha1.MachineTerminating,
 		LastUpdateTime: metav1.Now(),
 	}
 

@@ -206,6 +206,7 @@ var _ = Describe("#machine_safety", func() {
 				&v1alpha1.MachineStatus{},
 				nil,
 				nil,
+				true,
 			)
 
 			controlMachineObjects := []runtime.Object{}

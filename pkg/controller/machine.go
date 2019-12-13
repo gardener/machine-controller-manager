@@ -185,12 +185,6 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (bool, e
 		return c.triggerDeletionFlow(machine, driver)
 	}
 
-	// Add finalizers if not present
-	retry, err := c.addMachineFinalizers(machine)
-	if err != nil {
-		return retry, err
-	}
-
 	if machine.Status.Node != "" {
 		// If reference to node object exists execute the below
 
@@ -313,6 +307,13 @@ func (c *controller) triggerCreationFlow(machine *v1alpha1.Machine, driver cmicl
 		err            error
 	)
 
+	// Add finalizers if not present
+	retry, err := c.addMachineFinalizers(machine)
+	if err != nil {
+		return retry, err
+	}
+
+	//
 	providerID, nodeName, lastKnownState, err = driver.GetMachineStatus()
 	if err == nil {
 		// Found VM with required machine name
@@ -387,7 +388,7 @@ func (c *controller) triggerCreationFlow(machine *v1alpha1.Machine, driver cmicl
 			glog.V(2).Infof("Machine labels/annotations UPDATE for %q", machine.Name)
 
 			// Return error even when machine object is updated
-			err = fmt.Errorf("Machine reconcilation in process")
+			err = fmt.Errorf("Machine creation in process. Machine UPDATE successful")
 		}
 		return RetryOp, err
 	}
@@ -416,7 +417,7 @@ func (c *controller) triggerCreationFlow(machine *v1alpha1.Machine, driver cmicl
 			glog.V(2).Infof("Machine/status UPDATE for %q during creation", machine.Name)
 
 			// Return error even when machine object is updated
-			err = fmt.Errorf("Machine reconcilation in process")
+			err = fmt.Errorf("Machine creation in process. Machine/Status UPDATE successful")
 		}
 
 		return RetryOp, err
@@ -464,18 +465,18 @@ func (c *controller) triggerUpdationFlow(machine *v1alpha1.Machine, actualProvid
 }
 
 func (c *controller) triggerDeletionFlow(machine *v1alpha1.Machine, driver cmiclient.CMIClient) (bool, error) {
-	if finalizers := sets.NewString(machine.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
-		// If Finalizers are not present on machine
-		err := fmt.Errorf("Machine %q is missing finalizers. Deletion cannot proceed", machine.Name)
-		glog.Error(err)
-		return DoNotRetryOp, err
-	}
+	finalizers := sets.NewString(machine.Finalizers...)
 
 	switch {
+	case !finalizers.Has(DeleteFinalizerName):
+		// If Finalizers are not present on machine
+		err := fmt.Errorf("Machine %q is missing finalizers. Deletion cannot proceed", machine.Name)
+		return DoNotRetryOp, err
+
 	case machine.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating:
 		return c.setMachineTerminationStatus(machine, driver)
 
-	case machine.Status.LastOperation.Description == getVMStatus:
+	case strings.Contains(machine.Status.LastOperation.Description, getVMStatus):
 		return c.getVMStatus(machine, driver)
 
 	case strings.Contains(machine.Status.LastOperation.Description, initiateDrain):
@@ -495,19 +496,15 @@ func (c *controller) triggerDeletionFlow(machine *v1alpha1.Machine, driver cmicl
 			return RetryOp, err
 		}
 
-	case strings.Contains(machine.Status.LastOperation.Description, permanentError):
-		err := fmt.Errorf("Permanent Error has occurred for machine %q: \t%s", machine.Name, machine.Status.LastOperation.Description)
+	default:
+		err := fmt.Errorf("Unable to decode deletion flow state for machine %s", machine.Name)
 		glog.Error(err)
 		return DoNotRetryOp, err
-
-	default:
-		glog.Errorf("Unable to decode deletion flow state for machine %q", machine.Name)
-		return DoNotRetryOp, nil
 	}
 
 	/*
 		// Delete machine object
-		err = c.controlMachineClient.Machines(machine.Namespace).Delete(machine.Name, &metav1.DeleteOptions{})
+		err := c.controlMachineClient.Machines(machine.Namespace).Delete(machine.Name, &metav1.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			// If its an error, and anyother error than object not found
 			glog.Errorf("Deletion of Machine Object %q failed due to error: %s", machine.Name, err)

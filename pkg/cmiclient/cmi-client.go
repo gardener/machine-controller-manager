@@ -42,8 +42,8 @@ type VMs map[string]string
 // CMIClient is the client used to communicate with the CMIServer
 type CMIClient interface {
 	CreateMachine() (string, string, string, error)
-	GetMachineStatus() (string, string, string, error)
 	DeleteMachine() (string, error)
+	GetMachineStatus() (string, string, string, error)
 	ListMachines() (map[string]string, error)
 	ShutDownMachine() error
 	GetProviderID() string

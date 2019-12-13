@@ -18,42 +18,54 @@ limitations under the License.
 package cmiclient
 
 import (
+	"fmt"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // FakeCMIClient is a fake driver returned when none of the actual drivers match
 type FakeCMIClient struct {
-	MachineID string
-	NodeName  string
-	Err       error
+	VMExists       bool
+	ProviderID     string
+	NodeName       string
+	LastKnownState string
+	Err            error
 }
 
 // NewFakeCMIClient returns a new fakedriver object
-func NewFakeCMIClient(machineID string, nodeName string, err error) *FakeCMIClient {
-	return &FakeCMIClient{
-		MachineID: machineID,
-		NodeName:  nodeName,
-		Err:       err,
-	}
+func NewFakeCMIClient(fakeCMIClient *FakeCMIClient) *FakeCMIClient {
+	return fakeCMIClient
 }
 
 // CreateMachine makes a gRPC call to the driver to create the machine.
 func (c *FakeCMIClient) CreateMachine() (string, string, string, error) {
-	return c.MachineID, c.NodeName, "", c.Err
+	if c.Err == nil {
+		c.VMExists = true
+		return c.ProviderID, c.NodeName, c.LastKnownState, c.Err
+	}
+
+	return "", "", "", c.Err
 }
 
 // DeleteMachine make a grpc call to the driver to delete the machine.
 func (c *FakeCMIClient) DeleteMachine() (string, error) {
-	return "", c.Err
+	c.VMExists = false
+	return c.LastKnownState, c.Err
 }
 
 // GetMachineStatus makes a gRPC call to the driver to check existance of machine
 func (c *FakeCMIClient) GetMachineStatus() (string, string, string, error) {
-	if c.Err == nil {
-		return "", "", "", nil
+	switch {
+	case !c.VMExists:
+		errMessage := fmt.Sprintf("Fake plugin is returning no VM instances backing this machine object")
+		return "", "", "", status.Error(codes.NotFound, errMessage)
+	case c.Err != nil:
+		return "", "", "", c.Err
 	}
 
-	return "", "", "", c.Err
+	return c.ProviderID, c.NodeName, c.LastKnownState, nil
 }
 
 // ListMachines have to list machines
@@ -69,7 +81,7 @@ func (c *FakeCMIClient) ShutDownMachine() error {
 
 // GetProviderID returns the GetProviderID
 func (c *FakeCMIClient) GetProviderID() string {
-	return c.MachineID
+	return c.ProviderID
 }
 
 // GetVolumeIDs returns a list of VolumeIDs for the PV spec list supplied
