@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -491,7 +492,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				forceDeletePods         = false
 				forceDeleteMachine      = false
 				timeOutOccurred         = false
-				maxEvictRetries         = c.safetyOptions.MaxEvictRetries
+				maxEvictRetries         = int32(math.Min(float64(c.safetyOptions.MaxEvictRetries), c.safetyOptions.MachineDrainTimeout.Duration.Seconds()/PodEvictionRetryInterval.Seconds()))
 				pvDetachTimeOut         = c.safetyOptions.PvDetachTimeout.Duration
 				timeOutDuration         = c.safetyOptions.MachineDrainTimeout.Duration
 				forceDeleteLabelPresent = machine.Labels["force-deletion"] == "True"
