@@ -69,6 +69,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	flavorName := d.OpenStackMachineClass.Spec.FlavorName
 	keyName := d.OpenStackMachineClass.Spec.KeyName
 	imageName := d.OpenStackMachineClass.Spec.ImageName
+	imageID := d.OpenStackMachineClass.Spec.ImageID
 	networkID := d.OpenStackMachineClass.Spec.NetworkID
 	securityGroups := d.OpenStackMachineClass.Spec.SecurityGroups
 	availabilityZone := d.OpenStackMachineClass.Spec.AvailabilityZone
@@ -76,11 +77,17 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	podNetworkCidr := d.OpenStackMachineClass.Spec.PodNetworkCidr
 
 	var createOpts servers.CreateOptsBuilder
+	var imageRef string
 
-	imageRef, err := d.recentImageIDFromName(client, imageName)
-	if err != nil {
-		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
-		return "", "", fmt.Errorf("failed to get image id for image name %s: %s", imageName, err)
+	// use imageID if provided, otherwise try to resolve the imageName to an imageID
+	if imageID != "" {
+		imageRef = imageID
+	} else {
+		imageRef, err = d.recentImageIDFromName(client, imageName)
+		if err != nil {
+			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
+			return "", "", fmt.Errorf("failed to get image id for image name %s: %s", imageName, err)
+		}
 	}
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 

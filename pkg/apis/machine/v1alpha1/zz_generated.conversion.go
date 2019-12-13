@@ -2498,6 +2498,7 @@ func Convert_machine_OpenStackMachineClassList_To_v1alpha1_OpenStackMachineClass
 }
 
 func autoConvert_v1alpha1_OpenStackMachineClassSpec_To_machine_OpenStackMachineClassSpec(in *OpenStackMachineClassSpec, out *machine.OpenStackMachineClassSpec, s conversion.Scope) error {
+	out.ImageID = in.ImageID
 	out.ImageName = in.ImageName
 	out.Region = in.Region
 	out.AvailabilityZone = in.AvailabilityZone
@@ -2517,6 +2518,7 @@ func Convert_v1alpha1_OpenStackMachineClassSpec_To_machine_OpenStackMachineClass
 }
 
 func autoConvert_machine_OpenStackMachineClassSpec_To_v1alpha1_OpenStackMachineClassSpec(in *machine.OpenStackMachineClassSpec, out *OpenStackMachineClassSpec, s conversion.Scope) error {
+	out.ImageID = in.ImageID
 	out.ImageName = in.ImageName
 	out.Region = in.Region
 	out.AvailabilityZone = in.AvailabilityZone

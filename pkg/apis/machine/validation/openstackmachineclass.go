@@ -40,9 +40,12 @@ func internalValidateOpenStackMachineClass(OpenStackMachineClass *machine.OpenSt
 func validateOpenStackMachineClassSpec(spec *machine.OpenStackMachineClassSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	if "" == spec.ImageName {
-		allErrs = append(allErrs, field.Required(fldPath.Child("imageName"), "ImageName is required"))
+	if "" == spec.ImageID {
+		if "" == spec.ImageName {
+			allErrs = append(allErrs, field.Required(fldPath.Child("imageName"), "ImageName is required if no ImageID is given"))
+		}
 	}
+
 	if "" == spec.Region {
 		allErrs = append(allErrs, field.Required(fldPath.Child("region"), "Region is required"))
 	}
