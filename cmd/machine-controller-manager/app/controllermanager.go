@@ -364,6 +364,7 @@ func startHTTP(s *options.MCMServer) {
 	}
 	configz.InstallHandler(mux)
 	mux.Handle("/metrics", prometheus.Handler())
+	handlers.UpdateHealth(true)
 	mux.HandleFunc("/healthz", handlers.Healthz)
 
 	server := &http.Server{
