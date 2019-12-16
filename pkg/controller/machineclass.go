@@ -203,7 +203,7 @@ func (c *controller) updateMachineClassFinalizers(class *v1alpha1.MachineClass, 
 	_, err := c.controlMachineClient.MachineClasses(class.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
-		glog.Warning("Updating MachineClass failed for %q, retrying: %s", class.Name, err)
+		glog.Warningf("Updating MachineClass failed for %q, retrying: %s", class.Name, err)
 		return err
 	}
 
