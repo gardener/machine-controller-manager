@@ -730,6 +730,7 @@ type OpenStackMachineClassList struct {
 
 // OpenStackMachineClassSpec is the specification of a cluster.
 type OpenStackMachineClassSpec struct {
+	ImageID          string                  `json:"imageID"`
 	ImageName        string                  `json:"imageName"`
 	Region           string                  `json:"region"`
 	AvailabilityZone string                  `json:"availabilityZone"`
