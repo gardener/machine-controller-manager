@@ -160,7 +160,6 @@ func (c *CMIPluginClient) DeleteMachine() (string, error) {
 		Secrets:        getSecretData(c.Secret),
 		LastKnownState: []byte(c.LastKnownState),
 	}
-	glog.Infof("DECODED B:%s, S:%s)", []byte(c.LastKnownState), c.LastKnownState)
 	ctx := context.Background()
 	response, err := machineClient.DeleteMachine(ctx, req)
 	if err != nil {

@@ -168,6 +168,7 @@ func NewController(
 	machineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.machineClassAdd,
 		UpdateFunc: controller.machineClassUpdate,
+		DeleteFunc: controller.machineClassDelete,
 	})
 
 	/* Node Controller Informers - Don't remove this, saved for future use case.
