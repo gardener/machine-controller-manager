@@ -2506,6 +2506,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				SchemaProps: spec.SchemaProps{
 					Description: "OpenStackMachineClassSpec is the specification of a cluster.",
 					Properties: map[string]spec.Schema{
+						"imageID": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
 						"imageName": {
 							SchemaProps: spec.SchemaProps{
 								Type:   []string{"string"},
@@ -2580,7 +2586,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 							},
 						},
 					},
-					Required: []string{"imageName", "region", "availabilityZone", "flavorName", "keyName", "securityGroups", "networkID", "podNetworkCidr"},
+					Required: []string{"imageID", "imageName", "region", "availabilityZone", "flavorName", "keyName", "securityGroups", "networkID", "podNetworkCidr"},
 				},
 			},
 			Dependencies: []string{
