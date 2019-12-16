@@ -86,9 +86,6 @@ const (
 	// DefaultMachineDrainTimeout is the default value for MachineDrainTimeout
 	DefaultMachineDrainTimeout = 12 * time.Hour
 
-	// DefaultMaxEvictRetries is the default value for MaxEvictRetries
-	DefaultMaxEvictRetries = int32(3)
-
 	// PodsWithoutPVDrainGracePeriod defines the grace period to wait for the pods without PV during machine drain.
 	// This is in addition to the maximum terminationGracePeriod amount the pods.
 	PodsWithoutPVDrainGracePeriod = 3 * time.Minute
@@ -97,7 +94,8 @@ const (
 	Interval = time.Second * 5
 
 	// PodEvictionRetryInterval is the interval in which to retry eviction for pods
-	PodEvictionRetryInterval = time.Second * 5
+	PodEvictionRetryInterval = time.Second * 20
+
 	// GetPvDetailsRetryInterval is the interval in which to retry getting PV details
 	GetPvDetailsRetryInterval = time.Second * 5
 	// GetPvDetailsMaxRetries is the number of max retries to get PV details
@@ -111,6 +109,11 @@ const (
 	localStorageWarning = "Deleting pods with local storage"
 	unmanagedFatal      = "pods not managed by ReplicationController, ReplicaSet, Job, DaemonSet or StatefulSet (use --force to override)"
 	unmanagedWarning    = "Deleting pods not managed by ReplicationController, ReplicaSet, Job, DaemonSet or StatefulSet"
+)
+
+var (
+	// DefaultMaxEvictRetries is the default value for MaxEvictRetries
+	DefaultMaxEvictRetries = int32(DefaultMachineDrainTimeout.Seconds() / PodEvictionRetryInterval.Seconds())
 )
 
 // NewDrainOptions creates a new DrainOptions struct and returns a pointer to it
@@ -323,6 +326,7 @@ func (o *DrainOptions) deletePod(pod *api.Pod) error {
 	gracePeriodSeconds := int64(0)
 	deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
 
+	glog.V(3).Infof("Attempting to force-delete the pod:%q from node %q", pod.Name, o.nodeName)
 	return o.client.Core().Pods(pod.Namespace).Delete(pod.Name, deleteOptions)
 }
 
@@ -343,7 +347,8 @@ func (o *DrainOptions) evictPod(pod *api.Pod, policyGroupVersion string) error {
 		},
 		DeleteOptions: deleteOptions,
 	}
-	// Remember to change change the URL manipulation func when Evction's version change
+	glog.V(3).Infof("Attempting to evict the pod:%q from node %q", pod.Name, o.nodeName)
+	// Remember to change the URL manipulation func when Evction's version change
 	return o.client.Policy().Evictions(eviction.Namespace).Evict(eviction)
 }
 

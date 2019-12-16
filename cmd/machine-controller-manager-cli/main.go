@@ -73,20 +73,20 @@ func main() {
 		log.Fatalf("Could not parse machine class yaml: %s", err)
 	}
 
-	cmiclient, err := cmiclient.NewCMIPluginClient(machineID, classKind, &secret, machineclass, machineName)
+	cmiclient, err := cmiclient.NewCMIPluginClient(machineID, classKind, &secret, machineclass, machineName, "")
 	if err != nil {
 		log.Fatalf("Couldn't create CMIDirver client : %s", err)
 	}
 
 	if machineID == "" {
-		id, name, err := cmiclient.CreateMachine()
+		id, name, _, err := cmiclient.CreateMachine()
 		if err != nil {
 			log.Fatalf("Could not create %s : %s", machineName, err)
 		}
 		fmt.Printf("Machine id: %s\n", id)
 		fmt.Printf("Name: %s\n", name)
 	} else {
-		err = cmiclient.DeleteMachine(machineID)
+		_, err = cmiclient.DeleteMachine()
 		if err != nil {
 			log.Fatalf("Could not delete %s : %s", machineID, err)
 		}

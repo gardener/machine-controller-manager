@@ -462,14 +462,14 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		return nil
 	}
 
-	// Validate MachineClass
-	_, secretRef, err := c.ValidateMachineClass(&machineSet.Spec.Template.Spec.Class)
-	if err != nil || secretRef == nil {
-		return err
-	}
-
-	// Manipulate finalizers
 	if machineSet.DeletionTimestamp == nil {
+		// Validate MachineClass
+		_, secretRef, err := c.ValidateMachineClass(&machineSet.Spec.Template.Spec.Class)
+		if err != nil || secretRef == nil {
+			return err
+		}
+
+		// Manipulate finalizers
 		c.addMachineSetFinalizers(machineSet)
 	}
 
@@ -630,9 +630,6 @@ func (c *controller) prepareMachineForDeletion(targetMachine *v1alpha1.Machine, 
 	machineSetKey, err := KeyFunc(machineSet)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Couldn't get key for %v %#v: %v", machineSet.Kind, machineSet, err))
-		return
-	} else if targetMachine.Status.CurrentStatus.Phase == "" {
-		// Machine is still not created properly
 		return
 	}
 
