@@ -32,6 +32,10 @@ func (c *FakeMachine) Machines(namespace string) internalversion.MachineInterfac
 	return &FakeMachines{c, namespace}
 }
 
+func (c *FakeMachine) MachineClasses(namespace string) internalversion.MachineClassInterface {
+	return &FakeMachineClasses{c, namespace}
+}
+
 func (c *FakeMachine) MachineDeployments(namespace string) internalversion.MachineDeploymentInterface {
 	return &FakeMachineDeployments{c, namespace}
 }

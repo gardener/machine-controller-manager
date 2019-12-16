@@ -1585,6 +1585,99 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			Dependencies: []string{
 				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineClass": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "MachineClass can be used to templatize and re-use provider configuration across multiple Machines / MachineSets / MachineDeployments.",
+					Properties: map[string]spec.Schema{
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							},
+						},
+						"providerSpec": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Provider-specific configuration to use during node creation.",
+								Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
+							},
+						},
+						"secretRef": {
+							SchemaProps: spec.SchemaProps{
+								Description: "SecretRef stores the necessary secrets such as credetials or userdata.",
+								Ref:         ref("k8s.io/api/core/v1.SecretReference"),
+							},
+						},
+						"provider": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Provider is the combination of name and location of cloud-specific drivers.",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+					},
+					Required: []string{"providerSpec"},
+				},
+			},
+			Dependencies: []string{
+				"k8s.io/api/core/v1.SecretReference", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineClassList": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "MachineClassList contains a list of MachineClasses",
+					Properties: map[string]spec.Schema{
+						"kind": {
+							SchemaProps: spec.SchemaProps{
+								Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"apiVersion": {
+							SchemaProps: spec.SchemaProps{
+								Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"metadata": {
+							SchemaProps: spec.SchemaProps{
+								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+							},
+						},
+						"items": {
+							SchemaProps: spec.SchemaProps{
+								Type: []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineClass"),
+										},
+									},
+								},
+							},
+						},
+					},
+					Required: []string{"items"},
+				},
+			},
+			Dependencies: []string{
+				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+		},
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeployment": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
