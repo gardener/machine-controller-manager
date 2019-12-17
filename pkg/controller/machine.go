@@ -496,7 +496,6 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				pvDetachTimeOut         = c.safetyOptions.PvDetachTimeout.Duration
 				timeOutDuration         = c.safetyOptions.MachineDrainTimeout.Duration
 				forceDeleteLabelPresent = machine.Labels["force-deletion"] == "True"
-				lastDrainFailed         = machine.Status.LastOperation.Description[0:12] == "Drain failed"
 			)
 
 			// Timeout value obtained by subtracting last operation with expected time out period
@@ -507,18 +506,16 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				// To perform forceful machine drain/delete either one of the below conditions must be satified
 				// 1. force-deletion: "True" label must be present
 				// 2. Deletion operation is more than drain-timeout minutes old
-				// 3. Last machine drain had failed
 				forceDeleteMachine = true
 				forceDeletePods = true
 				timeOutDuration = 1 * time.Minute
 				maxEvictRetries = 1
 
 				glog.V(2).Infof(
-					"Force deletion has been triggerred for machine %q due to Label:%t, timeout:%t, lastDrainFailed:%t",
+					"Force deletion has been triggerred for machine %q due to ForceDeletionLabel:%t, Timeout:%t",
 					machine.Name,
 					forceDeleteLabelPresent,
 					timeOutOccurred,
-					lastDrainFailed,
 				)
 			}
 
