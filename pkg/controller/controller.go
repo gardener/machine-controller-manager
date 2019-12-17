@@ -482,7 +482,6 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	}
 
 	glog.V(1).Info("Starting machine-controller-manager")
-	handlers.UpdateHealth(true)
 
 	// The controller implement the prometheus.Collector interface and can therefore
 	// be passed to the metrics registry. Collectors which added to the registry
