@@ -158,6 +158,7 @@ func (c *CMIPluginClient) DeleteMachine() (string, error) {
 		MachineName:    c.MachineName,
 		ProviderSpec:   c.MachineClass.ProviderSpec.Raw,
 		Secrets:        getSecretData(c.Secret),
+		ProviderID:     c.ProviderID,
 		LastKnownState: []byte(c.LastKnownState),
 	}
 	ctx := context.Background()
@@ -189,6 +190,7 @@ func (c *CMIPluginClient) GetMachineStatus() (string, string, string, error) {
 		MachineName:  c.MachineName,
 		ProviderSpec: c.MachineClass.ProviderSpec.Raw,
 		Secrets:      getSecretData(c.Secret),
+		ProviderID:   c.ProviderID,
 	}
 	ctx := context.Background()
 	response, err := machineClient.GetMachineStatus(ctx, req)
@@ -249,6 +251,7 @@ func (c *CMIPluginClient) ShutDownMachine() error {
 		MachineName:  c.MachineName,
 		ProviderSpec: c.MachineClass.ProviderSpec.Raw,
 		Secrets:      getSecretData(c.Secret),
+		ProviderID:   c.ProviderID,
 	}
 
 	ctx := context.Background()
