@@ -156,7 +156,7 @@ func validateBlockDevices(blockDevices []machine.AWSBlockDeviceMappingSpec, fldP
 
 	for device, number := range deviceNames {
 		if number > 1 {
-			allErrs = append(allErrs, field.Required(fldPath, fmt.Sprintf("Device name %s duplicated %d times, DeviceName must be uniq", device, number)))
+			allErrs = append(allErrs, field.Required(fldPath, fmt.Sprintf("Device name '%s' duplicated %d times, DeviceName must be uniq", device, number)))
 		}
 	}
 
