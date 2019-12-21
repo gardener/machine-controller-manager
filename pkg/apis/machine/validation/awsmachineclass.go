@@ -18,6 +18,7 @@ limitations under the License.
 package validation
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -120,12 +121,21 @@ func validateBlockDevices(blockDevices []machine.AWSBlockDeviceMappingSpec, fldP
 	if 0 == len(blockDevices) {
 		allErrs = append(allErrs, field.Required(fldPath, "At least one disk is required"))
 	}
+
 	rootPartitionCount := 0
+	var deviceNames = make(map[string]int)
+
 	for i, disk := range blockDevices {
 		idxPath := fldPath.Index(i)
 
 		if disk.DeviceName == "/root" {
 			rootPartitionCount++
+		}
+
+		if _, keyExist := deviceNames[disk.DeviceName]; keyExist {
+			deviceNames[disk.DeviceName]++
+		} else {
+			deviceNames[disk.DeviceName] = 1
 		}
 
 		if disk.Ebs.VolumeSize <= 0 {
@@ -142,6 +152,12 @@ func validateBlockDevices(blockDevices []machine.AWSBlockDeviceMappingSpec, fldP
 		allErrs = append(allErrs, field.Required(fldPath, "Only one '/root' partition can be specified"))
 	} else if rootPartitionCount == 0 && len(blockDevices) > 1 {
 		allErrs = append(allErrs, field.Required(fldPath, "Device name with '/root' partition must be specified"))
+	}
+
+	for device, number := range deviceNames {
+		if number > 1 {
+			allErrs = append(allErrs, field.Required(fldPath, fmt.Sprintf("Device name %s duplicated %d times, DeviceName must be uniq", device, number)))
+		}
 	}
 
 	return allErrs
