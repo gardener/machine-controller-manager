@@ -75,20 +75,26 @@ func (d *AWSDriver) Create() (string, string, error) {
 	}
 
 	var blkDeviceMappings []*ec2.BlockDeviceMapping
-	deviceName := output.Images[0].RootDeviceName
-	volumeSize := d.AWSMachineClass.Spec.BlockDevices[0].Ebs.VolumeSize
-	volumeType := d.AWSMachineClass.Spec.BlockDevices[0].Ebs.VolumeType
-	blkDeviceMapping := ec2.BlockDeviceMapping{
-		DeviceName: deviceName,
-		Ebs: &ec2.EbsBlockDevice{
-			VolumeSize: &volumeSize,
-			VolumeType: &volumeType,
-		},
+	for _, disk := range d.AWSMachineClass.Spec.BlockDevices {
+
+		deviceName := disk.DeviceName
+		if disk.DeviceName == "/root" || len(d.AWSMachineClass.Spec.BlockDevices) == 1 {
+			deviceName = *output.Images[0].RootDeviceName
+		}
+		volumeSize := disk.Ebs.VolumeSize
+		volumeType := disk.Ebs.VolumeType
+		blkDeviceMapping := ec2.BlockDeviceMapping{
+			DeviceName: aws.String(deviceName),
+			Ebs: &ec2.EbsBlockDevice{
+				VolumeSize: aws.Int64(volumeSize),
+				VolumeType: aws.String(volumeType),
+			},
+		}
+		if volumeType == "io1" {
+			blkDeviceMapping.Ebs.Iops = aws.Int64(disk.Ebs.Iops)
+		}
+		blkDeviceMappings = append(blkDeviceMappings, &blkDeviceMapping)
 	}
-	if volumeType == "io1" {
-		blkDeviceMapping.Ebs.Iops = &d.AWSMachineClass.Spec.BlockDevices[0].Ebs.Iops
-	}
-	blkDeviceMappings = append(blkDeviceMappings, &blkDeviceMapping)
 
 	// Add tags to the created machine
 	tagList := []*ec2.Tag{}
