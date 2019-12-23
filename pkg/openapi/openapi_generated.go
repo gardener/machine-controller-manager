@@ -2574,6 +2574,18 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format: "",
 							},
 						},
+						"networks": {
+							SchemaProps: spec.SchemaProps{
+								Type: []string{"array"},
+								Items: &spec.SchemaOrArray{
+									Schema: &spec.Schema{
+										SchemaProps: spec.SchemaProps{
+											Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.OpenStackNetwork"),
+										},
+									},
+								},
+							},
+						},
 						"secretRef": {
 							SchemaProps: spec.SchemaProps{
 								Ref: ref("k8s.io/api/core/v1.SecretReference"),
@@ -2590,7 +2602,35 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				},
 			},
 			Dependencies: []string{
-				"k8s.io/api/core/v1.SecretReference"},
+				"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.OpenStackNetwork", "k8s.io/api/core/v1.SecretReference"},
+		},
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.OpenStackNetwork": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Properties: map[string]spec.Schema{
+						"id": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"name": {
+							SchemaProps: spec.SchemaProps{
+								Description: "takes priority before name",
+								Type:        []string{"string"},
+								Format:      "",
+							},
+						},
+						"podNetwork": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"boolean"},
+								Format: "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{},
 		},
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.PacketMachineClass": {
 			Schema: spec.Schema{
