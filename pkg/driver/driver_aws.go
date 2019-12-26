@@ -174,7 +174,6 @@ func (d *AWSDriver) generateBlockDevices(blockDevices []v1alpha1.AWSBlockDeviceM
 			DeviceName: aws.String(deviceName),
 			Ebs: &ec2.EbsBlockDevice{
 				DeleteOnTermination: aws.Bool(deleteOnTermination),
-				Iops:                aws.Int64(iops),
 				Encrypted:           aws.Bool(encrypted),
 				VolumeSize:          aws.Int64(volumeSize),
 				VolumeType:          aws.String(volumeType),

@@ -79,19 +79,19 @@ var _ = Describe("Driver AWS", func() {
 			expectedTags := &ec2.TagSpecification{
 				ResourceType: aws.String("instance"),
 				Tags: []*ec2.Tag{
-					&ec2.Tag{
+					{
 						Key:   aws.String("tag-1"),
 						Value: aws.String("value-tag-1"),
 					},
-					&ec2.Tag{
+					{
 						Key:   aws.String("tag-2"),
 						Value: aws.String("value-tag-2"),
 					},
-					&ec2.Tag{
+					{
 						Key:   aws.String("tag-3"),
 						Value: aws.String("value-tag-3"),
 					},
-					&ec2.Tag{
+					{
 						Key:   aws.String("Name"),
 						Value: aws.String("machine-name"),
 					},
@@ -110,7 +110,7 @@ var _ = Describe("Driver AWS", func() {
 			expectedTags := &ec2.TagSpecification{
 				ResourceType: aws.String("instance"),
 				Tags: []*ec2.Tag{
-					&ec2.Tag{
+					{
 						Key:   aws.String("Name"),
 						Value: aws.String(""),
 					},
