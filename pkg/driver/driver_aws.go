@@ -74,31 +74,63 @@ func (d *AWSDriver) Create() (string, string, error) {
 		return "Error", "Error", fmt.Errorf("Image %s not found", *imageID)
 	}
 
-	var blkDeviceMappings []*ec2.BlockDeviceMapping
-	for _, disk := range d.AWSMachineClass.Spec.BlockDevices {
-
-		deviceName := disk.DeviceName
-		if disk.DeviceName == "/root" || len(d.AWSMachineClass.Spec.BlockDevices) == 1 {
-			deviceName = *output.Images[0].RootDeviceName
-		}
-		volumeSize := disk.Ebs.VolumeSize
-		volumeType := disk.Ebs.VolumeType
-		blkDeviceMapping := ec2.BlockDeviceMapping{
-			DeviceName: aws.String(deviceName),
-			Ebs: &ec2.EbsBlockDevice{
-				VolumeSize: aws.Int64(volumeSize),
-				VolumeType: aws.String(volumeType),
-			},
-		}
-		if volumeType == "io1" {
-			blkDeviceMapping.Ebs.Iops = aws.Int64(disk.Ebs.Iops)
-		}
-		blkDeviceMappings = append(blkDeviceMappings, &blkDeviceMapping)
+	blkDeviceMappings, err := d.generateBlockDevices(d.AWSMachineClass.Spec.BlockDevices, output.Images[0].RootDeviceName)
+	if err != nil {
+		return "Error", "Error", err
 	}
+
+	tagInstance, err := d.generateTags(d.AWSMachineClass.Spec.Tags)
+	if err != nil {
+		return "Error", "Error", err
+	}
+
+	securityGroupIDs, err := d.generateSecurityGroups(d.AWSMachineClass.Spec.NetworkInterfaces[0].SecurityGroupIDs)
+	if err != nil {
+		return "Error", "Error", err
+	}
+
+	// Specify the details of the machine that you want to create.
+	inputConfig := ec2.RunInstancesInput{
+		// An Amazon Linux AMI ID for t2.micro machines in the us-west-2 region
+		ImageId:      aws.String(d.AWSMachineClass.Spec.AMI),
+		InstanceType: aws.String(d.AWSMachineClass.Spec.MachineType),
+		MinCount:     aws.Int64(1),
+		MaxCount:     aws.Int64(1),
+		UserData:     &UserDataEnc,
+		KeyName:      aws.String(d.AWSMachineClass.Spec.KeyName),
+		SubnetId:     aws.String(d.AWSMachineClass.Spec.NetworkInterfaces[0].SubnetID),
+		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
+			Name: &(d.AWSMachineClass.Spec.IAM.Name),
+		},
+		SecurityGroupIds:    securityGroupIDs,
+		BlockDeviceMappings: blkDeviceMappings,
+		TagSpecifications:   []*ec2.TagSpecification{tagInstance},
+	}
+
+	runResult, err := svc.RunInstances(&inputConfig)
+	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+		return "Error", "Error", err
+	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+
+	return d.encodeMachineID(d.AWSMachineClass.Spec.Region, *runResult.Instances[0].InstanceId), *runResult.Instances[0].PrivateDnsName, nil
+}
+
+func (d *AWSDriver) generateSecurityGroups(sgIDs []string) ([]*string, error) {
+
+	var securityGroupIDs []*string
+	for _, sg := range sgIDs {
+		securityGroupIDs = append(securityGroupIDs, aws.String(sg))
+	}
+	return securityGroupIDs, nil
+}
+
+func (d *AWSDriver) generateTags(tags map[string]string) (*ec2.TagSpecification, error) {
 
 	// Add tags to the created machine
 	tagList := []*ec2.Tag{}
-	for idx, element := range d.AWSMachineClass.Spec.Tags {
+	for idx, element := range tags {
 		if idx == "Name" {
 			// Name tag cannot be set, as its used to identify backing machine object
 			continue
@@ -119,33 +151,42 @@ func (d *AWSDriver) Create() (string, string, error) {
 		ResourceType: aws.String("instance"),
 		Tags:         tagList,
 	}
+	return tagInstance, nil
+}
 
-	// Specify the details of the machine that you want to create.
-	inputConfig := ec2.RunInstancesInput{
-		// An Amazon Linux AMI ID for t2.micro machines in the us-west-2 region
-		ImageId:      aws.String(d.AWSMachineClass.Spec.AMI),
-		InstanceType: aws.String(d.AWSMachineClass.Spec.MachineType),
-		MinCount:     aws.Int64(1),
-		MaxCount:     aws.Int64(1),
-		UserData:     &UserDataEnc,
-		KeyName:      aws.String(d.AWSMachineClass.Spec.KeyName),
-		SubnetId:     aws.String(d.AWSMachineClass.Spec.NetworkInterfaces[0].SubnetID),
-		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-			Name: &(d.AWSMachineClass.Spec.IAM.Name),
-		},
-		SecurityGroupIds:    []*string{aws.String(d.AWSMachineClass.Spec.NetworkInterfaces[0].SecurityGroupIDs[0])},
-		BlockDeviceMappings: blkDeviceMappings,
-		TagSpecifications:   []*ec2.TagSpecification{tagInstance},
+func (d *AWSDriver) generateBlockDevices(blockDevices []v1alpha1.AWSBlockDeviceMappingSpec, rootDeviceName *string) ([]*ec2.BlockDeviceMapping, error) {
+
+	var blkDeviceMappings []*ec2.BlockDeviceMapping
+	// if blockDevices is empty, AWS will automatically create a root partition
+	for _, disk := range blockDevices {
+
+		deviceName := disk.DeviceName
+		if disk.DeviceName == "/root" || len(blockDevices) == 1 {
+			deviceName = *rootDeviceName
+		}
+		volumeSize := disk.Ebs.VolumeSize
+		volumeType := disk.Ebs.VolumeType
+		deleteOnTermination := disk.Ebs.DeleteOnTermination
+		iops := disk.Ebs.Iops
+		encrypted := disk.Ebs.Encrypted
+
+		blkDeviceMapping := ec2.BlockDeviceMapping{
+			DeviceName: aws.String(deviceName),
+			Ebs: &ec2.EbsBlockDevice{
+				DeleteOnTermination: aws.Bool(deleteOnTermination),
+				Iops:                aws.Int64(iops),
+				Encrypted:           aws.Bool(encrypted),
+				VolumeSize:          aws.Int64(volumeSize),
+				VolumeType:          aws.String(volumeType),
+			},
+		}
+		if volumeType == "io1" {
+			blkDeviceMapping.Ebs.Iops = aws.Int64(disk.Ebs.Iops)
+		}
+		blkDeviceMappings = append(blkDeviceMappings, &blkDeviceMapping)
 	}
 
-	runResult, err := svc.RunInstances(&inputConfig)
-	if err != nil {
-		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-		return "Error", "Error", err
-	}
-	metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-
-	return d.encodeMachineID(d.AWSMachineClass.Spec.Region, *runResult.Instances[0].InstanceId), *runResult.Instances[0].PrivateDnsName, nil
+	return blkDeviceMappings, nil
 }
 
 // Delete method is used to delete a AWS machine
