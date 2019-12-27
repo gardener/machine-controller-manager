@@ -167,7 +167,6 @@ func (d *AWSDriver) generateBlockDevices(blockDevices []v1alpha1.AWSBlockDeviceM
 		volumeSize := disk.Ebs.VolumeSize
 		volumeType := disk.Ebs.VolumeType
 		deleteOnTermination := disk.Ebs.DeleteOnTermination
-		iops := disk.Ebs.Iops
 		encrypted := disk.Ebs.Encrypted
 
 		blkDeviceMapping := ec2.BlockDeviceMapping{

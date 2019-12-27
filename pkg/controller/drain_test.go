@@ -219,13 +219,13 @@ var _ = Describe("drain", func() {
 		if setup.attemptEviction {
 			fakeTargetCoreClient := c.targetCoreClient.(*fakeclient.Clientset)
 			fakeTargetCoreClient.FakeDiscovery.Resources = []*metav1.APIResourceList{
-				&metav1.APIResourceList{
+				{
 					GroupVersion: "policy/v1",
 				},
-				&metav1.APIResourceList{
+				{
 					GroupVersion: "v1",
 					APIResources: []metav1.APIResource{
-						metav1.APIResource{
+						{
 							Name: EvictionSubresource,
 							Kind: EvictionKind,
 						},
@@ -752,7 +752,7 @@ func getPodWithoutPV(ns, name, nodeName string, terminationGracePeriod time.Dura
 			Namespace: ns,
 			Labels:    labels,
 			OwnerReferences: []metav1.OwnerReference{
-				metav1.OwnerReference{Controller: &controller},
+				{Controller: &controller},
 			},
 		},
 		Spec: corev1.PodSpec{

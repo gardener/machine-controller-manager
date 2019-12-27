@@ -606,7 +606,7 @@ func (o *DrainOptions) evictPodsWithPVInternal(attemptEvict bool, pods []*corev1
 		case <-mainContext.Done():
 			// Timeout occurred. Abort and report the remaining pods.
 			returnCh <- nil
-			return append(retryPods, pods[i+1:len(pods)]...), true
+			return append(retryPods, pods[i+1:]...), true
 		default:
 		}
 
@@ -655,7 +655,7 @@ func (o *DrainOptions) evictPodsWithPVInternal(attemptEvict bool, pods []*corev1
 		if apierrors.IsNotFound(err) {
 			glog.V(3).Info("Node not found anymore")
 			returnCh <- nil
-			return append(retryPods, pods[i+1:len(pods)]...), true
+			return append(retryPods, pods[i+1:]...), true
 		} else if err != nil {
 			glog.Errorf("Error when waiting for volume to detach from node. Err: %v", err)
 			returnCh <- err
