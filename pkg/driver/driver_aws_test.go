@@ -18,13 +18,13 @@ limitations under the License.
 package driver
 
 import (
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -37,7 +37,7 @@ var _ = Describe("Driver AWS", func() {
 
 	Context("GenerateSecurityGroups Driver AWS Spec", func() {
 
-		It("should convert mutliples security groups successfully", func() {
+		It("should convert multiples security groups successfully", func() {
 			awsDriver := &AWSDriver{}
 			sgs := []string{"sg-0c3a49f760fe5cbfe", "sg-0c3a49f789898dwwdw", "sg-0c3a49f789898ddsdfe"}
 
@@ -61,7 +61,7 @@ var _ = Describe("Driver AWS", func() {
 
 	Context("GenerateTags Driver AWS Spec", func() {
 
-		It("should convert mutliples tags successfully", func() {
+		It("should convert multiples tags successfully", func() {
 			awsDriver := &AWSDriver{
 				AWSMachineClass: &v1alpha1.AWSMachineClass{},
 				CloudConfig:     &corev1.Secret{},
@@ -98,7 +98,8 @@ var _ = Describe("Driver AWS", func() {
 				},
 			}
 
-			Expect(tagsGenerated).To(Equal(expectedTags))
+			Expect(tagsGenerated.ResourceType).To(Equal(expectedTags.ResourceType))
+			Expect(tagsGenerated.Tags).To(ConsistOf(expectedTags.Tags))
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -124,7 +125,7 @@ var _ = Describe("Driver AWS", func() {
 
 	Context("GenerateBlockDevices Driver AWS Spec", func() {
 
-		It("should convert mutliples blockDevices successfully", func() {
+		It("should convert multiples blockDevices successfully", func() {
 			awsDriver := &AWSDriver{}
 			disks := []v1alpha1.AWSBlockDeviceMappingSpec{
 				{

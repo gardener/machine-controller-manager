@@ -17,12 +17,11 @@ limitations under the License.
 package fakeclient
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sync"
 	"time"
-
-	"errors"
 
 	fakeuntyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/fake"
 	apipolicyv1beta1 "k8s.io/api/policy/v1beta1"
@@ -51,7 +50,7 @@ type FakeObjectTracker struct {
 	fakingOptions
 }
 
-// Add recieves an add event with the object
+// Add receives an add event with the object
 func (t *FakeObjectTracker) Add(obj runtime.Object) error {
 	if t.fakingEnabled {
 		err := t.RunFakeInvocations()
@@ -63,7 +62,7 @@ func (t *FakeObjectTracker) Add(obj runtime.Object) error {
 	return t.delegatee.Add(obj)
 }
 
-// Get recieves an get event with the object
+// Get receives an get event with the object
 func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string) (runtime.Object, error) {
 	if t.fakingEnabled {
 		defer t.DecrementCounter()
@@ -84,7 +83,7 @@ func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string
 	return t.delegatee.Get(gvr, ns, name)
 }
 
-// Create recieves an create event with the object
+// Create receives an create event with the object
 func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.Object, ns string) error {
 	if t.fakingEnabled {
 		defer t.DecrementCounter()
@@ -112,7 +111,7 @@ func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.
 	return nil
 }
 
-// Update recieves an update event with the object
+// Update receives an update event with the object
 func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.Object, ns string) error {
 
 	if t.fakingEnabled {
@@ -147,7 +146,7 @@ func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.
 	return nil
 }
 
-// List recieves an list event with the object
+// List receives an list event with the object
 func (t *FakeObjectTracker) List(gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, ns string) (runtime.Object, error) {
 	if t.fakingEnabled {
 		defer t.DecrementCounter()
@@ -160,7 +159,7 @@ func (t *FakeObjectTracker) List(gvr schema.GroupVersionResource, gvk schema.Gro
 	return t.delegatee.List(gvr, gvk, ns)
 }
 
-// Delete recieves an delete event with the object
+// Delete receives an delete event with the object
 func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name string) error {
 	if t.fakingEnabled {
 		defer t.DecrementCounter()
@@ -193,7 +192,7 @@ func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name str
 	return nil
 }
 
-// Watch recieves an watch event with the object
+// Watch receives an watch event with the object
 func (t *FakeObjectTracker) Watch(gvr schema.GroupVersionResource, name string) (watch.Interface, error) {
 	if t.fakingEnabled {
 		defer t.DecrementCounter()

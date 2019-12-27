@@ -52,8 +52,11 @@ func NewAWSDriver(create func() (string, error), delete func() error, existing f
 
 // Create method is used to create a AWS machine
 func (d *AWSDriver) Create() (string, string, error) {
+	svc, err := d.createSVC()
+	if err != nil {
+		return "Error", "Error", err
+	}
 
-	svc := d.createSVC()
 	UserDataEnc := base64.StdEncoding.EncodeToString([]byte(d.UserData))
 
 	var imageIds []*string
@@ -201,7 +204,11 @@ func (d *AWSDriver) Delete() error {
 
 	machineID := d.decodeMachineID(d.MachineID)
 
-	svc := d.createSVC()
+	svc, err := d.createSVC()
+	if err != nil {
+		return err
+	}
+
 	input := &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{
 			aws.String(machineID),
@@ -261,7 +268,11 @@ func (d *AWSDriver) GetVMs(machineID string) (VMs, error) {
 		return listOfVMs, nil
 	}
 
-	svc := d.createSVC()
+	svc, err := d.createSVC()
+	if svc != nil {
+		return listOfVMs, err
+	}
+
 	input := ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
@@ -326,24 +337,29 @@ func (d *AWSDriver) GetVMs(machineID string) (VMs, error) {
 }
 
 // Helper function to create SVC
-func (d *AWSDriver) createSVC() *ec2.EC2 {
+func (d *AWSDriver) createSVC() (*ec2.EC2, error) {
+	var (
+		config = &aws.Config{
+			Region: aws.String(d.AWSMachineClass.Spec.Region),
+		}
 
-	accessKeyID := strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AWSAccessKeyID]))
-	secretAccessKey := strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AWSSecretAccessKey]))
+		accessKeyID     = strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AWSAccessKeyID]))
+		secretAccessKey = strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AWSSecretAccessKey]))
+	)
 
 	if accessKeyID != "" && secretAccessKey != "" {
-		return ec2.New(session.New(&aws.Config{
-			Region: aws.String(d.AWSMachineClass.Spec.Region),
-			Credentials: credentials.NewStaticCredentialsFromCreds(credentials.Value{
-				AccessKeyID:     accessKeyID,
-				SecretAccessKey: secretAccessKey,
-			}),
-		}))
+		config.Credentials = credentials.NewStaticCredentialsFromCreds(credentials.Value{
+			AccessKeyID:     accessKeyID,
+			SecretAccessKey: secretAccessKey,
+		})
 	}
 
-	return ec2.New(session.New(&aws.Config{
-		Region: aws.String(d.AWSMachineClass.Spec.Region),
-	}))
+	s, err := session.NewSession(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return ec2.New(s), nil
 }
 
 func (d *AWSDriver) encodeMachineID(region, machineID string) string {

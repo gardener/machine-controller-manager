@@ -78,7 +78,7 @@ var _ = Describe("machine_util", func() {
 				}
 
 				//updatedNodeObject, _ := c.nodeLister.Get(nodeObject.Name)
-				updatedNodeObject, _ := c.targetCoreClient.Core().Nodes().Get(nodeObject.Name, metav1.GetOptions{})
+				updatedNodeObject, _ := c.targetCoreClient.CoreV1().Nodes().Get(nodeObject.Name, metav1.GetOptions{})
 
 				if data.expect.node != nil {
 					Expect(updatedNodeObject.Spec.Taints).Should(ConsistOf(data.expect.node.Spec.Taints))

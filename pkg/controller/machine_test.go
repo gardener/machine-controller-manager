@@ -744,7 +744,7 @@ var _ = Describe("machine", func() {
 
 				fakeDriver := driver.NewFakeDriver(
 					func() (string, string, error) {
-						_, err := controller.targetCoreClient.Core().Nodes().Create(&v1.Node{
+						_, err := controller.targetCoreClient.CoreV1().Nodes().Create(&v1.Node{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: action.fakeNodeName,
 							},
