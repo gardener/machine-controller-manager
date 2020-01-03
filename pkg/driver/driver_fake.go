@@ -63,3 +63,13 @@ func (d *FakeDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string,
 	volNames := []string{}
 	return volNames, nil
 }
+
+//GetUserData return the used data whit which the VM will be booted
+func (d *FakeDriver) GetUserData() string {
+	return ""
+}
+
+//SetUserData set the used data whit which the VM will be booted
+func (d *FakeDriver) SetUserData(userData string) {
+	return
+}

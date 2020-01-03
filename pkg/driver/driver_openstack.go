@@ -484,6 +484,16 @@ func (d *OpenStackDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]st
 	return names, nil
 }
 
+//GetUserData return the used data whit which the VM will be booted
+func (d *OpenStackDriver) GetUserData() string {
+	return d.UserData
+}
+
+//SetUserData set the used data whit which the VM will be booted
+func (d *OpenStackDriver) SetUserData(userData string) {
+	d.UserData = userData
+}
+
 func waitForStatus(c *gophercloud.ServiceClient, id string, pending []string, target []string, secs int) error {
 	return gophercloud.WaitFor(secs, func() (bool, error) {
 		current, err := servers.Get(c, id).Extract()
