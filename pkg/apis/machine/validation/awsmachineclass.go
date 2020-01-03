@@ -18,6 +18,7 @@ limitations under the License.
 package validation
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -34,6 +35,15 @@ const nameFmt string = `[-a-z0-9]+`
 const nameMaxLength int = 63
 
 var nameRegexp = regexp.MustCompile("^" + nameFmt + "$")
+
+func contains(arr []string, checkValue string) bool {
+	for _, value := range arr {
+		if value == checkValue {
+			return true
+		}
+	}
+	return false
+}
 
 // validateName is the validation function for object names.
 func validateName(value string, prefix bool) []string {
@@ -116,18 +126,53 @@ func validateAWSClassSpecTags(tags map[string]string, fldPath *field.Path) field
 
 func validateBlockDevices(blockDevices []machine.AWSBlockDeviceMappingSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	if len(blockDevices) > 1 {
-		allErrs = append(allErrs, field.Required(fldPath.Child(""), "Can only specify one (root) block device"))
-	} else if len(blockDevices) == 1 {
-		if blockDevices[0].Ebs.VolumeSize <= 0 {
-			allErrs = append(allErrs, field.Required(fldPath.Child("ebs.volumeSize"), "Please mention a valid ebs volume size"))
+
+	rootPartitionCount := 0
+	var deviceNames = make(map[string]int)
+
+	validVolumeTypes := []string{"gp2", "io1", "st1", "sc1", "standard"}
+
+	// if blockDevices is empty, AWS will automatically create a root partition
+	for i, disk := range blockDevices {
+		idxPath := fldPath.Index(i)
+
+		if disk.DeviceName == "/root" {
+			rootPartitionCount++
 		}
-		if blockDevices[0].Ebs.VolumeType == "" {
-			allErrs = append(allErrs, field.Required(fldPath.Child("ebs.volumeType"), "Please mention a valid ebs volume type"))
-		} else if blockDevices[0].Ebs.VolumeType == "io1" && blockDevices[0].Ebs.Iops <= 0 {
-			allErrs = append(allErrs, field.Required(fldPath.Child("ebs.iops"), "Please mention a valid ebs volume iops"))
+
+		if _, keyExist := deviceNames[disk.DeviceName]; keyExist {
+			deviceNames[disk.DeviceName]++
+		} else {
+			deviceNames[disk.DeviceName] = 1
+		}
+
+		if !contains(validVolumeTypes, disk.Ebs.VolumeType) {
+			allErrs = append(allErrs, field.Required(idxPath.Child("ebs.volumeType"), "Please mention a valid ebs volume type:  gp2, io1, st1, sc1, or standard."))
+		}
+
+		if disk.Ebs.VolumeSize <= 0 {
+			allErrs = append(allErrs, field.Required(idxPath.Child("ebs.volumeSize"), "Please mention a valid ebs volume size"))
+		}
+		if disk.Ebs.VolumeType == "" {
+			allErrs = append(allErrs, field.Required(idxPath.Child("ebs.volumeType"), "Please mention a valid ebs volume type"))
+		} else if disk.Ebs.VolumeType == "io1" && disk.Ebs.Iops <= 0 {
+			allErrs = append(allErrs, field.Required(idxPath.Child("ebs.iops"), "Please mention a valid ebs volume iops"))
 		}
 	}
+
+	if rootPartitionCount > 1 {
+		allErrs = append(allErrs, field.Required(fldPath, "Only one '/root' partition can be specified"))
+		// len(blockDevices) > 1 allow backward compatibility when a single disk is provided without DeviceName
+	} else if rootPartitionCount == 0 && len(blockDevices) > 1 {
+		allErrs = append(allErrs, field.Required(fldPath, "Device name with '/root' partition must be specified"))
+	}
+
+	for device, number := range deviceNames {
+		if number > 1 {
+			allErrs = append(allErrs, field.Required(fldPath, fmt.Sprintf("Device name '%s' duplicated %d times, DeviceName must be uniq", device, number)))
+		}
+	}
+
 	return allErrs
 }
 
