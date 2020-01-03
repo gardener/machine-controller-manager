@@ -340,6 +340,23 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driver) error {
 	glog.V(2).Infof("Creating machine %q, please wait!", machine.Name)
 
+	err := c.addBootstrapTokenToUserData(machine.Name, driver)
+	if err != nil {
+		glog.Errorf("Error while creating bootstrap token for machine %s: %s", machine.Name, err.Error())
+		lastOperation := v1alpha1.LastOperation{
+			Description:    "MCM message - " + err.Error(),
+			State:          v1alpha1.MachineStateFailed,
+			Type:           v1alpha1.MachineOperationCreate,
+			LastUpdateTime: metav1.Now(),
+		}
+		currentStatus := v1alpha1.CurrentStatus{
+			Phase:          v1alpha1.MachineFailed,
+			TimeoutActive:  false,
+			LastUpdateTime: metav1.Now(),
+		}
+		c.updateMachineStatus(machine, lastOperation, currentStatus)
+		return err
+	}
 	actualProviderID, nodeName, err := driver.Create()
 	if err != nil {
 		glog.Errorf("Error while creating machine %s: %s", machine.Name, err.Error())
@@ -355,6 +372,12 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 			LastUpdateTime: metav1.Now(),
 		}
 		c.updateMachineStatus(machine, lastOperation, currentStatus)
+
+		// Delete the bootstrap token
+		if err := c.deleteBootstrapToken(machine.Name); err != nil {
+			glog.Warning(err)
+		}
+
 		return err
 	}
 	glog.V(2).Infof("Created machine: %q, MachineID: %s", machine.Name, actualProviderID)
@@ -475,6 +498,12 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				TimeoutActive:  false,
 				LastUpdateTime: metav1.Now(),
 			}
+
+			err = c.deleteBootstrapToken(machine.Name)
+			if err != nil {
+				glog.Warning(err)
+			}
+
 			machine, err = c.updateMachineStatus(machine, lastOperation, currentStatus)
 			if err != nil && apierrors.IsNotFound(err) {
 				// Object no longer exists and has been deleted
@@ -698,6 +727,12 @@ func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditio
 			clone.Status.LastOperation.State != v1alpha1.MachineStateSuccessful {
 			// When machine creation went through
 			msg = fmt.Sprintf("Machine %s successfully joined the cluster", clone.Name)
+			// Delete the bootstrap token
+			err = c.deleteBootstrapToken(clone.Name)
+			if err != nil {
+				glog.Warning(err)
+			}
+
 			lastOperationType = v1alpha1.MachineOperationCreate
 		} else {
 			// Machine rejoined the cluster after a healthcheck

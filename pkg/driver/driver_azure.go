@@ -260,6 +260,16 @@ func (d *AzureDriver) GetVMs(machineID string) (result VMs, err error) {
 	return
 }
 
+//GetUserData return the used data whit which the VM will be booted
+func (d *AzureDriver) GetUserData() string {
+	return d.UserData
+}
+
+//SetUserData set the used data whit which the VM will be booted
+func (d *AzureDriver) SetUserData(userData string) {
+	d.UserData = userData
+}
+
 func (d *AzureDriver) setup() (*azureDriverClients, error) {
 	var (
 		subscriptionID = strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureSubscriptionID]))
