@@ -416,9 +416,9 @@ type MachineDeployment struct {
 // MachineDeploymentSpec is the specification of the desired behavior of the MachineDeployment.
 type MachineDeploymentSpec struct {
 	// Number of desired machines. This is a pointer to distinguish between explicit
-	// zero and not specified. Defaults to 1.
+	// zero and not specified. Defaults to 0.
 	// +optional
-	Replicas int32 `json:"replicas,omitempty" protobuf:"varint,1,opt,name=replicas"`
+	Replicas int32 `json:"replicas,inline" protobuf:"varint,1,opt,name=replicas"`
 
 	// Label selector for machines. Existing MachineSets whose machines are
 	// selected by this will be the ones affected by this MachineDeployment.
@@ -558,25 +558,25 @@ type MachineDeploymentStatus struct {
 
 	// Total number of non-terminated machines targeted by this MachineDeployment (their labels match the selector).
 	// +optional
-	Replicas int32 `json:"replicas,omitempty" protobuf:"varint,2,opt,name=replicas"`
+	Replicas int32 `json:"replicas,inline" protobuf:"varint,2,opt,name=replicas"`
 
 	// Total number of non-terminated machines targeted by this MachineDeployment that have the desired template spec.
 	// +optional
-	UpdatedReplicas int32 `json:"updatedReplicas,omitempty" protobuf:"varint,3,opt,name=updatedReplicas"`
+	UpdatedReplicas int32 `json:"updatedReplicas,inline" protobuf:"varint,3,opt,name=updatedReplicas"`
 
 	// Total number of ready machines targeted by this MachineDeployment.
 	// +optional
-	ReadyReplicas int32 `json:"readyReplicas,omitempty" protobuf:"varint,7,opt,name=readyReplicas"`
+	ReadyReplicas int32 `json:"readyReplicas,inline" protobuf:"varint,7,opt,name=readyReplicas"`
 
 	// Total number of available machines (ready for at least minReadySeconds) targeted by this MachineDeployment.
 	// +optional
-	AvailableReplicas int32 `json:"availableReplicas,omitempty" protobuf:"varint,4,opt,name=availableReplicas"`
+	AvailableReplicas int32 `json:"availableReplicas,inline" protobuf:"varint,4,opt,name=availableReplicas"`
 
 	// Total number of unavailable machines targeted by this MachineDeployment. This is the total number of
 	// machines that are still required for the MachineDeployment to have 100% available capacity. They may
 	// either be machines that are running but not yet available or machines that still have not been created.
 	// +optional
-	UnavailableReplicas int32 `json:"unavailableReplicas,omitempty" protobuf:"varint,5,opt,name=unavailableReplicas"`
+	UnavailableReplicas int32 `json:"unavailableReplicas,inline" protobuf:"varint,5,opt,name=unavailableReplicas"`
 
 	// Represents the latest available observations of a MachineDeployment's current state.
 	// +patchMergeKey=type
