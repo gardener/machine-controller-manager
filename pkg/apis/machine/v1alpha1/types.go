@@ -742,6 +742,7 @@ type OpenStackMachineClassSpec struct {
 	Networks         []OpenStackNetwork      `json:"networks,omitempty"`
 	SecretRef        *corev1.SecretReference `json:"secretRef,omitempty"`
 	PodNetworkCidr   string                  `json:"podNetworkCidr"`
+	RootDiskSize     int                     `json:"rootDiskSize,omitempty"` // in GB
 }
 
 type OpenStackNetwork struct {

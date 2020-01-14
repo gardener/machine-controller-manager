@@ -34,6 +34,7 @@ import (
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/bootfromvolume"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/keypairs"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/images"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
@@ -78,6 +79,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	availabilityZone := d.OpenStackMachineClass.Spec.AvailabilityZone
 	metadata := d.OpenStackMachineClass.Spec.Tags
 	podNetworkCidr := d.OpenStackMachineClass.Spec.PodNetworkCidr
+	rootDiskSize := d.OpenStackMachineClass.Spec.RootDiskSize
 
 	var createOpts servers.CreateOptsBuilder
 	var imageRef string
@@ -142,8 +144,28 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 		KeyName:           keyName,
 	}
 
+	if rootDiskSize > 0 {
+		blockDevices, err := resourceInstanceBlockDevicesV2(rootDiskSize, imageRef)
+		if err != nil {
+			return "", "", err
+		}
+
+		createOpts = &bootfromvolume.CreateOptsExt{
+			CreateOptsBuilder: createOpts,
+			BlockDevice:       blockDevices,
+		}
+	}
+
 	glog.V(3).Infof("creating machine")
-	server, err := servers.Create(client, createOpts).Extract()
+
+	var server *servers.Server
+	// If a custom block_device (root disk size is provided) we need to boot from volume
+	if rootDiskSize > 0 {
+		server, err = bootfromvolume.Create(client, createOpts).Extract()
+	} else {
+		server, err = servers.Create(client, createOpts).Extract()
+	}
+
 	if err != nil {
 		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 		return "", "", fmt.Errorf("error creating the server: %s", err)
@@ -524,4 +546,18 @@ func strSliceContains(haystack []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+func resourceInstanceBlockDevicesV2(rootDiskSize int, imageID string) ([]bootfromvolume.BlockDevice, error) {
+	blockDeviceOpts := make([]bootfromvolume.BlockDevice, 1)
+	blockDeviceOpts[0] = bootfromvolume.BlockDevice{
+		UUID:                imageID,
+		VolumeSize:          rootDiskSize,
+		BootIndex:           0,
+		DeleteOnTermination: true,
+		SourceType:          "image",
+		DestinationType:     "volume",
+	}
+	glog.V(2).Infof("[DEBUG] Block Device Options: %+v", blockDeviceOpts)
+	return blockDeviceOpts, nil
 }

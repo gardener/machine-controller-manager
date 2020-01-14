@@ -2597,6 +2597,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Format: "",
 							},
 						},
+						"rootDiskSize": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"integer"},
+								Format: "int32",
+							},
+						},
 					},
 					Required: []string{"imageID", "imageName", "region", "availabilityZone", "flavorName", "keyName", "securityGroups", "networkID", "podNetworkCidr"},
 				},

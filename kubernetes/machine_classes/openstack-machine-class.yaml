@@ -16,6 +16,7 @@ spec:
   region: <region> # Region where to place the machine
   availabilityZone: <availability_zone> # Availability zone where to place the machine
   podNetworkCidr: <pod_network_cidr> # CIDR of the overlay Calico IP pool
+  # rootDiskSize: 100 # in GB (optional) overrides the flavor provider root disk size and use a Cinder backed block device instead
   # OpenStack machine metadata block
   # Be aware, that metadata keys (tags) in OpenStack can not contain special characters likes "/"
   tags:
