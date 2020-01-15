@@ -30,6 +30,7 @@ type MachineInterface interface {
 	AzureMachineClassesGetter
 	GCPMachineClassesGetter
 	MachinesGetter
+	MachineClassesGetter
 	MachineDeploymentsGetter
 	MachineSetsGetter
 	MachineTemplatesGetter
@@ -61,6 +62,10 @@ func (c *MachineClient) GCPMachineClasses(namespace string) GCPMachineClassInter
 
 func (c *MachineClient) Machines(namespace string) MachineInterface {
 	return newMachines(c, namespace)
+}
+
+func (c *MachineClient) MachineClasses(namespace string) MachineClassInterface {
+	return newMachineClasses(c, namespace)
 }
 
 func (c *MachineClient) MachineDeployments(namespace string) MachineDeploymentInterface {

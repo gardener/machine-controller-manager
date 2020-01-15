@@ -32,6 +32,7 @@ type MachineV1alpha1Interface interface {
 	AzureMachineClassesGetter
 	GCPMachineClassesGetter
 	MachinesGetter
+	MachineClassesGetter
 	MachineDeploymentsGetter
 	MachineSetsGetter
 	MachineTemplatesGetter
@@ -63,6 +64,10 @@ func (c *MachineV1alpha1Client) GCPMachineClasses(namespace string) GCPMachineCl
 
 func (c *MachineV1alpha1Client) Machines(namespace string) MachineInterface {
 	return newMachines(c, namespace)
+}
+
+func (c *MachineV1alpha1Client) MachineClasses(namespace string) MachineClassInterface {
+	return newMachineClasses(c, namespace)
 }
 
 func (c *MachineV1alpha1Client) MachineDeployments(namespace string) MachineDeploymentInterface {
