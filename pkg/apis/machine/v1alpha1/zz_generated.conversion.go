@@ -2604,6 +2604,7 @@ func autoConvert_v1alpha1_OpenStackMachineClassSpec_To_machine_OpenStackMachineC
 	out.Networks = *(*[]machine.OpenStackNetwork)(unsafe.Pointer(&in.Networks))
 	out.SecretRef = (*v1.SecretReference)(unsafe.Pointer(in.SecretRef))
 	out.PodNetworkCidr = in.PodNetworkCidr
+	out.RootDiskSize = in.RootDiskSize
 	return nil
 }
 
@@ -2625,6 +2626,7 @@ func autoConvert_machine_OpenStackMachineClassSpec_To_v1alpha1_OpenStackMachineC
 	out.Networks = *(*[]OpenStackNetwork)(unsafe.Pointer(&in.Networks))
 	out.SecretRef = (*v1.SecretReference)(unsafe.Pointer(in.SecretRef))
 	out.PodNetworkCidr = in.PodNetworkCidr
+	out.RootDiskSize = in.RootDiskSize
 	return nil
 }
 
