@@ -67,6 +67,9 @@ func validateOpenStackMachineClassSpec(spec *machine.OpenStackMachineClassSpec, 
 	if "" == spec.PodNetworkCidr {
 		allErrs = append(allErrs, field.Required(fldPath.Child("podNetworkCidr"), "PodNetworkCidr is required"))
 	}
+	if spec.RootDiskSize < 0 {
+		allErrs = append(allErrs, field.Required(fldPath.Child("rootDiskSize"), "RootDiskSize can not be negative"))
+	}
 
 	allErrs = append(allErrs, validateOsNetworks(spec.Networks, spec.PodNetworkCidr, field.NewPath("spec.networks"))...)
 	allErrs = append(allErrs, validateSecretRef(spec.SecretRef, field.NewPath("spec.secretRef"))...)
