@@ -1878,7 +1878,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 					Properties: map[string]spec.Schema{
 						"replicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Number of desired machines. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.",
+								Description: "Number of desired machines. This is a pointer to distinguish between explicit zero and not specified. Defaults to 0.",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
@@ -9834,7 +9834,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 					Properties: map[string]spec.Schema{
 						"replicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Replicas is the number of desired replicas. This is a pointer to distinguish between explicit zero and unspecified. Defaults to 1. More info: https://kubernetes.io/docs/concepts/workloads/controllers/replicationcontroller#what-is-a-replicationcontroller",
+								Description: "Replicas is the number of desired replicas. This is a pointer to distinguish between explicit zero and unspecified. Defaults to 0. More info: https://kubernetes.io/docs/concepts/workloads/controllers/replicationcontroller#what-is-a-replicationcontroller",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
