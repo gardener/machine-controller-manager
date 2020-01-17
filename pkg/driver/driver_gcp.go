@@ -152,14 +152,14 @@ func (d *GCPDriver) Create() (string, string, error) {
 }
 
 // Delete method is used to delete a GCP machine
-func (d *GCPDriver) Delete() error {
+func (d *GCPDriver) Delete(machineID string) error {
 
-	result, err := d.GetVMs(d.MachineID)
+	result, err := d.GetVMs(machineID)
 	if err != nil {
 		return err
 	} else if len(result) == 0 {
 		// No running instance exists with the given machine-ID
-		glog.V(2).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
+		glog.V(2).Infof("No VM matching the machine-ID found on the provider %q", machineID)
 		return nil
 	}
 
@@ -169,7 +169,7 @@ func (d *GCPDriver) Delete() error {
 		return err
 	}
 
-	project, zone, name, err := d.decodeMachineID(d.MachineID)
+	project, zone, name, err := d.decodeMachineID(machineID)
 	if err != nil {
 		glog.Error(err)
 		return err

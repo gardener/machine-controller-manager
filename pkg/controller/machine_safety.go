@@ -656,7 +656,7 @@ func (c *controller) deleteOrphanVM(vm driver.VMs, secretRef *corev1.Secret, kin
 		machineName,
 	)
 
-	err := dvr.Delete()
+	err := dvr.Delete(machineID)
 	if err != nil {
 		glog.Errorf("SafetyController: Error while trying to DELETE VM on CP - %s. Shall retry in next safety controller sync.", err)
 	} else {

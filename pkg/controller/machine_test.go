@@ -754,7 +754,7 @@ var _ = Describe("machine", func() {
 						}
 						return action.fakeProviderID, action.fakeNodeName, action.fakeError
 					},
-					func() error {
+					func(string) error {
 						return nil
 					},
 					func() (string, error) {

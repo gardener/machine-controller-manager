@@ -107,13 +107,13 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 }
 
 // Delete method is used to delete an alicloud machine
-func (c *AlicloudDriver) Delete() error {
-	result, err := c.getVMDetails(c.MachineID)
+func (c *AlicloudDriver) Delete(machineID string) error {
+	result, err := c.getVMDetails(machineID)
 	if err != nil {
 		return err
 	} else if len(result) == 0 {
 		// No running instance exists with the given machineID
-		glog.V(2).Infof("No VM matching the machineID found on the provider %q", c.MachineID)
+		glog.V(2).Infof("No VM matching the machineID found on the provider %q", machineID)
 		return nil
 	}
 
@@ -121,14 +121,14 @@ func (c *AlicloudDriver) Delete() error {
 		return errors.New("ec2 instance not in running/stopped state")
 	}
 
-	machineID := c.decodeMachineID(c.MachineID)
+	instanceID := c.decodeMachineID(machineID)
 
 	client, err := c.getEcsClient()
 	if err != nil {
 		return err
 	}
 
-	err = c.deleteInstance(client, machineID)
+	err = c.deleteInstance(client, instanceID)
 	return err
 }
 
