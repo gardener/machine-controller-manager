@@ -37,6 +37,7 @@ spec:
           publicKeys:
             path: "/path/to/public-key/in/machine" # Path to public key
             keyData: "public-key-data" # Public key data
+    identityID: "/subscriptions/subscription-id/resourceGroups/resource-group-name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name" # ID of an user assigned managed identity to attach the machine to
     zone: 1 # Zone which the node will be deployed into. Either a zone or an AvailabilitySet can be specified.
     availabilitySet: # AvailabilitySet which the node will be assigned to. Either a zone or an AvailabilitySet can be specified.
       id: "/subscriptions/subscription-id/resourceGroups/resource-group-name/providers/Microsoft.Compute/availabilitySets/availablity-set-name" # ID of availability set to attach the machine to
