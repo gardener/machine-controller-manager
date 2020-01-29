@@ -74,8 +74,8 @@ func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string
 		}
 
 		if gvr.Resource == "machines" {
-			if t.fakingOptions.failAt.Machine.Get != "" {
-				return nil, errors.New(t.fakingOptions.failAt.Machine.Get)
+			if t.fakingOptions.failAt.Machine.Get != nil {
+				return nil, t.fakingOptions.failAt.Machine.Get
 			}
 		}
 
@@ -357,7 +357,7 @@ type ResourceActions struct {
 // Actions contains the actions whose response can be faked
 type Actions struct {
 	Create string
-	Get    string
+	Get    error
 	Delete string
 	Update string
 }

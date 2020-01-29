@@ -71,20 +71,20 @@ func (d *PacketDriver) Create() (string, string, error) {
 }
 
 // Delete method is used to delete a Packet machine
-func (d *PacketDriver) Delete() error {
+func (d *PacketDriver) Delete(machineID string) error {
 
 	svc := d.createSVC()
 	if svc == nil {
 		return fmt.Errorf("nil Packet service returned")
 	}
-	machineID := d.decodeMachineID(d.MachineID)
-	resp, err := svc.Devices.Delete(machineID)
+	instanceID := d.decodeMachineID(machineID)
+	resp, err := svc.Devices.Delete(instanceID)
 	if err != nil {
 		if resp.StatusCode == 404 {
-			glog.V(2).Infof("No machine matching the machine-ID found on the provider %q", d.MachineID)
+			glog.V(2).Infof("No machine matching the machineID found on the provider %q", machineID)
 			return nil
 		}
-		glog.Errorf("Could not terminate machine %s: %v", d.MachineID, err)
+		glog.Errorf("Could not terminate machine %s: %v", machineID, err)
 		return err
 	}
 	return nil

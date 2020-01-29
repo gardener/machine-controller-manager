@@ -191,7 +191,7 @@ func (d *AzureDriver) Create() (string, string, error) {
 }
 
 // Delete method is used to delete an azure machine
-func (d *AzureDriver) Delete() error {
+func (d *AzureDriver) Delete(machineID string) error {
 	clients, err := d.setup()
 	if err != nil {
 		return err
@@ -199,7 +199,7 @@ func (d *AzureDriver) Delete() error {
 
 	var (
 		ctx               = context.Background()
-		vmName            = decodeMachineID(d.MachineID)
+		vmName            = decodeMachineID(machineID)
 		nicName           = dependencyNameFromVMName(vmName, nicSuffix)
 		diskName          = dependencyNameFromVMName(vmName, diskSuffix)
 		resourceGroupName = d.AzureMachineClass.Spec.ResourceGroup

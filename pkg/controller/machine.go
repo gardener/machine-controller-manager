@@ -387,6 +387,23 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 		// Get the latest version of the machine so that we can avoid conflicts
 		machine, err := c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
 		if err != nil {
+
+			if apierrors.IsNotFound(err) {
+				glog.Infof("Machine %q not found on APIServer anymore. Deleting created (orphan) VM", machineName)
+
+				if err = driver.Delete(actualProviderID); err != nil {
+					glog.Errorf(
+						"Deletion failed for orphan machine %q with provider-ID %q: %s",
+						machine.Name,
+						actualProviderID,
+						err,
+					)
+				}
+
+				// Return with error
+				return fmt.Errorf("Couldn't find machine object, hence deleted orphan VM")
+			}
+
 			glog.Warningf("Machine GET failed for %q. Retrying, error: %s", machineName, err)
 			continue
 		}
@@ -591,7 +608,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				return err
 			}
 
-			err = driver.Delete()
+			err = driver.Delete(machineID)
 		}
 
 		if err != nil {
