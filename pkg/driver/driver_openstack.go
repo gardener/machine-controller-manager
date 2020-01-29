@@ -55,7 +55,7 @@ type OpenStackDriver struct {
 // deleteOnFail method is used to delete the VM, which was created with an error
 func (d *OpenStackDriver) deleteOnFail(err error) error {
 	// this method is called after the d.MachineID has been set
-	if e := d.Delete(); e != nil {
+	if e := d.Delete(d.MachineID); e != nil {
 		return fmt.Errorf("Error deleting machine %s (%s) after unsuccessful create attempt: %s", d.MachineID, e.Error(), err.Error())
 	}
 	return err
@@ -218,23 +218,23 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 }
 
 // Delete method is used to delete an OS machine
-func (d *OpenStackDriver) Delete() error {
-	res, err := d.GetVMs(d.MachineID)
+func (d *OpenStackDriver) Delete(machineID string) error {
+	res, err := d.GetVMs(machineID)
 	if err != nil {
 		return err
 	} else if len(res) == 0 {
 		// No running instance exists with the given machine-ID
-		glog.V(2).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
+		glog.V(2).Infof("No VM matching the machine-ID found on the provider %q", machineID)
 		return nil
 	}
 
-	machineID := d.decodeMachineID(d.MachineID)
+	instanceID := d.decodeMachineID(machineID)
 	client, err := d.createNovaClient()
 	if err != nil {
 		return err
 	}
 
-	result := servers.Delete(client, machineID)
+	result := servers.Delete(client, instanceID)
 	if result.Err == nil {
 		// waiting for the machine to be deleted to release consumed quota resources, 5 minutes should be enough
 		err = waitForStatus(client, machineID, nil, []string{"DELETED", "SOFT_DELETED"}, 300)
@@ -242,10 +242,10 @@ func (d *OpenStackDriver) Delete() error {
 			return fmt.Errorf("error waiting for the %q server to be deleted: %s", machineID, err)
 		}
 		metrics.APIRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
-		glog.V(3).Infof("Deleted machine with ID: %s", d.MachineID)
+		glog.V(3).Infof("Deleted machine with ID: %s", machineID)
 	} else {
 		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
-		glog.Errorf("Failed to delete machine with ID: %s", d.MachineID)
+		glog.Errorf("Failed to delete machine with ID: %s", machineID)
 	}
 
 	return result.Err

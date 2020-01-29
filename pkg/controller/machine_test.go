@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
 	"time"
 
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -33,8 +34,10 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	k8stesting "k8s.io/client-go/testing"
 )
@@ -514,14 +517,12 @@ var _ = Describe("machine", func() {
 					func() (string, string, error) {
 						return action.fakeProviderID, action.fakeNodeName, action.fakeError
 					},
-					nil, nil))
+					func(string) error {
+						return action.fakeError
+					}, nil))
 
 				if data.expect.err {
 					Expect(err).To(HaveOccurred())
-					actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
-					Expect(err).To(BeNil())
-					Expect(actual.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
-					Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
 					return
 				}
 
@@ -657,7 +658,15 @@ var _ = Describe("machine", func() {
 					}, nil, nil, nil, nil),
 					fakeResourceActions: &customfake.ResourceActions{
 						Machine: customfake.Actions{
-							Get: "Failed to GET machine",
+							Get: apierrors.NewGenericServerResponse(
+								http.StatusBadRequest,
+								"dummy method",
+								schema.GroupResource{},
+								"dummy name",
+								"Failed to GET machine",
+								30,
+								true,
+							),
 						},
 					},
 				},
@@ -682,6 +691,54 @@ var _ = Describe("machine", func() {
 						//TODO conditions
 					}, nil, nil, nil),
 					err: false,
+				},
+			}),
+			Entry("Orphan VM deletion on faling to find referred machine object", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil),
+					fakeResourceActions: &customfake.ResourceActions{
+						Machine: customfake.Actions{
+							Get: apierrors.NewGenericServerResponse(
+								http.StatusNotFound,
+								"dummy method",
+								schema.GroupResource{},
+								"dummy name",
+								"Machine not found",
+								30,
+								true,
+							),
+						},
+					},
+				},
+				action: action{
+					machine:        "machine-0",
+					fakeProviderID: "fakeID-0",
+					fakeNodeName:   "fakeNode-0",
+					fakeError:      nil,
+				},
+				expect: expect{
+					err: true,
 				},
 			}),
 		)
@@ -754,7 +811,7 @@ var _ = Describe("machine", func() {
 						}
 						return action.fakeProviderID, action.fakeNodeName, action.fakeError
 					},
-					func() error {
+					func(string) error {
 						return nil
 					},
 					func() (string, error) {

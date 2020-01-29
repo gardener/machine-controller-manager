@@ -188,23 +188,23 @@ func (d *AWSDriver) generateBlockDevices(blockDevices []v1alpha1.AWSBlockDeviceM
 }
 
 // Delete method is used to delete a AWS machine
-func (d *AWSDriver) Delete() error {
+func (d *AWSDriver) Delete(machineID string) error {
 
-	result, err := d.GetVMs(d.MachineID)
+	result, err := d.GetVMs(machineID)
 	if err != nil {
 		return err
 	} else if len(result) == 0 {
 		// No running instance exists with the given machine-ID
-		glog.V(2).Infof("No VM matching the machine-ID found on the provider %q", d.MachineID)
+		glog.V(2).Infof("No VM matching the machine-ID found on the provider %q", machineID)
 		return nil
 	}
 
-	machineID := d.decodeMachineID(d.MachineID)
+	instanceID := d.decodeMachineID(machineID)
 
 	svc := d.createSVC()
 	input := &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{
-			aws.String(machineID),
+			aws.String(instanceID),
 		},
 		DryRun: aws.Bool(true),
 	}

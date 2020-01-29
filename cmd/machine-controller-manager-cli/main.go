@@ -109,7 +109,7 @@ func main() {
 		fmt.Printf("Machine id: %s\n", id)
 		fmt.Printf("Name: %s\n", name)
 	} else {
-		err = driver.Delete()
+		err = driver.Delete(machineID)
 		if err != nil {
 			log.Fatalf("Could not delete %s : %s", machineID, err)
 		}
