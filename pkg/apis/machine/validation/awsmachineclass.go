@@ -132,12 +132,19 @@ func validateBlockDevices(blockDevices []machine.AWSBlockDeviceMappingSpec, fldP
 
 	validVolumeTypes := []string{"gp2", "io1", "st1", "sc1", "standard"}
 
+	// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/device_naming.html
+	const dataDeviceNameFmt string = `^/dev/(sd[a-z]|xvd[a-c][a-z]?)$`
+	var dataDeviceNameRegexp = regexp.MustCompile("^" + dataDeviceNameFmt + "$")
+
 	// if blockDevices is empty, AWS will automatically create a root partition
 	for i, disk := range blockDevices {
 		idxPath := fldPath.Index(i)
 
 		if disk.DeviceName == "/root" {
 			rootPartitionCount++
+		} else if len(blockDevices) > 1 && !dataDeviceNameRegexp.MatchString(disk.DeviceName) {
+			// if there are multiple devices, non-root devices are expected to adhere to AWS naming conventions
+			allErrs = append(allErrs, field.Invalid(idxPath.Child("deviceName"), disk.DeviceName, utilvalidation.RegexError(dataDeviceNameFmt, "/dev/sdf")))
 		}
 
 		if _, keyExist := deviceNames[disk.DeviceName]; keyExist {
@@ -158,6 +165,7 @@ func validateBlockDevices(blockDevices []machine.AWSBlockDeviceMappingSpec, fldP
 		} else if disk.Ebs.VolumeType == "io1" && disk.Ebs.Iops <= 0 {
 			allErrs = append(allErrs, field.Required(idxPath.Child("ebs.iops"), "Please mention a valid ebs volume iops"))
 		}
+
 	}
 
 	if rootPartitionCount > 1 {

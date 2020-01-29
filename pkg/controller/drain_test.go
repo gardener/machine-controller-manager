@@ -642,7 +642,7 @@ var _ = Describe("drain", func() {
 				},
 				attemptEviction:        false,
 				terminationGracePeriod: terminationGracePeriodShort,
-				force: true,
+				force:                  true,
 			},
 			nil,
 			&expectation{
@@ -668,7 +668,7 @@ var _ = Describe("drain", func() {
 				},
 				attemptEviction:        true,
 				terminationGracePeriod: terminationGracePeriodShort,
-				force: true,
+				force:                  true,
 			},
 			[]podDrainHandler{deletePod},
 			&expectation{
@@ -695,8 +695,8 @@ var _ = Describe("drain", func() {
 				maxEvictRetries:        1,
 				attemptEviction:        true,
 				terminationGracePeriod: terminationGracePeriodShort,
-				force:      true,
-				evictError: apierrors.NewTooManyRequestsError(""),
+				force:                  true,
+				evictError:             apierrors.NewTooManyRequestsError(""),
 			},
 			nil,
 			&expectation{

@@ -77,28 +77,7 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 	}
 
 	if ok := c.AlicloudMachineClass.Spec.DataDisks != nil; ok {
-		disks := c.AlicloudMachineClass.Spec.DataDisks
-		var dataDiskRequests []ecs.RunInstancesDataDisk
-
-		for _, disk := range disks {
-
-			dataDiskRequest := ecs.RunInstancesDataDisk{
-				Category:           disk.Category,
-				DeleteWithInstance: strconv.FormatBool(true),
-				Encrypted:          strconv.FormatBool(disk.Encrypted),
-				DiskName:           disk.Name,
-				Description:        disk.Description,
-			}
-
-			dataDiskRequest.Size = fmt.Sprintf("%d", disk.Size)
-
-			if disk.Category == "DiskEphemeralSSD" {
-				dataDiskRequest.DeleteWithInstance = ""
-			}
-
-			dataDiskRequests = append(dataDiskRequests, dataDiskRequest)
-		}
-
+		dataDiskRequests := c.generateDataDiskRequests(c.AlicloudMachineClass.Spec.DataDisks)
 		request.DataDisk = &dataDiskRequests
 	}
 
@@ -131,6 +110,28 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 	// However, for Alicloud hostname, it can be transformed by Instance ID by default
 	// Please be noted that returned node name should be in LOWER case
 	return machineID, strings.ToLower(c.idToName(instanceID)), nil
+}
+
+func (c *AlicloudDriver) generateDataDiskRequests(disks []v1alpha1.AlicloudDataDisk) []ecs.RunInstancesDataDisk {
+	var dataDiskRequests []ecs.RunInstancesDataDisk
+	for _, disk := range disks {
+
+		dataDiskRequest := ecs.RunInstancesDataDisk{
+			Category:           disk.Category,
+			DeleteWithInstance: strconv.FormatBool(disk.DeleteWithInstance),
+			Encrypted:          strconv.FormatBool(disk.Encrypted),
+			DiskName:           fmt.Sprintf("%s-%s-data-disk", c.MachineName, disk.Name),
+			Description:        disk.Description,
+			Size:               fmt.Sprintf("%d", disk.Size),
+		}
+
+		if disk.Category == "DiskEphemeralSSD" {
+			dataDiskRequest.DeleteWithInstance = ""
+		}
+
+		dataDiskRequests = append(dataDiskRequests, dataDiskRequest)
+	}
+	return dataDiskRequests
 }
 
 // Delete method is used to delete an alicloud machine

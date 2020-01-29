@@ -18,20 +18,13 @@ limitations under the License.
 package driver
 
 import (
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"testing"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 )
-
-func TestAWSDriverSuite(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Driver AWS Suite")
-}
 
 var _ = Describe("Driver AWS", func() {
 
@@ -98,7 +91,8 @@ var _ = Describe("Driver AWS", func() {
 				},
 			}
 
-			Expect(tagsGenerated).To(Equal(expectedTags))
+			Expect(tagsGenerated.ResourceType).To(Equal(expectedTags.ResourceType))
+			Expect(tagsGenerated.Tags).To(ConsistOf(expectedTags.Tags))
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -124,7 +118,7 @@ var _ = Describe("Driver AWS", func() {
 
 	Context("GenerateBlockDevices Driver AWS Spec", func() {
 
-		It("should convert mutliples blockDevices successfully", func() {
+		It("should convert multiple blockDevices successfully", func() {
 			awsDriver := &AWSDriver{}
 			disks := []v1alpha1.AWSBlockDeviceMappingSpec{
 				{
@@ -216,6 +210,36 @@ var _ = Describe("Driver AWS", func() {
 			rootDevice := aws.String("/dev/sda")
 			disksGenerated, err := awsDriver.generateBlockDevices(disks, rootDevice)
 			var expectedDisks []*ec2.BlockDeviceMapping
+
+			Expect(disksGenerated).To(Equal(expectedDisks))
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("should not encrypt or delete on termination blockDevices by default", func() {
+			awsDriver := &AWSDriver{}
+			disks := []v1alpha1.AWSBlockDeviceMappingSpec{
+				{
+					Ebs: v1alpha1.AWSEbsBlockDeviceSpec{
+						VolumeSize: 32,
+						VolumeType: "gp2",
+					},
+				},
+			}
+
+			rootDevice := aws.String("/dev/sda")
+			disksGenerated, err := awsDriver.generateBlockDevices(disks, rootDevice)
+			expectedDisks := []*ec2.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/sda"),
+					Ebs: &ec2.EbsBlockDevice{
+						DeleteOnTermination: aws.Bool(false),
+						Encrypted:           aws.Bool(false),
+						VolumeSize:          aws.Int64(32),
+						Iops:                nil,
+						VolumeType:          aws.String("gp2"),
+					},
+				},
+			}
 
 			Expect(disksGenerated).To(Equal(expectedDisks))
 			Expect(err).ToNot(HaveOccurred())
