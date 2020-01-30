@@ -19,6 +19,8 @@ limitations under the License.
 package internalversion
 
 import (
+	"time"
+
 	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	scheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -79,11 +81,16 @@ func (c *machineDeployments) Get(name string, options v1.GetOptions) (result *ma
 
 // List takes label and field selectors, and returns the list of MachineDeployments that match those selectors.
 func (c *machineDeployments) List(opts v1.ListOptions) (result *machine.MachineDeploymentList, err error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
 	result = &machine.MachineDeploymentList{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("machinedeployments").
 		VersionedParams(&opts, scheme.ParameterCodec).
+		Timeout(timeout).
 		Do().
 		Into(result)
 	return
@@ -91,11 +98,16 @@ func (c *machineDeployments) List(opts v1.ListOptions) (result *machine.MachineD
 
 // Watch returns a watch.Interface that watches the requested machineDeployments.
 func (c *machineDeployments) Watch(opts v1.ListOptions) (watch.Interface, error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
 	opts.Watch = true
 	return c.client.Get().
 		Namespace(c.ns).
 		Resource("machinedeployments").
 		VersionedParams(&opts, scheme.ParameterCodec).
+		Timeout(timeout).
 		Watch()
 }
 
@@ -153,10 +165,15 @@ func (c *machineDeployments) Delete(name string, options *v1.DeleteOptions) erro
 
 // DeleteCollection deletes a collection of objects.
 func (c *machineDeployments) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+	var timeout time.Duration
+	if listOptions.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("machinedeployments").
 		VersionedParams(&listOptions, scheme.ParameterCodec).
+		Timeout(timeout).
 		Body(options).
 		Do().
 		Error()

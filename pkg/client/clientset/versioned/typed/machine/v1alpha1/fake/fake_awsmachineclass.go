@@ -119,7 +119,7 @@ func (c *FakeAWSMachineClasses) DeleteCollection(options *v1.DeleteOptions, list
 // Patch applies the patch and returns the patched aWSMachineClass.
 func (c *FakeAWSMachineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.AWSMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(awsmachineclassesResource, c.ns, name, data, subresources...), &v1alpha1.AWSMachineClass{})
+		Invokes(testing.NewPatchSubresourceAction(awsmachineclassesResource, c.ns, name, pt, data, subresources...), &v1alpha1.AWSMachineClass{})
 
 	if obj == nil {
 		return nil, err

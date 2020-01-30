@@ -119,7 +119,7 @@ func (c *FakeAlicloudMachineClasses) DeleteCollection(options *v1.DeleteOptions,
 // Patch applies the patch and returns the patched alicloudMachineClass.
 func (c *FakeAlicloudMachineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *machine.AlicloudMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(alicloudmachineclassesResource, c.ns, name, data, subresources...), &machine.AlicloudMachineClass{})
+		Invokes(testing.NewPatchSubresourceAction(alicloudmachineclassesResource, c.ns, name, pt, data, subresources...), &machine.AlicloudMachineClass{})
 
 	if obj == nil {
 		return nil, err
