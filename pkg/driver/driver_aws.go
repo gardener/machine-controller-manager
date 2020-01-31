@@ -269,7 +269,7 @@ func (d *AWSDriver) GetVMs(machineID string) (VMs, error) {
 	}
 
 	svc, err := d.createSVC()
-	if svc != nil {
+	if err != nil {
 		return listOfVMs, err
 	}
 
