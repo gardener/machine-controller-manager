@@ -1553,6 +1553,7 @@ func autoConvert_v1alpha1_AzureVirtualMachineProperties_To_machine_AzureVirtualM
 		return err
 	}
 	out.AvailabilitySet = (*machine.AzureSubResource)(unsafe.Pointer(in.AvailabilitySet))
+	out.IdentityID = (*string)(unsafe.Pointer(in.IdentityID))
 	out.Zone = (*int)(unsafe.Pointer(in.Zone))
 	return nil
 }
@@ -1576,6 +1577,7 @@ func autoConvert_machine_AzureVirtualMachineProperties_To_v1alpha1_AzureVirtualM
 		return err
 	}
 	out.AvailabilitySet = (*AzureSubResource)(unsafe.Pointer(in.AvailabilitySet))
+	out.IdentityID = (*string)(unsafe.Pointer(in.IdentityID))
 	out.Zone = (*int)(unsafe.Pointer(in.Zone))
 	return nil
 }
