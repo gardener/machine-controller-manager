@@ -1057,6 +1057,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSubResource"),
 							},
 						},
+						"identityID": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
 						"zone": {
 							SchemaProps: spec.SchemaProps{
 								Type:   []string{"integer"},
@@ -1876,13 +1882,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 				SchemaProps: spec.SchemaProps{
 					Description: "MachineDeploymentSpec is the specification of the desired behavior of the MachineDeployment.",
 					Properties: map[string]spec.Schema{
-						"replicas": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Number of desired machines. This is a pointer to distinguish between explicit zero and not specified. Defaults to 0.",
-								Type:        []string{"integer"},
-								Format:      "int32",
-							},
-						},
 						"selector": {
 							SchemaProps: spec.SchemaProps{
 								Description: "Label selector for machines. Existing MachineSets whose machines are selected by this will be the ones affected by this MachineDeployment.",
@@ -1957,41 +1956,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Description: "The generation observed by the MachineDeployment controller.",
 								Type:        []string{"integer"},
 								Format:      "int64",
-							},
-						},
-						"replicas": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Total number of non-terminated machines targeted by this MachineDeployment (their labels match the selector).",
-								Type:        []string{"integer"},
-								Format:      "int32",
-							},
-						},
-						"updatedReplicas": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Total number of non-terminated machines targeted by this MachineDeployment that have the desired template spec.",
-								Type:        []string{"integer"},
-								Format:      "int32",
-							},
-						},
-						"readyReplicas": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Total number of ready machines targeted by this MachineDeployment.",
-								Type:        []string{"integer"},
-								Format:      "int32",
-							},
-						},
-						"availableReplicas": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Total number of available machines (ready for at least minReadySeconds) targeted by this MachineDeployment.",
-								Type:        []string{"integer"},
-								Format:      "int32",
-							},
-						},
-						"unavailableReplicas": {
-							SchemaProps: spec.SchemaProps{
-								Description: "Total number of unavailable machines targeted by this MachineDeployment. This is the total number of machines that are still required for the MachineDeployment to have 100% available capacity. They may either be machines that are running but not yet available or machines that still have not been created.",
-								Type:        []string{"integer"},
-								Format:      "int32",
 							},
 						},
 						"conditions": {
@@ -9834,7 +9798,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 					Properties: map[string]spec.Schema{
 						"replicas": {
 							SchemaProps: spec.SchemaProps{
-								Description: "Replicas is the number of desired replicas. This is a pointer to distinguish between explicit zero and unspecified. Defaults to 0. More info: https://kubernetes.io/docs/concepts/workloads/controllers/replicationcontroller#what-is-a-replicationcontroller",
+								Description: "Replicas is the number of desired replicas. This is a pointer to distinguish between explicit zero and unspecified. Defaults to 1. More info: https://kubernetes.io/docs/concepts/workloads/controllers/replicationcontroller#what-is-a-replicationcontroller",
 								Type:        []string{"integer"},
 								Format:      "int32",
 							},
