@@ -18,19 +18,11 @@ limitations under the License.
 package validation
 
 import (
-	/*"strconv"
 	"strings"
-	"regexp"
-
-	corev1 "k8s.io/api/core/v1"
-	apivalidation "k8s.io/apimachinery/pkg/api/validation"
-	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
-	*/
-	"strings"
-
-	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
+
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 // ValidateAzureMachineClass validates a AzureMachineClass and returns a list of errors.

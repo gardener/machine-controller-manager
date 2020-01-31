@@ -20,14 +20,14 @@ package controller
 import (
 	"time"
 
-	"k8s.io/api/core/v1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+
+	"github.com/golang/glog"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
-
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/golang/glog"
 )
 
 // reconcileClusterSecretKey reconciles an secret due to controller resync
@@ -55,7 +55,7 @@ func (c *controller) reconcileClusterSecretKey(key string) error {
 
 // reconcileClusterSecret manipulates finalizers based on
 // machineClass references
-func (c *controller) reconcileClusterSecret(secret *v1.Secret) error {
+func (c *controller) reconcileClusterSecret(secret *corev1.Secret) error {
 	startTime := time.Now()
 
 	glog.V(4).Infof("Start syncing %q", secret.Name)
@@ -95,7 +95,7 @@ func (c *controller) reconcileClusterSecret(secret *v1.Secret) error {
 	Manipulate Finalizers
 */
 
-func (c *controller) addSecretFinalizers(secret *v1.Secret) error {
+func (c *controller) addSecretFinalizers(secret *corev1.Secret) error {
 	clone := secret.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
@@ -105,7 +105,7 @@ func (c *controller) addSecretFinalizers(secret *v1.Secret) error {
 	return nil
 }
 
-func (c *controller) deleteSecretFinalizers(secret *v1.Secret) error {
+func (c *controller) deleteSecretFinalizers(secret *corev1.Secret) error {
 	clone := secret.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
@@ -115,16 +115,16 @@ func (c *controller) deleteSecretFinalizers(secret *v1.Secret) error {
 	return nil
 }
 
-func (c *controller) updateSecretFinalizers(secret *v1.Secret, finalizers []string) error {
+func (c *controller) updateSecretFinalizers(secret *corev1.Secret, finalizers []string) error {
 	// Get the latest version of the secret so that we can avoid conflicts
-	secret, err := c.controlCoreClient.Core().Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
+	secret, err := c.controlCoreClient.CoreV1().Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
 	clone := secret.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.controlCoreClient.Core().Secrets(clone.Namespace).Update(clone)
+	_, err = c.controlCoreClient.CoreV1().Secrets(clone.Namespace).Update(clone)
 
 	if err != nil {
 		glog.Warning("Updating secret finalizers failed, retrying", secret.Name, err)
