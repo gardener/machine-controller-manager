@@ -956,6 +956,7 @@ type AzureVirtualMachineProperties struct {
 	OsProfile       AzureOSProfile       `json:"osProfile,omitempty"`
 	NetworkProfile  AzureNetworkProfile  `json:"networkProfile,omitempty"`
 	AvailabilitySet *AzureSubResource    `json:"availabilitySet,omitempty"`
+	IdentityID      *string              `json:"identityID,omitempty"`
 	Zone            *int                 `json:"zone,omitempty"`
 }
 

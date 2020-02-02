@@ -875,6 +875,7 @@ type AzureVirtualMachineProperties struct {
 	OsProfile       AzureOSProfile
 	NetworkProfile  AzureNetworkProfile
 	AvailabilitySet *AzureSubResource
+	IdentityID      *string
 	Zone            *int
 }
 

@@ -167,6 +167,15 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 		}
 	}
 
+	if d.AzureMachineClass.Spec.Properties.IdentityID != nil && *d.AzureMachineClass.Spec.Properties.IdentityID != "" {
+		VMParameters.Identity = &compute.VirtualMachineIdentity{
+			Type: compute.ResourceIdentityTypeUserAssigned,
+			UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
+				*d.AzureMachineClass.Spec.Properties.IdentityID: {},
+			},
+		}
+	}
+
 	return VMParameters
 }
 

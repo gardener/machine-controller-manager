@@ -18,8 +18,6 @@ limitations under the License.
 package validation
 
 import (
-	//"strconv"
-
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )

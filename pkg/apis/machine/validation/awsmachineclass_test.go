@@ -367,7 +367,7 @@ var _ = Describe("AWSMachineClass Validation", func() {
 			Expect(err).To(Equal(field.ErrorList{}))
 		})
 
-		It("should validate an object successfully - with mutliples EBS", func() {
+		It("should validate an object successfully - with multiples EBS", func() {
 			spec := getSpec()
 			spec.BlockDevices = []machine.AWSBlockDeviceMappingSpec{
 				{

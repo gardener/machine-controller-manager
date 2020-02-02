@@ -708,6 +708,11 @@ func (in *AzureVirtualMachineProperties) DeepCopyInto(out *AzureVirtualMachinePr
 		*out = new(AzureSubResource)
 		**out = **in
 	}
+	if in.IdentityID != nil {
+		in, out := &in.IdentityID, &out.IdentityID
+		*out = new(string)
+		**out = **in
+	}
 	if in.Zone != nil {
 		in, out := &in.Zone, &out.Zone
 		*out = new(int)
