@@ -30,7 +30,7 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -190,7 +190,7 @@ func (dc *controller) addHashKeyToISAndMachines(is *v1alpha1.MachineSet, machine
 		if err = WaitForMachineSetUpdated(dc.machineSetLister, updatedIS.Generation, updatedIS.Namespace, updatedIS.Name); err != nil {
 			return nil, fmt.Errorf("error waiting for machine set %s to be observed by controller: %v", updatedIS.Name, err)
 		}
-		glog.V(4).Infof("Observed the update of machine set %s's machine template with hash %s.", is.Name, hash)
+		klog.V(4).Infof("Observed the update of machine set %s's machine template with hash %s.", is.Name, hash)
 	}
 
 	// 2. Update all machines managed by the rs to have the new hash label, so they will be correctly adopted.
@@ -355,7 +355,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 			// error.
 			_, dErr := dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(d)
 			if dErr == nil {
-				glog.V(2).Infof("Found a hash collision for machine deployment %q - bumping collisionCount (%d->%d) to resolve it", d.Name, preCollisionCount, *d.Status.CollisionCount)
+				klog.V(2).Infof("Found a hash collision for machine deployment %q - bumping collisionCount (%d->%d) to resolve it", d.Name, preCollisionCount, *d.Status.CollisionCount)
 			}
 			return nil, err
 		}
@@ -552,7 +552,7 @@ func (dc *controller) cleanupMachineDeployment(oldISs []*v1alpha1.MachineSet, de
 	}
 
 	sort.Sort(MachineSetsByCreationTimestamp(cleanableISes))
-	glog.V(4).Infof("Looking to cleanup old machine sets for deployment %q", deployment.Name)
+	klog.V(4).Infof("Looking to cleanup old machine sets for deployment %q", deployment.Name)
 
 	for i := int32(0); i < diff; i++ {
 		is := cleanableISes[i]
@@ -560,7 +560,7 @@ func (dc *controller) cleanupMachineDeployment(oldISs []*v1alpha1.MachineSet, de
 		if is.Status.Replicas != 0 || (is.Spec.Replicas) != 0 || is.Generation > is.Status.ObservedGeneration || is.DeletionTimestamp != nil {
 			continue
 		}
-		glog.V(4).Infof("Trying to cleanup machine set %q for deployment %q", is.Name, deployment.Name)
+		klog.V(4).Infof("Trying to cleanup machine set %q for deployment %q", is.Name, deployment.Name)
 		if err := dc.controlMachineClient.MachineSets(is.Namespace).Delete(is.Name, nil); err != nil && !errors.IsNotFound(err) {
 			// Return error instead of aggregating and continuing DELETEs on the theory
 			// that we may be overloading the api server.

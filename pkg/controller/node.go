@@ -18,7 +18,7 @@ limitations under the License.
 package controller
 
 import (
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -29,7 +29,7 @@ import (
 func (c *controller) nodeAdd(obj interface{}) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
-		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
+		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
 		return
 	}
 	c.nodeQueue.Add(key)
@@ -54,7 +54,7 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 		return nil
 	}
 	if err != nil {
-		glog.Errorf("ClusterNode %q: Unable to retrieve object from store: %v", key, err)
+		klog.Errorf("ClusterNode %q: Unable to retrieve object from store: %v", key, err)
 		return err
 	}
 

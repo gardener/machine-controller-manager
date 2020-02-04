@@ -119,7 +119,7 @@ func (c *FakeAzureMachineClasses) DeleteCollection(options *v1.DeleteOptions, li
 // Patch applies the patch and returns the patched azureMachineClass.
 func (c *FakeAzureMachineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.AzureMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(azuremachineclassesResource, c.ns, name, data, subresources...), &v1alpha1.AzureMachineClass{})
+		Invokes(testing.NewPatchSubresourceAction(azuremachineclassesResource, c.ns, name, pt, data, subresources...), &v1alpha1.AzureMachineClass{})
 
 	if obj == nil {
 		return nil, err

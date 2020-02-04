@@ -33,7 +33,6 @@ import (
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/driver"
-	"github.com/golang/glog"
 	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	policy "k8s.io/api/policy/v1beta1"
@@ -44,6 +43,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	corelisters "k8s.io/client-go/listers/core/v1"
+	"k8s.io/klog"
 )
 
 // DrainOptions are configurable options while draining a node before deletion
@@ -158,7 +158,7 @@ func NewDrainOptions(
 // RunDrain runs the 'drain' command
 func (o *DrainOptions) RunDrain() error {
 	o.drainStartedOn = time.Now()
-	glog.V(4).Infof(
+	klog.V(4).Infof(
 		"Machine drain started on %s for %q",
 		o.drainStartedOn,
 		o.nodeName,
@@ -166,7 +166,7 @@ func (o *DrainOptions) RunDrain() error {
 
 	defer func() {
 		o.drainEndedOn = time.Now()
-		glog.Infof(
+		klog.Infof(
 			"Machine drain ended on %s and took %s for %q",
 			o.drainEndedOn,
 			o.drainEndedOn.Sub(o.drainStartedOn),
@@ -175,7 +175,7 @@ func (o *DrainOptions) RunDrain() error {
 	}()
 
 	if err := o.RunCordonOrUncordon(true); err != nil {
-		glog.Errorf("Drain Error: Cordoning of node failed with error: %v", err)
+		klog.Errorf("Drain Error: Cordoning of node failed with error: %v", err)
 		return err
 	}
 
@@ -228,15 +228,13 @@ func (o *DrainOptions) daemonsetFilter(pod api.Pod) (bool, *warning, *fatal) {
 	// regardless of flags.  We never delete them, the only question is whether
 	// their presence constitutes an error.
 	//
+	// TODO: Might need to revisit this. This feature is ignored for now
 	// The exception is for pods that are orphaned (the referencing
 	// management resource - including DaemonSet - is not found).
 	// Such pods will be deleted if --force is used.
 	controllerRef := o.getPodController(pod)
 	if controllerRef == nil || controllerRef.Kind != "DaemonSet" {
 		return true, nil, nil
-	}
-	if _, err := o.client.Extensions().DaemonSets(pod.Namespace).Get(controllerRef.Name, metav1.GetOptions{}); err != nil {
-		return false, nil, &fatal{err.Error()}
 	}
 	if !o.IgnoreDaemonsets {
 		return false, nil, &fatal{daemonsetFatal}
@@ -286,7 +284,7 @@ func (ps podStatuses) Message() string {
 // getPodsForDeletion returns all the pods we're going to delete.  If there are
 // any pods preventing us from deleting, we return that list in an error.
 func (o *DrainOptions) getPodsForDeletion() (pods []api.Pod, err error) {
-	podList, err := o.client.Core().Pods(metav1.NamespaceAll).List(metav1.ListOptions{
+	podList, err := o.client.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": o.nodeName}).String()})
 	if err != nil {
 		return pods, err
@@ -327,8 +325,8 @@ func (o *DrainOptions) deletePod(pod *api.Pod) error {
 	gracePeriodSeconds := int64(0)
 	deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
 
-	glog.V(3).Infof("Attempting to force-delete the pod:%q from node %q", pod.Name, o.nodeName)
-	return o.client.Core().Pods(pod.Namespace).Delete(pod.Name, deleteOptions)
+	klog.V(3).Infof("Attempting to force-delete the pod:%q from node %q", pod.Name, o.nodeName)
+	return o.client.CoreV1().Pods(pod.Namespace).Delete(pod.Name, deleteOptions)
 }
 
 func (o *DrainOptions) evictPod(pod *api.Pod, policyGroupVersion string) error {
@@ -348,9 +346,9 @@ func (o *DrainOptions) evictPod(pod *api.Pod, policyGroupVersion string) error {
 		},
 		DeleteOptions: deleteOptions,
 	}
-	glog.V(3).Infof("Attempting to evict the pod:%q from node %q", pod.Name, o.nodeName)
-	// Remember to change the URL manipulation func when Evction's version change
-	return o.client.Policy().Evictions(eviction.Namespace).Evict(eviction)
+	klog.V(3).Infof("Attempting to evict the pod:%q from node %q", pod.Name, o.nodeName)
+	// TODO: Remember to change the URL manipulation func when Evction's version change
+	return o.client.PolicyV1beta1().Evictions(eviction.Namespace).Evict(eviction)
 }
 
 // deleteOrEvictPods deletes or evicts the pods on the api server
@@ -365,7 +363,7 @@ func (o *DrainOptions) deleteOrEvictPods(pods []api.Pod) error {
 	}
 
 	getPodFn := func(namespace, name string) (*api.Pod, error) {
-		return o.client.Core().Pods(namespace).Get(name, metav1.GetOptions{})
+		return o.client.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
 	}
 
 	return o.evictPods(len(policyGroupVersion) > 0, pods, policyGroupVersion, getPodFn)
@@ -428,14 +426,14 @@ func (o *DrainOptions) evictPods(attemptEvict bool, pods []api.Pod, policyGroupV
 			podsToDrain[i] = &pods[i]
 		}
 
-		glog.V(3).Infof("Forceful eviction of pods on the node: %q", o.nodeName)
+		klog.V(3).Infof("Forceful eviction of pods on the node: %q", o.nodeName)
 
 		// evict all pods in parallel without waiting for pods or volume detachment
 		go o.evictPodsWithoutPv(attemptEvict, podsToDrain, policyGroupVersion, getPodFn, returnCh)
 	} else {
 		podsWithPv, podsWithoutPv := filterPodsWithPv(pods)
 
-		glog.V(3).Infof("Normal eviction of pods on the node: %q", o.nodeName)
+		klog.V(3).Infof("Normal eviction of pods on the node: %q", o.nodeName)
 
 		// evcit all pods without PV in parallel and with PV in serial (waiting for vol detachment)
 		go o.evictPodsWithPv(attemptEvict, podsWithPv, policyGroupVersion, getPodFn, returnCh)
@@ -482,7 +480,7 @@ func (o *DrainOptions) doAccountingOfPvs(pods []*corev1.Pod) map[string][]string
 		podPVs, _ := o.getPvs(pod)
 		pvMap[pod.Namespace+"/"+pod.Name] = podPVs
 	}
-	glog.V(4).Info("PV map: ", pvMap)
+	klog.V(4).Info("PV map: ", pvMap)
 
 	filterSharedPVs(pvMap)
 
@@ -491,12 +489,12 @@ func (o *DrainOptions) doAccountingOfPvs(pods []*corev1.Pod) map[string][]string
 		vols, err := o.getVolIDsFromDriver(pvList)
 		if err != nil {
 			// In case of error, log and skip this set of volumes
-			glog.Errorf("Error getting volume ID from cloud provider. Skipping volumes for pod: %v. Err: %v", i, err)
+			klog.Errorf("Error getting volume ID from cloud provider. Skipping volumes for pod: %v. Err: %v", i, err)
 			continue
 		}
 		volMap[i] = vols
 	}
-	glog.V(4).Info("Volume map: ", volMap)
+	klog.V(4).Info("Volume map: ", volMap)
 	return volMap
 }
 
@@ -520,7 +518,7 @@ func filterSharedPVs(pvMap map[string][]string) {
 	}
 
 	if !sharedVolumesFound {
-		glog.V(4).Info("No shared volumes found.")
+		klog.V(4).Info("No shared volumes found.")
 		return
 	}
 
@@ -534,7 +532,7 @@ func filterSharedPVs(pvMap map[string][]string) {
 		}
 		pvMap[pod] = volList
 	}
-	glog.V(3).Info("Removed shared volumes. Filtered list of pods with volumes: ", pvMap)
+	klog.V(3).Info("Removed shared volumes. Filtered list of pods with volumes: ", pvMap)
 }
 
 func (o *DrainOptions) evictPodsWithPv(attemptEvict bool, pods []*corev1.Pod,
@@ -560,7 +558,7 @@ func (o *DrainOptions) evictPodsWithPv(attemptEvict bool, pods []*corev1.Pod,
 				break
 			}
 
-			glog.V(4).Infof(
+			klog.V(4).Infof(
 				"Eviction/deletion for some pods will be retried after %s for node %q",
 				PodEvictionRetryInterval,
 				o.nodeName,
@@ -580,7 +578,7 @@ func (o *DrainOptions) evictPodsWithPv(attemptEvict bool, pods []*corev1.Pod,
 
 	// Placate the caller by returning the nil status for the remaining pods.
 	for _, pod := range remainingPods {
-		glog.V(4).Infof("Returning success for remaining pods for node %q", o.nodeName)
+		klog.V(4).Infof("Returning success for remaining pods for node %q", o.nodeName)
 		if fastTrack {
 			// This is executed when node is not found anymore.
 			// Return success to caller for all non-processed pods so that the caller function can move on.
@@ -631,21 +629,21 @@ func (o *DrainOptions) evictPodsWithPVInternal(attemptEvict bool, pods []*corev1
 
 		if attemptEvict && apierrors.IsTooManyRequests(err) {
 			// Pod eviction failed because of PDB violation, we will retry one we are done with this list.
-			glog.V(3).Info("Pod ", pod.Namespace, "/", pod.Name, " from node ", pod.Spec.NodeName, " couldn't be evicted. This may also occur due to PDB violation. Will be retried. Error:", err)
+			klog.V(3).Info("Pod ", pod.Namespace, "/", pod.Name, " from node ", pod.Spec.NodeName, " couldn't be evicted. This may also occur due to PDB violation. Will be retried. Error:", err)
 			retryPods = append(retryPods, pod)
 			continue
 		} else if apierrors.IsNotFound(err) {
-			glog.V(3).Info("\t", pod.Name, " from node ", pod.Spec.NodeName, " is already gone")
+			klog.V(3).Info("\t", pod.Name, " from node ", pod.Spec.NodeName, " is already gone")
 			returnCh <- nil
 			continue
 		} else if err != nil {
-			glog.V(4).Infof("Error when evicting pod: %v/%v from node %v. Will be retried. Err: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
+			klog.V(4).Infof("Error when evicting pod: %v/%v from node %v. Will be retried. Err: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
 			retryPods = append(retryPods, pod)
 			continue
 		}
 
 		// Eviction was successful. Wait for pvs for this pod to detach
-		glog.V(3).Infof(
+		klog.V(3).Infof(
 			"Pod eviction/deletion for Pod %s/%s in Node %q and took %v. Now waiting for volume detachment.",
 			pod.Namespace,
 			pod.Name,
@@ -659,15 +657,15 @@ func (o *DrainOptions) evictPodsWithPVInternal(attemptEvict bool, pods []*corev1
 		cancelFn()
 
 		if apierrors.IsNotFound(err) {
-			glog.V(3).Info("Node not found anymore")
+			klog.V(3).Info("Node not found anymore")
 			returnCh <- nil
 			return append(retryPods, pods[i+1:]...), true
 		} else if err != nil {
-			glog.Errorf("Error when waiting for volume to detach from node. Err: %v", err)
+			klog.Errorf("Error when waiting for volume to detach from node. Err: %v", err)
 			returnCh <- err
 			continue
 		}
-		glog.V(3).Infof(
+		klog.V(3).Infof(
 			"Volume detached for Pod %s/%s in Node %q and took %v (including pod eviction/deletion time).",
 			pod.Namespace,
 			pod.Name,
@@ -699,7 +697,7 @@ func (o *DrainOptions) getPvs(pod *corev1.Pod) ([]string, error) {
 
 					if try == GetPvDetailsMaxRetries {
 						// Log warning, and skip trying this volume anymore
-						glog.Errorf("Error getting PVC. Err: %v", err)
+						klog.Errorf("Error getting PVC. Err: %v", err)
 						break
 					}
 					// In case of error, try again after few seconds
@@ -719,37 +717,37 @@ func (o *DrainOptions) getPvs(pod *corev1.Pod) ([]string, error) {
 func (o *DrainOptions) waitForDetach(ctx context.Context, volumeIDs []string, nodeName string) error {
 	if volumeIDs == nil || len(volumeIDs) == 0 || nodeName == "" {
 		// If volume or node name is not available, nothing to do. Just log this as warning
-		glog.Warningf("Node name: %q, list of pod PVs to wait for detach: %v", nodeName, volumeIDs)
+		klog.Warningf("Node name: %q, list of pod PVs to wait for detach: %v", nodeName, volumeIDs)
 		return nil
 	}
 
-	glog.V(4).Info("Waiting for following volumes to detach: ", volumeIDs)
+	klog.V(4).Info("Waiting for following volumes to detach: ", volumeIDs)
 
 	found := true
 
 	for found {
 		select {
 		case <-ctx.Done():
-			glog.Warningf("Timeout occurred while waiting for PVs to detach from node %q", nodeName)
+			klog.Warningf("Timeout occurred while waiting for PVs to detach from node %q", nodeName)
 			return fmt.Errorf("Timeout while waiting for PVs to detach from node")
 		default:
 		}
 
 		found = false
 
-		node, err := o.client.Core().Nodes().Get(nodeName, metav1.GetOptions{})
+		node, err := o.client.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
 		if apierrors.IsNotFound(err) {
-			glog.V(4).Info("Node not found: ", nodeName)
+			klog.V(4).Info("Node not found: ", nodeName)
 			return err
 		} else if err != nil {
-			glog.Errorf("Error getting details for node: %q. Err: %v", nodeName, err)
+			klog.Errorf("Error getting details for node: %q. Err: %v", nodeName, err)
 			return err
 		}
 
-		glog.V(4).Infof("No of attached volumes for node %q is %s", nodeName, node.Status.VolumesAttached)
+		klog.V(4).Infof("No of attached volumes for node %q is %s", nodeName, node.Status.VolumesAttached)
 		attachedVols := node.Status.VolumesAttached
 		if len(attachedVols) == 0 {
-			glog.V(4).Infof("No volumes attached to the node %q", nodeName)
+			klog.V(4).Infof("No volumes attached to the node %q", nodeName)
 			return nil
 		}
 
@@ -763,7 +761,7 @@ func (o *DrainOptions) waitForDetach(ctx context.Context, volumeIDs []string, no
 				found, _ = regexp.MatchString(*volumeID, string(attachedVol.Name))
 
 				if found {
-					glog.V(4).Infof(
+					klog.V(4).Infof(
 						"Found volume:%s still attached to node %q. Will re-check in %s",
 						*volumeID,
 						nodeName,
@@ -776,7 +774,7 @@ func (o *DrainOptions) waitForDetach(ctx context.Context, volumeIDs []string, no
 		}
 	}
 
-	glog.V(4).Infof("Detached volumes:%s from node %q", volumeIDs, nodeName)
+	klog.V(4).Infof("Detached volumes:%s from node %q", volumeIDs, nodeName)
 	return nil
 }
 
@@ -812,7 +810,7 @@ func (o *DrainOptions) getVolIDsFromDriver(pvNames []string) ([]string, error) {
 
 func (o *DrainOptions) evictPodWithoutPVInternal(attemptEvict bool, pod *corev1.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error), returnCh chan error) {
 	var err error
-	glog.V(3).Infof(
+	klog.V(3).Infof(
 		"Evicting pod %s/%s from node %q ",
 		pod.Namespace,
 		pod.Name,
@@ -834,7 +832,7 @@ func (o *DrainOptions) evictPodWithoutPVInternal(attemptEvict bool, pod *corev1.
 		if err == nil {
 			break
 		} else if apierrors.IsNotFound(err) {
-			glog.V(3).Info("\t", pod.Name, " evicted from node ", pod.Spec.NodeName)
+			klog.V(3).Info("\t", pod.Name, " evicted from node ", pod.Spec.NodeName)
 			returnCh <- nil
 			return
 		} else if attemptEvict && apierrors.IsTooManyRequests(err) {
@@ -860,7 +858,7 @@ func (o *DrainOptions) evictPodWithoutPVInternal(attemptEvict bool, pod *corev1.
 
 	timeout := o.getTerminationGracePeriod(pod)
 	if timeout > o.Timeout {
-		glog.V(3).Infof("Overriding large termination grace period (%s) for the pod %s/%s and setting it to %s", timeout.String(), pod.Namespace, pod.Name, o.Timeout)
+		klog.V(3).Infof("Overriding large termination grace period (%s) for the pod %s/%s and setting it to %s", timeout.String(), pod.Namespace, pod.Name, o.Timeout)
 		timeout = o.Timeout
 	}
 
@@ -884,7 +882,7 @@ func (o *DrainOptions) waitForDelete(pods []*api.Pod, interval, timeout time.Dur
 			p, err := getPodFn(pod.Namespace, pod.Name)
 			if apierrors.IsNotFound(err) || (p != nil && p.ObjectMeta.UID != pod.ObjectMeta.UID) {
 				//cmdutil.PrintSuccess(o.mapper, false, o.Out, "pod", pod.Name, false, verbStr)
-				//glog.Info("pod deleted successfully found")
+				//klog.Info("pod deleted successfully found")
 				continue
 			} else if err != nil {
 				return false, err
@@ -943,7 +941,7 @@ func (o *DrainOptions) RunCordonOrUncordon(desired bool) error {
 	}
 	unsched := node.Spec.Unschedulable
 	if unsched == desired {
-		glog.V(3).Infof("Scheduling state for node %q is already in desired state", node.Name)
+		klog.V(3).Infof("Scheduling state for node %q is already in desired state", node.Name)
 	} else {
 		clone := node.DeepCopy()
 		clone.Spec.Unschedulable = desired

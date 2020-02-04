@@ -20,7 +20,7 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -456,7 +456,7 @@ var _ = Describe("machine_util", func() {
 				if exists {
 					err := json.Unmarshal([]byte(lastAppliedALTJSONString), &lastAppliedALT)
 					if err != nil {
-						glog.Errorf("Error occurred while syncing node annotations, labels & taints: %s", err)
+						klog.Errorf("Error occurred while syncing node annotations, labels & taints: %s", err)
 					}
 				}
 
@@ -889,7 +889,7 @@ var _ = Describe("machine_util", func() {
 				if exists {
 					err := json.Unmarshal([]byte(lastAppliedALTJSONString), &lastAppliedALT)
 					if err != nil {
-						glog.Errorf("Error occurred while syncing node annotations, labels & taints: %s", err)
+						klog.Errorf("Error occurred while syncing node annotations, labels & taints: %s", err)
 					}
 				}
 
@@ -1307,7 +1307,7 @@ var _ = Describe("machine_util", func() {
 				if exists {
 					err := json.Unmarshal([]byte(lastAppliedALTJSONString), &lastAppliedALT)
 					if err != nil {
-						glog.Errorf("Error occurred while syncing node annotations, labels & taints: %s", err)
+						klog.Errorf("Error occurred while syncing node annotations, labels & taints: %s", err)
 					}
 				}
 
