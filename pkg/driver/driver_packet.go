@@ -84,7 +84,7 @@ func (d *PacketDriver) Delete(machineID string) error {
 			klog.V(2).Infof("No machine matching the machine-ID found on the provider %q", machineID)
 			return nil
 		}
-		klog.Errorf("Could not terminate machine %s: %v", d.MachineID, err)
+		klog.Errorf("Could not terminate machine %s: %v", machineID, err)
 		return err
 	}
 	return nil
