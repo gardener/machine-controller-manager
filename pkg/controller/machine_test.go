@@ -163,10 +163,6 @@ var _ = Describe("machine", func() {
 						Status: corev1.ConditionTrue,
 					},
 					{
-						Type:   corev1.NodeOutOfDisk,
-						Status: corev1.ConditionFalse,
-					},
-					{
 						Type:   corev1.NodeDiskPressure,
 						Status: corev1.ConditionFalse,
 					},
@@ -198,10 +194,6 @@ var _ = Describe("machine", func() {
 			Entry("with NodeDiskPressure is True", corev1.NodeDiskPressure, corev1.ConditionTrue, false),
 			Entry("with NodeDiskPressure is False", corev1.NodeDiskPressure, corev1.ConditionFalse, true),
 			Entry("with NodeDiskPressure is Unknown", corev1.NodeDiskPressure, corev1.ConditionUnknown, false),
-
-			Entry("with NodeOutOfDisk is True", corev1.NodeOutOfDisk, corev1.ConditionTrue, true),
-			Entry("with NodeOutOfDisk is Unknown", corev1.NodeOutOfDisk, corev1.ConditionUnknown, true),
-			Entry("with NodeOutOfDisk is False", corev1.NodeOutOfDisk, corev1.ConditionFalse, true),
 
 			Entry("with NodeMemoryPressure is True", corev1.NodeMemoryPressure, corev1.ConditionTrue, true),
 			Entry("with NodeMemoryPressure is Unknown", corev1.NodeMemoryPressure, corev1.ConditionUnknown, true),

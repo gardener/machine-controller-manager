@@ -24,8 +24,8 @@ import (
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/golang/glog"
 	"github.com/packethost/packngo"
+	"github.com/golang/glog"
 )
 
 // PacketDriver is the driver struct for holding Packet machine information
@@ -81,10 +81,10 @@ func (d *PacketDriver) Delete(machineID string) error {
 	resp, err := svc.Devices.Delete(instanceID)
 	if err != nil {
 		if resp.StatusCode == 404 {
-			glog.V(2).Infof("No machine matching the machineID found on the provider %q", machineID)
+			glog.V(2).Infof("No machine matching the machine-ID found on the provider %q", machineID)
 			return nil
 		}
-		glog.Errorf("Could not terminate machine %s: %v", machineID, err)
+		glog.Errorf("Could not terminate machine %s: %v", d.MachineID, err)
 		return err
 	}
 	return nil

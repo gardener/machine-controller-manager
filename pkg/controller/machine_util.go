@@ -337,7 +337,7 @@ func (c *controller) syncMachineNodeTemplates(machine *v1alpha1.Machine) error {
 		}
 		nodeCopy.Annotations[LastAppliedALTAnnotation] = string(currentlyAppliedALTJSONByte)
 
-		_, err := c.targetCoreClient.Core().Nodes().Update(nodeCopy)
+		_, err := c.targetCoreClient.CoreV1().Nodes().Update(nodeCopy)
 		if err != nil {
 			return err
 		}

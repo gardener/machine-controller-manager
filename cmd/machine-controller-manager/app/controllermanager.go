@@ -164,14 +164,17 @@ func Run(s *options.MCMServer) error {
 		return err
 	}
 
-	rl, err := resourcelock.New(s.LeaderElection.ResourceLock,
+	rl, err := resourcelock.New(
+		s.LeaderElection.ResourceLock,
 		s.Namespace,
 		"machine-controller-manager",
 		leaderElectionClient.CoreV1(),
+		leaderElectionClient.CoordinationV1(),
 		resourcelock.ResourceLockConfig{
 			Identity:      id,
 			EventRecorder: recorder,
-		})
+		},
+	)
 	if err != nil {
 		glog.Fatalf("error creating lock: %v", err)
 	}

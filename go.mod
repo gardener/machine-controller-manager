@@ -40,6 +40,7 @@ require (
 	k8s.io/cluster-bootstrap v0.0.0-20190918163108-da9fdfce26bb
 	k8s.io/code-generator v0.0.0-20190912054826-cd179ad6a269
 	k8s.io/component-base v0.0.0-20190918160511-547f6c5d7090
+	k8s.io/klog v0.4.0
 	k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf
 	k8s.io/utils v0.0.0-20190801114015-581e00157fb1
 )
