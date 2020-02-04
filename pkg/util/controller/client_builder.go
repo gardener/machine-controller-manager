@@ -24,7 +24,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 // ClientBuilder allows you to get clients and configs for controllers
@@ -53,7 +53,7 @@ func (b SimpleControllerClientBuilder) Config(name string) (*restclient.Config, 
 func (b SimpleControllerClientBuilder) ConfigOrDie(name string) *restclient.Config {
 	clientConfig, err := b.Config(name)
 	if err != nil {
-		glog.Fatal(err)
+		klog.Fatal(err)
 	}
 	return clientConfig
 }
@@ -71,7 +71,7 @@ func (b SimpleControllerClientBuilder) Client(name string) (clientset.Interface,
 func (b SimpleControllerClientBuilder) ClientOrDie(name string) clientset.Interface {
 	client, err := b.Client(name)
 	if err != nil {
-		glog.Fatal(err)
+		klog.Fatal(err)
 	}
 	return client
 }
@@ -89,7 +89,7 @@ func (b SimpleControllerClientBuilder) ClientGoClient(name string) (clientgoclie
 func (b SimpleControllerClientBuilder) ClientGoClientOrDie(name string) clientgoclientset.Interface {
 	client, err := b.ClientGoClient(name)
 	if err != nil {
-		glog.Fatal(err)
+		klog.Fatal(err)
 	}
 	return client
 }

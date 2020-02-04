@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/metrics"
@@ -113,7 +113,7 @@ func (c *AlicloudDriver) Delete(machineID string) error {
 		return err
 	} else if len(result) == 0 {
 		// No running instance exists with the given machineID
-		glog.V(2).Infof("No VM matching the machineID found on the provider %q", machineID)
+		klog.V(2).Infof("No VM matching the machineID found on the provider %q", machineID)
 		return nil
 	}
 

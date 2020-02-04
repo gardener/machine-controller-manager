@@ -30,7 +30,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
@@ -156,7 +156,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 		}
 	}
 
-	glog.V(3).Infof("creating machine")
+	klog.V(3).Infof("creating machine")
 
 	var server *servers.Server
 	// If a custom block_device (root disk size is provided) we need to boot from volume
@@ -224,7 +224,7 @@ func (d *OpenStackDriver) Delete(machineID string) error {
 		return err
 	} else if len(res) == 0 {
 		// No running instance exists with the given machine-ID
-		glog.V(2).Infof("No VM matching the machine-ID found on the provider %q", machineID)
+		klog.V(2).Infof("No VM matching the machine-ID found on the provider %q", machineID)
 		return nil
 	}
 
@@ -242,10 +242,10 @@ func (d *OpenStackDriver) Delete(machineID string) error {
 			return fmt.Errorf("error waiting for the %q server to be deleted: %s", machineID, err)
 		}
 		metrics.APIRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
-		glog.V(3).Infof("Deleted machine with ID: %s", machineID)
+		klog.V(3).Infof("Deleted machine with ID: %s", machineID)
 	} else {
 		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
-		glog.Errorf("Failed to delete machine with ID: %s", machineID)
+		klog.Errorf("Failed to delete machine with ID: %s", machineID)
 	}
 
 	return result.Err
@@ -278,7 +278,7 @@ func (d *OpenStackDriver) GetVMs(machineID string) (VMs, error) {
 
 	client, err := d.createNovaClient()
 	if err != nil {
-		glog.Errorf("Could not connect to NovaClient. Error Message - %s", err)
+		klog.Errorf("Could not connect to NovaClient. Error Message - %s", err)
 		return listOfVMs, err
 	}
 
@@ -286,7 +286,7 @@ func (d *OpenStackDriver) GetVMs(machineID string) (VMs, error) {
 	pager := servers.List(client, servers.ListOpts{})
 	if pager.Err != nil {
 		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
-		glog.Errorf("Could not list instances. Error Message - %s", err)
+		klog.Errorf("Could not list instances. Error Message - %s", err)
 		return listOfVMs, err
 	}
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
@@ -315,7 +315,7 @@ func (d *OpenStackDriver) GetVMs(machineID string) (VMs, error) {
 					listOfVMs[instanceID] = server.Name
 				} else if machineID == instanceID {
 					listOfVMs[instanceID] = server.Name
-					glog.V(3).Infof("Found machine with name: %q", server.Name)
+					klog.V(3).Infof("Found machine with name: %q", server.Name)
 					break
 				}
 			}
@@ -558,6 +558,6 @@ func resourceInstanceBlockDevicesV2(rootDiskSize int, imageID string) ([]bootfro
 		SourceType:          "image",
 		DestinationType:     "volume",
 	}
-	glog.V(2).Infof("[DEBUG] Block Device Options: %+v", blockDeviceOpts)
+	klog.V(2).Infof("[DEBUG] Block Device Options: %+v", blockDeviceOpts)
 	return blockDeviceOpts, nil
 }

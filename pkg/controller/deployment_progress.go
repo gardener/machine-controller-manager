@@ -26,7 +26,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 )
@@ -189,11 +189,11 @@ func (dc *controller) requeueStuckMachineDeployment(d *v1alpha1.MachineDeploymen
 	// Make it ratelimited so we stay on the safe side, eventually the Deployment should
 	// transition either to a Complete or to a TimedOut condition.
 	if after < time.Second {
-		glog.V(4).Infof("Queueing up machine deployment %q for a progress check now", d.Name)
+		klog.V(4).Infof("Queueing up machine deployment %q for a progress check now", d.Name)
 		dc.enqueueRateLimited(d)
 		return time.Duration(0)
 	}
-	glog.V(4).Infof("Queueing up machine deployment %q for a progress check after %ds", d.Name, int(after.Seconds()))
+	klog.V(4).Infof("Queueing up machine deployment %q for a progress check after %ds", d.Name, int(after.Seconds()))
 	// Add a second to avoid milliseconds skew in AddAfter.
 	// See https://github.com/kubernetes/kubernetes/issues/39785#issuecomment-279959133 for more info.
 	dc.enqueueMachineDeploymentAfter(d, after+time.Second)
