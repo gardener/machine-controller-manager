@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/driver"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +39,7 @@ const placeholder = "<<BOOTSTRAP_TOKEN>>"
 
 func (c *controller) addBootstrapTokenToUserData(machineName string, driver driver.Driver) error {
 	userData := driver.GetUserData()
-	glog.V(4).Infof("Creating bootstrap token!")
+	klog.V(4).Infof("Creating bootstrap token!")
 	bootstrapTokenSecret, err := c.getBootstrapTokenOrCreateIfNotExist(machineName)
 	if err != nil {
 		return err
@@ -49,7 +49,7 @@ func (c *controller) addBootstrapTokenToUserData(machineName string, driver driv
 		string(bootstrapTokenSecret.Data[bootstraptokenapi.BootstrapTokenIDKey]),
 		string(bootstrapTokenSecret.Data[bootstraptokenapi.BootstrapTokenSecretKey]),
 	)
-	glog.V(4).Infof("replacing placeholder %s with %s in user-data!", placeholder, token)
+	klog.V(4).Infof("replacing placeholder %s with %s in user-data!", placeholder, token)
 	userData = strings.ReplaceAll(userData, placeholder, token)
 
 	driver.SetUserData(userData)

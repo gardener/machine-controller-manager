@@ -26,7 +26,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
@@ -60,7 +60,7 @@ func updateMachineSetStatus(machineClient machineapi.MachineV1alpha1Interface, i
 	var getErr, updateErr error
 	var updatedIS *v1alpha1.MachineSet
 	for i, is := 0, is; ; i++ {
-		glog.V(4).Infof(fmt.Sprintf("Updating status for MachineSet: %s/%s, ", is.Namespace, is.Name) +
+		klog.V(4).Infof(fmt.Sprintf("Updating status for MachineSet: %s/%s, ", is.Namespace, is.Name) +
 			fmt.Sprintf("replicas %d->%d (need %d), ", is.Status.Replicas, newStatus.Replicas, is.Spec.Replicas) +
 			fmt.Sprintf("fullyLabeledReplicas %d->%d, ", is.Status.FullyLabeledReplicas, newStatus.FullyLabeledReplicas) +
 			fmt.Sprintf("readyReplicas %d->%d, ", is.Status.ReadyReplicas, newStatus.ReadyReplicas) +

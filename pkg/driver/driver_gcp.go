@@ -34,7 +34,7 @@ import (
 	"google.golang.org/api/googleapi"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 // GCPDriver is the driver struct for holding GCP machine information
@@ -159,19 +159,19 @@ func (d *GCPDriver) Delete(machineID string) error {
 		return err
 	} else if len(result) == 0 {
 		// No running instance exists with the given machine-ID
-		glog.V(2).Infof("No VM matching the machine-ID found on the provider %q", machineID)
+		klog.V(2).Infof("No VM matching the machine-ID found on the provider %q", machineID)
 		return nil
 	}
 
 	ctx, computeService, err := d.createComputeService()
 	if err != nil {
-		glog.Error(err)
+		klog.Error(err)
 		return err
 	}
 
 	project, zone, name, err := d.decodeMachineID(machineID)
 	if err != nil {
-		glog.Error(err)
+		klog.Error(err)
 		return err
 	}
 
@@ -181,7 +181,7 @@ func (d *GCPDriver) Delete(machineID string) error {
 		if ae, ok := err.(*googleapi.Error); ok && ae.Code == http.StatusNotFound {
 			return nil
 		}
-		glog.Error(err)
+		klog.Error(err)
 		return err
 	}
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
@@ -229,13 +229,13 @@ func (d *GCPDriver) GetVMs(machineID string) (VMs, error) {
 
 	ctx, computeService, err := d.createComputeService()
 	if err != nil {
-		glog.Error(err)
+		klog.Error(err)
 		return listOfVMs, err
 	}
 
 	project, err := extractProject(d.CloudConfig.Data[v1alpha1.GCPServiceAccountJSON])
 	if err != nil {
-		glog.Error(err)
+		klog.Error(err)
 		return listOfVMs, err
 	}
 
@@ -262,7 +262,7 @@ func (d *GCPDriver) GetVMs(machineID string) (VMs, error) {
 					listOfVMs[instanceID] = server.Name
 				} else if machineID == instanceID {
 					listOfVMs[instanceID] = server.Name
-					glog.V(3).Infof("Found machine with name: %q", server.Name)
+					klog.V(3).Infof("Found machine with name: %q", server.Name)
 					break
 				}
 			}
@@ -270,7 +270,7 @@ func (d *GCPDriver) GetVMs(machineID string) (VMs, error) {
 		return nil
 	}); err != nil {
 		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
-		glog.Error(err)
+		klog.Error(err)
 		return listOfVMs, err
 	}
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "gcp", "service": "compute"}).Inc()
@@ -301,7 +301,7 @@ func waitUntilOperationCompleted(computeService *compute.Service, project, zone,
 		if err != nil {
 			return false, err
 		}
-		glog.V(3).Infof("Waiting for operation to be completed... (status: %s)", op.Status)
+		klog.V(3).Infof("Waiting for operation to be completed... (status: %s)", op.Status)
 		if op.Status == "DONE" {
 			if op.Error == nil {
 				return true, nil

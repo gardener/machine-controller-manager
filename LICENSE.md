@@ -217,8 +217,8 @@ https://github.com/go-openapi/spec.
 Copyright 2015 go-swagger maintainers.  
 Apache 2 license (https://github.com/go-openapi/spec/blob/master/LICENSE ).  
 
-glog.  
-https://github.com/golang/glog.  
+klog.  
+https://github.com/golang/klog.  
 Copyright 2013 Google Inc. All Rights Reserved.  
 Apache 2 license (https://github.com/kubernetes/klog/blob/master/LICENSE ).  
 
