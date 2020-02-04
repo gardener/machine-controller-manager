@@ -445,6 +445,8 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return err
 	}
 
+	klog.V(3).Infof("Processing the machinedeployment %q (with replicas %d)", deployment.Name, deployment.Spec.Replicas)
+
 	// If MachineDeployment is frozen and no deletion timestamp, don't process it
 	if deployment.Labels["freeze"] == "True" && deployment.DeletionTimestamp == nil {
 		klog.V(3).Infof("MachineDeployment %q is frozen. However, it will still be processed if it there is an scale down event.", deployment.Name)
