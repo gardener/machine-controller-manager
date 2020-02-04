@@ -28,7 +28,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -52,14 +52,14 @@ var GroupVersionKind = "machine.sapcloud.io/v1alpha1"
 
 func (dc *controller) addMachineDeployment(obj interface{}) {
 	d := obj.(*v1alpha1.MachineDeployment)
-	glog.V(4).Infof("Adding machine deployment %s", d.Name)
+	klog.V(4).Infof("Adding machine deployment %s", d.Name)
 	dc.enqueueMachineDeployment(d)
 }
 
 func (dc *controller) updateMachineDeployment(old, cur interface{}) {
 	oldD := old.(*v1alpha1.MachineDeployment)
 	curD := cur.(*v1alpha1.MachineDeployment)
-	glog.V(4).Infof("Updating machine deployment %s", oldD.Name)
+	klog.V(4).Infof("Updating machine deployment %s", oldD.Name)
 	dc.enqueueMachineDeployment(curD)
 }
 
@@ -77,7 +77,7 @@ func (dc *controller) deleteMachineDeployment(obj interface{}) {
 			return
 		}
 	}
-	glog.V(4).Infof("Deleting machine deployment %s", d.Name)
+	klog.V(4).Infof("Deleting machine deployment %s", d.Name)
 	dc.enqueueMachineDeployment(d)
 }
 
@@ -98,7 +98,7 @@ func (dc *controller) addMachineSetToDeployment(obj interface{}) {
 		if d == nil {
 			return
 		}
-		glog.V(4).Infof("MachineSet %s added.", is.Name)
+		klog.V(4).Infof("MachineSet %s added.", is.Name)
 		dc.enqueueMachineDeployment(d)
 		return
 	}
@@ -109,7 +109,7 @@ func (dc *controller) addMachineSetToDeployment(obj interface{}) {
 	if len(ds) == 0 {
 		return
 	}
-	glog.V(4).Infof("Orphan MachineSet %s added.", is.Name)
+	klog.V(4).Infof("Orphan MachineSet %s added.", is.Name)
 	for _, d := range ds {
 		dc.enqueueMachineDeployment(d)
 	}
@@ -129,7 +129,7 @@ func (dc *controller) getMachineDeploymentsForMachineSet(machineSet *v1alpha1.Ma
 	if len(deployments) > 1 {
 		// ControllerRef will ensure we don't do anything crazy, but more than one
 		// item in this list nevertheless constitutes user error.
-		glog.V(4).Infof("user error! more than one deployment is selecting machine set %s with labels: %#v, returning %s",
+		klog.V(4).Infof("user error! more than one deployment is selecting machine set %s with labels: %#v, returning %s",
 			machineSet.Name, machineSet.Labels, deployments[0].Name)
 	}
 	return deployments
@@ -164,7 +164,7 @@ func (dc *controller) updateMachineSetToDeployment(old, cur interface{}) {
 		if d == nil {
 			return
 		}
-		glog.V(4).Infof("MachineSet %s updated.", curMachineSet.Name)
+		klog.V(4).Infof("MachineSet %s updated.", curMachineSet.Name)
 		dc.enqueueMachineDeployment(d)
 		return
 	}
@@ -177,7 +177,7 @@ func (dc *controller) updateMachineSetToDeployment(old, cur interface{}) {
 		if len(ds) == 0 {
 			return
 		}
-		glog.V(4).Infof("Orphan MachineSet %s updated.", curMachineSet.Name)
+		klog.V(4).Infof("Orphan MachineSet %s updated.", curMachineSet.Name)
 		for _, d := range ds {
 			dc.enqueueMachineDeployment(d)
 		}
@@ -216,7 +216,7 @@ func (dc *controller) deleteMachineSetToDeployment(obj interface{}) {
 	if d == nil {
 		return
 	}
-	glog.V(4).Infof("MachineSet %s deleted.", machineSet.Name)
+	klog.V(4).Infof("MachineSet %s deleted.", machineSet.Name)
 	dc.enqueueMachineDeployment(d)
 }
 
@@ -240,7 +240,7 @@ func (dc *controller) deleteMachineToMachineDeployment(obj interface{}) {
 			return
 		}
 	}
-	glog.V(4).Infof("Machine %s deleted.", machine.Name)
+	klog.V(4).Infof("Machine %s deleted.", machine.Name)
 	if d := dc.getMachineDeploymentForMachine(machine); d != nil && d.Spec.Strategy.Type == v1alpha1.RecreateMachineDeploymentStrategyType {
 		// Sync if this Deployment now has no more Machines.
 		machineSets, err := ListMachineSets(d, IsListFromClient(dc.controlMachineClient))
@@ -308,7 +308,7 @@ func (dc *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) 
 	}
 	is, err = dc.controlMachineClient.MachineSets(machine.Namespace).Get(controllerRef.Name, metav1.GetOptions{})
 	if err != nil || is.UID != controllerRef.UID {
-		glog.V(4).Infof("Cannot get machineset %q for machine %q: %v", controllerRef.Name, machine.Name, err)
+		klog.V(4).Infof("Cannot get machineset %q for machine %q: %v", controllerRef.Name, machine.Name, err)
 		return nil
 	}
 
@@ -348,13 +348,13 @@ func (dc *controller) handleErr(err error, key interface{}) {
 	}
 
 	if dc.machineDeploymentQueue.NumRequeues(key) < maxRetries {
-		glog.V(2).Infof("Error syncing deployment %v: %v", key, err)
+		klog.V(2).Infof("Error syncing deployment %v: %v", key, err)
 		dc.machineDeploymentQueue.AddRateLimited(key)
 		return
 	}
 
 	utilruntime.HandleError(err)
-	glog.V(2).Infof("Dropping deployment %q out of the queue: %v", key, err)
+	klog.V(2).Infof("Dropping deployment %q out of the queue: %v", key, err)
 	dc.machineDeploymentQueue.Forget(key)
 }
 
@@ -427,9 +427,9 @@ func (dc *controller) getMachineMapForMachineDeployment(d *v1alpha1.MachineDeplo
 // This function is not meant to be invoked concurrently with the same key.
 func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	startTime := time.Now()
-	glog.V(4).Infof("Started syncing machine deployment %q (%v)", key, startTime)
+	klog.V(4).Infof("Started syncing machine deployment %q (%v)", key, startTime)
 	defer func() {
-		glog.V(4).Infof("Finished syncing machine deployment %q (%v)", key, time.Since(startTime))
+		klog.V(4).Infof("Finished syncing machine deployment %q (%v)", key, time.Since(startTime))
 	}()
 
 	_, name, err := cache.SplitMetaNamespaceKey(key)
@@ -438,7 +438,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	}
 	deployment, err := dc.controlMachineClient.MachineDeployments(dc.namespace).Get(name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
-		glog.V(4).Infof("Deployment %v has been deleted", key)
+		klog.V(4).Infof("Deployment %v has been deleted", key)
 		return nil
 	}
 	if err != nil {
@@ -447,7 +447,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 
 	// If MachineDeployment is frozen and no deletion timestamp, don't process it
 	if deployment.Labels["freeze"] == "True" && deployment.DeletionTimestamp == nil {
-		glog.V(3).Infof("MachineDeployment %q is frozen. However, it will still be processed if it there is an scale down event.", deployment.Name)
+		klog.V(3).Infof("MachineDeployment %q is frozen. However, it will still be processed if it there is an scale down event.", deployment.Name)
 	}
 
 	// Validate MachineDeployment
@@ -460,7 +460,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 
 	validationerr := validation.ValidateMachineDeployment(internalMachineDeployment)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.Errorf("Validation of MachineDeployment failed %s", validationerr.ToAggregate().Error())
+		klog.Errorf("Validation of MachineDeployment failed %s", validationerr.ToAggregate().Error())
 		return nil
 	}
 
@@ -518,7 +518,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 			dc.deleteMachineDeploymentFinalizers(d)
 			return nil
 		}
-		glog.V(4).Infof("Deleting all child MachineSets as MachineDeployment %s has set deletionTimestamp", d.Name)
+		klog.V(4).Infof("Deleting all child MachineSets as MachineDeployment %s has set deletionTimestamp", d.Name)
 		dc.terminateMachineSets(machineSets, d)
 		return dc.syncStatusOnly(d, machineSets, machineMap)
 	}
@@ -614,7 +614,7 @@ func (dc *controller) updateMachineDeploymentFinalizers(machineDeployment *v1alp
 	_, err = dc.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Update(clone)
 	if err != nil {
 		// Keep retrying until update goes through
-		glog.Warning("Updated failed, retrying")
+		klog.Warning("Updated failed, retrying")
 		dc.updateMachineDeploymentFinalizers(machineDeployment, finalizers)
 	}
 }

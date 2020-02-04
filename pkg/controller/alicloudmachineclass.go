@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -68,7 +68,7 @@ func (c *controller) machineToAlicloudMachineClassDelete(obj interface{}) {
 func (c *controller) alicloudMachineClassAdd(obj interface{}) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
-		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
+		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
 		return
 	}
 	c.alicloudMachineClassQueue.Add(key)
@@ -97,11 +97,11 @@ func (c *controller) reconcileClusterAlicloudMachineClassKey(key string) error {
 
 	class, err := c.alicloudMachineClassLister.AlicloudMachineClasses(c.namespace).Get(name)
 	if errors.IsNotFound(err) {
-		glog.Infof("%s %q: Not doing work because it has been deleted", AlicloudMachineClassKind, key)
+		klog.Infof("%s %q: Not doing work because it has been deleted", AlicloudMachineClassKind, key)
 		return nil
 	}
 	if err != nil {
-		glog.Infof("%s %q: Unable to retrieve object from store: %v", AlicloudMachineClassKind, key, err)
+		klog.Infof("%s %q: Unable to retrieve object from store: %v", AlicloudMachineClassKind, key, err)
 		return err
 	}
 
@@ -109,10 +109,10 @@ func (c *controller) reconcileClusterAlicloudMachineClassKey(key string) error {
 }
 
 func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.AlicloudMachineClass) error {
-	glog.V(4).Info("Start Reconciling alicloudmachineclass: ", class.Name)
+	klog.V(4).Info("Start Reconciling alicloudmachineclass: ", class.Name)
 	defer func() {
 		c.enqueueAlicloudMachineClassAfter(class, 10*time.Minute)
-		glog.V(4).Info("Stop Reconciling alicloudmachineclass: ", class.Name)
+		klog.V(4).Info("Stop Reconciling alicloudmachineclass: ", class.Name)
 	}()
 
 	internalClass := &machine.AlicloudMachineClass{}
@@ -123,7 +123,7 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 	// TODO this should be put in own API server
 	validationerr := validation.ValidateAlicloudMachineClass(internalClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.V(2).Infof("Validation of %s failed %s", AlicloudMachineClassKind, validationerr.ToAggregate().Error())
+		klog.V(2).Infof("Validation of %s failed %s", AlicloudMachineClassKind, validationerr.ToAggregate().Error())
 		return nil
 	}
 
@@ -157,7 +157,7 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 			return c.deleteAlicloudMachineClassFinalizers(class)
 		}
 
-		glog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
+		klog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
@@ -203,10 +203,10 @@ func (c *controller) updateAlicloudMachineClassFinalizers(class *v1alpha1.Aliclo
 	clone.Finalizers = finalizers
 	_, err = c.controlMachineClient.AlicloudMachineClasses(class.Namespace).Update(clone)
 	if err != nil {
-		glog.Warning("Updating AlicloudMachineClass failed, retrying. ", class.Name, err)
+		klog.Warning("Updating AlicloudMachineClass failed, retrying. ", class.Name, err)
 		return err
 	}
-	glog.V(3).Infof("Successfully added/removed finalizer on the alicloudmachineclass %q", class.Name)
+	klog.V(3).Infof("Successfully added/removed finalizer on the alicloudmachineclass %q", class.Name)
 	return err
 }
 

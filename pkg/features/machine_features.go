@@ -19,6 +19,7 @@ package features
 
 import (
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	"k8s.io/component-base/featuregate"
 )
 
 const (
@@ -31,13 +32,13 @@ const (
 	// MachineTestFeature is a feature gate
 	// owner: @i068969
 	// beta: v1.4
-	MachineTestFeature utilfeature.Feature = "MachineTestFeature"
+	MachineTestFeature featuregate.Feature = "MachineTestFeature"
 )
 
 func init() {
-	utilfeature.DefaultFeatureGate.Add(defaultKubernetesFeatureGates)
+	utilfeature.DefaultFeatureGate.DeepCopy().Add(defaultKubernetesFeatureGates)
 }
 
-var defaultKubernetesFeatureGates = map[utilfeature.Feature]utilfeature.FeatureSpec{
-	MachineTestFeature: {Default: true, PreRelease: utilfeature.Beta},
+var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
+	MachineTestFeature: {Default: true, PreRelease: featuregate.Beta},
 }

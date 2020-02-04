@@ -29,7 +29,7 @@ import (
 	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions/machine/v1alpha1"
 	machinelisters "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
@@ -119,7 +119,7 @@ func NewController(
 	}
 
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(glog.Infof)
+	eventBroadcaster.StartLogging(klog.Infof)
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(controlCoreClient.CoreV1().RESTClient()).Events(namespace)})
 
 	controller.machineControl = RealMachineControl{
@@ -481,7 +481,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 		return
 	}
 
-	glog.V(1).Info("Starting machine-controller-manager")
+	klog.V(1).Info("Starting machine-controller-manager")
 
 	// The controller implement the prometheus.Collector interface and can therefore
 	// be passed to the metrics registry. Collectors which added to the registry
@@ -507,7 +507,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	}
 
 	<-stopCh
-	glog.V(1).Info("Shutting down Machine Controller Manager ")
+	klog.V(1).Info("Shutting down Machine Controller Manager ")
 	handlers.UpdateHealth(false)
 
 	waitGroup.Wait()
@@ -549,12 +549,12 @@ func worker(queue workqueue.RateLimitingInterface, resourceType string, maxRetri
 				}
 
 				if queue.NumRequeues(key) < maxRetries {
-					glog.V(4).Infof("Error syncing %s %v: %v", resourceType, key, err)
+					klog.V(4).Infof("Error syncing %s %v: %v", resourceType, key, err)
 					queue.AddRateLimited(key)
 					return false
 				}
 
-				glog.V(4).Infof("Dropping %s %q out of the queue: %v", resourceType, key, err)
+				klog.V(4).Infof("Dropping %s %q out of the queue: %v", resourceType, key, err)
 				queue.Forget(key)
 				return false
 			}()

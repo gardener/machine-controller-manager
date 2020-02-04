@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -68,7 +68,7 @@ func (c *controller) machineToAzureMachineClassDelete(obj interface{}) {
 func (c *controller) azureMachineClassAdd(obj interface{}) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
-		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
+		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
 		return
 	}
 	c.azureMachineClassQueue.Add(key)
@@ -98,11 +98,11 @@ func (c *controller) reconcileClusterAzureMachineClassKey(key string) error {
 	class, err := c.azureMachineClassLister.AzureMachineClasses(c.namespace).Get(name)
 
 	if errors.IsNotFound(err) {
-		glog.Infof("%s %q: Not doing work because it has been deleted", AzureMachineClassKind, key)
+		klog.Infof("%s %q: Not doing work because it has been deleted", AzureMachineClassKind, key)
 		return nil
 	}
 	if err != nil {
-		glog.Infof("%s %q: Unable to retrieve object from store: %v", AzureMachineClassKind, key, err)
+		klog.Infof("%s %q: Unable to retrieve object from store: %v", AzureMachineClassKind, key, err)
 		return err
 	}
 
@@ -110,10 +110,10 @@ func (c *controller) reconcileClusterAzureMachineClassKey(key string) error {
 }
 
 func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMachineClass) error {
-	glog.V(4).Info("Start Reconciling azuremachineclass: ", class.Name)
+	klog.V(4).Info("Start Reconciling azuremachineclass: ", class.Name)
 	defer func() {
 		c.enqueueAzureMachineClassAfter(class, 10*time.Minute)
-		glog.V(4).Info("Stop Reconciling azuremachineclass: ", class.Name)
+		klog.V(4).Info("Stop Reconciling azuremachineclass: ", class.Name)
 	}()
 
 	internalClass := &machine.AzureMachineClass{}
@@ -124,7 +124,7 @@ func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMach
 	// TODO this should be put in own API server
 	validationerr := validation.ValidateAzureMachineClass(internalClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.Errorf("Validation of %s failed %s", AzureMachineClassKind, validationerr.ToAggregate().Error())
+		klog.Errorf("Validation of %s failed %s", AzureMachineClassKind, validationerr.ToAggregate().Error())
 		return nil
 	}
 
@@ -158,7 +158,7 @@ func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMach
 			return c.deleteAzureMachineClassFinalizers(class)
 		}
 
-		glog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
+		klog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
@@ -204,10 +204,10 @@ func (c *controller) updateAzureMachineClassFinalizers(class *v1alpha1.AzureMach
 	clone.Finalizers = finalizers
 	_, err = c.controlMachineClient.AzureMachineClasses(class.Namespace).Update(clone)
 	if err != nil {
-		glog.Warning("Updating AzureMachineClass failed, retrying. ", class.Name, err)
+		klog.Warning("Updating AzureMachineClass failed, retrying. ", class.Name, err)
 		return err
 	}
-	glog.V(3).Infof("Successfully added/removed finalizer on the azuremachineclass %q", class.Name)
+	klog.V(3).Infof("Successfully added/removed finalizer on the azuremachineclass %q", class.Name)
 	return err
 }
 

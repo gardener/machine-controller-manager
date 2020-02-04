@@ -30,7 +30,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
@@ -45,7 +45,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/util/integer"
+	"k8s.io/utils/integer"
 
 	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
 )
@@ -249,7 +249,7 @@ func MaxRevision(allISs []*v1alpha1.MachineSet) int64 {
 	for _, is := range allISs {
 		if v, err := Revision(is); err != nil {
 			// Skip the machine sets when it failed to parse their revision information
-			glog.V(4).Infof("Error: %v. Couldn't parse revision for machine set %#v, machine deployment controller will skip it when reconciling revisions.", err, is)
+			klog.V(4).Infof("Error: %v. Couldn't parse revision for machine set %#v, machine deployment controller will skip it when reconciling revisions.", err, is)
 		} else if v > max {
 			max = v
 		}
@@ -263,7 +263,7 @@ func LastRevision(allISs []*v1alpha1.MachineSet) int64 {
 	for _, is := range allISs {
 		if v, err := Revision(is); err != nil {
 			// Skip the machine sets when it failed to parse their revision information
-			glog.V(4).Infof("Error: %v. Couldn't parse revision for machine set %#v, machine deployment controller will skip it when reconciling revisions.", err, is)
+			klog.V(4).Infof("Error: %v. Couldn't parse revision for machine set %#v, machine deployment controller will skip it when reconciling revisions.", err, is)
 		} else if v >= max {
 			secMax = max
 			max = v
@@ -304,7 +304,7 @@ func SetNewMachineSetAnnotations(deployment *v1alpha1.MachineDeployment, newIS *
 	oldRevisionInt, err := strconv.ParseInt(oldRevision, 10, 64)
 	if err != nil {
 		if oldRevision != "" {
-			glog.Warningf("Updating machine set revision OldRevision not int %s", err)
+			klog.Warningf("Updating machine set revision OldRevision not int %s", err)
 			return false
 		}
 		//If the RS annotation is empty then initialise it to 0
@@ -312,13 +312,13 @@ func SetNewMachineSetAnnotations(deployment *v1alpha1.MachineDeployment, newIS *
 	}
 	newRevisionInt, err := strconv.ParseInt(newRevision, 10, 64)
 	if err != nil {
-		glog.Warningf("Updating machine set revision NewRevision not int %s", err)
+		klog.Warningf("Updating machine set revision NewRevision not int %s", err)
 		return false
 	}
 	if oldRevisionInt < newRevisionInt {
 		newIS.Annotations[RevisionAnnotation] = newRevision
 		annotationChanged = true
-		glog.V(4).Infof("Updating machine set %q revision to %s", newIS.Name, newRevision)
+		klog.V(4).Infof("Updating machine set %q revision to %s", newIS.Name, newRevision)
 	}
 	// If a revision annotation already existed and this machine set was updated with a new revision
 	// then that means we are rolling back to this machine set. We need to preserve the old revisions
@@ -354,7 +354,7 @@ func SetNewMachineSetNodeTemplate(deployment *v1alpha1.MachineDeployment, newIS 
 	oldRevisionInt, err := strconv.ParseInt(oldRevision, 10, 64)
 	if err != nil {
 		if oldRevision != "" {
-			glog.Warningf("Updating machine set revision OldRevision not int %s", err)
+			klog.Warningf("Updating machine set revision OldRevision not int %s", err)
 			return false
 		}
 		//If the RS annotation is empty then initialise it to 0
@@ -362,13 +362,13 @@ func SetNewMachineSetNodeTemplate(deployment *v1alpha1.MachineDeployment, newIS 
 	}
 	newRevisionInt, err := strconv.ParseInt(newRevision, 10, 64)
 	if err != nil {
-		glog.Warningf("Updating machine set revision NewRevision not int %s", err)
+		klog.Warningf("Updating machine set revision NewRevision not int %s", err)
 		return false
 	}
 	if oldRevisionInt < newRevisionInt {
 		newIS.Annotations[RevisionAnnotation] = newRevision
 		nodeTemplateChanged = true
-		glog.V(4).Infof("Updating machine set %q revision to %s", newIS.Name, newRevision)
+		klog.V(4).Infof("Updating machine set %q revision to %s", newIS.Name, newRevision)
 	}
 	// If a revision annotation already existed and this machine set was updated with a new revision
 	// then that means we are rolling back to this machine set. We need to preserve the old revisions
@@ -436,7 +436,7 @@ func copyMachineDeploymentNodeTemplatesToMachineSet(deployment *v1alpha1.Machine
 	isNodeTemplateChanged := !(apiequality.Semantic.DeepEqual(deployment.Spec.Template.Spec.NodeTemplateSpec, is.Spec.Template.Spec.NodeTemplateSpec))
 
 	if isNodeTemplateChanged {
-		glog.V(2).Infof("Observed a change in NodeTemplate of Machine Deployment %s. Changing NodeTemplate from %+v to \n %+v.", deployment.Name, is.Spec.Template.Spec.NodeTemplateSpec, deployment.Spec.Template.Spec.NodeTemplateSpec)
+		klog.V(2).Infof("Observed a change in NodeTemplate of Machine Deployment %s. Changing NodeTemplate from %+v to \n %+v.", deployment.Name, is.Spec.Template.Spec.NodeTemplateSpec, deployment.Spec.Template.Spec.NodeTemplateSpec)
 
 		is.Spec.Template.Spec.NodeTemplateSpec = *deployment.Spec.Template.Spec.NodeTemplateSpec.DeepCopy()
 	}
@@ -505,7 +505,7 @@ func getIntFromAnnotation(is *v1alpha1.MachineSet, annotationKey string) (int32,
 	}
 	intValue, err := strconv.Atoi(annotationValue)
 	if err != nil {
-		glog.V(2).Infof("Cannot convert the value %q with annotation key %q for the machine set %q", annotationValue, annotationKey, is.Name)
+		klog.V(2).Infof("Cannot convert the value %q with annotation key %q for the machine set %q", annotationValue, annotationKey, is.Name)
 		return int32(0), false
 	}
 	return int32(intValue), true
@@ -846,7 +846,7 @@ func LabelMachinesWithHash(machineList *v1alpha1.MachineList, c v1alpha1client.M
 			if err != nil {
 				return fmt.Errorf("error in adding template hash label %s to machine %q: %v", hash, machine.Name, err)
 			}
-			glog.V(4).Infof("Labeled machine %s/%s of MachineSet %s/%s with hash %s.", machine.Namespace, machine.Name, namespace, name, hash)
+			klog.V(4).Infof("Labeled machine %s/%s of MachineSet %s/%s with hash %s.", machine.Namespace, machine.Name, namespace, name, hash)
 		}
 	}
 	return nil
@@ -981,7 +981,7 @@ func MachineDeploymentTimedOut(deployment *v1alpha1.MachineDeployment, newStatus
 	delta := time.Duration(*deployment.Spec.ProgressDeadlineSeconds) * time.Second
 	timedOut := from.Add(delta).Before(now)
 
-	glog.V(4).Infof("MachineDeployment %q timed out (%t) [last progress check: %v - now: %v]", deployment.Name, timedOut, from, now)
+	klog.V(4).Infof("MachineDeployment %q timed out (%t) [last progress check: %v - now: %v]", deployment.Name, timedOut, from, now)
 	return timedOut
 }
 
