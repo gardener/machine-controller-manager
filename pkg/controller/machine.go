@@ -157,6 +157,10 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	machine, err = c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
 	if err != nil {
 		glog.Errorf("Could not fetch machine object %s", err)
+		if apierrors.IsNotFound(err) {
+			// Ignore the error "Not Found"
+			return nil
+		}
 		return err
 	}
 
