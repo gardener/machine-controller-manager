@@ -49,8 +49,8 @@ func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
 	reSyncAfter := c.safetyOptions.MachineSafetyOrphanVMsPeriod.Duration
 	defer c.machineSafetyOrphanVMsQueue.AddAfter("", reSyncAfter)
 
-	klog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: Start")
-	defer klog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: End, reSync-Period: %v", reSyncAfter)
+	klog.V(4).Infof("reconcileClusterMachineSafetyOrphanVMs: Start")
+	defer klog.V(4).Infof("reconcileClusterMachineSafetyOrphanVMs: End, reSync-Period: %v", reSyncAfter)
 
 	c.checkVMObjects()
 
@@ -66,8 +66,8 @@ func (c *controller) reconcileClusterMachineSafetyOvershooting(key string) error
 	reSyncAfter := c.safetyOptions.MachineSafetyOvershootingPeriod.Duration
 	defer c.machineSafetyOvershootingQueue.AddAfter("", reSyncAfter)
 
-	klog.V(3).Infof("reconcileClusterMachineSafetyOvershooting: Start")
-	defer klog.V(3).Infof("reconcileClusterMachineSafetyOvershooting: End, reSync-Period: %v", reSyncAfter)
+	klog.V(4).Infof("reconcileClusterMachineSafetyOvershooting: Start")
+	defer klog.V(4).Infof("reconcileClusterMachineSafetyOvershooting: End, reSync-Period: %v", reSyncAfter)
 
 	err := c.checkAndFreezeORUnfreezeMachineSets()
 	if err != nil {
@@ -102,8 +102,8 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 	statusCheckTimeout := c.safetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration
 	statusCheckPeriod := c.safetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration
 
-	klog.V(3).Infof("reconcileClusterMachineSafetyAPIServer: Start")
-	defer klog.V(3).Infof("reconcileClusterMachineSafetyAPIServer: Stop")
+	klog.V(4).Infof("reconcileClusterMachineSafetyAPIServer: Start")
+	defer klog.V(4).Infof("reconcileClusterMachineSafetyAPIServer: Stop")
 
 	if c.safetyOptions.MachineControllerFrozen {
 		// MachineController is frozen
@@ -371,7 +371,7 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets() error {
 			}
 		}
 
-		klog.V(3).Infof(
+		klog.V(4).Infof(
 			"checkAndFreezeORUnfreezeMachineSets: MS:%q LowerThreshold:%d FullyLabeledReplicas:%d HigherThreshold:%d",
 			machineSet.Name,
 			lowerThreshold,
