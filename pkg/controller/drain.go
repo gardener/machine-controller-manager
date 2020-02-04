@@ -33,7 +33,6 @@ import (
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/driver"
-	"github.com/golang/glog"
 	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	policy "k8s.io/api/policy/v1beta1"
@@ -44,6 +43,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	corelisters "k8s.io/client-go/listers/core/v1"
+	"github.com/golang/glog"
 )
 
 // DrainOptions are configurable options while draining a node before deletion
@@ -228,15 +228,13 @@ func (o *DrainOptions) daemonsetFilter(pod api.Pod) (bool, *warning, *fatal) {
 	// regardless of flags.  We never delete them, the only question is whether
 	// their presence constitutes an error.
 	//
+	// TODO: Might need to revisit this. This feature is ignored for now
 	// The exception is for pods that are orphaned (the referencing
 	// management resource - including DaemonSet - is not found).
 	// Such pods will be deleted if --force is used.
 	controllerRef := o.getPodController(pod)
 	if controllerRef == nil || controllerRef.Kind != "DaemonSet" {
 		return true, nil, nil
-	}
-	if _, err := o.client.Extensions().DaemonSets(pod.Namespace).Get(controllerRef.Name, metav1.GetOptions{}); err != nil {
-		return false, nil, &fatal{err.Error()}
 	}
 	if !o.IgnoreDaemonsets {
 		return false, nil, &fatal{daemonsetFatal}
@@ -286,7 +284,7 @@ func (ps podStatuses) Message() string {
 // getPodsForDeletion returns all the pods we're going to delete.  If there are
 // any pods preventing us from deleting, we return that list in an error.
 func (o *DrainOptions) getPodsForDeletion() (pods []api.Pod, err error) {
-	podList, err := o.client.Core().Pods(metav1.NamespaceAll).List(metav1.ListOptions{
+	podList, err := o.client.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": o.nodeName}).String()})
 	if err != nil {
 		return pods, err
@@ -328,7 +326,7 @@ func (o *DrainOptions) deletePod(pod *api.Pod) error {
 	deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
 
 	glog.V(3).Infof("Attempting to force-delete the pod:%q from node %q", pod.Name, o.nodeName)
-	return o.client.Core().Pods(pod.Namespace).Delete(pod.Name, deleteOptions)
+	return o.client.CoreV1().Pods(pod.Namespace).Delete(pod.Name, deleteOptions)
 }
 
 func (o *DrainOptions) evictPod(pod *api.Pod, policyGroupVersion string) error {
@@ -349,8 +347,8 @@ func (o *DrainOptions) evictPod(pod *api.Pod, policyGroupVersion string) error {
 		DeleteOptions: deleteOptions,
 	}
 	glog.V(3).Infof("Attempting to evict the pod:%q from node %q", pod.Name, o.nodeName)
-	// Remember to change the URL manipulation func when Evction's version change
-	return o.client.Policy().Evictions(eviction.Namespace).Evict(eviction)
+	// TODO: Remember to change the URL manipulation func when Evction's version change
+	return o.client.PolicyV1beta1().Evictions(eviction.Namespace).Evict(eviction)
 }
 
 // deleteOrEvictPods deletes or evicts the pods on the api server
@@ -365,7 +363,7 @@ func (o *DrainOptions) deleteOrEvictPods(pods []api.Pod) error {
 	}
 
 	getPodFn := func(namespace, name string) (*api.Pod, error) {
-		return o.client.Core().Pods(namespace).Get(name, metav1.GetOptions{})
+		return o.client.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
 	}
 
 	return o.evictPods(len(policyGroupVersion) > 0, pods, policyGroupVersion, getPodFn)
@@ -737,7 +735,7 @@ func (o *DrainOptions) waitForDetach(ctx context.Context, volumeIDs []string, no
 
 		found = false
 
-		node, err := o.client.Core().Nodes().Get(nodeName, metav1.GetOptions{})
+		node, err := o.client.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
 		if apierrors.IsNotFound(err) {
 			glog.V(4).Info("Node not found: ", nodeName)
 			return err

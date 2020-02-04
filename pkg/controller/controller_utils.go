@@ -905,10 +905,10 @@ func AddOrUpdateTaintOnNode(c clientset.Interface, nodeName string, taints ...*v
 		// First we try getting node from the API server cache, as it's cheaper. If it fails
 		// we get it from etcd to be sure to have fresh data.
 		if firstTry {
-			oldNode, err = c.Core().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
 			firstTry = false
 		} else {
-			oldNode, err = c.Core().Nodes().Get(nodeName, metav1.GetOptions{})
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
 		}
 		if err != nil {
 			return err
@@ -962,10 +962,10 @@ func RemoveTaintOffNode(c clientset.Interface, nodeName string, node *v1.Node, t
 		// First we try getting node from the API server cache, as it's cheaper. If it fails
 		// we get it from etcd to be sure to have fresh data.
 		if firstTry {
-			oldNode, err = c.Core().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
 			firstTry = false
 		} else {
-			oldNode, err = c.Core().Nodes().Get(nodeName, metav1.GetOptions{})
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
 		}
 		if err != nil {
 			return err
@@ -1012,7 +1012,7 @@ func PatchNodeTaints(c clientset.Interface, nodeName string, oldNode *v1.Node, n
 		return fmt.Errorf("failed to create patch for node %q: %v", nodeName, err)
 	}
 
-	_, err = c.Core().Nodes().Patch(string(nodeName), types.StrategicMergePatchType, patchBytes)
+	_, err = c.CoreV1().Nodes().Patch(string(nodeName), types.StrategicMergePatchType, patchBytes)
 	return err
 }
 
@@ -1022,7 +1022,7 @@ func UpdateNodeTaints(c clientset.Interface, nodeName string, oldNode *v1.Node, 
 	newNodeClone := oldNode.DeepCopy()
 	newNodeClone.Spec.Taints = newNode.Spec.Taints
 
-	_, err := c.Core().Nodes().Update(newNodeClone)
+	_, err := c.CoreV1().Nodes().Update(newNodeClone)
 	if err != nil {
 		return fmt.Errorf("failed to create update taints for node %q: %v", nodeName, err)
 	}
