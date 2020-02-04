@@ -42,7 +42,7 @@ import (
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
 	"github.com/gardener/machine-controller-manager/pkg/handlers"
 	"github.com/gardener/machine-controller-manager/pkg/util/configz"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -74,7 +74,7 @@ var packetGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Versio
 // Run runs the MCMServer.  This should never exit.
 func Run(s *options.MCMServer) error {
 	// To help debugging, immediately log version
-	glog.V(4).Infof("Version: %+v", version.Get())
+	klog.V(4).Infof("Version: %+v", version.Get())
 	if err := s.Validate(); err != nil {
 		return err
 	}
@@ -114,11 +114,11 @@ func Run(s *options.MCMServer) error {
 		rest.AddUserAgent(controlkubeconfig, "machine-controller-manager"),
 	)
 	if err != nil {
-		glog.Fatalf("Invalid API configuration for kubeconfig-control: %v", err)
+		klog.Fatalf("Invalid API configuration for kubeconfig-control: %v", err)
 	}
 
 	leaderElectionClient := kubernetes.NewForConfigOrDie(rest.AddUserAgent(controlkubeconfig, "machine-leader-election"))
-	glog.V(4).Info("Starting http server and mux")
+	klog.V(4).Info("Starting http server and mux")
 	go startHTTP(s)
 
 	recorder := createRecorder(kubeClientControl)
@@ -149,7 +149,7 @@ func Run(s *options.MCMServer) error {
 			stop,
 		)
 
-		glog.Fatalf("error running controllers: %v", err)
+		klog.Fatalf("error running controllers: %v", err)
 		panic("unreachable")
 
 	}
@@ -164,16 +164,19 @@ func Run(s *options.MCMServer) error {
 		return err
 	}
 
-	rl, err := resourcelock.New(s.LeaderElection.ResourceLock,
+	rl, err := resourcelock.New(
+		s.LeaderElection.ResourceLock,
 		s.Namespace,
 		"machine-controller-manager",
 		leaderElectionClient.CoreV1(),
+		leaderElectionClient.CoordinationV1(),
 		resourcelock.ResourceLockConfig{
 			Identity:      id,
 			EventRecorder: recorder,
-		})
+		},
+	)
 	if err != nil {
-		glog.Fatalf("error creating lock: %v", err)
+		klog.Fatalf("error creating lock: %v", err)
 	}
 
 	ctx := context.TODO()
@@ -185,7 +188,7 @@ func Run(s *options.MCMServer) error {
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: run,
 			OnStoppedLeading: func() {
-				glog.Fatalf("leaderelection lost")
+				klog.Fatalf("leaderelection lost")
 			},
 		},
 	})
@@ -202,7 +205,7 @@ func StartControllers(s *options.MCMServer,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) error {
 
-	glog.V(5).Info("Getting available resources")
+	klog.V(5).Info("Getting available resources")
 	availableResources, err := getAvailableResources(controlCoreClientBuilder)
 	if err != nil {
 		return err
@@ -213,17 +216,17 @@ func StartControllers(s *options.MCMServer,
 	controlCoreKubeconfig = rest.AddUserAgent(controlCoreKubeconfig, controllerManagerAgentName)
 	controlCoreClient, err := kubernetes.NewForConfig(controlCoreKubeconfig)
 	if err != nil {
-		glog.Fatal(err)
+		klog.Fatal(err)
 	}
 
 	targetCoreKubeconfig = rest.AddUserAgent(targetCoreKubeconfig, controllerManagerAgentName)
 	targetCoreClient, err := kubernetes.NewForConfig(targetCoreKubeconfig)
 	if err != nil {
-		glog.Fatal(err)
+		klog.Fatal(err)
 	}
 
 	if availableResources[awsGVR] || availableResources[azureGVR] || availableResources[gcpGVR] || availableResources[openStackGVR] || availableResources[alicloudGVR] || availableResources[packetGVR] {
-		glog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
+		klog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
 		controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
 			controlMachineClientBuilder.ClientOrDie("control-machine-shared-informers"),
@@ -247,7 +250,7 @@ func StartControllers(s *options.MCMServer,
 		// All shared informers are v1alpha1 API level
 		machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
 
-		glog.V(5).Infof("Creating controllers...")
+		klog.V(5).Infof("Creating controllers...")
 		machineController, err := machinecontroller.NewController(
 			s.Namespace,
 			controlMachineClient,
@@ -273,13 +276,13 @@ func StartControllers(s *options.MCMServer,
 		if err != nil {
 			return err
 		}
-		glog.V(1).Info("Starting shared informers")
+		klog.V(1).Info("Starting shared informers")
 
 		controlMachineInformerFactory.Start(stop)
 		controlCoreInformerFactory.Start(stop)
 		targetCoreInformerFactory.Start(stop)
 
-		glog.V(5).Info("Running controller")
+		klog.V(5).Info("Running controller")
 		go machineController.Run(int(s.ConcurrentNodeSyncs), stop)
 
 	} else {
@@ -301,14 +304,14 @@ func getAvailableResources(clientBuilder corecontroller.ClientBuilder) (map[sche
 	err := wait.PollImmediate(time.Second, 10*time.Second, func() (bool, error) {
 		client, err := clientBuilder.Client("controller-discovery")
 		if err != nil {
-			glog.Errorf("Failed to get api versions from server: %v", err)
+			klog.Errorf("Failed to get api versions from server: %v", err)
 			return false, nil
 		}
 
 		healthStatus := 0
 		resp := client.Discovery().RESTClient().Get().AbsPath("/healthz").Do().StatusCode(&healthStatus)
 		if healthStatus != http.StatusOK {
-			glog.Errorf("Server isn't healthy yet.  Waiting a little while.")
+			klog.Errorf("Server isn't healthy yet.  Waiting a little while.")
 			return false, nil
 		}
 		content, _ := resp.Raw()
@@ -346,7 +349,7 @@ func getAvailableResources(clientBuilder corecontroller.ClientBuilder) (map[sche
 func createRecorder(kubeClient *kubernetes.Clientset) record.EventRecorder {
 	machinescheme.AddToScheme(kubescheme.Scheme)
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(glog.Infof)
+	eventBroadcaster.StartLogging(klog.Infof)
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.CoreV1().RESTClient()).Events("")})
 	return eventBroadcaster.NewRecorder(kubescheme.Scheme, v1.EventSource{Component: controllerManagerAgentName})
 }
@@ -371,5 +374,5 @@ func startHTTP(s *options.MCMServer) {
 		Addr:    net.JoinHostPort(s.Address, strconv.Itoa(int(s.Port))),
 		Handler: mux,
 	}
-	glog.Fatal(server.ListenAndServe())
+	klog.Fatal(server.ListenAndServe())
 }

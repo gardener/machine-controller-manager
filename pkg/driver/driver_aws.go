@@ -33,7 +33,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 // AWSDriver is the driver struct for holding AWS machine information
@@ -198,7 +198,7 @@ func (d *AWSDriver) Delete(machineID string) error {
 		return err
 	} else if len(result) == 0 {
 		// No running instance exists with the given machine-ID
-		glog.V(2).Infof("No VM matching the machine-ID found on the provider %q", machineID)
+		klog.V(2).Infof("No VM matching the machine-ID found on the provider %q", machineID)
 		return nil
 	}
 
@@ -223,13 +223,13 @@ func (d *AWSDriver) Delete(machineID string) error {
 		output, err := svc.TerminateInstances(input)
 		if err != nil {
 			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-			glog.Errorf("Could not terminate machine: %s", err.Error())
+			klog.Errorf("Could not terminate machine: %s", err.Error())
 			return err
 		}
 		metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 
 		vmState := output.TerminatingInstances[0]
-		//glog.Info(vmState.PreviousState, vmState.CurrentState)
+		//klog.Info(vmState.PreviousState, vmState.CurrentState)
 
 		if *vmState.CurrentState.Name == "shutting-down" ||
 			*vmState.CurrentState.Name == "terminated" {
@@ -239,7 +239,7 @@ func (d *AWSDriver) Delete(machineID string) error {
 		err = errors.New("Machine already terminated")
 	}
 
-	glog.Errorf("Could not terminate machine: %s", err.Error())
+	klog.Errorf("Could not terminate machine: %s", err.Error())
 	return err
 }
 
@@ -314,7 +314,7 @@ func (d *AWSDriver) GetVMs(machineID string) (VMs, error) {
 	runResult, err := svc.DescribeInstances(&input)
 	if err != nil {
 		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-		glog.Errorf("AWS driver is returning error while describe instances request is sent: %s", err)
+		klog.Errorf("AWS driver is returning error while describe instances request is sent: %s", err)
 		return listOfVMs, err
 	}
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()

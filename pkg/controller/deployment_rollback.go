@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -55,11 +55,11 @@ func (dc *controller) rollback(d *v1alpha1.MachineDeployment, isList []*v1alpha1
 	for _, is := range allISs {
 		v, err := Revision(is)
 		if err != nil {
-			glog.V(4).Infof("Unable to extract revision from deployment's machine set %q: %v", is.Name, err)
+			klog.V(4).Infof("Unable to extract revision from deployment's machine set %q: %v", is.Name, err)
 			continue
 		}
 		if v == *toRevision {
-			glog.V(4).Infof("Found machine set %q with desired revision %d", is.Name, v)
+			klog.V(4).Infof("Found machine set %q with desired revision %d", is.Name, v)
 
 			// Remove PreferNoSchedule taints from nodes which were backing the machineSet
 			err = dc.removeTaintNodesBackingMachineSet(
@@ -71,7 +71,7 @@ func (dc *controller) rollback(d *v1alpha1.MachineDeployment, isList []*v1alpha1
 				},
 			)
 			if err != nil {
-				glog.Warningf("Failed to remove taints %s off nodes. Error: %s", PreferNoScheduleKey, err)
+				klog.Warningf("Failed to remove taints %s off nodes. Error: %s", PreferNoScheduleKey, err)
 			}
 
 			// rollback by copying podTemplate.Spec from the machine set
@@ -95,7 +95,7 @@ func (dc *controller) rollback(d *v1alpha1.MachineDeployment, isList []*v1alpha1
 func (dc *controller) rollbackToTemplate(d *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet) (bool, error) {
 	performedRollback := false
 	if !EqualIgnoreHash(&d.Spec.Template, &is.Spec.Template) {
-		glog.V(4).Infof("Rolling back deployment %q to template spec %+v", d.Name, is.Spec.Template.Spec)
+		klog.V(4).Infof("Rolling back deployment %q to template spec %+v", d.Name, is.Spec.Template.Spec)
 		SetFromMachineSetTemplate(d, is.Spec.Template)
 		// set RS (the old RS we'll rolling back to) annotations back to the deployment;
 		// otherwise, the deployment's current annotations (should be the same as current new RS) will be copied to the RS after the rollback.
@@ -111,7 +111,7 @@ func (dc *controller) rollbackToTemplate(d *v1alpha1.MachineDeployment, is *v1al
 		SetMachineDeploymentAnnotationsTo(d, is)
 		performedRollback = true
 	} else {
-		glog.V(4).Infof("Rolling back to a revision that contains the same template as current deployment %q, skipping rollback...", d.Name)
+		klog.V(4).Infof("Rolling back to a revision that contains the same template as current deployment %q, skipping rollback...", d.Name)
 		eventMsg := fmt.Sprintf("The rollback revision contains the same template as current deployment %q", d.Name)
 		dc.emitRollbackWarningEvent(d, RollbackTemplateUnchanged, eventMsg)
 	}
@@ -131,7 +131,7 @@ func (dc *controller) emitRollbackNormalEvent(d *v1alpha1.MachineDeployment, mes
 // It is assumed that the caller will have updated the deployment template appropriately (in case
 // we want to rollback).
 func (dc *controller) updateMachineDeploymentAndClearRollbackTo(d *v1alpha1.MachineDeployment) error {
-	glog.V(4).Infof("Cleans up rollbackTo of machine deployment %q", d.Name)
+	klog.V(4).Infof("Cleans up rollbackTo of machine deployment %q", d.Name)
 	d.Spec.RollbackTo = nil
 	_, err := dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d)
 	return err
@@ -142,11 +142,11 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 
 	if _, exists := machineSet.Annotations[taint.Key]; !exists {
 		// No taint exists
-		glog.Warningf("No taint exists on machineSet: %s. Hence not removing.", machineSet.Name)
+		klog.Warningf("No taint exists on machineSet: %s. Hence not removing.", machineSet.Name)
 		return nil
 	}
 
-	glog.V(2).Infof("Trying to untaint MachineSet object %q with %s to enable scheduling of pods", machineSet.Name, taint.Key)
+	klog.V(2).Infof("Trying to untaint MachineSet object %q with %s to enable scheduling of pods", machineSet.Name, taint.Key)
 	selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
 	if err != nil {
 		return err
@@ -172,7 +172,7 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 		if machine.Status.Node != "" {
 			node, err := dc.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
 			if err != nil {
-				glog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Status.Node, err)
+				klog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Status.Node, err)
 				continue
 			}
 
@@ -183,7 +183,7 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 				taint,
 			)
 			if err != nil {
-				glog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Status.Node, err)
+				klog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Status.Node, err)
 			}
 			node, err = dc.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
 		}
@@ -194,12 +194,12 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 		machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
 		if err != nil {
 			if time.Now().Before(retryDeadline) {
-				glog.Warningf("Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
+				klog.Warningf("Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
 				time.Sleep(conflictRetryInterval)
 				continue
 			} else {
 				// Timeout occurred
-				glog.Errorf("Timeout occurred: Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
+				klog.Errorf("Timeout occurred: Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
 				return err
 			}
 		}
@@ -211,12 +211,12 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 
 		if err != nil {
 			if time.Now().Before(retryDeadline) {
-				glog.Warningf("Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
+				klog.Warningf("Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
 				time.Sleep(conflictRetryInterval)
 				continue
 			} else {
 				// Timeout occurred
-				glog.Errorf("Timeout occurred: Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
+				klog.Errorf("Timeout occurred: Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
 				return err
 			}
 		}
@@ -224,7 +224,7 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 		// Break out of loop when update succeeds
 		break
 	}
-	glog.V(2).Infof("Removed taint %s from MachineSet object %q", taint.Key, machineSet.Name)
+	klog.V(2).Infof("Removed taint %s from MachineSet object %q", taint.Key, machineSet.Name)
 
 	return nil
 }

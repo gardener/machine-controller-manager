@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -68,7 +68,7 @@ func (c *controller) machineToOpenStackMachineClassDelete(obj interface{}) {
 func (c *controller) openStackMachineClassAdd(obj interface{}) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
-		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
+		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
 		return
 	}
 	c.openStackMachineClassQueue.Add(key)
@@ -97,11 +97,11 @@ func (c *controller) reconcileClusterOpenStackMachineClassKey(key string) error 
 
 	class, err := c.openStackMachineClassLister.OpenStackMachineClasses(c.namespace).Get(name)
 	if errors.IsNotFound(err) {
-		glog.V(4).Infof("%s %q: Not doing work because it has been deleted", OpenStackMachineClassKind, key)
+		klog.V(4).Infof("%s %q: Not doing work because it has been deleted", OpenStackMachineClassKind, key)
 		return nil
 	}
 	if err != nil {
-		glog.V(4).Infof("%s %q: Unable to retrieve object from store: %v", OpenStackMachineClassKind, key, err)
+		klog.V(4).Infof("%s %q: Unable to retrieve object from store: %v", OpenStackMachineClassKind, key, err)
 		return err
 	}
 
@@ -109,10 +109,10 @@ func (c *controller) reconcileClusterOpenStackMachineClassKey(key string) error 
 }
 
 func (c *controller) reconcileClusterOpenStackMachineClass(class *v1alpha1.OpenStackMachineClass) error {
-	glog.V(4).Info("Start Reconciling openStackmachineclass: ", class.Name)
+	klog.V(4).Info("Start Reconciling openStackmachineclass: ", class.Name)
 	defer func() {
 		c.enqueueOpenStackMachineClassAfter(class, 10*time.Minute)
-		glog.V(4).Info("Stop Reconciling openStackmachineclass: ", class.Name)
+		klog.V(4).Info("Stop Reconciling openStackmachineclass: ", class.Name)
 	}()
 
 	internalClass := &machine.OpenStackMachineClass{}
@@ -124,7 +124,7 @@ func (c *controller) reconcileClusterOpenStackMachineClass(class *v1alpha1.OpenS
 	// TODO this should be put in own API server
 	validationerr := validation.ValidateOpenStackMachineClass(internalClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		glog.Errorf("Validation of %s failed %s", OpenStackMachineClassKind, validationerr.ToAggregate().Error())
+		klog.Errorf("Validation of %s failed %s", OpenStackMachineClassKind, validationerr.ToAggregate().Error())
 		return nil
 	}
 
@@ -158,7 +158,7 @@ func (c *controller) reconcileClusterOpenStackMachineClass(class *v1alpha1.OpenS
 			return c.deleteOpenStackMachineClassFinalizers(class)
 		}
 
-		glog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
+		klog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
@@ -204,10 +204,10 @@ func (c *controller) updateOpenStackMachineClassFinalizers(class *v1alpha1.OpenS
 	clone.Finalizers = finalizers
 	_, err = c.controlMachineClient.OpenStackMachineClasses(class.Namespace).Update(clone)
 	if err != nil {
-		glog.Warning("Updating OpenStackMachineClass failed, retrying. ", class.Name, err)
+		klog.Warning("Updating OpenStackMachineClass failed, retrying. ", class.Name, err)
 		return err
 	}
-	glog.V(3).Infof("Successfully added/removed finalizer on the openstackmachineclass %q", class.Name)
+	klog.V(3).Infof("Successfully added/removed finalizer on the openstackmachineclass %q", class.Name)
 	return err
 }
 

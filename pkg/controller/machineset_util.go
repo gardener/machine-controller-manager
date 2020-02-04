@@ -25,7 +25,7 @@ package controller
 import (
 	"fmt"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
 	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -63,7 +63,7 @@ func UpdateISWithRetries(isClient v1alpha1client.MachineSetInterface, isLister v
 
 	// Ignore the precondition violated error, but the RS isn't updated.
 	if retryErr == errorsutil.ErrPreconditionViolated {
-		glog.V(4).Infof("Machine set %s precondition doesn't hold, skip updating it.", name)
+		klog.V(4).Infof("Machine set %s precondition doesn't hold, skip updating it.", name)
 		retryErr = nil
 	}
 
@@ -99,7 +99,7 @@ func (c *controller) syncMachinesNodeTemplates(machineList []*v1alpha1.Machine, 
 			if err != nil {
 				return fmt.Errorf("error in updating nodeTemplateSpec to machine %q: %v", machine.Name, err)
 			}
-			glog.V(2).Infof("Updated machine %s/%s of MachineSet %s/%s with latest nodeTemplate.", machine.Namespace, machine.Name, machineSet.Namespace, machineSet.Name)
+			klog.V(2).Infof("Updated machine %s/%s of MachineSet %s/%s with latest nodeTemplate.", machine.Namespace, machine.Name, machineSet.Namespace, machineSet.Name)
 		}
 	}
 	return nil

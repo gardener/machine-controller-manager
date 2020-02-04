@@ -24,8 +24,8 @@ import (
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/golang/glog"
 	"github.com/packethost/packngo"
+	"k8s.io/klog"
 )
 
 // PacketDriver is the driver struct for holding Packet machine information
@@ -64,7 +64,7 @@ func (d *PacketDriver) Create() (string, string, error) {
 
 	device, _, err := svc.Devices.Create(createRequest)
 	if err != nil {
-		glog.Errorf("Could not create machine: %v", err)
+		klog.Errorf("Could not create machine: %v", err)
 		return "", "", err
 	}
 	return d.encodeMachineID(device.Facility.ID, device.ID), device.Hostname, nil
@@ -81,10 +81,10 @@ func (d *PacketDriver) Delete(machineID string) error {
 	resp, err := svc.Devices.Delete(instanceID)
 	if err != nil {
 		if resp.StatusCode == 404 {
-			glog.V(2).Infof("No machine matching the machineID found on the provider %q", machineID)
+			klog.V(2).Infof("No machine matching the machine-ID found on the provider %q", machineID)
 			return nil
 		}
-		glog.Errorf("Could not terminate machine %s: %v", machineID, err)
+		klog.Errorf("Could not terminate machine %s: %v", machineID, err)
 		return err
 	}
 	return nil
@@ -122,7 +122,7 @@ func (d *PacketDriver) GetVMs(machineID string) (VMs, error) {
 	if machineID == "" {
 		devices, _, err := svc.Devices.List(d.PacketMachineClass.Spec.ProjectID, &packngo.ListOptions{})
 		if err != nil {
-			glog.Errorf("Could not list devices for project %s: %v", d.PacketMachineClass.Spec.ProjectID, err)
+			klog.Errorf("Could not list devices for project %s: %v", d.PacketMachineClass.Spec.ProjectID, err)
 			return nil, err
 		}
 		for _, d := range devices {
@@ -144,7 +144,7 @@ func (d *PacketDriver) GetVMs(machineID string) (VMs, error) {
 		machineID = d.decodeMachineID(machineID)
 		device, _, err := svc.Devices.Get(machineID, &packngo.GetOptions{})
 		if err != nil {
-			glog.Errorf("Could not get device %s: %v", machineID, err)
+			klog.Errorf("Could not get device %s: %v", machineID, err)
 			return nil, err
 		}
 		listOfVMs[machineID] = device.Hostname

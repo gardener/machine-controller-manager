@@ -31,10 +31,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/integer"
+	"k8s.io/utils/integer"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 var (
@@ -58,7 +58,7 @@ func (dc *controller) rolloutRolling(d *v1alpha1.MachineDeployment, isList []*v1
 		},
 	)
 	if err != nil {
-		glog.Warningf("Failed to add %s on all nodes. Error: %s", PreferNoScheduleKey, err)
+		klog.Warningf("Failed to add %s on all nodes. Error: %s", PreferNoScheduleKey, err)
 	}
 
 	// Scale up, if we can.
@@ -117,7 +117,7 @@ func (dc *controller) reconcileOldMachineSets(allISs []*v1alpha1.MachineSet, old
 	}
 
 	allMachinesCount := GetReplicaCountForMachineSets(allISs)
-	glog.V(4).Infof("New machine set %s has %d available machines.", newIS.Name, newIS.Status.AvailableReplicas)
+	klog.V(4).Infof("New machine set %s has %d available machines.", newIS.Name, newIS.Status.AvailableReplicas)
 	maxUnavailable := MaxUnavailable(*deployment)
 
 	// Check if we can scale down. We can scale down in the following 2 cases:
@@ -163,7 +163,7 @@ func (dc *controller) reconcileOldMachineSets(allISs []*v1alpha1.MachineSet, old
 	if err != nil {
 		return false, nil
 	}
-	glog.V(4).Infof("Cleaned up unhealthy replicas from old ISes by %d", cleanupCount)
+	klog.V(4).Infof("Cleaned up unhealthy replicas from old ISes by %d", cleanupCount)
 
 	// Scale down old machine sets, need check maxUnavailable to ensure we can scale down
 	allISs = append(oldISs, newIS)
@@ -171,7 +171,7 @@ func (dc *controller) reconcileOldMachineSets(allISs []*v1alpha1.MachineSet, old
 	if err != nil {
 		return false, nil
 	}
-	glog.V(4).Infof("Scaled down old ISes of deployment %s by %d", deployment.Name, scaledDownCount)
+	klog.V(4).Infof("Scaled down old ISes of deployment %s by %d", deployment.Name, scaledDownCount)
 
 	totalScaledDown := cleanupCount + scaledDownCount
 	return totalScaledDown > 0, nil
@@ -192,7 +192,7 @@ func (dc *controller) cleanupUnhealthyReplicas(oldISs []*v1alpha1.MachineSet, de
 			// cannot scale down this machine set.
 			continue
 		}
-		glog.V(4).Infof("Found %d available machine in old IS %s", targetIS.Status.AvailableReplicas, targetIS.Name)
+		klog.V(4).Infof("Found %d available machine in old IS %s", targetIS.Status.AvailableReplicas, targetIS.Name)
 		if (targetIS.Spec.Replicas) == targetIS.Status.AvailableReplicas {
 			// no unhealthy replicas found, no scaling required.
 			continue
@@ -226,7 +226,7 @@ func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(allISs []*v1alpha1
 		// Cannot scale down.
 		return 0, nil
 	}
-	glog.V(4).Infof("Found %d available machines in deployment %s, scaling down old ISes", availableMachineCount, deployment.Name)
+	klog.V(4).Infof("Found %d available machines in deployment %s, scaling down old ISes", availableMachineCount, deployment.Name)
 
 	sort.Sort(MachineSetsByCreationTimestamp(oldISs))
 
@@ -268,7 +268,7 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 			continue
 		}
 
-		glog.V(3).Infof("Trying to taint MachineSet object %q with %s to avoid scheduling of pods", machineSet.Name, taint.Key)
+		klog.V(3).Infof("Trying to taint MachineSet object %q with %s to avoid scheduling of pods", machineSet.Name, taint.Key)
 		selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
 		if err != nil {
 			return err
@@ -298,7 +298,7 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 					taint,
 				)
 				if err != nil {
-					glog.Warningf("Node tainting failed for node: %s, %s", machine.Status.Node, err)
+					klog.Warningf("Node tainting failed for node: %s, %s", machine.Status.Node, err)
 				}
 			}
 		}
@@ -307,12 +307,12 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 		for {
 			machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
 			if err != nil && time.Now().Before(retryDeadline) {
-				glog.Warningf("Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
+				klog.Warningf("Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
 				time.Sleep(conflictRetryInterval)
 				continue
 			} else if err != nil {
 				// Timeout occurred
-				glog.Errorf("Timeout occurred: Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
+				klog.Errorf("Timeout occurred: Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
 				return err
 			}
 
@@ -324,19 +324,19 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 
 			_, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(msCopy)
 			if err != nil && time.Now().Before(retryDeadline) {
-				glog.Warningf("Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
+				klog.Warningf("Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
 				time.Sleep(conflictRetryInterval)
 				continue
 			} else if err != nil {
 				// Timeout occurred
-				glog.Errorf("Timeout occurred: Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
+				klog.Errorf("Timeout occurred: Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
 				return err
 			}
 
 			// Break out of loop when update succeeds
 			break
 		}
-		glog.V(2).Infof("Tainted MachineSet object %q with %s to avoid scheduling of pods", machineSet.Name, taint.Key)
+		klog.V(2).Infof("Tainted MachineSet object %q with %s to avoid scheduling of pods", machineSet.Name, taint.Key)
 	}
 
 	return nil

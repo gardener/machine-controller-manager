@@ -119,7 +119,7 @@ func (c *FakePacketMachineClasses) DeleteCollection(options *v1.DeleteOptions, l
 // Patch applies the patch and returns the patched packetMachineClass.
 func (c *FakePacketMachineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *machine.PacketMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(packetmachineclassesResource, c.ns, name, data, subresources...), &machine.PacketMachineClass{})
+		Invokes(testing.NewPatchSubresourceAction(packetmachineclassesResource, c.ns, name, pt, data, subresources...), &machine.PacketMachineClass{})
 
 	if obj == nil {
 		return nil, err

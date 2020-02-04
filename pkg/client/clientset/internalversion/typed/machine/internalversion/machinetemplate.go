@@ -19,6 +19,8 @@ limitations under the License.
 package internalversion
 
 import (
+	"time"
+
 	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	scheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/internalversion/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -75,11 +77,16 @@ func (c *machineTemplates) Get(name string, options v1.GetOptions) (result *mach
 
 // List takes label and field selectors, and returns the list of MachineTemplates that match those selectors.
 func (c *machineTemplates) List(opts v1.ListOptions) (result *machine.MachineTemplateList, err error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
 	result = &machine.MachineTemplateList{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("machinetemplates").
 		VersionedParams(&opts, scheme.ParameterCodec).
+		Timeout(timeout).
 		Do().
 		Into(result)
 	return
@@ -87,11 +94,16 @@ func (c *machineTemplates) List(opts v1.ListOptions) (result *machine.MachineTem
 
 // Watch returns a watch.Interface that watches the requested machineTemplates.
 func (c *machineTemplates) Watch(opts v1.ListOptions) (watch.Interface, error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
 	opts.Watch = true
 	return c.client.Get().
 		Namespace(c.ns).
 		Resource("machinetemplates").
 		VersionedParams(&opts, scheme.ParameterCodec).
+		Timeout(timeout).
 		Watch()
 }
 
@@ -133,10 +145,15 @@ func (c *machineTemplates) Delete(name string, options *v1.DeleteOptions) error 
 
 // DeleteCollection deletes a collection of objects.
 func (c *machineTemplates) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+	var timeout time.Duration
+	if listOptions.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("machinetemplates").
 		VersionedParams(&listOptions, scheme.ParameterCodec).
+		Timeout(timeout).
 		Body(options).
 		Do().
 		Error()

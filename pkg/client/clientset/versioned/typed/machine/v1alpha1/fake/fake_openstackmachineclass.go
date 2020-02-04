@@ -119,7 +119,7 @@ func (c *FakeOpenStackMachineClasses) DeleteCollection(options *v1.DeleteOptions
 // Patch applies the patch and returns the patched openStackMachineClass.
 func (c *FakeOpenStackMachineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.OpenStackMachineClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(openstackmachineclassesResource, c.ns, name, data, subresources...), &v1alpha1.OpenStackMachineClass{})
+		Invokes(testing.NewPatchSubresourceAction(openstackmachineclassesResource, c.ns, name, pt, data, subresources...), &v1alpha1.OpenStackMachineClass{})
 
 	if obj == nil {
 		return nil, err

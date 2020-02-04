@@ -131,7 +131,7 @@ func (c *FakeMachineSets) DeleteCollection(options *v1.DeleteOptions, listOption
 // Patch applies the patch and returns the patched machineSet.
 func (c *FakeMachineSets) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *machine.MachineSet, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(machinesetsResource, c.ns, name, data, subresources...), &machine.MachineSet{})
+		Invokes(testing.NewPatchSubresourceAction(machinesetsResource, c.ns, name, pt, data, subresources...), &machine.MachineSet{})
 
 	if obj == nil {
 		return nil, err
