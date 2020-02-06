@@ -30,9 +30,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-10-01/compute"
-	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2018-11-01/network"
-	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2019-11-01/network"
+	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2019-05-01/resources"
 
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
@@ -767,7 +767,8 @@ func (clients *azureDriverClients) powerOffVM(ctx context.Context, resourceGroup
 	klog.V(2).Infof("VM power-off began for %q", vmName)
 	defer klog.V(2).Infof("VM power-off done for %q", vmName)
 
-	future, err := clients.vm.PowerOff(ctx, resourceGroupName, vmName)
+	skipPowerOffVM := false
+	future, err := clients.vm.PowerOff(ctx, resourceGroupName, vmName, &skipPowerOffVM)
 	if err != nil {
 		return onARMAPIErrorFail(prometheusServiceVM, err, "vm.PowerOff")
 	}
