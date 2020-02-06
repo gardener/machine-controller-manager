@@ -60,7 +60,7 @@ var (
 	}, []string{"name", "namespace", "condition"})
 
 	// MachineSetCountDesc Count of machinesets currently managed by the mcm
-	MachineSetCountDesc = prometheus.NewDesc("mcm_machineset_items_total", "Count of machinesets currently managed by the mcm.", nil, nil)
+	MachineSetCountDesc = prometheus.NewDesc("mcm_machine_set_items_total", "Count of machinesets currently managed by the mcm.", nil, nil)
 
 	// MachineSetInfo Information of the Machinesets currently managed by the mcm.
 	MachineSetInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -138,7 +138,7 @@ var (
 	}, []string{"name", "namespace"})
 
 	// MachineDeploymentCountDesc Count of machinedeployments currently managed by the mcm.
-	MachineDeploymentCountDesc = prometheus.NewDesc("mcm_machinedeployment_items_total", "Count of machinedeployments currently managed by the mcm.", nil, nil)
+	MachineDeploymentCountDesc = prometheus.NewDesc("mcm_machine_deployment_items_total", "Count of machinedeployments currently managed by the mcm.", nil, nil)
 
 	// MachineDeploymentInfo Information of the Machinedeployments currently managed by the mcm.
 	MachineDeploymentInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
