@@ -32,6 +32,7 @@ import (
 
 // Metrics subsystem and keys used by the workqueue.
 const (
+	Namespace                  = "mcm"
 	WorkQueueSubsystem         = "workqueue"
 	DepthKey                   = "depth"
 	AddsKey                    = "adds_total"
@@ -45,6 +46,7 @@ const (
 var (
 	depth = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
+			Namespace: Namespace,
 			Subsystem: WorkQueueSubsystem,
 			Name:      DepthKey,
 			Help:      "Current depth of workqueue",
@@ -54,6 +56,7 @@ var (
 
 	adds = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
+			Namespace: Namespace,
 			Subsystem: WorkQueueSubsystem,
 			Name:      AddsKey,
 			Help:      "Total number of adds handled by workqueue",
@@ -63,6 +66,7 @@ var (
 
 	latency = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
+			Namespace: Namespace,
 			Subsystem: WorkQueueSubsystem,
 			Name:      QueueLatencyKey,
 			Help:      "How long in seconds an item stays in workqueue before being requested.",
@@ -73,6 +77,7 @@ var (
 
 	workDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
+			Namespace: Namespace,
 			Subsystem: WorkQueueSubsystem,
 			Name:      WorkDurationKey,
 			Help:      "How long in seconds processing an item from workqueue takes.",
@@ -83,6 +88,7 @@ var (
 
 	unfinished = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
+			Namespace: Namespace,
 			Subsystem: WorkQueueSubsystem,
 			Name:      UnfinishedWorkKey,
 			Help: "How many seconds of work has done that " +
@@ -95,6 +101,7 @@ var (
 
 	longestRunningProcessor = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
+			Namespace: Namespace,
 			Subsystem: WorkQueueSubsystem,
 			Name:      LongestRunningProcessorKey,
 			Help: "How many seconds has the longest running " +
@@ -105,6 +112,7 @@ var (
 
 	retries = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
+			Namespace: Namespace,
 			Subsystem: WorkQueueSubsystem,
 			Name:      RetriesKey,
 			Help:      "Total number of retries handled by workqueue",
