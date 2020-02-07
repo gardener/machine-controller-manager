@@ -91,6 +91,11 @@ func main() {
 		machineclass = &class
 		classKind = "PacketMachineClass"
 
+	case "MetalMachineClass", "metal":
+		class := v1alpha1.MetalMachineClass{}
+		machineclass = &class
+		classKind = "MetalMachineClass"
+
 	default:
 		log.Fatalf("Unknown class kind %s", classKind)
 	}

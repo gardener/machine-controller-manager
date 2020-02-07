@@ -42,6 +42,8 @@ type Interface interface {
 	MachineSets() MachineSetInformer
 	// MachineTemplates returns a MachineTemplateInformer.
 	MachineTemplates() MachineTemplateInformer
+	// MetalMachineClasses returns a MetalMachineClassInformer.
+	MetalMachineClasses() MetalMachineClassInformer
 	// OpenStackMachineClasses returns a OpenStackMachineClassInformer.
 	OpenStackMachineClasses() OpenStackMachineClassInformer
 	// PacketMachineClasses returns a PacketMachineClassInformer.
@@ -102,6 +104,11 @@ func (v *version) MachineSets() MachineSetInformer {
 // MachineTemplates returns a MachineTemplateInformer.
 func (v *version) MachineTemplates() MachineTemplateInformer {
 	return &machineTemplateInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// MetalMachineClasses returns a MetalMachineClassInformer.
+func (v *version) MetalMachineClasses() MetalMachineClassInformer {
+	return &metalMachineClassInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // OpenStackMachineClasses returns a OpenStackMachineClassInformer.

@@ -90,6 +90,14 @@ type MachineTemplateListerExpansion interface{}
 // MachineTemplateNamespaceLister.
 type MachineTemplateNamespaceListerExpansion interface{}
 
+// MetalMachineClassListerExpansion allows custom methods to be added to
+// MetalMachineClassLister.
+type MetalMachineClassListerExpansion interface{}
+
+// MetalMachineClassNamespaceListerExpansion allows custom methods to be added to
+// MetalMachineClassNamespaceLister.
+type MetalMachineClassNamespaceListerExpansion interface{}
+
 // OpenStackMachineClassListerExpansion allows custom methods to be added to
 // OpenStackMachineClassLister.
 type OpenStackMachineClassListerExpansion interface{}

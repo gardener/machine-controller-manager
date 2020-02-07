@@ -1147,6 +1147,51 @@ type PacketMachineClassSpec struct {
 	// TODO add more here
 }
 
+/********************** MetalMachineClass APIs ***************/
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// MetalMachineClass TODO
+type MetalMachineClass struct {
+	// +optional
+	metav1.ObjectMeta
+
+	// +optional
+	metav1.TypeMeta
+
+	// +optional
+	Spec MetalMachineClassSpec
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// MetalMachineClassList is a collection of MetalMachineClasses.
+type MetalMachineClassList struct {
+	// +optional
+	metav1.TypeMeta
+
+	// +optional
+	metav1.ListMeta
+
+	// +optional
+	Items []MetalMachineClass
+}
+
+// MetalMachineClassSpec is the specification of a cluster.
+type MetalMachineClassSpec struct {
+	Partition string // required
+	Size      string // required
+	Image     string // required
+	Project   string // required
+	Network   string // required
+	Tags      []string
+	SSHKeys   []string
+	UserData  string
+
+	SecretRef *corev1.SecretReference
+}
+
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -1167,8 +1212,6 @@ type MachineClass struct {
 	// eg. awsdriver//127.0.0.1:8080
 	Provider string
 }
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // MachineClassList contains a list of MachineClasses
 type MachineClassList struct {

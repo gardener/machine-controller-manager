@@ -64,6 +64,10 @@ func (c *FakeMachineV1alpha1) MachineTemplates(namespace string) v1alpha1.Machin
 	return &FakeMachineTemplates{c, namespace}
 }
 
+func (c *FakeMachineV1alpha1) MetalMachineClasses(namespace string) v1alpha1.MetalMachineClassInterface {
+	return &FakeMetalMachineClasses{c, namespace}
+}
+
 func (c *FakeMachineV1alpha1) OpenStackMachineClasses(namespace string) v1alpha1.OpenStackMachineClassInterface {
 	return &FakeOpenStackMachineClasses{c, namespace}
 }

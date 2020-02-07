@@ -1,0 +1,14 @@
+sudo: required
+
+language: go
+
+# go versions to test
+go:
+  - "1.12.x"
+
+# run tests with coverage
+script:
+  - make test
+
+after_success:
+- bash <(curl -s https://codecov.io/bash)

@@ -42,7 +42,6 @@ import (
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
 	"github.com/gardener/machine-controller-manager/pkg/handlers"
 	"github.com/gardener/machine-controller-manager/pkg/util/configz"
-	"k8s.io/klog"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -57,6 +56,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog"
 )
 
 const (
@@ -70,6 +70,7 @@ var azureGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version
 var gcpGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "gcpmachineclasses"}
 var alicloudGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "alicloudmachineclasses"}
 var packetGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "packetmachineclasses"}
+var metalGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "metalmachineclasses"}
 
 // Run runs the MCMServer.  This should never exit.
 func Run(s *options.MCMServer) error {
@@ -225,7 +226,7 @@ func StartControllers(s *options.MCMServer,
 		klog.Fatal(err)
 	}
 
-	if availableResources[awsGVR] || availableResources[azureGVR] || availableResources[gcpGVR] || availableResources[openStackGVR] || availableResources[alicloudGVR] || availableResources[packetGVR] {
+	if availableResources[awsGVR] || availableResources[azureGVR] || availableResources[gcpGVR] || availableResources[openStackGVR] || availableResources[alicloudGVR] || availableResources[packetGVR] || availableResources[metalGVR] {
 		klog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
 		controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
@@ -266,6 +267,7 @@ func StartControllers(s *options.MCMServer,
 			machineSharedInformers.GCPMachineClasses(),
 			machineSharedInformers.AlicloudMachineClasses(),
 			machineSharedInformers.PacketMachineClasses(),
+			machineSharedInformers.MetalMachineClasses(),
 			machineSharedInformers.Machines(),
 			machineSharedInformers.MachineSets(),
 			machineSharedInformers.MachineDeployments(),
@@ -286,7 +288,7 @@ func StartControllers(s *options.MCMServer,
 		go machineController.Run(int(s.ConcurrentNodeSyncs), stop)
 
 	} else {
-		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q or %q or %q or %q is not available; found %#v", awsGVR, azureGVR, gcpGVR, openStackGVR, alicloudGVR, packetGVR, availableResources)
+		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q or %q or %q or %q or %q is not available; found %#v", awsGVR, azureGVR, gcpGVR, openStackGVR, alicloudGVR, packetGVR, metalGVR, availableResources)
 	}
 
 	select {}

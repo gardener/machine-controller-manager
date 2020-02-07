@@ -409,6 +409,7 @@ func (c *controller) checkVMObjects() {
 	c.checkGCPMachineClass()
 	c.checkAlicloudMachineClass()
 	c.checkPacketMachineClass()
+	c.checkMetalMachineClass()
 }
 
 // checkAWSMachineClass checks for orphan VMs in AWSMachinesClasses
@@ -530,6 +531,28 @@ func (c *controller) checkPacketMachineClass() {
 	}
 
 	for _, machineClass := range PacketMachineClasses {
+
+		var machineClassInterface interface{}
+		machineClassInterface = machineClass
+
+		c.checkMachineClass(
+			machineClassInterface,
+			machineClass.Spec.SecretRef,
+			machineClass.Name,
+			machineClass.Kind,
+		)
+	}
+}
+
+// checkMetalMachineClass checks for orphan Machines in MetalMachinesClasses
+func (c *controller) checkMetalMachineClass() {
+	MetalMachineClasses, err := c.metalMachineClassLister.List(labels.Everything())
+	if err != nil {
+		klog.Error("Safety-Net: Error getting machineClasses")
+		return
+	}
+
+	for _, machineClass := range MetalMachineClasses {
 
 		var machineClassInterface interface{}
 		machineClassInterface = machineClass

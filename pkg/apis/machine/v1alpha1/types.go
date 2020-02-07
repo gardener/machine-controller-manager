@@ -1193,7 +1193,14 @@ const (
 	AlicloudAccessKeySecret string = "alicloudAccessKeySecret"
 
 	// PacketAPIKey is a constant for a key name that is part of the Packet cloud credentials
-	PacketAPIKey string = "apiToken"
+	PacketAPIKey string = "packetAPIKey"
+
+	// MetalAPIKey is a constant for a key name that is part of the Metal cloud credentials
+	MetalAPIKey string = "metalAPIKey"
+	// MetalAPIHMac is a constant for a hmac that is part of the Metal cloud credentials
+	MetalAPIHMac string = "metalAPIHMac"
+	// MetalAPIURL is a constant for a url where to reach out the metal api
+	MetalAPIURL string = "metalAPIURL"
 )
 
 /********************** AlicloudMachineClass APIs ***************/
@@ -1299,6 +1306,51 @@ type PacketMachineClassSpec struct {
 	SecretRef *corev1.SecretReference `json:"secretRef,omitempty"`
 }
 
+/********************** MetalMachineClass APIs ***************/
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// MetalMachineClass TODO
+type MetalMachineClass struct {
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// +optional
+	metav1.TypeMeta `json:",inline"`
+
+	// +optional
+	Spec MetalMachineClassSpec `json:"spec,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// MetalMachineClassList is a collection of MetalMachineClasses.
+type MetalMachineClassList struct {
+	// +optional
+	metav1.TypeMeta `json:",inline"`
+
+	// +optional
+	metav1.ListMeta `json:"metadata,omitempty"`
+
+	// +optional
+	Items []MetalMachineClass `json:"items"`
+}
+
+// MetalMachineClassSpec is the specification of a cluster.
+type MetalMachineClassSpec struct {
+	Partition string   `json:"partition"`
+	Size      string   `json:"size"`
+	Image     string   `json:"image"`
+	Project   string   `json:"project"`
+	Network   string   `json:"network"`
+	Tags      []string `json:"tags,omitempty"`
+	SSHKeys   []string `json:"sshKeys,omitempty"`
+	UserData  string   `json:"userdata,omitempty"`
+
+	SecretRef *corev1.SecretReference `json:"secretRef,omitempty"`
+}
+
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -1318,8 +1370,6 @@ type MachineClass struct {
 	// Provider is the combination of name and location of cloud-specific drivers.
 	Provider string `json:"provider,omitempty"`
 }
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // MachineClassList contains a list of MachineClasses
 type MachineClassList struct {

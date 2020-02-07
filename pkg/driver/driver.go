@@ -94,6 +94,14 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 			MachineID:          machineID,
 			MachineName:        machineName,
 		}
+	case "MetalMachineClass":
+		return &MetalDriver{
+			MetalMachineClass: machineClass.(*v1alpha1.MetalMachineClass),
+			CloudConfig:       secretRef,
+			UserData:          string(secretRef.Data["userData"]),
+			MachineID:         machineID,
+			MachineName:       machineName,
+		}
 	}
 
 	return NewFakeDriver(
