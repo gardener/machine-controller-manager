@@ -13,8 +13,8 @@ spec:
     spec:
       containers:
       - name: machine-controller-manager
-        image: registry.f-i-ts.io/gardener-project/gardener/machine-controller-manager:0.18.0
-        imagePullPolicy: Never
+        image: eu.gcr.io/gardener-project/gardener/machine-controller-manager:0.5.0
+        imagePullPolicy: Allways
         resources:
           requests:
             memory: "64Mi"
@@ -31,7 +31,7 @@ spec:
           - --safety-up=2 # Optional Parameter - Default value 2 - The number of excess machine objects permitted for any machineSet/machineDeployment beyond its expected number of replicas based on desired and max-surge, we call this the upper-limit. When this upper-limit is reached, the objects are frozen until the number of objects reduce. upper-limit = desired + maxSurge (if applicable) + safetyUp.
           - --safety-down=1 # Optional Parameter - Default value 1 - Upper-limit minus safety-down value gives the lower-limit. This is the limits below which any temporarily frozen machineSet/machineDeployment object is unfrozen. lower-limit = desired + maxSurge (if applicable) + safetyUp - safetyDown.
           - --machine-drain-timeout=5 # Optional Parameter - Timeout (in minutes) used while draining of machine before deletion, beyond which MCM forcefully deletes machine.
-          - --machine-health-timeout=10080  # Optional Parameter - Default value 10mins - Timeout (in minutes) used while joining (during creation) or re-joining (in case of temporary health issues) of machine before it is declared as failed.
+          - --machine-health-timeout=10  # Optional Parameter - Default value 10mins - Timeout (in minutes) used while joining (during creation) or re-joining (in case of temporary health issues) of machine before it is declared as failed.
           - --machine-set-scale-timeout=20 # Optional Parameter - Default value 20mins - Timeout (in minutes) used while scaling machineSet if timeout occurs machineSet is frozen.
           - --machine-safety-orphan-vms-period=30 # Optional Parameter - Default value 30mins - Time period (in minutes) used to poll for orphan VMs by safety controller.
           - --machine-safety-overshooting-period=1 # Optional Parameter - Default value 1min - Time period (in minutes) used to poll for overshooting of machine objects backing a machineSet by safety controller.

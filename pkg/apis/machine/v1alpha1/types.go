@@ -1193,7 +1193,7 @@ const (
 	AlicloudAccessKeySecret string = "alicloudAccessKeySecret"
 
 	// PacketAPIKey is a constant for a key name that is part of the Packet cloud credentials
-	PacketAPIKey string = "packetAPIKey"
+	PacketAPIKey string = "apiToken"
 
 	// MetalAPIKey is a constant for a key name that is part of the Metal cloud credentials
 	MetalAPIKey string = "metalAPIKey"

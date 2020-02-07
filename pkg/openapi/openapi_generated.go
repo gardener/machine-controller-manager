@@ -3025,7 +3025,6 @@ func schema_pkg_apis_machine_v1alpha1_MachineTemplateSpec(ref common.ReferenceCa
 				},
 			},
 		},
-<<<<<<< HEAD
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MetalMachineClass": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -3191,8 +3190,10 @@ func schema_pkg_apis_machine_v1alpha1_MachineTemplateSpec(ref common.ReferenceCa
 							SchemaProps: spec.SchemaProps{
 								Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 							},
-=======
-		Dependencies: []string{
+						},
+					},
+				},
+			Dependencies: []string{
 			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
@@ -3207,7 +3208,6 @@ func schema_pkg_apis_machine_v1alpha1_NodeTemplateSpec(ref common.ReferenceCallb
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
->>>>>>> 36223bf91b1e64e24a98555b34af6e75390ec5a4
 						},
 					},
 					"spec": {
