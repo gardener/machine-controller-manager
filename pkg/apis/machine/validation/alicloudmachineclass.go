@@ -18,6 +18,7 @@ limitations under the License.
 package validation
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -61,6 +62,34 @@ func validateAlicloudMachineClassSpec(spec *machine.AlicloudMachineClassSpec, fl
 	}
 	if "" == spec.KeyPairName {
 		allErrs = append(allErrs, field.Required(fldPath.Child("keyPairName"), "KeyPairName is required"))
+	}
+
+	if spec.DataDisks != nil {
+		names := map[string]int{}
+		for i, dataDisk := range spec.DataDisks {
+			idxPath := fldPath.Child("dataDisks").Index(i)
+			if _, keyExist := names[dataDisk.Name]; keyExist {
+				names[dataDisk.Name]++
+			} else {
+				names[dataDisk.Name] = 1
+			}
+
+			if dataDisk.Name == "" {
+				allErrs = append(allErrs, field.Required(idxPath.Child("name"), "Data Disk name is required"))
+			}
+			if dataDisk.Size <= 0 {
+				allErrs = append(allErrs, field.Required(idxPath.Child("size"), "Data Disk size must be positive"))
+			}
+			if dataDisk.Category == "" {
+				allErrs = append(allErrs, field.Required(idxPath.Child("category"), "Data Disk category is required"))
+			}
+		}
+
+		for name, number := range names {
+			if number > 1 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("dataDisks"), name, fmt.Sprintf("Data Disk Name '%s' duplicated %d times, Name must be unique", name, number)))
+			}
+		}
 	}
 
 	allErrs = append(allErrs, validateSecretRef(spec.SecretRef, field.NewPath("spec.secretRef"))...)

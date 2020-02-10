@@ -115,36 +115,36 @@ func validateAzureProperties(properties machine.AzureVirtualMachineProperties, f
 		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.osDisk.createOption"), "OSDisk create option is required"))
 	}
 
-	var luns = make(map[int32]int)
+	if properties.StorageProfile.DataDisks != nil {
+		luns := map[int32]int{}
+		for i, dataDisk := range properties.StorageProfile.DataDisks {
+			idxPath := fldPath.Child("storageProfile.dataDisks").Index(i)
+			if _, keyExist := luns[dataDisk.Lun]; keyExist {
+				luns[dataDisk.Lun]++
+			} else {
+				luns[dataDisk.Lun] = 1
+			}
 
-	for i, dataDisk := range properties.StorageProfile.DataDisks {
-		idxPath := fldPath.Child("storageProfile.dataDisks").Index(i)
-		if _, keyExist := luns[dataDisk.Lun]; keyExist {
-			luns[dataDisk.Lun]++
-		} else {
-			luns[dataDisk.Lun] = 1
+			if dataDisk.Caching == "" {
+				allErrs = append(allErrs, field.Required(idxPath.Child("caching"), "DataDisk caching is required"))
+			}
+			if dataDisk.DiskSizeGB <= 0 {
+				allErrs = append(allErrs, field.Required(idxPath.Child("diskSizeGB"), "DataDisk size must be positive"))
+			}
+			if dataDisk.CreateOption == "" {
+				allErrs = append(allErrs, field.Required(idxPath.Child("createOption"), "DataDisk create option is required"))
+			}
+			if dataDisk.Lun < 0 {
+				allErrs = append(allErrs, field.Required(idxPath.Child("lun"), "DataDisk Lun is required"))
+			}
 		}
 
-		if dataDisk.Caching == "" {
-			allErrs = append(allErrs, field.Required(idxPath.Child("caching"), "DataDisk caching is required"))
-		}
-		if dataDisk.DiskSizeGB <= 0 {
-			allErrs = append(allErrs, field.Required(idxPath.Child("diskSizeGB"), "DataDisk size must be positive"))
-		}
-		if dataDisk.CreateOption == "" {
-			allErrs = append(allErrs, field.Required(idxPath.Child("createOption"), "DataDisk create option is required"))
-		}
-		if dataDisk.Lun < 0 {
-			allErrs = append(allErrs, field.Required(idxPath.Child("lun"), "DataDisk Lun is required"))
+		for lun, number := range luns {
+			if number > 1 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("storageProfile.dataDisks"), lun, fmt.Sprintf("Data Disk Lun '%d' duplicated %d times, Lun must be unique", lun, number)))
+			}
 		}
 	}
-
-	for lun, number := range luns {
-		if number > 1 {
-			allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.dataDisks"), fmt.Sprintf("Data Disk Lun '%s' duplicated %d times, Lun must be unique", lun, number)))
-		}
-	}
-
 	if properties.OsProfile.AdminUsername == "" {
 		allErrs = append(allErrs, field.Required(fldPath.Child("osProfile.adminUsername"), "AdminUsername is required"))
 	}

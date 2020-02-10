@@ -34,8 +34,8 @@ var _ = Describe("Driver Azure", func() {
 			lun2 := int32(2)
 			size1 := int32(10)
 			size2 := int32(100)
-			expectedName1 := "vm-sdb-data-disk"
-			expectedName2 := "vm-sdc-data-disk"
+			expectedName1 := "vm-sdb-1-data-disk"
+			expectedName2 := "vm-sdc-2-data-disk"
 			disks := []v1alpha1.AzureDataDisk{
 				{
 					Name:    "sdb",

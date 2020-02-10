@@ -76,7 +76,7 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 		request.InternetMaxBandwidthOut = requests.NewInteger(*c.AlicloudMachineClass.Spec.InternetMaxBandwidthOut)
 	}
 
-	if ok := c.AlicloudMachineClass.Spec.DataDisks != nil; ok {
+	if c.AlicloudMachineClass.Spec.DataDisks != nil && len(c.AlicloudMachineClass.Spec.DataDisks) > 0 {
 		dataDiskRequests := c.generateDataDiskRequests(c.AlicloudMachineClass.Spec.DataDisks)
 		request.DataDisk = &dataDiskRequests
 	}

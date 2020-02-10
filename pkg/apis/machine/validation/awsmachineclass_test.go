@@ -18,19 +18,12 @@ limitations under the License.
 package validation
 
 import (
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"testing"
-
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
-
-func TestAWSMachineClassSuite(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "AWSMachineClass Suite")
-}
 
 func getSpec() *machine.AWSMachineClassSpec {
 	return &machine.AWSMachineClassSpec{
@@ -291,14 +284,14 @@ var _ = Describe("AWSMachineClass Validation", func() {
 			spec := getSpec()
 			spec.BlockDevices = []machine.AWSBlockDeviceMappingSpec{
 				{
-					DeviceName: "/dev/vdga",
+					DeviceName: "/dev/sdf",
 					Ebs: machine.AWSEbsBlockDeviceSpec{
 						VolumeSize: 10,
 						VolumeType: "gp2",
 					},
 				},
 				{
-					DeviceName: "/dev/vdga",
+					DeviceName: "/dev/sdf",
 					Ebs: machine.AWSEbsBlockDeviceSpec{
 						VolumeSize: 15,
 						VolumeType: "gp2",
@@ -319,7 +312,7 @@ var _ = Describe("AWSMachineClass Validation", func() {
 					Type:     "FieldValueRequired",
 					Field:    "spec.blockDevices",
 					BadValue: "",
-					Detail:   "Device name '/dev/vdga' duplicated 2 times, DeviceName must be uniq",
+					Detail:   "Device name '/dev/sdf' duplicated 2 times, DeviceName must be uniq",
 				},
 			}
 			Expect(err).To(Equal(errExpected))
@@ -329,7 +322,7 @@ var _ = Describe("AWSMachineClass Validation", func() {
 			spec := getSpec()
 			spec.BlockDevices = []machine.AWSBlockDeviceMappingSpec{
 				{
-					DeviceName: "/dev/vdga",
+					DeviceName: "/dev/sdf",
 					Ebs: machine.AWSEbsBlockDeviceSpec{
 						VolumeSize: 10,
 						VolumeType: "gp2-invalid",
@@ -378,7 +371,7 @@ var _ = Describe("AWSMachineClass Validation", func() {
 					},
 				},
 				{
-					DeviceName: "/dev/vdga",
+					DeviceName: "/dev/sdf",
 					Ebs: machine.AWSEbsBlockDeviceSpec{
 						VolumeSize: 15,
 						VolumeType: "gp2",

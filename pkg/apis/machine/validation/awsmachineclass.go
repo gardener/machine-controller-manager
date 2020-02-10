@@ -133,7 +133,7 @@ func validateBlockDevices(blockDevices []machine.AWSBlockDeviceMappingSpec, fldP
 	validVolumeTypes := []string{"gp2", "io1", "st1", "sc1", "standard"}
 
 	// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/device_naming.html
-	const dataDeviceNameFmt string = `^/dev/(sd[a-z]|xvd[a-c][a-z]?)$`
+	const dataDeviceNameFmt string = `/dev/(sd[a-z]|xvd[a-c][a-z]?)`
 	var dataDeviceNameRegexp = regexp.MustCompile("^" + dataDeviceNameFmt + "$")
 
 	// if blockDevices is empty, AWS will automatically create a root partition
