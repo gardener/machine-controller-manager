@@ -45,6 +45,11 @@ type AWSDriver struct {
 	MachineName     string
 }
 
+const (
+	resourceTypeInstance = "instance"
+	resourceTypeVolume   = "volume"
+)
+
 // NewAWSDriver returns an empty AWSDriver object
 func NewAWSDriver(create func() (string, error), delete func() error, existing func() (string, error)) Driver {
 	return &AWSDriver{}
@@ -82,7 +87,12 @@ func (d *AWSDriver) Create() (string, string, error) {
 		return "Error", "Error", err
 	}
 
-	tagInstance, err := d.generateTags(d.AWSMachineClass.Spec.Tags)
+	tagInstance, err := d.generateTags(d.AWSMachineClass.Spec.Tags, resourceTypeInstance)
+	if err != nil {
+		return "Error", "Error", err
+	}
+
+	tagVolume, err := d.generateTags(d.AWSMachineClass.Spec.Tags, resourceTypeVolume)
 	if err != nil {
 		return "Error", "Error", err
 	}
@@ -107,7 +117,7 @@ func (d *AWSDriver) Create() (string, string, error) {
 		},
 		SecurityGroupIds:    securityGroupIDs,
 		BlockDeviceMappings: blkDeviceMappings,
-		TagSpecifications:   []*ec2.TagSpecification{tagInstance},
+		TagSpecifications:   []*ec2.TagSpecification{tagInstance, tagVolume},
 	}
 
 	runResult, err := svc.RunInstances(&inputConfig)
@@ -129,7 +139,7 @@ func (d *AWSDriver) generateSecurityGroups(sgIDs []string) ([]*string, error) {
 	return securityGroupIDs, nil
 }
 
-func (d *AWSDriver) generateTags(tags map[string]string) (*ec2.TagSpecification, error) {
+func (d *AWSDriver) generateTags(tags map[string]string, resourceType string) (*ec2.TagSpecification, error) {
 
 	// Add tags to the created machine
 	tagList := []*ec2.Tag{}
@@ -151,7 +161,7 @@ func (d *AWSDriver) generateTags(tags map[string]string) (*ec2.TagSpecification,
 	tagList = append(tagList, &nameTag)
 
 	tagInstance := &ec2.TagSpecification{
-		ResourceType: aws.String("instance"),
+		ResourceType: aws.String(resourceType),
 		Tags:         tagList,
 	}
 	return tagInstance, nil
@@ -167,20 +177,23 @@ func (d *AWSDriver) generateBlockDevices(blockDevices []v1alpha1.AWSBlockDeviceM
 		if disk.DeviceName == "/root" || len(blockDevices) == 1 {
 			deviceName = *rootDeviceName
 		}
+		deleteOnTermination := disk.Ebs.DeleteOnTermination
 		volumeSize := disk.Ebs.VolumeSize
 		volumeType := disk.Ebs.VolumeType
-		deleteOnTermination := disk.Ebs.DeleteOnTermination
 		encrypted := disk.Ebs.Encrypted
 
 		blkDeviceMapping := ec2.BlockDeviceMapping{
 			DeviceName: aws.String(deviceName),
 			Ebs: &ec2.EbsBlockDevice{
-				DeleteOnTermination: aws.Bool(deleteOnTermination),
-				Encrypted:           aws.Bool(encrypted),
-				VolumeSize:          aws.Int64(volumeSize),
-				VolumeType:          aws.String(volumeType),
+				Encrypted:  aws.Bool(encrypted),
+				VolumeSize: aws.Int64(volumeSize),
+				VolumeType: aws.String(volumeType),
 			},
 		}
+		if deleteOnTermination != nil {
+			blkDeviceMapping.Ebs.DeleteOnTermination = deleteOnTermination
+		}
+
 		if volumeType == "io1" {
 			blkDeviceMapping.Ebs.Iops = aws.Int64(disk.Ebs.Iops)
 		}
