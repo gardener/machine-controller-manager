@@ -831,7 +831,7 @@ type AWSBlockDeviceMappingSpec struct {
 type AWSEbsBlockDeviceSpec struct {
 
 	// Indicates whether the EBS volume is deleted on machine termination.
-	DeleteOnTermination bool `json:"deleteOnTermination,omitempty"`
+	DeleteOnTermination *bool `json:"deleteOnTermination,omitempty"`
 
 	// Indicates whether the EBS volume is encrypted. Encrypted Amazon EBS volumes
 	// may only be attached to machines that support Amazon EBS encryption.
