@@ -368,6 +368,9 @@ func (dc *controller) getMachineSetsForMachineDeployment(d *v1alpha1.MachineDepl
 	if err != nil {
 		return nil, err
 	}
+	//TODO : Remove log later
+	klog.V(4).Infof("Listing cached objects: %v", machineSets)
+
 	deploymentSelector, err := metav1.LabelSelectorAsSelector(d.Spec.Selector)
 	if err != nil {
 		return nil, fmt.Errorf("machine deployment %s has invalid label selector: %v", d.Name, err)
@@ -445,7 +448,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return err
 	}
 
-	klog.V(3).Infof("Processing the machinedeployment %q (with replicas %d)", deployment.Name, deployment.Spec.Replicas)
+	klog.V(3).Infof("Processing the machinedeployment %q (with replicas %d) resourceVersion: %v", deployment.Name, deployment.Spec.Replicas, deployment.ResourceVersion)
 
 	// If MachineDeployment is frozen and no deletion timestamp, don't process it
 	if deployment.Labels["freeze"] == "True" && deployment.DeletionTimestamp == nil {

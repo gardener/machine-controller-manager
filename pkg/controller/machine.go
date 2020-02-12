@@ -111,7 +111,7 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 }
 
 func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
-	klog.V(4).Info("Start Reconciling machine: ", machine.Name)
+	klog.V(4).Infof("Start Reconciling machine: \n%v", machine)
 	defer func() {
 		c.enqueueMachineAfter(machine, 10*time.Minute)
 		klog.V(4).Info("Stop Reconciling machine: ", machine.Name)
@@ -164,6 +164,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 
 		return err
 	}
+	klog.V(4).Infof("Fetching the machine-object from api-server: \n%v", machine)
 
 	machine, err = c.updateMachineState(machine)
 	if err != nil {
