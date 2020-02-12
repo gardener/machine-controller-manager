@@ -14,7 +14,7 @@ spec:
       containers:
       - name: machine-controller-manager
         image: eu.gcr.io/gardener-project/gardener/machine-controller-manager:0.5.0
-        imagePullPolicy: Allways
+        imagePullPolicy: Always
         resources:
           requests:
             memory: "64Mi"

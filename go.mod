@@ -36,7 +36,6 @@ require (
 	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/spf13/pflag v1.0.3
-	go.mongodb.org/mongo-driver v1.3.0 // indirect
 	golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2 // indirect
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
