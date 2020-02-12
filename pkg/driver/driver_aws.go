@@ -203,8 +203,42 @@ func (d *AWSDriver) generateBlockDevices(blockDevices []v1alpha1.AWSBlockDeviceM
 	return blkDeviceMappings, nil
 }
 
+// checkBlockDevices returns instanceBlockDevices whose DeleteOnTermination
+// field is nil on machineAPIs and resets the values to true,
+// to allow deletion on termination of instance
+func (d *AWSDriver) checkBlockDevices(instanceID string, rootDeviceName *string) ([]*ec2.InstanceBlockDeviceMappingSpecification, error) {
+	blockDevices := d.AWSMachineClass.Spec.BlockDevices
+	var instanceBlkDeviceMappings []*ec2.InstanceBlockDeviceMappingSpecification
+
+	for _, disk := range d.AWSMachineClass.Spec.BlockDevices {
+
+		deviceName := disk.DeviceName
+		if disk.DeviceName == "/root" || len(blockDevices) == 1 {
+			deviceName = *rootDeviceName
+		}
+
+		deleteOnTermination := disk.Ebs.DeleteOnTermination
+
+		if deleteOnTermination == nil {
+			blkDeviceMapping := ec2.InstanceBlockDeviceMappingSpecification{
+				DeviceName: aws.String(deviceName),
+				Ebs: &ec2.EbsInstanceBlockDeviceSpecification{
+					DeleteOnTermination: aws.Bool(true),
+				},
+			}
+			instanceBlkDeviceMappings = append(instanceBlkDeviceMappings, &blkDeviceMapping)
+		}
+
+	}
+
+	return instanceBlkDeviceMappings, nil
+}
+
 // Delete method is used to delete a AWS machine
 func (d *AWSDriver) Delete(machineID string) error {
+	var imageIds []*string
+	imageID := aws.String(d.AWSMachineClass.Spec.AMI)
+	imageIds = append(imageIds, imageID)
 
 	result, err := d.GetVMs(machineID)
 	if err != nil {
@@ -216,12 +250,57 @@ func (d *AWSDriver) Delete(machineID string) error {
 	}
 
 	instanceID := d.decodeMachineID(machineID)
-
 	svc, err := d.createSVC()
 	if err != nil {
 		return err
 	}
 
+	describeImagesRequest := ec2.DescribeImagesInput{
+		ImageIds: imageIds,
+	}
+	describeImageOutput, err := svc.DescribeImages(&describeImagesRequest)
+	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+		return err
+	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+
+	if len(describeImageOutput.Images) < 1 {
+		klog.Errorf("Image %s not found", *imageID)
+		return fmt.Errorf("Image %s not found", *imageID)
+	}
+
+	// returns instanceBlockDevices whose DeleteOnTermination field is nil on machineAPIs
+	instanceBlkDeviceMappings, err := d.checkBlockDevices(instanceID, describeImageOutput.Images[0].RootDeviceName)
+	if err != nil {
+		klog.Errorf("Could not Default deletionOnTermination while terminating machine: %s", err.Error())
+		return err
+	}
+
+	// Default deletionOnTermination to true when unset on API field
+	if len(instanceBlkDeviceMappings) > 0 {
+		input := &ec2.ModifyInstanceAttributeInput{
+			InstanceId:          aws.String(instanceID),
+			BlockDeviceMappings: instanceBlkDeviceMappings,
+		}
+		_, err = svc.ModifyInstanceAttribute(input)
+		if err != nil {
+			if aerr, ok := err.(awserr.Error); ok {
+				switch aerr.Code() {
+				default:
+					klog.Error(aerr.Error())
+				}
+			} else {
+				klog.Error(err.Error())
+			}
+			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+			return err
+		}
+		metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+		klog.V(2).Infof("Successfully defaulted deletionOnTermination to true for disks (with nil pointer) for instanceID: %q", instanceID)
+	}
+
+	// Terminate instance call
 	input := &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{
 			aws.String(instanceID),
