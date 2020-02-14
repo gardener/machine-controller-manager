@@ -22,6 +22,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
+	"runtime"
 	"strings"
 
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
@@ -40,8 +41,40 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
 	"github.com/gophercloud/gophercloud/pagination"
+	"github.com/gophercloud/utils/client"
 	"github.com/gophercloud/utils/openstack/clientconfig"
 )
+
+type logger struct{}
+
+func (l logger) Printf(format string, args ...interface{}) {
+	debugger := klog.V(6)
+
+	// extra check in case, when verbosity has been changed dynamically
+	if debugger {
+		var skip int
+		var found bool
+		var gc = "/github.com/gophercloud/gophercloud"
+
+		// detect the depth of the actual function, which calls gophercloud code
+		// 10 is the common depth from the logger to "github.com/gophercloud/gophercloud"
+		for i := 10; i <= 20; i++ {
+			if _, file, _, ok := runtime.Caller(i); ok && !found && strings.Contains(file, gc) {
+				found = true
+				continue
+			} else if ok && found && !strings.Contains(file, gc) {
+				skip = i
+				break
+			} else if !ok {
+				break
+			}
+		}
+
+		for _, v := range strings.Split(fmt.Sprintf(format, args...), "\n") {
+			klog.InfoDepth(skip, v)
+		}
+	}
+}
 
 // OpenStackDriver is the driver struct for holding OS machine information
 type OpenStackDriver struct {
@@ -426,25 +459,32 @@ func (d *OpenStackDriver) createOpenStackClient() (*gophercloud.ProviderClient, 
 		return nil, fmt.Errorf("failed to create client auth options: %+v", err)
 	}
 
-	client, err := openstack.NewClient(ao.IdentityEndpoint)
+	provider, err := openstack.NewClient(ao.IdentityEndpoint)
 	if err != nil {
 		return nil, err
 	}
 
 	// Set UserAgent
-	client.UserAgent.Prepend("Machine Controller 08/15")
+	provider.UserAgent.Prepend("Machine Controller 08/15")
 
 	transport := &http.Transport{Proxy: http.ProxyFromEnvironment, TLSClientConfig: config}
-	client.HTTPClient = http.Client{
+	provider.HTTPClient = http.Client{
 		Transport: transport,
 	}
 
-	err = openstack.Authenticate(client, *ao)
+	if klog.V(6) {
+		provider.HTTPClient.Transport = &client.RoundTripper{
+			Rt:     provider.HTTPClient.Transport,
+			Logger: &logger{},
+		}
+	}
+
+	err = openstack.Authenticate(provider, *ao)
 	if err != nil {
 		return nil, err
 	}
 
-	return client, nil
+	return provider, nil
 }
 
 // createNeutronClient is used to create a Neutron client
