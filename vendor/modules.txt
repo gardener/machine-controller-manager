@@ -71,7 +71,7 @@ github.com/beorn7/perks/quantile
 github.com/davecgh/go-spew/spew
 # github.com/dgrijalva/jwt-go v3.2.0+incompatible
 github.com/dgrijalva/jwt-go
-# github.com/emicklei/go-restful v2.9.6+incompatible
+# github.com/emicklei/go-restful v2.11.2+incompatible
 github.com/emicklei/go-restful
 github.com/emicklei/go-restful/log
 # github.com/evanphx/json-patch v4.2.0+incompatible
@@ -119,7 +119,7 @@ github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
-# github.com/google/go-cmp v0.3.1
+# github.com/google/go-cmp v0.3.0
 github.com/google/go-cmp/cmp
 github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
@@ -174,20 +174,20 @@ github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
-# github.com/metal-pod/metal-go v0.2.0
-github.com/metal-pod/metal-go
-github.com/metal-pod/metal-go/api/client/firewall
-github.com/metal-pod/metal-go/api/client/image
-github.com/metal-pod/metal-go/api/client/ip
-github.com/metal-pod/metal-go/api/client/machine
-github.com/metal-pod/metal-go/api/client/network
-github.com/metal-pod/metal-go/api/client/partition
-github.com/metal-pod/metal-go/api/client/project
-github.com/metal-pod/metal-go/api/client/size
-github.com/metal-pod/metal-go/api/client/switch_operations
-github.com/metal-pod/metal-go/api/models
-# github.com/metal-pod/security v0.0.0-20191127130239-3547755283e3
-github.com/metal-pod/security
+# github.com/metal-stack/metal-go v0.3.1
+github.com/metal-stack/metal-go
+github.com/metal-stack/metal-go/api/client/firewall
+github.com/metal-stack/metal-go/api/client/image
+github.com/metal-stack/metal-go/api/client/ip
+github.com/metal-stack/metal-go/api/client/machine
+github.com/metal-stack/metal-go/api/client/network
+github.com/metal-stack/metal-go/api/client/partition
+github.com/metal-stack/metal-go/api/client/project
+github.com/metal-stack/metal-go/api/client/size
+github.com/metal-stack/metal-go/api/client/switch_operations
+github.com/metal-stack/metal-go/api/models
+# github.com/metal-stack/security v0.3.0
+github.com/metal-stack/security
 # github.com/mitchellh/mapstructure v1.1.2
 github.com/mitchellh/mapstructure
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
