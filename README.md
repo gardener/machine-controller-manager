@@ -5,11 +5,12 @@
 Machine Controller Manager (MCM) manages VMs as another kubernetes custom resource. It provides a declarative way to manage VMs. The current implementation supports AWS, GCP, Azure, Alicloud, Packet and Openstack. It can easily be extended to support other cloud providers as well.
 
 Example of managing machine:
-```
+
+```bash
 kubectl create/get/delete machine vm1
 ```
 
-### Key terminologies
+## Key terminologies
 
 Nodes/Machines/VMs are different terminologies used to represent similar things. We use these terms in the following way
 
@@ -26,6 +27,7 @@ See the design documentation in the `/docs/design` repository, please [find the 
 See the documentation in the `/docs` repository, please [find the index here](docs/README.md).
 
 ## Cluster-api Implementation
+
 - `cluster-api` branch of machine-controller-manager implements the machine-api aspect of the [cluster-api project](https://github.com/kubernetes-sigs/cluster-api).
 - Link: https://github.com/gardener/machine-controller-manager/tree/cluster-api
 - Once cluster-api project gets stable, we may make `master` branch of MCM as well cluster-api compliant, with well-defined migration notes.

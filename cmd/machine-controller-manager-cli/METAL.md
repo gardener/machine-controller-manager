@@ -1,6 +1,5 @@
 # Metal usage
 
-
 ## CLI
 
 build the cli with:

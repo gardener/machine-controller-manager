@@ -63,7 +63,6 @@ func (c *controller) existsMachineClassForSecret(name string) (bool, error) {
 		len(gcpMachineClasses) == 0 &&
 		len(azureMachineClasses) == 0 &&
 		len(packetMachineClasses) == 0 &&
-		len(metalMachineClasses) == 0 &&
 		len(alicloudMachineClasses) == 0 &&
 		len(metalMachineClasses) == 0 &&
 		len(awsMachineClasses) == 0 {

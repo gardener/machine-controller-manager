@@ -64,8 +64,8 @@ build-local:
 .PHONY: release
 release: build build-local docker-image docker-login docker-push rename-binaries
 
-.PHONY: docker-images
-docker-images:
+.PHONY: docker-image
+docker-image:
 	@docker build -t $(IMAGE_REPOSITORY):$(IMAGE_TAG) --rm .
 
 .PHONY: docker-login
