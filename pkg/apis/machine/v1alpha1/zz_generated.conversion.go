@@ -1016,7 +1016,7 @@ func autoConvert_v1alpha1_AlicloudDataDisk_To_machine_AlicloudDataDisk(in *Alicl
 	out.Category = in.Category
 	out.Description = in.Description
 	out.Encrypted = in.Encrypted
-	out.DeleteWithInstance = in.DeleteWithInstance
+	out.DeleteWithInstance = (*bool)(unsafe.Pointer(in.DeleteWithInstance))
 	out.Size = in.Size
 	return nil
 }
@@ -1032,7 +1032,7 @@ func autoConvert_machine_AlicloudDataDisk_To_v1alpha1_AlicloudDataDisk(in *machi
 	out.Description = in.Description
 	out.Encrypted = in.Encrypted
 	out.Size = in.Size
-	out.DeleteWithInstance = in.DeleteWithInstance
+	out.DeleteWithInstance = (*bool)(unsafe.Pointer(in.DeleteWithInstance))
 	return nil
 }
 
@@ -1209,11 +1209,8 @@ func autoConvert_v1alpha1_AzureDataDisk_To_machine_AzureDataDisk(in *AzureDataDi
 	out.Name = in.Name
 	out.Lun = in.Lun
 	out.Caching = in.Caching
-	if err := Convert_v1alpha1_AzureManagedDiskParameters_To_machine_AzureManagedDiskParameters(&in.ManagedDisk, &out.ManagedDisk, s); err != nil {
-		return err
-	}
+	out.StorageAccountType = in.StorageAccountType
 	out.DiskSizeGB = in.DiskSizeGB
-	out.CreateOption = in.CreateOption
 	return nil
 }
 
@@ -1226,11 +1223,8 @@ func autoConvert_machine_AzureDataDisk_To_v1alpha1_AzureDataDisk(in *machine.Azu
 	out.Name = in.Name
 	out.Lun = in.Lun
 	out.Caching = in.Caching
-	if err := Convert_machine_AzureManagedDiskParameters_To_v1alpha1_AzureManagedDiskParameters(&in.ManagedDisk, &out.ManagedDisk, s); err != nil {
-		return err
-	}
+	out.StorageAccountType = in.StorageAccountType
 	out.DiskSizeGB = in.DiskSizeGB
-	out.CreateOption = in.CreateOption
 	return nil
 }
 

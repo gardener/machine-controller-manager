@@ -10,6 +10,8 @@ import (
 
 func getAliCloudMachineSpec() *machine.AlicloudMachineClassSpec {
 	bandwidth := 5
+	deleteVol1 := true
+	deleteVol2 := false
 	return &machine.AlicloudMachineClassSpec{
 		ImageID:         "coreos_1745_7_0_64_30G_alibase_20180705.vhd",
 		InstanceType:    "ecs.n1.medium",
@@ -27,14 +29,14 @@ func getAliCloudMachineSpec() *machine.AlicloudMachineClassSpec {
 				Category:           "cloud_efficiency",
 				Size:               75,
 				Encrypted:          true,
-				DeleteWithInstance: true,
+				DeleteWithInstance: &deleteVol1,
 			},
 			{
 				Name:               "dd2",
 				Category:           "cloud_efficiency",
 				Size:               75,
 				Encrypted:          true,
-				DeleteWithInstance: true,
+				DeleteWithInstance: &deleteVol2,
 			},
 		},
 		InstanceChargeType:      "PostPaid",
@@ -72,23 +74,20 @@ var _ = Describe("AliCloudMachineClass Validation", func() {
 				{
 					Name:               "",
 					Category:           "",
-					Size:               -1,
+					Size:               10,
 					Encrypted:          true,
-					DeleteWithInstance: true,
+				},
+				{
+					Name:               "dd1",
+					Category:           "cloud_efficiency",
+					Size:               32769,
+					Encrypted:          true,
 				},
 				{
 					Name:               "dd1",
 					Category:           "cloud_efficiency",
 					Size:               75,
 					Encrypted:          true,
-					DeleteWithInstance: true,
-				},
-				{
-					Name:               "dd1",
-					Category:           "cloud_efficiency",
-					Size:               75,
-					Encrypted:          true,
-					DeleteWithInstance: true,
 				},
 			}
 
@@ -105,13 +104,19 @@ var _ = Describe("AliCloudMachineClass Validation", func() {
 					Type:     field.ErrorTypeRequired,
 					Field:    "spec.dataDisks[0].size",
 					BadValue: "",
-					Detail:   "Data Disk size must be positive",
+					Detail:   "Data Disk size must be between 20 and 32768 GB",
 				},
 				{
 					Type:     field.ErrorTypeRequired,
 					Field:    "spec.dataDisks[0].category",
 					BadValue: "",
 					Detail:   "Data Disk category is required",
+				},
+				{
+					Type:     field.ErrorTypeRequired,
+					Field:    "spec.dataDisks[1].size",
+					BadValue: "",
+					Detail:   "Data Disk size must be between 20 and 32768 GB",
 				},
 				{
 					Type:     field.ErrorTypeInvalid,

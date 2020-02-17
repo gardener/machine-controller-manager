@@ -131,8 +131,8 @@ func validateAzureProperties(properties machine.AzureVirtualMachineProperties, f
 			if dataDisk.DiskSizeGB <= 0 {
 				allErrs = append(allErrs, field.Required(idxPath.Child("diskSizeGB"), "DataDisk size must be positive"))
 			}
-			if dataDisk.CreateOption == "" {
-				allErrs = append(allErrs, field.Required(idxPath.Child("createOption"), "DataDisk create option is required"))
+			if dataDisk.StorageAccountType == "" {
+				allErrs = append(allErrs, field.Required(idxPath.Child("storageAccountType"), "DataDisk storage account type is required"))
 			}
 			if dataDisk.Lun < 0 {
 				allErrs = append(allErrs, field.Required(idxPath.Child("lun"), "DataDisk Lun is required"))

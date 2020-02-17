@@ -144,7 +144,7 @@ func validateBlockDevices(blockDevices []machine.AWSBlockDeviceMappingSpec, fldP
 			rootPartitionCount++
 		} else if len(blockDevices) > 1 && !dataDeviceNameRegexp.MatchString(disk.DeviceName) {
 			// if there are multiple devices, non-root devices are expected to adhere to AWS naming conventions
-			allErrs = append(allErrs, field.Invalid(idxPath.Child("deviceName"), disk.DeviceName, utilvalidation.RegexError(dataDeviceNameFmt, "/dev/sdf")))
+			allErrs = append(allErrs, field.Invalid(idxPath.Child("deviceName"), disk.DeviceName, utilvalidation.RegexError(fmt.Sprintf("Device name given: %s does not match the expected pattern", disk.DeviceName), dataDeviceNameFmt)))
 		}
 
 		if _, keyExist := deviceNames[disk.DeviceName]; keyExist {

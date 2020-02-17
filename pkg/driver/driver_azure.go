@@ -171,7 +171,7 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 		VMParameters.Identity = &compute.VirtualMachineIdentity{
 			Type: compute.ResourceIdentityTypeUserAssigned,
 			UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
-				*d.AzureMachineClass.Spec.Properties.IdentityID: {},
+				*d.AzureMachineClass.Spec.Properties.IdentityID: &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{},
 			},
 		}
 	}
@@ -190,10 +190,10 @@ func (d *AzureDriver) generateDataDisks(vmName string, azureDataDisks []v1alpha1
 			Name:    &dataDiskName,
 			Caching: compute.CachingTypes(azureDataDisk.Caching),
 			ManagedDisk: &compute.ManagedDiskParameters{
-				StorageAccountType: compute.StorageAccountTypes(azureDataDisk.ManagedDisk.StorageAccountType),
+				StorageAccountType: compute.StorageAccountTypes(azureDataDisk.StorageAccountType),
 			},
 			DiskSizeGB:   &dataDiskSize,
-			CreateOption: compute.DiskCreateOptionTypes(azureDataDisk.CreateOption),
+			CreateOption: compute.DiskCreateOptionTypesEmpty,
 		}
 		dataDisks = append(dataDisks, dataDisk)
 	}

@@ -77,8 +77,8 @@ func validateAlicloudMachineClassSpec(spec *machine.AlicloudMachineClassSpec, fl
 			if dataDisk.Name == "" {
 				allErrs = append(allErrs, field.Required(idxPath.Child("name"), "Data Disk name is required"))
 			}
-			if dataDisk.Size <= 0 {
-				allErrs = append(allErrs, field.Required(idxPath.Child("size"), "Data Disk size must be positive"))
+			if dataDisk.Size < 20 || dataDisk.Size > 32768 {
+				allErrs = append(allErrs, field.Required(idxPath.Child("size"), "Data Disk size must be between 20 and 32768 GB"))
 			}
 			if dataDisk.Category == "" {
 				allErrs = append(allErrs, field.Required(idxPath.Child("category"), "Data Disk category is required"))

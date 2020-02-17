@@ -43,22 +43,16 @@ func getAzureMachineSpec() *machine.AzureMachineClassSpec {
 				},
 				DataDisks: []machine.AzureDataDisk{
 					{
-						Lun:          0,
-						Caching:      "None",
-						CreateOption: "Empty",
-						DiskSizeGB:   75,
-						ManagedDisk: machine.AzureManagedDiskParameters{
-							StorageAccountType: "Standard_LRS",
-						},
+						Lun:                0,
+						Caching:            "None",
+						DiskSizeGB:         75,
+						StorageAccountType: "Standard_LRS",
 					},
 					{
-						Lun:          1,
-						Caching:      "None",
-						CreateOption: "Empty",
-						DiskSizeGB:   75,
-						ManagedDisk: machine.AzureManagedDiskParameters{
-							StorageAccountType: "Standard_LRS",
-						},
+						Lun:                1,
+						Caching:            "None",
+						DiskSizeGB:         75,
+						StorageAccountType: "Standard_LRS",
 					},
 				},
 			},
@@ -116,9 +110,9 @@ var _ = Describe("AzureMachineClass Validation", func() {
 				},
 				{
 					Type:     field.ErrorTypeRequired,
-					Field:    "spec.properties.storageProfile.dataDisks[0].createOption",
+					Field:    "spec.properties.storageProfile.dataDisks[0].storageAccountType",
 					BadValue: "",
-					Detail:   "DataDisk create option is required",
+					Detail:   "DataDisk storage account type is required",
 				},
 			}
 			Expect(errList).To(ConsistOf(errExpected))
@@ -129,22 +123,16 @@ var _ = Describe("AzureMachineClass Validation", func() {
 			spec := getAzureMachineSpec()
 			spec.Properties.StorageProfile.DataDisks = []machine.AzureDataDisk{
 				{
-					Lun:          1,
-					Caching:      "None",
-					CreateOption: "Empty",
-					DiskSizeGB:   75,
-					ManagedDisk: machine.AzureManagedDiskParameters{
-						StorageAccountType: "Standard_LRS",
-					},
+					Lun:                1,
+					Caching:            "None",
+					DiskSizeGB:         75,
+					StorageAccountType: "Standard_LRS",
 				},
 				{
-					Lun:          1,
-					Caching:      "None",
-					CreateOption: "Empty",
-					DiskSizeGB:   75,
-					ManagedDisk: machine.AzureManagedDiskParameters{
-						StorageAccountType: "Standard_LRS",
-					},
+					Lun:                1,
+					Caching:            "None",
+					DiskSizeGB:         75,
+					StorageAccountType: "Standard_LRS",
 				},
 			}
 

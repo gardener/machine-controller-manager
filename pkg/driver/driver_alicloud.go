@@ -117,12 +117,17 @@ func (c *AlicloudDriver) generateDataDiskRequests(disks []v1alpha1.AlicloudDataD
 	for _, disk := range disks {
 
 		dataDiskRequest := ecs.RunInstancesDataDisk{
-			Category:           disk.Category,
-			DeleteWithInstance: strconv.FormatBool(disk.DeleteWithInstance),
-			Encrypted:          strconv.FormatBool(disk.Encrypted),
-			DiskName:           fmt.Sprintf("%s-%s-data-disk", c.MachineName, disk.Name),
-			Description:        disk.Description,
-			Size:               fmt.Sprintf("%d", disk.Size),
+			Category:    disk.Category,
+			Encrypted:   strconv.FormatBool(disk.Encrypted),
+			DiskName:    fmt.Sprintf("%s-%s-data-disk", c.MachineName, disk.Name),
+			Description: disk.Description,
+			Size:        fmt.Sprintf("%d", disk.Size),
+		}
+
+		if disk.DeleteWithInstance != nil {
+			dataDiskRequest.DeleteWithInstance = strconv.FormatBool(*disk.DeleteWithInstance)
+		} else {
+			dataDiskRequest.DeleteWithInstance = strconv.FormatBool(true)
 		}
 
 		if disk.Category == "DiskEphemeralSSD" {

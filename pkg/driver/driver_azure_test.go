@@ -38,24 +38,18 @@ var _ = Describe("Driver Azure", func() {
 			expectedName2 := "vm-sdc-2-data-disk"
 			disks := []v1alpha1.AzureDataDisk{
 				{
-					Name:    "sdb",
-					Caching: "None",
-					ManagedDisk: v1alpha1.AzureManagedDiskParameters{
-						StorageAccountType: "Premium_LRS",
-					},
-					DiskSizeGB:   size1,
-					CreateOption: "Empty",
-					Lun:          lun1,
+					Name:               "sdb",
+					Caching:            "None",
+					StorageAccountType: "Premium_LRS",
+					DiskSizeGB:         size1,
+					Lun:                lun1,
 				},
 				{
-					Name:    "sdc",
-					Caching: "None",
-					ManagedDisk: v1alpha1.AzureManagedDiskParameters{
-						StorageAccountType: "Standard_LRS",
-					},
-					DiskSizeGB:   size2,
-					CreateOption: "FromImage",
-					Lun:          lun2,
+					Name:               "sdc",
+					Caching:            "None",
+					StorageAccountType: "Standard_LRS",
+					DiskSizeGB:         size2,
+					Lun:                lun2,
 				},
 			}
 
@@ -79,7 +73,7 @@ var _ = Describe("Driver Azure", func() {
 						StorageAccountType: compute.StorageAccountTypes("Standard_LRS"),
 					},
 					DiskSizeGB:   &size2,
-					CreateOption: compute.DiskCreateOptionTypes("FromImage"),
+					CreateOption: compute.DiskCreateOptionTypes("Empty"),
 				},
 			}
 

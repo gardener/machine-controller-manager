@@ -318,6 +318,44 @@ var _ = Describe("AWSMachineClass Validation", func() {
 			Expect(err).To(Equal(errExpected))
 		})
 
+		It("should get an error on BlockDevices validation - invalid device name", func() {
+			spec := getSpec()
+			spec.BlockDevices = []machine.AWSBlockDeviceMappingSpec{
+				{
+					DeviceName: "/dev/vdga",
+					Ebs: machine.AWSEbsBlockDeviceSpec{
+						VolumeSize: 10,
+						VolumeType: "gp2",
+					},
+				},
+				{
+					DeviceName: "/dev/sdf",
+					Ebs: machine.AWSEbsBlockDeviceSpec{
+						VolumeSize: 15,
+						VolumeType: "gp2",
+					},
+				},
+			}
+
+			err := validateAWSMachineClassSpec(spec, field.NewPath("spec"))
+
+			errExpected := field.ErrorList{
+				{
+					Type:     "FieldValueInvalid",
+					Field:    "spec.blockDevices[0].deviceName",
+					BadValue: "/dev/vdga",
+					Detail:   "Device name given: /dev/vdga does not match the expected pattern (regex used for validation is '/dev/(sd[a-z]|xvd[a-c][a-z]?)')",
+				},
+				{
+					Type:     "FieldValueRequired",
+					Field:    "spec.blockDevices",
+					BadValue: "",
+					Detail:   "Device name with '/root' partition must be specified",
+				},
+			}
+			Expect(err).To(Equal(errExpected))
+		})
+
 		It("should get an error on BlockDevices validation - invalid volumeType", func() {
 			spec := getSpec()
 			spec.BlockDevices = []machine.AWSBlockDeviceMappingSpec{

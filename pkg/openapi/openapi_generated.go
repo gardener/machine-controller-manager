@@ -1042,9 +1042,10 @@ func schema_pkg_apis_machine_v1alpha1_AzureDataDisk(ref common.ReferenceCallback
 							Format: "",
 						},
 					},
-					"managedDisk": {
+					"storageAccountType": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureManagedDiskParameters"),
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 					"diskSizeGB": {
@@ -1053,17 +1054,9 @@ func schema_pkg_apis_machine_v1alpha1_AzureDataDisk(ref common.ReferenceCallback
 							Format: "int32",
 						},
 					},
-					"createOption": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
 				},
 			},
 		},
-		Dependencies: []string{
-			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureManagedDiskParameters"},
 	}
 }
 
