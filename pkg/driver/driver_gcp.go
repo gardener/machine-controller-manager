@@ -84,16 +84,29 @@ func (d *GCPDriver) Create() (string, string, error) {
 
 	var disks = []*compute.AttachedDisk{}
 	for _, disk := range d.GCPMachineClass.Spec.Disks {
-		disks = append(disks, &compute.AttachedDisk{
-			AutoDelete: disk.AutoDelete,
-			Boot:       disk.Boot,
-			InitializeParams: &compute.AttachedDiskInitializeParams{
-				DiskSizeGb:  disk.SizeGb,
-				DiskType:    fmt.Sprintf("zones/%s/diskTypes/%s", zone, disk.Type),
-				Labels:      disk.Labels,
-				SourceImage: disk.Image,
-			},
-		})
+		var attachedDisk compute.AttachedDisk
+		if disk.Type == "SCRATCH" {
+			attachedDisk = compute.AttachedDisk{
+				AutoDelete: disk.AutoDelete,
+				Type:       disk.Type,
+				Interface:  disk.Interface,
+				InitializeParams: &compute.AttachedDiskInitializeParams{
+					DiskType: fmt.Sprintf("zones/%s/diskTypes/%s", zone, "local-ssd"),
+				},
+			}
+		} else {
+			attachedDisk = compute.AttachedDisk{
+				AutoDelete: disk.AutoDelete,
+				Boot:       disk.Boot,
+				InitializeParams: &compute.AttachedDiskInitializeParams{
+					DiskSizeGb:  disk.SizeGb,
+					DiskType:    fmt.Sprintf("zones/%s/diskTypes/%s", zone, disk.Type),
+					Labels:      disk.Labels,
+					SourceImage: disk.Image,
+				},
+			}
+		}
+		disks = append(disks, &attachedDisk)
 	}
 	instance.Disks = disks
 

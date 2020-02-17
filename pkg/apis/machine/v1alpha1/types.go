@@ -1112,6 +1112,7 @@ type GCPDisk struct {
 	Boot       bool              `json:"boot"`
 	SizeGb     int64             `json:"sizeGb"`
 	Type       string            `json:"type"`
+	Interface  string            `json:"interface"`
 	Image      string            `json:"image"`
 	Labels     map[string]string `json:"labels"`
 }

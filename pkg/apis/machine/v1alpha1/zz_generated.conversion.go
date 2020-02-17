@@ -1640,6 +1640,7 @@ func autoConvert_v1alpha1_GCPDisk_To_machine_GCPDisk(in *GCPDisk, out *machine.G
 	out.Boot = in.Boot
 	out.SizeGb = in.SizeGb
 	out.Type = in.Type
+	out.Interface = in.Interface
 	out.Image = in.Image
 	out.Labels = *(*map[string]string)(unsafe.Pointer(&in.Labels))
 	return nil
@@ -1655,6 +1656,7 @@ func autoConvert_machine_GCPDisk_To_v1alpha1_GCPDisk(in *machine.GCPDisk, out *G
 	out.Boot = in.Boot
 	out.SizeGb = in.SizeGb
 	out.Type = in.Type
+	out.Interface = in.Interface
 	out.Image = in.Image
 	out.Labels = *(*map[string]string)(unsafe.Pointer(&in.Labels))
 	return nil

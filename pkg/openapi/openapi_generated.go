@@ -1617,6 +1617,12 @@ func schema_pkg_apis_machine_v1alpha1_GCPDisk(ref common.ReferenceCallback) comm
 							Format: "",
 						},
 					},
+					"interface": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
@@ -1638,7 +1644,7 @@ func schema_pkg_apis_machine_v1alpha1_GCPDisk(ref common.ReferenceCallback) comm
 						},
 					},
 				},
-				Required: []string{"autoDelete", "boot", "sizeGb", "type", "image", "labels"},
+				Required: []string{"autoDelete", "boot", "sizeGb", "type", "interface", "image", "labels"},
 			},
 		},
 	}

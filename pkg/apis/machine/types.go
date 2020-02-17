@@ -1024,6 +1024,7 @@ type GCPDisk struct {
 	Boot       bool
 	SizeGb     int64
 	Type       string
+	Interface  string
 	Image      string
 	Labels     map[string]string
 }
