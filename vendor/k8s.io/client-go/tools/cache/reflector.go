@@ -329,6 +329,10 @@ loop:
 			return errorStopRequested
 		case err := <-errc:
 			return err
+		case <-time.After(11 * time.Minute):
+			err := fmt.Errorf("%s: [DEBUG] watch of %v ended because of client timeout", r.name, r.expectedType)
+			klog.V(2).Info(err)
+			break loop
 		case event, ok := <-w.ResultChan():
 			if !ok {
 				break loop
