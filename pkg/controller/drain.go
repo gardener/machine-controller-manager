@@ -366,7 +366,9 @@ func (o *DrainOptions) deleteOrEvictPods(pods []api.Pod) error {
 		return o.client.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
 	}
 
-	return o.evictPods(len(policyGroupVersion) > 0, pods, policyGroupVersion, getPodFn)
+	attemptEvict := !o.ForceDeletePods && len(policyGroupVersion) > 0
+
+	return o.evictPods(attemptEvict, pods, policyGroupVersion, getPodFn)
 }
 
 func volIsPvc(vol *corev1.Volume) bool {
