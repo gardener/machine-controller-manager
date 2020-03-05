@@ -1,7 +1,7 @@
 klog
 ====
 
-klog is a permanent fork of https://github.com/golang/klog.
+klog is a permanent fork of https://github.com/golang/glog.
 
 ## Why was klog created?
 
@@ -34,7 +34,7 @@ How to use klog
 - For more logging conventions (See [Logging Conventions](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-instrumentation/logging.md))
 
 ### Coexisting with glog
-This package can be used side by side with klog. [This example](examples/coexist_glog/coexist_klog.go) shows how to initialize and syncronize flags from the global `flag.CommandLine` FlagSet. In addition, the example makes use of stderr as combined output by setting `alsologtostderr` (or `logtostderr`) to `true`.
+This package can be used side by side with glog. [This example](examples/coexist_glog/coexist_glog.go) shows how to initialize and syncronize flags from the global `flag.CommandLine` FlagSet. In addition, the example makes use of stderr as combined output by setting `alsologtostderr` (or `logtostderr`) to `true`.
 
 ## Community, discussion, contribution, and support
 
@@ -65,7 +65,7 @@ without paying the expense of evaluating the arguments to the log.
 Through the -vmodule flag, the package also provides fine-grained
 control over logging at the file level.
 
-The comment from klog.go introduces the ideas:
+The comment from glog.go introduces the ideas:
 
 	Package glog implements logging analogous to the Google-internal
 	C++ INFO/ERROR/V setup.  It provides functions Info, Warning,
@@ -75,18 +75,18 @@ The comment from klog.go introduces the ideas:
 
 	Basic examples:
 
-		klog.Info("Prepare to repel boarders")
+		glog.Info("Prepare to repel boarders")
 
-		klog.Fatalf("Initialization failed: %s", err)
+		glog.Fatalf("Initialization failed: %s", err)
 
 	See the documentation for the V function for an explanation
 	of these examples:
 
-		if klog.V(2) {
-			klog.Info("Starting transaction...")
+		if glog.V(2) {
+			glog.Info("Starting transaction...")
 		}
 
-		klog.V(2).Infoln("Processed", nItems, "elements")
+		glog.V(2).Infoln("Processed", nItems, "elements")
 
 
 The repository contains an open source version of the log package

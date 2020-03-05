@@ -14,7 +14,6 @@ require (
 	github.com/emicklei/go-restful v2.9.6+incompatible // indirect
 	github.com/go-ini/ini v1.36.0 // indirect
 	github.com/go-openapi/spec v0.19.2
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/groupcache v0.0.0-20180513044358-24b0969c4cb7 // indirect
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/gophercloud/gophercloud v0.7.0
