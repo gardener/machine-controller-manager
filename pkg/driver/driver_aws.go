@@ -45,6 +45,11 @@ type AWSDriver struct {
 	MachineName     string
 }
 
+const (
+	resourceTypeInstance = "instance"
+	resourceTypeVolume   = "volume"
+)
+
 // NewAWSDriver returns an empty AWSDriver object
 func NewAWSDriver(create func() (string, error), delete func() error, existing func() (string, error)) Driver {
 	return &AWSDriver{}
@@ -82,7 +87,12 @@ func (d *AWSDriver) Create() (string, string, error) {
 		return "Error", "Error", err
 	}
 
-	tagInstance, err := d.generateTags(d.AWSMachineClass.Spec.Tags)
+	tagInstance, err := d.generateTags(d.AWSMachineClass.Spec.Tags, resourceTypeInstance)
+	if err != nil {
+		return "Error", "Error", err
+	}
+
+	tagVolume, err := d.generateTags(d.AWSMachineClass.Spec.Tags, resourceTypeVolume)
 	if err != nil {
 		return "Error", "Error", err
 	}
@@ -107,7 +117,7 @@ func (d *AWSDriver) Create() (string, string, error) {
 		},
 		SecurityGroupIds:    securityGroupIDs,
 		BlockDeviceMappings: blkDeviceMappings,
-		TagSpecifications:   []*ec2.TagSpecification{tagInstance},
+		TagSpecifications:   []*ec2.TagSpecification{tagInstance, tagVolume},
 	}
 
 	runResult, err := svc.RunInstances(&inputConfig)
@@ -129,7 +139,7 @@ func (d *AWSDriver) generateSecurityGroups(sgIDs []string) ([]*string, error) {
 	return securityGroupIDs, nil
 }
 
-func (d *AWSDriver) generateTags(tags map[string]string) (*ec2.TagSpecification, error) {
+func (d *AWSDriver) generateTags(tags map[string]string, resourceType string) (*ec2.TagSpecification, error) {
 
 	// Add tags to the created machine
 	tagList := []*ec2.Tag{}
@@ -151,7 +161,7 @@ func (d *AWSDriver) generateTags(tags map[string]string) (*ec2.TagSpecification,
 	tagList = append(tagList, &nameTag)
 
 	tagInstance := &ec2.TagSpecification{
-		ResourceType: aws.String("instance"),
+		ResourceType: aws.String(resourceType),
 		Tags:         tagList,
 	}
 	return tagInstance, nil
@@ -167,20 +177,23 @@ func (d *AWSDriver) generateBlockDevices(blockDevices []v1alpha1.AWSBlockDeviceM
 		if disk.DeviceName == "/root" || len(blockDevices) == 1 {
 			deviceName = *rootDeviceName
 		}
+		deleteOnTermination := disk.Ebs.DeleteOnTermination
 		volumeSize := disk.Ebs.VolumeSize
 		volumeType := disk.Ebs.VolumeType
-		deleteOnTermination := disk.Ebs.DeleteOnTermination
 		encrypted := disk.Ebs.Encrypted
 
 		blkDeviceMapping := ec2.BlockDeviceMapping{
 			DeviceName: aws.String(deviceName),
 			Ebs: &ec2.EbsBlockDevice{
-				DeleteOnTermination: aws.Bool(deleteOnTermination),
-				Encrypted:           aws.Bool(encrypted),
-				VolumeSize:          aws.Int64(volumeSize),
-				VolumeType:          aws.String(volumeType),
+				Encrypted:  aws.Bool(encrypted),
+				VolumeSize: aws.Int64(volumeSize),
+				VolumeType: aws.String(volumeType),
 			},
 		}
+		if deleteOnTermination != nil {
+			blkDeviceMapping.Ebs.DeleteOnTermination = deleteOnTermination
+		}
+
 		if volumeType == "io1" {
 			blkDeviceMapping.Ebs.Iops = aws.Int64(disk.Ebs.Iops)
 		}
@@ -190,8 +203,42 @@ func (d *AWSDriver) generateBlockDevices(blockDevices []v1alpha1.AWSBlockDeviceM
 	return blkDeviceMappings, nil
 }
 
+// checkBlockDevices returns instanceBlockDevices whose DeleteOnTermination
+// field is nil on machineAPIs and resets the values to true,
+// to allow deletion on termination of instance
+func (d *AWSDriver) checkBlockDevices(instanceID string, rootDeviceName *string) ([]*ec2.InstanceBlockDeviceMappingSpecification, error) {
+	blockDevices := d.AWSMachineClass.Spec.BlockDevices
+	var instanceBlkDeviceMappings []*ec2.InstanceBlockDeviceMappingSpecification
+
+	for _, disk := range d.AWSMachineClass.Spec.BlockDevices {
+
+		deviceName := disk.DeviceName
+		if disk.DeviceName == "/root" || len(blockDevices) == 1 {
+			deviceName = *rootDeviceName
+		}
+
+		deleteOnTermination := disk.Ebs.DeleteOnTermination
+
+		if deleteOnTermination == nil {
+			blkDeviceMapping := ec2.InstanceBlockDeviceMappingSpecification{
+				DeviceName: aws.String(deviceName),
+				Ebs: &ec2.EbsInstanceBlockDeviceSpecification{
+					DeleteOnTermination: aws.Bool(true),
+				},
+			}
+			instanceBlkDeviceMappings = append(instanceBlkDeviceMappings, &blkDeviceMapping)
+		}
+
+	}
+
+	return instanceBlkDeviceMappings, nil
+}
+
 // Delete method is used to delete a AWS machine
 func (d *AWSDriver) Delete(machineID string) error {
+	var imageIds []*string
+	imageID := aws.String(d.AWSMachineClass.Spec.AMI)
+	imageIds = append(imageIds, imageID)
 
 	result, err := d.GetVMs(machineID)
 	if err != nil {
@@ -203,12 +250,57 @@ func (d *AWSDriver) Delete(machineID string) error {
 	}
 
 	instanceID := d.decodeMachineID(machineID)
-
 	svc, err := d.createSVC()
 	if err != nil {
 		return err
 	}
 
+	describeImagesRequest := ec2.DescribeImagesInput{
+		ImageIds: imageIds,
+	}
+	describeImageOutput, err := svc.DescribeImages(&describeImagesRequest)
+	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+		return err
+	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+
+	if len(describeImageOutput.Images) < 1 {
+		klog.Errorf("Image %s not found", *imageID)
+		return fmt.Errorf("Image %s not found", *imageID)
+	}
+
+	// returns instanceBlockDevices whose DeleteOnTermination field is nil on machineAPIs
+	instanceBlkDeviceMappings, err := d.checkBlockDevices(instanceID, describeImageOutput.Images[0].RootDeviceName)
+	if err != nil {
+		klog.Errorf("Could not Default deletionOnTermination while terminating machine: %s", err.Error())
+		return err
+	}
+
+	// Default deletionOnTermination to true when unset on API field
+	if len(instanceBlkDeviceMappings) > 0 {
+		input := &ec2.ModifyInstanceAttributeInput{
+			InstanceId:          aws.String(instanceID),
+			BlockDeviceMappings: instanceBlkDeviceMappings,
+		}
+		_, err = svc.ModifyInstanceAttribute(input)
+		if err != nil {
+			if aerr, ok := err.(awserr.Error); ok {
+				switch aerr.Code() {
+				default:
+					klog.Error(aerr.Error())
+				}
+			} else {
+				klog.Error(err.Error())
+			}
+			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+			return err
+		}
+		metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+		klog.V(2).Infof("Successfully defaulted deletionOnTermination to true for disks (with nil pointer) for instanceID: %q", instanceID)
+	}
+
+	// Terminate instance call
 	input := &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{
 			aws.String(instanceID),

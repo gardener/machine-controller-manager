@@ -822,7 +822,7 @@ func Convert_machine_AWSBlockDeviceMappingSpec_To_v1alpha1_AWSBlockDeviceMapping
 }
 
 func autoConvert_v1alpha1_AWSEbsBlockDeviceSpec_To_machine_AWSEbsBlockDeviceSpec(in *AWSEbsBlockDeviceSpec, out *machine.AWSEbsBlockDeviceSpec, s conversion.Scope) error {
-	out.DeleteOnTermination = in.DeleteOnTermination
+	out.DeleteOnTermination = (*bool)(unsafe.Pointer(in.DeleteOnTermination))
 	out.Encrypted = in.Encrypted
 	out.Iops = in.Iops
 	out.VolumeSize = in.VolumeSize
@@ -836,7 +836,7 @@ func Convert_v1alpha1_AWSEbsBlockDeviceSpec_To_machine_AWSEbsBlockDeviceSpec(in 
 }
 
 func autoConvert_machine_AWSEbsBlockDeviceSpec_To_v1alpha1_AWSEbsBlockDeviceSpec(in *machine.AWSEbsBlockDeviceSpec, out *AWSEbsBlockDeviceSpec, s conversion.Scope) error {
-	out.DeleteOnTermination = in.DeleteOnTermination
+	out.DeleteOnTermination = (*bool)(unsafe.Pointer(in.DeleteOnTermination))
 	out.Encrypted = in.Encrypted
 	out.Iops = in.Iops
 	out.VolumeSize = in.VolumeSize
