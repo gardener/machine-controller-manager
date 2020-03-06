@@ -284,6 +284,8 @@ github.com/metal-pod/security v0.0.0-20191127130239-3547755283e3 h1:XjhOCFPdhk+f
 github.com/metal-pod/security v0.0.0-20191127130239-3547755283e3/go.mod h1:nSQnafkl6e7V3+L8ppFU0iiLlZCjaENek+41lWQRnWY=
 github.com/metal-stack/metal-go v0.3.1 h1:ytHEhST/kxY4ZxoJB4jCnmBAFZIcW3jUl83V8lLwdls=
 github.com/metal-stack/metal-go v0.3.1/go.mod h1:RuV3BLGDb4eZ1+9eYw2DqQ3FVYmXiRH9JmLrSbqwkW4=
+github.com/metal-stack/metal-go v0.3.2 h1:EhYnQtprFpSYAyBrc72VgL0KxJVAA93FR8gb+Gzv8YA=
+github.com/metal-stack/metal-go v0.3.2/go.mod h1:RuV3BLGDb4eZ1+9eYw2DqQ3FVYmXiRH9JmLrSbqwkW4=
 github.com/metal-stack/security v0.0.0-20200213101721-0aed751953ac h1:BWOrxnGFcVUFLptpayuqUa4/LF4QLBZoCv7YgpRRDtg=
 github.com/metal-stack/security v0.0.0-20200213101721-0aed751953ac/go.mod h1:xa0eka4HttrfhDTJPzcSDBGgaFyNBGXhz0B5YGqtKuU=
 github.com/metal-stack/security v0.3.0 h1:YJL0qlsXlvA9O3iIWuk5YqF02IX9f6I60n93FkQpV4k=
