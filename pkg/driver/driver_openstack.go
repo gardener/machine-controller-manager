@@ -535,7 +535,12 @@ func waitForStatus(c *gophercloud.ServiceClient, id string, pending []string, ta
 			return false, nil
 		}
 
-		return false, fmt.Errorf("unexpected status %q, wanted target %q", current.Status, strings.Join(target, ", "))
+		retErr := fmt.Errorf("unexpected status %q, wanted target %q", current.Status, strings.Join(target, ", "))
+		if current.Status == "ERROR" {
+			retErr = fmt.Errorf("%s, fault: %+v", retErr, current.Fault)
+		}
+
+		return false, retErr
 	})
 }
 
