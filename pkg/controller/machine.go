@@ -266,14 +266,39 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 }
 
 func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
+	nodeName := machine.Status.Node
 
-	if machine.Status.Node == "" {
-		// There are no objects mapped to this machine object
-		// Hence node status need not be propogated to machine object
-		return machine, nil
+	if nodeName == "" {
+		// Check if any existing node-object can be adopted.
+		nodeList, err := c.nodeLister.List(labels.Everything())
+		if err != nil {
+			klog.Errorf("Could not list the nodes due to error: %v", err)
+			return machine, err
+		}
+		for _, node := range nodeList {
+			nID, mID := decodeMachineID(node.Spec.ProviderID), decodeMachineID(machine.Spec.ProviderID)
+			if nID == mID {
+				klog.V(2).Infof("Adopting the node object %s for machine %s", node.Name, machine.Name)
+				nodeName = node.Name
+				clone := machine.DeepCopy()
+				clone.Status.Node = nodeName
+				clone, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
+				if err != nil {
+					klog.Errorf("Could not update status of the machine-object %s due to error %v", machine.Name, err)
+					return machine, err
+				}
+				break
+			}
+		}
+		// Couldnt adopt any node-object.
+		if nodeName == "" {
+			// There are no objects mapped to this machine object
+			// Hence node status need not be propogated to machine object
+			return machine, nil
+		}
 	}
 
-	node, err := c.nodeLister.Get(machine.Status.Node)
+	node, err := c.nodeLister.Get(nodeName)
 	if err != nil && apierrors.IsNotFound(err) {
 		// Node object is not found
 
@@ -325,7 +350,7 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 		clone.Labels = make(map[string]string)
 	}
 
-	if _, ok := clone.Labels["node"]; !ok {
+	if n := clone.Labels["node"]; n == "" {
 		clone.Labels["node"] = machine.Status.Node
 		machine, err = c.controlMachineClient.Machines(clone.Namespace).Update(clone)
 		if err != nil {
@@ -344,6 +369,7 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 
 func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driver) error {
 	klog.V(2).Infof("Creating machine %q, please wait!", machine.Name)
+	var actualProviderID, nodeName string
 
 	err := c.addBootstrapTokenToUserData(machine.Name, driver)
 	if err != nil {
@@ -362,7 +388,18 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 		c.updateMachineStatus(machine, lastOperation, currentStatus)
 		return err
 	}
-	actualProviderID, nodeName, err := driver.Create()
+	// Before actually creating the machine, we should once check and adopt if the virtual machine already exists.
+	VMList, err := driver.GetVMs("")
+	for providerID, machineName := range VMList {
+		if machineName == machine.Name {
+			klog.V(2).Infof("Adopted an existing VM %s for machine object %s.", providerID, machineName)
+			actualProviderID = providerID
+		}
+	}
+	if actualProviderID == "" {
+		actualProviderID, nodeName, err = driver.Create()
+	}
+
 	if err != nil {
 		klog.Errorf("Error while creating machine %s: %s", machine.Name, err.Error())
 		lastOperation := v1alpha1.LastOperation{
@@ -385,7 +422,7 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 
 		return err
 	}
-	klog.V(2).Infof("Created machine: %q, MachineID: %s", machine.Name, actualProviderID)
+	klog.V(2).Infof("Created/Adopted machine: %q, MachineID: %s", machine.Name, actualProviderID)
 
 	for {
 		machineName := machine.Name
@@ -614,6 +651,23 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			}
 
 			err = driver.Delete(machineID)
+		} else {
+			klog.V(2).Infof("Missing ProviderID when deleting the machine object. %s might have been deleted too soon.", machine.Name)
+			// As MachineID is missing, we should check once if actual VM was created but MachineID was not updated on machine-object.
+			// We list VMs and check if any one them map with the given machine-object.
+			VMList, _ := driver.GetVMs("")
+			for providerID, machineName := range VMList {
+				if machineName == machine.Name {
+					klog.V(2).Infof("Deleting the VM %s backing the machine-object %s.", providerID, machine.Name)
+					err = driver.Delete(providerID)
+					if err != nil {
+						klog.Errorf("Error deleting the VM %s backing the machine-object %s due to error %v", providerID, machine.Name, err)
+						// Not returning error so that status on the machine object can be updated in the next step if errored.
+					} else {
+						klog.V(2).Infof("VM %s backing the machine-object %s is deleted successfully", providerID, machine.Name)
+					}
+				}
+			}
 		}
 
 		if err != nil {
@@ -951,4 +1005,10 @@ func shouldReconcileMachine(machine *v1alpha1.Machine, now time.Time) bool {
 	// TODO add more cases where this will be false
 
 	return true
+}
+
+// decodeMachineID is a generic way of decoding the Spec.ProviderID field of node-objects.
+func decodeMachineID(id string) string {
+	splitProviderID := strings.Split(id, "/")
+	return splitProviderID[len(splitProviderID)-1]
 }
