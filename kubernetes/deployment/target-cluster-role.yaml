@@ -42,3 +42,11 @@ rules:
    - patch
    - update
    - watch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  - persistentvolumes
+  verbs:
+  - list
+  - watch
