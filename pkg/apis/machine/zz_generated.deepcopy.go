@@ -525,6 +525,11 @@ func (in *AzureNetworkInterfaceReferenceProperties) DeepCopy() *AzureNetworkInte
 func (in *AzureNetworkProfile) DeepCopyInto(out *AzureNetworkProfile) {
 	*out = *in
 	in.NetworkInterfaces.DeepCopyInto(&out.NetworkInterfaces)
+	if in.AcceleratedNetworking != nil {
+		in, out := &in.AcceleratedNetworking, &out.AcceleratedNetworking
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

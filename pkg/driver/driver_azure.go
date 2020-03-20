@@ -77,7 +77,8 @@ func (d *AzureDriver) getNICParameters(vmName string, subnet *network.Subnet) ne
 					},
 				},
 			},
-			EnableIPForwarding: &enableIPForwarding,
+			EnableIPForwarding:          &enableIPForwarding,
+			EnableAcceleratedNetworking: d.AzureMachineClass.Spec.Properties.NetworkProfile.AcceleratedNetworking,
 		},
 		Tags: tagList,
 	}
