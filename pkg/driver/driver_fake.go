@@ -25,15 +25,17 @@ type FakeDriver struct {
 	delete func(string) error
 	//existing func() (string, v1alpha1.MachinePhase, error)
 	existing    func() (string, error)
+	getVMs      func() (VMs, error)
 	getVolNames func([]corev1.PersistentVolumeSpec) ([]string, error)
 }
 
 // NewFakeDriver returns a new fakedriver object
-func NewFakeDriver(create func() (string, string, error), delete func(string) error, existing func() (string, error)) Driver {
+func NewFakeDriver(create func() (string, string, error), delete func(string) error, existing func() (string, error), getVMs func() (VMs, error)) Driver {
 	return &FakeDriver{
 		create:   create,
 		delete:   delete,
 		existing: existing,
+		getVMs:   getVMs,
 	}
 }
 
@@ -54,8 +56,7 @@ func (d *FakeDriver) GetExisting() (string, error) {
 
 // GetVMs returns a list of VMs
 func (d *FakeDriver) GetVMs(name string) (VMs, error) {
-	listOfVMs := make(map[string]string)
-	return listOfVMs, nil
+	return d.getVMs()
 }
 
 // GetVolNames parses volume names from pv specs
