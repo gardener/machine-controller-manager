@@ -737,7 +737,6 @@ func (s ActiveMachines) Len() int      { return len(s) }
 func (s ActiveMachines) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func (s ActiveMachines) Less(i, j int) bool {
-
 	// Default priority for machine objects
 	machineIPriority := 3
 	machineJPriority := 3
@@ -772,14 +771,17 @@ func (s ActiveMachines) Less(i, j int) bool {
 		v1alpha1.MachineRunning:     5,
 	}
 
-	// Initially we try to prioritize machine deletion based on
-	// machinePriority annotation. If both priorities are equal,
-	// then we look at their machinePhase and prioritize as
-	// mentioned in the above map
+	// Case-1: Initially we try to prioritize machine deletion based on
+	// machinePriority annotation.
+	// Case-2: If both priorities are equal, then we look at their machinePhase
+	// and prioritize as mentioned in the above map
+	// Case-3: If both Case-1 & Case-2 is false, we prioritize based on creation time
 	if machineIPriority != machineJPriority {
 		return machineIPriority < machineJPriority
 	} else if m[s[i].Status.CurrentStatus.Phase] != m[s[j].Status.CurrentStatus.Phase] {
 		return m[s[i].Status.CurrentStatus.Phase] < m[s[j].Status.CurrentStatus.Phase]
+	} else if s[i].CreationTimestamp != s[j].CreationTimestamp {
+		return s[i].CreationTimestamp.Before(&s[j].CreationTimestamp)
 	}
 
 	return false
