@@ -949,7 +949,8 @@ type AzureSSHPublicKey struct {
 
 // AzureNetworkProfile is specifies the network interfaces of the virtual machine.
 type AzureNetworkProfile struct {
-	NetworkInterfaces AzureNetworkInterfaceReference
+	NetworkInterfaces     AzureNetworkInterfaceReference
+	AcceleratedNetworking *bool
 }
 
 // AzureNetworkInterfaceReference is describes a network interface reference.

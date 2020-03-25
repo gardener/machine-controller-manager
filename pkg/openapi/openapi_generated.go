@@ -1249,6 +1249,12 @@ func schema_pkg_apis_machine_v1alpha1_AzureNetworkProfile(ref common.ReferenceCa
 							Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkInterfaceReference"),
 						},
 					},
+					"acceleratedNetworking": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 				},
 			},
 		},
