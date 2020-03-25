@@ -28,7 +28,6 @@ import (
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
 	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	"github.com/gardener/machine-controller-manager/pkg/options"
-	"k8s.io/klog"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +40,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog"
 )
 
 func TestMachineControllerManagerSuite(t *testing.T) {
@@ -50,6 +50,8 @@ func TestMachineControllerManagerSuite(t *testing.T) {
 
 var (
 	controllerKindMachine = v1alpha1.SchemeGroupVersion.WithKind("Machine")
+	AWSMachineClass       = "AWSMachineClass"
+	TestMachineClass      = "machineClass-0"
 )
 
 func newMachineDeployment(
@@ -317,10 +319,11 @@ func newMachines(
 				Kind:       "Machine",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        fmt.Sprintf("machine-%d", i),
-				Namespace:   testNamespace,
-				Labels:      labels,
-				Annotations: annotations,
+				Name:              fmt.Sprintf("machine-%d", i),
+				Namespace:         testNamespace,
+				Labels:            labels,
+				Annotations:       annotations,
+				CreationTimestamp: metav1.Now(),
 			},
 			Spec: *newMachineSpec(&specTemplate.Spec, i),
 		}
