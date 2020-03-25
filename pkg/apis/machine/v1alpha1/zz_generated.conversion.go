@@ -1335,6 +1335,7 @@ func autoConvert_v1alpha1_AzureNetworkProfile_To_machine_AzureNetworkProfile(in 
 	if err := Convert_v1alpha1_AzureNetworkInterfaceReference_To_machine_AzureNetworkInterfaceReference(&in.NetworkInterfaces, &out.NetworkInterfaces, s); err != nil {
 		return err
 	}
+	out.AcceleratedNetworking = (*bool)(unsafe.Pointer(in.AcceleratedNetworking))
 	return nil
 }
 
@@ -1347,6 +1348,7 @@ func autoConvert_machine_AzureNetworkProfile_To_v1alpha1_AzureNetworkProfile(in 
 	if err := Convert_machine_AzureNetworkInterfaceReference_To_v1alpha1_AzureNetworkInterfaceReference(&in.NetworkInterfaces, &out.NetworkInterfaces, s); err != nil {
 		return err
 	}
+	out.AcceleratedNetworking = (*bool)(unsafe.Pointer(in.AcceleratedNetworking))
 	return nil
 }
 

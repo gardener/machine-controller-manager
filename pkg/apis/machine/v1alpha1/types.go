@@ -1031,7 +1031,8 @@ type AzureSSHPublicKey struct {
 
 // AzureNetworkProfile is specifies the network interfaces of the virtual machine.
 type AzureNetworkProfile struct {
-	NetworkInterfaces AzureNetworkInterfaceReference `json:"networkInterfaces,omitempty"`
+	NetworkInterfaces     AzureNetworkInterfaceReference `json:"networkInterfaces,omitempty"`
+	AcceleratedNetworking *bool                          `json:"acceleratedNetworking,omitempty"`
 }
 
 // AzureNetworkInterfaceReference is describes a network interface reference.
