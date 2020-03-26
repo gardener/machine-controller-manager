@@ -29,52 +29,63 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const reflectorSubsystem = "reflector"
+const (
+	reflectorSubsystem = "reflector"
+	namespace          = "mcm"
+)
 
 var (
 	listsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
 		Subsystem: reflectorSubsystem,
 		Name:      "lists_total",
 		Help:      "Total number of API lists done by the reflectors",
 	}, []string{"name"})
 
 	listsDuration = prometheus.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: namespace,
 		Subsystem: reflectorSubsystem,
 		Name:      "list_duration_seconds",
 		Help:      "How long an API list takes to return and decode for the reflectors",
 	}, []string{"name"})
 
 	itemsPerList = prometheus.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: namespace,
 		Subsystem: reflectorSubsystem,
 		Name:      "items_per_list",
 		Help:      "How many items an API list returns to the reflectors",
 	}, []string{"name"})
 
 	watchesTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
 		Subsystem: reflectorSubsystem,
 		Name:      "watches_total",
 		Help:      "Total number of API watches done by the reflectors",
 	}, []string{"name"})
 
 	shortWatchesTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
 		Subsystem: reflectorSubsystem,
 		Name:      "short_watches_total",
 		Help:      "Total number of short API watches done by the reflectors",
 	}, []string{"name"})
 
 	watchDuration = prometheus.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: namespace,
 		Subsystem: reflectorSubsystem,
 		Name:      "watch_duration_seconds",
 		Help:      "How long an API watch takes to return and decode for the reflectors",
 	}, []string{"name"})
 
 	itemsPerWatch = prometheus.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: namespace,
 		Subsystem: reflectorSubsystem,
 		Name:      "items_per_watch",
 		Help:      "How many items an API watch returns to the reflectors",
 	}, []string{"name"})
 
 	lastResourceVersion = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
 		Subsystem: reflectorSubsystem,
 		Name:      "last_resource_version",
 		Help:      "Last resource version seen for the reflectors",

@@ -24,15 +24,16 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-10-01/compute"
-	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2018-11-01/network"
-	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2019-11-01/network"
+	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2019-05-01/resources"
 
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
@@ -77,7 +78,8 @@ func (d *AzureDriver) getNICParameters(vmName string, subnet *network.Subnet) ne
 					},
 				},
 			},
-			EnableIPForwarding: &enableIPForwarding,
+			EnableIPForwarding:          &enableIPForwarding,
+			EnableAcceleratedNetworking: d.AzureMachineClass.Spec.Properties.NetworkProfile.AcceleratedNetworking,
 		},
 		Tags: tagList,
 	}
@@ -171,7 +173,7 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 		VMParameters.Identity = &compute.VirtualMachineIdentity{
 			Type: compute.ResourceIdentityTypeUserAssigned,
 			UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
-				*d.AzureMachineClass.Spec.Properties.IdentityID: &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{},
+				*d.AzureMachineClass.Spec.Properties.IdentityID: {},
 			},
 		}
 	}
@@ -245,7 +247,21 @@ func (d *AzureDriver) Delete(machineID string) error {
 		dataDiskNames = dependencyNamesFromVMName(azDataDiskNames, vmName, dataDiskSuffix)
 	}
 
-	return clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+	if err := clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames) ; err != nil {
+		return err
+	}
+
+	orphanNicChecker := func() error {
+		return retry(func() error {
+			return clients.checkOrphanNics(ctx, resourceGroupName, vmName)
+		}, 3, time.Second*30)
+	}
+	orphanDiskChecker := func() error {
+		return retry(func() error {
+			return clients.checkOrphanDisks(ctx, resourceGroupName, vmName)
+		}, 3, time.Second*30)
+	}
+	return runInParallel(orphanNicChecker, orphanDiskChecker)
 }
 
 // GetExisting method is used to fetch the machineID for an azure machine
@@ -820,7 +836,8 @@ func (clients *azureDriverClients) powerOffVM(ctx context.Context, resourceGroup
 	klog.V(2).Infof("VM power-off began for %q", vmName)
 	defer klog.V(2).Infof("VM power-off done for %q", vmName)
 
-	future, err := clients.vm.PowerOff(ctx, resourceGroupName, vmName)
+	skipPowerOffVM := false
+	future, err := clients.vm.PowerOff(ctx, resourceGroupName, vmName, &skipPowerOffVM)
 	if err != nil {
 		return onARMAPIErrorFail(prometheusServiceVM, err, "vm.PowerOff")
 	}
@@ -848,6 +865,42 @@ func (clients *azureDriverClients) deleteVM(ctx context.Context, resourceGroupNa
 	return nil
 }
 
+func (clients *azureDriverClients) checkOrphanNics(ctx context.Context, resourceGroupName, vmName string) error {
+	klog.V(2).Infof("Check for NIC leftovers belonging to deleted machine %q", vmName)
+	nicResults, err := clients.nic.List(ctx, resourceGroupName)
+	if err != nil {
+		return err
+	}
+	for _, nic := range nicResults.Values() {
+		if nic.Name == nil || !strings.Contains(*nic.Name, vmName) {
+			continue
+		}
+		klog.V(2).Infof("Found orphan NIC %q belonging to deleted machine %q", *nic.Name, vmName)
+		if err := clients.deleteNIC(ctx, resourceGroupName, *nic.Name); err != nil && !notFound(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+func (clients *azureDriverClients) checkOrphanDisks(ctx context.Context, resourceGroupName, vmName string) error {
+	klog.V(2).Infof("Check for disk leftovers belonging to deleted machine %q", vmName)
+	diskResults, err := clients.disk.ListByResourceGroup(ctx, resourceGroupName)
+	if err != nil {
+		return err
+	}
+	for _, disk := range diskResults.Values() {
+		if disk.Name == nil || !strings.Contains(*disk.Name, vmName) {
+			continue
+		}
+		klog.V(2).Infof("Found orphan disk %q belonging to deleted machine %q", *disk.Name, vmName)
+		if err := clients.deleteDisk(ctx, resourceGroupName, *disk.Name); err != nil && !notFound(err) {
+			return err
+		}
+	}
+	return nil
+}
+
 func (clients *azureDriverClients) deleteNIC(ctx context.Context, resourceGroupName string, nicName string) error {
 	klog.V(2).Infof("NIC delete started for %q", nicName)
 	defer klog.V(2).Infof("NIC deleted for %q", nicName)
@@ -856,8 +909,7 @@ func (clients *azureDriverClients) deleteNIC(ctx context.Context, resourceGroupN
 	if err != nil {
 		return onARMAPIErrorFail(prometheusServiceNIC, err, "nic.Delete")
 	}
-	err = future.WaitForCompletionRef(ctx, clients.nic.Client)
-	if err != nil {
+	if err := future.WaitForCompletionRef(ctx, clients.nic.Client); err != nil {
 		return onARMAPIErrorFail(prometheusServiceNIC, err, "nic.Delete")
 	}
 	onARMAPISuccess(prometheusServiceNIC, "NIC deletion was successful for %s", nicName)
@@ -872,8 +924,7 @@ func (clients *azureDriverClients) deleteDisk(ctx context.Context, resourceGroup
 	if err != nil {
 		return onARMAPIErrorFail(prometheusServiceDisk, err, "disk.Delete")
 	}
-	err = future.WaitForCompletionRef(ctx, clients.disk.Client)
-	if err != nil {
+	if err = future.WaitForCompletionRef(ctx, clients.disk.Client); err != nil {
 		return onARMAPIErrorFail(prometheusServiceDisk, err, "disk.Delete")
 	}
 	onARMAPISuccess(prometheusServiceDisk, "Disk deletion was successful for %s", diskName)
@@ -1037,4 +1088,19 @@ func (d *AzureDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string
 		names = append(names, name)
 	}
 	return names, nil
+}
+
+func retry(fn func() error, retries int, delay time.Duration) error {
+	var retryCount = 0
+	for {
+		err := fn()
+		if err == nil {
+			return nil
+		}
+		retryCount++
+		if retryCount == retries {
+			return fmt.Errorf("max amount of retries reached (%s)", err.Error())
+		}
+		time.Sleep(delay)
+	}
 }

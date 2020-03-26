@@ -831,7 +831,7 @@ type AWSBlockDeviceMappingSpec struct {
 type AWSEbsBlockDeviceSpec struct {
 
 	// Indicates whether the EBS volume is deleted on machine termination.
-	DeleteOnTermination bool `json:"deleteOnTermination,omitempty"`
+	DeleteOnTermination *bool `json:"deleteOnTermination,omitempty"`
 
 	// Indicates whether the EBS volume is encrypted. Encrypted Amazon EBS volumes
 	// may only be attached to machines that support Amazon EBS encryption.
@@ -1040,7 +1040,8 @@ type AzureSSHPublicKey struct {
 
 // AzureNetworkProfile is specifies the network interfaces of the virtual machine.
 type AzureNetworkProfile struct {
-	NetworkInterfaces AzureNetworkInterfaceReference `json:"networkInterfaces,omitempty"`
+	NetworkInterfaces     AzureNetworkInterfaceReference `json:"networkInterfaces,omitempty"`
+	AcceleratedNetworking *bool                          `json:"acceleratedNetworking,omitempty"`
 }
 
 // AzureNetworkInterfaceReference is describes a network interface reference.

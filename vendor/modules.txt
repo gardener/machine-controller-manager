@@ -1,9 +1,9 @@
 # cloud.google.com/go v0.38.0
 cloud.google.com/go/compute/metadata
-# github.com/Azure/azure-sdk-for-go v32.6.0+incompatible
-github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-10-01/compute
-github.com/Azure/azure-sdk-for-go/services/network/mgmt/2018-11-01/network
-github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources
+# github.com/Azure/azure-sdk-for-go v39.0.0+incompatible
+github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute
+github.com/Azure/azure-sdk-for-go/services/network/mgmt/2019-11-01/network
+github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2019-05-01/resources
 github.com/Azure/azure-sdk-for-go/version
 # github.com/Azure/go-autorest/autorest v0.9.3
 github.com/Azure/go-autorest/autorest
@@ -122,7 +122,9 @@ github.com/gophercloud/gophercloud/openstack/networking/v2/networks
 github.com/gophercloud/gophercloud/openstack/networking/v2/ports
 github.com/gophercloud/gophercloud/openstack/utils
 github.com/gophercloud/gophercloud/pagination
-# github.com/gophercloud/utils v0.0.0-20190527093828-25f1b77b8c03
+# github.com/gophercloud/utils v0.0.0-20200204043447-9864b6f1f12f
+github.com/gophercloud/utils/client
+github.com/gophercloud/utils/env
 github.com/gophercloud/utils/openstack/clientconfig
 # github.com/hashicorp/golang-lru v0.5.1
 github.com/hashicorp/golang-lru

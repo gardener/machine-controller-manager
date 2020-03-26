@@ -3,7 +3,7 @@ module github.com/gardener/machine-controller-manager
 go 1.13
 
 require (
-	github.com/Azure/azure-sdk-for-go v32.6.0+incompatible
+	github.com/Azure/azure-sdk-for-go v39.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.9.3
 	github.com/Azure/go-autorest/autorest/adal v0.8.0
 	github.com/Azure/go-autorest/autorest/to v0.3.0
@@ -14,11 +14,10 @@ require (
 	github.com/emicklei/go-restful v2.9.6+incompatible // indirect
 	github.com/go-ini/ini v1.36.0 // indirect
 	github.com/go-openapi/spec v0.19.2
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/groupcache v0.0.0-20180513044358-24b0969c4cb7 // indirect
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/gophercloud/gophercloud v0.7.0
-	github.com/gophercloud/utils v0.0.0-20190527093828-25f1b77b8c03
+	github.com/gophercloud/utils v0.0.0-20200204043447-9864b6f1f12f
 	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8 // indirect
 	github.com/json-iterator/go v1.1.9 // indirect
 	github.com/onsi/ginkgo v1.10.1

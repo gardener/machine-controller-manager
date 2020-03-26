@@ -69,7 +69,7 @@ var _ = Describe("Driver AWS", func() {
 				"tag-3": "value-tag-3",
 			}
 
-			tagsGenerated, err := awsDriver.generateTags(tags)
+			tagsGenerated, err := awsDriver.generateTags(tags, resourceTypeInstance)
 			expectedTags := &ec2.TagSpecification{
 				ResourceType: aws.String("instance"),
 				Tags: []*ec2.Tag{
@@ -101,7 +101,7 @@ var _ = Describe("Driver AWS", func() {
 			awsDriver := &AWSDriver{}
 			tags := map[string]string{}
 
-			tagsGenerated, err := awsDriver.generateTags(tags)
+			tagsGenerated, err := awsDriver.generateTags(tags, resourceTypeInstance)
 			expectedTags := &ec2.TagSpecification{
 				ResourceType: aws.String("instance"),
 				Tags: []*ec2.Tag{
@@ -125,7 +125,7 @@ var _ = Describe("Driver AWS", func() {
 				{
 					DeviceName: "/root",
 					Ebs: v1alpha1.AWSEbsBlockDeviceSpec{
-						DeleteOnTermination: true,
+						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           false,
 						VolumeSize:          32,
 						VolumeType:          "gp2",
@@ -134,7 +134,7 @@ var _ = Describe("Driver AWS", func() {
 				{
 					DeviceName: "/dev/xvdg",
 					Ebs: v1alpha1.AWSEbsBlockDeviceSpec{
-						DeleteOnTermination: false,
+						DeleteOnTermination: aws.Bool(false),
 						Encrypted:           true,
 						Iops:                100,
 						VolumeSize:          64,
@@ -177,7 +177,7 @@ var _ = Describe("Driver AWS", func() {
 			disks := []v1alpha1.AWSBlockDeviceMappingSpec{
 				{
 					Ebs: v1alpha1.AWSEbsBlockDeviceSpec{
-						DeleteOnTermination: true,
+						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           false,
 						VolumeSize:          32,
 						VolumeType:          "gp2",

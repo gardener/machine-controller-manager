@@ -22,6 +22,8 @@ spec:
   properties:
     hardwareProfile:
       vmSize: "sample-azure-vm-size" # VMsize based on azure machine kinds (Eg- Standard_DS1_V2)
+    networkProfile:
+      acceleratedNetworking: false # Enable Azure accelerated networking for the network interface of the machines. Be aware, if the machine type and/or operating system does not support the feature the machines will not have network connectivity.
     storageProfile:
       imageReference:
         urn: "image-reference-urn" # Image reference urn, it has the format 'publisher:offer:sku:version' (Eg- "CoreOS:CoreOS:Beta:1000.0.0")
