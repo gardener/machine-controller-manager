@@ -656,7 +656,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 
 			err = driver.Delete(machineID)
 		} else {
-			klog.V(2).Infof("Missing ProviderID when deleting the machine object. %s might have been deleted too soon.", machine.Name)
+			klog.V(2).Infof("Machine %q on deletion doesn't have a providerID attached to it. Checking for any VM linked to this machine object.", machine.Name)
 			// As MachineID is missing, we should check once if actual VM was created but MachineID was not updated on machine-object.
 			// We list VMs and check if any one them map with the given machine-object.
 			VMList, err := driver.GetVMs("")
