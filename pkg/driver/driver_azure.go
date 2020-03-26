@@ -101,7 +101,7 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 		tagList[idx] = to.StringPtr(element)
 	}
 
-	publisher, offer, sku, version := getAzureImageDetails(d)
+	imageReference := getImageReference(d)
 
 	VMParameters := compute.VirtualMachine{
 		Name:     &vmName,
@@ -111,12 +111,7 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 				VMSize: compute.VirtualMachineSizeTypes(d.AzureMachineClass.Spec.Properties.HardwareProfile.VMSize),
 			},
 			StorageProfile: &compute.StorageProfile{
-				ImageReference: &compute.ImageReference{
-					Publisher: &publisher,
-					Offer:     &offer,
-					Sku:       &sku,
-					Version:   &version,
-				},
+				ImageReference: &imageReference,
 				OsDisk: &compute.OSDisk{
 					Name:    &diskName,
 					Caching: compute.CachingTypes(d.AzureMachineClass.Spec.Properties.StorageProfile.OsDisk.Caching),
@@ -177,13 +172,25 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 	return VMParameters
 }
 
-func getAzureImageDetails(d *AzureDriver) (publisher, offer, sku, version string) {
-	splits := strings.Split(*d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.URN, ":")
-	publisher = splits[0]
-	offer = splits[1]
-	sku = splits[2]
-	version = splits[3]
-	return
+func getImageReference(d *AzureDriver) compute.ImageReference {
+	imageRefClass := d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference
+	if imageRefClass.ID != "" {
+		return compute.ImageReference{
+			ID: &imageRefClass.ID,
+		}
+	}
+
+	splits := strings.Split(*imageRefClass.URN, ":")
+	publisher := splits[0]
+	offer := splits[1]
+	sku := splits[2]
+	version := splits[3]
+	return compute.ImageReference{
+		Publisher: &publisher,
+		Offer:     &offer,
+		Sku:       &sku,
+		Version:   &version,
+	}
 }
 
 // Create method is used to create an azure machine
