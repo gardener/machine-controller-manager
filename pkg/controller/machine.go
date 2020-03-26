@@ -390,6 +390,10 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 	}
 	// Before actually creating the machine, we should once check and adopt if the virtual machine already exists.
 	VMList, err := driver.GetVMs("")
+	if err != nil {
+		klog.Errorf("Failed to list VMs before creating machine %q %+v", machine.Name, err)
+		return err
+	}
 	for providerID, machineName := range VMList {
 		if machineName == machine.Name {
 			klog.V(2).Infof("Adopted an existing VM %s for machine object %s.", providerID, machineName)
@@ -655,7 +659,11 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			klog.V(2).Infof("Missing ProviderID when deleting the machine object. %s might have been deleted too soon.", machine.Name)
 			// As MachineID is missing, we should check once if actual VM was created but MachineID was not updated on machine-object.
 			// We list VMs and check if any one them map with the given machine-object.
-			VMList, _ := driver.GetVMs("")
+			VMList, err := driver.GetVMs("")
+			if err != nil {
+				klog.Errorf("Failed to list VMs while deleting the machine %q %v", machine.Name, err)
+				return err
+			}
 			for providerID, machineName := range VMList {
 				if machineName == machine.Name {
 					klog.V(2).Infof("Deleting the VM %s backing the machine-object %s.", providerID, machine.Name)
