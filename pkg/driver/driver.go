@@ -106,5 +106,8 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 		func() (string, error) {
 			return "fake", nil
 		},
+		func() (VMs, error) {
+			return nil, nil
+		},
 	)
 }

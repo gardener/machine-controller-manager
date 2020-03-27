@@ -511,7 +511,11 @@ var _ = Describe("machine", func() {
 					},
 					func(string) error {
 						return action.fakeError
-					}, nil))
+					}, nil,
+					func() (driver.VMs, error) {
+						return map[string]string{}, nil
+					},
+				))
 
 				if data.expect.err {
 					Expect(err).To(HaveOccurred())
@@ -733,6 +737,67 @@ var _ = Describe("machine", func() {
 					err: true,
 				},
 			}),
+			Entry("If ProviderID is available and node-name missing, ProviderID should be set back on machine object", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil),
+					fakeResourceActions: &customfake.ResourceActions{
+						Machine: customfake.Actions{
+							Get: apierrors.NewGenericServerResponse(
+								http.StatusBadRequest,
+								"dummy method",
+								schema.GroupResource{},
+								"dummy name",
+								"Failed to GET machine",
+								30,
+								true,
+							),
+						},
+					},
+				},
+				action: action{
+					machine:        "machine-0",
+					fakeProviderID: "providerid-0",
+					fakeNodeName:   "",
+					fakeError:      nil,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+							ProviderID: "providerid",
+						},
+					}, &machinev1.MachineStatus{
+						Node: "",
+						//TODO conditions
+					}, nil, nil, nil),
+					err: false,
+				},
+			}),
 		)
 	})
 
@@ -747,6 +812,7 @@ var _ = Describe("machine", func() {
 			machine                 string
 			fakeProviderID          string
 			fakeNodeName            string
+			fakeDriverGetVMs        func() (driver.VMs, error)
 			fakeError               error
 			forceDeleteLabelPresent bool
 			fakeMachineStatus       *machinev1.MachineStatus
@@ -791,6 +857,12 @@ var _ = Describe("machine", func() {
 				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
+				fakeDriverGetVMsTemp := func() (driver.VMs, error) { return nil, nil }
+
+				if action.fakeDriverGetVMs != nil {
+					fakeDriverGetVMsTemp = action.fakeDriverGetVMs
+				}
+
 				fakeDriver := driver.NewFakeDriver(
 					func() (string, string, error) {
 						_, err := controller.targetCoreClient.CoreV1().Nodes().Create(&v1.Node{
@@ -809,6 +881,7 @@ var _ = Describe("machine", func() {
 					func() (string, error) {
 						return action.fakeProviderID, action.fakeError
 					},
+					fakeDriverGetVMsTemp,
 				)
 
 				// Create a machine that is to be deleted later
@@ -893,6 +966,45 @@ var _ = Describe("machine", func() {
 					fakeProviderID: "fakeID-0",
 					fakeNodeName:   "fakeNode-0",
 					fakeError:      nil,
+				},
+				expect: expect{
+					errOccurred:    false,
+					machineDeleted: true,
+				},
+			}),
+			Entry("Allow proper deletion of the machine object when providerID is missing but actual VM still exists in cloud", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil),
+				},
+				action: action{
+					machine: "machine-0",
+					//fakeProviderID: "fakeID-0",
+					fakeNodeName: "fakeNode-0",
+					fakeError:    nil,
+					fakeDriverGetVMs: func() (driver.VMs, error) {
+						return map[string]string{"fakeID-0": "machine-0"}, nil
+					},
 				},
 				expect: expect{
 					errOccurred:    false,
@@ -1422,7 +1534,7 @@ var _ = Describe("machine", func() {
 
 		machineName := "machine-0"
 
-		DescribeTable("##Different machine state update scenrios",
+		DescribeTable("##Different machine state update scenarios",
 			func(data *data) {
 				stop := make(chan struct{})
 				defer close(stop)
@@ -1647,6 +1759,42 @@ var _ = Describe("machine", func() {
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "node-0",
+							},
+						},
+					},
+				},
+				action: action{
+					machine: machineName,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "machine-0",
+						},
+					}, &machinev1.MachineStatus{
+						Node: "node",
+					}, nil, nil,
+						map[string]string{
+							"node": "node-0",
+						},
+					),
+				},
+			}),
+			Entry("Machine object does not have status.node set and node exists then it should adopt node using providerID", &data{
+				setup: setup{
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							ProviderID: "aws//fakeID",
+						},
+					}, &machinev1.MachineStatus{}, nil, nil, nil),
+					nodes: []*corev1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-0",
+							},
+							Spec: corev1.NodeSpec{
+								ProviderID: "aws//fakeID-0",
 							},
 						},
 					},
