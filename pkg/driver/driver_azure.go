@@ -74,7 +74,7 @@ func (d *AzureDriver) getNICParameters(vmName string, subnet *network.Subnet) ne
 					Name: &nicName,
 					InterfaceIPConfigurationPropertiesFormat: &network.InterfaceIPConfigurationPropertiesFormat{
 						PrivateIPAllocationMethod: network.Dynamic,
-						Subnet:                    subnet,
+						Subnet: subnet,
 					},
 				},
 			},
@@ -292,7 +292,7 @@ func (d *AzureDriver) GetVMs(machineID string) (result VMs, err error) {
 	return
 }
 
-//GetUserData return the used data whit which the VM will be booted
+//GetUserData return the user data with which the VM will be booted
 func (d *AzureDriver) GetUserData() string {
 	return d.UserData
 }
