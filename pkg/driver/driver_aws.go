@@ -102,9 +102,8 @@ func (d *AWSDriver) Create() (string, string, error) {
 		return "Error", "Error", err
 	}
 
-	// Specify the details of the machine that you want to create.
+	// Specify the details of the machine
 	inputConfig := ec2.RunInstancesInput{
-		// An Amazon Linux AMI ID for t2.micro machines in the us-west-2 region
 		ImageId:      aws.String(d.AWSMachineClass.Spec.AMI),
 		InstanceType: aws.String(d.AWSMachineClass.Spec.MachineType),
 		MinCount:     aws.Int64(1),

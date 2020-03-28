@@ -439,8 +439,8 @@ func SyncMachineTaints(
 ) bool {
 	toBeUpdated := false
 	mTaints, nTaints := machine.Spec.NodeTemplateSpec.Spec.Taints, node.Spec.Taints
-	mTaintsMap := make(map[taintKeyEffect]*v1.Taint, 0)
-	nTaintsMap := make(map[taintKeyEffect]*v1.Taint, 0)
+	mTaintsMap := make(map[taintKeyEffect]*v1.Taint)
+	nTaintsMap := make(map[taintKeyEffect]*v1.Taint)
 
 	// Convert the slice of taints to map of taint [key, effect] = Taint
 	// Helps with indexed searching
