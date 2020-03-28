@@ -22,35 +22,32 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
-
-	machine_internal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	machine_v1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	machineinternal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	machinev1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions/machine/v1alpha1"
 	machinelisters "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
-	"k8s.io/klog"
-	"github.com/prometheus/client_golang/prometheus"
-	v1 "k8s.io/api/core/v1"
-	coreinformers "k8s.io/client-go/informers/core/v1"
-	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
-	corelisters "k8s.io/client-go/listers/core/v1"
-
-	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	"github.com/gardener/machine-controller-manager/pkg/handlers"
 	"github.com/gardener/machine-controller-manager/pkg/options"
+
+	"github.com/prometheus/client_golang/prometheus"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	runtimeutil "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog"
 )
 
 const (
-	maxRetries                = 15
-	pollingStartInterval      = 1 * time.Second
-	pollingMaxBackoffDuration = 1 * time.Hour
+	maxRetries = 15
 
 	// ClassAnnotation is the annotation used to identify a machine class
 	ClassAnnotation = "machine.sapcloud.io/class"
@@ -110,26 +107,26 @@ func NewController(
 
 	controller.internalExternalScheme = runtime.NewScheme()
 
-	if err := machine_internal.AddToScheme(controller.internalExternalScheme); err != nil {
+	if err := machineinternal.AddToScheme(controller.internalExternalScheme); err != nil {
 		return nil, err
 	}
 
-	if err := machine_v1.AddToScheme(controller.internalExternalScheme); err != nil {
+	if err := machinev1alpha1.AddToScheme(controller.internalExternalScheme); err != nil {
 		return nil, err
 	}
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(klog.Infof)
-	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(controlCoreClient.CoreV1().RESTClient()).Events(namespace)})
+	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: typedcorev1.New(controlCoreClient.CoreV1().RESTClient()).Events(namespace)})
 
 	controller.machineControl = RealMachineControl{
 		controlMachineClient: controlMachineClient,
-		Recorder:             eventBroadcaster.NewRecorder(machinescheme.Scheme, v1.EventSource{Component: "machineset-controller"}),
+		Recorder:             eventBroadcaster.NewRecorder(machinescheme.Scheme, corev1.EventSource{Component: "machineset-controller"}),
 	}
 
 	controller.machineSetControl = RealMachineSetControl{
 		controlMachineClient: controlMachineClient,
-		Recorder:             eventBroadcaster.NewRecorder(machinescheme.Scheme, v1.EventSource{Component: "machinedeployment-controller"}),
+		Recorder:             eventBroadcaster.NewRecorder(machinescheme.Scheme, corev1.EventSource{Component: "machinedeployment-controller"}),
 	}
 
 	// Controller listers

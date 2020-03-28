@@ -570,7 +570,7 @@ func schema_pkg_apis_machine_v1alpha1_AWSMachineClassSpec(ref common.ReferenceCa
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "AWSMachineClassSpec is the specification of a cluster.",
+				Description: "AWSMachineClassSpec is the specification of a AWSMachineClass.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"ami": {
@@ -809,7 +809,7 @@ func schema_pkg_apis_machine_v1alpha1_AlicloudMachineClassSpec(ref common.Refere
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "AlicloudMachineClassSpec is the specification of a cluster.",
+				Description: "AlicloudMachineClassSpec is the specification of a AlicloudMachineClass.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"imageID": {
@@ -1115,7 +1115,7 @@ func schema_pkg_apis_machine_v1alpha1_AzureMachineClassSpec(ref common.Reference
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "AzureMachineClassSpec is the specification of a cluster.",
+				Description: "AzureMachineClassSpec is the specification of a AzureMachineClass.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"location": {
@@ -1561,21 +1561,19 @@ func schema_pkg_apis_machine_v1alpha1_CurrentStatus(ref common.ReferenceCallback
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "type CurrentStatus",
+				Description: "CurrentStatus contains information about the current status of Machine.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"phase": {
 						SchemaProps: spec.SchemaProps{
-							Description: "API group to which it belongs",
-							Type:        []string{"string"},
-							Format:      "",
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 					"timeoutActive": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name of machine class",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Type:   []string{"boolean"},
+							Format: "",
 						},
 					},
 					"lastUpdateTime": {
@@ -1739,7 +1737,7 @@ func schema_pkg_apis_machine_v1alpha1_GCPMachineClassSpec(ref common.ReferenceCa
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "GCPMachineClassSpec is the specification of a cluster.",
+				Description: "GCPMachineClassSpec is the specification of a GCPMachineClass.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"canIpForward": {
@@ -2749,7 +2747,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineSetSpec(ref common.ReferenceCallbac
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "MachineSetSpec is the specification of a cluster.",
+				Description: "MachineSetSpec is the specification of a MachineSet.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"selector": {
@@ -2779,7 +2777,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineSetStatus(ref common.ReferenceCallb
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "MachineSetStatus represents the status of a machineSet object",
+				Description: "MachineSetStatus holds the most recently observed status of MachineSet.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"lastOperation": {
@@ -2800,7 +2798,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineSpec(ref common.ReferenceCallback) 
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "MachineSpec is the specification of a machine.",
+				Description: "MachineSpec is the specification of a Machine.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"class": {
@@ -2834,7 +2832,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineStatus(ref common.ReferenceCallback
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "MachineStatus TODO",
+				Description: "MachineStatus holds the most recently observed status of Machine.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"node": {
@@ -3151,7 +3149,7 @@ func schema_pkg_apis_machine_v1alpha1_OpenStackMachineClassSpec(ref common.Refer
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "OpenStackMachineClassSpec is the specification of a cluster.",
+				Description: "OpenStackMachineClassSpec is the specification of a OpenStackMachineClass.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"imageID": {
@@ -3381,7 +3379,7 @@ func schema_pkg_apis_machine_v1alpha1_PacketMachineClassSpec(ref common.Referenc
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PacketMachineClassSpec is the specification of a cluster.",
+				Description: "PacketMachineClassSpec is the specification of a PacketMachineClass.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"facility": {
