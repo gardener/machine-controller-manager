@@ -913,7 +913,7 @@ type AzureOSDisk struct {
 
 type AzureDataDisk struct {
 	Name               string
-	Lun                int32
+	Lun                *int32
 	Caching            string
 	StorageAccountType string
 	DiskSizeGB         int32

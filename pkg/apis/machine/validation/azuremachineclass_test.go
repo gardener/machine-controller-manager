@@ -11,6 +11,8 @@ import (
 func getAzureMachineSpec() *machine.AzureMachineClassSpec {
 	urn := "CoreOS:CoreOS:Stable:2303.3.0"
 	zone := 1
+	lun0 := int32(0)
+	lun1 := int32(1)
 	return &machine.AzureMachineClassSpec{
 		Location: "westeurope",
 		Properties: machine.AzureVirtualMachineProperties{
@@ -43,13 +45,13 @@ func getAzureMachineSpec() *machine.AzureMachineClassSpec {
 				},
 				DataDisks: []machine.AzureDataDisk{
 					{
-						Lun:                0,
+						Lun:                &lun0,
 						Caching:            "None",
 						DiskSizeGB:         75,
 						StorageAccountType: "Standard_LRS",
 					},
 					{
-						Lun:                1,
+						Lun:                &lun1,
 						Caching:            "None",
 						DiskSizeGB:         75,
 						StorageAccountType: "Standard_LRS",
@@ -98,12 +100,6 @@ var _ = Describe("AzureMachineClass Validation", func() {
 			errExpected := field.ErrorList{
 				{
 					Type:     field.ErrorTypeRequired,
-					Field:    "spec.properties.storageProfile.dataDisks[0].caching",
-					BadValue: "",
-					Detail:   "DataDisk caching is required",
-				},
-				{
-					Type:     field.ErrorTypeRequired,
 					Field:    "spec.properties.storageProfile.dataDisks[0].diskSizeGB",
 					BadValue: "",
 					Detail:   "DataDisk size must be positive",
@@ -121,15 +117,16 @@ var _ = Describe("AzureMachineClass Validation", func() {
 
 		It("should get an error on duplicated DataDisks lun ", func() {
 			spec := getAzureMachineSpec()
+			lun1 := int32(1)
 			spec.Properties.StorageProfile.DataDisks = []machine.AzureDataDisk{
 				{
-					Lun:                1,
+					Lun:                &lun1,
 					Caching:            "None",
 					DiskSizeGB:         75,
 					StorageAccountType: "Standard_LRS",
 				},
 				{
-					Lun:                1,
+					Lun:                &lun1,
 					Caching:            "None",
 					DiskSizeGB:         75,
 					StorageAccountType: "Standard_LRS",
@@ -148,5 +145,58 @@ var _ = Describe("AzureMachineClass Validation", func() {
 			}
 			Expect(errList).To(ConsistOf(errExpected))
 		})
+
+		It("should get an error on partially unset luns ", func() {
+			spec := getAzureMachineSpec()
+			lun1 := int32(1)
+			spec.Properties.StorageProfile.DataDisks = []machine.AzureDataDisk{
+				{
+					Lun:                &lun1,
+					Caching:            "None",
+					DiskSizeGB:         75,
+					StorageAccountType: "Standard_LRS",
+				},
+				{
+					Lun:                nil,
+					Caching:            "None",
+					DiskSizeGB:         75,
+					StorageAccountType: "Standard_LRS",
+				},
+			}
+
+			errList := validateAzureMachineClassSpec(spec, field.NewPath("spec"))
+
+			errExpected := field.ErrorList{
+				{
+					Type:     field.ErrorTypeRequired,
+					Field:    "spec.properties.storageProfile.dataDisks",
+					BadValue:  "",
+					Detail:   "All Data Disk Luns must be set",
+				},
+			}
+			Expect(errList).To(ConsistOf(errExpected))
+		})
+
+		It("should allow all luns to be nil ", func() {
+			spec := getAzureMachineSpec()
+			spec.Properties.StorageProfile.DataDisks = []machine.AzureDataDisk{
+				{
+					Lun:                nil,
+					Caching:            "None",
+					DiskSizeGB:         75,
+					StorageAccountType: "Standard_LRS",
+				},
+				{
+					Lun:                nil,
+					Caching:            "None",
+					DiskSizeGB:         75,
+					StorageAccountType: "Standard_LRS",
+				},
+			}
+
+			errList := validateAzureMachineClassSpec(spec, field.NewPath("spec"))
+			Expect(errList).To(BeEmpty())
+		})
+
 	})
 })

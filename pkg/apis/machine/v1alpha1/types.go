@@ -995,7 +995,7 @@ type AzureOSDisk struct {
 
 type AzureDataDisk struct {
 	Name               string `json:"name,omitempty"`
-	Lun                int32  `json:"lun,omitempty"`
+	Lun                *int32  `json:"lun,omitempty"`
 	Caching            string `json:"caching,omitempty"`
 	StorageAccountType string `json:"storageAccountType,omitempty"`
 	DiskSizeGB         int32  `json:"diskSizeGB,omitempty"`

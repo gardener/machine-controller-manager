@@ -216,7 +216,7 @@ var _ = Describe("Driver AWS", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		It("should not encrypt or delete on termination blockDevices by default", func() {
+		It("should not encrypt blockDevices by default", func() {
 			awsDriver := &AWSDriver{}
 			disks := []v1alpha1.AWSBlockDeviceMappingSpec{
 				{
@@ -233,11 +233,10 @@ var _ = Describe("Driver AWS", func() {
 				{
 					DeviceName: aws.String("/dev/sda"),
 					Ebs: &ec2.EbsBlockDevice{
-						DeleteOnTermination: aws.Bool(false),
-						Encrypted:           aws.Bool(false),
-						VolumeSize:          aws.Int64(32),
-						Iops:                nil,
-						VolumeType:          aws.String("gp2"),
+						Encrypted:  aws.Bool(false),
+						VolumeSize: aws.Int64(32),
+						Iops:       nil,
+						VolumeType: aws.String("gp2"),
 					},
 				},
 			}

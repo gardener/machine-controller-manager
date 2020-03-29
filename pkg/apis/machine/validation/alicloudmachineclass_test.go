@@ -89,6 +89,12 @@ var _ = Describe("AliCloudMachineClass Validation", func() {
 					Size:               75,
 					Encrypted:          true,
 				},
+				{
+					Name:               "bad$#%name",
+					Category:           "cloud_efficiency",
+					Size:               75,
+					Encrypted:          true,
+				},
 			}
 
 			errList := validateAlicloudMachineClassSpec(spec, field.NewPath("spec"))
@@ -123,6 +129,12 @@ var _ = Describe("AliCloudMachineClass Validation", func() {
 					Field:    "spec.dataDisks",
 					BadValue: "dd1",
 					Detail:   "Data Disk Name 'dd1' duplicated 2 times, Name must be unique",
+				},
+				{
+					Type: field.ErrorTypeInvalid,
+					Field: "spec.dataDisks[3].name",
+					BadValue: "bad$#%name",
+					Detail: "Disk name given: bad$#%name does not match the expected pattern (regex used for validation is '[a-zA-Z0-9\\.\\-_:]+')",
 				},
 			}
 			Expect(errList).To(ConsistOf(errExpected))

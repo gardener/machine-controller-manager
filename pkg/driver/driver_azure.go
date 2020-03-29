@@ -183,14 +183,31 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 
 func (d *AzureDriver) generateDataDisks(vmName string, azureDataDisks []v1alpha1.AzureDataDisk) []compute.DataDisk {
 	var dataDisks []compute.DataDisk
-	for _, azureDataDisk := range azureDataDisks {
-		dataDiskName := dependencyNameFromVMNameAndDependency(getAzureDataDiskName(azureDataDisk), vmName, dataDiskSuffix)
-		dataDiskLun := azureDataDisk.Lun
+	for i, azureDataDisk := range azureDataDisks {
+
+		var dataDiskLun *int32
+		if azureDataDisk.Lun != nil {
+			dataDiskLun = azureDataDisk.Lun
+		} else {
+			lun := int32(i)
+			dataDiskLun = &lun
+		}
+
+		dataDiskName := dependencyNameFromVMNameAndDependency(getAzureDataDiskName(azureDataDisk.Name, dataDiskLun), vmName, dataDiskSuffix)
+
+		var caching compute.CachingTypes
+		if azureDataDisk.Caching != "" {
+			caching = compute.CachingTypes(azureDataDisk.Caching)
+		} else {
+			caching = compute.CachingTypesNone
+		}
+
 		dataDiskSize := azureDataDisk.DiskSizeGB
+
 		dataDisk := compute.DataDisk{
-			Lun:     &dataDiskLun,
+			Lun:     dataDiskLun,
 			Name:    &dataDiskName,
-			Caching: compute.CachingTypes(azureDataDisk.Caching),
+			Caching: caching,
 			ManagedDisk: &compute.ManagedDiskParameters{
 				StorageAccountType: compute.StorageAccountTypes(azureDataDisk.StorageAccountType),
 			},
@@ -247,7 +264,7 @@ func (d *AzureDriver) Delete(machineID string) error {
 		dataDiskNames = dependencyNamesFromVMName(azDataDiskNames, vmName, dataDiskSuffix)
 	}
 
-	if err := clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames) ; err != nil {
+	if err := clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames); err != nil {
 		return err
 	}
 
@@ -261,7 +278,8 @@ func (d *AzureDriver) Delete(machineID string) error {
 			return clients.checkOrphanDisks(ctx, resourceGroupName, vmName)
 		}, 3, time.Second*30)
 	}
-	return runInParallel(orphanNicChecker, orphanDiskChecker)
+	orphanCheckers := []func() error{orphanNicChecker, orphanDiskChecker}
+	return runInParallel(orphanCheckers)
 }
 
 // GetExisting method is used to fetch the machineID for an azure machine
@@ -760,8 +778,6 @@ func (clients *azureDriverClients) deleteVMNicDisks(ctx context.Context, resourc
 		return onARMAPIErrorFail(prometheusServiceVM, vmErr, "vm.Get")
 	}
 
-	var deleters []func() error
-
 	// Fetch the NIC and deleted it
 	nicDeleter := func() error {
 		if vmHoldingNic, err := clients.fetchAttachedVMfromNIC(ctx, resourceGroupName, nicName); err != nil {
@@ -777,11 +793,10 @@ func (clients *azureDriverClients) deleteVMNicDisks(ctx context.Context, resourc
 		return clients.deleteNIC(ctx, resourceGroupName, nicName)
 	}
 
-	deleters = append(deleters, nicDeleter)
-
 	// Fetch the system disk and delete it
 	diskDeleter := clients.getDeleterForDisk(ctx, resourceGroupName, diskName)
-	deleters = append(deleters, diskDeleter)
+
+	deleters := []func() error{nicDeleter, diskDeleter}
 
 	if dataDiskNames != nil {
 		for _, dataDiskName := range dataDiskNames {
@@ -1024,13 +1039,20 @@ const (
 func getAzureDataDiskNames(azureDataDisks []v1alpha1.AzureDataDisk) []string {
 	azureDataDiskNames := make([]string, len(azureDataDisks))
 	for i, disk := range azureDataDisks {
-		azureDataDiskNames[i] = getAzureDataDiskName(disk)
+		var diskLun *int32
+		if disk.Lun != nil {
+			diskLun = disk.Lun
+		} else {
+			lun := int32(i)
+			diskLun = &lun
+		}
+		azureDataDiskNames[i] = getAzureDataDiskName(disk.Name, diskLun)
 	}
 	return azureDataDiskNames
 }
 
-func getAzureDataDiskName(disk v1alpha1.AzureDataDisk) string {
-	return fmt.Sprintf("%s-%d", disk.Name, disk.Lun)
+func getAzureDataDiskName(name string, lun *int32) string {
+	return fmt.Sprintf("%s-%d", name, *lun)
 }
 
 func dependencyNamesFromVMName(dependencies []string, vmname, suffix string) []string {

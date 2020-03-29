@@ -1,6 +1,8 @@
 package driver
 
-import "testing"
+import (
+	"testing"
+)
 import . "github.com/onsi/ginkgo"
 import . "github.com/onsi/gomega"
 

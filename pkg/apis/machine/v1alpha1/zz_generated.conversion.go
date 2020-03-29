@@ -1207,7 +1207,7 @@ func Convert_machine_AlicloudSystemDisk_To_v1alpha1_AlicloudSystemDisk(in *machi
 
 func autoConvert_v1alpha1_AzureDataDisk_To_machine_AzureDataDisk(in *AzureDataDisk, out *machine.AzureDataDisk, s conversion.Scope) error {
 	out.Name = in.Name
-	out.Lun = in.Lun
+	out.Lun = (*int32)(unsafe.Pointer(in.Lun))
 	out.Caching = in.Caching
 	out.StorageAccountType = in.StorageAccountType
 	out.DiskSizeGB = in.DiskSizeGB
@@ -1221,7 +1221,7 @@ func Convert_v1alpha1_AzureDataDisk_To_machine_AzureDataDisk(in *AzureDataDisk, 
 
 func autoConvert_machine_AzureDataDisk_To_v1alpha1_AzureDataDisk(in *machine.AzureDataDisk, out *AzureDataDisk, s conversion.Scope) error {
 	out.Name = in.Name
-	out.Lun = in.Lun
+	out.Lun = (*int32)(unsafe.Pointer(in.Lun))
 	out.Caching = in.Caching
 	out.StorageAccountType = in.StorageAccountType
 	out.DiskSizeGB = in.DiskSizeGB
