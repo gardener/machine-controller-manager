@@ -82,6 +82,7 @@ func NewController(
 	recorder record.EventRecorder,
 	safetyOptions options.SafetyOptions,
 	nodeConditions string,
+	bootstrapTokenAuthExtraGroups string,
 ) (Controller, error) {
 	controller := &controller{
 		namespace:                      namespace,
@@ -106,6 +107,7 @@ func NewController(
 		machineSafetyAPIServerQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
 		safetyOptions:                  safetyOptions,
 		nodeConditions:                 nodeConditions,
+		bootstrapTokenAuthExtraGroups:  bootstrapTokenAuthExtraGroups,
 	}
 
 	controller.internalExternalScheme = runtime.NewScheme()
@@ -397,8 +399,9 @@ type Controller interface {
 
 // controller is a concrete Controller.
 type controller struct {
-	namespace      string
-	nodeConditions string
+	namespace                     string
+	nodeConditions                string
+	bootstrapTokenAuthExtraGroups string
 
 	controlMachineClient machineapi.MachineV1alpha1Interface
 	controlCoreClient    kubernetes.Interface
