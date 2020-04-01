@@ -272,6 +272,7 @@ func StartControllers(s *options.MCMServer,
 			recorder,
 			s.SafetyOptions,
 			s.NodeConditions,
+			s.BootstrapTokenAuthExtraGroups,
 		)
 		if err != nil {
 			return err

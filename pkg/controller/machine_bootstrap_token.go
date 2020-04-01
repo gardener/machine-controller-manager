@@ -73,6 +73,7 @@ func (c *controller) getBootstrapTokenOrCreateIfNotExist(machineName string) (se
 				bootstraptokenapi.BootstrapTokenExpirationKey:       []byte(metav1.Now().Add(c.safetyOptions.MachineCreationTimeout.Duration).Format(time.RFC3339)),
 				bootstraptokenapi.BootstrapTokenUsageAuthentication: []byte("true"),
 				bootstraptokenapi.BootstrapTokenUsageSigningKey:     []byte("true"),
+				bootstraptokenapi.BootstrapTokenExtraGroupsKey:      []byte(c.bootstrapTokenAuthExtraGroups),
 			}
 
 			secret = &v1.Secret{
