@@ -571,7 +571,7 @@ func waitForStatus(c *gophercloud.ServiceClient, id string, pending []string, ta
 		}
 
 		// if there is no pending statuses defined or current status is in the pending list, then continue polling
-		if pending == nil || len(pending) == 0 || strSliceContains(pending, current.Status) {
+		if len(pending) == 0 || strSliceContains(pending, current.Status) {
 			return false, nil
 		}
 

@@ -27,13 +27,13 @@ import (
 	"sync"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"k8s.io/klog"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/klog"
 )
 
 // BaseControllerRefManager is the struct is used to identify the base controller of the object
@@ -327,7 +327,6 @@ func (m *MachineSetControllerRefManager) ClaimMachineSets(sets []*v1alpha1.Machi
 
 	match := func(obj metav1.Object) bool {
 		machineSet := obj.(*v1alpha1.MachineSet)
-		//return m.Selector.Matches(labels.Set(machineSet.GetLabels()))
 		return m.Selector.Matches(labels.Set(machineSet.Labels))
 	}
 

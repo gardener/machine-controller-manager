@@ -922,14 +922,14 @@ func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 	return true
 }
 
-func (c *controller) getSecret(ref *v1.SecretReference, MachineClassName string) (*v1.Secret, error) {
+func (c *controller) getSecret(ref *v1.SecretReference, machineClassName string) (*v1.Secret, error) {
 	secretRef, err := c.secretLister.Secrets(ref.Namespace).Get(ref.Name)
 	if apierrors.IsNotFound(err) {
-		klog.V(3).Infof("No secret %q: found for MachineClass %q", ref, MachineClassName)
+		klog.V(3).Infof("No secret %q: found for MachineClass %q", ref, machineClassName)
 		return nil, nil
 	}
 	if err != nil {
-		klog.Errorf("Unable get secret %q for MachineClass %q: %v", MachineClassName, ref, err)
+		klog.Errorf("Unable get secret %q for MachineClass %q: %v", machineClassName, ref, err)
 		return nil, err
 	}
 	return secretRef, err

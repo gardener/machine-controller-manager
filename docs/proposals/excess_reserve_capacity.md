@@ -32,7 +32,7 @@ Following are the possible approaches, we could think of so far.
 
 - Machine-controller-manager currently takes care of the machines in the shoot cluster starting from creation-deletion-health check to efficient rolling-update of the machines. From the architecture point of view, MachineSet makes sure that X number of machines are always **running and healthy**. MachineDeployment controller smartly uses this facility to perform rolling-updates.
 
-- We can expand the scope of MachineDeployment controller to maintain excess number of machines by introducing new parallel independent controller named *MachineTaint* controller. This will result in MCM to include Machine, MachineSet, MachineDeployment, MachienSafety, MachineTaint controllers. MachineTaint controller does not need to introduce any new CRD - analogy fits where taint-controller also resides into kube-controller-manager.
+- We can expand the scope of MachineDeployment controller to maintain excess number of machines by introducing new parallel independent controller named *MachineTaint* controller. This will result in MCM to include Machine, MachineSet, MachineDeployment, MachineSafety, MachineTaint controllers. MachineTaint controller does not need to introduce any new CRD - analogy fits where taint-controller also resides into kube-controller-manager.
 
 - Only Job of MachineTaint controller will be:
   - List all the Machines under each MachineDeployment.
