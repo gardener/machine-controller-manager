@@ -420,12 +420,8 @@ func (c *controller) checkAWSMachineClass() {
 	}
 
 	for _, machineClass := range AWSMachineClasses {
-
-		var machineClassInterface interface{}
-		machineClassInterface = machineClass
-
 		c.checkMachineClass(
-			machineClassInterface,
+			machineClass,
 			machineClass.Spec.SecretRef,
 			machineClass.Name,
 			machineClass.Kind,
@@ -442,12 +438,8 @@ func (c *controller) checkOSMachineClass() {
 	}
 
 	for _, machineClass := range OSMachineClasses {
-
-		var machineClassInterface interface{}
-		machineClassInterface = machineClass
-
 		c.checkMachineClass(
-			machineClassInterface,
+			machineClass,
 			machineClass.Spec.SecretRef,
 			machineClass.Name,
 			machineClass.Kind,
@@ -464,12 +456,8 @@ func (c *controller) checkAzureMachineClass() {
 	}
 
 	for _, machineClass := range AzureMachineClasses {
-
-		var machineClassInterface interface{}
-		machineClassInterface = machineClass
-
 		c.checkMachineClass(
-			machineClassInterface,
+			machineClass,
 			machineClass.Spec.SecretRef,
 			machineClass.Name,
 			machineClass.Kind,
@@ -486,12 +474,8 @@ func (c *controller) checkGCPMachineClass() {
 	}
 
 	for _, machineClass := range GCPMachineClasses {
-
-		var machineClassInterface interface{}
-		machineClassInterface = machineClass
-
 		c.checkMachineClass(
-			machineClassInterface,
+			machineClass,
 			machineClass.Spec.SecretRef,
 			machineClass.Name,
 			machineClass.Kind,
@@ -508,12 +492,8 @@ func (c *controller) checkAlicloudMachineClass() {
 	}
 
 	for _, machineClass := range AlicloudMachineClasses {
-
-		var machineClassInterface interface{}
-		machineClassInterface = machineClass
-
 		c.checkMachineClass(
-			machineClassInterface,
+			machineClass,
 			machineClass.Spec.SecretRef,
 			machineClass.Name,
 			machineClass.Kind,
@@ -530,12 +510,8 @@ func (c *controller) checkPacketMachineClass() {
 	}
 
 	for _, machineClass := range PacketMachineClasses {
-
-		var machineClassInterface interface{}
-		machineClassInterface = machineClass
-
 		c.checkMachineClass(
-			machineClassInterface,
+			machineClass,
 			machineClass.Spec.SecretRef,
 			machineClass.Name,
 			machineClass.Kind,

@@ -74,7 +74,7 @@ func (d *AzureDriver) getNICParameters(vmName string, subnet *network.Subnet) ne
 					Name: &nicName,
 					InterfaceIPConfigurationPropertiesFormat: &network.InterfaceIPConfigurationPropertiesFormat{
 						PrivateIPAllocationMethod: network.Dynamic,
-						Subnet: subnet,
+						Subnet:                    subnet,
 					},
 				},
 			},
@@ -490,17 +490,13 @@ func (clients *azureDriverClients) getAllVMs(ctx context.Context, resourceGroupN
 	if err != nil {
 		return items, onARMAPIErrorFail(prometheusServiceVM, err, "vm.List")
 	}
-	for _, item := range result.Values() {
-		items = append(items, item)
-	}
+	items = append(items, result.Values()...)
 	for result.NotDone() {
 		err = result.NextWithContext(ctx)
 		if err != nil {
 			return items, onARMAPIErrorFail(prometheusServiceVM, err, "vm.List")
 		}
-		for _, item := range result.Values() {
-			items = append(items, item)
-		}
+		items = append(items, result.Values()...)
 	}
 	onARMAPISuccess(prometheusServiceVM, "vm.List")
 	return items, nil
@@ -512,18 +508,13 @@ func (clients *azureDriverClients) getAllNICs(ctx context.Context, resourceGroup
 	if err != nil {
 		return items, onARMAPIErrorFail(prometheusServiceNIC, err, "nic.List")
 	}
-	for _, item := range result.Values() {
-		items = append(items, item)
-	}
+	items = append(items, result.Values()...)
 	for result.NotDone() {
 		err = result.NextWithContext(ctx)
 		if err != nil {
 			return items, onARMAPIErrorFail(prometheusServiceNIC, err, "nic.List")
 		}
-		for _, item := range result.Values() {
-			items = append(items, item)
-		}
-
+		items = append(items, result.Values()...)
 	}
 	onARMAPISuccess(prometheusServiceNIC, "nic.List")
 	return items, nil
@@ -535,17 +526,13 @@ func (clients *azureDriverClients) getAllDisks(ctx context.Context, resourceGrou
 	if err != nil {
 		return items, onARMAPIErrorFail(prometheusServiceDisk, err, "disk.ListByResourceGroup")
 	}
-	for _, item := range result.Values() {
-		items = append(items, item)
-	}
+	items = append(items, result.Values()...)
 	for result.NotDone() {
 		err = result.NextWithContext(ctx)
 		if err != nil {
 			return items, onARMAPIErrorFail(prometheusServiceDisk, err, "disk.ListByResourceGroup")
 		}
-		for _, item := range result.Values() {
-			items = append(items, item)
-		}
+		items = append(items, result.Values()...)
 	}
 	onARMAPISuccess(prometheusServiceDisk, "disk.ListByResourceGroup")
 	return items, nil
@@ -669,7 +656,7 @@ func (clients *azureDriverClients) getRelevantDisks(ctx context.Context, machine
 		return listOfVMs, err
 	}
 
-	if disks != nil && len(disks) > 0 {
+	if len(disks) > 0 {
 		for _, disk := range disks {
 			if disk.OsType != "" {
 				isDisk, machineName := vmNameFromDependencyName(*disk.Name, diskSuffix)
@@ -783,23 +770,6 @@ func (clients *azureDriverClients) waitForDataDiskDetachment(ctx context.Context
 		onARMAPISuccess(prometheusServiceVM, "VM CreateOrUpdate was successful for %s", *vm.Name)
 	}
 
-	return nil
-}
-
-func (clients *azureDriverClients) powerOffVM(ctx context.Context, resourceGroupName string, vmName string) error {
-	klog.V(2).Infof("VM power-off began for %q", vmName)
-	defer klog.V(2).Infof("VM power-off done for %q", vmName)
-
-	skipPowerOffVM := false
-	future, err := clients.vm.PowerOff(ctx, resourceGroupName, vmName, &skipPowerOffVM)
-	if err != nil {
-		return onARMAPIErrorFail(prometheusServiceVM, err, "vm.PowerOff")
-	}
-	err = future.WaitForCompletionRef(ctx, clients.vm.Client)
-	if err != nil {
-		return onARMAPIErrorFail(prometheusServiceVM, err, "vm.PowerOff")
-	}
-	onARMAPISuccess(prometheusServiceVM, "VM poweroff was successful for %s", vmName)
 	return nil
 }
 

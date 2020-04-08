@@ -18,9 +18,8 @@ package controller
 
 import (
 	"fmt"
-	"time"
-
 	"testing"
+	"time"
 
 	machine_internal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -41,6 +40,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
+	"k8s.io/utils/pointer"
 )
 
 func TestMachineControllerManagerSuite(t *testing.T) {
@@ -142,7 +142,7 @@ func newMachineSetsFromMachineDeployment(
 	labels map[string]string,
 ) []*v1alpha1.MachineSet {
 
-	finalLabels := make(map[string]string, 0)
+	finalLabels := make(map[string]string)
 	for k, v := range labels {
 		finalLabels[k] = v
 	}
@@ -163,8 +163,8 @@ func newMachineSetsFromMachineDeployment(
 			Kind:               t.Kind,
 			Name:               machineDeployment.Name,
 			UID:                machineDeployment.UID,
-			BlockOwnerDeletion: boolPtr(true),
-			Controller:         boolPtr(true),
+			BlockOwnerDeletion: pointer.BoolPtr(true),
+			Controller:         pointer.BoolPtr(true),
 		},
 		annotations,
 		finalLabels,
@@ -277,8 +277,8 @@ func newMachinesFromMachineSet(
 			Kind:               t.Kind,
 			Name:               machineSet.Name,
 			UID:                machineSet.UID,
-			BlockOwnerDeletion: boolPtr(true),
-			Controller:         boolPtr(true),
+			BlockOwnerDeletion: pointer.BoolPtr(true),
+			Controller:         pointer.BoolPtr(true),
 		},
 		annotations,
 		finalLabels,
@@ -371,10 +371,6 @@ func newNodes(
 		nodes[i] = node
 	}
 	return nodes
-}
-
-func boolPtr(b bool) *bool {
-	return &b
 }
 
 func newObjectMeta(meta *metav1.ObjectMeta, index int) *metav1.ObjectMeta {
