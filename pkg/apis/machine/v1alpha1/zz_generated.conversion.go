@@ -1636,7 +1636,9 @@ func Convert_machine_CurrentStatus_To_v1alpha1_CurrentStatus(in *machine.Current
 }
 
 func autoConvert_v1alpha1_GCPDisk_To_machine_GCPDisk(in *GCPDisk, out *machine.GCPDisk, s conversion.Scope) error {
-	out.AutoDelete = in.AutoDelete
+	if err := metav1.Convert_Pointer_bool_To_bool(&in.AutoDelete, &out.AutoDelete, s); err != nil {
+		return err
+	}
 	out.Boot = in.Boot
 	out.SizeGb = in.SizeGb
 	out.Type = in.Type
@@ -1652,7 +1654,9 @@ func Convert_v1alpha1_GCPDisk_To_machine_GCPDisk(in *GCPDisk, out *machine.GCPDi
 }
 
 func autoConvert_machine_GCPDisk_To_v1alpha1_GCPDisk(in *machine.GCPDisk, out *GCPDisk, s conversion.Scope) error {
-	out.AutoDelete = in.AutoDelete
+	if err := metav1.Convert_bool_To_Pointer_bool(&in.AutoDelete, &out.AutoDelete, s); err != nil {
+		return err
+	}
 	out.Boot = in.Boot
 	out.SizeGb = in.SizeGb
 	out.Type = in.Type
@@ -1695,7 +1699,17 @@ func Convert_machine_GCPMachineClass_To_v1alpha1_GCPMachineClass(in *machine.GCP
 
 func autoConvert_v1alpha1_GCPMachineClassList_To_machine_GCPMachineClassList(in *GCPMachineClassList, out *machine.GCPMachineClassList, s conversion.Scope) error {
 	out.ListMeta = in.ListMeta
-	out.Items = *(*[]machine.GCPMachineClass)(unsafe.Pointer(&in.Items))
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]machine.GCPMachineClass, len(*in))
+		for i := range *in {
+			if err := Convert_v1alpha1_GCPMachineClass_To_machine_GCPMachineClass(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
 	return nil
 }
 
@@ -1706,7 +1720,17 @@ func Convert_v1alpha1_GCPMachineClassList_To_machine_GCPMachineClassList(in *GCP
 
 func autoConvert_machine_GCPMachineClassList_To_v1alpha1_GCPMachineClassList(in *machine.GCPMachineClassList, out *GCPMachineClassList, s conversion.Scope) error {
 	out.ListMeta = in.ListMeta
-	out.Items = *(*[]GCPMachineClass)(unsafe.Pointer(&in.Items))
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]GCPMachineClass, len(*in))
+		for i := range *in {
+			if err := Convert_machine_GCPMachineClass_To_v1alpha1_GCPMachineClass(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
 	return nil
 }
 
@@ -1719,7 +1743,18 @@ func autoConvert_v1alpha1_GCPMachineClassSpec_To_machine_GCPMachineClassSpec(in 
 	out.CanIpForward = in.CanIpForward
 	out.DeletionProtection = in.DeletionProtection
 	out.Description = (*string)(unsafe.Pointer(in.Description))
-	out.Disks = *(*[]*machine.GCPDisk)(unsafe.Pointer(&in.Disks))
+	if in.Disks != nil {
+		in, out := &in.Disks, &out.Disks
+		*out = make([]*machine.GCPDisk, len(*in))
+		for i := range *in {
+			// TODO: Inefficient conversion - can we improve it?
+			if err := s.Convert(&(*in)[i], &(*out)[i], 0); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Disks = nil
+	}
 	out.Labels = *(*map[string]string)(unsafe.Pointer(&in.Labels))
 	out.MachineType = in.MachineType
 	out.Metadata = *(*[]*machine.GCPMetadata)(unsafe.Pointer(&in.Metadata))
@@ -1744,7 +1779,18 @@ func autoConvert_machine_GCPMachineClassSpec_To_v1alpha1_GCPMachineClassSpec(in 
 	out.CanIpForward = in.CanIpForward
 	out.DeletionProtection = in.DeletionProtection
 	out.Description = (*string)(unsafe.Pointer(in.Description))
-	out.Disks = *(*[]*GCPDisk)(unsafe.Pointer(&in.Disks))
+	if in.Disks != nil {
+		in, out := &in.Disks, &out.Disks
+		*out = make([]*GCPDisk, len(*in))
+		for i := range *in {
+			// TODO: Inefficient conversion - can we improve it?
+			if err := s.Convert(&(*in)[i], &(*out)[i], 0); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Disks = nil
+	}
 	out.Labels = *(*map[string]string)(unsafe.Pointer(&in.Labels))
 	out.MachineType = in.MachineType
 	out.Metadata = *(*[]*GCPMetadata)(unsafe.Pointer(&in.Metadata))

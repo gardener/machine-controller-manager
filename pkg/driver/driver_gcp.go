@@ -85,9 +85,13 @@ func (d *GCPDriver) Create() (string, string, error) {
 	var disks = []*compute.AttachedDisk{}
 	for _, disk := range d.GCPMachineClass.Spec.Disks {
 		var attachedDisk compute.AttachedDisk
+		autoDelete := false
+		if disk.AutoDelete == nil || *disk.AutoDelete == true {
+			autoDelete = true
+		}
 		if disk.Type == "SCRATCH" {
 			attachedDisk = compute.AttachedDisk{
-				AutoDelete: disk.AutoDelete,
+				AutoDelete: autoDelete,
 				Type:       disk.Type,
 				Interface:  disk.Interface,
 				InitializeParams: &compute.AttachedDiskInitializeParams{
@@ -96,7 +100,7 @@ func (d *GCPDriver) Create() (string, string, error) {
 			}
 		} else {
 			attachedDisk = compute.AttachedDisk{
-				AutoDelete: disk.AutoDelete,
+				AutoDelete: autoDelete,
 				Boot:       disk.Boot,
 				InitializeParams: &compute.AttachedDiskInitializeParams{
 					DiskSizeGb:  disk.SizeGb,
