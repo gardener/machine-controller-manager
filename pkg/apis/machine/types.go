@@ -1020,7 +1020,7 @@ type GCPMachineClassSpec struct {
 
 // GCPDisk describes disks for GCP.
 type GCPDisk struct {
-	AutoDelete bool
+	AutoDelete *bool
 	Boot       bool
 	SizeGb     int64
 	Type       string
