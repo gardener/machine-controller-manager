@@ -964,9 +964,9 @@ func Convert_machine_AWSMachineClassSpec_To_v1alpha1_AWSMachineClassSpec(in *mac
 }
 
 func autoConvert_v1alpha1_AWSNetworkInterfaceSpec_To_machine_AWSNetworkInterfaceSpec(in *AWSNetworkInterfaceSpec, out *machine.AWSNetworkInterfaceSpec, s conversion.Scope) error {
-	out.AssociatePublicIPAddress = in.AssociatePublicIPAddress
-	out.DeleteOnTermination = in.DeleteOnTermination
-	out.Description = in.Description
+	out.AssociatePublicIPAddress = (*bool)(unsafe.Pointer(in.AssociatePublicIPAddress))
+	out.DeleteOnTermination = (*bool)(unsafe.Pointer(in.DeleteOnTermination))
+	out.Description = (*string)(unsafe.Pointer(in.Description))
 	out.SecurityGroupIDs = *(*[]string)(unsafe.Pointer(&in.SecurityGroupIDs))
 	out.SubnetID = in.SubnetID
 	return nil
@@ -978,9 +978,9 @@ func Convert_v1alpha1_AWSNetworkInterfaceSpec_To_machine_AWSNetworkInterfaceSpec
 }
 
 func autoConvert_machine_AWSNetworkInterfaceSpec_To_v1alpha1_AWSNetworkInterfaceSpec(in *machine.AWSNetworkInterfaceSpec, out *AWSNetworkInterfaceSpec, s conversion.Scope) error {
-	out.AssociatePublicIPAddress = in.AssociatePublicIPAddress
-	out.DeleteOnTermination = in.DeleteOnTermination
-	out.Description = in.Description
+	out.AssociatePublicIPAddress = (*bool)(unsafe.Pointer(in.AssociatePublicIPAddress))
+	out.DeleteOnTermination = (*bool)(unsafe.Pointer(in.DeleteOnTermination))
+	out.Description = (*string)(unsafe.Pointer(in.Description))
 	out.SecurityGroupIDs = *(*[]string)(unsafe.Pointer(&in.SecurityGroupIDs))
 	out.SubnetID = in.SubnetID
 	return nil
