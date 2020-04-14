@@ -811,16 +811,16 @@ type AWSNetworkInterfaceSpec struct {
 	// for eth0, and can only be assigned to a new network interface, not an existing
 	// one. You cannot specify more than one network interface in the request. If
 	// launching into a default subnet, the default value is true.
-	AssociatePublicIPAddress bool
+	AssociatePublicIPAddress *bool
 
 	// If set to true, the interface is deleted when the machine is terminated.
 	// You can specify true only if creating a new network interface when launching
 	// an machine.
-	DeleteOnTermination bool
+	DeleteOnTermination *bool
 
 	// The description of the network interface. Applies only if creating a network
 	// interface when launching an machine.
-	Description string
+	Description *string
 
 	// The IDs of the security groups for the network interface. Applies only if
 	// creating a network interface when launching an machine.

@@ -35,30 +35,6 @@ func TestAWSDriverSuite(t *testing.T) {
 
 var _ = Describe("Driver AWS", func() {
 
-	Context("GenerateSecurityGroups Driver AWS Spec", func() {
-
-		It("should convert multiples security groups successfully", func() {
-			awsDriver := &AWSDriver{}
-			sgs := []string{"sg-0c3a49f760fe5cbfe", "sg-0c3a49f789898dwwdw", "sg-0c3a49f789898ddsdfe"}
-
-			sg, err := awsDriver.generateSecurityGroups(sgs)
-			expectedSg := []*string{aws.String("sg-0c3a49f760fe5cbfe"), aws.String("sg-0c3a49f789898dwwdw"), aws.String("sg-0c3a49f789898ddsdfe")}
-			Expect(sg).To(Equal(expectedSg))
-			Expect(err).ToNot(HaveOccurred())
-		})
-
-		It("should convert zero security groups successfully", func() {
-			awsDriver := &AWSDriver{}
-			sgs := []string{}
-
-			sg, err := awsDriver.generateSecurityGroups(sgs)
-
-			var expectedSg []*string
-			Expect(sg).To(Equal(expectedSg))
-			Expect(err).ToNot(HaveOccurred())
-		})
-	})
-
 	Context("GenerateTags Driver AWS Spec", func() {
 
 		It("should convert multiples tags successfully", func() {
