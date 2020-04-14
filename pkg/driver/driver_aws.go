@@ -97,24 +97,36 @@ func (d *AWSDriver) Create() (string, string, error) {
 		return "Error", "Error", err
 	}
 
-	securityGroupIDs, err := d.generateSecurityGroups(d.AWSMachineClass.Spec.NetworkInterfaces[0].SecurityGroupIDs)
-	if err != nil {
-		return "Error", "Error", err
+	var networkInterfaceSpecs []*ec2.InstanceNetworkInterfaceSpecification
+	for i, netIf := range d.AWSMachineClass.Spec.NetworkInterfaces {
+		spec := &ec2.InstanceNetworkInterfaceSpecification{
+			Groups:                   aws.StringSlice(netIf.SecurityGroupIDs),
+			DeviceIndex:              aws.Int64(int64(i)),
+			AssociatePublicIpAddress: netIf.AssociatePublicIPAddress,
+			DeleteOnTermination:      netIf.DeleteOnTermination,
+			Description:              netIf.Description,
+			SubnetId:                 aws.String(netIf.SubnetID),
+		}
+
+		if netIf.DeleteOnTermination == nil {
+			spec.DeleteOnTermination = aws.Bool(true)
+		}
+
+		networkInterfaceSpecs = append(networkInterfaceSpecs, spec)
 	}
 
 	// Specify the details of the machine
 	inputConfig := ec2.RunInstancesInput{
-		ImageId:      aws.String(d.AWSMachineClass.Spec.AMI),
-		InstanceType: aws.String(d.AWSMachineClass.Spec.MachineType),
-		MinCount:     aws.Int64(1),
-		MaxCount:     aws.Int64(1),
-		UserData:     &UserDataEnc,
-		KeyName:      aws.String(d.AWSMachineClass.Spec.KeyName),
-		SubnetId:     aws.String(d.AWSMachineClass.Spec.NetworkInterfaces[0].SubnetID),
+		ImageId:           aws.String(d.AWSMachineClass.Spec.AMI),
+		InstanceType:      aws.String(d.AWSMachineClass.Spec.MachineType),
+		MinCount:          aws.Int64(1),
+		MaxCount:          aws.Int64(1),
+		UserData:          &UserDataEnc,
+		KeyName:           aws.String(d.AWSMachineClass.Spec.KeyName),
+		NetworkInterfaces: networkInterfaceSpecs,
 		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
 			Name: &(d.AWSMachineClass.Spec.IAM.Name),
 		},
-		SecurityGroupIds:    securityGroupIDs,
 		BlockDeviceMappings: blkDeviceMappings,
 		TagSpecifications:   []*ec2.TagSpecification{tagInstance, tagVolume},
 	}
@@ -127,15 +139,6 @@ func (d *AWSDriver) Create() (string, string, error) {
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 
 	return d.encodeMachineID(d.AWSMachineClass.Spec.Region, *runResult.Instances[0].InstanceId), *runResult.Instances[0].PrivateDnsName, nil
-}
-
-func (d *AWSDriver) generateSecurityGroups(sgIDs []string) ([]*string, error) {
-
-	var securityGroupIDs []*string
-	for _, sg := range sgIDs {
-		securityGroupIDs = append(securityGroupIDs, aws.String(sg))
-	}
-	return securityGroupIDs, nil
 }
 
 func (d *AWSDriver) generateTags(tags map[string]string, resourceType string) (*ec2.TagSpecification, error) {
