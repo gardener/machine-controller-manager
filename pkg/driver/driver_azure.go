@@ -101,10 +101,10 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 		tagList[idx] = to.StringPtr(element)
 	}
 
+	imageReference := getImageReference(d)
+
 	azureDataDisks := d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks
 	dataDisks := d.generateDataDisks(vmName, azureDataDisks)
-
-	publisher, offer, sku, version := getAzureImageDetails(d)
 
 	VMParameters := compute.VirtualMachine{
 		Name:     &vmName,
@@ -114,12 +114,7 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 				VMSize: compute.VirtualMachineSizeTypes(d.AzureMachineClass.Spec.Properties.HardwareProfile.VMSize),
 			},
 			StorageProfile: &compute.StorageProfile{
-				ImageReference: &compute.ImageReference{
-					Publisher: &publisher,
-					Offer:     &offer,
-					Sku:       &sku,
-					Version:   &version,
-				},
+				ImageReference: &imageReference,
 				OsDisk: &compute.OSDisk{
 					Name:    &diskName,
 					Caching: compute.CachingTypes(d.AzureMachineClass.Spec.Properties.StorageProfile.OsDisk.Caching),
@@ -181,6 +176,27 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 	return VMParameters
 }
 
+func getImageReference(d *AzureDriver) compute.ImageReference {
+	imageRefClass := d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference
+	if imageRefClass.ID != "" {
+		return compute.ImageReference{
+			ID: &imageRefClass.ID,
+		}
+	}
+
+	splits := strings.Split(*imageRefClass.URN, ":")
+	publisher := splits[0]
+	offer := splits[1]
+	sku := splits[2]
+	version := splits[3]
+	return compute.ImageReference{
+		Publisher: &publisher,
+		Offer:     &offer,
+		Sku:       &sku,
+		Version:   &version,
+	}
+}
+
 func (d *AzureDriver) generateDataDisks(vmName string, azureDataDisks []v1alpha1.AzureDataDisk) []compute.DataDisk {
 	var dataDisks []compute.DataDisk
 	for i, azureDataDisk := range azureDataDisks {
@@ -217,15 +233,6 @@ func (d *AzureDriver) generateDataDisks(vmName string, azureDataDisks []v1alpha1
 		dataDisks = append(dataDisks, dataDisk)
 	}
 	return dataDisks
-}
-
-func getAzureImageDetails(d *AzureDriver) (publisher, offer, sku, version string) {
-	splits := strings.Split(*d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference.URN, ":")
-	publisher = splits[0]
-	offer = splits[1]
-	sku = splits[2]
-	version = splits[3]
-	return
 }
 
 // Create method is used to create an azure machine
@@ -334,7 +341,7 @@ func (d *AzureDriver) GetVMs(machineID string) (result VMs, err error) {
 	return
 }
 
-//GetUserData return the used data whit which the VM will be booted
+//GetUserData return the user data with which the VM will be booted
 func (d *AzureDriver) GetUserData() string {
 	return d.UserData
 }
@@ -538,17 +545,13 @@ func (clients *azureDriverClients) getAllVMs(ctx context.Context, resourceGroupN
 	if err != nil {
 		return items, onARMAPIErrorFail(prometheusServiceVM, err, "vm.List")
 	}
-	for _, item := range result.Values() {
-		items = append(items, item)
-	}
+	items = append(items, result.Values()...)
 	for result.NotDone() {
 		err = result.NextWithContext(ctx)
 		if err != nil {
 			return items, onARMAPIErrorFail(prometheusServiceVM, err, "vm.List")
 		}
-		for _, item := range result.Values() {
-			items = append(items, item)
-		}
+		items = append(items, result.Values()...)
 	}
 	onARMAPISuccess(prometheusServiceVM, "vm.List")
 	return items, nil
@@ -560,18 +563,13 @@ func (clients *azureDriverClients) getAllNICs(ctx context.Context, resourceGroup
 	if err != nil {
 		return items, onARMAPIErrorFail(prometheusServiceNIC, err, "nic.List")
 	}
-	for _, item := range result.Values() {
-		items = append(items, item)
-	}
+	items = append(items, result.Values()...)
 	for result.NotDone() {
 		err = result.NextWithContext(ctx)
 		if err != nil {
 			return items, onARMAPIErrorFail(prometheusServiceNIC, err, "nic.List")
 		}
-		for _, item := range result.Values() {
-			items = append(items, item)
-		}
-
+		items = append(items, result.Values()...)
 	}
 	onARMAPISuccess(prometheusServiceNIC, "nic.List")
 	return items, nil
@@ -583,17 +581,13 @@ func (clients *azureDriverClients) getAllDisks(ctx context.Context, resourceGrou
 	if err != nil {
 		return items, onARMAPIErrorFail(prometheusServiceDisk, err, "disk.ListByResourceGroup")
 	}
-	for _, item := range result.Values() {
-		items = append(items, item)
-	}
+	items = append(items, result.Values()...)
 	for result.NotDone() {
 		err = result.NextWithContext(ctx)
 		if err != nil {
 			return items, onARMAPIErrorFail(prometheusServiceDisk, err, "disk.ListByResourceGroup")
 		}
-		for _, item := range result.Values() {
-			items = append(items, item)
-		}
+		items = append(items, result.Values()...)
 	}
 	onARMAPISuccess(prometheusServiceDisk, "disk.ListByResourceGroup")
 	return items, nil
@@ -717,7 +711,7 @@ func (clients *azureDriverClients) getRelevantDisks(ctx context.Context, machine
 		return listOfVMs, err
 	}
 
-	if disks != nil && len(disks) > 0 {
+	if len(disks) > 0 {
 		for _, disk := range disks {
 			if disk.OsType != "" {
 				isDisk, machineName := vmNameFromDependencyName(*disk.Name, diskSuffix)
@@ -844,23 +838,6 @@ func (clients *azureDriverClients) waitForDataDiskDetachment(ctx context.Context
 		onARMAPISuccess(prometheusServiceVM, "VM CreateOrUpdate was successful for %s", *vm.Name)
 	}
 
-	return nil
-}
-
-func (clients *azureDriverClients) powerOffVM(ctx context.Context, resourceGroupName string, vmName string) error {
-	klog.V(2).Infof("VM power-off began for %q", vmName)
-	defer klog.V(2).Infof("VM power-off done for %q", vmName)
-
-	skipPowerOffVM := false
-	future, err := clients.vm.PowerOff(ctx, resourceGroupName, vmName, &skipPowerOffVM)
-	if err != nil {
-		return onARMAPIErrorFail(prometheusServiceVM, err, "vm.PowerOff")
-	}
-	err = future.WaitForCompletionRef(ctx, clients.vm.Client)
-	if err != nil {
-		return onARMAPIErrorFail(prometheusServiceVM, err, "vm.PowerOff")
-	}
-	onARMAPISuccess(prometheusServiceVM, "VM poweroff was successful for %s", vmName)
 	return nil
 }
 

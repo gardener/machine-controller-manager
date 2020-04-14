@@ -62,7 +62,7 @@ type MachineList struct {
 	Items []Machine
 }
 
-// MachineSpec is the specification of a machine.
+// MachineSpec is the specification of a Machine.
 type MachineSpec struct {
 
 	// Class contains the machineclass attributes of a machine
@@ -134,19 +134,17 @@ type ClassSpec struct {
 	Name string
 }
 
-//type CurrentStatus
+// CurrentStatus contains information about the current status of Machine.
 type CurrentStatus struct {
-	// API group to which it belongs
 	Phase MachinePhase
 
-	// Name of machine class
 	TimeoutActive bool
 
 	// Last update time of current status
 	LastUpdateTime metav1.Time
 }
 
-// MachineStatus TODO
+// MachineStatus holds the most recently observed status of Machine.
 type MachineStatus struct {
 	// Node string
 	Node string
@@ -274,7 +272,7 @@ type MachineSetList struct {
 	Items []MachineSet
 }
 
-// MachineSetSpec is the specification of a cluster.
+// MachineSetSpec is the specification of a MachineSet.
 type MachineSetSpec struct {
 	Replicas int32
 
@@ -318,7 +316,7 @@ type MachineSetCondition struct {
 	Message string
 }
 
-// MachineSetStatus represents the status of a machineSet object
+// MachineSetStatus holds the most recently observed status of MachineSet.
 type MachineSetStatus struct {
 	// Replicas is the number of actual replicas.
 	Replicas int32
@@ -660,7 +658,7 @@ type OpenStackMachineClassList struct {
 	Items []OpenStackMachineClass
 }
 
-// OpenStackMachineClassSpec is the specification of a cluster.
+// OpenStackMachineClassSpec is the specification of a OpenStackMachineClass.
 type OpenStackMachineClassSpec struct {
 	ImageID          string
 	ImageName        string
@@ -708,7 +706,7 @@ type AWSMachineClassList struct {
 	Items []AWSMachineClass
 }
 
-// AWSMachineClassSpec is the specification of a cluster.
+// AWSMachineClassSpec is the specification of a AWSMachineClass.
 type AWSMachineClassSpec struct {
 	AMI               string
 	Region            string
@@ -858,7 +856,7 @@ type AzureMachineClassList struct {
 	Items []AzureMachineClass
 }
 
-// AzureMachineClassSpec is the specification of a cluster.
+// AzureMachineClassSpec is the specification of a AzureMachineClass.
 type AzureMachineClassSpec struct {
 	Location      string
 	Tags          map[string]string
@@ -1010,7 +1008,7 @@ type GCPMachineClassList struct {
 	Items []GCPMachineClass
 }
 
-// GCPMachineClassSpec is the specification of a cluster.
+// GCPMachineClassSpec is the specification of a GCPMachineClass.
 type GCPMachineClassSpec struct {
 	CanIpForward       bool
 	DeletionProtection bool
@@ -1030,10 +1028,11 @@ type GCPMachineClassSpec struct {
 
 // GCPDisk describes disks for GCP.
 type GCPDisk struct {
-	AutoDelete bool
+	AutoDelete *bool
 	Boot       bool
 	SizeGb     int64
 	Type       string
+	Interface  string
 	Image      string
 	Labels     map[string]string
 }
@@ -1089,7 +1088,7 @@ type AlicloudMachineClassList struct {
 	Items []AlicloudMachineClass
 }
 
-// AlicloudMachineClassSpec is the specification of a cluster.
+// AlicloudMachineClassSpec is the specification of a AlicloudMachineClass.
 type AlicloudMachineClassSpec struct {
 	ImageID                 string
 	InstanceType            string
@@ -1152,7 +1151,7 @@ type PacketMachineClassList struct {
 	Items []PacketMachineClass
 }
 
-// PacketMachineClassSpec is the specification of a cluster.
+// PacketMachineClassSpec is the specification of a PacketMachineClass.
 type PacketMachineClassSpec struct {
 	Facility     []string // required
 	MachineType  string   // required

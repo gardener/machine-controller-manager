@@ -91,10 +91,12 @@ func validateAzureProperties(properties machine.AzureVirtualMachineProperties, f
 		allErrs = append(allErrs, field.Required(fldPath.Child("hardwareProfile.vmSize"), "VMSize is required"))
 	}
 
-	if properties.StorageProfile.ImageReference.URN == nil || *properties.StorageProfile.ImageReference.URN == "" {
-		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.imageReference.urn"), "Empty urn"))
-	} else {
-		splits := strings.Split(*properties.StorageProfile.ImageReference.URN, ":")
+	imageRef := properties.StorageProfile.ImageReference
+	if ((imageRef.URN == nil || *imageRef.URN == "") && imageRef.ID == "") ||
+		(imageRef.URN != nil && *imageRef.URN != "" && imageRef.ID != "") {
+		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.imageReference"), "must specify either a image id or an urn"))
+	} else if imageRef.URN != nil && *imageRef.URN != "" {
+		splits := strings.Split(*imageRef.URN, ":")
 		if len(splits) != 4 {
 			allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.imageReference.urn"), "Invalid urn format"))
 		} else {

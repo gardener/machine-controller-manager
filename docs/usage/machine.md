@@ -17,7 +17,7 @@
 
 > Make sure that the `kubernetes/machine_objects/machine.yaml` points to the same class name as the `kubernetes/machine_classes/aws-machine-class.yaml`.
 
-> Similarily `kubernetes/machine_objects/aws-machine-class.yaml` secret name and namespace should be same as that mentioned in `kubernetes/secrets/aws-secret.yaml`
+> Similarly `kubernetes/machine_objects/aws-machine-class.yaml` secret name and namespace should be same as that mentioned in `kubernetes/secrets/aws-secret.yaml`
 
 ## Creating machine
 

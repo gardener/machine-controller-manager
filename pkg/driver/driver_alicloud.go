@@ -165,21 +165,6 @@ func (c *AlicloudDriver) Delete(machineID string) error {
 	return err
 }
 
-func (c *AlicloudDriver) stopInstance(client *ecs.Client, machineID string) error {
-	request := ecs.CreateStopInstanceRequest()
-	request.InstanceId = machineID
-	request.ConfirmStop = requests.NewBoolean(true)
-	request.ForceStop = requests.NewBoolean(true)
-
-	_, err := client.StopInstance(request)
-	if err != nil {
-		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "alicloud", "service": "ecs"}).Inc()
-	}
-	metrics.APIRequestCount.With(prometheus.Labels{"provider": "alicloud", "service": "ecs"}).Inc()
-
-	return err
-}
-
 func (c *AlicloudDriver) deleteInstance(client *ecs.Client, machineID string) error {
 	request := ecs.CreateDeleteInstanceRequest()
 	request.InstanceId = machineID

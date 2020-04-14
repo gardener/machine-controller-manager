@@ -97,8 +97,11 @@ func validateGCPDisks(disks []*machine.GCPDisk, fldPath *field.Path) field.Error
 		if disk.SizeGb < 20 {
 			allErrs = append(allErrs, field.Invalid(idxPath.Child("sizeGb"), disk.SizeGb, "disk size must be at least 20 GB"))
 		}
-		if disk.Type != "pd-standard" && disk.Type != "pd-ssd" {
-			allErrs = append(allErrs, field.NotSupported(idxPath.Child("type"), disk.Type, []string{"pd-standard", "pd-ssd"}))
+		if disk.Type != "pd-standard" && disk.Type != "pd-ssd" && disk.Type != "SCRATCH" {
+			allErrs = append(allErrs, field.NotSupported(idxPath.Child("type"), disk.Type, []string{"pd-standard", "pd-ssd", "SCRATCH"}))
+		}
+		if disk.Type == "SCRATCH" && (disk.Interface != "NVME" && disk.Interface != "SCSI") {
+			allErrs = append(allErrs, field.NotSupported(idxPath.Child("interface"), disk.Interface, []string{"NVME", "SCSI"}))
 		}
 		if disk.Boot && "" == disk.Image {
 			allErrs = append(allErrs, field.Required(idxPath.Child("image"), "image is required for boot disk"))

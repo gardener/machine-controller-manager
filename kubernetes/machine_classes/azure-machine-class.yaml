@@ -27,6 +27,7 @@ spec:
     storageProfile:
       imageReference:
         urn: "image-reference-urn" # Image reference urn, it has the format 'publisher:offer:sku:version' (Eg- "CoreOS:CoreOS:Beta:1000.0.0")
+        id: "image-id" # Image reference ID, useful when image is not available via URN
       osDisk:
         caching: "None" # Caching Strategy (None/ReadOnly/ReadWrite)
         diskSizeGB: 50 # Size of disk to be created in GB

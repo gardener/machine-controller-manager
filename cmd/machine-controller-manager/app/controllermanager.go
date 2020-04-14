@@ -60,8 +60,7 @@ import (
 )
 
 const (
-	controllerManagerAgentName   = "machine-controller-manager"
-	controllerDiscoveryAgentName = "machine-controller-discovery"
+	controllerManagerAgentName = "machine-controller-manager"
 )
 
 var openStackGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "openstackmachineclasses"}
@@ -272,6 +271,7 @@ func StartControllers(s *options.MCMServer,
 			recorder,
 			s.SafetyOptions,
 			s.NodeConditions,
+			s.BootstrapTokenAuthExtraGroups,
 		)
 		if err != nil {
 			return err
