@@ -117,27 +117,27 @@ func validateAzureProperties(properties machine.AzureVirtualMachineProperties, f
 
 	if properties.StorageProfile.DataDisks != nil {
 
-		if len(properties.StorageProfile.DataDisks) > 16 {
-			allErrs = append(allErrs, field.TooMany(fldPath.Child("storageProfile.dataDisks"), len(properties.StorageProfile.DataDisks), 16))
+		if len(properties.StorageProfile.DataDisks) > 64 {
+			allErrs = append(allErrs, field.TooMany(fldPath.Child("storageProfile.dataDisks"), len(properties.StorageProfile.DataDisks), 64))
 		}
 
 		luns := map[int32]int{}
-		nilLuns := false
 		for i, dataDisk := range properties.StorageProfile.DataDisks {
 			idxPath := fldPath.Child("storageProfile.dataDisks").Index(i)
 
-			if dataDisk.Lun != nil {
-				lun := dataDisk.Lun
-				if *lun < 0 || *lun > 64 {
-					allErrs = append(allErrs, field.Invalid(idxPath.Child("lun"), *lun, utilvalidation.InclusiveRangeError(0, 15)))
+			lun := dataDisk.Lun
+
+			if lun == nil {
+				allErrs = append(allErrs, field.Required(idxPath.Child("lun"), "DataDisk Lun is required"))
+			} else {
+				if *lun < 0 || *lun > 63 {
+					allErrs = append(allErrs, field.Invalid(idxPath.Child("lun"), *lun, utilvalidation.InclusiveRangeError(0, 63)))
 				}
 				if _, keyExist := luns[*lun]; keyExist {
 					luns[*lun]++
 				} else {
 					luns[*lun] = 1
 				}
-			} else {
-				nilLuns = true
 			}
 
 			if dataDisk.DiskSizeGB <= 0 {
@@ -152,10 +152,6 @@ func validateAzureProperties(properties machine.AzureVirtualMachineProperties, f
 			if number > 1 {
 				allErrs = append(allErrs, field.Invalid(fldPath.Child("storageProfile.dataDisks"), lun, fmt.Sprintf("Data Disk Lun '%d' duplicated %d times, Lun must be unique", lun, number)))
 			}
-		}
-
-		if nilLuns == true && len(luns) > 0 {
-			allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.dataDisks"), "All Data Disk Luns must be set"))
 		}
 	}
 	if properties.OsProfile.AdminUsername == "" {

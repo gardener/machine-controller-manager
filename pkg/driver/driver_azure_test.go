@@ -85,10 +85,12 @@ var _ = Describe("Driver Azure", func() {
 			vmName := "vm"
 			lun1 := int32(0)
 			lun2 := int32(1)
+			lun3 := int32(42)
 			size1 := int32(10)
 			size2 := int32(100)
 			expectedName1 := "vm-sdb-0-data-disk"
-			expectedName2 := "vm-sdc-1-data-disk"
+			expectedName2 := "vm-1-data-disk"
+			expectedName3 := "vm-sdc-42-data-disk"
 			disks := []v1alpha1.AzureDataDisk{
 				{
 					Name:               "sdb",
@@ -96,6 +98,11 @@ var _ = Describe("Driver Azure", func() {
 					DiskSizeGB:         size1,
 				},
 				{
+					StorageAccountType: "Standard_LRS",
+					DiskSizeGB:         size2,
+				},
+				{
+					Lun:                &lun3,
 					Name:               "sdc",
 					StorageAccountType: "Standard_LRS",
 					DiskSizeGB:         size2,
@@ -117,6 +124,16 @@ var _ = Describe("Driver Azure", func() {
 				{
 					Lun:     &lun2,
 					Name:    &expectedName2,
+					Caching: compute.CachingTypes("None"),
+					ManagedDisk: &compute.ManagedDiskParameters{
+						StorageAccountType: compute.StorageAccountTypes("Standard_LRS"),
+					},
+					DiskSizeGB:   &size2,
+					CreateOption: compute.DiskCreateOptionTypes("Empty"),
+				},
+				{
+					Lun:     &lun3,
+					Name:    &expectedName3,
 					Caching: compute.CachingTypes("None"),
 					ManagedDisk: &compute.ManagedDiskParameters{
 						StorageAccountType: compute.StorageAccountTypes("Standard_LRS"),

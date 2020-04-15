@@ -6,6 +6,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"strings"
 )
 
 func getAliCloudMachineSpec() *machine.AlicloudMachineClassSpec {
@@ -70,30 +71,37 @@ var _ = Describe("AliCloudMachineClass Validation", func() {
 
 		It("should get an error on DataDisks validation", func() {
 			spec := getAliCloudMachineSpec()
+			longname := strings.Repeat("longname", 10)
 			spec.DataDisks = []machine.AlicloudDataDisk{
 				{
-					Name:               "",
-					Category:           "",
-					Size:               10,
-					Encrypted:          true,
+					Name:      "",
+					Category:  "",
+					Size:      10,
+					Encrypted: true,
 				},
 				{
-					Name:               "dd1",
-					Category:           "cloud_efficiency",
-					Size:               32769,
-					Encrypted:          true,
+					Name:      "dd1",
+					Category:  "cloud_efficiency",
+					Size:      32769,
+					Encrypted: true,
 				},
 				{
-					Name:               "dd1",
-					Category:           "cloud_efficiency",
-					Size:               75,
-					Encrypted:          true,
+					Name:      "dd1",
+					Category:  "cloud_efficiency",
+					Size:      75,
+					Encrypted: true,
 				},
 				{
-					Name:               "bad$#%name",
-					Category:           "cloud_efficiency",
-					Size:               75,
-					Encrypted:          true,
+					Name:      "bad$#%name",
+					Category:  "cloud_efficiency",
+					Size:      75,
+					Encrypted: true,
+				},
+				{
+					Name:      longname,
+					Category:  "cloud_efficiency",
+					Size:      75,
+					Encrypted: true,
 				},
 			}
 
@@ -107,10 +115,10 @@ var _ = Describe("AliCloudMachineClass Validation", func() {
 					Detail:   "Data Disk name is required",
 				},
 				{
-					Type:     field.ErrorTypeRequired,
+					Type:     field.ErrorTypeInvalid,
 					Field:    "spec.dataDisks[0].size",
-					BadValue: "",
-					Detail:   "Data Disk size must be between 20 and 32768 GB",
+					BadValue: 10,
+					Detail:   "must be between 20 and 32768, inclusive",
 				},
 				{
 					Type:     field.ErrorTypeRequired,
@@ -119,10 +127,10 @@ var _ = Describe("AliCloudMachineClass Validation", func() {
 					Detail:   "Data Disk category is required",
 				},
 				{
-					Type:     field.ErrorTypeRequired,
+					Type:     field.ErrorTypeInvalid,
 					Field:    "spec.dataDisks[1].size",
-					BadValue: "",
-					Detail:   "Data Disk size must be between 20 and 32768 GB",
+					BadValue: 32769,
+					Detail:   "must be between 20 and 32768, inclusive",
 				},
 				{
 					Type:     field.ErrorTypeInvalid,
@@ -131,10 +139,16 @@ var _ = Describe("AliCloudMachineClass Validation", func() {
 					Detail:   "Data Disk Name 'dd1' duplicated 2 times, Name must be unique",
 				},
 				{
-					Type: field.ErrorTypeInvalid,
-					Field: "spec.dataDisks[3].name",
+					Type:     field.ErrorTypeInvalid,
+					Field:    "spec.dataDisks[3].name",
 					BadValue: "bad$#%name",
-					Detail: "Disk name given: bad$#%name does not match the expected pattern (regex used for validation is '[a-zA-Z0-9\\.\\-_:]+')",
+					Detail:   "Disk name given: bad$#%name does not match the expected pattern (regex used for validation is '[a-zA-Z0-9\\.\\-_:]+')",
+				},
+				{
+					Type:     field.ErrorTypeInvalid,
+					Field:    "spec.dataDisks[4].name",
+					BadValue: longname,
+					Detail:   "Data Disk Name length must be between 1 and 64",
 				},
 			}
 			Expect(errList).To(ConsistOf(errExpected))

@@ -100,6 +100,12 @@ var _ = Describe("AzureMachineClass Validation", func() {
 			errExpected := field.ErrorList{
 				{
 					Type:     field.ErrorTypeRequired,
+					Field:    "spec.properties.storageProfile.dataDisks[0].lun",
+					BadValue: "",
+					Detail:   "DataDisk Lun is required",
+				},
+				{
+					Type:     field.ErrorTypeRequired,
 					Field:    "spec.properties.storageProfile.dataDisks[0].diskSizeGB",
 					BadValue: "",
 					Detail:   "DataDisk size must be positive",
@@ -115,7 +121,7 @@ var _ = Describe("AzureMachineClass Validation", func() {
 
 		})
 
-		It("should get an error on duplicated DataDisks lun ", func() {
+		It("should get an error on duplicated DataDisks lun", func() {
 			spec := getAzureMachineSpec()
 			lun1 := int32(1)
 			spec.Properties.StorageProfile.DataDisks = []machine.AzureDataDisk{
@@ -144,58 +150,6 @@ var _ = Describe("AzureMachineClass Validation", func() {
 				},
 			}
 			Expect(errList).To(ConsistOf(errExpected))
-		})
-
-		It("should get an error on partially unset luns ", func() {
-			spec := getAzureMachineSpec()
-			lun1 := int32(1)
-			spec.Properties.StorageProfile.DataDisks = []machine.AzureDataDisk{
-				{
-					Lun:                &lun1,
-					Caching:            "None",
-					DiskSizeGB:         75,
-					StorageAccountType: "Standard_LRS",
-				},
-				{
-					Lun:                nil,
-					Caching:            "None",
-					DiskSizeGB:         75,
-					StorageAccountType: "Standard_LRS",
-				},
-			}
-
-			errList := validateAzureMachineClassSpec(spec, field.NewPath("spec"))
-
-			errExpected := field.ErrorList{
-				{
-					Type:     field.ErrorTypeRequired,
-					Field:    "spec.properties.storageProfile.dataDisks",
-					BadValue:  "",
-					Detail:   "All Data Disk Luns must be set",
-				},
-			}
-			Expect(errList).To(ConsistOf(errExpected))
-		})
-
-		It("should allow all luns to be nil ", func() {
-			spec := getAzureMachineSpec()
-			spec.Properties.StorageProfile.DataDisks = []machine.AzureDataDisk{
-				{
-					Lun:                nil,
-					Caching:            "None",
-					DiskSizeGB:         75,
-					StorageAccountType: "Standard_LRS",
-				},
-				{
-					Lun:                nil,
-					Caching:            "None",
-					DiskSizeGB:         75,
-					StorageAccountType: "Standard_LRS",
-				},
-			}
-
-			errList := validateAzureMachineClassSpec(spec, field.NewPath("spec"))
-			Expect(errList).To(BeEmpty())
 		})
 
 	})

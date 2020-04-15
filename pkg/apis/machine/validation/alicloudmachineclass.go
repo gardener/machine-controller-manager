@@ -79,6 +79,8 @@ func validateAlicloudMachineClassSpec(spec *machine.AlicloudMachineClassSpec, fl
 				allErrs = append(allErrs, field.Required(idxPath.Child("name"), "Data Disk name is required"))
 			} else if !dataDiskNameRegexp.MatchString(dataDisk.Name) {
 				allErrs = append(allErrs, field.Invalid(idxPath.Child("name"), dataDisk.Name, utilvalidation.RegexError(fmt.Sprintf("Disk name given: %s does not match the expected pattern", dataDisk.Name), dataDiskNameFmt)))
+			} else if len(dataDisk.Name) > 64 {
+				allErrs = append(allErrs, field.Invalid(idxPath.Child("name"), dataDisk.Name, "Data Disk Name length must be between 1 and 64"))
 			} else {
 				if _, keyExist := names[dataDisk.Name]; keyExist {
 					names[dataDisk.Name]++
@@ -87,12 +89,11 @@ func validateAlicloudMachineClassSpec(spec *machine.AlicloudMachineClassSpec, fl
 				}
 			}
 			if dataDisk.Size < 20 || dataDisk.Size > 32768 {
-				allErrs = append(allErrs, field.Required(idxPath.Child("size"), "Data Disk size must be between 20 and 32768 GB"))
+				allErrs = append(allErrs, field.Invalid(idxPath.Child("size"), dataDisk.Size, utilvalidation.InclusiveRangeError(20, 32768)))
 			}
 			if dataDisk.Category == "" {
 				allErrs = append(allErrs, field.Required(idxPath.Child("category"), "Data Disk category is required"))
 			}
-
 		}
 
 		for name, number := range names {
