@@ -103,9 +103,6 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 
 	imageReference := getImageReference(d)
 
-	azureDataDisks := d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks
-	dataDisks := d.generateDataDisks(vmName, azureDataDisks)
-
 	VMParameters := compute.VirtualMachine{
 		Name:     &vmName,
 		Location: &location,
@@ -124,7 +121,6 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 					DiskSizeGB:   &d.AzureMachineClass.Spec.Properties.StorageProfile.OsDisk.DiskSizeGB,
 					CreateOption: compute.DiskCreateOptionTypes(d.AzureMachineClass.Spec.Properties.StorageProfile.OsDisk.CreateOption),
 				},
-				DataDisks: &dataDisks,
 			},
 			OsProfile: &compute.OSProfile{
 				ComputerName:  &vmName,
@@ -154,6 +150,11 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 			},
 		},
 		Tags: tagList,
+	}
+
+	if d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks != nil && len(d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks) > 0 {
+		dataDisks := d.generateDataDisks(vmName, d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks)
+		VMParameters.StorageProfile.DataDisks = &dataDisks
 	}
 
 	if d.AzureMachineClass.Spec.Properties.Zone != nil {
