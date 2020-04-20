@@ -289,14 +289,20 @@ func (d *AWSDriver) Delete(machineID string) error {
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
 				switch aerr.Code() {
+				case "InvalidInstanceAttributeValue":
+					// Case when disk is not yet attached to the VM
+					klog.Warning(aerr.Error())
+					break
 				default:
 					klog.Error(aerr.Error())
+					metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+					return err
 				}
 			} else {
 				klog.Error(err.Error())
+				metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+				return err
 			}
-			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-			return err
 		}
 		metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 		klog.V(2).Infof("Successfully defaulted deletionOnTermination to true for disks (with nil pointer) for instanceID: %q", instanceID)
