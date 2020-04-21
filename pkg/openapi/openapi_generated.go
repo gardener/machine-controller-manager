@@ -2990,6 +2990,13 @@ func schema_pkg_apis_machine_v1alpha1_MachineStatus(ref common.ReferenceCallback
 							Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.CurrentStatus"),
 						},
 					},
+					"lastKnownState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastKnownState can store details of the last known state of the VM by the plugins. It can be used by future operation calls to determine current infrastucture state",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

@@ -34,8 +34,9 @@ import (
 
 	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
-	machinecontroller "github.com/gardener/machine-controller-manager/pkg/controller"
-	corecontroller "github.com/gardener/machine-controller-manager/pkg/util/controller"
+	mcmcontroller "github.com/gardener/machine-controller-manager/pkg/controller"
+	corecontroller "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/core"
+	machinecontroller "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/machine"
 	coreinformers "k8s.io/client-go/informers"
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 
@@ -63,12 +64,11 @@ const (
 	controllerManagerAgentName = "machine-controller-manager"
 )
 
-var openStackGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "openstackmachineclasses"}
-var awsGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "awsmachineclasses"}
-var azureGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "azuremachineclasses"}
-var gcpGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "gcpmachineclasses"}
-var alicloudGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "alicloudmachineclasses"}
-var packetGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "packetmachineclasses"}
+var (
+	machineGVR           = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "machines"}
+	machineSetGVR        = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "machinesets"}
+	machineDeploymentGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "machinedeployments"}
+)
 
 // Run runs the MCMServer.  This should never exit.
 func Run(s *options.MCMServer) error {
@@ -224,7 +224,7 @@ func StartControllers(s *options.MCMServer,
 		klog.Fatal(err)
 	}
 
-	if availableResources[awsGVR] || availableResources[azureGVR] || availableResources[gcpGVR] || availableResources[openStackGVR] || availableResources[alicloudGVR] || availableResources[packetGVR] {
+	if availableResources[machineGVR] || availableResources[machineSetGVR] || availableResources[machineDeploymentGVR] {
 		klog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
 		controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
@@ -250,7 +250,7 @@ func StartControllers(s *options.MCMServer,
 		machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
 
 		klog.V(5).Infof("Creating controllers...")
-		machineController, err := machinecontroller.NewController(
+		mcmcontroller, err := mcmcontroller.NewController(
 			s.Namespace,
 			controlMachineClient,
 			controlCoreClient,
@@ -283,10 +283,10 @@ func StartControllers(s *options.MCMServer,
 		targetCoreInformerFactory.Start(stop)
 
 		klog.V(5).Info("Running controller")
-		go machineController.Run(int(s.ConcurrentNodeSyncs), stop)
+		go mcmcontroller.Run(int(s.ConcurrentNodeSyncs), stop)
 
 	} else {
-		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q or %q or %q or %q is not available; found %#v", awsGVR, azureGVR, gcpGVR, openStackGVR, alicloudGVR, packetGVR, availableResources)
+		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q is not available; \nFound: %#v", machineGVR, machineSetGVR, machineDeploymentGVR, availableResources)
 	}
 
 	select {}
