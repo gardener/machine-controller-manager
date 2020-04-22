@@ -812,6 +812,7 @@ var _ = Describe("machine", func() {
 			machine                 string
 			fakeProviderID          string
 			fakeNodeName            string
+			nodeRecentlyNotReady    *bool
 			fakeDriverGetVMs        func() (driver.VMs, error)
 			fakeError               error
 			forceDeleteLabelPresent bool
@@ -908,6 +909,26 @@ var _ = Describe("machine", func() {
 					clone.Status = *data.action.fakeMachineStatus
 					machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).UpdateStatus(clone)
 					Expect(err).ToNot(HaveOccurred())
+				}
+
+				if data.action.nodeRecentlyNotReady != nil {
+					node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
+					Expect(nodeErr).To(Not(HaveOccurred()))
+					clone := node.DeepCopy()
+					newNodeCondition := corev1.NodeCondition{
+						Type:   v1.NodeReady,
+						Status: corev1.ConditionUnknown,
+					}
+
+					if *data.action.nodeRecentlyNotReady {
+						newNodeCondition.LastTransitionTime = metav1.Time{Time: time.Now()}
+					} else {
+						newNodeCondition.LastTransitionTime = metav1.Time{Time: time.Now().Add(-time.Hour)}
+					}
+
+					clone.Status.Conditions = []corev1.NodeCondition{newNodeCondition}
+					_, updateErr := controller.targetCoreClient.CoreV1().Nodes().UpdateStatus(clone)
+					Expect(updateErr).To(BeNil())
 				}
 
 				if data.setup.fakeResourceActions != nil {
@@ -1281,6 +1302,85 @@ var _ = Describe("machine", func() {
 							LastUpdateTime: metav1.NewTime(time.Now().Add(-2 * time.Minute)),
 						},
 					},
+				},
+				expect: expect{
+					errOccurred:    true,
+					machineDeleted: false,
+				},
+			}),
+			Entry("Machine force deletion if underlying Node is NotReady for a long time", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil),
+				},
+				action: action{
+					machine:              "machine-0",
+					fakeProviderID:       "fakeID-0",
+					fakeNodeName:         "fakeNode-0",
+					fakeError:            nil,
+					nodeRecentlyNotReady: func() *bool { ret := false; return &ret }(),
+				},
+				expect: expect{
+					errOccurred:    false,
+					machineDeleted: true,
+				},
+			}),
+			Entry("Machine do not force deletion if underlying Node is NotReady for a small period of time, a Machine deletion fails, since kubelet fails to evict Pods", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil),
+					fakeResourceActions: &customfake.ResourceActions{
+						Node: customfake.Actions{
+							Update: "Failed to update nodes",
+						},
+					},
+				},
+				action: action{
+					machine:              "machine-0",
+					fakeProviderID:       "fakeID-0",
+					fakeNodeName:         "fakeNode-0",
+					fakeError:            nil,
+					nodeRecentlyNotReady: func() *bool { ret := true; return &ret }(),
 				},
 				expect: expect{
 					errOccurred:    true,
