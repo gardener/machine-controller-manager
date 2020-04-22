@@ -1816,6 +1816,37 @@ var _ = Describe("machine", func() {
 					),
 				},
 			}),
+			Entry("Machine object does not have status.node set and node exists (without providerID) then it should not adopt node using providerID", &data{
+				setup: setup{
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							ProviderID: "aws//fakeID",
+						},
+					}, &machinev1.MachineStatus{}, nil, nil, nil),
+					nodes: []*corev1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-0",
+							},
+							Spec: corev1.NodeSpec{
+								ProviderID: "",
+							},
+						},
+					},
+				},
+				action: action{
+					machine: machineName,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "machine-0",
+						},
+					}, nil, nil, nil, nil,
+					),
+				},
+			}),
 		)
 	})
 
