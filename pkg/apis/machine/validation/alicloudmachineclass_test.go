@@ -142,7 +142,7 @@ var _ = Describe("AliCloudMachineClass Validation", func() {
 					Type:     field.ErrorTypeInvalid,
 					Field:    "spec.dataDisks[3].name",
 					BadValue: "bad$#%name",
-					Detail:   "Disk name given: bad$#%name does not match the expected pattern (regex used for validation is '[a-zA-Z0-9\\.\\-_:]+')",
+					Detail:   "Disk name given: bad$#%name does not match the expected pattern (regex used for validation is '[a-zA-Z][a-zA-Z0-9\\.\\-_:]+')",
 				},
 				{
 					Type:     field.ErrorTypeInvalid,
