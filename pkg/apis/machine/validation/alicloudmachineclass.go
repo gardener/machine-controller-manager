@@ -66,7 +66,7 @@ func validateAlicloudMachineClassSpec(spec *machine.AlicloudMachineClassSpec, fl
 		allErrs = append(allErrs, field.Required(fldPath.Child("keyPairName"), "KeyPairName is required"))
 	}
 
-	const dataDiskNameFmt string = `[a-zA-Z0-9\.\-_:]+`
+	const dataDiskNameFmt string = `[a-zA-Z][a-zA-Z0-9\.\-_:]+`
 	var dataDiskNameRegexp = regexp.MustCompile("^" + dataDiskNameFmt + "$")
 
 
