@@ -277,6 +277,10 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 		}
 		for _, node := range nodeList {
 			nID, mID := decodeMachineID(node.Spec.ProviderID), decodeMachineID(machine.Spec.ProviderID)
+			if nID == "" {
+				continue
+			}
+
 			if nID == mID {
 				klog.V(2).Infof("Adopting the node object %s for machine %s", node.Name, machine.Name)
 				nodeName = node.Name
