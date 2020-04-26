@@ -32,6 +32,17 @@ spec:
         caching: "None" # Caching Strategy (None/ReadOnly/ReadWrite)
         diskSizeGB: 50 # Size of disk to be created in GB
         createOption: "FromImage" # Create option for disk (Empty/Attach/FromImage)
+      dataDisks:
+        - lun: 0
+          caching: None
+          diskSizeGB: 100
+          storageAccountType: Standard_LRS
+          name: sdb
+        - lun: 1
+          caching: None
+          diskSizeGB: 100
+          storageAccountType: Standard_LRS
+          name: sdc
     osProfile:
       adminUsername: "admin-name" # Admin user name
       linuxConfiguration:

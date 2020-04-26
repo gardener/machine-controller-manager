@@ -887,6 +887,7 @@ type AzureHardwareProfile struct {
 type AzureStorageProfile struct {
 	ImageReference AzureImageReference
 	OsDisk         AzureOSDisk
+	DataDisks      []AzureDataDisk
 }
 
 // AzureImageReference is specifies information about the image to use. You can specify information about platform images,
@@ -906,6 +907,14 @@ type AzureOSDisk struct {
 	ManagedDisk  AzureManagedDiskParameters
 	DiskSizeGB   int32
 	CreateOption string
+}
+
+type AzureDataDisk struct {
+	Name               string
+	Lun                *int32
+	Caching            string
+	StorageAccountType string
+	DiskSizeGB         int32
 }
 
 // AzureManagedDiskParameters is the parameters of a managed disk.
@@ -1089,6 +1098,7 @@ type AlicloudMachineClassSpec struct {
 	VSwitchID               string
 	PrivateIPAddress        string
 	SystemDisk              *AlicloudSystemDisk
+	DataDisks               []AlicloudDataDisk
 	InstanceChargeType      string
 	InternetChargeType      string
 	InternetMaxBandwidthIn  *int
@@ -1104,6 +1114,16 @@ type AlicloudMachineClassSpec struct {
 type AlicloudSystemDisk struct {
 	Category string
 	Size     int
+}
+
+// AlicloudDataDisk describes DataDisk for Alicloud.
+type AlicloudDataDisk struct {
+	Name               string
+	Category           string
+	Description        string
+	Encrypted          bool
+	Size               int
+	DeleteWithInstance *bool
 }
 
 /********************** PacketMachineClass APIs ***************/

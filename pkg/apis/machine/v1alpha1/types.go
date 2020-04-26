@@ -968,6 +968,7 @@ type AzureHardwareProfile struct {
 type AzureStorageProfile struct {
 	ImageReference AzureImageReference `json:"imageReference,omitempty"`
 	OsDisk         AzureOSDisk         `json:"osDisk,omitempty"`
+	DataDisks      []AzureDataDisk     `json:"dataDisks,omitempty"`
 }
 
 // AzureImageReference is specifies information about the image to use. You can specify information about platform images,
@@ -988,6 +989,14 @@ type AzureOSDisk struct {
 	ManagedDisk  AzureManagedDiskParameters `json:"managedDisk,omitempty"`
 	DiskSizeGB   int32                      `json:"diskSizeGB,omitempty"`
 	CreateOption string                     `json:"createOption,omitempty"`
+}
+
+type AzureDataDisk struct {
+	Name               string `json:"name,omitempty"`
+	Lun                *int32  `json:"lun,omitempty"`
+	Caching            string `json:"caching,omitempty"`
+	StorageAccountType string `json:"storageAccountType,omitempty"`
+	DiskSizeGB         int32  `json:"diskSizeGB,omitempty"`
 }
 
 // AzureManagedDiskParameters is the parameters of a managed disk.
@@ -1237,6 +1246,7 @@ type AlicloudMachineClassSpec struct {
 	VSwitchID               string                  `json:"vSwitchID"`
 	PrivateIPAddress        string                  `json:"privateIPAddress,omitempty"`
 	SystemDisk              *AlicloudSystemDisk     `json:"systemDisk,omitempty"`
+	DataDisks               []AlicloudDataDisk      `json:"dataDisks,omitempty"`
 	InstanceChargeType      string                  `json:"instanceChargeType,omitempty"`
 	InternetChargeType      string                  `json:"internetChargeType,omitempty"`
 	InternetMaxBandwidthIn  *int                    `json:"internetMaxBandwidthIn,omitempty"`
@@ -1246,6 +1256,16 @@ type AlicloudMachineClassSpec struct {
 	Tags                    map[string]string       `json:"tags,omitempty"`
 	KeyPairName             string                  `json:"keyPairName"`
 	SecretRef               *corev1.SecretReference `json:"secretRef,omitempty"`
+}
+
+type AlicloudDataDisk struct {
+	Name     string `json:"name,omitEmpty"`
+	Category string `json:"category,omitEmpty"`
+	// +optional
+	Description        string `json:"description,omitEmpty"`
+	Encrypted          bool   `json:"encrypted,omitEmpty"`
+	DeleteWithInstance *bool  `json:"deleteWithInstance,omitEmpty"`
+	Size               int    `json:"size,omitEmpty"`
 }
 
 // AlicloudSystemDisk describes SystemDisk for Alicloud.

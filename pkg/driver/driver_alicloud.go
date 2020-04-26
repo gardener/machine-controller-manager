@@ -21,12 +21,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/klog"
 
-	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/metrics"
 	corev1 "k8s.io/api/core/v1"
 
@@ -75,6 +76,11 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 		request.InternetMaxBandwidthOut = requests.NewInteger(*c.AlicloudMachineClass.Spec.InternetMaxBandwidthOut)
 	}
 
+	if c.AlicloudMachineClass.Spec.DataDisks != nil && len(c.AlicloudMachineClass.Spec.DataDisks) > 0 {
+		dataDiskRequests := c.generateDataDiskRequests(c.AlicloudMachineClass.Spec.DataDisks)
+		request.DataDisk = &dataDiskRequests
+	}
+
 	if c.AlicloudMachineClass.Spec.SystemDisk != nil {
 		request.SystemDiskCategory = c.AlicloudMachineClass.Spec.SystemDisk.Category
 		request.SystemDiskSize = fmt.Sprintf("%d", c.AlicloudMachineClass.Spec.SystemDisk.Size)
@@ -104,6 +110,33 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 	// However, for Alicloud hostname, it can be transformed by Instance ID by default
 	// Please be noted that returned node name should be in LOWER case
 	return machineID, strings.ToLower(c.idToName(instanceID)), nil
+}
+
+func (c *AlicloudDriver) generateDataDiskRequests(disks []v1alpha1.AlicloudDataDisk) []ecs.RunInstancesDataDisk {
+	var dataDiskRequests []ecs.RunInstancesDataDisk
+	for _, disk := range disks {
+
+		dataDiskRequest := ecs.RunInstancesDataDisk{
+			Category:    disk.Category,
+			Encrypted:   strconv.FormatBool(disk.Encrypted),
+			DiskName:    fmt.Sprintf("%s-%s-data-disk", c.MachineName, disk.Name),
+			Description: disk.Description,
+			Size:        fmt.Sprintf("%d", disk.Size),
+		}
+
+		if disk.DeleteWithInstance != nil {
+			dataDiskRequest.DeleteWithInstance = strconv.FormatBool(*disk.DeleteWithInstance)
+		} else {
+			dataDiskRequest.DeleteWithInstance = strconv.FormatBool(true)
+		}
+
+		if disk.Category == "DiskEphemeralSSD" {
+			dataDiskRequest.DeleteWithInstance = ""
+		}
+
+		dataDiskRequests = append(dataDiskRequests, dataDiskRequest)
+	}
+	return dataDiskRequests
 }
 
 // Delete method is used to delete an alicloud machine

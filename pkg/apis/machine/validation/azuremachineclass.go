@@ -18,6 +18,8 @@ limitations under the License.
 package validation
 
 import (
+	"fmt"
+	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
 	"strings"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -106,9 +108,6 @@ func validateAzureProperties(properties machine.AzureVirtualMachineProperties, f
 		}
 	}
 
-	if properties.StorageProfile.OsDisk.Caching == "" {
-		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.osDisk.caching"), "OSDisk caching is required"))
-	}
 	if properties.StorageProfile.OsDisk.DiskSizeGB <= 0 {
 		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.osDisk.diskSizeGB"), "OSDisk size must be positive"))
 	}
@@ -116,6 +115,45 @@ func validateAzureProperties(properties machine.AzureVirtualMachineProperties, f
 		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.osDisk.createOption"), "OSDisk create option is required"))
 	}
 
+	if properties.StorageProfile.DataDisks != nil {
+
+		if len(properties.StorageProfile.DataDisks) > 64 {
+			allErrs = append(allErrs, field.TooMany(fldPath.Child("storageProfile.dataDisks"), len(properties.StorageProfile.DataDisks), 64))
+		}
+
+		luns := map[int32]int{}
+		for i, dataDisk := range properties.StorageProfile.DataDisks {
+			idxPath := fldPath.Child("storageProfile.dataDisks").Index(i)
+
+			lun := dataDisk.Lun
+
+			if lun == nil {
+				allErrs = append(allErrs, field.Required(idxPath.Child("lun"), "DataDisk Lun is required"))
+			} else {
+				if *lun < 0 || *lun > 63 {
+					allErrs = append(allErrs, field.Invalid(idxPath.Child("lun"), *lun, utilvalidation.InclusiveRangeError(0, 63)))
+				}
+				if _, keyExist := luns[*lun]; keyExist {
+					luns[*lun]++
+				} else {
+					luns[*lun] = 1
+				}
+			}
+
+			if dataDisk.DiskSizeGB <= 0 {
+				allErrs = append(allErrs, field.Required(idxPath.Child("diskSizeGB"), "DataDisk size must be positive"))
+			}
+			if dataDisk.StorageAccountType == "" {
+				allErrs = append(allErrs, field.Required(idxPath.Child("storageAccountType"), "DataDisk storage account type is required"))
+			}
+		}
+
+		for lun, number := range luns {
+			if number > 1 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("storageProfile.dataDisks"), lun, fmt.Sprintf("Data Disk Lun '%d' duplicated %d times, Lun must be unique", lun, number)))
+			}
+		}
+	}
 	if properties.OsProfile.AdminUsername == "" {
 		allErrs = append(allErrs, field.Required(fldPath.Child("osProfile.adminUsername"), "AdminUsername is required"))
 	}
