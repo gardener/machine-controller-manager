@@ -18,6 +18,9 @@ limitations under the License.
 package validation
 
 import (
+	"fmt"
+	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
+	"regexp"
 	"strings"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -61,6 +64,43 @@ func validateAlicloudMachineClassSpec(spec *machine.AlicloudMachineClassSpec, fl
 	}
 	if "" == spec.KeyPairName {
 		allErrs = append(allErrs, field.Required(fldPath.Child("keyPairName"), "KeyPairName is required"))
+	}
+
+	const dataDiskNameFmt string = `[a-zA-Z][a-zA-Z0-9\.\-_:]+`
+	var dataDiskNameRegexp = regexp.MustCompile("^" + dataDiskNameFmt + "$")
+
+
+	if spec.DataDisks != nil {
+		names := map[string]int{}
+		for i, dataDisk := range spec.DataDisks {
+			idxPath := fldPath.Child("dataDisks").Index(i)
+
+			if dataDisk.Name == "" {
+				allErrs = append(allErrs, field.Required(idxPath.Child("name"), "Data Disk name is required"))
+			} else if !dataDiskNameRegexp.MatchString(dataDisk.Name) {
+				allErrs = append(allErrs, field.Invalid(idxPath.Child("name"), dataDisk.Name, utilvalidation.RegexError(fmt.Sprintf("Disk name given: %s does not match the expected pattern", dataDisk.Name), dataDiskNameFmt)))
+			} else if len(dataDisk.Name) > 64 {
+				allErrs = append(allErrs, field.Invalid(idxPath.Child("name"), dataDisk.Name, "Data Disk Name length must be between 1 and 64"))
+			} else {
+				if _, keyExist := names[dataDisk.Name]; keyExist {
+					names[dataDisk.Name]++
+				} else {
+					names[dataDisk.Name] = 1
+				}
+			}
+			if dataDisk.Size < 20 || dataDisk.Size > 32768 {
+				allErrs = append(allErrs, field.Invalid(idxPath.Child("size"), dataDisk.Size, utilvalidation.InclusiveRangeError(20, 32768)))
+			}
+			if dataDisk.Category == "" {
+				allErrs = append(allErrs, field.Required(idxPath.Child("category"), "Data Disk category is required"))
+			}
+		}
+
+		for name, number := range names {
+			if number > 1 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("dataDisks"), name, fmt.Sprintf("Data Disk Name '%s' duplicated %d times, Name must be unique", name, number)))
+			}
+		}
 	}
 
 	allErrs = append(allErrs, validateSecretRef(spec.SecretRef, field.NewPath("spec.secretRef"))...)

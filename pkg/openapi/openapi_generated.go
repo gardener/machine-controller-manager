@@ -38,10 +38,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClassList":                      schema_pkg_apis_machine_v1alpha1_AWSMachineClassList(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSMachineClassSpec":                      schema_pkg_apis_machine_v1alpha1_AWSMachineClassSpec(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AWSNetworkInterfaceSpec":                  schema_pkg_apis_machine_v1alpha1_AWSNetworkInterfaceSpec(ref),
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudDataDisk":                         schema_pkg_apis_machine_v1alpha1_AlicloudDataDisk(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClass":                     schema_pkg_apis_machine_v1alpha1_AlicloudMachineClass(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClassList":                 schema_pkg_apis_machine_v1alpha1_AlicloudMachineClassList(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudMachineClassSpec":                 schema_pkg_apis_machine_v1alpha1_AlicloudMachineClassSpec(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudSystemDisk":                       schema_pkg_apis_machine_v1alpha1_AlicloudSystemDisk(ref),
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureDataDisk":                            schema_pkg_apis_machine_v1alpha1_AzureDataDisk(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureHardwareProfile":                     schema_pkg_apis_machine_v1alpha1_AzureHardwareProfile(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureImageReference":                      schema_pkg_apis_machine_v1alpha1_AzureImageReference(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureLinuxConfiguration":                  schema_pkg_apis_machine_v1alpha1_AzureLinuxConfiguration(ref),
@@ -720,6 +722,55 @@ func schema_pkg_apis_machine_v1alpha1_AWSNetworkInterfaceSpec(ref common.Referen
 	}
 }
 
+func schema_pkg_apis_machine_v1alpha1_AlicloudDataDisk(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"category": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"encrypted": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"deleteWithInstance": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"size": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+				},
+				Required: []string{"name", "category", "encrypted", "deleteWithInstance", "size"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_machine_v1alpha1_AlicloudMachineClass(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -859,6 +910,18 @@ func schema_pkg_apis_machine_v1alpha1_AlicloudMachineClassSpec(ref common.Refere
 							Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudSystemDisk"),
 						},
 					},
+					"dataDisks": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudDataDisk"),
+									},
+								},
+							},
+						},
+					},
 					"instanceChargeType": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
@@ -925,7 +988,7 @@ func schema_pkg_apis_machine_v1alpha1_AlicloudMachineClassSpec(ref common.Refere
 			},
 		},
 		Dependencies: []string{
-			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudSystemDisk", "k8s.io/api/core/v1.SecretReference"},
+			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudDataDisk", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AlicloudSystemDisk", "k8s.io/api/core/v1.SecretReference"},
 	}
 }
 
@@ -950,6 +1013,48 @@ func schema_pkg_apis_machine_v1alpha1_AlicloudSystemDisk(ref common.ReferenceCal
 					},
 				},
 				Required: []string{"category", "size"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_machine_v1alpha1_AzureDataDisk(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"lun": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+					"caching": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"storageAccountType": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"diskSizeGB": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -1413,11 +1518,23 @@ func schema_pkg_apis_machine_v1alpha1_AzureStorageProfile(ref common.ReferenceCa
 							Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureOSDisk"),
 						},
 					},
+					"dataDisks": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureDataDisk"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureImageReference", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureOSDisk"},
+			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureDataDisk", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureImageReference", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureOSDisk"},
 	}
 }
 

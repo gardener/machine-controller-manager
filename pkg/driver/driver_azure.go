@@ -152,6 +152,11 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 		Tags: tagList,
 	}
 
+	if d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks != nil && len(d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks) > 0 {
+		dataDisks := d.generateDataDisks(vmName, d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks)
+		VMParameters.StorageProfile.DataDisks = &dataDisks
+	}
+
 	if d.AzureMachineClass.Spec.Properties.Zone != nil {
 		VMParameters.Zones = &[]string{strconv.Itoa(*d.AzureMachineClass.Spec.Properties.Zone)}
 	} else if d.AzureMachineClass.Spec.Properties.AvailabilitySet != nil {
@@ -193,6 +198,44 @@ func getImageReference(d *AzureDriver) compute.ImageReference {
 	}
 }
 
+func (d *AzureDriver) generateDataDisks(vmName string, azureDataDisks []v1alpha1.AzureDataDisk) []compute.DataDisk {
+	var dataDisks []compute.DataDisk
+	for i, azureDataDisk := range azureDataDisks {
+
+		var dataDiskLun *int32
+		if azureDataDisk.Lun != nil {
+			dataDiskLun = azureDataDisk.Lun
+		} else {
+			lun := int32(i)
+			dataDiskLun = &lun
+		}
+
+		dataDiskName := dependencyNameFromVMNameAndDependency(getAzureDataDiskPrefix(azureDataDisk.Name, dataDiskLun), vmName, dataDiskSuffix)
+
+		var caching compute.CachingTypes
+		if azureDataDisk.Caching != "" {
+			caching = compute.CachingTypes(azureDataDisk.Caching)
+		} else {
+			caching = compute.CachingTypesNone
+		}
+
+		dataDiskSize := azureDataDisk.DiskSizeGB
+
+		dataDisk := compute.DataDisk{
+			Lun:     dataDiskLun,
+			Name:    &dataDiskName,
+			Caching: caching,
+			ManagedDisk: &compute.ManagedDiskParameters{
+				StorageAccountType: compute.StorageAccountTypes(azureDataDisk.StorageAccountType),
+			},
+			DiskSizeGB:   &dataDiskSize,
+			CreateOption: compute.DiskCreateOptionTypesEmpty,
+		}
+		dataDisks = append(dataDisks, dataDisk)
+	}
+	return dataDisks
+}
+
 // Create method is used to create an azure machine
 func (d *AzureDriver) Create() (string, string, error) {
 	var (
@@ -223,7 +266,12 @@ func (d *AzureDriver) Delete(machineID string) error {
 		resourceGroupName = d.AzureMachineClass.Spec.ResourceGroup
 	)
 
-	if err := clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName); err != nil {
+	var dataDiskNames []string
+	if d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks != nil && len(d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks) > 0 {
+		dataDiskNames = getAzureDataDiskNames(d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks, vmName, dataDiskSuffix)
+	}
+
+	if err := clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames); err != nil {
 		return err
 	}
 
@@ -237,7 +285,8 @@ func (d *AzureDriver) Delete(machineID string) error {
 			return clients.checkOrphanDisks(ctx, resourceGroupName, vmName)
 		}, 3, time.Second*30)
 	}
-	return runInParallel(orphanNicChecker, orphanDiskChecker)
+	orphanCheckers := []func() error{orphanNicChecker, orphanDiskChecker}
+	return runInParallel(orphanCheckers)
 }
 
 // GetExisting method is used to fetch the machineID for an azure machine
@@ -377,6 +426,11 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 		vnetResourceGroup = *d.AzureMachineClass.Spec.SubnetInfo.VnetResourceGroup
 	}
 
+	var dataDiskNames []string
+	if d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks != nil && len(d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks) > 0 {
+		dataDiskNames = getAzureDataDiskNames(d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks, vmName, dataDiskSuffix)
+	}
+
 	/*
 		Subnet fetching
 	*/
@@ -404,7 +458,7 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 	NICFuture, err := clients.nic.CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name, NICParameters)
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
-		deleteErr := clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName)
+		deleteErr := clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
@@ -416,7 +470,7 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 	err = NICFuture.WaitForCompletionRef(ctx, clients.nic.Client)
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
-		deleteErr := clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName)
+		deleteErr := clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
@@ -429,7 +483,7 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 	NIC, err := NICFuture.Result(clients.nic)
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
-		deleteErr := clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName)
+		deleteErr := clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
@@ -448,7 +502,7 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 	VMFuture, err := clients.vm.CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
 	if err != nil {
 		//Since machine creation failed, delete any infra resources created
-		deleteErr := clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName)
+		deleteErr := clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
@@ -460,7 +514,7 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 	err = VMFuture.WaitForCompletionRef(ctx, clients.vm.Client)
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
-		deleteErr := clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName)
+		deleteErr := clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
@@ -472,7 +526,7 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 	VM, err := VMFuture.Result(clients.vm)
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
-		deleteErr := clients.deleteVMNicDisk(ctx, resourceGroupName, vmName, nicName, diskName)
+		deleteErr := clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
@@ -701,7 +755,7 @@ func (clients *azureDriverClients) fetchAttachedVMfromDisk(ctx context.Context, 
 	return *disk.ManagedBy, nil
 }
 
-func (clients *azureDriverClients) deleteVMNicDisk(ctx context.Context, resourceGroupName string, VMName string, nicName string, diskName string) error {
+func (clients *azureDriverClients) deleteVMNicDisks(ctx context.Context, resourceGroupName string, VMName string, nicName string, diskName string, dataDiskNames []string) error {
 
 	// We try to fetch the VM, detach its data disks and finally delete it
 	if vm, vmErr := clients.vm.Get(ctx, resourceGroupName, VMName, ""); vmErr == nil {
@@ -733,7 +787,22 @@ func (clients *azureDriverClients) deleteVMNicDisk(ctx context.Context, resource
 	}
 
 	// Fetch the system disk and delete it
-	diskDeleter := func() error {
+	diskDeleter := clients.getDeleterForDisk(ctx, resourceGroupName, diskName)
+
+	deleters := []func() error{nicDeleter, diskDeleter}
+
+	if dataDiskNames != nil {
+		for _, dataDiskName := range dataDiskNames {
+			dataDiskDeleter := clients.getDeleterForDisk(ctx, resourceGroupName, dataDiskName)
+			deleters = append(deleters, dataDiskDeleter)
+		}
+	}
+
+	return runInParallel(deleters)
+}
+
+func (clients *azureDriverClients) getDeleterForDisk(ctx context.Context, resourceGroupName string, diskName string) func() error {
+	return func() error {
 		if vmHoldingDisk, err := clients.fetchAttachedVMfromDisk(ctx, resourceGroupName, diskName); err != nil {
 			if notFound(err) {
 				// Resource doesn't exist, no need to delete
@@ -746,8 +815,6 @@ func (clients *azureDriverClients) deleteVMNicDisk(ctx context.Context, resource
 
 		return clients.deleteDisk(ctx, resourceGroupName, diskName)
 	}
-
-	return runInParallel(nicDeleter, diskDeleter)
 }
 
 // waitForDataDiskDetachment waits for data disks to be detached
@@ -841,8 +908,8 @@ func (clients *azureDriverClients) deleteNIC(ctx context.Context, resourceGroupN
 }
 
 func (clients *azureDriverClients) deleteDisk(ctx context.Context, resourceGroupName string, diskName string) error {
-	klog.V(2).Infof("System disk delete started for %q", diskName)
-	defer klog.V(2).Infof("System disk deleted for %q", diskName)
+	klog.V(2).Infof("Disk delete started for %q", diskName)
+	defer klog.V(2).Infof("Disk deleted for %q", diskName)
 
 	future, err := clients.disk.Delete(ctx, resourceGroupName, diskName)
 	if err != nil {
@@ -851,7 +918,7 @@ func (clients *azureDriverClients) deleteDisk(ctx context.Context, resourceGroup
 	if err = future.WaitForCompletionRef(ctx, clients.disk.Client); err != nil {
 		return onARMAPIErrorFail(prometheusServiceDisk, err, "disk.Delete")
 	}
-	onARMAPISuccess(prometheusServiceDisk, "OS-Disk deletion was successful for %s", diskName)
+	onARMAPISuccess(prometheusServiceDisk, "Disk deletion was successful for %s", diskName)
 	return nil
 }
 
@@ -896,7 +963,7 @@ func onErrorFail(err error, format string, v ...interface{}) error {
 	return err
 }
 
-func runInParallel(funcs ...(func() error)) error {
+func runInParallel(funcs []func() error) error {
 	//
 	// Execute multiple functions (which return an error) as go functions concurrently.
 	//
@@ -940,9 +1007,36 @@ func decodeMachineID(id string) string {
 }
 
 const (
-	nicSuffix  = "-nic"
-	diskSuffix = "-os-disk"
+	nicSuffix      = "-nic"
+	diskSuffix     = "-os-disk"
+	dataDiskSuffix = "-data-disk"
 )
+
+func getAzureDataDiskNames(azureDataDisks []v1alpha1.AzureDataDisk, vmname, suffix string) []string {
+	azureDataDiskNames := make([]string, len(azureDataDisks))
+	for i, disk := range azureDataDisks {
+		var diskLun *int32
+		if disk.Lun != nil {
+			diskLun = disk.Lun
+		} else {
+			lun := int32(i)
+			diskLun = &lun
+		}
+		azureDataDiskNames[i] = dependencyNameFromVMNameAndDependency(getAzureDataDiskPrefix(disk.Name, diskLun), vmname, suffix)
+	}
+	return azureDataDiskNames
+}
+
+func getAzureDataDiskPrefix(name string, lun *int32) string {
+	if name != "" {
+		return fmt.Sprintf("%s-%d", name, *lun)
+	}
+	return fmt.Sprintf("%d", *lun)
+}
+
+func dependencyNameFromVMNameAndDependency(dependency, vmName, suffix string) string {
+	return vmName + "-" + dependency + suffix
+}
 
 func dependencyNameFromVMName(vmName, suffix string) string {
 	return vmName + suffix

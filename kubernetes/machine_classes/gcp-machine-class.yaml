@@ -17,6 +17,13 @@ spec:
     image: projects/coreos-cloud/global/images/image-name-goes-here # Disk image name
     labels:
       name: my-disk # Label assigned to the disk
+  - autoDelete: true
+    boot: false
+    sizeGb: 50
+    type: pd-standard
+    image: projects/coreos-cloud/global/images/image-name-goes-here # Disk image name
+    labels:
+      name: my-disk
   labels:
     name: my-instance # Label assigned to the instance
   machineType: n1-standard-4 # Type of GCP instance to launch
