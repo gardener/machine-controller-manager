@@ -58,6 +58,7 @@ type DrainOptions struct {
 	PvDetachTimeout              time.Duration
 	DeleteLocalData              bool
 	nodeName                     string
+	nodeNotReadyDuration         time.Duration
 	Out                          io.Writer
 	ErrOut                       io.Writer
 	Driver                       driver.Driver
@@ -123,6 +124,7 @@ func NewDrainOptions(
 	maxEvictRetries int32,
 	pvDetachTimeout time.Duration,
 	nodeName string,
+	nodeNotReadyDuration time.Duration,
 	gracePeriodSeconds int,
 	forceDeletePods bool,
 	ignorePodsWithoutControllers bool,
@@ -134,6 +136,9 @@ func NewDrainOptions(
 	pvcLister corelisters.PersistentVolumeClaimLister,
 	pvLister corelisters.PersistentVolumeLister,
 ) *DrainOptions {
+	if nodeNotReadyDuration == 0 {
+		nodeNotReadyDuration = 5 * time.Minute
+	}
 
 	return &DrainOptions{
 		client:                       client,
@@ -146,6 +151,7 @@ func NewDrainOptions(
 		PvDetachTimeout:              pvDetachTimeout,
 		DeleteLocalData:              deleteLocalData,
 		nodeName:                     nodeName,
+		nodeNotReadyDuration:         nodeNotReadyDuration,
 		Out:                          out,
 		ErrOut:                       errOut,
 		Driver:                       driver,
@@ -179,7 +185,23 @@ func (o *DrainOptions) RunDrain() error {
 		return err
 	}
 
-	err := o.deleteOrEvictPodsSimple()
+	node, err := o.client.CoreV1().Nodes().Get(o.nodeName, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		klog.V(4).Infof("Node %q not found, skipping drain", o.nodeName)
+		return nil
+	} else if err != nil {
+		klog.Errorf("Error getting details for node: %q. Err: %v", o.nodeName, err)
+		return err
+	}
+
+	for _, condition := range node.Status.Conditions {
+		if condition.Type == corev1.NodeReady && condition.Status != corev1.ConditionTrue && (time.Since(condition.LastTransitionTime.Time) > o.nodeNotReadyDuration) {
+			klog.Warningf("Skipping drain for NotReady Node %q", o.nodeName)
+			return nil
+		}
+	}
+
+	err = o.deleteOrEvictPodsSimple()
 	return err
 }
 

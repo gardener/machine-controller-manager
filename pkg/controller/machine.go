@@ -624,6 +624,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				maxEvictRetries,
 				pvDetachTimeOut,
 				nodeName,
+				5*time.Minute,
 				-1,
 				forceDeletePods,
 				true,
