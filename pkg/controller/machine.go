@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"strings"
 	"time"
 
@@ -426,6 +427,27 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 		// Delete the bootstrap token
 		if err := c.deleteBootstrapToken(machine.Name); err != nil {
 			klog.Warning(err)
+		}
+
+		// Check if the creation-error logs contain the specific pattern, and annotate the machine-deployment if found.
+		contains, _ := c.containsSpecialPattern(err.Error(), MachineTypeNotAvailableAzure, MachineTypeNotAvailableAWS)
+
+		if contains {
+			md := c.getMachineDeploymentForMachine(machine)
+			if md != nil {
+				mdCopy := md.DeepCopy()
+				annotations := mdCopy.Spec.Template.Spec.NodeTemplateSpec.Annotations
+				if annotations == nil {
+					annotations = make(map[string]string)
+				}
+				annotations[MachineTypeNotAvailableAnnotation] = "True"
+				mdCopy.Spec.Template.Spec.NodeTemplateSpec.Annotations = annotations
+
+				_, errUpdate := c.controlMachineClient.MachineDeployments(machine.Namespace).Update(mdCopy)
+				if errUpdate != nil {
+					klog.Errorf("Error updating the machine-deployment %+v", errUpdate)
+				}
+			}
 		}
 
 		return err
@@ -1024,4 +1046,19 @@ func shouldReconcileMachine(machine *v1alpha1.Machine, now time.Time) bool {
 func decodeMachineID(id string) string {
 	splitProviderID := strings.Split(id, "/")
 	return splitProviderID[len(splitProviderID)-1]
+}
+
+// containsSpecialPattern checks if the errorString contains any of the patterns
+func (c *controller) containsSpecialPattern(errorString string, patterns ...string) (bool, error) {
+	for _, pattern := range patterns {
+		matched, err := regexp.MatchString(pattern, errorString)
+		if err != nil {
+			klog.Errorf("Error matching the string %+v", err)
+			return false, err
+		}
+		if matched {
+			return true, nil
+		}
+	}
+	return false, nil
 }
