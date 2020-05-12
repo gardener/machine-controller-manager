@@ -86,9 +86,9 @@ func (c *controller) machineClassUpdate(oldObj, newObj interface{}) {
 	c.machineClassAdd(newObj)
 }
 
-// reconcileClustermachineClassKey reconciles an machineClass due to controller resync
+// reconcileClusterMachineClassKey reconciles an machineClass due to controller resync
 // or an event on the machineClass.
-func (c *controller) reconcileClustermachineClassKey(key string) error {
+func (c *controller) reconcileClusterMachineClassKey(key string) error {
 	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -104,10 +104,10 @@ func (c *controller) reconcileClustermachineClassKey(key string) error {
 		return err
 	}
 
-	return c.reconcileClustermachineClass(class)
+	return c.reconcileClusterMachineClass(class)
 }
 
-func (c *controller) reconcileClustermachineClass(class *v1alpha1.MachineClass) error {
+func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) error {
 	klog.V(4).Info("Start Reconciling machineclass: ", class.Name)
 	defer func() {
 		c.enqueueMachineClassAfter(class, 10*time.Minute)

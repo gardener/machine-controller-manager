@@ -257,7 +257,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 			return MachineClass, secretRef, err
 		}
 	default:
-		klog.V(2).Infof("ClassKind %q not found", classSpec.Kind)
+		klog.V(4).Infof("ClassKind %q not found. Machine maybe be processed by external controller", classSpec.Kind)
 	}
 
 	return MachineClass, secretRef, nil
