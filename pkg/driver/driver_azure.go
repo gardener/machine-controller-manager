@@ -32,6 +32,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/marketplaceordering/mgmt/2015-06-01/marketplaceordering"
 	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2019-11-01/network"
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2019-05-01/resources"
 
@@ -87,7 +88,7 @@ func (d *AzureDriver) getNICParameters(vmName string, subnet *network.Subnet) ne
 	return NICParameters
 }
 
-func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID string) compute.VirtualMachine {
+func (d *AzureDriver) getVMParameters(vmName string, image compute.VirtualMachineImage, networkInterfaceReferenceID string) compute.VirtualMachine {
 
 	var (
 		diskName    = dependencyNameFromVMName(vmName, diskSuffix)
@@ -103,8 +104,18 @@ func (d *AzureDriver) getVMParameters(vmName string, networkInterfaceReferenceID
 
 	imageReference := getImageReference(d)
 
+	var plan *compute.Plan
+	if image.Plan != nil {
+		plan = &compute.Plan{
+			Name:      image.VirtualMachineImageProperties.Plan.Name,
+			Product:   image.VirtualMachineImageProperties.Plan.Product,
+			Publisher: image.VirtualMachineImageProperties.Plan.Publisher,
+		}
+	}
+
 	VMParameters := compute.VirtualMachine{
 		Name:     &vmName,
+		Plan:     plan,
 		Location: &location,
 		VirtualMachineProperties: &compute.VirtualMachineProperties{
 			HardwareProfile: &compute.HardwareProfile{
@@ -368,6 +379,8 @@ type azureDriverClients struct {
 	vm          compute.VirtualMachinesClient
 	disk        compute.DisksClient
 	deployments resources.DeploymentsClient
+	images      compute.VirtualMachineImagesClient
+	marketplace marketplaceordering.MarketplaceAgreementsClient
 }
 
 type azureTags map[string]string
@@ -394,13 +407,19 @@ func newClients(subscriptionID, tenantID, clientID, clientSecret string, env azu
 	vmClient := compute.NewVirtualMachinesClient(subscriptionID)
 	vmClient.Authorizer = authorizer
 
+	vmImagesClient := compute.NewVirtualMachineImagesClient(subscriptionID)
+	vmImagesClient.Authorizer = authorizer
+
 	diskClient := compute.NewDisksClient(subscriptionID)
 	diskClient.Authorizer = authorizer
 
 	deploymentsClient := resources.NewDeploymentsClient(subscriptionID)
 	deploymentsClient.Authorizer = authorizer
 
-	return &azureDriverClients{subnet: subnetClient, nic: interfacesClient, vm: vmClient, disk: diskClient, deployments: deploymentsClient}, nil
+	marketplaceClient := marketplaceordering.NewMarketplaceAgreementsClient(subscriptionID)
+	marketplaceClient.Authorizer = authorizer
+
+	return &azureDriverClients{subnet: subnetClient, nic: interfacesClient, vm: vmClient, disk: diskClient, deployments: deploymentsClient, images: vmImagesClient, marketplace: marketplaceClient}, nil
 }
 
 func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
@@ -495,8 +514,44 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 		VM creation
 	*/
 
+	imageReference := getImageReference(d)
+	vmImage, err := clients.images.Get(
+		ctx,
+		d.AzureMachineClass.Spec.Location,
+		*imageReference.Publisher,
+		*imageReference.Offer,
+		*imageReference.Sku,
+		*imageReference.Version)
+
+	if vmImage.Plan != nil {
+
+		agreement, err := clients.marketplace.Get(
+			ctx,
+			*vmImage.Plan.Publisher,
+			*vmImage.Plan.Product,
+			*vmImage.Plan.Name,
+		)
+		if err != nil {
+			//TODO
+		}
+
+		if agreement.Accepted == nil || *agreement.Accepted == false {
+			agreement.Accepted = to.BoolPtr(true)
+			/*
+			* Need to accept the terms at least once for the subscription
+			 */
+			_, err = clients.marketplace.Create(
+				ctx,
+				*vmImage.Plan.Publisher,
+				*vmImage.Plan.Product,
+				*vmImage.Plan.Name,
+				agreement,
+			)
+		}
+	}
+
 	// Creating VMParameters for new VM creation request
-	VMParameters := d.getVMParameters(vmName, *NIC.ID)
+	VMParameters := d.getVMParameters(vmName, vmImage, *NIC.ID)
 
 	// VM creation request
 	VMFuture, err := clients.vm.CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
