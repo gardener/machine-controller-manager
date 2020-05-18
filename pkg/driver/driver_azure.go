@@ -523,6 +523,16 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 		*imageReference.Sku,
 		*imageReference.Version)
 
+	if err != nil {
+		//Since machine creation failed, delete any infra resources created
+		deleteErr := clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+		if deleteErr != nil {
+			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
+		}
+
+		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VirtualMachineImagesClient.Get failed for %s", d.AzureMachineClass.Name)
+	}
+
 	if vmImage.Plan != nil {
 
 		agreement, err := clients.marketplace.Get(
@@ -531,8 +541,15 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 			*vmImage.Plan.Product,
 			*vmImage.Plan.Name,
 		)
+
 		if err != nil {
-			//TODO
+			//Since machine creation failed, delete any infra resources created
+			deleteErr := clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+			if deleteErr != nil {
+				klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
+			}
+
+			return nil, onARMAPIErrorFail(prometheusServiceVM, err, "MarketplaceAgreementsClient.Get failed for %s", d.AzureMachineClass.Name)
 		}
 
 		if agreement.Accepted == nil || *agreement.Accepted == false {
@@ -547,6 +564,16 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 				*vmImage.Plan.Name,
 				agreement,
 			)
+
+			if err != nil {
+				//Since machine creation failed, delete any infra resources created
+				deleteErr := clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+				if deleteErr != nil {
+					klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
+				}
+
+				return nil, onARMAPIErrorFail(prometheusServiceVM, err, "MarketplaceAgreementsClient.Create failed for %s", d.AzureMachineClass.Name)
+			}
 		}
 	}
 
