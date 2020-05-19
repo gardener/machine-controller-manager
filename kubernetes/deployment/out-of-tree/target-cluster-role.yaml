@@ -1,0 +1,52 @@
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: machine-controller-manager-target
+rules:
+-  apiGroups:
+   - ""
+   resources:
+   - nodes
+   - endpoints
+   - replicationcontrollers
+   - pods
+   verbs:
+   - create
+   - delete
+   - deletecollection
+   - get
+   - list
+   - patch
+   - update
+   - watch
+-  apiGroups:
+   - ""
+   resources:
+   - pods/eviction
+   verbs:
+   - create
+-  apiGroups:
+   - extensions
+   - apps
+   resources:
+   - replicasets
+   - statefulsets
+   - daemonsets
+   - deployments
+   verbs:
+   - create
+   - delete
+   - deletecollection
+   - get
+   - list
+   - patch
+   - update
+   - watch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  - persistentvolumes
+  verbs:
+  - list
+  - watch

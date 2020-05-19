@@ -42,7 +42,7 @@ start:
 			--machine-safety-apiserver-statuscheck-period=1m \
 			--machine-safety-orphan-vms-period=30m \
 			--machine-safety-overshooting-period=1m \
-			--v=2
+			--v=3
 
 #################################################################
 # Rules related to binary build, Docker image build and release #

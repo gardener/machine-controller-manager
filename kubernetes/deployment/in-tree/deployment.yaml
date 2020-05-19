@@ -1,6 +1,6 @@
 # Sample deployment file, used to run Machine Controller Manager on your cluster
 
-apiVersion: apps/v1beta1 # Version may change based on kubernetes version
+apiVersion: apps/v1b # Version may change based on kubernetes version
 kind: Deployment
 metadata:
   name: machine-controller-manager
@@ -11,24 +11,26 @@ spec:
       labels:
         app: machine-controller-manager
     spec:
+      securityContext: {}
+      serviceAccount: machine-controller-manager
+      serviceAccountName: machine-controller-manager
       containers:
       - name: machine-controller-manager
-        image: eu.gcr.io/gardener-project/gardener/machine-controller-manager:0.5.0
+        image: eu.gcr.io/gardener-project/gardener/machine-controller-manager:v0.28.0
         imagePullPolicy: Always
         command:
           - ./machine-controller-manager
-          - --v=2
           - --target-kubeconfig=$(TARGET_KUBECONFIG) # Mandatory Parameter - Filepath to the target cluster's kubeconfig where node objects are expected to join.
           - --control-kubeconfig=$(CONTROL_KUBECONFIG) # Optional Parameter - Default value is same as target-kubeconfig - Filepath to the control cluster's kubeconfig where machine objects would be created. Optionally you could also use "inClusterConfig" when pod is running inside control kubeconfig.
           - --namespace=$(CONTROL_NAMESPACE) # Optional Parameter - Default value for namespace is 'default' - The control namespace where the controller watches for it's machine objects.
           - --safety-up=2 # Optional Parameter - Default value 2 - The number of excess machine objects permitted for any machineSet/machineDeployment beyond its expected number of replicas based on desired and max-surge, we call this the upper-limit. When this upper-limit is reached, the objects are frozen until the number of objects reduce. upper-limit = desired + maxSurge (if applicable) + safetyUp.
           - --safety-down=1 # Optional Parameter - Default value 1 - Upper-limit minus safety-down value gives the lower-limit. This is the limits below which any temporarily frozen machineSet/machineDeployment object is unfrozen. lower-limit = desired + maxSurge (if applicable) + safetyUp - safetyDown.
-          - --machine-drain-timeout=5 # Optional Parameter - Timeout (in minutes) used while draining of machine before deletion, beyond which MCM forcefully deletes machine.
-          - --machine-health-timeout=10  # Optional Parameter - Default value 10mins - Timeout (in minutes) used while joining (during creation) or re-joining (in case of temporary health issues) of machine before it is declared as failed.
-          - --machine-set-scale-timeout=20 # Optional Parameter - Default value 20mins - Timeout (in minutes) used while scaling machineSet if timeout occurs machineSet is frozen.
-          - --machine-safety-orphan-vms-period=30 # Optional Parameter - Default value 30mins - Time period (in minutes) used to poll for orphan VMs by safety controller.
-          - --machine-safety-overshooting-period=1 # Optional Parameter - Default value 1min - Time period (in minutes) used to poll for overshooting of machine objects backing a machineSet by safety controller.
+          - --machine-drain-timeout=5m # Optional Parameter - Timeout (in time) used while draining of machine before deletion, beyond which MCM forcefully deletes machine.
+          - --machine-health-timeout=10m  # Optional Parameter - Default value 10mins - Timeout (in time) used while joining (during creation) or re-joining (in case of temporary health issues) of machine before it is declared as failed.
+          - --machine-safety-orphan-vms-period=30m # Optional Parameter - Default value 30mins - Time period (in time) used to poll for orphan VMs by safety controller.
+          - --machine-safety-overshooting-period=1m # Optional Parameter - Default value 1min - Time period (in time) used to poll for overshooting of machine objects backing a machineSet by safety controller.
           - --node-conditions=ReadonlyFilesystem,KernelDeadlock,DiskPressure # List of comma-separated/case-sensitive node-conditions which when set to True will change machine to a failed state after MachineHealthTimeout duration. It may further be replaced with a new machine if the machine is backed by a machine-set object.
+          - --v=2
         livenessProbe:
           failureThreshold: 3
           httpGet:
