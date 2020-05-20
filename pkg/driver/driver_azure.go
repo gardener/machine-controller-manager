@@ -106,6 +106,8 @@ func (d *AzureDriver) getVMParameters(vmName string, image compute.VirtualMachin
 
 	var plan *compute.Plan
 	if image.Plan != nil {
+		// If image.Plan exists, create a plan object and attach it to the VM
+		klog.V(2).Infof("Creating a plan object and attaching it to the VM - %q", vmName)
 		plan = &compute.Plan{
 			Name:      image.VirtualMachineImageProperties.Plan.Name,
 			Product:   image.VirtualMachineImageProperties.Plan.Product,
@@ -534,6 +536,7 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 	}
 
 	if vmImage.Plan != nil {
+		// If VMImage.Plan exists, check if agreement is accepted and if not accept it for the subscription
 
 		agreement, err := clients.marketplace.Get(
 			ctx,
@@ -553,10 +556,10 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 		}
 
 		if agreement.Accepted == nil || *agreement.Accepted == false {
+			// Need to accept the terms at least once for the subscription
+			klog.V(2).Info("Accepting terms for subscription to make use of the plan")
+
 			agreement.Accepted = to.BoolPtr(true)
-			/*
-			* Need to accept the terms at least once for the subscription
-			 */
 			_, err = clients.marketplace.Create(
 				ctx,
 				*vmImage.Plan.Publisher,
