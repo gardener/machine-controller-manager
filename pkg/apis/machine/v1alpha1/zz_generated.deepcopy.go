@@ -52,6 +52,16 @@ func (in *AWSEbsBlockDeviceSpec) DeepCopyInto(out *AWSEbsBlockDeviceSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.KmsKeyID != nil {
+		in, out := &in.KmsKeyID, &out.KmsKeyID
+		*out = new(string)
+		**out = **in
+	}
+	if in.SnapshotID != nil {
+		in, out := &in.SnapshotID, &out.SnapshotID
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 

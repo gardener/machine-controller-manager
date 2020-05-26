@@ -775,6 +775,18 @@ type AWSEbsBlockDeviceSpec struct {
 	// it is not used in requests to create gp2, st1, sc1, or standard volumes.
 	Iops int64
 
+	// Identifier (key ID, key alias, ID ARN, or alias ARN) for a customer managed
+	// CMK under which the EBS volume is encrypted.
+	//
+	// This parameter is only supported on BlockDeviceMapping objects called by
+	// RunInstances (https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html),
+	// RequestSpotFleet (https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RequestSpotFleet.html),
+	// and RequestSpotInstances (https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RequestSpotInstances.html).
+	KmsKeyID *string
+
+	// The ID of the snapshot.
+	SnapshotID *string
+
 	// The size of the volume, in GiB.
 	//
 	// Constraints: 1-16384 for General Purpose SSD (gp2), 4-16384 for Provisioned
