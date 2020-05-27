@@ -388,7 +388,7 @@ func SyncMachineTaints(
 }
 
 // machineCreateErrorHandler TODO
-func (c *controller) machineCreateErrorHandler(machine *v1alpha1.Machine, lastKnownState string, err error) (machineutils.Retry, error) {
+func (c *controller) machineCreateErrorHandler(machine *v1alpha1.Machine, createMachineResponse *driver.CreateMachineResponse, err error) (machineutils.Retry, error) {
 	var retryRequired = machineutils.DoNotRetryOp
 
 	if grpcErr, ok := status.FromError(err); ok {
@@ -410,7 +410,9 @@ func (c *controller) machineCreateErrorHandler(machine *v1alpha1.Machine, lastKn
 		//TimeoutActive:  false,
 		LastUpdateTime: metav1.Now(),
 	}
-	clone.Status.LastKnownState = lastKnownState
+	if createMachineResponse != nil && createMachineResponse.LastKnownState != "" {
+		clone.Status.LastKnownState = createMachineResponse.LastKnownState
+	}
 
 	_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 	if err != nil {
@@ -909,19 +911,17 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 // deleteVM attempts to delete the VM backed by the machine object
 func (c *controller) deleteVM(deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.Retry, error) {
 	var (
-		machine        = deleteMachineRequest.Machine
-		retryRequired  machineutils.Retry
-		description    string
-		lastKnownState string
-		state          v1alpha1.MachineState
-		phase          v1alpha1.MachinePhase
+		machine       = deleteMachineRequest.Machine
+		retryRequired machineutils.Retry
+		description   string
+		state         v1alpha1.MachineState
+		phase         v1alpha1.MachinePhase
 	)
 
 	deleteMachineResponse, err := c.driver.DeleteMachine(context.TODO(), deleteMachineRequest)
 	if err != nil {
 
 		klog.Errorf("Error while deleting machine %s: %s", machine.Name, err)
-		lastKnownState = deleteMachineResponse.LastKnownState
 
 		if grpcErr, ok := status.FromError(err); ok {
 			switch grpcErr.Code() {
@@ -968,7 +968,10 @@ func (c *controller) deleteVM(deleteMachineRequest *driver.DeleteMachineRequest)
 		Phase:          phase,
 		LastUpdateTime: metav1.Now(),
 	}
-	clone.Status.LastKnownState = lastKnownState
+
+	if deleteMachineResponse != nil && deleteMachineResponse.LastKnownState != "" {
+		clone.Status.LastKnownState = deleteMachineResponse.LastKnownState
+	}
 
 	_, updateErr := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 	if updateErr != nil {
