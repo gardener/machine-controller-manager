@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * This file was copied and modified from the kubernetes/kubernetes project
+ * This file was copied and modified from the github.com/grpc/grpc-go project
  * https://github.com/grpc/grpc-go/blob/v1.29.x/code/code_string.go
  *
  * Modifications Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved.

@@ -14,18 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * This file was copied and modified from the kubernetes/kubernetes project
+ * This file was copied and modified from the github.com/grpc/grpc-go project
  * https://github.com/grpc/grpc-go/blob/v1.29.x/status/status.go
  *
  * Modifications Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved.
  *
  */
 
-// Package status implements errors returned by gRPC.  These errors are
-// serialized and transmitted on the wire between server and client, and allow
-// for additional data to be transmitted via the Details field in the status
-// proto.  gRPC service handlers should return an error created by this
-// package, and gRPC clients should expect a corresponding error to be
+// Package status implements errors returned by MachineAPIs. MachineAPIs
+// service handlers should return an error created by this package,
+// and machineAPIs clients should expect a corresponding error to be
 // returned from the RPC call.
 //
 // This package upholds the invariants that a non-nil error may not

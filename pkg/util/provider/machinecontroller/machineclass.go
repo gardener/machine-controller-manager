@@ -31,28 +31,8 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 )
 
-// machineClassKind is used to identify the machineClassKind as AWS
+// machineClassKind is used to identify the machineClassKind for generic machineClasses
 const machineClassKind = "machineClass"
-
-func (c *controller) machineDeploymentToMachineClassDelete(obj interface{}) {
-	machineDeployment, ok := obj.(*v1alpha1.MachineDeployment)
-	if machineDeployment == nil || !ok {
-		return
-	}
-	if machineDeployment.Spec.Template.Spec.Class.Kind == machineClassKind {
-		c.machineClassQueue.Add(machineDeployment.Spec.Template.Spec.Class.Name)
-	}
-}
-
-func (c *controller) machineSetToMachineClassDelete(obj interface{}) {
-	machineSet, ok := obj.(*v1alpha1.MachineSet)
-	if machineSet == nil || !ok {
-		return
-	}
-	if machineSet.Spec.Template.Spec.Class.Kind == machineClassKind {
-		c.machineClassQueue.Add(machineSet.Spec.Template.Spec.Class.Name)
-	}
-}
 
 func (c *controller) machineToMachineClassDelete(obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
