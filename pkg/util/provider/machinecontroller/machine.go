@@ -330,7 +330,7 @@ func (c *controller) triggerCreationFlow(createMachineRequest *driver.CreateMach
 				if err != nil {
 					// Create call returned an error.
 					klog.Errorf("Error while creating machine %s: %s", machine.Name, err.Error())
-					return c.machineCreateErrorHandler(machine, createMachineResponse.LastKnownState, err)
+					return c.machineCreateErrorHandler(machine, createMachineResponse, err)
 				}
 				nodeName = createMachineResponse.NodeName
 				providerID = createMachineResponse.ProviderID
