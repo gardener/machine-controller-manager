@@ -45,30 +45,28 @@ import (
 	Machine controller - Machine add, update, delete watches
 */
 func (c *controller) addMachine(obj interface{}) {
-	key, err := cache.MetaNamespaceKeyFunc(obj)
-	if err != nil {
-		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
-		return
-	}
-	klog.V(4).Infof("Add/Update/Delete machine object %q", key)
-	c.machineQueue.Add(key)
+	klog.V(4).Infof("Adding machine object")
+	c.enqueueMachine(obj)
 }
 
 func (c *controller) updateMachine(oldObj, newObj interface{}) {
 	klog.V(4).Info("Updating machine object")
-	c.addMachine(newObj)
+	c.enqueueMachine(newObj)
 }
 
 func (c *controller) deleteMachine(obj interface{}) {
 	klog.V(4).Info("Deleting machine object")
-	c.addMachine(obj)
+	c.enqueueMachine(obj)
 }
 
 func (c *controller) enqueueMachine(obj interface{}) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
+		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
 		return
 	}
+
+	klog.V(4).Infof("Adding machine object to the queue %q", key)
 	c.machineQueue.Add(key)
 }
 
@@ -77,6 +75,8 @@ func (c *controller) enqueueMachineAfter(obj interface{}, after time.Duration) {
 	if err != nil {
 		return
 	}
+
+	klog.V(4).Infof("Adding machine object to the queue %q after %s", key, after)
 	c.machineQueue.AddAfter(key, after)
 }
 
