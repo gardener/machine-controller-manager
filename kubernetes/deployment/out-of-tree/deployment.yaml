@@ -27,7 +27,6 @@ spec:
           - --machine-safety-orphan-vms-period=30 # Optional Parameter - Default value 30mins - Time period (in time) used to poll for orphan VMs by safety controller.
           - --machine-safety-overshooting-period=1 # Optional Parameter - Default value 1min - Time period (in time) used to poll for overshooting of machine objects backing a machineSet by safety controller.
           - --node-conditions=ReadonlyFilesystem,KernelDeadlock,DiskPressure # List of comma-separated/case-sensitive node-conditions which when set to True will change machine to a failed state after MachineHealthTimeout duration. It may further be replaced with a new machine if the machine is backed by a machine-set object.
-          - --external-machine-controller=true # When setting this parameter, the machine controller is expected to run as a separate controller
           - --v=2
         livenessProbe:
           failureThreshold: 3

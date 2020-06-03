@@ -1,6 +1,6 @@
 # Sample deployment file, used to run Machine Controller Manager on your cluster
 
-apiVersion: apps/v1b # Version may change based on kubernetes version
+apiVersion: apps/v1 # Version may change based on kubernetes version
 kind: Deployment
 metadata:
   name: machine-controller-manager

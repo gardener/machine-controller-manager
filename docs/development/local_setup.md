@@ -77,9 +77,11 @@ I1227 11:08:19.963638   55523 controllermanager.go:204] Starting shared informer
 I1227 11:08:20.766085   55523 controller.go:247] Starting machine-controller-manager
 ```
 
+:warning: The file `dev/target-kubeconfig.yaml` points to the cluster whose nodes you want to manage. `dev/control-kubeconfig.yaml` points to the cluster from where you want to manage the nodes from. However, `dev/control-kubeconfig.yaml` is optional.
+
 The Machine Controller Manager should now be ready to manage the VMs in your kubernetes cluster.
 
-:warning: The file `dev/target-kubeconfig.yaml` points to the cluster whose nodes you want to manage. `dev/control-kubeconfig.yaml` points to the cluster from where you want to manage the nodes from. However, `dev/control-kubeconfig.yaml` is optional.
+:warning: This is assuming that your MCM is built to manage machines for any in-tree supported providers. There is a new way to deploy and manage out of tree (external) support for providers whose development can be [found here](cp_support_new.md)
 
 ## Testing Machine Classes
 

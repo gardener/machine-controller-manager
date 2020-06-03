@@ -26,10 +26,15 @@ import (
 
 // Driver is the common interface for creation/deletion of the VMs over different cloud-providers.
 type Driver interface {
+	// CreateMachine call is responsible for VM creation on the provider
 	CreateMachine(context.Context, *CreateMachineRequest) (*CreateMachineResponse, error)
+	// DeleteMachine call is responsible for VM deletion/termination on the provider
 	DeleteMachine(context.Context, *DeleteMachineRequest) (*DeleteMachineResponse, error)
+	// GetMachineStatus call get's the status of the VM backing the machine object on the provider
 	GetMachineStatus(context.Context, *GetMachineStatusRequest) (*GetMachineStatusResponse, error)
+	// ListMachines lists all the machines that might have been created by the supplied machineClass
 	ListMachines(context.Context, *ListMachinesRequest) (*ListMachinesResponse, error)
+	// GetVolumeIDs returns a list volumeIDs for the list of PVSpecs
 	GetVolumeIDs(context.Context, *GetVolumeIDsRequest) (*GetVolumeIDsResponse, error)
 }
 
