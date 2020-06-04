@@ -37,6 +37,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -805,86 +806,108 @@ func (c *controller) getVMStatus(getMachineStatusRequest *driver.GetMachineStatu
 // drainNode attempts to drain the node backed by the machine object
 func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.Retry, error) {
 	var (
+		// Declarations
+		err                error
+		forceDeletePods    bool
+		forceDeleteMachine bool
+		timeOutOccurred    bool
+		skipDrain          bool
+		description        string
+		state              v1alpha1.MachineState
+		phase              v1alpha1.MachinePhase
+
+		// Initialization
 		machine                 = deleteMachineRequest.Machine
-		forceDeletePods         = false
-		forceDeleteMachine      = false
-		timeOutOccurred         = false
-		description             = ""
-		state                   v1alpha1.MachineState
-		phase                   v1alpha1.MachinePhase
 		maxEvictRetries         = c.safetyOptions.MaxEvictRetries
 		pvDetachTimeOut         = c.safetyOptions.PvDetachTimeout.Duration
 		timeOutDuration         = c.safetyOptions.MachineDrainTimeout.Duration
 		forceDeleteLabelPresent = machine.Labels["force-deletion"] == "True"
 		nodeName                = machine.Labels["node"]
+		nodeNotReadyDuration    = 5 * time.Minute
 	)
 
-	// Timeout value obtained by subtracting last operation with expected time out period
-	timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
-	timeOutOccurred = timeOut > 0
-
-	if forceDeleteLabelPresent || timeOutOccurred {
-		// To perform forceful machine drain/delete either one of the below conditions must be satified
-		// 1. force-deletion: "True" label must be present
-		// 2. Deletion operation is more than drain-timeout minutes old
-		// 3. Last machine drain had failed
-		forceDeleteMachine = true
-		forceDeletePods = true
-		timeOutDuration = 1 * time.Minute
-		maxEvictRetries = 1
-
-		klog.V(2).Infof(
-			"Force deletion has been triggerred for machine %q due to Label:%t, timeout:%t",
-			machine.Name,
-			forceDeleteLabelPresent,
-			timeOutOccurred,
-		)
+	for _, condition := range machine.Status.Conditions {
+		if condition.Type == v1.NodeReady && condition.Status != corev1.ConditionTrue && (time.Since(condition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+			klog.Warningf("Skipping drain for NotReady machine %q", machine.Name)
+			err = fmt.Errorf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion)
+			skipDrain = true
+		}
 	}
 
-	buf := bytes.NewBuffer([]byte{})
-	errBuf := bytes.NewBuffer([]byte{})
-
-	drainOptions := drain.NewDrainOptions(
-		c.targetCoreClient,
-		timeOutDuration,
-		maxEvictRetries,
-		pvDetachTimeOut,
-		nodeName,
-		-1,
-		forceDeletePods,
-		true,
-		true,
-		true,
-		buf,
-		errBuf,
-		c.driver,
-		c.pvcLister,
-		c.pvLister,
-	)
-	err := drainOptions.RunDrain()
-	if err == nil {
-		// Drain successful
-		klog.V(2).Infof("Drain successful for machine %q. \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
-
-		description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
+	if skipDrain {
+		// If not is not ready for over 5 minutes, skip draining this machine
+		description = fmt.Sprintf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion)
 		state = v1alpha1.MachineStateProcessing
 		phase = v1alpha1.MachineTerminating
 
-		// Return error even when machine object is updated
-		err = fmt.Errorf("Machine deletion in process. " + description)
-	} else if err != nil && forceDeleteMachine {
-		// Drain failed on force deletion
-		klog.Warningf("Drain failed for machine %q. However, since it's a force deletion shall continue deletion of VM. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
-
-		description = fmt.Sprintf("Drain failed due to - %s. However, since it's a force deletion shall continue deletion of VM. %s", err.Error(), machineutils.InitiateVMDeletion)
-		state = v1alpha1.MachineStateProcessing
-		phase = v1alpha1.MachineTerminating
 	} else {
-		klog.Warningf("Drain failed for machine %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+		// Timeout value obtained by subtracting last operation with expected time out period
+		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
+		timeOutOccurred = timeOut > 0
 
-		description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
-		state = v1alpha1.MachineStateFailed
-		phase = v1alpha1.MachineTerminating
+		if forceDeleteLabelPresent || timeOutOccurred {
+			// To perform forceful machine drain/delete either one of the below conditions must be satified
+			// 1. force-deletion: "True" label must be present
+			// 2. Deletion operation is more than drain-timeout minutes old
+			// 3. Last machine drain had failed
+			forceDeleteMachine = true
+			forceDeletePods = true
+			timeOutDuration = 1 * time.Minute
+			maxEvictRetries = 1
+
+			klog.V(2).Infof(
+				"Force deletion has been triggerred for machine %q due to Label:%t, timeout:%t",
+				machine.Name,
+				forceDeleteLabelPresent,
+				timeOutOccurred,
+			)
+		}
+
+		buf := bytes.NewBuffer([]byte{})
+		errBuf := bytes.NewBuffer([]byte{})
+
+		drainOptions := drain.NewDrainOptions(
+			c.targetCoreClient,
+			timeOutDuration,
+			maxEvictRetries,
+			pvDetachTimeOut,
+			nodeName,
+			-1,
+			forceDeletePods,
+			true,
+			true,
+			true,
+			buf,
+			errBuf,
+			c.driver,
+			c.pvcLister,
+			c.pvLister,
+		)
+		err = drainOptions.RunDrain()
+		if err == nil {
+			// Drain successful
+			klog.V(2).Infof("Drain successful for machine %q. \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
+
+			description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
+			state = v1alpha1.MachineStateProcessing
+			phase = v1alpha1.MachineTerminating
+
+			// Return error even when machine object is updated
+			err = fmt.Errorf("Machine deletion in process. " + description)
+		} else if err != nil && forceDeleteMachine {
+			// Drain failed on force deletion
+			klog.Warningf("Drain failed for machine %q. However, since it's a force deletion shall continue deletion of VM. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+
+			description = fmt.Sprintf("Drain failed due to - %s. However, since it's a force deletion shall continue deletion of VM. %s", err.Error(), machineutils.InitiateVMDeletion)
+			state = v1alpha1.MachineStateProcessing
+			phase = v1alpha1.MachineTerminating
+		} else {
+			klog.Warningf("Drain failed for machine %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+
+			description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
+			state = v1alpha1.MachineStateFailed
+			phase = v1alpha1.MachineTerminating
+		}
 	}
 
 	clone := machine.DeepCopy()
