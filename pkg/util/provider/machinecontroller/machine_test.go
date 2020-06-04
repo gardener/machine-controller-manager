@@ -1226,6 +1226,108 @@ var _ = Describe("machine", func() {
 					),
 				},
 			}),
+			Entry("Drain skipping as machine is NotReady for a long time (5 minutes)", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					machineClasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(
+						1,
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							Node: "fakeNode",
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    machineutils.InitiateDrain,
+								State:          v1alpha1.MachineStateProcessing,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.Now(),
+							},
+							Conditions: []corev1.NodeCondition{
+								corev1.NodeCondition{
+									Type:               corev1.NodeReady,
+									Status:             corev1.ConditionUnknown,
+									LastTransitionTime: metav1.NewTime(time.Now().Add(-6 * time.Minute)),
+								},
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{
+							"node": "fakeID-0",
+						},
+						true,
+					),
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   true,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        nil,
+					},
+				},
+				expect: expect{
+					err:   fmt.Errorf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion),
+					retry: machineutils.RetryOp,
+					machine: newMachine(
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							Node: "fakeNode",
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    fmt.Sprintf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion),
+								State:          v1alpha1.MachineStateProcessing,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.Now(),
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{
+							"node": "fakeID-0",
+						},
+						true,
+					),
+				},
+			}),
 			Entry("Drain machine failure, but since force deletion label is present deletion continues", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
