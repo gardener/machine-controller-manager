@@ -845,6 +845,8 @@ func autoConvert_v1alpha1_AWSEbsBlockDeviceSpec_To_machine_AWSEbsBlockDeviceSpec
 	out.DeleteOnTermination = (*bool)(unsafe.Pointer(in.DeleteOnTermination))
 	out.Encrypted = in.Encrypted
 	out.Iops = in.Iops
+	out.KmsKeyID = (*string)(unsafe.Pointer(in.KmsKeyID))
+	out.SnapshotID = (*string)(unsafe.Pointer(in.SnapshotID))
 	out.VolumeSize = in.VolumeSize
 	out.VolumeType = in.VolumeType
 	return nil
@@ -859,6 +861,8 @@ func autoConvert_machine_AWSEbsBlockDeviceSpec_To_v1alpha1_AWSEbsBlockDeviceSpec
 	out.DeleteOnTermination = (*bool)(unsafe.Pointer(in.DeleteOnTermination))
 	out.Encrypted = in.Encrypted
 	out.Iops = in.Iops
+	out.KmsKeyID = (*string)(unsafe.Pointer(in.KmsKeyID))
+	out.SnapshotID = (*string)(unsafe.Pointer(in.SnapshotID))
 	out.VolumeSize = in.VolumeSize
 	out.VolumeType = in.VolumeType
 	return nil

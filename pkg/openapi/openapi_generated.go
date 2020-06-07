@@ -436,6 +436,20 @@ func schema_pkg_apis_machine_v1alpha1_AWSEbsBlockDeviceSpec(ref common.Reference
 							Format:      "int64",
 						},
 					},
+					"kmsKeyID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Identifier (key ID, key alias, ID ARN, or alias ARN) for a customer managed CMK under which the EBS volume is encrypted.\n\nThis parameter is only supported on BlockDeviceMapping objects called by RunInstances (https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html), RequestSpotFleet (https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RequestSpotFleet.html), and RequestSpotInstances (https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RequestSpotInstances.html).",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"snapshotID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The ID of the snapshot.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"volumeSize": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The size of the volume, in GiB.\n\nConstraints: 1-16384 for General Purpose SSD (gp2), 4-16384 for Provisioned IOPS SSD (io1), 500-16384 for Throughput Optimized HDD (st1), 500-16384 for Cold HDD (sc1), and 1-1024 for Magnetic (standard) volumes. If you specify a snapshot, the volume size must be equal to or larger than the snapshot size.\n\nDefault: If you're creating the volume from a snapshot and don't specify a volume size, the default is the snapshot size.",

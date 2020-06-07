@@ -183,6 +183,7 @@ func (d *AWSDriver) generateBlockDevices(blockDevices []v1alpha1.AWSBlockDeviceM
 		volumeSize := disk.Ebs.VolumeSize
 		volumeType := disk.Ebs.VolumeType
 		encrypted := disk.Ebs.Encrypted
+		snapshotID := disk.Ebs.SnapshotID
 
 		blkDeviceMapping := ec2.BlockDeviceMapping{
 			DeviceName: aws.String(deviceName),
@@ -198,6 +199,10 @@ func (d *AWSDriver) generateBlockDevices(blockDevices []v1alpha1.AWSBlockDeviceM
 
 		if volumeType == "io1" {
 			blkDeviceMapping.Ebs.Iops = aws.Int64(disk.Ebs.Iops)
+		}
+
+		if snapshotID != nil {
+			blkDeviceMapping.Ebs.SnapshotId = snapshotID
 		}
 		blkDeviceMappings = append(blkDeviceMappings, &blkDeviceMapping)
 	}
