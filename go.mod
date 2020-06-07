@@ -3,9 +3,9 @@ module github.com/gardener/machine-controller-manager
 go 1.13
 
 require (
-	github.com/Azure/azure-sdk-for-go v39.0.0+incompatible
-	github.com/Azure/go-autorest/autorest v0.9.3
-	github.com/Azure/go-autorest/autorest/adal v0.8.0
+	github.com/Azure/azure-sdk-for-go v42.2.0+incompatible
+	github.com/Azure/go-autorest/autorest v0.10.1
+	github.com/Azure/go-autorest/autorest/adal v0.8.2
 	github.com/Azure/go-autorest/autorest/to v0.3.0
 	github.com/Azure/go-autorest/autorest/validation v0.2.0 // indirect
 	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20180828111155-cad214d7d71f
