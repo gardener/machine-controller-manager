@@ -15,7 +15,7 @@ kubectl create/get/delete machine vm1
 
 Nodes/Machines/VMs are different terminologies used to represent similar things. We use these terms in the following way
 
-1. VM: A virtual machine running on any cloud provider.
+1. VM: A virtual machine running on any cloud provider. It could also refer to a physical machine (PM) in case of a bare metal setup.
 1. Node: Native kubernetes node objects. The objects you get to see when you do a *"kubectl get nodes"*. Although nodes can be either physical/virtual machines, for the purposes of our discussions it refers to a VM.
 1. Machine: A VM that is provisioned/managed by the Machine Controller Manager.
 

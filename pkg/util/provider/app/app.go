@@ -34,15 +34,16 @@ import (
 
 	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
-	mcmcontroller "github.com/gardener/machine-controller-manager/pkg/controller"
-	corecontroller "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/core"
-	machinecontroller "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/machine"
+	coreclientbuilder "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/core"
+	machineclientbuilder "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/machine"
+	machinecontroller "github.com/gardener/machine-controller-manager/pkg/util/provider/machinecontroller"
 	coreinformers "k8s.io/client-go/informers"
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 
-	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
 	"github.com/gardener/machine-controller-manager/pkg/handlers"
 	"github.com/gardener/machine-controller-manager/pkg/util/configz"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/app/options"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -61,17 +62,15 @@ import (
 )
 
 const (
-	controllerManagerAgentName = "machine-controller-manager"
+	controllerManagerAgentName = "machine-controller"
 )
 
 var (
-	machineGVR           = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "machines"}
-	machineSetGVR        = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "machinesets"}
-	machineDeploymentGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "machinedeployments"}
+	machineGVR = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "machines"}
 )
 
-// Run runs the MCMServer.  This should never exit.
-func Run(s *options.MCMServer) error {
+// Run runs the MCServer. This should never exit.
+func Run(s *options.MCServer, driver driver.Driver) error {
 	// To help debugging, immediately log version
 	klog.V(4).Infof("Version: %+v", version.Get())
 	if err := s.Validate(); err != nil {
@@ -80,7 +79,7 @@ func Run(s *options.MCMServer) error {
 
 	var err error
 
-	//kubeconfig for the cluster for which machine-controller-manager will create machines.
+	// kubeconfig for the cluster for which machine-controller will create machines.
 	targetkubeconfig, err := clientcmd.BuildConfigFromFlags("", s.TargetKubeconfig)
 	if err != nil {
 		return err
@@ -110,7 +109,7 @@ func Run(s *options.MCMServer) error {
 	controlkubeconfig.Burst = int(s.KubeAPIBurst)
 
 	kubeClientControl, err := kubernetes.NewForConfig(
-		rest.AddUserAgent(controlkubeconfig, "machine-controller-manager"),
+		rest.AddUserAgent(controlkubeconfig, "machine-controller"),
 	)
 	if err != nil {
 		klog.Fatalf("Invalid API configuration for kubeconfig-control: %v", err)
@@ -125,15 +124,15 @@ func Run(s *options.MCMServer) error {
 	run := func(ctx context.Context) {
 		var stop <-chan struct{}
 		// Control plane client used to interact with machine APIs
-		controlMachineClientBuilder := machinecontroller.SimpleClientBuilder{
+		controlMachineClientBuilder := machineclientbuilder.SimpleClientBuilder{
 			ClientConfig: controlkubeconfig,
 		}
 		// Control plane client used to interact with core kubernetes objects
-		controlCoreClientBuilder := corecontroller.SimpleControllerClientBuilder{
+		controlCoreClientBuilder := coreclientbuilder.SimpleControllerClientBuilder{
 			ClientConfig: controlkubeconfig,
 		}
 		// Target plane client used to interact with core kubernetes objects
-		targetCoreClientBuilder := corecontroller.SimpleControllerClientBuilder{
+		targetCoreClientBuilder := coreclientbuilder.SimpleControllerClientBuilder{
 			ClientConfig: targetkubeconfig,
 		}
 
@@ -144,6 +143,7 @@ func Run(s *options.MCMServer) error {
 			controlMachineClientBuilder,
 			controlCoreClientBuilder,
 			targetCoreClientBuilder,
+			driver,
 			recorder,
 			stop,
 		)
@@ -166,7 +166,7 @@ func Run(s *options.MCMServer) error {
 	rl, err := resourcelock.New(
 		s.LeaderElection.ResourceLock,
 		s.Namespace,
-		"machine-controller-manager",
+		"machine-controller",
 		leaderElectionClient.CoreV1(),
 		leaderElectionClient.CoordinationV1(),
 		resourcelock.ResourceLockConfig{
@@ -194,13 +194,14 @@ func Run(s *options.MCMServer) error {
 	panic("unreachable")
 }
 
-// StartControllers starts all the controllers which are a part of machine-controller-manager
-func StartControllers(s *options.MCMServer,
+// StartControllers starts all the controllers which are a part of machine-controller
+func StartControllers(s *options.MCServer,
 	controlCoreKubeconfig *rest.Config,
 	targetCoreKubeconfig *rest.Config,
-	controlMachineClientBuilder machinecontroller.ClientBuilder,
-	controlCoreClientBuilder corecontroller.ClientBuilder,
-	targetCoreClientBuilder corecontroller.ClientBuilder,
+	controlMachineClientBuilder machineclientbuilder.ClientBuilder,
+	controlCoreClientBuilder coreclientbuilder.ClientBuilder,
+	targetCoreClientBuilder coreclientbuilder.ClientBuilder,
+	driver driver.Driver,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) error {
 
@@ -224,7 +225,7 @@ func StartControllers(s *options.MCMServer,
 		klog.Fatal(err)
 	}
 
-	if availableResources[machineGVR] || availableResources[machineSetGVR] || availableResources[machineDeploymentGVR] {
+	if availableResources[machineGVR] {
 		klog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
 		controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
@@ -250,24 +251,18 @@ func StartControllers(s *options.MCMServer,
 		machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
 
 		klog.V(5).Infof("Creating controllers...")
-		mcmcontroller, err := mcmcontroller.NewController(
+		machineController, err := machinecontroller.NewController(
 			s.Namespace,
 			controlMachineClient,
 			controlCoreClient,
 			targetCoreClient,
+			driver,
 			targetCoreInformerFactory.Core().V1().PersistentVolumeClaims(),
 			targetCoreInformerFactory.Core().V1().PersistentVolumes(),
 			controlCoreInformerFactory.Core().V1().Secrets(),
 			targetCoreInformerFactory.Core().V1().Nodes(),
-			machineSharedInformers.OpenStackMachineClasses(),
-			machineSharedInformers.AWSMachineClasses(),
-			machineSharedInformers.AzureMachineClasses(),
-			machineSharedInformers.GCPMachineClasses(),
-			machineSharedInformers.AlicloudMachineClasses(),
-			machineSharedInformers.PacketMachineClasses(),
+			machineSharedInformers.MachineClasses(),
 			machineSharedInformers.Machines(),
-			machineSharedInformers.MachineSets(),
-			machineSharedInformers.MachineDeployments(),
 			recorder,
 			s.SafetyOptions,
 			s.NodeConditions,
@@ -283,10 +278,10 @@ func StartControllers(s *options.MCMServer,
 		targetCoreInformerFactory.Start(stop)
 
 		klog.V(5).Info("Running controller")
-		go mcmcontroller.Run(int(s.ConcurrentNodeSyncs), stop)
+		go machineController.Run(int(s.ConcurrentNodeSyncs), stop)
 
 	} else {
-		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q is not available; \nFound: %#v", machineGVR, machineSetGVR, machineDeploymentGVR, availableResources)
+		return fmt.Errorf("unable to start machine controller: API GroupVersion %q is not available; \nFound: %#v", machineGVR, availableResources)
 	}
 
 	select {}
@@ -295,7 +290,7 @@ func StartControllers(s *options.MCMServer,
 // TODO: In general, any controller checking this needs to be dynamic so
 //  users don't have to restart their controller manager if they change the apiserver.
 // Until we get there, the structure here needs to be exposed for the construction of a proper ControllerContext.
-func getAvailableResources(clientBuilder corecontroller.ClientBuilder) (map[schema.GroupVersionResource]bool, error) {
+func getAvailableResources(clientBuilder coreclientbuilder.ClientBuilder) (map[schema.GroupVersionResource]bool, error) {
 	var discoveryClient discovery.DiscoveryInterface
 
 	var healthzContent string
@@ -354,7 +349,7 @@ func createRecorder(kubeClient *kubernetes.Clientset) record.EventRecorder {
 	return eventBroadcaster.NewRecorder(kubescheme.Scheme, v1.EventSource{Component: controllerManagerAgentName})
 }
 
-func startHTTP(s *options.MCMServer) {
+func startHTTP(s *options.MCServer) {
 	mux := http.NewServeMux()
 	if s.EnableProfiling {
 		mux.HandleFunc("/debug/pprof/", pprof.Index)

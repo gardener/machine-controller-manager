@@ -1,0 +1,43 @@
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: machine-controller-manager-control
+rules:
+-  apiGroups:
+   - machine.sapcloud.io
+   resources:
+   - awsmachineclasses
+   - azuremachineclasses
+   - gcpmachineclasses
+   - openstackmachineclasses
+   - alicloudmachineclasses
+   - packetmachineclasses
+   - machinedeployments
+   - machines
+   - machinesets
+   verbs:
+   - create
+   - delete
+   - deletecollection
+   - get
+   - list
+   - patch
+   - update
+   - watch
+-  apiGroups:
+   - ""
+   resources:
+   - nodes
+   - configmaps
+   - secrets
+   - endpoints
+   - events
+   verbs:
+   - create
+   - delete
+   - deletecollection
+   - get
+   - list
+   - patch
+   - update
+   - watch

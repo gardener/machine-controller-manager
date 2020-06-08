@@ -15,5 +15,5 @@ For adding support for a new cloud provider in the Machine Controller Manager, f
 1. Update `pkg/controller/controller.go` to add new providerMachineClassLister, providerMachineClassQueue, awsMachineClassSynced into the controller struct. Also initialize them in NewController() method.
 1. Add a new file `pkg/controller/providermachineclass.go` that allows re-queuing of machines which refer to an modified providerMachineClass.
 1. Update `pkg/controller/controller.go` to extend `WaitForCacheSync` and `.Shutdown()` similar to other cloud providers.
-1. Update the example ClusterRole in `kubernetes/deployment/clusterrole.yaml` to allow operations on your new machine class.
+1. Update the example ClusterRole in `kubernetes/deployment/in-tree/clusterrole.yaml` to allow operations on your new machine class.
 1. Update `pkg/controller/controller.go`, `pkg/controller/secret.go`, `pkg/controller/secret_util.go` to add event handlers to add/remove finalizers referenced by your machine Class. Refer [this commit](https://github.com/gardener/machine-controller-manager/pull/104/commits/013f70726b1057aed1cf7fe0f0449922ab9a256a).

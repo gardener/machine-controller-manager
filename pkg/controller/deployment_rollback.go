@@ -27,11 +27,11 @@ import (
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"k8s.io/klog"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 )
 
 // rollback the deployment to the specified revision. In any case cleanup the rollback spec.

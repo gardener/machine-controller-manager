@@ -157,6 +157,11 @@ type MachineStatus struct {
 
 	// Current status of the machine object
 	CurrentStatus CurrentStatus
+
+	// LastKnownState can store details of the last known state of the VM by the plugins.
+	// It can be used by future operation calls to determine current infrastucture state
+	// +optional
+	LastKnownState string
 }
 
 // LastOperation suggests the last operation performed on the object
