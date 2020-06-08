@@ -25,10 +25,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
-
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/metrics"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
@@ -113,6 +112,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	metadata := d.OpenStackMachineClass.Spec.Tags
 	podNetworkCidr := d.OpenStackMachineClass.Spec.PodNetworkCidr
 	rootDiskSize := d.OpenStackMachineClass.Spec.RootDiskSize
+	useConfigDrive := d.OpenStackMachineClass.Spec.UseConfigDrive
 
 	var createOpts servers.CreateOptsBuilder
 	var imageRef string
@@ -170,6 +170,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 		Metadata:         metadata,
 		UserData:         []byte(d.UserData),
 		AvailabilityZone: availabilityZone,
+		ConfigDrive:      useConfigDrive,
 	}
 
 	createOpts = &keypairs.CreateOptsExt{
