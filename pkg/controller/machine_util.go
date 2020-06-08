@@ -87,7 +87,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 	var secretRef *v1.Secret
 
 	switch classSpec.Kind {
-	case "AWSMachineClass":
+	case AWSMachineClassKind:
 		AWSMachineClass, err := c.awsMachineClassLister.AWSMachineClasses(c.namespace).Get(classSpec.Name)
 		if err != nil {
 			klog.V(2).Infof("AWSMachineClass %q/%q not found. Skipping. %v", c.namespace, classSpec.Name, err)
@@ -115,7 +115,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 			klog.V(2).Info("Secret reference not found")
 			return MachineClass, secretRef, err
 		}
-	case "AzureMachineClass":
+	case AzureMachineClassKind:
 		AzureMachineClass, err := c.azureMachineClassLister.AzureMachineClasses(c.namespace).Get(classSpec.Name)
 		if err != nil {
 			klog.V(2).Infof("AzureMachineClass %q not found. Skipping. %v", classSpec.Name, err)
@@ -144,7 +144,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 			return MachineClass, secretRef, err
 
 		}
-	case "GCPMachineClass":
+	case GCPMachineClassKind:
 		GCPMachineClass, err := c.gcpMachineClassLister.GCPMachineClasses(c.namespace).Get(classSpec.Name)
 		if err != nil {
 			klog.V(2).Infof("GCPMachineClass %q not found. Skipping. %v", classSpec.Name, err)
@@ -172,7 +172,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 			klog.V(2).Info("Secret reference not found")
 			return MachineClass, secretRef, err
 		}
-	case "OpenStackMachineClass":
+	case OpenStackMachineClassKind:
 		OpenStackMachineClass, err := c.openStackMachineClassLister.OpenStackMachineClasses(c.namespace).Get(classSpec.Name)
 		if err != nil {
 			klog.V(2).Infof("OpenStackMachineClass %q not found. Skipping. %v", classSpec.Name, err)
@@ -200,7 +200,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 			klog.V(2).Info("Secret reference not found")
 			return MachineClass, secretRef, err
 		}
-	case "AlicloudMachineClass":
+	case AlicloudMachineClassKind:
 		AlicloudMachineClass, err := c.alicloudMachineClassLister.AlicloudMachineClasses(c.namespace).Get(classSpec.Name)
 		if err != nil {
 			klog.V(2).Infof("AlicloudMachineClass %q/%q not found. Skipping. %v", c.namespace, classSpec.Name, err)
@@ -228,7 +228,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 			klog.V(2).Info("Secret reference not found")
 			return MachineClass, secretRef, err
 		}
-	case "PacketMachineClass":
+	case PacketMachineClassKind:
 		PacketMachineClass, err := c.packetMachineClassLister.PacketMachineClasses(c.namespace).Get(classSpec.Name)
 		if err != nil {
 			klog.V(2).Infof("PacketMachineClass %q/%q not found. Skipping. %v", c.namespace, classSpec.Name, err)
@@ -257,7 +257,7 @@ func (c *controller) validateMachineClass(classSpec *v1alpha1.ClassSpec) (interf
 			return MachineClass, secretRef, err
 		}
 	default:
-		klog.V(2).Infof("ClassKind %q not found", classSpec.Kind)
+		klog.V(2).Infof("ClassKind %q not found. Machine maybe be processed by external controller", classSpec.Kind)
 	}
 
 	return MachineClass, secretRef, nil

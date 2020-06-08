@@ -37,19 +37,19 @@ $ make docker-image
 $ make push
 ```
 
-- Now you can deploy this docker image to your cluster. A sample development [file is given at](/kubernetes/deployment/deployment.yaml). By default, the deployment manages the cluster it is running in. Optionally, the kubeconfig could also be passed as a flag as described in  `/kubernetes/deployment/deployment.yaml`. This is done when you want your controller running outside the cluster to be managed from.
+- Now you can deploy this docker image to your cluster. A sample development [file is given at](/kubernetes/deployment/in-tree/deployment.yaml). By default, the deployment manages the cluster it is running in. Optionally, the kubeconfig could also be passed as a flag as described in  `/kubernetes/deployment/in-tree/deployment.yaml`. This is done when you want your controller running outside the cluster to be managed from.
 ```bash
-$ kubectl apply -f kubernetes/deployment/deployment.yaml
+$ kubectl apply -f kubernetes/deployment/in-tree/deployment.yaml
 ```
 - Also deploy the required clusterRole and clusterRoleBindings
 ```bash
-$ kubectl apply -f kubernetes/deployment/clusterrole.yaml
-$ kubectl apply -f kubernetes/deployment/clusterrolebinding.yaml
+$ kubectl apply -f kubernetes/deployment/in-tree/clusterrole.yaml
+$ kubectl apply -f kubernetes/deployment/in-tree/clusterrolebinding.yaml
 ```
 
 ## Configuring optional parameters while deploying
 
-Machine-controller-manager supports several configurable parameters while deploying. Refer to [the following lines](/kubernetes/deployment/deployment.yaml#L21-L30), to know how each parameter can be configured, and what it's purpose is for.
+Machine-controller-manager supports several configurable parameters while deploying. Refer to [the following lines](/kubernetes/deployment/in-tree/deployment.yaml#L21-L30), to know how each parameter can be configured, and what it's purpose is for.
 
 ## Usage
 

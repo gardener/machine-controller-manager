@@ -463,12 +463,6 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	}
 
 	if machineSet.DeletionTimestamp == nil {
-		// Validate MachineClass
-		_, secretRef, err := c.validateMachineClass(&machineSet.Spec.Template.Spec.Class)
-		if err != nil || secretRef == nil {
-			return err
-		}
-
 		// Manipulate finalizers
 		c.addMachineSetFinalizers(machineSet)
 	}
