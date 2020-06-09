@@ -1,0 +1,127 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.3.0
+  creationTimestamp: null
+  name: openstackmachineclasses.machine.sapcloud.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.flavorName
+    name: Flavor
+    type: string
+  - JSONPath: .spec.imageName
+    name: Image
+    type: string
+  - JSONPath: .spec.region
+    name: Region
+    priority: 1
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    description: |-
+      CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+      Populated by the system. Read-only. Null for lists. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+    name: Age
+    type: date
+  group: machine.sapcloud.io
+  names:
+    kind: OpenStackMachineClass
+    listKind: OpenStackMachineClassList
+    plural: openstackmachineclasses
+    singular: openstackmachineclass
+  scope: Namespaced
+  subresources: {}
+  validation:
+    openAPIV3Schema:
+      description: OpenStackMachineClass TODO
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: OpenStackMachineClassSpec is the specification of a OpenStackMachineClass.
+          properties:
+            availabilityZone:
+              type: string
+            flavorName:
+              type: string
+            imageID:
+              type: string
+            imageName:
+              type: string
+            keyName:
+              type: string
+            networkID:
+              type: string
+            networks:
+              items:
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  podNetwork:
+                    type: boolean
+                type: object
+              type: array
+            podNetworkCidr:
+              type: string
+            region:
+              type: string
+            rootDiskSize:
+              type: integer
+            secretRef:
+              description: SecretReference represents a Secret Reference. It has enough
+                information to retrieve secret in any namespace
+              properties:
+                name:
+                  description: Name is unique within a namespace to reference a secret
+                    resource.
+                  type: string
+                namespace:
+                  description: Namespace defines the space within which the secret
+                    name must be unique.
+                  type: string
+              type: object
+            securityGroups:
+              items:
+                type: string
+              type: array
+            tags:
+              additionalProperties:
+                type: string
+              type: object
+          required:
+          - availabilityZone
+          - flavorName
+          - imageID
+          - imageName
+          - keyName
+          - networkID
+          - podNetworkCidr
+          - region
+          - securityGroups
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

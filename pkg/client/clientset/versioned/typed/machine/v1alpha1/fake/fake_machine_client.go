@@ -60,20 +60,12 @@ func (c *FakeMachineV1alpha1) MachineSets(namespace string) v1alpha1.MachineSetI
 	return &FakeMachineSets{c, namespace}
 }
 
-func (c *FakeMachineV1alpha1) MachineTemplates(namespace string) v1alpha1.MachineTemplateInterface {
-	return &FakeMachineTemplates{c, namespace}
-}
-
 func (c *FakeMachineV1alpha1) OpenStackMachineClasses(namespace string) v1alpha1.OpenStackMachineClassInterface {
 	return &FakeOpenStackMachineClasses{c, namespace}
 }
 
 func (c *FakeMachineV1alpha1) PacketMachineClasses(namespace string) v1alpha1.PacketMachineClassInterface {
 	return &FakePacketMachineClasses{c, namespace}
-}
-
-func (c *FakeMachineV1alpha1) Scales(namespace string) v1alpha1.ScaleInterface {
-	return &FakeScales{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

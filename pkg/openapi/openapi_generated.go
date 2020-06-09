@@ -79,7 +79,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeployment":                        schema_pkg_apis_machine_v1alpha1_MachineDeployment(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentCondition":               schema_pkg_apis_machine_v1alpha1_MachineDeploymentCondition(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentList":                    schema_pkg_apis_machine_v1alpha1_MachineDeploymentList(ref),
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentRollback":                schema_pkg_apis_machine_v1alpha1_MachineDeploymentRollback(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentSpec":                    schema_pkg_apis_machine_v1alpha1_MachineDeploymentSpec(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStatus":                  schema_pkg_apis_machine_v1alpha1_MachineDeploymentStatus(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentStrategy":                schema_pkg_apis_machine_v1alpha1_MachineDeploymentStrategy(ref),
@@ -92,8 +91,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSpec":                              schema_pkg_apis_machine_v1alpha1_MachineSpec(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineStatus":                            schema_pkg_apis_machine_v1alpha1_MachineStatus(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary":                           schema_pkg_apis_machine_v1alpha1_MachineSummary(ref),
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplate":                          schema_pkg_apis_machine_v1alpha1_MachineTemplate(ref),
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateList":                      schema_pkg_apis_machine_v1alpha1_MachineTemplateList(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec":                      schema_pkg_apis_machine_v1alpha1_MachineTemplateSpec(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.NodeTemplateSpec":                         schema_pkg_apis_machine_v1alpha1_NodeTemplateSpec(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.OpenStackMachineClass":                    schema_pkg_apis_machine_v1alpha1_OpenStackMachineClass(ref),
@@ -105,9 +102,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.PacketMachineClassSpec":                   schema_pkg_apis_machine_v1alpha1_PacketMachineClassSpec(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig":                           schema_pkg_apis_machine_v1alpha1_RollbackConfig(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.RollingUpdateMachineDeployment":           schema_pkg_apis_machine_v1alpha1_RollingUpdateMachineDeployment(ref),
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.Scale":                                    schema_pkg_apis_machine_v1alpha1_Scale(ref),
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ScaleSpec":                                schema_pkg_apis_machine_v1alpha1_ScaleSpec(ref),
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ScaleStatus":                              schema_pkg_apis_machine_v1alpha1_ScaleStatus(ref),
 		"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource":                                                               schema_k8sio_api_core_v1_AWSElasticBlockStoreVolumeSource(ref),
 		"k8s.io/api/core/v1.Affinity":                                    schema_k8sio_api_core_v1_Affinity(ref),
 		"k8s.io/api/core/v1.AttachedVolume":                              schema_k8sio_api_core_v1_AttachedVolume(ref),
@@ -2471,64 +2465,6 @@ func schema_pkg_apis_machine_v1alpha1_MachineDeploymentList(ref common.Reference
 	}
 }
 
-func schema_pkg_apis_machine_v1alpha1_MachineDeploymentRollback(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "DEPRECATED. MachineDeploymentRollback stores the information required to rollback a MachineDeployment.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"apiVersion": {
-						SchemaProps: spec.SchemaProps{
-							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Required: This must match the Name of a MachineDeployment.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"updatedAnnotations": {
-						SchemaProps: spec.SchemaProps{
-							Description: "The annotations to be updated to a MachineDeployment",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
-						},
-					},
-					"rollbackTo": {
-						SchemaProps: spec.SchemaProps{
-							Description: "The config of this MachineDeployment rollback.",
-							Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig"),
-						},
-					},
-				},
-				Required: []string{"name", "rollbackTo"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.RollbackConfig"},
-	}
-}
-
 func schema_pkg_apis_machine_v1alpha1_MachineDeploymentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2536,6 +2472,13 @@ func schema_pkg_apis_machine_v1alpha1_MachineDeploymentSpec(ref common.Reference
 				Description: "MachineDeploymentSpec is the specification of the desired behavior of the MachineDeployment.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"replicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of desired machines. This is a pointer to distinguish between explicit zero and not specified. Defaults to 0.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"selector": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Label selector for machines. Existing MachineSets whose machines are selected by this will be the ones affected by this MachineDeployment.",
@@ -2614,6 +2557,41 @@ func schema_pkg_apis_machine_v1alpha1_MachineDeploymentStatus(ref common.Referen
 							Description: "The generation observed by the MachineDeployment controller.",
 							Type:        []string{"integer"},
 							Format:      "int64",
+						},
+					},
+					"replicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of non-terminated machines targeted by this MachineDeployment (their labels match the selector).",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"updatedReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of non-terminated machines targeted by this MachineDeployment that have the desired template spec.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"readyReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of ready machines targeted by this MachineDeployment.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"availableReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of available machines (ready for at least minReadySeconds) targeted by this MachineDeployment.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"unavailableReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of unavailable machines targeted by this MachineDeployment. This is the total number of machines that are still required for the MachineDeployment to have 100% available capacity. They may either be machines that are running but not yet available or machines that still have not been created.",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 					"conditions": {
@@ -2887,6 +2865,12 @@ func schema_pkg_apis_machine_v1alpha1_MachineSetSpec(ref common.ReferenceCallbac
 				Description: "MachineSetSpec is the specification of a MachineSet.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"replicas": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
 					"selector": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
@@ -2900,6 +2884,12 @@ func schema_pkg_apis_machine_v1alpha1_MachineSetSpec(ref common.ReferenceCallbac
 					"template": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec"),
+						},
+					},
+					"minReadySeconds": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
 						},
 					},
 				},
@@ -2917,17 +2907,78 @@ func schema_pkg_apis_machine_v1alpha1_MachineSetStatus(ref common.ReferenceCallb
 				Description: "MachineSetStatus holds the most recently observed status of MachineSet.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"replicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Replicas is the number of actual replicas.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"fullyLabeledReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The number of pods that have labels matching the labels of the pod template of the replicaset.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"readyReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The number of ready replicas for this replica set.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"availableReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The number of available replicas (ready for at least minReadySeconds) for this replica set.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"observedGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ObservedGeneration is the most recent generation observed by the controller.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"machineSetCondition": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Represents the latest available observations of a replica set's current state.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSetCondition"),
+									},
+								},
+							},
+						},
+					},
 					"lastOperation": {
 						SchemaProps: spec.SchemaProps{
 							Description: "LastOperation performed",
 							Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.LastOperation"),
 						},
 					},
+					"failedMachines": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FailedMachines has summary of machines on which lastOperation Failed",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.LastOperation"},
+			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.LastOperation", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSetCondition", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary"},
 	}
 }
 
@@ -3058,96 +3109,6 @@ func schema_pkg_apis_machine_v1alpha1_MachineSummary(ref common.ReferenceCallbac
 		},
 		Dependencies: []string{
 			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.LastOperation"},
-	}
-}
-
-func schema_pkg_apis_machine_v1alpha1_MachineTemplate(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "MachineTemplate describes a template for creating copies of a predefined machine.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"apiVersion": {
-						SchemaProps: spec.SchemaProps{
-							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"metadata": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
-						},
-					},
-					"template": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Template defines the machines that will be created from this machine template. https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status",
-							Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
-	}
-}
-
-func schema_pkg_apis_machine_v1alpha1_MachineTemplateList(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "MachineTemplateList is a list of MachineTemplates.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"apiVersion": {
-						SchemaProps: spec.SchemaProps{
-							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"metadata": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Standard list metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
-						},
-					},
-					"items": {
-						SchemaProps: spec.SchemaProps{
-							Description: "List of machine templates",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplate"),
-									},
-								},
-							},
-						},
-					},
-				},
-				Required: []string{"items"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -3652,109 +3613,6 @@ func schema_pkg_apis_machine_v1alpha1_RollingUpdateMachineDeployment(ref common.
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
-	}
-}
-
-func schema_pkg_apis_machine_v1alpha1_Scale(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "represents a scaling request for a resource.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"apiVersion": {
-						SchemaProps: spec.SchemaProps{
-							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"metadata": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Standard object metadata; More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata.",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
-						},
-					},
-					"spec": {
-						SchemaProps: spec.SchemaProps{
-							Description: "defines the behavior of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status.",
-							Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ScaleSpec"),
-						},
-					},
-					"status": {
-						SchemaProps: spec.SchemaProps{
-							Description: "current status of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status. Read-only.",
-							Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ScaleStatus"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ScaleSpec", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ScaleStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
-	}
-}
-
-func schema_pkg_apis_machine_v1alpha1_ScaleSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "describes the attributes of a scale subresource",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"replicas": {
-						SchemaProps: spec.SchemaProps{
-							Description: "desired number of machines for the scaled object.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_machine_v1alpha1_ScaleStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "represents the current status of a scale subresource.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"replicas": {
-						SchemaProps: spec.SchemaProps{
-							Description: "actual number of observed machines of the scaled object.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"selector": {
-						SchemaProps: spec.SchemaProps{
-							Description: "label query over machines that should match the replicas count. More info: http://kubernetes.io/docs/user-guide/labels#label-selectors",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
-						},
-					},
-					"targetSelector": {
-						SchemaProps: spec.SchemaProps{
-							Description: "label selector for machines that should match the replicas count. This is a serializated version of both map-based and more expressive set-based selectors. This is done to avoid introspection in the clients. The string will be in the same format as the query-param syntax. If the target type only supports map-based selectors, both this field and map-based selector field are populated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-				Required: []string{"replicas"},
-			},
-		},
-		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 

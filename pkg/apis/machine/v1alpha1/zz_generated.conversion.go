@@ -518,16 +518,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
-	if err := s.AddGeneratedConversionFunc((*MachineDeploymentRollback)(nil), (*machine.MachineDeploymentRollback)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_MachineDeploymentRollback_To_machine_MachineDeploymentRollback(a.(*MachineDeploymentRollback), b.(*machine.MachineDeploymentRollback), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*machine.MachineDeploymentRollback)(nil), (*MachineDeploymentRollback)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_machine_MachineDeploymentRollback_To_v1alpha1_MachineDeploymentRollback(a.(*machine.MachineDeploymentRollback), b.(*MachineDeploymentRollback), scope)
-	}); err != nil {
-		return err
-	}
 	if err := s.AddGeneratedConversionFunc((*MachineDeploymentSpec)(nil), (*machine.MachineDeploymentSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_MachineDeploymentSpec_To_machine_MachineDeploymentSpec(a.(*MachineDeploymentSpec), b.(*machine.MachineDeploymentSpec), scope)
 	}); err != nil {
@@ -648,26 +638,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
-	if err := s.AddGeneratedConversionFunc((*MachineTemplate)(nil), (*machine.MachineTemplate)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_MachineTemplate_To_machine_MachineTemplate(a.(*MachineTemplate), b.(*machine.MachineTemplate), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*machine.MachineTemplate)(nil), (*MachineTemplate)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_machine_MachineTemplate_To_v1alpha1_MachineTemplate(a.(*machine.MachineTemplate), b.(*MachineTemplate), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*MachineTemplateList)(nil), (*machine.MachineTemplateList)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_MachineTemplateList_To_machine_MachineTemplateList(a.(*MachineTemplateList), b.(*machine.MachineTemplateList), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*machine.MachineTemplateList)(nil), (*MachineTemplateList)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_machine_MachineTemplateList_To_v1alpha1_MachineTemplateList(a.(*machine.MachineTemplateList), b.(*MachineTemplateList), scope)
-	}); err != nil {
-		return err
-	}
 	if err := s.AddGeneratedConversionFunc((*MachineTemplateSpec)(nil), (*machine.MachineTemplateSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_MachineTemplateSpec_To_machine_MachineTemplateSpec(a.(*MachineTemplateSpec), b.(*machine.MachineTemplateSpec), scope)
 	}); err != nil {
@@ -775,36 +745,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddGeneratedConversionFunc((*machine.RollingUpdateMachineDeployment)(nil), (*RollingUpdateMachineDeployment)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_machine_RollingUpdateMachineDeployment_To_v1alpha1_RollingUpdateMachineDeployment(a.(*machine.RollingUpdateMachineDeployment), b.(*RollingUpdateMachineDeployment), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*Scale)(nil), (*machine.Scale)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_Scale_To_machine_Scale(a.(*Scale), b.(*machine.Scale), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*machine.Scale)(nil), (*Scale)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_machine_Scale_To_v1alpha1_Scale(a.(*machine.Scale), b.(*Scale), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*ScaleSpec)(nil), (*machine.ScaleSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_ScaleSpec_To_machine_ScaleSpec(a.(*ScaleSpec), b.(*machine.ScaleSpec), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*machine.ScaleSpec)(nil), (*ScaleSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_machine_ScaleSpec_To_v1alpha1_ScaleSpec(a.(*machine.ScaleSpec), b.(*ScaleSpec), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*ScaleStatus)(nil), (*machine.ScaleStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_ScaleStatus_To_machine_ScaleStatus(a.(*ScaleStatus), b.(*machine.ScaleStatus), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*machine.ScaleStatus)(nil), (*ScaleStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_machine_ScaleStatus_To_v1alpha1_ScaleStatus(a.(*machine.ScaleStatus), b.(*ScaleStatus), scope)
 	}); err != nil {
 		return err
 	}
@@ -2175,34 +2115,6 @@ func Convert_machine_MachineDeploymentList_To_v1alpha1_MachineDeploymentList(in 
 	return autoConvert_machine_MachineDeploymentList_To_v1alpha1_MachineDeploymentList(in, out, s)
 }
 
-func autoConvert_v1alpha1_MachineDeploymentRollback_To_machine_MachineDeploymentRollback(in *MachineDeploymentRollback, out *machine.MachineDeploymentRollback, s conversion.Scope) error {
-	out.Name = in.Name
-	out.UpdatedAnnotations = *(*map[string]string)(unsafe.Pointer(&in.UpdatedAnnotations))
-	if err := Convert_v1alpha1_RollbackConfig_To_machine_RollbackConfig(&in.RollbackTo, &out.RollbackTo, s); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Convert_v1alpha1_MachineDeploymentRollback_To_machine_MachineDeploymentRollback is an autogenerated conversion function.
-func Convert_v1alpha1_MachineDeploymentRollback_To_machine_MachineDeploymentRollback(in *MachineDeploymentRollback, out *machine.MachineDeploymentRollback, s conversion.Scope) error {
-	return autoConvert_v1alpha1_MachineDeploymentRollback_To_machine_MachineDeploymentRollback(in, out, s)
-}
-
-func autoConvert_machine_MachineDeploymentRollback_To_v1alpha1_MachineDeploymentRollback(in *machine.MachineDeploymentRollback, out *MachineDeploymentRollback, s conversion.Scope) error {
-	out.Name = in.Name
-	out.UpdatedAnnotations = *(*map[string]string)(unsafe.Pointer(&in.UpdatedAnnotations))
-	if err := Convert_machine_RollbackConfig_To_v1alpha1_RollbackConfig(&in.RollbackTo, &out.RollbackTo, s); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Convert_machine_MachineDeploymentRollback_To_v1alpha1_MachineDeploymentRollback is an autogenerated conversion function.
-func Convert_machine_MachineDeploymentRollback_To_v1alpha1_MachineDeploymentRollback(in *machine.MachineDeploymentRollback, out *MachineDeploymentRollback, s conversion.Scope) error {
-	return autoConvert_machine_MachineDeploymentRollback_To_v1alpha1_MachineDeploymentRollback(in, out, s)
-}
-
 func autoConvert_v1alpha1_MachineDeploymentSpec_To_machine_MachineDeploymentSpec(in *MachineDeploymentSpec, out *machine.MachineDeploymentSpec, s conversion.Scope) error {
 	out.Replicas = in.Replicas
 	out.Selector = (*metav1.LabelSelector)(unsafe.Pointer(in.Selector))
@@ -2581,54 +2493,6 @@ func Convert_machine_MachineSummary_To_v1alpha1_MachineSummary(in *machine.Machi
 	return autoConvert_machine_MachineSummary_To_v1alpha1_MachineSummary(in, out, s)
 }
 
-func autoConvert_v1alpha1_MachineTemplate_To_machine_MachineTemplate(in *MachineTemplate, out *machine.MachineTemplate, s conversion.Scope) error {
-	out.ObjectMeta = in.ObjectMeta
-	if err := Convert_v1alpha1_MachineTemplateSpec_To_machine_MachineTemplateSpec(&in.Template, &out.Template, s); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Convert_v1alpha1_MachineTemplate_To_machine_MachineTemplate is an autogenerated conversion function.
-func Convert_v1alpha1_MachineTemplate_To_machine_MachineTemplate(in *MachineTemplate, out *machine.MachineTemplate, s conversion.Scope) error {
-	return autoConvert_v1alpha1_MachineTemplate_To_machine_MachineTemplate(in, out, s)
-}
-
-func autoConvert_machine_MachineTemplate_To_v1alpha1_MachineTemplate(in *machine.MachineTemplate, out *MachineTemplate, s conversion.Scope) error {
-	out.ObjectMeta = in.ObjectMeta
-	if err := Convert_machine_MachineTemplateSpec_To_v1alpha1_MachineTemplateSpec(&in.Template, &out.Template, s); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Convert_machine_MachineTemplate_To_v1alpha1_MachineTemplate is an autogenerated conversion function.
-func Convert_machine_MachineTemplate_To_v1alpha1_MachineTemplate(in *machine.MachineTemplate, out *MachineTemplate, s conversion.Scope) error {
-	return autoConvert_machine_MachineTemplate_To_v1alpha1_MachineTemplate(in, out, s)
-}
-
-func autoConvert_v1alpha1_MachineTemplateList_To_machine_MachineTemplateList(in *MachineTemplateList, out *machine.MachineTemplateList, s conversion.Scope) error {
-	out.ListMeta = in.ListMeta
-	out.Items = *(*[]machine.MachineTemplate)(unsafe.Pointer(&in.Items))
-	return nil
-}
-
-// Convert_v1alpha1_MachineTemplateList_To_machine_MachineTemplateList is an autogenerated conversion function.
-func Convert_v1alpha1_MachineTemplateList_To_machine_MachineTemplateList(in *MachineTemplateList, out *machine.MachineTemplateList, s conversion.Scope) error {
-	return autoConvert_v1alpha1_MachineTemplateList_To_machine_MachineTemplateList(in, out, s)
-}
-
-func autoConvert_machine_MachineTemplateList_To_v1alpha1_MachineTemplateList(in *machine.MachineTemplateList, out *MachineTemplateList, s conversion.Scope) error {
-	out.ListMeta = in.ListMeta
-	out.Items = *(*[]MachineTemplate)(unsafe.Pointer(&in.Items))
-	return nil
-}
-
-// Convert_machine_MachineTemplateList_To_v1alpha1_MachineTemplateList is an autogenerated conversion function.
-func Convert_machine_MachineTemplateList_To_v1alpha1_MachineTemplateList(in *machine.MachineTemplateList, out *MachineTemplateList, s conversion.Scope) error {
-	return autoConvert_machine_MachineTemplateList_To_v1alpha1_MachineTemplateList(in, out, s)
-}
-
 func autoConvert_v1alpha1_MachineTemplateSpec_To_machine_MachineTemplateSpec(in *MachineTemplateSpec, out *machine.MachineTemplateSpec, s conversion.Scope) error {
 	out.ObjectMeta = in.ObjectMeta
 	if err := Convert_v1alpha1_MachineSpec_To_machine_MachineSpec(&in.Spec, &out.Spec, s); err != nil {
@@ -2917,80 +2781,4 @@ func autoConvert_machine_RollingUpdateMachineDeployment_To_v1alpha1_RollingUpdat
 // Convert_machine_RollingUpdateMachineDeployment_To_v1alpha1_RollingUpdateMachineDeployment is an autogenerated conversion function.
 func Convert_machine_RollingUpdateMachineDeployment_To_v1alpha1_RollingUpdateMachineDeployment(in *machine.RollingUpdateMachineDeployment, out *RollingUpdateMachineDeployment, s conversion.Scope) error {
 	return autoConvert_machine_RollingUpdateMachineDeployment_To_v1alpha1_RollingUpdateMachineDeployment(in, out, s)
-}
-
-func autoConvert_v1alpha1_Scale_To_machine_Scale(in *Scale, out *machine.Scale, s conversion.Scope) error {
-	out.ObjectMeta = in.ObjectMeta
-	if err := Convert_v1alpha1_ScaleSpec_To_machine_ScaleSpec(&in.Spec, &out.Spec, s); err != nil {
-		return err
-	}
-	if err := Convert_v1alpha1_ScaleStatus_To_machine_ScaleStatus(&in.Status, &out.Status, s); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Convert_v1alpha1_Scale_To_machine_Scale is an autogenerated conversion function.
-func Convert_v1alpha1_Scale_To_machine_Scale(in *Scale, out *machine.Scale, s conversion.Scope) error {
-	return autoConvert_v1alpha1_Scale_To_machine_Scale(in, out, s)
-}
-
-func autoConvert_machine_Scale_To_v1alpha1_Scale(in *machine.Scale, out *Scale, s conversion.Scope) error {
-	out.ObjectMeta = in.ObjectMeta
-	if err := Convert_machine_ScaleSpec_To_v1alpha1_ScaleSpec(&in.Spec, &out.Spec, s); err != nil {
-		return err
-	}
-	if err := Convert_machine_ScaleStatus_To_v1alpha1_ScaleStatus(&in.Status, &out.Status, s); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Convert_machine_Scale_To_v1alpha1_Scale is an autogenerated conversion function.
-func Convert_machine_Scale_To_v1alpha1_Scale(in *machine.Scale, out *Scale, s conversion.Scope) error {
-	return autoConvert_machine_Scale_To_v1alpha1_Scale(in, out, s)
-}
-
-func autoConvert_v1alpha1_ScaleSpec_To_machine_ScaleSpec(in *ScaleSpec, out *machine.ScaleSpec, s conversion.Scope) error {
-	out.Replicas = in.Replicas
-	return nil
-}
-
-// Convert_v1alpha1_ScaleSpec_To_machine_ScaleSpec is an autogenerated conversion function.
-func Convert_v1alpha1_ScaleSpec_To_machine_ScaleSpec(in *ScaleSpec, out *machine.ScaleSpec, s conversion.Scope) error {
-	return autoConvert_v1alpha1_ScaleSpec_To_machine_ScaleSpec(in, out, s)
-}
-
-func autoConvert_machine_ScaleSpec_To_v1alpha1_ScaleSpec(in *machine.ScaleSpec, out *ScaleSpec, s conversion.Scope) error {
-	out.Replicas = in.Replicas
-	return nil
-}
-
-// Convert_machine_ScaleSpec_To_v1alpha1_ScaleSpec is an autogenerated conversion function.
-func Convert_machine_ScaleSpec_To_v1alpha1_ScaleSpec(in *machine.ScaleSpec, out *ScaleSpec, s conversion.Scope) error {
-	return autoConvert_machine_ScaleSpec_To_v1alpha1_ScaleSpec(in, out, s)
-}
-
-func autoConvert_v1alpha1_ScaleStatus_To_machine_ScaleStatus(in *ScaleStatus, out *machine.ScaleStatus, s conversion.Scope) error {
-	out.Replicas = in.Replicas
-	out.Selector = (*metav1.LabelSelector)(unsafe.Pointer(in.Selector))
-	out.TargetSelector = in.TargetSelector
-	return nil
-}
-
-// Convert_v1alpha1_ScaleStatus_To_machine_ScaleStatus is an autogenerated conversion function.
-func Convert_v1alpha1_ScaleStatus_To_machine_ScaleStatus(in *ScaleStatus, out *machine.ScaleStatus, s conversion.Scope) error {
-	return autoConvert_v1alpha1_ScaleStatus_To_machine_ScaleStatus(in, out, s)
-}
-
-func autoConvert_machine_ScaleStatus_To_v1alpha1_ScaleStatus(in *machine.ScaleStatus, out *ScaleStatus, s conversion.Scope) error {
-	out.Replicas = in.Replicas
-	out.Selector = (*metav1.LabelSelector)(unsafe.Pointer(in.Selector))
-	out.TargetSelector = in.TargetSelector
-	return nil
-}
-
-// Convert_machine_ScaleStatus_To_v1alpha1_ScaleStatus is an autogenerated conversion function.
-func Convert_machine_ScaleStatus_To_v1alpha1_ScaleStatus(in *machine.ScaleStatus, out *ScaleStatus, s conversion.Scope) error {
-	return autoConvert_machine_ScaleStatus_To_v1alpha1_ScaleStatus(in, out, s)
 }

@@ -72,10 +72,6 @@ func (c *FakeMachine) PacketMachineClasses(namespace string) internalversion.Pac
 	return &FakePacketMachineClasses{c, namespace}
 }
 
-func (c *FakeMachine) Scales(namespace string) internalversion.ScaleInterface {
-	return &FakeScales{c, namespace}
-}
-
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeMachine) RESTClient() rest.Interface {
