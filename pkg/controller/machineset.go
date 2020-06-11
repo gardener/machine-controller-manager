@@ -25,6 +25,7 @@ package controller
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 	"sync"
@@ -336,7 +337,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 	if len(staleMachines) >= 1 {
 		klog.V(2).Infof("Deleting stale machines")
 	}
-	c.terminateMachines(staleMachines, machineSet)
+	c.terminateStaleMachines(activeMachines, staleMachines, machineSet)
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
 	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
@@ -673,6 +674,64 @@ func (c *controller) terminateMachines(inactiveMachines []*v1alpha1.Machine, mac
 	wg.Add(numOfInactiveMachines)
 	for _, machine := range inactiveMachines {
 		go c.prepareMachineForDeletion(machine, machineSet, &wg, errCh)
+	}
+	wg.Wait()
+
+	select {
+	case err := <-errCh:
+		// all errors have been reported before and they're likely to be the same, so we'll only return the first one we hit.
+		if err != nil {
+			return err
+		}
+	default:
+	}
+
+	return nil
+}
+
+func (c *controller) terminateStaleMachines(activeMachines, inactiveMachines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
+	var (
+		wg                      sync.WaitGroup
+		numOfMachinesToDelete   int
+		numOfRunningMachines    int
+		numOfMachineSetReplicas = int(machineSet.Spec.Replicas)
+		numOfActiveMachines     = len(activeMachines)
+		numOfInactiveMachines   = len(inactiveMachines)
+		errCh                   = make(chan error, numOfInactiveMachines)
+	)
+	defer close(errCh)
+
+	if numOfInactiveMachines == 0 {
+		return nil
+	}
+
+	for _, activeMachine := range activeMachines {
+		if IsMachineRunning(activeMachine) {
+			numOfRunningMachines++
+		}
+	}
+
+	if numOfRunningMachines == 0 || numOfMachineSetReplicas == 0 || c.safetyOptions.FailedMachineDeletionRatio == 1 || c.safetyOptions.FailedMachineDeletionRatio == 0 {
+		numOfMachinesToDelete = numOfInactiveMachines
+	} else {
+		numOfMachinesToDelete = int(math.Round(float64(numOfInactiveMachines) * c.safetyOptions.FailedMachineDeletionRatio))
+		if numOfMachinesToDelete == 0 {
+			numOfMachinesToDelete = 1
+		}
+
+		pendingMachines := numOfActiveMachines - numOfRunningMachines
+
+		if pendingMachines < numOfMachinesToDelete {
+			numOfMachinesToDelete -= pendingMachines
+		} else {
+			klog.Infof("Skipping terminateStaleMachines iteration on MachineSet %q/%q, previous batch is not Running yet", machineSet.Namespace, machineSet.Name)
+			numOfMachinesToDelete = 0
+		}
+	}
+
+	wg.Add(numOfMachinesToDelete)
+	for i := 0; i < numOfMachinesToDelete; i++ {
+		go c.prepareMachineForDeletion(inactiveMachines[i], machineSet, &wg, errCh)
 	}
 	wg.Wait()
 

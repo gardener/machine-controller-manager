@@ -17,7 +17,13 @@ package controller
 
 import (
 	"errors"
+	"math/rand"
+	"strconv"
 	"sync"
+
+	. "github.com/onsi/ginkgo/extensions/table"
+
+	"k8s.io/apimachinery/pkg/types"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	. "github.com/onsi/ginkgo"
@@ -26,12 +32,6 @@ import (
 	k8sError "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-)
-
-const (
-	MachineRunning     = "Running"
-	MachineTerminating = "Terminating"
-	MachineFailed      = "Failed"
 )
 
 var _ = Describe("machineset", func() {
@@ -265,7 +265,7 @@ var _ = Describe("machineset", func() {
 				},
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineRunning,
+						Phase: machinev1.MachineRunning,
 					},
 				},
 			}
@@ -285,7 +285,7 @@ var _ = Describe("machineset", func() {
 				},
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineRunning,
+						Phase: machinev1.MachineRunning,
 					},
 				},
 			}
@@ -336,7 +336,7 @@ var _ = Describe("machineset", func() {
 				},
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineRunning,
+						Phase: machinev1.MachineRunning,
 					},
 				},
 			}
@@ -379,7 +379,7 @@ var _ = Describe("machineset", func() {
 				},
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineRunning,
+						Phase: machinev1.MachineRunning,
 					},
 				},
 			}
@@ -399,7 +399,7 @@ var _ = Describe("machineset", func() {
 				},
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineFailed,
+						Phase: machinev1.MachineFailed,
 					},
 				},
 			}
@@ -534,7 +534,7 @@ var _ = Describe("machineset", func() {
 				},
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineRunning,
+						Phase: machinev1.MachineRunning,
 					},
 				},
 			}
@@ -661,7 +661,7 @@ var _ = Describe("machineset", func() {
 				},
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineRunning,
+						Phase: machinev1.MachineRunning,
 					},
 				},
 			}
@@ -677,7 +677,7 @@ var _ = Describe("machineset", func() {
 				},
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineFailed,
+						Phase: machinev1.MachineFailed,
 					},
 				},
 			}
@@ -775,7 +775,7 @@ var _ = Describe("machineset", func() {
 				},
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineRunning,
+						Phase: machinev1.MachineRunning,
 					},
 				},
 			}
@@ -803,95 +803,66 @@ var _ = Describe("machineset", func() {
 	})
 
 	Describe("#terminateMachines", func() {
-		var (
-			testMachineSet     *machinev1.MachineSet
-			testFailedMachine2 *machinev1.Machine
-			testFailedMachine1 *machinev1.Machine
-		)
+		var labels = map[string]string{
+			"test-label": "test-label",
+		}
 
-		BeforeEach(func() {
-
-			testMachineSet = &machinev1.MachineSet{
+		DescribeTable("", func(msReplicas int, runningMachines, pendingMachines, failedMachines, expectedInactiveMachines int) {
+			testMachineSet := &machinev1.MachineSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "MachineSet-test",
 					Namespace: testNamespace,
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-					UID: "1234567",
+					Labels:    labels,
+					UID:       "1234567",
 				},
 				Spec: machinev1.MachineSetSpec{
-					Replicas: 2,
+					Replicas: int32(msReplicas),
 					Template: machinev1.MachineTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"test-label": "test-label",
-							},
+							Labels: labels,
 						},
 					},
 					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"test-label": "test-label",
-						},
+						MatchLabels: labels,
 					},
 				},
 			}
 
-			testFailedMachine1 = &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
-					UID:       "1234568",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineFailed,
-					},
-				},
-			}
+			activeMachines := generateMachines(runningMachines, pendingMachines, 0, labels)
+			inactiveMachines := generateMachines(0, 0, failedMachines, map[string]string{
+				"test-label": "test-label",
+				"inactive":   "machine",
+			})
 
-			testFailedMachine2 = &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-2",
-					Namespace: testNamespace,
-					UID:       "1234569",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineFailed,
-					},
-				},
-			}
-		})
-
-		// Testcase: It should delete the inactive machines.
-		It("It should delete the inactive machines.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
-
 			objects := []runtime.Object{}
-			objects = append(objects, testMachineSet, testFailedMachine1, testFailedMachine2)
+			objects = append(objects, testMachineSet)
+			for _, am := range activeMachines {
+				objects = append(objects, am)
+			}
+			for _, im := range inactiveMachines {
+				objects = append(objects, im)
+			}
 			c, trackers := createController(stop, testNamespace, objects, nil, nil)
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			inactiveMachines := []*machinev1.Machine{testFailedMachine1, testFailedMachine2}
-			err := c.terminateMachines(inactiveMachines, testMachineSet)
+			c.safetyOptions.FailedMachineDeletionRatio = 0.2
+			err := c.terminateStaleMachines(activeMachines, inactiveMachines, testMachineSet)
+			Expect(err).Should(BeNil())
 
 			waitForCacheSync(stop, c)
-			_, Err1 := c.controlMachineClient.Machines(testNamespace).Get(inactiveMachines[0].Name, metav1.GetOptions{})
-			_, Err2 := c.controlMachineClient.Machines(testNamespace).Get(inactiveMachines[1].Name, metav1.GetOptions{})
-
+			list, err := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{LabelSelector: "inactive=machine"})
 			Expect(err).Should(BeNil())
-			Expect(Err1).Should(Not(BeNil()))
-			Expect(Err2).Should(Not(BeNil()))
-		})
+			Expect(len(list.Items)).To(Equal(expectedInactiveMachines))
+		},
+			Entry("MachineSet Replicas are at zero, should delete all inactiveMachines", 0, 3, 3, 3, 0),
+			Entry("MachineSet Replicas == 20, no Pending Machines, should delete 2 inactiveMachines", 20, 10, 0, 10, 8),
+			Entry("MachineSet Replicas == 30, 1 Pending Machines, should delete 2 inactiveMachines", 30, 15, 1, 14, 12),
+			Entry("MachineSet Replicas == 3, no Pending Machines, should delete 1 inactiveMachine", 3, 1, 0, 2, 1),
+			Entry("MachineSet Replicas == 6, 4 Pending Machines, should not delete any inactiveMachine", 6, 1, 4, 1, 1),
+		)
 	})
 
 	Describe("#addMachineSetFinalizers", func() {
@@ -1066,3 +1037,55 @@ var _ = Describe("machineset", func() {
 		})
 	})
 })
+
+func generateMachines(running, pending, failed int, labels map[string]string) (ret []*machinev1.Machine) {
+	for i := 0; i < running; i++ {
+		ret = append(ret, &machinev1.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "running-machine-" + strconv.Itoa(i),
+				Namespace: testNamespace,
+				UID:       types.UID(strconv.Itoa(rand.Int())),
+				Labels:    labels,
+			},
+			Status: machinev1.MachineStatus{
+				CurrentStatus: machinev1.CurrentStatus{
+					Phase: machinev1.MachineRunning,
+				},
+			},
+		})
+	}
+
+	for i := 0; i < pending; i++ {
+		ret = append(ret, &machinev1.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "pending-machine-" + strconv.Itoa(i),
+				Namespace: testNamespace,
+				UID:       types.UID(strconv.Itoa(rand.Int())),
+				Labels:    labels,
+			},
+			Status: machinev1.MachineStatus{
+				CurrentStatus: machinev1.CurrentStatus{
+					Phase: machinev1.MachinePending,
+				},
+			},
+		})
+	}
+
+	for i := 0; i < failed; i++ {
+		ret = append(ret, &machinev1.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "failed-machine-" + strconv.Itoa(i),
+				Namespace: testNamespace,
+				UID:       types.UID(strconv.Itoa(rand.Int())),
+				Labels:    labels,
+			},
+			Status: machinev1.MachineStatus{
+				CurrentStatus: machinev1.CurrentStatus{
+					Phase: machinev1.MachineFailed,
+				},
+			},
+		})
+	}
+
+	return
+}
