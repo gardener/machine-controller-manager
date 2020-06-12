@@ -34,10 +34,6 @@ type MachineDeploymentExpansion interface{}
 
 type MachineSetExpansion interface{}
 
-type MachineTemplateExpansion interface{}
-
 type OpenStackMachineClassExpansion interface{}
 
 type PacketMachineClassExpansion interface{}
-
-type ScaleExpansion interface{}

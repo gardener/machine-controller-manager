@@ -1,0 +1,117 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.3.0
+  creationTimestamp: null
+  name: scales.machine.sapcloud.io
+spec:
+  group: machine.sapcloud.io
+  names:
+    kind: Scale
+    listKind: ScaleList
+    plural: scales
+    singular: scale
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      description: represents a scaling request for a resource.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          description: 'Standard object metadata; More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata.'
+          type: object
+        spec:
+          description: 'defines the behavior of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status.'
+          properties:
+            replicas:
+              description: desired number of machines for the scaled object.
+              format: int32
+              type: integer
+          type: object
+        status:
+          description: 'current status of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status.
+            Read-only.'
+          properties:
+            replicas:
+              description: actual number of observed machines of the scaled object.
+              format: int32
+              type: integer
+            selector:
+              description: 'label query over machines that should match the replicas
+                count. More info: http://kubernetes.io/docs/user-guide/labels#label-selectors'
+              properties:
+                matchExpressions:
+                  description: matchExpressions is a list of label selector requirements.
+                    The requirements are ANDed.
+                  items:
+                    description: A label selector requirement is a selector that contains
+                      values, a key, and an operator that relates the key and values.
+                    properties:
+                      key:
+                        description: key is the label key that the selector applies
+                          to.
+                        type: string
+                      operator:
+                        description: operator represents a key's relationship to a
+                          set of values. Valid operators are In, NotIn, Exists and
+                          DoesNotExist.
+                        type: string
+                      values:
+                        description: values is an array of string values. If the operator
+                          is In or NotIn, the values array must be non-empty. If the
+                          operator is Exists or DoesNotExist, the values array must
+                          be empty. This array is replaced during a strategic merge
+                          patch.
+                        items:
+                          type: string
+                        type: array
+                    required:
+                    - key
+                    - operator
+                    type: object
+                  type: array
+                matchLabels:
+                  additionalProperties:
+                    type: string
+                  description: matchLabels is a map of {key,value} pairs. A single
+                    {key,value} in the matchLabels map is equivalent to an element
+                    of matchExpressions, whose key field is "key", the operator is
+                    "In", and the values array contains only "value". The requirements
+                    are ANDed.
+                  type: object
+              type: object
+            targetSelector:
+              description: 'label selector for machines that should match the replicas
+                count. This is a serializated version of both map-based and more expressive
+                set-based selectors. This is done to avoid introspection in the clients.
+                The string will be in the same format as the query-param syntax. If
+                the target type only supports map-based selectors, both this field
+                and map-based selector field are populated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors'
+              type: string
+          required:
+          - replicas
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

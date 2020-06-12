@@ -82,14 +82,6 @@ type MachineSetListerExpansion interface{}
 // MachineSetNamespaceLister.
 type MachineSetNamespaceListerExpansion interface{}
 
-// MachineTemplateListerExpansion allows custom methods to be added to
-// MachineTemplateLister.
-type MachineTemplateListerExpansion interface{}
-
-// MachineTemplateNamespaceListerExpansion allows custom methods to be added to
-// MachineTemplateNamespaceLister.
-type MachineTemplateNamespaceListerExpansion interface{}
-
 // OpenStackMachineClassListerExpansion allows custom methods to be added to
 // OpenStackMachineClassLister.
 type OpenStackMachineClassListerExpansion interface{}
@@ -105,11 +97,3 @@ type PacketMachineClassListerExpansion interface{}
 // PacketMachineClassNamespaceListerExpansion allows custom methods to be added to
 // PacketMachineClassNamespaceLister.
 type PacketMachineClassNamespaceListerExpansion interface{}
-
-// ScaleListerExpansion allows custom methods to be added to
-// ScaleLister.
-type ScaleListerExpansion interface{}
-
-// ScaleNamespaceListerExpansion allows custom methods to be added to
-// ScaleNamespaceLister.
-type ScaleNamespaceListerExpansion interface{}
