@@ -36,7 +36,6 @@ type MachineInterface interface {
 	MachineTemplatesGetter
 	OpenStackMachineClassesGetter
 	PacketMachineClassesGetter
-	ScalesGetter
 }
 
 // MachineClient is used to interact with features provided by the machine.sapcloud.io group.
@@ -86,10 +85,6 @@ func (c *MachineClient) OpenStackMachineClasses(namespace string) OpenStackMachi
 
 func (c *MachineClient) PacketMachineClasses(namespace string) PacketMachineClassInterface {
 	return newPacketMachineClasses(c, namespace)
-}
-
-func (c *MachineClient) Scales(namespace string) ScaleInterface {
-	return newScales(c, namespace)
 }
 
 // NewForConfig creates a new MachineClient for the given config.

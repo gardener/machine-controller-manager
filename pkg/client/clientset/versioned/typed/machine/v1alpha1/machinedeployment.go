@@ -23,6 +23,7 @@ import (
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	scheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -46,8 +47,7 @@ type MachineDeploymentInterface interface {
 	List(opts v1.ListOptions) (*v1alpha1.MachineDeploymentList, error)
 	Watch(opts v1.ListOptions) (watch.Interface, error)
 	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.MachineDeployment, err error)
-	GetScale(machineDeploymentName string, options v1.GetOptions) (*v1alpha1.Scale, error)
-	UpdateScale(machineDeploymentName string, scale *v1alpha1.Scale) (*v1alpha1.Scale, error)
+	UpdateScale(machineDeploymentName string, scale *autoscalingv1.Scale) (*autoscalingv1.Scale, error)
 
 	MachineDeploymentExpansion
 }
@@ -193,23 +193,9 @@ func (c *machineDeployments) Patch(name string, pt types.PatchType, data []byte,
 	return
 }
 
-// GetScale takes name of the machineDeployment, and returns the corresponding v1alpha1.Scale object, and an error if there is any.
-func (c *machineDeployments) GetScale(machineDeploymentName string, options v1.GetOptions) (result *v1alpha1.Scale, err error) {
-	result = &v1alpha1.Scale{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("machinedeployments").
-		Name(machineDeploymentName).
-		SubResource("scale").
-		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
-		Into(result)
-	return
-}
-
 // UpdateScale takes the top resource name and the representation of a scale and updates it. Returns the server's representation of the scale, and an error, if there is any.
-func (c *machineDeployments) UpdateScale(machineDeploymentName string, scale *v1alpha1.Scale) (result *v1alpha1.Scale, err error) {
-	result = &v1alpha1.Scale{}
+func (c *machineDeployments) UpdateScale(machineDeploymentName string, scale *autoscalingv1.Scale) (result *autoscalingv1.Scale, err error) {
+	result = &autoscalingv1.Scale{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("machinedeployments").

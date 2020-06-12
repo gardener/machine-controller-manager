@@ -23,6 +23,7 @@ import (
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	scheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -46,6 +47,8 @@ type MachineSetInterface interface {
 	List(opts v1.ListOptions) (*v1alpha1.MachineSetList, error)
 	Watch(opts v1.ListOptions) (watch.Interface, error)
 	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.MachineSet, err error)
+	UpdateScale(machineSetName string, scale *autoscalingv1.Scale) (*autoscalingv1.Scale, error)
+
 	MachineSetExpansion
 }
 
@@ -185,6 +188,20 @@ func (c *machineSets) Patch(name string, pt types.PatchType, data []byte, subres
 		SubResource(subresources...).
 		Name(name).
 		Body(data).
+		Do().
+		Into(result)
+	return
+}
+
+// UpdateScale takes the top resource name and the representation of a scale and updates it. Returns the server's representation of the scale, and an error, if there is any.
+func (c *machineSets) UpdateScale(machineSetName string, scale *autoscalingv1.Scale) (result *autoscalingv1.Scale, err error) {
+	result = &autoscalingv1.Scale{}
+	err = c.client.Put().
+		Namespace(c.ns).
+		Resource("machinesets").
+		Name(machineSetName).
+		SubResource("scale").
+		Body(scale).
 		Do().
 		Into(result)
 	return

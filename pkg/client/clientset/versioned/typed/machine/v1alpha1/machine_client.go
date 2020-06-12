@@ -34,10 +34,8 @@ type MachineV1alpha1Interface interface {
 	MachineClassesGetter
 	MachineDeploymentsGetter
 	MachineSetsGetter
-	MachineTemplatesGetter
 	OpenStackMachineClassesGetter
 	PacketMachineClassesGetter
-	ScalesGetter
 }
 
 // MachineV1alpha1Client is used to interact with features provided by the machine.sapcloud.io group.
@@ -77,20 +75,12 @@ func (c *MachineV1alpha1Client) MachineSets(namespace string) MachineSetInterfac
 	return newMachineSets(c, namespace)
 }
 
-func (c *MachineV1alpha1Client) MachineTemplates(namespace string) MachineTemplateInterface {
-	return newMachineTemplates(c, namespace)
-}
-
 func (c *MachineV1alpha1Client) OpenStackMachineClasses(namespace string) OpenStackMachineClassInterface {
 	return newOpenStackMachineClasses(c, namespace)
 }
 
 func (c *MachineV1alpha1Client) PacketMachineClasses(namespace string) PacketMachineClassInterface {
 	return newPacketMachineClasses(c, namespace)
-}
-
-func (c *MachineV1alpha1Client) Scales(namespace string) ScaleInterface {
-	return newScales(c, namespace)
 }
 
 // NewForConfig creates a new MachineV1alpha1Client for the given config.

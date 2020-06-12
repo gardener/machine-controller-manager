@@ -598,46 +598,6 @@ type MachineDeploymentList struct {
 	Items []MachineDeployment
 }
 
-// describes the attributes of a scale subresource
-type ScaleSpec struct {
-	// desired number of machines for the scaled object.
-	Replicas int32
-}
-
-// represents the current status of a scale subresource.
-type ScaleStatus struct {
-	// actual number of observed machines of the scaled object.
-	Replicas int32
-
-	// label query over machines that should match the replicas count. More info: http://kubernetes.io/docs/user-guide/labels#label-selectors
-	Selector *metav1.LabelSelector
-
-	// label selector for machines that should match the replicas count. This is a serializated
-	// version of both map-based and more expressive set-based selectors. This is done to
-	// avoid introspection in the clients. The string will be in the same format as the
-	// query-param syntax. If the target type only supports map-based selectors, both this
-	// field and map-based selector field are populated.
-	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors
-	TargetSelector string
-}
-
-// +genclient
-// +genclient:noVerbs
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// represents a scaling request for a resource.
-type Scale struct {
-	metav1.TypeMeta
-	// Standard object metadata; More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata.
-	metav1.ObjectMeta
-
-	// defines the behavior of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status.
-	Spec ScaleSpec
-
-	// current status of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status. Read-only.
-	Status ScaleStatus
-}
-
 /********************** OpenStackMachineClass APIs ***************/
 
 // +genclient
