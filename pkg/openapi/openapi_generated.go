@@ -3355,7 +3355,7 @@ func schema_pkg_apis_machine_v1alpha1_OpenStackMachineClassSpec(ref common.Refer
 							Format: "int32",
 						},
 					},
-					"rootDiskSize": {
+					"useConfigDrive": {
 						SchemaProps: spec.SchemaProps{
 							Description: "in GB",
 							Type:        []string{"boolean"},
