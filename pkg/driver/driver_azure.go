@@ -106,6 +106,8 @@ func (d *AzureDriver) getVMParameters(vmName string, image *compute.VirtualMachi
 
 	var plan *compute.Plan
 	if image != nil && image.Plan != nil {
+		// If image.Plan exists, create a plan object and attach it to the VM
+		klog.V(2).Infof("Creating a plan object and attaching it to the VM - %q", vmName)
 		plan = &compute.Plan{
 			Name:      image.VirtualMachineImageProperties.Plan.Name,
 			Product:   image.VirtualMachineImageProperties.Plan.Product,
