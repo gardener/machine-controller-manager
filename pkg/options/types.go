@@ -79,11 +79,12 @@ type MachineControllerManagerConfiguration struct {
 	// SafetyOptions is the set of options to set to ensure safety of controller
 	SafetyOptions SafetyOptions
 
-	//NodeCondition is the string of known NodeConditions. If any of these NodeCondition is set for a timeout period, the machine  will be declared failed and will replaced.
+	// NodeCondition is the string of known NodeConditions. If any of these NodeCondition is set for a timeout period, the machine  will be declared failed and will replaced.
 	NodeConditions string
-
-	//BootstrapTokenAuthExtraGroups is a comma-separated string of groups to set bootstrap token's "auth-extra-groups" field to.
+	// BootstrapTokenAuthExtraGroups is a comma-separated string of groups to set bootstrap token's "auth-extra-groups" field to.
 	BootstrapTokenAuthExtraGroups string
+	// DeleteMigratedMachineClass deletes any machine class with has the migrate machineclass
+	DeleteMigratedMachineClass bool
 }
 
 // SafetyOptions are used to configure the upper-limit and lower-limit

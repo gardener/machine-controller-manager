@@ -259,7 +259,7 @@ var _ = Describe("machine", func() {
 				defer trackers.Stop()
 
 				waitForCacheSync(stop, controller)
-				machineClass, secret, err := controller.ValidateMachineClass(data.action)
+				machineClass, secret, _, err := controller.ValidateMachineClass(data.action)
 
 				if data.expect.machineClass == nil {
 					Expect(machineClass).To(BeNil())

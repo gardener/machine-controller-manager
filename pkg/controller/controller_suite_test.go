@@ -532,6 +532,7 @@ func createController(
 		machineSafetyAPIServerQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
 		expectations:                   NewUIDTrackingContExpectations(NewContExpectations()),
 		recorder:                       record.NewBroadcaster().NewRecorder(nil, corev1.EventSource{Component: ""}),
+		deleteMigratedMachineClass:     true,
 	}
 
 	// controller.internalExternalScheme = runtime.NewScheme()

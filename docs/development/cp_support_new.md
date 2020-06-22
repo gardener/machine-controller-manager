@@ -64,6 +64,7 @@ The contract between he Machine Controller Manager (MCM) and the Machine Control
     - Fill in the required methods `CreateMachine()`, and `DeleteMachine()` methods.
     - Optionally fill in methods like `GetMachineStatus()`, `ListMachines()`, and `GetVolumeIDs()`. You may choose to fill these, once the working of the required methods seem to be working.
         - `GetVolumeIDs()` expects VolumeIDs to be decoded from the volumeSpec based on the cloud provider.
+    - There is also an OPTIONAL method `GenerateMachineClassForMigration()` that helps in migration of `{ProviderSpecific}MachineClass` to `MachineClass` CR (custom resource). This only makes sense if you have an existing implementation (in-tree) acting on different CRD types and you would like to migrate this. If not you MUST return an error (machine error UNIMPLEMENTED) to avoid processing this step.
 1. Perform validation of APIs that you have described and make it a part of your methods as required at each requests.
 1. Write unit tests to make it work with your implementation by running `make test`.
     ```bash

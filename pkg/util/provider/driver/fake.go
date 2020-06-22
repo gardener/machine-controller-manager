@@ -90,3 +90,9 @@ func (d *FakeDriver) GetVolumeIDs(ctx context.Context, getVolumeIDs *GetVolumeID
 		VolumeIDs: []string{},
 	}, d.Err
 }
+
+// GenerateMachineClassForMigration converts providerMachineClass to (generic)MachineClass
+func (d *FakeDriver) GenerateMachineClassForMigration(ctx context.Context, req *GenerateMachineClassForMigrationRequest) (*GenerateMachineClassForMigrationResponse, error) {
+	req.MachineClass.Provider = "FakeProvider"
+	return &GenerateMachineClassForMigrationResponse{}, d.Err
+}
