@@ -88,7 +88,7 @@ func (d *AzureDriver) getNICParameters(vmName string, subnet *network.Subnet) ne
 	return NICParameters
 }
 
-func (d *AzureDriver) getVMParameters(vmName string, image compute.VirtualMachineImage, networkInterfaceReferenceID string) compute.VirtualMachine {
+func (d *AzureDriver) getVMParameters(vmName string, image *compute.VirtualMachineImage, networkInterfaceReferenceID string) compute.VirtualMachine {
 
 	var (
 		diskName    = dependencyNameFromVMName(vmName, diskSuffix)
@@ -105,7 +105,7 @@ func (d *AzureDriver) getVMParameters(vmName string, image compute.VirtualMachin
 	imageReference := getImageReference(d)
 
 	var plan *compute.Plan
-	if image.Plan != nil {
+	if image != nil && image.Plan != nil {
 		// If image.Plan exists, create a plan object and attach it to the VM
 		klog.V(2).Infof("Creating a plan object and attaching it to the VM - %q", vmName)
 		plan = &compute.Plan{
@@ -435,6 +435,7 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 		subnetName        = d.AzureMachineClass.Spec.SubnetInfo.SubnetName
 		nicName           = dependencyNameFromVMName(vmName, nicSuffix)
 		diskName          = dependencyNameFromVMName(vmName, diskSuffix)
+		vmImageRef        *compute.VirtualMachineImage
 	)
 
 	clients, err := d.setup()
@@ -515,35 +516,18 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 	/*
 		VM creation
 	*/
+	imageRefClass := d.AzureMachineClass.Spec.Properties.StorageProfile.ImageReference
+	// if ID is not set the image is referenced using a URN
+	if imageRefClass.ID == "" {
 
-	imageReference := getImageReference(d)
-	vmImage, err := clients.images.Get(
-		ctx,
-		d.AzureMachineClass.Spec.Location,
-		*imageReference.Publisher,
-		*imageReference.Offer,
-		*imageReference.Sku,
-		*imageReference.Version)
-
-	if err != nil {
-		//Since machine creation failed, delete any infra resources created
-		deleteErr := clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
-		if deleteErr != nil {
-			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
-		}
-
-		return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VirtualMachineImagesClient.Get failed for %s", d.AzureMachineClass.Name)
-	}
-
-	if vmImage.Plan != nil {
-		// If VMImage.Plan exists, check if agreement is accepted and if not accept it for the subscription
-
-		agreement, err := clients.marketplace.Get(
+		imageReference := getImageReference(d)
+		vmImage, err := clients.images.Get(
 			ctx,
-			*vmImage.Plan.Publisher,
-			*vmImage.Plan.Product,
-			*vmImage.Plan.Name,
-		)
+			d.AzureMachineClass.Spec.Location,
+			*imageReference.Publisher,
+			*imageReference.Offer,
+			*imageReference.Sku,
+			*imageReference.Version)
 
 		if err != nil {
 			//Since machine creation failed, delete any infra resources created
@@ -552,20 +536,17 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 				klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 			}
 
-			return nil, onARMAPIErrorFail(prometheusServiceVM, err, "MarketplaceAgreementsClient.Get failed for %s", d.AzureMachineClass.Name)
+			return nil, onARMAPIErrorFail(prometheusServiceVM, err, "VirtualMachineImagesClient.Get failed for %s", d.AzureMachineClass.Name)
 		}
 
-		if agreement.Accepted == nil || *agreement.Accepted == false {
-			// Need to accept the terms at least once for the subscription
-			klog.V(2).Info("Accepting terms for subscription to make use of the plan")
+		if vmImage.Plan != nil {
+			// If VMImage.Plan exists, check if agreement is accepted and if not accept it for the subscription
 
-			agreement.Accepted = to.BoolPtr(true)
-			_, err = clients.marketplace.Create(
+			agreement, err := clients.marketplace.Get(
 				ctx,
 				*vmImage.Plan.Publisher,
 				*vmImage.Plan.Product,
 				*vmImage.Plan.Name,
-				agreement,
 			)
 
 			if err != nil {
@@ -575,13 +556,39 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 					klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 				}
 
-				return nil, onARMAPIErrorFail(prometheusServiceVM, err, "MarketplaceAgreementsClient.Create failed for %s", d.AzureMachineClass.Name)
+				return nil, onARMAPIErrorFail(prometheusServiceVM, err, "MarketplaceAgreementsClient.Get failed for %s", d.AzureMachineClass.Name)
+			}
+
+			if agreement.Accepted == nil || *agreement.Accepted == false {
+				// Need to accept the terms at least once for the subscription
+				klog.V(2).Info("Accepting terms for subscription to make use of the plan")
+
+				agreement.Accepted = to.BoolPtr(true)
+				_, err = clients.marketplace.Create(
+					ctx,
+					*vmImage.Plan.Publisher,
+					*vmImage.Plan.Product,
+					*vmImage.Plan.Name,
+					agreement,
+				)
+
+				if err != nil {
+					//Since machine creation failed, delete any infra resources created
+					deleteErr := clients.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+					if deleteErr != nil {
+						klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
+					}
+
+					return nil, onARMAPIErrorFail(prometheusServiceVM, err, "MarketplaceAgreementsClient.Create failed for %s", d.AzureMachineClass.Name)
+				}
 			}
 		}
+
+		vmImageRef = &vmImage
 	}
 
 	// Creating VMParameters for new VM creation request
-	VMParameters := d.getVMParameters(vmName, vmImage, *NIC.ID)
+	VMParameters := d.getVMParameters(vmName, vmImageRef, *NIC.ID)
 
 	// VM creation request
 	VMFuture, err := clients.vm.CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
