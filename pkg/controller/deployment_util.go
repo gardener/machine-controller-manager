@@ -440,6 +440,13 @@ func SetNewMachineSetConfig(deployment *v1alpha1.MachineDeployment, newIS *v1alp
 	return configChanged
 }
 
+// UpdateMachineSetClassKind updates class.Kind appropriately by updating its revision and
+// copying required deployment class.Kind to it; it returns true if machine set's class.Kind is changed.
+func UpdateMachineSetClassKind(deployment *v1alpha1.MachineDeployment, newIS *v1alpha1.MachineSet, newRevision string, exists bool) bool {
+	classKindChanged := copyMachineDeploymentClassKindToMachineSet(deployment, newIS)
+	return classKindChanged
+}
+
 var annotationsToSkip = map[string]bool{
 	v1.LastAppliedConfigAnnotation: true,
 	RevisionAnnotation:             true,
@@ -482,12 +489,10 @@ func copyMachineDeploymentAnnotationsToMachineSet(deployment *v1alpha1.MachineDe
 // and returns true if machine set's nodeTemplate is changed.
 // Note that apply and revision nodeTemplates are not copied.
 func copyMachineDeploymentNodeTemplatesToMachineSet(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet) bool {
-
 	isNodeTemplateChanged := !(apiequality.Semantic.DeepEqual(deployment.Spec.Template.Spec.NodeTemplateSpec, is.Spec.Template.Spec.NodeTemplateSpec))
 
 	if isNodeTemplateChanged {
 		klog.V(2).Infof("Observed a change in NodeTemplate of Machine Deployment %s. Changing NodeTemplate from %+v to \n %+v.", deployment.Name, is.Spec.Template.Spec.NodeTemplateSpec, deployment.Spec.Template.Spec.NodeTemplateSpec)
-
 		is.Spec.Template.Spec.NodeTemplateSpec = *deployment.Spec.Template.Spec.NodeTemplateSpec.DeepCopy()
 	}
 	return isNodeTemplateChanged
@@ -506,6 +511,19 @@ func copyMachineDeploymentConfigToMachineSet(deployment *v1alpha1.MachineDeploym
 		is.Spec.Template.Spec.MachineConfiguration = deployment.Spec.Template.Spec.MachineConfiguration.DeepCopy()
 	}
 	return isConfigChanged
+}
+
+// copyMachineDeploymentClassKindToMachineSet copies machine deployment's
+// class.Kind to machine set's class.Kind, and returns true if machine set's
+// class.Kind is changed. Note that apply and revision nodeTemplates are not copied.
+func copyMachineDeploymentClassKindToMachineSet(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet) bool {
+	if deployment.Spec.Template.Spec.Class.Kind != is.Spec.Template.Spec.Class.Kind {
+		klog.V(2).Infof("Observed a change in classKind of Machine Deployment %s. Changing classKind from %+v to %+v.", deployment.Name, is.Spec.Template.Spec.Class.Kind, deployment.Spec.Template.Spec.Class.Kind)
+		is.Spec.Template.Spec.Class.Kind = deployment.Spec.Template.Spec.Class.Kind
+		return true
+	}
+
+	return false
 }
 
 // SetMachineDeploymentAnnotationsTo sets deployment's annotations as given RS's annotations.
@@ -827,9 +845,11 @@ func EqualIgnoreHash(template1, template2 *v1alpha1.MachineTemplateSpec) bool {
 		}
 	}
 	// Then, compare the templates without comparing their labels, nodeTemplates and machine-configuration.
+	// We also ignore their labels, nodeTemplates & class.Kind while comparing.
 	t1Copy.Labels, t2Copy.Labels = nil, nil
 	t1Copy.Spec.NodeTemplateSpec, t2Copy.Spec.NodeTemplateSpec = v1alpha1.NodeTemplateSpec{}, v1alpha1.NodeTemplateSpec{}
 	t1Copy.Spec.MachineConfiguration, t2Copy.Spec.MachineConfiguration = nil, nil
+	t1Copy.Spec.Class.Kind, t2Copy.Spec.Class.Kind = "", ""
 	return apiequality.Semantic.DeepEqual(t1Copy, t2Copy)
 }
 

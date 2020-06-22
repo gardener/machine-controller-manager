@@ -86,24 +86,30 @@ func UpdateMachineWithRetries(machineClient v1alpha1client.MachineInterface, mac
 }
 */
 
-func (c *controller) ValidateMachineClass(classSpec *v1alpha1.ClassSpec) (*v1alpha1.MachineClass, *v1.Secret, error) {
+// ValidateMachineClass validates the machine class.
+func (c *controller) ValidateMachineClass(classSpec *v1alpha1.ClassSpec) (*v1alpha1.MachineClass, *v1.Secret, machineutils.Retry, error) {
 	var (
 		machineClass *v1alpha1.MachineClass
 		secretRef    *v1.Secret
 		err          error
+		retry        = machineutils.DoNotRetryOp
 	)
+
+	if classSpec.Kind != machineutils.MachineClassKind {
+		return c.TryMachineClassMigration(classSpec)
+	}
 
 	machineClass, err = c.machineClassLister.MachineClasses(c.namespace).Get(classSpec.Name)
 	if err != nil {
-		klog.V(2).Infof("MachineClass %q/%q not found. Skipping. %v", c.namespace, classSpec.Name, err)
-		return nil, nil, err
+		klog.V(2).Infof("MachineClass %s/%s not found. Skipping. %v", c.namespace, classSpec.Name, err)
+		return nil, nil, retry, err
 	}
 
 	internalMachineClass := &machineapi.MachineClass{}
 	err = c.internalExternalScheme.Convert(machineClass, internalMachineClass, nil)
 	if err != nil {
 		klog.Warning("Error in scheme conversion")
-		return nil, nil, err
+		return nil, nil, retry, err
 	}
 
 	// TODO: Perform validation
@@ -119,10 +125,11 @@ func (c *controller) ValidateMachineClass(classSpec *v1alpha1.ClassSpec) (*v1alp
 	secretRef, err = c.getSecret(machineClass.SecretRef, machineClass.Name)
 	if err != nil {
 		klog.Warningf("Secret not found for %q", machineClass.SecretRef.Name)
-		return nil, nil, err
+		return nil, nil, retry, err
 	}
 
-	return machineClass, secretRef, nil
+	retry = machineutils.RetryOp
+	return machineClass, secretRef, retry, nil
 }
 
 // getSecret retrives the kubernetes secret if found

@@ -29,17 +29,15 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
-
-// machineClassKind is used to identify the machineClassKind for generic machineClasses
-const machineClassKind = "MachineClass"
 
 func (c *controller) machineToMachineClassDelete(obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if machine == nil || !ok {
 		return
 	}
-	if machine.Spec.Class.Kind == machineClassKind {
+	if machine.Spec.Class.Kind == machineutils.MachineClassKind {
 		c.machineClassQueue.Add(machine.Spec.Class.Name)
 	}
 }
@@ -76,11 +74,11 @@ func (c *controller) reconcileClusterMachineClassKey(key string) error {
 
 	class, err := c.machineClassLister.MachineClasses(c.namespace).Get(name)
 	if errors.IsNotFound(err) {
-		klog.Infof("%s %q: Not doing work because it has been deleted", machineClassKind, key)
+		klog.Infof("%s %q: Not doing work because it has been deleted", machineutils.MachineClassKind, key)
 		return nil
 	}
 	if err != nil {
-		klog.Infof("%s %q: Unable to retrieve object from store: %v", machineClassKind, key, err)
+		klog.Infof("%s %q: Unable to retrieve object from store: %v", machineutils.MachineClassKind, key, err)
 		return err
 	}
 
@@ -100,7 +98,7 @@ func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) 
 		return err
 	}
 
-	machines, err := c.findMachinesForClass(machineClassKind, class.Name)
+	machines, err := c.findMachinesForClass(machineutils.MachineClassKind, class.Name)
 	if err != nil {
 		return err
 	}

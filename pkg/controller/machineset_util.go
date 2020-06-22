@@ -105,16 +105,37 @@ func (c *controller) syncMachinesNodeTemplates(machineList []*v1alpha1.Machine, 
 	return nil
 }
 
+// syncMachinesClassKind updates all machines in the given machineList with the new classKind if required.
+func (c *controller) syncMachinesClassKind(machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
+
+	controlClient := c.controlMachineClient
+	machineLister := c.machineLister
+
+	for _, machine := range machineList {
+		classKindChanged := copyMachineSetClassKindToMachines(machineSet, machine)
+		// Only sync the machine that doesn't already have the matching classKind.
+		if classKindChanged {
+			_, err := UpdateMachineWithRetries(controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
+				func(machineToUpdate *v1alpha1.Machine) error {
+					return nil
+				})
+			if err != nil {
+				return fmt.Errorf("error in updating classKind to machine %q: %v", machine.Name, err)
+			}
+			klog.V(2).Infof("Updated Machine %s/%s of MachineSet %s/%s with latest classKind.", machine.Namespace, machine.Name, machineSet.Namespace, machineSet.Name)
+		}
+	}
+	return nil
+}
+
 // copyMachineSetNodeTemplatesToMachines copies machineset's nodeTemplate to machine's nodeTemplate,
 // and returns true if machine's nodeTemplate is changed.
 // Note that apply and revision nodeTemplates are not copied.
 func copyMachineSetNodeTemplatesToMachines(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
-	isNodeTemplateChanged := false
-
 	machineSetNodeTemplateCopy := machineset.Spec.Template.Spec.NodeTemplateSpec.DeepCopy()
 	machineNodeTemplateCopy := machine.Spec.NodeTemplateSpec.DeepCopy()
 
-	isNodeTemplateChanged = !(apiequality.Semantic.DeepEqual(machineSetNodeTemplateCopy, machineNodeTemplateCopy))
+	isNodeTemplateChanged := !(apiequality.Semantic.DeepEqual(machineSetNodeTemplateCopy, machineNodeTemplateCopy))
 
 	if isNodeTemplateChanged {
 		machine.Spec.NodeTemplateSpec = machineset.Spec.Template.Spec.NodeTemplateSpec
@@ -165,4 +186,15 @@ func copyMachineSetConfigToMachines(machineset *v1alpha1.MachineSet, machine *v1
 		machine.Spec.MachineConfiguration = machineset.Spec.Template.Spec.MachineConfiguration
 	}
 	return isConfigChanged
+}
+
+// copyMachineSetClassKindToMachines copies machineset's class.Kind to machine's class.Kind,
+// and returns true if machine's class.Kind is changed.
+func copyMachineSetClassKindToMachines(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
+	if machineset.Spec.Template.Spec.Class.Kind != machine.Spec.Class.Kind {
+		machine.Spec.Class.Kind = machineset.Spec.Template.Spec.Class.Kind
+		return true
+	}
+
+	return false
 }
