@@ -34,19 +34,12 @@ Our strong recommendation would be to follow the steps below as this provides mo
     ```bash
     git remote set-url origin git@github.com:{your-github-username}/machine-controller-manager-provider-{provider-name}.git
     ```
-1. Rename github project from `gardener` to `{github-org/your-github-username}` where ever you have cloned the repository above. Use the hack script given below to do the same.
+1. Rename github project from `gardener` to `{github-org/your-github-username}` wherever you have cloned the repository above. Also edit all occurrences of the word `sampleprovider` to `{provider-name}` in the code. Use the hack script given below to do the same.
     ```bash
-    make rename-project PROJECT_NAME={github-org/your-github-username}
+    make rename-project PROJECT_NAME={github-org/your-github-username} PROVIDER_NAME={provider-name}
     eg:
-        make rename-project PROJECT_NAME=gardener (or)
-        make rename-project PROJECT_NAME=githubusername
-    ```
-1. Rename all files and code from `SampleProvider` to your desired `{provider-name}`. Use the hack script given below to do the same. {provider-name} is case sensitive.
-    ```bash
-    make rename-provider PROVIDER_NAME={provider-name}
-    eg:
-        make rename-provider PROVIDER_NAME=AmazonWebServices (or)
-        make rename-provider PROVIDER_NAME=AWS
+        make rename-project PROJECT_NAME=gardener PROVIDER_NAME=AmazonWebServices (or)
+        make rename-project PROJECT_NAME=githubusername PROVIDER_NAME=AWS
     ```
 1. Now commit your changes and push it upstream.
     ```bash
