@@ -1387,6 +1387,42 @@ var _ = Describe("machine", func() {
 					machineDeleted: false,
 				},
 			}),
+			Entry("Allow machine object deletion where nodeName doesn't exist", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1, &machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil),
+				},
+				action: action{
+					machine:        "machine-0",
+					fakeProviderID: "fakeID-0",
+					fakeNodeName:   "", //NodeName is set to emptyString
+					fakeError:      nil,
+				},
+				expect: expect{
+					errOccurred:    false,
+					machineDeleted: true,
+				},
+			}),
 		)
 	})
 
