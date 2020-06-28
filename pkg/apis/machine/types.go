@@ -95,7 +95,7 @@ type MachineTemplateSpec struct {
 	Spec MachineSpec
 }
 
-// MachineControllerConfig describes the configuratioins useful for the machine-controller.
+// MachineControllerConfig describes the configurations useful for the machine-controller.
 type MachineControllerConfig struct {
 	// MachineDrainTimeout is the time out after which machine is deleted force-fully.
 	MachineDrainTimeout *metav1.Duration

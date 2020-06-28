@@ -63,6 +63,7 @@ type MachineSpec struct {
 	NodeTemplateSpec NodeTemplateSpec `json:"nodeTemplate,omitempty"`
 
 	// Configuration for the machine-controller.
+	// +optional
 	*MachineControllerConfig `json:",inline"`
 }
 

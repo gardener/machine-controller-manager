@@ -140,6 +140,12 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 		return machineutils.DoNotRetryOp, err
 	}
 
+	// Populate the controller configurations if there are any.
+	err = c.setMachineConfigurations(machine)
+	if err != nil {
+		return machineutils.DoNotRetryOp, err
+	}
+
 	/*
 		NOT NEEDED?
 		else if actualProviderID == "fake" {
@@ -507,4 +513,36 @@ func (c *controller) triggerDeletionFlow(deleteMachineRequest *driver.DeleteMach
 
 	klog.V(2).Infof("Machine %q deleted successfully", machine.Name)
 	return machineutils.DoNotRetryOp, nil
+}
+
+// setMachineConfigurations checks if there are any machine-controller configurations on the machine-object, and sets if there are any.
+func (c *controller) setMachineConfigurations(machine *v1alpha1.Machine) error {
+
+	if machine.Spec.MachineControllerConfig != nil {
+		if machine.Spec.MachineControllerConfig.MachineDrainTimeout != nil {
+			c.safetyOptions.MachineDrainTimeout = *machine.Spec.MachineControllerConfig.MachineDrainTimeout
+		}
+
+		if machine.Spec.MachineControllerConfig.MachineHealthTimeout != nil {
+			c.safetyOptions.MachineHealthTimeout = *machine.Spec.MachineControllerConfig.MachineHealthTimeout
+		}
+
+		if machine.Spec.MachineControllerConfig.MachineCreationTimeout != nil {
+			c.safetyOptions.MachineCreationTimeout = *machine.Spec.MachineControllerConfig.MachineCreationTimeout
+		}
+
+		if machine.Spec.MachineControllerConfig.MaxEvictRetries != nil {
+			c.safetyOptions.MaxEvictRetries = *machine.Spec.MachineControllerConfig.MaxEvictRetries
+		}
+
+		if machine.Spec.MachineControllerConfig.MachineSafetyOrphanVMsPeriod != nil {
+			c.safetyOptions.MachineSafetyOrphanVMsPeriod = *machine.Spec.MachineControllerConfig.MachineSafetyOrphanVMsPeriod
+		}
+
+		if machine.Spec.MachineControllerConfig.NodeConditions != nil {
+			c.nodeConditions = *machine.Spec.MachineControllerConfig.NodeConditions
+		}
+	}
+
+	return nil
 }

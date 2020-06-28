@@ -2318,7 +2318,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineControllerConfig(ref common.Referen
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "MachineControllerConfig describes the configuratioins useful for the machine-controller.",
+				Description: "MachineControllerConfig describes the configurations useful for the machine-controller.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"drainTimeout": {
@@ -2348,7 +2348,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineControllerConfig(ref common.Referen
 					},
 					"safetyOrphanVMsPeriod": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MachineSafetyOrphanVMsPeriod is the time-period after which safety-controller attempts to find the orphan VMs.s",
+							Description: "MachineSafetyOrphanVMsPeriod is the time-period after which safety-controller attempts to find the orphan VMs.",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},
