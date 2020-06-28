@@ -76,6 +76,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.Machine":                                  schema_pkg_apis_machine_v1alpha1_Machine(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineClass":                             schema_pkg_apis_machine_v1alpha1_MachineClass(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineClassList":                         schema_pkg_apis_machine_v1alpha1_MachineClassList(ref),
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineControllerConfig":                  schema_pkg_apis_machine_v1alpha1_MachineControllerConfig(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeployment":                        schema_pkg_apis_machine_v1alpha1_MachineDeployment(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentCondition":               schema_pkg_apis_machine_v1alpha1_MachineDeploymentCondition(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentList":                    schema_pkg_apis_machine_v1alpha1_MachineDeploymentList(ref),
@@ -2310,6 +2311,59 @@ func schema_pkg_apis_machine_v1alpha1_MachineClassList(ref common.ReferenceCallb
 		},
 		Dependencies: []string{
 			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineClass", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_machine_v1alpha1_MachineControllerConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MachineControllerConfig describes the configuratioins useful for the machine-controller.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"drainTimeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MachineDraintimeout is the timeout after which machine is forcefully deleted.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
+					"healthTimeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MachineHealthTimeout is the timeout after which machine is declared unhealhty/failed.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
+					"creationTimeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MachineCreationTimeout is the timeout after which machinie creation is declared failed.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
+					"maxEvictRetries": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MaxEvictRetries is the number of retries that will be attempted while draining the node.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"safetyOrphanVMsPeriod": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MachineSafetyOrphanVMsPeriod is the time-period after which safety-controller attempts to find the orphan VMs.s",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
+					"nodeConditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NodeConditions are the set of conditions if set to true for MachineHealthTimeOut, machine will be declared failed.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
 	}
 }
 
