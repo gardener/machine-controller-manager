@@ -254,8 +254,9 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 		annotationsUpdated := SetNewMachineSetAnnotations(d, isCopy, newRevision, true)
 		minReadySecondsNeedsUpdate := isCopy.Spec.MinReadySeconds != d.Spec.MinReadySeconds
 		nodeTemplateUpdated := SetNewMachineSetNodeTemplate(d, isCopy, newRevision, true)
+		machineConfigUpdated := SetNewMachineSetConfig(d, isCopy, newRevision, true)
 
-		if annotationsUpdated || minReadySecondsNeedsUpdate || nodeTemplateUpdated {
+		if annotationsUpdated || minReadySecondsNeedsUpdate || nodeTemplateUpdated || machineConfigUpdated {
 			isCopy.Spec.MinReadySeconds = d.Spec.MinReadySeconds
 			return dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(isCopy)
 		}

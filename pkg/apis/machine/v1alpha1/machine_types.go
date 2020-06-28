@@ -61,6 +61,9 @@ type MachineSpec struct {
 	// NodeTemplateSpec describes the data a node should have when created from a template
 	// +optional
 	NodeTemplateSpec NodeTemplateSpec `json:"nodeTemplate,omitempty"`
+
+	// Configuration for the machine-controller.
+	*MachineControllerConfig `json:",inline"`
 }
 
 // ClassSpec is the class specification of machine

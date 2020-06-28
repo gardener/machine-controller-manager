@@ -72,6 +72,9 @@ type MachineSpec struct {
 	ProviderID string
 
 	NodeTemplateSpec NodeTemplateSpec
+
+	// Configuration for the machine-controller.
+	*MachineControllerConfig
 }
 
 // NodeTemplateSpec describes the data a node should have when created from a template
@@ -90,6 +93,27 @@ type MachineTemplateSpec struct {
 	// Specification of the desired behavior of the machine.
 	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status
 	Spec MachineSpec
+}
+
+// MachineControllerConfig describes the configuratioins useful for the machine-controller.
+type MachineControllerConfig struct {
+	// MachineDrainTimeout is the time out after which machine is deleted force-fully.
+	MachineDrainTimeout *metav1.Duration
+
+	// MachineHealthTimeout is the timeout after which machine is declared unhealthy/failed.
+	MachineHealthTimeout *metav1.Duration
+
+	// MachineCreationTimeout is the timeout after which machinie creation is declared failed.
+	MachineCreationTimeout *metav1.Duration
+
+	// MaxEvictRetries is the number of retries that will be attempted while draining the node.
+	MaxEvictRetries *int32
+
+	// MachineSafetyOrphanVMsPeriod is the time-period after which safety-controller attempts to find the orphan VMs.s
+	MachineSafetyOrphanVMsPeriod *metav1.Duration
+
+	// NodeConditions are the set of conditions if set to true for MachineHealthTimeOut, machine will be declared failed.
+	NodeConditions *string
 }
 
 // +genclient

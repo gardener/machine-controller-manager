@@ -33,6 +33,27 @@ type MachineTemplateSpec struct {
 	Spec MachineSpec `json:"spec,omitempty"`
 }
 
+// MachineControllerConfig describes the configuratioins useful for the machine-controller.
+type MachineControllerConfig struct {
+	// MachineDraintimeout is the timeout after which machine is forcefully deleted.
+	MachineDrainTimeout *metav1.Duration `json:"drainTimeout,omitempty"`
+
+	// MachineHealthTimeout is the timeout after which machine is declared unhealhty/failed.
+	MachineHealthTimeout *metav1.Duration `json:"healthTimeout,omitempty"`
+
+	// MachineCreationTimeout is the timeout after which machinie creation is declared failed.
+	MachineCreationTimeout *metav1.Duration `json:"creationTimeout,omitempty"`
+
+	// MaxEvictRetries is the number of retries that will be attempted while draining the node.
+	MaxEvictRetries *int32 `json:"maxEvictRetries,omitempty"`
+
+	// MachineSafetyOrphanVMsPeriod is the time-period after which safety-controller attempts to find the orphan VMs.s
+	MachineSafetyOrphanVMsPeriod *metav1.Duration `json:"safetyOrphanVMsPeriod,omitempty"`
+
+	// NodeConditions are the set of conditions if set to true for MachineHealthTimeOut, machine will be declared failed.
+	NodeConditions *string `json:"nodeConditions,omitempty"`
+}
+
 // MachineSummary store the summary of machine.
 type MachineSummary struct {
 	// Name of the machine object

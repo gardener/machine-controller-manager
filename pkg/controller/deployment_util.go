@@ -390,6 +390,56 @@ func SetNewMachineSetNodeTemplate(deployment *v1alpha1.MachineDeployment, newIS 
 	return nodeTemplateChanged
 }
 
+// SetNewMachineSetConfig sets new machine set's config appropriately by updating its revision and
+// copying required deployment nodeTemplates to it; it returns true if machine set's config is changed.
+func SetNewMachineSetConfig(deployment *v1alpha1.MachineDeployment, newIS *v1alpha1.MachineSet, newRevision string, exists bool) bool {
+	// First, copy deployment's config
+	configChanged := copyMachineDeploymentConfigToMachineSet(deployment, newIS)
+	// Then, update machine set's revision annotation
+	if newIS.Annotations == nil {
+		newIS.Annotations = make(map[string]string)
+	}
+	oldRevision, ok := newIS.Annotations[RevisionAnnotation]
+
+	oldRevisionInt, err := strconv.ParseInt(oldRevision, 10, 64)
+	if err != nil {
+		if oldRevision != "" {
+			klog.Warningf("Updating machine set revision OldRevision not int %s", err)
+			return false
+		}
+		//If the RS annotation is empty then initialise it to 0
+		oldRevisionInt = 0
+	}
+	newRevisionInt, err := strconv.ParseInt(newRevision, 10, 64)
+	if err != nil {
+		klog.Warningf("Updating machine set revision NewRevision not int %s", err)
+		return false
+	}
+	if oldRevisionInt < newRevisionInt {
+		newIS.Annotations[RevisionAnnotation] = newRevision
+		configChanged = true
+		klog.V(4).Infof("Updating machine set %q revision to %s", newIS.Name, newRevision)
+	}
+	// If a revision annotation already existed and this machine set was updated with a new revision
+	// then that means we are rolling back to this machine set. We need to preserve the old revisions
+	// for historical information.
+	if ok && configChanged {
+		revisionHistoryAnnotation := newIS.Annotations[RevisionHistoryAnnotation]
+		oldRevisions := strings.Split(revisionHistoryAnnotation, ",")
+		if len(oldRevisions[0]) == 0 {
+			newIS.Annotations[RevisionHistoryAnnotation] = oldRevision
+		} else {
+			oldRevisions = append(oldRevisions, oldRevision)
+			newIS.Annotations[RevisionHistoryAnnotation] = strings.Join(oldRevisions, ",")
+		}
+	}
+	// If the new machine set is about to be created, we need to add replica annotations to it.
+	if !exists && SetReplicasAnnotations(newIS, (deployment.Spec.Replicas), (deployment.Spec.Replicas)+MaxSurge(*deployment)) {
+		configChanged = true
+	}
+	return configChanged
+}
+
 var annotationsToSkip = map[string]bool{
 	v1.LastAppliedConfigAnnotation: true,
 	RevisionAnnotation:             true,
@@ -441,6 +491,21 @@ func copyMachineDeploymentNodeTemplatesToMachineSet(deployment *v1alpha1.Machine
 		is.Spec.Template.Spec.NodeTemplateSpec = *deployment.Spec.Template.Spec.NodeTemplateSpec.DeepCopy()
 	}
 	return isNodeTemplateChanged
+}
+
+// copyDeploymentConfigurationToMachineSet copies deployment's configuration to machine set's configuration,
+// and returns true if machine set's configuration is changed.
+// Note that apply and revision configuration are not copied.
+func copyMachineDeploymentConfigToMachineSet(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet) bool {
+
+	isConfigChanged := !(apiequality.Semantic.DeepEqual(deployment.Spec.Template.Spec.MachineControllerConfig, is.Spec.Template.Spec.MachineControllerConfig))
+
+	if isConfigChanged {
+		klog.V(2).Infof("Observed a change in Config of Machine Deployment %s. Changing Config from %+v to \n %+v.", deployment.Name, is.Spec.Template.Spec.MachineControllerConfig, deployment.Spec.Template.Spec.MachineControllerConfig)
+
+		is.Spec.Template.Spec.MachineControllerConfig = deployment.Spec.Template.Spec.MachineControllerConfig.DeepCopy()
+	}
+	return isConfigChanged
 }
 
 // SetMachineDeploymentAnnotationsTo sets deployment's annotations as given RS's annotations.
@@ -761,9 +826,10 @@ func EqualIgnoreHash(template1, template2 *v1alpha1.MachineTemplateSpec) bool {
 			return false
 		}
 	}
-	// Then, compare the templates without comparing their labels and nodeTemplates.
+	// Then, compare the templates without comparing their labels, nodeTemplates and machine-configuration.
 	t1Copy.Labels, t2Copy.Labels = nil, nil
 	t1Copy.Spec.NodeTemplateSpec, t2Copy.Spec.NodeTemplateSpec = v1alpha1.NodeTemplateSpec{}, v1alpha1.NodeTemplateSpec{}
+	t1Copy.Spec.MachineControllerConfig, t2Copy.Spec.MachineControllerConfig = nil, nil
 	return apiequality.Semantic.DeepEqual(t1Copy, t2Copy)
 }
 

@@ -121,3 +121,48 @@ func copyMachineSetNodeTemplatesToMachines(machineset *v1alpha1.MachineSet, mach
 	}
 	return isNodeTemplateChanged
 }
+
+// syncMachinesConfig updates all machines in the given machineList with the new config if required.
+func (c *controller) syncMachinesConfig(machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
+
+	controlClient := c.controlMachineClient
+	machineLister := c.machineLister
+
+	for _, machine := range machineList {
+		// Ignore inactive Machines.
+		if !IsMachineActive(machine) {
+			continue
+		}
+
+		configChanged := copyMachineSetConfigToMachines(machineSet, machine)
+		// Only sync the machine that doesn't already have the latest config.
+		if configChanged {
+			_, err := UpdateMachineWithRetries(controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
+				func(machineToUpdate *v1alpha1.Machine) error {
+					return nil
+				})
+			if err != nil {
+				return fmt.Errorf("error in updating MachineConfig to machine %q: %v", machine.Name, err)
+			}
+			klog.V(2).Infof("Updated machine %s/%s of MachineSet %s/%s with latest config.", machine.Namespace, machine.Name, machineSet.Namespace, machineSet.Name)
+		}
+	}
+	return nil
+}
+
+// copyMachineSetConfigToMachines copies machineset's config to machine's config,
+// and returns true if machine's config is changed.
+// Note that apply and revision config are not copied.
+func copyMachineSetConfigToMachines(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
+	isConfigChanged := false
+
+	machineSetConfigCopy := machineset.Spec.Template.Spec.MachineControllerConfig.DeepCopy()
+	machineConfigCopy := machine.Spec.MachineControllerConfig.DeepCopy()
+
+	isConfigChanged = !(apiequality.Semantic.DeepEqual(machineSetConfigCopy, machineConfigCopy))
+
+	if isConfigChanged {
+		machine.Spec.MachineControllerConfig = machineset.Spec.Template.Spec.MachineControllerConfig
+	}
+	return isConfigChanged
+}

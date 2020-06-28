@@ -27,3 +27,9 @@ spec:
       class:
         kind: AWSMachineClass # Machine class template used to create machine, could be AWS/GCP/Azure/Other-cloud-providers
         name: test-aws # Name of the machine class
+    # drainTimeout: 5m
+    # healthTimeout: 5m
+    # creationTimeout: 5m
+    # maxEvictRetries: 30
+    # safetyOrphanVMsPeriod: 5m
+    # nodeConditions: "ReadonlyFilesystem,KernelDeadlock,DiskPressure"
