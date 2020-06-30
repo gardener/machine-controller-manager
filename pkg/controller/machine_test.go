@@ -822,6 +822,7 @@ var _ = Describe("machine", func() {
 			machine        *machinev1.Machine
 			errOccurred    bool
 			machineDeleted bool
+			nodeDeleted    bool
 		}
 		type data struct {
 			setup  setup
@@ -948,11 +949,14 @@ var _ = Describe("machine", func() {
 
 				if data.expect.machineDeleted {
 					Expect(machineErr).To(HaveOccurred())
-					Expect(nodeErr).To(HaveOccurred())
 				} else {
 					Expect(machineErr).ToNot(HaveOccurred())
 					Expect(machine).ToNot(BeNil())
+				}
 
+				if data.expect.nodeDeleted {
+					Expect(nodeErr).To(HaveOccurred())
+				} else {
 					Expect(nodeErr).ToNot(HaveOccurred())
 					Expect(node).ToNot(BeNil())
 				}
@@ -991,6 +995,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					errOccurred:    false,
 					machineDeleted: true,
+					nodeDeleted:    true,
 				},
 			}),
 			Entry("Allow proper deletion of the machine object when providerID is missing but actual VM still exists in cloud", &data{
@@ -1030,6 +1035,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					errOccurred:    false,
 					machineDeleted: true,
+					nodeDeleted:    true,
 				},
 			}),
 			Entry("Machine deletion when drain fails", &data{
@@ -1071,6 +1077,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					errOccurred:    true,
 					machineDeleted: false,
+					nodeDeleted:    false,
 				},
 			}),
 			Entry("Machine force deletion label is present", &data{
@@ -1108,6 +1115,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					errOccurred:    false,
 					machineDeleted: true,
+					nodeDeleted:    true,
 				},
 			}),
 			Entry("Machine force deletion label is present and when drain call fails (APIServer call fails)", &data{
@@ -1150,6 +1158,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					errOccurred:    false,
 					machineDeleted: true,
+					nodeDeleted:    true,
 				},
 			}),
 			Entry("Machine deletion when timeout occurred", &data{
@@ -1201,6 +1210,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					errOccurred:    false,
 					machineDeleted: true,
+					nodeDeleted:    true,
 				},
 			}),
 			Entry("Machine deletion when last drain failed", &data{
@@ -1251,6 +1261,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					errOccurred:    false,
 					machineDeleted: true,
+					nodeDeleted:    true,
 				},
 			}),
 			Entry("Machine deletion when last drain failed and current drain call also fails (APIServer call fails)", &data{
@@ -1306,6 +1317,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					errOccurred:    true,
 					machineDeleted: false,
+					nodeDeleted:    false,
 				},
 			}),
 			Entry("Machine force deletion if underlying Node is NotReady for a long time", &data{
@@ -1343,6 +1355,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					errOccurred:    false,
 					machineDeleted: true,
+					nodeDeleted:    true,
 				},
 			}),
 			Entry("Machine do not force deletion if underlying Node is NotReady for a small period of time, a Machine deletion fails, since kubelet fails to evict Pods", &data{
@@ -1385,6 +1398,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					errOccurred:    true,
 					machineDeleted: false,
+					nodeDeleted:    false,
 				},
 			}),
 			Entry("Allow machine object deletion where nodeName doesn't exist", &data{
@@ -1421,6 +1435,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					errOccurred:    false,
 					machineDeleted: true,
+					nodeDeleted:    false,
 				},
 			}),
 		)
