@@ -843,12 +843,14 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 		skipDrain = true
 	} else {
 		for _, condition := range machine.Status.Conditions {
-			if condition.Type == v1.NodeReady && condition.Status != corev1.ConditionTrue && (time.Since(condition.LastTransitionTime.Time) > nodeNotReadyDuration) {
-				klog.Warningf("Skipping drain for NotReady machine %q", machine.Name)
-				err = fmt.Errorf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion)
-				description = fmt.Sprintf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion)
-				skipDrain = true
-
+			if condition.Type == v1.NodeReady {
+				if condition.Status != corev1.ConditionTrue && (time.Since(condition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+					klog.Warningf("Skipping drain for NotReady machine %q", machine.Name)
+					err = fmt.Errorf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion)
+					description = fmt.Sprintf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion)
+					skipDrain = true
+				}
+				// break once the condition is found
 				break
 			}
 		}
