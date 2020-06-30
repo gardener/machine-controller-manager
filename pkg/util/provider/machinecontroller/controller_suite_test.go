@@ -45,9 +45,9 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-func TestMachineControllerManagerSuite(t *testing.T) {
+func TestMachineControllerSuite(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Machine Controller Manager Suite")
+	RunSpecs(t, "Machine Controller Suite")
 }
 
 var (

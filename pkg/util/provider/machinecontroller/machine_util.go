@@ -803,6 +803,16 @@ func (c *controller) getVMStatus(getMachineStatusRequest *driver.GetMachineStatu
 	return retry, err
 }
 
+// isValidNodeName checks if the nodeName is valid
+func isValidNodeName(nodeName string) bool {
+	if nodeName == "" {
+		// if nodeName is empty
+		return false
+	}
+
+	return true
+}
+
 // drainNode attempts to drain the node backed by the machine object
 func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.Retry, error) {
 	var (
@@ -826,20 +836,29 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 		nodeNotReadyDuration    = 5 * time.Minute
 	)
 
-	for _, condition := range machine.Status.Conditions {
-		if condition.Type == v1.NodeReady && condition.Status != corev1.ConditionTrue && (time.Since(condition.LastTransitionTime.Time) > nodeNotReadyDuration) {
-			klog.Warningf("Skipping drain for NotReady machine %q", machine.Name)
-			err = fmt.Errorf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion)
-			skipDrain = true
+	if !isValidNodeName(nodeName) {
+		klog.Warningf("Skipping drain as nodeName is not a valid one for machine %q", machine.Name)
+		err = fmt.Errorf("Skipping drain as nodeName is not a valid one for machine. %s", machineutils.InitiateVMDeletion)
+		description = fmt.Sprintf("Skipping drain as nodeName is not a valid one for machine. %s", machineutils.InitiateVMDeletion)
+		skipDrain = true
+	} else {
+		for _, condition := range machine.Status.Conditions {
+			if condition.Type == v1.NodeReady {
+				if condition.Status != corev1.ConditionTrue && (time.Since(condition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+					klog.Warningf("Skipping drain for NotReady machine %q", machine.Name)
+					err = fmt.Errorf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion)
+					description = fmt.Sprintf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion)
+					skipDrain = true
+				}
+				// break once the condition is found
+				break
+			}
 		}
 	}
 
 	if skipDrain {
-		// If not is not ready for over 5 minutes, skip draining this machine
-		description = fmt.Sprintf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion)
 		state = v1alpha1.MachineStateProcessing
 		phase = v1alpha1.MachineTerminating
-
 	} else {
 		// Timeout value obtained by subtracting last operation with expected time out period
 		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
