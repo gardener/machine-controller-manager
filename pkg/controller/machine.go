@@ -599,7 +599,9 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			}
 		}
 
-		if machineID != "" {
+		if machineID != "" && nodeName != "" {
+			// Begin drain logic only when the nodeName & providerID exist's for the machine
+
 			var (
 				forceDeletePods         = false
 				forceDeleteMachine      = false
