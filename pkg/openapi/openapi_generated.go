@@ -3355,6 +3355,13 @@ func schema_pkg_apis_machine_v1alpha1_OpenStackMachineClassSpec(ref common.Refer
 							Format: "int32",
 						},
 					},
+					"useConfigDrive": {
+						SchemaProps: spec.SchemaProps{
+							Description: "in GB",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"imageID", "imageName", "region", "availabilityZone", "flavorName", "keyName", "securityGroups", "networkID", "podNetworkCidr"},
 			},
