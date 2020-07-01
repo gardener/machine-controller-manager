@@ -101,6 +101,7 @@ type OpenStackMachineClassSpec struct {
 	SecretRef        *corev1.SecretReference `json:"secretRef,omitempty"`
 	PodNetworkCidr   string                  `json:"podNetworkCidr"`
 	RootDiskSize     int                     `json:"rootDiskSize,omitempty"` // in GB
+	UseConfigDrive   *bool                   `json:"useConfigDrive,omitempty"`
 }
 
 type OpenStackNetwork struct {

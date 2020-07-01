@@ -102,6 +102,8 @@ spec:
               additionalProperties:
                 type: string
               type: object
+            useConfigDrive:
+              type: boolean
           required:
           - availabilityZone
           - flavorName

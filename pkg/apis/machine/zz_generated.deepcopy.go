@@ -1785,6 +1785,11 @@ func (in *OpenStackMachineClassSpec) DeepCopyInto(out *OpenStackMachineClassSpec
 		*out = new(v1.SecretReference)
 		**out = **in
 	}
+	if in.UseConfigDrive != nil {
+		in, out := &in.UseConfigDrive, &out.UseConfigDrive
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
