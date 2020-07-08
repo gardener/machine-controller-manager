@@ -74,7 +74,7 @@ type MachineSpec struct {
 	NodeTemplateSpec NodeTemplateSpec
 
 	// Configuration for the machine-controller.
-	*MachineControllerConfig
+	*MachineConfiguration
 }
 
 // NodeTemplateSpec describes the data a node should have when created from a template
@@ -95,8 +95,8 @@ type MachineTemplateSpec struct {
 	Spec MachineSpec
 }
 
-// MachineControllerConfig describes the configurations useful for the machine-controller.
-type MachineControllerConfig struct {
+// MachineConfiguration describes the configurations useful for the machine-controller.
+type MachineConfiguration struct {
 	// MachineDrainTimeout is the time out after which machine is deleted force-fully.
 	MachineDrainTimeout *metav1.Duration
 
@@ -108,9 +108,6 @@ type MachineControllerConfig struct {
 
 	// MaxEvictRetries is the number of retries that will be attempted while draining the node.
 	MaxEvictRetries *int32
-
-	// MachineSafetyOrphanVMsPeriod is the time-period after which safety-controller attempts to find the orphan VMs.s
-	MachineSafetyOrphanVMsPeriod *metav1.Duration
 
 	// NodeConditions are the set of conditions if set to true for MachineHealthTimeOut, machine will be declared failed.
 	NodeConditions *string

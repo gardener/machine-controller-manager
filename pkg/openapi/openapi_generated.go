@@ -76,7 +76,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.Machine":                                  schema_pkg_apis_machine_v1alpha1_Machine(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineClass":                             schema_pkg_apis_machine_v1alpha1_MachineClass(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineClassList":                         schema_pkg_apis_machine_v1alpha1_MachineClassList(ref),
-		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineControllerConfig":                  schema_pkg_apis_machine_v1alpha1_MachineControllerConfig(ref),
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineConfiguration":                     schema_pkg_apis_machine_v1alpha1_MachineConfiguration(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeployment":                        schema_pkg_apis_machine_v1alpha1_MachineDeployment(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentCondition":               schema_pkg_apis_machine_v1alpha1_MachineDeploymentCondition(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineDeploymentList":                    schema_pkg_apis_machine_v1alpha1_MachineDeploymentList(ref),
@@ -2314,11 +2314,11 @@ func schema_pkg_apis_machine_v1alpha1_MachineClassList(ref common.ReferenceCallb
 	}
 }
 
-func schema_pkg_apis_machine_v1alpha1_MachineControllerConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_machine_v1alpha1_MachineConfiguration(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "MachineControllerConfig describes the configurations useful for the machine-controller.",
+				Description: "MachineConfiguration describes the configurations useful for the machine-controller.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"drainTimeout": {
@@ -2344,12 +2344,6 @@ func schema_pkg_apis_machine_v1alpha1_MachineControllerConfig(ref common.Referen
 							Description: "MaxEvictRetries is the number of retries that will be attempted while draining the node.",
 							Type:        []string{"integer"},
 							Format:      "int32",
-						},
-					},
-					"safetyOrphanVMsPeriod": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MachineSafetyOrphanVMsPeriod is the time-period after which safety-controller attempts to find the orphan VMs.",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},
 					"nodeConditions": {

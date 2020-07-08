@@ -64,7 +64,7 @@ type MachineSpec struct {
 
 	// Configuration for the machine-controller.
 	// +optional
-	*MachineControllerConfig `json:",inline"`
+	*MachineConfiguration `json:",inline"`
 }
 
 // ClassSpec is the class specification of machine
