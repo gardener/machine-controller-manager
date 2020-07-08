@@ -156,13 +156,13 @@ func (c *controller) syncMachinesConfig(machineList []*v1alpha1.Machine, machine
 func copyMachineSetConfigToMachines(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
 	isConfigChanged := false
 
-	machineSetConfigCopy := machineset.Spec.Template.Spec.MachineControllerConfig.DeepCopy()
-	machineConfigCopy := machine.Spec.MachineControllerConfig.DeepCopy()
+	machineSetConfigCopy := machineset.Spec.Template.Spec.MachineConfiguration.DeepCopy()
+	machineConfigCopy := machine.Spec.MachineConfiguration.DeepCopy()
 
 	isConfigChanged = !(apiequality.Semantic.DeepEqual(machineSetConfigCopy, machineConfigCopy))
 
 	if isConfigChanged {
-		machine.Spec.MachineControllerConfig = machineset.Spec.Template.Spec.MachineControllerConfig
+		machine.Spec.MachineConfiguration = machineset.Spec.Template.Spec.MachineConfiguration
 	}
 	return isConfigChanged
 }

@@ -31,5 +31,4 @@ spec:
     # healthTimeout: 5m
     # creationTimeout: 5m
     # maxEvictRetries: 30
-    # safetyOrphanVMsPeriod: 5m
     # nodeConditions: "ReadonlyFilesystem,KernelDeadlock,DiskPressure"

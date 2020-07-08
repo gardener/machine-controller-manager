@@ -498,12 +498,12 @@ func copyMachineDeploymentNodeTemplatesToMachineSet(deployment *v1alpha1.Machine
 // Note that apply and revision configuration are not copied.
 func copyMachineDeploymentConfigToMachineSet(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet) bool {
 
-	isConfigChanged := !(apiequality.Semantic.DeepEqual(deployment.Spec.Template.Spec.MachineControllerConfig, is.Spec.Template.Spec.MachineControllerConfig))
+	isConfigChanged := !(apiequality.Semantic.DeepEqual(deployment.Spec.Template.Spec.MachineConfiguration, is.Spec.Template.Spec.MachineConfiguration))
 
 	if isConfigChanged {
-		klog.V(2).Infof("Observed a change in Config of Machine Deployment %s. Changing Config from %+v to \n %+v.", deployment.Name, is.Spec.Template.Spec.MachineControllerConfig, deployment.Spec.Template.Spec.MachineControllerConfig)
+		klog.V(2).Infof("Observed a change in Config of Machine Deployment %s. Changing Config from %+v to \n %+v.", deployment.Name, is.Spec.Template.Spec.MachineConfiguration, deployment.Spec.Template.Spec.MachineConfiguration)
 
-		is.Spec.Template.Spec.MachineControllerConfig = deployment.Spec.Template.Spec.MachineControllerConfig.DeepCopy()
+		is.Spec.Template.Spec.MachineConfiguration = deployment.Spec.Template.Spec.MachineConfiguration.DeepCopy()
 	}
 	return isConfigChanged
 }
@@ -829,7 +829,7 @@ func EqualIgnoreHash(template1, template2 *v1alpha1.MachineTemplateSpec) bool {
 	// Then, compare the templates without comparing their labels, nodeTemplates and machine-configuration.
 	t1Copy.Labels, t2Copy.Labels = nil, nil
 	t1Copy.Spec.NodeTemplateSpec, t2Copy.Spec.NodeTemplateSpec = v1alpha1.NodeTemplateSpec{}, v1alpha1.NodeTemplateSpec{}
-	t1Copy.Spec.MachineControllerConfig, t2Copy.Spec.MachineControllerConfig = nil, nil
+	t1Copy.Spec.MachineConfiguration, t2Copy.Spec.MachineConfiguration = nil, nil
 	return apiequality.Semantic.DeepEqual(t1Copy, t2Copy)
 }
 
