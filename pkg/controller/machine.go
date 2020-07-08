@@ -1062,10 +1062,6 @@ func (c *controller) setMachineConfigurations(machine *v1alpha1.Machine) error {
 			c.safetyOptions.MaxEvictRetries = *machine.Spec.MachineControllerConfig.MaxEvictRetries
 		}
 
-		if machine.Spec.MachineControllerConfig.MachineSafetyOrphanVMsPeriod != nil {
-			c.safetyOptions.MachineSafetyOrphanVMsPeriod = *machine.Spec.MachineControllerConfig.MachineSafetyOrphanVMsPeriod
-		}
-
 		if machine.Spec.MachineControllerConfig.NodeConditions != nil {
 			c.nodeConditions = *machine.Spec.MachineControllerConfig.NodeConditions
 		}
