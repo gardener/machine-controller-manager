@@ -22,9 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
-
-	"k8s.io/apimachinery/pkg/util/wait"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/metrics"
@@ -51,8 +48,6 @@ type AWSDriver struct {
 const (
 	resourceTypeInstance = "instance"
 	resourceTypeVolume   = "volume"
-
-	spotInstanceCreationTimeout = 2 * time.Minute
 )
 
 // NewAWSDriver returns an empty AWSDriver object
@@ -120,149 +115,43 @@ func (d *AWSDriver) Create() (string, string, error) {
 		networkInterfaceSpecs = append(networkInterfaceSpecs, spec)
 	}
 
-	var instance *ec2.Instance
-	if d.AWSMachineClass.Spec.SpotPrice == nil {
-		// Specify the details of the machine
-		inputConfig := ec2.RunInstancesInput{
-			ImageId:           aws.String(d.AWSMachineClass.Spec.AMI),
-			InstanceType:      aws.String(d.AWSMachineClass.Spec.MachineType),
-			MinCount:          aws.Int64(1),
-			MaxCount:          aws.Int64(1),
-			UserData:          &UserDataEnc,
-			KeyName:           aws.String(d.AWSMachineClass.Spec.KeyName),
-			NetworkInterfaces: networkInterfaceSpecs,
-			IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-				Name: &(d.AWSMachineClass.Spec.IAM.Name),
-			},
-			BlockDeviceMappings: blkDeviceMappings,
-			TagSpecifications:   []*ec2.TagSpecification{tagInstance, tagVolume},
-		}
-
-		runResult, err := svc.RunInstances(&inputConfig)
-		if err != nil {
-			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-			return "Error", "Error", err
-		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-
-		instance = runResult.Instances[0]
-	} else {
-		var clusterName string
-		for key := range d.AWSMachineClass.Spec.Tags {
-			if strings.Contains(key, "kubernetes.io/cluster/") {
-				clusterName = key
-			}
-		}
-
-		spotPrice := d.AWSMachineClass.Spec.SpotPrice
-		if len(*spotPrice) == 0 {
-			spotPrice = nil
-		}
-
-		spotInstanceRequestInput := &ec2.RequestSpotInstancesInput{
-			LaunchSpecification: &ec2.RequestSpotLaunchSpecification{
-				ImageId:           aws.String(d.AWSMachineClass.Spec.AMI),
-				InstanceType:      aws.String(d.AWSMachineClass.Spec.MachineType),
-				UserData:          aws.String(UserDataEnc),
-				KeyName:           aws.String(d.AWSMachineClass.Spec.KeyName),
-				NetworkInterfaces: networkInterfaceSpecs,
-				IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-					Name: &(d.AWSMachineClass.Spec.IAM.Name),
-				},
-				BlockDeviceMappings: blkDeviceMappings,
-			},
-			ValidUntil:  aws.Time(time.Now().Add(spotInstanceCreationTimeout)),
-			LaunchGroup: aws.String(clusterName),
-			SpotPrice:   spotPrice,
-		}
-
-		runResult, err := svc.RequestSpotInstances(spotInstanceRequestInput)
-		if err != nil {
-			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-			return "Error", "Error", err
-		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-
-		err = waitForActiveSpotRequest(svc, runResult)
-		if err != nil {
-			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-			return "Error", "Error", err
-		}
-
-		spotInstances, err := svc.DescribeSpotInstanceRequests(&ec2.DescribeSpotInstanceRequestsInput{
-			SpotInstanceRequestIds: []*string{runResult.SpotInstanceRequests[0].SpotInstanceRequestId},
-		})
-		if err != nil {
-			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-			return "Error", "Error", err
-		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-
-		instanceID := spotInstances.SpotInstanceRequests[0].InstanceId
-		if instanceID == nil || len(*instanceID) == 0 {
-			return "Error", "Error", errors.New("failed to get InstanceID from an active SpotInstanceRequest")
-		}
-
-		instances, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{InstanceIds: []*string{instanceID}})
-		if err != nil {
-			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-			return "Error", "Error", err
-		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-
-		if len(instances.Reservations) != 1 && len(instances.Reservations[0].Instances) != 1 {
-			return "Error", "Error", fmt.Errorf("instance not found by InstanceID %q", *instanceID)
-		}
-
-		instance = instances.Reservations[0].Instances[0]
-
-		_, err = svc.CreateTags(&ec2.CreateTagsInput{
-			Resources: []*string{instance.InstanceId},
-			Tags:      tagInstance.Tags,
-		})
-		if err != nil {
-			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-			return "Error", "Error", err
-		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+	// Specify the details of the machine
+	inputConfig := ec2.RunInstancesInput{
+		ImageId:           aws.String(d.AWSMachineClass.Spec.AMI),
+		InstanceType:      aws.String(d.AWSMachineClass.Spec.MachineType),
+		MinCount:          aws.Int64(1),
+		MaxCount:          aws.Int64(1),
+		UserData:          &UserDataEnc,
+		KeyName:           aws.String(d.AWSMachineClass.Spec.KeyName),
+		NetworkInterfaces: networkInterfaceSpecs,
+		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
+			Name: &(d.AWSMachineClass.Spec.IAM.Name),
+		},
+		BlockDeviceMappings: blkDeviceMappings,
+		TagSpecifications:   []*ec2.TagSpecification{tagInstance, tagVolume},
 	}
 
-	return d.encodeMachineID(d.AWSMachineClass.Spec.Region, *instance.InstanceId), *instance.PrivateDnsName, nil
-}
-
-func waitForActiveSpotRequest(svc *ec2.EC2, result *ec2.RequestSpotInstancesOutput) error {
-	err := wait.Poll(10*time.Second, spotInstanceCreationTimeout, func() (done bool, err error) {
-		out, err := svc.DescribeSpotInstanceRequests(&ec2.DescribeSpotInstanceRequestsInput{
-			SpotInstanceRequestIds: []*string{result.SpotInstanceRequests[0].SpotInstanceRequestId},
-		})
-		if err != nil {
-			return true, err
+	if d.AWSMachineClass.Spec.SpotPrice != nil {
+		inputConfig.InstanceMarketOptions = &ec2.InstanceMarketOptionsRequest{
+			MarketType: aws.String(ec2.MarketTypeSpot),
+			SpotOptions: &ec2.SpotMarketOptions{
+				SpotInstanceType: aws.String(ec2.SpotInstanceTypeOneTime),
+			},
 		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 
-		spotRequest := out.SpotInstanceRequests[0]
-		state := *spotRequest.State
-		status := *spotRequest.Status
-		switch state {
-		case ec2.SpotInstanceStateOpen:
-			klog.V(4).Info("SpotInstanceRequest's state is open, waiting.")
-			if status.Code != nil && status.Message != nil {
-				klog.V(4).Infof("Status code: %q, message: %q", *status.Code, *status.Message)
-			}
-			return false, nil
-		case ec2.SpotInstanceStateActive:
-			klog.V(4).Info("SpotInstanceRequest's state is active, returning")
-			return true, nil
-		default:
-			if status.Code != nil && status.Message != nil {
-				return true, fmt.Errorf("SpotInstanceRequest's state is %q. Status code: %q, message: %q", state, *status.Code, *status.Message)
-			} else {
-				return true, fmt.Errorf("SpotInstanceRequest's state is %q", state)
-			}
+		if *d.AWSMachineClass.Spec.SpotPrice != "" {
+			inputConfig.InstanceMarketOptions.SpotOptions.MaxPrice = d.AWSMachineClass.Spec.SpotPrice
 		}
-	})
+	}
 
-	return err
+	runResult, err := svc.RunInstances(&inputConfig)
+	if err != nil {
+		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+		return "Error", "Error", err
+	}
+	metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+
+	return d.encodeMachineID(d.AWSMachineClass.Spec.Region, *runResult.Instances[0].InstanceId), *runResult.Instances[0].PrivateDnsName, nil
 }
 
 func (d *AWSDriver) generateTags(tags map[string]string, resourceType string) (*ec2.TagSpecification, error) {
@@ -562,84 +451,7 @@ func (d *AWSDriver) GetVMs(machineID string) (VMs, error) {
 		}
 	}
 
-	err = d.getUntaggedSpotInstances(svc, machineID, clusterName, listOfVMs)
-	if err != nil {
-		return nil, err
-	}
-
 	return listOfVMs, nil
-}
-
-// getUntaggedSpotInstances appends untagged spot instances to the listOfVMs (driver.Create is non-atomic in case of spot instances)
-func (d *AWSDriver) getUntaggedSpotInstances(svc *ec2.EC2, machineID, clusterName string, listOfVMs map[string]string) error {
-	runResultSpotInstanceReqs, err := svc.DescribeSpotInstanceRequests(&ec2.DescribeSpotInstanceRequestsInput{
-		Filters: []*ec2.Filter{{
-			Name: aws.String("launch-group"),
-			Values: []*string{
-				aws.String(clusterName),
-			},
-		}},
-	})
-	if err != nil {
-		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-		klog.Errorf("AWS driver is returning error while describe spot instance requests request is sent: %s", err)
-		return err
-	}
-
-	for _, spotReq := range runResultSpotInstanceReqs.SpotInstanceRequests {
-		reqID := spotReq.SpotInstanceRequestId
-
-		describeInstancesInput := &ec2.DescribeInstancesInput{
-			Filters: []*ec2.Filter{
-				{
-					Name: aws.String("spot-instance-request-id"),
-					Values: []*string{
-						reqID,
-					},
-				},
-				{
-					Name: aws.String("instance-state-name"),
-					Values: []*string{
-						aws.String("pending"),
-						aws.String("running"),
-						aws.String("stopping"),
-						aws.String("stopped"),
-					},
-				},
-			},
-		}
-
-		if machineID != "" {
-			describeInstancesInput.Filters = append(describeInstancesInput.Filters, &ec2.Filter{
-				Name:   aws.String("instance-id"),
-				Values: []*string{aws.String(machineID)},
-			})
-		}
-
-		runResult, err := svc.DescribeInstances(describeInstancesInput)
-		if err != nil {
-			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-			klog.Errorf("AWS driver is returning error while describe instances request is sent: %s", err)
-			return err
-		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-
-		for _, reservation := range runResult.Reservations {
-			for _, instance := range reservation.Instances {
-				if len(instance.Tags) == 0 {
-					encodedMachineID := d.encodeMachineID(d.AWSMachineClass.Spec.Region, *instance.InstanceId)
-
-					// let's return a ridiculous machineID so that MachineSafetyController can delete this instance
-					if _, ok := listOfVMs[encodedMachineID]; !ok {
-						klog.Warningf("instance %q is not tagged", *instance.InstanceId)
-						listOfVMs[encodedMachineID] = "does-not-exist-placeholder"
-					}
-				}
-			}
-		}
-	}
-
-	return nil
 }
 
 // Helper function to create SVC
