@@ -18,7 +18,9 @@
 
 package v1alpha1
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 // MachineTemplateSpec describes the data a machine should have when created from a template
 type MachineTemplateSpec struct {
