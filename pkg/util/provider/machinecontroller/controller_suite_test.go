@@ -336,7 +336,7 @@ func newMachines(
 		finalizers := sets.NewString(m.Finalizers...)
 
 		if addFinalizer {
-			finalizers.Insert(DeleteFinalizerName)
+			finalizers.Insert(MCMFinalizerName)
 		}
 		m.Finalizers = finalizers.List()
 
