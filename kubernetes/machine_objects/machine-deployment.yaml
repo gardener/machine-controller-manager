@@ -30,5 +30,5 @@ spec:
     # drainTimeout: 5m
     # healthTimeout: 5m
     # creationTimeout: 5m
-    # maxEvictRetries: 30
+    # maxEvictRetries: 25
     # nodeConditions: "ReadonlyFilesystem,KernelDeadlock,DiskPressure"
