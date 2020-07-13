@@ -112,7 +112,7 @@ func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) 
 			return err
 		}
 	} else {
-		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
+		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(MCMFinalizerName) {
 			return nil
 		}
 
@@ -138,8 +138,8 @@ func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) 
 func (c *controller) addMachineClassFinalizers(class *v1alpha1.MachineClass) error {
 	clone := class.DeepCopy()
 
-	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
-		finalizers.Insert(DeleteFinalizerName)
+	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(MCMFinalizerName) {
+		finalizers.Insert(MCMFinalizerName)
 		return c.updateMachineClassFinalizers(clone, finalizers.List())
 	}
 	return nil
@@ -148,8 +148,8 @@ func (c *controller) addMachineClassFinalizers(class *v1alpha1.MachineClass) err
 func (c *controller) deleteMachineClassFinalizers(class *v1alpha1.MachineClass) error {
 	clone := class.DeepCopy()
 
-	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
-		finalizers.Delete(DeleteFinalizerName)
+	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(MCMFinalizerName) {
+		finalizers.Delete(MCMFinalizerName)
 		return c.updateMachineClassFinalizers(clone, finalizers.List())
 	}
 	return nil

@@ -60,7 +60,7 @@ var _ = Describe("secret", func() {
 			expectedSecret, _ := c.controlCoreClient.CoreV1().Secrets(testSecret.Namespace).Get(testSecret.Name, metav1.GetOptions{})
 
 			Expect(expectedSecret.Finalizers).To(HaveLen(1))
-			Expect(expectedSecret.Finalizers).To(ContainElement(DeleteFinalizerName))
+			Expect(expectedSecret.Finalizers).To(ContainElement(MCMFinalizerName))
 		})
 	})
 
@@ -77,7 +77,7 @@ var _ = Describe("secret", func() {
 					Namespace: testNamespace,
 				},
 			}
-			finalizers = []string{DeleteFinalizerName}
+			finalizers = []string{MCMFinalizerName}
 		})
 
 		// Testcase: It should delete the finalizer from Secret.

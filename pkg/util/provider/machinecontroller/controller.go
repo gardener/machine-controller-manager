@@ -51,8 +51,9 @@ const (
 	ClassAnnotation = "machine.sapcloud.io/class"
 	// MachineIDAnnotation is the annotation used to identify a machine ID
 	MachineIDAnnotation = "machine.sapcloud.io/id"
-	// DeleteFinalizerName is the finalizer used to identify the controller acting on an object
-	DeleteFinalizerName = "machine.sapcloud.io/machine-controller-manager"
+	// MCMFinalizerName is the finalizer used to tag dependecies before deletion
+	// of the object. This finalizer is carried over from then MCM
+	MCMFinalizerName = "machine.sapcloud.io/machine-controller-manager"
 )
 
 // NewController returns a new Node controller.
