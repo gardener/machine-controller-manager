@@ -457,7 +457,7 @@ func (c *controller) triggerDeletionFlow(deleteMachineRequest *driver.DeleteMach
 	)
 
 	switch {
-	case !finalizers.Has(DeleteFinalizerName):
+	case !finalizers.Has(MCMFinalizerName):
 		// If Finalizers are not present on machine
 		err := fmt.Errorf("Machine %q is missing finalizers. Deletion cannot proceed", machine.Name)
 		return machineutils.DoNotRetryOp, err

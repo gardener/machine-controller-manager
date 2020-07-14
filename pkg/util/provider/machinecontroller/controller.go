@@ -51,8 +51,14 @@ const (
 	ClassAnnotation = "machine.sapcloud.io/class"
 	// MachineIDAnnotation is the annotation used to identify a machine ID
 	MachineIDAnnotation = "machine.sapcloud.io/id"
-	// DeleteFinalizerName is the finalizer used to identify the controller acting on an object
-	DeleteFinalizerName = "machine.sapcloud.io/machine-controller-manager"
+	// MCMFinalizerName is the finalizer used to tag dependecies before deletion
+	// of the object. This finalizer is carried over from the MCM
+	MCMFinalizerName = "machine.sapcloud.io/machine-controller-manager"
+	// MCFinalizerName is the finalizer created for the external
+	// machine controller to differentiate it from the MCMFinalizerName
+	// This finalizer is added only on secret-objects to avoid race between in-tree and out-of-tree controllers.
+	// This is a stopgap solution to resolve: https://github.com/gardener/machine-controller-manager/issues/486. 
+	MCFinalizerName = "machine.sapcloud.io/machine-controller"
 )
 
 // NewController returns a new Node controller.

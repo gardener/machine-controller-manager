@@ -76,7 +76,7 @@ func (c *controller) reconcileClusterSecret(secret *corev1.Secret) error {
 			return err
 		}
 	} else {
-		if finalizers := sets.NewString(secret.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
+		if finalizers := sets.NewString(secret.Finalizers...); !finalizers.Has(MCFinalizerName) {
 			// Finalizer doesn't exist, simply return nil
 			return nil
 		}
@@ -97,8 +97,8 @@ func (c *controller) reconcileClusterSecret(secret *corev1.Secret) error {
 func (c *controller) addSecretFinalizers(secret *corev1.Secret) error {
 	clone := secret.DeepCopy()
 
-	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
-		finalizers.Insert(DeleteFinalizerName)
+	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(MCFinalizerName) {
+		finalizers.Insert(MCFinalizerName)
 		return c.updateSecretFinalizers(clone, finalizers.List())
 	}
 	return nil
@@ -107,8 +107,8 @@ func (c *controller) addSecretFinalizers(secret *corev1.Secret) error {
 func (c *controller) deleteSecretFinalizers(secret *corev1.Secret) error {
 	clone := secret.DeepCopy()
 
-	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
-		finalizers.Delete(DeleteFinalizerName)
+	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(MCFinalizerName) {
+		finalizers.Delete(MCFinalizerName)
 		return c.updateSecretFinalizers(clone, finalizers.List())
 	}
 	return nil

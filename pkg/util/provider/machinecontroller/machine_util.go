@@ -618,9 +618,9 @@ func (c *controller) reconcileMachineHealth(machine *v1alpha1.Machine) (machineu
 */
 
 func (c *controller) addMachineFinalizers(machine *v1alpha1.Machine) (machineutils.Retry, error) {
-	if finalizers := sets.NewString(machine.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
+	if finalizers := sets.NewString(machine.Finalizers...); !finalizers.Has(MCMFinalizerName) {
 
-		finalizers.Insert(DeleteFinalizerName)
+		finalizers.Insert(MCMFinalizerName)
 		clone := machine.DeepCopy()
 		clone.Finalizers = finalizers.List()
 		_, err := c.controlMachineClient.Machines(clone.Namespace).Update(clone)
@@ -640,9 +640,9 @@ func (c *controller) addMachineFinalizers(machine *v1alpha1.Machine) (machineuti
 }
 
 func (c *controller) deleteMachineFinalizers(machine *v1alpha1.Machine) (machineutils.Retry, error) {
-	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
+	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(MCMFinalizerName) {
 
-		finalizers.Delete(DeleteFinalizerName)
+		finalizers.Delete(MCMFinalizerName)
 		clone := machine.DeepCopy()
 		clone.Finalizers = finalizers.List()
 		_, err := c.controlMachineClient.Machines(clone.Namespace).Update(clone)
