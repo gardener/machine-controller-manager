@@ -60,25 +60,27 @@ var _ = Describe("secret", func() {
 			expectedSecret, _ := c.controlCoreClient.CoreV1().Secrets(testSecret.Namespace).Get(testSecret.Name, metav1.GetOptions{})
 
 			Expect(expectedSecret.Finalizers).To(HaveLen(1))
-			Expect(expectedSecret.Finalizers).To(ContainElement(DeleteFinalizerName))
+			Expect(expectedSecret.Finalizers).To(ContainElement(MCFinalizerName))
 		})
 	})
 
 	Describe("#deleteSecretFinalizers", func() {
 		var (
-			testSecret *corev1.Secret
-			finalizers []string
-		)
-
-		BeforeEach(func() {
-			testSecret = &corev1.Secret{
+			rightFinalizers = &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "Secret-test",
-					Namespace: testNamespace,
+					Name:       "Secret-test",
+					Namespace:  testNamespace,
+					Finalizers: []string{MCFinalizerName},
 				},
 			}
-			finalizers = []string{DeleteFinalizerName}
-		})
+			wrongFinalizers = &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "Secret-test",
+					Namespace:  testNamespace,
+					Finalizers: []string{MCMFinalizerName},
+				},
+			}
+		)
 
 		// Testcase: It should delete the finalizer from Secret.
 		It("should delete the finalizer from Secret.", func() {
@@ -86,23 +88,40 @@ var _ = Describe("secret", func() {
 			defer close(stop)
 
 			objects := []runtime.Object{}
-			objects = append(objects, testSecret)
+			objects = append(objects, rightFinalizers)
 			c, trackers := createController(stop, testNamespace, nil, objects, nil, nil)
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			testSecret, _ := c.controlCoreClient.CoreV1().Secrets(testSecret.Namespace).Get(testSecret.Name, metav1.GetOptions{})
-
-			testSecret.Finalizers = finalizers
+			testSecret, _ := c.controlCoreClient.CoreV1().Secrets(rightFinalizers.Namespace).Get(rightFinalizers.Name, metav1.GetOptions{})
 			Expect(testSecret.Finalizers).Should(Not(BeEmpty()))
 
 			c.deleteSecretFinalizers(testSecret)
 
 			waitForCacheSync(stop, c)
 
-			expectedSecret, _ := c.controlCoreClient.CoreV1().Secrets(testSecret.Namespace).Get(testSecret.Name, metav1.GetOptions{})
-
+			expectedSecret, _ := c.controlCoreClient.CoreV1().Secrets(rightFinalizers.Namespace).Get(rightFinalizers.Name, metav1.GetOptions{})
 			Expect(expectedSecret.Finalizers).Should(HaveLen(0))
+		})
+		It("should not be able delete the wrong finalizer from Secret.", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			objects := []runtime.Object{}
+			objects = append(objects, wrongFinalizers)
+			c, trackers := createController(stop, testNamespace, nil, objects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			testSecret, _ := c.controlCoreClient.CoreV1().Secrets(wrongFinalizers.Namespace).Get(wrongFinalizers.Name, metav1.GetOptions{})
+			Expect(testSecret.Finalizers).Should(Not(BeEmpty()))
+
+			c.deleteSecretFinalizers(testSecret)
+
+			waitForCacheSync(stop, c)
+
+			expectedSecret, _ := c.controlCoreClient.CoreV1().Secrets(wrongFinalizers.Namespace).Get(wrongFinalizers.Name, metav1.GetOptions{})
+			Expect(expectedSecret.Finalizers).Should(HaveLen(1))
 		})
 	})
 
