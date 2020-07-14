@@ -488,8 +488,14 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		return err
 	}
 
-	// SyncNodeTemplate syncs the nodeTemplate with claimedMachines if any of the machine's nodeTemplate has changed.
+	// syncMachinesNodeTemplates syncs the nodeTemplate with claimedMachines if any of the machine's nodeTemplate has changed.
 	err = c.syncMachinesNodeTemplates(filteredMachines, machineSet)
+	if err != nil {
+		return err
+	}
+
+	// syncMachinesConfig syncs the config with claimedMachines if any of the machine's config has changed.
+	err = c.syncMachinesConfig(filteredMachines, machineSet)
 	if err != nil {
 		return err
 	}

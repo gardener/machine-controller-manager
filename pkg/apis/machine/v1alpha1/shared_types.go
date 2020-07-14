@@ -18,7 +18,9 @@
 
 package v1alpha1
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 // MachineTemplateSpec describes the data a machine should have when created from a template
 type MachineTemplateSpec struct {
@@ -31,6 +33,29 @@ type MachineTemplateSpec struct {
 	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status
 	// +optional
 	Spec MachineSpec `json:"spec,omitempty"`
+}
+
+// MachineConfiguration describes the configurations useful for the machine-controller.
+type MachineConfiguration struct {
+	// MachineDraintimeout is the timeout after which machine is forcefully deleted.
+	// +optional
+	MachineDrainTimeout *metav1.Duration `json:"drainTimeout,omitempty"`
+
+	// MachineHealthTimeout is the timeout after which machine is declared unhealhty/failed.
+	// +optional
+	MachineHealthTimeout *metav1.Duration `json:"healthTimeout,omitempty"`
+
+	// MachineCreationTimeout is the timeout after which machinie creation is declared failed.
+	// +optional
+	MachineCreationTimeout *metav1.Duration `json:"creationTimeout,omitempty"`
+
+	// MaxEvictRetries is the number of retries that will be attempted while draining the node.
+	// +optional
+	MaxEvictRetries *int32 `json:"maxEvictRetries,omitempty"`
+
+	// NodeConditions are the set of conditions if set to true for MachineHealthTimeOut, machine will be declared failed.
+	// +optional
+	NodeConditions *string `json:"nodeConditions,omitempty"`
 }
 
 // MachineSummary store the summary of machine.
