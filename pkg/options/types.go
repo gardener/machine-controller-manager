@@ -103,7 +103,7 @@ type SafetyOptions struct {
 	// Deprecated. No effect. Timeout (in durartion) used while draining of machine before deletion,
 	// beyond which it forcefully deletes machine
 	MachineDrainTimeout metav1.Duration
-	// Ratio of Failed Machine deletion relative to total amount of Failed Machines in a single MachineSet
+	// Ratio of Failed Machine deletion relative to MachineSet's "spec.replicas"
 	FailedMachineDeletionRatio float64
 	// Maximum number of times evicts would be attempted on a pod for it is forcibly deleted
 	// during draining of a machine.

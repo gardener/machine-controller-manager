@@ -22,6 +22,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package options
 
 import (
+	"fmt"
 	"time"
 
 	machineconfig "github.com/gardener/machine-controller-manager/pkg/options"
@@ -106,7 +107,7 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&s.SafetyOptions.MachineCreationTimeout.Duration, "machine-creation-timeout", s.SafetyOptions.MachineCreationTimeout.Duration, "Timeout (in durartion) used while joining (during creation) of machine before it is declared as failed.")
 	fs.DurationVar(&s.SafetyOptions.MachineHealthTimeout.Duration, "machine-health-timeout", s.SafetyOptions.MachineHealthTimeout.Duration, "Timeout (in durartion) used while re-joining (in case of temporary health issues) of machine before it is declared as failed.")
 	fs.DurationVar(&s.SafetyOptions.MachineDrainTimeout.Duration, "machine-drain-timeout", controller.DefaultMachineDrainTimeout, "Timeout (in durartion) used while draining of machine before deletion, beyond which MCM forcefully deletes machine.")
-	fs.Float64Var(&s.SafetyOptions.FailedMachineDeletionRatio, "failed-machine-deletion-ratio", s.SafetyOptions.FailedMachineDeletionRatio, "Ratio of Failed Machine deletion relative to total amount of Failed Machines in a single MachineSet.")
+	fs.Float64Var(&s.SafetyOptions.FailedMachineDeletionRatio, "failed-machine-deletion-ratio", s.SafetyOptions.FailedMachineDeletionRatio, "Ratio of Failed Machine deletion relative to MachineSet's \"spec.replicas\".")
 	fs.Int32Var(&s.SafetyOptions.MaxEvictRetries, "machine-max-evict-retries", controller.DefaultMaxEvictRetries, "Maximum number of times evicts would be attempted on a pod before it is forcibly deleted during draining of a machine.")
 	fs.DurationVar(&s.SafetyOptions.PvDetachTimeout.Duration, "machine-pv-detach-timeout", s.SafetyOptions.PvDetachTimeout.Duration, "Timeout (in duration) used while waiting for detach of PV while evicting/deleting pods")
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration, "machine-safety-apiserver-statuscheck-timeout", s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration, "Timeout (in duration) for which the APIServer can be down before declare the machine controller frozen by safety controller")
@@ -128,6 +129,10 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 // Validate is used to validate the options and config before launching the controller manager
 func (s *MCMServer) Validate() error {
 	var errs []error
-	// TODO add validation
+
+	if s.SafetyOptions.FailedMachineDeletionRatio < 0 || s.SafetyOptions.FailedMachineDeletionRatio > 1 {
+		errs = append(errs, fmt.Errorf("\"failed-machine-deletion-ratio\" should be between 0.0 and 1.0 (inclusive)"))
+	}
+
 	return utilerrors.NewAggregate(errs)
 }
