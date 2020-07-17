@@ -54,7 +54,7 @@ func NewMCServer() *MCServer {
 			Port:                    10259,
 			Namespace:               "default",
 			Address:                 "0.0.0.0",
-			ConcurrentNodeSyncs:     5,
+			ConcurrentNodeSyncs:     10,
 			ContentType:             "application/vnd.kubernetes.protobuf",
 			NodeConditions:          "KernelDeadlock,ReadonlyFilesystem,DiskPressure",
 			MinResyncPeriod:         metav1.Duration{Duration: 12 * time.Hour},
