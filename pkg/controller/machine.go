@@ -565,9 +565,51 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 
 	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		klog.V(2).Infof("Deleting Machine %q", machine.Name)
+		var (
+			forceDeletePods         = false
+			forceDeleteMachine      = false
+			timeOutOccurred         = false
+			maxEvictRetries         = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/PodEvictionRetryInterval.Seconds()))
+			pvDetachTimeOut         = c.safetyOptions.PvDetachTimeout.Duration
+			timeOutDuration         = c.getEffectiveDrainTimeout(machine).Duration
+			forceDeleteLabelPresent = machine.Labels["force-deletion"] == "True"
+		)
+
+		// Timeout value obtained by subtracting last operation with expected time out period
+		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
+		timeOutOccurred = timeOut > 0
+
+		if forceDeleteLabelPresent || timeOutOccurred {
+			// To perform forceful machine drain/delete either one of the below conditions must be satified
+			// 1. force-deletion: "True" label must be present
+			// 2. Deletion operation is more than drain-timeout minutes old
+			forceDeleteMachine = true
+			forceDeletePods = true
+			timeOutDuration = 1 * time.Minute
+			maxEvictRetries = 1
+
+			klog.V(2).Infof(
+				"Force deletion has been triggerred for machine %q due to ForceDeletionLabel:%t, Timeout:%t",
+				machine.Name,
+				forceDeleteLabelPresent,
+				timeOutOccurred,
+			)
+		}
 
 		// If machine was created on the cloud provider
 		machineID, _ := driver.GetExisting()
+
+		// update node with the machine's state prior to termination
+		if nodeName != "" && machineID != "" {
+			if err = c.UpdateNodeTerminationCondition(machine); err != nil {
+				if forceDeleteMachine {
+					klog.Warningf("failed to update node conditions: %v. However, since it's a force deletion shall continue deletion of VM.", err)
+				} else {
+					klog.Error(err)
+					return err
+				}
+			}
+		}
 
 		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating {
 			lastOperation := v1alpha1.LastOperation{
@@ -601,38 +643,6 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 
 		if machineID != "" && nodeName != "" {
 			// Begin drain logic only when the nodeName & providerID exist's for the machine
-
-			var (
-				forceDeletePods         = false
-				forceDeleteMachine      = false
-				timeOutOccurred         = false
-				maxEvictRetries         = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/PodEvictionRetryInterval.Seconds()))
-				pvDetachTimeOut         = c.safetyOptions.PvDetachTimeout.Duration
-				timeOutDuration         = c.getEffectiveDrainTimeout(machine).Duration
-				forceDeleteLabelPresent = machine.Labels["force-deletion"] == "True"
-			)
-
-			// Timeout value obtained by subtracting last operation with expected time out period
-			timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
-			timeOutOccurred = timeOut > 0
-
-			if forceDeleteLabelPresent || timeOutOccurred {
-				// To perform forceful machine drain/delete either one of the below conditions must be satified
-				// 1. force-deletion: "True" label must be present
-				// 2. Deletion operation is more than drain-timeout minutes old
-				forceDeleteMachine = true
-				forceDeletePods = true
-				timeOutDuration = 1 * time.Minute
-				maxEvictRetries = 1
-
-				klog.V(2).Infof(
-					"Force deletion has been triggerred for machine %q due to ForceDeletionLabel:%t, Timeout:%t",
-					machine.Name,
-					forceDeleteLabelPresent,
-					timeOutOccurred,
-				)
-			}
-
 			buf := bytes.NewBuffer([]byte{})
 			errBuf := bytes.NewBuffer([]byte{})
 
