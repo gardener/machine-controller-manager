@@ -37,6 +37,7 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	conditionutils "github.com/gardener/machine-controller-manager/pkg/util/conditions"
 	hashutil "github.com/gardener/machine-controller-manager/pkg/util/hash"
 	taintutils "github.com/gardener/machine-controller-manager/pkg/util/taints"
 	v1 "k8s.io/api/core/v1"
@@ -88,8 +89,8 @@ const (
 	SlowStartInitialBatchSize = 1
 )
 
-// UpdateTaintBackoff is the backoff period used while updating taint
-var UpdateTaintBackoff = wait.Backoff{
+// Backoff is the backoff period used while updating nodes
+var Backoff = wait.Backoff{
 	Steps:    5,
 	Duration: 100 * time.Millisecond,
 	Jitter:   1.0,
@@ -901,7 +902,7 @@ func AddOrUpdateTaintOnNode(c clientset.Interface, nodeName string, taints ...*v
 		return nil
 	}
 	firstTry := true
-	return clientretry.RetryOnConflict(UpdateTaintBackoff, func() error {
+	return clientretry.RetryOnConflict(Backoff, func() error {
 		var err error
 		var oldNode *v1.Node
 		// First we try getting node from the API server cache, as it's cheaper. If it fails
@@ -958,7 +959,7 @@ func RemoveTaintOffNode(c clientset.Interface, nodeName string, node *v1.Node, t
 	}
 
 	firstTry := true
-	return clientretry.RetryOnConflict(UpdateTaintBackoff, func() error {
+	return clientretry.RetryOnConflict(Backoff, func() error {
 		var err error
 		var oldNode *v1.Node
 		// First we try getting node from the API server cache, as it's cheaper. If it fails
@@ -1027,6 +1028,55 @@ func UpdateNodeTaints(c clientset.Interface, nodeName string, oldNode *v1.Node, 
 	_, err := c.CoreV1().Nodes().Update(newNodeClone)
 	if err != nil {
 		return fmt.Errorf("failed to create update taints for node %q: %v", nodeName, err)
+	}
+
+	return nil
+}
+
+// GetNodeCondition get the nodes condition matching the specified type
+func GetNodeCondition(c clientset.Interface, nodeName string, conditionType v1.NodeConditionType) (*v1.NodeCondition, error) {
+	node, err := c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return conditionutils.GetNodeCondition(node, conditionType), nil
+}
+
+// AddOrUpdateConditionsOnNode adds a condition to the node's status
+func AddOrUpdateConditionsOnNode(c clientset.Interface, nodeName string, condition v1.NodeCondition) error {
+	firstTry := true
+	return clientretry.RetryOnConflict(Backoff, func() error {
+		var err error
+		var oldNode *v1.Node
+		// First we try getting node from the API server cache, as it's cheaper. If it fails
+		// we get it from etcd to be sure to have fresh data.
+		if firstTry {
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
+			firstTry = false
+		} else {
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+		}
+
+		if err != nil {
+			return err
+		}
+
+		var newNode *v1.Node
+		oldNodeCopy := oldNode
+		newNode = conditionutils.AddOrUpdateCondition(oldNodeCopy, condition)
+		return UpdateNodeConditions(c, nodeName, oldNode, newNode)
+	})
+}
+
+// UpdateNodeConditions is for updating the node conditions from oldNode to the newNode
+// using the nodes Update() method
+func UpdateNodeConditions(c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
+	newNodeClone := oldNode.DeepCopy()
+	newNodeClone.Status.Conditions = newNode.Status.Conditions
+
+	_, err := c.CoreV1().Nodes().UpdateStatus(newNodeClone)
+	if err != nil {
+		return fmt.Errorf("failed to create update conditions for node %q: %v", nodeName, err)
 	}
 
 	return nil
