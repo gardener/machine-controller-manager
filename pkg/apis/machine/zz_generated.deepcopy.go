@@ -176,6 +176,11 @@ func (in *AWSMachineClassSpec) DeepCopyInto(out *AWSMachineClassSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.SpotPrice != nil {
+		in, out := &in.SpotPrice, &out.SpotPrice
+		*out = new(string)
+		**out = **in
+	}
 	if in.SecretRef != nil {
 		in, out := &in.SecretRef, &out.SecretRef
 		*out = new(v1.SecretReference)

@@ -906,6 +906,7 @@ func autoConvert_v1alpha1_AWSMachineClassSpec_To_machine_AWSMachineClassSpec(in 
 	out.Monitoring = in.Monitoring
 	out.NetworkInterfaces = *(*[]machine.AWSNetworkInterfaceSpec)(unsafe.Pointer(&in.NetworkInterfaces))
 	out.Tags = *(*map[string]string)(unsafe.Pointer(&in.Tags))
+	out.SpotPrice = (*string)(unsafe.Pointer(in.SpotPrice))
 	out.SecretRef = (*v1.SecretReference)(unsafe.Pointer(in.SecretRef))
 	return nil
 }
@@ -928,6 +929,7 @@ func autoConvert_machine_AWSMachineClassSpec_To_v1alpha1_AWSMachineClassSpec(in 
 	out.Monitoring = in.Monitoring
 	out.NetworkInterfaces = *(*[]AWSNetworkInterfaceSpec)(unsafe.Pointer(&in.NetworkInterfaces))
 	out.Tags = *(*map[string]string)(unsafe.Pointer(&in.Tags))
+	out.SpotPrice = (*string)(unsafe.Pointer(in.SpotPrice))
 	out.SecretRef = (*v1.SecretReference)(unsafe.Pointer(in.SecretRef))
 	return nil
 }

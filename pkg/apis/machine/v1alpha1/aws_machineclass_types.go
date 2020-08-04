@@ -77,6 +77,7 @@ type AWSMachineClassSpec struct {
 	Monitoring        bool                        `json:"monitoring,omitempty"`
 	NetworkInterfaces []AWSNetworkInterfaceSpec   `json:"networkInterfaces,omitempty"`
 	Tags              map[string]string           `json:"tags,omitempty"`
+	SpotPrice         *string                     `json:"spotPrice,omitempty"`
 	SecretRef         *corev1.SecretReference     `json:"secretRef,omitempty"`
 
 	// TODO add more here

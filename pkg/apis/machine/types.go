@@ -705,6 +705,7 @@ type AWSMachineClassSpec struct {
 	Monitoring        bool
 	NetworkInterfaces []AWSNetworkInterfaceSpec
 	Tags              map[string]string
+	SpotPrice         *string
 	SecretRef         *corev1.SecretReference
 
 	// TODO add more here

@@ -131,6 +131,19 @@ func (d *AWSDriver) Create() (string, string, error) {
 		TagSpecifications:   []*ec2.TagSpecification{tagInstance, tagVolume},
 	}
 
+	if d.AWSMachineClass.Spec.SpotPrice != nil {
+		inputConfig.InstanceMarketOptions = &ec2.InstanceMarketOptionsRequest{
+			MarketType: aws.String(ec2.MarketTypeSpot),
+			SpotOptions: &ec2.SpotMarketOptions{
+				SpotInstanceType: aws.String(ec2.SpotInstanceTypeOneTime),
+			},
+		}
+
+		if *d.AWSMachineClass.Spec.SpotPrice != "" {
+			inputConfig.InstanceMarketOptions.SpotOptions.MaxPrice = d.AWSMachineClass.Spec.SpotPrice
+		}
+	}
+
 	runResult, err := svc.RunInstances(&inputConfig)
 	if err != nil {
 		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
