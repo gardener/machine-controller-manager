@@ -463,6 +463,16 @@ func createController(
 	pvcs := coreTargetSharedInformers.PersistentVolumeClaims()
 	pvs := coreTargetSharedInformers.PersistentVolumes()
 
+	coreControlInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
+		fakeControlCoreClient,
+		100*time.Millisecond,
+		namespace,
+		nil,
+	)
+	defer coreControlInformerFactory.Start(stop)
+	coreControlSharedInformers := coreControlInformerFactory.Core().V1()
+	secret := coreControlSharedInformers.Secrets()
+
 	controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
 		fakeControlMachineClient,
 		100*time.Millisecond,
@@ -511,6 +521,7 @@ func createController(
 		nodeLister:                     nodes.Lister(),
 		pvcLister:                      pvcs.Lister(),
 		pvLister:                       pvs.Lister(),
+		secretLister:                   secret.Lister(),
 		machineLister:                  machines.Lister(),
 		machineSetLister:               machineSets.Lister(),
 		machineDeploymentLister:        machineDeployments.Lister(),
@@ -518,6 +529,7 @@ func createController(
 		machineSetSynced:               machineSets.Informer().HasSynced,
 		machineDeploymentSynced:        machineDeployments.Informer().HasSynced,
 		nodeSynced:                     nodes.Informer().HasSynced,
+		secretSynced:                   secret.Informer().HasSynced,
 		secretQueue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
 		nodeQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
 		openStackMachineClassQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "openstackmachineclass"),
