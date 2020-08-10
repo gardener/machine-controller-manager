@@ -730,14 +730,14 @@ func (c *controller) terminateStaleMachines(inactiveMachines []*v1alpha1.Machine
 	return nil
 }
 
-// calculateStaleMachineDeletionWindow computes
+// calculateStaleMachineDeletionWindow computes an amount of Failed Machines that can be deleted based on FailedMachineDeletionRatio
 func (c *controller) calculateStaleMachineDeletionWindow(activeMachines, runningMachines, inactiveMachines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) int {
 	var (
-		deletionWindow          int
-		numOfActiveMachines     = len(activeMachines)
-		numOfRunningMachines    = len(runningMachines)
-		numOfInactiveMachines   = len(inactiveMachines)
-		numOfMachineSetReplicas = int(machineSet.Spec.Replicas)
+		deletionWindow           int
+		numOfActiveMachines      = len(activeMachines)
+		numOfRunningMachines     = len(runningMachines)
+		numOfInactiveMachines    = len(inactiveMachines)
+		desiredMachineSetReplica = int(machineSet.Spec.Replicas)
 	)
 
 	// nothing to do
@@ -754,18 +754,18 @@ func (c *controller) calculateStaleMachineDeletionWindow(activeMachines, running
 		return numOfInactiveMachines
 	}
 
-	if numOfMachineSetReplicas == 0 {
+	if desiredMachineSetReplica == 0 {
 		deletionWindow = numOfInactiveMachines
 	} else {
-		deletionWindow = int(math.Round(float64(numOfMachineSetReplicas) * c.safetyOptions.FailedMachineDeletionRatio))
+		deletionWindow = int(math.Round(float64(desiredMachineSetReplica) * c.safetyOptions.FailedMachineDeletionRatio))
 		if deletionWindow == 0 {
 			deletionWindow = 1
 		}
 
-		pendingMachines := numOfActiveMachines - numOfRunningMachines
+		numOfActiveNotRunningMachines := numOfActiveMachines - numOfRunningMachines
 
-		if deletionWindow > pendingMachines {
-			deletionWindow -= pendingMachines
+		if deletionWindow > numOfActiveNotRunningMachines {
+			deletionWindow -= numOfActiveNotRunningMachines
 		} else {
 			deletionWindow = 0
 		}
