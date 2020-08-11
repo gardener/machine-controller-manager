@@ -712,6 +712,10 @@ func (c *controller) terminateStaleMachines(inactiveMachines []*v1alpha1.Machine
 	)
 	defer close(errCh)
 
+	if deletionWindow > len(inactiveMachines) {
+		deletionWindow = len(inactiveMachines)
+	}
+
 	wg.Add(deletionWindow)
 	for i := 0; i < deletionWindow; i++ {
 		go c.prepareMachineForDeletion(inactiveMachines[i], machineSet, &wg, errCh)
