@@ -50,6 +50,61 @@ var _ = Describe("machine", func() {
 		c                 *controller
 	)
 
+	Describe("getSecret", func() {
+
+		var (
+			secretRef *v1.SecretReference
+		)
+
+		BeforeEach(func() {
+
+			secretRef = &v1.SecretReference{
+				Name:      "test-secret",
+				Namespace: testNamespace,
+			}
+		})
+
+		It("should return success", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			testSecret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-secret",
+					Namespace: testNamespace,
+				},
+			}
+			objects := []runtime.Object{}
+			objects = append(objects, testSecret)
+
+			c, trackers := createController(stop, testNamespace, nil, objects, nil)
+			defer trackers.Stop()
+
+			waitForCacheSync(stop, c)
+			secretRet, errRet := c.getSecret(secretRef, "test-aws")
+			Expect(errRet).Should(BeNil())
+			Expect(secretRet).Should(Not(BeNil()))
+			Expect(secretRet).Should(Equal(testSecret))
+
+		})
+
+		It("should return error", func() {
+			err := errors.New("secret \"test-secret\" not found")
+			stop := make(chan struct{})
+			defer close(stop)
+
+			c, trackers := createController(stop, testNamespace, nil, nil, nil)
+			defer trackers.Stop()
+
+			waitForCacheSync(stop, c)
+			secretRet, errRet := c.getSecret(secretRef, "test-aws")
+			Expect(errRet).Should(Not(BeNil()))
+			Expect(errRet.Error()).Should(Equal(err.Error()))
+			Expect(secretRet).Should(BeNil())
+		})
+
+	})
+
 	Describe("#updateMachineStatus", func() {
 		var (
 			machine       *machinev1.Machine

@@ -949,7 +949,7 @@ func (c *controller) getSecret(ref *v1.SecretReference, machineClassName string)
 	secretRef, err := c.secretLister.Secrets(ref.Namespace).Get(ref.Name)
 	if apierrors.IsNotFound(err) {
 		klog.V(3).Infof("No secret %q: found for MachineClass %q", ref, machineClassName)
-		return nil, nil
+		return nil, err
 	}
 	if err != nil {
 		klog.Errorf("Unable get secret %q for MachineClass %q: %v", machineClassName, ref, err)
