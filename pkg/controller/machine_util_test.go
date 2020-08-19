@@ -1850,4 +1850,318 @@ var _ = Describe("machine_util", func() {
 		)
 
 	})
+
+	Describe("#UpdateNodeTerminationCondition", func() {
+
+		type setup struct {
+			machine *machinev1.Machine
+		}
+		type action struct {
+			node *corev1.Node
+		}
+		type expect struct {
+			node *corev1.Node
+			err  bool
+		}
+		type data struct {
+			setup  setup
+			action action
+			expect expect
+		}
+
+		DescribeTable("##table",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				controlObjects := []runtime.Object{}
+				coreObjects := []runtime.Object{}
+
+				machineObject := data.setup.machine
+
+				nodeObject := data.action.node
+				coreObjects = append(coreObjects, nodeObject)
+				controlObjects = append(controlObjects, machineObject)
+
+				c, trackers := createController(stop, testNamespace, controlObjects, nil, coreObjects)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+
+				err := c.UpdateNodeTerminationCondition(machineObject)
+
+				waitForCacheSync(stop, c)
+
+				if !data.expect.err {
+					Expect(err).To(BeNil())
+				} else {
+					Expect(err).To(HaveOccurred())
+				}
+
+				updatedNodeObject, _ := c.targetCoreClient.CoreV1().Nodes().Get(nodeObject.Name, metav1.GetOptions{})
+
+				if data.expect.node != nil {
+					conditions := data.expect.node.Status.Conditions
+					if len(conditions) > 0 {
+						Expect(updatedNodeObject.Status.Conditions[0].Type).Should(Equal(data.expect.node.Status.Conditions[0].Type))
+						Expect(updatedNodeObject.Status.Conditions[0].Status).Should(Equal(data.expect.node.Status.Conditions[0].Status))
+						Expect(updatedNodeObject.Status.Conditions[0].Reason).Should(Equal(data.expect.node.Status.Conditions[0].Reason))
+					}
+				}
+			},
+
+			Entry("when machine phase is failed", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{},
+						&machinev1.MachineStatus{
+							Node:          "test-node",
+							CurrentStatus: machinev1.CurrentStatus{Phase: MachineFailed},
+						},
+						nil, nil, nil),
+				},
+				action: action{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1": "anno1",
+							},
+						},
+						Spec: corev1.NodeSpec{},
+					},
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1": "anno1",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{Type: NodeTerminationCondition, Status: corev1.ConditionTrue, Reason: NodeUnhealthy},
+							}},
+					},
+					err: false,
+				},
+			}),
+
+			Entry("when machine phase is running", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{},
+						&machinev1.MachineStatus{
+							Node:          "test-node",
+							CurrentStatus: machinev1.CurrentStatus{Phase: MachineRunning},
+						},
+						nil, nil, nil),
+				},
+				action: action{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1": "anno1",
+							},
+						},
+						Spec: corev1.NodeSpec{},
+					},
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1": "anno1",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{Type: NodeTerminationCondition, Status: corev1.ConditionTrue, Reason: NodeScaledDown},
+							}},
+					},
+					err: false,
+				},
+			}),
+
+			Entry("when machine phase is terminating", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{},
+						&machinev1.MachineStatus{
+							Node:          "test-node",
+							CurrentStatus: machinev1.CurrentStatus{Phase: MachineTerminating},
+						},
+						nil, nil, nil),
+				},
+				action: action{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1": "anno1",
+							},
+						},
+						Spec: corev1.NodeSpec{},
+					},
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1": "anno1",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{Type: NodeTerminationCondition, Status: corev1.ConditionTrue, Reason: NodeScaledDown},
+							}},
+					},
+					err: false,
+				},
+			}),
+
+			Entry("when machine phase is terminating and condition already exists", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{},
+						&machinev1.MachineStatus{
+							Node:          "test-node",
+							CurrentStatus: machinev1.CurrentStatus{Phase: MachineTerminating},
+						},
+						nil, nil, nil),
+				},
+				action: action{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1": "anno1",
+							},
+						},
+						Spec: corev1.NodeSpec{},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{Type: NodeTerminationCondition, Status: corev1.ConditionTrue, Reason: NodeUnhealthy},
+							}},
+					},
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1": "anno1",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{Type: NodeTerminationCondition, Status: corev1.ConditionTrue, Reason: NodeUnhealthy},
+							}},
+					},
+					err: false,
+				},
+			}),
+
+			Entry("when phase changes and condition already exists", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{},
+						&machinev1.MachineStatus{
+							Node:          "test-node",
+							CurrentStatus: machinev1.CurrentStatus{Phase: MachineFailed},
+						},
+						nil, nil, nil),
+				},
+				action: action{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+						},
+						Spec: corev1.NodeSpec{},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{Type: NodeTerminationCondition, Status: corev1.ConditionTrue, Reason: NodeScaledDown},
+							}},
+					},
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        "test-node-0",
+							Annotations: map[string]string{},
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{Type: NodeTerminationCondition, Status: corev1.ConditionTrue, Reason: NodeUnhealthy},
+							}},
+					},
+					err: false,
+				},
+			}),
+
+			Entry("when node object does not exist", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{},
+						&machinev1.MachineStatus{
+							Node:          "test-node",
+							CurrentStatus: machinev1.CurrentStatus{Phase: MachineTerminating},
+						},
+						nil, nil, nil),
+				},
+				action: action{
+					node: &corev1.Node{},
+				},
+				expect: expect{
+					node: &corev1.Node{},
+					err:  false, // we should not return error if node-object does not exist to ensure rest of the steps are then executed.
+				},
+			}),
+		)
+
+	})
+
 })

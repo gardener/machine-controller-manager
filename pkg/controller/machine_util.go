@@ -26,6 +26,8 @@ import (
 	"encoding/json"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -40,6 +42,12 @@ import (
 const (
 	// LastAppliedALTAnnotation contains the last configuration of annotations, labels & taints applied on the node object
 	LastAppliedALTAnnotation = "node.machine.sapcloud.io/last-applied-anno-labels-taints"
+	// NodeTerminationCondition describes nodes that are terminating
+	NodeTerminationCondition = "Termination"
+	// NodeUnhealthy is a node termination reason for failed machines
+	NodeUnhealthy = "Unhealthy"
+	// NodeScaledDown is a node termination reason for healthy deleted machines
+	NodeScaledDown = "ScaleDown"
 )
 
 var (
@@ -495,4 +503,52 @@ func SyncMachineTaints(
 	}
 
 	return toBeUpdated
+}
+
+func (c *controller) UpdateNodeTerminationCondition(machine *v1alpha1.Machine) error {
+	if machine.Status.CurrentStatus.Phase == "" {
+		return nil
+	}
+
+	nodeName := machine.Status.Node
+
+	terminationCondition := v1.NodeCondition{
+		Type:               NodeTerminationCondition,
+		Status:             v1.ConditionTrue,
+		LastHeartbeatTime:  metav1.Now(),
+		LastTransitionTime: metav1.Now(),
+	}
+
+	// check if condition already exists
+	cond, err := GetNodeCondition(c.targetCoreClient, nodeName, NodeTerminationCondition)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	if cond != nil && machine.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating {
+		// do not consider machine terminating phase if node already terminating
+		terminationCondition.Reason = cond.Reason
+		terminationCondition.Message = cond.Message
+	} else {
+		setTerminationReasonByPhase(machine.Status.CurrentStatus.Phase, &terminationCondition)
+	}
+
+	err = AddOrUpdateConditionsOnNode(c.targetCoreClient, nodeName, terminationCondition)
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+	return err
+}
+
+func setTerminationReasonByPhase(phase v1alpha1.MachinePhase, terminationCondition *v1.NodeCondition) {
+	if phase == v1alpha1.MachineFailed { // if failed, terminated due to health
+		terminationCondition.Reason = NodeUnhealthy
+		terminationCondition.Message = "Machine Controller is terminating failed machine"
+	} else { // in all other cases (except for already terminating): assume scale down
+		terminationCondition.Reason = NodeScaledDown
+		terminationCondition.Message = "Machine Controller is scaling down machine"
+	}
 }
