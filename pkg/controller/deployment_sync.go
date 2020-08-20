@@ -304,7 +304,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 	newIS := v1alpha1.MachineSet{
 		ObjectMeta: metav1.ObjectMeta{
 			// Make the name deterministic, to ensure idempotence
-			Name:            d.Name + "-" + rand.SafeEncodeString(machineTemplateSpecHash),
+			Name:            d.Name + "-" + rand.SafeEncodeString(machineTemplateSpecHash)[:5],
 			Namespace:       d.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(d, controllerKind)},
 			Labels:          newISTemplate.Labels,
