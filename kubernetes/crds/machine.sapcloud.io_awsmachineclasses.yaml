@@ -181,6 +181,11 @@ spec:
                     items:
                       type: string
                     type: array
+                  srcAndDstChecksEnabled:
+                    description: If set to false, source and destination checks are
+                      disabled on machine network inferface level, default value is
+                      true
+                    type: boolean
                   subnetID:
                     description: The ID of the subnet associated with the network
                       string. Applies only if creating a network interface when launching
@@ -203,6 +208,8 @@ spec:
                     name must be unique.
                   type: string
               type: object
+            spotPrice:
+              type: string
             tags:
               additionalProperties:
                 type: string

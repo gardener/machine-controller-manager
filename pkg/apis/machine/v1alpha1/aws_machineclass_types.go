@@ -201,4 +201,7 @@ type AWSNetworkInterfaceSpec struct {
 	// The ID of the subnet associated with the network string. Applies only if
 	// creating a network interface when launching an machine.
 	SubnetID string `json:"subnetID,omitempty"`
+
+	// If set to false, source and destination checks are disabled on machine network inferface level, default value is true
+	SrcAndDstChecksEnabled *bool `json:"srcAndDstChecksEnabled,omitempty"`
 }

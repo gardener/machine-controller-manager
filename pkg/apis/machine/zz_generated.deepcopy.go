@@ -222,6 +222,11 @@ func (in *AWSNetworkInterfaceSpec) DeepCopyInto(out *AWSNetworkInterfaceSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.SrcAndDstChecksEnabled != nil {
+		in, out := &in.SrcAndDstChecksEnabled, &out.SrcAndDstChecksEnabled
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

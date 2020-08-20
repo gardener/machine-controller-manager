@@ -731,6 +731,13 @@ func schema_pkg_apis_machine_v1alpha1_AWSNetworkInterfaceSpec(ref common.Referen
 							Format:      "",
 						},
 					},
+					"srcAndDstChecksEnabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "If set to false, source and destination checks are disabled on machine network inferface level, default value is true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

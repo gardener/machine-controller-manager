@@ -61,9 +61,7 @@ func (d *AWSDriver) Create() (string, string, error) {
 	if err != nil {
 		return "Error", "Error", err
 	}
-
 	UserDataEnc := base64.StdEncoding.EncodeToString([]byte(d.UserData))
-
 	var imageIds []*string
 	imageID := aws.String(d.AWSMachineClass.Spec.AMI)
 	imageIds = append(imageIds, imageID)
@@ -96,7 +94,7 @@ func (d *AWSDriver) Create() (string, string, error) {
 	if err != nil {
 		return "Error", "Error", err
 	}
-
+	srcDstChecks := true
 	var networkInterfaceSpecs []*ec2.InstanceNetworkInterfaceSpecification
 	for i, netIf := range d.AWSMachineClass.Spec.NetworkInterfaces {
 		spec := &ec2.InstanceNetworkInterfaceSpecification{
@@ -113,6 +111,10 @@ func (d *AWSDriver) Create() (string, string, error) {
 		}
 
 		networkInterfaceSpecs = append(networkInterfaceSpecs, spec)
+
+		if netIf.SrcAndDstChecksEnabled != nil && !*netIf.SrcAndDstChecksEnabled {
+			srcDstChecks = false
+		}
 	}
 
 	// Specify the details of the machine
@@ -150,7 +152,14 @@ func (d *AWSDriver) Create() (string, string, error) {
 		return "Error", "Error", err
 	}
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-
+	// disable srcDstChecks on ec2 Instance if set
+	if !srcDstChecks {
+		klog.V(2).Infof("Disabling src/dst checks for machine with instanceID: %s", *runResult.Instances[0].InstanceId)
+		_, err = svc.ModifyInstanceAttribute(&ec2.ModifyInstanceAttributeInput{InstanceId: runResult.Instances[0].InstanceId, SourceDestCheck: &ec2.AttributeBooleanValue{Value: aws.Bool(false)}})
+		if err != nil {
+			return "Error", "Error", err
+		}
+	}
 	return d.encodeMachineID(d.AWSMachineClass.Spec.Region, *runResult.Instances[0].InstanceId), *runResult.Instances[0].PrivateDnsName, nil
 }
 
