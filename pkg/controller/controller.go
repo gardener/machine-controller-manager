@@ -81,32 +81,34 @@ func NewController(
 	nodeConditions string,
 	bootstrapTokenAuthExtraGroups string,
 	deleteMigratedMachineClass bool,
+	autoscalerScaleDownAnnotationDuringRollout bool,
 ) (Controller, error) {
 	controller := &controller{
-		namespace:                      namespace,
-		controlMachineClient:           controlMachineClient,
-		controlCoreClient:              controlCoreClient,
-		targetCoreClient:               targetCoreClient,
-		recorder:                       recorder,
-		expectations:                   NewUIDTrackingContExpectations(NewContExpectations()),
-		secretQueue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
-		nodeQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
-		openStackMachineClassQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "openstackmachineclass"),
-		awsMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
-		azureMachineClassQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
-		gcpMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "gcpmachineclass"),
-		alicloudMachineClassQueue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "alicloudmachineclass"),
-		packetMachineClassQueue:        workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "packetmachineclass"),
-		machineQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
-		machineSetQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
-		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
-		machineSafetyOrphanVMsQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
-		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
-		machineSafetyAPIServerQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
-		safetyOptions:                  safetyOptions,
-		nodeConditions:                 nodeConditions,
-		bootstrapTokenAuthExtraGroups:  bootstrapTokenAuthExtraGroups,
-		deleteMigratedMachineClass:     deleteMigratedMachineClass,
+		namespace:                                  namespace,
+		controlMachineClient:                       controlMachineClient,
+		controlCoreClient:                          controlCoreClient,
+		targetCoreClient:                           targetCoreClient,
+		recorder:                                   recorder,
+		expectations:                               NewUIDTrackingContExpectations(NewContExpectations()),
+		secretQueue:                                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
+		nodeQueue:                                  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
+		openStackMachineClassQueue:                 workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "openstackmachineclass"),
+		awsMachineClassQueue:                       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
+		azureMachineClassQueue:                     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
+		gcpMachineClassQueue:                       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "gcpmachineclass"),
+		alicloudMachineClassQueue:                  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "alicloudmachineclass"),
+		packetMachineClassQueue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "packetmachineclass"),
+		machineQueue:                               workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
+		machineSetQueue:                            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
+		machineDeploymentQueue:                     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
+		machineSafetyOrphanVMsQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
+		machineSafetyOvershootingQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
+		machineSafetyAPIServerQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
+		safetyOptions:                              safetyOptions,
+		nodeConditions:                             nodeConditions,
+		bootstrapTokenAuthExtraGroups:              bootstrapTokenAuthExtraGroups,
+		deleteMigratedMachineClass:                 deleteMigratedMachineClass,
+		autoscalerScaleDownAnnotationDuringRollout: autoscalerScaleDownAnnotationDuringRollout,
 	}
 
 	controller.internalExternalScheme = runtime.NewScheme()
@@ -398,10 +400,11 @@ type Controller interface {
 
 // controller is a concrete Controller.
 type controller struct {
-	namespace                     string
-	nodeConditions                string
-	bootstrapTokenAuthExtraGroups string
-	deleteMigratedMachineClass    bool
+	namespace                                  string
+	nodeConditions                             string
+	bootstrapTokenAuthExtraGroups              string
+	deleteMigratedMachineClass                 bool
+	autoscalerScaleDownAnnotationDuringRollout bool
 
 	controlMachineClient machineapi.MachineV1alpha1Interface
 	controlCoreClient    kubernetes.Interface
