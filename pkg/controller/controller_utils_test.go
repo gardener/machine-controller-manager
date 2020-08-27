@@ -23,7 +23,10 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 var _ = Describe("#controllerUtils", func() {
@@ -232,4 +235,331 @@ var _ = Describe("#controllerUtils", func() {
 		)
 	})
 
+	Describe("##AddOrUpdateAnnotationOnNode", func() {
+		type setup struct {
+			node *v1.Node
+		}
+		type expect struct {
+			expectedAnnotations map[string]string
+			err                 bool
+		}
+		type action struct {
+			toBeAppliedAnnotations  map[string]string
+			nodeName                string
+			nodeExistingAnnotations map[string]string
+		}
+		type data struct {
+			setup  setup
+			action action
+			expect expect
+		}
+
+		DescribeTable("##table",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				controlObjects := []runtime.Object{}
+				targetObjects := []runtime.Object{}
+				// Name of the node is node-0.
+				nodeObject := data.setup.node
+
+				nodeObject.Annotations = data.action.nodeExistingAnnotations
+				targetObjects = append(targetObjects, nodeObject)
+
+				c, trackers := createController(stop, testNamespace, controlObjects, nil, targetObjects)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+
+				err := AddOrUpdateAnnotationOnNode(c.targetCoreClient, data.action.nodeName, data.action.toBeAppliedAnnotations)
+
+				if !data.expect.err {
+					Expect(err).To(BeNil())
+				} else {
+					Expect(err).To(HaveOccurred())
+					return
+				}
+
+				nodeObject, _ = c.targetCoreClient.CoreV1().Nodes().Get(data.action.nodeName, metav1.GetOptions{})
+
+				// Merge the annotations in the newNodeObject.
+				annotationsOnNewNodeObject := make(map[string]string)
+				if nodeObject != nil {
+					annotationsOnNewNodeObject = nodeObject.Annotations
+				}
+
+				Expect(data.expect.expectedAnnotations).To(Equal(annotationsOnNewNodeObject))
+			},
+
+			Entry("given annotation should be added when there are certain annotations on node", &data{
+				setup: setup{
+					node: newNode(
+						1,
+						&corev1.NodeSpec{},
+						nil,
+					),
+				},
+				action: action{
+					toBeAppliedAnnotations: map[string]string{
+						"anno0": "anno0",
+					},
+					nodeName: "node-0",
+					nodeExistingAnnotations: map[string]string{
+						"anno1": "anno1",
+					},
+				},
+				expect: expect{
+					expectedAnnotations: map[string]string{
+						"anno0": "anno0",
+						"anno1": "anno1",
+					},
+					err: false,
+				},
+			}),
+			Entry("given annotation should be added when there are no annotations on node", &data{
+				setup: setup{
+					node: newNode(
+						1,
+						&corev1.NodeSpec{},
+						nil,
+					),
+				},
+				action: action{
+					toBeAppliedAnnotations: map[string]string{
+						"anno0": "anno0",
+					},
+					nodeName:                "node-0",
+					nodeExistingAnnotations: map[string]string{},
+				},
+				expect: expect{
+					expectedAnnotations: map[string]string{
+						"anno0": "anno0",
+					},
+					err: false,
+				},
+			}),
+			Entry("given annotation should be added when the same annotations already exists.", &data{
+				setup: setup{
+					node: newNode(
+						1,
+						&corev1.NodeSpec{},
+						nil,
+					),
+				},
+				action: action{
+					toBeAppliedAnnotations: map[string]string{
+						"anno0": "anno0",
+					},
+					nodeName: "node-0",
+					nodeExistingAnnotations: map[string]string{
+						"anno0": "anno0",
+					},
+				},
+				expect: expect{
+					expectedAnnotations: map[string]string{
+						"anno0": "anno0",
+					},
+					err: false,
+				},
+			}),
+			Entry("given annotation should be updated when the same annotations already exists with different value", &data{
+				setup: setup{
+					node: newNode(
+						1,
+						&corev1.NodeSpec{},
+						nil,
+					),
+				},
+				action: action{
+					toBeAppliedAnnotations: map[string]string{
+						"anno0": "anno0",
+					},
+					nodeName: "node-0",
+					nodeExistingAnnotations: map[string]string{
+						"anno0": "annoDummy",
+					},
+				},
+				expect: expect{
+					expectedAnnotations: map[string]string{
+						"anno0": "anno0",
+					},
+					err: false,
+				},
+			}),
+			Entry("Error should not be thrown when the node doesnt exist", &data{
+				setup: setup{
+					node: newNode(
+						1,
+						&corev1.NodeSpec{},
+						nil,
+					),
+				},
+				action: action{
+					toBeAppliedAnnotations: map[string]string{
+						"anno0": "anno0",
+					},
+					nodeName: "node-dummy",
+					nodeExistingAnnotations: map[string]string{
+						"anno0": "annoDummy",
+					},
+				},
+				expect: expect{
+					expectedAnnotations: map[string]string{},
+					err:                 false,
+				},
+			}),
+		)
+	})
+
+	Describe("##RemoveAnnotationsOffNode", func() {
+		type setup struct {
+			node *v1.Node
+		}
+		type expect struct {
+			expectedAnnotations map[string]string
+			err                 bool
+		}
+		type action struct {
+			toBeRemovedAnnotations  map[string]string
+			nodeName                string
+			nodeExistingAnnotations map[string]string
+		}
+		type data struct {
+			setup  setup
+			action action
+			expect expect
+		}
+
+		DescribeTable("##table",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				controlObjects := []runtime.Object{}
+				targetObjects := []runtime.Object{}
+				// Name of the node is node-0.
+				nodeObject := data.setup.node
+
+				nodeObject.Annotations = data.action.nodeExistingAnnotations
+				targetObjects = append(targetObjects, nodeObject)
+
+				c, trackers := createController(stop, testNamespace, controlObjects, nil, targetObjects)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+
+				err := RemoveAnnotationsOffNode(c.targetCoreClient, data.action.nodeName, data.action.toBeRemovedAnnotations)
+
+				if !data.expect.err {
+					Expect(err).To(BeNil())
+				} else {
+					Expect(err).To(HaveOccurred())
+					return
+				}
+
+				nodeObject, _ = c.targetCoreClient.CoreV1().Nodes().Get(data.action.nodeName, metav1.GetOptions{})
+
+				// Merge the annotations in the newNodeObject.
+				annotationsOnNewNodeObject := make(map[string]string)
+				if nodeObject != nil {
+					annotationsOnNewNodeObject = nodeObject.Annotations
+				}
+
+				Expect(data.expect.expectedAnnotations).To(Equal(annotationsOnNewNodeObject))
+			},
+
+			Entry("given annotations should be removed when there are same annotations on node", &data{
+				setup: setup{
+					node: newNode(
+						1,
+						&corev1.NodeSpec{},
+						nil,
+					),
+				},
+				action: action{
+					toBeRemovedAnnotations: map[string]string{
+						"anno0": "anno0",
+					},
+					nodeName: "node-0",
+					nodeExistingAnnotations: map[string]string{
+						"anno1": "anno1",
+						"anno0": "anno0",
+					},
+				},
+				expect: expect{
+					expectedAnnotations: map[string]string{
+						"anno1": "anno1",
+					},
+					err: false,
+				},
+			}),
+			Entry("given annotations should be removed when there are no annotations on node", &data{
+				setup: setup{
+					node: newNode(
+						1,
+						&corev1.NodeSpec{},
+						nil,
+					),
+				},
+				action: action{
+					toBeRemovedAnnotations: map[string]string{
+						"anno0": "anno0",
+					},
+					nodeName:                "node-0",
+					nodeExistingAnnotations: map[string]string{},
+				},
+				expect: expect{
+					expectedAnnotations: map[string]string{},
+					err:                 false,
+				},
+			}),
+			Entry("given annotations should be removed when there are annotations on node with different value", &data{
+				setup: setup{
+					node: newNode(
+						1,
+						&corev1.NodeSpec{},
+						nil,
+					),
+				},
+				action: action{
+					toBeRemovedAnnotations: map[string]string{
+						"anno0": "anno0",
+					},
+					nodeName: "node-0",
+					nodeExistingAnnotations: map[string]string{
+						"anno0": "annodummy",
+						"anno1": "anno1",
+					},
+				},
+				expect: expect{
+					expectedAnnotations: map[string]string{
+						"anno1": "anno1",
+					},
+					err: false,
+				},
+			}),
+			Entry("error should be thrown when there is no node-object", &data{
+				setup: setup{
+					node: newNode(
+						1,
+						&corev1.NodeSpec{},
+						nil,
+					),
+				},
+				action: action{
+					toBeRemovedAnnotations: map[string]string{
+						"anno0": "anno0",
+					},
+					nodeName: "node-dummy",
+					nodeExistingAnnotations: map[string]string{
+						"anno0": "annodummy",
+						"anno1": "anno1",
+					},
+				},
+				expect: expect{
+					expectedAnnotations: map[string]string{},
+					err:                 false,
+				},
+			}),
+		)
+	})
 })
