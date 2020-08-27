@@ -33,10 +33,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/validation"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	annotationsutils "github.com/gardener/machine-controller-manager/pkg/util/annotations"
 	conditionutils "github.com/gardener/machine-controller-manager/pkg/util/conditions"
 	hashutil "github.com/gardener/machine-controller-manager/pkg/util/hash"
 	taintutils "github.com/gardener/machine-controller-manager/pkg/util/taints"
@@ -91,6 +93,13 @@ const (
 
 // Backoff is the backoff period used while updating nodes
 var Backoff = wait.Backoff{
+	Steps:    5,
+	Duration: 100 * time.Millisecond,
+	Jitter:   1.0,
+}
+
+// UpdateAnnotationBackoff is the backoff period used while updating the annotation
+var UpdateAnnotationBackoff = wait.Backoff{
 	Steps:    5,
 	Duration: 100 * time.Millisecond,
 	Jitter:   1.0,
@@ -1110,4 +1119,123 @@ func ComputeHash(template *v1alpha1.MachineTemplateSpec, collisionCount *int32) 
 	}
 
 	return machineTemplateSpecHasher.Sum32()
+}
+
+// AddOrUpdateAnnotationOnNode add annotations to the node. If annotation was added into node, it'll issue API calls
+// to update nodes; otherwise, no API calls. Return error if any.
+func AddOrUpdateAnnotationOnNode(c clientset.Interface, nodeName string, annotations map[string]string) error {
+	if annotations == nil {
+		return nil
+	}
+	firstTry := true
+	return clientretry.RetryOnConflict(UpdateAnnotationBackoff, func() error {
+		var err error
+		var oldNode *v1.Node
+		// First we try getting node from the API server cache, as it's cheaper. If it fails
+		// we get it from etcd to be sure to have fresh data.
+		if firstTry {
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
+			firstTry = false
+		} else {
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+		}
+		if errors.IsNotFound(err) {
+			klog.Warningf("Node %s not found while updating annotation. Err: %v", nodeName, err)
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		var newNode *v1.Node
+		updated := false
+
+		newNode, updated, err = annotationsutils.AddOrUpdateAnnotation(oldNode, annotations)
+
+		if !updated {
+			return nil
+		}
+		return UpdateNodeAnnotations(c, nodeName, oldNode, newNode)
+	})
+}
+
+// UpdateNodeAnnotations is for updating the node annotations from oldNode to the newNode
+// using the nodes Update() method
+func UpdateNodeAnnotations(c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
+	newNodeClone := oldNode.DeepCopy()
+	newNodeClone.Annotations = newNode.Annotations
+
+	_, err := c.CoreV1().Nodes().Update(newNodeClone)
+	if err != nil {
+		return fmt.Errorf("failed to create or update annotations for node %q: %v", nodeName, err)
+	}
+
+	return err
+}
+
+// RemoveAnnotationsOffNode is for cleaning up annotations temporarily added to node,
+// won't fail if target annotation doesn't exist or has been removed.
+// If passed a node it'll check if there's anything to be done, if annotation is not present it won't issue
+// any API calls.
+func RemoveAnnotationsOffNode(c clientset.Interface, nodeName string, annotations map[string]string) error {
+
+	// Short circuit if annotation doesnt exist for limiting API calls.
+	if annotations == nil || nodeName == "" {
+		return nil
+	}
+
+	firstTry := true
+	return clientretry.RetryOnConflict(UpdateAnnotationBackoff, func() error {
+		var err error
+		var oldNode *v1.Node
+		// First we try getting node from the API server cache, as it's cheaper. If it fails
+		// we get it from etcd to be sure to have fresh data.
+		if firstTry {
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
+			firstTry = false
+		} else {
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+		}
+		if errors.IsNotFound(err) {
+			klog.Warningf("Node %s not found while removing annotation. Err: %v", nodeName, err)
+			return nil
+		}
+
+		if err != nil {
+			return err
+		}
+
+		var newNode *v1.Node
+		oldNodeCopy := oldNode
+		updated := false
+
+		// Remove the annotations from the node.
+		newNode, updated, err = annotationsutils.RemoveAnnotation(oldNodeCopy, annotations)
+
+		if !updated {
+			return nil
+		}
+		return UpdateNodeAnnotations(c, nodeName, oldNode, newNode)
+	})
+}
+
+// GetAnnotationsFromNode returns all the annotations of the provided node.
+func GetAnnotationsFromNode(c clientset.Interface, nodeName string) (map[string]string, error) {
+
+	// Short circuit if annotation doesnt exist for limiting API calls.
+	if nodeName == "" {
+		return nil, nil
+	}
+
+	node, err := c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		klog.Warningf("Node %s not found while fetching annotation. Err: %v", nodeName, err)
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return node.Annotations, nil
 }
