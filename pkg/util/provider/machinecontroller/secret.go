@@ -161,7 +161,7 @@ func (c *controller) enqueueSecretAfter(obj interface{}, after time.Duration) {
 
 func (c *controller) machineClassToSecretAdd(obj interface{}) {
 	machineClass, ok := obj.(*v1alpha1.MachineClass)
-	if machineClass == nil || !ok {
+	if !ok || machineClass == nil || machineClass.SecretRef == nil {
 		return
 	}
 	c.secretQueue.Add(machineClass.SecretRef.Namespace + "/" + machineClass.SecretRef.Name)
@@ -169,11 +169,11 @@ func (c *controller) machineClassToSecretAdd(obj interface{}) {
 
 func (c *controller) machineClassToSecretUpdate(oldObj interface{}, newObj interface{}) {
 	oldMachineClass, ok := oldObj.(*v1alpha1.MachineClass)
-	if oldMachineClass == nil || !ok {
+	if !ok || oldMachineClass == nil || oldMachineClass.SecretRef == nil {
 		return
 	}
 	newMachineClass, ok := newObj.(*v1alpha1.MachineClass)
-	if newMachineClass == nil || !ok {
+	if !ok || newMachineClass == nil || newMachineClass.SecretRef == nil {
 		return
 	}
 

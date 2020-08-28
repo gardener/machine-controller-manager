@@ -499,6 +499,11 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	if err != nil {
 		return err
 	}
+	// syncMachinesClassKind syncs the classKind with claimedMachines if any of the machine's classKind has changed.
+	err = c.syncMachinesClassKind(filteredMachines, machineSet)
+	if err != nil {
+		return err
+	}
 
 	// TODO: Fix working of expectations to reflect correct behaviour
 	//machineSetNeedsSync := c.expectations.SatisfiedExpectations(key)

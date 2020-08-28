@@ -36,6 +36,10 @@ const (
 	// priority the more likely it is to be deleted first
 	// Default priority for a machine is set to 3
 	MachinePriority = "machinepriority.machine.sapcloud.io"
+	// MachineClassKind is used to identify the machineClassKind for generic machineClasses
+	MachineClassKind = "MachineClass"
+	// MigratedMachineClass annotation helps in identifying machineClasses who have been migrated by migration controller
+	MigratedMachineClass = "machine.sapcloud.io/migrated"
 )
 
 // Retry is a label for retrying operation

@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -29,17 +30,15 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
-
-// machineClassKind is used to identify the machineClassKind for generic machineClasses
-const machineClassKind = "MachineClass"
 
 func (c *controller) machineToMachineClassDelete(obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if machine == nil || !ok {
 		return
 	}
-	if machine.Spec.Class.Kind == machineClassKind {
+	if machine.Spec.Class.Kind == machineutils.MachineClassKind {
 		c.machineClassQueue.Add(machine.Spec.Class.Name)
 	}
 }
@@ -76,58 +75,69 @@ func (c *controller) reconcileClusterMachineClassKey(key string) error {
 
 	class, err := c.machineClassLister.MachineClasses(c.namespace).Get(name)
 	if errors.IsNotFound(err) {
-		klog.Infof("%s %q: Not doing work because it has been deleted", machineClassKind, key)
+		klog.Infof("%s %q: Not doing work because it has been deleted", machineutils.MachineClassKind, key)
 		return nil
 	}
 	if err != nil {
-		klog.Infof("%s %q: Unable to retrieve object from store: %v", machineClassKind, key, err)
+		klog.Infof("%s %q: Unable to retrieve object from store: %v", machineutils.MachineClassKind, key, err)
 		return err
 	}
 
-	return c.reconcileClusterMachineClass(class)
+	err = c.reconcileClusterMachineClass(class)
+	if err != nil {
+		// Re-enqueue after a 10s window
+		c.enqueueMachineClassAfter(class, 10*time.Second)
+	} else {
+		// Re-enqueue periodically to avoid missing of events
+		// TODO: Get ride of this logic
+		c.enqueueMachineClassAfter(class, 10*time.Minute)
+	}
+
+	return nil
 }
 
 func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) error {
 	klog.V(4).Info("Start Reconciling machineclass: ", class.Name)
-	defer func() {
-		c.enqueueMachineClassAfter(class, 10*time.Minute)
-		klog.V(4).Info("Stop Reconciling machineclass: ", class.Name)
-	}()
+	defer klog.V(4).Info("Stop Reconciling machineclass: ", class.Name)
 
+	// Validate internal to external scheme conversion
 	internalClass := &machine.MachineClass{}
 	err := c.internalExternalScheme.Convert(class, internalClass, nil)
 	if err != nil {
 		return err
 	}
 
-	machines, err := c.findMachinesForClass(machineClassKind, class.Name)
+	// fetch all machines referring the machineClass
+	machines, err := c.findMachinesForClass(machineutils.MachineClassKind, class.Name)
 	if err != nil {
 		return err
 	}
 
-	// Manipulate finalizers
-	if class.DeletionTimestamp == nil && len(machines) > 0 {
-		err = c.addMachineClassFinalizers(class)
-		if err != nil {
-			return err
+	if class.DeletionTimestamp == nil {
+		// If deletion timestamp doesn't exist
+		if len(machines) > 0 {
+			// If 1 or more machine objects are referring the machineClass
+			err = c.addMachineClassFinalizers(class)
+			if err != nil {
+				return err
+			}
 		}
-	} else {
-		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(MCMFinalizerName) {
-			return nil
-		}
-
-		if len(machines) == 0 {
-			return c.deleteMachineClassFinalizers(class)
-		}
-
-		klog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
-	for _, machine := range machines {
-		c.addMachine(machine)
+	if len(machines) > 0 {
+		// machines are still referring the machine class, please wait before deletion
+		klog.V(3).Infof("Cannot remove finalizer on %s because still (%d) machines are referencing it", class.Name, len(machines))
+
+		for _, machine := range machines {
+			c.addMachine(machine)
+		}
+
+		return fmt.Errorf("Retry as machine objects are still referring the machineclass")
 	}
-	return nil
+
+	// delete machine class finalizer if exists
+	return c.deleteMachineClassFinalizers(class)
 }
 
 /*

@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +31,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 // AlicloudMachineClassKind is used to identify the machineClassKind as Alicloud
@@ -105,34 +107,32 @@ func (c *controller) reconcileClusterAlicloudMachineClassKey(key string) error {
 		return err
 	}
 
-	return c.reconcileClusterAlicloudMachineClass(class)
+	err = c.reconcileClusterAlicloudMachineClass(class)
+	if err != nil {
+		// Re-enqueue after a 10s window
+		c.enqueueAlicloudMachineClassAfter(class, 10*time.Second)
+	} else {
+		// Re-enqueue periodically to avoid missing of events
+		// TODO: Get ride of this logic
+		c.enqueueAlicloudMachineClassAfter(class, 10*time.Minute)
+	}
+	return nil
 }
 
 func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.AlicloudMachineClass) error {
 	klog.V(4).Info("Start Reconciling alicloudmachineclass: ", class.Name)
-	defer func() {
-		c.enqueueAlicloudMachineClassAfter(class, 10*time.Minute)
-		klog.V(4).Info("Stop Reconciling alicloudmachineclass: ", class.Name)
-	}()
+	defer klog.V(4).Info("Stop Reconciling alicloudmachineclass: ", class.Name)
 
 	internalClass := &machine.AlicloudMachineClass{}
 	err := c.internalExternalScheme.Convert(class, internalClass, nil)
 	if err != nil {
 		return err
 	}
-	// TODO this should be put in own API server
+
 	validationerr := validation.ValidateAlicloudMachineClass(internalClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
 		klog.V(2).Infof("Validation of %s failed %s", AlicloudMachineClassKind, validationerr.ToAggregate().Error())
 		return nil
-	}
-
-	// Manipulate finalizers
-	if class.DeletionTimestamp == nil {
-		err = c.addAlicloudMachineClassFinalizers(class)
-		if err != nil {
-			return err
-		}
 	}
 
 	machines, err := c.findMachinesForClass(AlicloudMachineClassKind, class.Name)
@@ -140,31 +140,42 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 		return err
 	}
 
-	if class.DeletionTimestamp != nil {
-		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
-			return nil
+	if class.DeletionTimestamp == nil {
+		// If deletion timestamp doesn't exist
+		_, annotationPresent := class.Annotations[machineutils.MigratedMachineClass]
+
+		if len(machines) > 0 {
+			// If 1 or more machine objects are referring the machineClass
+			err = c.addAlicloudMachineClassFinalizers(class)
+			if err != nil {
+				return err
+			}
+		} else if c.deleteMigratedMachineClass && annotationPresent {
+			// If controller has deleteMigratedMachineClass flag set
+			// and the migratedMachineClass annotation is set
+			err = c.controlMachineClient.AlicloudMachineClasses(class.Namespace).Delete(class.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("Retry deletion as deletion timestamp is now set")
 		}
 
-		machineDeployments, err := c.findMachineDeploymentsForClass(AlicloudMachineClassKind, class.Name)
-		if err != nil {
-			return err
-		}
-		machineSets, err := c.findMachineSetsForClass(AlicloudMachineClassKind, class.Name)
-		if err != nil {
-			return err
-		}
-		if len(machineDeployments) == 0 && len(machineSets) == 0 && len(machines) == 0 {
-			return c.deleteAlicloudMachineClassFinalizers(class)
-		}
-
-		klog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
-	for _, machine := range machines {
-		c.addMachine(machine)
+	if len(machines) > 0 {
+		// machines are still referring the machine class, please wait before deletion
+		klog.V(3).Infof("Cannot remove finalizer on %s because still (%d) machines are referencing it", class.Name, len(machines))
+
+		for _, machine := range machines {
+			c.addMachine(machine)
+		}
+
+		return fmt.Errorf("Retry as machine objects are still referring the machineclass")
 	}
-	return nil
+
+	// delete machine class finalizer if exists
+	return c.deleteAlicloudMachineClassFinalizers(class)
 }
 
 /*

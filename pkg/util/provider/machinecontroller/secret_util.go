@@ -47,7 +47,7 @@ func (c *controller) findMachineClassForSecret(name string) ([]*v1alpha1.Machine
 	}
 	var filtered []*v1alpha1.MachineClass
 	for _, machineClass := range machineClasses {
-		if machineClass.SecretRef.Name == name {
+		if machineClass.SecretRef != nil && machineClass.SecretRef.Name == name {
 			filtered = append(filtered, machineClass)
 		}
 	}

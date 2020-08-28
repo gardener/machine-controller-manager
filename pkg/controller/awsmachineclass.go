@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +31,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 // AWSMachineClassKind is used to identify the machineClassKind as AWS
@@ -105,34 +107,32 @@ func (c *controller) reconcileClusterAWSMachineClassKey(key string) error {
 		return err
 	}
 
-	return c.reconcileClusterAWSMachineClass(class)
+	err = c.reconcileClusterAWSMachineClass(class)
+	if err != nil {
+		c.enqueueAWSMachineClassAfter(class, 10*time.Second)
+	} else {
+		// Re-enqueue periodically to avoid missing of events
+		// TODO: Infuture to get ride of this logic
+		c.enqueueAWSMachineClassAfter(class, 10*time.Minute)
+	}
+
+	return nil
 }
 
 func (c *controller) reconcileClusterAWSMachineClass(class *v1alpha1.AWSMachineClass) error {
-	klog.V(4).Info("Start Reconciling awsmachineclass: ", class.Name)
-	defer func() {
-		c.enqueueAwsMachineClassAfter(class, 10*time.Minute)
-		klog.V(4).Info("Stop Reconciling awsmachineclass: ", class.Name)
-	}()
+	klog.V(4).Info("Start Reconciling AWSmachineclass: ", class.Name)
+	defer klog.V(4).Info("Stop Reconciling AWSmachineclass: ", class.Name)
 
 	internalClass := &machine.AWSMachineClass{}
 	err := c.internalExternalScheme.Convert(class, internalClass, nil)
 	if err != nil {
 		return err
 	}
-	// TODO this should be put in own API server
+
 	validationerr := validation.ValidateAWSMachineClass(internalClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
 		klog.Errorf("Validation of %s failed %s", AWSMachineClassKind, validationerr.ToAggregate().Error())
 		return nil
-	}
-
-	// Manipulate finalizers
-	if class.DeletionTimestamp == nil {
-		err = c.addAWSMachineClassFinalizers(class)
-		if err != nil {
-			return err
-		}
 	}
 
 	machines, err := c.findMachinesForClass(AWSMachineClassKind, class.Name)
@@ -140,31 +140,41 @@ func (c *controller) reconcileClusterAWSMachineClass(class *v1alpha1.AWSMachineC
 		return err
 	}
 
-	if class.DeletionTimestamp != nil {
-		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
-			return nil
+	if class.DeletionTimestamp == nil {
+		// If deletion timestamp doesn't exist
+		_, annotationPresent := class.Annotations[machineutils.MigratedMachineClass]
+
+		if len(machines) > 0 {
+			// If 1 or more machine objects are referring the machineClass
+			err = c.addAWSMachineClassFinalizers(class)
+			if err != nil {
+				return err
+			}
+		} else if c.deleteMigratedMachineClass && annotationPresent {
+			// If controller has deleteMigratedMachineClass flag set
+			// and the migratedMachineClass annotation is set
+			err = c.controlMachineClient.AWSMachineClasses(class.Namespace).Delete(class.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("Retry deletion as deletion timestamp is now set")
 		}
 
-		machineDeployments, err := c.findMachineDeploymentsForClass(AWSMachineClassKind, class.Name)
-		if err != nil {
-			return err
-		}
-		machineSets, err := c.findMachineSetsForClass(AWSMachineClassKind, class.Name)
-		if err != nil {
-			return err
-		}
-		if len(machineDeployments) == 0 && len(machineSets) == 0 && len(machines) == 0 {
-			return c.deleteAWSMachineClassFinalizers(class)
-		}
-
-		klog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
-	for _, machine := range machines {
-		c.addMachine(machine)
+	if len(machines) > 0 {
+		// machines are still referring the machine class, please wait before deletion
+		klog.V(3).Infof("Cannot remove finalizer on %s because still (%d) machines are referencing it", class.Name, len(machines))
+
+		for _, machine := range machines {
+			c.addMachine(machine)
+		}
+
+		return fmt.Errorf("Retry as machine objects are still referring the machineclass")
 	}
-	return nil
+
+	return c.deleteAWSMachineClassFinalizers(class)
 }
 
 /*
@@ -210,7 +220,7 @@ func (c *controller) updateAWSMachineClassFinalizers(class *v1alpha1.AWSMachineC
 	return err
 }
 
-func (c *controller) enqueueAwsMachineClassAfter(obj interface{}, after time.Duration) {
+func (c *controller) enqueueAWSMachineClassAfter(obj interface{}, after time.Duration) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
 		return

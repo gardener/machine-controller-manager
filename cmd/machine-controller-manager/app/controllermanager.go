@@ -272,6 +272,7 @@ func StartControllers(s *options.MCMServer,
 			s.SafetyOptions,
 			s.NodeConditions,
 			s.BootstrapTokenAuthExtraGroups,
+			s.DeleteMigratedMachineClass,
 		)
 		if err != nil {
 			return err
