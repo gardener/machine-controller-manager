@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -82,50 +83,61 @@ func (c *controller) reconcileClusterMachineClassKey(key string) error {
 		return err
 	}
 
-	return c.reconcileClusterMachineClass(class)
+	err = c.reconcileClusterMachineClass(class)
+	if err != nil {
+		// Re-enqueue after a 10s window
+		c.enqueueMachineClassAfter(class, 10*time.Second)
+	} else {
+		// Re-enqueue periodically to avoid missing of events
+		// TODO: Get ride of this logic
+		c.enqueueMachineClassAfter(class, 10*time.Minute)
+	}
+
+	return nil
 }
 
 func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) error {
 	klog.V(4).Info("Start Reconciling machineclass: ", class.Name)
-	defer func() {
-		c.enqueueMachineClassAfter(class, 10*time.Minute)
-		klog.V(4).Info("Stop Reconciling machineclass: ", class.Name)
-	}()
+	defer klog.V(4).Info("Stop Reconciling machineclass: ", class.Name)
 
+	// Validate internal to external scheme conversion
 	internalClass := &machine.MachineClass{}
 	err := c.internalExternalScheme.Convert(class, internalClass, nil)
 	if err != nil {
 		return err
 	}
 
+	// fetch all machines referring the machineClass
 	machines, err := c.findMachinesForClass(machineutils.MachineClassKind, class.Name)
 	if err != nil {
 		return err
 	}
 
-	// Manipulate finalizers
-	if class.DeletionTimestamp == nil && len(machines) > 0 {
-		err = c.addMachineClassFinalizers(class)
-		if err != nil {
-			return err
+	if class.DeletionTimestamp == nil {
+		// If deletion timestamp doesn't exist
+		if len(machines) > 0 {
+			// If 1 or more machine objects are referring the machineClass
+			err = c.addMachineClassFinalizers(class)
+			if err != nil {
+				return err
+			}
 		}
-	} else {
-		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(MCMFinalizerName) {
-			return nil
-		}
-
-		if len(machines) == 0 {
-			return c.deleteMachineClassFinalizers(class)
-		}
-
-		klog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
-	for _, machine := range machines {
-		c.addMachine(machine)
+	if len(machines) > 0 {
+		// machines are still referring the machine class, please wait before deletion
+		klog.V(3).Infof("Cannot remove finalizer on %s because still (%d) machines are referencing it", class.Name, len(machines))
+
+		for _, machine := range machines {
+			c.addMachine(machine)
+		}
+
+		return fmt.Errorf("Retry as machine objects are still referring the machineclass")
 	}
-	return nil
+
+	// delete machine class finalizer if exists
+	return c.deleteMachineClassFinalizers(class)
 }
 
 /*
