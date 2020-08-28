@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +31,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 // PacketMachineClassKind is used to identify the machineClassKind as Packet
@@ -105,34 +107,32 @@ func (c *controller) reconcileClusterPacketMachineClassKey(key string) error {
 		return err
 	}
 
-	return c.reconcileClusterPacketMachineClass(class)
+	err = c.reconcileClusterPacketMachineClass(class)
+	if err != nil {
+		c.enqueuePacketMachineClassAfter(class, 10*time.Second)
+	} else {
+		// Re-enqueue periodically to avoid missing of events
+		// TODO: Infuture to get ride of this logic
+		c.enqueuePacketMachineClassAfter(class, 10*time.Minute)
+	}
+
+	return nil
 }
 
 func (c *controller) reconcileClusterPacketMachineClass(class *v1alpha1.PacketMachineClass) error {
-	klog.V(4).Info("Start Reconciling packetmachineclass: ", class.Name)
-	defer func() {
-		c.enqueuePacketMachineClassAfter(class, 10*time.Minute)
-		klog.V(4).Info("Stop Reconciling packetmachineclass: ", class.Name)
-	}()
+	klog.V(4).Info("Start Reconciling Packetmachineclass: ", class.Name)
+	defer klog.V(4).Info("Stop Reconciling Packetmachineclass: ", class.Name)
 
 	internalClass := &machine.PacketMachineClass{}
 	err := c.internalExternalScheme.Convert(class, internalClass, nil)
 	if err != nil {
 		return err
 	}
-	// TODO this should be put in own API server
+
 	validationerr := validation.ValidatePacketMachineClass(internalClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		klog.V(2).Infof("Validation of %s failed %s", PacketMachineClassKind, validationerr.ToAggregate().Error())
+		klog.Errorf("Validation of %s failed %s", PacketMachineClassKind, validationerr.ToAggregate().Error())
 		return nil
-	}
-
-	// Manipulate finalizers
-	if class.DeletionTimestamp == nil {
-		err = c.addPacketMachineClassFinalizers(class)
-		if err != nil {
-			return err
-		}
 	}
 
 	machines, err := c.findMachinesForClass(PacketMachineClassKind, class.Name)
@@ -140,31 +140,41 @@ func (c *controller) reconcileClusterPacketMachineClass(class *v1alpha1.PacketMa
 		return err
 	}
 
-	if class.DeletionTimestamp != nil {
-		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
-			return nil
+	if class.DeletionTimestamp == nil {
+		// If deletion timestamp doesn't exist
+		_, annotationPresent := class.Annotations[machineutils.MigratedMachineClass]
+
+		if len(machines) > 0 {
+			// If 1 or more machine objects are referring the machineClass
+			err = c.addPacketMachineClassFinalizers(class)
+			if err != nil {
+				return err
+			}
+		} else if c.deleteMigratedMachineClass && annotationPresent {
+			// If controller has deleteMigratedMachineClass flag set
+			// and the migratedMachineClass annotation is set
+			err = c.controlMachineClient.PacketMachineClasses(class.Namespace).Delete(class.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("Retry deletion as deletion timestamp is now set")
 		}
 
-		machineDeployments, err := c.findMachineDeploymentsForClass(PacketMachineClassKind, class.Name)
-		if err != nil {
-			return err
-		}
-		machineSets, err := c.findMachineSetsForClass(PacketMachineClassKind, class.Name)
-		if err != nil {
-			return err
-		}
-		if len(machineDeployments) == 0 && len(machineSets) == 0 && len(machines) == 0 {
-			return c.deletePacketMachineClassFinalizers(class)
-		}
-
-		klog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
-	for _, machine := range machines {
-		c.addMachine(machine)
+	if len(machines) > 0 {
+		// machines are still referring the machine class, please wait before deletion
+		klog.V(3).Infof("Cannot remove finalizer on %s because still (%d) machines are referencing it", class.Name, len(machines))
+
+		for _, machine := range machines {
+			c.addMachine(machine)
+		}
+
+		return fmt.Errorf("Retry as machine objects are still referring the machineclass")
 	}
-	return nil
+
+	return c.deletePacketMachineClassFinalizers(class)
 }
 
 /*
