@@ -131,7 +131,6 @@ The MCM MUST implement the specified error recovery behavior when it encounters 
 | 2 UNKNOWN | Something went wrong | Not enough information on what went wrong | Retry operation after sometime | Y |
 | 3 INVALID_ARGUMENT | Re-check supplied parameters | Re-check the supplied `Machine.Name` and `ProviderSpec`. Make sure all parameters are in permitted range of values. Exact issue to be given in `.message` | Update providerSpec to fix issues. | N |
 | 4 DEADLINE_EXCEEDED | Timeout | The call processing exceeded supplied deadline | Retry operation after sometime | Y |
-| 5 NOT_FOUND |  |  |  |  |
 | 6 ALREADY_EXISTS | Already exists but desired parameters doesn't match | Parameters of the existing VM don't match the ProviderSpec | Create machine with a different name | N |
 | 7 PERMISSION_DENIED | Insufficent permissions | The requestor doesn't have enough permissions to create an VM and it's required dependencies | Update requestor permissions to grant the same | N |
 | 8 RESOURCE_EXHAUSTED | Resource limits have been reached | The requestor doesn't have enough resource limits to process this creation request | Enhance resource limits associated with the user/account to process this | N |
@@ -141,7 +140,6 @@ The MCM MUST implement the specified error recovery behavior when it encounters 
 | 12 UNIMPLEMENTED | Not implemented | Unimplemented indicates operation is not implemented or not supported/enabled in this service. | Retry with an alternate logic or implement this method at the provider. Most methods by default are in this state | N |
 | 13 INTERNAL | Major error | Means some invariants expected by underlying system has been broken. If you see one of these errors, something is very broken. | Needs manual intervension to fix this | N |
 | 14 UNAVAILABLE | Not Available | Unavailable indicates the service is currently unavailable. | Retry operation after sometime | Y |
-| 15 DATALOSS |  |  |  |  |
 | 16 UNAUTHENTICATED | Missing provider credentials | Request does not have valid authentication credentials for the operation | Fix the provider credentials | N |
 
 The status `message` MUST contain a human readable description of error, if the status `code` is not `OK`.
@@ -198,17 +196,12 @@ If the conditions defined below are encountered, the provider MUST return the sp
 | 2 UNKNOWN | Something went wrong | Not enough information on what went wrong | Retry operation after sometime | Y |
 | 3 INVALID_ARGUMENT | Re-check supplied parameters | Re-check the supplied `Machine.Name` and make sure that it is in the desired format and not a blank value. Exact issue to be given in `.message` | Update `Machine.Name` to fix issues. | N |
 | 4 DEADLINE_EXCEEDED | Timeout | The call processing exceeded supplied deadline | Retry operation after sometime | Y |
-| 5 NOT_FOUND |  |  |  |  |
-| 6 ALREADY_EXISTS |  |  |  |  |
 | 7 PERMISSION_DENIED | Insufficent permissions | The requestor doesn't have enough permissions to delete an VM and it's required dependencies | Update requestor permissions to grant the same | N |
-| 8 RESOURCE_EXHAUSTED |  |  |  |  |
 | 9 PRECONDITION_FAILED | VM is in inconsistent state | The VM is in a state that is invalid for this operation | Manual intervention might be needed to fix the state of the VM | N |
 | 10 ABORTED | Operation is pending | Indicates that there is already an operation pending for the specified machine | Wait until previous pending operation is processed | Y |
-| 11 OUT_OF_RANGE |  |  |  |  |  |
 | 12 UNIMPLEMENTED | Not implemented | Unimplemented indicates operation is not implemented or not supported/enabled in this service. | Retry with an alternate logic or implement this method at the provider. Most methods by default are in this state | N |
 | 13 INTERNAL | Major error | Means some invariants expected by underlying system has been broken. If you see one of these errors, something is very broken. | Needs manual intervension to fix this | N |
 | 14 UNAVAILABLE | Not Available | Unavailable indicates the service is currently unavailable. | Retry operation after sometime | Y |
-| 15 DATALOSS |  |  |  |  |
 | 16 UNAUTHENTICATED | Missing provider credentials | Request does not have valid authentication credentials for the operation | Fix the provider credentials | N |
 
 The status `message` MUST contain a human readable description of error, if the status `code` is not `OK`.
@@ -216,7 +209,7 @@ This string MAY be surfaced by MCM to end users.
 
 #### `GetMachineStatus`
 
-A Provider can OPTIONALLY implement this driver call. Else should return a `NOT_IMPLEMENTED` status in error.
+A Provider can OPTIONALLY implement this driver call. Else should return a `UNIMPLEMENTED` status in error.
 This call will be invoked by the MC to get the status of a machine.
 This optional driver call helps in optimizing the working of the provider by avoiding unwanted calls to `CreateMachine()` and `DeleteMachine()`.
 
@@ -267,16 +260,12 @@ If the conditions defined below are encountered, the provider MUST return the sp
 | 3 INVALID_ARGUMENT | Re-check supplied parameters | Re-check the supplied `Machine.Name` and make sure that it is in the desired format and not a blank value. Exact issue to be given in `.message` | Update `Machine.Name` to fix issues. | N |
 | 4 DEADLINE_EXCEEDED | Timeout | The call processing exceeded supplied deadline | Retry operation after sometime | Y |
 | 5 NOT_FOUND | Machine isn't found at provider | The machine could not be found at provider | Not required | N |
-| 6 ALREADY_EXISTS |  |  |  |  |
 | 7 PERMISSION_DENIED | Insufficent permissions | The requestor doesn't have enough permissions to get details for the VM and it's required dependencies | Update requestor permissions to grant the same | N |
-| 8 RESOURCE_EXHAUSTED |  |  |  |  |
 | 9 PRECONDITION_FAILED | VM is in inconsistent state | The VM is in a state that is invalid for this operation | Manual intervention might be needed to fix the state of the VM | N |
-| 10 ABORTED |  |  |  |  |
 | 11 OUT_OF_RANGE | Multiple VMs found | Multiple VMs found with matching machine object names | Orphan VM handler to cleanup orphan VMs / Manual intervention maybe required if orphan VM handler isn't enabled.  | Y |
 | 12 UNIMPLEMENTED | Not implemented | Unimplemented indicates operation is not implemented or not supported/enabled in this service. | Retry with an alternate logic or implement this method at the provider. Most methods by default are in this state | N |
 | 13 INTERNAL | Major error | Means some invariants expected by underlying system has been broken. If you see one of these errors, something is very broken. | Needs manual intervension to fix this | N |
 | 14 UNAVAILABLE | Not Available | Unavailable indicates the service is currently unavailable. | Retry operation after sometime | Y |
-| 15 DATALOSS |  |  |  |  |
 | 16 UNAUTHENTICATED | Missing provider credentials | Request does not have valid authentication credentials for the operation | Fix the provider credentials | N |
 
 The status `message` MUST contain a human readable description of error, if the status `code` is not `OK`.
@@ -285,7 +274,7 @@ This string MAY be surfaced by MCM to end users.
 
 #### `ListMachines`
 
-A Provider can OPTIONALLY implement this driver call. Else should return a `NOT_IMPLEMENTED` status in error.
+A Provider can OPTIONALLY implement this driver call. Else should return a `UNIMPLEMENTED` status in error.
 The Provider SHALL return the information about all the machines associated with the `MachineClass`.
 Make sure to use appropriate filters to achieve the same to avoid data transfer overheads.
 This optional driver call helps in cleaning up orphan VMs present in the cluster. If not implemented, any orphan VM that might have been created incorrectly by the MCM/Provider (due to bugs in code/infra) might require manual clean up.
@@ -329,17 +318,10 @@ The MCM MUST implement the specified error recovery behavior when it encounters 
 | 2 UNKNOWN | Something went wrong | Not enough information on what went wrong | Retry operation after sometime | Y |
 | 3 INVALID_ARGUMENT | Re-check supplied parameters | Re-check the supplied `ProviderSpec` and make sure that all required fields are present in their desired value format. Exact issue to be given in `.message` | Update `ProviderSpec` to fix issues. | N |
 | 4 DEADLINE_EXCEEDED | Timeout | The call processing exceeded supplied deadline | Retry operation after sometime | Y |
-| 5 NOT_FOUND |  |  |  |  |
-| 6 ALREADY_EXISTS |  |  |  |  |
 | 7 PERMISSION_DENIED | Insufficent permissions | The requestor doesn't have enough permissions to list VMs and it's required dependencies | Update requestor permissions to grant the same | N |
-| 8 RESOURCE_EXHAUSTED |  |  |  |  |
-| 9 PRECONDITION_FAILED |  |  |  |  |
-| 10 ABORTED |  |  |  |  |
-| 11 OUT_OF_RANGE |  |  |  |  |  |
 | 12 UNIMPLEMENTED | Not implemented | Unimplemented indicates operation is not implemented or not supported/enabled in this service. | Retry with an alternate logic or implement this method at the provider. Most methods by default are in this state | N |
 | 13 INTERNAL | Major error | Means some invariants expected by underlying system has been broken. If you see one of these errors, something is very broken. | Needs manual intervension to fix this | N |
 | 14 UNAVAILABLE | Not Available | Unavailable indicates the service is currently unavailable. | Retry operation after sometime | Y |
-| 15 DATALOSS |  |  |  |  |
 | 16 UNAUTHENTICATED | Missing provider credentials | Request does not have valid authentication credentials for the operation | Fix the provider credentials | N |
 
 The status `message` MUST contain a human readable description of error, if the status `code` is not `OK`.
@@ -347,7 +329,7 @@ This string MAY be surfaced by MCM to end users.
 
 #### `GetVolumeIDs`
 
-A Provider can OPTIONALLY implement this driver call. Else should return a `NOT_IMPLEMENTED` status in error.
+A Provider can OPTIONALLY implement this driver call. Else should return a `UNIMPLEMENTED` status in error.
 This driver call will be called by the MCM to get the `VolumeIDs` for the list of `PersistantVolumes (PVs)` supplied.
 This OPTIONAL (but recommended) driver call helps in serailzied eviction of pods with PVs while draining of machines. This implies applications backed by PVs would be evicted one by one, leading to shorter application downtimes.
 
@@ -383,18 +365,52 @@ type GetVolumeIDsResponse struct {
 | 2 UNKNOWN | Something went wrong | Not enough information on what went wrong | Retry operation after sometime | Y |
 | 3 INVALID_ARGUMENT | Re-check supplied parameters | Re-check the supplied `PVSpecList` and make sure that it is in the desired format. Exact issue to be given in `.message` | Update `PVSpecList` to fix issues. | N |
 | 4 DEADLINE_EXCEEDED | Timeout | The call processing exceeded supplied deadline | Retry operation after sometime | Y |
-| 5 NOT_FOUND |  |  |  |  |
-| 6 ALREADY_EXISTS |  |  |  |  |
-| 7 PERMISSION_DENIED |  |  |  |  |
-| 8 RESOURCE_EXHAUSTED |  |  |  |  |
-| 9 PRECONDITION_FAILED |  |  |  |  |
-| 10 ABORTED |  |  |  |  |
-| 11 OUT_OF_RANGE |  |  |  |  |  |
 | 12 UNIMPLEMENTED | Not implemented | Unimplemented indicates operation is not implemented or not supported/enabled in this service. | Retry with an alternate logic or implement this method at the provider. Most methods by default are in this state | N |
 | 13 INTERNAL | Major error | Means some invariants expected by underlying system has been broken. If you see one of these errors, something is very broken. | Needs manual intervension to fix this | N |
 | 14 UNAVAILABLE | Not Available | Unavailable indicates the service is currently unavailable. | Retry operation after sometime | Y |
-| 15 DATALOSS |  |  |  |  |
-| 16 UNAUTHENTICATED |  |  |  |  |
+
+The status `message` MUST contain a human readable description of error, if the status `code` is not `OK`.
+This string MAY be surfaced by MCM to end users.
+
+#### `GenerateMachineClassForMigration`
+
+A Provider SHOULD implement this driver call, else it MUST return a `UNIMPLEMENTED` status in error.
+This driver call will be called by the Machine Controller to try to perform a machineClass migration for an unknown machineClass Kind. This helps in migration of one kind of machineClass to another kind. For instance an machineClass custom resource of `AWSMachineClass` to `MachineClass`.
+
+- On successful generation of machine class the Provider MUST reply `0 OK` (or) `nil` error.
+- `GenerateMachineClassForMigrationRequest` expects the provider-specific machine class (eg. AWSMachineClass)
+to be supplied as the `ProviderSpecificMachineClass`. The provider is responsible for unmarshalling the golang struct. It also passes a reference to an existing `MachineClass` object.
+- The provider is expected to fill in this`MachineClass` object based on the conversions.
+- An optional `ClassSpec` containing the `type ClassSpec struct` is also provided to decode the provider info.
+- `GenerateMachineClassForMigration` is only responsible for filling up the passed `MachineClass` object. 
+- The task of creating the new `CR` of the new kind (MachineClass) with the same name as the previous one and also annotating the old machineClass CR with a migrated annotation and migrating existing references is done by the calling library implicitly.
+- This operation MUST be idempotent.
+
+```protobuf
+// GenerateMachineClassForMigrationRequest is the request for generating the generic machineClass
+// for the provider specific machine class
+type GenerateMachineClassForMigrationRequest struct {
+	// ProviderSpecificMachineClass is provider specfic machine class object.
+	// E.g. AWSMachineClass
+	ProviderSpecificMachineClass interface{}
+	// MachineClass is the machine class object generated that is to be filled up
+	MachineClass *v1alpha1.MachineClass
+	// ClassSpec contains the class spec object to determine the machineClass kind
+	ClassSpec *v1alpha1.ClassSpec
+}
+
+// GenerateMachineClassForMigrationResponse is the response for generating the generic machineClass
+// for the provider specific machine class
+type GenerateMachineClassForMigrationResponse struct{}
+```
+
+##### MigrateMachineClass Errors
+
+| machine Code | Condition | Description | Recovery Behavior | Auto Retry Required |
+|-----------|-----------|-------------|-------------------|------------|
+| 0 OK | Successful | Migration of provider specific machine class was successful | Machine reconcilation is retried once the new class has been created | Y |
+| 12 UNIMPLEMENTED | Not implemented | Unimplemented indicates operation is not implemented or not supported/enabled in this provider. | None | N |
+| 13 INTERNAL | Major error | Means some invariants expected by underlying system has been broken. If you see one of these errors, something is very broken. | Might need manual intervension to fix this | Y |
 
 The status `message` MUST contain a human readable description of error, if the status `code` is not `OK`.
 This string MAY be surfaced by MCM to end users.

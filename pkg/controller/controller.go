@@ -80,6 +80,7 @@ func NewController(
 	safetyOptions options.SafetyOptions,
 	nodeConditions string,
 	bootstrapTokenAuthExtraGroups string,
+	deleteMigratedMachineClass bool,
 ) (Controller, error) {
 	controller := &controller{
 		namespace:                      namespace,
@@ -105,6 +106,7 @@ func NewController(
 		safetyOptions:                  safetyOptions,
 		nodeConditions:                 nodeConditions,
 		bootstrapTokenAuthExtraGroups:  bootstrapTokenAuthExtraGroups,
+		deleteMigratedMachineClass:     deleteMigratedMachineClass,
 	}
 
 	controller.internalExternalScheme = runtime.NewScheme()
@@ -399,6 +401,7 @@ type controller struct {
 	namespace                     string
 	nodeConditions                string
 	bootstrapTokenAuthExtraGroups string
+	deleteMigratedMachineClass    bool
 
 	controlMachineClient machineapi.MachineV1alpha1Interface
 	controlCoreClient    kubernetes.Interface
