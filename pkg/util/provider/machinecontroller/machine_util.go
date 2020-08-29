@@ -32,6 +32,7 @@ import (
 
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
@@ -889,50 +890,67 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 			)
 		}
 
-		buf := bytes.NewBuffer([]byte{})
-		errBuf := bytes.NewBuffer([]byte{})
+		// update node with the machine's state prior to termination
+		if err = c.UpdateNodeTerminationCondition(machine); err != nil {
+			if forceDeleteMachine {
+				klog.Warningf("Failed to update node conditions: %v. However, since it's a force deletion shall continue deletion of VM.", err)
+			} else {
+				klog.Errorf("Drain failed due to failure in update of node conditions: %v", err)
 
-		drainOptions := drain.NewDrainOptions(
-			c.targetCoreClient,
-			timeOutDuration,
-			maxEvictRetries,
-			pvDetachTimeOut,
-			nodeName,
-			-1,
-			forceDeletePods,
-			true,
-			true,
-			true,
-			buf,
-			errBuf,
-			c.driver,
-			c.pvcLister,
-			c.pvLister,
-		)
-		err = drainOptions.RunDrain()
-		if err == nil {
-			// Drain successful
-			klog.V(2).Infof("Drain successful for machine %q. \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
+				description = fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
+				state = v1alpha1.MachineStateFailed
+				phase = v1alpha1.MachineTerminating
 
-			description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
-			state = v1alpha1.MachineStateProcessing
-			phase = v1alpha1.MachineTerminating
+				skipDrain = true
+			}
+		}
 
-			// Return error even when machine object is updated
-			err = fmt.Errorf("Machine deletion in process. " + description)
-		} else if err != nil && forceDeleteMachine {
-			// Drain failed on force deletion
-			klog.Warningf("Drain failed for machine %q. However, since it's a force deletion shall continue deletion of VM. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+		if !skipDrain {
+			buf := bytes.NewBuffer([]byte{})
+			errBuf := bytes.NewBuffer([]byte{})
 
-			description = fmt.Sprintf("Drain failed due to - %s. However, since it's a force deletion shall continue deletion of VM. %s", err.Error(), machineutils.InitiateVMDeletion)
-			state = v1alpha1.MachineStateProcessing
-			phase = v1alpha1.MachineTerminating
-		} else {
-			klog.Warningf("Drain failed for machine %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+			drainOptions := drain.NewDrainOptions(
+				c.targetCoreClient,
+				timeOutDuration,
+				maxEvictRetries,
+				pvDetachTimeOut,
+				nodeName,
+				-1,
+				forceDeletePods,
+				true,
+				true,
+				true,
+				buf,
+				errBuf,
+				c.driver,
+				c.pvcLister,
+				c.pvLister,
+			)
+			err = drainOptions.RunDrain()
+			if err == nil {
+				// Drain successful
+				klog.V(2).Infof("Drain successful for machine %q. \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
 
-			description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
-			state = v1alpha1.MachineStateFailed
-			phase = v1alpha1.MachineTerminating
+				description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
+				state = v1alpha1.MachineStateProcessing
+				phase = v1alpha1.MachineTerminating
+
+				// Return error even when machine object is updated
+				err = fmt.Errorf("Machine deletion in process. " + description)
+			} else if err != nil && forceDeleteMachine {
+				// Drain failed on force deletion
+				klog.Warningf("Drain failed for machine %q. However, since it's a force deletion shall continue deletion of VM. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+
+				description = fmt.Sprintf("Drain failed due to - %s. However, since it's a force deletion shall continue deletion of VM. %s", err.Error(), machineutils.InitiateVMDeletion)
+				state = v1alpha1.MachineStateProcessing
+				phase = v1alpha1.MachineTerminating
+			} else {
+				klog.Warningf("Drain failed for machine %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+
+				description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
+				state = v1alpha1.MachineStateFailed
+				phase = v1alpha1.MachineTerminating
+			}
 		}
 	}
 
@@ -1138,4 +1156,53 @@ func (c *controller) getEffectiveNodeConditions(machine *v1alpha1.Machine) *stri
 		effectiveNodeConditions = &c.nodeConditions
 	}
 	return effectiveNodeConditions
+}
+
+// UpdateNodeTerminationCondition updates termination condition on the node object
+func (c *controller) UpdateNodeTerminationCondition(machine *v1alpha1.Machine) error {
+	if machine.Status.CurrentStatus.Phase == "" {
+		return nil
+	}
+
+	nodeName := machine.Labels["node"]
+
+	terminationCondition := v1.NodeCondition{
+		Type:               machineutils.NodeTerminationCondition,
+		Status:             v1.ConditionTrue,
+		LastHeartbeatTime:  metav1.Now(),
+		LastTransitionTime: metav1.Now(),
+	}
+
+	// check if condition already exists
+	cond, err := nodeops.GetNodeCondition(c.targetCoreClient, nodeName, machineutils.NodeTerminationCondition)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	if cond != nil && machine.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating {
+		// do not consider machine terminating phase if node already terminating
+		terminationCondition.Reason = cond.Reason
+		terminationCondition.Message = cond.Message
+	} else {
+		setTerminationReasonByPhase(machine.Status.CurrentStatus.Phase, &terminationCondition)
+	}
+
+	err = nodeops.AddOrUpdateConditionsOnNode(c.targetCoreClient, nodeName, terminationCondition)
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+	return err
+}
+
+func setTerminationReasonByPhase(phase v1alpha1.MachinePhase, terminationCondition *v1.NodeCondition) {
+	if phase == v1alpha1.MachineFailed { // if failed, terminated due to health
+		terminationCondition.Reason = machineutils.NodeUnhealthy
+		terminationCondition.Message = "Machine Controller is terminating failed machine"
+	} else { // in all other cases (except for already terminating): assume scale down
+		terminationCondition.Reason = machineutils.NodeScaledDown
+		terminationCondition.Message = "Machine Controller is scaling down machine"
+	}
 }
