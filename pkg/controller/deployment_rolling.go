@@ -27,14 +27,14 @@ import (
 	"sort"
 	"time"
 
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/integer"
-
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"k8s.io/klog"
+	"k8s.io/utils/integer"
 )
 
 var (
@@ -322,7 +322,7 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 		// to avoid scheduling on older machines
 		for _, machine := range filteredMachines {
 			if machine.Status.Node != "" {
-				err = AddOrUpdateTaintOnNode(
+				err = nodeops.AddOrUpdateTaintOnNode(
 					dc.targetCoreClient,
 					machine.Status.Node,
 					taint,
