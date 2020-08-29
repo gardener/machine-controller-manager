@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
@@ -520,7 +521,7 @@ func (c *controller) UpdateNodeTerminationCondition(machine *v1alpha1.Machine) e
 	}
 
 	// check if condition already exists
-	cond, err := GetNodeCondition(c.targetCoreClient, nodeName, NodeTerminationCondition)
+	cond, err := nodeops.GetNodeCondition(c.targetCoreClient, nodeName, NodeTerminationCondition)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -536,7 +537,7 @@ func (c *controller) UpdateNodeTerminationCondition(machine *v1alpha1.Machine) e
 		setTerminationReasonByPhase(machine.Status.CurrentStatus.Phase, &terminationCondition)
 	}
 
-	err = AddOrUpdateConditionsOnNode(c.targetCoreClient, nodeName, terminationCondition)
+	err = nodeops.AddOrUpdateConditionsOnNode(c.targetCoreClient, nodeName, terminationCondition)
 	if apierrors.IsNotFound(err) {
 		return nil
 	}
