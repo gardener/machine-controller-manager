@@ -17,6 +17,8 @@ limitations under the License.
 // Package machineutils contains the consts and global vaariables for machine operation
 package machineutils
 
+import v1 "k8s.io/api/core/v1"
+
 const (
 	// GetVMStatus sets machine status to terminating and specifies next step as getting VMs
 	GetVMStatus = "Set machine status to termination. Now, getting VM Status"
@@ -40,6 +42,13 @@ const (
 	MachineClassKind = "MachineClass"
 	// MigratedMachineClass annotation helps in identifying machineClasses who have been migrated by migration controller
 	MigratedMachineClass = "machine.sapcloud.io/migrated"
+
+	// NodeUnhealthy is a node termination reason for failed machines
+	NodeUnhealthy = "Unhealthy"
+	// NodeScaledDown is a node termination reason for healthy deleted machines
+	NodeScaledDown = "ScaleDown"
+	// NodeTerminationCondition describes nodes that are terminating
+	NodeTerminationCondition v1.NodeConditionType = "Terminating"
 )
 
 // Retry is a label for retrying operation
