@@ -62,6 +62,7 @@ func NewMCMServer() *MCMServer {
 			KubeAPIBurst:            30,
 			LeaderElection:          leaderelectionconfig.DefaultLeaderElectionConfiguration(),
 			ControllerStartInterval: metav1.Duration{Duration: 0 * time.Second},
+			AutoscalerScaleDownAnnotationDuringRollout: true,
 			SafetyOptions: machineconfig.SafetyOptions{
 				SafetyUp:                                 2,
 				SafetyDown:                               1,
@@ -114,6 +115,8 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&s.NodeConditions, "node-conditions", s.NodeConditions, "List of comma-separated/case-sensitive node-conditions which when set to True will change machine to a failed state after MachineHealthTimeout duration. It may further be replaced with a new machine if the machine is backed by a machine-set object.")
 	fs.StringVar(&s.BootstrapTokenAuthExtraGroups, "bootstrap-token-auth-extra-groups", s.BootstrapTokenAuthExtraGroups, "Comma-separated list of groups to set bootstrap token's \"auth-extra-groups\" field to")
 	fs.BoolVar(&s.DeleteMigratedMachineClass, "delete-migrated-machine-class", false, "Deletes any (provider specific) machine class that has the machine.sapcloud.io/migrated annotation")
+
+	fs.BoolVar(&s.AutoscalerScaleDownAnnotationDuringRollout, "autoscaler-scaldown-annotation-during-rollout", true, "Add cluster autoscaler scale-down disabled annotation during roll-out.")
 
 	leaderelectionconfig.BindFlags(&s.LeaderElection, fs)
 	// TODO: DefaultFeatureGate is global and it adds all k8s flags
