@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -176,7 +177,7 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 				continue
 			}
 
-			err = RemoveTaintOffNode(
+			err = nodeops.RemoveTaintOffNode(
 				dc.targetCoreClient,
 				machine.Status.Node,
 				node,

@@ -31,6 +31,7 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -763,10 +764,11 @@ var _ = Describe("machine", func() {
 			fakeDriver              *driver.FakeDriver
 		}
 		type expect struct {
-			machine     *v1alpha1.Machine
-			err         error
-			nodeDeleted bool
-			retry       machineutils.Retry
+			machine                       *v1alpha1.Machine
+			err                           error
+			nodeTerminationConditionIsSet bool
+			nodeDeleted                   bool
+			retry                         machineutils.Retry
 		}
 		type data struct {
 			setup  setup
@@ -843,6 +845,13 @@ var _ = Describe("machine", func() {
 				if data.expect.nodeDeleted {
 					_, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
 					Expect(nodeErr).To(HaveOccurred())
+				}
+				if data.expect.nodeTerminationConditionIsSet {
+					node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
+					Expect(nodeErr).To(Not(HaveOccurred()))
+					Expect(len(node.Status.Conditions)).To(Equal(1))
+					Expect(node.Status.Conditions[0].Type).To(Equal(machineutils.NodeTerminationCondition))
+					Expect(node.Status.Conditions[0].Status).To(Equal(v1.ConditionTrue))
 				}
 
 			},
@@ -1174,23 +1183,31 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							"node": "fakeNode-0",
 						},
 						true,
 					),
+					nodes: []*corev1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "fakeNode-0",
+							},
+						},
+					},
 				},
 				action: action{
 					machine: "machine-0",
 					fakeDriver: &driver.FakeDriver{
 						VMExists:   true,
-						ProviderID: "fakeID-0",
+						ProviderID: "fakeID",
 						NodeName:   "fakeNode-0",
 						Err:        nil,
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("Machine deletion in process. Drain successful. %s", machineutils.InitiateVMDeletion),
-					retry: machineutils.RetryOp,
+					err:                           fmt.Errorf("Machine deletion in process. Drain successful. %s", machineutils.InitiateVMDeletion),
+					retry:                         machineutils.RetryOp,
+					nodeTerminationConditionIsSet: true,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1645,7 +1662,7 @@ var _ = Describe("machine", func() {
 					),
 				},
 			}),
-			Entry("Drain machine failure", &data{
+			Entry("Drain machine failure due to node update failure", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
 						{
@@ -1688,14 +1705,14 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							"node": "fakeNode-0",
 						},
 						true,
 					),
 					nodes: []*corev1.Node{
 						{
 							ObjectMeta: metav1.ObjectMeta{
-								Name: "fakeID-0",
+								Name: "fakeNode-0",
 							},
 						},
 					},
@@ -1715,7 +1732,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("Failed to update node"),
+					err:   fmt.Errorf("failed to create update conditions for node \"fakeNode-0\": Failed to update node"),
 					retry: machineutils.RetryOp,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -1735,7 +1752,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain failed due to - Failed to update node. Will retry in next sync. %s", machineutils.InitiateDrain),
+								Description:    fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", "failed to create update conditions for node \"fakeNode-0\": Failed to update node", machineutils.InitiateDrain),
 								State:          v1alpha1.MachineStateFailed,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -1873,7 +1890,7 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
+							Node: "fakeID",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
