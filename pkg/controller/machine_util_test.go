@@ -1915,7 +1915,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineTemplateSpec{},
 						&machinev1.MachineStatus{
 							Node:          "test-node",
-							CurrentStatus: machinev1.CurrentStatus{Phase: MachineFailed},
+							CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineFailed},
 						},
 						nil, nil, nil),
 				},
@@ -1961,7 +1961,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineTemplateSpec{},
 						&machinev1.MachineStatus{
 							Node:          "test-node",
-							CurrentStatus: machinev1.CurrentStatus{Phase: MachineRunning},
+							CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineRunning},
 						},
 						nil, nil, nil),
 				},
@@ -2007,7 +2007,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineTemplateSpec{},
 						&machinev1.MachineStatus{
 							Node:          "test-node",
-							CurrentStatus: machinev1.CurrentStatus{Phase: MachineTerminating},
+							CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineTerminating},
 						},
 						nil, nil, nil),
 				},
@@ -2053,7 +2053,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineTemplateSpec{},
 						&machinev1.MachineStatus{
 							Node:          "test-node",
-							CurrentStatus: machinev1.CurrentStatus{Phase: MachineTerminating},
+							CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineTerminating},
 						},
 						nil, nil, nil),
 				},
@@ -2103,7 +2103,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineTemplateSpec{},
 						&machinev1.MachineStatus{
 							Node:          "test-node",
-							CurrentStatus: machinev1.CurrentStatus{Phase: MachineFailed},
+							CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineFailed},
 						},
 						nil, nil, nil),
 				},
@@ -2148,7 +2148,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineTemplateSpec{},
 						&machinev1.MachineStatus{
 							Node:          "test-node",
-							CurrentStatus: machinev1.CurrentStatus{Phase: MachineTerminating},
+							CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineTerminating},
 						},
 						nil, nil, nil),
 				},

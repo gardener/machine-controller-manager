@@ -17,6 +17,7 @@ package controller
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"sync"
@@ -211,16 +212,21 @@ var _ = Describe("machineset", func() {
 
 	Describe("#manageReplicas", func() {
 
-		var (
-			testMachineSet     *machinev1.MachineSet
-			testActiveMachine1 *machinev1.Machine
-			testActiveMachine2 *machinev1.Machine
-			testActiveMachine3 *machinev1.Machine
-			testActiveMachine4 *machinev1.Machine
-		)
+		entryTemplate := `
+MachineSet Replicas: %v
+Running Machines: %v
+Pending Machine: %v
+Failed Machine: %v
+Expected Active Machines: %v
+Expected Failed Machines: %v
+FailedMachineDeletionRatio: %v
 
-		BeforeEach(func() {
-			testMachineSet = &machinev1.MachineSet{
+`
+
+		DescribeTable("", func(machineSetReplicas, runningMachinesCount, pendingMachinesCount, failedMachinesCount,
+			expectedActiveMachinesCount, expectedFailedMachinesCount int, failedMachineDeletionRatio float64) {
+
+			testMachineSet := &machinev1.MachineSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "MachineSet-test",
 					Namespace: testNamespace,
@@ -234,11 +240,12 @@ var _ = Describe("machineset", func() {
 					APIVersion: "machine.sapcloud.io/v1alpha1",
 				},
 				Spec: machinev1.MachineSetSpec{
-					Replicas: 3,
+					Replicas: int32(machineSetReplicas),
 					Template: machinev1.MachineTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
-								"test-label": "test-label",
+								"test-label":     "test-label",
+								"failed-machine": "false",
 							},
 						},
 					},
@@ -250,260 +257,59 @@ var _ = Describe("machineset", func() {
 				},
 			}
 
-			testActiveMachine1 = &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
-					UID:       "1234568",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-				},
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Machine",
-					APIVersion: "machine.sapcloud.io/v1alpha1",
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: machinev1.MachineRunning,
-					},
-				},
-			}
-
-			testActiveMachine2 = &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-2",
-					Namespace: testNamespace,
-					UID:       "1234569",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-				},
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Machine",
-					APIVersion: "machine.sapcloud.io/v1alpha1",
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: machinev1.MachineRunning,
-					},
-				},
-			}
-		})
-
-		//Testcase: ActiveMachines < DesiredMachines
-		//It should create new machines and should not return erros.
-		It("should create new machines and should not return errors.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
-			objects := []runtime.Object{}
-			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2)
+			var objects []runtime.Object
+			initialActiveMachines := generateMachines(runningMachinesCount, pendingMachinesCount, 0, map[string]string{
+				"test-label":     "test-label",
+				"failed-machine": "false",
+			})
+			initialFailedMachines := generateMachines(0, 0, failedMachinesCount, map[string]string{
+				"test-label":     "test-label",
+				"failed-machine": "true",
+			})
+			initialMachines := append(initialActiveMachines, initialFailedMachines...)
+			objects = append(objects, testMachineSet)
+			for _, m := range initialMachines {
+				objects = append(objects, m)
+			}
 			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+			c.safetyOptions.FailedMachineDeletionRatio = failedMachineDeletionRatio
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
 			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
-			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas) - 1))
+			Expect(len(machines.Items)).To(Equal(len(initialMachines)))
 
-			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2}
-			Err := c.manageReplicas(activeMachines, testMachineSet)
+			err := c.manageReplicas(initialMachines, testMachineSet)
+			Expect(err).To(BeNil())
+
 			waitForCacheSync(stop, c)
+
 			//TODO: Could not use Listers here, need to check more.
-			machines, _ = c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
-			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
-			Expect(Err).Should(BeNil())
-		})
+			activeMachine, err := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{LabelSelector: "failed-machine=false"})
+			Expect(err).To(BeNil())
+			Expect(len(activeMachine.Items)).To(Equal(expectedActiveMachinesCount))
 
-		//TestCase: ActiveMachines = DesiredMachines
-		//Testcase: It should not return error.
-		It("should not create or delete machined and should not return error", func() {
-			stop := make(chan struct{})
-			defer close(stop)
+			failedMachines, err := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{LabelSelector: "failed-machine=true"})
+			Expect(err).To(BeNil())
+			Expect(len(failedMachines.Items)).To(Equal(expectedFailedMachinesCount))
+		},
+			generateEntry("should create a machine"+entryTemplate, 3, 2, 0, 0, 3, 0, 1.0),
+			generateEntry("should not create or delete machines"+entryTemplate, 3, 3, 0, 0, 3, 0, 1.0),
+			generateEntry("should delete a machine"+entryTemplate, 3, 4, 0, 0, 3, 0, 1.0),
 
-			testActiveMachine3 = &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-3",
-					Namespace: testNamespace,
-					UID:       "12345610",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-				},
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Machine",
-					APIVersion: "machine.sapcloud.io/v1alpha1",
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: machinev1.MachineRunning,
-					},
-				},
-			}
+			// let's test FailedMachineDeletionRatio behavior
+			generateEntry("should not delete failed machines and not create any new machines"+entryTemplate, 3, 2, 0, 5, 2, 5, 0.0),
+			generateEntry("should delete one machine"+entryTemplate, 3, 2, 0, 5, 2, 4, 0.2),
 
-			objects := []runtime.Object{}
-			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2, testActiveMachine3)
-			c, trackers := createController(stop, testNamespace, objects, nil, nil)
-			defer trackers.Stop()
-			waitForCacheSync(stop, c)
-
-			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
-			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
-
-			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2, testActiveMachine3}
-			Err := c.manageReplicas(activeMachines, testMachineSet)
-			waitForCacheSync(stop, c)
-			machines, _ = c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
-			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
-			Expect(Err).Should(BeNil())
-		})
-
-		//TestCase: ActiveMachines > DesiredMachines
-		//Testcase: It should not return error and delete extra machine.
-		It("should not return error and should delete extra machine.", func() {
-			stop := make(chan struct{})
-			defer close(stop)
-
-			testActiveMachine3 = &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-3",
-					Namespace: testNamespace,
-					UID:       "12345610",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-				},
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Machine",
-					APIVersion: "machine.sapcloud.io/v1alpha1",
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: machinev1.MachineRunning,
-					},
-				},
-			}
-
-			testActiveMachine4 = &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-4",
-					Namespace: testNamespace,
-					UID:       "12345611",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-				},
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Machine",
-					APIVersion: "machine.sapcloud.io/v1alpha1",
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: machinev1.MachineFailed,
-					},
-				},
-			}
-
-			objects := []runtime.Object{}
-			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2, testActiveMachine3, testActiveMachine4)
-			c, trackers := createController(stop, testNamespace, objects, nil, nil)
-			defer trackers.Stop()
-			waitForCacheSync(stop, c)
-
-			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
-			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas + 1)))
-
-			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2, testActiveMachine3, testActiveMachine4}
-			Err := c.manageReplicas(activeMachines, testMachineSet)
-			waitForCacheSync(stop, c)
-			machines, _ = c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
-			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
-			Expect(Err).Should(BeNil())
-		})
-
-		//TestCase: ActiveMachines > DesiredMachines, but has Failed machines, and failedMachineDeletionRatio is 0.2
-		//Testcase: It should not return error and delete extra machines.
-		It("should not return error and should delete extra machine.", func() {
-			stop := make(chan struct{})
-			defer close(stop)
-
-			testActiveMachine3 = &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-3",
-					Namespace: testNamespace,
-					UID:       "12345610",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-				},
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Machine",
-					APIVersion: "machine.sapcloud.io/v1alpha1",
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: machinev1.MachineRunning,
-					},
-				},
-			}
-
-			testActiveMachine4 = &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-4",
-					Namespace: testNamespace,
-					UID:       "12345611",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-				},
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Machine",
-					APIVersion: "machine.sapcloud.io/v1alpha1",
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: machinev1.MachineFailed,
-					},
-				},
-			}
-
-			testPendingMachine := &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-pending",
-					Namespace: testNamespace,
-					UID:       "12345610",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-				},
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Machine",
-					APIVersion: "machine.sapcloud.io/v1alpha1",
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: machinev1.MachinePending,
-					},
-				},
-			}
-
-			objects := []runtime.Object{}
-			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2, testActiveMachine4, testPendingMachine)
-			c, trackers := createController(stop, testNamespace, objects, nil, nil)
-			defer trackers.Stop()
-			waitForCacheSync(stop, c)
-
-			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
-			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas + 1)))
-
-			c.safetyOptions.FailedMachineDeletionRatio = 0.2
-			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2, testActiveMachine4, testPendingMachine}
-			Err := c.manageReplicas(activeMachines, testMachineSet)
-			waitForCacheSync(stop, c)
-			machines, _ = c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
-			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas + 1)))
-			Expect(Err).Should(BeNil())
-		})
+			// playing with different FailedMachineDeletionRatios
+			generateEntry("should delete one machine"+entryTemplate, 10, 10, 0, 10, 10, 9, 0.1),
+			generateEntry("should delete two machines"+entryTemplate, 10, 10, 0, 5, 10, 3, 0.2),
+			generateEntry("should delete 4 machines"+entryTemplate, 10, 10, 0, 5, 10, 1, 0.4),
+			generateEntry("should delete all failed machines (and create new ones)"+entryTemplate, 10, 2, 0, 5, 10, 0, 1.0),
+		)
 	})
 
 	//TODO: This method has dependency on generic-machineclass. Implement later.
@@ -886,72 +692,6 @@ var _ = Describe("machineset", func() {
 		})
 	})
 
-	Describe("#terminateMachines", func() {
-		var labels = map[string]string{
-			"test-label": "test-label",
-		}
-
-		DescribeTable("", func(msReplicas int, runningMachinesCount, pendingMachinesCount, failedMachinesCount, expectedInactiveMachines int) {
-			testMachineSet := &machinev1.MachineSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "MachineSet-test",
-					Namespace: testNamespace,
-					Labels:    labels,
-					UID:       "1234567",
-				},
-				Spec: machinev1.MachineSetSpec{
-					Replicas: int32(msReplicas),
-					Template: machinev1.MachineTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: labels,
-						},
-					},
-					Selector: &metav1.LabelSelector{
-						MatchLabels: labels,
-					},
-				},
-			}
-
-			runningMachines := generateMachines(runningMachinesCount, 0, 0, labels)
-			pendingMachines := generateMachines(0, pendingMachinesCount, 0, labels)
-			activeMachines := append(runningMachines, pendingMachines...)
-			inactiveMachines := generateMachines(0, 0, failedMachinesCount, map[string]string{
-				"test-label": "test-label",
-				"inactive":   "machine",
-			})
-
-			stop := make(chan struct{})
-			defer close(stop)
-			objects := []runtime.Object{}
-			objects = append(objects, testMachineSet)
-			for _, am := range activeMachines {
-				objects = append(objects, am)
-			}
-			for _, im := range inactiveMachines {
-				objects = append(objects, im)
-			}
-			c, trackers := createController(stop, testNamespace, objects, nil, nil)
-			defer trackers.Stop()
-			waitForCacheSync(stop, c)
-
-			c.safetyOptions.FailedMachineDeletionRatio = 0.2
-			deletionWindow := c.calculateStaleMachineDeletionWindow(activeMachines, runningMachines, inactiveMachines, testMachineSet)
-			err := c.terminateStaleMachines(inactiveMachines, deletionWindow, testMachineSet)
-			Expect(err).Should(BeNil())
-
-			waitForCacheSync(stop, c)
-			list, err := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{LabelSelector: "inactive=machine"})
-			Expect(err).Should(BeNil())
-			Expect(len(list.Items)).To(Equal(expectedInactiveMachines))
-		},
-			Entry("MachineSet Replicas == 0, should delete all inactiveMachines", 0, 3, 3, 3, 0),
-			Entry("MachineSet Replicas == 20, no Pending Machines, should delete 2 inactiveMachines", 20, 10, 0, 10, 6),
-			Entry("MachineSet Replicas == 30, 1 Pending Machines, should delete 6 inactiveMachines", 30, 15, 1, 14, 9),
-			Entry("MachineSet Replicas == 3, no Pending Machines, should delete 1 inactiveMachine", 3, 1, 0, 2, 1),
-			Entry("MachineSet Replicas == 6, 4 Pending Machines, should not delete any inactiveMachine", 6, 1, 4, 1, 1),
-		)
-	})
-
 	Describe("#addMachineSetFinalizers", func() {
 		var (
 			testMachineSet *machinev1.MachineSet
@@ -1175,4 +915,8 @@ func generateMachines(running, pending, failed int, labels map[string]string) (r
 	}
 
 	return
+}
+
+func generateEntry(template string, parameters ...interface{}) TableEntry {
+	return Entry(fmt.Sprintf(template, parameters...), parameters...)
 }

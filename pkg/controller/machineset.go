@@ -342,9 +342,21 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 	if len(staleMachines) >= 1 {
 		klog.V(2).Infof("Deleting stale machines")
 	}
-	c.terminateStaleMachines(staleMachines, machineDeletionWindow, machineSet)
+	deletedStaleMachines, _ := c.terminateStaleMachines(staleMachines, machineDeletionWindow, machineSet)
+	staleMachinesLeft := len(staleMachines) - deletedStaleMachines
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
+	if staleMachinesLeft > 0 {
+		// Count the leftover stale machines against .spec.replicas to prevent sudden surge in machines which can happen if large number of stale machines are left over
+		diff -= staleMachinesLeft
+		if diff < 0 {
+			// Typically, diff >= len(staleMachines)
+			// but this can happen when there are lot of failed machines and scale down happens. eg:
+			// allMachines list is 12. Failed machines = 10. deletionWindow = 3. spec.replicas is changed to 6. So active machines = 12-10 = 2.
+			// Here diff before throttling = -(2-6) = 4. diff after throttling = 4 - (10 - 3) = -3
+			return nil
+		}
+	}
 	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
 
 	if diff < 0 {
@@ -358,11 +370,6 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 
 		if diff > BurstReplicas {
 			diff = BurstReplicas
-		}
-
-		// throttle machine creation until all stale machines are deleted
-		if len(staleMachines) > 0 && diff > machineDeletionWindow {
-			diff = machineDeletionWindow
 		}
 
 		if diff == 0 {
@@ -705,16 +712,17 @@ func (c *controller) terminateMachines(inactiveMachines []*v1alpha1.Machine, mac
 	return nil
 }
 
-func (c *controller) terminateStaleMachines(inactiveMachines []*v1alpha1.Machine, deletionWindow int, machineSet *v1alpha1.MachineSet) error {
+func (c *controller) terminateStaleMachines(inactiveMachines []*v1alpha1.Machine, deletionWindow int, machineSet *v1alpha1.MachineSet) (int, error) {
 	var (
-		wg    sync.WaitGroup
-		errCh = make(chan error, deletionWindow)
+		deletedMachines int
+		wg              sync.WaitGroup
+		errCh           = make(chan error, deletionWindow)
 	)
 	defer close(errCh)
 
 	wg.Add(deletionWindow)
-	for i := 0; i < deletionWindow; i++ {
-		go c.prepareMachineForDeletion(inactiveMachines[i], machineSet, &wg, errCh)
+	for deletedMachines = 0; deletedMachines < deletionWindow && deletedMachines < len(inactiveMachines); deletedMachines++ {
+		go c.prepareMachineForDeletion(inactiveMachines[deletedMachines], machineSet, &wg, errCh)
 	}
 	wg.Wait()
 
@@ -722,12 +730,12 @@ func (c *controller) terminateStaleMachines(inactiveMachines []*v1alpha1.Machine
 	case err := <-errCh:
 		// all errors have been reported before and they're likely to be the same, so we'll only return the first one we hit.
 		if err != nil {
-			return err
+			return deletedMachines, err
 		}
 	default:
 	}
 
-	return nil
+	return deletedMachines, nil
 }
 
 // calculateStaleMachineDeletionWindow computes an amount of Failed Machines that can be deleted based on FailedMachineDeletionRatio
