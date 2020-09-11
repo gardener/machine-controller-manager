@@ -348,15 +348,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
 	if staleMachinesLeft > 0 {
 		// Count the leftover stale machines against .spec.replicas to prevent sudden surge in machines which can happen if large number of stale machines are left over
-		diff -= staleMachinesLeft
-		if diff < 0 {
-			// Typically, diff >= len(staleMachines)
-			// but this can happen when there are lot of failed machines and scale down happens. eg:
-			// allMachines list is 12. Failed machines = 10. deletionWindow = 3. spec.replicas is changed to 6. So active machines = 12-10 = 2.
-			// Here diff before throttling = -(2-6) = 4. diff after throttling = 4 - (10 - 3) = -3
-			return nil
-		}
-	}
+		diff += staleMachinesLeft
 	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
 
 	if diff < 0 {
@@ -371,11 +363,6 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 		if diff > BurstReplicas {
 			diff = BurstReplicas
 		}
-
-		if diff == 0 {
-			return nil
-		}
-
 		// TODO: Track UIDs of creates just like deletes. The problem currently
 		// is we'd need to wait on the result of a create to record the machine's
 		// UID, which would require locking *across* the create, which will turn
