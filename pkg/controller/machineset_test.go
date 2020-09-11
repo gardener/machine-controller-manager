@@ -223,7 +223,7 @@ FailedMachineDeletionRatio: %v
 
 `
 
-		DescribeTable("", func(machineSetReplicas, runningMachinesCount, pendingMachinesCount, failedMachinesCount,
+		FDescribeTable("", func(machineSetReplicas, runningMachinesCount, pendingMachinesCount, failedMachinesCount,
 			expectedActiveMachinesCount, expectedFailedMachinesCount int, failedMachineDeletionRatio float64) {
 
 			testMachineSet := &machinev1.MachineSet{
@@ -302,13 +302,15 @@ FailedMachineDeletionRatio: %v
 
 			// let's test FailedMachineDeletionRatio behavior
 			generateEntry("should not delete failed machines and not create any new machines"+entryTemplate, 3, 2, 0, 5, 2, 5, 0.0),
-			generateEntry("should delete one machine"+entryTemplate, 3, 2, 0, 5, 2, 4, 0.2),
+			generateEntry("should delete one machine and create one machine"+entryTemplate, 3, 2, 0, 5, 3, 4, 0.2),
 
 			// playing with different FailedMachineDeletionRatios
 			generateEntry("should delete one machine"+entryTemplate, 10, 10, 0, 10, 10, 9, 0.1),
 			generateEntry("should delete two machines"+entryTemplate, 10, 10, 0, 5, 10, 3, 0.2),
 			generateEntry("should delete 4 machines"+entryTemplate, 10, 10, 0, 5, 10, 1, 0.4),
+			generateEntry("should delete 3 failed machines (and create new ones)"+entryTemplate, 10, 5, 0, 5, 8, 2, 0.3),
 			generateEntry("should delete all failed machines (and create new ones)"+entryTemplate, 10, 2, 0, 5, 10, 0, 1.0),
+			generateEntry("should delete two failed machines (and create new ones)"+entryTemplate, 5, 15, 0, 5, 5, 2, 0.5),
 		)
 	})
 
@@ -919,4 +921,8 @@ func generateMachines(running, pending, failed int, labels map[string]string) (r
 
 func generateEntry(template string, parameters ...interface{}) TableEntry {
 	return Entry(fmt.Sprintf(template, parameters...), parameters...)
+}
+
+func FgenerateEntry(template string, parameters ...interface{}) TableEntry {
+	return FEntry(fmt.Sprintf(template, parameters...), parameters...)
 }

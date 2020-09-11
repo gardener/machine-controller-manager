@@ -346,9 +346,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 	staleMachinesLeft := len(staleMachines) - deletedStaleMachines
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
-	if staleMachinesLeft > 0 {
-		// Count the leftover stale machines against .spec.replicas to prevent sudden surge in machines which can happen if large number of stale machines are left over
-		diff += staleMachinesLeft
+
 	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
 
 	if diff < 0 {
@@ -359,6 +357,11 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 		}
 
 		diff *= -1
+
+		// clamp machine creation to the count of recently deleted stale machines, so that we don't overshoot
+		if staleMachinesLeft > 0 && diff > deletedStaleMachines {
+			diff = deletedStaleMachines
+		}
 
 		if diff > BurstReplicas {
 			diff = BurstReplicas
