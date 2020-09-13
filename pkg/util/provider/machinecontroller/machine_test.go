@@ -1383,7 +1383,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							Conditions: []corev1.NodeCondition{
-								corev1.NodeCondition{
+								{
 									Type:               corev1.NodeReady,
 									Status:             corev1.ConditionUnknown,
 									LastTransitionTime: metav1.NewTime(time.Now().Add(-6 * time.Minute)),

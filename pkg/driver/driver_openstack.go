@@ -44,6 +44,11 @@ import (
 	"github.com/gophercloud/utils/openstack/clientconfig"
 )
 
+const (
+	// CinderDriverName is the name of the CSI driver for Cinder
+	cinderDriverName = "cinder.csi.openstack.org"
+)
+
 type logger struct{}
 
 func (l logger) Printf(format string, args ...interface{}) {
@@ -537,12 +542,13 @@ func (d *OpenStackDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]st
 	names := []string{}
 	for i := range specs {
 		spec := &specs[i]
-		if spec.Cinder == nil {
-			// Not a openStack volume
-			continue
+		if spec.Cinder != nil {
+			name := spec.Cinder.VolumeID
+			names = append(names, name)
+		} else if spec.CSI != nil && spec.CSI.Driver == cinderDriverName && spec.CSI.VolumeHandle != "" {
+			name := spec.CSI.VolumeHandle
+			names = append(names, name)
 		}
-		name := spec.Cinder.VolumeID
-		names = append(names, name)
 	}
 	return names, nil
 }
