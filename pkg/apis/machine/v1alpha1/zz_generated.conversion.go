@@ -2646,6 +2646,7 @@ func autoConvert_v1alpha1_OpenStackMachineClassSpec_To_machine_OpenStackMachineC
 	out.PodNetworkCidr = in.PodNetworkCidr
 	out.RootDiskSize = in.RootDiskSize
 	out.UseConfigDrive = (*bool)(unsafe.Pointer(in.UseConfigDrive))
+	out.ServerGroupID = (*string)(unsafe.Pointer(in.ServerGroupID))
 	return nil
 }
 
@@ -2669,6 +2670,7 @@ func autoConvert_machine_OpenStackMachineClassSpec_To_v1alpha1_OpenStackMachineC
 	out.PodNetworkCidr = in.PodNetworkCidr
 	out.RootDiskSize = in.RootDiskSize
 	out.UseConfigDrive = (*bool)(unsafe.Pointer(in.UseConfigDrive))
+	out.ServerGroupID = (*string)(unsafe.Pointer(in.ServerGroupID))
 	return nil
 }
 
