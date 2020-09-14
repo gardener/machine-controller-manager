@@ -22,6 +22,10 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/time/rate"
+
+	"github.com/gardener/machine-controller-manager/pkg/util/backoff_manager"
+
 	machineinternal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	machinev1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
@@ -57,7 +61,7 @@ const (
 	// MCFinalizerName is the finalizer created for the external
 	// machine controller to differentiate it from the MCMFinalizerName
 	// This finalizer is added only on secret-objects to avoid race between in-tree and out-of-tree controllers.
-	// This is a stopgap solution to resolve: https://github.com/gardener/machine-controller-manager/issues/486. 
+	// This is a stopgap solution to resolve: https://github.com/gardener/machine-controller-manager/issues/486.
 	MCFinalizerName = "machine.sapcloud.io/machine-controller"
 )
 
@@ -80,15 +84,17 @@ func NewController(
 	bootstrapTokenAuthExtraGroups string,
 ) (Controller, error) {
 	controller := &controller{
-		namespace:                   namespace,
-		controlMachineClient:        controlMachineClient,
-		controlCoreClient:           controlCoreClient,
-		targetCoreClient:            targetCoreClient,
-		recorder:                    recorder,
-		secretQueue:                 workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
-		nodeQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
-		machineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineclass"),
-		machineQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
+		namespace:            namespace,
+		controlMachineClient: controlMachineClient,
+		controlCoreClient:    controlCoreClient,
+		targetCoreClient:     targetCoreClient,
+		recorder:             recorder,
+		secretQueue:          workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
+		nodeQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
+		machineClassQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineclass"),
+		machineQueue: workqueue.NewNamedRateLimitingQueue(workqueue.NewMaxOfRateLimiter(
+			&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+			backoff_manager.NewBackoffManager(backoff_manager.MachineSetKeyedMachine, time.Second, 30*time.Second)), "machine"),
 		machineSafetyOrphanVMsQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
 		machineSafetyAPIServerQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
 		safetyOptions:               safetyOptions,
