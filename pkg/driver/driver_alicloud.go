@@ -36,6 +36,11 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 )
 
+const (
+	// alicloudDriverName is the name of the CSI driver for Alibaba Cloud
+	alicloudDriverName = "diskplugin.csi.alibabacloud.com"
+)
+
 // AlicloudDriver is the driver struct for holding Alicloud machine information
 type AlicloudDriver struct {
 	AlicloudMachineClass *v1alpha1.AlicloudMachineClass
@@ -314,7 +319,7 @@ func (c *AlicloudDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]str
 			if name, ok := spec.FlexVolume.Options["volumeId"]; ok {
 				names = append(names, name)
 			}
-		} else if spec.CSI != nil && spec.CSI.Driver == "diskplugin.csi.alibabacloud.com" && spec.CSI.VolumeHandle != "" {
+		} else if spec.CSI != nil && spec.CSI.Driver == alicloudDriverName && spec.CSI.VolumeHandle != "" {
 			names = append(names, spec.CSI.VolumeHandle)
 		}
 	}
