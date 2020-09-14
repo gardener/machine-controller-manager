@@ -36,6 +36,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/bootfromvolume"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/keypairs"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/schedulerhints"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/images"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
@@ -182,6 +183,17 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 		CreateOptsBuilder: createOpts,
 		KeyName:           keyName,
 	}
+
+	if d.OpenStackMachineClass.Spec.ServerGroupID != nil {
+		hints := schedulerhints.SchedulerHints{
+			Group: *d.OpenStackMachineClass.Spec.ServerGroupID,
+		}
+		createOpts = schedulerhints.CreateOptsExt{
+			CreateOptsBuilder: createOpts,
+			SchedulerHints:    hints,
+		}
+	}
+
 
 	if rootDiskSize > 0 {
 		blockDevices, err := resourceInstanceBlockDevicesV2(rootDiskSize, imageRef)

@@ -113,6 +113,7 @@ github.com/gophercloud/gophercloud
 github.com/gophercloud/gophercloud/openstack
 github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/bootfromvolume
 github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/keypairs
+github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/schedulerhints
 github.com/gophercloud/gophercloud/openstack/compute/v2/flavors
 github.com/gophercloud/gophercloud/openstack/compute/v2/images
 github.com/gophercloud/gophercloud/openstack/compute/v2/servers
