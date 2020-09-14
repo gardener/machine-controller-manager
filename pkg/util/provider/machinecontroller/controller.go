@@ -57,7 +57,7 @@ const (
 	// MCFinalizerName is the finalizer created for the external
 	// machine controller to differentiate it from the MCMFinalizerName
 	// This finalizer is added only on secret-objects to avoid race between in-tree and out-of-tree controllers.
-	// This is a stopgap solution to resolve: https://github.com/gardener/machine-controller-manager/issues/486. 
+	// This is a stopgap solution to resolve: https://github.com/gardener/machine-controller-manager/issues/486.
 	MCFinalizerName = "machine.sapcloud.io/machine-controller"
 )
 
