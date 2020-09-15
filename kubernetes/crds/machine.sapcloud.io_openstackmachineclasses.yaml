@@ -98,6 +98,8 @@ spec:
               items:
                 type: string
               type: array
+            serverGroupID:
+              type: string
             tags:
               additionalProperties:
                 type: string
