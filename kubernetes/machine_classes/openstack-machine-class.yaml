@@ -10,6 +10,7 @@ spec:
   keyName: <keypair_name> # Name of the ssh key pair
   imageName: <image_name> # Machine image name
   imageID: <image_name> # Machine image id (either name or id needs to be present)
+  serverGroupID: <server_group_id> # Server group ID where the machine should be scheduled
   networkID: <network_id> # Network ID where the machine should be placed
   securityGroups:
   - <security_group_name> # List of security groups which should be used for this machine

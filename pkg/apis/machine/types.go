@@ -660,6 +660,7 @@ type OpenStackMachineClassSpec struct {
 	PodNetworkCidr   string
 	RootDiskSize     int // in GB
 	UseConfigDrive   *bool
+	ServerGroupID    *string
 }
 
 type OpenStackNetwork struct {

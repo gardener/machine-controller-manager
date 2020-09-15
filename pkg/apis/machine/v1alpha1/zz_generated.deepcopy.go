@@ -1748,6 +1748,11 @@ func (in *OpenStackMachineClassSpec) DeepCopyInto(out *OpenStackMachineClassSpec
 		*out = new(bool)
 		**out = **in
 	}
+	if in.ServerGroupID != nil {
+		in, out := &in.ServerGroupID, &out.ServerGroupID
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 
