@@ -203,6 +203,8 @@ spec:
                     name must be unique.
                   type: string
               type: object
+            spotPrice:
+              type: string
             tags:
               additionalProperties:
                 type: string
