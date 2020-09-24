@@ -718,6 +718,11 @@ func (clients *azureDriverClients) getRelevantVMs(ctx context.Context, machineID
 
 	if len(machines) > 0 {
 		for _, server := range machines {
+			if !verifyAzureTags(server.Tags, searchClusterName, searchNodeRole) {
+				klog.V(2).Infof("%q VM found, but not verified with tags %s and %s", *server.Name, searchClusterName, searchNodeRole)
+				continue
+			}
+
 			instanceID := encodeMachineID(location, *server.Name)
 
 			if machineID == "" {
@@ -764,6 +769,12 @@ func (clients *azureDriverClients) getRelevantNICs(ctx context.Context, machineI
 			if !isNic {
 				continue
 			}
+
+			if !verifyAzureTags(nic.Tags, searchClusterName, searchNodeRole) {
+				klog.V(2).Infof("%q NIC found, but not verified with tags %s and %s", *nic.Name, searchClusterName, searchNodeRole)
+				continue
+			}
+
 			instanceID := encodeMachineID(location, machineName)
 
 			if machineID == "" {
@@ -814,6 +825,12 @@ func (clients *azureDriverClients) getRelevantDisks(ctx context.Context, machine
 				if !isDisk {
 					continue
 				}
+
+				if !verifyAzureTags(disk.Tags, searchClusterName, searchNodeRole) {
+					klog.V(2).Infof("%q Disk found, but not verified with tags %s and %s", *disk.Name, searchClusterName, searchNodeRole)
+					continue
+				}
+
 				instanceID := encodeMachineID(location, machineName)
 
 				if machineID == "" {
@@ -1194,4 +1211,25 @@ func retry(fn func() error, retries int, delay time.Duration) error {
 		}
 		time.Sleep(delay)
 	}
+}
+
+func verifyAzureTags(tags map[string]*string, clusterNameTag, nodeRoleTag string) bool {
+	if tags == nil {
+		return false
+	}
+
+	var clusterNameMatched, nodeRoleMatched bool
+	for key := range tags {
+		if strings.Contains(key, clusterNameTag) {
+			clusterNameMatched = true
+		}
+		if strings.Contains(key, nodeRoleTag) {
+			nodeRoleMatched = true
+		}
+	}
+	if !clusterNameMatched || !nodeRoleMatched {
+		return false
+	}
+
+	return true
 }
