@@ -480,6 +480,7 @@ var _ = Describe("machine", func() {
 					secrets: []*corev1.Secret{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
 						},
 					},
 					machineClaasses: []*v1alpha1.MachineClass{
@@ -527,6 +528,7 @@ var _ = Describe("machine", func() {
 					secrets: []*corev1.Secret{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
 						},
 					},
 					machineClaasses: []*v1alpha1.MachineClass{
@@ -600,6 +602,7 @@ var _ = Describe("machine", func() {
 					secrets: []*corev1.Secret{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
 						},
 					},
 					machineClaasses: []*v1alpha1.MachineClass{
