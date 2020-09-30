@@ -299,6 +299,14 @@ func (c *controller) triggerCreationFlow(createMachineRequest *driver.CreateMach
 		return retry, err
 	}
 
+	// we should avoid mutating Secret, since it goes all the way into the Informer's store
+	secretCopy := createMachineRequest.Secret.DeepCopy()
+	err = c.addBootstrapTokenToUserData(machine.Name, secretCopy)
+	if err != nil {
+		return machineutils.RetryOp, err
+	}
+	createMachineRequest.Secret = secretCopy
+
 	// Find out if VM exists on provider for this machine object
 	getMachineStatusResponse, err := c.driver.GetMachineStatus(context.TODO(), &driver.GetMachineStatusRequest{
 		Machine:      machine,
