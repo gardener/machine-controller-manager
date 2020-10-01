@@ -291,44 +291,30 @@ func (d *AWSDriver) Delete(machineID string) error {
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 
 	if len(describeImageOutput.Images) < 1 {
-		klog.Errorf("Image %s not found", *imageID)
-		return fmt.Errorf("Image %s not found", *imageID)
-	}
-
-	// returns instanceBlockDevices whose DeleteOnTermination field is nil on machineAPIs
-	instanceBlkDeviceMappings, err := d.checkBlockDevices(instanceID, describeImageOutput.Images[0].RootDeviceName)
-	if err != nil {
-		klog.Errorf("Could not Default deletionOnTermination while terminating machine: %s", err.Error())
-		return err
-	}
-
-	// Default deletionOnTermination to true when unset on API field
-	if len(instanceBlkDeviceMappings) > 0 {
-		input := &ec2.ModifyInstanceAttributeInput{
-			InstanceId:          aws.String(instanceID),
-			BlockDeviceMappings: instanceBlkDeviceMappings,
-		}
-		_, err = svc.ModifyInstanceAttribute(input)
+		// Disk image not found at provider
+		klog.Warningf("Disk image %s not found at provider for machineID %q", *imageID, machineID)
+	} else {
+		// returns instanceBlockDevices whose DeleteOnTermination field is nil on machineAPIs
+		instanceBlkDeviceMappings, err := d.checkBlockDevices(instanceID, describeImageOutput.Images[0].RootDeviceName)
 		if err != nil {
-			if aerr, ok := err.(awserr.Error); ok {
-				switch aerr.Code() {
-				case "InvalidInstanceAttributeValue":
-					// Case when disk is not yet attached to the VM
-					klog.Warning(aerr.Error())
-					break
-				default:
-					klog.Error(aerr.Error())
-					metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-					return err
-				}
-			} else {
-				klog.Error(err.Error())
+			klog.Errorf("Could not Default deletionOnTermination while terminating machine: %s", err.Error())
+		}
+
+		// Default deletionOnTermination to true when unset on API field
+		if err == nil && len(instanceBlkDeviceMappings) > 0 {
+			input := &ec2.ModifyInstanceAttributeInput{
+				InstanceId:          aws.String(instanceID),
+				BlockDeviceMappings: instanceBlkDeviceMappings,
+			}
+			_, err = svc.ModifyInstanceAttribute(input)
+			if err != nil {
 				metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-				return err
+				klog.Warningf("Couldn't complete modify instance with machineID %q. Error: %s. Continuing machine deletion", machineID, err.Error())
+			} else {
+				metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+				klog.V(2).Infof("Successfully defaulted deletionOnTermination to true for disks (with nil pointer) for machineID: %q", machineID)
 			}
 		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-		klog.V(2).Infof("Successfully defaulted deletionOnTermination to true for disks (with nil pointer) for instanceID: %q", instanceID)
 	}
 
 	// Terminate instance call
