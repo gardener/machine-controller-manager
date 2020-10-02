@@ -876,6 +876,7 @@ type AzureVirtualMachineProperties struct {
 	AvailabilitySet *AzureSubResource
 	IdentityID      *string
 	Zone            *int
+	MachineSet      *AzureMachineSetConfig
 }
 
 // AzureHardwareProfile is specifies the hardware settings for the virtual machine.
@@ -983,6 +984,19 @@ type AzureSubnetInfo struct {
 	VnetResourceGroup *string
 	SubnetName        string
 }
+
+// AzureMachineSetConfig contains the information about the machine set
+type AzureMachineSetConfig struct {
+	ID   string
+	Kind string
+}
+
+const (
+	// MachineSetKindAvailabilitySet is the machine set kind for AvailabilitySet
+	MachineSetKindAvailabilitySet string = "availabilityset"
+	// MachineSetKindVMO is the machine set kind for VirtualMachineScaleSet Orchestration Mode VM (VMO)
+	MachineSetKindVMO string = "vmo"
+)
 
 /********************** GCPMachineClass APIs ***************/
 

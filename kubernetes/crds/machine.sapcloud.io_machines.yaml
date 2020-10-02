@@ -50,6 +50,27 @@ spec:
                   description: Name of machine class
                   type: string
               type: object
+            creationTimeout:
+              description: MachineCreationTimeout is the timeout after which machinie
+                creation is declared failed.
+              type: string
+            drainTimeout:
+              description: MachineDraintimeout is the timeout after which machine
+                is forcefully deleted.
+              type: string
+            healthTimeout:
+              description: MachineHealthTimeout is the timeout after which machine
+                is declared unhealhty/failed.
+              type: string
+            maxEvictRetries:
+              description: MaxEvictRetries is the number of retries that will be attempted
+                while draining the node.
+              format: int32
+              type: integer
+            nodeConditions:
+              description: NodeConditions are the set of conditions if set to true
+                for MachineHealthTimeOut, machine will be declared failed.
+              type: string
             nodeTemplate:
               description: NodeTemplateSpec describes the data a node should have
                 when created from a template

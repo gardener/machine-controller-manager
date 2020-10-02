@@ -71,6 +71,18 @@ spec:
                   type: object
                 identityID:
                   type: string
+                machineSet:
+                  description: AzureMachineSetConfig contains the information about
+                    the machine set
+                  properties:
+                    id:
+                      type: string
+                    kind:
+                      type: string
+                  required:
+                  - id
+                  - kind
+                  type: object
                 networkProfile:
                   description: AzureNetworkProfile is specifies the network interfaces
                     of the virtual machine.
