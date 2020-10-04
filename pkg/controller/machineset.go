@@ -340,13 +340,15 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 	machineDeletionWindow := c.calculateStaleMachineDeletionWindow(activeMachines, runningMachines, staleMachines, machineSet)
 
 	if len(staleMachines) >= 1 {
-		klog.V(2).Infof("Deleting stale machines")
+		klog.V(2).Infof("Deleting %d stale machines out of total stale machines %d", machineDeletionWindow, len(staleMachines))
 	}
-	deletedStaleMachines, _ := c.terminateStaleMachines(staleMachines, machineDeletionWindow, machineSet)
-	staleMachinesLeft := len(staleMachines) - deletedStaleMachines
+	leftOverStaleMachines, err := c.terminateStaleMachines(staleMachines, machineDeletionWindow, machineSet)
+	if err != nil {
+		klog.Errorf("Failed deleting stale machines, operation will be retried in next iteration")
+	}
 
-	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
-
+	assumedNumOfActiveMachines := len(activeMachines) + len(leftOverStaleMachines)
+	diff := assumedNumOfActiveMachines - int(machineSet.Spec.Replicas)
 	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
 
 	if diff < 0 {
@@ -357,11 +359,6 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 		}
 
 		diff *= -1
-
-		// clamp machine creation to the count of recently deleted stale machines, so that we don't overshoot
-		if staleMachinesLeft > 0 && diff > deletedStaleMachines {
-			diff = deletedStaleMachines
-		}
 
 		if diff > BurstReplicas {
 			diff = BurstReplicas
@@ -422,6 +419,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 		}
 		klog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (machineSet.Spec.Replicas), diff)
 
+		activeMachines = append(leftOverStaleMachines, activeMachines...)
 		machinesToDelete := getMachinesToDelete(activeMachines, diff)
 
 		// Snapshot the UIDs (ns/name) of the machines we're expecting to see
@@ -702,7 +700,8 @@ func (c *controller) terminateMachines(inactiveMachines []*v1alpha1.Machine, mac
 	return nil
 }
 
-func (c *controller) terminateStaleMachines(inactiveMachines []*v1alpha1.Machine, deletionWindow int, machineSet *v1alpha1.MachineSet) (int, error) {
+// terminateStaleMachines terminates the stale machines and returns the lefover machines.
+func (c *controller) terminateStaleMachines(inactiveMachines []*v1alpha1.Machine, deletionWindow int, machineSet *v1alpha1.MachineSet) ([]*v1alpha1.Machine, error) {
 	var (
 		deletedMachines int
 		wg              sync.WaitGroup
@@ -710,22 +709,25 @@ func (c *controller) terminateStaleMachines(inactiveMachines []*v1alpha1.Machine
 	)
 	defer close(errCh)
 
+	leftOverMachines := []*v1alpha1.Machine{}
+
 	wg.Add(deletionWindow)
 	for deletedMachines = 0; deletedMachines < deletionWindow && deletedMachines < len(inactiveMachines); deletedMachines++ {
 		go c.prepareMachineForDeletion(inactiveMachines[deletedMachines], machineSet, &wg, errCh)
 	}
+	leftOverMachines = inactiveMachines[deletionWindow:]
 	wg.Wait()
 
 	select {
 	case err := <-errCh:
 		// all errors have been reported before and they're likely to be the same, so we'll only return the first one we hit.
 		if err != nil {
-			return deletedMachines, err
+			return nil, err
 		}
 	default:
 	}
 
-	return deletedMachines, nil
+	return leftOverMachines, nil
 }
 
 // calculateStaleMachineDeletionWindow computes an amount of Failed Machines that can be deleted based on FailedMachineDeletionRatio
@@ -755,7 +757,7 @@ func (c *controller) calculateStaleMachineDeletionWindow(activeMachines, running
 	if desiredMachineSetReplica == 0 {
 		deletionWindow = numOfInactiveMachines
 	} else {
-		deletionWindow = int(math.Round(float64(desiredMachineSetReplica) * c.safetyOptions.FailedMachineDeletionRatio))
+		deletionWindow = int(math.Round(float64(numOfInactiveMachines) * c.safetyOptions.FailedMachineDeletionRatio))
 		if deletionWindow == 0 {
 			deletionWindow = 1
 		}
