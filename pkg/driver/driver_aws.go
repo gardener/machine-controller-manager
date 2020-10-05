@@ -286,9 +286,10 @@ func (d *AWSDriver) Delete(machineID string) error {
 	describeImageOutput, err := svc.DescribeImages(&describeImagesRequest)
 	if err != nil {
 		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-		return err
+		klog.Warningf("DescribeImages call failed for %s. MachineID - %q", *imageID, machineID)
+	} else {
+		metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 	}
-	metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 
 	if len(describeImageOutput.Images) < 1 {
 		// Disk image not found at provider
