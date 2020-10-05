@@ -291,6 +291,8 @@ func (c *controller) CollectMachineMetrics(ch chan<- prometheus.Metric) {
 			phase = 2
 		case v1alpha1.MachineFailed:
 			phase = 3
+		case v1alpha1.MachineCrashLoopBackOff:
+			phase = 4
 		}
 		metrics.MachineCSPhase.With(prometheus.Labels{
 			"name":      mMeta.Name,
