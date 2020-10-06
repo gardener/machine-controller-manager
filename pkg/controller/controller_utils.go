@@ -767,12 +767,13 @@ func (s ActiveMachines) Less(i, j int) bool {
 	// the lower the priority, the more likely
 	// it is to be deleted
 	m := map[v1alpha1.MachinePhase]int{
-		v1alpha1.MachineTerminating: 0,
-		v1alpha1.MachineFailed:      1,
-		v1alpha1.MachineUnknown:     2,
-		v1alpha1.MachinePending:     3,
-		v1alpha1.MachineAvailable:   4,
-		v1alpha1.MachineRunning:     5,
+		v1alpha1.MachineTerminating:      0,
+		v1alpha1.MachineFailed:           1,
+		v1alpha1.MachineCrashLoopBackOff: 2,
+		v1alpha1.MachineUnknown:          3,
+		v1alpha1.MachinePending:          4,
+		v1alpha1.MachineAvailable:        5,
+		v1alpha1.MachineRunning:          6,
 	}
 
 	// Case-1: Initially we try to prioritize machine deletion based on
