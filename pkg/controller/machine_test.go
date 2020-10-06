@@ -148,8 +148,33 @@ var _ = Describe("machine", func() {
 			machineRet, errRet := c.updateMachineStatus(machine, lastOperation, currentStatus)
 			Expect(errRet).Should(Not(BeNil()))
 			Expect(errRet).Should(BeIdenticalTo(err))
-			Expect(machineRet).Should(Not(BeNil()))
-			Expect(machineRet).Should(BeIdenticalTo(machine))
+			Expect(machineRet).Should(BeNil())
+		})
+
+		It("shouldn't update status when it is already same", func() {
+			machine.Status.LastOperation = lastOperation
+			machine.Status.CurrentStatus = currentStatus
+
+			lastOperation = machinev1.LastOperation{
+				Description:    "test operation dummy",
+				LastUpdateTime: metav1.Now(),
+				State:          machinev1.MachineStateProcessing,
+				Type:           machinev1.MachineOperationCreate,
+			}
+			currentStatus = machinev1.CurrentStatus{
+				LastUpdateTime: lastOperation.LastUpdateTime,
+				Phase:          machinev1.MachinePending,
+				TimeoutActive:  true,
+			}
+
+			fakeMachineClient.AddReactor("get", "machines", func(action k8stesting.Action) (bool, runtime.Object, error) {
+				return true, machine, nil
+			})
+
+			machineRet, errRet := c.updateMachineStatus(machine, lastOperation, currentStatus)
+			Expect(errRet).Should((BeNil()))
+			Expect(machineRet.Status.LastOperation).Should(BeIdenticalTo(machine.Status.LastOperation))
+			Expect(machineRet.Status.CurrentStatus).Should(BeIdenticalTo(machine.Status.CurrentStatus))
 		})
 
 		It("should return success", func() {
@@ -358,6 +383,105 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: field.ErrorList{},
+			}),
+		)
+	})
+
+	Describe("#isMachineStatusEqual", func() {
+		type expect struct {
+			equal bool
+		}
+		type action struct {
+			s1 machinev1.MachineStatus
+			s2 machinev1.MachineStatus
+		}
+		type data struct {
+			action action
+			expect expect
+		}
+
+		lastOperation := machinev1.LastOperation{
+			Description:    "test operation",
+			LastUpdateTime: metav1.Now(),
+			State:          machinev1.MachineStateProcessing,
+			Type:           machinev1.MachineOperationCreate,
+		}
+		currentStatus := machinev1.CurrentStatus{
+			LastUpdateTime: lastOperation.LastUpdateTime,
+			Phase:          machinev1.MachinePending,
+			TimeoutActive:  true,
+		}
+
+		DescribeTable("##table",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				equal := isMachineStatusEqual(data.action.s1, data.action.s2)
+				Expect(equal).To(Equal(data.expect.equal))
+			},
+			Entry("return true as status is same", &data{
+				action: action{
+					s1: machinev1.MachineStatus{
+						LastOperation: lastOperation,
+						CurrentStatus: currentStatus,
+					},
+					s2: machinev1.MachineStatus{
+						LastOperation: lastOperation,
+						CurrentStatus: currentStatus,
+					},
+				},
+				expect: expect{
+					equal: true,
+				},
+			}),
+			Entry("return false as status is not equal", &data{
+				action: action{
+					s1: machinev1.MachineStatus{
+						LastOperation: lastOperation,
+						CurrentStatus: currentStatus,
+					},
+					s2: machinev1.MachineStatus{
+						LastOperation: machinev1.LastOperation{
+							Description:    "test operation dummy",
+							LastUpdateTime: metav1.Now(),
+							State:          machinev1.MachineStateProcessing,
+							Type:           machinev1.MachineOperationDelete,
+						},
+						CurrentStatus: machinev1.CurrentStatus{
+							LastUpdateTime: lastOperation.LastUpdateTime,
+							Phase:          machinev1.MachinePending,
+							TimeoutActive:  true,
+						},
+					},
+				},
+				expect: expect{
+					equal: false,
+				},
+			}),
+			Entry("return true as only description is not same", &data{
+				action: action{
+					s1: machinev1.MachineStatus{
+						LastOperation: lastOperation,
+						CurrentStatus: currentStatus,
+					},
+					s2: machinev1.MachineStatus{
+						LastOperation: machinev1.LastOperation{
+							Description:    "test operation dummy dummy",
+							LastUpdateTime: metav1.Now(),
+							State:          machinev1.MachineStateProcessing,
+							Type:           machinev1.MachineOperationCreate,
+						},
+						CurrentStatus: machinev1.CurrentStatus{
+							LastUpdateTime: lastOperation.LastUpdateTime,
+							Phase:          machinev1.MachinePending,
+							TimeoutActive:  true,
+						},
+					},
+				},
+				expect: expect{
+					equal: true,
+				},
 			}),
 		)
 	})
@@ -744,7 +868,7 @@ var _ = Describe("machine", func() {
 					err: false,
 				},
 			}),
-			Entry("Orphan VM deletion on faling to find referred machine object", &data{
+			Entry("Orphan VM deletion on failing to find referred machine object", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
 						{

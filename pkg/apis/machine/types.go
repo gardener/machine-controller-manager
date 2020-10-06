@@ -222,6 +222,9 @@ const (
 
 	// MachineFailed means operation failed leading to machine status failure
 	MachineFailed MachinePhase = "Failed"
+
+	// MachineCrashLoopBackOff means creation or deletion of the machine is failing.
+	MachineCrashLoopBackOff MachinePhase = "CrashLoopBackOff"
 )
 
 // MachinePhase is a label for the condition of a machines at the current time.
