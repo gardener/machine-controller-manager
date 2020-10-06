@@ -93,7 +93,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	// Count the number of machines that have labels matching the labels of the machine
 	// template of the machine set, the matching machines may have more
 	// labels than are in the template. Because the label of machineTemplateSpec is
-	// a supeiset of the selector of the machine set, so the possible
+	// a superset of the selector of the machine set, so the possible
 	// matching machines must be part of the filteredmachines.
 	fullyLabeledReplicasCount := 0
 	readyReplicasCount := 0
