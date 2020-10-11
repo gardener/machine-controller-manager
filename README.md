@@ -4,7 +4,21 @@
 [![CI Build status](https://concourse.ci.gardener.cloud/api/v1/teams/gardener/pipelines/machine-controller-manager-master/jobs/master-head-update-job/badge)](https://concourse.ci.gardener.cloud/teams/gardener/pipelines/machine-controller-manager-master/jobs/master-head-update-job)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gardener/machine-controller-manager)](https://goreportcard.com/report/github.com/gardener/machine-controller-manager)
 
-Machine Controller Manager (MCM) manages VMs as another kubernetes custom resource. It provides a declarative way to manage VMs. The current implementation supports AWS, GCP, Azure, Alicloud, Packet and Openstack. It can easily be extended to support other cloud providers as well.
+Machine Controller Manager (MCM) manages VMs as another kubernetes custom resource. It provides a declarative way to manage VMs. 
+
+MCM supports following providers: 
+* AWS
+* GCP
+* Azure
+* Openstack
+* Alicloud
+* Metal-stack
+* Packet
+* KubeVirt
+* VMWare
+* Yandex
+
+It can easily be extended to support other cloud providers as well.
 
 Example of managing machine:
 ```
@@ -26,6 +40,9 @@ See the design documentation in the `/docs/design` repository, please [find the 
 ## To start using or developing the Machine Controller Manager
 
 See the documentation in the `/docs` repository, please [find the index here](docs/README.md).
+
+## FAQ
+An FAQ is available [here](docs/FAQ.md)
 
 ## Cluster-api Implementation
 - `cluster-api` branch of machine-controller-manager implements the machine-api aspect of the [cluster-api project](https://github.com/kubernetes-sigs/cluster-api).
