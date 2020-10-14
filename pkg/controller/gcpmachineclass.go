@@ -136,6 +136,14 @@ func (c *controller) reconcileClusterGCPMachineClass(class *v1alpha1.GCPMachineC
 		return nil
 	}
 
+	// Add finalizer to avoid lossing machineClass object
+	if class.DeletionTimestamp == nil {
+		err = c.addGCPMachineClassFinalizers(class)
+		if err != nil {
+			return err
+		}
+	}
+
 	machines, err := c.findMachinesForClass(GCPMachineClassKind, class.Name)
 	if err != nil {
 		return err
@@ -145,13 +153,7 @@ func (c *controller) reconcileClusterGCPMachineClass(class *v1alpha1.GCPMachineC
 		// If deletion timestamp doesn't exist
 		_, annotationPresent := class.Annotations[machineutils.MigratedMachineClass]
 
-		if len(machines) > 0 {
-			// If 1 or more machine objects are referring the machineClass
-			err = c.addGCPMachineClassFinalizers(class)
-			if err != nil {
-				return err
-			}
-		} else if c.deleteMigratedMachineClass && annotationPresent {
+		if c.deleteMigratedMachineClass && annotationPresent && len(machines) == 0 {
 			// If controller has deleteMigratedMachineClass flag set
 			// and the migratedMachineClass annotation is set
 			err = c.controlMachineClient.GCPMachineClasses(class.Namespace).Delete(class.Name, &metav1.DeleteOptions{})
