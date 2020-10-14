@@ -57,7 +57,7 @@ func (c *controller) machineSetToAlicloudMachineClassDelete(obj interface{}) {
 	}
 }
 
-func (c *controller) machineToAlicloudMachineClassDelete(obj interface{}) {
+func (c *controller) machineToAlicloudMachineClassAdd(obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if machine == nil || !ok {
 		return
@@ -65,6 +65,15 @@ func (c *controller) machineToAlicloudMachineClassDelete(obj interface{}) {
 	if machine.Spec.Class.Kind == AlicloudMachineClassKind {
 		c.alicloudMachineClassQueue.Add(machine.Spec.Class.Name)
 	}
+}
+
+func (c *controller) machineToAlicloudMachineClassUpdate(oldObj, newObj interface{}) {
+	c.machineToAlicloudMachineClassAdd(oldObj)
+	c.machineToAlicloudMachineClassAdd(newObj)
+}
+
+func (c *controller) machineToAlicloudMachineClassDelete(obj interface{}) {
+	c.machineToAlicloudMachineClassAdd(obj)
 }
 
 func (c *controller) alicloudMachineClassAdd(obj interface{}) {
@@ -87,6 +96,10 @@ func (c *controller) alicloudMachineClassUpdate(oldObj, newObj interface{}) {
 	}
 
 	c.alicloudMachineClassAdd(newObj)
+}
+
+func (c *controller) alicloudMachineClassDelete(obj interface{}) {
+	c.alicloudMachineClassAdd(obj)
 }
 
 // reconcileClusterAlicloudMachineClassKey reconciles an AlicloudMachineClass due to controller resync
@@ -135,7 +148,7 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 		return nil
 	}
 
-	// Add finalizer to avoid lossing machineClass object
+	// Add finalizer to avoid losing machineClass object
 	if class.DeletionTimestamp == nil {
 		err = c.addAlicloudMachineClassFinalizers(class)
 		if err != nil {

@@ -33,7 +33,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
-func (c *controller) machineToMachineClassDelete(obj interface{}) {
+func (c *controller) machineToMachineClassAdd(obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if machine == nil || !ok {
 		return
@@ -41,6 +41,15 @@ func (c *controller) machineToMachineClassDelete(obj interface{}) {
 	if machine.Spec.Class.Kind == machineutils.MachineClassKind {
 		c.machineClassQueue.Add(machine.Spec.Class.Name)
 	}
+}
+
+func (c *controller) machineToMachineClassUpdate(oldObj, newObj interface{}) {
+	c.machineToMachineClassAdd(oldObj)
+	c.machineToMachineClassAdd(newObj)
+}
+
+func (c *controller) machineToMachineClassDelete(obj interface{}) {
+	c.machineToMachineClassAdd(obj)
 }
 
 func (c *controller) machineClassAdd(obj interface{}) {
@@ -63,6 +72,10 @@ func (c *controller) machineClassUpdate(oldObj, newObj interface{}) {
 	}
 
 	c.machineClassAdd(newObj)
+}
+
+func (c *controller) machineClassDelete(obj interface{}) {
+	c.machineClassAdd(obj)
 }
 
 // reconcileClusterMachineClassKey reconciles an machineClass due to controller resync
@@ -107,7 +120,7 @@ func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) 
 		return err
 	}
 
-	// Add finalizer to avoid lossing machineClass object
+	// Add finalizer to avoid losing machineClass object
 	if class.DeletionTimestamp == nil {
 		err = c.addMachineClassFinalizers(class)
 		if err != nil {
