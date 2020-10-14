@@ -57,7 +57,7 @@ func (c *controller) machineSetToOpenStackMachineClassDelete(obj interface{}) {
 	}
 }
 
-func (c *controller) machineToOpenStackMachineClassDelete(obj interface{}) {
+func (c *controller) machineToOpenStackMachineClassAdd(obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if machine == nil || !ok {
 		return
@@ -65,6 +65,15 @@ func (c *controller) machineToOpenStackMachineClassDelete(obj interface{}) {
 	if machine.Spec.Class.Kind == OpenStackMachineClassKind {
 		c.openStackMachineClassQueue.Add(machine.Spec.Class.Name)
 	}
+}
+
+func (c *controller) machineToOpenStackMachineClassUpdate(oldObj, newObj interface{}) {
+	c.machineToOpenStackMachineClassAdd(oldObj)
+	c.machineToOpenStackMachineClassAdd(newObj)
+}
+
+func (c *controller) machineToOpenStackMachineClassDelete(obj interface{}) {
+	c.machineToOpenStackMachineClassAdd(obj)
 }
 
 func (c *controller) openStackMachineClassAdd(obj interface{}) {
@@ -87,6 +96,10 @@ func (c *controller) openStackMachineClassUpdate(oldObj, newObj interface{}) {
 	}
 
 	c.openStackMachineClassAdd(newObj)
+}
+
+func (c *controller) openStackMachineClassDelete(obj interface{}) {
+	c.openStackMachineClassAdd(obj)
 }
 
 // reconcileClusterOpenStackMachineClassKey reconciles an OpenStackMachineClass due to controller resync
@@ -135,7 +148,7 @@ func (c *controller) reconcileClusterOpenStackMachineClass(class *v1alpha1.OpenS
 		return nil
 	}
 
-	// Add finalizer to avoid lossing machineClass object
+	// Add finalizer to avoid losing machineClass object
 	if class.DeletionTimestamp == nil {
 		err := c.addOpenStackMachineClassFinalizers(class)
 		if err != nil {

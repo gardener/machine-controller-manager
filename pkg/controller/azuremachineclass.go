@@ -57,7 +57,7 @@ func (c *controller) machineSetToAzureMachineClassDelete(obj interface{}) {
 	}
 }
 
-func (c *controller) machineToAzureMachineClassDelete(obj interface{}) {
+func (c *controller) machineToAzureMachineClassAdd(obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if machine == nil || !ok {
 		return
@@ -65,6 +65,15 @@ func (c *controller) machineToAzureMachineClassDelete(obj interface{}) {
 	if machine.Spec.Class.Kind == AzureMachineClassKind {
 		c.azureMachineClassQueue.Add(machine.Spec.Class.Name)
 	}
+}
+
+func (c *controller) machineToAzureMachineClassUpdate(oldObj, newObj interface{}) {
+	c.machineToAzureMachineClassAdd(oldObj)
+	c.machineToAzureMachineClassAdd(newObj)
+}
+
+func (c *controller) machineToAzureMachineClassDelete(obj interface{}) {
+	c.machineToAzureMachineClassAdd(obj)
 }
 
 func (c *controller) azureMachineClassAdd(obj interface{}) {
@@ -87,6 +96,10 @@ func (c *controller) azureMachineClassUpdate(oldObj, newObj interface{}) {
 	}
 
 	c.azureMachineClassAdd(newObj)
+}
+
+func (c *controller) azureMachineClassDelete(obj interface{}) {
+	c.azureMachineClassAdd(obj)
 }
 
 // reconcileClusterAzureMachineClassKey reconciles an AzureMachineClass due to controller resync
@@ -136,7 +149,7 @@ func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMach
 		return nil
 	}
 
-	// Add finalizer to avoid lossing machineClass object
+	// Add finalizer to avoid losing machineClass object
 	if class.DeletionTimestamp == nil {
 		err = c.addAzureMachineClassFinalizers(class)
 		if err != nil {
