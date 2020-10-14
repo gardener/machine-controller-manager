@@ -107,22 +107,20 @@ func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) 
 		return err
 	}
 
+	// Add finalizer to avoid lossing machineClass object
+	if class.DeletionTimestamp == nil {
+		err = c.addMachineClassFinalizers(class)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
 	// fetch all machines referring the machineClass
 	machines, err := c.findMachinesForClass(machineutils.MachineClassKind, class.Name)
 	if err != nil {
 		return err
-	}
-
-	if class.DeletionTimestamp == nil {
-		// If deletion timestamp doesn't exist
-		if len(machines) > 0 {
-			// If 1 or more machine objects are referring the machineClass
-			err = c.addMachineClassFinalizers(class)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
 	}
 
 	if len(machines) > 0 {

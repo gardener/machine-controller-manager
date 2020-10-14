@@ -135,6 +135,14 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 		return nil
 	}
 
+	// Add finalizer to avoid lossing machineClass object
+	if class.DeletionTimestamp == nil {
+		err = c.addAlicloudMachineClassFinalizers(class)
+		if err != nil {
+			return err
+		}
+	}
+
 	machines, err := c.findMachinesForClass(AlicloudMachineClassKind, class.Name)
 	if err != nil {
 		return err
@@ -144,13 +152,7 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 		// If deletion timestamp doesn't exist
 		_, annotationPresent := class.Annotations[machineutils.MigratedMachineClass]
 
-		if len(machines) > 0 {
-			// If 1 or more machine objects are referring the machineClass
-			err = c.addAlicloudMachineClassFinalizers(class)
-			if err != nil {
-				return err
-			}
-		} else if c.deleteMigratedMachineClass && annotationPresent {
+		if c.deleteMigratedMachineClass && annotationPresent && len(machines) == 0 {
 			// If controller has deleteMigratedMachineClass flag set
 			// and the migratedMachineClass annotation is set
 			err = c.controlMachineClient.AlicloudMachineClasses(class.Namespace).Delete(class.Name, &metav1.DeleteOptions{})
