@@ -57,7 +57,7 @@ func (c *controller) machineSetToPacketMachineClassDelete(obj interface{}) {
 	}
 }
 
-func (c *controller) machineToPacketMachineClassDelete(obj interface{}) {
+func (c *controller) machineToPacketMachineClassAdd(obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if machine == nil || !ok {
 		return
@@ -65,6 +65,15 @@ func (c *controller) machineToPacketMachineClassDelete(obj interface{}) {
 	if machine.Spec.Class.Kind == PacketMachineClassKind {
 		c.packetMachineClassQueue.Add(machine.Spec.Class.Name)
 	}
+}
+
+func (c *controller) machineToPacketMachineClassUpdate(oldObj, newObj interface{}) {
+	c.machineToPacketMachineClassAdd(oldObj)
+	c.machineToPacketMachineClassAdd(newObj)
+}
+
+func (c *controller) machineToPacketMachineClassDelete(obj interface{}) {
+	c.machineToPacketMachineClassAdd(obj)
 }
 
 func (c *controller) packetMachineClassAdd(obj interface{}) {
@@ -87,6 +96,10 @@ func (c *controller) packetMachineClassUpdate(oldObj, newObj interface{}) {
 	}
 
 	c.packetMachineClassAdd(newObj)
+}
+
+func (c *controller) packetMachineClassDelete(obj interface{}) {
+	c.packetMachineClassAdd(obj)
 }
 
 // reconcileClusterPacketMachineClassKey reconciles a PacketMachineClass due to controller resync
@@ -135,7 +148,7 @@ func (c *controller) reconcileClusterPacketMachineClass(class *v1alpha1.PacketMa
 		return nil
 	}
 
-	// Add finalizer to avoid lossing machineClass object
+	// Add finalizer to avoid losing machineClass object
 	if class.DeletionTimestamp == nil {
 		err = c.addPacketMachineClassFinalizers(class)
 		if err != nil {

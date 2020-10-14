@@ -57,7 +57,7 @@ func (c *controller) machineSetToAWSMachineClassDelete(obj interface{}) {
 	}
 }
 
-func (c *controller) machineToAWSMachineClassDelete(obj interface{}) {
+func (c *controller) machineToAWSMachineClassAdd(obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if machine == nil || !ok {
 		return
@@ -65,6 +65,15 @@ func (c *controller) machineToAWSMachineClassDelete(obj interface{}) {
 	if machine.Spec.Class.Kind == AWSMachineClassKind {
 		c.awsMachineClassQueue.Add(machine.Spec.Class.Name)
 	}
+}
+
+func (c *controller) machineToAWSMachineClassUpdate(oldObj, newObj interface{}) {
+	c.machineToAWSMachineClassAdd(oldObj)
+	c.machineToAWSMachineClassAdd(newObj)
+}
+
+func (c *controller) machineToAWSMachineClassDelete(obj interface{}) {
+	c.machineToAWSMachineClassAdd(obj)
 }
 
 func (c *controller) awsMachineClassAdd(obj interface{}) {
@@ -87,6 +96,10 @@ func (c *controller) awsMachineClassUpdate(oldObj, newObj interface{}) {
 	}
 
 	c.awsMachineClassAdd(newObj)
+}
+
+func (c *controller) awsMachineClassDelete(obj interface{}) {
+	c.awsMachineClassAdd(obj)
 }
 
 // reconcileClusterAWSMachineClassKey reconciles an AWSMachineClass due to controller resync
@@ -135,7 +148,7 @@ func (c *controller) reconcileClusterAWSMachineClass(class *v1alpha1.AWSMachineC
 		return nil
 	}
 
-	// Add finalizer to avoid lossing machineClass object
+	// Add finalizer to avoid losing machineClass object
 	if class.DeletionTimestamp == nil {
 		err = c.addAWSMachineClassFinalizers(class)
 		if err != nil {

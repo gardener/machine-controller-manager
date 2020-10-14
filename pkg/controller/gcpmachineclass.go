@@ -57,7 +57,7 @@ func (c *controller) machineSetToGCPMachineClassDelete(obj interface{}) {
 	}
 }
 
-func (c *controller) machineToGCPMachineClassDelete(obj interface{}) {
+func (c *controller) machineToGCPMachineClassAdd(obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if machine == nil || !ok {
 		return
@@ -65,6 +65,15 @@ func (c *controller) machineToGCPMachineClassDelete(obj interface{}) {
 	if machine.Spec.Class.Kind == GCPMachineClassKind {
 		c.gcpMachineClassQueue.Add(machine.Spec.Class.Name)
 	}
+}
+
+func (c *controller) machineToGCPMachineClassUpdate(oldObj, newObj interface{}) {
+	c.machineToGCPMachineClassAdd(oldObj)
+	c.machineToGCPMachineClassAdd(newObj)
+}
+
+func (c *controller) machineToGCPMachineClassDelete(obj interface{}) {
+	c.machineToGCPMachineClassAdd(obj)
 }
 
 func (c *controller) gcpMachineClassAdd(obj interface{}) {
@@ -87,6 +96,10 @@ func (c *controller) gcpMachineClassUpdate(oldObj, newObj interface{}) {
 	}
 
 	c.gcpMachineClassAdd(newObj)
+}
+
+func (c *controller) gcpMachineClassDelete(obj interface{}) {
+	c.gcpMachineClassAdd(obj)
 }
 
 // reconcileClusterGCPMachineClassKey reconciles an GCPMachineClass due to controller resync
@@ -136,7 +149,7 @@ func (c *controller) reconcileClusterGCPMachineClass(class *v1alpha1.GCPMachineC
 		return nil
 	}
 
-	// Add finalizer to avoid lossing machineClass object
+	// Add finalizer to avoid losing machineClass object
 	if class.DeletionTimestamp == nil {
 		err = c.addGCPMachineClassFinalizers(class)
 		if err != nil {

@@ -136,13 +136,17 @@ func NewController(
 		DeleteFunc: controller.machineClassToSecretDelete,
 	})
 
+	// Machine Class Controller Informers
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.machineToMachineClassAdd,
+		UpdateFunc: controller.machineToMachineClassUpdate,
 		DeleteFunc: controller.machineToMachineClassDelete,
 	})
 
 	machineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.machineClassAdd,
 		UpdateFunc: controller.machineClassUpdate,
+		DeleteFunc: controller.machineClassDelete,
 	})
 
 	// Machine Controller Informers
