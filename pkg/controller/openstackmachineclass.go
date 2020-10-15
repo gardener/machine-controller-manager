@@ -60,6 +60,7 @@ func (c *controller) machineSetToOpenStackMachineClassDelete(obj interface{}) {
 func (c *controller) machineToOpenStackMachineClassAdd(obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if machine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", obj)
 		return
 	}
 	if machine.Spec.Class.Kind == OpenStackMachineClassKind {
@@ -68,8 +69,33 @@ func (c *controller) machineToOpenStackMachineClassAdd(obj interface{}) {
 }
 
 func (c *controller) machineToOpenStackMachineClassUpdate(oldObj, newObj interface{}) {
-	c.machineToOpenStackMachineClassAdd(oldObj)
-	c.machineToOpenStackMachineClassAdd(newObj)
+	oldMachine, ok := oldObj.(*v1alpha1.Machine)
+	if oldMachine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", oldObj)
+		return
+	}
+	newMachine, ok := newObj.(*v1alpha1.Machine)
+	if newMachine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", newObj)
+		return
+	}
+
+	if oldMachine.Spec.Class.Kind == newMachine.Spec.Class.Kind {
+		if newMachine.Spec.Class.Kind == OpenStackMachineClassKind {
+			// Both old and new machine refer to the same machineClass object
+			// And the correct kind so enqueuing only one of them.
+			c.openStackMachineClassQueue.Add(newMachine.Spec.Class.Name)
+		}
+	} else {
+		// If both are pointing to different machineClasses
+		// we might have to enqueue both.
+		if oldMachine.Spec.Class.Kind == OpenStackMachineClassKind {
+			c.openStackMachineClassQueue.Add(oldMachine.Spec.Class.Name)
+		}
+		if newMachine.Spec.Class.Kind == OpenStackMachineClassKind {
+			c.openStackMachineClassQueue.Add(newMachine.Spec.Class.Name)
+		}
+	}
 }
 
 func (c *controller) machineToOpenStackMachineClassDelete(obj interface{}) {
