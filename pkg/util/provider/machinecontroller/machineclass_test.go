@@ -362,6 +362,9 @@ var _ = Describe("machineclass", func() {
 								ObjectMeta: metav1.ObjectMeta{
 									Name:      TestMachineClassName,
 									Namespace: TestNamespace,
+									DeletionTimestamp: &metav1.Time{
+										Time: time.Time{},
+									},
 								},
 								ProviderSpec: runtime.RawExtension{},
 								SecretRef:    &v1.SecretReference{},
@@ -399,6 +402,9 @@ var _ = Describe("machineclass", func() {
 							ObjectMeta: metav1.ObjectMeta{
 								Name:      TestMachineClassName,
 								Namespace: TestNamespace,
+								DeletionTimestamp: &metav1.Time{
+									Time: time.Time{},
+								},
 							},
 							ProviderSpec: runtime.RawExtension{},
 							SecretRef:    &v1.SecretReference{},
