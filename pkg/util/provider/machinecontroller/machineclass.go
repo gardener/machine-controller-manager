@@ -33,14 +33,49 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
-func (c *controller) machineToMachineClassDelete(obj interface{}) {
+func (c *controller) machineToMachineClassAdd(obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if machine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", obj)
 		return
 	}
 	if machine.Spec.Class.Kind == machineutils.MachineClassKind {
 		c.machineClassQueue.Add(machine.Spec.Class.Name)
 	}
+}
+
+func (c *controller) machineToMachineClassUpdate(oldObj, newObj interface{}) {
+	oldMachine, ok := oldObj.(*v1alpha1.Machine)
+	if oldMachine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", oldObj)
+		return
+	}
+	newMachine, ok := newObj.(*v1alpha1.Machine)
+	if newMachine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", newObj)
+		return
+	}
+
+	if oldMachine.Spec.Class.Kind == newMachine.Spec.Class.Kind {
+		if newMachine.Spec.Class.Kind == machineutils.MachineClassKind {
+			// Both old and new machine refer to the same machineClass object
+			// And the correct kind so enqueuing only one of them.
+			c.machineClassQueue.Add(newMachine.Spec.Class.Name)
+		}
+	} else {
+		// If both are pointing to different machineClasses
+		// we might have to enqueue both.
+		if oldMachine.Spec.Class.Kind == machineutils.MachineClassKind {
+			c.machineClassQueue.Add(oldMachine.Spec.Class.Name)
+		}
+		if newMachine.Spec.Class.Kind == machineutils.MachineClassKind {
+			c.machineClassQueue.Add(newMachine.Spec.Class.Name)
+		}
+	}
+}
+
+func (c *controller) machineToMachineClassDelete(obj interface{}) {
+	c.machineToMachineClassAdd(obj)
 }
 
 func (c *controller) machineClassAdd(obj interface{}) {
@@ -63,6 +98,10 @@ func (c *controller) machineClassUpdate(oldObj, newObj interface{}) {
 	}
 
 	c.machineClassAdd(newObj)
+}
+
+func (c *controller) machineClassDelete(obj interface{}) {
+	c.machineClassAdd(obj)
 }
 
 // reconcileClusterMachineClassKey reconciles an machineClass due to controller resync
@@ -107,22 +146,20 @@ func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) 
 		return err
 	}
 
+	// Add finalizer to avoid losing machineClass object
+	if class.DeletionTimestamp == nil {
+		err = c.addMachineClassFinalizers(class)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
 	// fetch all machines referring the machineClass
 	machines, err := c.findMachinesForClass(machineutils.MachineClassKind, class.Name)
 	if err != nil {
 		return err
-	}
-
-	if class.DeletionTimestamp == nil {
-		// If deletion timestamp doesn't exist
-		if len(machines) > 0 {
-			// If 1 or more machine objects are referring the machineClass
-			err = c.addMachineClassFinalizers(class)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
 	}
 
 	if len(machines) > 0 {

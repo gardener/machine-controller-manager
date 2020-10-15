@@ -57,7 +57,7 @@ func (c *controller) machineSetToAlicloudMachineClassDelete(obj interface{}) {
 	}
 }
 
-func (c *controller) machineToAlicloudMachineClassDelete(obj interface{}) {
+func (c *controller) machineToAlicloudMachineClassAdd(obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if machine == nil || !ok {
 		return
@@ -65,6 +65,40 @@ func (c *controller) machineToAlicloudMachineClassDelete(obj interface{}) {
 	if machine.Spec.Class.Kind == AlicloudMachineClassKind {
 		c.alicloudMachineClassQueue.Add(machine.Spec.Class.Name)
 	}
+}
+
+func (c *controller) machineToAlicloudMachineClassUpdate(oldObj, newObj interface{}) {
+	oldMachine, ok := oldObj.(*v1alpha1.Machine)
+	if oldMachine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", oldObj)
+		return
+	}
+	newMachine, ok := newObj.(*v1alpha1.Machine)
+	if newMachine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", newObj)
+		return
+	}
+
+	if oldMachine.Spec.Class.Kind == newMachine.Spec.Class.Kind {
+		if newMachine.Spec.Class.Kind == AlicloudMachineClassKind {
+			// Both old and new machine refer to the same machineClass object
+			// And the correct kind so enqueuing only one of them.
+			c.alicloudMachineClassQueue.Add(newMachine.Spec.Class.Name)
+		}
+	} else {
+		// If both are pointing to different machineClasses
+		// we might have to enqueue both.
+		if oldMachine.Spec.Class.Kind == AlicloudMachineClassKind {
+			c.alicloudMachineClassQueue.Add(oldMachine.Spec.Class.Name)
+		}
+		if newMachine.Spec.Class.Kind == AlicloudMachineClassKind {
+			c.alicloudMachineClassQueue.Add(newMachine.Spec.Class.Name)
+		}
+	}
+}
+
+func (c *controller) machineToAlicloudMachineClassDelete(obj interface{}) {
+	c.machineToAlicloudMachineClassAdd(obj)
 }
 
 func (c *controller) alicloudMachineClassAdd(obj interface{}) {
@@ -87,6 +121,10 @@ func (c *controller) alicloudMachineClassUpdate(oldObj, newObj interface{}) {
 	}
 
 	c.alicloudMachineClassAdd(newObj)
+}
+
+func (c *controller) alicloudMachineClassDelete(obj interface{}) {
+	c.alicloudMachineClassAdd(obj)
 }
 
 // reconcileClusterAlicloudMachineClassKey reconciles an AlicloudMachineClass due to controller resync
@@ -135,6 +173,14 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 		return nil
 	}
 
+	// Add finalizer to avoid losing machineClass object
+	if class.DeletionTimestamp == nil {
+		err = c.addAlicloudMachineClassFinalizers(class)
+		if err != nil {
+			return err
+		}
+	}
+
 	machines, err := c.findMachinesForClass(AlicloudMachineClassKind, class.Name)
 	if err != nil {
 		return err
@@ -144,13 +190,7 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 		// If deletion timestamp doesn't exist
 		_, annotationPresent := class.Annotations[machineutils.MigratedMachineClass]
 
-		if len(machines) > 0 {
-			// If 1 or more machine objects are referring the machineClass
-			err = c.addAlicloudMachineClassFinalizers(class)
-			if err != nil {
-				return err
-			}
-		} else if c.deleteMigratedMachineClass && annotationPresent {
+		if c.deleteMigratedMachineClass && annotationPresent && len(machines) == 0 {
 			// If controller has deleteMigratedMachineClass flag set
 			// and the migratedMachineClass annotation is set
 			err = c.controlMachineClient.AlicloudMachineClasses(class.Namespace).Delete(class.Name, &metav1.DeleteOptions{})
