@@ -68,8 +68,33 @@ func (c *controller) machineToAlicloudMachineClassAdd(obj interface{}) {
 }
 
 func (c *controller) machineToAlicloudMachineClassUpdate(oldObj, newObj interface{}) {
-	c.machineToAlicloudMachineClassAdd(oldObj)
-	c.machineToAlicloudMachineClassAdd(newObj)
+	oldMachine, ok := oldObj.(*v1alpha1.Machine)
+	if oldMachine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", oldObj)
+		return
+	}
+	newMachine, ok := newObj.(*v1alpha1.Machine)
+	if newMachine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", newObj)
+		return
+	}
+
+	if oldMachine.Spec.Class.Kind == newMachine.Spec.Class.Kind {
+		if newMachine.Spec.Class.Kind == AlicloudMachineClassKind {
+			// Both old and new machine refer to the same machineClass object
+			// And the correct kind so enqueuing only one of them.
+			c.alicloudMachineClassQueue.Add(newMachine.Spec.Class.Name)
+		}
+	} else {
+		// If both are pointing to different machineClasses
+		// we might have to enqueue both.
+		if oldMachine.Spec.Class.Kind == AlicloudMachineClassKind {
+			c.alicloudMachineClassQueue.Add(oldMachine.Spec.Class.Name)
+		}
+		if newMachine.Spec.Class.Kind == AlicloudMachineClassKind {
+			c.alicloudMachineClassQueue.Add(newMachine.Spec.Class.Name)
+		}
+	}
 }
 
 func (c *controller) machineToAlicloudMachineClassDelete(obj interface{}) {
