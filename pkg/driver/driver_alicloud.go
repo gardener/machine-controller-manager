@@ -97,7 +97,7 @@ func (c *AlicloudDriver) Create() (string, string, error) {
 	}
 	request.Tag = &tags
 	request.InstanceName = c.MachineName
-	request.ClientToken = utils.GetUUIDV4()
+	request.ClientToken = utils.GetUUID()
 	request.UserData = base64.StdEncoding.EncodeToString([]byte(c.UserData))
 
 	response, err := client.RunInstances(request)

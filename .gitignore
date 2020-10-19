@@ -3,7 +3,6 @@
 /.kube-secrets
 /tmp/*
 /dev
-/test
 /logs
 
 *.html

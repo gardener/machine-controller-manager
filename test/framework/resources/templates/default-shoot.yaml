@@ -1,0 +1,31 @@
+apiVersion: core.gardener.cloud/v1beta1
+kind: Shoot
+metadata:
+  name: abc
+  namespace: abc
+spec:
+  kubernetes:
+    kubeAPIServer:
+      enableBasicAuthentication: false
+  dns: {}
+  networking:
+    type: calico
+    nodes: 10.250.0.0/16
+  maintenance:
+    timeWindow:
+      begin: 220000+0100
+      end: 230000+0100
+    autoUpdate:
+      kubernetesVersion: true
+      machineImageVersion: true
+  monitoring:
+    alerting:
+      emailReceivers:
+      - john.doe@example.com
+  addons:
+    nginxIngress:
+      enabled: true
+    kubernetesDashboard:
+      enabled: true
+      authenticationMode: token
+
