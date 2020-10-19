@@ -23,6 +23,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
@@ -76,7 +77,7 @@ func UpdateMachineWithRetries(machineClient v1alpha1client.MachineInterface, mac
 		if applyErr := applyUpdate(machine); applyErr != nil {
 			return applyErr
 		}
-		machine, err = machineClient.Update(machine)
+		machine, err = machineClient.Update(context.TODO(), machine, metav1.UpdateOptions{})
 		return err
 	})
 
@@ -346,7 +347,7 @@ func (c *controller) syncMachineNodeTemplates(machine *v1alpha1.Machine) error {
 		}
 		nodeCopy.Annotations[LastAppliedALTAnnotation] = string(currentlyAppliedALTJSONByte)
 
-		_, err := c.targetCoreClient.CoreV1().Nodes().Update(nodeCopy)
+		_, err := c.targetCoreClient.CoreV1().Nodes().Update(context.TODO(), nodeCopy, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}

@@ -23,6 +23,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sort"
@@ -104,7 +105,7 @@ func (dc *controller) checkPausedConditions(d *v1alpha1.MachineDeployment) error
 	}
 
 	var err error
-	d, err = dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(d)
+	d, err = dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(context.TODO(), d, metav1.UpdateOptions{})
 	return err
 }
 
@@ -259,7 +260,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 
 		if annotationsUpdated || minReadySecondsNeedsUpdate || nodeTemplateUpdated || machineConfigUpdated || updateMachineSetClassKind {
 			isCopy.Spec.MinReadySeconds = d.Spec.MinReadySeconds
-			return dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(isCopy)
+			return dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(context.TODO(), isCopy, metav1.UpdateOptions{})
 		}
 
 		// Should use the revision in existingNewRS's annotation, since it set by before
@@ -278,12 +279,12 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 		if needsUpdate {
 			var err error
 			newStatus := d.Status
-			if d, err = dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d); err != nil {
+			if d, err = dc.controlMachineClient.MachineDeployments(d.Namespace).Update(context.TODO(), d, metav1.UpdateOptions{}); err != nil {
 				return nil, err
 			}
 			dCopy := d.DeepCopy()
 			dCopy.Status = newStatus
-			if d, err = dc.controlMachineClient.MachineDeployments(dCopy.Namespace).UpdateStatus(dCopy); err != nil {
+			if d, err = dc.controlMachineClient.MachineDeployments(dCopy.Namespace).UpdateStatus(context.TODO(), dCopy, metav1.UpdateOptions{}); err != nil {
 				return nil, err
 			}
 		}
@@ -330,7 +331,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 	// hash collisions. If there is any other error, we need to report it in the status of
 	// the Deployment.
 	alreadyExists := false
-	createdIS, err := dc.controlMachineClient.MachineSets(newIS.Namespace).Create(&newIS)
+	createdIS, err := dc.controlMachineClient.MachineSets(newIS.Namespace).Create(context.TODO(), &newIS, metav1.CreateOptions{})
 	switch {
 	// We may end up hitting this due to a slow cache or a fast resync of the Deployment.
 	// Fetch a copy of the ReplicaSet. If its machineTemplateSpec is semantically deep equal
@@ -355,7 +356,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 			*d.Status.CollisionCount++
 			// Update the collisionCount for the Deployment and let it requeue by returning the original
 			// error.
-			_, dErr := dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(d)
+			_, dErr := dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(context.TODO(), d, metav1.UpdateOptions{})
 			if dErr == nil {
 				klog.V(2).Infof("Found a hash collision for machine deployment %q - bumping collisionCount (%d->%d) to resolve it", d.Name, preCollisionCount, *d.Status.CollisionCount)
 			}
@@ -372,7 +373,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 			// We don't really care about this error at this point, since we have a bigger issue to report.
 			// TODO: Identify which errors are permanent and switch DeploymentIsFailed to take into account
 			// these reasons as well. Related issue: https://github.com/kubernetes/kubernetes/issues/18568
-			_, _ = dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(d)
+			_, _ = dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(context.TODO(), d, metav1.UpdateOptions{})
 		}
 		dc.recorder.Eventf(d, v1.EventTypeWarning, FailedISCreateReason, msg)
 		return nil, err
@@ -389,7 +390,7 @@ func (dc *controller) getNewMachineSet(d *v1alpha1.MachineDeployment, isList, ol
 		needsUpdate = true
 	}
 	if needsUpdate {
-		_, err = dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(d)
+		_, err = dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(context.TODO(), d, metav1.UpdateOptions{})
 	}
 	return createdIS, err
 }
@@ -525,7 +526,7 @@ func (dc *controller) scaleMachineSet(is *v1alpha1.MachineSet, newScale int32, d
 	var err error
 	if sizeNeedsUpdate || annotationsNeedUpdate {
 		isCopy.Spec.Replicas = newScale
-		is, err = dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(isCopy)
+		is, err = dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(context.TODO(), isCopy, metav1.UpdateOptions{})
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
 			dc.recorder.Eventf(deployment, v1.EventTypeNormal, "ScalingMachineSet", "Scaled %s machine set %s to %d", scalingOperation, is.Name, newScale)
@@ -563,7 +564,7 @@ func (dc *controller) cleanupMachineDeployment(oldISs []*v1alpha1.MachineSet, de
 			continue
 		}
 		klog.V(4).Infof("Trying to cleanup machine set %q for deployment %q", is.Name, deployment.Name)
-		if err := dc.controlMachineClient.MachineSets(is.Namespace).Delete(is.Name, nil); err != nil && !errors.IsNotFound(err) {
+		if err := dc.controlMachineClient.MachineSets(is.Namespace).Delete(context.TODO(), is.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
 			// Return error instead of aggregating and continuing DELETEs on the theory
 			// that we may be overloading the api server.
 			return err
@@ -583,7 +584,7 @@ func (dc *controller) syncMachineDeploymentStatus(allISs []*v1alpha1.MachineSet,
 
 	newDeployment := d
 	newDeployment.Status = newStatus
-	_, err := dc.controlMachineClient.MachineDeployments(newDeployment.Namespace).UpdateStatus(newDeployment)
+	_, err := dc.controlMachineClient.MachineDeployments(newDeployment.Namespace).UpdateStatus(context.TODO(), newDeployment, metav1.UpdateOptions{})
 	return err
 }
 

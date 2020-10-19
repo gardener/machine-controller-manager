@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -116,14 +117,14 @@ func (c *controller) deleteSecretFinalizers(secret *corev1.Secret) error {
 
 func (c *controller) updateSecretFinalizers(secret *corev1.Secret, finalizers []string) error {
 	// Get the latest version of the secret so that we can avoid conflicts
-	secret, err := c.controlCoreClient.CoreV1().Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
+	secret, err := c.controlCoreClient.CoreV1().Secrets(secret.Namespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
 	clone := secret.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.controlCoreClient.CoreV1().Secrets(clone.Namespace).Update(clone)
+	_, err = c.controlCoreClient.CoreV1().Secrets(clone.Namespace).Update(context.TODO(), clone, metav1.UpdateOptions{})
 
 	if err != nil {
 		klog.Warning("Updating secret finalizers failed, retrying", secret.Name, err)

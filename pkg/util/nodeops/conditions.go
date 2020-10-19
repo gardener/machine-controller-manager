@@ -18,6 +18,7 @@ limitations under the License.
 package nodeops
 
 import (
+	"context"
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
@@ -69,7 +70,7 @@ func getNodeCondition(node *v1.Node, conditionType v1.NodeConditionType) *v1.Nod
 
 // GetNodeCondition get the nodes condition matching the specified type
 func GetNodeCondition(c clientset.Interface, nodeName string, conditionType v1.NodeConditionType) (*v1.NodeCondition, error) {
-	node, err := c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	node, err := c.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -85,10 +86,10 @@ func AddOrUpdateConditionsOnNode(c clientset.Interface, nodeName string, conditi
 		// First we try getting node from the API server cache, as it's cheaper. If it fails
 		// we get it from etcd to be sure to have fresh data.
 		if firstTry {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
+			oldNode, err = c.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{ResourceVersion: "0"})
 			firstTry = false
 		} else {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+			oldNode, err = c.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
 		}
 
 		if err != nil {
@@ -108,7 +109,7 @@ func UpdateNodeConditions(c clientset.Interface, nodeName string, oldNode *v1.No
 	newNodeClone := oldNode.DeepCopy()
 	newNodeClone.Status.Conditions = newNode.Status.Conditions
 
-	_, err := c.CoreV1().Nodes().UpdateStatus(newNodeClone)
+	_, err := c.CoreV1().Nodes().UpdateStatus(context.TODO(), newNodeClone, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create update conditions for node %q: %v", nodeName, err)
 	}

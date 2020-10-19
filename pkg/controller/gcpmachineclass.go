@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -195,7 +196,7 @@ func (c *controller) reconcileClusterGCPMachineClass(class *v1alpha1.GCPMachineC
 		if c.deleteMigratedMachineClass && annotationPresent && len(machines) == 0 {
 			// If controller has deleteMigratedMachineClass flag set
 			// and the migratedMachineClass annotation is set
-			err = c.controlMachineClient.GCPMachineClasses(class.Namespace).Delete(class.Name, &metav1.DeleteOptions{})
+			err = c.controlMachineClient.GCPMachineClasses(class.Namespace).Delete(context.TODO(), class.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -246,14 +247,14 @@ func (c *controller) deleteGCPMachineClassFinalizers(class *v1alpha1.GCPMachineC
 
 func (c *controller) updateGCPMachineClassFinalizers(class *v1alpha1.GCPMachineClass, finalizers []string) error {
 	// Get the latest version of the class so that we can avoid conflicts
-	class, err := c.controlMachineClient.GCPMachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
+	class, err := c.controlMachineClient.GCPMachineClasses(class.Namespace).Get(context.TODO(), class.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.controlMachineClient.GCPMachineClasses(class.Namespace).Update(clone)
+	_, err = c.controlMachineClient.GCPMachineClasses(class.Namespace).Update(context.TODO(), clone, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Warning("Updating GCPMachineClass failed, retrying. ", class.Name, err)
 		return err

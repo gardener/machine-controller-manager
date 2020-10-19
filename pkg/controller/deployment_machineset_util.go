@@ -23,6 +23,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -68,7 +69,7 @@ func updateMachineSetStatus(machineClient machineapi.MachineV1alpha1Interface, i
 			fmt.Sprintf("sequence No: %v->%v", is.Status.ObservedGeneration, newStatus.ObservedGeneration))
 
 		is.Status = newStatus
-		updatedIS, updateErr = c.UpdateStatus(is)
+		updatedIS, updateErr = c.UpdateStatus(context.TODO(), is, metav1.UpdateOptions{})
 
 		if updateErr == nil {
 			return updatedIS, nil
@@ -78,7 +79,7 @@ func updateMachineSetStatus(machineClient machineapi.MachineV1alpha1Interface, i
 			break
 		}
 		// Update the MachineSet with the latest resource veision for the next poll
-		if is, getErr = c.Get(is.Name, metav1.GetOptions{}); getErr != nil {
+		if is, getErr = c.Get(context.TODO(), is.Name, metav1.GetOptions{}); getErr != nil {
 			// If the GET fails we can't trust status.Replicas anymore. This error
 			// is bound to be more interesting than the update failure.
 			return nil, getErr

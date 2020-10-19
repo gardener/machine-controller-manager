@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -194,7 +195,7 @@ func (c *controller) reconcileClusterAWSMachineClass(class *v1alpha1.AWSMachineC
 		if c.deleteMigratedMachineClass && annotationPresent && len(machines) == 0 {
 			// If controller has deleteMigratedMachineClass flag set
 			// and the migratedMachineClass annotation is set
-			err = c.controlMachineClient.AWSMachineClasses(class.Namespace).Delete(class.Name, &metav1.DeleteOptions{})
+			err = c.controlMachineClient.AWSMachineClasses(class.Namespace).Delete(context.TODO(), class.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -245,14 +246,14 @@ func (c *controller) deleteAWSMachineClassFinalizers(class *v1alpha1.AWSMachineC
 
 func (c *controller) updateAWSMachineClassFinalizers(class *v1alpha1.AWSMachineClass, finalizers []string) error {
 	// Get the latest version of the class so that we can avoid conflicts
-	class, err := c.controlMachineClient.AWSMachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
+	class, err := c.controlMachineClient.AWSMachineClasses(class.Namespace).Get(context.TODO(), class.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.controlMachineClient.AWSMachineClasses(class.Namespace).Update(clone)
+	_, err = c.controlMachineClient.AWSMachineClasses(class.Namespace).Update(context.TODO(), clone, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Warning("Updating AWSMachineClass failed, retrying. ", class.Name, err)
 		return err

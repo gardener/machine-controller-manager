@@ -23,6 +23,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"time"
@@ -335,7 +336,7 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 
 		retryDeadline := time.Now().Add(maxRetryDeadline)
 		for {
-			machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
+			machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(context.TODO(), machineSet.Name, metav1.GetOptions{})
 			if err != nil && time.Now().Before(retryDeadline) {
 				klog.Warningf("Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
 				time.Sleep(conflictRetryInterval)
@@ -352,7 +353,7 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 			}
 			msCopy.Annotations[taint.Key] = "True"
 
-			_, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(msCopy)
+			_, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(context.TODO(), msCopy, metav1.UpdateOptions{})
 			if err != nil && time.Now().Before(retryDeadline) {
 				klog.Warningf("Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
 				time.Sleep(conflictRetryInterval)

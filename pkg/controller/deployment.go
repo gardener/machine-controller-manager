@@ -23,6 +23,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sync"
@@ -306,7 +307,7 @@ func (dc *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) 
 		// Not a Machine owned by a machine set.
 		return nil
 	}
-	is, err = dc.controlMachineClient.MachineSets(machine.Namespace).Get(controllerRef.Name, metav1.GetOptions{})
+	is, err = dc.controlMachineClient.MachineSets(machine.Namespace).Get(context.TODO(), controllerRef.Name, metav1.GetOptions{})
 	if err != nil || is.UID != controllerRef.UID {
 		klog.V(4).Infof("Cannot get machineset %q for machine %q: %v", controllerRef.Name, machine.Name, err)
 		return nil
@@ -329,7 +330,7 @@ func (dc *controller) resolveDeploymentControllerRef(namespace string, controlle
 	if controllerRef.Kind != controllerKind.Kind {
 		return nil
 	}
-	d, err := dc.controlMachineClient.MachineDeployments(namespace).Get(controllerRef.Name, metav1.GetOptions{})
+	d, err := dc.controlMachineClient.MachineDeployments(namespace).Get(context.TODO(), controllerRef.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil
 	}
@@ -375,7 +376,7 @@ func (dc *controller) getMachineSetsForMachineDeployment(d *v1alpha1.MachineDepl
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing MachineSets (see #42639).
 	canAdoptFunc := RecheckDeletionTimestamp(func() (metav1.Object, error) {
-		fresh, err := dc.controlMachineClient.MachineDeployments(d.Namespace).Get(d.Name, metav1.GetOptions{})
+		fresh, err := dc.controlMachineClient.MachineDeployments(d.Namespace).Get(context.TODO(), d.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -436,7 +437,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	if err != nil {
 		return err
 	}
-	deployment, err := dc.controlMachineClient.MachineDeployments(dc.namespace).Get(name, metav1.GetOptions{})
+	deployment, err := dc.controlMachineClient.MachineDeployments(dc.namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		klog.V(4).Infof("Deployment %v has been deleted", key)
 		return nil
@@ -483,7 +484,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		dc.recorder.Eventf(d, v1.EventTypeWarning, "SelectingAll", "This deployment is selecting all machines. A non-empty selector is required.")
 		if d.Status.ObservedGeneration < d.Generation {
 			d.Status.ObservedGeneration = d.Generation
-			dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(d)
+			dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(context.TODO(), d, metav1.UpdateOptions{})
 		}
 		return nil
 	}
@@ -567,7 +568,7 @@ func (dc *controller) terminateMachineSets(machineSets []*v1alpha1.MachineSet, d
 			if machineSet.DeletionTimestamp != nil {
 				return
 			}
-			dc.controlMachineClient.MachineSets(machineSet.Namespace).Delete(machineSet.Name, nil)
+			dc.controlMachineClient.MachineSets(machineSet.Namespace).Delete(context.TODO(), machineSet.Name, metav1.DeleteOptions{})
 		}(machineSet)
 	}
 	wg.Wait()
@@ -598,14 +599,14 @@ func (dc *controller) deleteMachineDeploymentFinalizers(machineDeployment *v1alp
 
 func (dc *controller) updateMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment, finalizers []string) {
 	// Get the latest version of the machineDeployment so that we can avoid conflicts
-	machineDeployment, err := dc.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Get(machineDeployment.Name, metav1.GetOptions{})
+	machineDeployment, err := dc.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Get(context.TODO(), machineDeployment.Name, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
 
 	clone := machineDeployment.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = dc.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Update(clone)
+	_, err = dc.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Update(context.TODO(), clone, metav1.UpdateOptions{})
 	if err != nil {
 		// Keep retrying until update goes through
 		klog.Warning("Updated failed, retrying")

@@ -23,6 +23,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -134,7 +135,7 @@ func (dc *controller) emitRollbackNormalEvent(d *v1alpha1.MachineDeployment, mes
 func (dc *controller) updateMachineDeploymentAndClearRollbackTo(d *v1alpha1.MachineDeployment) error {
 	klog.V(4).Infof("Cleans up rollbackTo of machine deployment %q", d.Name)
 	d.Spec.RollbackTo = nil
-	_, err := dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d)
+	_, err := dc.controlMachineClient.MachineDeployments(d.Namespace).Update(context.TODO(), d, metav1.UpdateOptions{})
 	return err
 }
 
@@ -171,7 +172,7 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 	// to avoid scheduling on older machines
 	for _, machine := range filteredMachines {
 		if machine.Status.Node != "" {
-			node, err := dc.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
+			node, err := dc.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Status.Node, metav1.GetOptions{})
 			if err != nil {
 				klog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Status.Node, err)
 				continue
@@ -186,13 +187,13 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 			if err != nil {
 				klog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Status.Node, err)
 			}
-			node, err = dc.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
+			node, err = dc.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Status.Node, metav1.GetOptions{})
 		}
 	}
 
 	retryDeadline := time.Now().Add(maxRetryDeadline)
 	for {
-		machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
+		machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(context.TODO(), machineSet.Name, metav1.GetOptions{})
 		if err != nil {
 			if time.Now().Before(retryDeadline) {
 				klog.Warningf("Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
@@ -208,7 +209,7 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 		msCopy := machineSet.DeepCopy()
 		delete(msCopy.Annotations, taint.Key)
 
-		machineSet, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(msCopy)
+		machineSet, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(context.TODO(), msCopy, metav1.UpdateOptions{})
 
 		if err != nil {
 			if time.Now().Before(retryDeadline) {

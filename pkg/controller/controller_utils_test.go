@@ -16,6 +16,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"sort"
 	"strconv"
 
@@ -280,7 +281,7 @@ var _ = Describe("#controllerUtils", func() {
 					return
 				}
 
-				nodeObject, _ = c.targetCoreClient.CoreV1().Nodes().Get(data.action.nodeName, metav1.GetOptions{})
+				nodeObject, _ = c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), data.action.nodeName, metav1.GetOptions{})
 
 				// Merge the annotations in the newNodeObject.
 				annotationsOnNewNodeObject := make(map[string]string)
@@ -456,7 +457,7 @@ var _ = Describe("#controllerUtils", func() {
 					return
 				}
 
-				nodeObject, _ = c.targetCoreClient.CoreV1().Nodes().Get(data.action.nodeName, metav1.GetOptions{})
+				nodeObject, _ = c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), data.action.nodeName, metav1.GetOptions{})
 
 				// Merge the annotations in the newNodeObject.
 				annotationsOnNewNodeObject := make(map[string]string)

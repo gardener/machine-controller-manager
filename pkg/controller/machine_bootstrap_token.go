@@ -20,6 +20,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"math/big"
@@ -59,7 +60,7 @@ func (c *controller) addBootstrapTokenToUserData(machineName string, driver driv
 func (c *controller) getBootstrapTokenOrCreateIfNotExist(machineName string) (secret *v1.Secret, err error) {
 	tokenID, secretName := getTokenIDAndSecretName(machineName)
 
-	secret, err = c.targetCoreClient.CoreV1().Secrets(metav1.NamespaceSystem).Get(secretName, metav1.GetOptions{})
+	secret, err = c.targetCoreClient.CoreV1().Secrets(metav1.NamespaceSystem).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			bootstrapTokenSecretKey, err := generateRandomStringFromCharset(16, "0123456789abcdefghijklmnopqrstuvwxyz")
@@ -85,7 +86,7 @@ func (c *controller) getBootstrapTokenOrCreateIfNotExist(machineName string) (se
 				Data: data,
 			}
 
-			return c.targetCoreClient.CoreV1().Secrets(metav1.NamespaceSystem).Create(secret)
+			return c.targetCoreClient.CoreV1().Secrets(metav1.NamespaceSystem).Create(context.TODO(), secret, metav1.CreateOptions{})
 		}
 		return nil, err
 	}
@@ -95,7 +96,7 @@ func (c *controller) getBootstrapTokenOrCreateIfNotExist(machineName string) (se
 
 func (c *controller) deleteBootstrapToken(machineName string) error {
 	_, secretName := getTokenIDAndSecretName(machineName)
-	err := c.targetCoreClient.CoreV1().Secrets(metav1.NamespaceSystem).Delete(secretName, &metav1.DeleteOptions{})
+	err := c.targetCoreClient.CoreV1().Secrets(metav1.NamespaceSystem).Delete(context.TODO(), secretName, metav1.DeleteOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
 		// Object no longer exists and has been deleted
 		return nil

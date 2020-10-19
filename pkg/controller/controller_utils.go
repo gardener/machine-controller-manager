@@ -23,6 +23,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"hash/fnv"
@@ -429,7 +430,7 @@ var _ MachineSetControlInterface = &RealMachineSetControl{}
 
 // PatchMachineSet patches the machineSet object
 func (r RealMachineSetControl) PatchMachineSet(namespace, name string, data []byte) error {
-	_, err := r.controlMachineClient.MachineSets(namespace).Patch(name, types.MergePatchType, data)
+	_, err := r.controlMachineClient.MachineSets(namespace).Patch(context.TODO(), name, types.MergePatchType, data, metav1.PatchOptions{})
 	return err
 }
 
@@ -450,7 +451,7 @@ var _ RevisionControlInterface = &RealControllerRevisionControl{}
 
 // PatchControllerRevision is the patch method used to patch the controller revision
 func (r RealControllerRevisionControl) PatchControllerRevision(namespace, name string, data []byte) error {
-	_, err := r.KubeClient.AppsV1beta1().ControllerRevisions(namespace).Patch(name, types.StrategicMergePatchType, data)
+	_, err := r.KubeClient.AppsV1beta1().ControllerRevisions(namespace).Patch(context.TODO(), name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
 	return err
 }
 
@@ -585,7 +586,7 @@ func (r RealMachineControl) createMachines(namespace string, template *v1alpha1.
 	}
 
 	var newMachine *v1alpha1.Machine
-	if newMachine, err = r.controlMachineClient.Machines(namespace).Create(machine); err != nil {
+	if newMachine, err = r.controlMachineClient.Machines(namespace).Create(context.TODO(), machine, metav1.CreateOptions{}); err != nil {
 		klog.Error(err)
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedCreateMachineReason, "Error creating: %v", err)
 		return err
@@ -604,7 +605,7 @@ func (r RealMachineControl) createMachines(namespace string, template *v1alpha1.
 
 // PatchMachine applies a patch on machine
 func (r RealMachineControl) PatchMachine(namespace string, name string, data []byte) error {
-	_, err := r.controlMachineClient.Machines(namespace).Patch(name, types.MergePatchType, data)
+	_, err := r.controlMachineClient.Machines(namespace).Patch(context.TODO(), name, types.MergePatchType, data, metav1.PatchOptions{})
 	return err
 }
 
@@ -616,7 +617,7 @@ func (r RealMachineControl) DeleteMachine(namespace string, machineID string, ob
 	}
 	klog.V(2).Infof("Controller %v deleting machine %v", accessor.GetName(), machineID)
 
-	if err := r.controlMachineClient.Machines(namespace).Delete(machineID, nil); err != nil {
+	if err := r.controlMachineClient.Machines(namespace).Delete(context.TODO(), machineID, metav1.DeleteOptions{}); err != nil {
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeleteMachineReason, "Error deleting: %v", err)
 		return fmt.Errorf("unable to delete machines: %v", err)
 	}
@@ -651,7 +652,7 @@ func (r FakeMachineControl) createMachines(namespace string, template *v1alpha1.
 	}
 
 	var newMachine *v1alpha1.Machine
-	if newMachine, err = r.controlMachineClient.Machines(namespace).Create(machine); err != nil {
+	if newMachine, err = r.controlMachineClient.Machines(namespace).Create(context.TODO(), machine, metav1.CreateOptions{}); err != nil {
 		klog.Error(err)
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedCreateMachineReason, "Error creating: %v", err)
 		return err
@@ -677,7 +678,7 @@ func (r FakeMachineControl) CreateMachinesWithControllerRef(namespace string, te
 
 // PatchMachine applies a patch on machine
 func (r FakeMachineControl) PatchMachine(namespace string, name string, data []byte) error {
-	_, err := r.controlMachineClient.Machines(namespace).Patch(name, types.MergePatchType, data)
+	_, err := r.controlMachineClient.Machines(namespace).Patch(context.TODO(), name, types.MergePatchType, data, metav1.PatchOptions{})
 	return err
 }
 
@@ -689,7 +690,7 @@ func (r FakeMachineControl) DeleteMachine(namespace string, machineID string, ob
 	}
 	klog.V(2).Infof("Controller %v deleting machine %v", accessor.GetName(), machineID)
 
-	if err := r.controlMachineClient.Machines(namespace).Delete(machineID, nil); err != nil {
+	if err := r.controlMachineClient.Machines(namespace).Delete(context.TODO(), machineID, metav1.DeleteOptions{}); err != nil {
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeleteMachineReason, "Error deleting: %v", err)
 		return fmt.Errorf("unable to delete machines: %v", err)
 	}
@@ -942,10 +943,10 @@ func AddOrUpdateAnnotationOnNode(c clientset.Interface, nodeName string, annotat
 		// First we try getting node from the API server cache, as it's cheaper. If it fails
 		// we get it from etcd to be sure to have fresh data.
 		if firstTry {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
+			oldNode, err = c.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{ResourceVersion: "0"})
 			firstTry = false
 		} else {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+			oldNode, err = c.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
 		}
 		if errors.IsNotFound(err) {
 			klog.Warningf("Node %s not found while updating annotation. Err: %v", nodeName, err)
@@ -973,7 +974,7 @@ func UpdateNodeAnnotations(c clientset.Interface, nodeName string, oldNode *v1.N
 	newNodeClone := oldNode.DeepCopy()
 	newNodeClone.Annotations = newNode.Annotations
 
-	_, err := c.CoreV1().Nodes().Update(newNodeClone)
+	_, err := c.CoreV1().Nodes().Update(context.TODO(), newNodeClone, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create or update annotations for node %q: %v", nodeName, err)
 	}
@@ -999,10 +1000,10 @@ func RemoveAnnotationsOffNode(c clientset.Interface, nodeName string, annotation
 		// First we try getting node from the API server cache, as it's cheaper. If it fails
 		// we get it from etcd to be sure to have fresh data.
 		if firstTry {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
+			oldNode, err = c.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{ResourceVersion: "0"})
 			firstTry = false
 		} else {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+			oldNode, err = c.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
 		}
 		if errors.IsNotFound(err) {
 			klog.Warningf("Node %s not found while removing annotation. Err: %v", nodeName, err)
@@ -1035,7 +1036,7 @@ func GetAnnotationsFromNode(c clientset.Interface, nodeName string) (map[string]
 		return nil, nil
 	}
 
-	node, err := c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	node, err := c.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		klog.Warningf("Node %s not found while fetching annotation. Err: %v", nodeName, err)
 		return nil, nil

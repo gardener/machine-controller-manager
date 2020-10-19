@@ -23,6 +23,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -440,7 +441,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	}
 
 	// Get the latest version of the machineSet so that we can avoid conflicts
-	machineSet, err := c.controlMachineClient.MachineSets(c.namespace).Get(name, metav1.GetOptions{})
+	machineSet, err := c.controlMachineClient.MachineSets(c.namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
 		klog.V(4).Infof("%v has been deleted", key)
 		c.expectations.DeleteExpectations(key)
@@ -552,7 +553,7 @@ func (c *controller) claimMachines(machineSet *v1alpha1.MachineSet, selector lab
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing Machines (see #42639).
 	canAdoptFunc := RecheckDeletionTimestamp(func() (metav1.Object, error) {
-		fresh, err := c.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
+		fresh, err := c.controlMachineClient.MachineSets(machineSet.Namespace).Get(context.TODO(), machineSet.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -713,14 +714,14 @@ func (c *controller) deleteMachineSetFinalizers(machineSet *v1alpha1.MachineSet)
 
 func (c *controller) updateMachineSetFinalizers(machineSet *v1alpha1.MachineSet, finalizers []string) {
 	// Get the latest version of the machineSet so that we can avoid conflicts
-	machineSet, err := c.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
+	machineSet, err := c.controlMachineClient.MachineSets(machineSet.Namespace).Get(context.TODO(), machineSet.Name, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
 
 	clone := machineSet.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.controlMachineClient.MachineSets(clone.Namespace).Update(clone)
+	_, err = c.controlMachineClient.MachineSets(clone.Namespace).Update(context.TODO(), clone, metav1.UpdateOptions{})
 	if err != nil {
 		// Keep retrying until update goes through
 		klog.Warning("Updated failed, retrying")

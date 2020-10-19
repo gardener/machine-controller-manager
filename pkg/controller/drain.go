@@ -185,7 +185,7 @@ func (o *DrainOptions) RunDrain() error {
 		return err
 	}
 
-	node, err := o.client.CoreV1().Nodes().Get(o.nodeName, metav1.GetOptions{})
+	node, err := o.client.CoreV1().Nodes().Get(context.TODO(), o.nodeName, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
 		klog.V(4).Infof("Node %q not found, skipping drain", o.nodeName)
 		return nil
@@ -306,7 +306,7 @@ func (ps podStatuses) Message() string {
 // getPodsForDeletion returns all the pods we're going to delete.  If there are
 // any pods preventing us from deleting, we return that list in an error.
 func (o *DrainOptions) getPodsForDeletion() (pods []api.Pod, err error) {
-	podList, err := o.client.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{
+	podList, err := o.client.CoreV1().Pods(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": o.nodeName}).String()})
 	if err != nil {
 		return pods, err
@@ -343,12 +343,12 @@ func (o *DrainOptions) getPodsForDeletion() (pods []api.Pod, err error) {
 }
 
 func (o *DrainOptions) deletePod(pod *api.Pod) error {
-	deleteOptions := &metav1.DeleteOptions{}
+	deleteOptions := metav1.DeleteOptions{}
 	gracePeriodSeconds := int64(0)
 	deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
 
 	klog.V(3).Infof("Attempting to force-delete the pod:%q from node %q", pod.Name, o.nodeName)
-	return o.client.CoreV1().Pods(pod.Namespace).Delete(pod.Name, deleteOptions)
+	return o.client.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, deleteOptions)
 }
 
 func (o *DrainOptions) evictPod(pod *api.Pod, policyGroupVersion string) error {
@@ -370,7 +370,7 @@ func (o *DrainOptions) evictPod(pod *api.Pod, policyGroupVersion string) error {
 	}
 	klog.V(3).Infof("Attempting to evict the pod:%q from node %q", pod.Name, o.nodeName)
 	// TODO: Remember to change the URL manipulation func when Evction's version change
-	return o.client.PolicyV1beta1().Evictions(eviction.Namespace).Evict(eviction)
+	return o.client.PolicyV1beta1().Evictions(eviction.Namespace).Evict(context.TODO(), eviction)
 }
 
 // deleteOrEvictPods deletes or evicts the pods on the api server
@@ -385,7 +385,7 @@ func (o *DrainOptions) deleteOrEvictPods(pods []api.Pod) error {
 	}
 
 	getPodFn := func(namespace, name string) (*api.Pod, error) {
-		return o.client.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
+		return o.client.CoreV1().Pods(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	}
 
 	attemptEvict := !o.ForceDeletePods && len(policyGroupVersion) > 0
@@ -759,7 +759,7 @@ func (o *DrainOptions) waitForDetach(ctx context.Context, volumeIDs []string, no
 
 		found = false
 
-		node, err := o.client.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+		node, err := o.client.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Info("Node not found: ", nodeName)
 			return err
@@ -958,7 +958,7 @@ func SupportEviction(clientset kubernetes.Interface) (string, error) {
 // RunCordonOrUncordon runs either Cordon or Uncordon.  The desired value for
 // "Unschedulable" is passed as the first arg.
 func (o *DrainOptions) RunCordonOrUncordon(desired bool) error {
-	node, err := o.client.CoreV1().Nodes().Get(o.nodeName, metav1.GetOptions{})
+	node, err := o.client.CoreV1().Nodes().Get(context.TODO(), o.nodeName, metav1.GetOptions{})
 	if err != nil {
 		// Deletion could be triggered when machine is just being created, no node present then
 		return nil
@@ -970,7 +970,7 @@ func (o *DrainOptions) RunCordonOrUncordon(desired bool) error {
 		clone := node.DeepCopy()
 		clone.Spec.Unschedulable = desired
 
-		_, err = o.client.CoreV1().Nodes().Update(clone)
+		_, err = o.client.CoreV1().Nodes().Update(context.TODO(), clone, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}

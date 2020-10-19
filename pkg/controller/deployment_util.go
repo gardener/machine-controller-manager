@@ -23,6 +23,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sort"
@@ -736,7 +737,7 @@ func GetNewMachineSet(deployment *v1alpha1.MachineDeployment, c v1alpha1client.M
 // IsListFromClient returns an rsListFunc that wraps the given client.
 func IsListFromClient(c v1alpha1client.MachineV1alpha1Interface) IsListFunc {
 	return func(namespace string, options metav1.ListOptions) ([]*v1alpha1.MachineSet, error) {
-		isList, err := c.MachineSets(namespace).List(options)
+		isList, err := c.MachineSets(namespace).List(context.TODO(), options)
 		if err != nil {
 			return nil, err
 		}

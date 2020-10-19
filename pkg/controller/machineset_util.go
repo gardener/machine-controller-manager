@@ -23,12 +23,14 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"fmt"
 
 	"k8s.io/klog"
 
 	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
 
@@ -57,7 +59,7 @@ func UpdateISWithRetries(isClient v1alpha1client.MachineSetInterface, isLister v
 		if applyErr := applyUpdate(is); applyErr != nil {
 			return applyErr
 		}
-		is, err = isClient.Update(is)
+		is, err = isClient.Update(context.TODO(), is, metav1.UpdateOptions{})
 		return err
 	})
 

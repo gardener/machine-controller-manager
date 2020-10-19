@@ -167,7 +167,7 @@ var _ = Describe("drain", func() {
 		go func() {
 			for pod := range detachExclusiveVolumesCh {
 				nodes := d.client.CoreV1().Nodes()
-				node, err := nodes.Get(pod.Spec.NodeName, metav1.GetOptions{})
+				node, err := nodes.Get(context.TODO(), pod.Spec.NodeName, metav1.GetOptions{})
 				if err != nil {
 					fmt.Fprintln(GinkgoWriter, err)
 					continue

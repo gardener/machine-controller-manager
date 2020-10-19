@@ -23,9 +23,11 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -115,7 +117,7 @@ func (dc *controller) syncRolloutStatus(allISs []*v1alpha1.MachineSet, newIS *v1
 
 	newDeployment := d
 	newDeployment.Status = newStatus
-	_, err := dc.controlMachineClient.MachineDeployments(newDeployment.Namespace).UpdateStatus(newDeployment)
+	_, err := dc.controlMachineClient.MachineDeployments(newDeployment.Namespace).UpdateStatus(context.TODO(), newDeployment, metav1.UpdateOptions{})
 	return err
 }
 
