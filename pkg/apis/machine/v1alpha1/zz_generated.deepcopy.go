@@ -1759,6 +1759,11 @@ func (in *OpenStackMachineClassSpec) DeepCopyInto(out *OpenStackMachineClassSpec
 		*out = make([]OpenStackNetwork, len(*in))
 		copy(*out, *in)
 	}
+	if in.SubnetID != nil {
+		in, out := &in.SubnetID, &out.SubnetID
+		*out = new(string)
+		**out = **in
+	}
 	if in.SecretRef != nil {
 		in, out := &in.SecretRef, &out.SecretRef
 		*out = new(v1.SecretReference)
