@@ -19,6 +19,7 @@ limitations under the License.
 package internalversion
 
 import (
+	"context"
 	time "time"
 
 	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -61,13 +62,13 @@ func NewFilteredAWSMachineClassInformer(client clientsetinternalversion.Interfac
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.Machine().AWSMachineClasses(namespace).List(options)
+				return client.Machine().AWSMachineClasses(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.Machine().AWSMachineClasses(namespace).Watch(options)
+				return client.Machine().AWSMachineClasses(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&machine.AWSMachineClass{},

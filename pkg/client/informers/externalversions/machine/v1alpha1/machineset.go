@@ -19,6 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	time "time"
 
 	machinev1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -61,13 +62,13 @@ func NewFilteredMachineSetInformer(client versioned.Interface, namespace string,
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.MachineV1alpha1().MachineSets(namespace).List(options)
+				return client.MachineV1alpha1().MachineSets(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.MachineV1alpha1().MachineSets(namespace).Watch(options)
+				return client.MachineV1alpha1().MachineSets(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&machinev1alpha1.MachineSet{},

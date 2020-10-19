@@ -19,6 +19,7 @@ limitations under the License.
 package internalversion
 
 import (
+	"context"
 	time "time"
 
 	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -61,13 +62,13 @@ func NewFilteredMachineTemplateInformer(client clientsetinternalversion.Interfac
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.Machine().MachineTemplates(namespace).List(options)
+				return client.Machine().MachineTemplates(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.Machine().MachineTemplates(namespace).Watch(options)
+				return client.Machine().MachineTemplates(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&machine.MachineTemplate{},
