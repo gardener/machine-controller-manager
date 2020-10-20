@@ -207,7 +207,7 @@ var _ = Describe("drain", func() {
 					continue
 				}
 
-				_, err = nodes.Update(node)
+				_, err = nodes.Update(context.TODO(), node, metav1.UpdateOptions{})
 				fmt.Fprintln(GinkgoWriter, err)
 			}
 		}()
@@ -339,7 +339,7 @@ var _ = Describe("drain", func() {
 		}
 
 		validatePodCount := func(labelSelector string, nExpected int) {
-			podList, err := d.client.CoreV1().Pods(testNamespace).List(metav1.ListOptions{LabelSelector: labelSelector})
+			podList, err := d.client.CoreV1().Pods(testNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(podList).ToNot(BeNil())
 			Expect(podList.Items).To(HaveLen(nExpected))
@@ -359,7 +359,7 @@ var _ = Describe("drain", func() {
 	}
 
 	deletePod := func(client kubernetes.Interface, pod *api.Pod, detachExclusiveVolumesCh chan<- *api.Pod) error {
-		return client.CoreV1().Pods(pod.Namespace).Delete(pod.Name, nil)
+		return client.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
 	}
 
 	detachExclusiveVolumes := func(client kubernetes.Interface, pod *api.Pod, detachExclusiveVolumesCh chan<- *api.Pod) error {

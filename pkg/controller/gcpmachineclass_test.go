@@ -16,6 +16,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"time"
@@ -79,7 +80,7 @@ var _ = Describe("machineclass", func() {
 				waitForCacheSync(stop, controller)
 
 				action := data.action
-				machineClass, err := controller.controlMachineClient.GCPMachineClasses(TestNamespace).Get(action.machineClassName, metav1.GetOptions{})
+				machineClass, err := controller.controlMachineClient.GCPMachineClasses(TestNamespace).Get(context.TODO(), action.machineClassName, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
 				if data.setup.fakeResourceActions != nil {
@@ -93,7 +94,7 @@ var _ = Describe("machineclass", func() {
 					Expect(err).To(Equal(data.expect.err))
 				}
 
-				machineClass, err = controller.controlMachineClient.GCPMachineClasses(TestNamespace).Get(action.machineClassName, metav1.GetOptions{})
+				machineClass, err = controller.controlMachineClient.GCPMachineClasses(TestNamespace).Get(context.TODO(), action.machineClassName, metav1.GetOptions{})
 				if data.expect.deleted {
 					Expect(err).To((HaveOccurred()))
 				} else {

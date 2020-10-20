@@ -16,6 +16,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -677,7 +678,7 @@ var _ = Describe("machine", func() {
 				waitForCacheSync(stop, controller)
 
 				action := data.action
-				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
 				if data.setup.fakeResourceActions != nil {
@@ -702,7 +703,7 @@ var _ = Describe("machine", func() {
 				}
 
 				Expect(err).To(BeNil())
-				actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+				actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
 				Expect(err).To(BeNil())
 				Expect(actual.Spec).To(Equal(data.expect.machine.Spec))
 				Expect(actual.Status.Node).To(Equal(data.expect.machine.Status.Node))
@@ -1035,7 +1036,7 @@ var _ = Describe("machine", func() {
 				waitForCacheSync(stop, controller)
 
 				action := data.action
-				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
 				fakeDriverGetVMsTemp := func() (driver.VMs, error) { return nil, nil }
@@ -1046,11 +1047,11 @@ var _ = Describe("machine", func() {
 
 				fakeDriver := driver.NewFakeDriver(
 					func() (string, string, error) {
-						_, err := controller.targetCoreClient.CoreV1().Nodes().Create(&v1.Node{
+						_, err := controller.targetCoreClient.CoreV1().Nodes().Create(context.TODO(), &v1.Node{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: action.fakeNodeName,
 							},
-						})
+						}, metav1.CreateOptions{})
 						if err != nil {
 							return "", "", err
 						}
@@ -1073,26 +1074,26 @@ var _ = Describe("machine", func() {
 				controller.addMachineFinalizers(machine)
 
 				// Fetch the latest machine version
-				machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
 				if data.action.forceDeleteLabelPresent {
 					// Add labels for force deletion
 					clone := machine.DeepCopy()
 					clone.Labels["force-deletion"] = "True"
-					machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Update(clone)
+					machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Update(context.TODO(), clone, metav1.UpdateOptions{})
 					Expect(err).ToNot(HaveOccurred())
 				}
 
 				if data.action.fakeMachineStatus != nil {
 					clone := machine.DeepCopy()
 					clone.Status = *data.action.fakeMachineStatus
-					machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).UpdateStatus(clone)
+					machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).UpdateStatus(context.TODO(), clone, metav1.UpdateOptions{})
 					Expect(err).ToNot(HaveOccurred())
 				}
 
 				if data.action.nodeRecentlyNotReady != nil {
-					node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
+					node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Status.Node, metav1.GetOptions{})
 					Expect(nodeErr).To(Not(HaveOccurred()))
 					clone := node.DeepCopy()
 					newNodeCondition := corev1.NodeCondition{
@@ -1107,7 +1108,7 @@ var _ = Describe("machine", func() {
 					}
 
 					clone.Status.Conditions = []corev1.NodeCondition{newNodeCondition}
-					_, updateErr := controller.targetCoreClient.CoreV1().Nodes().UpdateStatus(clone)
+					_, updateErr := controller.targetCoreClient.CoreV1().Nodes().UpdateStatus(context.TODO(), clone, metav1.UpdateOptions{})
 					Expect(updateErr).To(BeNil())
 				}
 
@@ -1123,8 +1124,8 @@ var _ = Describe("machine", func() {
 					Expect(err).ToNot(HaveOccurred())
 				}
 
-				node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
-				machine, machineErr := controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+				node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Status.Node, metav1.GetOptions{})
+				machine, machineErr := controller.controlMachineClient.Machines(machine.Namespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
 
 				if data.expect.machineDeleted {
 					Expect(machineErr).To(HaveOccurred())
@@ -1664,12 +1665,12 @@ var _ = Describe("machine", func() {
 				waitForCacheSync(stop, controller)
 
 				action := data.action
-				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				//Expect(err).ToNot(HaveOccurred())
 
 				controller.checkMachineTimeout(machine)
 
-				actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+				actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
 				Expect(err).To(BeNil())
 				Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
 				Expect(actual.Status.CurrentStatus.TimeoutActive).To(Equal(data.expect.machine.Status.CurrentStatus.TimeoutActive))
@@ -1884,12 +1885,12 @@ var _ = Describe("machine", func() {
 				waitForCacheSync(stop, controller)
 
 				action := data.action
-				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
 				controller.updateMachineState(machine)
 
-				actual, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				actual, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				Expect(err).To(BeNil())
 				Expect(actual.Name).To(Equal(data.expect.machine.Name))
 				Expect(actual.Status.Node).To(Equal(data.expect.machine.Status.Node))

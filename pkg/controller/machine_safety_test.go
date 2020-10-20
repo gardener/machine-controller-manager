@@ -16,6 +16,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -46,7 +47,7 @@ var _ = Describe("#machine_safety", func() {
 			c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, nil)
 			defer trackers.Stop()
 
-			machineSets, err := c.controlMachineClient.MachineSets(machineSet.Namespace).List(metav1.ListOptions{})
+			machineSets, err := c.controlMachineClient.MachineSets(machineSet.Namespace).List(context.TODO(), metav1.ListOptions{})
 			Expect(err).To(BeNil())
 			Expect(machineSets).To(Not(BeNil()))
 			for _, ms := range machineSets.Items {
@@ -120,11 +121,11 @@ var _ = Describe("#machine_safety", func() {
 			Expect(cache.WaitForCacheSync(stop, c.machineSetSynced, c.machineDeploymentSynced)).To(BeTrue())
 
 			c.unfreezeMachineSetAndDeployment(testMachineSet)
-			machineSet, err := c.controlMachineClient.MachineSets(testMachineSet.Namespace).Get(testMachineSet.Name, metav1.GetOptions{})
+			machineSet, err := c.controlMachineClient.MachineSets(testMachineSet.Namespace).Get(context.TODO(), testMachineSet.Name, metav1.GetOptions{})
 			if machineSetExists {
 				Expect(machineSet.Labels["freeze"]).Should((BeEmpty()))
 				Expect(GetCondition(&machineSet.Status, v1alpha1.MachineSetFrozen)).Should(BeNil())
-				machineDeployment, err := c.controlMachineClient.MachineDeployments(testMachineDeployment.Namespace).Get(testMachineDeployment.Name, metav1.GetOptions{})
+				machineDeployment, err := c.controlMachineClient.MachineDeployments(testMachineDeployment.Namespace).Get(context.TODO(), testMachineDeployment.Name, metav1.GetOptions{})
 				if parentExists {
 					//Expect(machineDeployment.Labels["freeze"]).Should((BeEmpty()))
 					Expect(GetMachineDeploymentCondition(machineDeployment.Status, v1alpha1.MachineDeploymentFrozen)).Should(BeNil())
@@ -230,7 +231,7 @@ var _ = Describe("#machine_safety", func() {
 			c.reconcileClusterMachineSafetyOvershooting("")
 			waitForCacheSync(stop, c)
 
-			ms, err := c.controlMachineClient.MachineSets(testNamespace).List(metav1.ListOptions{})
+			ms, err := c.controlMachineClient.MachineSets(testNamespace).List(context.TODO(), metav1.ListOptions{})
 			Expect(err).To(BeNil())
 			Expect(ms.Items[0].Labels).To(Equal(data.expect.machineSetLabels))
 			if len(data.expect.machineSetConditions) >= 1 {
@@ -242,7 +243,7 @@ var _ = Describe("#machine_safety", func() {
 			}
 			Expect(len(ms.Items[0].Annotations)).To(Equal(len(data.expect.machineSetAnnotations)))
 
-			machineDeploy, err := c.controlMachineClient.MachineDeployments(testNamespace).List(metav1.ListOptions{})
+			machineDeploy, err := c.controlMachineClient.MachineDeployments(testNamespace).List(context.TODO(), metav1.ListOptions{})
 			Expect(err).To(BeNil())
 			Expect(machineDeploy.Items[0].Labels).To(Equal(data.expect.machineDeploymentLabels))
 			Expect(len(machineDeploy.Items[0].Status.Conditions)).To(Equal(len(data.expect.machineDeploymentConditions)))

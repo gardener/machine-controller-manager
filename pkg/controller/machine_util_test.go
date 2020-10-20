@@ -16,6 +16,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -78,7 +79,7 @@ var _ = Describe("machine_util", func() {
 				}
 
 				//updatedNodeObject, _ := c.nodeLister.Get(nodeObject.Name)
-				updatedNodeObject, _ := c.targetCoreClient.CoreV1().Nodes().Get(nodeObject.Name, metav1.GetOptions{})
+				updatedNodeObject, _ := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), nodeObject.Name, metav1.GetOptions{})
 
 				if data.expect.node != nil {
 					Expect(updatedNodeObject.Spec.Taints).Should(ConsistOf(data.expect.node.Spec.Taints))
@@ -1897,7 +1898,7 @@ var _ = Describe("machine_util", func() {
 					Expect(err).To(HaveOccurred())
 				}
 
-				updatedNodeObject, _ := c.targetCoreClient.CoreV1().Nodes().Get(nodeObject.Name, metav1.GetOptions{})
+				updatedNodeObject, _ := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), nodeObject.Name, metav1.GetOptions{})
 
 				if data.expect.node != nil {
 					conditions := data.expect.node.Status.Conditions
