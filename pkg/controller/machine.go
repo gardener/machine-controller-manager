@@ -426,6 +426,37 @@ func (c *controller) updateMachineState(machine *v1alpha1.Machine) (*v1alpha1.Ma
 
 func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driver) error {
 	klog.V(2).Infof("Creating machine %q, please wait!", machine.Name)
+
+	if machine.Status.CurrentStatus.Phase == v1alpha1.MachineCreating {
+		klog.Warningf("Previous Machine creation have not finished properly, moving Machine to the Failed phase")
+
+		lastOperation := v1alpha1.LastOperation{
+			Description:    "Started Machine creation process",
+			State:          v1alpha1.MachineStateFailed,
+			Type:           v1alpha1.MachineOperationCreate,
+			LastUpdateTime: metav1.Now(),
+		}
+		currentStatus := v1alpha1.CurrentStatus{
+			Phase:          v1alpha1.MachineFailed,
+			TimeoutActive:  false,
+			LastUpdateTime: metav1.Now(),
+		}
+		c.updateMachineStatus(machine, lastOperation, currentStatus)
+	}
+
+	lastOperation := v1alpha1.LastOperation{
+		Description:    "Started Machine creation process",
+		State:          v1alpha1.MachineStateProcessing,
+		Type:           v1alpha1.MachineOperationCreate,
+		LastUpdateTime: metav1.Now(),
+	}
+	currentStatus := v1alpha1.CurrentStatus{
+		Phase:          v1alpha1.MachineCreating,
+		TimeoutActive:  false,
+		LastUpdateTime: metav1.Now(),
+	}
+	c.updateMachineStatus(machine, lastOperation, currentStatus)
+
 	var actualProviderID, nodeName string
 
 	err := c.addBootstrapTokenToUserData(machine.Name, driver)

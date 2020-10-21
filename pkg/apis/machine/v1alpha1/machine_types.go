@@ -149,6 +149,9 @@ const (
 
 	// MachineCrashLoopBackOff means creation or deletion of the machine is failing.
 	MachineCrashLoopBackOff MachinePhase = "CrashLoopBackOff"
+
+	// MachineCrashLoopBackOff means creation or deletion of the machine is failing. TODO
+	MachineCreating MachinePhase = "Creating"
 )
 
 // MachineState is a current state of the machine.

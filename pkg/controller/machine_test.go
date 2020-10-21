@@ -977,6 +977,67 @@ var _ = Describe("machine", func() {
 					err: false,
 				},
 			}),
+			Entry("If Machine is already Creating, move machine to Failed state", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					aws: []*machinev1.AWSMachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.AWSMachineClassSpec{
+								SecretRef: newSecretReference(objMeta, 0),
+							},
+						},
+					},
+					machines: newMachines(1,
+						&machinev1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: machinev1.MachineSpec{
+								Class: machinev1.ClassSpec{
+									Kind: "AWSMachineClass",
+									Name: "machine-0",
+								},
+							},
+						},
+						&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineCreating}},
+						nil, nil, nil),
+					fakeResourceActions: &customfake.ResourceActions{
+						Machine: customfake.Actions{
+							Get: apierrors.NewGenericServerResponse(
+								http.StatusBadRequest,
+								"dummy method",
+								schema.GroupResource{},
+								"dummy name",
+								"Failed to GET machine",
+								30,
+								true,
+							),
+						},
+					},
+				},
+				action: action{
+					machine:      "machine-0",
+					fakeNodeName: "",
+					fakeError:    nil,
+				},
+				expect: expect{
+					machine: newMachine(&machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "AWSMachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, &machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{Phase: MachineFailed},
+					}, nil, nil, nil),
+					err: false,
+				},
+			}),
 		)
 	})
 
