@@ -27,7 +27,7 @@ spec:
           - --machine-health-timeout=10m  # Optional Parameter - Default value 10mins - Timeout (in time) used while joining (during creation) or re-joining (in case of temporary health issues) of machine before it is declared as failed.
           - --machine-safety-orphan-vms-period=30 # Optional Parameter - Default value 30mins - Time period (in time) used to poll for orphan VMs by safety controller.
           - --machine-safety-overshooting-period=1 # Optional Parameter - Default value 1min - Time period (in time) used to poll for overshooting of machine objects backing a machineSet by safety controller.
-          - --node-conditions=ReadonlyFilesystem,KernelDeadlock,DiskPressure # List of comma-separated/case-sensitive node-conditions which when set to True will change machine to a failed state after MachineHealthTimeout duration. It may further be replaced with a new machine if the machine is backed by a machine-set object.
+          - --node-conditions=ReadonlyFilesystem,KernelDeadlock,DiskPressure,NetworkUnavailable # List of comma-separated/case-sensitive node-conditions which when set to True will change machine to a failed state after MachineHealthTimeout duration. It may further be replaced with a new machine if the machine is backed by a machine-set object.
           - --v=2
         livenessProbe:
           failureThreshold: 3
@@ -47,7 +47,7 @@ spec:
         - --machine-drain-timeout=5m # Optional Parameter - Timeout (in time) used while draining of machine before deletion, beyond which MCM forcefully deletes machine.
         - --machine-health-timeout=10m  # Optional Parameter - Default value 10mins - Timeout (in time) used while joining (during creation) or re-joining (in case of temporary health issues) of machine before it is declared as failed.
         - --machine-safety-orphan-vms-period=30m # Optional Parameter - Default value 30mins - Time period (in time) used to poll for orphan VMs by safety controller.
-        - --node-conditions=ReadonlyFilesystem,KernelDeadlock,DiskPressure # List of comma-separated/case-sensitive node-conditions which when set to True will change machine to a failed state after MachineHealthTimeout duration. It may further be replaced with a new machine if the machine is backed by a machine-set object.
+        - --node-conditions=ReadonlyFilesystem,KernelDeadlock,DiskPressure,NetworkUnavailable # List of comma-separated/case-sensitive node-conditions which when set to True will change machine to a failed state after MachineHealthTimeout duration. It may further be replaced with a new machine if the machine is backed by a machine-set object.
         - --v=3
         image: gcr.io/gardener-project/gardener/machine-controller-manager-provider-aws:0.1.0-dev-47bc8cf5b02affba97bfb7b0e57202947d397b4c
         imagePullPolicy: IfNotPresent

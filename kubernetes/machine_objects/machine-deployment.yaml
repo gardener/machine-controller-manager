@@ -31,4 +31,4 @@ spec:
     # healthTimeout: 5m
     # creationTimeout: 5m
     # maxEvictRetries: 25
-    # nodeConditions: "ReadonlyFilesystem,KernelDeadlock,DiskPressure"
+    # nodeConditions: "ReadonlyFilesystem,KernelDeadlock,DiskPressure,NetworkUnavailable"

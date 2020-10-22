@@ -56,7 +56,7 @@ func NewMCServer() *MCServer {
 			Address:                 "0.0.0.0",
 			ConcurrentNodeSyncs:     10,
 			ContentType:             "application/vnd.kubernetes.protobuf",
-			NodeConditions:          "KernelDeadlock,ReadonlyFilesystem,DiskPressure",
+			NodeConditions:          "KernelDeadlock,ReadonlyFilesystem,DiskPressure,NetworkUnavailable",
 			MinResyncPeriod:         metav1.Duration{Duration: 12 * time.Hour},
 			KubeAPIQPS:              20.0,
 			KubeAPIBurst:            30,
