@@ -17,6 +17,7 @@ limitations under the License.
 package fakeclient
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -35,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
 	fakediscovery "k8s.io/client-go/discovery/fake"
+	"k8s.io/client-go/kubernetes/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	policyv1beta1 "k8s.io/client-go/kubernetes/typed/policy/v1beta1"
 	fakepolicyv1beta1 "k8s.io/client-go/kubernetes/typed/policy/v1beta1/fake"
@@ -454,7 +456,7 @@ func NewMachineClientSet(objects ...runtime.Object) (*fakeuntyped.Clientset, *Fa
 		}
 	}
 
-	cs := &fakeuntyped.Clientset{}
+	cs := fakeuntyped.NewSimpleClientset(objects...)
 	cs.Fake.AddReactor("*", "*", k8stesting.ObjectReaction(o))
 	cs.Fake.AddWatchReactor("*", o.watchReactionfunc)
 
@@ -500,7 +502,7 @@ func (o *FakeObjectTrackers) Stop() error {
 // It's backed by a very simple object tracker that processes creates, updates and deletions as-is,
 // without applying any validations and/or defaults. It shouldn't be considered a replacement
 // for a real clientset and is mostly useful in simple unit tests.
-func NewCoreClientSet(objects ...runtime.Object) (*Clientset, *FakeObjectTracker) {
+func NewCoreClientSet(objects ...runtime.Object) (*fake.Clientset, *FakeObjectTracker) {
 
 	var scheme = runtime.NewScheme()
 	var codecs = serializer.NewCodecFactory(scheme)
@@ -519,8 +521,7 @@ func NewCoreClientSet(objects ...runtime.Object) (*Clientset, *FakeObjectTracker
 		}
 	}
 
-	cs := &Clientset{Clientset: &k8sfake.Clientset{}}
-	cs.FakeDiscovery = &fakediscovery.FakeDiscovery{Fake: &cs.Fake}
+	cs := fake.NewSimpleClientset(objects...)
 	cs.Fake.AddReactor("*", "*", k8stesting.ObjectReaction(o))
 	cs.Fake.AddWatchReactor("*", o.watchReactionfunc)
 
@@ -582,7 +583,7 @@ type FakeEvictions struct {
 // Evict overrides the fakepolicyv1beta1.FakeEvictions to override the
 // Policy implementation. This is because the default Policy fake implementation
 // does not propagate the eviction name.
-func (c *FakeEvictions) Evict(eviction *apipolicyv1beta1.Eviction) error {
+func (c *FakeEvictions) Evict(ctx context.Context, eviction *apipolicyv1beta1.Eviction) error {
 	action := k8stesting.GetActionImpl{}
 	action.Name = eviction.Name
 	action.Verb = "post"

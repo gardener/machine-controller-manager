@@ -1860,6 +1860,13 @@ var _ = Describe("machine", func() {
 			// using default namespace for non-namespaced objects
 			// as our current fake client is with the assumption
 			// that all objects are namespaced
+			Namespace: "test",
+		}
+		coreObjMeta := &metav1.ObjectMeta{
+			GenerateName: "machine",
+			// using default namespace for non-namespaced objects
+			// as our current fake client is with the assumption
+			// that all objects are namespaced
 			Namespace: "",
 		}
 
@@ -2035,7 +2042,7 @@ var _ = Describe("machine", func() {
 					}, nil, nil, nil),
 					nodes: []*corev1.Node{
 						{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
+							ObjectMeta: *newObjectMeta(coreObjMeta, 0),
 							Status: corev1.NodeStatus{
 								Conditions: []corev1.NodeCondition{
 									{
