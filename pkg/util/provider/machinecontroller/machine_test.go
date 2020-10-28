@@ -53,7 +53,7 @@ var _ = Describe("machine", func() {
 			}
 			c = &controller{
 				controlMachineClient: fakeMachineClient,
-				nodeConditions:       "ReadonlyFilesystem,KernelDeadlock,DiskPressure",
+				nodeConditions:       "ReadonlyFilesystem,KernelDeadlock,DiskPressure,NetworkUnavailable",
 			}
 		})
 
@@ -107,16 +107,16 @@ var _ = Describe("machine", func() {
 			Entry("with NodeDiskPressure is Unknown", corev1.NodeDiskPressure, corev1.ConditionUnknown, false),
 
 			Entry("with NodeMemoryPressure is True", corev1.NodeMemoryPressure, corev1.ConditionTrue, true),
-			Entry("with NodeMemoryPressure is Unknown", corev1.NodeMemoryPressure, corev1.ConditionUnknown, true),
 			Entry("with NodeMemoryPressure is False", corev1.NodeMemoryPressure, corev1.ConditionFalse, true),
+			Entry("with NodeMemoryPressure is Unknown", corev1.NodeMemoryPressure, corev1.ConditionUnknown, true),
 
-			Entry("with NodeNetworkUnavailable is True", corev1.NodeNetworkUnavailable, corev1.ConditionTrue, true),
-			Entry("with NodeNetworkUnavailable is Unknown", corev1.NodeNetworkUnavailable, corev1.ConditionUnknown, true),
+			Entry("with NodeNetworkUnavailable is True", corev1.NodeNetworkUnavailable, corev1.ConditionTrue, false),
 			Entry("with NodeNetworkUnavailable is False", corev1.NodeNetworkUnavailable, corev1.ConditionFalse, true),
+			Entry("with NodeNetworkUnavailable is Unknown", corev1.NodeNetworkUnavailable, corev1.ConditionUnknown, false),
 
 			Entry("with NodeReady is True", corev1.NodeReady, corev1.ConditionTrue, true),
-			Entry("with NodeReady is Unknown", corev1.NodeReady, corev1.ConditionUnknown, false),
 			Entry("with NodeReady is False", corev1.NodeReady, corev1.ConditionFalse, false),
+			Entry("with NodeReady is Unknown", corev1.NodeReady, corev1.ConditionUnknown, false),
 		)
 	})
 
