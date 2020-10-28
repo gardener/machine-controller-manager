@@ -28,29 +28,18 @@ It's designed to run in the master plane of a Kubernetes cluster. It follows the
 ## Objects of Machine Controller Manager
 
 Machine Controller Manager makes use of 4 CRD objects and 1 Kubernetes secret object to manage machines. They are as follows,
-1. Machine-class: Represents a template that contains cloud provider specific details used to create machines.
-1. Machine: Represents a VM which is backed by the cloud provider.
-1. Machine-set: Represents a group of machines managed by the Machine Controller Manager.
-1. Machine-deployment: Represents a group of machine-sets managed by the Machine Controller Manager to allow updating machines.
-1. Secret: Represents a kubernetes secret that stores cloudconfig (initialization scripts used to create VMs) and cloud specific credentials
+1. `MachineClass`: Represents a template that contains cloud provider specific details used to create machines.
+1. `Machine`: Represents a VM which is backed by the cloud provider.
+1. `MachineSet`: Represents a group of machines managed by the Machine Controller Manager.
+1. `MachineDeployment`: Represents a group of machine-sets managed by the Machine Controller Manager to allow updating machines.
+1. `Secret`: Represents a Kubernetes secret that stores cloudconfig (initialization scripts used to create VMs) and cloud specific credentials
 
 ## Components of Machine Controller Manager
 
 Machine Controller Manager is made up of 3 sub-controllers as of now. They are -
-1. Machine Controller: Used to create/update/delete machines. It is the only controller which actually talks to the cloud providers.
-1. Machine Set Controller: Used to manage machine-sets. This controller makes sure that desired number of machines are always up and running healthy.
-1. Machine Deployment Controller: Used to update machines from one version to another by manipulating the machine-set objects.
-1. Machine Safety Controller: A safety net controller that terminates orphan VMs and freezes machineSet/machineDeployment objects which are overshooting or timing out while trying to join nodes to the cluster.
+1. `Machine` Controller: Used to create/update/delete machines. It is the only controller which actually talks to the cloud providers.
+1. `MachineSet` Controller: Used to manage `MachineSets`. This controller ensures that desired number of machines are always up and running healthy.
+1. `MachineDeployment` Controller: Used to update machines from one version to another by manipulating the `MachineSet` objects.
+1. Machine Safety Controller: A safety net controller that terminates orphan VMs and freezes `MachineSet`/`MachineDeployment` objects which are overshooting or timing out while trying to join nodes to the cluster.
 
-All these controllers work in an co-operative manner. They form a parent-child relationship with Machine Deployment Controller being the grandparent, Machine Set Controller being the parent, and Machine Controller being the child.
-
-## Future Plans
-The following is a short list of future plans,
-1. **Integrate the cluster-autoscaler** to act upon machine-deployment objects, used to manage the required number of machines based on the load of the cluster.
-2. **Support other cloud providers** like OpenStack.
-3. Integrate a garbage collector to terminate any orphan VMs.
-4. Build a comprehensive testing framework.
-5. Fix bugs that exist in the current implementation.
-
-### Todos Doc
-[This link](https://docs.google.com/document/d/10ruoL6VLVOEG2htYluY5T0-qvijXkw0Do_qE0tmexos/edit?usp=sharing) contains the working doc for the todos which are planned in the near future.
+All these controllers work in an co-operative manner. They form a parent-child relationship with `MachineDeployment` Controller being the grandparent, `MachineSet` Controller being the parent, and `Machine` Controller being the child.
