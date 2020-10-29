@@ -42,13 +42,13 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
 
 # Basics
 
-### What is Machine Controller Manager ?
+### What is Machine Controller Manager?
 
 Machine Controller Manager aka MCM is a bunch of controllers used for the lifecycle management of the worker machines. It reconciles a set of CRDs such as `Machine`, `MachineSet`, `MachineDeployment` which depicts the functionality of `Pod`, `Replicaset`, `Deployment` of the core Kubernetes respectively. Read more about it at [README](https://github.com/gardener/machine-controller-manager/tree/master/docs).
 
 * Gardener uses MCM to manage its Kubernetes nodes of the shoot cluster. However, by design, MCM can be used independent of Gardener.
 
-### Why is my machine deleted ?
+### Why is my machine deleted?
 
 A machine is deleted by MCM generally for 2 reasons-
 
@@ -60,7 +60,7 @@ A machine is deleted by MCM generally for 2 reasons-
 
    * This is very usual when an external controller cluster-autoscaler (aka CA) is used with MCM. CA deletes the under-utilized machines by scaling down the `MachineDeployment`. Read more about cluster-autoscaler's scale down behavior [here](https://github.com/gardener/autoscaler/blob/machine-controller-manager-provider/cluster-autoscaler/FAQ.md#how-does-scale-down-work).
 
-### What are the different sub-controllers in MCM ?
+### What are the different sub-controllers in MCM?
 
 MCM mainly contains the following sub-controllers:
 
@@ -69,7 +69,7 @@ MCM mainly contains the following sub-controllers:
 * `Machine Controller`: responsible for reconciling the `Machine` objects. It manages the lifecycle of the actual VMs/machines created in cloud/on-prem. This controller has been moved out of tree. Please refer an AWS machine controller for more info - [link](https://github.com/gardener/machine-controller-manager-provider-gcp).
 * Safety-controller: Responsible for handling the unidentified/unknown behaviors from the cloud providers. Please read more about its functionality [below](#what-is-safety-controller).
 
-### What is Safety Controller in MCM ?
+### What is Safety Controller in MCM?
 
 `Safety Controller` contains following functions:
 
