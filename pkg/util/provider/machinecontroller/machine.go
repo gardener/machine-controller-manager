@@ -145,20 +145,6 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 		return retry, err
 	}
 
-	/*
-		NOT NEEDED?
-		else if actualProviderID == "fake" {
-			klog.Warning("Fake driver type")
-			return false, nil
-		}
-		// Get the latest version of the machine so that we can avoid conflicts
-		machine, err = c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
-		if err != nil {
-			klog.Errorf("Could GET machine object %s", err)
-			return machineutils.RetryOp, err
-		}
-	*/
-
 	if machine.DeletionTimestamp != nil {
 		// Process a delete event
 		return c.triggerDeletionFlow(&driver.DeleteMachineRequest{
@@ -170,7 +156,6 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 
 	if machine.Status.Node != "" {
 		// If reference to node object exists execute the below
-
 		retry, err := c.reconcileMachineHealth(machine)
 		if err != nil {
 			return retry, err
@@ -182,13 +167,6 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 		}
 	}
 
-	/*
-		if machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
-			// If machine status is failed, ignore it
-			return machineutils.DoNotRetryOp, nil
-		} else
-	*/
-
 	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" {
 		return c.triggerCreationFlow(&driver.CreateMachineRequest{
 			Machine:      machine,
@@ -196,14 +174,6 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 			Secret:       secret,
 		})
 	}
-
-	/*
-		TODO: re-introduce this when in-place updates can be done.
-		else if actualProviderID != machine.Spec.ProviderID {
-			// If provider-ID has changed, update the machine
-			return c.triggerUpdationFlow(machine, actualProviderID)
-		}
-	*/
 
 	return machineutils.DoNotRetryOp, nil
 }
