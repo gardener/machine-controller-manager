@@ -832,7 +832,6 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 		skipDrain          bool
 		description        string
 		state              v1alpha1.MachineState
-		phase              v1alpha1.MachinePhase
 
 		// Initialization
 		machine                 = deleteMachineRequest.Machine
@@ -866,7 +865,6 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 
 	if skipDrain {
 		state = v1alpha1.MachineStateProcessing
-		phase = v1alpha1.MachineTerminating
 	} else {
 		// Timeout value obtained by subtracting last operation with expected time out period
 		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
@@ -899,7 +897,6 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 
 				description = fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
 				state = v1alpha1.MachineStateFailed
-				phase = v1alpha1.MachineTerminating
 
 				skipDrain = true
 			}
@@ -933,7 +930,6 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 
 				description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
 				state = v1alpha1.MachineStateProcessing
-				phase = v1alpha1.MachineTerminating
 
 				// Return error even when machine object is updated
 				err = fmt.Errorf("Machine deletion in process. " + description)
@@ -943,13 +939,11 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 
 				description = fmt.Sprintf("Drain failed due to - %s. However, since it's a force deletion shall continue deletion of VM. %s", err.Error(), machineutils.InitiateVMDeletion)
 				state = v1alpha1.MachineStateProcessing
-				phase = v1alpha1.MachineTerminating
 			} else {
 				klog.Warningf("Drain failed for machine %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
 
 				description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
 				state = v1alpha1.MachineStateFailed
-				phase = v1alpha1.MachineTerminating
 			}
 		}
 	}
@@ -961,10 +955,10 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 		Type:           v1alpha1.MachineOperationDelete,
 		LastUpdateTime: metav1.Now(),
 	}
-	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-		Phase:          phase,
-		LastUpdateTime: metav1.Now(),
-	}
+	// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
+	// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
+	// Ref - https://github.com/gardener/machine-controller-manager/blob/rel-v0.34.0/pkg/util/provider/machinecontroller/machine_util.go#L872
+	clone.Status.CurrentStatus = machine.Status.CurrentStatus
 
 	_, updateErr := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 	if updateErr != nil {
@@ -982,7 +976,6 @@ func (c *controller) deleteVM(deleteMachineRequest *driver.DeleteMachineRequest)
 		retryRequired machineutils.Retry
 		description   string
 		state         v1alpha1.MachineState
-		phase         v1alpha1.MachinePhase
 	)
 
 	deleteMachineResponse, err := c.driver.DeleteMachine(context.TODO(), deleteMachineRequest)
@@ -996,30 +989,25 @@ func (c *controller) deleteVM(deleteMachineRequest *driver.DeleteMachineRequest)
 				retryRequired = machineutils.RetryOp
 				description = fmt.Sprintf("VM deletion failed due to - %s. However, will re-try in the next resync. %s", err.Error(), machineutils.InitiateVMDeletion)
 				state = v1alpha1.MachineStateFailed
-				phase = v1alpha1.MachineTerminating
 			case codes.NotFound:
 				retryRequired = machineutils.RetryOp
 				description = fmt.Sprintf("VM not found. Continuing deletion flow. %s", machineutils.InitiateNodeDeletion)
 				state = v1alpha1.MachineStateProcessing
-				phase = v1alpha1.MachineTerminating
 			default:
 				retryRequired = machineutils.DoNotRetryOp
 				description = fmt.Sprintf("VM deletion failed due to - %s. Aborting operation. %s", err.Error(), machineutils.InitiateVMDeletion)
 				state = v1alpha1.MachineStateFailed
-				phase = v1alpha1.MachineTerminating
 			}
 		} else {
 			retryRequired = machineutils.DoNotRetryOp
-			description = fmt.Sprintf("Error occurred while decoding gRPC error: %s. %s", err.Error(), machineutils.InitiateVMDeletion)
+			description = fmt.Sprintf("Error occurred while decoding machine error: %s. %s", err.Error(), machineutils.InitiateVMDeletion)
 			state = v1alpha1.MachineStateFailed
-			phase = v1alpha1.MachineFailed
 		}
 
 	} else {
 		retryRequired = machineutils.RetryOp
 		description = fmt.Sprintf("VM deletion was successful. %s", machineutils.InitiateNodeDeletion)
 		state = v1alpha1.MachineStateProcessing
-		phase = v1alpha1.MachineTerminating
 
 		err = fmt.Errorf("Machine deletion in process. " + description)
 	}
@@ -1031,10 +1019,10 @@ func (c *controller) deleteVM(deleteMachineRequest *driver.DeleteMachineRequest)
 		Type:           v1alpha1.MachineOperationDelete,
 		LastUpdateTime: metav1.Now(),
 	}
-	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-		Phase:          phase,
-		LastUpdateTime: metav1.Now(),
-	}
+	// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
+	// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
+	// Ref - https://github.com/gardener/machine-controller-manager/blob/rel-v0.34.0/pkg/util/provider/machinecontroller/machine_util.go#L872
+	clone.Status.CurrentStatus = machine.Status.CurrentStatus
 
 	if deleteMachineResponse != nil && deleteMachineResponse.LastKnownState != "" {
 		clone.Status.LastKnownState = deleteMachineResponse.LastKnownState
@@ -1089,10 +1077,10 @@ func (c *controller) deleteNodeObject(machine *v1alpha1.Machine) (machineutils.R
 		Type:           v1alpha1.MachineOperationDelete,
 		LastUpdateTime: metav1.Now(),
 	}
-	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-		Phase:          v1alpha1.MachineTerminating,
-		LastUpdateTime: metav1.Now(),
-	}
+	// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
+	// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
+	// Ref - https://github.com/gardener/machine-controller-manager/blob/rel-v0.34.0/pkg/util/provider/machinecontroller/machine_util.go#L872
+	clone.Status.CurrentStatus = machine.Status.CurrentStatus
 
 	_, updateErr := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 	if updateErr != nil {
