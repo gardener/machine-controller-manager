@@ -911,7 +911,7 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 
 			drainOptions := drain.NewDrainOptions(
 				c.targetCoreClient,
-				timeOutDuration,
+				timeOut,
 				maxEvictRetries,
 				pvDetachTimeOut,
 				nodeName,
