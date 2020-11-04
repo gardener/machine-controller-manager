@@ -100,6 +100,8 @@ spec:
               type: array
             serverGroupID:
               type: string
+            subnetID:
+              type: string
             tags:
               additionalProperties:
                 type: string

@@ -659,6 +659,7 @@ type OpenStackMachineClassSpec struct {
 	Tags             map[string]string
 	NetworkID        string
 	Networks         []OpenStackNetwork
+	SubnetID         *string
 	SecretRef        *corev1.SecretReference
 	PodNetworkCidr   string
 	RootDiskSize     int // in GB
