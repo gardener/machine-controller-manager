@@ -27,7 +27,9 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/metrics"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/subnets"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
@@ -112,6 +114,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	imageName := d.OpenStackMachineClass.Spec.ImageName
 	imageID := d.OpenStackMachineClass.Spec.ImageID
 	networkID := d.OpenStackMachineClass.Spec.NetworkID
+	subnetID := d.OpenStackMachineClass.Spec.SubnetID
 	specNetworks := d.OpenStackMachineClass.Spec.Networks
 	securityGroups := d.OpenStackMachineClass.Spec.SecurityGroups
 	availabilityZone := d.OpenStackMachineClass.Spec.AvailabilityZone
@@ -142,9 +145,49 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 	var serverNetworks []servers.Network
 	var podNetworkIds = make(map[string]struct{})
 
+	// network port allocation in existing network if a networkID is specified
 	if len(networkID) > 0 {
-		serverNetworks = append(serverNetworks, servers.Network{UUID: networkID})
+		klog.V(3).Infof("existing network %q specified, need to pre-allocate ports ", networkID)
+
+		// create port in given subnet
+		if subnetID != nil && len(*subnetID) > 0 {
+			if _, err := subnets.Get(nwClient, *subnetID).Extract(); err != nil {
+				metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
+				return "", "", fmt.Errorf("failed to get subnet information for subnetID %s: %s", *subnetID, err)
+			}
+
+			klog.V(3).Infof("creating port in subnet %s", *subnetID)
+
+			var securityGroupIDs []string
+			for _, securityGroup := range securityGroups {
+				securityGroupID, err := groups.IDFromName(nwClient, securityGroup)
+				if err != nil {
+					metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
+					return "", "", fmt.Errorf("failed to get ID for security group %q: %s", securityGroup, err)
+				}
+				securityGroupIDs = append(securityGroupIDs, securityGroupID)
+			}
+
+			port, err := ports.Create(nwClient, &ports.CreateOpts{
+				Name:                d.MachineName,
+				NetworkID:           networkID,
+				FixedIPs:            []ports.IP{{SubnetID: *subnetID}},
+				AllowedAddressPairs: []ports.AddressPair{{IPAddress: podNetworkCidr}},
+				SecurityGroups:      &securityGroupIDs,
+			}).Extract()
+			if err != nil {
+				metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
+				return "", "", fmt.Errorf("failed to create port in subnet with subnetID %s: %s", *subnetID, err)
+			}
+
+			klog.V(3).Infof("port with ID %s successfully created", port.ID)
+
+			serverNetworks = append(serverNetworks, servers.Network{UUID: networkID, Port: port.ID})
+		} else {
+			serverNetworks = append(serverNetworks, servers.Network{UUID: networkID})
+		}
 		podNetworkIds[networkID] = struct{}{}
+
 	} else {
 		for _, network := range specNetworks {
 			var resolvedNetworkID string
@@ -154,7 +197,7 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 				resolvedNetworkID, err = networks.IDFromName(nwClient, network.Name)
 				if err != nil {
 					metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
-					return "", "", fmt.Errorf("failed to get uuid for network name %s: %s", network.Name, err)
+					return "", "", fmt.Errorf("failed to get uuid for network name %q: %s", network.Name, err)
 				}
 			}
 			serverNetworks = append(serverNetworks, servers.Network{UUID: resolvedNetworkID})
@@ -193,7 +236,6 @@ func (d *OpenStackDriver) Create() (string, string, error) {
 			SchedulerHints:    hints,
 		}
 	}
-
 
 	if rootDiskSize > 0 {
 		blockDevices, err := resourceInstanceBlockDevicesV2(rootDiskSize, imageRef)
@@ -273,20 +315,21 @@ func (d *OpenStackDriver) Delete(machineID string) error {
 	res, err := d.GetVMs(machineID)
 	if err != nil {
 		return err
-	} else if len(res) == 0 {
-		// No running instance exists with the given machine-ID
-		klog.V(2).Infof("No VM matching the machine-ID found on the provider %q", machineID)
-		return nil
-	}
+	} else if len(res) > 0 {
+		instanceID := d.decodeMachineID(machineID)
+		client, err := d.createNovaClient()
+		if err != nil {
+			return err
+		}
 
-	instanceID := d.decodeMachineID(machineID)
-	client, err := d.createNovaClient()
-	if err != nil {
-		return err
-	}
+		err = servers.Delete(client, instanceID).ExtractErr()
+		if err != nil && !isNotFoundError(err) {
+			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
+			klog.Errorf("Failed to delete machine with ID: %s", machineID)
 
-	result := servers.Delete(client, instanceID)
-	if result.Err == nil {
+			return err
+		}
+
 		// waiting for the machine to be deleted to release consumed quota resources, 5 minutes should be enough
 		err = waitForStatus(client, machineID, nil, []string{"DELETED", "SOFT_DELETED"}, 300)
 		if err != nil {
@@ -294,12 +337,17 @@ func (d *OpenStackDriver) Delete(machineID string) error {
 		}
 		metrics.APIRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
 		klog.V(3).Infof("Deleted machine with ID: %s", machineID)
+
 	} else {
-		metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "nova"}).Inc()
-		klog.Errorf("Failed to delete machine with ID: %s", machineID)
+		// No running instance exists with the given machine-ID
+		klog.V(2).Infof("No VM matching the machine-ID found on the provider %q", machineID)
 	}
 
-	return result.Err
+	if err = d.deletePort(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetExisting method is used to get machineID for existing OS machine
@@ -573,6 +621,59 @@ func (d *OpenStackDriver) GetUserData() string {
 //SetUserData set the used data whit which the VM will be booted
 func (d *OpenStackDriver) SetUserData(userData string) {
 	d.UserData = userData
+}
+
+// deletePort method is used to delete a dedicated port, if subnet is specified for machine
+func (d *OpenStackDriver) deletePort() error {
+
+	if d.OpenStackMachineClass.Spec.SubnetID != nil && len(*d.OpenStackMachineClass.Spec.SubnetID) > 0 {
+		nwClient, err := d.createNeutronClient()
+		if err != nil {
+			return err
+		}
+
+		portID, err := ports.IDFromName(nwClient, d.MachineName)
+		if err != nil {
+			if isNotFoundError(err) {
+				klog.V(3).Infof("port with name %q was not found", d.MachineName)
+				return nil
+			}
+
+			return fmt.Errorf("error deleting port with name %q: %s", d.MachineName, err)
+		}
+
+		klog.V(3).Infof("deleting port with ID %s", portID)
+
+		err = ports.Delete(nwClient, portID).ExtractErr()
+		if err != nil && !isNotFoundError(err) {
+			metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
+			klog.Errorf("Failed to delete port with ID: %s", portID)
+
+			return err
+		}
+
+		metrics.APIRequestCount.With(prometheus.Labels{"provider": "openstack", "service": "neutron"}).Inc()
+		klog.V(3).Infof("Deleted port with ID: %s", portID)
+	}
+
+	return nil
+}
+
+// isNotFoundError checks, if an error returned by gophercloud is 404 like
+func isNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if _, ok := err.(gophercloud.ErrDefault404); ok {
+		return true
+	}
+	if _, ok := err.(gophercloud.Err404er); ok {
+		return true
+	}
+	if _, ok := err.(gophercloud.ErrResourceNotFound); ok {
+		return true
+	}
+	return false
 }
 
 func waitForStatus(c *gophercloud.ServiceClient, id string, pending []string, target []string, secs int) error {
