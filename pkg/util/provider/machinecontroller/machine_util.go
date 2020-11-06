@@ -27,6 +27,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -835,7 +836,7 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 
 		// Initialization
 		machine                 = deleteMachineRequest.Machine
-		maxEvictRetries         = *c.getEffectiveMaxEvictRetries(machine)
+		maxEvictRetries         = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
 		pvDetachTimeOut         = c.safetyOptions.PvDetachTimeout.Duration
 		timeOutDuration         = c.getEffectiveDrainTimeout(deleteMachineRequest.Machine).Duration
 		forceDeleteLabelPresent = machine.Labels["force-deletion"] == "True"
@@ -881,10 +882,17 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 			maxEvictRetries = 1
 
 			klog.V(2).Infof(
-				"Force deletion has been triggerred for machine %q due to Label:%t, timeout:%t",
+				"Force delete/drain has been triggerred for machine %q due to Label:%t, timeout:%t",
 				machine.Name,
 				forceDeleteLabelPresent,
 				timeOutOccurred,
+			)
+		} else {
+			klog.V(2).Infof(
+				"Normal delete/drain has been triggerred for machine %q with drain-timeout:%v & maxEvictRetries:%d",
+				machine.Name,
+				timeOutDuration,
+				maxEvictRetries,
 			)
 		}
 

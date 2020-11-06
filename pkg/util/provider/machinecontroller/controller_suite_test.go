@@ -26,6 +26,7 @@ import (
 	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
 	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/options"
 	. "github.com/onsi/ginkgo"
@@ -504,6 +505,7 @@ func createController(
 		MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 30 * time.Minute},
 		MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
 		MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
+		MaxEvictRetries:                          drain.DefaultMaxEvictRetries,
 	}
 
 	controller := &controller{
