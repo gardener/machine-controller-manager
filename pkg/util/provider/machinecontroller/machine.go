@@ -31,6 +31,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -184,6 +185,12 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 */
 func (c *controller) addNodeToMachine(obj interface{}) {
 
+	node := obj.(*corev1.Node)
+	if node == nil {
+		klog.Errorf("Couldn't convert to node from object")
+		return
+	}
+
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
@@ -198,8 +205,10 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 		return
 	}
 
-	klog.V(4).Infof("Add machine object backing node %q", machine.Name)
-	c.enqueueMachine(machine)
+	if machine.Status.CurrentStatus.Phase != v1alpha1.MachineCrashLoopBackOff && nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions) {
+		klog.V(4).Infof("Enqueue machine object %q as backing node's conditions have changed", machine.Name)
+		c.enqueueMachine(machine)
+	}
 }
 
 func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
@@ -207,7 +216,21 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 }
 
 func (c *controller) deleteNodeToMachine(obj interface{}) {
-	c.addNodeToMachine(obj)
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+	if err != nil {
+		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
+		return
+	}
+
+	machine, err := c.getMachineFromNode(key)
+	if err != nil {
+		klog.Errorf("Couldn't fetch machine %s, Error: %s", key, err)
+		return
+	} else if machine == nil {
+		return
+	}
+
+	c.enqueueMachine(machine)
 }
 
 /*

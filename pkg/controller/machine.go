@@ -238,7 +238,6 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	Machine controller - nodeToMachine
 */
 func (c *controller) addNodeToMachine(obj interface{}) {
-
 	node := obj.(*corev1.Node)
 	if node == nil {
 		klog.Errorf("Couldn't convert to node from object")
@@ -260,7 +259,7 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 	}
 
 	if machine.Status.CurrentStatus.Phase != v1alpha1.MachineCrashLoopBackOff && nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions) {
-		klog.V(2).Infof("Enqueue machine object %q as backing node's conditions have changed", machine.Name)
+		klog.V(4).Infof("Enqueue machine object %q as backing node's conditions have changed", machine.Name)
 		c.enqueueMachine(machine)
 	}
 }
@@ -270,13 +269,6 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 }
 
 func (c *controller) deleteNodeToMachine(obj interface{}) {
-
-	node := obj.(*corev1.Node)
-	if node == nil {
-		klog.Errorf("Couldn't convert to node from object")
-		return
-	}
-
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
