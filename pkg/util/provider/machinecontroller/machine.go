@@ -162,7 +162,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 		}
 	}
 
-	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" {
+	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" || machine.Status.Node == "" {
 		return c.triggerCreationFlow(&driver.CreateMachineRequest{
 			Machine:      machine,
 			MachineClass: machineClass,
@@ -280,6 +280,7 @@ func (c *controller) triggerCreationFlow(createMachineRequest *driver.CreateMach
 		nodeName    = ""
 		providerID  = ""
 	)
+
 	// Add finalizers if not present
 	retry, err := c.addMachineFinalizers(createMachineRequest.Machine)
 	if err != nil {
@@ -310,12 +311,12 @@ func (c *controller) triggerCreationFlow(createMachineRequest *driver.CreateMach
 
 		machineErr, ok := status.FromError(err)
 		if !ok {
-			// Error occurred with decoding gRPC error status, abort with retry.
+			// Error occurred with decoding machine error status, abort with retry.
 			klog.Errorf("Error occurred while decoding machine error for machine %q: %s", machine.Name, err)
-			return machineutils.ShortRetry, err
+			return machineutils.MediumRetry, err
 		}
 
-		// Decoding gRPC error code
+		// Decoding machine error code
 		switch machineErr.Code() {
 		case codes.NotFound, codes.Unimplemented:
 			// Either VM is not found
@@ -343,10 +344,40 @@ func (c *controller) triggerCreationFlow(createMachineRequest *driver.CreateMach
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 			// GetMachineStatus() returned with one of the above error codes.
 			// Retry operation.
+			c.machineStatusUpdate(
+				machine,
+				v1alpha1.LastOperation{
+					Description:    "Cloud provider message - " + err.Error(),
+					State:          v1alpha1.MachineStateFailed,
+					Type:           v1alpha1.MachineOperationCreate,
+					LastUpdateTime: metav1.Now(),
+				},
+				v1alpha1.CurrentStatus{
+					Phase:          c.getCreateFailurePhase(machine),
+					LastUpdateTime: metav1.Now(),
+				},
+				machine.Status.LastKnownState,
+			)
+
 			return machineutils.ShortRetry, err
 
 		default:
-			return machineutils.LongRetry, err
+			c.machineStatusUpdate(
+				machine,
+				v1alpha1.LastOperation{
+					Description:    "Cloud provider message - " + err.Error(),
+					State:          v1alpha1.MachineStateFailed,
+					Type:           v1alpha1.MachineOperationCreate,
+					LastUpdateTime: metav1.Now(),
+				},
+				v1alpha1.CurrentStatus{
+					Phase:          c.getCreateFailurePhase(machine),
+					LastUpdateTime: metav1.Now(),
+				},
+				machine.Status.LastKnownState,
+			)
+
+			return machineutils.MediumRetry, err
 		}
 	}
 	_, machineNodeLabelPresent := createMachineRequest.Machine.Labels["node"]
