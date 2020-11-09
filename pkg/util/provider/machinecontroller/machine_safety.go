@@ -51,12 +51,10 @@ func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
 	klog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: Start")
 	defer klog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: End, reSync-Period: %v", reSyncAfter)
 
-	retry, err := c.checkMachineClasses()
+	retryPeriod, err := c.checkMachineClasses()
 	if err != nil {
 		klog.Errorf("reconcileClusterMachineSafetyOrphanVMs: Error occurred while checking for orphan VMs: %s", err)
-		if retry {
-			return err
-		}
+		c.machineSafetyOrphanVMsQueue.AddAfter("", time.Duration(retryPeriod))
 	}
 
 	return nil
@@ -164,11 +162,11 @@ func (c *controller) isAPIServerUp() bool {
 }
 
 // checkCommonMachineClass checks for orphan VMs in MachinesClasses
-func (c *controller) checkMachineClasses() (machineutils.Retry, error) {
+func (c *controller) checkMachineClasses() (machineutils.RetryPeriod, error) {
 	MachineClasses, err := c.machineClassLister.List(labels.Everything())
 	if err != nil {
 		klog.Error("Safety-Net: Error getting machineClasses")
-		return machineutils.DoNotRetryOp, err
+		return machineutils.LongRetry, err
 	}
 
 	for _, machineClass := range MachineClasses {
@@ -181,19 +179,19 @@ func (c *controller) checkMachineClasses() (machineutils.Retry, error) {
 		}
 	}
 
-	return machineutils.DoNotRetryOp, nil
+	return machineutils.LongRetry, nil
 }
 
 // checkMachineClass checks a particular machineClass for orphan instances
 func (c *controller) checkMachineClass(
 	machineClass *v1alpha1.MachineClass,
-	secretRef *corev1.SecretReference) (machineutils.Retry, error) {
+	secretRef *corev1.SecretReference) (machineutils.RetryPeriod, error) {
 
 	// Get secret
 	secret, err := c.getSecret(secretRef, machineClass.Name)
 	if err != nil || secret == nil {
 		klog.Errorf("SafetyController: Secret reference not found for MachineClass: %q", machineClass.Name)
-		return machineutils.DoNotRetryOp, err
+		return machineutils.LongRetry, err
 	}
 
 	listMachineResponse, err := c.driver.ListMachines(context.TODO(), &driver.ListMachinesRequest{
@@ -202,7 +200,7 @@ func (c *controller) checkMachineClass(
 	})
 	if err != nil {
 		klog.Errorf("SafetyController: Failed to LIST VMs at provider. Error: %s", err)
-		return machineutils.RetryOp, err
+		return machineutils.LongRetry, err
 	}
 
 	// Making sure that its not a VM just being created, machine object not yet updated at API server
@@ -212,7 +210,7 @@ func (c *controller) checkMachineClass(
 
 		if !cache.WaitForCacheSync(stopCh, c.machineSynced) {
 			klog.Errorf("SafetyController: Timed out waiting for caches to sync. Error: %s", err)
-			return machineutils.RetryOp, err
+			return machineutils.ShortRetry, err
 		}
 	}
 
@@ -253,7 +251,7 @@ func (c *controller) checkMachineClass(
 			}
 		}
 	}
-	return machineutils.DoNotRetryOp, nil
+	return machineutils.LongRetry, nil
 }
 
 // deleteMachineToSafety enqueues into machineSafetyQueue when a new machine is deleted
