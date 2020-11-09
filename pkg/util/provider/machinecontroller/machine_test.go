@@ -362,7 +362,7 @@ var _ = Describe("machine", func() {
 		type expect struct {
 			machine *v1alpha1.Machine
 			err     error
-			retry   machineutils.Retry
+			retry   machineutils.RetryPeriod
 		}
 		type data struct {
 			setup  setup
@@ -472,7 +472,7 @@ var _ = Describe("machine", func() {
 						},
 					}, nil, nil, nil, nil, true),
 					err:   fmt.Errorf("Machine creation in process. Machine finalizers are UPDATED"),
-					retry: true,
+					retry: machineutils.ShortRetry,
 				},
 			}),
 			Entry("Machine creation succeeds with object UPDATE", &data{
@@ -520,7 +520,7 @@ var _ = Describe("machine", func() {
 						},
 					}, nil, nil, nil, nil, true),
 					err:   fmt.Errorf("Machine creation in process. Machine UPDATE successful"),
-					retry: true,
+					retry: machineutils.ShortRetry,
 				},
 			}),
 			Entry("Machine creation succeeds with status UPDATE", &data{
@@ -594,7 +594,7 @@ var _ = Describe("machine", func() {
 						true,
 					),
 					err:   fmt.Errorf("Machine creation in process. Machine/Status UPDATE successful"),
-					retry: true,
+					retry: machineutils.ShortRetry,
 				},
 			}),
 			Entry("Machine creation has already succeeded, so no update", &data{
@@ -692,7 +692,7 @@ var _ = Describe("machine", func() {
 						true,
 					),
 					err:   nil,
-					retry: false,
+					retry: machineutils.LongRetry,
 				},
 			}),
 
@@ -771,7 +771,7 @@ var _ = Describe("machine", func() {
 			err                           error
 			nodeTerminationConditionIsSet bool
 			nodeDeleted                   bool
-			retry                         machineutils.Retry
+			retry                         machineutils.RetryPeriod
 		}
 		type data struct {
 			setup  setup
@@ -917,7 +917,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Machine \"machine-0\" is missing finalizers. Deletion cannot proceed"),
-					retry: machineutils.DoNotRetryOp,
+					retry: machineutils.LongRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1012,7 +1012,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Machine deletion in process. Phase set to termination"),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1107,7 +1107,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Machine deletion in process. VM with matching ID found"),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1209,7 +1209,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:                           fmt.Errorf("Machine deletion in process. Drain successful. %s", machineutils.InitiateVMDeletion),
-					retry:                         machineutils.RetryOp,
+					retry:                         machineutils.ShortRetry,
 					nodeTerminationConditionIsSet: true,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -1312,7 +1312,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Skipping drain as nodeName is not a valid one for machine. Initiate VM deletion"),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1414,7 +1414,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1522,7 +1522,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Failed to update node"),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1629,7 +1629,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Failed to update node"),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1736,7 +1736,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("failed to create update conditions for node \"fakeNode-0\": Failed to update node"),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1831,7 +1831,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Machine deletion in process. VM deletion was successful. " + machineutils.InitiateNodeDeletion),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1933,7 +1933,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:         fmt.Errorf("Machine deletion in process. Deletion of node object was succesful"),
-					retry:       machineutils.RetryOp,
+					retry:       machineutils.ShortRetry,
 					nodeDeleted: true,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -2028,7 +2028,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					retry: machineutils.DoNotRetryOp,
+					retry: machineutils.LongRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -2123,7 +2123,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Machine deletion in process. Phase set to termination"),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
