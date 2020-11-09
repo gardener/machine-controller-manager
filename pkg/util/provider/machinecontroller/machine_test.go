@@ -26,6 +26,8 @@ import (
 	fakemachineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -427,6 +429,7 @@ var _ = Describe("machine", func() {
 				Expect(actual.Status.Node).To(Equal(data.expect.machine.Status.Node))
 				Expect(actual.Finalizers).To(Equal(data.expect.machine.Finalizers))
 				Expect(retry).To(Equal(data.expect.retry))
+				Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
 			},
 
 			Entry("Machine creation in process. Machine finalizers are UPDATED", &data{
@@ -450,7 +453,7 @@ var _ = Describe("machine", func() {
 								Name: "machine-0",
 							},
 						},
-					}, nil, nil, nil, nil, false),
+					}, nil, nil, nil, nil, false, metav1.Now()),
 				},
 				action: action{
 					machine: "machine-0",
@@ -470,7 +473,7 @@ var _ = Describe("machine", func() {
 								Name: "machineClass",
 							},
 						},
-					}, nil, nil, nil, nil, true),
+					}, nil, nil, nil, nil, true, metav1.Now()),
 					err:   fmt.Errorf("Machine creation in process. Machine finalizers are UPDATED"),
 					retry: machineutils.ShortRetry,
 				},
@@ -497,7 +500,7 @@ var _ = Describe("machine", func() {
 								Name: "machine-0",
 							},
 						},
-					}, nil, nil, nil, nil, true),
+					}, nil, nil, nil, nil, true, metav1.Now()),
 				},
 				action: action{
 					machine: "machine-0",
@@ -518,7 +521,7 @@ var _ = Describe("machine", func() {
 							},
 							ProviderID: "fakeID",
 						},
-					}, nil, nil, nil, nil, true),
+					}, nil, nil, nil, nil, true, metav1.Now()),
 					err:   fmt.Errorf("Machine creation in process. Machine UPDATE successful"),
 					retry: machineutils.ShortRetry,
 				},
@@ -558,6 +561,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -583,6 +587,9 @@ var _ = Describe("machine", func() {
 						},
 						&v1alpha1.MachineStatus{
 							Node: "fakeNode",
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase: v1alpha1.MachinePending,
+							},
 						},
 						nil,
 						map[string]string{
@@ -592,6 +599,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 					err:   fmt.Errorf("Machine creation in process. Machine/Status UPDATE successful"),
 					retry: machineutils.ShortRetry,
@@ -626,8 +634,7 @@ var _ = Describe("machine", func() {
 						&v1alpha1.MachineStatus{
 							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase: v1alpha1.MachinePending,
-
+								Phase:          v1alpha1.MachinePending,
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
@@ -645,6 +652,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -690,9 +698,112 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 					err:   nil,
 					retry: machineutils.LongRetry,
+				},
+			}),
+			Entry("Machine creation fails with CrashLoopBackOff", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
+						},
+					},
+					machineClaasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil, true, metav1.Now()),
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   false,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        status.Error(codes.Internal, "Provider is returning error on create call"),
+					},
+				},
+				expect: expect{
+					machine: newMachine(&v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machineClass",
+							},
+						},
+					}, &v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
+							Phase: v1alpha1.MachineCrashLoopBackOff,
+						},
+					}, nil, nil, nil, true, metav1.Now()),
+					err:   nil,
+					retry: machineutils.MediumRetry,
+				},
+			}),
+			Entry("Machine creation fails with Failure due to timeout", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
+						},
+					},
+					machineClaasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil, true, metav1.NewTime(metav1.Now().Add(-time.Hour))),
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   false,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        status.Error(codes.Internal, "Provider is returning error on create call"),
+					},
+				},
+				expect: expect{
+					machine: newMachine(&v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machineClass",
+							},
+						},
+					}, &v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
+							Phase: v1alpha1.MachineFailed,
+						},
+					}, nil, nil, nil, true, metav1.NewTime(metav1.Now().Add(-time.Hour))),
+					err:   nil,
+					retry: machineutils.MediumRetry,
 				},
 			}),
 
@@ -779,8 +890,9 @@ var _ = Describe("machine", func() {
 			expect expect
 		}
 		objMeta := &metav1.ObjectMeta{
-			GenerateName: "machine",
-			Namespace:    "test",
+			GenerateName:      "machine",
+			Namespace:         "test",
+			CreationTimestamp: metav1.Now(),
 		}
 		DescribeTable("##table",
 			func(data *data) {
@@ -904,6 +1016,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						false,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -950,6 +1063,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						false,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -999,6 +1113,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -1045,6 +1160,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1094,6 +1210,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -1140,6 +1257,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1189,6 +1307,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeNode-0",
 						},
 						true,
+						metav1.Now(),
 					),
 					nodes: []*corev1.Node{
 						{
@@ -1243,6 +1362,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1299,6 +1419,7 @@ var _ = Describe("machine", func() {
 							"node": "",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -1345,6 +1466,7 @@ var _ = Describe("machine", func() {
 							"node": "",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1401,6 +1523,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -1447,6 +1570,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1497,6 +1621,7 @@ var _ = Describe("machine", func() {
 							"force-deletion": "True",
 						},
 						true,
+						metav1.Now(),
 					),
 					nodes: []*corev1.Node{
 						{
@@ -1555,6 +1680,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1604,6 +1730,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 					nodes: []*corev1.Node{
 						{
@@ -1662,6 +1789,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1711,6 +1839,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeNode-0",
 						},
 						true,
+						metav1.Now(),
 					),
 					nodes: []*corev1.Node{
 						{
@@ -1769,6 +1898,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1818,6 +1948,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -1864,6 +1995,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1913,6 +2045,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 					nodes: []*corev1.Node{
 						{
@@ -1967,6 +2100,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -2016,6 +2150,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -2061,6 +2196,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						false,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -2110,6 +2246,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -2156,6 +2293,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
