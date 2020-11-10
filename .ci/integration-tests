@@ -115,6 +115,7 @@ function setup_environment() {
         
         gcloud auth activate-service-account --key-file servicekey.json
         gcloud config set project "$ProjectID"
+        gcloud config set compute/zone europe-west1-b
         gcloud config set disable_usage_reporting True
 
         printf "Successfully setup gcloud-cli\n"
@@ -262,33 +263,69 @@ function hf_check_ms_freeze() {
 }
 
 function hf_orphan_resources() {
+
     if [ $1 == "aws" ]; then
         # Check if there are any VMs matching the tag exists.
-        num_orphan_vms="$(aws ec2 describe-instances --filters "Name=tag-key,Values=mcm-ci-test/shoot-mcm-ci-aw-target" --query 'Reservations[*].Instances[?State.Name!=`terminated`].[InstanceId]' --output text | wc -l)"
-        
+        orphan_vms="$(aws ec2 describe-instances --filters "Name=tag-key,Values=mcm-ci-test/shoot-mcm-ci-aw-target" --query 'Reservations[*].Instances[?State.Name!=`terminated`].[InstanceId]' --output text)"
+        num_orphan_vms="$( echo -n "$orphan_vms" | wc -l )"
+
         # Check if there are any disks matching the tag exists.
-        num_orphan_disks="$(aws ec2 describe-volumes --filters "Name=tag-key,Values=mcm-ci-test/shoot-mcm-ci-aw-target" --query "Volumes[*].{ID:VolumeId}" --output text | wc -l)"
+        orphan_disks="$(aws ec2 describe-volumes --filters "Name=tag-key,Values=mcm-ci-test/shoot-mcm-ci-aw-target" --query "Volumes[*].{ID:VolumeId}" --output text)"
+        num_orphan_disks="$( echo -n "$orphan_disks" | wc -l )"
 
         if [[ "$num_orphan_vms" -gt 0 || "$num_orphan_disks" -gt 0 ]]; then
-            printf "\n Failed: Found orphan resources in AWS. Orphan VMs: $num_orphan_vms. Orphan Disks: $num_orphan_disks" 
+            printf "\n Failed: Found orphan resources. Orphan VMs: $num_orphan_vms. Orphan Disks: $num_orphan_disks" 
+            
+            if [ $num_orphan_vms -gt 0 ]; then
+                printf "\n Deleting Orphan VMs: \n $orphan_vms"
+                # Delete the orphan VMs.
+                aws ec2 terminate-instances --instance-ids $orphan_vms
+            fi
+
+            if [ $num_orphan_disks -gt 0 ]; then
+                printf "\n Deleting Orphan Disks: \n $orphan_disks"
+                # Delete the orphan Disks.
+                for line in $orphan_disks; do
+                    aws ec2 delete-volume --volume-id $line
+                done
+            fi
+
             return 1
         fi
     fi
 
     if [ $1 == "gcp" ]; then
         # Check if there are any VMs matching the tag exists.
-        num_orphan_vms="$(gcloud compute instances list --filter="tags.items=mcm-ci-test-shoot-mcm-ci-gc-target" --format='value(name)' | wc -l)"
+        orphan_vms="$(gcloud compute instances list --filter="tags.items=mcm-ci-test-shoot-mcm-ci-gc-target" --format='value(name)')"
+        num_orphan_vms="$( echo "$orphan_vms" | wc -w )"
 
         # Check if there are any disks matching the tag exists.
-        num_orphan_disks="$(gcloud compute disks list --filter="labels.mcm-ci-test:shoot-mcm-ci-gc-target" --format='value(name)' | wc -l)"
+        orphan_disks="$(gcloud compute disks list --filter="labels.mcm-ci-test:shoot-mcm-ci-gc-target" --format='value(name)')"
+        num_orphan_disks="$( echo "$orphan_disks" | wc -w )"
 
         if [[ "$num_orphan_vms" -gt 0 || "$num_orphan_disks" -gt 0 ]]; then
             printf "\n Failed: Found orphan resources in GCP. Orphan VMs: $num_orphan_vms. Orphan Disks: $num_orphan_disks" 
+            
+            if [ $num_orphan_vms -gt 0 ]; then
+                printf "\n Deleting Orphan VMs: \n $orphan_vms"
+                # Delete the orphan VMs.
+                for line in $orphan_vms; do                    
+                    gcloud compute instances delete $line --quiet
+                done
+            fi
+
+            if [ $num_orphan_disks -gt 0 ]; then
+                printf "\n Deleting Orphan Disks: \n $orphan_disks"
+                # Delete the orphan Disks.
+                for line in $orphan_disks; do
+                    gcloud compute disks delete $line --quiet
+                done
+            fi
             return 1
         fi
     fi
-    
-    printf "\n No orphan resources found."
+
+    printf "\n No orphan resources found.  \n"
     return 0
 }
 
