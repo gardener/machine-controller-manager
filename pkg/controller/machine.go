@@ -176,7 +176,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		return nil
 	}
 
-	machine, err = c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+	machine, err = c.machineLister.Machines(machine.Namespace).Get(machine.Name)
 	if err != nil {
 		klog.Errorf("Could not fetch machine object %s", err)
 		if apierrors.IsNotFound(err) {
