@@ -125,7 +125,7 @@ var _ = Describe("machine", func() {
 			gcpMachineClass *v1alpha1.GCPMachineClass
 			machineClass    *v1alpha1.MachineClass
 
-			retry machineutils.Retry
+			retry machineutils.RetryPeriod
 		}
 		type data struct {
 			setup  setup
@@ -245,7 +245,7 @@ var _ = Describe("machine", func() {
 						Spec:     v1alpha1.GCPMachineClassSpec{},
 					},
 					err:   nil,
-					retry: true,
+					retry: machineutils.ShortRetry,
 				},
 			}),
 			Entry("MachineClass migration successful for GCP machine class by updating existing machine class", &data{
@@ -308,7 +308,7 @@ var _ = Describe("machine", func() {
 						Spec:     v1alpha1.GCPMachineClassSpec{},
 					},
 					err:   nil,
-					retry: true,
+					retry: machineutils.ShortRetry,
 				},
 			}),
 		)

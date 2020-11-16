@@ -17,7 +17,11 @@ limitations under the License.
 // Package machineutils contains the consts and global vaariables for machine operation
 package machineutils
 
-import v1 "k8s.io/api/core/v1"
+import (
+	"time"
+
+	v1 "k8s.io/api/core/v1"
+)
 
 const (
 	// GetVMStatus sets machine status to terminating and specifies next step as getting VMs
@@ -51,13 +55,15 @@ const (
 	NodeTerminationCondition v1.NodeConditionType = "Terminating"
 )
 
-// Retry is a label for retrying operation
-type Retry bool
+// RetryPeriod is an alias for specifying the retry period
+type RetryPeriod time.Duration
 
-// These are the valid values for Retry.
+// These are the valid values for RetryPeriod
 const (
-	// RetryOp tells the controller to retry
-	RetryOp Retry = true
-	// DoNotRetryOp tells the controller to not retry for now. Resync after re-sync period
-	DoNotRetryOp Retry = false
+	// ShortRetry tells the controller to retry after a short duration - 15 seconds
+	ShortRetry RetryPeriod = RetryPeriod(15 * time.Second)
+	// MediumRetry tells the controller to retry after a medium duration - 2 minutes
+	MediumRetry RetryPeriod = RetryPeriod(3 * time.Minute)
+	// LongRetry tells the controller to retry after a long duration - 10 minutes
+	LongRetry RetryPeriod = RetryPeriod(10 * time.Minute)
 )

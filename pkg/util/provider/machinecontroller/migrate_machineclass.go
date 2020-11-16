@@ -85,7 +85,7 @@ func (c *controller) getProviderSpecificMachineClass(classSpec *v1alpha1.ClassSp
 }
 
 // createMachineClass creates the generic machineClass corresponding to the providerMachineClass
-func (c *controller) createMachineClass(providerSpecificMachineClass interface{}, classSpec *v1alpha1.ClassSpec) (machineutils.Retry, error) {
+func (c *controller) createMachineClass(providerSpecificMachineClass interface{}, classSpec *v1alpha1.ClassSpec) (machineutils.RetryPeriod, error) {
 
 	machineClass, err := c.machineClassLister.MachineClasses(c.namespace).Get(classSpec.Name)
 	if err != nil && apierrors.IsNotFound(err) {
@@ -97,12 +97,12 @@ func (c *controller) createMachineClass(providerSpecificMachineClass interface{}
 		}
 		machineClass, err = c.controlMachineClient.MachineClasses(c.namespace).Create(machineClass)
 		if err != nil {
-			return machineutils.RetryOp, err
+			return machineutils.ShortRetry, err
 		}
 
 	} else if err != nil {
 		// Anyother kind of error while fetching the machineClass object
-		return machineutils.RetryOp, err
+		return machineutils.ShortRetry, err
 	}
 
 	cloneMachineClass := machineClass.DeepCopy()
@@ -117,7 +117,7 @@ func (c *controller) createMachineClass(providerSpecificMachineClass interface{}
 		},
 	)
 	if err != nil {
-		retry := machineutils.DoNotRetryOp
+		retry := machineutils.LongRetry
 
 		if machineErr, ok := status.FromError(err); !ok {
 			// Do nothing
@@ -125,9 +125,9 @@ func (c *controller) createMachineClass(providerSpecificMachineClass interface{}
 			// Decoding machineErr error code
 			switch machineErr.Code() {
 			case codes.Unimplemented:
-				retry = machineutils.DoNotRetryOp
+				retry = machineutils.LongRetry
 			default:
-				retry = machineutils.RetryOp
+				retry = machineutils.ShortRetry
 			}
 			err = machineErr
 		}
@@ -140,12 +140,12 @@ func (c *controller) createMachineClass(providerSpecificMachineClass interface{}
 	// MachineClass exists, and needs to be updated
 	_, err = c.controlMachineClient.MachineClasses(c.namespace).Update(cloneMachineClass)
 	if err != nil {
-		return machineutils.RetryOp, err
+		return machineutils.ShortRetry, err
 	}
 
 	klog.V(2).Infof("Create/Apply successful for MachineClass %s", machineClass.Name)
 
-	return machineutils.RetryOp, err
+	return machineutils.ShortRetry, err
 }
 
 // updateClassReferences updates all machine objects to refer to the new MachineClass.
@@ -378,7 +378,7 @@ func (c *controller) addMigratedAnnotationForProviderMachineClass(classSpec *v1a
 }
 
 // TryMachineClassMigration tries to migrate the provider-specific machine class to the generic machine-class.
-func (c *controller) TryMachineClassMigration(classSpec *v1alpha1.ClassSpec) (*v1alpha1.MachineClass, *v1.Secret, machineutils.Retry, error) {
+func (c *controller) TryMachineClassMigration(classSpec *v1alpha1.ClassSpec) (*v1alpha1.MachineClass, *v1.Secret, machineutils.RetryPeriod, error) {
 	var (
 		err                          error
 		providerSpecificMachineClass interface{}
@@ -386,7 +386,7 @@ func (c *controller) TryMachineClassMigration(classSpec *v1alpha1.ClassSpec) (*v
 
 	// Get the provider specific (e.g. AWSMachineClass) from the classSpec
 	if providerSpecificMachineClass, err = c.getProviderSpecificMachineClass(classSpec); err != nil {
-		return nil, nil, machineutils.RetryOp, err
+		return nil, nil, machineutils.ShortRetry, err
 	}
 
 	// Create/Apply the new MachineClass CR by copying/migrating over all the fields.
@@ -396,15 +396,15 @@ func (c *controller) TryMachineClassMigration(classSpec *v1alpha1.ClassSpec) (*v
 
 	// Update any references to the old {Provider}MachineClass CR.
 	if err = c.updateClassReferences(classSpec); err != nil {
-		return nil, nil, machineutils.RetryOp, err
+		return nil, nil, machineutils.ShortRetry, err
 	}
 
 	// Annotate the old {Provider}MachineClass CR with an migrated annotation.
 	if err = c.addMigratedAnnotationForProviderMachineClass(classSpec); err != nil {
-		return nil, nil, machineutils.RetryOp, err
+		return nil, nil, machineutils.ShortRetry, err
 	}
 
 	klog.V(1).Infof("Migration successful for class %s/%s", classSpec.Kind, classSpec.Name)
 
-	return nil, nil, machineutils.RetryOp, nil
+	return nil, nil, machineutils.ShortRetry, nil
 }
