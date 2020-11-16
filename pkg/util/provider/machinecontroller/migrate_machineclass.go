@@ -78,6 +78,15 @@ func (c *controller) getProviderSpecificMachineClass(classSpec *v1alpha1.ClassSp
 	}
 
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			_, innerErr := c.machineClassLister.MachineClasses(c.namespace).Get(classSpec.Name)
+			if innerErr == nil {
+				// MachineClass object with same name was found.
+				// Most likely an external controller has already performed the migration.
+				// And also {Provider}MachineClass isn't found, hence we can continue with the migration.
+				return nil, fmt.Errorf("ProviderMachineClass not found. Found a MachineClass with matching name")
+			}
+		}
 		return nil, err
 	}
 
@@ -382,16 +391,24 @@ func (c *controller) TryMachineClassMigration(classSpec *v1alpha1.ClassSpec) (*v
 	var (
 		err                          error
 		providerSpecificMachineClass interface{}
+		updateMachineClassObjects    = true
 	)
 
 	// Get the provider specific (e.g. AWSMachineClass) from the classSpec
 	if providerSpecificMachineClass, err = c.getProviderSpecificMachineClass(classSpec); err != nil {
-		return nil, nil, machineutils.ShortRetry, err
+		if err.Error() == "ProviderMachineClass not found. Found a MachineClass with matching name" {
+			klog.Info(err.Error() + ". However, will continue with this migration with class reference updates.")
+			updateMachineClassObjects = false
+		} else {
+			return nil, nil, machineutils.ShortRetry, err
+		}
 	}
 
-	// Create/Apply the new MachineClass CR by copying/migrating over all the fields.
-	if retry, err := c.createMachineClass(providerSpecificMachineClass, classSpec); err != nil {
-		return nil, nil, retry, err
+	if updateMachineClassObjects {
+		// Create/Apply the new MachineClass CR by copying/migrating over all the fields.
+		if retry, err := c.createMachineClass(providerSpecificMachineClass, classSpec); err != nil {
+			return nil, nil, retry, err
+		}
 	}
 
 	// Update any references to the old {Provider}MachineClass CR.
@@ -399,9 +416,11 @@ func (c *controller) TryMachineClassMigration(classSpec *v1alpha1.ClassSpec) (*v
 		return nil, nil, machineutils.ShortRetry, err
 	}
 
-	// Annotate the old {Provider}MachineClass CR with an migrated annotation.
-	if err = c.addMigratedAnnotationForProviderMachineClass(classSpec); err != nil {
-		return nil, nil, machineutils.ShortRetry, err
+	if updateMachineClassObjects {
+		// Annotate the old {Provider}MachineClass CR with an migrated annotation.
+		if err = c.addMigratedAnnotationForProviderMachineClass(classSpec); err != nil {
+			return nil, nil, machineutils.ShortRetry, err
+		}
 	}
 
 	klog.V(1).Infof("Migration successful for class %s/%s", classSpec.Kind, classSpec.Name)
