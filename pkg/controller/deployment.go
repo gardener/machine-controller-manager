@@ -302,7 +302,7 @@ func (dc *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) 
 		// No controller owns this Machine.
 		return nil
 	}
-	if controllerRef.Kind != "MachineDeployment" { //TODO: Remove hardcoded string
+	if controllerRef.Kind != "MachineSet" { //TODO: Remove hardcoded string
 		// Not a Machine owned by a machine set.
 		return nil
 	}
@@ -341,6 +341,7 @@ func (dc *controller) resolveDeploymentControllerRef(namespace string, controlle
 	return d
 }
 
+// TODO: Remove this method later if not required., it is not being used anywhere.
 func (dc *controller) handleErr(err error, key interface{}) {
 	if err == nil {
 		dc.machineDeploymentQueue.Forget(key)
