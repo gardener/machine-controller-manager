@@ -208,8 +208,6 @@ func (m *MachineControllerRefManager) ClaimMachines(machines []*v1alpha1.Machine
 	for _, machine := range machines {
 		ok, err := m.ClaimObject(machine, match, adopt, release)
 
-		//klog.Info(machine.Name, " OK:", ok, " ERR:", err)
-
 		if err != nil {
 			errlist = append(errlist, err)
 			continue

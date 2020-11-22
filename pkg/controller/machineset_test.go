@@ -18,9 +18,11 @@ package controller
 import (
 	"errors"
 	"sync"
+	"time"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 
 	k8sError "k8s.io/apimachinery/pkg/api/errors"
@@ -104,6 +106,381 @@ var _ = Describe("machineset", func() {
 			Expect(MachineSet).Should(HaveLen(1))
 			Expect(MachineSet).Should(ContainElement(testMachineSet))
 		})
+	})
+
+	Describe("#machineSetUpdate", func() {
+		var (
+			testMachineSet *machinev1.MachineSet
+		)
+
+		BeforeEach(func() {
+			testMachineSet = &machinev1.MachineSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "MachineSet-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					UID: "1234567",
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MachineSet",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineSetSpec{
+					Replicas: 3,
+					Template: machinev1.MachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"test-label": "test-label",
+							},
+						},
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Name: "MachineClass-test",
+								Kind: "MachineClass",
+							},
+						},
+					},
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"test-label": "test-label",
+						},
+					},
+				},
+			}
+		})
+
+		It("Should enqueue the machineset", func() {
+			stop := make(chan struct{})
+			machineSetObj := testMachineSet
+
+			defer close(stop)
+
+			objects := []runtime.Object{}
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			machineSetUpdatedObj := machineSetObj.DeepCopy()
+			machineSetUpdatedObj.Spec.Replicas = 5
+			c.machineSetUpdate(machineSetObj, machineSetUpdatedObj)
+
+			waitForCacheSync(stop, c)
+			Expect(c.machineSetQueue.Len()).To(Equal(1))
+		})
+	})
+
+	Describe("#addMachineToMachineSet", func() {
+		var (
+			testMachineSet *machinev1.MachineSet
+			testMachine    *machinev1.Machine
+			ptrBool        bool
+		)
+		BeforeEach(func() {
+			ptrBool = true
+
+			testMachine = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "Machine-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "MachineSet",
+							Name:       "MachineSet-test",
+							UID:        "1234567",
+							Controller: &ptrBool,
+						},
+					},
+				},
+			}
+
+			testMachineSet = &machinev1.MachineSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "MachineSet-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					UID: "1234567",
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MachineSet",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineSetSpec{
+					Replicas: 3,
+					Template: machinev1.MachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"test-label": "test-label",
+							},
+						},
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Name: "MachineClass-test",
+								Kind: "MachineClass",
+							},
+						},
+					},
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"test-label": "test-label",
+						},
+					},
+				},
+			}
+		})
+
+		It("Should enqueue the machineset as controllerRef matches", func() {
+			stop := make(chan struct{})
+
+			defer close(stop)
+
+			objects := []runtime.Object{}
+			objects = append(objects, testMachineSet)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			c.addMachineToMachineSet(testMachine)
+
+			waitForCacheSync(stop, c)
+			Expect(c.machineSetQueue.Len()).To(Equal(1))
+		})
+
+		It("Should enqueue the machineset though controllerRef is not set but orphan is created", func() {
+			stop := make(chan struct{})
+
+			defer close(stop)
+
+			objects := []runtime.Object{}
+			objects = append(objects, testMachineSet)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			ptrBool = false
+			c.addMachineToMachineSet(testMachine)
+
+			waitForCacheSync(stop, c)
+			Expect(c.machineSetQueue.Len()).To(Equal(1))
+		})
+
+		It("Should enqueue the machineset while machine is being deleted", func() {
+			stop := make(chan struct{})
+
+			defer close(stop)
+
+			objects := []runtime.Object{}
+			objects = append(objects, testMachineSet)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			testMachine.DeletionTimestamp = &metav1.Time{time.Now()}
+			c.addMachineToMachineSet(testMachine)
+
+			waitForCacheSync(stop, c)
+			Expect(c.machineSetQueue.Len()).To(Equal(1))
+		})
+
+		It("Shouldn't enqueue the machineset if machineset is not found via cotrollerRef", func() {
+			stop := make(chan struct{})
+
+			defer close(stop)
+
+			objects := []runtime.Object{}
+			objects = append(objects, testMachineSet)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			testMachine.OwnerReferences[0].Name = "dummy-one"
+			c.addMachineToMachineSet(testMachine)
+
+			waitForCacheSync(stop, c)
+			Expect(c.machineSetQueue.Len()).To(Equal(0))
+		})
+	})
+
+	Describe("#updateMachineToMachineSet", func() {
+		var (
+			testMachineSet *machinev1.MachineSet
+			testMachine    *machinev1.Machine
+			oldMachine     *machinev1.Machine
+			newMachine     *machinev1.Machine
+			ptrBool        bool
+		)
+		BeforeEach(func() {
+			ptrBool = true
+
+			testMachine = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "Machine-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					ResourceVersion: "123",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "MachineSet",
+							Name:       "MachineSet-test",
+							UID:        "1234567",
+							Controller: &ptrBool,
+						},
+					},
+				},
+			}
+
+			testMachineSet = &machinev1.MachineSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "MachineSet-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					UID: "1234567",
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MachineSet",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineSetSpec{
+					Replicas: 3,
+					Template: machinev1.MachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"test-label": "test-label",
+							},
+						},
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Name: "MachineClass-test",
+								Kind: "MachineClass",
+							},
+						},
+					},
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"test-label": "test-label",
+						},
+					},
+				},
+			}
+		})
+		Describe("Shouldn't enqueue the machineset", func() {
+			It("Shouldn't enqueue the machineset if resource version matches", func() {
+				stop := make(chan struct{})
+				testMachineUpdated := testMachine.DeepCopy()
+
+				defer close(stop)
+
+				objects := []runtime.Object{}
+				objects = append(objects, testMachineSet)
+				c, trackers := createController(stop, testNamespace, objects, nil, nil)
+
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+
+				testMachineUpdated.ResourceVersion = testMachine.ResourceVersion
+				c.updateMachineToMachineSet(testMachine, testMachineUpdated)
+
+				waitForCacheSync(stop, c)
+				Expect(c.machineSetQueue.Len()).To(Equal(0))
+			})
+		})
+
+		DescribeTable("Should enqueue the machineset",
+			func(preset func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine), oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
+
+				machine := &machinev1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "Machine-test",
+						Namespace: testNamespace,
+						Labels: map[string]string{
+							"test-label": "test-label",
+						},
+						ResourceVersion: "123",
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Kind:       "MachineSet",
+								Name:       "MachineSet-test",
+								UID:        "1234567",
+								Controller: &ptrBool,
+							},
+						},
+					},
+				}
+				oldMachine = machine
+				newMachine = oldMachine.DeepCopy()
+				newMachine.ResourceVersion = "345"
+
+				stop := make(chan struct{})
+				preset(oldMachine, newMachine)
+				defer close(stop)
+
+				objects := []runtime.Object{}
+				objects = append(objects, testMachineSet)
+				c, trackers := createController(stop, testNamespace, objects, nil, nil)
+
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+				c.updateMachineToMachineSet(oldMachine, newMachine)
+
+				waitForCacheSync(stop, c)
+				Expect(c.machineSetQueue.Len()).To(Equal(1))
+			},
+			Entry("ResourceVersion is different for new machine",
+				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
+					newMachine.ResourceVersion = "3456"
+				},
+				oldMachine, newMachine,
+			),
+			Entry("newMachine is being deleted",
+				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
+					oldMachine.DeletionTimestamp = &metav1.Time{time.Now()}
+				},
+				oldMachine, newMachine,
+			),
+			Entry("labels on newMachine has changed",
+				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
+					newMachine.Labels = map[string]string{
+						"dummy": "dummy",
+					}
+				},
+				oldMachine, newMachine,
+			),
+			Entry("if controllerRef has changed and new ref is nil",
+				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
+					newMachine.OwnerReferences = nil
+				},
+				oldMachine, newMachine,
+			),
+			Entry("if controllerRef has changed and new ref points to valid machineSet",
+				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
+					newMachine.OwnerReferences = []metav1.OwnerReference{
+						{
+							Kind:       "MachineSet",
+							Name:       "MachineSet-test-dummy",
+							UID:        "1234567",
+							Controller: &ptrBool,
+						},
+					}
+				},
+				oldMachine, newMachine,
+			),
+		)
+
 	})
 
 	Describe("#resolveMachineSetControllerRef", func() {
@@ -315,9 +692,57 @@ var _ = Describe("machineset", func() {
 			Expect(Err).Should(BeNil())
 		})
 
+		//It should return nil error if typemeta is missing in machine-set, to avoid constant reconciliations.
+		It("should return nil on buggy machineset and avoid reconciliations", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			objects := []runtime.Object{}
+			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas) - 1))
+
+			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2}
+
+			testMachineSet.TypeMeta = metav1.TypeMeta{}
+			Err := c.manageReplicas(activeMachines, testMachineSet)
+			waitForCacheSync(stop, c)
+
+			Expect(Err).Should(BeNil())
+		})
+
+		//Testcase: diff > burstReplicas
+		//Create number of machines equal to the burst-replicas.
+		It("should create new machines only equal to burstReplicas and should not return errors.", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			objects := []runtime.Object{}
+			testMachineSet.Spec.Replicas = 200
+			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			//Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas) - 1))
+
+			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2}
+			Err := c.manageReplicas(activeMachines, testMachineSet)
+			waitForCacheSync(stop, c)
+			//TODO: Could not use Listers here, need to check more.
+			machines, _ = c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			Expect(len(machines.Items)).To(Equal(int(BurstReplicas + len(activeMachines))))
+			Expect(Err).Should(BeNil())
+		})
+
 		//TestCase: ActiveMachines = DesiredMachines
 		//Testcase: It should not return error.
-		It("should not create or delete machined and should not return error", func() {
+		It("should not create or delete machines and should not return error", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -360,7 +785,7 @@ var _ = Describe("machineset", func() {
 
 		//TestCase: ActiveMachines > DesiredMachines
 		//Testcase: It should not return error and delete extra machine.
-		It("should not return error and should delete extra machine.", func() {
+		It("should not return error and should delete extra failed machine.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -420,6 +845,69 @@ var _ = Describe("machineset", func() {
 			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
 			Expect(Err).Should(BeNil())
 		})
+
+		//TestCase: ActiveMachines > DesiredMachines
+		//Testcase: It should not return error and delete extra running machine.
+		It("should not return error and should delete extra running machine.", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			testActiveMachine3 = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-3",
+					Namespace: testNamespace,
+					UID:       "12345610",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Machine",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineRunning,
+					},
+				},
+			}
+
+			testActiveMachine4 = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-4",
+					Namespace: testNamespace,
+					UID:       "12345611",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Machine",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineRunning,
+					},
+				},
+			}
+
+			objects := []runtime.Object{}
+			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2, testActiveMachine3, testActiveMachine4)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas + 1)))
+
+			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2, testActiveMachine3, testActiveMachine4}
+			Err := c.manageReplicas(activeMachines, testMachineSet)
+			waitForCacheSync(stop, c)
+			machines, _ = c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
+			Expect(Err).Should(BeNil())
+		})
 	})
 
 	//TODO: This method has dependency on generic-machineclass. Implement later.
@@ -451,10 +939,10 @@ var _ = Describe("machineset", func() {
 							},
 						},
 						Spec: machinev1.MachineSpec{
-							// Class: machinev1.ClassSpec{
-							// 	Name: "MachineClass-test",
-							// 	Kind: "MachineClass",
-							// },
+							Class: machinev1.ClassSpec{
+								Name: "MachineClass-test",
+								Kind: "MachineClass",
+							},
 						},
 					},
 					Selector: &metav1.LabelSelector{
@@ -485,7 +973,74 @@ var _ = Describe("machineset", func() {
 
 			waitForCacheSync(stop, c)
 			machines, _ = c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
-			//Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
+			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
+			Expect(Err).Should(BeNil())
+		})
+
+		//Testcase: Should return nil if the machineset doesnt exist, to avoid constant reconciliations.
+		It("It should return nil if machineset doesnt exist.", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			objects := []runtime.Object{}
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			Expect(len(machines.Items)).To(Equal(int(0)))
+
+			Key := testNamespace + "/" + testMachineSet.Name
+			Err := c.reconcileClusterMachineSet(Key)
+
+			waitForCacheSync(stop, c)
+			Expect(Err).Should(BeNil())
+		})
+
+		//Testcase: It should return nil if the machineset validation fails.
+		It("It should return nil if machineset validation fails", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			testMachineSet.Spec.Template.Spec.Class = machinev1.ClassSpec{}
+			objects := []runtime.Object{}
+			objects = append(objects, testMachineSet)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			Expect(len(machines.Items)).To(Equal(int(0)))
+
+			Key := testNamespace + "/" + testMachineSet.Name
+			Err := c.reconcileClusterMachineSet(Key)
+
+			waitForCacheSync(stop, c)
+			Expect(Err).Should(BeNil())
+		})
+
+		//Testcase: It should delete all the machines as DeletionTimestamp is set.
+		It("It should delete all the machines as DeletionTimestamp is set on MachineSet", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			objects := []runtime.Object{}
+			objects = append(objects, testMachineSet)
+			testMachineSet.DeletionTimestamp = &metav1.Time{time.Now()}
+			testMachineSet.Finalizers = []string{DeleteFinalizerName}
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			machines, _ := c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			Expect(len(machines.Items)).To(Equal(int(0)))
+
+			Key := testNamespace + "/" + testMachineSet.Name
+			Err := c.reconcileClusterMachineSet(Key)
+
+			waitForCacheSync(stop, c)
+			machines, _ = c.controlMachineClient.Machines(testNamespace).List(metav1.ListOptions{})
+			Expect(len(machines.Items)).To(Equal(int(0)))
 			Expect(Err).Should(BeNil())
 		})
 	})

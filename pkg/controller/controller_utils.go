@@ -26,7 +26,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash/fnv"
-	"math/rand"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -37,6 +36,7 @@ import (
 	fakemachineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	annotationsutils "github.com/gardener/machine-controller-manager/pkg/util/annotations"
 	hashutil "github.com/gardener/machine-controller-manager/pkg/util/hash"
+	"github.com/google/uuid"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -538,9 +538,7 @@ func (r RealMachineControl) CreateMachinesWithControllerRef(namespace string, te
 // GetMachineFromTemplate passes the machine template spec to return the machine object
 func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject runtime.Object, controllerRef *metav1.OwnerReference) (*v1alpha1.Machine, error) {
 
-	//klog.Info("Template details \n", template.Spec.Class)
 	desiredLabels := getMachinesLabelSet(template)
-	//klog.Info(desiredLabels)
 	desiredFinalizers := getMachinesFinalizers(template)
 	desiredAnnotations := getMachinesAnnotationSet(template, parentObject)
 
@@ -549,7 +547,6 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 		return nil, fmt.Errorf("parentObject does not have ObjectMeta, %v", err)
 	}
 	prefix := getMachinesPrefix(accessor.GetName())
-	//klog.Info("2")
 	machine := &v1alpha1.Machine{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:       desiredLabels,
@@ -565,7 +562,6 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 		machine.OwnerReferences = append(machine.OwnerReferences, *controllerRef)
 	}
 	machine.Spec = *template.Spec.DeepCopy()
-	//klog.Info("3")
 	return machine, nil
 }
 
@@ -711,8 +707,7 @@ func GetFakeMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentOb
 		return nil, fmt.Errorf("parentObject does not have ObjectMeta, %v", err)
 	}
 	prefix := getMachinesPrefix(accessor.GetName())
-	rand.Seed(time.Now().UnixNano())
-	prefix = prefix + strconv.Itoa(rand.Intn(100000))
+	prefix = prefix + uuid.New().String()
 	machine := &v1alpha1.Machine{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      desiredLabels,
