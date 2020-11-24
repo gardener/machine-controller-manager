@@ -113,7 +113,7 @@ A machine can be force deleted by adding the label `force-deletion: "True"` on t
 
 ### How to pause the ongoing rolling-update of the machinedeployment?
 
-An ongoing rolling-update of the machine-deployment can be paused by using `Spec.Paused` field. See the example below:
+An ongoing rolling-update of the machine-deployment can be paused by using `spec.paused` field. See the example below:
 ```
 apiVersion: machine.sapcloud.io/v1alpha1
 kind: MachineDeployment
