@@ -63,7 +63,7 @@ var _ = Describe("time", func() {
 					timeOutOccurred: false,
 				},
 			}),
-			Entry("Time stamp is now and peroid is 5mins", &data{
+			Entry("Time stamp is now and period is 5mins", &data{
 				setup: setup{
 					timeStamp: metav1.Time{Time: time.Now()},
 					period:    5 * time.Minute,
