@@ -40,6 +40,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	utilstrings "github.com/gardener/machine-controller-manager/pkg/util/strings"
+	utiltime "github.com/gardener/machine-controller-manager/pkg/util/time"
 
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -912,9 +913,7 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 	if skipDrain {
 		state = v1alpha1.MachineStateProcessing
 	} else {
-		// Timeout value obtained by subtracting last operation with expected time out period
-		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
-		timeOutOccurred = timeOut > 0
+		timeOutOccurred = utiltime.HasTimeOutOccurred(*machine.DeletionTimestamp, timeOutDuration)
 
 		if forceDeleteLabelPresent || timeOutOccurred {
 			// To perform forceful machine drain/delete either one of the below conditions must be satified
