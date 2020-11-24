@@ -312,6 +312,8 @@ func newMachines(
 		labels = make(map[string]string, 0)
 	}
 
+	currentTime := metav1.Now()
+
 	for i := range machines {
 		m := &v1alpha1.Machine{
 			TypeMeta: metav1.TypeMeta{
@@ -324,6 +326,7 @@ func newMachines(
 				Labels:            labels,
 				Annotations:       annotations,
 				CreationTimestamp: metav1.Now(),
+				DeletionTimestamp: &currentTime,
 			},
 			Spec: *newMachineSpec(&specTemplate.Spec, i),
 		}
