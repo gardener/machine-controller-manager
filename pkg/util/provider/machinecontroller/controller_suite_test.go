@@ -335,6 +335,7 @@ func newMachines(
 				Labels:            labels,
 				Annotations:       annotations,
 				CreationTimestamp: creationTimestamp,
+				DeletionTimestamp: &creationTimestamp, //TODO: Add parametrize this
 			},
 			Spec: *newMachineSpec(&specTemplate.Spec, i),
 		}
