@@ -287,6 +287,7 @@ func newMachinesFromMachineSet(
 		annotations,
 		finalLabels,
 		addFinalizer,
+		metav1.Now(),
 	)
 }
 
@@ -298,7 +299,7 @@ func newMachine(
 	labels map[string]string,
 	addFinalizer bool,
 ) *v1alpha1.Machine {
-	return newMachines(1, specTemplate, statusTemplate, owner, annotations, labels, addFinalizer)[0]
+	return newMachines(1, specTemplate, statusTemplate, owner, annotations, labels, addFinalizer, metav1.Now())[0]
 }
 
 func newMachines(
@@ -309,6 +310,7 @@ func newMachines(
 	annotations map[string]string,
 	labels map[string]string,
 	addFinalizer bool,
+	creationTimestamp metav1.Time,
 ) []*v1alpha1.Machine {
 	machines := make([]*v1alpha1.Machine, machineCount)
 
@@ -326,10 +328,12 @@ func newMachines(
 				Kind:       "Machine",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        fmt.Sprintf("machine-%d", i),
-				Namespace:   testNamespace,
-				Labels:      labels,
-				Annotations: annotations,
+				Name:              fmt.Sprintf("machine-%d", i),
+				Namespace:         testNamespace,
+				Labels:            labels,
+				Annotations:       annotations,
+				CreationTimestamp: creationTimestamp,
+				DeletionTimestamp: &creationTimestamp, //TODO: Add parametrize this
 			},
 			Spec: *newMachineSpec(&specTemplate.Spec, i),
 		}

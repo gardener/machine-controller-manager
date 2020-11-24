@@ -1,5 +1,5 @@
 #############      builder                                  #############
-FROM golang:1.13.5 AS builder
+FROM eu.gcr.io/gardener-project/3rd/golang:1.15.5 AS builder
 
 WORKDIR /go/src/github.com/gardener/machine-controller-manager
 COPY . .
@@ -7,7 +7,7 @@ COPY . .
 RUN .ci/build
 
 #############      base                                     #############
-FROM alpine:3.11.2 as base
+FROM eu.gcr.io/gardener-project/3rd/alpine:3.12.1 as base
 
 RUN apk add --update bash curl tzdata
 WORKDIR /
