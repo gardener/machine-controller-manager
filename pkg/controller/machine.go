@@ -42,6 +42,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 	"github.com/gardener/machine-controller-manager/pkg/driver"
+	utiltime "github.com/gardener/machine-controller-manager/pkg/util/time"
 )
 
 const (
@@ -624,42 +625,6 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			forceDeleteLabelPresent = machine.Labels["force-deletion"] == "True"
 		)
 
-		// Timeout value obtained by subtracting last operation with expected time out period
-		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
-		timeOutOccurred = timeOut > 0
-
-		if forceDeleteLabelPresent || timeOutOccurred {
-			// To perform forceful machine drain/delete either one of the below conditions must be satified
-			// 1. force-deletion: "True" label must be present
-			// 2. Deletion operation is more than drain-timeout minutes old
-			forceDeleteMachine = true
-			forceDeletePods = true
-			timeOutDuration = 1 * time.Minute
-			maxEvictRetries = 1
-
-			klog.V(2).Infof(
-				"Force deletion has been triggerred for machine %q due to ForceDeletionLabel:%t, Timeout:%t",
-				machine.Name,
-				forceDeleteLabelPresent,
-				timeOutOccurred,
-			)
-		}
-
-		// If machine was created on the cloud provider
-		machineID, _ := driver.GetExisting()
-
-		// update node with the machine's state prior to termination
-		if nodeName != "" && machineID != "" {
-			if err = c.UpdateNodeTerminationCondition(machine); err != nil {
-				if forceDeleteMachine {
-					klog.Warningf("failed to update node conditions: %v. However, since it's a force deletion shall continue deletion of VM.", err)
-				} else {
-					klog.Error(err)
-					return err
-				}
-			}
-		}
-
 		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating {
 			lastOperation := v1alpha1.LastOperation{
 				Description:    "Deleting machine from cloud provider",
@@ -687,6 +652,47 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				// Any other type of errors
 				klog.Error(err)
 				return err
+			}
+		}
+
+		timeOutOccurred = utiltime.HasTimeOutOccurred(*machine.DeletionTimestamp, timeOutDuration)
+
+		if forceDeleteLabelPresent || timeOutOccurred {
+			// To perform forceful machine drain/delete either one of the below conditions must be satified
+			// 1. force-deletion: "True" label must be present
+			// 2. Deletion operation is more than drain-timeout minutes old
+			forceDeleteMachine = true
+			forceDeletePods = true
+			timeOutDuration = 1 * time.Minute
+			maxEvictRetries = 1
+
+			klog.V(2).Infof(
+				"Force delete/drain has been triggerred for machine %q due to Label:%t, timeout:%t",
+				machine.Name,
+				forceDeleteLabelPresent,
+				timeOutOccurred,
+			)
+		} else {
+			klog.V(2).Infof(
+				"Normal delete/drain has been triggerred for machine %q with drain-timeout:%v & maxEvictRetries:%d",
+				machine.Name,
+				timeOutDuration,
+				maxEvictRetries,
+			)
+		}
+
+		// If machine was created on the cloud provider
+		machineID, _ := driver.GetExisting()
+
+		// update node with the machine's state prior to termination
+		if nodeName != "" && machineID != "" {
+			if err = c.UpdateNodeTerminationCondition(machine); err != nil {
+				if forceDeleteMachine {
+					klog.Warningf("failed to update node conditions: %v. However, since it's a force deletion shall continue deletion of VM.", err)
+				} else {
+					klog.Error(err)
+					return err
+				}
 			}
 		}
 
