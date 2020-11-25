@@ -300,6 +300,14 @@ func (d *AzureDriver) Delete(machineID string) error {
 		resourceGroupName = d.AzureMachineClass.Spec.ResourceGroup
 	)
 
+	// Check if the underlying resource group still exists, if not skip the deletion as all resources are gone.
+	if _, err := clients.group.Get(ctx, resourceGroupName); err != nil {
+		if notFound(err) {
+			return nil
+		}
+		return err
+	}
+
 	var dataDiskNames []string
 	if d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks != nil && len(d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks) > 0 {
 		dataDiskNames = getAzureDataDiskNames(d.AzureMachineClass.Spec.Properties.StorageProfile.DataDisks, vmName, dataDiskSuffix)
@@ -402,6 +410,7 @@ type azureDriverClients struct {
 	vm          compute.VirtualMachinesClient
 	disk        compute.DisksClient
 	deployments resources.DeploymentsClient
+	group       resources.GroupsClient
 	images      compute.VirtualMachineImagesClient
 	marketplace marketplaceordering.MarketplaceAgreementsClient
 }
@@ -436,13 +445,16 @@ func newClients(subscriptionID, tenantID, clientID, clientSecret string, env azu
 	diskClient := compute.NewDisksClient(subscriptionID)
 	diskClient.Authorizer = authorizer
 
+	groupClient := resources.NewGroupsClient(subscriptionID)
+	groupClient.Authorizer = authorizer
+
 	deploymentsClient := resources.NewDeploymentsClient(subscriptionID)
 	deploymentsClient.Authorizer = authorizer
 
 	marketplaceClient := marketplaceordering.NewMarketplaceAgreementsClient(subscriptionID)
 	marketplaceClient.Authorizer = authorizer
 
-	return &azureDriverClients{subnet: subnetClient, nic: interfacesClient, vm: vmClient, disk: diskClient, deployments: deploymentsClient, images: vmImagesClient, marketplace: marketplaceClient}, nil
+	return &azureDriverClients{subnet: subnetClient, nic: interfacesClient, vm: vmClient, disk: diskClient, deployments: deploymentsClient, images: vmImagesClient, group: groupClient, marketplace: marketplaceClient}, nil
 }
 
 func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
