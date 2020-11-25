@@ -17,13 +17,14 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
   * [How to better control the rollout process of the worker nodes?](#How-to-better-control-the-rollout-process-of-the-worker-nodes)
   * [How to scale down MachineDeployment by selective deletion of machines?](#How-to-scale-down-machinedeployment-by-selective-deletion-of-machines)
   * [How to force delete a machine?](#How-to-force-delete-a-machine)
+  * [How to pause the ongoing rolling-update of the machinedeployment?](#How-to-pause-the-ongoing-rolling-update-of-the-machinedeployment)
 
 * [Internals](#internals)
   * [What is the high level design of MCM?](#What-is-the-high-level-design-of-MCM)
   * [What are the different configuration options in MCM?](#What-are-the-different-configuration-options-in-MCM)
-  * [What are the different timeouts/configurations in a machine's lifecycle?](#What-are-the-different-timeouts/configurations-in-a-machine's-lifecycle)
+  * [What are the different timeouts/configurations in a machine's lifecycle?](#What-are-the-different-timeoutsconfigurations-in-a-machines-lifecycle)
   * [How is the drain of a machine implemented?](#How-is-the-drain-of-a-machine-implemented)
-  * [How are the stateful applications drained during machine deletion??](#How-are-the-stateful-applications-drained-during-machine-deletion?)
+  * [How are the stateful applications drained during machine deletion?](#How-are-the-stateful-applications-drained-during-machine-deletion?)
   * [How does maxEvictRetries configuration work with drainTimeout configuration?](#How-does-maxEvictRetries-configuration-work-with-drainTimeout-configuration)
   * [What are the different phases of a machine?](#What-are-the-different-phases-of-a-machine)
 
@@ -110,6 +111,19 @@ Each `machine` object has an annotation `machinepriority.machine.sapcloud.io` se
 
 A machine can be force deleted by adding the label `force-deletion: "True"` on the `machine` object if it's already being deleted. During force deletion, MCM skips the drain function and simply triggers the deletion of the machine. This label should be used with caution as it can violate the PDBs for pods running on the machine.
 
+### How to pause the ongoing rolling-update of the machinedeployment?
+
+An ongoing rolling-update of the machine-deployment can be paused by using `spec.paused` field. See the example below:
+```
+apiVersion: machine.sapcloud.io/v1alpha1
+kind: MachineDeployment
+metadata:
+  name: test-machine-deployment
+spec:
+  paused: true
+```
+
+It can be unpaused again by removing the `Paused` field from the machine-deployment.
 
 # Internals
 ### What is the high level design of MCM?
