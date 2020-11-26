@@ -50,6 +50,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClass":                        schema_pkg_apis_machine_v1alpha1_AzureMachineClass(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClassList":                    schema_pkg_apis_machine_v1alpha1_AzureMachineClassList(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineClassSpec":                    schema_pkg_apis_machine_v1alpha1_AzureMachineClassSpec(ref),
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineSetConfig":                    schema_pkg_apis_machine_v1alpha1_AzureMachineSetConfig(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureManagedDiskParameters":               schema_pkg_apis_machine_v1alpha1_AzureManagedDiskParameters(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkInterfaceReference":           schema_pkg_apis_machine_v1alpha1_AzureNetworkInterfaceReference(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkInterfaceReferenceProperties": schema_pkg_apis_machine_v1alpha1_AzureNetworkInterfaceReferenceProperties(ref),
@@ -1287,6 +1288,32 @@ func schema_pkg_apis_machine_v1alpha1_AzureMachineClassSpec(ref common.Reference
 	}
 }
 
+func schema_pkg_apis_machine_v1alpha1_AzureMachineSetConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AzureMachineSetConfig contains the information about the machine set",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"id", "kind"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_machine_v1alpha1_AzureManagedDiskParameters(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1647,11 +1674,16 @@ func schema_pkg_apis_machine_v1alpha1_AzureVirtualMachineProperties(ref common.R
 							Format: "int32",
 						},
 					},
+					"machineSet": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineSetConfig"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureHardwareProfile", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkProfile", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureOSProfile", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureStorageProfile", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSubResource"},
+			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureHardwareProfile", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureMachineSetConfig", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureNetworkProfile", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureOSProfile", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureStorageProfile", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureSubResource"},
 	}
 }
 
@@ -3392,6 +3424,12 @@ func schema_pkg_apis_machine_v1alpha1_OpenStackMachineClassSpec(ref common.Refer
 							},
 						},
 					},
+					"subnetID": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("k8s.io/api/core/v1.SecretReference"),
@@ -3414,6 +3452,12 @@ func schema_pkg_apis_machine_v1alpha1_OpenStackMachineClassSpec(ref common.Refer
 							Description: "in GB",
 							Type:        []string{"boolean"},
 							Format:      "",
+						},
+					},
+					"serverGroupID": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 				},

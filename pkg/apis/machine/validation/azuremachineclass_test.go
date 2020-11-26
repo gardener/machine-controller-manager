@@ -1,6 +1,8 @@
 package validation
 
 import (
+	"fmt"
+
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -150,6 +152,90 @@ var _ = Describe("AzureMachineClass Validation", func() {
 				},
 			}
 			Expect(errList).To(ConsistOf(errExpected))
+		})
+
+		It("should forbid to use neither a zone, a machineset or an availabilityset", func() {
+			spec := getAzureMachineSpec()
+			spec.Properties.Zone = nil
+			spec.Properties.AvailabilitySet = nil
+			spec.Properties.MachineSet = nil
+
+			expectedErr := field.ErrorList{
+				{
+					Type:     field.ErrorTypeForbidden,
+					Field:    "spec.properties.zone|.machineSet|.availabilitySet",
+					BadValue: "",
+					Detail:   "Machine need to be assigned to a zone, a MachineSet or an AvailabilitySet",
+				},
+			}
+
+			err := validateAzureMachineClassSpec(spec, field.NewPath("spec"))
+			Expect(err).To(ConsistOf(expectedErr))
+		})
+
+		It("should forbid to use a zone and a machineset or an availabilityset in parallel", func() {
+			spec := getAzureMachineSpec()
+			spec.Properties.MachineSet = &machine.AzureMachineSetConfig{
+				ID:   "test-machineset-id",
+				Kind: "vmo",
+			}
+
+			expectedErr := field.ErrorList{
+				{
+					Type:     field.ErrorTypeForbidden,
+					Field:    "spec.properties.zone|.machineSet|.availabilitySet",
+					BadValue: "",
+					Detail:   "Machine cannot be assigned to a zone, a MachineSet and an AvailabilitySet in parallel",
+				},
+			}
+
+			err := validateAzureMachineClassSpec(spec, field.NewPath("spec"))
+			Expect(err).To(ConsistOf(expectedErr))
+		})
+
+		It("should forbid to use a machineset and an availabilityset in parallel", func() {
+			spec := getAzureMachineSpec()
+			spec.Properties.Zone = nil
+			spec.Properties.MachineSet = &machine.AzureMachineSetConfig{
+				ID:   "test-machineset-id",
+				Kind: "vmo",
+			}
+			spec.Properties.AvailabilitySet = &machine.AzureSubResource{
+				ID: "test-availabilityset-id",
+			}
+
+			expectedErr := field.ErrorList{
+				{
+					Type:     field.ErrorTypeForbidden,
+					Field:    "spec.properties.machineSet|.availabilitySet",
+					BadValue: "",
+					Detail:   "Machine cannot be assigned a MachineSet and an AvailabilitySet in parallel",
+				},
+			}
+
+			err := validateAzureMachineClassSpec(spec, field.NewPath("spec"))
+			Expect(err).To(ConsistOf(expectedErr))
+		})
+
+		It("should return an error if invalid machineset kind is specified", func() {
+			spec := getAzureMachineSpec()
+			spec.Properties.Zone = nil
+			spec.Properties.MachineSet = &machine.AzureMachineSetConfig{
+				ID:   "test-machineset-id",
+				Kind: "foo",
+			}
+
+			expectedErr := field.ErrorList{
+				{
+					Type:     field.ErrorTypeInvalid,
+					Field:    "spec.properties.machineSet",
+					BadValue: spec.Properties.MachineSet.Kind,
+					Detail:   fmt.Sprintf("Invalid MachineSet kind. Use either '%s' or '%s'", machine.MachineSetKindVMO, machine.MachineSetKindAvailabilitySet),
+				},
+			}
+
+			err := validateAzureMachineClassSpec(spec, field.NewPath("spec"))
+			Expect(err).To(ConsistOf(expectedErr))
 		})
 
 	})

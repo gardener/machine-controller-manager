@@ -37,6 +37,11 @@ import (
 	"k8s.io/klog"
 )
 
+const (
+	// gcePDDriverName is the name of the CSI driver for GCE PD
+	gcePDDriverName = "pd.csi.storage.gke.io"
+)
+
 // GCPDriver is the driver struct for holding GCP machine information
 type GCPDriver struct {
 	GCPMachineClass *v1alpha1.GCPMachineClass
@@ -366,12 +371,13 @@ func (d *GCPDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, 
 	names := []string{}
 	for i := range specs {
 		spec := &specs[i]
-		if spec.GCEPersistentDisk == nil {
-			// Not a GCE volume
-			continue
+		if spec.GCEPersistentDisk != nil {
+			name := spec.GCEPersistentDisk.PDName
+			names = append(names, name)
+		} else if spec.CSI != nil && spec.CSI.Driver == gcePDDriverName && spec.CSI.VolumeHandle != "" {
+			name := spec.CSI.VolumeHandle
+			names = append(names, name)
 		}
-		name := spec.GCEPersistentDisk.PDName
-		names = append(names, name)
 	}
 	return names, nil
 }

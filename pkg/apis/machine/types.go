@@ -222,6 +222,9 @@ const (
 
 	// MachineFailed means operation failed leading to machine status failure
 	MachineFailed MachinePhase = "Failed"
+
+	// MachineCrashLoopBackOff means creation or deletion of the machine is failing.
+	MachineCrashLoopBackOff MachinePhase = "CrashLoopBackOff"
 )
 
 // MachinePhase is a label for the condition of a machines at the current time.
@@ -656,10 +659,12 @@ type OpenStackMachineClassSpec struct {
 	Tags             map[string]string
 	NetworkID        string
 	Networks         []OpenStackNetwork
+	SubnetID         *string
 	SecretRef        *corev1.SecretReference
 	PodNetworkCidr   string
 	RootDiskSize     int // in GB
 	UseConfigDrive   *bool
+	ServerGroupID    *string
 }
 
 type OpenStackNetwork struct {
@@ -875,6 +880,7 @@ type AzureVirtualMachineProperties struct {
 	AvailabilitySet *AzureSubResource
 	IdentityID      *string
 	Zone            *int
+	MachineSet      *AzureMachineSetConfig
 }
 
 // AzureHardwareProfile is specifies the hardware settings for the virtual machine.
@@ -982,6 +988,19 @@ type AzureSubnetInfo struct {
 	VnetResourceGroup *string
 	SubnetName        string
 }
+
+// AzureMachineSetConfig contains the information about the machine set
+type AzureMachineSetConfig struct {
+	ID   string
+	Kind string
+}
+
+const (
+	// MachineSetKindAvailabilitySet is the machine set kind for AvailabilitySet
+	MachineSetKindAvailabilitySet string = "availabilityset"
+	// MachineSetKindVMO is the machine set kind for VirtualMachineScaleSet Orchestration Mode VM (VMO)
+	MachineSetKindVMO string = "vmo"
+)
 
 /********************** GCPMachineClass APIs ***************/
 

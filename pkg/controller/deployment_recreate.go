@@ -25,10 +25,18 @@ package controller
 import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 )
 
 // rolloutRecreate implements the logic for recreating a machine set.
 func (dc *controller) rolloutRecreate(d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
+
+	clusterAutoscalerScaleDownAnnotations := make(map[string]string)
+	clusterAutoscalerScaleDownAnnotations[ClusterAutoscalerScaleDownDisabledAnnotationKey] = ClusterAutoscalerScaleDownDisabledAnnotationValue
+
+	// We do this to avoid accidentally deleting the user provided annotations.
+	clusterAutoscalerScaleDownAnnotations[ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
+
 	// Don't create a new RS if not already existed, so that we avoid scaling up before scaling down.
 	newIS, oldISs, err := dc.getAllMachineSetsAndSyncRevision(d, isList, machineMap, false)
 	if err != nil {
@@ -36,6 +44,20 @@ func (dc *controller) rolloutRecreate(d *v1alpha1.MachineDeployment, isList []*v
 	}
 	allISs := append(oldISs, newIS)
 	activeOldISs := FilterActiveMachineSets(oldISs)
+
+	if dc.autoscalerScaleDownAnnotationDuringRollout {
+		// Add the annotation on the all machinesets if there are any old-machinesets and not scaled-to-zero.
+		// This also helps in annotating the node under new-machineset, incase the reconciliation is failing in next
+		// status-rollout steps.
+		if len(oldISs) > 0 && !dc.machineSetsScaledToZero(oldISs) {
+			// Annotate all the nodes under this machine-deployment, as roll-out is on-going.
+			err := dc.annotateNodesBackingMachineSets(allISs, clusterAutoscalerScaleDownAnnotations)
+			if err != nil {
+				klog.Errorf("Failed to add %s on all nodes. Error: %s", clusterAutoscalerScaleDownAnnotations, err)
+				return err
+			}
+		}
+	}
 
 	// scale down old machine sets.
 	scaledDown, err := dc.scaleDownOldMachineSetsForRecreate(activeOldISs, d)
@@ -67,6 +89,14 @@ func (dc *controller) rolloutRecreate(d *v1alpha1.MachineDeployment, isList []*v
 	}
 
 	if MachineDeploymentComplete(d, &d.Status) {
+		if dc.autoscalerScaleDownAnnotationDuringRollout {
+			// Check if any of the machine under this MachineDeployment contains the by-mcm annotation, and
+			// remove the original autoscaler-annotion only after.
+			err := dc.removeAutoscalerAnnotationsIfRequired(allISs, clusterAutoscalerScaleDownAnnotations)
+			if err != nil {
+				return err
+			}
+		}
 		if err := dc.cleanupMachineDeployment(oldISs, d); err != nil {
 			return err
 		}

@@ -27,12 +27,14 @@ import (
 
 	"k8s.io/klog"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -40,6 +42,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 	"github.com/gardener/machine-controller-manager/pkg/driver"
+	utiltime "github.com/gardener/machine-controller-manager/pkg/util/time"
 )
 
 const (
@@ -48,6 +51,9 @@ const (
 	// priority the more likely it is to be deleted first
 	// Default priority for a machine is set to 3
 	MachinePriority = "machinepriority.machine.sapcloud.io"
+
+	// MachineEnqueueRetryPeriod period after which a machine object is re-enqueued upon creation or deletion failures.
+	MachineEnqueueRetryPeriod = 2 * time.Minute
 )
 
 /*
@@ -158,7 +164,8 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	// Validate MachineClass
 	MachineClass, secretRef, err := c.validateMachineClass(&machine.Spec.Class)
 	if err != nil || secretRef == nil {
-		return err
+		c.enqueueMachineAfter(machine, MachineEnqueueRetryPeriod)
+		return nil
 	}
 
 	driver := driver.NewDriver(machine.Spec.ProviderID, secretRef, machine.Spec.Class.Kind, MachineClass, machine.Name)
@@ -170,7 +177,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 		return nil
 	}
 
-	machine, err = c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+	machine, err = c.machineLister.Machines(machine.Namespace).Get(machine.Name)
 	if err != nil {
 		klog.Errorf("Could not fetch machine object %s", err)
 		if apierrors.IsNotFound(err) {
@@ -200,7 +207,8 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	if machine.DeletionTimestamp != nil {
 		// Processing of delete event
 		if err := c.machineDelete(machine, driver); err != nil {
-			return err
+			c.enqueueMachineAfter(machine, MachineEnqueueRetryPeriod)
+			return nil
 		}
 	} else if machine.Status.CurrentStatus.TimeoutActive {
 		// Processing machine
@@ -213,7 +221,8 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 			return nil
 		} else if actualProviderID == "" {
 			if err := c.machineCreate(machine, driver); err != nil {
-				return err
+				c.enqueueMachineAfter(machine, MachineEnqueueRetryPeriod)
+				return nil
 			}
 		} else if actualProviderID != machine.Spec.ProviderID {
 			if err := c.machineUpdate(machine, actualProviderID); err != nil {
@@ -230,6 +239,11 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	Machine controller - nodeToMachine
 */
 func (c *controller) addNodeToMachine(obj interface{}) {
+	node := obj.(*corev1.Node)
+	if node == nil {
+		klog.Errorf("Couldn't convert to node from object")
+		return
+	}
 
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
@@ -245,8 +259,10 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 		return
 	}
 
-	klog.V(4).Infof("Add machine object backing node %q", machine.Name)
-	c.enqueueMachine(machine)
+	if machine.Status.CurrentStatus.Phase != v1alpha1.MachineCrashLoopBackOff && nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions) {
+		klog.V(4).Infof("Enqueue machine object %q as backing node's conditions have changed", machine.Name)
+		c.enqueueMachine(machine)
+	}
 }
 
 func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
@@ -254,7 +270,21 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 }
 
 func (c *controller) deleteNodeToMachine(obj interface{}) {
-	c.addNodeToMachine(obj)
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+	if err != nil {
+		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
+		return
+	}
+
+	machine, err := c.getMachineFromNode(key)
+	if err != nil {
+		klog.Errorf("Couldn't fetch machine %s, Error: %s", key, err)
+		return
+	} else if machine == nil {
+		return
+	}
+
+	c.enqueueMachine(machine)
 }
 
 /*
@@ -411,6 +441,26 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 	// Before actually creating the machine, we should once check and adopt if the virtual machine already exists.
 	VMList, err := driver.GetVMs("")
 	if err != nil {
+
+		klog.Errorf("Error while listing machine %s: %s", machine.Name, err.Error())
+		lastOperation := v1alpha1.LastOperation{
+			Description:    "Cloud provider message - " + err.Error(),
+			State:          v1alpha1.MachineStateFailed,
+			Type:           v1alpha1.MachineOperationCreate,
+			LastUpdateTime: metav1.Now(),
+		}
+		currentStatus := v1alpha1.CurrentStatus{
+			Phase:          v1alpha1.MachineCrashLoopBackOff,
+			TimeoutActive:  false,
+			LastUpdateTime: metav1.Now(),
+		}
+		c.updateMachineStatus(machine, lastOperation, currentStatus)
+
+		// Delete the bootstrap token
+		if err := c.deleteBootstrapToken(machine.Name); err != nil {
+			klog.Warning(err)
+		}
+
 		klog.Errorf("Failed to list VMs before creating machine %q %+v", machine.Name, err)
 		return err
 	}
@@ -433,7 +483,7 @@ func (c *controller) machineCreate(machine *v1alpha1.Machine, driver driver.Driv
 			LastUpdateTime: metav1.Now(),
 		}
 		currentStatus := v1alpha1.CurrentStatus{
-			Phase:          v1alpha1.MachineFailed,
+			Phase:          v1alpha1.MachineCrashLoopBackOff,
 			TimeoutActive:  false,
 			LastUpdateTime: metav1.Now(),
 		}
@@ -575,42 +625,6 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			forceDeleteLabelPresent = machine.Labels["force-deletion"] == "True"
 		)
 
-		// Timeout value obtained by subtracting last operation with expected time out period
-		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
-		timeOutOccurred = timeOut > 0
-
-		if forceDeleteLabelPresent || timeOutOccurred {
-			// To perform forceful machine drain/delete either one of the below conditions must be satified
-			// 1. force-deletion: "True" label must be present
-			// 2. Deletion operation is more than drain-timeout minutes old
-			forceDeleteMachine = true
-			forceDeletePods = true
-			timeOutDuration = 1 * time.Minute
-			maxEvictRetries = 1
-
-			klog.V(2).Infof(
-				"Force deletion has been triggerred for machine %q due to ForceDeletionLabel:%t, Timeout:%t",
-				machine.Name,
-				forceDeleteLabelPresent,
-				timeOutOccurred,
-			)
-		}
-
-		// If machine was created on the cloud provider
-		machineID, _ := driver.GetExisting()
-
-		// update node with the machine's state prior to termination
-		if nodeName != "" && machineID != "" {
-			if err = c.UpdateNodeTerminationCondition(machine); err != nil {
-				if forceDeleteMachine {
-					klog.Warningf("failed to update node conditions: %v. However, since it's a force deletion shall continue deletion of VM.", err)
-				} else {
-					klog.Error(err)
-					return err
-				}
-			}
-		}
-
 		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating {
 			lastOperation := v1alpha1.LastOperation{
 				Description:    "Deleting machine from cloud provider",
@@ -638,6 +652,47 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				// Any other type of errors
 				klog.Error(err)
 				return err
+			}
+		}
+
+		timeOutOccurred = utiltime.HasTimeOutOccurred(*machine.DeletionTimestamp, timeOutDuration)
+
+		if forceDeleteLabelPresent || timeOutOccurred {
+			// To perform forceful machine drain/delete either one of the below conditions must be satified
+			// 1. force-deletion: "True" label must be present
+			// 2. Deletion operation is more than drain-timeout minutes old
+			forceDeleteMachine = true
+			forceDeletePods = true
+			timeOutDuration = 1 * time.Minute
+			maxEvictRetries = 1
+
+			klog.V(2).Infof(
+				"Force delete/drain has been triggerred for machine %q due to Label:%t, timeout:%t",
+				machine.Name,
+				forceDeleteLabelPresent,
+				timeOutOccurred,
+			)
+		} else {
+			klog.V(2).Infof(
+				"Normal delete/drain has been triggerred for machine %q with drain-timeout:%v & maxEvictRetries:%d",
+				machine.Name,
+				timeOutDuration,
+				maxEvictRetries,
+			)
+		}
+
+		// If machine was created on the cloud provider
+		machineID, _ := driver.GetExisting()
+
+		// update node with the machine's state prior to termination
+		if nodeName != "" && machineID != "" {
+			if err = c.UpdateNodeTerminationCondition(machine); err != nil {
+				if forceDeleteMachine {
+					klog.Warningf("failed to update node conditions: %v. However, since it's a force deletion shall continue deletion of VM.", err)
+				} else {
+					klog.Error(err)
+					return err
+				}
 			}
 		}
 
@@ -692,22 +747,23 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 			klog.V(2).Infof("Machine %q on deletion doesn't have a providerID attached to it. Checking for any VM linked to this machine object.", machine.Name)
 			// As MachineID is missing, we should check once if actual VM was created but MachineID was not updated on machine-object.
 			// We list VMs and check if any one them map with the given machine-object.
-			VMList, err := driver.GetVMs("")
-			if err != nil {
-				klog.Errorf("Failed to list VMs while deleting the machine %q %v", machine.Name, err)
-				return err
-			}
-			for providerID, machineName := range VMList {
-				if machineName == machine.Name {
-					klog.V(2).Infof("Deleting the VM %s backing the machine-object %s.", providerID, machine.Name)
-					err = driver.Delete(providerID)
-					if err != nil {
-						klog.Errorf("Error deleting the VM %s backing the machine-object %s due to error %v", providerID, machine.Name, err)
-						// Not returning error so that status on the machine object can be updated in the next step if errored.
-					} else {
-						klog.V(2).Infof("VM %s backing the machine-object %s is deleted successfully", providerID, machine.Name)
+			var VMList map[string]string
+			VMList, err = driver.GetVMs("")
+			if err == nil {
+				for providerID, machineName := range VMList {
+					if machineName == machine.Name {
+						klog.V(2).Infof("Deleting the VM %s backing the machine-object %s.", providerID, machine.Name)
+						err = driver.Delete(providerID)
+						if err != nil {
+							klog.Errorf("Error deleting the VM %s backing the machine-object %s due to error %v", providerID, machine.Name, err)
+							// Not returning error so that status on the machine object can be updated in the next step if errored.
+						} else {
+							klog.V(2).Infof("VM %s backing the machine-object %s is deleted successfully", providerID, machine.Name)
+						}
 					}
 				}
+			} else {
+				klog.Errorf("Failed to list VMs while deleting the machine %q %v", machine.Name, err)
 			}
 		}
 
@@ -722,7 +778,7 @@ func (c *controller) machineDelete(machine *v1alpha1.Machine, driver driver.Driv
 				LastUpdateTime: metav1.Now(),
 			}
 			currentStatus := v1alpha1.CurrentStatus{
-				Phase:          v1alpha1.MachineFailed,
+				Phase:          v1alpha1.MachineTerminating,
 				TimeoutActive:  false,
 				LastUpdateTime: metav1.Now(),
 			}
@@ -775,14 +831,18 @@ func (c *controller) updateMachineStatus(
 	currentStatus v1alpha1.CurrentStatus,
 ) (*v1alpha1.Machine, error) {
 	// Get the latest version of the machine so that we can avoid conflicts
-	clone, err := c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+	latestMachine, err := c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
 	if err != nil {
-		return machine, err
+		return nil, err
 	}
+	clone := latestMachine.DeepCopy()
 
-	clone = clone.DeepCopy()
 	clone.Status.LastOperation = lastOperation
 	clone.Status.CurrentStatus = currentStatus
+	if isMachineStatusEqual(clone.Status, machine.Status) {
+		klog.V(3).Infof("Not updating the status of the machine object %q , as it is already same", clone.Name)
+		return machine, nil
+	}
 
 	clone, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(clone)
 	if err != nil {
@@ -791,6 +851,25 @@ func (c *controller) updateMachineStatus(
 		return c.updateMachineStatus(machine, lastOperation, currentStatus)
 	}
 	return clone, nil
+}
+
+// isMachineStatusEqual checks if the status of 2 machines is similar or not.
+func isMachineStatusEqual(s1, s2 v1alpha1.MachineStatus) bool {
+	tolerateTimeDiff := 30 * time.Minute
+	s1Copy, s2Copy := s1.DeepCopy(), s2.DeepCopy()
+	s1Copy.LastOperation.Description, s2Copy.LastOperation.Description = "", ""
+
+	if (s1Copy.LastOperation.LastUpdateTime.Time.Before(time.Now().Add(tolerateTimeDiff * -1))) || (s2Copy.LastOperation.LastUpdateTime.Time.Before(time.Now().Add(tolerateTimeDiff * -1))) {
+		return false
+	}
+	s1Copy.LastOperation.LastUpdateTime, s2Copy.LastOperation.LastUpdateTime = metav1.Time{}, metav1.Time{}
+
+	if (s1Copy.CurrentStatus.LastUpdateTime.Time.Before(time.Now().Add(tolerateTimeDiff * -1))) || (s2Copy.CurrentStatus.LastUpdateTime.Time.Before(time.Now().Add(tolerateTimeDiff * -1))) {
+		return false
+	}
+	s1Copy.CurrentStatus.LastUpdateTime, s2Copy.CurrentStatus.LastUpdateTime = metav1.Time{}, metav1.Time{}
+
+	return apiequality.Semantic.DeepEqual(s1Copy.LastOperation, s2Copy.LastOperation) && apiequality.Semantic.DeepEqual(s1Copy.CurrentStatus, s2Copy.CurrentStatus)
 }
 
 func (c *controller) updateMachineConditions(machine *v1alpha1.Machine, conditions []v1.NodeCondition) (*v1alpha1.Machine, error) {

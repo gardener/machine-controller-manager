@@ -17,15 +17,17 @@ limitations under the License.
 package driver
 
 import (
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 )
 
 var _ = Describe("Driver Azure", func() {
 
-	Context("GenerateDataDisks Driver Azure Spec", func() {
+	Context("#generateDataDisks", func() {
 
 		It("should convert multiple dataDisks successfully", func() {
 			azureDriver := &AzureDriver{}
@@ -145,6 +147,60 @@ var _ = Describe("Driver Azure", func() {
 
 			Expect(disksGenerated).To(Equal(expectedDisks))
 		})
+	})
 
+	Context("#GetVolNames", func() {
+		var hostPathPVSpec = corev1.PersistentVolumeSpec{
+			PersistentVolumeSource: corev1.PersistentVolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/mnt/data",
+				},
+			},
+		}
+
+		It("should handle in-tree PV (with .spec.azureDisk)", func() {
+			driver := &AzureDriver{}
+			pvs := []corev1.PersistentVolumeSpec{
+				{
+					PersistentVolumeSource: corev1.PersistentVolumeSource{
+						AzureDisk: &corev1.AzureDiskVolumeSource{
+							DiskName: "disk-1",
+						},
+					},
+				},
+				hostPathPVSpec,
+			}
+
+			actual, err := driver.GetVolNames(pvs)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actual).To(Equal([]string{"disk-1"}))
+		})
+
+		It("should handle out-of-tree PV (with .spec.csi.volumeHandle)", func() {
+			driver := &AzureDriver{}
+			pvs := []corev1.PersistentVolumeSpec{
+				{
+					PersistentVolumeSource: corev1.PersistentVolumeSource{
+						CSI: &corev1.CSIPersistentVolumeSource{
+							Driver:       "io.kubernetes.storage.mock",
+							VolumeHandle: "vol-2",
+						},
+					},
+				},
+				{
+					PersistentVolumeSource: corev1.PersistentVolumeSource{
+						CSI: &corev1.CSIPersistentVolumeSource{
+							Driver:       "disk.csi.azure.com",
+							VolumeHandle: "vol-1",
+						},
+					},
+				},
+				hostPathPVSpec,
+			}
+
+			actual, err := driver.GetVolNames(pvs)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(actual).To(Equal([]string{"vol-1"}))
+		})
 	})
 })

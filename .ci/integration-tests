@@ -83,6 +83,44 @@ function setup_environment() {
         printf "Successfully installed kubectl\n"
     fi
 
+    # If not a local test then install jq
+    if [ -z "$LOCAL_TEST" ]; then
+        printf "\nDownloading and installing jq\n"
+        apt-get -y install jq
+        printf "Successfully installed jq\n"
+    fi
+
+    # If not a local test then install aws-cli
+    if [ -z "$LOCAL_TEST" ]; then
+        printf "\nDownloading and setting up aws-cli\n"
+        pip3 install awscli --upgrade
+
+        export AWS_SECRET_ACCESS_KEY="$(kubectl -n aws --kubeconfig=dev/control_kubeconfig_aws.yaml get secrets secret-v1 -o json --context=control | jq -r '.data.providerSecretAccessKey' | base64 -d)"
+        export AWS_ACCESS_KEY_ID="$(kubectl -n aws --kubeconfig=dev/control_kubeconfig_aws.yaml get secrets secret-v1 -o json --context=control | jq -r '.data.providerAccessKeyId' | base64 -d)"
+        export AWS_DEFAULT_REGION="eu-west-1"
+
+        printf "Successfully setup aws-cli\n"
+    fi
+
+    # If not a local test then install gcloud-cli
+    if [ -z "$LOCAL_TEST" ]; then
+        printf "\nDownloading and setting up gcloud-cli\n"
+        curl https://sdk.cloud.google.com > install.sh
+        bash install.sh --disable-prompts &> /dev/null
+        source /root/google-cloud-sdk/path.bash.inc
+
+        kubectl -n gcp --kubeconfig=dev/control_kubeconfig_gcp.yaml get secrets secret-v1 -o json --context=control | jq -r '.data.serviceAccountJSON' | base64 -d > servicekey.json
+
+        ProjectID="$(kubectl -n gcp --kubeconfig=dev/control_kubeconfig_gcp.yaml get secrets secret-v1 -o json --context=control | jq -r '.data.serviceAccountJSON' | base64 -d | jq -r '.project_id')"
+        
+        gcloud auth activate-service-account --key-file servicekey.json
+        gcloud config set project "$ProjectID"
+        gcloud config set compute/zone europe-west1-b
+        gcloud config set disable_usage_reporting True
+
+        printf "Successfully setup gcloud-cli\n"
+    fi
+    
     printf "\nBuilding MCM binary\n"
     if GO111MODULE=on go build -mod=vendor -i cmd/machine-controller-manager/controller_manager.go; then
         printf "Go build Successful\n"
@@ -224,6 +262,73 @@ function hf_check_ms_freeze() {
     fi
 }
 
+function hf_orphan_resources() {
+
+    if [ $1 == "aws" ]; then
+        # Check if there are any VMs matching the tag exists.
+        orphan_vms="$(aws ec2 describe-instances --filters "Name=tag-key,Values=mcm-ci-test/shoot-mcm-ci-aw-target" --query 'Reservations[*].Instances[?State.Name!=`terminated`].[InstanceId]' --output text)"
+        num_orphan_vms="$( echo -n "$orphan_vms" | wc -l )"
+
+        # Check if there are any disks matching the tag exists.
+        orphan_disks="$(aws ec2 describe-volumes --filters "Name=tag-key,Values=mcm-ci-test/shoot-mcm-ci-aw-target" --query "Volumes[*].{ID:VolumeId}" --output text)"
+        num_orphan_disks="$( echo -n "$orphan_disks" | wc -l )"
+
+        if [[ "$num_orphan_vms" -gt 0 || "$num_orphan_disks" -gt 0 ]]; then
+            printf "\n Failed: Found orphan resources. Orphan VMs: $num_orphan_vms. Orphan Disks: $num_orphan_disks" 
+            
+            if [ $num_orphan_vms -gt 0 ]; then
+                printf "\n Deleting Orphan VMs: \n $orphan_vms"
+                # Delete the orphan VMs.
+                aws ec2 terminate-instances --instance-ids $orphan_vms
+            fi
+
+            if [ $num_orphan_disks -gt 0 ]; then
+                printf "\n Deleting Orphan Disks: \n $orphan_disks"
+                # Delete the orphan Disks.
+                for line in $orphan_disks; do
+                    aws ec2 delete-volume --volume-id $line
+                done
+            fi
+
+            return 1
+        fi
+    fi
+
+    if [ $1 == "gcp" ]; then
+        # Check if there are any VMs matching the tag exists.
+        orphan_vms="$(gcloud compute instances list --filter="tags.items=mcm-ci-test-shoot-mcm-ci-gc-target" --format='value(name)')"
+        num_orphan_vms="$( echo "$orphan_vms" | wc -w )"
+
+        # Check if there are any disks matching the tag exists.
+        orphan_disks="$(gcloud compute disks list --filter="labels.mcm-ci-test:shoot-mcm-ci-gc-target" --format='value(name)')"
+        num_orphan_disks="$( echo "$orphan_disks" | wc -w )"
+
+        if [[ "$num_orphan_vms" -gt 0 || "$num_orphan_disks" -gt 0 ]]; then
+            printf "\n Failed: Found orphan resources in GCP. Orphan VMs: $num_orphan_vms. Orphan Disks: $num_orphan_disks" 
+            
+            if [ $num_orphan_vms -gt 0 ]; then
+                printf "\n Deleting Orphan VMs: \n $orphan_vms"
+                # Delete the orphan VMs.
+                for line in $orphan_vms; do                    
+                    gcloud compute instances delete $line --quiet
+                done
+            fi
+
+            if [ $num_orphan_disks -gt 0 ]; then
+                printf "\n Deleting Orphan Disks: \n $orphan_disks"
+                # Delete the orphan Disks.
+                for line in $orphan_disks; do
+                    gcloud compute disks delete $line --quiet
+                done
+            fi
+            return 1
+        fi
+    fi
+
+    printf "\n No orphan resources found.  \n"
+    return 0
+}
+
 function terminate_script() {
     printf "\n\t\t\t----- Start of MCM Logs for $provider -----------\n"
     cat logs/${provider}-mcm.out
@@ -284,6 +389,19 @@ function tc_machine_deployment() {
     printf "\n\tCheck for freezing and unfreezing of machine-set due to rapid scaleUp and scaleDown"
     hf_check_ms_freeze
     printf "\n\tFreezing and unfreezing of machineSet was observed"
+
+    printf "\nCompleted TestCase\n"
+}
+
+function tc_check_orphan_resources() {
+    
+    printf "\nStarting TestCase: %s" "${FUNCNAME[0]}"
+     
+    # Check if there are any leftover resources.
+    if ! hf_orphan_resources "$provider"; then
+        printf "\n\t Failed: There are orphan resources in the cloud. Exiting the test."
+        terminate_script
+    fi
 
     printf "\nCompleted TestCase\n"
 }
@@ -368,6 +486,8 @@ function test_cloud_provider() {
 
     tc_machine
     tc_machine_deployment
+    sleep 60 # Wait a bit for cloud-providers to reflect the correct state of the resources.
+    tc_check_orphan_resources
 
     printf "\n\t\t\t----- End of TestCases -------------\n"
 

@@ -26,6 +26,7 @@ import (
 	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
 	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/options"
 	. "github.com/onsi/ginkgo"
@@ -287,6 +288,7 @@ func newMachinesFromMachineSet(
 		annotations,
 		finalLabels,
 		addFinalizer,
+		metav1.Now(),
 	)
 }
 
@@ -297,8 +299,9 @@ func newMachine(
 	annotations map[string]string,
 	labels map[string]string,
 	addFinalizer bool,
+	creationTimestamp metav1.Time,
 ) *v1alpha1.Machine {
-	return newMachines(1, specTemplate, statusTemplate, owner, annotations, labels, addFinalizer)[0]
+	return newMachines(1, specTemplate, statusTemplate, owner, annotations, labels, addFinalizer, creationTimestamp)[0]
 }
 
 func newMachines(
@@ -309,6 +312,7 @@ func newMachines(
 	annotations map[string]string,
 	labels map[string]string,
 	addFinalizer bool,
+	creationTimestamp metav1.Time,
 ) []*v1alpha1.Machine {
 	machines := make([]*v1alpha1.Machine, machineCount)
 
@@ -326,10 +330,12 @@ func newMachines(
 				Kind:       "Machine",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        fmt.Sprintf("machine-%d", i),
-				Namespace:   testNamespace,
-				Labels:      labels,
-				Annotations: annotations,
+				Name:              fmt.Sprintf("machine-%d", i),
+				Namespace:         testNamespace,
+				Labels:            labels,
+				Annotations:       annotations,
+				CreationTimestamp: creationTimestamp,
+				DeletionTimestamp: &creationTimestamp, //TODO: Add parametrize this
 			},
 			Spec: *newMachineSpec(&specTemplate.Spec, i),
 		}
@@ -504,6 +510,7 @@ func createController(
 		MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 30 * time.Minute},
 		MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
 		MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
+		MaxEvictRetries:                          drain.DefaultMaxEvictRetries,
 	}
 
 	controller := &controller{
@@ -560,7 +567,7 @@ var _ = Describe("#createController", func() {
 	It("success", func() {
 		machine0 := newMachine(&v1alpha1.MachineTemplateSpec{
 			ObjectMeta: *objMeta,
-		}, nil, nil, nil, nil, false)
+		}, nil, nil, nil, nil, false, metav1.Now())
 
 		stop := make(chan struct{})
 		defer close(stop)

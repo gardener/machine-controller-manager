@@ -80,31 +80,35 @@ func NewController(
 	safetyOptions options.SafetyOptions,
 	nodeConditions string,
 	bootstrapTokenAuthExtraGroups string,
+	deleteMigratedMachineClass bool,
+	autoscalerScaleDownAnnotationDuringRollout bool,
 ) (Controller, error) {
 	controller := &controller{
-		namespace:                      namespace,
-		controlMachineClient:           controlMachineClient,
-		controlCoreClient:              controlCoreClient,
-		targetCoreClient:               targetCoreClient,
-		recorder:                       recorder,
-		expectations:                   NewUIDTrackingContExpectations(NewContExpectations()),
-		secretQueue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
-		nodeQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
-		openStackMachineClassQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "openstackmachineclass"),
-		awsMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
-		azureMachineClassQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
-		gcpMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "gcpmachineclass"),
-		alicloudMachineClassQueue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "alicloudmachineclass"),
-		packetMachineClassQueue:        workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "packetmachineclass"),
-		machineQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
-		machineSetQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
-		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
-		machineSafetyOrphanVMsQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
-		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
-		machineSafetyAPIServerQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
-		safetyOptions:                  safetyOptions,
-		nodeConditions:                 nodeConditions,
-		bootstrapTokenAuthExtraGroups:  bootstrapTokenAuthExtraGroups,
+		namespace:                                  namespace,
+		controlMachineClient:                       controlMachineClient,
+		controlCoreClient:                          controlCoreClient,
+		targetCoreClient:                           targetCoreClient,
+		recorder:                                   recorder,
+		expectations:                               NewUIDTrackingContExpectations(NewContExpectations()),
+		secretQueue:                                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
+		nodeQueue:                                  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
+		openStackMachineClassQueue:                 workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "openstackmachineclass"),
+		awsMachineClassQueue:                       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
+		azureMachineClassQueue:                     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
+		gcpMachineClassQueue:                       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "gcpmachineclass"),
+		alicloudMachineClassQueue:                  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "alicloudmachineclass"),
+		packetMachineClassQueue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "packetmachineclass"),
+		machineQueue:                               workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
+		machineSetQueue:                            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
+		machineDeploymentQueue:                     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
+		machineSafetyOrphanVMsQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
+		machineSafetyOvershootingQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
+		machineSafetyAPIServerQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
+		safetyOptions:                              safetyOptions,
+		nodeConditions:                             nodeConditions,
+		bootstrapTokenAuthExtraGroups:              bootstrapTokenAuthExtraGroups,
+		deleteMigratedMachineClass:                 deleteMigratedMachineClass,
+		autoscalerScaleDownAnnotationDuringRollout: autoscalerScaleDownAnnotationDuringRollout,
 	}
 
 	controller.internalExternalScheme = runtime.NewScheme()
@@ -211,12 +215,15 @@ func NewController(
 	})
 
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.machineToOpenStackMachineClassAdd,
+		UpdateFunc: controller.machineToOpenStackMachineClassUpdate,
 		DeleteFunc: controller.machineToOpenStackMachineClassDelete,
 	})
 
 	openStackMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.openStackMachineClassAdd,
 		UpdateFunc: controller.openStackMachineClassUpdate,
+		DeleteFunc: controller.openStackMachineClassDelete,
 	})
 
 	// AWS Controller Informers
@@ -229,12 +236,15 @@ func NewController(
 	})
 
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.machineToAWSMachineClassAdd,
+		UpdateFunc: controller.machineToAWSMachineClassUpdate,
 		DeleteFunc: controller.machineToAWSMachineClassDelete,
 	})
 
 	awsMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.awsMachineClassAdd,
 		UpdateFunc: controller.awsMachineClassUpdate,
+		DeleteFunc: controller.awsMachineClassDelete,
 	})
 
 	// Azure Controller Informers
@@ -247,12 +257,15 @@ func NewController(
 	})
 
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.machineToAzureMachineClassAdd,
+		UpdateFunc: controller.machineToAzureMachineClassUpdate,
 		DeleteFunc: controller.machineToAzureMachineClassDelete,
 	})
 
 	azureMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.azureMachineClassAdd,
 		UpdateFunc: controller.azureMachineClassUpdate,
+		DeleteFunc: controller.azureMachineClassDelete,
 	})
 
 	// GCP Controller Informers
@@ -265,12 +278,15 @@ func NewController(
 	})
 
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.machineToGCPMachineClassAdd,
+		UpdateFunc: controller.machineToGCPMachineClassUpdate,
 		DeleteFunc: controller.machineToGCPMachineClassDelete,
 	})
 
 	gcpMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.gcpMachineClassAdd,
 		UpdateFunc: controller.gcpMachineClassUpdate,
+		DeleteFunc: controller.gcpMachineClassDelete,
 	})
 
 	// Alicloud Controller Informers
@@ -283,12 +299,15 @@ func NewController(
 	})
 
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.machineToAlicloudMachineClassAdd,
+		UpdateFunc: controller.machineToAlicloudMachineClassUpdate,
 		DeleteFunc: controller.machineToAlicloudMachineClassDelete,
 	})
 
 	alicloudMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.alicloudMachineClassAdd,
 		UpdateFunc: controller.alicloudMachineClassUpdate,
+		DeleteFunc: controller.alicloudMachineClassDelete,
 	})
 
 	// Packet Controller Informers
@@ -301,12 +320,15 @@ func NewController(
 	})
 
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.machineToPacketMachineClassAdd,
+		UpdateFunc: controller.machineToPacketMachineClassUpdate,
 		DeleteFunc: controller.machineToPacketMachineClassDelete,
 	})
 
 	packetMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.packetMachineClassAdd,
 		UpdateFunc: controller.packetMachineClassUpdate,
+		DeleteFunc: controller.packetMachineClassDelete,
 	})
 
 	/* Node Controller Informers - Don't remove this, saved for future use case.
@@ -396,9 +418,11 @@ type Controller interface {
 
 // controller is a concrete Controller.
 type controller struct {
-	namespace                     string
-	nodeConditions                string
-	bootstrapTokenAuthExtraGroups string
+	namespace                                  string
+	nodeConditions                             string
+	bootstrapTokenAuthExtraGroups              string
+	deleteMigratedMachineClass                 bool
+	autoscalerScaleDownAnnotationDuringRollout bool
 
 	controlMachineClient machineapi.MachineV1alpha1Interface
 	controlCoreClient    kubernetes.Interface

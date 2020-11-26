@@ -26,11 +26,14 @@ import (
 	fakemachineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -52,7 +55,7 @@ var _ = Describe("machine", func() {
 			}
 			c = &controller{
 				controlMachineClient: fakeMachineClient,
-				nodeConditions:       "ReadonlyFilesystem,KernelDeadlock,DiskPressure",
+				nodeConditions:       "ReadonlyFilesystem,KernelDeadlock,DiskPressure,NetworkUnavailable",
 			}
 		})
 
@@ -106,16 +109,16 @@ var _ = Describe("machine", func() {
 			Entry("with NodeDiskPressure is Unknown", corev1.NodeDiskPressure, corev1.ConditionUnknown, false),
 
 			Entry("with NodeMemoryPressure is True", corev1.NodeMemoryPressure, corev1.ConditionTrue, true),
-			Entry("with NodeMemoryPressure is Unknown", corev1.NodeMemoryPressure, corev1.ConditionUnknown, true),
 			Entry("with NodeMemoryPressure is False", corev1.NodeMemoryPressure, corev1.ConditionFalse, true),
+			Entry("with NodeMemoryPressure is Unknown", corev1.NodeMemoryPressure, corev1.ConditionUnknown, true),
 
-			Entry("with NodeNetworkUnavailable is True", corev1.NodeNetworkUnavailable, corev1.ConditionTrue, true),
-			Entry("with NodeNetworkUnavailable is Unknown", corev1.NodeNetworkUnavailable, corev1.ConditionUnknown, true),
+			Entry("with NodeNetworkUnavailable is True", corev1.NodeNetworkUnavailable, corev1.ConditionTrue, false),
 			Entry("with NodeNetworkUnavailable is False", corev1.NodeNetworkUnavailable, corev1.ConditionFalse, true),
+			Entry("with NodeNetworkUnavailable is Unknown", corev1.NodeNetworkUnavailable, corev1.ConditionUnknown, false),
 
 			Entry("with NodeReady is True", corev1.NodeReady, corev1.ConditionTrue, true),
-			Entry("with NodeReady is Unknown", corev1.NodeReady, corev1.ConditionUnknown, false),
 			Entry("with NodeReady is False", corev1.NodeReady, corev1.ConditionFalse, false),
+			Entry("with NodeReady is Unknown", corev1.NodeReady, corev1.ConditionUnknown, false),
 		)
 	})
 
@@ -259,7 +262,7 @@ var _ = Describe("machine", func() {
 				defer trackers.Stop()
 
 				waitForCacheSync(stop, controller)
-				machineClass, secret, err := controller.ValidateMachineClass(data.action)
+				machineClass, secret, _, err := controller.ValidateMachineClass(data.action)
 
 				if data.expect.machineClass == nil {
 					Expect(machineClass).To(BeNil())
@@ -361,7 +364,7 @@ var _ = Describe("machine", func() {
 		type expect struct {
 			machine *v1alpha1.Machine
 			err     error
-			retry   machineutils.Retry
+			retry   machineutils.RetryPeriod
 		}
 		type data struct {
 			setup  setup
@@ -426,6 +429,7 @@ var _ = Describe("machine", func() {
 				Expect(actual.Status.Node).To(Equal(data.expect.machine.Status.Node))
 				Expect(actual.Finalizers).To(Equal(data.expect.machine.Finalizers))
 				Expect(retry).To(Equal(data.expect.retry))
+				Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
 			},
 
 			Entry("Machine creation in process. Machine finalizers are UPDATED", &data{
@@ -449,7 +453,7 @@ var _ = Describe("machine", func() {
 								Name: "machine-0",
 							},
 						},
-					}, nil, nil, nil, nil, false),
+					}, nil, nil, nil, nil, false, metav1.Now()),
 				},
 				action: action{
 					machine: "machine-0",
@@ -469,9 +473,9 @@ var _ = Describe("machine", func() {
 								Name: "machineClass",
 							},
 						},
-					}, nil, nil, nil, nil, true),
+					}, nil, nil, nil, nil, true, metav1.Now()),
 					err:   fmt.Errorf("Machine creation in process. Machine finalizers are UPDATED"),
-					retry: true,
+					retry: machineutils.ShortRetry,
 				},
 			}),
 			Entry("Machine creation succeeds with object UPDATE", &data{
@@ -479,6 +483,7 @@ var _ = Describe("machine", func() {
 					secrets: []*corev1.Secret{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
 						},
 					},
 					machineClaasses: []*v1alpha1.MachineClass{
@@ -495,7 +500,7 @@ var _ = Describe("machine", func() {
 								Name: "machine-0",
 							},
 						},
-					}, nil, nil, nil, nil, true),
+					}, nil, nil, nil, nil, true, metav1.Now()),
 				},
 				action: action{
 					machine: "machine-0",
@@ -516,9 +521,9 @@ var _ = Describe("machine", func() {
 							},
 							ProviderID: "fakeID",
 						},
-					}, nil, nil, nil, nil, true),
+					}, nil, nil, nil, nil, true, metav1.Now()),
 					err:   fmt.Errorf("Machine creation in process. Machine UPDATE successful"),
-					retry: true,
+					retry: machineutils.ShortRetry,
 				},
 			}),
 			Entry("Machine creation succeeds with status UPDATE", &data{
@@ -526,6 +531,7 @@ var _ = Describe("machine", func() {
 					secrets: []*corev1.Secret{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
 						},
 					},
 					machineClaasses: []*v1alpha1.MachineClass{
@@ -555,6 +561,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -580,6 +587,9 @@ var _ = Describe("machine", func() {
 						},
 						&v1alpha1.MachineStatus{
 							Node: "fakeNode",
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase: v1alpha1.MachinePending,
+							},
 						},
 						nil,
 						map[string]string{
@@ -589,9 +599,10 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 					err:   fmt.Errorf("Machine creation in process. Machine/Status UPDATE successful"),
-					retry: true,
+					retry: machineutils.ShortRetry,
 				},
 			}),
 			Entry("Machine creation has already succeeded, so no update", &data{
@@ -599,6 +610,7 @@ var _ = Describe("machine", func() {
 					secrets: []*corev1.Secret{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
 						},
 					},
 					machineClaasses: []*v1alpha1.MachineClass{
@@ -622,8 +634,7 @@ var _ = Describe("machine", func() {
 						&v1alpha1.MachineStatus{
 							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase: v1alpha1.MachinePending,
-
+								Phase:          v1alpha1.MachinePending,
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
@@ -641,6 +652,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -686,9 +698,112 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 					err:   nil,
-					retry: false,
+					retry: machineutils.LongRetry,
+				},
+			}),
+			Entry("Machine creation fails with CrashLoopBackOff", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
+						},
+					},
+					machineClaasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil, true, metav1.Now()),
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   false,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        status.Error(codes.Internal, "Provider is returning error on create call"),
+					},
+				},
+				expect: expect{
+					machine: newMachine(&v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machineClass",
+							},
+						},
+					}, &v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
+							Phase: v1alpha1.MachineCrashLoopBackOff,
+						},
+					}, nil, nil, nil, true, metav1.Now()),
+					err:   nil,
+					retry: machineutils.MediumRetry,
+				},
+			}),
+			Entry("Machine creation fails with Failure due to timeout", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
+						},
+					},
+					machineClaasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil, true, metav1.NewTime(metav1.Now().Add(-time.Hour))),
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   false,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        status.Error(codes.Internal, "Provider is returning error on create call"),
+					},
+				},
+				expect: expect{
+					machine: newMachine(&v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machineClass",
+							},
+						},
+					}, &v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
+							Phase: v1alpha1.MachineFailed,
+						},
+					}, nil, nil, nil, true, metav1.NewTime(metav1.Now().Add(-time.Hour))),
+					err:   nil,
+					retry: machineutils.MediumRetry,
 				},
 			}),
 
@@ -763,10 +878,11 @@ var _ = Describe("machine", func() {
 			fakeDriver              *driver.FakeDriver
 		}
 		type expect struct {
-			machine     *v1alpha1.Machine
-			err         error
-			nodeDeleted bool
-			retry       machineutils.Retry
+			machine                       *v1alpha1.Machine
+			err                           error
+			nodeTerminationConditionIsSet bool
+			nodeDeleted                   bool
+			retry                         machineutils.RetryPeriod
 		}
 		type data struct {
 			setup  setup
@@ -774,8 +890,9 @@ var _ = Describe("machine", func() {
 			expect expect
 		}
 		objMeta := &metav1.ObjectMeta{
-			GenerateName: "machine",
-			Namespace:    "test",
+			GenerateName:      "machine",
+			Namespace:         "test",
+			CreationTimestamp: metav1.Now(),
 		}
 		DescribeTable("##table",
 			func(data *data) {
@@ -844,6 +961,13 @@ var _ = Describe("machine", func() {
 					_, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
 					Expect(nodeErr).To(HaveOccurred())
 				}
+				if data.expect.nodeTerminationConditionIsSet {
+					node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
+					Expect(nodeErr).To(Not(HaveOccurred()))
+					Expect(len(node.Status.Conditions)).To(Equal(1))
+					Expect(node.Status.Conditions[0].Type).To(Equal(machineutils.NodeTerminationCondition))
+					Expect(node.Status.Conditions[0].Status).To(Equal(v1.ConditionTrue))
+				}
 
 			},
 			Entry("Do not process machine deletion for object without finalizer", &data{
@@ -892,6 +1016,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						false,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -905,7 +1030,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Machine \"machine-0\" is missing finalizers. Deletion cannot proceed"),
-					retry: machineutils.DoNotRetryOp,
+					retry: machineutils.LongRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -938,6 +1063,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						false,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -987,6 +1113,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -1000,7 +1127,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Machine deletion in process. Phase set to termination"),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1033,6 +1160,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1082,6 +1210,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -1095,7 +1224,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Machine deletion in process. VM with matching ID found"),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1128,6 +1257,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1174,23 +1304,32 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							"node": "fakeNode-0",
 						},
 						true,
+						metav1.Now(),
 					),
+					nodes: []*corev1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "fakeNode-0",
+							},
+						},
+					},
 				},
 				action: action{
 					machine: "machine-0",
 					fakeDriver: &driver.FakeDriver{
 						VMExists:   true,
-						ProviderID: "fakeID-0",
+						ProviderID: "fakeID",
 						NodeName:   "fakeNode-0",
 						Err:        nil,
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("Machine deletion in process. Drain successful. %s", machineutils.InitiateVMDeletion),
-					retry: machineutils.RetryOp,
+					err:                           fmt.Errorf("Machine deletion in process. Drain successful. %s", machineutils.InitiateVMDeletion),
+					retry:                         machineutils.ShortRetry,
+					nodeTerminationConditionIsSet: true,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1223,6 +1362,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1279,6 +1419,7 @@ var _ = Describe("machine", func() {
 							"node": "",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -1292,7 +1433,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Skipping drain as nodeName is not a valid one for machine. Initiate VM deletion"),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1325,6 +1466,7 @@ var _ = Describe("machine", func() {
 							"node": "",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1366,7 +1508,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							Conditions: []corev1.NodeCondition{
-								corev1.NodeCondition{
+								{
 									Type:               corev1.NodeReady,
 									Status:             corev1.ConditionUnknown,
 									LastTransitionTime: metav1.NewTime(time.Now().Add(-6 * time.Minute)),
@@ -1381,6 +1523,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -1394,7 +1537,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1427,6 +1570,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1477,6 +1621,7 @@ var _ = Describe("machine", func() {
 							"force-deletion": "True",
 						},
 						true,
+						metav1.Now(),
 					),
 					nodes: []*corev1.Node{
 						{
@@ -1502,7 +1647,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Failed to update node"),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1535,6 +1680,116 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
+					),
+				},
+			}),
+			Entry("Drain machine failure before drain timeout, hence deletion fails", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					machineClasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(
+						1,
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							Node: "fakeNode",
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.NewTime(time.Now().Add(-3 * time.Minute)),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    machineutils.InitiateDrain,
+								State:          v1alpha1.MachineStateProcessing,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.NewTime(time.Now().Add(-3 * time.Minute)),
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{
+							"node": "fakeID-0",
+						},
+						true,
+						metav1.NewTime(time.Now().Add(-3*time.Minute)),
+					),
+					nodes: []*corev1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "fakeID-0",
+							},
+						},
+					},
+					fakeResourceActions: &customfake.ResourceActions{
+						Node: customfake.Actions{
+							Update: "Failed to update node",
+						},
+					},
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   true,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        nil,
+					},
+				},
+				expect: expect{
+					err:   fmt.Errorf("failed to create update conditions for node \"fakeID-0\": Failed to update node"),
+					retry: machineutils.ShortRetry,
+					machine: newMachine(
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							Node: "fakeNode",
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", "failed to create update conditions for node \"fakeID-0\": Failed to update node", machineutils.InitiateDrain),
+								State:          v1alpha1.MachineStateFailed,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.Now(),
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{
+							"node": "fakeID-0",
+						},
+						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1584,6 +1839,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.NewTime(time.Now().Add(-3*time.Hour)),
 					),
 					nodes: []*corev1.Node{
 						{
@@ -1609,7 +1865,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Failed to update node"),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1642,10 +1898,11 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
-			Entry("Drain machine failure", &data{
+			Entry("Drain machine failure due to node update failure", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
 						{
@@ -1688,14 +1945,15 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							"node": "fakeNode-0",
 						},
 						true,
+						metav1.Now(),
 					),
 					nodes: []*corev1.Node{
 						{
 							ObjectMeta: metav1.ObjectMeta{
-								Name: "fakeID-0",
+								Name: "fakeNode-0",
 							},
 						},
 					},
@@ -1715,8 +1973,8 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("Failed to update node"),
-					retry: machineutils.RetryOp,
+					err:   fmt.Errorf("failed to create update conditions for node \"fakeNode-0\": Failed to update node"),
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1735,7 +1993,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain failed due to - Failed to update node. Will retry in next sync. %s", machineutils.InitiateDrain),
+								Description:    fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", "failed to create update conditions for node \"fakeNode-0\": Failed to update node", machineutils.InitiateDrain),
 								State:          v1alpha1.MachineStateFailed,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -1749,6 +2007,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1798,6 +2057,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -1811,7 +2071,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Machine deletion in process. VM deletion was successful. " + machineutils.InitiateNodeDeletion),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -1844,6 +2104,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1873,7 +2134,7 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
+							Node: "fakeID",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1893,6 +2154,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 					nodes: []*corev1.Node{
 						{
@@ -1913,7 +2175,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:         fmt.Errorf("Machine deletion in process. Deletion of node object was succesful"),
-					retry:       machineutils.RetryOp,
+					retry:       machineutils.ShortRetry,
 					nodeDeleted: true,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -1947,6 +2209,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -1996,6 +2259,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -2008,7 +2272,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					retry: machineutils.DoNotRetryOp,
+					retry: machineutils.LongRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -2041,6 +2305,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						false,
+						metav1.Now(),
 					),
 				},
 			}),
@@ -2090,6 +2355,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 				action: action{
@@ -2103,7 +2369,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					err:   fmt.Errorf("Machine deletion in process. Phase set to termination"),
-					retry: machineutils.RetryOp,
+					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -2136,6 +2402,7 @@ var _ = Describe("machine", func() {
 							"node": "fakeID-0",
 						},
 						true,
+						metav1.Now(),
 					),
 				},
 			}),

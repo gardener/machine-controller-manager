@@ -18,6 +18,7 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -131,7 +132,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineStatus{
 							Node: "test-node",
 						},
-						nil, nil, nil, true),
+						nil, nil, nil, true, metav1.Now()),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -228,7 +229,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineStatus{
 							Node: "test-node",
 						},
-						nil, nil, nil, true),
+						nil, nil, nil, true, metav1.Now()),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -309,7 +310,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineStatus{
 							Node: "test-node",
 						},
-						nil, nil, nil, true),
+						nil, nil, nil, true, metav1.Now()),
 				},
 				action: action{
 					node: &corev1.Node{},
@@ -363,7 +364,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineStatus{
 							Node: "test-node",
 						},
-						nil, nil, nil, true),
+						nil, nil, nil, true, metav1.Now()),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -506,7 +507,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -560,7 +561,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -615,7 +616,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -671,7 +672,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -725,7 +726,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -780,7 +781,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -834,7 +835,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -939,7 +940,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -991,7 +992,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -1044,7 +1045,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -1094,7 +1095,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -1146,7 +1147,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -1199,7 +1200,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -1252,7 +1253,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -1367,7 +1368,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -1437,7 +1438,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -1512,7 +1513,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -1592,7 +1593,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -1667,7 +1668,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -1747,7 +1748,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -1821,7 +1822,7 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						nil, nil, nil, nil, true),
+						nil, nil, nil, nil, true, metav1.Now()),
 				},
 				expect: expect{
 					node: &corev1.Node{
@@ -1848,6 +1849,144 @@ var _ = Describe("machine_util", func() {
 						},
 					},
 					taintsChanged: true,
+				},
+			}),
+		)
+
+	})
+
+	Describe("#isMachineStatusSimilar", func() {
+
+		type setup struct {
+			m1, m2 machinev1.MachineStatus
+		}
+
+		type expect struct {
+			equal bool
+		}
+		type data struct {
+			setup setup
+
+			expect expect
+		}
+
+		DescribeTable("##table",
+			func(data *data) {
+				equal := isMachineStatusSimilar(data.setup.m1, data.setup.m2)
+				Expect(equal).To(Equal(data.expect.equal))
+			},
+			Entry("when status description is exact match", &data{
+				setup: setup{
+					m1: machinev1.MachineStatus{
+						LastOperation: machinev1.LastOperation{
+							Description:    "Error occurred with decoding machine error status while getting VM status, aborting without retry. gRPC code: AuthFailure: AWS was not able to validate the provided access credentials\n\tstatus code: 401, request id: fbc513f0-ca27-4a42-a203-42048d5773a2 Set machine status to termination. Now, getting VM Status",
+							LastUpdateTime: metav1.Now(),
+						},
+					},
+					m2: machinev1.MachineStatus{
+						LastOperation: machinev1.LastOperation{
+							Description:    "Error occurred with decoding machine error status while getting VM status, aborting without retry. gRPC code: AuthFailure: AWS was not able to validate the provided access credentials\n\tstatus code: 401, request id: fbc513f0-ca27-4a42-a203-42048d5773a2 Set machine status to termination. Now, getting VM Status",
+							LastUpdateTime: metav1.Now(),
+						},
+					},
+				},
+				expect: expect{
+					equal: true,
+				},
+			}),
+			Entry("when status description is exact match but timeout has occurred", &data{
+				setup: setup{
+					m1: machinev1.MachineStatus{
+						LastOperation: machinev1.LastOperation{
+							Description:    "Error occurred with decoding machine error status while getting VM status, aborting without retry. gRPC code: AuthFailure: AWS was not able to validate the provided access credentials\n\tstatus code: 401, request id: fbc513f0-ca27-4a42-a203-42048d5773a2 Set machine status to termination. Now, getting VM Status",
+							LastUpdateTime: metav1.Now(),
+						},
+					},
+					m2: machinev1.MachineStatus{
+						LastOperation: machinev1.LastOperation{
+							Description:    "Error occurred with decoding machine error status while getting VM status, aborting without retry. gRPC code: AuthFailure: AWS was not able to validate the provided access credentials\n\tstatus code: 401, request id: fbc513f0-ca27-4a42-a203-42048d5773a2 Set machine status to termination. Now, getting VM Status",
+							LastUpdateTime: metav1.NewTime(time.Now().Add(-time.Hour)),
+						},
+					},
+				},
+				expect: expect{
+					equal: false,
+				},
+			}),
+			Entry("when status description is exact match but timeout has not occurred", &data{
+				setup: setup{
+					m1: machinev1.MachineStatus{
+						LastOperation: machinev1.LastOperation{
+							Description:    "Error occurred with decoding machine error status while getting VM status, aborting without retry. gRPC code: AuthFailure: AWS was not able to validate the provided access credentials\n\tstatus code: 401, request id: fbc513f0-ca27-4a42-a203-42048d5773a2 Set machine status to termination. Now, getting VM Status",
+							LastUpdateTime: metav1.Now(),
+						},
+					},
+					m2: machinev1.MachineStatus{
+						LastOperation: machinev1.LastOperation{
+							Description:    "Error occurred with decoding machine error status while getting VM status, aborting without retry. gRPC code: AuthFailure: AWS was not able to validate the provided access credentials\n\tstatus code: 401, request id: fbc513f0-ca27-4a42-a203-42048d5773a2 Set machine status to termination. Now, getting VM Status",
+							LastUpdateTime: metav1.NewTime(time.Now().Add(-time.Minute)),
+						},
+					},
+				},
+				expect: expect{
+					equal: true,
+				},
+			}),
+			Entry("when status description is long similar", &data{
+				setup: setup{
+					m1: machinev1.MachineStatus{
+						LastOperation: machinev1.LastOperation{
+							Description:    "Error occurred with decoding machine error status while getting VM status, aborting without retry. gRPC code: AuthFailure: AWS was not able to validate the provided access credentials\n\tstatus code: 401, request id: fbc513f0-ca27-4a42-a203-42048d5773a2 Set machine status to termination. Now, getting VM Status",
+							LastUpdateTime: metav1.Now(),
+						},
+					},
+					m2: machinev1.MachineStatus{
+						LastOperation: machinev1.LastOperation{
+							Description:    "Error occurred with decoding machine error status while getting VM status, aborting without retry. gRPC code: AuthFailure: AWS was not able to validate the provided access credentials\n\tstatus code: 401, request id: dsfddsfd-dsfdfd-dsfdsfds-dsfdkjljl32 Set machine status to termination. Now, getting VM Status",
+							LastUpdateTime: metav1.Now(),
+						},
+					},
+				},
+				expect: expect{
+					equal: true,
+				},
+			}),
+			Entry("when status description is short similar", &data{
+				setup: setup{
+					m1: machinev1.MachineStatus{
+						LastOperation: machinev1.LastOperation{
+							Description:    "AWS was not able to validate the provided access credentials\n\tstatus code: 401, request id: fbc513f0-ca27-4a42-a203-42048d5773a2",
+							LastUpdateTime: metav1.Now(),
+						},
+					},
+					m2: machinev1.MachineStatus{
+						LastOperation: machinev1.LastOperation{
+							Description:    "AWS was not able to validate the provided access credentials\n\tstatus code: 401, request id: 23423424-342f-sdff-45cs-3242sdfsdfd",
+							LastUpdateTime: metav1.Now(),
+						},
+					},
+				},
+				expect: expect{
+					equal: true,
+				},
+			}),
+			Entry("when status description is different", &data{
+				setup: setup{
+					m1: machinev1.MachineStatus{
+						LastOperation: machinev1.LastOperation{
+							Description:    machineutils.InitiateNodeDeletion,
+							LastUpdateTime: metav1.Now(),
+						},
+					},
+					m2: machinev1.MachineStatus{
+						LastOperation: machinev1.LastOperation{
+							Description:    machineutils.InitiateFinalizerRemoval,
+							LastUpdateTime: metav1.Now(),
+						},
+					},
+				},
+				expect: expect{
+					equal: false,
 				},
 			}),
 		)

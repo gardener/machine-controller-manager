@@ -46,7 +46,6 @@ type MachineControllerManagerConfiguration struct {
 
 	// namespace in seed cluster in which controller would look for the resources.
 	Namespace string
-
 	// port is the port that the controller-manager's http service runs on.
 	Port int32
 	// address is the IP address to serve on (set to 0.0.0.0 for all interfaces).
@@ -57,7 +56,6 @@ type MachineControllerManagerConfiguration struct {
 	// allowed to sync concurrently. Larger number = more responsive nodes,
 	// but more CPU (and network) load.
 	ConcurrentNodeSyncs int32
-
 	// enableProfiling enables profiling via web interface host:port/debug/pprof/
 	EnableProfiling bool
 	// enableContentionProfiling enables lock contention profiling, if enableProfiling is true.
@@ -75,15 +73,17 @@ type MachineControllerManagerConfiguration struct {
 	// minResyncPeriod is the resync period in reflectors; will be random between
 	// minResyncPeriod and 2*minResyncPeriod.
 	MinResyncPeriod metav1.Duration
-
 	// SafetyOptions is the set of options to set to ensure safety of controller
 	SafetyOptions SafetyOptions
-
-	//NodeCondition is the string of known NodeConditions. If any of these NodeCondition is set for a timeout period, the machine  will be declared failed and will replaced.
+	// NodeCondition is the string of known NodeConditions. If any of these NodeCondition is set for a timeout period, the machine  will be declared failed and will replaced.
 	NodeConditions string
-
-	//BootstrapTokenAuthExtraGroups is a comma-separated string of groups to set bootstrap token's "auth-extra-groups" field to.
+	// BootstrapTokenAuthExtraGroups is a comma-separated string of groups to set bootstrap token's "auth-extra-groups" field to.
 	BootstrapTokenAuthExtraGroups string
+	// DeleteMigratedMachineClass deletes any machine class with has the migrate machineclass
+	DeleteMigratedMachineClass bool
+	// AutoscalerScaleDownAnnotationDuringRollout is an option to disable annotating the node-objects during roll-out.
+	// The cluster autoscaler native annotation is "cluster-autoscaler.kubernetes.io/scale-down-disabled".
+	AutoscalerScaleDownAnnotationDuringRollout bool
 }
 
 // SafetyOptions are used to configure the upper-limit and lower-limit

@@ -21,6 +21,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/url"
+	"regexp"
 	"strings"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -36,6 +38,14 @@ import (
 	"k8s.io/klog"
 )
 
+const (
+	// awsEBSDriverName is the name of the CSI driver for EBS
+	awsEBSDriverName = "ebs.csi.aws.com"
+
+	resourceTypeInstance = "instance"
+	resourceTypeVolume   = "volume"
+)
+
 // AWSDriver is the driver struct for holding AWS machine information
 type AWSDriver struct {
 	AWSMachineClass *v1alpha1.AWSMachineClass
@@ -44,11 +54,6 @@ type AWSDriver struct {
 	MachineID       string
 	MachineName     string
 }
-
-const (
-	resourceTypeInstance = "instance"
-	resourceTypeVolume   = "volume"
-)
 
 // NewAWSDriver returns an empty AWSDriver object
 func NewAWSDriver(create func() (string, error), delete func() error, existing func() (string, error)) Driver {
@@ -286,44 +291,30 @@ func (d *AWSDriver) Delete(machineID string) error {
 	metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
 
 	if len(describeImageOutput.Images) < 1 {
-		klog.Errorf("Image %s not found", *imageID)
-		return fmt.Errorf("Image %s not found", *imageID)
-	}
-
-	// returns instanceBlockDevices whose DeleteOnTermination field is nil on machineAPIs
-	instanceBlkDeviceMappings, err := d.checkBlockDevices(instanceID, describeImageOutput.Images[0].RootDeviceName)
-	if err != nil {
-		klog.Errorf("Could not Default deletionOnTermination while terminating machine: %s", err.Error())
-		return err
-	}
-
-	// Default deletionOnTermination to true when unset on API field
-	if len(instanceBlkDeviceMappings) > 0 {
-		input := &ec2.ModifyInstanceAttributeInput{
-			InstanceId:          aws.String(instanceID),
-			BlockDeviceMappings: instanceBlkDeviceMappings,
-		}
-		_, err = svc.ModifyInstanceAttribute(input)
+		// Disk image not found at provider
+		klog.Warningf("Disk image %s not found at provider for machineID %q", *imageID, machineID)
+	} else {
+		// returns instanceBlockDevices whose DeleteOnTermination field is nil on machineAPIs
+		instanceBlkDeviceMappings, err := d.checkBlockDevices(instanceID, describeImageOutput.Images[0].RootDeviceName)
 		if err != nil {
-			if aerr, ok := err.(awserr.Error); ok {
-				switch aerr.Code() {
-				case "InvalidInstanceAttributeValue":
-					// Case when disk is not yet attached to the VM
-					klog.Warning(aerr.Error())
-					break
-				default:
-					klog.Error(aerr.Error())
-					metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-					return err
-				}
-			} else {
-				klog.Error(err.Error())
+			klog.Errorf("Could not Default deletionOnTermination while terminating machine: %s", err.Error())
+		}
+
+		// Default deletionOnTermination to true when unset on API field
+		if err == nil && len(instanceBlkDeviceMappings) > 0 {
+			input := &ec2.ModifyInstanceAttributeInput{
+				InstanceId:          aws.String(instanceID),
+				BlockDeviceMappings: instanceBlkDeviceMappings,
+			}
+			_, err = svc.ModifyInstanceAttribute(input)
+			if err != nil {
 				metrics.APIFailedRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-				return err
+				klog.Warningf("Couldn't complete modify instance with machineID %q. Error: %s. Continuing machine deletion", machineID, err.Error())
+			} else {
+				metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
+				klog.V(2).Infof("Successfully defaulted deletionOnTermination to true for disks (with nil pointer) for machineID: %q", machineID)
 			}
 		}
-		metrics.APIRequestCount.With(prometheus.Labels{"provider": "aws", "service": "ecs"}).Inc()
-		klog.V(2).Infof("Successfully defaulted deletionOnTermination to true for disks (with nil pointer) for instanceID: %q", instanceID)
 	}
 
 	// Terminate instance call
@@ -494,12 +485,18 @@ func (d *AWSDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, 
 	names := []string{}
 	for i := range specs {
 		spec := &specs[i]
-		if spec.AWSElasticBlockStore == nil {
-			// Not an aws volume
-			continue
+		if spec.AWSElasticBlockStore != nil {
+			name, err := kubernetesVolumeIDToEBSVolumeID(spec.AWSElasticBlockStore.VolumeID)
+			if err != nil {
+				klog.Errorf("Failed to translate Kubernetes volume ID '%s' to EBS volume ID: %v", spec.AWSElasticBlockStore.VolumeID, err)
+				continue
+			}
+
+			names = append(names, name)
+		} else if spec.CSI != nil && spec.CSI.Driver == awsEBSDriverName && spec.CSI.VolumeHandle != "" {
+			name := spec.CSI.VolumeHandle
+			names = append(names, name)
 		}
-		name := spec.AWSElasticBlockStore.VolumeID
-		names = append(names, name)
 	}
 	return names, nil
 }
@@ -512,4 +509,48 @@ func (d *AWSDriver) GetUserData() string {
 //SetUserData set the used data whit which the VM will be booted
 func (d *AWSDriver) SetUserData(userData string) {
 	d.UserData = userData
+}
+
+// awsVolumeRegMatch represents Regex Match for AWS volume.
+var awsVolumeRegMatch = regexp.MustCompile("^vol-[^/]*$")
+
+// kubernetesVolumeIDToEBSVolumeID translates Kubernetes volume ID to EBS volume ID
+// KubernetsVolumeID forms:
+//  * aws://<zone>/<awsVolumeId>
+//  * aws:///<awsVolumeId>
+//  * <awsVolumeId>
+// EBS Volume ID form:
+//  * vol-<alphanumberic>
+func kubernetesVolumeIDToEBSVolumeID(kubernetesID string) (string, error) {
+	// name looks like aws://availability-zone/awsVolumeId
+
+	// The original idea of the URL-style name was to put the AZ into the
+	// host, so we could find the AZ immediately from the name without
+	// querying the API.  But it turns out we don't actually need it for
+	// multi-AZ clusters, as we put the AZ into the labels on the PV instead.
+	// However, if in future we want to support multi-AZ cluster
+	// volume-awareness without using PersistentVolumes, we likely will
+	// want the AZ in the host.
+	if !strings.HasPrefix(kubernetesID, "aws://") {
+		// Assume a bare aws volume id (vol-1234...)
+		return kubernetesID, nil
+	}
+	url, err := url.Parse(kubernetesID)
+	if err != nil {
+		return "", fmt.Errorf("invalid disk name (%s): %v", kubernetesID, err)
+	}
+	if url.Scheme != "aws" {
+		return "", fmt.Errorf("invalid scheme for AWS volume (%s)", kubernetesID)
+	}
+
+	awsID := url.Path
+	awsID = strings.Trim(awsID, "/")
+
+	// We sanity check the resulting volume; the two known formats are
+	// vol-12345678 and vol-12345678abcdef01
+	if !awsVolumeRegMatch.MatchString(awsID) {
+		return "", fmt.Errorf("invalid format for AWS volume (%s)", kubernetesID)
+	}
+
+	return awsID, nil
 }

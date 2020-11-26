@@ -24,7 +24,6 @@ package controller
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"math/rand"
@@ -33,15 +32,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/validation"
-
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
-	conditionutils "github.com/gardener/machine-controller-manager/pkg/util/conditions"
+	fakemachineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
+	annotationsutils "github.com/gardener/machine-controller-manager/pkg/util/annotations"
 	hashutil "github.com/gardener/machine-controller-manager/pkg/util/hash"
-	taintutils "github.com/gardener/machine-controller-manager/pkg/util/taints"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -49,14 +48,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/clock"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	clientretry "k8s.io/client-go/util/retry"
-
-	fakemachineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	"k8s.io/klog"
 )
 
@@ -91,6 +87,13 @@ const (
 
 // Backoff is the backoff period used while updating nodes
 var Backoff = wait.Backoff{
+	Steps:    5,
+	Duration: 100 * time.Millisecond,
+	Jitter:   1.0,
+}
+
+// UpdateAnnotationBackoff is the backoff period used while updating the annotation
+var UpdateAnnotationBackoff = wait.Backoff{
 	Steps:    5,
 	Duration: 100 * time.Millisecond,
 	Jitter:   1.0,
@@ -764,12 +767,13 @@ func (s ActiveMachines) Less(i, j int) bool {
 	// the lower the priority, the more likely
 	// it is to be deleted
 	m := map[v1alpha1.MachinePhase]int{
-		v1alpha1.MachineTerminating: 0,
-		v1alpha1.MachineFailed:      1,
-		v1alpha1.MachineUnknown:     2,
-		v1alpha1.MachinePending:     3,
-		v1alpha1.MachineAvailable:   4,
-		v1alpha1.MachineRunning:     5,
+		v1alpha1.MachineTerminating:      0,
+		v1alpha1.MachineFailed:           1,
+		v1alpha1.MachineCrashLoopBackOff: 2,
+		v1alpha1.MachineUnknown:          3,
+		v1alpha1.MachinePending:          4,
+		v1alpha1.MachineAvailable:        5,
+		v1alpha1.MachineRunning:          6,
 	}
 
 	// Case-1: Initially we try to prioritize machine deletion based on
@@ -895,193 +899,6 @@ func FilterMachineSets(ISes []*v1alpha1.MachineSet, filterFn filterIS) []*v1alph
 	return filtered
 }
 
-// AddOrUpdateTaintOnNode add taints to the node. If taint was added into node, it'll issue API calls
-// to update nodes; otherwise, no API calls. Return error if any.
-func AddOrUpdateTaintOnNode(c clientset.Interface, nodeName string, taints ...*v1.Taint) error {
-	if len(taints) == 0 {
-		return nil
-	}
-	firstTry := true
-	return clientretry.RetryOnConflict(Backoff, func() error {
-		var err error
-		var oldNode *v1.Node
-		// First we try getting node from the API server cache, as it's cheaper. If it fails
-		// we get it from etcd to be sure to have fresh data.
-		if firstTry {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
-			firstTry = false
-		} else {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
-		}
-		if err != nil {
-			return err
-		}
-
-		var newNode *v1.Node
-		oldNodeCopy := oldNode
-		updated := false
-		for _, taint := range taints {
-			curNewNode, ok, err := taintutils.AddOrUpdateTaint(oldNodeCopy, taint)
-			if err != nil {
-				return fmt.Errorf("Failed to update taint of node")
-			}
-			updated = updated || ok
-			newNode = curNewNode
-			oldNodeCopy = curNewNode
-		}
-		if !updated {
-			return nil
-		}
-		return UpdateNodeTaints(c, nodeName, oldNode, newNode)
-	})
-}
-
-// RemoveTaintOffNode is for cleaning up taints temporarily added to node,
-// won't fail if target taint doesn't exist or has been removed.
-// If passed a node it'll check if there's anything to be done, if taint is not present it won't issue
-// any API calls.
-func RemoveTaintOffNode(c clientset.Interface, nodeName string, node *v1.Node, taints ...*v1.Taint) error {
-	if len(taints) == 0 {
-		return nil
-	}
-	// Short circuit for limiting amount of API calls.
-	if node != nil {
-		match := false
-		for _, taint := range taints {
-			if taintutils.TaintExists(node.Spec.Taints, taint) {
-				match = true
-				break
-			}
-		}
-		if !match {
-			return nil
-		}
-	}
-
-	firstTry := true
-	return clientretry.RetryOnConflict(Backoff, func() error {
-		var err error
-		var oldNode *v1.Node
-		// First we try getting node from the API server cache, as it's cheaper. If it fails
-		// we get it from etcd to be sure to have fresh data.
-		if firstTry {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
-			firstTry = false
-		} else {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
-		}
-		if err != nil {
-			return err
-		}
-
-		var newNode *v1.Node
-		oldNodeCopy := oldNode
-		updated := false
-		for _, taint := range taints {
-			curNewNode, ok, err := taintutils.RemoveTaint(oldNodeCopy, taint)
-			if err != nil {
-				return fmt.Errorf("Failed to remove taint of node")
-			}
-			updated = updated || ok
-			newNode = curNewNode
-			oldNodeCopy = curNewNode
-		}
-		if !updated {
-			return nil
-		}
-		return UpdateNodeTaints(c, nodeName, oldNode, newNode)
-	})
-}
-
-// PatchNodeTaints is for updating the node taints from oldNode to the newNode
-// It makes a TwoWayMergePatch by comparing the two objects
-// It calls the Patch() method to do the final patch
-func PatchNodeTaints(c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
-	oldData, err := json.Marshal(oldNode)
-	if err != nil {
-		return fmt.Errorf("failed to marshal old node %#v for node %q: %v", oldNode, nodeName, err)
-	}
-
-	newTaints := newNode.Spec.Taints
-	newNodeClone := oldNode.DeepCopy()
-	newNodeClone.Spec.Taints = newTaints
-	newData, err := json.Marshal(newNodeClone)
-	if err != nil {
-		return fmt.Errorf("failed to marshal new node %#v for node %q: %v", newNodeClone, nodeName, err)
-	}
-
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, v1.Node{})
-	if err != nil {
-		return fmt.Errorf("failed to create patch for node %q: %v", nodeName, err)
-	}
-
-	_, err = c.CoreV1().Nodes().Patch(string(nodeName), types.StrategicMergePatchType, patchBytes)
-	return err
-}
-
-// UpdateNodeTaints is for updating the node taints from oldNode to the newNode
-// using the nodes Update() method
-func UpdateNodeTaints(c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
-	newNodeClone := oldNode.DeepCopy()
-	newNodeClone.Spec.Taints = newNode.Spec.Taints
-
-	_, err := c.CoreV1().Nodes().Update(newNodeClone)
-	if err != nil {
-		return fmt.Errorf("failed to create update taints for node %q: %v", nodeName, err)
-	}
-
-	return nil
-}
-
-// GetNodeCondition get the nodes condition matching the specified type
-func GetNodeCondition(c clientset.Interface, nodeName string, conditionType v1.NodeConditionType) (*v1.NodeCondition, error) {
-	node, err := c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return conditionutils.GetNodeCondition(node, conditionType), nil
-}
-
-// AddOrUpdateConditionsOnNode adds a condition to the node's status
-func AddOrUpdateConditionsOnNode(c clientset.Interface, nodeName string, condition v1.NodeCondition) error {
-	firstTry := true
-	return clientretry.RetryOnConflict(Backoff, func() error {
-		var err error
-		var oldNode *v1.Node
-		// First we try getting node from the API server cache, as it's cheaper. If it fails
-		// we get it from etcd to be sure to have fresh data.
-		if firstTry {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
-			firstTry = false
-		} else {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
-		}
-
-		if err != nil {
-			return err
-		}
-
-		var newNode *v1.Node
-		oldNodeCopy := oldNode
-		newNode = conditionutils.AddOrUpdateCondition(oldNodeCopy, condition)
-		return UpdateNodeConditions(c, nodeName, oldNode, newNode)
-	})
-}
-
-// UpdateNodeConditions is for updating the node conditions from oldNode to the newNode
-// using the nodes Update() method
-func UpdateNodeConditions(c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
-	newNodeClone := oldNode.DeepCopy()
-	newNodeClone.Status.Conditions = newNode.Status.Conditions
-
-	_, err := c.CoreV1().Nodes().UpdateStatus(newNodeClone)
-	if err != nil {
-		return fmt.Errorf("failed to create update conditions for node %q: %v", nodeName, err)
-	}
-
-	return nil
-}
-
 // WaitForCacheSync is a wrapper around cache.WaitForCacheSync that generates log messages
 // indicating that the controller identified by controllerName is waiting for syncs, followed by
 // either a successful or failed sync.
@@ -1110,4 +927,123 @@ func ComputeHash(template *v1alpha1.MachineTemplateSpec, collisionCount *int32) 
 	}
 
 	return machineTemplateSpecHasher.Sum32()
+}
+
+// AddOrUpdateAnnotationOnNode add annotations to the node. If annotation was added into node, it'll issue API calls
+// to update nodes; otherwise, no API calls. Return error if any.
+func AddOrUpdateAnnotationOnNode(c clientset.Interface, nodeName string, annotations map[string]string) error {
+	if annotations == nil {
+		return nil
+	}
+	firstTry := true
+	return clientretry.RetryOnConflict(UpdateAnnotationBackoff, func() error {
+		var err error
+		var oldNode *v1.Node
+		// First we try getting node from the API server cache, as it's cheaper. If it fails
+		// we get it from etcd to be sure to have fresh data.
+		if firstTry {
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
+			firstTry = false
+		} else {
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+		}
+		if errors.IsNotFound(err) {
+			klog.Warningf("Node %s not found while updating annotation. Err: %v", nodeName, err)
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		var newNode *v1.Node
+		updated := false
+
+		newNode, updated, err = annotationsutils.AddOrUpdateAnnotation(oldNode, annotations)
+
+		if !updated {
+			return nil
+		}
+		return UpdateNodeAnnotations(c, nodeName, oldNode, newNode)
+	})
+}
+
+// UpdateNodeAnnotations is for updating the node annotations from oldNode to the newNode
+// using the nodes Update() method
+func UpdateNodeAnnotations(c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
+	newNodeClone := oldNode.DeepCopy()
+	newNodeClone.Annotations = newNode.Annotations
+
+	_, err := c.CoreV1().Nodes().Update(newNodeClone)
+	if err != nil {
+		return fmt.Errorf("failed to create or update annotations for node %q: %v", nodeName, err)
+	}
+
+	return err
+}
+
+// RemoveAnnotationsOffNode is for cleaning up annotations temporarily added to node,
+// won't fail if target annotation doesn't exist or has been removed.
+// If passed a node it'll check if there's anything to be done, if annotation is not present it won't issue
+// any API calls.
+func RemoveAnnotationsOffNode(c clientset.Interface, nodeName string, annotations map[string]string) error {
+
+	// Short circuit if annotation doesnt exist for limiting API calls.
+	if annotations == nil || nodeName == "" {
+		return nil
+	}
+
+	firstTry := true
+	return clientretry.RetryOnConflict(UpdateAnnotationBackoff, func() error {
+		var err error
+		var oldNode *v1.Node
+		// First we try getting node from the API server cache, as it's cheaper. If it fails
+		// we get it from etcd to be sure to have fresh data.
+		if firstTry {
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
+			firstTry = false
+		} else {
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+		}
+		if errors.IsNotFound(err) {
+			klog.Warningf("Node %s not found while removing annotation. Err: %v", nodeName, err)
+			return nil
+		}
+
+		if err != nil {
+			return err
+		}
+
+		var newNode *v1.Node
+		oldNodeCopy := oldNode
+		updated := false
+
+		// Remove the annotations from the node.
+		newNode, updated, err = annotationsutils.RemoveAnnotation(oldNodeCopy, annotations)
+
+		if !updated {
+			return nil
+		}
+		return UpdateNodeAnnotations(c, nodeName, oldNode, newNode)
+	})
+}
+
+// GetAnnotationsFromNode returns all the annotations of the provided node.
+func GetAnnotationsFromNode(c clientset.Interface, nodeName string) (map[string]string, error) {
+
+	// Short circuit if annotation doesnt exist for limiting API calls.
+	if nodeName == "" {
+		return nil, nil
+	}
+
+	node, err := c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		klog.Warningf("Node %s not found while fetching annotation. Err: %v", nodeName, err)
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return node.Annotations, nil
 }

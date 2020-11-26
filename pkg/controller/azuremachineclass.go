@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +31,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 // AzureMachineClassKind is used to identify the machineClassKind as Azure
@@ -55,14 +57,49 @@ func (c *controller) machineSetToAzureMachineClassDelete(obj interface{}) {
 	}
 }
 
-func (c *controller) machineToAzureMachineClassDelete(obj interface{}) {
+func (c *controller) machineToAzureMachineClassAdd(obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if machine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", obj)
 		return
 	}
 	if machine.Spec.Class.Kind == AzureMachineClassKind {
 		c.azureMachineClassQueue.Add(machine.Spec.Class.Name)
 	}
+}
+
+func (c *controller) machineToAzureMachineClassUpdate(oldObj, newObj interface{}) {
+	oldMachine, ok := oldObj.(*v1alpha1.Machine)
+	if oldMachine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", oldObj)
+		return
+	}
+	newMachine, ok := newObj.(*v1alpha1.Machine)
+	if newMachine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", newObj)
+		return
+	}
+
+	if oldMachine.Spec.Class.Kind == newMachine.Spec.Class.Kind {
+		if newMachine.Spec.Class.Kind == AzureMachineClassKind {
+			// Both old and new machine refer to the same machineClass object
+			// And the correct kind so enqueuing only one of them.
+			c.azureMachineClassQueue.Add(newMachine.Spec.Class.Name)
+		}
+	} else {
+		// If both are pointing to different machineClasses
+		// we might have to enqueue both.
+		if oldMachine.Spec.Class.Kind == AzureMachineClassKind {
+			c.azureMachineClassQueue.Add(oldMachine.Spec.Class.Name)
+		}
+		if newMachine.Spec.Class.Kind == AzureMachineClassKind {
+			c.azureMachineClassQueue.Add(newMachine.Spec.Class.Name)
+		}
+	}
+}
+
+func (c *controller) machineToAzureMachineClassDelete(obj interface{}) {
+	c.machineToAzureMachineClassAdd(obj)
 }
 
 func (c *controller) azureMachineClassAdd(obj interface{}) {
@@ -87,6 +124,10 @@ func (c *controller) azureMachineClassUpdate(oldObj, newObj interface{}) {
 	c.azureMachineClassAdd(newObj)
 }
 
+func (c *controller) azureMachineClassDelete(obj interface{}) {
+	c.azureMachineClassAdd(obj)
+}
+
 // reconcileClusterAzureMachineClassKey reconciles an AzureMachineClass due to controller resync
 // or an event on the azureMachineClass.
 func (c *controller) reconcileClusterAzureMachineClassKey(key string) error {
@@ -106,29 +147,35 @@ func (c *controller) reconcileClusterAzureMachineClassKey(key string) error {
 		return err
 	}
 
-	return c.reconcileClusterAzureMachineClass(class)
+	err = c.reconcileClusterAzureMachineClass(class)
+	if err != nil {
+		c.enqueueAzureMachineClassAfter(class, 10*time.Second)
+	} else {
+		// Re-enqueue periodically to avoid missing of events
+		// TODO: Infuture to get ride of this logic
+		c.enqueueAzureMachineClassAfter(class, 10*time.Minute)
+	}
+
+	return nil
 }
 
 func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMachineClass) error {
-	klog.V(4).Info("Start Reconciling azuremachineclass: ", class.Name)
-	defer func() {
-		c.enqueueAzureMachineClassAfter(class, 10*time.Minute)
-		klog.V(4).Info("Stop Reconciling azuremachineclass: ", class.Name)
-	}()
+	klog.V(4).Info("Start Reconciling Azuremachineclass: ", class.Name)
+	defer klog.V(4).Info("Stop Reconciling Azuremachineclass: ", class.Name)
 
 	internalClass := &machine.AzureMachineClass{}
 	err := c.internalExternalScheme.Convert(class, internalClass, nil)
 	if err != nil {
 		return err
 	}
-	// TODO this should be put in own API server
+
 	validationerr := validation.ValidateAzureMachineClass(internalClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
 		klog.Errorf("Validation of %s failed %s", AzureMachineClassKind, validationerr.ToAggregate().Error())
 		return nil
 	}
 
-	// Manipulate finalizers
+	// Add finalizer to avoid losing machineClass object
 	if class.DeletionTimestamp == nil {
 		err = c.addAzureMachineClassFinalizers(class)
 		if err != nil {
@@ -141,31 +188,35 @@ func (c *controller) reconcileClusterAzureMachineClass(class *v1alpha1.AzureMach
 		return err
 	}
 
-	if class.DeletionTimestamp != nil {
-		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
-			return nil
+	if class.DeletionTimestamp == nil {
+		// If deletion timestamp doesn't exist
+		_, annotationPresent := class.Annotations[machineutils.MigratedMachineClass]
+
+		if c.deleteMigratedMachineClass && annotationPresent && len(machines) == 0 {
+			// If controller has deleteMigratedMachineClass flag set
+			// and the migratedMachineClass annotation is set
+			err = c.controlMachineClient.AzureMachineClasses(class.Namespace).Delete(class.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("Retry deletion as deletion timestamp is now set")
 		}
 
-		machineDeployments, err := c.findMachineDeploymentsForClass(AzureMachineClassKind, class.Name)
-		if err != nil {
-			return err
-		}
-		machineSets, err := c.findMachineSetsForClass(AzureMachineClassKind, class.Name)
-		if err != nil {
-			return err
-		}
-		if len(machineDeployments) == 0 && len(machineSets) == 0 && len(machines) == 0 {
-			return c.deleteAzureMachineClassFinalizers(class)
-		}
-
-		klog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
-	for _, machine := range machines {
-		c.addMachine(machine)
+	if len(machines) > 0 {
+		// machines are still referring the machine class, please wait before deletion
+		klog.V(3).Infof("Cannot remove finalizer on %s because still (%d) machines are referencing it", class.Name, len(machines))
+
+		for _, machine := range machines {
+			c.addMachine(machine)
+		}
+
+		return fmt.Errorf("Retry as machine objects are still referring the machineclass")
 	}
-	return nil
+
+	return c.deleteAzureMachineClassFinalizers(class)
 }
 
 /*

@@ -31,6 +31,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -59,25 +60,29 @@ func (c *controller) deleteMachine(obj interface{}) {
 	c.enqueueMachine(obj)
 }
 
-func (c *controller) enqueueMachine(obj interface{}) {
+// isToBeEnqueued returns true if the key is to be managed by this controller
+func (c *controller) isToBeEnqueued(obj interface{}) (bool, string) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
 		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
-		return
+		return false, ""
 	}
 
-	klog.V(4).Infof("Adding machine object to the queue %q", key)
-	c.machineQueue.Add(key)
+	return true, key
+}
+
+func (c *controller) enqueueMachine(obj interface{}) {
+	if toBeEnqueued, key := c.isToBeEnqueued(obj); toBeEnqueued {
+		klog.V(4).Infof("Adding machine object to the queue %q", key)
+		c.machineQueue.Add(key)
+	}
 }
 
 func (c *controller) enqueueMachineAfter(obj interface{}, after time.Duration) {
-	key, err := cache.MetaNamespaceKeyFunc(obj)
-	if err != nil {
-		return
+	if toBeEnqueued, key := c.isToBeEnqueued(obj); toBeEnqueued {
+		klog.V(4).Infof("Adding machine object to the queue %q after %s", key, after)
+		c.machineQueue.AddAfter(key, after)
 	}
-
-	klog.V(4).Infof("Adding machine object to the queue %q after %s", key, after)
-	c.machineQueue.AddAfter(key, after)
 }
 
 func (c *controller) reconcileClusterMachineKey(key string) error {
@@ -96,21 +101,15 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 		return err
 	}
 
-	durationToNextSync := 10 * time.Minute
-	retryStatus, err := c.reconcileClusterMachine(machine)
-	if err != nil {
-		if retryStatus == machineutils.RetryOp {
-			durationToNextSync = 15 * time.Second
-		}
-	}
+	retryPeriod, err := c.reconcileClusterMachine(machine)
+	klog.V(4).Info(err, retryPeriod)
 
-	klog.V(4).Info(retryStatus, err, durationToNextSync)
-	c.enqueueMachineAfter(machine, durationToNextSync)
+	c.enqueueMachineAfter(machine, time.Duration(retryPeriod))
 
 	return nil
 }
 
-func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machineutils.Retry, error) {
+func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
 	klog.V(4).Infof("Start Reconciling machine %q", machine.Name)
 	defer klog.V(4).Infof("Stop Reconciling machine %q", machine.Name)
 
@@ -119,40 +118,27 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 		// machine is not set for termination don't process it
 		err := fmt.Errorf("Machine controller has frozen. Retrying reconcile after resync period")
 		klog.Error(err)
-		return machineutils.DoNotRetryOp, err
+		return machineutils.LongRetry, err
 	}
 
 	internalMachine := &machineapi.Machine{}
 	if err := c.internalExternalScheme.Convert(machine, internalMachine, nil); err != nil {
 		klog.Error(err)
-		return machineutils.DoNotRetryOp, err
+		return machineutils.LongRetry, err
 	}
 
 	validationerr := validation.ValidateMachine(internalMachine)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
 		err := fmt.Errorf("Validation of Machine failed %s", validationerr.ToAggregate().Error())
 		klog.Error(err)
-		return machineutils.DoNotRetryOp, err
+		return machineutils.LongRetry, err
 	}
 
-	machineClass, secret, err := c.ValidateMachineClass(&machine.Spec.Class)
+	machineClass, secret, retry, err := c.ValidateMachineClass(&machine.Spec.Class)
 	if err != nil {
-		return machineutils.DoNotRetryOp, err
+		klog.Error(err)
+		return retry, err
 	}
-
-	/*
-		NOT NEEDED?
-		else if actualProviderID == "fake" {
-			klog.Warning("Fake driver type")
-			return false, nil
-		}
-		// Get the latest version of the machine so that we can avoid conflicts
-		machine, err = c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
-		if err != nil {
-			klog.Errorf("Could GET machine object %s", err)
-			return machineutils.RetryOp, err
-		}
-	*/
 
 	if machine.DeletionTimestamp != nil {
 		// Process a delete event
@@ -165,7 +151,6 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 
 	if machine.Status.Node != "" {
 		// If reference to node object exists execute the below
-
 		retry, err := c.reconcileMachineHealth(machine)
 		if err != nil {
 			return retry, err
@@ -177,14 +162,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 		}
 	}
 
-	/*
-		if machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
-			// If machine status is failed, ignore it
-			return machineutils.DoNotRetryOp, nil
-		} else
-	*/
-
-	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" {
+	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" || machine.Status.Node == "" {
 		return c.triggerCreationFlow(&driver.CreateMachineRequest{
 			Machine:      machine,
 			MachineClass: machineClass,
@@ -192,15 +170,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 		})
 	}
 
-	/*
-		TODO: re-introduce this when in-place updates can be done.
-		else if actualProviderID != machine.Spec.ProviderID {
-			// If provider-ID has changed, update the machine
-			return c.triggerUpdationFlow(machine, actualProviderID)
-		}
-	*/
-
-	return machineutils.DoNotRetryOp, nil
+	return machineutils.LongRetry, nil
 }
 
 /*
@@ -208,6 +178,12 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 	Machine controller - nodeToMachine
 */
 func (c *controller) addNodeToMachine(obj interface{}) {
+
+	node := obj.(*corev1.Node)
+	if node == nil {
+		klog.Errorf("Couldn't convert to node from object")
+		return
+	}
 
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
@@ -223,8 +199,10 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 		return
 	}
 
-	klog.V(4).Infof("Add machine object backing node %q", machine.Name)
-	c.enqueueMachine(machine)
+	if machine.Status.CurrentStatus.Phase != v1alpha1.MachineCrashLoopBackOff && nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions) {
+		klog.V(4).Infof("Enqueue machine object %q as backing node's conditions have changed", machine.Name)
+		c.enqueueMachine(machine)
+	}
 }
 
 func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
@@ -232,7 +210,21 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 }
 
 func (c *controller) deleteNodeToMachine(obj interface{}) {
-	c.addNodeToMachine(obj)
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+	if err != nil {
+		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
+		return
+	}
+
+	machine, err := c.getMachineFromNode(key)
+	if err != nil {
+		klog.Errorf("Couldn't fetch machine %s, Error: %s", key, err)
+		return
+	} else if machine == nil {
+		return
+	}
+
+	c.enqueueMachine(machine)
 }
 
 /*
@@ -281,18 +273,27 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	Machine operations - Create, Update, Delete
 */
 
-func (c *controller) triggerCreationFlow(createMachineRequest *driver.CreateMachineRequest) (machineutils.Retry, error) {
+func (c *controller) triggerCreationFlow(createMachineRequest *driver.CreateMachineRequest) (machineutils.RetryPeriod, error) {
 	var (
 		machine     = createMachineRequest.Machine
 		machineName = createMachineRequest.Machine.Name
 		nodeName    = ""
 		providerID  = ""
 	)
+
 	// Add finalizers if not present
 	retry, err := c.addMachineFinalizers(createMachineRequest.Machine)
 	if err != nil {
 		return retry, err
 	}
+
+	// we should avoid mutating Secret, since it goes all the way into the Informer's store
+	secretCopy := createMachineRequest.Secret.DeepCopy()
+	err = c.addBootstrapTokenToUserData(machine.Name, secretCopy)
+	if err != nil {
+		return machineutils.ShortRetry, err
+	}
+	createMachineRequest.Secret = secretCopy
 
 	// Find out if VM exists on provider for this machine object
 	getMachineStatusResponse, err := c.driver.GetMachineStatus(context.TODO(), &driver.GetMachineStatusRequest{
@@ -310,14 +311,12 @@ func (c *controller) triggerCreationFlow(createMachineRequest *driver.CreateMach
 
 		machineErr, ok := status.FromError(err)
 		if !ok {
-			// Error occurred with decoding gRPC error status, abort with retry.
+			// Error occurred with decoding machine error status, abort with retry.
 			klog.Errorf("Error occurred while decoding machine error for machine %q: %s", machine.Name, err)
-			return machineutils.RetryOp, err
+			return machineutils.MediumRetry, err
 		}
 
-		klog.Info(machineErr.Code())
-
-		// Decoding gRPC error code
+		// Decoding machine error code
 		switch machineErr.Code() {
 		case codes.NotFound, codes.Unimplemented:
 			// Either VM is not found
@@ -345,10 +344,40 @@ func (c *controller) triggerCreationFlow(createMachineRequest *driver.CreateMach
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 			// GetMachineStatus() returned with one of the above error codes.
 			// Retry operation.
-			return machineutils.RetryOp, err
+			c.machineStatusUpdate(
+				machine,
+				v1alpha1.LastOperation{
+					Description:    "Cloud provider message - " + err.Error(),
+					State:          v1alpha1.MachineStateFailed,
+					Type:           v1alpha1.MachineOperationCreate,
+					LastUpdateTime: metav1.Now(),
+				},
+				v1alpha1.CurrentStatus{
+					Phase:          c.getCreateFailurePhase(machine),
+					LastUpdateTime: metav1.Now(),
+				},
+				machine.Status.LastKnownState,
+			)
+
+			return machineutils.ShortRetry, err
 
 		default:
-			return machineutils.DoNotRetryOp, err
+			c.machineStatusUpdate(
+				machine,
+				v1alpha1.LastOperation{
+					Description:    "Cloud provider message - " + err.Error(),
+					State:          v1alpha1.MachineStateFailed,
+					Type:           v1alpha1.MachineOperationCreate,
+					LastUpdateTime: metav1.Now(),
+				},
+				v1alpha1.CurrentStatus{
+					Phase:          c.getCreateFailurePhase(machine),
+					LastUpdateTime: metav1.Now(),
+				},
+				machine.Status.LastKnownState,
+			)
+
+			return machineutils.MediumRetry, err
 		}
 	}
 	_, machineNodeLabelPresent := createMachineRequest.Machine.Labels["node"]
@@ -377,7 +406,7 @@ func (c *controller) triggerCreationFlow(createMachineRequest *driver.CreateMach
 			// Return error even when machine object is updated
 			err = fmt.Errorf("Machine creation in process. Machine UPDATE successful")
 		}
-		return machineutils.RetryOp, err
+		return machineutils.ShortRetry, err
 	}
 
 	if machine.Status.Node != nodeName || machine.Status.CurrentStatus.Phase == "" {
@@ -406,13 +435,13 @@ func (c *controller) triggerCreationFlow(createMachineRequest *driver.CreateMach
 			err = fmt.Errorf("Machine creation in process. Machine/Status UPDATE successful")
 		}
 
-		return machineutils.RetryOp, err
+		return machineutils.ShortRetry, err
 	}
 
-	return machineutils.DoNotRetryOp, nil
+	return machineutils.LongRetry, nil
 }
 
-func (c *controller) triggerUpdationFlow(machine *v1alpha1.Machine, actualProviderID string) (machineutils.Retry, error) {
+func (c *controller) triggerUpdationFlow(machine *v1alpha1.Machine, actualProviderID string) (machineutils.RetryPeriod, error) {
 	klog.V(2).Infof("Setting ProviderID of %s to %s", machine.Name, actualProviderID)
 
 	for {
@@ -447,10 +476,10 @@ func (c *controller) triggerUpdationFlow(machine *v1alpha1.Machine, actualProvid
 		break
 	}
 
-	return machineutils.DoNotRetryOp, nil
+	return machineutils.LongRetry, nil
 }
 
-func (c *controller) triggerDeletionFlow(deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.Retry, error) {
+func (c *controller) triggerDeletionFlow(deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.RetryPeriod, error) {
 	var (
 		machine    = deleteMachineRequest.Machine
 		finalizers = sets.NewString(machine.Finalizers...)
@@ -460,7 +489,7 @@ func (c *controller) triggerDeletionFlow(deleteMachineRequest *driver.DeleteMach
 	case !finalizers.Has(MCMFinalizerName):
 		// If Finalizers are not present on machine
 		err := fmt.Errorf("Machine %q is missing finalizers. Deletion cannot proceed", machine.Name)
-		return machineutils.DoNotRetryOp, err
+		return machineutils.LongRetry, err
 
 	case machine.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating:
 		return c.setMachineTerminationStatus(deleteMachineRequest)
@@ -486,7 +515,7 @@ func (c *controller) triggerDeletionFlow(deleteMachineRequest *driver.DeleteMach
 		if err != nil {
 			// Keep retrying until update goes through
 			klog.Errorf("Machine finalizer REMOVAL failed for machine %q. Retrying, error: %s", machine.Name, err)
-			return machineutils.RetryOp, err
+			return machineutils.ShortRetry, err
 		}
 
 	default:
@@ -501,10 +530,10 @@ func (c *controller) triggerDeletionFlow(deleteMachineRequest *driver.DeleteMach
 		if err != nil && !apierrors.IsNotFound(err) {
 			// If its an error, and anyother error than object not found
 			klog.Errorf("Deletion of Machine Object %q failed due to error: %s", machine.Name, err)
-			return machineutils.RetryOp, err
+			return machineutils.ShortRetry, err
 		}
 	*/
 
 	klog.V(2).Infof("Machine %q deleted successfully", machine.Name)
-	return machineutils.DoNotRetryOp, nil
+	return machineutils.LongRetry, nil
 }

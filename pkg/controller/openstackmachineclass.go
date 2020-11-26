@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +31,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 // OpenStackMachineClassKind is used to identify the machineClassKind as OpenStack
@@ -55,14 +57,49 @@ func (c *controller) machineSetToOpenStackMachineClassDelete(obj interface{}) {
 	}
 }
 
-func (c *controller) machineToOpenStackMachineClassDelete(obj interface{}) {
+func (c *controller) machineToOpenStackMachineClassAdd(obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if machine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", obj)
 		return
 	}
 	if machine.Spec.Class.Kind == OpenStackMachineClassKind {
 		c.openStackMachineClassQueue.Add(machine.Spec.Class.Name)
 	}
+}
+
+func (c *controller) machineToOpenStackMachineClassUpdate(oldObj, newObj interface{}) {
+	oldMachine, ok := oldObj.(*v1alpha1.Machine)
+	if oldMachine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", oldObj)
+		return
+	}
+	newMachine, ok := newObj.(*v1alpha1.Machine)
+	if newMachine == nil || !ok {
+		klog.Warningf("Couldn't get machine from object: %+v", newObj)
+		return
+	}
+
+	if oldMachine.Spec.Class.Kind == newMachine.Spec.Class.Kind {
+		if newMachine.Spec.Class.Kind == OpenStackMachineClassKind {
+			// Both old and new machine refer to the same machineClass object
+			// And the correct kind so enqueuing only one of them.
+			c.openStackMachineClassQueue.Add(newMachine.Spec.Class.Name)
+		}
+	} else {
+		// If both are pointing to different machineClasses
+		// we might have to enqueue both.
+		if oldMachine.Spec.Class.Kind == OpenStackMachineClassKind {
+			c.openStackMachineClassQueue.Add(oldMachine.Spec.Class.Name)
+		}
+		if newMachine.Spec.Class.Kind == OpenStackMachineClassKind {
+			c.openStackMachineClassQueue.Add(newMachine.Spec.Class.Name)
+		}
+	}
+}
+
+func (c *controller) machineToOpenStackMachineClassDelete(obj interface{}) {
+	c.machineToOpenStackMachineClassAdd(obj)
 }
 
 func (c *controller) openStackMachineClassAdd(obj interface{}) {
@@ -87,6 +124,10 @@ func (c *controller) openStackMachineClassUpdate(oldObj, newObj interface{}) {
 	c.openStackMachineClassAdd(newObj)
 }
 
+func (c *controller) openStackMachineClassDelete(obj interface{}) {
+	c.openStackMachineClassAdd(obj)
+}
+
 // reconcileClusterOpenStackMachineClassKey reconciles an OpenStackMachineClass due to controller resync
 // or an event on the openStackMachineClass.
 func (c *controller) reconcileClusterOpenStackMachineClassKey(key string) error {
@@ -105,15 +146,21 @@ func (c *controller) reconcileClusterOpenStackMachineClassKey(key string) error 
 		return err
 	}
 
-	return c.reconcileClusterOpenStackMachineClass(class)
+	err = c.reconcileClusterOpenStackMachineClass(class)
+	if err != nil {
+		c.enqueueOpenStackMachineClassAfter(class, 10*time.Second)
+	} else {
+		// Re-enqueue periodically to avoid missing of events
+		// TODO: Infuture to get ride of this logic
+		c.enqueueOpenStackMachineClassAfter(class, 10*time.Minute)
+	}
+
+	return nil
 }
 
 func (c *controller) reconcileClusterOpenStackMachineClass(class *v1alpha1.OpenStackMachineClass) error {
-	klog.V(4).Info("Start Reconciling openStackmachineclass: ", class.Name)
-	defer func() {
-		c.enqueueOpenStackMachineClassAfter(class, 10*time.Minute)
-		klog.V(4).Info("Stop Reconciling openStackmachineclass: ", class.Name)
-	}()
+	klog.V(4).Info("Start Reconciling OpenStackmachineclass: ", class.Name)
+	defer klog.V(4).Info("Stop Reconciling OpenStackmachineclass: ", class.Name)
 
 	internalClass := &machine.OpenStackMachineClass{}
 	err := c.internalExternalScheme.Convert(class, internalClass, nil)
@@ -121,14 +168,13 @@ func (c *controller) reconcileClusterOpenStackMachineClass(class *v1alpha1.OpenS
 		return err
 	}
 
-	// TODO this should be put in own API server
 	validationerr := validation.ValidateOpenStackMachineClass(internalClass)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
 		klog.Errorf("Validation of %s failed %s", OpenStackMachineClassKind, validationerr.ToAggregate().Error())
 		return nil
 	}
 
-	// Manipulate finalizers
+	// Add finalizer to avoid losing machineClass object
 	if class.DeletionTimestamp == nil {
 		err := c.addOpenStackMachineClassFinalizers(class)
 		if err != nil {
@@ -141,31 +187,35 @@ func (c *controller) reconcileClusterOpenStackMachineClass(class *v1alpha1.OpenS
 		return err
 	}
 
-	if class.DeletionTimestamp != nil {
-		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
-			return nil
+	if class.DeletionTimestamp == nil {
+		// If deletion timestamp doesn't exist
+		_, annotationPresent := class.Annotations[machineutils.MigratedMachineClass]
+
+		if c.deleteMigratedMachineClass && annotationPresent && len(machines) == 0 {
+			// If controller has deleteMigratedMachineClass flag set
+			// and the migratedMachineClass annotation is set
+			err = c.controlMachineClient.OpenStackMachineClasses(class.Namespace).Delete(class.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("Retry deletion as deletion timestamp is now set")
 		}
 
-		machineDeployments, err := c.findMachineDeploymentsForClass(OpenStackMachineClassKind, class.Name)
-		if err != nil {
-			return err
-		}
-		machineSets, err := c.findMachineSetsForClass(OpenStackMachineClassKind, class.Name)
-		if err != nil {
-			return err
-		}
-		if len(machineDeployments) == 0 && len(machineSets) == 0 && len(machines) == 0 {
-			return c.deleteOpenStackMachineClassFinalizers(class)
-		}
-
-		klog.V(3).Infof("Cannot remove finalizer of %s because still Machine[s|Sets|Deployments] are referencing it", class.Name)
 		return nil
 	}
 
-	for _, machine := range machines {
-		c.addMachine(machine)
+	if len(machines) > 0 {
+		// machines are still referring the machine class, please wait before deletion
+		klog.V(3).Infof("Cannot remove finalizer on %s because still (%d) machines are referencing it", class.Name, len(machines))
+
+		for _, machine := range machines {
+			c.addMachine(machine)
+		}
+
+		return fmt.Errorf("Retry as machine objects are still referring the machineclass")
 	}
-	return nil
+
+	return c.deleteOpenStackMachineClassFinalizers(class)
 }
 
 /*
