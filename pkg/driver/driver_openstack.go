@@ -86,7 +86,7 @@ func (l logger) Printf(format string, args ...interface{}) {
 // OpenStackDriver is the driver struct for holding OS machine information
 type OpenStackDriver struct {
 	OpenStackMachineClass *v1alpha1.OpenStackMachineClass
-	CloudConfig           *corev1.Secret
+	CredentialsData       map[string][]byte
 	UserData              string
 	MachineID             string
 	MachineName           string
@@ -446,41 +446,41 @@ func (d *OpenStackDriver) createNovaClient() (*gophercloud.ServiceClient, error)
 func (d *OpenStackDriver) createOpenStackClient() (*gophercloud.ProviderClient, error) {
 	config := &tls.Config{}
 
-	authURL, ok := d.CloudConfig.Data[v1alpha1.OpenStackAuthURL]
+	authURL, ok := d.CredentialsData[v1alpha1.OpenStackAuthURL]
 	if !ok {
 		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackAuthURL)
 	}
-	username, ok := d.CloudConfig.Data[v1alpha1.OpenStackUsername]
+	username, ok := d.CredentialsData[v1alpha1.OpenStackUsername]
 	if !ok {
 		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackUsername)
 	}
-	password, ok := d.CloudConfig.Data[v1alpha1.OpenStackPassword]
+	password, ok := d.CredentialsData[v1alpha1.OpenStackPassword]
 	if !ok {
 		return nil, fmt.Errorf("missing %s in secret", v1alpha1.OpenStackPassword)
 	}
 
 	// optional OS_USER_DOMAIN_NAME
-	userDomainName := d.CloudConfig.Data[v1alpha1.OpenStackUserDomainName]
+	userDomainName := d.CredentialsData[v1alpha1.OpenStackUserDomainName]
 	// optional OS_USER_DOMAIN_ID
-	userDomainID := d.CloudConfig.Data[v1alpha1.OpenStackUserDomainID]
+	userDomainID := d.CredentialsData[v1alpha1.OpenStackUserDomainID]
 
-	domainName, ok := d.CloudConfig.Data[v1alpha1.OpenStackDomainName]
-	domainID, ok2 := d.CloudConfig.Data[v1alpha1.OpenStackDomainID]
+	domainName, ok := d.CredentialsData[v1alpha1.OpenStackDomainName]
+	domainID, ok2 := d.CredentialsData[v1alpha1.OpenStackDomainID]
 	if !ok && !ok2 {
 		return nil, fmt.Errorf("missing %s or %s in secret", v1alpha1.OpenStackDomainName, v1alpha1.OpenStackDomainID)
 	}
-	tenantName, ok := d.CloudConfig.Data[v1alpha1.OpenStackTenantName]
-	tenantID, ok2 := d.CloudConfig.Data[v1alpha1.OpenStackTenantID]
+	tenantName, ok := d.CredentialsData[v1alpha1.OpenStackTenantName]
+	tenantID, ok2 := d.CredentialsData[v1alpha1.OpenStackTenantID]
 	if !ok && !ok2 {
 		return nil, fmt.Errorf("missing %s or %s in secret", v1alpha1.OpenStackTenantName, v1alpha1.OpenStackTenantID)
 	}
 
-	caCert, ok := d.CloudConfig.Data[v1alpha1.OpenStackCACert]
+	caCert, ok := d.CredentialsData[v1alpha1.OpenStackCACert]
 	if !ok {
 		caCert = nil
 	}
 
-	insecure, ok := d.CloudConfig.Data[v1alpha1.OpenStackInsecure]
+	insecure, ok := d.CredentialsData[v1alpha1.OpenStackInsecure]
 	if ok && strings.TrimSpace(string(insecure)) == "true" {
 		config.InsecureSkipVerify = true
 	}
@@ -491,9 +491,9 @@ func (d *OpenStackDriver) createOpenStackClient() (*gophercloud.ProviderClient, 
 		config.RootCAs = caCertPool
 	}
 
-	clientCert, ok := d.CloudConfig.Data[v1alpha1.OpenStackClientCert]
+	clientCert, ok := d.CredentialsData[v1alpha1.OpenStackClientCert]
 	if ok {
-		clientKey, ok := d.CloudConfig.Data[v1alpha1.OpenStackClientKey]
+		clientKey, ok := d.CredentialsData[v1alpha1.OpenStackClientKey]
 		if ok {
 			cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
 			if err != nil {

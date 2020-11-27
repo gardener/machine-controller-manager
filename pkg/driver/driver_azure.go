@@ -52,7 +52,7 @@ const (
 // AzureDriver is the driver struct for holding azure machine information
 type AzureDriver struct {
 	AzureMachineClass *v1alpha1.AzureMachineClass
-	CloudConfig       *corev1.Secret
+	CredentialsData   map[string][]byte
 	UserData          string
 	MachineID         string
 	MachineName       string
@@ -395,10 +395,10 @@ func (d *AzureDriver) SetUserData(userData string) {
 
 func (d *AzureDriver) setup() (*azureDriverClients, error) {
 	var (
-		subscriptionID = strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureSubscriptionID]))
-		tenantID       = strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureTenantID]))
-		clientID       = strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureClientID]))
-		clientSecret   = strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AzureClientSecret]))
+		subscriptionID = strings.TrimSpace(string(d.CredentialsData[v1alpha1.AzureSubscriptionID]))
+		tenantID       = strings.TrimSpace(string(d.CredentialsData[v1alpha1.AzureTenantID]))
+		clientID       = strings.TrimSpace(string(d.CredentialsData[v1alpha1.AzureClientID]))
+		clientSecret   = strings.TrimSpace(string(d.CredentialsData[v1alpha1.AzureClientSecret]))
 		env            = azure.PublicCloud
 	)
 	return newClients(subscriptionID, tenantID, clientID, clientSecret, env)

@@ -44,7 +44,7 @@ const (
 // AlicloudDriver is the driver struct for holding Alicloud machine information
 type AlicloudDriver struct {
 	AlicloudMachineClass *v1alpha1.AlicloudMachineClass
-	CloudConfig          *corev1.Secret
+	CredentialsData      map[string][]byte
 	UserData             string
 	MachineID            string
 	MachineName          string
@@ -263,8 +263,8 @@ func (c *AlicloudDriver) decodeMachineID(id string) string {
 }
 
 func (c *AlicloudDriver) getEcsClient() (*ecs.Client, error) {
-	accessKeyID := strings.TrimSpace(string(c.CloudConfig.Data[v1alpha1.AlicloudAccessKeyID]))
-	accessKeySecret := strings.TrimSpace(string(c.CloudConfig.Data[v1alpha1.AlicloudAccessKeySecret]))
+	accessKeyID := strings.TrimSpace(string(c.CredentialsData[v1alpha1.AlicloudAccessKeyID]))
+	accessKeySecret := strings.TrimSpace(string(c.CredentialsData[v1alpha1.AlicloudAccessKeySecret]))
 	region := c.AlicloudMachineClass.Spec.Region
 
 	var ecsClient *ecs.Client

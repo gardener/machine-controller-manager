@@ -536,7 +536,7 @@ func (c *controller) checkMachineClass(
 	// Dummy driver object being created to invoke GetVMs
 	dvr := driver.NewDriver(
 		"",
-		secret,
+		secret.Data,
 		classKind,
 		machineClass,
 		"",
@@ -626,7 +626,7 @@ func (c *controller) deleteOrphanVM(vm driver.VMs, secretRef *corev1.Secret, kin
 
 	dvr := driver.NewDriver(
 		machineID,
-		secretRef,
+		secretRef.Data,
 		kind,
 		machineClass,
 		machineName,
