@@ -39,14 +39,14 @@ type Driver interface {
 type VMs map[string]string
 
 // NewDriver creates a new driver object based on the classKind
-func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, machineClass interface{}, machineName string) Driver {
+func NewDriver(machineID string, secretData map[string][]byte, classKind string, machineClass interface{}, machineName string) Driver {
 
 	switch classKind {
 	case "OpenStackMachineClass":
 		return &OpenStackDriver{
 			OpenStackMachineClass: machineClass.(*v1alpha1.OpenStackMachineClass),
-			CloudConfig:           secretRef,
-			UserData:              string(secretRef.Data["userData"]),
+			CredentialsData:       secretData,
+			UserData:              string(secretData["userData"]),
 			MachineID:             machineID,
 			MachineName:           machineName,
 		}
@@ -54,8 +54,8 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 	case "AWSMachineClass":
 		return &AWSDriver{
 			AWSMachineClass: machineClass.(*v1alpha1.AWSMachineClass),
-			CloudConfig:     secretRef,
-			UserData:        string(secretRef.Data["userData"]),
+			CredentialsData: secretData,
+			UserData:        string(secretData["userData"]),
 			MachineID:       machineID,
 			MachineName:     machineName,
 		}
@@ -63,8 +63,8 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 	case "AzureMachineClass":
 		return &AzureDriver{
 			AzureMachineClass: machineClass.(*v1alpha1.AzureMachineClass),
-			CloudConfig:       secretRef,
-			UserData:          string(secretRef.Data["userData"]),
+			CredentialsData:   secretData,
+			UserData:          string(secretData["userData"]),
 			MachineID:         machineID,
 			MachineName:       machineName,
 		}
@@ -72,8 +72,8 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 	case "GCPMachineClass":
 		return &GCPDriver{
 			GCPMachineClass: machineClass.(*v1alpha1.GCPMachineClass),
-			CloudConfig:     secretRef,
-			UserData:        string(secretRef.Data["userData"]),
+			CredentialsData: secretData,
+			UserData:        string(secretData["userData"]),
 			MachineID:       machineID,
 			MachineName:     machineName,
 		}
@@ -81,16 +81,16 @@ func NewDriver(machineID string, secretRef *corev1.Secret, classKind string, mac
 	case "AlicloudMachineClass":
 		return &AlicloudDriver{
 			AlicloudMachineClass: machineClass.(*v1alpha1.AlicloudMachineClass),
-			CloudConfig:          secretRef,
-			UserData:             string(secretRef.Data["userData"]),
+			CredentialsData:      secretData,
+			UserData:             string(secretData["userData"]),
 			MachineID:            machineID,
 			MachineName:          machineName,
 		}
 	case "PacketMachineClass":
 		return &PacketDriver{
 			PacketMachineClass: machineClass.(*v1alpha1.PacketMachineClass),
-			CloudConfig:        secretRef,
-			UserData:           string(secretRef.Data["userData"]),
+			CredentialsData:    secretData,
+			UserData:           string(secretData["userData"]),
 			MachineID:          machineID,
 			MachineName:        machineName,
 		}
