@@ -1157,6 +1157,11 @@ func (in *MachineClass) DeepCopyInto(out *MachineClass) {
 		*out = new(v1.SecretReference)
 		**out = **in
 	}
+	if in.CredentialsSecretRef != nil {
+		in, out := &in.CredentialsSecretRef, &out.CredentialsSecretRef
+		*out = new(v1.SecretReference)
+		**out = **in
+	}
 	return
 }
 

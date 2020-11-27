@@ -2305,7 +2305,13 @@ func schema_pkg_apis_machine_v1alpha1_MachineClass(ref common.ReferenceCallback)
 					},
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SecretRef stores the necessary secrets such as credetials or userdata.",
+							Description: "SecretRef stores the necessary secrets such as credentials or userdata.",
+							Ref:         ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
+					"credentialsSecretRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CredentialsSecretRef can optionally store the credentials (in this case the SecretRef does not need to store them). This might be useful if multiple machine classes with the same credentials but different user-datas are used.",
 							Ref:         ref("k8s.io/api/core/v1.SecretReference"),
 						},
 					},

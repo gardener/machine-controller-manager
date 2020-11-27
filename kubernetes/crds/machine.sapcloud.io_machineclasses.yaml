@@ -25,6 +25,21 @@ spec:
             of an object. Servers should convert recognized schemas to the latest
             internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
+        credentialsSecretRef:
+          description: CredentialsSecretRef can optionally store the credentials (in
+            this case the SecretRef does not need to store them). This might be useful
+            if multiple machine classes with the same credentials but different user-datas
+            are used.
+          properties:
+            name:
+              description: Name is unique within a namespace to reference a secret
+                resource.
+              type: string
+            namespace:
+              description: Namespace defines the space within which the secret name
+                must be unique.
+              type: string
+          type: object
         kind:
           description: 'Kind is a string value representing the REST resource this
             object represents. Servers may infer this from the endpoint the client
@@ -40,8 +55,8 @@ spec:
           description: Provider-specific configuration to use during node creation.
           type: object
         secretRef:
-          description: SecretRef stores the necessary secrets such as credetials or
-            userdata.
+          description: SecretRef stores the necessary secrets such as credentials
+            or userdata.
           properties:
             name:
               description: Name is unique within a namespace to reference a secret
