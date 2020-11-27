@@ -1206,8 +1206,11 @@ type MachineClass struct {
 	metav1.ObjectMeta
 	// Provider-specific configuration to use during node creation.
 	ProviderSpec runtime.RawExtension
-	// SecretRef stores the necessary secrets such as credetials or userdata.
+	// SecretRef stores the necessary secrets such as credentials or userdata.
 	SecretRef *corev1.SecretReference
+	// CredentialsSecretRef can optionally store the credentials (in this case the SecretRef does not need to store them).
+	// This might be useful if multiple machine classes with the same credentials but different user-datas are used.
+	CredentialsSecretRef *corev1.SecretReference
 	// Provider is the combination of name and location of cloud-specific drivers.
 	// eg. awsdriver//127.0.0.1:8080
 	Provider string
