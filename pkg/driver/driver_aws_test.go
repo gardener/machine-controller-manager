@@ -33,7 +33,7 @@ var _ = Describe("Driver AWS", func() {
 		It("should convert multiples tags successfully", func() {
 			awsDriver := &AWSDriver{
 				AWSMachineClass: &v1alpha1.AWSMachineClass{},
-				CloudConfig:     &corev1.Secret{},
+				CredentialsData: map[string][]byte{},
 				UserData:        "dXNlciBkYXRhCg==",
 				MachineID:       "ami-99fn8a892f94e765a",
 				MachineName:     "machine-name",

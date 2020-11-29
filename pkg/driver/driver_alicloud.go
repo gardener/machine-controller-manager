@@ -263,8 +263,8 @@ func (c *AlicloudDriver) decodeMachineID(id string) string {
 }
 
 func (c *AlicloudDriver) getEcsClient() (*ecs.Client, error) {
-	accessKeyID := strings.TrimSpace(string(c.CredentialsData[v1alpha1.AlicloudAccessKeyID]))
-	accessKeySecret := strings.TrimSpace(string(c.CredentialsData[v1alpha1.AlicloudAccessKeySecret]))
+	accessKeyID := ExtractCredentialsFromData(c.CredentialsData, v1alpha1.AlicloudAccessKeyID, v1alpha1.AlicloudAlternativeAccessKeyID)
+	accessKeySecret := ExtractCredentialsFromData(c.CredentialsData, v1alpha1.AlicloudAccessKeySecret, v1alpha1.AlicloudAlternativeAccessKeySecret)
 	region := c.AlicloudMachineClass.Spec.Region
 
 	var ecsClient *ecs.Client

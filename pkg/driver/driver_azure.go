@@ -395,10 +395,10 @@ func (d *AzureDriver) SetUserData(userData string) {
 
 func (d *AzureDriver) setup() (*azureDriverClients, error) {
 	var (
-		subscriptionID = strings.TrimSpace(string(d.CredentialsData[v1alpha1.AzureSubscriptionID]))
-		tenantID       = strings.TrimSpace(string(d.CredentialsData[v1alpha1.AzureTenantID]))
-		clientID       = strings.TrimSpace(string(d.CredentialsData[v1alpha1.AzureClientID]))
-		clientSecret   = strings.TrimSpace(string(d.CredentialsData[v1alpha1.AzureClientSecret]))
+		subscriptionID = ExtractCredentialsFromData(d.CredentialsData, v1alpha1.AzureSubscriptionID, v1alpha1.AzureAlternativeSubscriptionID)
+		tenantID       = ExtractCredentialsFromData(d.CredentialsData, v1alpha1.AzureTenantID, v1alpha1.AzureAlternativeTenantID)
+		clientID       = ExtractCredentialsFromData(d.CredentialsData, v1alpha1.AzureClientID, v1alpha1.AzureAlternativeClientID)
+		clientSecret   = ExtractCredentialsFromData(d.CredentialsData, v1alpha1.AzureClientSecret, v1alpha1.AzureAlternativeClientSecret)
 		env            = azure.PublicCloud
 	)
 	return newClients(subscriptionID, tenantID, clientID, clientSecret, env)

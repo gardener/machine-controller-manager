@@ -25,16 +25,17 @@ import (
 	"strings"
 	"time"
 
-	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	compute "google.golang.org/api/compute/v1"
+	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog"
+
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/metrics"
 )
 
 const (
@@ -58,7 +59,7 @@ func (d *GCPDriver) Create() (string, string, error) {
 		return "Error", "Error", err
 	}
 
-	project, err := extractProject(d.CredentialsData[v1alpha1.GCPServiceAccountJSON])
+	project, err := extractProject(d.CredentialsData)
 	if err != nil {
 		return "Error", "Error", err
 	}
@@ -255,7 +256,7 @@ func (d *GCPDriver) GetVMs(machineID string) (VMs, error) {
 		return listOfVMs, err
 	}
 
-	project, err := extractProject(d.CredentialsData[v1alpha1.GCPServiceAccountJSON])
+	project, err := extractProject(d.CredentialsData)
 	if err != nil {
 		klog.Error(err)
 		return listOfVMs, err
@@ -302,8 +303,9 @@ func (d *GCPDriver) GetVMs(machineID string) (VMs, error) {
 
 func (d *GCPDriver) createComputeService() (context.Context, *compute.Service, error) {
 	ctx := context.Background()
+	serviceAccountJSON := ExtractCredentialsFromData(d.CredentialsData, v1alpha1.GCPServiceAccountJSON, v1alpha1.GCPAlternativeServiceAccountJSON)
 
-	jwt, err := google.JWTConfigFromJSON(d.CredentialsData[v1alpha1.GCPServiceAccountJSON], compute.CloudPlatformScope)
+	jwt, err := google.JWTConfigFromJSON([]byte(serviceAccountJSON), compute.CloudPlatformScope)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -356,11 +358,13 @@ func (d *GCPDriver) decodeMachineID(id string) (string, string, string, error) {
 	return gce[0], gce[1], gce[2], nil
 }
 
-func extractProject(serviceaccount []byte) (string, error) {
+func extractProject(credentialsData map[string][]byte) (string, error) {
+	serviceAccountJSON := ExtractCredentialsFromData(credentialsData, v1alpha1.GCPServiceAccountJSON, v1alpha1.GCPAlternativeServiceAccountJSON)
+
 	var j struct {
 		Project string `json:"project_id"`
 	}
-	if err := json.Unmarshal(serviceaccount, &j); err != nil {
+	if err := json.Unmarshal([]byte(serviceAccountJSON), &j); err != nil {
 		return "Error", err
 	}
 	return j.Project, nil
