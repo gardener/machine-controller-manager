@@ -423,6 +423,7 @@ func (c *controller) checkAWSMachineClass() {
 		c.checkMachineClass(
 			machineClass,
 			machineClass.Spec.SecretRef,
+			machineClass.Spec.CredentialsSecretRef,
 			machineClass.Name,
 			machineClass.Kind,
 		)
@@ -441,6 +442,7 @@ func (c *controller) checkOSMachineClass() {
 		c.checkMachineClass(
 			machineClass,
 			machineClass.Spec.SecretRef,
+			machineClass.Spec.CredentialsSecretRef,
 			machineClass.Name,
 			machineClass.Kind,
 		)
@@ -459,6 +461,7 @@ func (c *controller) checkAzureMachineClass() {
 		c.checkMachineClass(
 			machineClass,
 			machineClass.Spec.SecretRef,
+			machineClass.Spec.CredentialsSecretRef,
 			machineClass.Name,
 			machineClass.Kind,
 		)
@@ -477,6 +480,7 @@ func (c *controller) checkGCPMachineClass() {
 		c.checkMachineClass(
 			machineClass,
 			machineClass.Spec.SecretRef,
+			machineClass.Spec.CredentialsSecretRef,
 			machineClass.Name,
 			machineClass.Kind,
 		)
@@ -495,6 +499,7 @@ func (c *controller) checkAlicloudMachineClass() {
 		c.checkMachineClass(
 			machineClass,
 			machineClass.Spec.SecretRef,
+			machineClass.Spec.CredentialsSecretRef,
 			machineClass.Name,
 			machineClass.Kind,
 		)
@@ -513,6 +518,7 @@ func (c *controller) checkPacketMachineClass() {
 		c.checkMachineClass(
 			machineClass,
 			machineClass.Spec.SecretRef,
+			machineClass.Spec.CredentialsSecretRef,
 			machineClass.Name,
 			machineClass.Kind,
 		)
@@ -523,20 +529,21 @@ func (c *controller) checkPacketMachineClass() {
 func (c *controller) checkMachineClass(
 	machineClass interface{},
 	secretRef *corev1.SecretReference,
+	credentialsSecretRef *corev1.SecretReference,
 	className string,
 	classKind string) {
 
-	// Get secret
-	secret, err := c.getSecret(secretRef, className)
-	if err != nil || secret == nil {
-		klog.Errorf("SafetyController: Secret reference not found for MachineClass: %q", className)
+	// Get secret data
+	secretData, err := c.getSecretData(className, secretRef, credentialsSecretRef)
+	if err != nil || secretData == nil {
+		klog.Errorf("SafetyController: Secret Data could not be computed for MachineClass: %q", className)
 		return
 	}
 
 	// Dummy driver object being created to invoke GetVMs
 	dvr := driver.NewDriver(
 		"",
-		secret.Data,
+		secretData,
 		classKind,
 		machineClass,
 		"",
@@ -582,7 +589,7 @@ func (c *controller) checkMachineClass(
 					if (err != nil && apierrors.IsNotFound(err)) || machine.Spec.ProviderID != machineID {
 						vm := make(map[string]string)
 						vm[machineID] = machineName
-						c.deleteOrphanVM(vm, secret, classKind, machineClass)
+						c.deleteOrphanVM(vm, secretData, classKind, machineClass)
 					}
 				}
 			}
@@ -614,7 +621,7 @@ func (c *controller) enqueueMachineSafetyOrphanVMsKey(obj interface{}) {
 }
 
 // deleteOrphanVM teriminates's the VM on the cloud provider passed to it
-func (c *controller) deleteOrphanVM(vm driver.VMs, secretRef *corev1.Secret, kind string, machineClass interface{}) {
+func (c *controller) deleteOrphanVM(vm driver.VMs, secretData map[string][]byte, kind string, machineClass interface{}) {
 
 	var machineID string
 	var machineName string
@@ -626,7 +633,7 @@ func (c *controller) deleteOrphanVM(vm driver.VMs, secretRef *corev1.Secret, kin
 
 	dvr := driver.NewDriver(
 		machineID,
-		secretRef.Data,
+		secretData,
 		kind,
 		machineClass,
 		machineName,

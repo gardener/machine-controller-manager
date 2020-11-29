@@ -70,12 +70,13 @@ type AzureMachineClassList struct {
 
 // AzureMachineClassSpec is the specification of a AzureMachineClass.
 type AzureMachineClassSpec struct {
-	Location      string                        `json:"location,omitempty"`
-	Tags          map[string]string             `json:"tags,omitempty"`
-	Properties    AzureVirtualMachineProperties `json:"properties,omitempty"`
-	ResourceGroup string                        `json:"resourceGroup,omitempty"`
-	SubnetInfo    AzureSubnetInfo               `json:"subnetInfo,omitempty"`
-	SecretRef     *corev1.SecretReference       `json:"secretRef,omitempty"`
+	Location             string                        `json:"location,omitempty"`
+	Tags                 map[string]string             `json:"tags,omitempty"`
+	Properties           AzureVirtualMachineProperties `json:"properties,omitempty"`
+	ResourceGroup        string                        `json:"resourceGroup,omitempty"`
+	SubnetInfo           AzureSubnetInfo               `json:"subnetInfo,omitempty"`
+	SecretRef            *corev1.SecretReference       `json:"secretRef,omitempty"`
+	CredentialsSecretRef *corev1.SecretReference       `json:"credentialsSecretRef,omitempty"`
 }
 
 // AzureVirtualMachineProperties is describes the properties of a Virtual Machine.
