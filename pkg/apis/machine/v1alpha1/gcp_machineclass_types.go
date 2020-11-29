@@ -26,6 +26,10 @@ import (
 const (
 	// GCPServiceAccountJSON is a constant for a key name that is part of the GCP cloud credentials.
 	GCPServiceAccountJSON string = "serviceAccountJSON"
+
+	// GCPAlternativeServiceAccountJSON is a constant for a key name of a secret containing the GCP credentials (service
+	// account json).
+	GCPAlternativeServiceAccountJSON = "serviceaccount.json"
 )
 
 // +genclient

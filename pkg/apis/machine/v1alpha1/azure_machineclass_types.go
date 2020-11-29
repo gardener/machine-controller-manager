@@ -32,6 +32,17 @@ const (
 	AzureSubscriptionID string = "azureSubscriptionId"
 	// AzureTenantID is a constant for a key name that is part of the Azure cloud credentials.
 	AzureTenantID string = "azureTenantId"
+
+	// AzureAlternativeClientID is a constant for a key name of a secret containing the Azure credentials (client id).
+	AzureAlternativeClientID = "clientID"
+	// AzureAlternativeClientSecret is a constant for a key name of a secret containing the Azure credentials (client
+	// secret).
+	AzureAlternativeClientSecret = "clientSecret"
+	// AzureAlternativeSubscriptionID is a constant for a key name of a secret containing the Azure credentials
+	// (subscription id).
+	AzureAlternativeSubscriptionID = "subscriptionID"
+	// AzureAlternativeTenantID is a constant for a key name of a secret containing the Azure credentials (tenant id).
+	AzureAlternativeTenantID = "tenantID"
 )
 
 // +genclient

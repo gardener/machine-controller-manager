@@ -28,6 +28,13 @@ const (
 	AWSAccessKeyID string = "providerAccessKeyId"
 	// AWSSecretAccessKey is a constant for a key name that is part of the AWS cloud credentials.
 	AWSSecretAccessKey string = "providerSecretAccessKey"
+
+	// AWSAlternativeAccessKeyID is a constant for a key name of a secret containing the AWS credentials (access key
+	// id).
+	AWSAlternativeAccessKeyID = "accessKeyID"
+	// AWSAlternativeAccessKeySecret is a constant for a key name of a secret containing the AWS credentials (access key
+	// secret).
+	AWSAlternativeSecretAccessKey = "secretAccessKey"
 )
 
 // +genclient

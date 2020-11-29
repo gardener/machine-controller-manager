@@ -18,7 +18,10 @@ limitations under the License.
 package driver
 
 import (
+	"strings"
+
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -110,4 +113,15 @@ func NewDriver(machineID string, secretData map[string][]byte, classKind string,
 			return nil, nil
 		},
 	)
+}
+
+// ExtractCredentialsFromData extracts and trims a value from the given data map. The first key that exists is being
+// returned, otherwise, the next key is tried, etc. If no key exists then an empty string is returned.
+func ExtractCredentialsFromData(data map[string][]byte, keys ...string) string {
+	for _, key := range keys {
+		if val, ok := data[key]; ok {
+			return strings.TrimSpace(string(val))
+		}
+	}
+	return ""
 }
