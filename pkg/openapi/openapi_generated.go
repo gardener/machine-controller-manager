@@ -675,6 +675,11 @@ func schema_pkg_apis_machine_v1alpha1_AWSMachineClassSpec(ref common.ReferenceCa
 							Ref: ref("k8s.io/api/core/v1.SecretReference"),
 						},
 					},
+					"credentialsSecretRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
 				},
 			},
 		},
@@ -999,6 +1004,11 @@ func schema_pkg_apis_machine_v1alpha1_AlicloudMachineClassSpec(ref common.Refere
 							Ref: ref("k8s.io/api/core/v1.SecretReference"),
 						},
 					},
+					"credentialsSecretRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
 				},
 				Required: []string{"imageID", "instanceType", "region", "vSwitchID", "keyPairName"},
 			},
@@ -1276,6 +1286,11 @@ func schema_pkg_apis_machine_v1alpha1_AzureMachineClassSpec(ref common.Reference
 						},
 					},
 					"secretRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
+					"credentialsSecretRef": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("k8s.io/api/core/v1.SecretReference"),
 						},
@@ -1990,6 +2005,11 @@ func schema_pkg_apis_machine_v1alpha1_GCPMachineClassSpec(ref common.ReferenceCa
 						},
 					},
 					"secretRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
+					"credentialsSecretRef": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("k8s.io/api/core/v1.SecretReference"),
 						},
@@ -3435,6 +3455,11 @@ func schema_pkg_apis_machine_v1alpha1_OpenStackMachineClassSpec(ref common.Refer
 							Ref: ref("k8s.io/api/core/v1.SecretReference"),
 						},
 					},
+					"credentialsSecretRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
 					"podNetworkCidr": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
@@ -3662,6 +3687,11 @@ func schema_pkg_apis_machine_v1alpha1_PacketMachineClassSpec(ref common.Referenc
 						},
 					},
 					"secretRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
+					"credentialsSecretRef": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("k8s.io/api/core/v1.SecretReference"),
 						},

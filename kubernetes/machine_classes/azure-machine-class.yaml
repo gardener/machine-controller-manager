@@ -14,6 +14,9 @@ spec:
   secretRef: # Kubernetes secret containing values for provider secrets and user-data
     name: "test-secret" # Name of the secret
     namespace: "default" # Namespace of secret
+# credentialsSecretRef: # Optional - Kubernetes secret containing only provider secrets (in this case the Secret in the secretRef does not need them)
+#   name: "test-secret-credentials" # Name of the secret
+#   namespace: "default" # Namespace of secret
   tags:
     kubernetes.io-cluster-YOUR_CLUSTER_NAME: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller.
     kubernetes.io-role-YOUR_ROLE_NAME: "1" # This is mandatory as the safety controller uses this tag to identify VMs created by this controller.

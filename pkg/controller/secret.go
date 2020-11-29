@@ -22,10 +22,12 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
 )
 
@@ -159,12 +161,31 @@ func (c *controller) enqueueSecretAfter(obj interface{}, after time.Duration) {
 	c.secretQueue.AddAfter(key, after)
 }
 
+func enqueueSecretForReferences(queue workqueue.RateLimitingInterface, secretRefs ...*corev1.SecretReference) {
+	for _, secretRef := range secretRefs {
+		if secretRef != nil {
+			queue.Add(secretRef.Namespace + "/" + secretRef.Name)
+		}
+	}
+}
+
+func enqueueSecretForReferenceIfChanged(queue workqueue.RateLimitingInterface, oldSecretRef, newSecretRef *corev1.SecretReference) {
+	if !apiequality.Semantic.DeepEqual(oldSecretRef, newSecretRef) {
+		if oldSecretRef != nil {
+			queue.Add(oldSecretRef.Namespace + "/" + oldSecretRef.Name)
+		}
+		if newSecretRef != nil {
+			queue.Add(newSecretRef.Namespace + "/" + newSecretRef.Name)
+		}
+	}
+}
+
 func (c *controller) openStackMachineClassToSecretAdd(obj interface{}) {
 	machineClass, ok := obj.(*v1alpha1.OpenStackMachineClass)
 	if machineClass == nil || !ok {
 		return
 	}
-	c.secretQueue.Add(machineClass.Spec.SecretRef.Namespace + "/" + machineClass.Spec.SecretRef.Name)
+	enqueueSecretForReferences(c.secretQueue, machineClass.Spec.SecretRef, machineClass.Spec.CredentialsSecretRef)
 }
 
 func (c *controller) openStackMachineClassToSecretUpdate(oldObj interface{}, newObj interface{}) {
@@ -177,11 +198,8 @@ func (c *controller) openStackMachineClassToSecretUpdate(oldObj interface{}, new
 		return
 	}
 
-	if oldMachineClass.Spec.SecretRef.Name != newMachineClass.Spec.SecretRef.Name ||
-		oldMachineClass.Spec.SecretRef.Namespace != newMachineClass.Spec.SecretRef.Namespace {
-		c.secretQueue.Add(oldMachineClass.Spec.SecretRef.Namespace + "/" + oldMachineClass.Spec.SecretRef.Name)
-		c.secretQueue.Add(newMachineClass.Spec.SecretRef.Namespace + "/" + newMachineClass.Spec.SecretRef.Name)
-	}
+	enqueueSecretForReferenceIfChanged(c.secretQueue, oldMachineClass.Spec.SecretRef, newMachineClass.Spec.SecretRef)
+	enqueueSecretForReferenceIfChanged(c.secretQueue, oldMachineClass.Spec.CredentialsSecretRef, newMachineClass.Spec.CredentialsSecretRef)
 }
 
 func (c *controller) openStackMachineClassToSecretDelete(obj interface{}) {
@@ -193,7 +211,8 @@ func (c *controller) gcpMachineClassToSecretAdd(obj interface{}) {
 	if machineClass == nil || !ok {
 		return
 	}
-	c.secretQueue.Add(machineClass.Spec.SecretRef.Namespace + "/" + machineClass.Spec.SecretRef.Name)
+
+	enqueueSecretForReferences(c.secretQueue, machineClass.Spec.SecretRef, machineClass.Spec.CredentialsSecretRef)
 }
 
 func (c *controller) gcpMachineClassToSecretUpdate(oldObj interface{}, newObj interface{}) {
@@ -206,11 +225,8 @@ func (c *controller) gcpMachineClassToSecretUpdate(oldObj interface{}, newObj in
 		return
 	}
 
-	if oldMachineClass.Spec.SecretRef.Name != newMachineClass.Spec.SecretRef.Name ||
-		oldMachineClass.Spec.SecretRef.Namespace != newMachineClass.Spec.SecretRef.Namespace {
-		c.secretQueue.Add(oldMachineClass.Spec.SecretRef.Namespace + "/" + oldMachineClass.Spec.SecretRef.Name)
-		c.secretQueue.Add(newMachineClass.Spec.SecretRef.Namespace + "/" + newMachineClass.Spec.SecretRef.Name)
-	}
+	enqueueSecretForReferenceIfChanged(c.secretQueue, oldMachineClass.Spec.SecretRef, newMachineClass.Spec.SecretRef)
+	enqueueSecretForReferenceIfChanged(c.secretQueue, oldMachineClass.Spec.CredentialsSecretRef, newMachineClass.Spec.CredentialsSecretRef)
 }
 
 func (c *controller) gcpMachineClassToSecretDelete(obj interface{}) {
@@ -222,7 +238,7 @@ func (c *controller) azureMachineClassToSecretAdd(obj interface{}) {
 	if machineClass == nil || !ok {
 		return
 	}
-	c.secretQueue.Add(machineClass.Spec.SecretRef.Namespace + "/" + machineClass.Spec.SecretRef.Name)
+	enqueueSecretForReferences(c.secretQueue, machineClass.Spec.SecretRef, machineClass.Spec.CredentialsSecretRef)
 }
 
 func (c *controller) azureMachineClassToSecretUpdate(oldObj interface{}, newObj interface{}) {
@@ -235,11 +251,8 @@ func (c *controller) azureMachineClassToSecretUpdate(oldObj interface{}, newObj 
 		return
 	}
 
-	if oldMachineClass.Spec.SecretRef.Name != newMachineClass.Spec.SecretRef.Name ||
-		oldMachineClass.Spec.SecretRef.Namespace != newMachineClass.Spec.SecretRef.Namespace {
-		c.secretQueue.Add(oldMachineClass.Spec.SecretRef.Namespace + "/" + oldMachineClass.Spec.SecretRef.Name)
-		c.secretQueue.Add(newMachineClass.Spec.SecretRef.Namespace + "/" + newMachineClass.Spec.SecretRef.Name)
-	}
+	enqueueSecretForReferenceIfChanged(c.secretQueue, oldMachineClass.Spec.SecretRef, newMachineClass.Spec.SecretRef)
+	enqueueSecretForReferenceIfChanged(c.secretQueue, oldMachineClass.Spec.CredentialsSecretRef, newMachineClass.Spec.CredentialsSecretRef)
 }
 
 func (c *controller) azureMachineClassToSecretDelete(obj interface{}) {
@@ -251,7 +264,7 @@ func (c *controller) alicloudMachineClassToSecretAdd(obj interface{}) {
 	if machineClass == nil || !ok {
 		return
 	}
-	c.secretQueue.Add(machineClass.Spec.SecretRef.Namespace + "/" + machineClass.Spec.SecretRef.Name)
+	enqueueSecretForReferences(c.secretQueue, machineClass.Spec.SecretRef, machineClass.Spec.CredentialsSecretRef)
 }
 
 func (c *controller) alicloudMachineClassToSecretUpdate(oldObj interface{}, newObj interface{}) {
@@ -264,11 +277,8 @@ func (c *controller) alicloudMachineClassToSecretUpdate(oldObj interface{}, newO
 		return
 	}
 
-	if oldMachineClass.Spec.SecretRef.Name != newMachineClass.Spec.SecretRef.Name ||
-		oldMachineClass.Spec.SecretRef.Namespace != newMachineClass.Spec.SecretRef.Namespace {
-		c.secretQueue.Add(oldMachineClass.Spec.SecretRef.Namespace + "/" + oldMachineClass.Spec.SecretRef.Name)
-		c.secretQueue.Add(newMachineClass.Spec.SecretRef.Namespace + "/" + newMachineClass.Spec.SecretRef.Name)
-	}
+	enqueueSecretForReferenceIfChanged(c.secretQueue, oldMachineClass.Spec.SecretRef, newMachineClass.Spec.SecretRef)
+	enqueueSecretForReferenceIfChanged(c.secretQueue, oldMachineClass.Spec.CredentialsSecretRef, newMachineClass.Spec.CredentialsSecretRef)
 }
 
 func (c *controller) alicloudMachineClassToSecretDelete(obj interface{}) {
@@ -280,7 +290,7 @@ func (c *controller) awsMachineClassToSecretAdd(obj interface{}) {
 	if machineClass == nil || !ok {
 		return
 	}
-	c.secretQueue.Add(machineClass.Spec.SecretRef.Namespace + "/" + machineClass.Spec.SecretRef.Name)
+	enqueueSecretForReferences(c.secretQueue, machineClass.Spec.SecretRef, machineClass.Spec.CredentialsSecretRef)
 }
 
 func (c *controller) awsMachineClassToSecretUpdate(oldObj interface{}, newObj interface{}) {
@@ -293,11 +303,8 @@ func (c *controller) awsMachineClassToSecretUpdate(oldObj interface{}, newObj in
 		return
 	}
 
-	if oldMachineClass.Spec.SecretRef.Name != newMachineClass.Spec.SecretRef.Name ||
-		oldMachineClass.Spec.SecretRef.Namespace != newMachineClass.Spec.SecretRef.Namespace {
-		c.secretQueue.Add(oldMachineClass.Spec.SecretRef.Namespace + "/" + oldMachineClass.Spec.SecretRef.Name)
-		c.secretQueue.Add(newMachineClass.Spec.SecretRef.Namespace + "/" + newMachineClass.Spec.SecretRef.Name)
-	}
+	enqueueSecretForReferenceIfChanged(c.secretQueue, oldMachineClass.Spec.SecretRef, newMachineClass.Spec.SecretRef)
+	enqueueSecretForReferenceIfChanged(c.secretQueue, oldMachineClass.Spec.CredentialsSecretRef, newMachineClass.Spec.CredentialsSecretRef)
 }
 
 func (c *controller) awsMachineClassToSecretDelete(obj interface{}) {
@@ -309,7 +316,7 @@ func (c *controller) packetMachineClassToSecretAdd(obj interface{}) {
 	if machineClass == nil || !ok {
 		return
 	}
-	c.secretQueue.Add(machineClass.Spec.SecretRef.Namespace + "/" + machineClass.Spec.SecretRef.Name)
+	enqueueSecretForReferences(c.secretQueue, machineClass.Spec.SecretRef, machineClass.Spec.CredentialsSecretRef)
 }
 
 func (c *controller) packetMachineClassToSecretUpdate(oldObj interface{}, newObj interface{}) {
@@ -322,11 +329,8 @@ func (c *controller) packetMachineClassToSecretUpdate(oldObj interface{}, newObj
 		return
 	}
 
-	if oldMachineClass.Spec.SecretRef.Name != newMachineClass.Spec.SecretRef.Name ||
-		oldMachineClass.Spec.SecretRef.Namespace != newMachineClass.Spec.SecretRef.Namespace {
-		c.secretQueue.Add(oldMachineClass.Spec.SecretRef.Namespace + "/" + oldMachineClass.Spec.SecretRef.Name)
-		c.secretQueue.Add(newMachineClass.Spec.SecretRef.Namespace + "/" + newMachineClass.Spec.SecretRef.Name)
-	}
+	enqueueSecretForReferenceIfChanged(c.secretQueue, oldMachineClass.Spec.SecretRef, newMachineClass.Spec.SecretRef)
+	enqueueSecretForReferenceIfChanged(c.secretQueue, oldMachineClass.Spec.CredentialsSecretRef, newMachineClass.Spec.CredentialsSecretRef)
 }
 
 func (c *controller) packetMachineClassToSecretDelete(obj interface{}) {

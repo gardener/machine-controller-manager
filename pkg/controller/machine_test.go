@@ -562,11 +562,7 @@ var _ = Describe("machine", func() {
 			}),
 			Entry("non-existing secret", &data{
 				setup: setup{
-					secrets: []*corev1.Secret{
-						{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						},
-					},
+					secrets: []*corev1.Secret{},
 					aws: []*machinev1.AWSMachineClass{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),

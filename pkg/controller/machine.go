@@ -162,13 +162,13 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) error {
 	}
 
 	// Validate MachineClass
-	MachineClass, secretRef, err := c.validateMachineClass(&machine.Spec.Class)
-	if err != nil || secretRef == nil {
+	MachineClass, secretData, err := c.validateMachineClass(&machine.Spec.Class)
+	if err != nil || secretData == nil {
 		c.enqueueMachineAfter(machine, MachineEnqueueRetryPeriod)
 		return nil
 	}
 
-	driver := driver.NewDriver(machine.Spec.ProviderID, secretRef.Data, machine.Spec.Class.Kind, MachineClass, machine.Name)
+	driver := driver.NewDriver(machine.Spec.ProviderID, secretData, machine.Spec.Class.Kind, MachineClass, machine.Name)
 	actualProviderID, err := driver.GetExisting()
 	if err != nil {
 		return err

@@ -84,6 +84,7 @@ type AlicloudMachineClassSpec struct {
 	Tags                    map[string]string       `json:"tags,omitempty"`
 	KeyPairName             string                  `json:"keyPairName"`
 	SecretRef               *corev1.SecretReference `json:"secretRef,omitempty"`
+	CredentialsSecretRef    *corev1.SecretReference `json:"credentialsSecretRef,omitempty"`
 }
 
 type AlicloudDataDisk struct {
