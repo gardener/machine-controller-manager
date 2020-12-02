@@ -31,7 +31,7 @@ import (
 // PacketDriver is the driver struct for holding Packet machine information
 type PacketDriver struct {
 	PacketMachineClass *v1alpha1.PacketMachineClass
-	CloudConfig        *corev1.Secret
+	CredentialsData    map[string][]byte
 	UserData           string
 	MachineID          string
 	MachineName        string
@@ -155,7 +155,7 @@ func (d *PacketDriver) GetVMs(machineID string) (VMs, error) {
 // Helper function to create SVC
 func (d *PacketDriver) createSVC() *packngo.Client {
 
-	token := strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.PacketAPIKey]))
+	token := strings.TrimSpace(string(d.CredentialsData[v1alpha1.PacketAPIKey]))
 
 	if token != "" {
 		return packngo.NewClientWithAuth("gardener", token, nil)

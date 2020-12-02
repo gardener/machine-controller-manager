@@ -22,10 +22,12 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
 )
 
@@ -159,12 +161,32 @@ func (c *controller) enqueueSecretAfter(obj interface{}, after time.Duration) {
 	c.secretQueue.AddAfter(key, after)
 }
 
+func enqueueSecretForReferences(queue workqueue.RateLimitingInterface, secretRefs ...*corev1.SecretReference) {
+	for _, secretRef := range secretRefs {
+		if secretRef != nil {
+			queue.Add(secretRef.Namespace + "/" + secretRef.Name)
+		}
+	}
+}
+
+func enqueueSecretForReferenceIfChanged(queue workqueue.RateLimitingInterface, oldSecretRef, newSecretRef *corev1.SecretReference) {
+	if !apiequality.Semantic.DeepEqual(oldSecretRef, newSecretRef) {
+		if oldSecretRef != nil {
+			queue.Add(oldSecretRef.Namespace + "/" + oldSecretRef.Name)
+		}
+		if newSecretRef != nil {
+			queue.Add(newSecretRef.Namespace + "/" + newSecretRef.Name)
+		}
+	}
+}
+
 func (c *controller) machineClassToSecretAdd(obj interface{}) {
 	machineClass, ok := obj.(*v1alpha1.MachineClass)
 	if !ok || machineClass == nil || machineClass.SecretRef == nil {
 		return
 	}
-	c.secretQueue.Add(machineClass.SecretRef.Namespace + "/" + machineClass.SecretRef.Name)
+
+	enqueueSecretForReferences(c.secretQueue, machineClass.SecretRef, machineClass.CredentialsSecretRef)
 }
 
 func (c *controller) machineClassToSecretUpdate(oldObj interface{}, newObj interface{}) {
@@ -177,11 +199,8 @@ func (c *controller) machineClassToSecretUpdate(oldObj interface{}, newObj inter
 		return
 	}
 
-	if oldMachineClass.SecretRef.Name != newMachineClass.SecretRef.Name ||
-		oldMachineClass.SecretRef.Namespace != newMachineClass.SecretRef.Namespace {
-		c.secretQueue.Add(oldMachineClass.SecretRef.Namespace + "/" + oldMachineClass.SecretRef.Name)
-		c.secretQueue.Add(newMachineClass.SecretRef.Namespace + "/" + newMachineClass.SecretRef.Name)
-	}
+	enqueueSecretForReferenceIfChanged(c.secretQueue, oldMachineClass.SecretRef, newMachineClass.SecretRef)
+	enqueueSecretForReferenceIfChanged(c.secretQueue, oldMachineClass.CredentialsSecretRef, newMachineClass.CredentialsSecretRef)
 }
 
 func (c *controller) machineClassToSecretDelete(obj interface{}) {

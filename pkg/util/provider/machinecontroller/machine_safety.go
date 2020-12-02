@@ -170,10 +170,7 @@ func (c *controller) checkMachineClasses() (machineutils.RetryPeriod, error) {
 	}
 
 	for _, machineClass := range MachineClasses {
-		retry, err := c.checkMachineClass(
-			machineClass,
-			machineClass.SecretRef,
-		)
+		retry, err := c.checkMachineClass(machineClass)
 		if err != nil {
 			return retry, err
 		}
@@ -183,20 +180,18 @@ func (c *controller) checkMachineClasses() (machineutils.RetryPeriod, error) {
 }
 
 // checkMachineClass checks a particular machineClass for orphan instances
-func (c *controller) checkMachineClass(
-	machineClass *v1alpha1.MachineClass,
-	secretRef *corev1.SecretReference) (machineutils.RetryPeriod, error) {
+func (c *controller) checkMachineClass(machineClass *v1alpha1.MachineClass) (machineutils.RetryPeriod, error) {
 
-	// Get secret
-	secret, err := c.getSecret(secretRef, machineClass.Name)
-	if err != nil || secret == nil {
-		klog.Errorf("SafetyController: Secret reference not found for MachineClass: %q", machineClass.Name)
+	// Get secret data
+	secretData, err := c.getSecretData(machineClass.Name, machineClass.SecretRef, machineClass.CredentialsSecretRef)
+	if err != nil {
+		klog.Errorf("SafetyController: Secret Data could not be computed for MachineClass: %q", machineClass.Name)
 		return machineutils.LongRetry, err
 	}
 
 	listMachineResponse, err := c.driver.ListMachines(context.TODO(), &driver.ListMachinesRequest{
 		MachineClass: machineClass,
-		Secret:       secret,
+		Secret:       &corev1.Secret{Data: secretData},
 	})
 	if err != nil {
 		klog.Errorf("SafetyController: Failed to LIST VMs at provider. Error: %s", err)
@@ -242,7 +237,7 @@ func (c *controller) checkMachineClass(
 			_, err := c.driver.DeleteMachine(context.TODO(), &driver.DeleteMachineRequest{
 				Machine:      machine,
 				MachineClass: machineClass,
-				Secret:       secret,
+				Secret:       &corev1.Secret{Data: secretData},
 			})
 			if err != nil {
 				klog.Errorf("SafetyController: Error while trying to DELETE VM on CP - %s. Shall retry in next safety controller sync.", err)

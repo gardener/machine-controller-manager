@@ -41,6 +41,9 @@ spec:
   secretRef: # Kubernetes secret containing values for provider secrets and user-data
     name: "test-secret" # Name of the secret
     namespace: "default" # Namespace of secret
+# credentialsSecretRef: # Optional - Kubernetes secret containing only provider secrets (in this case the Secret in the secretRef does not need them)
+#   name: "test-secret-credentials" # Name of the secret
+#   namespace: "default" # Namespace of secret
   serviceAccounts:
   - email: default@project.iam.gserviceaccount.com # Service account email
     scopes: # List of scopes

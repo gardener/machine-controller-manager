@@ -99,7 +99,7 @@ func main() {
 		log.Fatalf("Could not parse machine class yaml: %s", err)
 	}
 
-	driver := driver.NewDriver(machineID, &secret, classKind, machineclass, machineName)
+	driver := driver.NewDriver(machineID, secret.Data, classKind, machineclass, machineName)
 
 	if machineID == "" {
 		id, name, err := driver.Create()

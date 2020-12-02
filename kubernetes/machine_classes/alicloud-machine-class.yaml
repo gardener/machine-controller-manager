@@ -42,3 +42,6 @@ spec:
   secretRef: # Secret pointing to a secret which contains the provider secret and cloudconfig
     namespace: default  # Namespace
     name: test-secret # Name of the secret
+# credentialsSecretRef: # Optional - Kubernetes secret containing only provider secrets (in this case the Secret in the secretRef does not need them)
+#   name: "test-secret-credentials" # Name of the secret
+#   namespace: "default" # Namespace of secret
