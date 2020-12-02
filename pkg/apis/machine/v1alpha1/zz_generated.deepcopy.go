@@ -186,6 +186,11 @@ func (in *AWSMachineClassSpec) DeepCopyInto(out *AWSMachineClassSpec) {
 		*out = new(v1.SecretReference)
 		**out = **in
 	}
+	if in.CredentialsSecretRef != nil {
+		in, out := &in.CredentialsSecretRef, &out.CredentialsSecretRef
+		*out = new(v1.SecretReference)
+		**out = **in
+	}
 	return
 }
 
@@ -350,6 +355,11 @@ func (in *AlicloudMachineClassSpec) DeepCopyInto(out *AlicloudMachineClassSpec) 
 	}
 	if in.SecretRef != nil {
 		in, out := &in.SecretRef, &out.SecretRef
+		*out = new(v1.SecretReference)
+		**out = **in
+	}
+	if in.CredentialsSecretRef != nil {
+		in, out := &in.CredentialsSecretRef, &out.CredentialsSecretRef
 		*out = new(v1.SecretReference)
 		**out = **in
 	}
@@ -531,6 +541,11 @@ func (in *AzureMachineClassSpec) DeepCopyInto(out *AzureMachineClassSpec) {
 	in.SubnetInfo.DeepCopyInto(&out.SubnetInfo)
 	if in.SecretRef != nil {
 		in, out := &in.SecretRef, &out.SecretRef
+		*out = new(v1.SecretReference)
+		**out = **in
+	}
+	if in.CredentialsSecretRef != nil {
+		in, out := &in.CredentialsSecretRef, &out.CredentialsSecretRef
 		*out = new(v1.SecretReference)
 		**out = **in
 	}
@@ -982,6 +997,11 @@ func (in *GCPMachineClassSpec) DeepCopyInto(out *GCPMachineClassSpec) {
 		*out = new(v1.SecretReference)
 		**out = **in
 	}
+	if in.CredentialsSecretRef != nil {
+		in, out := &in.CredentialsSecretRef, &out.CredentialsSecretRef
+		*out = new(v1.SecretReference)
+		**out = **in
+	}
 	if in.ServiceAccounts != nil {
 		in, out := &in.ServiceAccounts, &out.ServiceAccounts
 		*out = make([]GCPServiceAccount, len(*in))
@@ -1134,6 +1154,11 @@ func (in *MachineClass) DeepCopyInto(out *MachineClass) {
 	in.ProviderSpec.DeepCopyInto(&out.ProviderSpec)
 	if in.SecretRef != nil {
 		in, out := &in.SecretRef, &out.SecretRef
+		*out = new(v1.SecretReference)
+		**out = **in
+	}
+	if in.CredentialsSecretRef != nil {
+		in, out := &in.CredentialsSecretRef, &out.CredentialsSecretRef
 		*out = new(v1.SecretReference)
 		**out = **in
 	}
@@ -1769,6 +1794,11 @@ func (in *OpenStackMachineClassSpec) DeepCopyInto(out *OpenStackMachineClassSpec
 		*out = new(v1.SecretReference)
 		**out = **in
 	}
+	if in.CredentialsSecretRef != nil {
+		in, out := &in.CredentialsSecretRef, &out.CredentialsSecretRef
+		*out = new(v1.SecretReference)
+		**out = **in
+	}
 	if in.UseConfigDrive != nil {
 		in, out := &in.UseConfigDrive, &out.UseConfigDrive
 		*out = new(bool)
@@ -1888,6 +1918,11 @@ func (in *PacketMachineClassSpec) DeepCopyInto(out *PacketMachineClassSpec) {
 	}
 	if in.SecretRef != nil {
 		in, out := &in.SecretRef, &out.SecretRef
+		*out = new(v1.SecretReference)
+		**out = **in
+	}
+	if in.CredentialsSecretRef != nil {
+		in, out := &in.CredentialsSecretRef, &out.CredentialsSecretRef
 		*out = new(v1.SecretReference)
 		**out = **in
 	}

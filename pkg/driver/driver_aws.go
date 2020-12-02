@@ -49,7 +49,7 @@ const (
 // AWSDriver is the driver struct for holding AWS machine information
 type AWSDriver struct {
 	AWSMachineClass *v1alpha1.AWSMachineClass
-	CloudConfig     *corev1.Secret
+	CredentialsData map[string][]byte
 	UserData        string
 	MachineID       string
 	MachineName     string
@@ -452,8 +452,8 @@ func (d *AWSDriver) createSVC() (*ec2.EC2, error) {
 			Region: aws.String(d.AWSMachineClass.Spec.Region),
 		}
 
-		accessKeyID     = strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AWSAccessKeyID]))
-		secretAccessKey = strings.TrimSpace(string(d.CloudConfig.Data[v1alpha1.AWSSecretAccessKey]))
+		accessKeyID     = ExtractCredentialsFromData(d.CredentialsData, v1alpha1.AWSAccessKeyID, v1alpha1.AWSAlternativeAccessKeyID)
+		secretAccessKey = ExtractCredentialsFromData(d.CredentialsData, v1alpha1.AWSSecretAccessKey, v1alpha1.AWSAlternativeSecretAccessKey)
 	)
 
 	if accessKeyID != "" && secretAccessKey != "" {

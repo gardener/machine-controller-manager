@@ -76,7 +76,8 @@ func (c *controller) findOpenStackMachineClassForSecret(name string) ([]*v1alpha
 	}
 	var filtered []*v1alpha1.OpenStackMachineClass
 	for _, machineClass := range machineClasses {
-		if machineClass.Spec.SecretRef.Name == name {
+		if (machineClass.Spec.SecretRef != nil && machineClass.Spec.SecretRef.Name == name) ||
+			(machineClass.Spec.CredentialsSecretRef != nil && machineClass.Spec.CredentialsSecretRef.Name == name) {
 			filtered = append(filtered, machineClass)
 		}
 	}
@@ -92,7 +93,8 @@ func (c *controller) findGCPMachineClassForSecret(name string) ([]*v1alpha1.GCPM
 	}
 	var filtered []*v1alpha1.GCPMachineClass
 	for _, machineClass := range machineClasses {
-		if machineClass.Spec.SecretRef.Name == name {
+		if (machineClass.Spec.SecretRef != nil && machineClass.Spec.SecretRef.Name == name) ||
+			(machineClass.Spec.CredentialsSecretRef != nil && machineClass.Spec.CredentialsSecretRef.Name == name) {
 			filtered = append(filtered, machineClass)
 		}
 	}
@@ -108,7 +110,8 @@ func (c *controller) findAzureMachineClassForSecret(name string) ([]*v1alpha1.Az
 	}
 	var filtered []*v1alpha1.AzureMachineClass
 	for _, machineClass := range machineClasses {
-		if machineClass.Spec.SecretRef.Name == name {
+		if (machineClass.Spec.SecretRef != nil && machineClass.Spec.SecretRef.Name == name) ||
+			(machineClass.Spec.CredentialsSecretRef != nil && machineClass.Spec.CredentialsSecretRef.Name == name) {
 			filtered = append(filtered, machineClass)
 		}
 	}
@@ -124,7 +127,8 @@ func (c *controller) findAlicloudMachineClassForSecret(name string) ([]*v1alpha1
 	}
 	var filtered []*v1alpha1.AlicloudMachineClass
 	for _, machineClass := range machineClasses {
-		if machineClass.Spec.SecretRef.Name == name {
+		if (machineClass.Spec.SecretRef != nil && machineClass.Spec.SecretRef.Name == name) ||
+			(machineClass.Spec.CredentialsSecretRef != nil && machineClass.Spec.CredentialsSecretRef.Name == name) {
 			filtered = append(filtered, machineClass)
 		}
 	}
@@ -140,7 +144,8 @@ func (c *controller) findAWSMachineClassForSecret(name string) ([]*v1alpha1.AWSM
 	}
 	var filtered []*v1alpha1.AWSMachineClass
 	for _, machineClass := range machineClasses {
-		if machineClass.Spec.SecretRef.Name == name {
+		if (machineClass.Spec.SecretRef != nil && machineClass.Spec.SecretRef.Name == name) ||
+			(machineClass.Spec.CredentialsSecretRef != nil && machineClass.Spec.CredentialsSecretRef.Name == name) {
 			filtered = append(filtered, machineClass)
 		}
 	}
@@ -156,7 +161,8 @@ func (c *controller) findPacketMachineClassForSecret(name string) ([]*v1alpha1.P
 	}
 	var filtered []*v1alpha1.PacketMachineClass
 	for _, machineClass := range machineClasses {
-		if machineClass.Spec.SecretRef.Name == name {
+		if (machineClass.Spec.SecretRef != nil && machineClass.Spec.SecretRef.Name == name) ||
+			(machineClass.Spec.CredentialsSecretRef != nil && machineClass.Spec.CredentialsSecretRef.Name == name) {
 			filtered = append(filtered, machineClass)
 		}
 	}

@@ -229,7 +229,7 @@ var _ = Describe("machine", func() {
 		}
 		type expect struct {
 			machineClass interface{}
-			secret       *corev1.Secret
+			secretData   map[string][]byte
 			err          bool
 		}
 		type data struct {
@@ -262,17 +262,17 @@ var _ = Describe("machine", func() {
 				defer trackers.Stop()
 
 				waitForCacheSync(stop, controller)
-				machineClass, secret, _, err := controller.ValidateMachineClass(data.action)
+				machineClass, secretData, _, err := controller.ValidateMachineClass(data.action)
 
 				if data.expect.machineClass == nil {
 					Expect(machineClass).To(BeNil())
 				} else {
 					Expect(machineClass).To(Equal(data.expect.machineClass))
 				}
-				if data.expect.secret == nil {
-					Expect(secret).To(BeNil())
+				if data.expect.secretData == nil {
+					Expect(secretData).To(BeNil())
 				} else {
-					Expect(secret).To(Equal(data.expect.secret))
+					Expect(secretData).To(Equal(data.expect.secretData))
 				}
 				if !data.expect.err {
 					Expect(err).To(BeNil())
@@ -323,6 +323,7 @@ var _ = Describe("machine", func() {
 					secrets: []*corev1.Secret{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"foo": []byte("bar")},
 						},
 					},
 					aws: []*v1alpha1.MachineClass{
@@ -341,10 +342,8 @@ var _ = Describe("machine", func() {
 						ObjectMeta: *newObjectMeta(objMeta, 0),
 						SecretRef:  newSecretReference(objMeta, 0),
 					},
-					secret: &corev1.Secret{
-						ObjectMeta: *newObjectMeta(objMeta, 0),
-					},
-					err: false,
+					secretData: map[string][]byte{"foo": []byte("bar")},
+					err:        false,
 				},
 			}),
 		)

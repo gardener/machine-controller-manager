@@ -675,6 +675,11 @@ func schema_pkg_apis_machine_v1alpha1_AWSMachineClassSpec(ref common.ReferenceCa
 							Ref: ref("k8s.io/api/core/v1.SecretReference"),
 						},
 					},
+					"credentialsSecretRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
 				},
 			},
 		},
@@ -999,6 +1004,11 @@ func schema_pkg_apis_machine_v1alpha1_AlicloudMachineClassSpec(ref common.Refere
 							Ref: ref("k8s.io/api/core/v1.SecretReference"),
 						},
 					},
+					"credentialsSecretRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
 				},
 				Required: []string{"imageID", "instanceType", "region", "vSwitchID", "keyPairName"},
 			},
@@ -1276,6 +1286,11 @@ func schema_pkg_apis_machine_v1alpha1_AzureMachineClassSpec(ref common.Reference
 						},
 					},
 					"secretRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
+					"credentialsSecretRef": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("k8s.io/api/core/v1.SecretReference"),
 						},
@@ -1994,6 +2009,11 @@ func schema_pkg_apis_machine_v1alpha1_GCPMachineClassSpec(ref common.ReferenceCa
 							Ref: ref("k8s.io/api/core/v1.SecretReference"),
 						},
 					},
+					"credentialsSecretRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
 					"serviceAccounts": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
@@ -2285,7 +2305,13 @@ func schema_pkg_apis_machine_v1alpha1_MachineClass(ref common.ReferenceCallback)
 					},
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SecretRef stores the necessary secrets such as credetials or userdata.",
+							Description: "SecretRef stores the necessary secrets such as credentials or userdata.",
+							Ref:         ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
+					"credentialsSecretRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CredentialsSecretRef can optionally store the credentials (in this case the SecretRef does not need to store them). This might be useful if multiple machine classes with the same credentials but different user-datas are used.",
 							Ref:         ref("k8s.io/api/core/v1.SecretReference"),
 						},
 					},
@@ -3435,6 +3461,11 @@ func schema_pkg_apis_machine_v1alpha1_OpenStackMachineClassSpec(ref common.Refer
 							Ref: ref("k8s.io/api/core/v1.SecretReference"),
 						},
 					},
+					"credentialsSecretRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
 					"podNetworkCidr": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
@@ -3662,6 +3693,11 @@ func schema_pkg_apis_machine_v1alpha1_PacketMachineClassSpec(ref common.Referenc
 						},
 					},
 					"secretRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
+					"credentialsSecretRef": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("k8s.io/api/core/v1.SecretReference"),
 						},

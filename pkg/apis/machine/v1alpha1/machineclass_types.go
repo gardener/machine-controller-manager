@@ -39,8 +39,11 @@ type MachineClass struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Provider-specific configuration to use during node creation.
 	ProviderSpec runtime.RawExtension `json:"providerSpec"`
-	// SecretRef stores the necessary secrets such as credetials or userdata.
+	// SecretRef stores the necessary secrets such as credentials or userdata.
 	SecretRef *corev1.SecretReference `json:"secretRef,omitempty"`
+	// CredentialsSecretRef can optionally store the credentials (in this case the SecretRef does not need to store them).
+	// This might be useful if multiple machine classes with the same credentials but different user-datas are used.
+	CredentialsSecretRef *corev1.SecretReference `json:"credentialsSecretRef,omitempty"`
 	// Provider is the combination of name and location of cloud-specific drivers.
 	Provider string `json:"provider,omitempty"`
 }

@@ -134,7 +134,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 		return machineutils.LongRetry, err
 	}
 
-	machineClass, secret, retry, err := c.ValidateMachineClass(&machine.Spec.Class)
+	machineClass, secretData, retry, err := c.ValidateMachineClass(&machine.Spec.Class)
 	if err != nil {
 		klog.Error(err)
 		return retry, err
@@ -145,7 +145,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 		return c.triggerDeletionFlow(&driver.DeleteMachineRequest{
 			Machine:      machine,
 			MachineClass: machineClass,
-			Secret:       secret,
+			Secret:       &corev1.Secret{Data: secretData},
 		})
 	}
 
@@ -161,12 +161,11 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 			return retry, err
 		}
 	}
-
 	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" || machine.Status.Node == "" {
 		return c.triggerCreationFlow(&driver.CreateMachineRequest{
 			Machine:      machine,
 			MachineClass: machineClass,
-			Secret:       secret,
+			Secret:       &corev1.Secret{Data: secretData},
 		})
 	}
 

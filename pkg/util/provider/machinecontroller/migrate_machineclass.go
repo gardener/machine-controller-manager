@@ -5,17 +5,17 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog"
+
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 const (
@@ -110,7 +110,7 @@ func (c *controller) createMachineClass(providerSpecificMachineClass interface{}
 		}
 
 	} else if err != nil {
-		// Anyother kind of error while fetching the machineClass object
+		// Another kind of error while fetching the machineClass object
 		return machineutils.ShortRetry, err
 	}
 
@@ -387,7 +387,7 @@ func (c *controller) addMigratedAnnotationForProviderMachineClass(classSpec *v1a
 }
 
 // TryMachineClassMigration tries to migrate the provider-specific machine class to the generic machine-class.
-func (c *controller) TryMachineClassMigration(classSpec *v1alpha1.ClassSpec) (*v1alpha1.MachineClass, *v1.Secret, machineutils.RetryPeriod, error) {
+func (c *controller) TryMachineClassMigration(classSpec *v1alpha1.ClassSpec) (*v1alpha1.MachineClass, map[string][]byte, machineutils.RetryPeriod, error) {
 	var (
 		err                          error
 		providerSpecificMachineClass interface{}
