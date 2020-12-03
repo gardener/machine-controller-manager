@@ -1,9 +1,9 @@
 # machine-controller-manager
 
-:warning: We are in the progress of migrating and deprecating all the in-tree providers to OOT. Please avoid making any new feature enhancements to the intree providers. Kindly make it on the [OOT providers available here](https://github.com/gardener/?q=machine-controller-manager-provider&type=&language=). More details on adding [new OOT providers can be found here](https://github.com/gardener/machine-controller-manager/blob/master/docs/development/cp_support_new.md). 
-
 [![CI Build status](https://concourse.ci.gardener.cloud/api/v1/teams/gardener/pipelines/machine-controller-manager-master/jobs/master-head-update-job/badge)](https://concourse.ci.gardener.cloud/teams/gardener/pipelines/machine-controller-manager-master/jobs/master-head-update-job)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gardener/machine-controller-manager)](https://goreportcard.com/report/github.com/gardener/machine-controller-manager)
+
+:warning: We are in the progress of migrating and deprecating all the in-tree providers to OOT. Please avoid making any new feature enhancements to the intree providers. Kindly make it on the [OOT providers available here](https://github.com/gardener/?q=machine-controller-manager-provider&type=&language=). More details on adding [new OOT providers can be found here](https://github.com/gardener/machine-controller-manager/blob/master/docs/development/cp_support_new.md). 
 
 Machine Controller Manager (MCM) manages VMs as another kubernetes custom resource. It provides a declarative way to manage VMs. 
 
