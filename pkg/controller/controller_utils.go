@@ -707,7 +707,7 @@ func GetFakeMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentOb
 		return nil, fmt.Errorf("parentObject does not have ObjectMeta, %v", err)
 	}
 	prefix := getMachinesPrefix(accessor.GetName())
-	prefix = prefix + uuid.New().String()
+	prefix = prefix + "-" + uuid.New().String()[:5]
 	machine := &v1alpha1.Machine{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      desiredLabels,
@@ -723,7 +723,6 @@ func GetFakeMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentOb
 		machine.OwnerReferences = append(machine.OwnerReferences, *controllerRef)
 	}
 	machine.Spec = *template.Spec.DeepCopy()
-	//klog.Info("3")
 	return machine, nil
 }
 

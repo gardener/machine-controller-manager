@@ -377,6 +377,10 @@ func (dc *controller) annotateNodesBackingMachineSets(MachineSets []*v1alpha1.Ma
 
 	for _, machineSet := range MachineSets {
 
+		if machineSet == nil {
+			continue
+		}
+
 		klog.V(3).Infof("Trying to annotate nodes under the MachineSet object %q with %s", machineSet.Name, annotations)
 		selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
 		if err != nil {

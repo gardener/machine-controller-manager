@@ -285,7 +285,7 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			testMachine.DeletionTimestamp = &metav1.Time{time.Now()}
+			testMachine.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 			c.addMachineToMachineSet(testMachine)
 
 			waitForCacheSync(stop, c)
@@ -448,7 +448,7 @@ var _ = Describe("machineset", func() {
 			),
 			Entry("newMachine is being deleted",
 				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
-					oldMachine.DeletionTimestamp = &metav1.Time{time.Now()}
+					oldMachine.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 				},
 				oldMachine, newMachine,
 			),
@@ -1026,7 +1026,7 @@ var _ = Describe("machineset", func() {
 
 			objects := []runtime.Object{}
 			objects = append(objects, testMachineSet)
-			testMachineSet.DeletionTimestamp = &metav1.Time{time.Now()}
+			testMachineSet.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 			testMachineSet.Finalizers = []string{DeleteFinalizerName}
 			c, trackers := createController(stop, testNamespace, objects, nil, nil)
 			defer trackers.Stop()
