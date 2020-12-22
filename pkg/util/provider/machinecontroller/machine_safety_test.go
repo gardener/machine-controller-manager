@@ -135,4 +135,53 @@ var _ = Describe("#machine_safety", func() {
 		Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Elapsed, Pre-Frozen: true = Post-Frozen: true",
 			false, false, fiveMinutesDuration, true, true),
 	)
+
+	Describe("#enqueueMachineSafetyOrphanVMsKey", func() {
+
+		DescribeTable("this should",
+			func(expectedQueueSize int) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				testMachine := &machinev1.Machine{}
+				objects := []runtime.Object{}
+				c, trackers := createController(stop, testNamespace, objects, nil, nil, nil)
+
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+				c.enqueueMachineSafetyOrphanVMsKey(testMachine)
+
+				waitForCacheSync(stop, c)
+				Expect(c.machineSafetyOrphanVMsQueue.Len()).To(Equal(expectedQueueSize))
+			},
+			Entry("enqueue the machine key",
+				1,
+			),
+		)
+
+	})
+
+	Describe("#deleteMachineToSafety", func() {
+
+		DescribeTable("this should",
+			func(expectedQueueSize int) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				testMachine := &machinev1.Machine{}
+				objects := []runtime.Object{}
+				c, trackers := createController(stop, testNamespace, objects, nil, nil, nil)
+
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+				c.deleteMachineToSafety(testMachine)
+
+				waitForCacheSync(stop, c)
+				Expect(c.machineSafetyOrphanVMsQueue.Len()).To(Equal(expectedQueueSize))
+			},
+			Entry("enqueue the machine key",
+				1,
+			),
+		)
+	})
 })

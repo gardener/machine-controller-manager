@@ -780,4 +780,74 @@ var _ = Describe("#machine_safety", func() {
 		Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Elapsed, Pre-Frozen: true = Post-Frozen: true",
 			false, false, fiveMinutesDuration, true, true),
 	)
+
+	Describe("#deleteOrphanVM", func() {
+
+		BeforeEach(func() {})
+
+		// Testcase: It should add finalizer on MachineSet.
+		It("should delete the OrphanVM", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			objects := []runtime.Object{}
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			c.deleteOrphanVM(map[string]string{"vm": "fake-id"}, nil, "FakeKind", "FakeClass")
+
+			waitForCacheSync(stop, c)
+			// Expect panic not to happen.
+		})
+	})
+
+	Describe("#addMachineToSafety", func() {
+
+		DescribeTable("this should",
+			func(expectedQueueSize int) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				testMachine := &machinev1.Machine{}
+				objects := []runtime.Object{}
+				c, trackers := createController(stop, testNamespace, objects, nil, nil)
+
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+				c.addMachineToSafety(testMachine)
+
+				waitForCacheSync(stop, c)
+				Expect(c.machineSafetyOvershootingQueue.Len()).To(Equal(expectedQueueSize))
+			},
+			Entry("enqueue the machine key",
+				1,
+			),
+		)
+
+	})
+
+	Describe("#deleteMachineToSafety", func() {
+
+		DescribeTable("this should",
+			func(expectedQueueSize int) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				testMachine := &machinev1.Machine{}
+				objects := []runtime.Object{}
+				c, trackers := createController(stop, testNamespace, objects, nil, nil)
+
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+				c.deleteMachineToSafety(testMachine)
+
+				waitForCacheSync(stop, c)
+				Expect(c.machineSafetyOrphanVMsQueue.Len()).To(Equal(expectedQueueSize))
+			},
+			Entry("enqueue the machine key",
+				1,
+			),
+		)
+	})
 })
