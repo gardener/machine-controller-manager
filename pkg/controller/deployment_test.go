@@ -295,8 +295,8 @@ var _ = Describe("machinedeployment", func() {
 						OwnerReferences: []metav1.OwnerReference{
 							{
 								Kind:       "MachineDeployment",
-								Name:       "MachineDeployment-test",
-								UID:        "1234567",
+								Name:       testMachineDeployment.Name,
+								UID:        testMachineDeployment.UID,
 								Controller: &ptrBool,
 							},
 						},
@@ -306,25 +306,9 @@ var _ = Describe("machinedeployment", func() {
 						APIVersion: "machine.sapcloud.io/v1alpha1",
 					},
 					Spec: machinev1.MachineSetSpec{
-						Replicas: 3,
-						Template: machinev1.MachineTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Labels: map[string]string{
-									"test-label": "test-label",
-								},
-							},
-							Spec: machinev1.MachineSpec{
-								Class: machinev1.ClassSpec{
-									Name: "MachineClass-test",
-									Kind: "MachineClass",
-								},
-							},
-						},
-						Selector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"test-label": "test-label",
-							},
-						},
+						Replicas: testMachineDeployment.Spec.Replicas,
+						Template: testMachineDeployment.Spec.Template,
+						Selector: testMachineDeployment.Spec.Selector.DeepCopy(),
 					},
 				}
 
@@ -448,25 +432,9 @@ var _ = Describe("machinedeployment", func() {
 						APIVersion: "machine.sapcloud.io/v1alpha1",
 					},
 					Spec: machinev1.MachineSetSpec{
-						Replicas: 3,
-						Template: machinev1.MachineTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Labels: map[string]string{
-									"test-label": "test-label",
-								},
-							},
-							Spec: machinev1.MachineSpec{
-								Class: machinev1.ClassSpec{
-									Name: "MachineClass-test",
-									Kind: "MachineClass",
-								},
-							},
-						},
-						Selector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"test-label": "test-label",
-							},
-						},
+						Replicas: testMachineDeployment.Spec.Replicas,
+						Template: testMachineDeployment.Spec.Template,
+						Selector: testMachineDeployment.Spec.Selector,
 					},
 				}
 				oldMachineSet := testMachineSet
@@ -606,25 +574,9 @@ var _ = Describe("machinedeployment", func() {
 						APIVersion: "machine.sapcloud.io/v1alpha1",
 					},
 					Spec: machinev1.MachineSetSpec{
-						Replicas: 3,
-						Template: machinev1.MachineTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Labels: map[string]string{
-									"test-label": "test-label",
-								},
-							},
-							Spec: machinev1.MachineSpec{
-								Class: machinev1.ClassSpec{
-									Name: "MachineClass-test",
-									Kind: "MachineClass",
-								},
-							},
-						},
-						Selector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"test-label": "test-label",
-							},
-						},
+						Replicas: testMachineDeployment.Spec.Replicas,
+						Template: testMachineDeployment.Spec.Template,
+						Selector: testMachineDeployment.Spec.Selector,
 					},
 				}
 
@@ -728,8 +680,8 @@ var _ = Describe("machinedeployment", func() {
 						OwnerReferences: []metav1.OwnerReference{
 							{
 								Kind:       "MachineSet",
-								Name:       "MachineSet-test",
-								UID:        "1234567",
+								Name:       testMachineSet.Name,
+								UID:        testMachineSet.UID,
 								Controller: &ptrBool,
 							},
 						},
@@ -750,25 +702,9 @@ var _ = Describe("machinedeployment", func() {
 						APIVersion: "machine.sapcloud.io/v1alpha1",
 					},
 					Spec: machinev1.MachineDeploymentSpec{
-						Replicas: 3,
-						Template: machinev1.MachineTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Labels: map[string]string{
-									"test-label": "test-label",
-								},
-							},
-							Spec: machinev1.MachineSpec{
-								Class: machinev1.ClassSpec{
-									Name: "MachineClass-test",
-									Kind: "MachineClass",
-								},
-							},
-						},
-						Selector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"test-label": "test-label",
-							},
-						},
+						Replicas: testMachineSet.Spec.Replicas,
+						Template: testMachineSet.Spec.Template,
+						Selector: testMachineSet.Spec.Selector.DeepCopy(),
 					},
 				}
 
@@ -1092,25 +1028,9 @@ var _ = Describe("machinedeployment", func() {
 						APIVersion: "machine.sapcloud.io/v1alpha1",
 					},
 					Spec: machinev1.MachineSetSpec{
-						Replicas: 3,
-						Template: machinev1.MachineTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Labels: map[string]string{
-									"test-label": "test-label",
-								},
-							},
-							Spec: machinev1.MachineSpec{
-								Class: machinev1.ClassSpec{
-									Name: "MachineClass-test",
-									Kind: "MachineClass",
-								},
-							},
-						},
-						Selector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"test-label": "test-label",
-							},
-						},
+						Replicas: testMachineDeployment.Spec.Replicas,
+						Template: testMachineDeployment.Spec.Template,
+						Selector: testMachineDeployment.Spec.Selector,
 					},
 				}
 
@@ -1412,25 +1332,9 @@ var _ = Describe("machinedeployment", func() {
 						APIVersion: "machine.sapcloud.io/v1alpha1",
 					},
 					Spec: machinev1.MachineSetSpec{
-						Replicas: 3,
-						Template: machinev1.MachineTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Labels: map[string]string{
-									"test-label": "test-label",
-								},
-							},
-							Spec: machinev1.MachineSpec{
-								Class: machinev1.ClassSpec{
-									Name: "MachineClass-test",
-									Kind: "MachineClass",
-								},
-							},
-						},
-						Selector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"test-label": "test-label",
-							},
-						},
+						Replicas: testMachineDeployment.Spec.Replicas,
+						Template: testMachineDeployment.Spec.Template,
+						Selector: testMachineDeployment.Spec.Selector,
 					},
 				}
 				preset(testMachine, testMachineSet, testMachineDeployment)
@@ -1586,25 +1490,9 @@ var _ = Describe("machinedeployment", func() {
 					APIVersion: "machine.sapcloud.io/v1alpha1",
 				},
 				Spec: machinev1.MachineSetSpec{
-					Replicas: 5,
-					Template: machinev1.MachineTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"test-label": "test-label",
-							},
-						},
-						Spec: machinev1.MachineSpec{
-							Class: machinev1.ClassSpec{
-								Name: "MachineClass-test",
-								Kind: "MachineClass",
-							},
-						},
-					},
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"test-label": "test-label",
-						},
-					},
+					Replicas: testMachineDeployment.Spec.Replicas,
+					Template: testMachineDeployment.Spec.Template,
+					Selector: testMachineDeployment.Spec.Selector,
 				},
 				Status: machinev1.MachineSetStatus{
 					AvailableReplicas:    5,
