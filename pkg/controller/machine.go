@@ -1041,7 +1041,7 @@ func (c *controller) getSecret(ref *v1.SecretReference, machineClassName string)
 		return nil, err
 	}
 	if err != nil {
-		klog.Errorf("Unable get secret %q for MachineClass %q: %v", machineClassName, ref, err)
+		klog.Errorf("Unable get secret %q for MachineClass %q: %v", ref, machineClassName, err)
 		return nil, err
 	}
 	return secretRef, err
