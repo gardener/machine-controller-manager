@@ -25,6 +25,9 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 )
 
+// VMs is the map to hold the VM data
+type VMs map[string]string
+
 // FakeDriver is a fake driver returned when none of the actual drivers match
 type FakeDriver struct {
 	VMExists       bool
@@ -32,11 +35,29 @@ type FakeDriver struct {
 	NodeName       string
 	LastKnownState string
 	Err            error
+	fakeVMs        VMs
 }
 
 // NewFakeDriver returns a new fakedriver object
-func NewFakeDriver(fakeDriver *FakeDriver) Driver {
+func NewFakeDriver(vmExists bool, providerID, nodeName, lastKnownState string, err error, fakeVMs VMs) Driver {
+	fakeDriver := &FakeDriver{
+		VMExists:       vmExists,
+		ProviderID:     providerID,
+		NodeName:       nodeName,
+		LastKnownState: lastKnownState,
+		Err:            err,
+		fakeVMs:        make(VMs),
+	}
+	if providerID != "" && nodeName != "" {
+		_ = fakeDriver.AddMachine(providerID, nodeName)
+	}
 	return fakeDriver
+}
+
+// AddMachine makes a call to the driver to create the machine.
+func (d *FakeDriver) AddMachine(machineID, machineName string) error {
+	d.fakeVMs[machineID] = machineName
+	return nil
 }
 
 // CreateMachine makes a call to the driver to create the machine.
@@ -56,6 +77,7 @@ func (d *FakeDriver) CreateMachine(ctx context.Context, createMachineRequest *Cr
 // DeleteMachine make a call to the driver to delete the machine.
 func (d *FakeDriver) DeleteMachine(ctx context.Context, deleteMachineRequest *DeleteMachineRequest) (*DeleteMachineResponse, error) {
 	d.VMExists = false
+	delete(d.fakeVMs, deleteMachineRequest.Machine.Spec.ProviderID)
 	return &DeleteMachineResponse{
 		LastKnownState: d.LastKnownState,
 	}, d.Err
@@ -80,7 +102,7 @@ func (d *FakeDriver) GetMachineStatus(ctx context.Context, getMachineStatusReque
 // ListMachines have to list machines
 func (d *FakeDriver) ListMachines(ctx context.Context, listMachinesRequest *ListMachinesRequest) (*ListMachinesResponse, error) {
 	return &ListMachinesResponse{
-		MachineList: map[string]string{},
+		MachineList: d.fakeVMs,
 	}, d.Err
 }
 

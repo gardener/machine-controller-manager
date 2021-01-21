@@ -571,10 +571,9 @@ func (c *controller) checkMachineClass(
 			// Any other types of errors
 			klog.Errorf("SafetyController: Error while trying to GET machines. Error: %s", err)
 		} else if err != nil || machine.Spec.ProviderID != machineID {
-
 			// If machine exists and machine object is still been processed by the machine controller
 			if err == nil &&
-				machine.Status.CurrentStatus.Phase == "" {
+				(machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff) {
 				klog.V(3).Infof("SafetyController: Machine object %q is being processed by machine controller, hence skipping", machine.Name)
 				continue
 			}
