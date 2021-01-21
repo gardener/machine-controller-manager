@@ -19,29 +19,52 @@ package driver
 
 import corev1 "k8s.io/api/core/v1"
 
+// fakeVMs keep a list of actively using fake machines for test purposes
+var fakeVMs = make(VMs)
+
 // FakeDriver is a fake driver returned when none of the actual drivers match
 type FakeDriver struct {
-	create func() (string, string, error)
-	delete func(string) error
-	//existing func() (string, v1alpha1.MachinePhase, error)
+	create      func() (string, string, error)
+	add         func(string, string) error
+	delete      func(string) error
 	existing    func() (string, error)
 	getVMs      func() (VMs, error)
 	getVolNames func([]corev1.PersistentVolumeSpec) ([]string, error)
+	getUserData func() string
+	setUserData func(string)
 }
 
 // NewFakeDriver returns a new fakedriver object
-func NewFakeDriver(create func() (string, string, error), delete func(string) error, existing func() (string, error), getVMs func() (VMs, error)) Driver {
+func NewFakeDriver(
+	create func() (string, string, error),
+	add func(string, string) error,
+	delete func(string) error,
+	existing func() (string, error),
+	getVMs func() (VMs, error),
+	getVolNames func([]corev1.PersistentVolumeSpec) ([]string, error),
+	getUserData func() string,
+	setUserData func(string),
+) Driver {
 	return &FakeDriver{
-		create:   create,
-		delete:   delete,
-		existing: existing,
-		getVMs:   getVMs,
+		create:      create,
+		add:         add,
+		delete:      delete,
+		existing:    existing,
+		getVMs:      getVMs,
+		getVolNames: getVolNames,
+		getUserData: getUserData,
+		setUserData: setUserData,
 	}
 }
 
 // Create returns a newly created fake driver
 func (d *FakeDriver) Create() (string, string, error) {
 	return d.create()
+}
+
+// Add add a newly created machine to the fakeVMs list
+func (d *FakeDriver) Add(machineID string, machineName string) error {
+	return d.add(machineID, machineName)
 }
 
 // Delete deletes a fake driver

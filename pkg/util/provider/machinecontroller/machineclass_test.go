@@ -75,7 +75,12 @@ var _ = Describe("machineclass", func() {
 				}
 
 				fakeDriver := driver.NewFakeDriver(
-					data.action.fakeDriver,
+					data.action.fakeDriver.VMExists,
+					data.action.fakeDriver.ProviderID,
+					data.action.fakeDriver.NodeName,
+					data.action.fakeDriver.LastKnownState,
+					data.action.fakeDriver.Err,
+					nil,
 				)
 
 				controller, trackers := createController(stop, TestNamespace, machineObjects, nil, nil, fakeDriver)
