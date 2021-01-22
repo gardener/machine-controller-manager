@@ -1,0 +1,6 @@
+nodesSelector:
+  path: https://github.com/gardener/machine-controller-manager/tree/master/docs    
+links:
+  downloads:
+    scope:
+      gardener/machine-controller-manager/(blob|raw)/(.*)/docs: ~
