@@ -35,7 +35,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
-	policy "k8s.io/api/policy/v1beta1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -43,6 +43,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	corelisters "k8s.io/client-go/listers/core/v1"
+	policylisters "k8s.io/client-go/listers/policy/v1beta1"
 	"k8s.io/klog"
 )
 
@@ -63,6 +64,7 @@ type Options struct {
 	Driver                       driver.Driver
 	pvcLister                    corelisters.PersistentVolumeClaimLister
 	pvLister                     corelisters.PersistentVolumeLister
+	pdbLister                    policylisters.PodDisruptionBudgetLister
 	drainStartedOn               time.Time
 	drainEndedOn                 time.Time
 }
@@ -133,6 +135,7 @@ func NewDrainOptions(
 	driver driver.Driver,
 	pvcLister corelisters.PersistentVolumeClaimLister,
 	pvLister corelisters.PersistentVolumeLister,
+	pdbLister policylisters.PodDisruptionBudgetLister,
 ) *Options {
 
 	return &Options{
@@ -151,6 +154,7 @@ func NewDrainOptions(
 		Driver:                       driver,
 		pvcLister:                    pvcLister,
 		pvLister:                     pvLister,
+		pdbLister:                    pdbLister,
 	}
 
 }
@@ -335,7 +339,7 @@ func (o *Options) evictPod(pod *api.Pod, policyGroupVersion string) error {
 		gracePeriodSeconds := int64(o.GracePeriodSeconds)
 		deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
 	}
-	eviction := &policy.Eviction{
+	eviction := &policyv1beta1.Eviction{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: policyGroupVersion,
 			Kind:       EvictionKind,
@@ -631,7 +635,18 @@ func (o *Options) evictPodsWithPVInternal(attemptEvict bool, pods []*corev1.Pod,
 
 		if attemptEvict && apierrors.IsTooManyRequests(err) {
 			// Pod eviction failed because of PDB violation, we will retry one we are done with this list.
-			klog.V(3).Info("Pod ", pod.Namespace, "/", pod.Name, " from node ", pod.Spec.NodeName, " couldn't be evicted. This may also occur due to PDB violation. Will be retried. Error:", err)
+			klog.V(3).Infof("Pod %s/%s couldn't be evicted from node %s. This may also occur due to PDB violation. Will be retried. Error: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
+
+			pdb := getPdbForPod(o.pdbLister, pod)
+			if pdb != nil {
+				if isMisconfiguredPdb(pdb) {
+					pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
+						pod.Name, pdb.Namespace, pdb.Name)
+					returnCh <- pdbErr
+					continue
+				}
+			}
+
 			retryPods = append(retryPods, pod)
 			continue
 		} else if apierrors.IsNotFound(err) {
@@ -840,6 +855,18 @@ func (o *Options) evictPodWithoutPVInternal(attemptEvict bool, pod *corev1.Pod, 
 			return
 		} else if attemptEvict && apierrors.IsTooManyRequests(err) {
 			// Pod couldn't be evicted because of PDB violation
+			klog.V(3).Infof("Pod %s/%s couldn't be evicted from node %s. This may also occur due to PDB violation. Will be retried. Error: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
+
+			pdb := getPdbForPod(o.pdbLister, pod)
+			if pdb != nil {
+				if isMisconfiguredPdb(pdb) {
+					pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
+						pod.Name, pdb.Namespace, pdb.Name)
+					returnCh <- pdbErr
+					return
+				}
+			}
+
 			time.Sleep(PodEvictionRetryInterval)
 		} else {
 			returnCh <- fmt.Errorf("error when evicting pod %q: %v scheduled on node %v", pod.Name, err, pod.Spec.NodeName)
@@ -955,4 +982,28 @@ func (o *Options) RunCordonOrUncordon(desired bool) error {
 		}
 	}
 	return nil
+}
+
+func getPdbForPod(pdbLister policylisters.PodDisruptionBudgetLister, pod *corev1.Pod) *policyv1beta1.PodDisruptionBudget {
+	// GetPodPodDisruptionBudgets returns an error only if no PodDisruptionBudgets are found.
+	// We don't return that as an error to the caller.
+	pdbs, err := pdbLister.GetPodPodDisruptionBudgets(pod)
+	if err != nil {
+		klog.V(4).Infof("No PodDisruptionBudgets found for pod %s/%s.", pod.Namespace, pod.Name)
+		return nil
+	}
+
+	if len(pdbs) > 1 {
+		klog.Warningf("Pod %s/%s matches multiple PodDisruptionBudgets. Chose %q arbitrarily.", pod.Namespace, pod.Name, pdbs[0].Name)
+	}
+
+	return pdbs[0]
+}
+
+func isMisconfiguredPdb(pdb *policyv1beta1.PodDisruptionBudget) bool {
+	if pdb.ObjectMeta.Generation != pdb.Status.ObservedGeneration {
+		return false
+	}
+
+	return pdb.Status.ExpectedPods > 0 && pdb.Status.CurrentHealthy >= pdb.Status.ExpectedPods && pdb.Status.PodDisruptionsAllowed == 0
 }
