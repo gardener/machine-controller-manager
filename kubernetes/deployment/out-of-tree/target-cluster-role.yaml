@@ -50,3 +50,10 @@ rules:
   verbs:
   - list
   - watch
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - watch
+  - list
