@@ -101,16 +101,32 @@ func NewDriver(machineID string, secretData map[string][]byte, classKind string,
 
 	return NewFakeDriver(
 		func() (string, string, error) {
+			fakeVMs["fake"] = "fake_ip"
 			return "fake", "fake_ip", nil
 		},
-		func(string) error {
+		func(machineID string, machineName string) error {
+			fakeVMs[machineID] = machineName
+			return nil
+		},
+		func(machineID string) error {
+			// delete(fakeVMs, "fake")
+			delete(fakeVMs, machineID)
 			return nil
 		},
 		func() (string, error) {
-			return "fake", nil
+			return "", nil
 		},
 		func() (VMs, error) {
-			return nil, nil
+			return fakeVMs, nil
+		},
+		func([]corev1.PersistentVolumeSpec) ([]string, error) {
+			return []string{}, nil
+		},
+		func() string {
+			return ""
+		},
+		func(string) {
+			return
 		},
 	)
 }

@@ -684,12 +684,15 @@ var _ = Describe("machine", func() {
 					func() (string, string, error) {
 						return action.fakeProviderID, action.fakeNodeName, action.fakeError
 					},
+					func(string, string) error {
+						return nil
+					},
 					func(string) error {
 						return action.fakeError
 					}, nil,
 					func() (driver.VMs, error) {
 						return map[string]string{}, nil
-					},
+					}, nil, nil, nil,
 				))
 
 				if data.expect.err {
@@ -1052,6 +1055,9 @@ var _ = Describe("machine", func() {
 						}
 						return action.fakeProviderID, action.fakeNodeName, action.fakeError
 					},
+					func(string, string) error {
+						return nil
+					},
 					func(string) error {
 						return nil
 					},
@@ -1059,6 +1065,7 @@ var _ = Describe("machine", func() {
 						return action.fakeProviderID, action.fakeError
 					},
 					fakeDriverGetVMsTemp,
+					nil, nil, nil,
 				)
 
 				// Create a machine that is to be deleted later

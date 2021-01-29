@@ -157,7 +157,14 @@ var _ = Describe("machine", func() {
 					machineObjects = append(machineObjects, o)
 				}
 
-				fakedriver := driver.NewFakeDriver(data.action.fakeDriver)
+				fakedriver := driver.NewFakeDriver(
+					data.action.fakeDriver.VMExists,
+					data.action.fakeDriver.ProviderID,
+					data.action.fakeDriver.NodeName,
+					data.action.fakeDriver.LastKnownState,
+					data.action.fakeDriver.Err,
+					nil,
+				)
 
 				controller, trackers := createController(stop, TestNamespace, machineObjects, nil, nil, fakedriver)
 				defer trackers.Stop()

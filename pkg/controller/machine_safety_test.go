@@ -20,9 +20,11 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/driver"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -780,4 +782,110 @@ var _ = Describe("#machine_safety", func() {
 		Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Elapsed, Pre-Frozen: true = Post-Frozen: true",
 			false, false, fiveMinutesDuration, true, true),
 	)
+})
+
+var _ = Describe("machineCrashloopBackoff", func() {
+	objMeta := &metav1.ObjectMeta{
+		GenerateName: "class",
+		Namespace:    testNamespace,
+	}
+
+	classKind := "MachineClass"
+	secretData := map[string][]byte{
+		"userData":            []byte("dummy-data"),
+		"azureClientId":       []byte("dummy-client-id"),
+		"azureClientSecret":   []byte("dummy-client-secret"),
+		"azureSubscriptionId": []byte("dummy-subcription-id"),
+		"azureTenantId":       []byte("dummy-tenant-id"),
+	}
+
+	Describe("machineCrashloopBackoff", func() {
+
+		It("Should delete the machine (old code)", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			// Create test secret and add it to controlCoreObject list
+			testSecret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-secret",
+					Namespace: testNamespace,
+				},
+				Data: secretData,
+			}
+
+			// Create a test secretReference because the method checkMachineClass needs it
+			testSecretReference := &v1.SecretReference{
+				Name:      "test-secret",
+				Namespace: testNamespace,
+			}
+
+			testMachineClass := &machinev1.MachineClass{
+				ObjectMeta: *newObjectMeta(objMeta, 0),
+				SecretRef:  testSecretReference,
+			}
+			controlCoreObjects := []runtime.Object{}
+			controlCoreObjects = append(controlCoreObjects, testSecret)
+
+			// Create test machine object in CrashloopBackoff state
+			testMachineObject1 := &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "testmachine_1",
+					Namespace: testNamespace,
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: v1alpha1.MachineCrashLoopBackOff,
+					},
+				},
+			}
+
+			// Create another test machine object in Running state
+			testMachineObject2 := &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "testmachine_2",
+					Namespace: testNamespace,
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: v1alpha1.MachineRunning,
+					},
+				},
+			}
+
+			controlMachineObjects := []runtime.Object{}
+			controlMachineObjects = append(controlMachineObjects, testMachineObject1)
+			controlMachineObjects = append(controlMachineObjects, testMachineObject2)
+
+			c, trackers := createController(stop, testNamespace, controlMachineObjects, controlCoreObjects, nil)
+			defer trackers.Stop()
+
+			fakeDriver := driver.NewDriver(
+				"",
+				secretData,
+				classKind,
+				testMachineClass,
+				"",
+			)
+
+			// use type assertion to let Golang know that the
+			// returned fakeDriver is of type *driver.FakeDriver
+			fd := fakeDriver.(*driver.FakeDriver)
+
+			_ = fd.Add("testmachine-ip1", "testmachine_1")
+			_ = fd.Add("testmachine-ip2", "testmachine_2")
+
+			waitForCacheSync(stop, c)
+
+			// call checkMachineClass to delete the orphan VMs
+			c.checkMachineClass(testMachineClass, testSecretReference, testSecretReference, objMeta.Name, classKind)
+
+			listOfVMs, _ := fakeDriver.GetVMs("")
+
+			// after this, the testmachine in crashloopbackoff phase should remain and the other one should
+			// be deleted because it is an orphan VM
+			Expect(listOfVMs["testmachine-ip1"]).To(Equal("testmachine_1"))
+			Expect(listOfVMs["testmachine-ip2"]).To(Equal(""))
+		})
+	})
 })
