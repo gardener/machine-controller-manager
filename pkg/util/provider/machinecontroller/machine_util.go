@@ -26,6 +26,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -120,6 +121,13 @@ func (c *controller) ValidateMachineClass(classSpec *v1alpha1.ClassSpec) (*v1alp
 	secretData, err := c.getSecretData(machineClass.Name, machineClass.SecretRef, machineClass.CredentialsSecretRef)
 	if err != nil {
 		klog.V(2).Infof("Could not compute secret data: %+v", err)
+		return nil, nil, retry, err
+	}
+
+	if finalizers := sets.NewString(machineClass.Finalizers...); !finalizers.Has(MCMFinalizerName) {
+		klog.Errorf("The machine class %s has no finalizers set. So not reconciling the machine.", machineClass.Name)
+		c.machineClassQueue.Add(machineClass.Name)
+		err := errors.New("The machine class %s has no finalizers set. So not reconciling the machine." + machineClass.Name)
 		return nil, nil, retry, err
 	}
 
