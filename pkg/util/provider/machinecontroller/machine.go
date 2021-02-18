@@ -134,6 +134,7 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 		return machineutils.LongRetry, err
 	}
 
+	// Validate MachineClass
 	machineClass, secretData, retry, err := c.ValidateMachineClass(&machine.Spec.Class)
 	if err != nil {
 		klog.Error(err)
