@@ -10,6 +10,7 @@ require (
 	github.com/Azure/go-autorest/autorest/validation v0.2.0 // indirect
 	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20180828111155-cad214d7d71f
 	github.com/aws/aws-sdk-go v1.23.13
+	github.com/cenkalti/backoff/v4 v4.1.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/emicklei/go-restful v2.9.6+incompatible // indirect
 	github.com/go-openapi/spec v0.19.2
@@ -18,8 +19,8 @@ require (
 	github.com/gophercloud/gophercloud v0.7.0
 	github.com/gophercloud/utils v0.0.0-20200204043447-9864b6f1f12f
 	github.com/json-iterator/go v1.1.9 // indirect
-	github.com/onsi/ginkgo v1.10.1
-	github.com/onsi/gomega v1.7.0
+	github.com/onsi/ginkgo v1.15.2
+	github.com/onsi/gomega v1.11.0
 	github.com/packethost/packngo v0.0.0-20181217122008-b3b45f1b4979
 	github.com/prometheus/client_golang v0.9.2
 	github.com/satori/go.uuid v1.2.0 // indirect
