@@ -86,6 +86,7 @@ function setup_environment() {
     # If not a local test then install jq
     if [ -z "$LOCAL_TEST" ]; then
         printf "\nDownloading and installing jq\n"
+        apt-get -y update
         apt-get -y install jq
         printf "Successfully installed jq\n"
     fi
