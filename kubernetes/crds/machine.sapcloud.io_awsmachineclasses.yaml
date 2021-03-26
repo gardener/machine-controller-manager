@@ -148,6 +148,18 @@ spec:
                     name must be unique.
                   type: string
               type: object
+            capacityReservation:
+              description: The Capacity Reservation that this machine should be launched into. Either the reservation or
+                the reservation group needs to be provided - not both.
+              properties:
+                capacityReservationId:
+                  description: Target this existing Capacity Reservation.
+                  type: string
+                capacityReservationResourceGroupArn:
+                  description: Target this existing Capacity Reservation Group. Perhaps more useful than using capacity reservations
+                    directly since groups can be created much ahead of time.
+                  type: string
+              type: object
             ebsOptimized:
               type: boolean
             iam:

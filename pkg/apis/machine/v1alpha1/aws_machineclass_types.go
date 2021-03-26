@@ -74,21 +74,31 @@ type AWSMachineClassList struct {
 
 // AWSMachineClassSpec is the specification of a AWSMachineClass.
 type AWSMachineClassSpec struct {
-	AMI                  string                      `json:"ami,omitempty"`
-	Region               string                      `json:"region,omitempty"`
-	BlockDevices         []AWSBlockDeviceMappingSpec `json:"blockDevices,omitempty"`
-	EbsOptimized         bool                        `json:"ebsOptimized,omitempty"`
-	IAM                  AWSIAMProfileSpec           `json:"iam,omitempty"`
-	MachineType          string                      `json:"machineType,omitempty"`
-	KeyName              string                      `json:"keyName,omitempty"`
-	Monitoring           bool                        `json:"monitoring,omitempty"`
-	NetworkInterfaces    []AWSNetworkInterfaceSpec   `json:"networkInterfaces,omitempty"`
-	Tags                 map[string]string           `json:"tags,omitempty"`
-	SpotPrice            *string                     `json:"spotPrice,omitempty"`
-	SecretRef            *corev1.SecretReference     `json:"secretRef,omitempty"`
-	CredentialsSecretRef *corev1.SecretReference     `json:"credentialsSecretRef,omitempty"`
+	AMI                       string                           `json:"ami,omitempty"`
+	Region                    string                           `json:"region,omitempty"`
+	BlockDevices              []AWSBlockDeviceMappingSpec      `json:"blockDevices,omitempty"`
+	EbsOptimized              bool                             `json:"ebsOptimized,omitempty"`
+	IAM                       AWSIAMProfileSpec                `json:"iam,omitempty"`
+	MachineType               string                           `json:"machineType,omitempty"`
+	KeyName                   string                           `json:"keyName,omitempty"`
+	Monitoring                bool                             `json:"monitoring,omitempty"`
+	NetworkInterfaces         []AWSNetworkInterfaceSpec        `json:"networkInterfaces,omitempty"`
+	Tags                      map[string]string                `json:"tags,omitempty"`
+	SpotPrice                 *string                          `json:"spotPrice,omitempty"`
+	SecretRef                 *corev1.SecretReference          `json:"secretRef,omitempty"`
+	CredentialsSecretRef      *corev1.SecretReference          `json:"credentialsSecretRef,omitempty"`
+	CapacityReservationTarget *AWSCapacityReservationTargetSpec `json:"capacityReservation,omitempty"`
 
 	// TODO add more here
+}
+
+type AWSCapacityReservationTargetSpec struct {
+
+	// The ID of the Capacity Reservation in which to run the instance.
+	CapacityReservationId *string `json:"capacityReservationId,omitempty"`
+
+	// The ARN of the Capacity Reservation resource group in which to run the instance.
+	CapacityReservationResourceGroupArn *string `json:"capacityReservationResourceGroupArn,omitempty"`
 }
 
 type AWSBlockDeviceMappingSpec struct {

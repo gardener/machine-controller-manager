@@ -27,6 +27,9 @@ spec:
 # credentialsSecretRef: # Optional - Kubernetes secret containing only provider secrets (in this case the Secret in the secretRef does not need them)
 #   name: "test-secret-credentials" # Name of the secret
 #   namespace: "default" # Namespace of secret
+#  capacityReservation: # Optional - allows targetting a capacity reservation. Either a reservation id or group arn is needed - not both.
+#    capacityReservationId: "cr-05c28b843c05acc11"
+#    capacityReservationResourceGroupArn: "arn:aws:resource-groups:us-west-1:123456789012:group/my-cr-group"
   blockDevices:
     - deviceName: /root
       ebs:
