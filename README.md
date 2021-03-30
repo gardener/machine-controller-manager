@@ -8,7 +8,7 @@
 Machine Controller Manager (MCM) manages VMs as another kubernetes custom resource. It provides a declarative way to manage VMs. 
 
 MCM supports following providers. These provider code is maintained externally (out-of-tree), and the links for the same are linked below: 
-* [Alicloud]((https://github.com/gardener/machine-controller-manager-provider-alicloud)
+* [Alicloud](https://github.com/gardener/machine-controller-manager-provider-alicloud)
 * [AWS](https://github.com/gardener/machine-controller-manager-provider-aws)
 * [Azure](https://github.com/gardener/machine-controller-manager-provider-azure)
 * [Equinix Metal](https://github.com/gardener/machine-controller-manager-provider-equinix-metal)
