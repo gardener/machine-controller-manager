@@ -14,9 +14,9 @@ MCM supports following providers. These provider code is maintained externally (
 * [Equinix Metal](https://github.com/gardener/machine-controller-manager-provider-equinix-metal)
 * [GCP](https://github.com/gardener/machine-controller-manager-provider-gcp)
 * [KubeVirt](https://github.com/gardener/machine-controller-manager-provider-kubevirt)
-* [Metal-stack]()
+* [Metal Stack](https://github.com/metal-stack/machine-controller-manager-provider-metal)
 * [Openstack](https://github.com/gardener/machine-controller-manager-provider-openstack)
-* [V-sphere](https://github.com/gardener/machine-controller-manager-provider-vsphere)
+* [V Sphere](https://github.com/gardener/machine-controller-manager-provider-vsphere)
 * [Yandex](https://github.com/gardener/machine-controller-manager-provider-yandex)
 
 It can easily be extended to support other cloud providers as well.
