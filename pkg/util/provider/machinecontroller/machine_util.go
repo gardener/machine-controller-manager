@@ -926,6 +926,7 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 		machine                                      = deleteMachineRequest.Machine
 		maxEvictRetries                              = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
 		pvDetachTimeOut                              = c.safetyOptions.PvDetachTimeout.Duration
+		pvReattachTimeOut                            = c.safetyOptions.PvReattachTimeout.Duration
 		timeOutDuration                              = c.getEffectiveDrainTimeout(deleteMachineRequest.Machine).Duration
 		forceDeleteLabelPresent                      = machine.Labels["force-deletion"] == "True"
 		nodeName                                     = machine.Labels["node"]
@@ -1016,6 +1017,7 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 				timeOutDuration,
 				maxEvictRetries,
 				pvDetachTimeOut,
+				pvReattachTimeOut,
 				nodeName,
 				-1,
 				forceDeletePods,
@@ -1028,6 +1030,8 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 				c.pvcLister,
 				c.pvLister,
 				c.pdbLister,
+				c.nodeLister,
+				c.volumeAttachmentHandler,
 			)
 			err = drainOptions.RunDrain()
 			if err == nil {

@@ -104,6 +104,8 @@ type SafetyOptions struct {
 	MaxEvictRetries int32
 	// Timeout (in duration) used while waiting for PV to detach
 	PvDetachTimeout metav1.Duration
+	// Timeout (in duration) used while waiting for PV to reattach on new node
+	PvReattachTimeout metav1.Duration
 
 	// Timeout (in duration) for which the APIServer can be down before
 	// declare the machine controller frozen by safety controller

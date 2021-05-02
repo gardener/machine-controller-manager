@@ -46,17 +46,17 @@ import (
 	Machine controller - Machine add, update, delete watches
 */
 func (c *controller) addMachine(obj interface{}) {
-	klog.V(4).Infof("Adding machine object")
+	klog.V(5).Infof("Adding machine object")
 	c.enqueueMachine(obj)
 }
 
 func (c *controller) updateMachine(oldObj, newObj interface{}) {
-	klog.V(4).Info("Updating machine object")
+	klog.V(5).Info("Updating machine object")
 	c.enqueueMachine(newObj)
 }
 
 func (c *controller) deleteMachine(obj interface{}) {
-	klog.V(4).Info("Deleting machine object")
+	klog.V(5).Info("Deleting machine object")
 	c.enqueueMachine(obj)
 }
 
@@ -73,14 +73,14 @@ func (c *controller) isToBeEnqueued(obj interface{}) (bool, string) {
 
 func (c *controller) enqueueMachine(obj interface{}) {
 	if toBeEnqueued, key := c.isToBeEnqueued(obj); toBeEnqueued {
-		klog.V(4).Infof("Adding machine object to the queue %q", key)
+		klog.V(5).Infof("Adding machine object to the queue %q", key)
 		c.machineQueue.Add(key)
 	}
 }
 
 func (c *controller) enqueueMachineAfter(obj interface{}, after time.Duration) {
 	if toBeEnqueued, key := c.isToBeEnqueued(obj); toBeEnqueued {
-		klog.V(4).Infof("Adding machine object to the queue %q after %s", key, after)
+		klog.V(5).Infof("Adding machine object to the queue %q after %s", key, after)
 		c.machineQueue.AddAfter(key, after)
 	}
 }
@@ -102,7 +102,7 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 	}
 
 	retryPeriod, err := c.reconcileClusterMachine(machine)
-	klog.V(4).Info(err, retryPeriod)
+	klog.V(5).Info(err, retryPeriod)
 
 	c.enqueueMachineAfter(machine, time.Duration(retryPeriod))
 
@@ -110,8 +110,8 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 }
 
 func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
-	klog.V(4).Infof("Start Reconciling machine: %q , nodeName: %q ,providerID: %q", machine.Name, getNodeName(machine), getProviderID(machine))
-	defer klog.V(4).Infof("Stop Reconciling machine %q, nodeName: %q ,providerID: %q", machine.Name, getNodeName(machine), getProviderID(machine))
+	klog.V(5).Infof("Start Reconciling machine: %q , nodeName: %q ,providerID: %q", machine.Name, getNodeName(machine), getProviderID(machine))
+	defer klog.V(5).Infof("Stop Reconciling machine %q, nodeName: %q ,providerID: %q", machine.Name, getNodeName(machine), getProviderID(machine))
 
 	if c.safetyOptions.MachineControllerFrozen && machine.DeletionTimestamp == nil {
 		// If Machine controller is frozen and
@@ -199,7 +199,7 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 	}
 
 	if machine.Status.CurrentStatus.Phase != v1alpha1.MachineCrashLoopBackOff && nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions) {
-		klog.V(4).Infof("Enqueue machine object %q as conditions of backing node %q have changed", machine.Name, getNodeName(machine))
+		klog.V(5).Infof("Enqueue machine object %q as conditions of backing node %q have changed", machine.Name, getNodeName(machine))
 		c.enqueueMachine(machine)
 	}
 }

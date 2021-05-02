@@ -104,7 +104,7 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 						return err
 					}
 
-					klog.V(2).Info("SafetyController: Reinitializing machine health check for machine: %q with backing node: %q and providerID: %q", machine.Name, getNodeName(machine), getProviderID(machine))
+					klog.V(2).Infof("SafetyController: Reinitializing machine health check for machine: %q with backing node: %q and providerID: %q", machine.Name, getNodeName(machine), getProviderID(machine))
 				}
 
 				// En-queue after 30 seconds, to ensure all machine states are reconciled

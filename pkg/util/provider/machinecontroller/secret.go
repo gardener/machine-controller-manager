@@ -59,10 +59,10 @@ func (c *controller) reconcileClusterSecretKey(key string) error {
 func (c *controller) reconcileClusterSecret(secret *corev1.Secret) error {
 	startTime := time.Now()
 
-	klog.V(4).Infof("Start syncing %q", secret.Name)
+	klog.V(5).Infof("Start syncing %q", secret.Name)
 	defer func() {
 		c.enqueueSecretAfter(secret, 10*time.Minute)
-		klog.V(4).Infof("Finished syncing %q (%v)", secret.Name, time.Since(startTime))
+		klog.V(5).Infof("Finished syncing %q (%v)", secret.Name, time.Since(startTime))
 	}()
 
 	// Check if machineClasses are referring to this secret
