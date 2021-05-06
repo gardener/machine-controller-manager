@@ -893,53 +893,68 @@ func (c *controller) getVMStatus(getMachineStatusRequest *driver.GetMachineStatu
 
 // isValidNodeName checks if the nodeName is valid
 func isValidNodeName(nodeName string) bool {
-	if nodeName == "" {
-		// if nodeName is empty
-		return false
-	}
+	return nodeName != ""
+}
 
-	return true
+// isConditionEmpty returns true if passed NodeCondition is empty
+func isConditionEmpty(condition v1.NodeCondition) bool {
+	return condition == v1.NodeCondition{}
+}
+
+// initializes err and description with the passed string message
+func printLogInitError(s string, err *error, description *string, machine *v1alpha1.Machine) {
+	klog.Warningf(s+" machine: %q ", machine.Name)
+	*err = fmt.Errorf(s+" %s", machineutils.InitiateVMDeletion)
+	*description = fmt.Sprintf(s+" %s", machineutils.InitiateVMDeletion)
 }
 
 // drainNode attempts to drain the node backed by the machine object
 func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.RetryPeriod, error) {
 	var (
 		// Declarations
-		err                error
-		forceDeletePods    bool
-		forceDeleteMachine bool
-		timeOutOccurred    bool
-		skipDrain          bool
-		description        string
-		state              v1alpha1.MachineState
+		err                                             error
+		forceDeletePods                                 bool
+		forceDeleteMachine                              bool
+		timeOutOccurred                                 bool
+		skipDrain                                       bool
+		description                                     string
+		state                                           v1alpha1.MachineState
+		readOnlyFileSystemCondition, nodeReadyCondition v1.NodeCondition
 
 		// Initialization
-		machine                 = deleteMachineRequest.Machine
-		maxEvictRetries         = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
-		pvDetachTimeOut         = c.safetyOptions.PvDetachTimeout.Duration
-		timeOutDuration         = c.getEffectiveDrainTimeout(deleteMachineRequest.Machine).Duration
-		forceDeleteLabelPresent = machine.Labels["force-deletion"] == "True"
-		nodeName                = machine.Labels["node"]
-		nodeNotReadyDuration    = 5 * time.Minute
+		machine                                      = deleteMachineRequest.Machine
+		maxEvictRetries                              = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
+		pvDetachTimeOut                              = c.safetyOptions.PvDetachTimeout.Duration
+		timeOutDuration                              = c.getEffectiveDrainTimeout(deleteMachineRequest.Machine).Duration
+		forceDeleteLabelPresent                      = machine.Labels["force-deletion"] == "True"
+		nodeName                                     = machine.Labels["node"]
+		nodeNotReadyDuration                         = 5 * time.Minute
+		ReadonlyFilesystem      v1.NodeConditionType = "ReadonlyFilesystem"
 	)
 
 	if !isValidNodeName(nodeName) {
-		klog.Warningf("Skipping drain as nodeName is not a valid one for machine %q", machine.Name)
-		err = fmt.Errorf("Skipping drain as nodeName is not a valid one for machine. %s", machineutils.InitiateVMDeletion)
-		description = fmt.Sprintf("Skipping drain as nodeName is not a valid one for machine. %s", machineutils.InitiateVMDeletion)
+		message := "Skipping drain as nodeName is not a valid one for machine."
+		printLogInitError(message, &err, &description, machine)
 		skipDrain = true
 	} else {
+
 		for _, condition := range machine.Status.Conditions {
+
 			if condition.Type == v1.NodeReady {
-				if condition.Status != corev1.ConditionTrue && (time.Since(condition.LastTransitionTime.Time) > nodeNotReadyDuration) {
-					klog.Warningf("Skipping drain for NotReady machine %q", machine.Name)
-					err = fmt.Errorf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion)
-					description = fmt.Sprintf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion)
-					skipDrain = true
-				}
-				// break once the condition is found
-				break
+				nodeReadyCondition = condition
+			} else if condition.Type == ReadonlyFilesystem {
+				readOnlyFileSystemCondition = condition
 			}
+		}
+
+		if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != corev1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+			message := "Skipping drain as machine is NotReady for over 5minutes."
+			printLogInitError(message, &err, &description, machine)
+			skipDrain = true
+		} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != corev1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+			message := "Skipping drain as machine is in ReadonlyFilesystem for over 5minutes."
+			printLogInitError(message, &err, &description, machine)
+			skipDrain = true
 		}
 	}
 
