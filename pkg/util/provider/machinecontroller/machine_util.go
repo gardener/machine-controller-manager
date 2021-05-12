@@ -539,7 +539,7 @@ func (c *controller) reconcileMachineHealth(machine *v1alpha1.Machine) (machineu
 	if err == nil {
 		if nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions) {
 			clone.Status.Conditions = node.Status.Conditions
-			klog.V(3).Infof("conditions of Machine %q with providerID %q and backing node %q are changing", machine.Name, getProviderID(machine), getNodeName(machine))
+			klog.V(3).Infof("Conditions of Machine %q with providerID %q and backing node %q are changing", machine.Name, getProviderID(machine), getNodeName(machine))
 			objectRequiresUpdate = true
 		}
 
