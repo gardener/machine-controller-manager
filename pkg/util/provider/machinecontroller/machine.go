@@ -337,7 +337,7 @@ func (c *controller) triggerCreationFlow(createMachineRequest *driver.CreateMach
 			}
 
 			// Creation was successful
-			klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %s and backing node: %q", machine.Name, providerID, getNodeName(machine))
+			klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q", machine.Name, providerID, getNodeName(machine))
 			break
 
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
