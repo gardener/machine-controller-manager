@@ -110,8 +110,8 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 }
 
 func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
-	klog.V(4).Infof("Start Reconciling machine %q", machine.Name)
-	defer klog.V(4).Infof("Stop Reconciling machine %q", machine.Name)
+	klog.V(4).Infof("Start Reconciling machine: %q , nodeName: %q ,providerID: %q", machine.Name, getNodeName(machine), getProviderID(machine))
+	defer klog.V(4).Infof("Stop Reconciling machine %q, nodeName: %q ,providerID: %q", machine.Name, getNodeName(machine), getProviderID(machine))
 
 	if c.safetyOptions.MachineControllerFrozen && machine.DeletionTimestamp == nil {
 		// If Machine controller is frozen and
@@ -199,7 +199,7 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 	}
 
 	if machine.Status.CurrentStatus.Phase != v1alpha1.MachineCrashLoopBackOff && nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions) {
-		klog.V(4).Infof("Enqueue machine object %q as backing node's conditions have changed", machine.Name)
+		klog.V(4).Infof("Enqueue machine object %q as conditions of backing node %q have changed", machine.Name, getNodeName(machine))
 		c.enqueueMachine(machine)
 	}
 }
@@ -337,7 +337,7 @@ func (c *controller) triggerCreationFlow(createMachineRequest *driver.CreateMach
 			}
 
 			// Creation was successful
-			klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %s", machine.Name, providerID)
+			klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q", machine.Name, providerID, getNodeName(machine))
 			break
 
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
@@ -441,7 +441,7 @@ func (c *controller) triggerCreationFlow(createMachineRequest *driver.CreateMach
 }
 
 func (c *controller) triggerUpdationFlow(machine *v1alpha1.Machine, actualProviderID string) (machineutils.RetryPeriod, error) {
-	klog.V(2).Infof("Setting ProviderID of %s to %s", machine.Name, actualProviderID)
+	klog.V(2).Infof("Setting ProviderID of machine %s with backing node %s to %s", machine.Name, getNodeName(machine), actualProviderID)
 
 	for {
 		machine, err := c.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
@@ -533,6 +533,6 @@ func (c *controller) triggerDeletionFlow(deleteMachineRequest *driver.DeleteMach
 		}
 	*/
 
-	klog.V(2).Infof("Machine %q deleted successfully", machine.Name)
+	klog.V(2).Infof("Machine %q with providerID %q and nodeName %q deleted successfully", machine.Name, getProviderID(machine), getNodeName(machine))
 	return machineutils.LongRetry, nil
 }
