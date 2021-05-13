@@ -104,7 +104,7 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 						return err
 					}
 
-					klog.V(2).Info("SafetyController: Reinitializing machine health check for ", machine.Name)
+					klog.V(2).Info("SafetyController: Reinitializing machine health check for machine: %q with backing node: %q and providerID: %q", machine.Name, getNodeName(machine), getProviderID(machine))
 				}
 
 				// En-queue after 30 seconds, to ensure all machine states are reconciled
@@ -220,7 +220,7 @@ func (c *controller) checkMachineClass(machineClass *v1alpha1.MachineClass) (mac
 			// If machine exists and machine object is still been processed by the machine controller
 			if err == nil &&
 				(machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff) {
-				klog.V(3).Infof("SafetyController: Machine object %q is being processed by machine controller, hence skipping", machine.Name)
+				klog.V(3).Infof("SafetyController: Machine object %q with backing nodeName %q , providerID %q is being processed by machine controller, hence skipping", machine.Name, getNodeName(machine), getProviderID(machine))
 				continue
 			}
 

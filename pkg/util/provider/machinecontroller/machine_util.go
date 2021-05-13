@@ -240,13 +240,14 @@ func (c *controller) syncMachineNodeTemplates(machine *v1alpha1.Machine) (machin
 	if initializedNodeAnnotation || labelsChanged || annotationsChanged || taintsChanged {
 
 		klog.V(2).Infof(
-			"Updating machine annotations:%v, labels:%v, taints:%v for machine: %q",
+			"Updating machine annotations:%v, labels:%v, taints:%v for machine: %q with providerID: %q and backing node: %q",
 			annotationsChanged,
 			labelsChanged,
 			taintsChanged,
 			machine.Name,
+			getProviderID(machine),
+			getNodeName(machine),
 		)
-
 		// Update the  machineutils.LastAppliedALTAnnotation
 		lastAppliedALT = machine.Spec.NodeTemplateSpec
 		currentlyAppliedALTJSONByte, err = json.Marshal(lastAppliedALT)
@@ -517,7 +518,7 @@ func (c *controller) getCreateFailurePhase(machine *v1alpha1.Machine) v1alpha1.M
 	if timeOut > 0 {
 		// Machine creation timeout occured while joining of machine
 		// Machine set controller would replace this machine with a new one as phase is failed.
-		klog.V(2).Infof("Machine %q couldn't join in creation timeout of %s. Changing phase to failed.", machine.Name, timeOutDuration)
+		klog.V(2).Infof("Machine %q , providerID %q and backing node %q couldn't join in creation timeout of %s. Changing phase to failed.", machine.Name, getProviderID(machine), getNodeName(machine), timeOutDuration)
 		return v1alpha1.MachineFailed
 	}
 
@@ -538,7 +539,7 @@ func (c *controller) reconcileMachineHealth(machine *v1alpha1.Machine) (machineu
 	if err == nil {
 		if nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions) {
 			clone.Status.Conditions = node.Status.Conditions
-			klog.V(3).Infof("Machine %q conditions are changing", machine.Name)
+			klog.V(3).Infof("Conditions of Machine %q with providerID %q and backing node %q are changing", machine.Name, getProviderID(machine), getNodeName(machine))
 			objectRequiresUpdate = true
 		}
 
@@ -699,7 +700,7 @@ func (c *controller) reconcileMachineHealth(machine *v1alpha1.Machine) (machineu
 			// Keep retrying until update goes through
 			klog.Errorf("Update failed for machine %q. Retrying, error: %q", machine.Name, err)
 		} else {
-			klog.V(2).Infof("Machine State has been updated for %q", machine.Name)
+			klog.V(2).Infof("Machine State has been updated for %q with providerID %q and backing node %q", machine.Name, getProviderID(machine), getNodeName(machine))
 			// Return error for continuing in next iteration
 			err = fmt.Errorf("Machine creation is successful. Machine State has been UPDATED")
 		}
@@ -727,7 +728,7 @@ func (c *controller) addMachineFinalizers(machine *v1alpha1.Machine) (machineuti
 			klog.Errorf("Failed to add finalizers for machine %q: %s", machine.Name, err)
 		} else {
 			// Return error even when machine object is updated
-			klog.V(2).Infof("Added finalizer to machine %q", machine.Name)
+			klog.V(2).Infof("Added finalizer to machine %q with providerID %q and backing node %q", machine.Name, getProviderID(machine), getNodeName(machine))
 			err = fmt.Errorf("Machine creation in process. Machine finalizers are UPDATED")
 		}
 
@@ -750,7 +751,7 @@ func (c *controller) deleteMachineFinalizers(machine *v1alpha1.Machine) (machine
 			return machineutils.ShortRetry, err
 		}
 
-		klog.V(2).Infof("Removed finalizer to machine %q", machine.Name)
+		klog.V(2).Infof("Removed finalizer to machine %q with providerID %q and backing node %q", machine.Name, getProviderID(machine), getNodeName(machine))
 		return machineutils.LongRetry, nil
 	}
 
@@ -974,15 +975,19 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 			maxEvictRetries = 1
 
 			klog.V(2).Infof(
-				"Force delete/drain has been triggerred for machine %q due to Label:%t, timeout:%t",
+				"Force delete/drain has been triggerred for machine %q with providerID %q and backing node %q due to Label:%t, timeout:%t",
 				machine.Name,
+				getProviderID(machine),
+				getNodeName(machine),
 				forceDeleteLabelPresent,
 				timeOutOccurred,
 			)
 		} else {
 			klog.V(2).Infof(
-				"Normal delete/drain has been triggerred for machine %q with drain-timeout:%v & maxEvictRetries:%d",
+				"Normal delete/drain has been triggerred for machine %q with providerID %q and backing node %q with drain-timeout:%v & maxEvictRetries:%d",
 				machine.Name,
+				getProviderID(machine),
+				getNodeName(machine),
 				timeOutDuration,
 				maxEvictRetries,
 			)
@@ -1027,7 +1032,7 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 			err = drainOptions.RunDrain()
 			if err == nil {
 				// Drain successful
-				klog.V(2).Infof("Drain successful for machine %q. \nBuf:%v \nErrBuf:%v", machine.Name, buf, errBuf)
+				klog.V(2).Infof("Drain successful for machine %q ,providerID %q, backing node %q. \nBuf:%v \nErrBuf:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf)
 
 				description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
 				state = v1alpha1.MachineStateProcessing
@@ -1041,7 +1046,7 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 				description = fmt.Sprintf("Drain failed due to - %s. However, since it's a force deletion shall continue deletion of VM. %s", err.Error(), machineutils.InitiateVMDeletion)
 				state = v1alpha1.MachineStateProcessing
 			} else {
-				klog.Warningf("Drain failed for machine %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+				klog.Warningf("Drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
 
 				description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
 				state = v1alpha1.MachineStateFailed
@@ -1286,4 +1291,12 @@ func setTerminationReasonByPhase(phase v1alpha1.MachinePhase, terminationConditi
 		terminationCondition.Reason = machineutils.NodeScaledDown
 		terminationCondition.Message = "Machine Controller is scaling down machine"
 	}
+}
+
+func getProviderID(machine *v1alpha1.Machine) string {
+	return machine.Spec.ProviderID
+}
+
+func getNodeName(machine *v1alpha1.Machine) string {
+	return machine.Status.Node
 }
