@@ -556,12 +556,12 @@ func (c *controller) getSecretData(machineClassName string, secretRefs ...*v1.Se
 			continue
 		}
 
-		secretRef, err := c.getSecret(secretRef, machineClassName)
+		secret, err := c.getSecret(secretRef, machineClassName)
 		if err != nil {
 			klog.V(2).Infof("Secret reference %s/%s not found", secretRef.Namespace, secretRef.Name)
 			return nil, err
 		}
-		secretData = mergeDataMaps(secretData, secretRef.Data)
+		secretData = mergeDataMaps(secretData, secret.Data)
 	}
 
 	return secretData, nil
