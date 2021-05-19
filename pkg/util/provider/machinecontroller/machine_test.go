@@ -438,52 +438,6 @@ var _ = Describe("machine", func() {
 				Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
 			},
 
-			Entry("Machine creation in process. Machine finalizers are UPDATED", &data{
-				setup: setup{
-					secrets: []*corev1.Secret{
-						{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						},
-					},
-					machineClaasses: []*v1alpha1.MachineClass{
-						{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-							SecretRef:  newSecretReference(objMeta, 0),
-						},
-					},
-					machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-						ObjectMeta: *newObjectMeta(objMeta, 0),
-						Spec: v1alpha1.MachineSpec{
-							Class: v1alpha1.ClassSpec{
-								Kind: "MachineClass",
-								Name: "machine-0",
-							},
-						},
-					}, nil, nil, nil, nil, false, metav1.Now()),
-				},
-				action: action{
-					machine: "machine-0",
-					fakeDriver: &driver.FakeDriver{
-						VMExists:   false,
-						ProviderID: "fakeID-0",
-						NodeName:   "fakeNode-0",
-						Err:        nil,
-					},
-				},
-				expect: expect{
-					machine: newMachine(&v1alpha1.MachineTemplateSpec{
-						ObjectMeta: *newObjectMeta(objMeta, 0),
-						Spec: v1alpha1.MachineSpec{
-							Class: v1alpha1.ClassSpec{
-								Kind: "MachineClass",
-								Name: "machineClass",
-							},
-						},
-					}, nil, nil, nil, nil, true, metav1.Now()),
-					err:   fmt.Errorf("Machine creation in process. Machine finalizers are UPDATED"),
-					retry: machineutils.ShortRetry,
-				},
-			}),
 			Entry("Machine creation succeeds with object UPDATE", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
