@@ -149,6 +149,12 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 		})
 	}
 
+	// Add finalizers if not present on machine object
+	retry, err = c.addMachineFinalizers(machine)
+	if err != nil {
+		return retry, err
+	}
+
 	if machine.Status.Node != "" {
 		// If reference to node object exists execute the below
 		retry, err := c.reconcileMachineHealth(machine)
@@ -280,15 +286,9 @@ func (c *controller) triggerCreationFlow(createMachineRequest *driver.CreateMach
 		providerID  = ""
 	)
 
-	// Add finalizers if not present
-	retry, err := c.addMachineFinalizers(createMachineRequest.Machine)
-	if err != nil {
-		return retry, err
-	}
-
 	// we should avoid mutating Secret, since it goes all the way into the Informer's store
 	secretCopy := createMachineRequest.Secret.DeepCopy()
-	err = c.addBootstrapTokenToUserData(machine.Name, secretCopy)
+	err := c.addBootstrapTokenToUserData(machine.Name, secretCopy)
 	if err != nil {
 		return machineutils.ShortRetry, err
 	}
