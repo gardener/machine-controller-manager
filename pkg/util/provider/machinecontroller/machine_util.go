@@ -838,7 +838,7 @@ func (c *controller) getVMStatus(getMachineStatusRequest *driver.GetMachineStatu
 	} else {
 		if machineErr, ok := status.FromError(err); !ok {
 			// Error occurred with decoding machine error status, aborting without retry.
-			description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. " + machineutils.GetVMStatus
+			description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. " + err.Error() + " " + machineutils.GetVMStatus
 			state = v1alpha1.MachineStateFailed
 			retry = machineutils.LongRetry
 
@@ -867,7 +867,7 @@ func (c *controller) getVMStatus(getMachineStatusRequest *driver.GetMachineStatu
 
 			default:
 				// Error occurred with decoding machine error status, abort with retry.
-				description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. machine code: " + machineErr.Message() + " " + machineutils.GetVMStatus
+				description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. machine code: " + err.Error() + " " + machineutils.GetVMStatus
 				state = v1alpha1.MachineStateFailed
 				retry = machineutils.MediumRetry
 			}
