@@ -21,7 +21,7 @@ machine-controller-manager:
       check:
         image: 'golang:1.13.5'
       test:
-        image: 'eu.gcr.io/gardener-project/cc/job-image-golang:0.11.0'
+        image: 'eu.gcr.io/gardener-project/gardener/testmachinery/base-step:stable'
       build:
         image: 'golang:1.13.5'
         output_dir: 'binary'
