@@ -258,7 +258,7 @@ var _ = Describe("machine", func() {
 					coreObjects = append(coreObjects, o)
 				}
 
-				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects, nil)
+				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, coreObjects, nil, nil)
 				defer trackers.Stop()
 
 				waitForCacheSync(stop, controller)
@@ -401,7 +401,8 @@ var _ = Describe("machine", func() {
 					nil,
 				)
 
-				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects, fakedriver)
+				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, coreObjects, nil, fakedriver)
+
 				defer trackers.Stop()
 
 				waitForCacheSync(stop, controller)
@@ -413,7 +414,8 @@ var _ = Describe("machine", func() {
 				machineClass, err := controller.controlMachineClient.MachineClasses(objMeta.Namespace).Get(machine.Spec.Class.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
-				secret, err := controller.targetCoreClient.CoreV1().Secrets(objMeta.Namespace).Get(machineClass.SecretRef.Name, metav1.GetOptions{})
+				secret, err := controller.controlCoreClient.CoreV1().Secrets(objMeta.Namespace).Get(machineClass.SecretRef.Name, metav1.GetOptions{})
+
 				Expect(err).ToNot(HaveOccurred())
 
 				retry, err := controller.triggerCreationFlow(
@@ -867,12 +869,14 @@ var _ = Describe("machine", func() {
 					machineObjects = append(machineObjects, o)
 				}
 
-				coreObjects := []runtime.Object{}
+				controlCoreObjects := []runtime.Object{}
+				targetCoreObjects := []runtime.Object{}
+
 				for _, o := range data.setup.secrets {
-					coreObjects = append(coreObjects, o)
+					controlCoreObjects = append(controlCoreObjects, o)
 				}
 				for _, o := range data.setup.nodes {
-					coreObjects = append(coreObjects, o)
+					targetCoreObjects = append(targetCoreObjects, o)
 				}
 
 				fakeDriver := driver.NewFakeDriver(
@@ -884,7 +888,8 @@ var _ = Describe("machine", func() {
 					nil,
 				)
 
-				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects, fakeDriver)
+				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, controlCoreObjects, targetCoreObjects, fakeDriver)
+
 				defer trackers.Stop()
 				waitForCacheSync(stop, controller)
 
@@ -895,7 +900,7 @@ var _ = Describe("machine", func() {
 				machineClass, err := controller.controlMachineClient.MachineClasses(objMeta.Namespace).Get(machine.Spec.Class.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
-				secret, err := controller.targetCoreClient.CoreV1().Secrets(objMeta.Namespace).Get(machineClass.SecretRef.Name, metav1.GetOptions{})
+				secret, err := controller.controlCoreClient.CoreV1().Secrets(objMeta.Namespace).Get(machineClass.SecretRef.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
 				if data.setup.fakeResourceActions != nil {

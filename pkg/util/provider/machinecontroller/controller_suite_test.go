@@ -481,11 +481,22 @@ func createController(
 		nil,
 	)
 	defer coreTargetInformerFactory.Start(stop)
+
 	coreTargetSharedInformers := coreTargetInformerFactory.Core().V1()
 	nodes := coreTargetSharedInformers.Nodes()
 	pvcs := coreTargetSharedInformers.PersistentVolumeClaims()
 	pvs := coreTargetSharedInformers.PersistentVolumes()
-	secrets := coreTargetSharedInformers.Secrets()
+
+	coreControlInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
+		fakeControlCoreClient,
+		100*time.Millisecond,
+		namespace,
+		nil,
+	)
+	defer coreControlInformerFactory.Start(stop)
+
+	coreControlSharedInformers := coreControlInformerFactory.Core().V1()
+	secrets := coreControlSharedInformers.Secrets()
 
 	controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
 		fakeControlMachineClient,
