@@ -13,15 +13,16 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-*/ // Package drain is used to drain nodes
+*/
+
+// Package drain is used to drain nodes
 package drain
 
-/*
-TODO: Fix timeout issue for tests
 import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"sync"
 	"time"
 
@@ -32,38 +33,46 @@ import (
 	. "github.com/onsi/gomega"
 	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	k8stesting "k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/cache"
 )
 
 var _ = Describe("drain", func() {
-	const testNodeName = "node"
-	const terminationGracePeriodShort = 5 * time.Second
-	const terminationGracePeriodShortBy4 = terminationGracePeriodShort / 4
-	const terminationGracePeriodShortBy8 = terminationGracePeriodShort / 8
-	const terminationGracePeriodMedium = 10 * time.Second
-	const terminationGracePeriodDefault = 20 * time.Second
-	const terminationGracePeriodLong = 2 * time.Minute
-	const testNamespace = "test"
+	const (
+		oldNodeName                    = "old-node"
+		newNodeName                    = "new-node"
+		terminationGracePeriodShort    = 5 * time.Second
+		terminationGracePeriodShortBy4 = terminationGracePeriodShort / 4
+		terminationGracePeriodShortBy8 = terminationGracePeriodShort / 8
+		terminationGracePeriodMedium   = 10 * time.Second
+		terminationGracePeriodDefault  = 20 * time.Second
+		terminationGracePeriodLong     = 2 * time.Minute
+		testNamespace                  = "test"
+	)
 
 	type stats struct {
 		nPodsWithoutPV                int
 		nPodsWithOnlyExclusivePV      int
 		nPodsWithOnlySharedPV         int
 		nPodsWithExclusiveAndSharedPV int
+		nPVsPerPodWithExclusivePV     int
 	}
 	type setup struct {
 		stats
-		attemptEviction        bool
-		maxEvictRetries        int32
-		terminationGracePeriod time.Duration
-		force                  bool
-		evictError             error
-		deleteError            error
+		attemptEviction           bool
+		volumeAttachmentSupported bool
+		maxEvictRetries           int32
+		terminationGracePeriod    time.Duration
+		pvReattachTimeout         time.Duration
+		force                     bool
+		evictError                error
+		deleteError               error
 	}
 
 	type expectation struct {
@@ -83,16 +92,16 @@ var _ = Describe("drain", func() {
 
 		wg := sync.WaitGroup{}
 
-		podsWithoutPV := getPodsWithoutPV(setup.nPodsWithoutPV, testNamespace, "nopv-", testNodeName, setup.terminationGracePeriod, map[string]string{
+		podsWithoutPV := getPodsWithoutPV(setup.nPodsWithoutPV, testNamespace, "nopv-", oldNodeName, setup.terminationGracePeriod, map[string]string{
 			"volumes": "none",
 		})
-		podsWithOnlyExclusivePV := getPodsWithPV(setup.nPodsWithOnlyExclusivePV, setup.nPodsWithOnlyExclusivePV, 0, testNamespace, "expv-", "expv-", "", testNodeName, setup.terminationGracePeriod, map[string]string{
+		podsWithOnlyExclusivePV := getPodsWithPV(setup.nPodsWithOnlyExclusivePV, setup.nPodsWithOnlyExclusivePV, 0, setup.nPVsPerPodWithExclusivePV, testNamespace, "expv-", "expv-", "", oldNodeName, setup.terminationGracePeriod, map[string]string{
 			"volumes": "only-exclusive",
 		})
-		podsWithOnlySharedPV := getPodsWithPV(setup.nPodsWithOnlySharedPV, 0, setup.nPodsWithOnlySharedPV/2, testNamespace, "shpv-", "", "shpv-", testNodeName, setup.terminationGracePeriod, map[string]string{
+		podsWithOnlySharedPV := getPodsWithPV(setup.nPodsWithOnlySharedPV, 0, setup.nPodsWithOnlySharedPV/2, setup.nPVsPerPodWithExclusivePV, testNamespace, "shpv-", "", "shpv-", oldNodeName, setup.terminationGracePeriod, map[string]string{
 			"volumes": "only-shared",
 		})
-		nPodsWithExclusiveAndSharedPV := getPodsWithPV(setup.nPodsWithExclusiveAndSharedPV, setup.nPodsWithExclusiveAndSharedPV, setup.nPodsWithExclusiveAndSharedPV/2, testNamespace, "exshpv-", "exshexpv-", "exshshpv-", testNodeName, setup.terminationGracePeriod, map[string]string{
+		nPodsWithExclusiveAndSharedPV := getPodsWithPV(setup.nPodsWithExclusiveAndSharedPV, setup.nPodsWithExclusiveAndSharedPV, setup.nPodsWithExclusiveAndSharedPV/2, setup.nPVsPerPodWithExclusivePV, testNamespace, "exshpv-", "exshexpv-", "exshshpv-", oldNodeName, setup.terminationGracePeriod, map[string]string{
 			"volumes": "exclusive-and-shared",
 		})
 
@@ -104,41 +113,65 @@ var _ = Describe("drain", func() {
 
 		pvcs := getPVCs(pods)
 		pvs := getPVs(pvcs)
-		nodes := []*corev1.Node{getNode(testNodeName, pvs)}
+		nodes := []*corev1.Node{getNode(oldNodeName, pvs)}
 
 		var targetCoreObjects []runtime.Object
 		targetCoreObjects = appendPods(targetCoreObjects, pods)
 		targetCoreObjects = appendPVCs(targetCoreObjects, pvcs)
 		targetCoreObjects = appendPVs(targetCoreObjects, pvs)
 		targetCoreObjects = appendNodes(targetCoreObjects, nodes)
-		fakeTargetCoreClient, fakePVLister, fakePVCLister, tracker := createFakeController(
+
+		var volumeAttachmentHandler *VolumeAttachmentHandler
+		// If volumeAttachmentSupported is enabled
+		// setup volume attachments as well
+		if setup.volumeAttachmentSupported {
+			volumeAttachmentHandler = NewVolumeAttachmentHandler()
+			volumeAttachments := getVolumeAttachments(pvs, oldNodeName)
+			targetCoreObjects = appendVolumeAttachments(targetCoreObjects, volumeAttachments)
+		}
+
+		fakeTargetCoreClient, fakePVLister, fakePVCLister, fakeNodeLister, pvcSynced, pvSynced, nodeSynced, tracker := createFakeController(
 			stop, testNamespace, targetCoreObjects,
 		)
 		defer tracker.Stop()
 
-		//Expect(cache.WaitForCacheSync(stop, fakePVCLister)).To(BeTrue())
+		// Waiting for cache sync
+		Expect(cache.WaitForCacheSync(stop, pvcSynced, pvSynced, nodeSynced)).To(BeTrue())
 
-		//fakeDriver := driver.NewFakeDriver(driver.FakeDriver{Err: nil,})
 		maxEvictRetries := setup.maxEvictRetries
 		if maxEvictRetries <= 0 {
 			maxEvictRetries = 3
 		}
+
+		pvReattachTimeout := setup.pvReattachTimeout
+		if pvReattachTimeout == time.Duration(0) {
+			// To mock quick reattachments by setting
+			// reattachment time to 1 millisecond
+			pvReattachTimeout = 1 * time.Millisecond
+		}
+
 		d := &Options{
+			client:                       fakeTargetCoreClient,
 			DeleteLocalData:              true,
 			Driver:                       &drainDriver{},
+			drainStartedOn:               time.Time{},
+			drainEndedOn:                 time.Time{},
 			ErrOut:                       GinkgoWriter,
 			ForceDeletePods:              setup.force,
-			IgnorePodsWithoutControllers: true,
 			GracePeriodSeconds:           30,
+			IgnorePodsWithoutControllers: true,
 			IgnoreDaemonsets:             true,
 			MaxEvictRetries:              maxEvictRetries,
+			PvDetachTimeout:              30 * time.Second,
+			PvReattachTimeout:            pvReattachTimeout,
+			nodeName:                     oldNodeName,
 			Out:                          GinkgoWriter,
-			PvDetachTimeout:              3 * time.Minute,
-			Timeout:                      time.Minute,
-			client:                       fakeTargetCoreClient,
-			nodeName:                     testNodeName,
-			pvLister:                     fakePVLister,
 			pvcLister:                    fakePVCLister,
+			pvLister:                     fakePVLister,
+			pdbLister:                    nil,
+			nodeLister:                   fakeNodeLister,
+			Timeout:                      2 * time.Minute,
+			volumeAttachmentHandler:      volumeAttachmentHandler,
 		}
 
 		// Get the pod directly from the ObjectTracker to avoid locking issues in the Fake object.
@@ -194,9 +227,16 @@ var _ = Describe("drain", func() {
 						}
 
 						found := false
-						for _, pv := range pvs {
-							if va.Name == corev1.UniqueVolumeName(getDrainTestVolumeName(&pv.Spec)) {
+						n := len(pvs)
+						for i := range pvs {
+							// Inverting reattachment logic to support to test out of order reattach
+							j := n - i - 1
+							if va.Name == corev1.UniqueVolumeName(getDrainTestVolumeName(&pvs[j].Spec)) {
 								found = true
+								if setup.volumeAttachmentSupported {
+									// Serially reattach
+									updateVolumeAttachments(d, pvs[j].Name, newNodeName)
+								}
 								break
 							}
 						}
@@ -214,6 +254,9 @@ var _ = Describe("drain", func() {
 				}
 
 				_, err = nodes.Update(node)
+				fmt.Fprintln(GinkgoWriter, err)
+
+				_, err = nodes.UpdateStatus(node)
 				fmt.Fprintln(GinkgoWriter, err)
 			}
 		}()
@@ -381,6 +424,7 @@ var _ = Describe("drain", func() {
 					nPodsWithOnlyExclusivePV:      0,
 					nPodsWithOnlySharedPV:         0,
 					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
 				},
 				attemptEviction:        false,
 				terminationGracePeriod: terminationGracePeriodShort,
@@ -406,6 +450,7 @@ var _ = Describe("drain", func() {
 					nPodsWithOnlyExclusivePV:      0,
 					nPodsWithOnlySharedPV:         0,
 					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
 				},
 				attemptEviction:        true,
 				terminationGracePeriod: terminationGracePeriodShort,
@@ -433,6 +478,7 @@ var _ = Describe("drain", func() {
 					nPodsWithOnlyExclusivePV:      2,
 					nPodsWithOnlySharedPV:         0,
 					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
 				},
 				attemptEviction:        false,
 				terminationGracePeriod: terminationGracePeriodShort,
@@ -460,6 +506,7 @@ var _ = Describe("drain", func() {
 					nPodsWithOnlyExclusivePV:      2,
 					nPodsWithOnlySharedPV:         0,
 					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
 				},
 				attemptEviction:        true,
 				terminationGracePeriod: terminationGracePeriodShort,
@@ -480,6 +527,66 @@ var _ = Describe("drain", func() {
 				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
 				minDrainDuration: terminationGracePeriodMedium,
 			}),
+		Entry("Successful drain with support for eviction of pods with exclusive volumes with volume attachments",
+			&setup{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      2,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
+				},
+				attemptEviction:           true,
+				volumeAttachmentSupported: true,
+				pvReattachTimeout:         30 * time.Second,
+				terminationGracePeriod:    terminationGracePeriodShort,
+			},
+			[]podDrainHandler{deletePod, sleepFor(terminationGracePeriodShortBy8), detachExclusiveVolumes},
+			&expectation{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      0,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+				},
+				// Because waitForDetach polling Interval is equal to terminationGracePeriodDefault
+				timeout:      terminationGracePeriodLong,
+				drainTimeout: false,
+				drainError:   nil,
+				nEvictions:   2,
+				// Because waitForDetach polling Interval is equal to terminationGracePeriodMedium
+				minDrainDuration: terminationGracePeriodMedium,
+			}),
+		Entry("Successful drain with support for eviction of pods with 2 exclusive volumes with volume attachments",
+			&setup{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      1,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     2,
+				},
+				attemptEviction:           true,
+				volumeAttachmentSupported: true,
+				pvReattachTimeout:         30 * time.Second,
+				terminationGracePeriod:    terminationGracePeriodShort,
+			},
+			[]podDrainHandler{deletePod, sleepFor(terminationGracePeriodShortBy8), detachExclusiveVolumes},
+			&expectation{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      0,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+				},
+				// Because waitForDetach polling Interval is equal to terminationGracePeriodDefault
+				timeout:      terminationGracePeriodDefault,
+				drainTimeout: false,
+				drainError:   nil,
+				nEvictions:   1,
+				// Because waitForDetach polling Interval is equal to terminationGracePeriodMedium
+				minDrainDuration: terminationGracePeriodMedium,
+			}),
 		Entry("Successful drain without support for eviction of pods with shared volumes",
 			&setup{
 				stats: stats{
@@ -487,6 +594,7 @@ var _ = Describe("drain", func() {
 					nPodsWithOnlyExclusivePV:      0,
 					nPodsWithOnlySharedPV:         2,
 					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
 				},
 				attemptEviction:        false,
 				terminationGracePeriod: terminationGracePeriodShort,
@@ -512,6 +620,7 @@ var _ = Describe("drain", func() {
 					nPodsWithOnlyExclusivePV:      0,
 					nPodsWithOnlySharedPV:         2,
 					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
 				},
 				attemptEviction:        true,
 				terminationGracePeriod: terminationGracePeriodShort,
@@ -537,6 +646,7 @@ var _ = Describe("drain", func() {
 					nPodsWithOnlyExclusivePV:      0,
 					nPodsWithOnlySharedPV:         0,
 					nPodsWithExclusiveAndSharedPV: 2,
+					nPVsPerPodWithExclusivePV:     1,
 				},
 				attemptEviction:        false,
 				terminationGracePeriod: terminationGracePeriodShort,
@@ -564,6 +674,7 @@ var _ = Describe("drain", func() {
 					nPodsWithOnlyExclusivePV:      0,
 					nPodsWithOnlySharedPV:         0,
 					nPodsWithExclusiveAndSharedPV: 2,
+					nPVsPerPodWithExclusivePV:     1,
 				},
 				attemptEviction:        true,
 				terminationGracePeriod: terminationGracePeriodShort,
@@ -591,6 +702,7 @@ var _ = Describe("drain", func() {
 					nPodsWithOnlyExclusivePV:      2,
 					nPodsWithOnlySharedPV:         0,
 					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
 				},
 				attemptEviction:        false,
 				terminationGracePeriod: terminationGracePeriodShort,
@@ -618,6 +730,7 @@ var _ = Describe("drain", func() {
 					nPodsWithOnlyExclusivePV:      2,
 					nPodsWithOnlySharedPV:         0,
 					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
 				},
 				attemptEviction:        true,
 				terminationGracePeriod: terminationGracePeriodShort,
@@ -645,6 +758,7 @@ var _ = Describe("drain", func() {
 					nPodsWithOnlyExclusivePV:      2,
 					nPodsWithOnlySharedPV:         0,
 					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
 				},
 				attemptEviction:        false,
 				terminationGracePeriod: terminationGracePeriodShort,
@@ -671,6 +785,7 @@ var _ = Describe("drain", func() {
 					nPodsWithOnlyExclusivePV:      2,
 					nPodsWithOnlySharedPV:         0,
 					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
 				},
 				attemptEviction:        true,
 				terminationGracePeriod: terminationGracePeriodShort,
@@ -697,6 +812,7 @@ var _ = Describe("drain", func() {
 					nPodsWithOnlyExclusivePV:      2,
 					nPodsWithOnlySharedPV:         0,
 					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
 				},
 				maxEvictRetries:        1,
 				attemptEviction:        true,
@@ -725,6 +841,7 @@ var _ = Describe("drain", func() {
 					nPodsWithOnlyExclusivePV:      2,
 					nPodsWithOnlySharedPV:         0,
 					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
 				},
 				attemptEviction:        true,
 				terminationGracePeriod: terminationGracePeriodLong,
@@ -777,7 +894,7 @@ func getPodsWithoutPV(n int, ns, podPrefix, nodeName string, terminationGracePer
 	return pods
 }
 
-func getPodWithPV(ns, name, exclusivePV, sharedPV, nodeName string, terminationGracePeriod time.Duration, labels map[string]string) *corev1.Pod {
+func getPodWithPV(ns, name, exclusivePV, sharedPV, nodeName string, terminationGracePeriod time.Duration, labels map[string]string, numberOfExclusivePVs int) *corev1.Pod {
 	pod := getPodWithoutPV(ns, name, nodeName, terminationGracePeriod, labels)
 
 	appendVolume := func(pod *api.Pod, vol string) {
@@ -792,7 +909,9 @@ func getPodWithPV(ns, name, exclusivePV, sharedPV, nodeName string, terminationG
 	}
 
 	if exclusivePV != "" {
-		appendVolume(pod, exclusivePV)
+		for i := 0; i < numberOfExclusivePVs; i++ {
+			appendVolume(pod, exclusivePV+"-"+strconv.Itoa(i))
+		}
 	}
 	if sharedPV != "" {
 		appendVolume(pod, sharedPV)
@@ -800,7 +919,7 @@ func getPodWithPV(ns, name, exclusivePV, sharedPV, nodeName string, terminationG
 	return pod
 }
 
-func getPodsWithPV(nPod, nExclusivePV, nSharedPV int, ns, podPrefix, exclusivePVPrefix, sharedPVPrefix, nodeName string, terminationGracePeriod time.Duration, labels map[string]string) []*corev1.Pod {
+func getPodsWithPV(nPod, nExclusivePV, nSharedPV, numberOfExclusivePVs int, ns, podPrefix, exclusivePVPrefix, sharedPVPrefix, nodeName string, terminationGracePeriod time.Duration, labels map[string]string) []*corev1.Pod {
 	pods := make([]*corev1.Pod, nPod)
 	for i := range pods {
 		var (
@@ -814,7 +933,7 @@ func getPodsWithPV(nPod, nExclusivePV, nSharedPV int, ns, podPrefix, exclusivePV
 		if nSharedPV > 0 {
 			sharedPV = fmt.Sprintf("%s%d", sharedPVPrefix, i%nSharedPV)
 		}
-		pods[i] = getPodWithPV(ns, podName, exclusivePV, sharedPV, nodeName, terminationGracePeriod, labels)
+		pods[i] = getPodWithPV(ns, podName, exclusivePV, sharedPV, nodeName, terminationGracePeriod, labels, numberOfExclusivePVs)
 	}
 	return pods
 }
@@ -881,6 +1000,35 @@ func getPVs(pvcs []*corev1.PersistentVolumeClaim) []*corev1.PersistentVolume {
 		i++
 	}
 	return pvs
+}
+
+func getVolumeAttachments(pvs []*corev1.PersistentVolume, nodeName string) []*storagev1.VolumeAttachment {
+	volumeAttachments := make([]*storagev1.VolumeAttachment, 0)
+
+	for _, pv := range pvs {
+		pvName := pv.Name
+
+		volumeAttachment := &storagev1.VolumeAttachment{
+			ObjectMeta: metav1.ObjectMeta{
+				// TODO: Get random value
+				Name: "csi-old-" + pv.Name,
+			},
+			Spec: storagev1.VolumeAttachmentSpec{
+				Attacher: "disk.csi.azure.com",
+				Source: storagev1.VolumeAttachmentSource{
+					PersistentVolumeName: &pvName,
+				},
+				NodeName: nodeName,
+			},
+			Status: storagev1.VolumeAttachmentStatus{
+				Attached: true,
+			},
+		}
+
+		volumeAttachments = append(volumeAttachments, volumeAttachment)
+	}
+
+	return volumeAttachments
 }
 
 func getNode(name string, pvs []*corev1.PersistentVolume) *corev1.Node {
@@ -950,4 +1098,60 @@ func appendNodes(objects []runtime.Object, nodes []*corev1.Node) []runtime.Objec
 	}
 	return objects
 }
-*/
+
+func appendVolumeAttachments(objects []runtime.Object, volumeAttachments []*storagev1.VolumeAttachment) []runtime.Object {
+	for _, va := range volumeAttachments {
+		objects = append(objects, va)
+	}
+	return objects
+}
+
+func updateVolumeAttachments(drainOptions *Options, pvName string, nodeName string) {
+	var (
+		found            bool
+		volumeAttachment storagev1.VolumeAttachment
+	)
+	const reattachmentDelay = 5 * time.Second
+	time.Sleep(reattachmentDelay)
+
+	// Delete existing volume attachment
+	volumeAttachments, err := drainOptions.client.StorageV1().VolumeAttachments().List(metav1.ListOptions{})
+	Expect(err).To(BeNil())
+
+	for _, volumeAttachment = range volumeAttachments.Items {
+		if *volumeAttachment.Spec.Source.PersistentVolumeName == pvName {
+			found = true
+			break
+		}
+	}
+
+	Expect(found).To(BeTrue())
+	err = drainOptions.client.StorageV1().VolumeAttachments().Delete(volumeAttachment.Name, &metav1.DeleteOptions{})
+	Expect(err).To(BeNil())
+
+	// Create new volumeAttachment object
+	newVolumeAttachment := &storagev1.VolumeAttachment{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "csi-new-" + pvName,
+		},
+		Spec: storagev1.VolumeAttachmentSpec{
+			Attacher: "disk.csi.azure.com",
+			Source: storagev1.VolumeAttachmentSource{
+				PersistentVolumeName: &pvName,
+			},
+			NodeName: nodeName,
+		},
+		Status: storagev1.VolumeAttachmentStatus{
+			Attached: true,
+		},
+	}
+
+	newVolumeAttachment, err = drainOptions.client.StorageV1().VolumeAttachments().Create(newVolumeAttachment)
+	Expect(err).To(BeNil())
+
+	newVolumeAttachment, err = drainOptions.client.StorageV1().VolumeAttachments().UpdateStatus(newVolumeAttachment)
+	Expect(err).To(BeNil())
+
+	drainOptions.volumeAttachmentHandler.AddVolumeAttachment(newVolumeAttachment)
+}

@@ -28,18 +28,23 @@ import (
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions/machine/v1alpha1"
 	machinelisters "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/handlers"
+	"github.com/gardener/machine-controller-manager/pkg/util/k8sutils"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/options"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	runtimeutil "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	policyinformers "k8s.io/client-go/informers/policy/v1beta1"
+	storageinformers "k8s.io/client-go/informers/storage/v1"
 	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	policylisters "k8s.io/client-go/listers/policy/v1beta1"
+	storagelisters "k8s.io/client-go/listers/storage/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -75,6 +80,7 @@ func NewController(
 	secretInformer coreinformers.SecretInformer,
 	nodeInformer coreinformers.NodeInformer,
 	pdbInformer policyinformers.PodDisruptionBudgetInformer,
+	volumeAttachmentInformer storageinformers.VolumeAttachmentInformer,
 	machineClassInformer machineinformers.MachineClassInformer,
 	machineInformer machineinformers.MachineInformer,
 	recorder record.EventRecorder,
@@ -82,6 +88,15 @@ func NewController(
 	nodeConditions string,
 	bootstrapTokenAuthExtraGroups string,
 ) (Controller, error) {
+	const (
+		// volumeAttachmentGroupName group name
+		volumeAttachmentGroupName = "storage.k8s.io"
+		// volumenAttachmentKind is the kind used for VolumeAttachment
+		volumeAttachmentResourceName = "volumeattachments"
+		// volumeAttachmentResource is the kind used for VolumeAttachment
+		volumeAttachmentResourceKind = "VolumeAttachment"
+	)
+
 	controller := &controller{
 		namespace:                     namespace,
 		controlMachineClient:          controlMachineClient,
@@ -98,6 +113,7 @@ func NewController(
 		nodeConditions:                nodeConditions,
 		driver:                        driver,
 		bootstrapTokenAuthExtraGroups: bootstrapTokenAuthExtraGroups,
+		volumeAttachmentHandler:       nil,
 	}
 
 	controller.internalExternalScheme = runtime.NewScheme()
@@ -119,13 +135,18 @@ func NewController(
 	controller.pvLister = pvInformer.Lister()
 	controller.secretLister = secretInformer.Lister()
 	controller.pdbLister = pdbInformer.Lister()
+	// TODO: Need to handle K8s versions below 1.13 differently
+	controller.volumeAttachementLister = volumeAttachmentInformer.Lister()
 	controller.machineClassLister = machineClassInformer.Lister()
 	controller.nodeLister = nodeInformer.Lister()
 	controller.machineLister = machineInformer.Lister()
 
 	// Controller syncs
+	controller.pvcSynced = pvcInformer.Informer().HasSynced
+	controller.pvSynced = pvInformer.Informer().HasSynced
 	controller.secretSynced = secretInformer.Informer().HasSynced
 	controller.pdbSynced = pdbInformer.Informer().HasSynced
+	controller.volumeAttachementSynced = volumeAttachmentInformer.Informer().HasSynced
 	controller.machineClassSynced = machineClassInformer.Informer().HasSynced
 	controller.nodeSynced = nodeInformer.Informer().HasSynced
 	controller.machineSynced = machineInformer.Informer().HasSynced
@@ -169,17 +190,30 @@ func NewController(
 	})
 
 	// MachineSafety Controller Informers
-
 	// We follow the kubernetes way of reconciling the safety controller
 	// done by adding empty key objects. We initialize it, to trigger
 	// running of different safety loop on MCM startup.
 	controller.machineSafetyOrphanVMsQueue.Add("")
 	controller.machineSafetyAPIServerQueue.Add("")
-
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		// deleteMachineToSafety makes sure that orphan VM handler is invoked
 		DeleteFunc: controller.deleteMachineToSafety,
 	})
+
+	// Drain Controller Informers
+	if k8sutils.IsResourceSupported(
+		targetCoreClient,
+		schema.GroupResource{
+			Group:    k8sutils.VolumeAttachmentGroupName,
+			Resource: k8sutils.VolumeAttachmentResourceName,
+		},
+	) {
+		controller.volumeAttachmentHandler = drain.NewVolumeAttachmentHandler()
+		volumeAttachmentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc:    controller.volumeAttachmentHandler.AddVolumeAttachment,
+			UpdateFunc: controller.volumeAttachmentHandler.UpdateVolumeAttachment,
+		})
+	}
 
 	return controller, nil
 }
@@ -202,19 +236,21 @@ type controller struct {
 	controlCoreClient    kubernetes.Interface
 	targetCoreClient     kubernetes.Interface
 
-	recorder               record.EventRecorder
-	safetyOptions          options.SafetyOptions
-	internalExternalScheme *runtime.Scheme
-	driver                 driver.Driver
+	recorder                record.EventRecorder
+	safetyOptions           options.SafetyOptions
+	internalExternalScheme  *runtime.Scheme
+	driver                  driver.Driver
+	volumeAttachmentHandler *drain.VolumeAttachmentHandler
 
 	// listers
-	pvcLister          corelisters.PersistentVolumeClaimLister
-	pvLister           corelisters.PersistentVolumeLister
-	secretLister       corelisters.SecretLister
-	nodeLister         corelisters.NodeLister
-	pdbLister          policylisters.PodDisruptionBudgetLister
-	machineClassLister machinelisters.MachineClassLister
-	machineLister      machinelisters.MachineLister
+	pvcLister               corelisters.PersistentVolumeClaimLister
+	pvLister                corelisters.PersistentVolumeLister
+	secretLister            corelisters.SecretLister
+	nodeLister              corelisters.NodeLister
+	pdbLister               policylisters.PodDisruptionBudgetLister
+	volumeAttachementLister storagelisters.VolumeAttachmentLister
+	machineClassLister      machinelisters.MachineClassLister
+	machineLister           machinelisters.MachineLister
 	// queues
 	secretQueue                 workqueue.RateLimitingInterface
 	nodeQueue                   workqueue.RateLimitingInterface
@@ -223,11 +259,14 @@ type controller struct {
 	machineSafetyOrphanVMsQueue workqueue.RateLimitingInterface
 	machineSafetyAPIServerQueue workqueue.RateLimitingInterface
 	// syncs
-	secretSynced       cache.InformerSynced
-	pdbSynced          cache.InformerSynced
-	nodeSynced         cache.InformerSynced
-	machineClassSynced cache.InformerSynced
-	machineSynced      cache.InformerSynced
+	pvcSynced               cache.InformerSynced
+	pvSynced                cache.InformerSynced
+	secretSynced            cache.InformerSynced
+	pdbSynced               cache.InformerSynced
+	volumeAttachementSynced cache.InformerSynced
+	nodeSynced              cache.InformerSynced
+	machineClassSynced      cache.InformerSynced
+	machineSynced           cache.InformerSynced
 }
 
 func (c *controller) Run(workers int, stopCh <-chan struct{}) {
@@ -244,7 +283,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer c.machineSafetyOrphanVMsQueue.ShutDown()
 	defer c.machineSafetyAPIServerQueue.ShutDown()
 
-	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.pdbSynced, c.nodeSynced, c.machineClassSynced, c.machineSynced) {
+	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.pvcSynced, c.pvSynced, c.pdbSynced, c.volumeAttachementSynced, c.nodeSynced, c.machineClassSynced, c.machineSynced) {
 		runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
