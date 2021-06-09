@@ -23,7 +23,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	"k8s.io/klog"
 )
 
 var (
@@ -132,8 +131,6 @@ var _ = Describe("#wait", func() {
 			action: action{
 				operation: func() error {
 					invokationCount += 1
-					klog.Error(invokationCount)
-
 					if invokationCount > 4 {
 						return nil
 					}

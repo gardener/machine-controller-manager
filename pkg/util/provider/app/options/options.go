@@ -68,6 +68,7 @@ func NewMCServer() *MCServer {
 				MachineDrainTimeout:                      metav1.Duration{Duration: drain.DefaultMachineDrainTimeout},
 				MaxEvictRetries:                          drain.DefaultMaxEvictRetries,
 				PvDetachTimeout:                          metav1.Duration{Duration: 2 * time.Minute},
+				PvReattachTimeout:                        metav1.Duration{Duration: 90 * time.Second},
 				MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 30 * time.Minute},
 				MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
 				MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
@@ -100,6 +101,7 @@ func (s *MCServer) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&s.SafetyOptions.MachineDrainTimeout.Duration, "machine-drain-timeout", drain.DefaultMachineDrainTimeout, "Timeout (in durartion) used while draining of machine before deletion, beyond which MCM forcefully deletes machine.")
 	fs.Int32Var(&s.SafetyOptions.MaxEvictRetries, "machine-max-evict-retries", drain.DefaultMaxEvictRetries, "Maximum number of times evicts would be attempted on a pod before it is forcibly deleted during draining of a machine.")
 	fs.DurationVar(&s.SafetyOptions.PvDetachTimeout.Duration, "machine-pv-detach-timeout", s.SafetyOptions.PvDetachTimeout.Duration, "Timeout (in duration) used while waiting for detach of PV while evicting/deleting pods")
+	fs.DurationVar(&s.SafetyOptions.PvReattachTimeout.Duration, "machine-pv-reattach-timeout", s.SafetyOptions.PvReattachTimeout.Duration, "Timeout (in duration) used while waiting for reattach of PV onto a different node")
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration, "machine-safety-apiserver-statuscheck-timeout", s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration, "Timeout (in duration) for which the APIServer can be down before declare the machine controller frozen by safety controller")
 
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyOrphanVMsPeriod.Duration, "machine-safety-orphan-vms-period", s.SafetyOptions.MachineSafetyOrphanVMsPeriod.Duration, "Time period (in durartion) used to poll for orphan VMs by safety controller.")
