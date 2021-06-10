@@ -224,8 +224,8 @@ var _ = Describe("machine", func() {
 
 	Describe("#ValidateMachineClass", func() {
 		type setup struct {
-			aws     []*v1alpha1.MachineClass
-			secrets []*corev1.Secret
+			machineClass []*v1alpha1.MachineClass
+			secrets      []*corev1.Secret
 		}
 		type expect struct {
 			machineClass interface{}
@@ -241,6 +241,12 @@ var _ = Describe("machine", func() {
 		objMeta := &metav1.ObjectMeta{
 			GenerateName: "class",
 			Namespace:    testNamespace,
+			Finalizers:   []string{MCMFinalizerName},
+		}
+
+		objMetaWithoutFinalizer := &metav1.ObjectMeta{
+			GenerateName: "class",
+			Namespace:    testNamespace,
 		}
 
 		DescribeTable("##table",
@@ -248,9 +254,9 @@ var _ = Describe("machine", func() {
 				stop := make(chan struct{})
 				defer close(stop)
 
-				machineObjects := []runtime.Object{}
-				for _, o := range data.setup.aws {
-					machineObjects = append(machineObjects, o)
+				controlObjects := []runtime.Object{}
+				for _, machineClass := range data.setup.machineClass {
+					controlObjects = append(controlObjects, machineClass)
 				}
 
 				coreObjects := []runtime.Object{}
@@ -258,7 +264,7 @@ var _ = Describe("machine", func() {
 					coreObjects = append(coreObjects, o)
 				}
 
-				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, coreObjects, nil, nil)
+				controller, trackers := createController(stop, objMeta.Namespace, controlObjects, coreObjects, nil, nil)
 				defer trackers.Stop()
 
 				waitForCacheSync(stop, controller)
@@ -282,7 +288,7 @@ var _ = Describe("machine", func() {
 			},
 			Entry("non-existing machine class", &data{
 				setup: setup{
-					aws: []*v1alpha1.MachineClass{
+					machineClass: []*v1alpha1.MachineClass{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 						},
@@ -299,7 +305,7 @@ var _ = Describe("machine", func() {
 			Entry("non-existing secret", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{},
-					aws: []*v1alpha1.MachineClass{
+					machineClass: []*v1alpha1.MachineClass{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							SecretRef:  newSecretReference(objMeta, 0),
@@ -326,7 +332,7 @@ var _ = Describe("machine", func() {
 							Data:       map[string][]byte{"foo": []byte("bar")},
 						},
 					},
-					aws: []*v1alpha1.MachineClass{
+					machineClass: []*v1alpha1.MachineClass{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							SecretRef:  newSecretReference(objMeta, 0),
@@ -344,6 +350,29 @@ var _ = Describe("machine", func() {
 					},
 					secretData: map[string][]byte{"foo": []byte("bar")},
 					err:        false,
+				},
+			}),
+			Entry("machineClass without Finalizer", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"foo": []byte("bar")},
+						},
+					},
+					machineClass: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMetaWithoutFinalizer, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+				},
+				action: &v1alpha1.ClassSpec{
+					Kind: "MachineClass",
+					Name: "class-0",
+				},
+				expect: expect{
+					err: true,
 				},
 			}),
 		)
