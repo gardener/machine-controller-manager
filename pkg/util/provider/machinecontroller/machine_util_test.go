@@ -449,6 +449,7 @@ var _ = Describe("machine_util", func() {
 
 				c, trackers := createController(stop, testNamespace, nil, nil, nil, nil)
 				defer trackers.Stop()
+
 				waitForCacheSync(stop, c)
 
 				testNode := data.action.node
@@ -1992,4 +1993,5 @@ var _ = Describe("machine_util", func() {
 		)
 
 	})
+
 })

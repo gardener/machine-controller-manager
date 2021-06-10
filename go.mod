@@ -19,7 +19,7 @@ require (
 	github.com/gophercloud/gophercloud v0.7.0
 	github.com/gophercloud/utils v0.0.0-20200204043447-9864b6f1f12f
 	github.com/json-iterator/go v1.1.9 // indirect
-	github.com/onsi/ginkgo v1.15.2
+	github.com/onsi/ginkgo v1.16.2
 	github.com/onsi/gomega v1.11.0
 	github.com/packethost/packngo v0.0.0-20181217122008-b3b45f1b4979
 	github.com/prometheus/client_golang v0.9.2
@@ -27,6 +27,7 @@ require (
 	github.com/spf13/pflag v1.0.3
 	golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
+	golang.org/x/sys v0.0.0-20210514084401-e8d321eab015 // indirect
 	google.golang.org/api v0.4.0
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.0.0-20190918155943-95b840bb6a1f

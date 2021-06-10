@@ -2828,7 +2828,6 @@ var _ = Describe("machine", func() {
 			}),
 		)
 	})
-
 	/*
 		Describe("#checkMachineTimeout", func() {
 			type setup struct {
