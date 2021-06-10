@@ -179,9 +179,9 @@ func (c *controller) AnnotateNodesUnmanagedByMCM() (machineutils.RetryPeriod, er
 	for _, node := range nodes {
 		_, err := c.getMachineFromNode(node.Name)
 		if err != nil {
-			if err == multipleMachineMatchError {
+			if err == errMultipleMachineMatch {
 				klog.Errorf("Couldn't fetch machine, Error: %s", err)
-			} else if err == noMachineMatchError {
+			} else if err == errNoMachineMatch {
 				//if no backing machine for a node,means annotate it
 				if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
 					continue

@@ -366,10 +366,10 @@ function tc_machine_deployment() {
     printf "\n\tWaiting 1800s for 3 machines to join the cluster"
     hf_wait_on "hf_num_of_ready_nodes" nodes 3 1800
 
-    # Scale up the number of nodes to 6 and rapidly scale back to 2
-    hf_object_configure $provider/md-scale-up.yaml
-    printf "\n\tScale up the number of nodes to 6 and rapidly scale back to 2 leading to a freezing and unfreezing"
-    sleep 20
+    # # Scale up the number of nodes to 6 and rapidly scale back to 2
+    # hf_object_configure $provider/md-scale-up.yaml
+    # printf "\n\tScale up the number of nodes to 6 and rapidly scale back to 2 leading to a freezing and unfreezing"
+    # sleep 20
 
     # Scale down the number of nodes to 2
     hf_object_configure $provider/md-scale-down.yaml
@@ -386,10 +386,10 @@ function tc_machine_deployment() {
     printf "\n\tWaiting 1800s for machine to be deleted"
     hf_wait_on "hf_num_of_objects" machdeploy 0 1800
 
-    # Scaling from 6 to 2 should lead to freezing and unfreezing of machine-set
-    printf "\n\tCheck for freezing and unfreezing of machine-set due to rapid scaleUp and scaleDown"
-    hf_check_ms_freeze
-    printf "\n\tFreezing and unfreezing of machineSet was observed"
+    # # Scaling from 6 to 2 should lead to freezing and unfreezing of machine-set
+    # printf "\n\tCheck for freezing and unfreezing of machine-set due to rapid scaleUp and scaleDown"
+    # hf_check_ms_freeze
+    # printf "\n\tFreezing and unfreezing of machineSet was observed"
 
     printf "\nCompleted TestCase\n"
 }
