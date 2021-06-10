@@ -33,6 +33,70 @@ import (
 
 var _ = Describe("#machine_safety", func() {
 
+	DescribeTable("##checkAndFreezeORUnfreezeMachineSets",
+		func(
+			machineSet *v1alpha1.MachineSet,
+			machineCount int,
+			FreezeMachineSet bool,
+		) {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			controlMachineObjects := []runtime.Object{}
+			if machineSet != nil {
+				controlMachineObjects = append(controlMachineObjects, machineSet)
+			}
+
+			machines := newMachinesFromMachineSet(machineCount, machineSet, nil, nil, nil)
+			for _, machine := range machines {
+				controlMachineObjects = append(controlMachineObjects, machine)
+			}
+
+			c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, nil)
+			waitForCacheSync(stop, c)
+			defer trackers.Stop()
+
+			err := c.checkAndFreezeORUnfreezeMachineSets()
+			Expect(err).To(BeNil())
+			ms, err := c.controlMachineClient.MachineSets(testNamespace).Get(machineSet.Name, metav1.GetOptions{})
+			Expect(err).To(BeNil())
+
+			if FreezeMachineSet {
+				Expect(ms.Labels["freeze"]).Should(Equal("True"))
+			} else {
+				Expect(ms.Labels["freeze"]).To(Equal(""))
+			}
+		},
+
+		// When there is 1 machineSet with 1 replica and corresponding 1 machine Object
+		// MachineSet is not frozen
+		Entry("MachineSet with 1 replica & 1 machine object", newMachineSet(&v1alpha1.MachineTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "machine",
+				Namespace: testNamespace,
+			},
+		}, 1, 10, nil, nil, nil, nil), 1, false),
+
+		// When there is 1 machineSet with 1 replica and corresponding 5 machine Object
+		// MachineSet is frozen by adding a label on MachineSet
+		Entry("MachineSet with 1 replica & 5 machine object", newMachineSet(&v1alpha1.MachineTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "machine",
+				Namespace: testNamespace,
+			},
+		}, 1, 10, nil, nil, nil, nil), 5, true),
+
+		// When there is 1 machineSet with 5 replica and corresponding 2 machine Object
+		// with a {"Freeze": "True"} label set on the MachineSe, the MachineSet is unfrozen
+		// by removing a label on MachineSet
+		Entry("MachineSet with 5 replica & 2 machine object", newMachineSet(&v1alpha1.MachineTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "machine",
+				Namespace: testNamespace,
+			},
+		}, 5, 10, nil, nil, nil, map[string]string{"Freeze": "True"}), 2, false),
+	)
+
 	DescribeTable("##freezeMachineSetsAndDeployments",
 		func(machineSet *v1alpha1.MachineSet) {
 			stop := make(chan struct{})
@@ -57,6 +121,9 @@ var _ = Describe("#machine_safety", func() {
 				}
 
 				c.freezeMachineSetAndDeployment(&ms, freezeReason, freezeMessage)
+				ms, err := c.controlMachineClient.MachineSets(testNamespace).Get(ms.Name, metav1.GetOptions{})
+				Expect(err).To(BeNil())
+				Expect(ms.Labels["freeze"]).To(Equal("True"))
 			}
 		},
 		Entry("one machineset", newMachineSet(&v1alpha1.MachineTemplateSpec{
