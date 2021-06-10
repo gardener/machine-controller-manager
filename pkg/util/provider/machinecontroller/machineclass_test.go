@@ -172,6 +172,44 @@ var _ = Describe("machineclass", func() {
 				},
 			),
 			Entry(
+				"Do not add finalizer to machine class because no machines use it",
+				&data{
+					setup: setup{
+						machineClasses: []*v1alpha1.MachineClass{
+							{
+								TypeMeta: metav1.TypeMeta{},
+								ObjectMeta: metav1.ObjectMeta{
+									Name:      TestMachineClassName,
+									Namespace: TestNamespace,
+								},
+								ProviderSpec: runtime.RawExtension{},
+								SecretRef:    &v1.SecretReference{},
+								Provider:     "",
+							},
+						},
+						machines:            []*v1alpha1.Machine{},
+						fakeResourceActions: &customfake.ResourceActions{},
+					},
+					action: action{
+						fakeDriver:       &driver.FakeDriver{},
+						machineClassName: TestMachineClassName,
+					},
+					expect: expect{
+						machineClass: &v1alpha1.MachineClass{
+							TypeMeta: metav1.TypeMeta{},
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      TestMachineClassName,
+								Namespace: TestNamespace,
+							},
+							ProviderSpec: runtime.RawExtension{},
+							SecretRef:    &v1.SecretReference{},
+							Provider:     "",
+						},
+						err: nil,
+					},
+				},
+			),
+			Entry(
 				"Finalizer exists, so do nothing",
 				&data{
 					setup: setup{

@@ -146,20 +146,21 @@ func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) 
 		return err
 	}
 
+	// fetch all machines referring the machineClass
+	machines, err := c.findMachinesForClass(machineutils.MachineClassKind, class.Name)
+	if err != nil {
+		return err
+	}
+
 	// Add finalizer to avoid losing machineClass object
-	if class.DeletionTimestamp == nil {
+	if class.DeletionTimestamp == nil && len(machines) > 0 {
+		klog.Infof("Adding finalizers to machine class %s", class.Name)
 		err = c.addMachineClassFinalizers(class)
 		if err != nil {
 			return err
 		}
 
 		return nil
-	}
-
-	// fetch all machines referring the machineClass
-	machines, err := c.findMachinesForClass(machineutils.MachineClassKind, class.Name)
-	if err != nil {
-		return err
 	}
 
 	if len(machines) > 0 {
