@@ -43,7 +43,6 @@ import (
 	utilstrings "github.com/gardener/machine-controller-manager/pkg/util/strings"
 	utiltime "github.com/gardener/machine-controller-manager/pkg/util/time"
 
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -957,11 +956,11 @@ func (c *controller) drainNode(deleteMachineRequest *driver.DeleteMachineRequest
 			}
 		}
 
-		if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != corev1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+		if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != v1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
 			message := "Skipping drain as machine is NotReady for over 5minutes."
 			printLogInitError(message, &err, &description, machine)
 			skipDrain = true
-		} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != corev1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+		} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != v1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
 			message := "Skipping drain as machine is in ReadonlyFilesystem for over 5minutes."
 			printLogInitError(message, &err, &description, machine)
 			skipDrain = true

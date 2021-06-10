@@ -183,11 +183,21 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 	SECTION
 	Machine controller - nodeToMachine
 */
+var (
+	multipleMachineMatchError = errors.New("Multiple machines matching node")
+	noMachineMatchError       = errors.New("No machines matching node found")
+)
+
 func (c *controller) addNodeToMachine(obj interface{}) {
 
 	node := obj.(*corev1.Node)
 	if node == nil {
 		klog.Errorf("Couldn't convert to node from object")
+		return
+	}
+
+	 // If NotManagedByMCM annotation is present on node, don't process this node object
+	if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
 		return
 	}
 
@@ -200,8 +210,6 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 	machine, err := c.getMachineFromNode(key)
 	if err != nil {
 		klog.Errorf("Couldn't fetch machine %s, Error: %s", key, err)
-		return
-	} else if machine == nil {
 		return
 	}
 
@@ -226,8 +234,6 @@ func (c *controller) deleteNodeToMachine(obj interface{}) {
 	if err != nil {
 		klog.Errorf("Couldn't fetch machine %s, Error: %s", key, err)
 		return
-	} else if machine == nil {
-		return
 	}
 
 	c.enqueueMachine(machine)
@@ -249,11 +255,10 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	machines, _ := c.machineLister.List(selector)
 
 	if len(machines) > 1 {
-		return nil, errors.New("Multiple machines matching node")
+		return nil, multipleMachineMatchError
 	} else if len(machines) < 1 {
-		return nil, nil
+		return nil, noMachineMatchError
 	}
-
 	return machines[0], nil
 }
 
