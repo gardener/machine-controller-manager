@@ -52,8 +52,15 @@ func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
 	defer klog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: End, reSync-Period: %v", reSyncAfter)
 
 	retryPeriod, err := c.checkMachineClasses()
+
 	if err != nil {
 		klog.Errorf("reconcileClusterMachineSafetyOrphanVMs: Error occurred while checking for orphan VMs: %s", err)
+		c.machineSafetyOrphanVMsQueue.AddAfter("", time.Duration(retryPeriod))
+	}
+
+	retryPeriod, err = c.AnnotateNodesUnmanagedByMCM()
+	if err != nil {
+		klog.Errorf("reconcileClusterMachineSafetyOrphanVMs: Error occurred while checking for nodes not handled by MCM: %s", err)
 		c.machineSafetyOrphanVMsQueue.AddAfter("", time.Duration(retryPeriod))
 	}
 
@@ -159,6 +166,40 @@ func (c *controller) isAPIServerUp() bool {
 	}
 
 	return true
+}
+
+// AnnotateNodesUnmanagedByMCM checks for nodes which are not handled by MCM and annotes them
+func (c *controller) AnnotateNodesUnmanagedByMCM() (machineutils.RetryPeriod, error) {
+	//list all the nodes on target cluster
+	nodes, err := c.nodeLister.List(labels.Everything())
+	if err != nil {
+		klog.Errorf("Safety-Net: Error getting nodes")
+		return machineutils.LongRetry, err
+	}
+	for _, node := range nodes {
+		_, err := c.getMachineFromNode(node.Name)
+		if err != nil {
+			if err == multipleMachineMatchError {
+				klog.Errorf("Couldn't fetch machine, Error: %s", err)
+			} else if err == noMachineMatchError {
+				//if no backing machine for a node,means annotate it
+				if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
+					continue
+				}
+				nodeCopy := node.DeepCopy()
+				annotations := map[string]string{
+					machineutils.NotManagedByMCM: "1",
+				}
+
+				//err is returned only when node update fails
+				if err := c.updateNodeWithAnnotation(nodeCopy, annotations); err != nil {
+					return machineutils.MediumRetry, err
+				}
+			}
+		}
+	}
+
+	return machineutils.LongRetry, nil
 }
 
 // checkCommonMachineClass checks for orphan VMs in MachinesClasses
