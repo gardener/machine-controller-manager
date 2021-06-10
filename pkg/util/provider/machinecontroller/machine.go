@@ -184,8 +184,8 @@ func (c *controller) reconcileClusterMachine(machine *v1alpha1.Machine) (machine
 	Machine controller - nodeToMachine
 */
 var (
-	multipleMachineMatchError = errors.New("Multiple machines matching node")
-	noMachineMatchError       = errors.New("No machines matching node found")
+	errMultipleMachineMatch = errors.New("Multiple machines matching node")
+	errNoMachineMatch       = errors.New("No machines matching node found")
 )
 
 func (c *controller) addNodeToMachine(obj interface{}) {
@@ -196,7 +196,7 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 		return
 	}
 
-	 // If NotManagedByMCM annotation is present on node, don't process this node object
+	// If NotManagedByMCM annotation is present on node, don't process this node object
 	if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
 		return
 	}
@@ -255,9 +255,9 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	machines, _ := c.machineLister.List(selector)
 
 	if len(machines) > 1 {
-		return nil, multipleMachineMatchError
+		return nil, errMultipleMachineMatch
 	} else if len(machines) < 1 {
-		return nil, noMachineMatchError
+		return nil, errNoMachineMatch
 	}
 	return machines[0], nil
 }
