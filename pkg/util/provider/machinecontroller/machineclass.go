@@ -153,7 +153,7 @@ func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) 
 	}
 
 	if class.DeletionTimestamp == nil && len(machines) > 0 {
-		// If deletionTimestamp is not set and more than one machines are referring this machineClass
+		// If deletionTimestamp is not set and at least one machine is referring this machineClass
 
 		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(MCMFinalizerName) {
 			// Add machineClassFinalizer as if doesn't exist
