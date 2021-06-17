@@ -124,10 +124,13 @@ func (c *controller) ValidateMachineClass(classSpec *v1alpha1.ClassSpec) (*v1alp
 	}
 
 	if finalizers := sets.NewString(machineClass.Finalizers...); !finalizers.Has(MCMFinalizerName) {
-		klog.Errorf("The machine class %s has no finalizers set. So not reconciling the machine.", machineClass.Name)
 		c.machineClassQueue.Add(machineClass.Name)
-		err := errors.New("The machine class %s has no finalizers set. So not reconciling the machine." + machineClass.Name)
-		return nil, nil, retry, err
+
+		errMessage := fmt.Sprintf("The machine class %s has no finalizers set. So not reconciling the machine.", machineClass.Name)
+		err := errors.New(errMessage)
+		klog.Warning(errMessage)
+
+		return nil, nil, machineutils.ShortRetry, err
 	}
 
 	return machineClass, secretData, retry, nil
