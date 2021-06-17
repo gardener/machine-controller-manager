@@ -383,7 +383,7 @@ var _ = Describe("safety_logic", func() {
 				Expect(updatedNodeObject2.Annotations).Should(Equal(data.expect.node2.Annotations))
 			},
 
-			Entry("when annotations are updated in node-object", &data{
+			Entry("Annotate node object when creation time is older than machineCreationTimeout (21mins old)", &data{
 				setup: setup{
 					node: &corev1.Node{
 						TypeMeta: metav1.TypeMeta{
@@ -395,6 +395,7 @@ var _ = Describe("safety_logic", func() {
 							Annotations: map[string]string{
 								"anno1": "value1",
 							},
+							CreationTimestamp: metav1.NewTime(metav1.Now().Add(-21 * time.Minute)),
 						},
 					},
 				},
@@ -441,7 +442,65 @@ var _ = Describe("safety_logic", func() {
 					err:   nil,
 				},
 			}),
-			Entry("when node already not handled by MCM", &data{
+			Entry("Don't annotate node object when creation time is less than machineCreationTimeout (19mins old)", &data{
+				setup: setup{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1": "value1",
+							},
+							CreationTimestamp: metav1.NewTime(metav1.Now().Add(-19 * time.Minute)),
+						},
+					},
+				},
+				action: action{},
+				expect: expect{
+					node0: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1": "value1",
+							},
+						},
+					},
+					node1: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-1",
+							Annotations: map[string]string{
+								"anno1": "value1",
+							},
+						},
+					},
+					node2: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-2",
+							Annotations: map[string]string{
+								"anno1": "value1",
+							},
+						},
+					},
+					retry: machineutils.LongRetry,
+					err:   nil,
+				},
+			}),
+			Entry("Node already has NotManagedByMCM annotation", &data{
 				setup: setup{
 					node: &corev1.Node{
 						TypeMeta: metav1.TypeMeta{

@@ -18,11 +18,11 @@ func (c *controller) updateNodeWithAnnotation(node *v1.Node, annotations map[str
 	}
 
 	_, err := c.targetCoreClient.CoreV1().Nodes().Update(node)
-
 	if err != nil {
 		klog.Errorf("Couldn't patch the node %q , Error: %s", node.Name, err)
 		return err
 	}
+	klog.V(2).Infof("Annotated node %q was annotated with NotManagedByMCM successfully", node.Name)
 
 	return nil
 }
