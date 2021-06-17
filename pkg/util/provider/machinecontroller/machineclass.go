@@ -146,24 +146,34 @@ func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) 
 		return err
 	}
 
-	// fetch all machines referring the machineClass
+	// Fetch all machines referring the machineClass
 	machines, err := c.findMachinesForClass(machineutils.MachineClassKind, class.Name)
 	if err != nil {
 		return err
 	}
 
-	// Add finalizer to avoid losing machineClass object
 	if class.DeletionTimestamp == nil && len(machines) > 0 {
-		err = c.addMachineClassFinalizers(class)
-		if err != nil {
-			return err
+		// If deletionTimestamp is not set and at least one machine is referring this machineClass
+
+		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(MCMFinalizerName) {
+			// Add machineClassFinalizer as if doesn't exist
+			err = c.addMachineClassFinalizers(class)
+			if err != nil {
+				return err
+			}
+
+			// Enqueue all machines once finalizer is added to machineClass
+			// This is to allow processing of such machines
+			for _, machine := range machines {
+				c.enqueueMachine(machine)
+			}
 		}
 
 		return nil
 	}
 
 	if len(machines) > 0 {
-		// machines are still referring the machine class, please wait before deletion
+		// Machines are still referring the machine class, please wait before deletion
 		klog.V(3).Infof("Cannot remove finalizer on %s because still (%d) machines are referencing it", class.Name, len(machines))
 
 		for _, machine := range machines {
@@ -173,8 +183,12 @@ func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) 
 		return fmt.Errorf("Retry as machine objects are still referring the machineclass")
 	}
 
-	// delete machine class finalizer if exists
-	return c.deleteMachineClassFinalizers(class)
+	if finalizers := sets.NewString(class.Finalizers...); finalizers.Has(MCMFinalizerName) {
+		// Delete finalizer if exists on machineClass
+		return c.deleteMachineClassFinalizers(class)
+	}
+
+	return nil
 }
 
 /*
@@ -183,23 +197,15 @@ func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) 
 */
 
 func (c *controller) addMachineClassFinalizers(class *v1alpha1.MachineClass) error {
-	clone := class.DeepCopy()
-
-	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(MCMFinalizerName) {
-		finalizers.Insert(MCMFinalizerName)
-		return c.updateMachineClassFinalizers(clone, finalizers.List())
-	}
-	return nil
+	finalizers := sets.NewString(class.Finalizers...)
+	finalizers.Insert(MCMFinalizerName)
+	return c.updateMachineClassFinalizers(class, finalizers.List())
 }
 
 func (c *controller) deleteMachineClassFinalizers(class *v1alpha1.MachineClass) error {
-	clone := class.DeepCopy()
-
-	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(MCMFinalizerName) {
-		finalizers.Delete(MCMFinalizerName)
-		return c.updateMachineClassFinalizers(clone, finalizers.List())
-	}
-	return nil
+	finalizers := sets.NewString(class.Finalizers...)
+	finalizers.Delete(MCMFinalizerName)
+	return c.updateMachineClassFinalizers(class, finalizers.List())
 }
 
 func (c *controller) updateMachineClassFinalizers(class *v1alpha1.MachineClass, finalizers []string) error {

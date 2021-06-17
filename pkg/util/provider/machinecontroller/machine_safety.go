@@ -52,7 +52,6 @@ func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
 	defer klog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: End, reSync-Period: %v", reSyncAfter)
 
 	retryPeriod, err := c.checkMachineClasses()
-
 	if err != nil {
 		klog.Errorf("reconcileClusterMachineSafetyOrphanVMs: Error occurred while checking for orphan VMs: %s", err)
 		c.machineSafetyOrphanVMsQueue.AddAfter("", time.Duration(retryPeriod))
@@ -170,7 +169,7 @@ func (c *controller) isAPIServerUp() bool {
 
 // AnnotateNodesUnmanagedByMCM checks for nodes which are not handled by MCM and annotes them
 func (c *controller) AnnotateNodesUnmanagedByMCM() (machineutils.RetryPeriod, error) {
-	//list all the nodes on target cluster
+	// list all the nodes on target cluster
 	nodes, err := c.nodeLister.List(labels.Everything())
 	if err != nil {
 		klog.Errorf("Safety-Net: Error getting nodes")
@@ -182,16 +181,25 @@ func (c *controller) AnnotateNodesUnmanagedByMCM() (machineutils.RetryPeriod, er
 			if err == errMultipleMachineMatch {
 				klog.Errorf("Couldn't fetch machine, Error: %s", err)
 			} else if err == errNoMachineMatch {
-				//if no backing machine for a node,means annotate it
-				if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
+
+				if !node.CreationTimestamp.Time.Before(time.Now().Add(c.safetyOptions.MachineCreationTimeout.Duration * -1)) {
+					// node creationTimestamp is NOT before now() - machineCreationTime
+					// meaning creationTimeout has not occurred since node creation
+					// hence don't tag such nodes
+					klog.V(3).Infof("Node %q is still too young to be tagged with NotManagedByMCM", node.Name)
+					continue
+				} else if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
+					// annotation already exists, ignore this node
 					continue
 				}
+
+				// if no backing machine object for a node, annotate it
 				nodeCopy := node.DeepCopy()
 				annotations := map[string]string{
 					machineutils.NotManagedByMCM: "1",
 				}
 
-				//err is returned only when node update fails
+				// err is returned only when node update fails
 				if err := c.updateNodeWithAnnotation(nodeCopy, annotations); err != nil {
 					return machineutils.MediumRetry, err
 				}
