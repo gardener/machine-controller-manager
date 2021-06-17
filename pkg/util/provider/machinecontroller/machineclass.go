@@ -154,7 +154,6 @@ func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) 
 
 	// Add finalizer to avoid losing machineClass object
 	if class.DeletionTimestamp == nil && len(machines) > 0 {
-		klog.Infof("Adding finalizers to machine class %s", class.Name)
 		err = c.addMachineClassFinalizers(class)
 		if err != nil {
 			return err
