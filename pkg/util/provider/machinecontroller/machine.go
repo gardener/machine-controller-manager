@@ -208,7 +208,12 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 	}
 
 	machine, err := c.getMachineFromNode(key)
-	if err != nil {
+	if err != nil && err != errNoMachineMatch {
+		if err != errNoMachineMatch {
+			// errNoMachineMatch could mean that VM is still in creation hence ignoring it
+			return
+		}
+
 		klog.Errorf("Couldn't fetch machine %s, Error: %s", key, err)
 		return
 	}
@@ -259,6 +264,7 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	} else if len(machines) < 1 {
 		return nil, errNoMachineMatch
 	}
+
 	return machines[0], nil
 }
 
