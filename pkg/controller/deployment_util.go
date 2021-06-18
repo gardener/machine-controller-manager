@@ -1092,7 +1092,7 @@ func NewISNewReplicas(deployment *v1alpha1.MachineDeployment, allISs []*v1alpha1
 			return 0, err
 		}
 		// Find the total number of machines
-		currentMachineCount := GetReplicaCountForMachineSets(allISs)
+		currentMachineCount := GetActualReplicaCountForMachineSets(allISs)
 		maxTotalMachines := (deployment.Spec.Replicas) + int32(maxSurge)
 		if currentMachineCount >= maxTotalMachines {
 			// Cannot scale up.
