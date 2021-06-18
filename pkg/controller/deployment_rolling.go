@@ -377,7 +377,7 @@ func (dc *controller) annotateNodesBackingMachineSets(MachineSets []*v1alpha1.Ma
 
 	for _, machineSet := range MachineSets {
 
-		klog.V(3).Infof("Trying to annotate nodes under the MachineSet object %q with %s", machineSet.Name, annotations)
+		klog.V(4).Infof("Trying to annotate nodes under the MachineSet object %q with %s", machineSet.Name, annotations)
 		selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
 		if err != nil {
 			return err
@@ -409,7 +409,7 @@ func (dc *controller) annotateNodesBackingMachineSets(MachineSets []*v1alpha1.Ma
 				}
 			}
 		}
-		klog.V(2).Infof("Annotated the nodes backed by MachineSet %q with %s", machineSet.Name, annotations)
+		klog.V(4).Infof("Annotated the nodes backed by MachineSet %q with %s", machineSet.Name, annotations)
 	}
 
 	return nil
@@ -472,7 +472,7 @@ func (dc *controller) removeAutoscalerAnnotationsIfRequired(MachineSets []*v1alp
 						klog.Warningf("Removing annotation failed for node: %s, %s", machine.Status.Node, err)
 						return err
 					}
-					klog.V(3).Infof("De-annotated the node %q backed by MachineSet %q with %s", machine.Status.Node, machineSet.Name, annotations)
+					klog.V(4).Infof("De-annotated the node %q backed by MachineSet %q with %s", machine.Status.Node, machineSet.Name, annotations)
 				}
 			}
 		}

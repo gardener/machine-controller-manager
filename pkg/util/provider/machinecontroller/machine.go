@@ -208,8 +208,8 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 	}
 
 	machine, err := c.getMachineFromNode(key)
-	if err != nil && err != errNoMachineMatch {
-		if err != errNoMachineMatch {
+	if err != nil {
+		if err == errNoMachineMatch {
 			// errNoMachineMatch could mean that VM is still in creation hence ignoring it
 			return
 		}
