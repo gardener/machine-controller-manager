@@ -626,6 +626,14 @@ func (o *Options) evictPodsWithPv(attemptEvict bool, pods []*corev1.Pod,
 	return
 }
 
+// checkAndDeleteWorker is a helper method that check if volumeAttachmentHandler
+// is supported and delete's the worker from the list of event handlers
+func (o *Options) checkAndDeleteWorker(volumeAttachmentEventCh chan *storagev1.VolumeAttachment) {
+	if o.volumeAttachmentHandler != nil {
+		o.volumeAttachmentHandler.DeleteWorker(volumeAttachmentEventCh)
+	}
+}
+
 func (o *Options) evictPodsWithPVInternal(
 	attemptEvict bool,
 	pods []*corev1.Pod,
@@ -678,19 +686,23 @@ func (o *Options) evictPodsWithPVInternal(
 					pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
 						pod.Name, pdb.Namespace, pdb.Name)
 					returnCh <- pdbErr
+					o.checkAndDeleteWorker(volumeAttachmentEventCh)
 					continue
 				}
 			}
 
 			retryPods = append(retryPods, pod)
+			o.checkAndDeleteWorker(volumeAttachmentEventCh)
 			continue
 		} else if apierrors.IsNotFound(err) {
 			klog.V(3).Info("\t", pod.Name, " from node ", pod.Spec.NodeName, " is already gone")
 			returnCh <- nil
+			o.checkAndDeleteWorker(volumeAttachmentEventCh)
 			continue
 		} else if err != nil {
 			klog.V(4).Infof("Error when evicting pod: %v/%v from node %v. Will be retried. Err: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
 			retryPods = append(retryPods, pod)
+			o.checkAndDeleteWorker(volumeAttachmentEventCh)
 			continue
 		}
 
@@ -711,10 +723,12 @@ func (o *Options) evictPodsWithPVInternal(
 		if apierrors.IsNotFound(err) {
 			klog.V(3).Info("Node not found anymore")
 			returnCh <- nil
+			o.checkAndDeleteWorker(volumeAttachmentEventCh)
 			return append(retryPods, pods[i+1:]...), true
 		} else if err != nil {
 			klog.Errorf("Error when waiting for volume to detach from node. Err: %v", err)
 			returnCh <- err
+			o.checkAndDeleteWorker(volumeAttachmentEventCh)
 			continue
 		}
 		klog.V(4).Infof(
@@ -735,14 +749,12 @@ func (o *Options) evictPodsWithPVInternal(
 			} else {
 				klog.Errorf("Error when waiting for volume reattachment. Err: %v", err)
 				returnCh <- err
+				o.checkAndDeleteWorker(volumeAttachmentEventCh)
 				continue
 			}
 		}
 
-		if o.volumeAttachmentHandler != nil {
-			o.volumeAttachmentHandler.DeleteWorker(volumeAttachmentEventCh)
-		}
-
+		o.checkAndDeleteWorker(volumeAttachmentEventCh)
 		klog.V(3).Infof(
 			"Pod + volume detachment from node %s + volume reattachment to another node for Pod %s/%s took %v",
 			o.nodeName,
