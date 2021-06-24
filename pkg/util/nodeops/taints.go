@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	clientretry "k8s.io/client-go/util/retry"
+	"k8s.io/klog"
 )
 
 // Backoff is the backoff period used while updating nodes
@@ -76,6 +77,8 @@ func AddOrUpdateTaintOnNode(c clientset.Interface, nodeName string, taints ...*v
 		if !updated {
 			return nil
 		}
+
+		klog.V(4).Infof("Trying to taint node %q to avoid scheduling of pods", nodeName)
 		return UpdateNodeTaints(c, nodeName, oldNode, newNode)
 	})
 }
