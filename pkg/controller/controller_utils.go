@@ -821,6 +821,15 @@ func IsMachineFailed(p *v1alpha1.Machine) bool {
 	return false
 }
 
+// IsMachineRunning checks if machine is ready
+func IsMachineRunning(p *v1alpha1.Machine) bool {
+	if p.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+		return true
+	}
+
+	return false
+}
+
 // MachineKey is the function used to get the machine name from machine object
 //ToCheck : as machine-namespace does not matter
 func MachineKey(machine *v1alpha1.Machine) string {

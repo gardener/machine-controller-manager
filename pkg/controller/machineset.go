@@ -25,6 +25,7 @@ package controller
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 	"sync"
@@ -323,22 +324,31 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 		return nil
 	}
 
-	var activeMachines, staleMachines []*v1alpha1.Machine
+	var activeMachines, runningMachines, staleMachines []*v1alpha1.Machine
 	for _, machine := range allMachines {
 		if IsMachineActive(machine) {
-			//klog.Info("Active machine: ", machine.Name)
 			activeMachines = append(activeMachines, machine)
+
+			if IsMachineRunning(machine) {
+				runningMachines = append(runningMachines, machine)
+			}
 		} else if IsMachineFailed(machine) {
 			staleMachines = append(staleMachines, machine)
 		}
 	}
 
-	if len(staleMachines) >= 1 {
-		klog.V(2).Infof("Deleting stale machines")
-	}
-	c.terminateMachines(staleMachines, machineSet)
+	machineDeletionWindow := c.calculateStaleMachineDeletionWindow(activeMachines, runningMachines, staleMachines, machineSet)
 
-	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
+	if len(staleMachines) >= 1 {
+		klog.V(2).Infof("Deleting %d stale machines out of total stale machines %d", machineDeletionWindow, len(staleMachines))
+	}
+	leftOverStaleMachines, err := c.terminateStaleMachines(staleMachines, machineDeletionWindow, machineSet)
+	if err != nil {
+		klog.Errorf("Failed deleting stale machines, operation will be retried in next iteration")
+	}
+
+	assumedNumOfActiveMachines := len(activeMachines) + len(leftOverStaleMachines)
+	diff := assumedNumOfActiveMachines - int(machineSet.Spec.Replicas)
 	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
 
 	if diff < 0 {
@@ -349,6 +359,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 		}
 
 		diff *= -1
+
 		if diff > BurstReplicas {
 			diff = BurstReplicas
 		}
@@ -408,6 +419,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 		}
 		klog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (machineSet.Spec.Replicas), diff)
 
+		activeMachines = append(leftOverStaleMachines, activeMachines...)
 		machinesToDelete := getMachinesToDelete(activeMachines, diff)
 
 		// Snapshot the UIDs (ns/name) of the machines we're expecting to see
@@ -686,6 +698,84 @@ func (c *controller) terminateMachines(inactiveMachines []*v1alpha1.Machine, mac
 	}
 
 	return nil
+}
+
+// terminateStaleMachines terminates the stale machines and returns the lefover machines.
+func (c *controller) terminateStaleMachines(inactiveMachines []*v1alpha1.Machine, deletionWindow int, machineSet *v1alpha1.MachineSet) ([]*v1alpha1.Machine, error) {
+	var (
+		deletedMachines int
+		wg              sync.WaitGroup
+		errCh           = make(chan error, deletionWindow)
+	)
+	defer close(errCh)
+
+	leftOverMachines := []*v1alpha1.Machine{}
+
+	wg.Add(deletionWindow)
+	for deletedMachines = 0; deletedMachines < deletionWindow && deletedMachines < len(inactiveMachines); deletedMachines++ {
+		go c.prepareMachineForDeletion(inactiveMachines[deletedMachines], machineSet, &wg, errCh)
+	}
+	leftOverMachines = inactiveMachines[deletionWindow:]
+	wg.Wait()
+
+	select {
+	case err := <-errCh:
+		// all errors have been reported before and they're likely to be the same, so we'll only return the first one we hit.
+		if err != nil {
+			return nil, err
+		}
+	default:
+	}
+
+	return leftOverMachines, nil
+}
+
+// calculateStaleMachineDeletionWindow computes an amount of Failed Machines that can be deleted based on FailedMachineDeletionRatio
+func (c *controller) calculateStaleMachineDeletionWindow(activeMachines, runningMachines, inactiveMachines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) int {
+	var (
+		deletionWindow           int
+		numOfActiveMachines      = len(activeMachines)
+		numOfRunningMachines     = len(runningMachines)
+		numOfInactiveMachines    = len(inactiveMachines)
+		desiredMachineSetReplica = int(machineSet.Spec.Replicas)
+	)
+
+	// nothing to do
+	if numOfInactiveMachines == 0 {
+		return 0
+	}
+
+	// Will not delete any stale machines. It is expected that the user deletes these machines manually.
+	if c.safetyOptions.FailedMachineDeletionRatio == 0 {
+		return 0
+	}
+
+	if c.safetyOptions.FailedMachineDeletionRatio == 1 {
+		return numOfInactiveMachines
+	}
+
+	if desiredMachineSetReplica == 0 {
+		deletionWindow = numOfInactiveMachines
+	} else {
+		deletionWindow = int(math.Round(float64(numOfInactiveMachines) * c.safetyOptions.FailedMachineDeletionRatio))
+		if deletionWindow == 0 {
+			deletionWindow = 1
+		}
+
+		numOfActiveNotRunningMachines := numOfActiveMachines - numOfRunningMachines
+
+		if deletionWindow > numOfActiveNotRunningMachines {
+			deletionWindow -= numOfActiveNotRunningMachines
+		} else {
+			deletionWindow = 0
+		}
+	}
+
+	if deletionWindow > numOfInactiveMachines {
+		deletionWindow = numOfInactiveMachines
+	}
+
+	return deletionWindow
 }
 
 /*

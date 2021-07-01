@@ -507,6 +507,7 @@ func createController(
 		MachineSafetyOvershootingPeriod:          metav1.Duration{Duration: 1 * time.Minute},
 		MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
 		MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
+		FailedMachineDeletionRatio:               1.0,
 	}
 
 	controller := &controller{
