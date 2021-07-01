@@ -23,6 +23,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -32,12 +33,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // rollback the deployment to the specified revision. In any case cleanup the rollback spec.
-func (dc *controller) rollback(d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
-	newIS, allOldISs, err := dc.getAllMachineSetsAndSyncRevision(d, isList, machineMap, true)
+func (dc *controller) rollback(ctx context.Context, d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
+	newIS, allOldISs, err := dc.getAllMachineSetsAndSyncRevision(ctx, d, isList, machineMap, true)
 	if err != nil {
 		return err
 	}
@@ -50,7 +51,7 @@ func (dc *controller) rollback(d *v1alpha1.MachineDeployment, isList []*v1alpha1
 			// If we still can't find the last revision, gives up rollback
 			dc.emitRollbackWarningEvent(d, RollbackRevisionNotFound, "Unable to find last revision.")
 			// Gives up rollback
-			return dc.updateMachineDeploymentAndClearRollbackTo(d)
+			return dc.updateMachineDeploymentAndClearRollbackTo(ctx, d)
 		}
 	}
 	for _, is := range allISs {
@@ -64,6 +65,7 @@ func (dc *controller) rollback(d *v1alpha1.MachineDeployment, isList []*v1alpha1
 
 			// Remove PreferNoSchedule taints from nodes which were backing the machineSet
 			err = dc.removeTaintNodesBackingMachineSet(
+				ctx,
 				is,
 				&v1.Taint{
 					Key:    PreferNoScheduleKey,
@@ -78,7 +80,7 @@ func (dc *controller) rollback(d *v1alpha1.MachineDeployment, isList []*v1alpha1
 			// rollback by copying podTemplate.Spec from the machine set
 			// revision number will be incremented during the next getAllMachineSetsAndSyncRevision call
 			// no-op if the spec matches current deployment's podTemplate.Spec
-			performedRollback, err := dc.rollbackToTemplate(d, is)
+			performedRollback, err := dc.rollbackToTemplate(ctx, d, is)
 			if performedRollback && err == nil {
 				dc.emitRollbackNormalEvent(d, fmt.Sprintf("Rolled back deployment %q to revision %d", d.Name, *toRevision))
 			}
@@ -87,13 +89,13 @@ func (dc *controller) rollback(d *v1alpha1.MachineDeployment, isList []*v1alpha1
 	}
 	dc.emitRollbackWarningEvent(d, RollbackRevisionNotFound, "Unable to find the revision to rollback to.")
 	// Gives up rollback
-	return dc.updateMachineDeploymentAndClearRollbackTo(d)
+	return dc.updateMachineDeploymentAndClearRollbackTo(ctx, d)
 }
 
 // rollbackToTemplate compares the templates of the provided deployment and machine set and
 // updates the deployment with the machine set template in case they are different. It also
 // cleans up the rollback spec so subsequent requeues of the deployment won't end up in here.
-func (dc *controller) rollbackToTemplate(d *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet) (bool, error) {
+func (dc *controller) rollbackToTemplate(ctx context.Context, d *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet) (bool, error) {
 	performedRollback := false
 	if !EqualIgnoreHash(&d.Spec.Template, &is.Spec.Template) {
 		klog.V(4).Infof("Rolling back deployment %q to template spec %+v", d.Name, is.Spec.Template.Spec)
@@ -117,7 +119,7 @@ func (dc *controller) rollbackToTemplate(d *v1alpha1.MachineDeployment, is *v1al
 		dc.emitRollbackWarningEvent(d, RollbackTemplateUnchanged, eventMsg)
 	}
 
-	return performedRollback, dc.updateMachineDeploymentAndClearRollbackTo(d)
+	return performedRollback, dc.updateMachineDeploymentAndClearRollbackTo(ctx, d)
 }
 
 func (dc *controller) emitRollbackWarningEvent(d *v1alpha1.MachineDeployment, reason, message string) {
@@ -131,15 +133,15 @@ func (dc *controller) emitRollbackNormalEvent(d *v1alpha1.MachineDeployment, mes
 // updateDeploymentAndClearRollbackTo sets .spec.rollbackTo to nil and update the input deployment
 // It is assumed that the caller will have updated the deployment template appropriately (in case
 // we want to rollback).
-func (dc *controller) updateMachineDeploymentAndClearRollbackTo(d *v1alpha1.MachineDeployment) error {
+func (dc *controller) updateMachineDeploymentAndClearRollbackTo(ctx context.Context, d *v1alpha1.MachineDeployment) error {
 	klog.V(4).Infof("Cleans up rollbackTo of machine deployment %q", d.Name)
 	d.Spec.RollbackTo = nil
-	_, err := dc.controlMachineClient.MachineDeployments(d.Namespace).Update(d)
+	_, err := dc.controlMachineClient.MachineDeployments(d.Namespace).Update(ctx, d, metav1.UpdateOptions{})
 	return err
 }
 
 // removeTaintNodesBackingMachineSet removes taints from all nodes backing the machineSets
-func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.MachineSet, taint *v1.Taint) error {
+func (dc *controller) removeTaintNodesBackingMachineSet(ctx context.Context, machineSet *v1alpha1.MachineSet, taint *v1.Taint) error {
 
 	if _, exists := machineSet.Annotations[taint.Key]; !exists {
 		// No taint exists
@@ -162,7 +164,7 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 	}
 	// NOTE: filteredMachines are pointing to objects from cache - if you need to
 	// modify them, you need to copy it first.
-	filteredMachines, err = dc.claimMachines(machineSet, selector, filteredMachines)
+	filteredMachines, err = dc.claimMachines(ctx, machineSet, selector, filteredMachines)
 	if err != nil {
 		return err
 	}
@@ -171,13 +173,14 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 	// to avoid scheduling on older machines
 	for _, machine := range filteredMachines {
 		if machine.Status.Node != "" {
-			node, err := dc.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
+			node, err := dc.targetCoreClient.CoreV1().Nodes().Get(ctx, machine.Status.Node, metav1.GetOptions{})
 			if err != nil {
 				klog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Status.Node, err)
 				continue
 			}
 
 			err = nodeops.RemoveTaintOffNode(
+				ctx,
 				dc.targetCoreClient,
 				machine.Status.Node,
 				node,
@@ -186,13 +189,13 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 			if err != nil {
 				klog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Status.Node, err)
 			}
-			node, err = dc.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
+			node, err = dc.targetCoreClient.CoreV1().Nodes().Get(ctx, machine.Status.Node, metav1.GetOptions{})
 		}
 	}
 
 	retryDeadline := time.Now().Add(maxRetryDeadline)
 	for {
-		machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
+		machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(ctx, machineSet.Name, metav1.GetOptions{})
 		if err != nil {
 			if time.Now().Before(retryDeadline) {
 				klog.Warningf("Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
@@ -208,7 +211,7 @@ func (dc *controller) removeTaintNodesBackingMachineSet(machineSet *v1alpha1.Mac
 		msCopy := machineSet.DeepCopy()
 		delete(msCopy.Annotations, taint.Key)
 
-		machineSet, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(msCopy)
+		machineSet, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(ctx, msCopy, metav1.UpdateOptions{})
 
 		if err != nil {
 			if time.Now().Before(retryDeadline) {

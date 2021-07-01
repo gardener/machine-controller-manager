@@ -42,7 +42,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/to"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (

@@ -16,6 +16,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"sort"
 	"strconv"
 
@@ -271,7 +272,7 @@ var _ = Describe("#controllerUtils", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
-				err := AddOrUpdateAnnotationOnNode(c.targetCoreClient, data.action.nodeName, data.action.toBeAppliedAnnotations)
+				err := AddOrUpdateAnnotationOnNode(context.TODO(), c.targetCoreClient, data.action.nodeName, data.action.toBeAppliedAnnotations)
 
 				if !data.expect.err {
 					Expect(err).To(BeNil())
@@ -280,7 +281,7 @@ var _ = Describe("#controllerUtils", func() {
 					return
 				}
 
-				nodeObject, _ = c.targetCoreClient.CoreV1().Nodes().Get(data.action.nodeName, metav1.GetOptions{})
+				nodeObject, _ = c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), data.action.nodeName, metav1.GetOptions{})
 
 				// Merge the annotations in the newNodeObject.
 				annotationsOnNewNodeObject := make(map[string]string)
@@ -447,7 +448,7 @@ var _ = Describe("#controllerUtils", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
-				err := RemoveAnnotationsOffNode(c.targetCoreClient, data.action.nodeName, data.action.toBeRemovedAnnotations)
+				err := RemoveAnnotationsOffNode(context.TODO(), c.targetCoreClient, data.action.nodeName, data.action.toBeRemovedAnnotations)
 
 				if !data.expect.err {
 					Expect(err).To(BeNil())
@@ -456,7 +457,7 @@ var _ = Describe("#controllerUtils", func() {
 					return
 				}
 
-				nodeObject, _ = c.targetCoreClient.CoreV1().Nodes().Get(data.action.nodeName, metav1.GetOptions{})
+				nodeObject, _ = c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), data.action.nodeName, metav1.GetOptions{})
 
 				// Merge the annotations in the newNodeObject.
 				annotationsOnNewNodeObject := make(map[string]string)

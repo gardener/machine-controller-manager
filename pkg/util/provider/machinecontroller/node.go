@@ -18,9 +18,9 @@ limitations under the License.
 package controller
 
 import (
-	"k8s.io/klog"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 
-	"k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

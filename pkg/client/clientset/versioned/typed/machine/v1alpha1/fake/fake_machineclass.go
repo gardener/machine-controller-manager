@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+Copyright (c) 2021 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var machineclassesResource = schema.GroupVersionResource{Group: "machine.sapclou
 var machineclassesKind = schema.GroupVersionKind{Group: "machine.sapcloud.io", Version: "v1alpha1", Kind: "MachineClass"}
 
 // Get takes name of the machineClass, and returns the corresponding machineClass object, and an error if there is any.
-func (c *FakeMachineClasses) Get(name string, options v1.GetOptions) (result *v1alpha1.MachineClass, err error) {
+func (c *FakeMachineClasses) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.MachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(machineclassesResource, c.ns, name), &v1alpha1.MachineClass{})
 
@@ -50,7 +52,7 @@ func (c *FakeMachineClasses) Get(name string, options v1.GetOptions) (result *v1
 }
 
 // List takes label and field selectors, and returns the list of MachineClasses that match those selectors.
-func (c *FakeMachineClasses) List(opts v1.ListOptions) (result *v1alpha1.MachineClassList, err error) {
+func (c *FakeMachineClasses) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.MachineClassList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(machineclassesResource, machineclassesKind, c.ns, opts), &v1alpha1.MachineClassList{})
 
@@ -72,14 +74,14 @@ func (c *FakeMachineClasses) List(opts v1.ListOptions) (result *v1alpha1.Machine
 }
 
 // Watch returns a watch.Interface that watches the requested machineClasses.
-func (c *FakeMachineClasses) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeMachineClasses) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(machineclassesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a machineClass and creates it.  Returns the server's representation of the machineClass, and an error, if there is any.
-func (c *FakeMachineClasses) Create(machineClass *v1alpha1.MachineClass) (result *v1alpha1.MachineClass, err error) {
+func (c *FakeMachineClasses) Create(ctx context.Context, machineClass *v1alpha1.MachineClass, opts v1.CreateOptions) (result *v1alpha1.MachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(machineclassesResource, c.ns, machineClass), &v1alpha1.MachineClass{})
 
@@ -90,7 +92,7 @@ func (c *FakeMachineClasses) Create(machineClass *v1alpha1.MachineClass) (result
 }
 
 // Update takes the representation of a machineClass and updates it. Returns the server's representation of the machineClass, and an error, if there is any.
-func (c *FakeMachineClasses) Update(machineClass *v1alpha1.MachineClass) (result *v1alpha1.MachineClass, err error) {
+func (c *FakeMachineClasses) Update(ctx context.Context, machineClass *v1alpha1.MachineClass, opts v1.UpdateOptions) (result *v1alpha1.MachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(machineclassesResource, c.ns, machineClass), &v1alpha1.MachineClass{})
 
@@ -101,7 +103,7 @@ func (c *FakeMachineClasses) Update(machineClass *v1alpha1.MachineClass) (result
 }
 
 // Delete takes name of the machineClass and deletes it. Returns an error if one occurs.
-func (c *FakeMachineClasses) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeMachineClasses) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(machineclassesResource, c.ns, name), &v1alpha1.MachineClass{})
 
@@ -109,15 +111,15 @@ func (c *FakeMachineClasses) Delete(name string, options *v1.DeleteOptions) erro
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeMachineClasses) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(machineclassesResource, c.ns, listOptions)
+func (c *FakeMachineClasses) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(machineclassesResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.MachineClassList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched machineClass.
-func (c *FakeMachineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.MachineClass, err error) {
+func (c *FakeMachineClasses) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.MachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(machineclassesResource, c.ns, name, pt, data, subresources...), &v1alpha1.MachineClass{})
 

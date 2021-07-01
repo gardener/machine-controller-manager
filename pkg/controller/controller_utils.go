@@ -23,6 +23,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"hash/fnv"
@@ -37,6 +38,7 @@ import (
 	fakemachineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	annotationsutils "github.com/gardener/machine-controller-manager/pkg/util/annotations"
 	hashutil "github.com/gardener/machine-controller-manager/pkg/util/hash"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -53,7 +55,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	clientretry "k8s.io/client-go/util/retry"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -416,7 +418,7 @@ const (
 // MachineSets, as well as increment or decrement them. It is used
 // by the deployment controller to ease testing of actions that it takes.
 type MachineSetControlInterface interface {
-	PatchMachineSet(namespace, name string, data []byte) error
+	PatchMachineSet(ctx context.Context, namespace, name string, data []byte) error
 }
 
 // RealMachineSetControl is the default implementation of RSControllerInterface.
@@ -428,8 +430,8 @@ type RealMachineSetControl struct {
 var _ MachineSetControlInterface = &RealMachineSetControl{}
 
 // PatchMachineSet patches the machineSet object
-func (r RealMachineSetControl) PatchMachineSet(namespace, name string, data []byte) error {
-	_, err := r.controlMachineClient.MachineSets(namespace).Patch(name, types.MergePatchType, data)
+func (r RealMachineSetControl) PatchMachineSet(ctx context.Context, namespace, name string, data []byte) error {
+	_, err := r.controlMachineClient.MachineSets(namespace).Patch(ctx, name, types.MergePatchType, data, metav1.PatchOptions{})
 	return err
 }
 
@@ -438,7 +440,7 @@ func (r RealMachineSetControl) PatchMachineSet(namespace, name string, data []by
 // by the daemonset controller to ease testing of actions that it takes.
 // TODO: merge the controller revision interface in controller_history.go with this one
 type RevisionControlInterface interface {
-	PatchControllerRevision(namespace, name string, data []byte) error
+	PatchControllerRevision(ctx context.Context, namespace, name string, data []byte) error
 }
 
 // RealControllerRevisionControl is the default implementation of RevisionControlInterface.
@@ -449,8 +451,8 @@ type RealControllerRevisionControl struct {
 var _ RevisionControlInterface = &RealControllerRevisionControl{}
 
 // PatchControllerRevision is the patch method used to patch the controller revision
-func (r RealControllerRevisionControl) PatchControllerRevision(namespace, name string, data []byte) error {
-	_, err := r.KubeClient.AppsV1beta1().ControllerRevisions(namespace).Patch(name, types.StrategicMergePatchType, data)
+func (r RealControllerRevisionControl) PatchControllerRevision(ctx context.Context, namespace, name string, data []byte) error {
+	_, err := r.KubeClient.AppsV1beta1().ControllerRevisions(namespace).Patch(ctx, name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
 	return err
 }
 
@@ -487,13 +489,13 @@ var _ MachineControlInterface = &RealMachineControl{}
 // MachineControlInterface is the interface used by the machine-set controller to interact with the machine controller
 type MachineControlInterface interface {
 	// Createmachines creates new machines according to the spec.
-	CreateMachines(namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object) error
+	CreateMachines(ctx context.Context, namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object) error
 	// CreatemachinesWithControllerRef creates new machines according to the spec, and sets object as the machine's controller.
-	CreateMachinesWithControllerRef(namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error
+	CreateMachinesWithControllerRef(ctx context.Context, namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error
 	// Deletemachine deletes the machine identified by machineID.
-	DeleteMachine(namespace string, machineID string, object runtime.Object) error
+	DeleteMachine(ctx context.Context, namespace string, machineID string, object runtime.Object) error
 	// Patchmachine patches the machine.
-	PatchMachine(namespace string, name string, data []byte) error
+	PatchMachine(ctx context.Context, namespace string, name string, data []byte) error
 }
 
 func getMachinesLabelSet(template *v1alpha1.MachineTemplateSpec) labels.Set {
@@ -528,11 +530,11 @@ func getMachinesPrefix(controllerName string) string {
 }
 
 // CreateMachinesWithControllerRef creates a machine with controller reference
-func (r RealMachineControl) CreateMachinesWithControllerRef(namespace string, template *v1alpha1.MachineTemplateSpec, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
+func (r RealMachineControl) CreateMachinesWithControllerRef(ctx context.Context, namespace string, template *v1alpha1.MachineTemplateSpec, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
 	if err := validateControllerRef(controllerRef); err != nil {
 		return err
 	}
-	return r.createMachines(namespace, template, controllerObject, controllerRef)
+	return r.createMachines(ctx, namespace, template, controllerObject, controllerRef)
 }
 
 // GetMachineFromTemplate passes the machine template spec to return the machine object
@@ -570,11 +572,11 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 }
 
 // CreateMachines initiates a create machine for a RealMachineControl
-func (r RealMachineControl) CreateMachines(namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object) error {
-	return r.createMachines(namespace, template, object, nil)
+func (r RealMachineControl) CreateMachines(ctx context.Context, namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object) error {
+	return r.createMachines(ctx, namespace, template, object, nil)
 }
 
-func (r RealMachineControl) createMachines(namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
+func (r RealMachineControl) createMachines(ctx context.Context, namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
 	machine, err := GetMachineFromTemplate(template, object, controllerRef)
 	if err != nil {
 		return err
@@ -585,7 +587,7 @@ func (r RealMachineControl) createMachines(namespace string, template *v1alpha1.
 	}
 
 	var newMachine *v1alpha1.Machine
-	if newMachine, err = r.controlMachineClient.Machines(namespace).Create(machine); err != nil {
+	if newMachine, err = r.controlMachineClient.Machines(namespace).Create(ctx, machine, metav1.CreateOptions{}); err != nil {
 		klog.Error(err)
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedCreateMachineReason, "Error creating: %v", err)
 		return err
@@ -603,20 +605,20 @@ func (r RealMachineControl) createMachines(namespace string, template *v1alpha1.
 }
 
 // PatchMachine applies a patch on machine
-func (r RealMachineControl) PatchMachine(namespace string, name string, data []byte) error {
-	_, err := r.controlMachineClient.Machines(namespace).Patch(name, types.MergePatchType, data)
+func (r RealMachineControl) PatchMachine(ctx context.Context, namespace string, name string, data []byte) error {
+	_, err := r.controlMachineClient.Machines(namespace).Patch(ctx, name, types.MergePatchType, data, metav1.PatchOptions{})
 	return err
 }
 
 // DeleteMachine deletes a machine attached to the RealMachineControl
-func (r RealMachineControl) DeleteMachine(namespace string, machineID string, object runtime.Object) error {
+func (r RealMachineControl) DeleteMachine(ctx context.Context, namespace string, machineID string, object runtime.Object) error {
 	accessor, err := meta.Accessor(object)
 	if err != nil {
 		return fmt.Errorf("object does not have ObjectMeta, %v", err)
 	}
 	klog.V(2).Infof("Controller %v deleting machine %v", accessor.GetName(), machineID)
 
-	if err := r.controlMachineClient.Machines(namespace).Delete(machineID, nil); err != nil {
+	if err := r.controlMachineClient.Machines(namespace).Delete(ctx, machineID, metav1.DeleteOptions{}); err != nil {
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeleteMachineReason, "Error deleting: %v", err)
 		return fmt.Errorf("unable to delete machines: %v", err)
 	}
@@ -636,11 +638,11 @@ type FakeMachineControl struct {
 }
 
 // CreateMachines initiates a create machine for a RealMachineControl
-func (r FakeMachineControl) CreateMachines(namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object) error {
-	return r.createMachines(namespace, template, object, nil)
+func (r FakeMachineControl) CreateMachines(ctx context.Context, namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object) error {
+	return r.createMachines(ctx, namespace, template, object, nil)
 }
 
-func (r FakeMachineControl) createMachines(namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
+func (r FakeMachineControl) createMachines(ctx context.Context, namespace string, template *v1alpha1.MachineTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
 	machine, err := GetFakeMachineFromTemplate(template, object, controllerRef)
 	if err != nil {
 		return err
@@ -651,7 +653,7 @@ func (r FakeMachineControl) createMachines(namespace string, template *v1alpha1.
 	}
 
 	var newMachine *v1alpha1.Machine
-	if newMachine, err = r.controlMachineClient.Machines(namespace).Create(machine); err != nil {
+	if newMachine, err = r.controlMachineClient.Machines(namespace).Create(ctx, machine, metav1.CreateOptions{}); err != nil {
 		klog.Error(err)
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedCreateMachineReason, "Error creating: %v", err)
 		return err
@@ -668,28 +670,28 @@ func (r FakeMachineControl) createMachines(namespace string, template *v1alpha1.
 }
 
 // CreateMachinesWithControllerRef creates a machine with controller reference
-func (r FakeMachineControl) CreateMachinesWithControllerRef(namespace string, template *v1alpha1.MachineTemplateSpec, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
+func (r FakeMachineControl) CreateMachinesWithControllerRef(ctx context.Context, namespace string, template *v1alpha1.MachineTemplateSpec, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
 	if err := validateControllerRef(controllerRef); err != nil {
 		return err
 	}
-	return r.createMachines(namespace, template, controllerObject, controllerRef)
+	return r.createMachines(ctx, namespace, template, controllerObject, controllerRef)
 }
 
 // PatchMachine applies a patch on machine
-func (r FakeMachineControl) PatchMachine(namespace string, name string, data []byte) error {
-	_, err := r.controlMachineClient.Machines(namespace).Patch(name, types.MergePatchType, data)
+func (r FakeMachineControl) PatchMachine(ctx context.Context, namespace string, name string, data []byte) error {
+	_, err := r.controlMachineClient.Machines(namespace).Patch(ctx, name, types.MergePatchType, data, metav1.PatchOptions{})
 	return err
 }
 
 // DeleteMachine deletes a machine attached to the RealMachineControl
-func (r FakeMachineControl) DeleteMachine(namespace string, machineID string, object runtime.Object) error {
+func (r FakeMachineControl) DeleteMachine(ctx context.Context, namespace string, machineID string, object runtime.Object) error {
 	accessor, err := meta.Accessor(object)
 	if err != nil {
 		return fmt.Errorf("object does not have ObjectMeta, %v", err)
 	}
 	klog.V(2).Infof("Controller %v deleting machine %v", accessor.GetName(), machineID)
 
-	if err := r.controlMachineClient.Machines(namespace).Delete(machineID, nil); err != nil {
+	if err := r.controlMachineClient.Machines(namespace).Delete(ctx, machineID, metav1.DeleteOptions{}); err != nil {
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeleteMachineReason, "Error deleting: %v", err)
 		return fmt.Errorf("unable to delete machines: %v", err)
 	}
@@ -931,7 +933,7 @@ func ComputeHash(template *v1alpha1.MachineTemplateSpec, collisionCount *int32) 
 
 // AddOrUpdateAnnotationOnNode add annotations to the node. If annotation was added into node, it'll issue API calls
 // to update nodes; otherwise, no API calls. Return error if any.
-func AddOrUpdateAnnotationOnNode(c clientset.Interface, nodeName string, annotations map[string]string) error {
+func AddOrUpdateAnnotationOnNode(ctx context.Context, c clientset.Interface, nodeName string, annotations map[string]string) error {
 	if annotations == nil {
 		return nil
 	}
@@ -942,10 +944,10 @@ func AddOrUpdateAnnotationOnNode(c clientset.Interface, nodeName string, annotat
 		// First we try getting node from the API server cache, as it's cheaper. If it fails
 		// we get it from etcd to be sure to have fresh data.
 		if firstTry {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
+			oldNode, err = c.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{ResourceVersion: "0"})
 			firstTry = false
 		} else {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+			oldNode, err = c.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 		}
 		if errors.IsNotFound(err) {
 			klog.Warningf("Node %s not found while updating annotation. Err: %v", nodeName, err)
@@ -963,17 +965,17 @@ func AddOrUpdateAnnotationOnNode(c clientset.Interface, nodeName string, annotat
 		if !updated {
 			return nil
 		}
-		return UpdateNodeAnnotations(c, nodeName, oldNode, newNode)
+		return UpdateNodeAnnotations(ctx, c, nodeName, oldNode, newNode)
 	})
 }
 
 // UpdateNodeAnnotations is for updating the node annotations from oldNode to the newNode
 // using the nodes Update() method
-func UpdateNodeAnnotations(c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
+func UpdateNodeAnnotations(ctx context.Context, c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
 	newNodeClone := oldNode.DeepCopy()
 	newNodeClone.Annotations = newNode.Annotations
 
-	_, err := c.CoreV1().Nodes().Update(newNodeClone)
+	_, err := c.CoreV1().Nodes().Update(ctx, newNodeClone, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create or update annotations for node %q: %v", nodeName, err)
 	}
@@ -985,7 +987,7 @@ func UpdateNodeAnnotations(c clientset.Interface, nodeName string, oldNode *v1.N
 // won't fail if target annotation doesn't exist or has been removed.
 // If passed a node it'll check if there's anything to be done, if annotation is not present it won't issue
 // any API calls.
-func RemoveAnnotationsOffNode(c clientset.Interface, nodeName string, annotations map[string]string) error {
+func RemoveAnnotationsOffNode(ctx context.Context, c clientset.Interface, nodeName string, annotations map[string]string) error {
 
 	// Short circuit if annotation doesnt exist for limiting API calls.
 	if annotations == nil || nodeName == "" {
@@ -999,10 +1001,10 @@ func RemoveAnnotationsOffNode(c clientset.Interface, nodeName string, annotation
 		// First we try getting node from the API server cache, as it's cheaper. If it fails
 		// we get it from etcd to be sure to have fresh data.
 		if firstTry {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
+			oldNode, err = c.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{ResourceVersion: "0"})
 			firstTry = false
 		} else {
-			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+			oldNode, err = c.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 		}
 		if errors.IsNotFound(err) {
 			klog.Warningf("Node %s not found while removing annotation. Err: %v", nodeName, err)
@@ -1023,19 +1025,19 @@ func RemoveAnnotationsOffNode(c clientset.Interface, nodeName string, annotation
 		if !updated {
 			return nil
 		}
-		return UpdateNodeAnnotations(c, nodeName, oldNode, newNode)
+		return UpdateNodeAnnotations(ctx, c, nodeName, oldNode, newNode)
 	})
 }
 
 // GetAnnotationsFromNode returns all the annotations of the provided node.
-func GetAnnotationsFromNode(c clientset.Interface, nodeName string) (map[string]string, error) {
+func GetAnnotationsFromNode(ctx context.Context, c clientset.Interface, nodeName string) (map[string]string, error) {
 
 	// Short circuit if annotation doesnt exist for limiting API calls.
 	if nodeName == "" {
 		return nil, nil
 	}
 
-	node, err := c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	node, err := c.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		klog.Warningf("Node %s not found while fetching annotation. Err: %v", nodeName, err)
 		return nil, nil

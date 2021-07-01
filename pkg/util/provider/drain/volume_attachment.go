@@ -22,7 +22,7 @@ import (
 	"sync"
 
 	storagev1 "k8s.io/api/storage/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // VolumeAttachmentHandler is an handler used to distribute

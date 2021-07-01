@@ -148,7 +148,7 @@ function run_controller() {
         --machine-safety-apiserver-statuscheck-timeout=30s \
         --machine-safety-apiserver-statuscheck-period=1m \
         --machine-safety-orphan-vms-period=30m \
-        --machine-safety-overshooting-period=100ms \
+        --machine-safety-overshooting-period=300ms \
         --leader-elect-lease-duration=1m \
         --leader-elect-renew-deadline=30s \
         --leader-elect-retry-period=15s \

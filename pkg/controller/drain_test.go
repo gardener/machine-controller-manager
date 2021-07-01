@@ -24,6 +24,7 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/driver"
 	"github.com/gardener/machine-controller-manager/pkg/fakeclient"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/cache"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -35,7 +36,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/cache"
 )
 
 var _ = Describe("drain", func() {
@@ -167,7 +167,7 @@ var _ = Describe("drain", func() {
 		go func() {
 			for pod := range detachExclusiveVolumesCh {
 				nodes := d.client.CoreV1().Nodes()
-				node, err := nodes.Get(pod.Spec.NodeName, metav1.GetOptions{})
+				node, err := nodes.Get(context.TODO(), pod.Spec.NodeName, metav1.GetOptions{})
 				if err != nil {
 					fmt.Fprintln(GinkgoWriter, err)
 					continue
@@ -207,7 +207,7 @@ var _ = Describe("drain", func() {
 					continue
 				}
 
-				_, err = nodes.Update(node)
+				_, err = nodes.Update(context.TODO(), node, metav1.UpdateOptions{})
 				fmt.Fprintln(GinkgoWriter, err)
 			}
 		}()
@@ -304,7 +304,7 @@ var _ = Describe("drain", func() {
 		go func() {
 			start := time.Now()
 			drainStart = &start
-			drainErr = d.RunDrain()
+			drainErr = d.RunDrain(context.TODO())
 			end := time.Now()
 			drainEnd = &end
 			cancelCtx()
@@ -339,7 +339,7 @@ var _ = Describe("drain", func() {
 		}
 
 		validatePodCount := func(labelSelector string, nExpected int) {
-			podList, err := d.client.CoreV1().Pods(testNamespace).List(metav1.ListOptions{LabelSelector: labelSelector})
+			podList, err := d.client.CoreV1().Pods(testNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(podList).ToNot(BeNil())
 			Expect(podList.Items).To(HaveLen(nExpected))
@@ -359,7 +359,7 @@ var _ = Describe("drain", func() {
 	}
 
 	deletePod := func(client kubernetes.Interface, pod *api.Pod, detachExclusiveVolumesCh chan<- *api.Pod) error {
-		return client.CoreV1().Pods(pod.Namespace).Delete(pod.Name, nil)
+		return client.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
 	}
 
 	detachExclusiveVolumes := func(client kubernetes.Interface, pod *api.Pod, detachExclusiveVolumesCh chan<- *api.Pod) error {

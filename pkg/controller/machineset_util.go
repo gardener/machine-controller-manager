@@ -23,12 +23,14 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"fmt"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
 
@@ -43,7 +45,7 @@ type updateISFunc func(is *v1alpha1.MachineSet) error
 
 // UpdateISWithRetries updates a RS with given applyUpdate function. Note that RS not found error is ignored.
 // The returned bool value can be used to tell if the RS is actually updated.
-func UpdateISWithRetries(isClient v1alpha1client.MachineSetInterface, isLister v1alpha1listers.MachineSetLister, namespace, name string, applyUpdate updateISFunc) (*v1alpha1.MachineSet, error) {
+func UpdateISWithRetries(ctx context.Context, isClient v1alpha1client.MachineSetInterface, isLister v1alpha1listers.MachineSetLister, namespace, name string, applyUpdate updateISFunc) (*v1alpha1.MachineSet, error) {
 	var is *v1alpha1.MachineSet
 
 	retryErr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
@@ -57,7 +59,7 @@ func UpdateISWithRetries(isClient v1alpha1client.MachineSetInterface, isLister v
 		if applyErr := applyUpdate(is); applyErr != nil {
 			return applyErr
 		}
-		is, err = isClient.Update(is)
+		is, err = isClient.Update(ctx, is, metav1.UpdateOptions{})
 		return err
 	})
 
@@ -78,7 +80,7 @@ func GetMachineSetHash(is *v1alpha1.MachineSet, uniquifier *int32) (string, erro
 }
 
 // syncMachinesNodeTemplates updates all machines in the given machineList with the new nodeTemplate if required.
-func (c *controller) syncMachinesNodeTemplates(machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
+func (c *controller) syncMachinesNodeTemplates(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
 
 	controlClient := c.controlMachineClient
 	machineLister := c.machineLister
@@ -92,7 +94,7 @@ func (c *controller) syncMachinesNodeTemplates(machineList []*v1alpha1.Machine, 
 		nodeTemplateChanged := copyMachineSetNodeTemplatesToMachines(machineSet, machine)
 		// Only sync the machine that doesn't already have the latest nodeTemplate.
 		if nodeTemplateChanged {
-			_, err := UpdateMachineWithRetries(controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
+			_, err := UpdateMachineWithRetries(ctx, controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
 				func(machineToUpdate *v1alpha1.Machine) error {
 					return nil
 				})
@@ -106,7 +108,7 @@ func (c *controller) syncMachinesNodeTemplates(machineList []*v1alpha1.Machine, 
 }
 
 // syncMachinesClassKind updates all machines in the given machineList with the new classKind if required.
-func (c *controller) syncMachinesClassKind(machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
+func (c *controller) syncMachinesClassKind(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
 
 	controlClient := c.controlMachineClient
 	machineLister := c.machineLister
@@ -115,7 +117,7 @@ func (c *controller) syncMachinesClassKind(machineList []*v1alpha1.Machine, mach
 		classKindChanged := copyMachineSetClassKindToMachines(machineSet, machine)
 		// Only sync the machine that doesn't already have the matching classKind.
 		if classKindChanged {
-			_, err := UpdateMachineWithRetries(controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
+			_, err := UpdateMachineWithRetries(ctx, controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
 				func(machineToUpdate *v1alpha1.Machine) error {
 					return nil
 				})
@@ -144,7 +146,7 @@ func copyMachineSetNodeTemplatesToMachines(machineset *v1alpha1.MachineSet, mach
 }
 
 // syncMachinesConfig updates all machines in the given machineList with the new config if required.
-func (c *controller) syncMachinesConfig(machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
+func (c *controller) syncMachinesConfig(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
 
 	controlClient := c.controlMachineClient
 	machineLister := c.machineLister
@@ -158,7 +160,7 @@ func (c *controller) syncMachinesConfig(machineList []*v1alpha1.Machine, machine
 		configChanged := copyMachineSetConfigToMachines(machineSet, machine)
 		// Only sync the machine that doesn't already have the latest config.
 		if configChanged {
-			_, err := UpdateMachineWithRetries(controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
+			_, err := UpdateMachineWithRetries(ctx, controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
 				func(machineToUpdate *v1alpha1.Machine) error {
 					return nil
 				})

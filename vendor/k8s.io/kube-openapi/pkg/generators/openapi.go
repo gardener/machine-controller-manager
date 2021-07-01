@@ -30,7 +30,7 @@ import (
 	"k8s.io/gengo/types"
 	openapi "k8s.io/kube-openapi/pkg/common"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // This is the comment tag that carries parameters for open API generation.
@@ -282,6 +282,9 @@ func typeShortName(t *types.Type) string {
 
 func (g openAPITypeWriter) generateMembers(t *types.Type, required []string) ([]string, error) {
 	var err error
+	for t.Kind == types.Pointer { // fast-forward to effective type containing members
+		t = t.Elem
+	}
 	for _, m := range t.Members {
 		if hasOpenAPITagValue(m.CommentLines, tagValueFalse) {
 			continue
@@ -473,13 +476,13 @@ func (g openAPITypeWriter) emitExtensions(extensions []extension, unions []union
 	g.Do("VendorExtensible: spec.VendorExtensible{\nExtensions: spec.Extensions{\n", nil)
 	for _, extension := range extensions {
 		g.Do("\"$.$\": ", extension.xName)
-		if extension.hasMultipleValues() {
+		if extension.hasMultipleValues() || extension.isAlwaysArrayFormat() {
 			g.Do("[]interface{}{\n", nil)
 		}
 		for _, value := range extension.values {
 			g.Do("\"$.$\",\n", value)
 		}
-		if extension.hasMultipleValues() {
+		if extension.hasMultipleValues() || extension.isAlwaysArrayFormat() {
 			g.Do("},\n", nil)
 		}
 	}
@@ -647,7 +650,13 @@ func (g openAPITypeWriter) generateMapProperty(t *types.Type) error {
 	case types.Struct:
 		g.generateReferenceProperty(elemType)
 	case types.Slice, types.Array:
-		g.generateSliceProperty(elemType)
+		if err := g.generateSliceProperty(elemType); err != nil {
+			return err
+		}
+	case types.Map:
+		if err := g.generateMapProperty(elemType); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("map Element kind %v is not supported in %v", elemType.Kind, t.Name)
 	}
@@ -671,7 +680,13 @@ func (g openAPITypeWriter) generateSliceProperty(t *types.Type) error {
 	case types.Struct:
 		g.generateReferenceProperty(elemType)
 	case types.Slice, types.Array:
-		g.generateSliceProperty(elemType)
+		if err := g.generateSliceProperty(elemType); err != nil {
+			return err
+		}
+	case types.Map:
+		if err := g.generateMapProperty(elemType); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("slice Element kind %v is not supported in %v", elemType.Kind, t)
 	}

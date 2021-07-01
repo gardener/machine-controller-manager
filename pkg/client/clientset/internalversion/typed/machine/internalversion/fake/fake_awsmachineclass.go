@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+Copyright (c) 2021 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var awsmachineclassesResource = schema.GroupVersionResource{Group: "machine.sapc
 var awsmachineclassesKind = schema.GroupVersionKind{Group: "machine.sapcloud.io", Version: "", Kind: "AWSMachineClass"}
 
 // Get takes name of the aWSMachineClass, and returns the corresponding aWSMachineClass object, and an error if there is any.
-func (c *FakeAWSMachineClasses) Get(name string, options v1.GetOptions) (result *machine.AWSMachineClass, err error) {
+func (c *FakeAWSMachineClasses) Get(ctx context.Context, name string, options v1.GetOptions) (result *machine.AWSMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(awsmachineclassesResource, c.ns, name), &machine.AWSMachineClass{})
 
@@ -50,7 +52,7 @@ func (c *FakeAWSMachineClasses) Get(name string, options v1.GetOptions) (result 
 }
 
 // List takes label and field selectors, and returns the list of AWSMachineClasses that match those selectors.
-func (c *FakeAWSMachineClasses) List(opts v1.ListOptions) (result *machine.AWSMachineClassList, err error) {
+func (c *FakeAWSMachineClasses) List(ctx context.Context, opts v1.ListOptions) (result *machine.AWSMachineClassList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(awsmachineclassesResource, awsmachineclassesKind, c.ns, opts), &machine.AWSMachineClassList{})
 
@@ -72,14 +74,14 @@ func (c *FakeAWSMachineClasses) List(opts v1.ListOptions) (result *machine.AWSMa
 }
 
 // Watch returns a watch.Interface that watches the requested aWSMachineClasses.
-func (c *FakeAWSMachineClasses) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeAWSMachineClasses) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(awsmachineclassesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a aWSMachineClass and creates it.  Returns the server's representation of the aWSMachineClass, and an error, if there is any.
-func (c *FakeAWSMachineClasses) Create(aWSMachineClass *machine.AWSMachineClass) (result *machine.AWSMachineClass, err error) {
+func (c *FakeAWSMachineClasses) Create(ctx context.Context, aWSMachineClass *machine.AWSMachineClass, opts v1.CreateOptions) (result *machine.AWSMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(awsmachineclassesResource, c.ns, aWSMachineClass), &machine.AWSMachineClass{})
 
@@ -90,7 +92,7 @@ func (c *FakeAWSMachineClasses) Create(aWSMachineClass *machine.AWSMachineClass)
 }
 
 // Update takes the representation of a aWSMachineClass and updates it. Returns the server's representation of the aWSMachineClass, and an error, if there is any.
-func (c *FakeAWSMachineClasses) Update(aWSMachineClass *machine.AWSMachineClass) (result *machine.AWSMachineClass, err error) {
+func (c *FakeAWSMachineClasses) Update(ctx context.Context, aWSMachineClass *machine.AWSMachineClass, opts v1.UpdateOptions) (result *machine.AWSMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(awsmachineclassesResource, c.ns, aWSMachineClass), &machine.AWSMachineClass{})
 
@@ -101,7 +103,7 @@ func (c *FakeAWSMachineClasses) Update(aWSMachineClass *machine.AWSMachineClass)
 }
 
 // Delete takes name of the aWSMachineClass and deletes it. Returns an error if one occurs.
-func (c *FakeAWSMachineClasses) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeAWSMachineClasses) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(awsmachineclassesResource, c.ns, name), &machine.AWSMachineClass{})
 
@@ -109,15 +111,15 @@ func (c *FakeAWSMachineClasses) Delete(name string, options *v1.DeleteOptions) e
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeAWSMachineClasses) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(awsmachineclassesResource, c.ns, listOptions)
+func (c *FakeAWSMachineClasses) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(awsmachineclassesResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &machine.AWSMachineClassList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched aWSMachineClass.
-func (c *FakeAWSMachineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *machine.AWSMachineClass, err error) {
+func (c *FakeAWSMachineClasses) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *machine.AWSMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(awsmachineclassesResource, c.ns, name, pt, data, subresources...), &machine.AWSMachineClass{})
 

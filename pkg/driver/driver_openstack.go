@@ -32,7 +32,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/subnets"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
@@ -55,7 +55,7 @@ const (
 type logger struct{}
 
 func (l logger) Printf(format string, args ...interface{}) {
-	debugger := klog.V(6)
+	debugger := klog.V(6).Enabled()
 
 	// extra check in case, when verbosity has been changed dynamically
 	if debugger {
@@ -538,7 +538,7 @@ func (d *OpenStackDriver) createOpenStackClient() (*gophercloud.ProviderClient, 
 		Transport: transport,
 	}
 
-	if klog.V(6) {
+	if klog.V(6).Enabled() {
 		provider.HTTPClient.Transport = &client.RoundTripper{
 			Rt:     provider.HTTPClient.Transport,
 			Logger: &logger{},

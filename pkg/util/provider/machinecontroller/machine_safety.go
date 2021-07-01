@@ -22,14 +22,15 @@ import (
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/cache"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -45,19 +46,20 @@ const (
 
 // reconcileClusterMachineSafetyOrphanVMs checks for any orphan VMs and deletes them
 func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
+	ctx := context.Background()
 	reSyncAfter := c.safetyOptions.MachineSafetyOrphanVMsPeriod.Duration
 	defer c.machineSafetyOrphanVMsQueue.AddAfter("", reSyncAfter)
 
 	klog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: Start")
 	defer klog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: End, reSync-Period: %v", reSyncAfter)
 
-	retryPeriod, err := c.checkMachineClasses()
+	retryPeriod, err := c.checkMachineClasses(ctx)
 	if err != nil {
 		klog.Errorf("reconcileClusterMachineSafetyOrphanVMs: Error occurred while checking for orphan VMs: %s", err)
 		c.machineSafetyOrphanVMsQueue.AddAfter("", time.Duration(retryPeriod))
 	}
 
-	retryPeriod, err = c.AnnotateNodesUnmanagedByMCM()
+	retryPeriod, err = c.AnnotateNodesUnmanagedByMCM(ctx)
 	if err != nil {
 		klog.Errorf("reconcileClusterMachineSafetyOrphanVMs: Error occurred while checking for nodes not handled by MCM: %s", err)
 		c.machineSafetyOrphanVMsQueue.AddAfter("", time.Duration(retryPeriod))
@@ -70,6 +72,7 @@ func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
 // and checks if their APIServer's are reachable
 // If they are not reachable, they set a machineControllerFreeze flag
 func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
+	ctx := context.Background()
 	statusCheckTimeout := c.safetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration
 	statusCheckPeriod := c.safetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration
 
@@ -78,7 +81,7 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 
 	if c.safetyOptions.MachineControllerFrozen {
 		// MachineController is frozen
-		if c.isAPIServerUp() {
+		if c.isAPIServerUp(ctx) {
 			// APIServer is up now, hence we need reset all machine health checks (to avoid unwanted freezes) and unfreeze
 			machines, err := c.machineLister.List(labels.Everything())
 			if err != nil {
@@ -87,7 +90,7 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 			}
 			for _, machine := range machines {
 				if machine.Status.CurrentStatus.Phase == v1alpha1.MachineUnknown {
-					machine, err := c.controlMachineClient.Machines(c.namespace).Get(machine.Name, metav1.GetOptions{})
+					machine, err := c.controlMachineClient.Machines(c.namespace).Get(ctx, machine.Name, metav1.GetOptions{})
 					if err != nil {
 						klog.Error("SafetyController: Unable to GET machines. Error:", err)
 						return err
@@ -104,7 +107,7 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 						State:          v1alpha1.MachineStateSuccessful,
 						Type:           v1alpha1.MachineOperationHealthCheck,
 					}
-					_, err = c.controlMachineClient.Machines(c.namespace).UpdateStatus(machine)
+					_, err = c.controlMachineClient.Machines(c.namespace).UpdateStatus(ctx, machine, metav1.UpdateOptions{})
 					if err != nil {
 						klog.Error("SafetyController: Unable to UPDATE machine/status. Error:", err)
 						return err
@@ -123,13 +126,13 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 		}
 	} else {
 		// MachineController is not frozen
-		if !c.isAPIServerUp() {
+		if !c.isAPIServerUp(ctx) {
 			// If APIServer is not up
 			if c.safetyOptions.APIserverInactiveStartTime.Equal(time.Time{}) {
 				// If timeout has not started
 				c.safetyOptions.APIserverInactiveStartTime = time.Now()
 			}
-			if time.Now().Sub(c.safetyOptions.APIserverInactiveStartTime) > statusCheckTimeout {
+			if time.Since(c.safetyOptions.APIserverInactiveStartTime) > statusCheckTimeout {
 				// If APIServer has been down for more than statusCheckTimeout
 				c.safetyOptions.MachineControllerFrozen = true
 				klog.V(2).Infof("SafetyController: Freezing Machine Controller")
@@ -147,9 +150,9 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 
 // isAPIServerUp returns true if APIServers are up
 // Both control and target APIServers
-func (c *controller) isAPIServerUp() bool {
+func (c *controller) isAPIServerUp(ctx context.Context) bool {
 	// Dummy get call to check if control APIServer is reachable
-	_, err := c.controlMachineClient.Machines(c.namespace).Get("dummy_name", metav1.GetOptions{})
+	_, err := c.controlMachineClient.Machines(c.namespace).Get(ctx, "dummy_name", metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		// Get returns an error other than object not found = Assume APIServer is not reachable
 		klog.Error("SafetyController: Unable to GET on machine objects ", err)
@@ -157,7 +160,7 @@ func (c *controller) isAPIServerUp() bool {
 	}
 
 	// Dummy get call to check if target APIServer is reachable
-	_, err = c.targetCoreClient.CoreV1().Nodes().Get("dummy_name", metav1.GetOptions{})
+	_, err = c.targetCoreClient.CoreV1().Nodes().Get(ctx, "dummy_name", metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		// Get returns an error other than object not found = Assume APIServer is not reachable
 		klog.Error("SafetyController: Unable to GET on node objects ", err)
@@ -168,7 +171,7 @@ func (c *controller) isAPIServerUp() bool {
 }
 
 // AnnotateNodesUnmanagedByMCM checks for nodes which are not handled by MCM and annotes them
-func (c *controller) AnnotateNodesUnmanagedByMCM() (machineutils.RetryPeriod, error) {
+func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineutils.RetryPeriod, error) {
 	// list all the nodes on target cluster
 	nodes, err := c.nodeLister.List(labels.Everything())
 	if err != nil {
@@ -200,7 +203,7 @@ func (c *controller) AnnotateNodesUnmanagedByMCM() (machineutils.RetryPeriod, er
 				}
 
 				// err is returned only when node update fails
-				if err := c.updateNodeWithAnnotation(nodeCopy, annotations); err != nil {
+				if err := c.updateNodeWithAnnotation(ctx, nodeCopy, annotations); err != nil {
 					return machineutils.MediumRetry, err
 				}
 			}
@@ -211,7 +214,7 @@ func (c *controller) AnnotateNodesUnmanagedByMCM() (machineutils.RetryPeriod, er
 }
 
 // checkCommonMachineClass checks for orphan VMs in MachinesClasses
-func (c *controller) checkMachineClasses() (machineutils.RetryPeriod, error) {
+func (c *controller) checkMachineClasses(ctx context.Context) (machineutils.RetryPeriod, error) {
 	MachineClasses, err := c.machineClassLister.List(labels.Everything())
 	if err != nil {
 		klog.Error("Safety-Net: Error getting machineClasses")
@@ -219,7 +222,7 @@ func (c *controller) checkMachineClasses() (machineutils.RetryPeriod, error) {
 	}
 
 	for _, machineClass := range MachineClasses {
-		retry, err := c.checkMachineClass(machineClass)
+		retry, err := c.checkMachineClass(ctx, machineClass)
 		if err != nil {
 			return retry, err
 		}
@@ -229,7 +232,7 @@ func (c *controller) checkMachineClasses() (machineutils.RetryPeriod, error) {
 }
 
 // checkMachineClass checks a particular machineClass for orphan instances
-func (c *controller) checkMachineClass(machineClass *v1alpha1.MachineClass) (machineutils.RetryPeriod, error) {
+func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alpha1.MachineClass) (machineutils.RetryPeriod, error) {
 
 	// Get secret data
 	secretData, err := c.getSecretData(machineClass.Name, machineClass.SecretRef, machineClass.CredentialsSecretRef)
@@ -238,7 +241,7 @@ func (c *controller) checkMachineClass(machineClass *v1alpha1.MachineClass) (mac
 		return machineutils.LongRetry, err
 	}
 
-	listMachineResponse, err := c.driver.ListMachines(context.TODO(), &driver.ListMachinesRequest{
+	listMachineResponse, err := c.driver.ListMachines(ctx, &driver.ListMachinesRequest{
 		MachineClass: machineClass,
 		Secret:       &corev1.Secret{Data: secretData},
 	})
@@ -283,7 +286,7 @@ func (c *controller) checkMachineClass(machineClass *v1alpha1.MachineClass) (mac
 				},
 			}
 
-			_, err := c.driver.DeleteMachine(context.TODO(), &driver.DeleteMachineRequest{
+			_, err := c.driver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
 				Machine:      machine,
 				MachineClass: machineClass,
 				Secret:       &corev1.Secret{Data: secretData},

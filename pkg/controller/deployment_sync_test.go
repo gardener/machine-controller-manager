@@ -16,6 +16,8 @@ limitations under the License.
 package controller
 
 import (
+	"context"
+
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -137,6 +139,7 @@ var _ = Describe("deployment_sync", func() {
 			waitForCacheSync(stop, c)
 
 			newMachineSet, err := c.getNewMachineSet(
+				context.TODO(),
 				machineDeployment,
 				testMachineSet,
 				nil,
@@ -166,6 +169,7 @@ var _ = Describe("deployment_sync", func() {
 				waitForCacheSync(stop, c)
 
 				newMachineSet, err := c.getNewMachineSet(
+					context.TODO(),
 					data.setup.machineDeployment,
 					data.action,
 					nil,

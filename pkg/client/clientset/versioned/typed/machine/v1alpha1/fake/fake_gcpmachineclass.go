@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+Copyright (c) 2021 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var gcpmachineclassesResource = schema.GroupVersionResource{Group: "machine.sapc
 var gcpmachineclassesKind = schema.GroupVersionKind{Group: "machine.sapcloud.io", Version: "v1alpha1", Kind: "GCPMachineClass"}
 
 // Get takes name of the gCPMachineClass, and returns the corresponding gCPMachineClass object, and an error if there is any.
-func (c *FakeGCPMachineClasses) Get(name string, options v1.GetOptions) (result *v1alpha1.GCPMachineClass, err error) {
+func (c *FakeGCPMachineClasses) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.GCPMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(gcpmachineclassesResource, c.ns, name), &v1alpha1.GCPMachineClass{})
 
@@ -50,7 +52,7 @@ func (c *FakeGCPMachineClasses) Get(name string, options v1.GetOptions) (result 
 }
 
 // List takes label and field selectors, and returns the list of GCPMachineClasses that match those selectors.
-func (c *FakeGCPMachineClasses) List(opts v1.ListOptions) (result *v1alpha1.GCPMachineClassList, err error) {
+func (c *FakeGCPMachineClasses) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.GCPMachineClassList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(gcpmachineclassesResource, gcpmachineclassesKind, c.ns, opts), &v1alpha1.GCPMachineClassList{})
 
@@ -72,14 +74,14 @@ func (c *FakeGCPMachineClasses) List(opts v1.ListOptions) (result *v1alpha1.GCPM
 }
 
 // Watch returns a watch.Interface that watches the requested gCPMachineClasses.
-func (c *FakeGCPMachineClasses) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeGCPMachineClasses) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(gcpmachineclassesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a gCPMachineClass and creates it.  Returns the server's representation of the gCPMachineClass, and an error, if there is any.
-func (c *FakeGCPMachineClasses) Create(gCPMachineClass *v1alpha1.GCPMachineClass) (result *v1alpha1.GCPMachineClass, err error) {
+func (c *FakeGCPMachineClasses) Create(ctx context.Context, gCPMachineClass *v1alpha1.GCPMachineClass, opts v1.CreateOptions) (result *v1alpha1.GCPMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(gcpmachineclassesResource, c.ns, gCPMachineClass), &v1alpha1.GCPMachineClass{})
 
@@ -90,7 +92,7 @@ func (c *FakeGCPMachineClasses) Create(gCPMachineClass *v1alpha1.GCPMachineClass
 }
 
 // Update takes the representation of a gCPMachineClass and updates it. Returns the server's representation of the gCPMachineClass, and an error, if there is any.
-func (c *FakeGCPMachineClasses) Update(gCPMachineClass *v1alpha1.GCPMachineClass) (result *v1alpha1.GCPMachineClass, err error) {
+func (c *FakeGCPMachineClasses) Update(ctx context.Context, gCPMachineClass *v1alpha1.GCPMachineClass, opts v1.UpdateOptions) (result *v1alpha1.GCPMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(gcpmachineclassesResource, c.ns, gCPMachineClass), &v1alpha1.GCPMachineClass{})
 
@@ -101,7 +103,7 @@ func (c *FakeGCPMachineClasses) Update(gCPMachineClass *v1alpha1.GCPMachineClass
 }
 
 // Delete takes name of the gCPMachineClass and deletes it. Returns an error if one occurs.
-func (c *FakeGCPMachineClasses) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeGCPMachineClasses) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(gcpmachineclassesResource, c.ns, name), &v1alpha1.GCPMachineClass{})
 
@@ -109,15 +111,15 @@ func (c *FakeGCPMachineClasses) Delete(name string, options *v1.DeleteOptions) e
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeGCPMachineClasses) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(gcpmachineclassesResource, c.ns, listOptions)
+func (c *FakeGCPMachineClasses) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(gcpmachineclassesResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.GCPMachineClassList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched gCPMachineClass.
-func (c *FakeGCPMachineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.GCPMachineClass, err error) {
+func (c *FakeGCPMachineClasses) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.GCPMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(gcpmachineclassesResource, c.ns, name, pt, data, subresources...), &v1alpha1.GCPMachineClass{})
 

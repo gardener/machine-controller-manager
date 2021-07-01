@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+Copyright (c) 2021 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ limitations under the License.
 package internalversion
 
 import (
+	"context"
 	"time"
 
 	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -37,15 +38,15 @@ type MachineSetsGetter interface {
 
 // MachineSetInterface has methods to work with MachineSet resources.
 type MachineSetInterface interface {
-	Create(*machine.MachineSet) (*machine.MachineSet, error)
-	Update(*machine.MachineSet) (*machine.MachineSet, error)
-	UpdateStatus(*machine.MachineSet) (*machine.MachineSet, error)
-	Delete(name string, options *v1.DeleteOptions) error
-	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
-	Get(name string, options v1.GetOptions) (*machine.MachineSet, error)
-	List(opts v1.ListOptions) (*machine.MachineSetList, error)
-	Watch(opts v1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *machine.MachineSet, err error)
+	Create(ctx context.Context, machineSet *machine.MachineSet, opts v1.CreateOptions) (*machine.MachineSet, error)
+	Update(ctx context.Context, machineSet *machine.MachineSet, opts v1.UpdateOptions) (*machine.MachineSet, error)
+	UpdateStatus(ctx context.Context, machineSet *machine.MachineSet, opts v1.UpdateOptions) (*machine.MachineSet, error)
+	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*machine.MachineSet, error)
+	List(ctx context.Context, opts v1.ListOptions) (*machine.MachineSetList, error)
+	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *machine.MachineSet, err error)
 	MachineSetExpansion
 }
 
@@ -64,20 +65,20 @@ func newMachineSets(c *MachineClient, namespace string) *machineSets {
 }
 
 // Get takes name of the machineSet, and returns the corresponding machineSet object, and an error if there is any.
-func (c *machineSets) Get(name string, options v1.GetOptions) (result *machine.MachineSet, err error) {
+func (c *machineSets) Get(ctx context.Context, name string, options v1.GetOptions) (result *machine.MachineSet, err error) {
 	result = &machine.MachineSet{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("machinesets").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of MachineSets that match those selectors.
-func (c *machineSets) List(opts v1.ListOptions) (result *machine.MachineSetList, err error) {
+func (c *machineSets) List(ctx context.Context, opts v1.ListOptions) (result *machine.MachineSetList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -88,13 +89,13 @@ func (c *machineSets) List(opts v1.ListOptions) (result *machine.MachineSetList,
 		Resource("machinesets").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested machineSets.
-func (c *machineSets) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *machineSets) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -105,87 +106,90 @@ func (c *machineSets) Watch(opts v1.ListOptions) (watch.Interface, error) {
 		Resource("machinesets").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a machineSet and creates it.  Returns the server's representation of the machineSet, and an error, if there is any.
-func (c *machineSets) Create(machineSet *machine.MachineSet) (result *machine.MachineSet, err error) {
+func (c *machineSets) Create(ctx context.Context, machineSet *machine.MachineSet, opts v1.CreateOptions) (result *machine.MachineSet, err error) {
 	result = &machine.MachineSet{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("machinesets").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(machineSet).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a machineSet and updates it. Returns the server's representation of the machineSet, and an error, if there is any.
-func (c *machineSets) Update(machineSet *machine.MachineSet) (result *machine.MachineSet, err error) {
+func (c *machineSets) Update(ctx context.Context, machineSet *machine.MachineSet, opts v1.UpdateOptions) (result *machine.MachineSet, err error) {
 	result = &machine.MachineSet{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("machinesets").
 		Name(machineSet.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(machineSet).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-
-func (c *machineSets) UpdateStatus(machineSet *machine.MachineSet) (result *machine.MachineSet, err error) {
+func (c *machineSets) UpdateStatus(ctx context.Context, machineSet *machine.MachineSet, opts v1.UpdateOptions) (result *machine.MachineSet, err error) {
 	result = &machine.MachineSet{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("machinesets").
 		Name(machineSet.Name).
 		SubResource("status").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(machineSet).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the machineSet and deletes it. Returns an error if one occurs.
-func (c *machineSets) Delete(name string, options *v1.DeleteOptions) error {
+func (c *machineSets) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("machinesets").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *machineSets) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+func (c *machineSets) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("machinesets").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched machineSet.
-func (c *machineSets) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *machine.MachineSet, err error) {
+func (c *machineSets) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *machine.MachineSet, err error) {
 	result = &machine.MachineSet{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("machinesets").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

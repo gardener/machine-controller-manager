@@ -16,6 +16,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"time"
@@ -268,7 +269,7 @@ var _ = Describe("machine", func() {
 				defer trackers.Stop()
 
 				waitForCacheSync(stop, controller)
-				machineClass, secretData, _, err := controller.ValidateMachineClass(data.action)
+				machineClass, secretData, _, err := controller.ValidateMachineClass(context.TODO(), data.action)
 
 				if data.expect.machineClass == nil {
 					Expect(machineClass).To(BeNil())
@@ -437,17 +438,17 @@ var _ = Describe("machine", func() {
 				waitForCacheSync(stop, controller)
 
 				action := data.action
-				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
-				machineClass, err := controller.controlMachineClient.MachineClasses(objMeta.Namespace).Get(machine.Spec.Class.Name, metav1.GetOptions{})
+				machineClass, err := controller.controlMachineClient.MachineClasses(objMeta.Namespace).Get(context.TODO(), machine.Spec.Class.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
-				secret, err := controller.controlCoreClient.CoreV1().Secrets(objMeta.Namespace).Get(machineClass.SecretRef.Name, metav1.GetOptions{})
-
+				secret, err := controller.controlCoreClient.CoreV1().Secrets(objMeta.Namespace).Get(context.TODO(), machineClass.SecretRef.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
 				retry, err := controller.triggerCreationFlow(
+					context.TODO(),
 					&driver.CreateMachineRequest{
 						Machine:      machine,
 						MachineClass: machineClass,
@@ -460,7 +461,7 @@ var _ = Describe("machine", func() {
 					Expect(err).To(Equal(data.expect.err))
 				}
 
-				actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+				actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
 				Expect(err).To(BeNil())
 				Expect(actual.Spec.ProviderID).To(Equal(data.expect.machine.Spec.ProviderID))
 				Expect(actual.Status.Node).To(Equal(data.expect.machine.Status.Node))
@@ -923,13 +924,13 @@ var _ = Describe("machine", func() {
 				waitForCacheSync(stop, controller)
 
 				action := data.action
-				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
-				machineClass, err := controller.controlMachineClient.MachineClasses(objMeta.Namespace).Get(machine.Spec.Class.Name, metav1.GetOptions{})
+				machineClass, err := controller.controlMachineClient.MachineClasses(objMeta.Namespace).Get(context.TODO(), machine.Spec.Class.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
-				secret, err := controller.controlCoreClient.CoreV1().Secrets(objMeta.Namespace).Get(machineClass.SecretRef.Name, metav1.GetOptions{})
+				secret, err := controller.controlCoreClient.CoreV1().Secrets(objMeta.Namespace).Get(context.TODO(), machineClass.SecretRef.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
 				if data.setup.fakeResourceActions != nil {
@@ -937,7 +938,7 @@ var _ = Describe("machine", func() {
 				}
 
 				// Deletion of machine is triggered
-				retry, err := controller.triggerDeletionFlow(&driver.DeleteMachineRequest{
+				retry, err := controller.triggerDeletionFlow(context.TODO(), &driver.DeleteMachineRequest{
 					Machine:      machine,
 					MachineClass: machineClass,
 					Secret:       secret,
@@ -947,7 +948,7 @@ var _ = Describe("machine", func() {
 				}
 				Expect(retry).To(Equal(data.expect.retry))
 
-				machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(machine.Spec).To(Equal(data.expect.machine.Spec))
 				Expect(machine.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
@@ -957,11 +958,11 @@ var _ = Describe("machine", func() {
 				Expect(machine.Finalizers).To(Equal(data.expect.machine.Finalizers))
 
 				if data.expect.nodeDeleted {
-					_, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
+					_, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Status.Node, metav1.GetOptions{})
 					Expect(nodeErr).To(HaveOccurred())
 				}
 				if data.expect.nodeTerminationConditionIsSet {
-					node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
+					node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Status.Node, metav1.GetOptions{})
 					Expect(nodeErr).To(Not(HaveOccurred()))
 					Expect(len(node.Status.Conditions)).To(Equal(1))
 					Expect(node.Status.Conditions[0].Type).To(Equal(machineutils.NodeTerminationCondition))

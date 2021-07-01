@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+Copyright (c) 2021 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var openstackmachineclassesResource = schema.GroupVersionResource{Group: "machin
 var openstackmachineclassesKind = schema.GroupVersionKind{Group: "machine.sapcloud.io", Version: "v1alpha1", Kind: "OpenStackMachineClass"}
 
 // Get takes name of the openStackMachineClass, and returns the corresponding openStackMachineClass object, and an error if there is any.
-func (c *FakeOpenStackMachineClasses) Get(name string, options v1.GetOptions) (result *v1alpha1.OpenStackMachineClass, err error) {
+func (c *FakeOpenStackMachineClasses) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.OpenStackMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(openstackmachineclassesResource, c.ns, name), &v1alpha1.OpenStackMachineClass{})
 
@@ -50,7 +52,7 @@ func (c *FakeOpenStackMachineClasses) Get(name string, options v1.GetOptions) (r
 }
 
 // List takes label and field selectors, and returns the list of OpenStackMachineClasses that match those selectors.
-func (c *FakeOpenStackMachineClasses) List(opts v1.ListOptions) (result *v1alpha1.OpenStackMachineClassList, err error) {
+func (c *FakeOpenStackMachineClasses) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.OpenStackMachineClassList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(openstackmachineclassesResource, openstackmachineclassesKind, c.ns, opts), &v1alpha1.OpenStackMachineClassList{})
 
@@ -72,14 +74,14 @@ func (c *FakeOpenStackMachineClasses) List(opts v1.ListOptions) (result *v1alpha
 }
 
 // Watch returns a watch.Interface that watches the requested openStackMachineClasses.
-func (c *FakeOpenStackMachineClasses) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeOpenStackMachineClasses) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(openstackmachineclassesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a openStackMachineClass and creates it.  Returns the server's representation of the openStackMachineClass, and an error, if there is any.
-func (c *FakeOpenStackMachineClasses) Create(openStackMachineClass *v1alpha1.OpenStackMachineClass) (result *v1alpha1.OpenStackMachineClass, err error) {
+func (c *FakeOpenStackMachineClasses) Create(ctx context.Context, openStackMachineClass *v1alpha1.OpenStackMachineClass, opts v1.CreateOptions) (result *v1alpha1.OpenStackMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(openstackmachineclassesResource, c.ns, openStackMachineClass), &v1alpha1.OpenStackMachineClass{})
 
@@ -90,7 +92,7 @@ func (c *FakeOpenStackMachineClasses) Create(openStackMachineClass *v1alpha1.Ope
 }
 
 // Update takes the representation of a openStackMachineClass and updates it. Returns the server's representation of the openStackMachineClass, and an error, if there is any.
-func (c *FakeOpenStackMachineClasses) Update(openStackMachineClass *v1alpha1.OpenStackMachineClass) (result *v1alpha1.OpenStackMachineClass, err error) {
+func (c *FakeOpenStackMachineClasses) Update(ctx context.Context, openStackMachineClass *v1alpha1.OpenStackMachineClass, opts v1.UpdateOptions) (result *v1alpha1.OpenStackMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(openstackmachineclassesResource, c.ns, openStackMachineClass), &v1alpha1.OpenStackMachineClass{})
 
@@ -101,7 +103,7 @@ func (c *FakeOpenStackMachineClasses) Update(openStackMachineClass *v1alpha1.Ope
 }
 
 // Delete takes name of the openStackMachineClass and deletes it. Returns an error if one occurs.
-func (c *FakeOpenStackMachineClasses) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeOpenStackMachineClasses) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(openstackmachineclassesResource, c.ns, name), &v1alpha1.OpenStackMachineClass{})
 
@@ -109,15 +111,15 @@ func (c *FakeOpenStackMachineClasses) Delete(name string, options *v1.DeleteOpti
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeOpenStackMachineClasses) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(openstackmachineclassesResource, c.ns, listOptions)
+func (c *FakeOpenStackMachineClasses) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(openstackmachineclassesResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.OpenStackMachineClassList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched openStackMachineClass.
-func (c *FakeOpenStackMachineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.OpenStackMachineClass, err error) {
+func (c *FakeOpenStackMachineClasses) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.OpenStackMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(openstackmachineclassesResource, c.ns, name, pt, data, subresources...), &v1alpha1.OpenStackMachineClass{})
 

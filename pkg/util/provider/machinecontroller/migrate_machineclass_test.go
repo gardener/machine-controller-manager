@@ -16,6 +16,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -172,11 +173,11 @@ var _ = Describe("machine", func() {
 
 				action := data.action
 				if data.setup.gcpMachineClass != nil {
-					_, err := controller.controlMachineClient.GCPMachineClasses(TestNamespace).Get(action.classSpec.Name, metav1.GetOptions{})
+					_, err := controller.controlMachineClient.GCPMachineClasses(TestNamespace).Get(context.TODO(), action.classSpec.Name, metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
 				}
 
-				_, _, retry, err := controller.TryMachineClassMigration(data.action.classSpec)
+				_, _, retry, err := controller.TryMachineClassMigration(context.TODO(), data.action.classSpec)
 				Expect(retry).To(Equal(data.expect.retry))
 				waitForCacheSync(stop, controller)
 
@@ -187,24 +188,24 @@ var _ = Describe("machine", func() {
 					Expect(err).ToNot(HaveOccurred())
 
 					if data.expect.gcpMachineClass != nil {
-						actualGCPMachineClass, err := controller.controlMachineClient.GCPMachineClasses(TestNamespace).Get(action.classSpec.Name, metav1.GetOptions{})
+						actualGCPMachineClass, err := controller.controlMachineClient.GCPMachineClasses(TestNamespace).Get(context.TODO(), action.classSpec.Name, metav1.GetOptions{})
 						Expect(err).ToNot(HaveOccurred())
 						Expect(data.expect.gcpMachineClass).To(Equal(actualGCPMachineClass))
 					}
 
-					actualMachineClass, err := controller.controlMachineClient.MachineClasses(TestNamespace).Get(action.classSpec.Name, metav1.GetOptions{})
+					actualMachineClass, err := controller.controlMachineClient.MachineClasses(TestNamespace).Get(context.TODO(), action.classSpec.Name, metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(data.expect.machineClass).To(Equal(actualMachineClass))
 
-					actualMachine, err := controller.controlMachineClient.Machines(TestNamespace).Get(TestMachineName, metav1.GetOptions{})
+					actualMachine, err := controller.controlMachineClient.Machines(TestNamespace).Get(context.TODO(), TestMachineName, metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualMachine.Spec.Class.Kind).To(Equal(machineutils.MachineClassKind))
 
-					actualMachineSet, err := controller.controlMachineClient.MachineSets(TestNamespace).Get(TestMachineSetName, metav1.GetOptions{})
+					actualMachineSet, err := controller.controlMachineClient.MachineSets(TestNamespace).Get(context.TODO(), TestMachineSetName, metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualMachineSet.Spec.Template.Spec.Class.Kind).To(Equal(machineutils.MachineClassKind))
 
-					actualMachineDeployment, err := controller.controlMachineClient.MachineDeployments(TestNamespace).Get(TestMachineDeploymentName, metav1.GetOptions{})
+					actualMachineDeployment, err := controller.controlMachineClient.MachineDeployments(TestNamespace).Get(context.TODO(), TestMachineDeploymentName, metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualMachineDeployment.Spec.Template.Spec.Class.Kind).To(Equal(machineutils.MachineClassKind))
 				}

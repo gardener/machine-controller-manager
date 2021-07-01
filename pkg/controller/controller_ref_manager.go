@@ -23,6 +23,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -33,7 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // BaseControllerRefManager is the struct is used to identify the base controller of the object
@@ -180,7 +181,7 @@ func NewMachineControllerRefManager(
 //
 // If the error is nil, either the reconciliation succeeded, or no
 // reconciliation was necessary. The list of Machines that you now own is returned.
-func (m *MachineControllerRefManager) ClaimMachines(machines []*v1alpha1.Machine, filters ...func(*v1alpha1.Machine) bool) ([]*v1alpha1.Machine, error) {
+func (m *MachineControllerRefManager) ClaimMachines(ctx context.Context, machines []*v1alpha1.Machine, filters ...func(*v1alpha1.Machine) bool) ([]*v1alpha1.Machine, error) {
 	var claimed []*v1alpha1.Machine
 	var errlist []error
 
@@ -199,10 +200,10 @@ func (m *MachineControllerRefManager) ClaimMachines(machines []*v1alpha1.Machine
 	}
 
 	adopt := func(obj metav1.Object) error {
-		return m.AdoptMachine(obj.(*v1alpha1.Machine))
+		return m.AdoptMachine(ctx, obj.(*v1alpha1.Machine))
 	}
 	release := func(obj metav1.Object) error {
-		return m.ReleaseMachine(obj.(*v1alpha1.Machine))
+		return m.ReleaseMachine(ctx, obj.(*v1alpha1.Machine))
 	}
 
 	for _, machine := range machines {
@@ -223,7 +224,7 @@ func (m *MachineControllerRefManager) ClaimMachines(machines []*v1alpha1.Machine
 
 // AdoptMachine sends a patch to take control of the Machine. It returns the error if
 // the patching fails.
-func (m *MachineControllerRefManager) AdoptMachine(machine *v1alpha1.Machine) error {
+func (m *MachineControllerRefManager) AdoptMachine(ctx context.Context, machine *v1alpha1.Machine) error {
 	if err := m.CanAdopt(); err != nil {
 		return fmt.Errorf("can't adopt machine %v/%v (%v): %v", machine.Namespace, machine.Name, machine.UID, err)
 	}
@@ -233,13 +234,13 @@ func (m *MachineControllerRefManager) AdoptMachine(machine *v1alpha1.Machine) er
 		`{"metadata":{"ownerReferences":[{"apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
 		m.controllerKind.Kind,
 		m.Controller.GetName(), m.Controller.GetUID(), machine.UID)
-	err := m.machineControl.PatchMachine(machine.Namespace, machine.Name, []byte(addControllerPatch))
+	err := m.machineControl.PatchMachine(ctx, machine.Namespace, machine.Name, []byte(addControllerPatch))
 	return err
 }
 
 // ReleaseMachine sends a patch to free the Machine from the control of the controller.
 // It returns the error if the patching fails. 404 and 422 errors are ignored.
-func (m *MachineControllerRefManager) ReleaseMachine(machine *v1alpha1.Machine) error {
+func (m *MachineControllerRefManager) ReleaseMachine(ctx context.Context, machine *v1alpha1.Machine) error {
 	klog.V(4).Infof("patching machine %s_%s to remove its controllerRef to %s/%s:%s",
 		machine.Namespace, machine.Name, m.controllerKind.GroupVersion(), m.controllerKind.Kind, m.Controller.GetName())
 	deleteOwnerRefPatch := fmt.Sprintf(
@@ -247,7 +248,7 @@ func (m *MachineControllerRefManager) ReleaseMachine(machine *v1alpha1.Machine) 
 		m.controllerKind.Kind,
 		m.Controller.GetName(), m.Controller.GetUID(), machine.UID)
 
-	err := m.machineControl.PatchMachine(machine.Namespace, machine.Name, []byte(deleteOwnerRefPatch))
+	err := m.machineControl.PatchMachine(ctx, machine.Namespace, machine.Name, []byte(deleteOwnerRefPatch))
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// If the Machine no longer exists, ignore it.
@@ -321,7 +322,7 @@ func NewMachineSetControllerRefManager(
 // If the error is nil, either the reconciliation succeeded, or no
 // reconciliation was necessary. The list of MachineSets that you now own is
 // returned.
-func (m *MachineSetControllerRefManager) ClaimMachineSets(sets []*v1alpha1.MachineSet) ([]*v1alpha1.MachineSet, error) {
+func (m *MachineSetControllerRefManager) ClaimMachineSets(ctx context.Context, sets []*v1alpha1.MachineSet) ([]*v1alpha1.MachineSet, error) {
 	var claimed []*v1alpha1.MachineSet
 	var errlist []error
 
@@ -331,10 +332,10 @@ func (m *MachineSetControllerRefManager) ClaimMachineSets(sets []*v1alpha1.Machi
 	}
 
 	adopt := func(obj metav1.Object) error {
-		return m.AdoptMachineSet(obj.(*v1alpha1.MachineSet))
+		return m.AdoptMachineSet(ctx, obj.(*v1alpha1.MachineSet))
 	}
 	release := func(obj metav1.Object) error {
-		return m.ReleaseMachineSet(obj.(*v1alpha1.MachineSet))
+		return m.ReleaseMachineSet(ctx, obj.(*v1alpha1.MachineSet))
 	}
 
 	for _, is := range sets {
@@ -352,7 +353,7 @@ func (m *MachineSetControllerRefManager) ClaimMachineSets(sets []*v1alpha1.Machi
 
 // AdoptMachineSet sends a patch to take control of the MachineSet. It returns
 // the error if the patching fails.
-func (m *MachineSetControllerRefManager) AdoptMachineSet(is *v1alpha1.MachineSet) error {
+func (m *MachineSetControllerRefManager) AdoptMachineSet(ctx context.Context, is *v1alpha1.MachineSet) error {
 	if err := m.CanAdopt(); err != nil {
 		return fmt.Errorf("can't adopt MachineSet %v (%v): %v", is.Name, is.UID, err)
 	}
@@ -362,12 +363,12 @@ func (m *MachineSetControllerRefManager) AdoptMachineSet(is *v1alpha1.MachineSet
 		`{"metadata":{"ownerReferences":[{"apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
 		m.controllerKind.Kind,
 		m.Controller.GetName(), m.Controller.GetUID(), is.UID)
-	return m.machineSetControl.PatchMachineSet(is.Namespace, is.Name, []byte(addControllerPatch))
+	return m.machineSetControl.PatchMachineSet(ctx, is.Namespace, is.Name, []byte(addControllerPatch))
 }
 
 // ReleaseMachineSet sends a patch to free the MachineSet from the control of the MachineDeployment controller.
 // It returns the error if the patching fails. 404 and 422 errors are ignored.
-func (m *MachineSetControllerRefManager) ReleaseMachineSet(machineSet *v1alpha1.MachineSet) error {
+func (m *MachineSetControllerRefManager) ReleaseMachineSet(ctx context.Context, machineSet *v1alpha1.MachineSet) error {
 	klog.V(4).Infof("patching MachineSet %s_%s to remove its controllerRef to %s:%s",
 		machineSet.Name, m.controllerKind.GroupVersion(), m.controllerKind.Kind, m.Controller.GetName())
 	//deleteOwnerRefPatch := fmt.Sprintf(`{"metadata":{"ownerReferences":[{"$patch":"delete","uid":"%s"}],"uid":"%s"}}`, m.Controller.GetUID(), machineSet.UID)
@@ -375,7 +376,7 @@ func (m *MachineSetControllerRefManager) ReleaseMachineSet(machineSet *v1alpha1.
 		`{"metadata":{"ownerReferences":[{"$patch":"delete", "apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
 		m.controllerKind.Kind,
 		m.Controller.GetName(), m.Controller.GetUID(), machineSet.UID)
-	err := m.machineSetControl.PatchMachineSet(machineSet.Namespace, machineSet.Name, []byte(deleteOwnerRefPatch))
+	err := m.machineSetControl.PatchMachineSet(ctx, machineSet.Namespace, machineSet.Name, []byte(deleteOwnerRefPatch))
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// If the MachineSet no longer exists, ignore it.

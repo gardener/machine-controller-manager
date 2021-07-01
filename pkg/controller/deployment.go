@@ -23,12 +23,13 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sync"
 	"time"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -221,7 +222,7 @@ func (dc *controller) deleteMachineSetToDeployment(obj interface{}) {
 }
 
 // deleteMachine will enqueue a Recreate Deployment once all of its Machines have stopped running.
-func (dc *controller) deleteMachineToMachineDeployment(obj interface{}) {
+func (dc *controller) deleteMachineToMachineDeployment(ctx context.Context, obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
 
 	// When a delete is dropped, the relist will notice a Machine in the store not
@@ -241,9 +242,9 @@ func (dc *controller) deleteMachineToMachineDeployment(obj interface{}) {
 		}
 	}
 	klog.V(4).Infof("Machine %s deleted.", machine.Name)
-	if d := dc.getMachineDeploymentForMachine(machine); d != nil && d.Spec.Strategy.Type == v1alpha1.RecreateMachineDeploymentStrategyType {
+	if d := dc.getMachineDeploymentForMachine(ctx, machine); d != nil && d.Spec.Strategy.Type == v1alpha1.RecreateMachineDeploymentStrategyType {
 		// Sync if this Deployment now has no more Machines.
-		machineSets, err := ListMachineSets(d, IsListFromClient(dc.controlMachineClient))
+		machineSets, err := ListMachineSets(d, IsListFromClient(ctx, dc.controlMachineClient))
 		if err != nil {
 			return
 		}
@@ -293,7 +294,7 @@ func (dc *controller) enqueueMachineDeploymentAfter(deployment *v1alpha1.Machine
 }
 
 // getDeploymentForMachine returns the deployment managing the given Machine.
-func (dc *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) *v1alpha1.MachineDeployment {
+func (dc *controller) getMachineDeploymentForMachine(ctx context.Context, machine *v1alpha1.Machine) *v1alpha1.MachineDeployment {
 	// Find the owning machine set
 	var is *v1alpha1.MachineSet
 	var err error
@@ -306,7 +307,7 @@ func (dc *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) 
 		// Not a Machine owned by a machine set.
 		return nil
 	}
-	is, err = dc.controlMachineClient.MachineSets(machine.Namespace).Get(controllerRef.Name, metav1.GetOptions{})
+	is, err = dc.controlMachineClient.MachineSets(machine.Namespace).Get(ctx, controllerRef.Name, metav1.GetOptions{})
 	if err != nil || is.UID != controllerRef.UID {
 		klog.V(4).Infof("Cannot get machineset %q for machine %q: %v", controllerRef.Name, machine.Name, err)
 		return nil
@@ -329,7 +330,7 @@ func (dc *controller) resolveDeploymentControllerRef(namespace string, controlle
 	if controllerRef.Kind != controllerKind.Kind {
 		return nil
 	}
-	d, err := dc.controlMachineClient.MachineDeployments(namespace).Get(controllerRef.Name, metav1.GetOptions{})
+	d, err := dc.controlMachineClient.MachineDeployments(namespace).Get(context.TODO(), controllerRef.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil
 	}
@@ -361,7 +362,7 @@ func (dc *controller) handleErr(err error, key interface{}) {
 // getMachineSetsForDeployment uses ControllerRefManager to reconcile
 // ControllerRef by adopting and orphaning.
 // It returns the list of MachineSets that this Deployment should manage.
-func (dc *controller) getMachineSetsForMachineDeployment(d *v1alpha1.MachineDeployment) ([]*v1alpha1.MachineSet, error) {
+func (dc *controller) getMachineSetsForMachineDeployment(ctx context.Context, d *v1alpha1.MachineDeployment) ([]*v1alpha1.MachineSet, error) {
 	// List all MachineSets to find those we own but that no longer match our
 	// selector. They will be orphaned by ClaimMachineSets().
 	machineSets, err := dc.machineSetLister.List(labels.Everything())
@@ -375,7 +376,7 @@ func (dc *controller) getMachineSetsForMachineDeployment(d *v1alpha1.MachineDepl
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing MachineSets (see #42639).
 	canAdoptFunc := RecheckDeletionTimestamp(func() (metav1.Object, error) {
-		fresh, err := dc.controlMachineClient.MachineDeployments(d.Namespace).Get(d.Name, metav1.GetOptions{})
+		fresh, err := dc.controlMachineClient.MachineDeployments(d.Namespace).Get(ctx, d.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -385,7 +386,7 @@ func (dc *controller) getMachineSetsForMachineDeployment(d *v1alpha1.MachineDepl
 		return fresh, nil
 	})
 	cm := NewMachineSetControllerRefManager(dc.machineSetControl, d, deploymentSelector, controllerKind, canAdoptFunc)
-	ISes, err := cm.ClaimMachineSets(machineSets)
+	ISes, err := cm.ClaimMachineSets(ctx, machineSets)
 	return ISes, err
 }
 
@@ -426,6 +427,7 @@ func (dc *controller) getMachineMapForMachineDeployment(d *v1alpha1.MachineDeplo
 // reconcileClusterMachineDeployment will sync the deployment with the given key.
 // This function is not meant to be invoked concurrently with the same key.
 func (dc *controller) reconcileClusterMachineDeployment(key string) error {
+	ctx := context.Background()
 	startTime := time.Now()
 	klog.V(4).Infof("Started syncing machine deployment %q (%v)", key, startTime)
 	defer func() {
@@ -436,7 +438,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	if err != nil {
 		return err
 	}
-	deployment, err := dc.controlMachineClient.MachineDeployments(dc.namespace).Get(name, metav1.GetOptions{})
+	deployment, err := dc.controlMachineClient.MachineDeployments(dc.namespace).Get(ctx, name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		klog.V(4).Infof("Deployment %v has been deleted", key)
 		return nil
@@ -475,7 +477,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 
 	// Manipulate finalizers
 	if d.DeletionTimestamp == nil {
-		dc.addMachineDeploymentFinalizers(d)
+		dc.addMachineDeploymentFinalizers(ctx, d)
 	}
 
 	everything := metav1.LabelSelector{}
@@ -483,14 +485,14 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		dc.recorder.Eventf(d, v1.EventTypeWarning, "SelectingAll", "This deployment is selecting all machines. A non-empty selector is required.")
 		if d.Status.ObservedGeneration < d.Generation {
 			d.Status.ObservedGeneration = d.Generation
-			dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(d)
+			dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(ctx, d, metav1.UpdateOptions{})
 		}
 		return nil
 	}
 
 	// List MachineSets owned by this Deployment, while reconciling ControllerRef
 	// through adoption/orphaning.
-	machineSets, err := dc.getMachineSetsForMachineDeployment(d)
+	machineSets, err := dc.getMachineSetsForMachineDeployment(ctx, d)
 	if err != nil {
 		return err
 	}
@@ -509,51 +511,51 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 			return nil
 		}
 		if len(machineSets) == 0 {
-			dc.deleteMachineDeploymentFinalizers(d)
+			dc.deleteMachineDeploymentFinalizers(ctx, d)
 			return nil
 		}
 		klog.V(4).Infof("Deleting all child MachineSets as MachineDeployment %s has set deletionTimestamp", d.Name)
-		dc.terminateMachineSets(machineSets, d)
-		return dc.syncStatusOnly(d, machineSets, machineMap)
+		dc.terminateMachineSets(ctx, machineSets, d)
+		return dc.syncStatusOnly(ctx, d, machineSets, machineMap)
 	}
 
 	// Update deployment conditions with an Unknown condition when pausing/resuming
 	// a deployment. In this way, we can be sure that we won't timeout when a user
 	// resumes a Deployment with a set progressDeadlineSeconds.
-	if err = dc.checkPausedConditions(d); err != nil {
+	if err = dc.checkPausedConditions(ctx, d); err != nil {
 		return err
 	}
 
 	if d.Spec.Paused {
-		return dc.sync(d, machineSets, machineMap)
+		return dc.sync(ctx, d, machineSets, machineMap)
 	}
 
 	// rollback is not re-entrant in case the underlying machine sets are updated with a new
 	// revision so we should ensure that we won't proceed to update machine sets until we
 	// make sure that the deployment has cleaned up its rollback spec in subsequent enqueues.
 	if d.Spec.RollbackTo != nil {
-		return dc.rollback(d, machineSets, machineMap)
+		return dc.rollback(ctx, d, machineSets, machineMap)
 	}
 
-	scalingEvent, err := dc.isScalingEvent(d, machineSets, machineMap)
+	scalingEvent, err := dc.isScalingEvent(ctx, d, machineSets, machineMap)
 
 	if err != nil {
 		return err
 	}
 	if scalingEvent {
-		return dc.sync(d, machineSets, machineMap)
+		return dc.sync(ctx, d, machineSets, machineMap)
 	}
 
 	switch d.Spec.Strategy.Type {
 	case v1alpha1.RecreateMachineDeploymentStrategyType:
-		return dc.rolloutRecreate(d, machineSets, machineMap)
+		return dc.rolloutRecreate(ctx, d, machineSets, machineMap)
 	case v1alpha1.RollingUpdateMachineDeploymentStrategyType:
-		return dc.rolloutRolling(d, machineSets, machineMap)
+		return dc.rolloutRolling(ctx, d, machineSets, machineMap)
 	}
 	return fmt.Errorf("unexpected deployment strategy type: %s", d.Spec.Strategy.Type)
 }
 
-func (dc *controller) terminateMachineSets(machineSets []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) {
+func (dc *controller) terminateMachineSets(ctx context.Context, machineSets []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) {
 	var (
 		wg               sync.WaitGroup
 		numOfMachinesets = len(machineSets)
@@ -567,7 +569,7 @@ func (dc *controller) terminateMachineSets(machineSets []*v1alpha1.MachineSet, d
 			if machineSet.DeletionTimestamp != nil {
 				return
 			}
-			dc.controlMachineClient.MachineSets(machineSet.Namespace).Delete(machineSet.Name, nil)
+			dc.controlMachineClient.MachineSets(machineSet.Namespace).Delete(ctx, machineSet.Name, metav1.DeleteOptions{})
 		}(machineSet)
 	}
 	wg.Wait()
@@ -578,37 +580,37 @@ func (dc *controller) terminateMachineSets(machineSets []*v1alpha1.MachineSet, d
 	Manipulate Finalizers
 */
 
-func (dc *controller) addMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment) {
+func (dc *controller) addMachineDeploymentFinalizers(ctx context.Context, machineDeployment *v1alpha1.MachineDeployment) {
 	clone := machineDeployment.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
 		finalizers.Insert(DeleteFinalizerName)
-		dc.updateMachineDeploymentFinalizers(clone, finalizers.List())
+		dc.updateMachineDeploymentFinalizers(ctx, clone, finalizers.List())
 	}
 }
 
-func (dc *controller) deleteMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment) {
+func (dc *controller) deleteMachineDeploymentFinalizers(ctx context.Context, machineDeployment *v1alpha1.MachineDeployment) {
 	clone := machineDeployment.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		finalizers.Delete(DeleteFinalizerName)
-		dc.updateMachineDeploymentFinalizers(clone, finalizers.List())
+		dc.updateMachineDeploymentFinalizers(ctx, clone, finalizers.List())
 	}
 }
 
-func (dc *controller) updateMachineDeploymentFinalizers(machineDeployment *v1alpha1.MachineDeployment, finalizers []string) {
+func (dc *controller) updateMachineDeploymentFinalizers(ctx context.Context, machineDeployment *v1alpha1.MachineDeployment, finalizers []string) {
 	// Get the latest version of the machineDeployment so that we can avoid conflicts
-	machineDeployment, err := dc.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Get(machineDeployment.Name, metav1.GetOptions{})
+	machineDeployment, err := dc.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Get(ctx, machineDeployment.Name, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
 
 	clone := machineDeployment.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = dc.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Update(clone)
+	_, err = dc.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
 	if err != nil {
 		// Keep retrying until update goes through
 		klog.Warning("Updated failed, retrying")
-		dc.updateMachineDeploymentFinalizers(machineDeployment, finalizers)
+		dc.updateMachineDeploymentFinalizers(ctx, machineDeployment, finalizers)
 	}
 }

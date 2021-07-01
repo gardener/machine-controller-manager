@@ -20,6 +20,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"math/big"
@@ -32,15 +33,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	bootstraptokenapi "k8s.io/cluster-bootstrap/token/api"
 	bootstraptokenutil "k8s.io/cluster-bootstrap/token/util"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const placeholder = "<<BOOTSTRAP_TOKEN>>"
 
-func (c *controller) addBootstrapTokenToUserData(machineName string, driver driver.Driver) error {
+func (c *controller) addBootstrapTokenToUserData(ctx context.Context, machineName string, driver driver.Driver) error {
 	userData := driver.GetUserData()
 	klog.V(4).Infof("Creating bootstrap token!")
-	bootstrapTokenSecret, err := c.getBootstrapTokenOrCreateIfNotExist(machineName)
+	bootstrapTokenSecret, err := c.getBootstrapTokenOrCreateIfNotExist(ctx, machineName)
 	if err != nil {
 		return err
 	}
@@ -56,10 +57,10 @@ func (c *controller) addBootstrapTokenToUserData(machineName string, driver driv
 	return nil
 }
 
-func (c *controller) getBootstrapTokenOrCreateIfNotExist(machineName string) (secret *v1.Secret, err error) {
+func (c *controller) getBootstrapTokenOrCreateIfNotExist(ctx context.Context, machineName string) (secret *v1.Secret, err error) {
 	tokenID, secretName := getTokenIDAndSecretName(machineName)
 
-	secret, err = c.targetCoreClient.CoreV1().Secrets(metav1.NamespaceSystem).Get(secretName, metav1.GetOptions{})
+	secret, err = c.targetCoreClient.CoreV1().Secrets(metav1.NamespaceSystem).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			bootstrapTokenSecretKey, err := generateRandomStringFromCharset(16, "0123456789abcdefghijklmnopqrstuvwxyz")
@@ -85,7 +86,7 @@ func (c *controller) getBootstrapTokenOrCreateIfNotExist(machineName string) (se
 				Data: data,
 			}
 
-			return c.targetCoreClient.CoreV1().Secrets(metav1.NamespaceSystem).Create(secret)
+			return c.targetCoreClient.CoreV1().Secrets(metav1.NamespaceSystem).Create(ctx, secret, metav1.CreateOptions{})
 		}
 		return nil, err
 	}
@@ -93,9 +94,9 @@ func (c *controller) getBootstrapTokenOrCreateIfNotExist(machineName string) (se
 	return secret, nil
 }
 
-func (c *controller) deleteBootstrapToken(machineName string) error {
+func (c *controller) deleteBootstrapToken(ctx context.Context, machineName string) error {
 	_, secretName := getTokenIDAndSecretName(machineName)
-	err := c.targetCoreClient.CoreV1().Secrets(metav1.NamespaceSystem).Delete(secretName, &metav1.DeleteOptions{})
+	err := c.targetCoreClient.CoreV1().Secrets(metav1.NamespaceSystem).Delete(ctx, secretName, metav1.DeleteOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
 		// Object no longer exists and has been deleted
 		return nil

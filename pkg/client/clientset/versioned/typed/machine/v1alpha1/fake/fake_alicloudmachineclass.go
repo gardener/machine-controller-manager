@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+Copyright (c) 2021 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var alicloudmachineclassesResource = schema.GroupVersionResource{Group: "machine
 var alicloudmachineclassesKind = schema.GroupVersionKind{Group: "machine.sapcloud.io", Version: "v1alpha1", Kind: "AlicloudMachineClass"}
 
 // Get takes name of the alicloudMachineClass, and returns the corresponding alicloudMachineClass object, and an error if there is any.
-func (c *FakeAlicloudMachineClasses) Get(name string, options v1.GetOptions) (result *v1alpha1.AlicloudMachineClass, err error) {
+func (c *FakeAlicloudMachineClasses) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.AlicloudMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(alicloudmachineclassesResource, c.ns, name), &v1alpha1.AlicloudMachineClass{})
 
@@ -50,7 +52,7 @@ func (c *FakeAlicloudMachineClasses) Get(name string, options v1.GetOptions) (re
 }
 
 // List takes label and field selectors, and returns the list of AlicloudMachineClasses that match those selectors.
-func (c *FakeAlicloudMachineClasses) List(opts v1.ListOptions) (result *v1alpha1.AlicloudMachineClassList, err error) {
+func (c *FakeAlicloudMachineClasses) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.AlicloudMachineClassList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(alicloudmachineclassesResource, alicloudmachineclassesKind, c.ns, opts), &v1alpha1.AlicloudMachineClassList{})
 
@@ -72,14 +74,14 @@ func (c *FakeAlicloudMachineClasses) List(opts v1.ListOptions) (result *v1alpha1
 }
 
 // Watch returns a watch.Interface that watches the requested alicloudMachineClasses.
-func (c *FakeAlicloudMachineClasses) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeAlicloudMachineClasses) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(alicloudmachineclassesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a alicloudMachineClass and creates it.  Returns the server's representation of the alicloudMachineClass, and an error, if there is any.
-func (c *FakeAlicloudMachineClasses) Create(alicloudMachineClass *v1alpha1.AlicloudMachineClass) (result *v1alpha1.AlicloudMachineClass, err error) {
+func (c *FakeAlicloudMachineClasses) Create(ctx context.Context, alicloudMachineClass *v1alpha1.AlicloudMachineClass, opts v1.CreateOptions) (result *v1alpha1.AlicloudMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(alicloudmachineclassesResource, c.ns, alicloudMachineClass), &v1alpha1.AlicloudMachineClass{})
 
@@ -90,7 +92,7 @@ func (c *FakeAlicloudMachineClasses) Create(alicloudMachineClass *v1alpha1.Alicl
 }
 
 // Update takes the representation of a alicloudMachineClass and updates it. Returns the server's representation of the alicloudMachineClass, and an error, if there is any.
-func (c *FakeAlicloudMachineClasses) Update(alicloudMachineClass *v1alpha1.AlicloudMachineClass) (result *v1alpha1.AlicloudMachineClass, err error) {
+func (c *FakeAlicloudMachineClasses) Update(ctx context.Context, alicloudMachineClass *v1alpha1.AlicloudMachineClass, opts v1.UpdateOptions) (result *v1alpha1.AlicloudMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(alicloudmachineclassesResource, c.ns, alicloudMachineClass), &v1alpha1.AlicloudMachineClass{})
 
@@ -101,7 +103,7 @@ func (c *FakeAlicloudMachineClasses) Update(alicloudMachineClass *v1alpha1.Alicl
 }
 
 // Delete takes name of the alicloudMachineClass and deletes it. Returns an error if one occurs.
-func (c *FakeAlicloudMachineClasses) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeAlicloudMachineClasses) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(alicloudmachineclassesResource, c.ns, name), &v1alpha1.AlicloudMachineClass{})
 
@@ -109,15 +111,15 @@ func (c *FakeAlicloudMachineClasses) Delete(name string, options *v1.DeleteOptio
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeAlicloudMachineClasses) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(alicloudmachineclassesResource, c.ns, listOptions)
+func (c *FakeAlicloudMachineClasses) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(alicloudmachineclassesResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.AlicloudMachineClassList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched alicloudMachineClass.
-func (c *FakeAlicloudMachineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.AlicloudMachineClass, err error) {
+func (c *FakeAlicloudMachineClasses) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.AlicloudMachineClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(alicloudmachineclassesResource, c.ns, name, pt, data, subresources...), &v1alpha1.AlicloudMachineClass{})
 

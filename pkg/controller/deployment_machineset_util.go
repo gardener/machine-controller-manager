@@ -23,10 +23,11 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
@@ -35,7 +36,7 @@ import (
 )
 
 // updateMachineSetStatus attempts to update the Status.Replicas of the given MachineSet, with a single GET/PUT retry.
-func updateMachineSetStatus(machineClient machineapi.MachineV1alpha1Interface, is *v1alpha1.MachineSet, newStatus v1alpha1.MachineSetStatus) (*v1alpha1.MachineSet, error) {
+func updateMachineSetStatus(ctx context.Context, machineClient machineapi.MachineV1alpha1Interface, is *v1alpha1.MachineSet, newStatus v1alpha1.MachineSetStatus) (*v1alpha1.MachineSet, error) {
 	// This is the steady state. It happens when the MachineSet doesn't have any expectations, since
 	// we do a periodic relist every 30s. If the generations differ but the replicas are
 	// the same, a caller might've resized to the same replica count.
@@ -68,7 +69,7 @@ func updateMachineSetStatus(machineClient machineapi.MachineV1alpha1Interface, i
 			fmt.Sprintf("sequence No: %v->%v", is.Status.ObservedGeneration, newStatus.ObservedGeneration))
 
 		is.Status = newStatus
-		updatedIS, updateErr = c.UpdateStatus(is)
+		updatedIS, updateErr = c.UpdateStatus(ctx, is, metav1.UpdateOptions{})
 
 		if updateErr == nil {
 			return updatedIS, nil
@@ -78,7 +79,7 @@ func updateMachineSetStatus(machineClient machineapi.MachineV1alpha1Interface, i
 			break
 		}
 		// Update the MachineSet with the latest resource veision for the next poll
-		if is, getErr = c.Get(is.Name, metav1.GetOptions{}); getErr != nil {
+		if is, getErr = c.Get(ctx, is.Name, metav1.GetOptions{}); getErr != nil {
 			// If the GET fails we can't trust status.Replicas anymore. This error
 			// is bound to be more interesting than the update failure.
 			return nil, getErr
