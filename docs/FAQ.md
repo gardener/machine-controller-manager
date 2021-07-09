@@ -109,7 +109,7 @@ Each `machine` object has an annotation `machinepriority.machine.sapcloud.io` se
 
 ### How to force delete a machine?
 
-A machine can be force deleted by adding the label `force-deletion: "True"` on the `machine` object if it's already being deleted. During force deletion, MCM skips the drain function and simply triggers the deletion of the machine. This label should be used with caution as it can violate the PDBs for pods running on the machine.
+A machine can be force deleted by adding the label `force-deletion: "True"` on the `machine` object before executing the actual delete command. During force deletion, MCM skips the drain function and simply triggers the deletion of the machine. This label should be used with caution as it can violate the PDBs for pods running on the machine.
 
 ### How to pause the ongoing rolling-update of the machinedeployment?
 
