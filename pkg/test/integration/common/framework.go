@@ -240,6 +240,16 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(
 			// set container image to mcContainerImageTag as the name of the container contains provider
 			if len(mcContainerImage) != 0 {
 				containers[i].Image = mcContainerImage
+				var isOptionAvailable bool
+				for option := range containers[i].Command {
+					if strings.Contains(containers[i].Command[option], "machine-drain-timeout=") {
+						isOptionAvailable = true
+						containers[i].Command[option] = "--machine-drain-timeout=5m"
+					}
+				}
+				if !isOptionAvailable {
+					containers[i].Command = append(containers[i].Command, "--machine-drain-timeout=5m")
+				}
 			}
 		} else {
 			// set container image to mcmContainerImageTag as the name of container contains provider
@@ -758,7 +768,8 @@ func (c *IntegrationTestFramework) ControllerTests() {
 			ginkgo.It("should match with inital resources", func() {
 				// if available, should delete orphaned resources in the cloud provider
 				ginkgo.By("Querrying and comparing")
-				gomega.Expect(c.resourcesTracker.IsOrphanedResourcesAvailable()).To(gomega.BeFalse())
+				gomega.Eventually(c.resourcesTracker.IsOrphanedResourcesAvailable, c.timeout, c.pollingInterval).Should(gomega.BeEquivalentTo(false))
+
 			})
 		})
 	})
