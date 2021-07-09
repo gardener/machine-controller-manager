@@ -6,10 +6,13 @@ metadata:
   name: machine-controller-manager
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      role: machine-controller-manager
   template:
     metadata:
       labels:
-        app: machine-controller-manager
+        role: machine-controller-manager
     spec:
       securityContext: {}
       serviceAccount: machine-controller-manager
