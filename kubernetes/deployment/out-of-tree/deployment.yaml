@@ -6,14 +6,17 @@ metadata:
   name: machine-controller-manager
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      role: machine-controller-manager
   template:
     metadata:
       labels:
-        app: machine-controller-manager
+        role: machine-controller-manager
     spec:
       containers:
       - name: machine-controller-manager
-        image:eu.gcr.io/gardener-project/gardener/machine-controller-manager:v0.28.0-dev-793b105c41adfc434e07107decaf1ac67fc1fd3f
+        image: eu.gcr.io/gardener-project/gardener/machine-controller-manager:v0.39.0
         imagePullPolicy: Always
         command:
           - ./machine-controller-manager
