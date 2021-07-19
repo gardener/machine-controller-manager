@@ -20,6 +20,9 @@ CONTROL_NAMESPACE  := default
 CONTROL_KUBECONFIG := dev/target-kubeconfig.yaml
 TARGET_KUBECONFIG  := dev/target-kubeconfig.yaml
 
+LEADER_ELECT 	   := "true"
+MACHINE_SAFETY_OVERSHOOTING_PERIOD:=1m
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -48,7 +51,8 @@ start:
 			--machine-safety-apiserver-statuscheck-timeout=30s \
 			--machine-safety-apiserver-statuscheck-period=1m \
 			--machine-safety-orphan-vms-period=30m \
-			--machine-safety-overshooting-period=1m \
+			--machine-safety-overshooting-period=$(MACHINE_SAFETY_OVERSHOOTING_PERIOD) \
+			--leader-elect=$(LEADER_ELECT) \
 			--v=3
 
 #################################################################

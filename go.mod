@@ -13,6 +13,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/emicklei/go-restful v2.9.6+incompatible // indirect
+	github.com/go-git/go-git/v5 v5.3.0
 	github.com/go-openapi/spec v0.19.2
 	github.com/golang/groupcache v0.0.0-20180513044358-24b0969c4cb7 // indirect
 	github.com/googleapis/gnostic v0.2.0 // indirect
@@ -31,6 +32,7 @@ require (
 	google.golang.org/api v0.4.0
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.0.0-20190918155943-95b840bb6a1f
+	k8s.io/apiextensions-apiserver v0.0.0-20190918161926-8f644eb6e783
 	k8s.io/apimachinery v0.0.0-20190913080033-27d36303b655
 	k8s.io/apiserver v0.0.0-20190918160949-bfa5e2e684ad
 	k8s.io/client-go v0.0.0-20190918160344-1fbdaa4c8d90
@@ -43,9 +45,11 @@ require (
 )
 
 replace (
+	github.com/go-git/go-git/v5 => github.com/go-git/go-git/v5 v5.3.0
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.8.0
 	github.com/onsi/gomega => github.com/onsi/gomega v1.5.0
 	k8s.io/api => k8s.io/api v0.0.0-20190918155943-95b840bb6a1f // kubernetes-1.16.0
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.0.0-20190918161926-8f644eb6e783 // kubernetes-1.16.0
 	k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20190913080033-27d36303b655 // kubernetes-1.16.0
 	k8s.io/apiserver => k8s.io/apiserver v0.0.0-20190918160949-bfa5e2e684ad // kubernetes-1.16.0
 	k8s.io/client-go => k8s.io/client-go v0.0.0-20190918160344-1fbdaa4c8d90 // kubernetes-1.16.0
