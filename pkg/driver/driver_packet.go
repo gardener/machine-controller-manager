@@ -25,7 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/packethost/packngo"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // PacketDriver is the driver struct for holding Packet machine information

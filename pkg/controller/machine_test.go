@@ -16,6 +16,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -40,6 +41,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	k8stesting "k8s.io/client-go/testing"
+	"k8s.io/klog/v2"
 )
 
 const testNamespace = "test"
@@ -145,7 +147,7 @@ var _ = Describe("machine", func() {
 				return true, nil, err
 			})
 
-			machineRet, errRet := c.updateMachineStatus(machine, lastOperation, currentStatus)
+			machineRet, errRet := c.updateMachineStatus(context.TODO(), machine, lastOperation, currentStatus)
 			Expect(errRet).Should(Not(BeNil()))
 			Expect(errRet).Should(BeIdenticalTo(err))
 			Expect(machineRet).Should(BeNil())
@@ -171,7 +173,7 @@ var _ = Describe("machine", func() {
 				return true, machine, nil
 			})
 
-			machineRet, errRet := c.updateMachineStatus(machine, lastOperation, currentStatus)
+			machineRet, errRet := c.updateMachineStatus(context.TODO(), machine, lastOperation, currentStatus)
 			Expect(errRet).Should((BeNil()))
 			Expect(machineRet.Status.LastOperation).Should(BeIdenticalTo(machine.Status.LastOperation))
 			Expect(machineRet.Status.CurrentStatus).Should(BeIdenticalTo(machine.Status.CurrentStatus))
@@ -202,7 +204,7 @@ var _ = Describe("machine", func() {
 
 			})
 
-			machineRet, errRet := c.updateMachineStatus(machine, lastOperation, currentStatus)
+			machineRet, errRet := c.updateMachineStatus(context.TODO(), machine, lastOperation, currentStatus)
 			Expect(errRet).Should(BeNil())
 			Expect(machineRet).Should(Not(BeNil()))
 			Expect(machineUpdated).Should(Not(BeNil()))
@@ -311,7 +313,7 @@ var _ = Describe("machine", func() {
 					},
 				}
 				conditions := []corev1.NodeCondition{}
-				var _, err = c.updateMachineConditions(testMachine, conditions)
+				var _, err = c.updateMachineConditions(context.TODO(), testMachine, conditions)
 				Expect(err).Should(Not(BeNil()))
 			})
 		})
@@ -337,7 +339,7 @@ var _ = Describe("machine", func() {
 				c, trackers := createController(stop, testNamespace, objects, nil, nil)
 				defer trackers.Stop()
 
-				var updatedMachine, err = c.updateMachineConditions(testMachine, conditions)
+				var updatedMachine, err = c.updateMachineConditions(context.TODO(), testMachine, conditions)
 				Expect(updatedMachine.Status.Conditions).Should(BeEquivalentTo(conditions))
 				Expect(updatedMachine.Status.CurrentStatus.Phase).Should(BeIdenticalTo(expectedPhase))
 				Expect(err).Should(BeNil())
@@ -673,14 +675,14 @@ var _ = Describe("machine", func() {
 				waitForCacheSync(stop, controller)
 
 				action := data.action
-				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
 				if data.setup.fakeResourceActions != nil {
 					trackers.ControlMachine.SetFakeResourceActions(data.setup.fakeResourceActions, 1)
 				}
 
-				err = controller.machineCreate(machine, driver.NewFakeDriver(
+				err = controller.machineCreate(context.TODO(), machine, driver.NewFakeDriver(
 					func() (string, string, error) {
 						return action.fakeProviderID, action.fakeNodeName, action.fakeError
 					},
@@ -701,7 +703,7 @@ var _ = Describe("machine", func() {
 				}
 
 				Expect(err).To(BeNil())
-				actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+				actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
 				Expect(err).To(BeNil())
 				Expect(actual.Spec).To(Equal(data.expect.machine.Spec))
 				Expect(actual.Status.Node).To(Equal(data.expect.machine.Status.Node))
@@ -1034,7 +1036,7 @@ var _ = Describe("machine", func() {
 				waitForCacheSync(stop, controller)
 
 				action := data.action
-				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
 				fakeDriverGetVMsTemp := func() (driver.VMs, error) { return nil, nil }
@@ -1045,11 +1047,11 @@ var _ = Describe("machine", func() {
 
 				fakeDriver := driver.NewFakeDriver(
 					func() (string, string, error) {
-						_, err := controller.targetCoreClient.CoreV1().Nodes().Create(&v1.Node{
+						_, err := controller.targetCoreClient.CoreV1().Nodes().Create(context.TODO(), &v1.Node{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: action.fakeNodeName,
 							},
-						})
+						}, metav1.CreateOptions{})
 						if err != nil {
 							return "", "", err
 						}
@@ -1069,33 +1071,33 @@ var _ = Describe("machine", func() {
 				)
 
 				// Create a machine that is to be deleted later
-				err = controller.machineCreate(machine, fakeDriver)
+				err = controller.machineCreate(context.TODO(), machine, fakeDriver)
 				Expect(err).ToNot(HaveOccurred())
 
 				// Add finalizers
-				controller.addMachineFinalizers(machine)
+				controller.addMachineFinalizers(context.TODO(), machine)
 
 				// Fetch the latest machine version
-				machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
 				if data.action.forceDeleteLabelPresent {
 					// Add labels for force deletion
 					clone := machine.DeepCopy()
 					clone.Labels["force-deletion"] = "True"
-					machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Update(clone)
+					machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Update(context.TODO(), clone, metav1.UpdateOptions{})
 					Expect(err).ToNot(HaveOccurred())
 				}
 
 				if data.action.fakeMachineStatus != nil {
 					clone := machine.DeepCopy()
 					clone.Status = *data.action.fakeMachineStatus
-					machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).UpdateStatus(clone)
+					machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).UpdateStatus(context.TODO(), clone, metav1.UpdateOptions{})
 					Expect(err).ToNot(HaveOccurred())
 				}
 
 				if data.action.nodeRecentlyNotReady != nil {
-					node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
+					node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Status.Node, metav1.GetOptions{})
 					Expect(nodeErr).To(Not(HaveOccurred()))
 					clone := node.DeepCopy()
 					newNodeCondition := corev1.NodeCondition{
@@ -1110,7 +1112,7 @@ var _ = Describe("machine", func() {
 					}
 
 					clone.Status.Conditions = []corev1.NodeCondition{newNodeCondition}
-					_, updateErr := controller.targetCoreClient.CoreV1().Nodes().UpdateStatus(clone)
+					_, updateErr := controller.targetCoreClient.CoreV1().Nodes().UpdateStatus(context.TODO(), clone, metav1.UpdateOptions{})
 					Expect(updateErr).To(BeNil())
 				}
 
@@ -1119,15 +1121,15 @@ var _ = Describe("machine", func() {
 				}
 
 				// Deletion of machine is triggered
-				err = controller.machineDelete(machine, fakeDriver)
+				err = controller.machineDelete(context.TODO(), machine, fakeDriver)
 				if data.expect.errOccurred {
 					Expect(err).To(HaveOccurred())
 				} else {
 					Expect(err).ToNot(HaveOccurred())
 				}
 
-				node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(machine.Status.Node, metav1.GetOptions{})
-				machine, machineErr := controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+				node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Status.Node, metav1.GetOptions{})
+				machine, machineErr := controller.controlMachineClient.Machines(machine.Namespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
 
 				if data.expect.machineDeleted {
 					Expect(machineErr).To(HaveOccurred())
@@ -1667,12 +1669,12 @@ var _ = Describe("machine", func() {
 				waitForCacheSync(stop, controller)
 
 				action := data.action
-				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				//Expect(err).ToNot(HaveOccurred())
 
-				controller.checkMachineTimeout(machine)
+				controller.checkMachineTimeout(context.TODO(), machine)
 
-				actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
+				actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
 				Expect(err).To(BeNil())
 				Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
 				Expect(actual.Status.CurrentStatus.TimeoutActive).To(Equal(data.expect.machine.Status.CurrentStatus.TimeoutActive))
@@ -1862,7 +1864,7 @@ var _ = Describe("machine", func() {
 			// using default namespace for non-namespaced objects
 			// as our current fake client is with the assumption
 			// that all objects are namespaced
-			Namespace: "",
+			Namespace: "test",
 		}
 
 		machineName := "machine-0"
@@ -1887,12 +1889,15 @@ var _ = Describe("machine", func() {
 				waitForCacheSync(stop, controller)
 
 				action := data.action
-				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
-				controller.updateMachineState(machine)
+				controller.updateMachineState(context.TODO(), machine)
+				node, _ := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), "machine-0", metav1.GetOptions{})
+				klog.Error(node)
 
-				actual, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+				actual, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
+
 				Expect(err).To(BeNil())
 				Expect(actual.Name).To(Equal(data.expect.machine.Name))
 				Expect(actual.Status.Node).To(Equal(data.expect.machine.Status.Node))
@@ -1951,30 +1956,33 @@ var _ = Describe("machine", func() {
 			}),
 			Entry("Machine is running but node object is lost", &data{
 				setup: setup{
-					machines: newMachines(1, &machinev1.MachineTemplateSpec{
-						ObjectMeta: *newObjectMeta(objMeta, 0),
-					}, &machinev1.MachineStatus{
-						Node: "dummy-node",
-						CurrentStatus: machinev1.CurrentStatus{
-							Phase:          machinev1.MachineRunning,
-							TimeoutActive:  false,
-							LastUpdateTime: metav1.Now(),
+					machines: newMachines(
+						1,
+						&machinev1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
 						},
-						LastOperation: machinev1.LastOperation{
-							Description:    fmt.Sprintf("Machine % successfully joined the cluster", machineName),
-							State:          machinev1.MachineStateSuccessful,
-							Type:           machinev1.MachineOperationCreate,
-							LastUpdateTime: metav1.Now(),
-						},
-						Conditions: []corev1.NodeCondition{
-							{
-								Message: "kubelet is posting ready status",
-								Reason:  "KubeletReady",
-								Status:  "True",
-								Type:    "Ready",
+						&machinev1.MachineStatus{
+							Node: "dummy-node",
+							CurrentStatus: machinev1.CurrentStatus{
+								Phase:          machinev1.MachineRunning,
+								TimeoutActive:  false,
+								LastUpdateTime: metav1.Now(),
 							},
-						},
-					}, nil, nil, nil),
+							LastOperation: machinev1.LastOperation{
+								Description:    fmt.Sprintf("Machine % successfully joined the cluster", machineName),
+								State:          machinev1.MachineStateSuccessful,
+								Type:           machinev1.MachineOperationCreate,
+								LastUpdateTime: metav1.Now(),
+							},
+							Conditions: []corev1.NodeCondition{
+								{
+									Message: "kubelet is posting ready status",
+									Reason:  "KubeletReady",
+									Status:  "True",
+									Type:    "Ready",
+								},
+							},
+						}, nil, nil, nil),
 				},
 				action: action{
 					machine: machineName,
@@ -2037,7 +2045,13 @@ var _ = Describe("machine", func() {
 					}, nil, nil, nil),
 					nodes: []*corev1.Node{
 						{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
+							TypeMeta: metav1.TypeMeta{
+								Kind:       "Node",
+								APIVersion: "v1",
+							},
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "machine-0",
+							},
 							Status: corev1.NodeStatus{
 								Conditions: []corev1.NodeCondition{
 									{

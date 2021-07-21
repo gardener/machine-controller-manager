@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
@@ -36,7 +36,7 @@ const (
 )
 
 // getProviderSpecificMachineClass returns the providerSpecificMachineClass object for the provided machineClass
-func (c *controller) getProviderSpecificMachineClass(classSpec *v1alpha1.ClassSpec) (interface{}, error) {
+func (c *controller) getProviderSpecificMachineClass(ctx context.Context, classSpec *v1alpha1.ClassSpec) (interface{}, error) {
 	var (
 		machineClass interface{}
 		err          error
@@ -44,37 +44,37 @@ func (c *controller) getProviderSpecificMachineClass(classSpec *v1alpha1.ClassSp
 
 	switch classSpec.Kind {
 	case AlicloudMachineClassKind:
-		machineClass, err = c.controlMachineClient.AlicloudMachineClasses(c.namespace).Get(classSpec.Name, metav1.GetOptions{
+		machineClass, err = c.controlMachineClient.AlicloudMachineClasses(c.namespace).Get(ctx, classSpec.Name, metav1.GetOptions{
 			TypeMeta:        metav1.TypeMeta{},
 			ResourceVersion: "",
 		})
 	case AWSMachineClassKind:
-		machineClass, err = c.controlMachineClient.AWSMachineClasses(c.namespace).Get(classSpec.Name, metav1.GetOptions{
+		machineClass, err = c.controlMachineClient.AWSMachineClasses(c.namespace).Get(ctx, classSpec.Name, metav1.GetOptions{
 			TypeMeta:        metav1.TypeMeta{},
 			ResourceVersion: "",
 		})
 	case AzureMachineClassKind:
-		machineClass, err = c.controlMachineClient.AzureMachineClasses(c.namespace).Get(classSpec.Name, metav1.GetOptions{
+		machineClass, err = c.controlMachineClient.AzureMachineClasses(c.namespace).Get(ctx, classSpec.Name, metav1.GetOptions{
 			TypeMeta:        metav1.TypeMeta{},
 			ResourceVersion: "",
 		})
 	case GCPMachineClassKind:
-		machineClass, err = c.controlMachineClient.GCPMachineClasses(c.namespace).Get(classSpec.Name, metav1.GetOptions{
+		machineClass, err = c.controlMachineClient.GCPMachineClasses(c.namespace).Get(ctx, classSpec.Name, metav1.GetOptions{
 			TypeMeta:        metav1.TypeMeta{},
 			ResourceVersion: "",
 		})
 	case OpenStackMachineClassKind:
-		machineClass, err = c.controlMachineClient.OpenStackMachineClasses(c.namespace).Get(classSpec.Name, metav1.GetOptions{
+		machineClass, err = c.controlMachineClient.OpenStackMachineClasses(c.namespace).Get(ctx, classSpec.Name, metav1.GetOptions{
 			TypeMeta:        metav1.TypeMeta{},
 			ResourceVersion: "",
 		})
 	case PacketMachineClassKind:
-		machineClass, err = c.controlMachineClient.PacketMachineClasses(c.namespace).Get(classSpec.Name, metav1.GetOptions{
+		machineClass, err = c.controlMachineClient.PacketMachineClasses(c.namespace).Get(ctx, classSpec.Name, metav1.GetOptions{
 			TypeMeta:        metav1.TypeMeta{},
 			ResourceVersion: "",
 		})
 	default:
-		return nil, fmt.Errorf("Machine class kind not found")
+		return nil, fmt.Errorf("machine class kind not found")
 	}
 
 	if err != nil {
@@ -94,7 +94,7 @@ func (c *controller) getProviderSpecificMachineClass(classSpec *v1alpha1.ClassSp
 }
 
 // createMachineClass creates the generic machineClass corresponding to the providerMachineClass
-func (c *controller) createMachineClass(providerSpecificMachineClass interface{}, classSpec *v1alpha1.ClassSpec) (machineutils.RetryPeriod, error) {
+func (c *controller) createMachineClass(ctx context.Context, providerSpecificMachineClass interface{}, classSpec *v1alpha1.ClassSpec) (machineutils.RetryPeriod, error) {
 
 	machineClass, err := c.machineClassLister.MachineClasses(c.namespace).Get(classSpec.Name)
 	if err != nil && apierrors.IsNotFound(err) {
@@ -104,7 +104,7 @@ func (c *controller) createMachineClass(providerSpecificMachineClass interface{}
 				Name: classSpec.Name,
 			},
 		}
-		machineClass, err = c.controlMachineClient.MachineClasses(c.namespace).Create(machineClass)
+		machineClass, err = c.controlMachineClient.MachineClasses(c.namespace).Create(ctx, machineClass, metav1.CreateOptions{})
 		if err != nil {
 			return machineutils.ShortRetry, err
 		}
@@ -118,7 +118,7 @@ func (c *controller) createMachineClass(providerSpecificMachineClass interface{}
 
 	// Generate the generic machineClass object from driver
 	_, err = c.driver.GenerateMachineClassForMigration(
-		context.TODO(),
+		ctx,
 		&driver.GenerateMachineClassForMigrationRequest{
 			ProviderSpecificMachineClass: providerSpecificMachineClass,
 			MachineClass:                 cloneMachineClass,
@@ -147,7 +147,7 @@ func (c *controller) createMachineClass(providerSpecificMachineClass interface{}
 	klog.V(1).Infof("Generated generic machineClass for class %s/%s", classSpec.Kind, classSpec.Name)
 
 	// MachineClass exists, and needs to be updated
-	_, err = c.controlMachineClient.MachineClasses(c.namespace).Update(cloneMachineClass)
+	_, err = c.controlMachineClient.MachineClasses(c.namespace).Update(ctx, cloneMachineClass, metav1.UpdateOptions{})
 	if err != nil {
 		return machineutils.ShortRetry, err
 	}
@@ -158,7 +158,7 @@ func (c *controller) createMachineClass(providerSpecificMachineClass interface{}
 }
 
 // updateClassReferences updates all machine objects to refer to the new MachineClass.
-func (c *controller) updateClassReferences(classSpec *v1alpha1.ClassSpec) error {
+func (c *controller) updateClassReferences(ctx context.Context, classSpec *v1alpha1.ClassSpec) error {
 
 	// Update Machines
 	machineList, err := c.machineLister.Machines(c.namespace).List(labels.Everything())
@@ -170,7 +170,7 @@ func (c *controller) updateClassReferences(classSpec *v1alpha1.ClassSpec) error 
 			clone := machine.DeepCopy()
 			clone.Spec.Class.Kind = machineutils.MachineClassKind
 
-			_, err := c.controlMachineClient.Machines(c.namespace).Update(clone)
+			_, err := c.controlMachineClient.Machines(c.namespace).Update(ctx, clone, metav1.UpdateOptions{})
 			if err != nil {
 				return err
 			}
@@ -179,7 +179,7 @@ func (c *controller) updateClassReferences(classSpec *v1alpha1.ClassSpec) error 
 	}
 
 	// Update MachineSets
-	machinesetList, err := c.controlMachineClient.MachineSets(c.namespace).List(metav1.ListOptions{})
+	machinesetList, err := c.controlMachineClient.MachineSets(c.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -189,7 +189,7 @@ func (c *controller) updateClassReferences(classSpec *v1alpha1.ClassSpec) error 
 			clone := machineset.DeepCopy()
 			clone.Spec.Template.Spec.Class.Kind = machineutils.MachineClassKind
 
-			_, err := c.controlMachineClient.MachineSets(c.namespace).Update(clone)
+			_, err := c.controlMachineClient.MachineSets(c.namespace).Update(ctx, clone, metav1.UpdateOptions{})
 			if err != nil {
 				return err
 			}
@@ -197,8 +197,8 @@ func (c *controller) updateClassReferences(classSpec *v1alpha1.ClassSpec) error 
 		}
 	}
 
-	// Update MachineSets
-	machinedeploymentList, err := c.controlMachineClient.MachineDeployments(c.namespace).List(metav1.ListOptions{})
+	// Update MachineDeployments
+	machinedeploymentList, err := c.controlMachineClient.MachineDeployments(c.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func (c *controller) updateClassReferences(classSpec *v1alpha1.ClassSpec) error 
 			clone := machinedeployment.DeepCopy()
 			clone.Spec.Template.Spec.Class.Kind = machineutils.MachineClassKind
 
-			_, err := c.controlMachineClient.MachineDeployments(c.namespace).Update(clone)
+			_, err := c.controlMachineClient.MachineDeployments(c.namespace).Update(ctx, clone, metav1.UpdateOptions{})
 			if err != nil {
 				return err
 			}
@@ -220,12 +220,12 @@ func (c *controller) updateClassReferences(classSpec *v1alpha1.ClassSpec) error 
 }
 
 // addMigratedAnnotationForProviderMachineClass adds ignore provider MachineClass annotation
-func (c *controller) addMigratedAnnotationForProviderMachineClass(classSpec *v1alpha1.ClassSpec) error {
+func (c *controller) addMigratedAnnotationForProviderMachineClass(ctx context.Context, classSpec *v1alpha1.ClassSpec) error {
 
 	switch classSpec.Kind {
 
 	case AlicloudMachineClassKind:
-		providerSpecificMachineClass, err := c.controlMachineClient.AlicloudMachineClasses(c.namespace).Get(classSpec.Name, metav1.GetOptions{
+		providerSpecificMachineClass, err := c.controlMachineClient.AlicloudMachineClasses(c.namespace).Get(ctx, classSpec.Name, metav1.GetOptions{
 			TypeMeta:        metav1.TypeMeta{},
 			ResourceVersion: "",
 		})
@@ -245,13 +245,13 @@ func (c *controller) addMigratedAnnotationForProviderMachineClass(classSpec *v1a
 			clone.Finalizers = finalizers.List()
 		}
 
-		_, err = c.controlMachineClient.AlicloudMachineClasses(c.namespace).Update(clone)
+		_, err = c.controlMachineClient.AlicloudMachineClasses(c.namespace).Update(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 
 	case AWSMachineClassKind:
-		providerSpecificMachineClass, err := c.controlMachineClient.AWSMachineClasses(c.namespace).Get(classSpec.Name, metav1.GetOptions{
+		providerSpecificMachineClass, err := c.controlMachineClient.AWSMachineClasses(c.namespace).Get(ctx, classSpec.Name, metav1.GetOptions{
 			TypeMeta:        metav1.TypeMeta{},
 			ResourceVersion: "",
 		})
@@ -271,13 +271,13 @@ func (c *controller) addMigratedAnnotationForProviderMachineClass(classSpec *v1a
 			clone.Finalizers = finalizers.List()
 		}
 
-		_, err = c.controlMachineClient.AWSMachineClasses(c.namespace).Update(clone)
+		_, err = c.controlMachineClient.AWSMachineClasses(c.namespace).Update(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 
 	case AzureMachineClassKind:
-		providerSpecificMachineClass, err := c.controlMachineClient.AzureMachineClasses(c.namespace).Get(classSpec.Name, metav1.GetOptions{
+		providerSpecificMachineClass, err := c.controlMachineClient.AzureMachineClasses(c.namespace).Get(ctx, classSpec.Name, metav1.GetOptions{
 			TypeMeta:        metav1.TypeMeta{},
 			ResourceVersion: "",
 		})
@@ -297,13 +297,13 @@ func (c *controller) addMigratedAnnotationForProviderMachineClass(classSpec *v1a
 			clone.Finalizers = finalizers.List()
 		}
 
-		_, err = c.controlMachineClient.AzureMachineClasses(c.namespace).Update(clone)
+		_, err = c.controlMachineClient.AzureMachineClasses(c.namespace).Update(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 
 	case GCPMachineClassKind:
-		providerSpecificMachineClass, err := c.controlMachineClient.GCPMachineClasses(c.namespace).Get(classSpec.Name, metav1.GetOptions{
+		providerSpecificMachineClass, err := c.controlMachineClient.GCPMachineClasses(c.namespace).Get(ctx, classSpec.Name, metav1.GetOptions{
 			TypeMeta:        metav1.TypeMeta{},
 			ResourceVersion: "",
 		})
@@ -323,13 +323,13 @@ func (c *controller) addMigratedAnnotationForProviderMachineClass(classSpec *v1a
 			clone.Finalizers = finalizers.List()
 		}
 
-		_, err = c.controlMachineClient.GCPMachineClasses(c.namespace).Update(clone)
+		_, err = c.controlMachineClient.GCPMachineClasses(c.namespace).Update(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 
 	case OpenStackMachineClassKind:
-		providerSpecificMachineClass, err := c.controlMachineClient.OpenStackMachineClasses(c.namespace).Get(classSpec.Name, metav1.GetOptions{
+		providerSpecificMachineClass, err := c.controlMachineClient.OpenStackMachineClasses(c.namespace).Get(ctx, classSpec.Name, metav1.GetOptions{
 			TypeMeta:        metav1.TypeMeta{},
 			ResourceVersion: "",
 		})
@@ -349,13 +349,13 @@ func (c *controller) addMigratedAnnotationForProviderMachineClass(classSpec *v1a
 			clone.Finalizers = finalizers.List()
 		}
 
-		_, err = c.controlMachineClient.OpenStackMachineClasses(c.namespace).Update(clone)
+		_, err = c.controlMachineClient.OpenStackMachineClasses(c.namespace).Update(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 
 	case PacketMachineClassKind:
-		providerSpecificMachineClass, err := c.controlMachineClient.PacketMachineClasses(c.namespace).Get(classSpec.Name, metav1.GetOptions{
+		providerSpecificMachineClass, err := c.controlMachineClient.PacketMachineClasses(c.namespace).Get(ctx, classSpec.Name, metav1.GetOptions{
 			TypeMeta:        metav1.TypeMeta{},
 			ResourceVersion: "",
 		})
@@ -375,7 +375,7 @@ func (c *controller) addMigratedAnnotationForProviderMachineClass(classSpec *v1a
 			clone.Finalizers = finalizers.List()
 		}
 
-		_, err = c.controlMachineClient.PacketMachineClasses(c.namespace).Update(clone)
+		_, err = c.controlMachineClient.PacketMachineClasses(c.namespace).Update(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -387,7 +387,7 @@ func (c *controller) addMigratedAnnotationForProviderMachineClass(classSpec *v1a
 }
 
 // TryMachineClassMigration tries to migrate the provider-specific machine class to the generic machine-class.
-func (c *controller) TryMachineClassMigration(classSpec *v1alpha1.ClassSpec) (*v1alpha1.MachineClass, map[string][]byte, machineutils.RetryPeriod, error) {
+func (c *controller) TryMachineClassMigration(ctx context.Context, classSpec *v1alpha1.ClassSpec) (*v1alpha1.MachineClass, map[string][]byte, machineutils.RetryPeriod, error) {
 	var (
 		err                          error
 		providerSpecificMachineClass interface{}
@@ -395,7 +395,7 @@ func (c *controller) TryMachineClassMigration(classSpec *v1alpha1.ClassSpec) (*v
 	)
 
 	// Get the provider specific (e.g. AWSMachineClass) from the classSpec
-	if providerSpecificMachineClass, err = c.getProviderSpecificMachineClass(classSpec); err != nil {
+	if providerSpecificMachineClass, err = c.getProviderSpecificMachineClass(ctx, classSpec); err != nil {
 		if err.Error() == "ProviderMachineClass not found. Found a MachineClass with matching name" {
 			klog.Info(err.Error() + ". However, will continue with this migration with class reference updates.")
 			updateMachineClassObjects = false
@@ -406,19 +406,19 @@ func (c *controller) TryMachineClassMigration(classSpec *v1alpha1.ClassSpec) (*v
 
 	if updateMachineClassObjects {
 		// Create/Apply the new MachineClass CR by copying/migrating over all the fields.
-		if retry, err := c.createMachineClass(providerSpecificMachineClass, classSpec); err != nil {
+		if retry, err := c.createMachineClass(ctx, providerSpecificMachineClass, classSpec); err != nil {
 			return nil, nil, retry, err
 		}
 	}
 
 	// Update any references to the old {Provider}MachineClass CR.
-	if err = c.updateClassReferences(classSpec); err != nil {
+	if err = c.updateClassReferences(ctx, classSpec); err != nil {
 		return nil, nil, machineutils.ShortRetry, err
 	}
 
 	if updateMachineClassObjects {
 		// Annotate the old {Provider}MachineClass CR with an migrated annotation.
-		if err = c.addMigratedAnnotationForProviderMachineClass(classSpec); err != nil {
+		if err = c.addMigratedAnnotationForProviderMachineClass(ctx, classSpec); err != nil {
 			return nil, nil, machineutils.ShortRetry, err
 		}
 	}

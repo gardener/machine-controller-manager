@@ -17,6 +17,7 @@ limitations under the License.
 package fakeclient
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -582,7 +583,7 @@ type FakeEvictions struct {
 // Evict overrides the fakepolicyv1beta1.FakeEvictions to override the
 // Policy implementation. This is because the default Policy fake implementation
 // does not propagate the eviction name.
-func (c *FakeEvictions) Evict(eviction *apipolicyv1beta1.Eviction) error {
+func (c *FakeEvictions) Evict(ctx context.Context, eviction *apipolicyv1beta1.Eviction) error {
 	action := k8stesting.GetActionImpl{}
 	action.Name = eviction.Name
 	action.Verb = "post"

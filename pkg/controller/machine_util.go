@@ -23,13 +23,14 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -62,7 +63,7 @@ type updateMachineFunc func(machine *v1alpha1.Machine) error
 
 // UpdateMachineWithRetries updates a machine with given applyUpdate function. Note that machine not found error is ignored.
 // The returned bool value can be used to tell if the machine is actually updated.
-func UpdateMachineWithRetries(machineClient v1alpha1client.MachineInterface, machineLister v1alpha1listers.MachineLister, namespace, name string, applyUpdate updateMachineFunc) (*v1alpha1.Machine, error) {
+func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.MachineInterface, machineLister v1alpha1listers.MachineLister, namespace, name string, applyUpdate updateMachineFunc) (*v1alpha1.Machine, error) {
 	var machine *v1alpha1.Machine
 
 	retryErr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
@@ -76,7 +77,7 @@ func UpdateMachineWithRetries(machineClient v1alpha1client.MachineInterface, mac
 		if applyErr := applyUpdate(machine); applyErr != nil {
 			return applyErr
 		}
-		machine, err = machineClient.Update(machine)
+		machine, err = machineClient.Update(ctx, machine, metav1.UpdateOptions{})
 		return err
 	})
 
@@ -295,7 +296,7 @@ func nodeConditionsHaveChanged(machineConditions []v1.NodeCondition, nodeConditi
 // syncMachineNodeTemplate syncs nodeTemplates between machine and corresponding node-object.
 // It ensures, that any nodeTemplate element available on Machine should be available on node-object.
 // Although there could be more elements already available on node-object which will not be touched.
-func (c *controller) syncMachineNodeTemplates(machine *v1alpha1.Machine) error {
+func (c *controller) syncMachineNodeTemplates(ctx context.Context, machine *v1alpha1.Machine) error {
 	var (
 		initializedNodeAnnotation   = false
 		lastAppliedALT              v1alpha1.NodeTemplateSpec
@@ -350,7 +351,7 @@ func (c *controller) syncMachineNodeTemplates(machine *v1alpha1.Machine) error {
 		}
 		nodeCopy.Annotations[LastAppliedALTAnnotation] = string(currentlyAppliedALTJSONByte)
 
-		_, err := c.targetCoreClient.CoreV1().Nodes().Update(nodeCopy)
+		_, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -510,7 +511,7 @@ func SyncMachineTaints(
 	return toBeUpdated
 }
 
-func (c *controller) UpdateNodeTerminationCondition(machine *v1alpha1.Machine) error {
+func (c *controller) UpdateNodeTerminationCondition(ctx context.Context, machine *v1alpha1.Machine) error {
 	if machine.Status.CurrentStatus.Phase == "" {
 		return nil
 	}
@@ -525,7 +526,7 @@ func (c *controller) UpdateNodeTerminationCondition(machine *v1alpha1.Machine) e
 	}
 
 	// check if condition already exists
-	cond, err := nodeops.GetNodeCondition(c.targetCoreClient, nodeName, NodeTerminationCondition)
+	cond, err := nodeops.GetNodeCondition(ctx, c.targetCoreClient, nodeName, NodeTerminationCondition)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -541,7 +542,7 @@ func (c *controller) UpdateNodeTerminationCondition(machine *v1alpha1.Machine) e
 		setTerminationReasonByPhase(machine.Status.CurrentStatus.Phase, &terminationCondition)
 	}
 
-	err = nodeops.AddOrUpdateConditionsOnNode(c.targetCoreClient, nodeName, terminationCondition)
+	err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, nodeName, terminationCondition)
 	if apierrors.IsNotFound(err) {
 		return nil
 	}

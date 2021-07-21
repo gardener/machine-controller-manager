@@ -1,6 +1,8 @@
 package helpers
 
 import (
+	"context"
+
 	mcmClientset "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned"
 	v1 "k8s.io/api/core/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -73,7 +75,7 @@ func (c *Cluster) IsSeed(target *Cluster) bool {
 			shoot--landscape--project-shoot   46h
 	*/
 	targetClusterName, _ := target.ClusterName()
-	nameSpaces, _ := c.Clientset.CoreV1().Namespaces().List(metav1.ListOptions{})
+	nameSpaces, _ := c.Clientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	for _, namespace := range nameSpaces.Items {
 		if namespace.Name == targetClusterName {
 			return true
@@ -97,7 +99,7 @@ func (c *Cluster) ClusterName() (string, error) {
 	return clusterName, err
 }
 
-// getSecretData combines secrets
+// GetSecretData combines secrets
 func (c *Cluster) GetSecretData(machineClassName string, secretRefs ...*v1.SecretReference) (map[string][]byte, error) {
 	var secretData map[string][]byte
 
@@ -135,7 +137,7 @@ func (c *Cluster) getSecret(ref *v1.SecretReference, MachineClassName string) (*
 	if ref == nil {
 		return nil, nil
 	}
-	secretRef, err := c.Clientset.CoreV1().Secrets(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
+	secretRef, err := c.Clientset.CoreV1().Secrets(ref.Namespace).Get(context.Background(), ref.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

@@ -23,6 +23,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -38,7 +39,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/integer"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -316,7 +317,7 @@ func (c *controller) enqueueMachineSetAfter(obj interface{}, after time.Duration
 // manageReplicas checks and updates replicas for the given MachineSet.
 // Does NOT modify <filteredMachines>.
 // It will requeue the machine set in case of an error while creating/deleting machines.
-func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
+func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
 	machineSetKey, err := KeyFunc(machineSet)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Couldn't get key for %v %#v: %v", machineSet.Kind, machineSet, err))
@@ -336,7 +337,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 	if len(staleMachines) >= 1 {
 		klog.V(2).Infof("Deleting stale machines")
 	}
-	c.terminateMachines(staleMachines, machineSet)
+	c.terminateMachines(ctx, staleMachines, machineSet)
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
 	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
@@ -377,7 +378,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 				BlockOwnerDeletion: boolPtr(true),
 				Controller:         boolPtr(true),
 			}
-			err := c.machineControl.CreateMachinesWithControllerRef(machineSet.Namespace, &machineSet.Spec.Template, machineSet, controllerRef)
+			err := c.machineControl.CreateMachinesWithControllerRef(ctx, machineSet.Namespace, &machineSet.Spec.Template, machineSet, controllerRef)
 			if err != nil && apierrors.IsTimeout(err) {
 				// Machine is created but its initialization has timed out.
 				// If the initialization is successful eventually, the
@@ -418,7 +419,7 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 		// expired even if other machines are deleted.
 		c.expectations.ExpectDeletions(machineSetKey, getMachineKeys(machinesToDelete))
 
-		c.terminateMachines(machinesToDelete, machineSet)
+		c.terminateMachines(ctx, machinesToDelete, machineSet)
 	}
 
 	return nil
@@ -428,6 +429,9 @@ func (c *controller) manageReplicas(allMachines []*v1alpha1.Machine, machineSet 
 // meaning it did not expect to see any more of its machines created or deleted. This function is not meant to be
 // invoked concurrently with the same key.
 func (c *controller) reconcileClusterMachineSet(key string) error {
+
+	ctx := context.Background()
+
 	startTime := time.Now()
 	klog.V(4).Infof("Start syncing machine set %q", key)
 	defer func() {
@@ -440,7 +444,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	}
 
 	// Get the latest version of the machineSet so that we can avoid conflicts
-	machineSet, err := c.controlMachineClient.MachineSets(c.namespace).Get(name, metav1.GetOptions{})
+	machineSet, err := c.controlMachineClient.MachineSets(c.namespace).Get(ctx, name, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
 		klog.V(4).Infof("%v has been deleted", key)
 		c.expectations.DeleteExpectations(key)
@@ -464,7 +468,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 
 	if machineSet.DeletionTimestamp == nil {
 		// Manipulate finalizers
-		c.addMachineSetFinalizers(machineSet)
+		c.addMachineSetFinalizers(ctx, machineSet)
 	}
 
 	selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
@@ -483,24 +487,24 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 
 	// NOTE: filteredMachines are pointing to objects from cache - if you need to
 	// modify them, you need to copy it first.
-	filteredMachines, err = c.claimMachines(machineSet, selector, filteredMachines)
+	filteredMachines, err = c.claimMachines(ctx, machineSet, selector, filteredMachines)
 	if err != nil {
 		return err
 	}
 
 	// syncMachinesNodeTemplates syncs the nodeTemplate with claimedMachines if any of the machine's nodeTemplate has changed.
-	err = c.syncMachinesNodeTemplates(filteredMachines, machineSet)
+	err = c.syncMachinesNodeTemplates(ctx, filteredMachines, machineSet)
 	if err != nil {
 		return err
 	}
 
 	// syncMachinesConfig syncs the config with claimedMachines if any of the machine's config has changed.
-	err = c.syncMachinesConfig(filteredMachines, machineSet)
+	err = c.syncMachinesConfig(ctx, filteredMachines, machineSet)
 	if err != nil {
 		return err
 	}
 	// syncMachinesClassKind syncs the classKind with claimedMachines if any of the machine's classKind has changed.
-	err = c.syncMachinesClassKind(filteredMachines, machineSet)
+	err = c.syncMachinesClassKind(ctx, filteredMachines, machineSet)
 	if err != nil {
 		return err
 	}
@@ -512,7 +516,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	if machineSet.DeletionTimestamp == nil {
 		// manageReplicas is the core machineSet method where scale up/down occurs
 		// It is not called when deletion timestamp is set
-		manageReplicasErr = c.manageReplicas(filteredMachines, machineSet)
+		manageReplicasErr = c.manageReplicas(ctx, filteredMachines, machineSet)
 
 	} else if machineSet.DeletionTimestamp != nil {
 		// When machineSet if triggered for deletion
@@ -520,11 +524,11 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		if len(filteredMachines) == 0 {
 			// If machines backing a machineSet are zero,
 			// remove the machineSetFinalizer
-			c.deleteMachineSetFinalizers(machineSet)
+			c.deleteMachineSetFinalizers(ctx, machineSet)
 		} else if finalizers := sets.NewString(machineSet.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 			// Trigger deletion of machines backing the machineSet
 			klog.V(4).Infof("Deleting all child machines as MachineSet %s has set deletionTimestamp", machineSet.Name)
-			c.terminateMachines(filteredMachines, machineSet)
+			c.terminateMachines(ctx, filteredMachines, machineSet)
 		}
 	}
 
@@ -532,7 +536,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	newStatus := calculateMachineSetStatus(machineSet, filteredMachines, manageReplicasErr)
 
 	// Always updates status as machines come up or die.
-	updatedMachineSet, err := updateMachineSetStatus(c.controlMachineClient, machineSet, newStatus)
+	updatedMachineSet, err := updateMachineSetStatus(ctx, c.controlMachineClient, machineSet, newStatus)
 	if err != nil {
 		// Multiple things could lead to this update failing. Requeuing the machine set ensures
 		// Returning an error causes a requeue without forcing a hotloop
@@ -548,11 +552,11 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	return manageReplicasErr
 }
 
-func (c *controller) claimMachines(machineSet *v1alpha1.MachineSet, selector labels.Selector, filteredMachines []*v1alpha1.Machine) ([]*v1alpha1.Machine, error) {
+func (c *controller) claimMachines(ctx context.Context, machineSet *v1alpha1.MachineSet, selector labels.Selector, filteredMachines []*v1alpha1.Machine) ([]*v1alpha1.Machine, error) {
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing Machines (see #42639).
 	canAdoptFunc := RecheckDeletionTimestamp(func() (metav1.Object, error) {
-		fresh, err := c.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
+		fresh, err := c.controlMachineClient.MachineSets(machineSet.Namespace).Get(ctx, machineSet.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -562,7 +566,7 @@ func (c *controller) claimMachines(machineSet *v1alpha1.MachineSet, selector lab
 		return fresh, nil
 	})
 	cm := NewMachineControllerRefManager(c.machineControl, machineSet, selector, controllerKindMachineSet, canAdoptFunc)
-	return cm.ClaimMachines(filteredMachines)
+	return cm.ClaimMachines(ctx, filteredMachines)
 }
 
 // slowStartBatch tries to call the provided function a total of 'count' times,
@@ -624,7 +628,7 @@ func getMachineKeys(machines []*v1alpha1.Machine) []string {
 	return machineKeys
 }
 
-func (c *controller) prepareMachineForDeletion(targetMachine *v1alpha1.Machine, machineSet *v1alpha1.MachineSet, wg *sync.WaitGroup, errCh chan<- error) {
+func (c *controller) prepareMachineForDeletion(ctx context.Context, targetMachine *v1alpha1.Machine, machineSet *v1alpha1.MachineSet, wg *sync.WaitGroup, errCh chan<- error) {
 	defer wg.Done()
 
 	// Machine is already marked as 'to-be-deleted'
@@ -638,7 +642,7 @@ func (c *controller) prepareMachineForDeletion(targetMachine *v1alpha1.Machine, 
 		return
 	}
 
-	if err := c.machineControl.DeleteMachine(targetMachine.Namespace, targetMachine.Name, machineSet); err != nil {
+	if err := c.machineControl.DeleteMachine(ctx, targetMachine.Namespace, targetMachine.Name, machineSet); err != nil {
 		// Decrement the expected number of deletes because the informer won't observe this deletion
 		machineKey := MachineKey(targetMachine)
 		klog.V(2).Infof("Failed to delete %v, decrementing expectations for %v %s/%s", machineKey, machineSet.Kind, machineSet.Namespace, machineSet.Name)
@@ -658,11 +662,11 @@ func (c *controller) prepareMachineForDeletion(targetMachine *v1alpha1.Machine, 
 		TimeoutActive:  false,
 		LastUpdateTime: metav1.Now(),
 	}
-	c.updateMachineStatus(targetMachine, lastOperation, currentStatus)
+	c.updateMachineStatus(ctx, targetMachine, lastOperation, currentStatus)
 	klog.V(2).Infof("Delete machine from machineset %q", targetMachine.Name)
 }
 
-func (c *controller) terminateMachines(inactiveMachines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
+func (c *controller) terminateMachines(ctx context.Context, inactiveMachines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
 	var (
 		wg                    sync.WaitGroup
 		numOfInactiveMachines = len(inactiveMachines)
@@ -672,7 +676,7 @@ func (c *controller) terminateMachines(inactiveMachines []*v1alpha1.Machine, mac
 
 	wg.Add(numOfInactiveMachines)
 	for _, machine := range inactiveMachines {
-		go c.prepareMachineForDeletion(machine, machineSet, &wg, errCh)
+		go c.prepareMachineForDeletion(ctx, machine, machineSet, &wg, errCh)
 	}
 	wg.Wait()
 
@@ -693,37 +697,37 @@ func (c *controller) terminateMachines(inactiveMachines []*v1alpha1.Machine, mac
 	Manipulate Finalizers
 */
 
-func (c *controller) addMachineSetFinalizers(machineSet *v1alpha1.MachineSet) {
+func (c *controller) addMachineSetFinalizers(ctx context.Context, machineSet *v1alpha1.MachineSet) {
 	clone := machineSet.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
 		finalizers.Insert(DeleteFinalizerName)
-		c.updateMachineSetFinalizers(clone, finalizers.List())
+		c.updateMachineSetFinalizers(ctx, clone, finalizers.List())
 	}
 }
 
-func (c *controller) deleteMachineSetFinalizers(machineSet *v1alpha1.MachineSet) {
+func (c *controller) deleteMachineSetFinalizers(ctx context.Context, machineSet *v1alpha1.MachineSet) {
 	clone := machineSet.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		finalizers.Delete(DeleteFinalizerName)
-		c.updateMachineSetFinalizers(clone, finalizers.List())
+		c.updateMachineSetFinalizers(ctx, clone, finalizers.List())
 	}
 }
 
-func (c *controller) updateMachineSetFinalizers(machineSet *v1alpha1.MachineSet, finalizers []string) {
+func (c *controller) updateMachineSetFinalizers(ctx context.Context, machineSet *v1alpha1.MachineSet, finalizers []string) {
 	// Get the latest version of the machineSet so that we can avoid conflicts
-	machineSet, err := c.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
+	machineSet, err := c.controlMachineClient.MachineSets(machineSet.Namespace).Get(ctx, machineSet.Name, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
 
 	clone := machineSet.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.controlMachineClient.MachineSets(clone.Namespace).Update(clone)
+	_, err = c.controlMachineClient.MachineSets(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
 	if err != nil {
 		// Keep retrying until update goes through
 		klog.Warning("Updated failed, retrying")
-		c.updateMachineSetFinalizers(machineSet, finalizers)
+		c.updateMachineSetFinalizers(ctx, machineSet, finalizers)
 	}
 }
