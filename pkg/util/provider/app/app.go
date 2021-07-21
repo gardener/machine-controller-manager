@@ -44,7 +44,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/configz"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/app/options"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
-	"github.com/prometheus/client_golang/prometheus"
+	prometheus "github.com/prometheus/client_golang/prometheus/promhttp"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -58,7 +58,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -306,7 +306,7 @@ func getAvailableResources(clientBuilder coreclientbuilder.ClientBuilder) (map[s
 		}
 
 		healthStatus := 0
-		resp := client.Discovery().RESTClient().Get().AbsPath("/healthz").Do().StatusCode(&healthStatus)
+		resp := client.Discovery().RESTClient().Get().AbsPath("/healthz").Do(context.Background()).StatusCode(&healthStatus)
 		if healthStatus != http.StatusOK {
 			klog.Errorf("Server isn't healthy yet.  Waiting a little while.")
 			return false, nil

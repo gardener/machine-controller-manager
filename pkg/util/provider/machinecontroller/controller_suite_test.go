@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -26,6 +27,8 @@ import (
 	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
 	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/cache"
+
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/options"
@@ -39,10 +42,9 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	coreinformers "k8s.io/client-go/informers"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 )
 
@@ -591,18 +593,18 @@ var _ = Describe("#createController", func() {
 
 		Expect(c).NotTo(BeNil())
 
-		allMachineWatch, err := c.controlMachineClient.Machines(objMeta.Namespace).Watch(metav1.ListOptions{})
+		allMachineWatch, err := c.controlMachineClient.Machines(objMeta.Namespace).Watch(context.TODO(), metav1.ListOptions{})
 		Expect(err).NotTo(HaveOccurred())
 		defer allMachineWatch.Stop()
 
-		machine0Watch, err := c.controlMachineClient.Machines(objMeta.Namespace).Watch(metav1.ListOptions{
+		machine0Watch, err := c.controlMachineClient.Machines(objMeta.Namespace).Watch(context.TODO(), metav1.ListOptions{
 			FieldSelector: fmt.Sprintf("metadata.name=%s", machine0.Name),
 		})
 		Expect(err).NotTo(HaveOccurred())
 		defer machine0Watch.Stop()
 
 		go func() {
-			_, err := c.controlMachineClient.Machines(objMeta.Namespace).Create(machine0)
+			_, err := c.controlMachineClient.Machines(objMeta.Namespace).Create(context.TODO(), machine0, metav1.CreateOptions{})
 			if err != nil {
 				fmt.Printf("Error creating machine: %s", err)
 			}

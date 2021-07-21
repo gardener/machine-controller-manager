@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -28,12 +29,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // reconcileClusterSecretKey reconciles an secret due to controller resync
 // or an event on the secret
 func (c *controller) reconcileClusterSecretKey(key string) error {
+	ctx := context.Background()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -51,12 +53,12 @@ func (c *controller) reconcileClusterSecretKey(key string) error {
 		return err
 	}
 
-	return c.reconcileClusterSecret(secret)
+	return c.reconcileClusterSecret(ctx, secret)
 }
 
 // reconcileClusterSecret manipulates finalizers based on
 // machineClass references
-func (c *controller) reconcileClusterSecret(secret *corev1.Secret) error {
+func (c *controller) reconcileClusterSecret(ctx context.Context, secret *corev1.Secret) error {
 	startTime := time.Now()
 
 	klog.V(5).Infof("Start syncing %q", secret.Name)
@@ -73,7 +75,7 @@ func (c *controller) reconcileClusterSecret(secret *corev1.Secret) error {
 
 	if exists {
 		// If one or more machineClasses refer this, add finalizer (if it doesn't exist)
-		err = c.addSecretFinalizers(secret)
+		err = c.addSecretFinalizers(ctx, secret)
 		if err != nil {
 			return err
 		}
@@ -82,7 +84,7 @@ func (c *controller) reconcileClusterSecret(secret *corev1.Secret) error {
 			// Finalizer doesn't exist, simply return nil
 			return nil
 		}
-		err = c.deleteSecretFinalizers(secret)
+		err = c.deleteSecretFinalizers(ctx, secret)
 		if err != nil {
 			return err
 		}
@@ -96,36 +98,36 @@ func (c *controller) reconcileClusterSecret(secret *corev1.Secret) error {
 	Manipulate Finalizers
 */
 
-func (c *controller) addSecretFinalizers(secret *corev1.Secret) error {
+func (c *controller) addSecretFinalizers(ctx context.Context, secret *corev1.Secret) error {
 	clone := secret.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(MCFinalizerName) {
 		finalizers.Insert(MCFinalizerName)
-		return c.updateSecretFinalizers(clone, finalizers.List())
+		return c.updateSecretFinalizers(ctx, clone, finalizers.List())
 	}
 	return nil
 }
 
-func (c *controller) deleteSecretFinalizers(secret *corev1.Secret) error {
+func (c *controller) deleteSecretFinalizers(ctx context.Context, secret *corev1.Secret) error {
 	clone := secret.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(MCFinalizerName) {
 		finalizers.Delete(MCFinalizerName)
-		return c.updateSecretFinalizers(clone, finalizers.List())
+		return c.updateSecretFinalizers(ctx, clone, finalizers.List())
 	}
 	return nil
 }
 
-func (c *controller) updateSecretFinalizers(secret *corev1.Secret, finalizers []string) error {
+func (c *controller) updateSecretFinalizers(ctx context.Context, secret *corev1.Secret, finalizers []string) error {
 	// Get the latest version of the secret so that we can avoid conflicts
-	secret, err := c.controlCoreClient.CoreV1().Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
+	secret, err := c.controlCoreClient.CoreV1().Secrets(secret.Namespace).Get(ctx, secret.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
 	clone := secret.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.controlCoreClient.CoreV1().Secrets(clone.Namespace).Update(clone)
+	_, err = c.controlCoreClient.CoreV1().Secrets(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
 
 	if err != nil {
 		klog.Warning("Updating secret finalizers failed, retrying", secret.Name, err)

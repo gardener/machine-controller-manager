@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -26,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -131,6 +132,7 @@ func (c *controller) packetMachineClassDelete(obj interface{}) {
 // reconcileClusterPacketMachineClassKey reconciles a PacketMachineClass due to controller resync
 // or an event on the packetMachineClass.
 func (c *controller) reconcileClusterPacketMachineClassKey(key string) error {
+	ctx := context.Background()
 	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -146,7 +148,7 @@ func (c *controller) reconcileClusterPacketMachineClassKey(key string) error {
 		return err
 	}
 
-	err = c.reconcileClusterPacketMachineClass(class)
+	err = c.reconcileClusterPacketMachineClass(ctx, class)
 	if err != nil {
 		c.enqueuePacketMachineClassAfter(class, 10*time.Second)
 	} else {
@@ -158,7 +160,7 @@ func (c *controller) reconcileClusterPacketMachineClassKey(key string) error {
 	return nil
 }
 
-func (c *controller) reconcileClusterPacketMachineClass(class *v1alpha1.PacketMachineClass) error {
+func (c *controller) reconcileClusterPacketMachineClass(ctx context.Context, class *v1alpha1.PacketMachineClass) error {
 	klog.V(4).Info("Start Reconciling Packetmachineclass: ", class.Name)
 	defer klog.V(4).Info("Stop Reconciling Packetmachineclass: ", class.Name)
 
@@ -176,7 +178,7 @@ func (c *controller) reconcileClusterPacketMachineClass(class *v1alpha1.PacketMa
 
 	// Add finalizer to avoid losing machineClass object
 	if class.DeletionTimestamp == nil {
-		err = c.addPacketMachineClassFinalizers(class)
+		err = c.addPacketMachineClassFinalizers(ctx, class)
 		if err != nil {
 			return err
 		}
@@ -194,7 +196,7 @@ func (c *controller) reconcileClusterPacketMachineClass(class *v1alpha1.PacketMa
 		if c.deleteMigratedMachineClass && annotationPresent && len(machines) == 0 {
 			// If controller has deleteMigratedMachineClass flag set
 			// and the migratedMachineClass annotation is set
-			err = c.controlMachineClient.PacketMachineClasses(class.Namespace).Delete(class.Name, &metav1.DeleteOptions{})
+			err = c.controlMachineClient.PacketMachineClasses(class.Namespace).Delete(ctx, class.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -215,7 +217,7 @@ func (c *controller) reconcileClusterPacketMachineClass(class *v1alpha1.PacketMa
 		return fmt.Errorf("Retry as machine objects are still referring the machineclass")
 	}
 
-	return c.deletePacketMachineClassFinalizers(class)
+	return c.deletePacketMachineClassFinalizers(ctx, class)
 }
 
 /*
@@ -223,36 +225,36 @@ func (c *controller) reconcileClusterPacketMachineClass(class *v1alpha1.PacketMa
 	Manipulate Finalizers
 */
 
-func (c *controller) addPacketMachineClassFinalizers(class *v1alpha1.PacketMachineClass) error {
+func (c *controller) addPacketMachineClassFinalizers(ctx context.Context, class *v1alpha1.PacketMachineClass) error {
 	clone := class.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
 		finalizers.Insert(DeleteFinalizerName)
-		return c.updatePacketMachineClassFinalizers(clone, finalizers.List())
+		return c.updatePacketMachineClassFinalizers(ctx, clone, finalizers.List())
 	}
 	return nil
 }
 
-func (c *controller) deletePacketMachineClassFinalizers(class *v1alpha1.PacketMachineClass) error {
+func (c *controller) deletePacketMachineClassFinalizers(ctx context.Context, class *v1alpha1.PacketMachineClass) error {
 	clone := class.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		finalizers.Delete(DeleteFinalizerName)
-		return c.updatePacketMachineClassFinalizers(clone, finalizers.List())
+		return c.updatePacketMachineClassFinalizers(ctx, clone, finalizers.List())
 	}
 	return nil
 }
 
-func (c *controller) updatePacketMachineClassFinalizers(class *v1alpha1.PacketMachineClass, finalizers []string) error {
+func (c *controller) updatePacketMachineClassFinalizers(ctx context.Context, class *v1alpha1.PacketMachineClass, finalizers []string) error {
 	// Get the latest version of the class so that we can avoid conflicts
-	class, err := c.controlMachineClient.PacketMachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
+	class, err := c.controlMachineClient.PacketMachineClasses(class.Namespace).Get(ctx, class.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.controlMachineClient.PacketMachineClasses(class.Namespace).Update(clone)
+	_, err = c.controlMachineClient.PacketMachineClasses(class.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Warning("Updating PacketMachineClass failed, retrying. ", class.Name, err)
 		return err

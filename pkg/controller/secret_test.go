@@ -16,6 +16,8 @@ limitations under the License.
 package controller
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -54,10 +56,10 @@ var _ = Describe("secret", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			c.addSecretFinalizers(testSecret)
+			c.addSecretFinalizers(context.TODO(), testSecret)
 
 			waitForCacheSync(stop, c)
-			expectedSecret, _ := c.controlCoreClient.CoreV1().Secrets(testSecret.Namespace).Get(testSecret.Name, metav1.GetOptions{})
+			expectedSecret, _ := c.controlCoreClient.CoreV1().Secrets(testSecret.Namespace).Get(context.TODO(), testSecret.Name, metav1.GetOptions{})
 
 			Expect(expectedSecret.Finalizers).To(HaveLen(1))
 			Expect(expectedSecret.Finalizers).To(ContainElement(DeleteFinalizerName))
@@ -91,16 +93,16 @@ var _ = Describe("secret", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			testSecret, _ := c.controlCoreClient.CoreV1().Secrets(testSecret.Namespace).Get(testSecret.Name, metav1.GetOptions{})
+			testSecret, _ := c.controlCoreClient.CoreV1().Secrets(testSecret.Namespace).Get(context.TODO(), testSecret.Name, metav1.GetOptions{})
 
 			testSecret.Finalizers = finalizers
 			Expect(testSecret.Finalizers).Should(Not(BeEmpty()))
 
-			c.deleteSecretFinalizers(testSecret)
+			c.deleteSecretFinalizers(context.TODO(), testSecret)
 
 			waitForCacheSync(stop, c)
 
-			expectedSecret, _ := c.controlCoreClient.CoreV1().Secrets(testSecret.Namespace).Get(testSecret.Name, metav1.GetOptions{})
+			expectedSecret, _ := c.controlCoreClient.CoreV1().Secrets(testSecret.Namespace).Get(context.TODO(), testSecret.Name, metav1.GetOptions{})
 
 			Expect(expectedSecret.Finalizers).Should(HaveLen(0))
 		})
@@ -134,11 +136,11 @@ var _ = Describe("secret", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			c.updateSecretFinalizers(testSecret, finalizers)
+			c.updateSecretFinalizers(context.TODO(), testSecret, finalizers)
 
 			waitForCacheSync(stop, c)
 
-			testSecret, _ := c.controlCoreClient.CoreV1().Secrets(testSecret.Namespace).Get(testSecret.Name, metav1.GetOptions{})
+			testSecret, _ := c.controlCoreClient.CoreV1().Secrets(testSecret.Namespace).Get(context.TODO(), testSecret.Name, metav1.GetOptions{})
 
 			Expect(testSecret.Finalizers).To(Equal(finalizers))
 		})

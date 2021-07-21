@@ -23,6 +23,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"time"
@@ -33,7 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/integer"
 )
 
@@ -43,7 +44,7 @@ var (
 )
 
 // rolloutRolling implements the logic for rolling a new machine set.
-func (dc *controller) rolloutRolling(d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
+func (dc *controller) rolloutRolling(ctx context.Context, d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
 
 	clusterAutoscalerScaleDownAnnotations := make(map[string]string)
 	clusterAutoscalerScaleDownAnnotations[ClusterAutoscalerScaleDownDisabledAnnotationKey] = ClusterAutoscalerScaleDownDisabledAnnotationValue
@@ -51,13 +52,14 @@ func (dc *controller) rolloutRolling(d *v1alpha1.MachineDeployment, isList []*v1
 	// We do this to avoid accidentally deleting the user provided annotations.
 	clusterAutoscalerScaleDownAnnotations[ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
 
-	newIS, oldISs, err := dc.getAllMachineSetsAndSyncRevision(d, isList, machineMap, true)
+	newIS, oldISs, err := dc.getAllMachineSetsAndSyncRevision(ctx, d, isList, machineMap, true)
 	if err != nil {
 		return err
 	}
 	allISs := append(oldISs, newIS)
 
 	err = dc.taintNodesBackingMachineSets(
+		ctx,
 		oldISs, &v1.Taint{
 			Key:    PreferNoScheduleKey,
 			Value:  "True",
@@ -71,7 +73,7 @@ func (dc *controller) rolloutRolling(d *v1alpha1.MachineDeployment, isList []*v1
 		// status-rollout steps.
 		if len(oldISs) > 0 && !dc.machineSetsScaledToZero(oldISs) {
 			// Annotate all the nodes under this machine-deployment, as roll-out is on-going.
-			err := dc.annotateNodesBackingMachineSets(allISs, clusterAutoscalerScaleDownAnnotations)
+			err := dc.annotateNodesBackingMachineSets(ctx, allISs, clusterAutoscalerScaleDownAnnotations)
 			if err != nil {
 				klog.Errorf("Failed to add %s on all nodes. Error: %s", clusterAutoscalerScaleDownAnnotations, err)
 				return err
@@ -84,62 +86,62 @@ func (dc *controller) rolloutRolling(d *v1alpha1.MachineDeployment, isList []*v1
 	}
 
 	// Scale up, if we can.
-	scaledUp, err := dc.reconcileNewMachineSet(allISs, newIS, d)
+	scaledUp, err := dc.reconcileNewMachineSet(ctx, allISs, newIS, d)
 	if err != nil {
 		return err
 	}
 	if scaledUp {
 		// Update DeploymentStatus
-		return dc.syncRolloutStatus(allISs, newIS, d)
+		return dc.syncRolloutStatus(ctx, allISs, newIS, d)
 	}
 
 	// Scale down, if we can.
-	scaledDown, err := dc.reconcileOldMachineSets(allISs, FilterActiveMachineSets(oldISs), newIS, d)
+	scaledDown, err := dc.reconcileOldMachineSets(ctx, allISs, FilterActiveMachineSets(oldISs), newIS, d)
 	if err != nil {
 		return err
 	}
 	if scaledDown {
 		// Update DeploymentStatus
-		return dc.syncRolloutStatus(allISs, newIS, d)
+		return dc.syncRolloutStatus(ctx, allISs, newIS, d)
 	}
 
 	if MachineDeploymentComplete(d, &d.Status) {
 		if dc.autoscalerScaleDownAnnotationDuringRollout {
 			// Check if any of the machine under this MachineDeployment contains the by-mcm annotation, and
 			// remove the original autoscaler annotation only after.
-			err := dc.removeAutoscalerAnnotationsIfRequired(allISs, clusterAutoscalerScaleDownAnnotations)
+			err := dc.removeAutoscalerAnnotationsIfRequired(ctx, allISs, clusterAutoscalerScaleDownAnnotations)
 			if err != nil {
 				return err
 			}
 		}
-		if err := dc.cleanupMachineDeployment(oldISs, d); err != nil {
+		if err := dc.cleanupMachineDeployment(ctx, oldISs, d); err != nil {
 			return err
 		}
 	}
 
 	// Sync deployment status
-	return dc.syncRolloutStatus(allISs, newIS, d)
+	return dc.syncRolloutStatus(ctx, allISs, newIS, d)
 }
 
-func (dc *controller) reconcileNewMachineSet(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
+func (dc *controller) reconcileNewMachineSet(ctx context.Context, allISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
 	if (newIS.Spec.Replicas) == (deployment.Spec.Replicas) {
 		// Scaling not required.
 		return false, nil
 	}
 	if (newIS.Spec.Replicas) > (deployment.Spec.Replicas) {
 		// Scale down.
-		scaled, _, err := dc.scaleMachineSetAndRecordEvent(newIS, (deployment.Spec.Replicas), deployment)
+		scaled, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newIS, (deployment.Spec.Replicas), deployment)
 		return scaled, err
 	}
 	newReplicasCount, err := NewISNewReplicas(deployment, allISs, newIS)
 	if err != nil {
 		return false, err
 	}
-	scaled, _, err := dc.scaleMachineSetAndRecordEvent(newIS, newReplicasCount, deployment)
+	scaled, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newIS, newReplicasCount, deployment)
 	return scaled, err
 }
 
-func (dc *controller) reconcileOldMachineSets(allISs []*v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
+func (dc *controller) reconcileOldMachineSets(ctx context.Context, allISs []*v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
 	oldMachinesCount := GetReplicaCountForMachineSets(oldISs)
 	if oldMachinesCount == 0 {
 		// Can't scale down further
@@ -189,7 +191,7 @@ func (dc *controller) reconcileOldMachineSets(allISs []*v1alpha1.MachineSet, old
 
 	// Clean up unhealthy replicas first, otherwise unhealthy replicas will block deployment
 	// and cause timeout. See https://github.com/kubernetes/kubernetes/issues/16737
-	oldISs, cleanupCount, err := dc.cleanupUnhealthyReplicas(oldISs, deployment, maxScaledDown)
+	oldISs, cleanupCount, err := dc.cleanupUnhealthyReplicas(ctx, oldISs, deployment, maxScaledDown)
 	if err != nil {
 		return false, nil
 	}
@@ -197,7 +199,7 @@ func (dc *controller) reconcileOldMachineSets(allISs []*v1alpha1.MachineSet, old
 
 	// Scale down old machine sets, need check maxUnavailable to ensure we can scale down
 	allISs = append(oldISs, newIS)
-	scaledDownCount, err := dc.scaleDownOldMachineSetsForRollingUpdate(allISs, oldISs, deployment)
+	scaledDownCount, err := dc.scaleDownOldMachineSetsForRollingUpdate(ctx, allISs, oldISs, deployment)
 	if err != nil {
 		return false, nil
 	}
@@ -208,7 +210,7 @@ func (dc *controller) reconcileOldMachineSets(allISs []*v1alpha1.MachineSet, old
 }
 
 // cleanupUnhealthyReplicas will scale down old machine sets with unhealthy replicas, so that all unhealthy replicas will be deleted.
-func (dc *controller) cleanupUnhealthyReplicas(oldISs []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment, maxCleanupCount int32) ([]*v1alpha1.MachineSet, int32, error) {
+func (dc *controller) cleanupUnhealthyReplicas(ctx context.Context, oldISs []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment, maxCleanupCount int32) ([]*v1alpha1.MachineSet, int32, error) {
 	sort.Sort(MachineSetsByCreationTimestamp(oldISs))
 	// Safely scale down all old machine sets with unhealthy replicas. machine set will sort the machines in the order
 	// such that not-ready < ready, unscheduled < scheduled, and pending < running. This ensures that unhealthy replicas will
@@ -233,7 +235,7 @@ func (dc *controller) cleanupUnhealthyReplicas(oldISs []*v1alpha1.MachineSet, de
 		if newReplicasCount > (targetIS.Spec.Replicas) {
 			return nil, 0, fmt.Errorf("when cleaning up unhealthy replicas, got invalid request to scale down %s %d -> %d", targetIS.Name, (targetIS.Spec.Replicas), newReplicasCount)
 		}
-		_, updatedOldIS, err := dc.scaleMachineSetAndRecordEvent(targetIS, newReplicasCount, deployment)
+		_, updatedOldIS, err := dc.scaleMachineSetAndRecordEvent(ctx, targetIS, newReplicasCount, deployment)
 		if err != nil {
 			return nil, totalScaledDown, err
 		}
@@ -245,7 +247,7 @@ func (dc *controller) cleanupUnhealthyReplicas(oldISs []*v1alpha1.MachineSet, de
 
 // scaleDownOldReplicaSetsForRollingUpdate scales down old machine sets when deployment strategy is "RollingUpdate".
 // Need check maxUnavailable to ensure availability
-func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(allISs []*v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (int32, error) {
+func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(ctx context.Context, allISs []*v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (int32, error) {
 	maxUnavailable := MaxUnavailable(*deployment)
 
 	// Check if we can scale down.
@@ -277,7 +279,7 @@ func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(allISs []*v1alpha1
 		if newReplicasCount > (targetIS.Spec.Replicas) {
 			return 0, fmt.Errorf("when scaling down old IS, got invalid request to scale down %s %d -> %d", targetIS.Name, (targetIS.Spec.Replicas), newReplicasCount)
 		}
-		_, _, err := dc.scaleMachineSetAndRecordEvent(targetIS, newReplicasCount, deployment)
+		_, _, err := dc.scaleMachineSetAndRecordEvent(ctx, targetIS, newReplicasCount, deployment)
 		if err != nil {
 			return totalScaledDown, err
 		}
@@ -289,7 +291,7 @@ func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(allISs []*v1alpha1
 }
 
 // taintNodesBackingMachineSets taints all nodes backing the machineSets
-func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.MachineSet, taint *v1.Taint) error {
+func (dc *controller) taintNodesBackingMachineSets(ctx context.Context, MachineSets []*v1alpha1.MachineSet, taint *v1.Taint) error {
 
 	for _, machineSet := range MachineSets {
 
@@ -313,7 +315,7 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 		}
 		// NOTE: filteredMachines are pointing to objects from cache - if you need to
 		// modify them, you need to copy it first.
-		filteredMachines, err = dc.claimMachines(machineSet, selector, filteredMachines)
+		filteredMachines, err = dc.claimMachines(ctx, machineSet, selector, filteredMachines)
 		if err != nil {
 			return err
 		}
@@ -323,6 +325,7 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 		for _, machine := range filteredMachines {
 			if machine.Status.Node != "" {
 				err = nodeops.AddOrUpdateTaintOnNode(
+					ctx,
 					dc.targetCoreClient,
 					machine.Status.Node,
 					taint,
@@ -335,7 +338,7 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 
 		retryDeadline := time.Now().Add(maxRetryDeadline)
 		for {
-			machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(machineSet.Name, metav1.GetOptions{})
+			machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(ctx, machineSet.Name, metav1.GetOptions{})
 			if err != nil && time.Now().Before(retryDeadline) {
 				klog.Warningf("Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
 				time.Sleep(conflictRetryInterval)
@@ -352,7 +355,7 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 			}
 			msCopy.Annotations[taint.Key] = "True"
 
-			_, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(msCopy)
+			_, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(ctx, msCopy, metav1.UpdateOptions{})
 			if err != nil && time.Now().Before(retryDeadline) {
 				klog.Warningf("Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
 				time.Sleep(conflictRetryInterval)
@@ -373,7 +376,7 @@ func (dc *controller) taintNodesBackingMachineSets(MachineSets []*v1alpha1.Machi
 }
 
 // annotateNodesBackingMachineSets annotates all nodes backing the machineSets
-func (dc *controller) annotateNodesBackingMachineSets(MachineSets []*v1alpha1.MachineSet, annotations map[string]string) error {
+func (dc *controller) annotateNodesBackingMachineSets(ctx context.Context, MachineSets []*v1alpha1.MachineSet, annotations map[string]string) error {
 
 	for _, machineSet := range MachineSets {
 
@@ -392,7 +395,7 @@ func (dc *controller) annotateNodesBackingMachineSets(MachineSets []*v1alpha1.Ma
 		}
 		// NOTE: filteredMachines are pointing to objects from cache - if you need to
 		// modify them, you need to copy it first.
-		filteredMachines, err = dc.claimMachines(machineSet, selector, filteredMachines)
+		filteredMachines, err = dc.claimMachines(ctx, machineSet, selector, filteredMachines)
 		if err != nil {
 			return err
 		}
@@ -400,6 +403,7 @@ func (dc *controller) annotateNodesBackingMachineSets(MachineSets []*v1alpha1.Ma
 		for _, machine := range filteredMachines {
 			if machine.Status.Node != "" {
 				err = AddOrUpdateAnnotationOnNode(
+					ctx,
 					dc.targetCoreClient,
 					machine.Status.Node,
 					annotations,
@@ -425,7 +429,7 @@ func (dc *controller) machineSetsScaledToZero(MachineSets []*v1alpha1.MachineSet
 }
 
 // removeAutoscalerAnnotationsIfRequired removes the annotations if needed from nodes backing machinesets.
-func (dc *controller) removeAutoscalerAnnotationsIfRequired(MachineSets []*v1alpha1.MachineSet, annotations map[string]string) error {
+func (dc *controller) removeAutoscalerAnnotationsIfRequired(ctx context.Context, MachineSets []*v1alpha1.MachineSet, annotations map[string]string) error {
 
 	for _, machineSet := range MachineSets {
 
@@ -443,7 +447,7 @@ func (dc *controller) removeAutoscalerAnnotationsIfRequired(MachineSets []*v1alp
 		}
 		// NOTE: filteredMachines are pointing to objects from cache - if you need to
 		// modify them, you need to copy it first.
-		filteredMachines, err = dc.claimMachines(machineSet, selector, filteredMachines)
+		filteredMachines, err = dc.claimMachines(ctx, machineSet, selector, filteredMachines)
 		if err != nil {
 			return err
 		}
@@ -452,6 +456,7 @@ func (dc *controller) removeAutoscalerAnnotationsIfRequired(MachineSets []*v1alp
 			if machine.Status.Node != "" {
 
 				nodeAnnotations, err := GetAnnotationsFromNode(
+					ctx,
 					dc.targetCoreClient,
 					machine.Status.Node,
 				)
@@ -464,6 +469,7 @@ func (dc *controller) removeAutoscalerAnnotationsIfRequired(MachineSets []*v1alp
 				// by-mcm annotation is not set, the original annotation is likely be put by the end-user for their usecases.
 				if _, exists := nodeAnnotations[ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey]; exists {
 					err = RemoveAnnotationsOffNode(
+						ctx,
 						dc.targetCoreClient,
 						machine.Status.Node,
 						annotations,
