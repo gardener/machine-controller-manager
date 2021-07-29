@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -95,6 +96,7 @@ func parseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind
 
 // applyFile uses yaml to create resources in kubernetes
 func (c *Cluster) applyFile(filePath string, namespace string) error {
+	ctx := context.Background()
 	runtimeobj, kind, err := parseK8sYaml(filePath)
 	if err == nil {
 		for key, obj := range runtimeobj {
@@ -105,7 +107,7 @@ func (c *Cluster) applyFile(filePath string, namespace string) error {
 				if _, err := c.apiextensionsClient.
 					ApiextensionsV1beta1().
 					CustomResourceDefinitions().
-					Create(crd); err != nil {
+					Create(ctx, crd, metav1.CreateOptions{}); err != nil {
 					if !strings.Contains(err.Error(), "already exists") {
 						return err
 					}
@@ -120,7 +122,7 @@ func (c *Cluster) applyFile(filePath string, namespace string) error {
 
 				if _, err := c.McmClient.MachineV1alpha1().
 					MachineClasses(namespace).
-					Create(resource); err != nil {
+					Create(ctx, resource, metav1.CreateOptions{}); err != nil {
 					return err
 				}
 			case "Machine":
@@ -128,7 +130,7 @@ func (c *Cluster) applyFile(filePath string, namespace string) error {
 
 				if _, err := c.McmClient.MachineV1alpha1().
 					Machines(namespace).
-					Create(resource); err != nil {
+					Create(ctx, resource, metav1.CreateOptions{}); err != nil {
 					return err
 				}
 			case "MachineDeployment":
@@ -136,7 +138,7 @@ func (c *Cluster) applyFile(filePath string, namespace string) error {
 
 				if _, err := c.McmClient.MachineV1alpha1().
 					MachineDeployments(namespace).
-					Create(resource); err != nil {
+					Create(ctx, resource, metav1.CreateOptions{}); err != nil {
 					return err
 				}
 			case "Deployment":
@@ -144,7 +146,7 @@ func (c *Cluster) applyFile(filePath string, namespace string) error {
 
 				if _, err := c.Clientset.AppsV1().
 					Deployments(namespace).
-					Create(resource); err != nil {
+					Create(ctx, resource, metav1.CreateOptions{}); err != nil {
 					return err
 				}
 			case "ClusterRoleBinding":
@@ -155,7 +157,7 @@ func (c *Cluster) applyFile(filePath string, namespace string) error {
 
 				if _, err := c.Clientset.RbacV1beta1().
 					ClusterRoleBindings().
-					Create(resource); err != nil {
+					Create(ctx, resource, metav1.CreateOptions{}); err != nil {
 					return err
 				}
 			case "ClusterRole":
@@ -163,7 +165,7 @@ func (c *Cluster) applyFile(filePath string, namespace string) error {
 
 				if _, err := c.Clientset.RbacV1beta1().
 					ClusterRoles().
-					Create(resource); err != nil {
+					Create(ctx, resource, metav1.CreateOptions{}); err != nil {
 					return err
 				}
 			}
@@ -181,6 +183,7 @@ func (c *Cluster) checkEstablished(crdName string) error {
 			ApiextensionsV1beta1().
 			CustomResourceDefinitions().
 			Get(
+				context.Background(),
 				crdName,
 				metav1.GetOptions{},
 			)
@@ -229,6 +232,7 @@ func (c *Cluster) ApplyFiles(source string, namespace string) error {
 
 // deleteResource uses yaml to create resources in kubernetes
 func (c *Cluster) deleteResource(filePath string, namespace string) error {
+	ctx := context.Background()
 	runtimeobj, kind, err := parseK8sYaml(filePath)
 	if err == nil {
 		for key, obj := range runtimeobj {
@@ -239,8 +243,9 @@ func (c *Cluster) deleteResource(filePath string, namespace string) error {
 				if err := c.apiextensionsClient.ApiextensionsV1beta1().
 					CustomResourceDefinitions().
 					Delete(
+						ctx,
 						crd.Name,
-						&metav1.DeleteOptions{},
+						metav1.DeleteOptions{},
 					); err != nil {
 
 					if strings.Contains(err.Error(), " not found") {
@@ -254,8 +259,9 @@ func (c *Cluster) deleteResource(filePath string, namespace string) error {
 					MachineV1alpha1().
 					MachineClasses(namespace).
 					Delete(
+						ctx,
 						resource.Name,
-						&metav1.DeleteOptions{},
+						metav1.DeleteOptions{},
 					)
 				if err != nil {
 					return err
@@ -266,8 +272,9 @@ func (c *Cluster) deleteResource(filePath string, namespace string) error {
 					MachineV1alpha1().
 					MachineDeployments(namespace).
 					Delete(
+						ctx,
 						resource.Name,
-						&metav1.DeleteOptions{},
+						metav1.DeleteOptions{},
 					)
 				if err != nil {
 					return err
@@ -278,8 +285,9 @@ func (c *Cluster) deleteResource(filePath string, namespace string) error {
 					MachineV1alpha1().
 					Machines(namespace).
 					Delete(
+						ctx,
 						resource.Name,
-						&metav1.DeleteOptions{},
+						metav1.DeleteOptions{},
 					)
 				if err != nil {
 					return err
@@ -290,8 +298,9 @@ func (c *Cluster) deleteResource(filePath string, namespace string) error {
 					AppsV1().
 					Deployments(namespace).
 					Delete(
+						ctx,
 						resource.Name,
-						&metav1.DeleteOptions{},
+						metav1.DeleteOptions{},
 					)
 				if err != nil {
 					return err
@@ -304,8 +313,9 @@ func (c *Cluster) deleteResource(filePath string, namespace string) error {
 				if err := c.Clientset.RbacV1beta1().
 					ClusterRoleBindings().
 					Delete(
+						ctx,
 						resource.Name,
-						&metav1.DeleteOptions{},
+						metav1.DeleteOptions{},
 					); err != nil {
 					return err
 				}
@@ -314,8 +324,9 @@ func (c *Cluster) deleteResource(filePath string, namespace string) error {
 				if err := c.Clientset.RbacV1beta1().
 					ClusterRoles().
 					Delete(
+						ctx,
 						resource.Name,
-						&metav1.DeleteOptions{},
+						metav1.DeleteOptions{},
 					); err != nil {
 					return err
 				}

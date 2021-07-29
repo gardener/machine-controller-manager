@@ -1,6 +1,8 @@
 package helpers
 
 import (
+	"context"
+
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -12,6 +14,7 @@ func (c *Cluster) CreateMachine(namespace string) error {
 		MachineV1alpha1().
 		Machines(namespace).
 		Create(
+			context.Background(),
 			&v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-machine",
@@ -24,6 +27,7 @@ func (c *Cluster) CreateMachine(namespace string) error {
 					},
 				},
 			},
+			metav1.CreateOptions{},
 		)
 	return err
 }
@@ -35,6 +39,7 @@ func (c *Cluster) CreateMachineDeployment(namespace string) error {
 		MachineV1alpha1().
 		MachineDeployments(namespace).
 		Create(
+			context.Background(),
 			&v1alpha1.MachineDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-machine-deployment",
@@ -66,6 +71,7 @@ func (c *Cluster) CreateMachineDeployment(namespace string) error {
 					},
 				},
 			},
+			metav1.CreateOptions{},
 		)
 	return err
 }

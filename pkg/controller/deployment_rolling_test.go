@@ -16,6 +16,8 @@ limitations under the License.
 package controller
 
 import (
+	"context"
+
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -94,6 +96,7 @@ var _ = Describe("deployment_rolling", func() {
 				waitForCacheSync(stop, controller)
 
 				err := controller.taintNodesBackingMachineSets(
+					context.TODO(),
 					data.action,
 					&v1.Taint{
 						Key:    PreferNoScheduleKey,
@@ -108,13 +111,13 @@ var _ = Describe("deployment_rolling", func() {
 				}
 
 				for _, expectedMachineSet := range data.expect.machineSets {
-					actualMachineSet, err := controller.controlMachineClient.MachineSets(testNamespace).Get(expectedMachineSet.Name, metav1.GetOptions{})
+					actualMachineSet, err := controller.controlMachineClient.MachineSets(testNamespace).Get(context.TODO(), expectedMachineSet.Name, metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualMachineSet.Annotations).Should(Equal(expectedMachineSet.Annotations))
 				}
 
 				for _, expectedNode := range data.expect.nodes {
-					actualNode, err := controller.targetCoreClient.CoreV1().Nodes().Get(expectedNode.Name, metav1.GetOptions{})
+					actualNode, err := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), expectedNode.Name, metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualNode.Spec.Taints).Should(ConsistOf(expectedNode.Spec.Taints))
 				}
@@ -269,6 +272,7 @@ var _ = Describe("deployment_rolling", func() {
 				waitForCacheSync(stop, controller)
 
 				err := controller.annotateNodesBackingMachineSets(
+					context.TODO(),
 					data.action.machineSets,
 					data.action.annotations,
 				)
@@ -279,7 +283,7 @@ var _ = Describe("deployment_rolling", func() {
 				}
 
 				for _, expectedNode := range data.setup.nodes {
-					actualNode, err := controller.targetCoreClient.CoreV1().Nodes().Get(expectedNode.Name, metav1.GetOptions{})
+					actualNode, err := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), expectedNode.Name, metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualNode.Annotations).Should(Equal(data.expect.nodeAnnotations))
 				}
@@ -572,6 +576,7 @@ var _ = Describe("deployment_rolling", func() {
 				waitForCacheSync(stop, controller)
 
 				err := controller.removeAutoscalerAnnotationsIfRequired(
+					context.TODO(),
 					data.action.machineSets,
 					data.action.annotations,
 				)
@@ -582,7 +587,7 @@ var _ = Describe("deployment_rolling", func() {
 				}
 
 				for _, expectedNode := range data.setup.nodes {
-					actualNode, err := controller.targetCoreClient.CoreV1().Nodes().Get(expectedNode.Name, metav1.GetOptions{})
+					actualNode, err := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), expectedNode.Name, metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualNode.Annotations).Should(Equal(data.expect.nodeAnnotations))
 				}
