@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -26,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -130,6 +131,7 @@ func (c *controller) alicloudMachineClassDelete(obj interface{}) {
 // reconcileClusterAlicloudMachineClassKey reconciles an AlicloudMachineClass due to controller resync
 // or an event on the alicloudMachineClass.
 func (c *controller) reconcileClusterAlicloudMachineClassKey(key string) error {
+	ctx := context.Background()
 	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -145,7 +147,7 @@ func (c *controller) reconcileClusterAlicloudMachineClassKey(key string) error {
 		return err
 	}
 
-	err = c.reconcileClusterAlicloudMachineClass(class)
+	err = c.reconcileClusterAlicloudMachineClass(ctx, class)
 	if err != nil {
 		// Re-enqueue after a 10s window
 		c.enqueueAlicloudMachineClassAfter(class, 10*time.Second)
@@ -157,7 +159,7 @@ func (c *controller) reconcileClusterAlicloudMachineClassKey(key string) error {
 	return nil
 }
 
-func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.AlicloudMachineClass) error {
+func (c *controller) reconcileClusterAlicloudMachineClass(ctx context.Context, class *v1alpha1.AlicloudMachineClass) error {
 	klog.V(4).Info("Start Reconciling alicloudmachineclass: ", class.Name)
 	defer klog.V(4).Info("Stop Reconciling alicloudmachineclass: ", class.Name)
 
@@ -175,7 +177,7 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 
 	// Add finalizer to avoid losing machineClass object
 	if class.DeletionTimestamp == nil {
-		err = c.addAlicloudMachineClassFinalizers(class)
+		err = c.addAlicloudMachineClassFinalizers(ctx, class)
 		if err != nil {
 			return err
 		}
@@ -193,7 +195,7 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 		if c.deleteMigratedMachineClass && annotationPresent && len(machines) == 0 {
 			// If controller has deleteMigratedMachineClass flag set
 			// and the migratedMachineClass annotation is set
-			err = c.controlMachineClient.AlicloudMachineClasses(class.Namespace).Delete(class.Name, &metav1.DeleteOptions{})
+			err = c.controlMachineClient.AlicloudMachineClasses(class.Namespace).Delete(ctx, class.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -215,7 +217,7 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 	}
 
 	// delete machine class finalizer if exists
-	return c.deleteAlicloudMachineClassFinalizers(class)
+	return c.deleteAlicloudMachineClassFinalizers(ctx, class)
 }
 
 /*
@@ -223,36 +225,36 @@ func (c *controller) reconcileClusterAlicloudMachineClass(class *v1alpha1.Aliclo
 	Manipulate Finalizers
 */
 
-func (c *controller) addAlicloudMachineClassFinalizers(class *v1alpha1.AlicloudMachineClass) error {
+func (c *controller) addAlicloudMachineClassFinalizers(ctx context.Context, class *v1alpha1.AlicloudMachineClass) error {
 	clone := class.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
 		finalizers.Insert(DeleteFinalizerName)
-		return c.updateAlicloudMachineClassFinalizers(clone, finalizers.List())
+		return c.updateAlicloudMachineClassFinalizers(ctx, clone, finalizers.List())
 	}
 	return nil
 }
 
-func (c *controller) deleteAlicloudMachineClassFinalizers(class *v1alpha1.AlicloudMachineClass) error {
+func (c *controller) deleteAlicloudMachineClassFinalizers(ctx context.Context, class *v1alpha1.AlicloudMachineClass) error {
 	clone := class.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		finalizers.Delete(DeleteFinalizerName)
-		return c.updateAlicloudMachineClassFinalizers(clone, finalizers.List())
+		return c.updateAlicloudMachineClassFinalizers(ctx, clone, finalizers.List())
 	}
 	return nil
 }
 
-func (c *controller) updateAlicloudMachineClassFinalizers(class *v1alpha1.AlicloudMachineClass, finalizers []string) error {
+func (c *controller) updateAlicloudMachineClassFinalizers(ctx context.Context, class *v1alpha1.AlicloudMachineClass, finalizers []string) error {
 	// Get the latest version of the class so that we can avoid conflicts
-	class, err := c.controlMachineClient.AlicloudMachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
+	class, err := c.controlMachineClient.AlicloudMachineClasses(class.Namespace).Get(ctx, class.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.controlMachineClient.AlicloudMachineClasses(class.Namespace).Update(clone)
+	_, err = c.controlMachineClient.AlicloudMachineClasses(class.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Warning("Updating AlicloudMachineClass failed, retrying. ", class.Name, err)
 		return err

@@ -19,8 +19,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo"
@@ -53,13 +52,13 @@ var _ = Describe("safety_logic", func() {
 				stop := make(chan struct{})
 				defer close(stop)
 
-				testMachine := &machinev1.Machine{
+				testMachine := &v1alpha1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "testmachine1",
 						Namespace: testNamespace,
 					},
-					Status: machinev1.MachineStatus{
-						CurrentStatus: machinev1.CurrentStatus{
+					Status: v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
 							Phase: v1alpha1.MachineUnknown,
 						},
 					},
@@ -180,7 +179,7 @@ var _ = Describe("safety_logic", func() {
 					Namespace: testNamespace,
 				}
 
-				testMachineClass := &machinev1.MachineClass{
+				testMachineClass := &v1alpha1.MachineClass{
 					ObjectMeta: *newObjectMeta(objMeta, 0),
 					SecretRef:  testSecretReference,
 				}
@@ -189,26 +188,26 @@ var _ = Describe("safety_logic", func() {
 				controlCoreObjects = append(controlCoreObjects, testSecret)
 
 				// Create test machine object in CrashloopBackoff state
-				testMachineObject1 := &machinev1.Machine{
+				testMachineObject1 := &v1alpha1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "testmachine_1",
 						Namespace: testNamespace,
 					},
-					Status: machinev1.MachineStatus{
-						CurrentStatus: machinev1.CurrentStatus{
+					Status: v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
 							Phase: v1alpha1.MachineCrashLoopBackOff,
 						},
 					},
 				}
 
 				// Create another test machine object in Running state
-				testMachineObject2 := &machinev1.Machine{
+				testMachineObject2 := &v1alpha1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "testmachine_2",
 						Namespace: testNamespace,
 					},
-					Status: machinev1.MachineStatus{
-						CurrentStatus: machinev1.CurrentStatus{
+					Status: v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
 							Phase: v1alpha1.MachineRunning,
 						},
 					},
@@ -235,7 +234,7 @@ var _ = Describe("safety_logic", func() {
 				waitForCacheSync(stop, c)
 
 				// call checkMachineClass to delete the orphan VMs
-				_, _ = c.checkMachineClass(testMachineClass)
+				_, _ = c.checkMachineClass(context.TODO(), testMachineClass)
 
 				// after this, the testmachine in crashloopbackoff phase
 				// should remain and the other one should
@@ -275,7 +274,7 @@ var _ = Describe("safety_logic", func() {
 				controlMachineObjects := []runtime.Object{}
 
 				//machine object for test-node-1
-				testMachineObject := &machinev1.Machine{
+				testMachineObject := &v1alpha1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "testmachine_1",
 						Namespace: testNamespace,
@@ -283,8 +282,8 @@ var _ = Describe("safety_logic", func() {
 							"node": "test-node-1",
 						},
 					},
-					Status: machinev1.MachineStatus{
-						CurrentStatus: machinev1.CurrentStatus{
+					Status: v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
 							Phase: v1alpha1.MachineRunning,
 						},
 					},
@@ -292,7 +291,7 @@ var _ = Describe("safety_logic", func() {
 				controlMachineObjects = append(controlMachineObjects, testMachineObject)
 
 				//first machine object for test-node-2
-				testMachineObject = &machinev1.Machine{
+				testMachineObject = &v1alpha1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "testmachine_2",
 						Namespace: testNamespace,
@@ -300,8 +299,8 @@ var _ = Describe("safety_logic", func() {
 							"node": "test-node-2",
 						},
 					},
-					Status: machinev1.MachineStatus{
-						CurrentStatus: machinev1.CurrentStatus{
+					Status: v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
 							Phase: v1alpha1.MachineRunning,
 						},
 					},
@@ -309,7 +308,7 @@ var _ = Describe("safety_logic", func() {
 				controlMachineObjects = append(controlMachineObjects, testMachineObject)
 
 				//second machine object for test-node-3
-				testMachineObject = &machinev1.Machine{
+				testMachineObject = &v1alpha1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "testmachine_3",
 						Namespace: testNamespace,
@@ -317,8 +316,8 @@ var _ = Describe("safety_logic", func() {
 							"node": "test-node-2",
 						},
 					},
-					Status: machinev1.MachineStatus{
-						CurrentStatus: machinev1.CurrentStatus{
+					Status: v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
 							Phase: v1alpha1.MachineRunning,
 						},
 					},
@@ -363,7 +362,7 @@ var _ = Describe("safety_logic", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
-				retry, err := c.AnnotateNodesUnmanagedByMCM()
+				retry, err := c.AnnotateNodesUnmanagedByMCM(context.TODO())
 
 				waitForCacheSync(stop, c)
 
@@ -374,9 +373,9 @@ var _ = Describe("safety_logic", func() {
 				} else {
 					Expect(err).To(Equal(data.expect.err))
 				}
-				updatedNodeObject0, _ := c.targetCoreClient.CoreV1().Nodes().Get(nodeObject0.Name, metav1.GetOptions{})
-				updatedNodeObject1, _ := c.targetCoreClient.CoreV1().Nodes().Get(nodeObject1.Name, metav1.GetOptions{})
-				updatedNodeObject2, _ := c.targetCoreClient.CoreV1().Nodes().Get(nodeObject2.Name, metav1.GetOptions{})
+				updatedNodeObject0, _ := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), nodeObject0.Name, metav1.GetOptions{})
+				updatedNodeObject1, _ := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), nodeObject1.Name, metav1.GetOptions{})
+				updatedNodeObject2, _ := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), nodeObject2.Name, metav1.GetOptions{})
 
 				Expect(updatedNodeObject0.Annotations).Should(Equal(data.expect.node0.Annotations))
 				Expect(updatedNodeObject1.Annotations).Should(Equal(data.expect.node1.Annotations))

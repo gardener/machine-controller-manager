@@ -23,13 +23,15 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package controller
 
 import (
+	"context"
+
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // rolloutRecreate implements the logic for recreating a machine set.
-func (dc *controller) rolloutRecreate(d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
+func (dc *controller) rolloutRecreate(ctx context.Context, d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
 
 	clusterAutoscalerScaleDownAnnotations := make(map[string]string)
 	clusterAutoscalerScaleDownAnnotations[ClusterAutoscalerScaleDownDisabledAnnotationKey] = ClusterAutoscalerScaleDownDisabledAnnotationValue
@@ -38,7 +40,7 @@ func (dc *controller) rolloutRecreate(d *v1alpha1.MachineDeployment, isList []*v
 	clusterAutoscalerScaleDownAnnotations[ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
 
 	// Don't create a new RS if not already existed, so that we avoid scaling up before scaling down.
-	newIS, oldISs, err := dc.getAllMachineSetsAndSyncRevision(d, isList, machineMap, false)
+	newIS, oldISs, err := dc.getAllMachineSetsAndSyncRevision(ctx, d, isList, machineMap, false)
 	if err != nil {
 		return err
 	}
@@ -51,7 +53,7 @@ func (dc *controller) rolloutRecreate(d *v1alpha1.MachineDeployment, isList []*v
 		// status-rollout steps.
 		if len(oldISs) > 0 && !dc.machineSetsScaledToZero(oldISs) {
 			// Annotate all the nodes under this machine-deployment, as roll-out is on-going.
-			err := dc.annotateNodesBackingMachineSets(allISs, clusterAutoscalerScaleDownAnnotations)
+			err := dc.annotateNodesBackingMachineSets(ctx, allISs, clusterAutoscalerScaleDownAnnotations)
 			if err != nil {
 				klog.Errorf("Failed to add %s on all nodes. Error: %s", clusterAutoscalerScaleDownAnnotations, err)
 				return err
@@ -60,23 +62,23 @@ func (dc *controller) rolloutRecreate(d *v1alpha1.MachineDeployment, isList []*v
 	}
 
 	// scale down old machine sets.
-	scaledDown, err := dc.scaleDownOldMachineSetsForRecreate(activeOldISs, d)
+	scaledDown, err := dc.scaleDownOldMachineSetsForRecreate(ctx, activeOldISs, d)
 	if err != nil {
 		return err
 	}
 	if scaledDown {
 		// Update DeploymentStatus.
-		return dc.syncRolloutStatus(allISs, newIS, d)
+		return dc.syncRolloutStatus(ctx, allISs, newIS, d)
 	}
 
 	// Do not process a deployment when it has old machines running.
 	if oldMachinesRunning(newIS, oldISs, machineMap) {
-		return dc.syncRolloutStatus(allISs, newIS, d)
+		return dc.syncRolloutStatus(ctx, allISs, newIS, d)
 	}
 
 	// If we need to create a new RS, create it now.
 	if newIS == nil {
-		newIS, oldISs, err = dc.getAllMachineSetsAndSyncRevision(d, isList, machineMap, true)
+		newIS, oldISs, err = dc.getAllMachineSetsAndSyncRevision(ctx, d, isList, machineMap, true)
 		if err != nil {
 			return err
 		}
@@ -84,7 +86,7 @@ func (dc *controller) rolloutRecreate(d *v1alpha1.MachineDeployment, isList []*v
 	}
 
 	// scale up new machine set.
-	if _, err := dc.scaleUpNewMachineSetForRecreate(newIS, d); err != nil {
+	if _, err := dc.scaleUpNewMachineSetForRecreate(ctx, newIS, d); err != nil {
 		return err
 	}
 
@@ -92,22 +94,22 @@ func (dc *controller) rolloutRecreate(d *v1alpha1.MachineDeployment, isList []*v
 		if dc.autoscalerScaleDownAnnotationDuringRollout {
 			// Check if any of the machine under this MachineDeployment contains the by-mcm annotation, and
 			// remove the original autoscaler-annotion only after.
-			err := dc.removeAutoscalerAnnotationsIfRequired(allISs, clusterAutoscalerScaleDownAnnotations)
+			err := dc.removeAutoscalerAnnotationsIfRequired(ctx, allISs, clusterAutoscalerScaleDownAnnotations)
 			if err != nil {
 				return err
 			}
 		}
-		if err := dc.cleanupMachineDeployment(oldISs, d); err != nil {
+		if err := dc.cleanupMachineDeployment(ctx, oldISs, d); err != nil {
 			return err
 		}
 	}
 
 	// Sync deployment status.
-	return dc.syncRolloutStatus(allISs, newIS, d)
+	return dc.syncRolloutStatus(ctx, allISs, newIS, d)
 }
 
 // scaleDownOldMachineSetsForRecreate scales down old machine sets when deployment strategy is "Recreate".
-func (dc *controller) scaleDownOldMachineSetsForRecreate(oldISs []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
+func (dc *controller) scaleDownOldMachineSetsForRecreate(ctx context.Context, oldISs []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
 	scaled := false
 	for i := range oldISs {
 		is := oldISs[i]
@@ -115,7 +117,7 @@ func (dc *controller) scaleDownOldMachineSetsForRecreate(oldISs []*v1alpha1.Mach
 		if (is.Spec.Replicas) == 0 {
 			continue
 		}
-		scaledIS, updatedIS, err := dc.scaleMachineSetAndRecordEvent(is, 0, deployment)
+		scaledIS, updatedIS, err := dc.scaleMachineSetAndRecordEvent(ctx, is, 0, deployment)
 		if err != nil {
 			return false, err
 		}
@@ -145,7 +147,7 @@ func oldMachinesRunning(newIS *v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSe
 }
 
 // scaleUpNewMachineSetForRecreate scales up new machine set when deployment strategy is "Recreate".
-func (dc *controller) scaleUpNewMachineSetForRecreate(newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
-	scaled, _, err := dc.scaleMachineSetAndRecordEvent(newIS, (deployment.Spec.Replicas), deployment)
+func (dc *controller) scaleUpNewMachineSetForRecreate(ctx context.Context, newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
+	scaled, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newIS, (deployment.Spec.Replicas), deployment)
 	return scaled, err
 }

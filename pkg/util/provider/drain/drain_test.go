@@ -206,7 +206,7 @@ var _ = Describe("drain", func() {
 		go func() {
 			for pod := range detachExclusiveVolumesCh {
 				nodes := d.client.CoreV1().Nodes()
-				node, err := nodes.Get(pod.Spec.NodeName, metav1.GetOptions{})
+				node, err := nodes.Get(context.TODO(), pod.Spec.NodeName, metav1.GetOptions{})
 				if err != nil {
 					fmt.Fprintln(GinkgoWriter, err)
 					continue
@@ -253,10 +253,10 @@ var _ = Describe("drain", func() {
 					continue
 				}
 
-				_, err = nodes.Update(node)
+				_, err = nodes.Update(context.TODO(), node, metav1.UpdateOptions{})
 				fmt.Fprintln(GinkgoWriter, err)
 
-				_, err = nodes.UpdateStatus(node)
+				_, err = nodes.UpdateStatus(context.TODO(), node, metav1.UpdateOptions{})
 				fmt.Fprintln(GinkgoWriter, err)
 			}
 		}()
@@ -306,7 +306,7 @@ var _ = Describe("drain", func() {
 					go func() {
 						defer wg.Done()
 						runPodDrainHandlers(pod)
-						fmt.Fprintf(GinkgoWriter, "Drained pod %s/%s in %s\n", pod.Namespace, pod.Name, time.Now().Sub(start).String())
+						fmt.Fprintf(GinkgoWriter, "Drained pod %s/%s in %s\n", pod.Namespace, pod.Name, time.Since(start).String())
 					}()
 
 					nEvictions++
@@ -338,7 +338,7 @@ var _ = Describe("drain", func() {
 					go func() {
 						defer wg.Done()
 						runPodDrainHandlers(pod)
-						fmt.Fprintf(GinkgoWriter, "Drained pod %s/%s in %s\n", pod.Namespace, pod.Name, time.Now().Sub(start).String())
+						fmt.Fprintf(GinkgoWriter, "Drained pod %s/%s in %s\n", pod.Namespace, pod.Name, time.Since(start).String())
 					}()
 				default:
 					err = fmt.Errorf("Expected type k8stesting.GetAction but got %T", action)
@@ -353,7 +353,7 @@ var _ = Describe("drain", func() {
 		go func() {
 			start := time.Now()
 			drainStart = &start
-			drainErr = d.RunDrain()
+			drainErr = d.RunDrain(context.TODO())
 			end := time.Now()
 			drainEnd = &end
 			cancelCtx()
@@ -388,7 +388,7 @@ var _ = Describe("drain", func() {
 		}
 
 		validatePodCount := func(labelSelector string, nExpected int) {
-			podList, err := d.client.CoreV1().Pods(testNamespace).List(metav1.ListOptions{LabelSelector: labelSelector})
+			podList, err := d.client.CoreV1().Pods(testNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(podList).ToNot(BeNil())
 			Expect(podList.Items).To(HaveLen(nExpected))
@@ -408,7 +408,7 @@ var _ = Describe("drain", func() {
 	}
 
 	deletePod := func(client kubernetes.Interface, pod *api.Pod, detachExclusiveVolumesCh chan<- *api.Pod) error {
-		return client.CoreV1().Pods(pod.Namespace).Delete(pod.Name, nil)
+		return client.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
 	}
 
 	detachExclusiveVolumes := func(client kubernetes.Interface, pod *api.Pod, detachExclusiveVolumesCh chan<- *api.Pod) error {
@@ -1115,7 +1115,7 @@ func updateVolumeAttachments(drainOptions *Options, pvName string, nodeName stri
 	time.Sleep(reattachmentDelay)
 
 	// Delete existing volume attachment
-	volumeAttachments, err := drainOptions.client.StorageV1().VolumeAttachments().List(metav1.ListOptions{})
+	volumeAttachments, err := drainOptions.client.StorageV1().VolumeAttachments().List(context.TODO(), metav1.ListOptions{})
 	Expect(err).To(BeNil())
 
 	for _, volumeAttachment = range volumeAttachments.Items {
@@ -1126,7 +1126,7 @@ func updateVolumeAttachments(drainOptions *Options, pvName string, nodeName stri
 	}
 
 	Expect(found).To(BeTrue())
-	err = drainOptions.client.StorageV1().VolumeAttachments().Delete(volumeAttachment.Name, &metav1.DeleteOptions{})
+	err = drainOptions.client.StorageV1().VolumeAttachments().Delete(context.TODO(), volumeAttachment.Name, metav1.DeleteOptions{})
 	Expect(err).To(BeNil())
 
 	// Create new volumeAttachment object
@@ -1147,10 +1147,10 @@ func updateVolumeAttachments(drainOptions *Options, pvName string, nodeName stri
 		},
 	}
 
-	newVolumeAttachment, err = drainOptions.client.StorageV1().VolumeAttachments().Create(newVolumeAttachment)
+	newVolumeAttachment, err = drainOptions.client.StorageV1().VolumeAttachments().Create(context.TODO(), newVolumeAttachment, metav1.CreateOptions{})
 	Expect(err).To(BeNil())
 
-	newVolumeAttachment, err = drainOptions.client.StorageV1().VolumeAttachments().UpdateStatus(newVolumeAttachment)
+	newVolumeAttachment, err = drainOptions.client.StorageV1().VolumeAttachments().UpdateStatus(context.TODO(), newVolumeAttachment, metav1.UpdateOptions{})
 	Expect(err).To(BeNil())
 
 	drainOptions.volumeAttachmentHandler.AddVolumeAttachment(newVolumeAttachment)

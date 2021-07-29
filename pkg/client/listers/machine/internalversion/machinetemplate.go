@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+Copyright (c) 2021 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,8 +26,10 @@ import (
 )
 
 // MachineTemplateLister helps list MachineTemplates.
+// All objects returned here must be treated as read-only.
 type MachineTemplateLister interface {
 	// List lists all MachineTemplates in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*machine.MachineTemplate, err error)
 	// MachineTemplates returns an object that can list and get MachineTemplates.
 	MachineTemplates(namespace string) MachineTemplateNamespaceLister
@@ -58,10 +60,13 @@ func (s *machineTemplateLister) MachineTemplates(namespace string) MachineTempla
 }
 
 // MachineTemplateNamespaceLister helps list and get MachineTemplates.
+// All objects returned here must be treated as read-only.
 type MachineTemplateNamespaceLister interface {
 	// List lists all MachineTemplates in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*machine.MachineTemplate, err error)
 	// Get retrieves the MachineTemplate from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*machine.MachineTemplate, error)
 	MachineTemplateNamespaceListerExpansion
 }

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+Copyright (c) 2021 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ limitations under the License.
 package internalversion
 
 import (
+	"context"
 	"time"
 
 	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -37,17 +38,17 @@ type MachineDeploymentsGetter interface {
 
 // MachineDeploymentInterface has methods to work with MachineDeployment resources.
 type MachineDeploymentInterface interface {
-	Create(*machine.MachineDeployment) (*machine.MachineDeployment, error)
-	Update(*machine.MachineDeployment) (*machine.MachineDeployment, error)
-	UpdateStatus(*machine.MachineDeployment) (*machine.MachineDeployment, error)
-	Delete(name string, options *v1.DeleteOptions) error
-	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
-	Get(name string, options v1.GetOptions) (*machine.MachineDeployment, error)
-	List(opts v1.ListOptions) (*machine.MachineDeploymentList, error)
-	Watch(opts v1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *machine.MachineDeployment, err error)
-	GetScale(machineDeploymentName string, options v1.GetOptions) (*machine.Scale, error)
-	UpdateScale(machineDeploymentName string, scale *machine.Scale) (*machine.Scale, error)
+	Create(ctx context.Context, machineDeployment *machine.MachineDeployment, opts v1.CreateOptions) (*machine.MachineDeployment, error)
+	Update(ctx context.Context, machineDeployment *machine.MachineDeployment, opts v1.UpdateOptions) (*machine.MachineDeployment, error)
+	UpdateStatus(ctx context.Context, machineDeployment *machine.MachineDeployment, opts v1.UpdateOptions) (*machine.MachineDeployment, error)
+	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*machine.MachineDeployment, error)
+	List(ctx context.Context, opts v1.ListOptions) (*machine.MachineDeploymentList, error)
+	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *machine.MachineDeployment, err error)
+	GetScale(ctx context.Context, machineDeploymentName string, options v1.GetOptions) (*machine.Scale, error)
+	UpdateScale(ctx context.Context, machineDeploymentName string, scale *machine.Scale, opts v1.UpdateOptions) (*machine.Scale, error)
 
 	MachineDeploymentExpansion
 }
@@ -67,20 +68,20 @@ func newMachineDeployments(c *MachineClient, namespace string) *machineDeploymen
 }
 
 // Get takes name of the machineDeployment, and returns the corresponding machineDeployment object, and an error if there is any.
-func (c *machineDeployments) Get(name string, options v1.GetOptions) (result *machine.MachineDeployment, err error) {
+func (c *machineDeployments) Get(ctx context.Context, name string, options v1.GetOptions) (result *machine.MachineDeployment, err error) {
 	result = &machine.MachineDeployment{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("machinedeployments").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of MachineDeployments that match those selectors.
-func (c *machineDeployments) List(opts v1.ListOptions) (result *machine.MachineDeploymentList, err error) {
+func (c *machineDeployments) List(ctx context.Context, opts v1.ListOptions) (result *machine.MachineDeploymentList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -91,13 +92,13 @@ func (c *machineDeployments) List(opts v1.ListOptions) (result *machine.MachineD
 		Resource("machinedeployments").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested machineDeployments.
-func (c *machineDeployments) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *machineDeployments) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -108,93 +109,96 @@ func (c *machineDeployments) Watch(opts v1.ListOptions) (watch.Interface, error)
 		Resource("machinedeployments").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a machineDeployment and creates it.  Returns the server's representation of the machineDeployment, and an error, if there is any.
-func (c *machineDeployments) Create(machineDeployment *machine.MachineDeployment) (result *machine.MachineDeployment, err error) {
+func (c *machineDeployments) Create(ctx context.Context, machineDeployment *machine.MachineDeployment, opts v1.CreateOptions) (result *machine.MachineDeployment, err error) {
 	result = &machine.MachineDeployment{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("machinedeployments").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(machineDeployment).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a machineDeployment and updates it. Returns the server's representation of the machineDeployment, and an error, if there is any.
-func (c *machineDeployments) Update(machineDeployment *machine.MachineDeployment) (result *machine.MachineDeployment, err error) {
+func (c *machineDeployments) Update(ctx context.Context, machineDeployment *machine.MachineDeployment, opts v1.UpdateOptions) (result *machine.MachineDeployment, err error) {
 	result = &machine.MachineDeployment{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("machinedeployments").
 		Name(machineDeployment.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(machineDeployment).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-
-func (c *machineDeployments) UpdateStatus(machineDeployment *machine.MachineDeployment) (result *machine.MachineDeployment, err error) {
+func (c *machineDeployments) UpdateStatus(ctx context.Context, machineDeployment *machine.MachineDeployment, opts v1.UpdateOptions) (result *machine.MachineDeployment, err error) {
 	result = &machine.MachineDeployment{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("machinedeployments").
 		Name(machineDeployment.Name).
 		SubResource("status").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(machineDeployment).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the machineDeployment and deletes it. Returns an error if one occurs.
-func (c *machineDeployments) Delete(name string, options *v1.DeleteOptions) error {
+func (c *machineDeployments) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("machinedeployments").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *machineDeployments) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+func (c *machineDeployments) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("machinedeployments").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched machineDeployment.
-func (c *machineDeployments) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *machine.MachineDeployment, err error) {
+func (c *machineDeployments) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *machine.MachineDeployment, err error) {
 	result = &machine.MachineDeployment{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("machinedeployments").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // GetScale takes name of the machineDeployment, and returns the corresponding machine.Scale object, and an error if there is any.
-func (c *machineDeployments) GetScale(machineDeploymentName string, options v1.GetOptions) (result *machine.Scale, err error) {
+func (c *machineDeployments) GetScale(ctx context.Context, machineDeploymentName string, options v1.GetOptions) (result *machine.Scale, err error) {
 	result = &machine.Scale{}
 	err = c.client.Get().
 		Namespace(c.ns).
@@ -202,21 +206,22 @@ func (c *machineDeployments) GetScale(machineDeploymentName string, options v1.G
 		Name(machineDeploymentName).
 		SubResource("scale").
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // UpdateScale takes the top resource name and the representation of a scale and updates it. Returns the server's representation of the scale, and an error, if there is any.
-func (c *machineDeployments) UpdateScale(machineDeploymentName string, scale *machine.Scale) (result *machine.Scale, err error) {
+func (c *machineDeployments) UpdateScale(ctx context.Context, machineDeploymentName string, scale *machine.Scale, opts v1.UpdateOptions) (result *machine.Scale, err error) {
 	result = &machine.Scale{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("machinedeployments").
 		Name(machineDeploymentName).
 		SubResource("scale").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(scale).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

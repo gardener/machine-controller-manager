@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"context"
+
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -40,7 +42,7 @@ var _ = Describe("machine_safety_util", func() {
 				testNode := data.action.node
 				expectedNode := data.expect.node
 
-				err := c.updateNodeWithAnnotation(testNode, data.action.annotations)
+				err := c.updateNodeWithAnnotation(context.TODO(), testNode, data.action.annotations)
 
 				waitForCacheSync(stop, c)
 

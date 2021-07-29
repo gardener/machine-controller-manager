@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -70,6 +71,7 @@ var (
 	v2MachineClassPath = os.Getenv("MACHINECLASS_V2")
 )
 
+// IntegrationTestFramework struct holds the values needed by the controller tests
 type IntegrationTestFramework struct {
 	// Must be rti implementation for the hyperscaler provider.
 	// It is used for checking orphan resources.
@@ -184,9 +186,12 @@ func (c *IntegrationTestFramework) initalizeClusters() error {
 }
 
 func (c *IntegrationTestFramework) prepareMcmDeployment(
+
 	mcContainerImage string,
 	mcmContainerImage string,
 	byCreating bool) error {
+
+	ctx := context.Background()
 
 	if len(machineControllerManagerDeploymentName) == 0 {
 		machineControllerManagerDeploymentName = "machine-controller-manager"
@@ -243,7 +248,7 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(
 		c.ControlCluster.Clientset.
 			CoreV1().
 			Secrets(controlClusterNamespace).
-			Create(
+			Create(ctx,
 				&coreV1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "machine-controller-manager",
@@ -253,6 +258,7 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(
 					},
 					Type: coreV1.SecretTypeOpaque,
 				},
+				metav1.CreateOptions{},
 			)
 
 		if err := c.ControlCluster.
@@ -268,7 +274,7 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(
 	result, getErr := c.ControlCluster.Clientset.
 		AppsV1().
 		Deployments(controlClusterNamespace).
-		Get(machineControllerManagerDeploymentName, metav1.GetOptions{})
+		Get(ctx, machineControllerManagerDeploymentName, metav1.GetOptions{})
 
 	if getErr != nil {
 		log.Printf("failed to get latest version of Deployment: %v", getErr)
@@ -326,7 +332,7 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(
 		mcmDeployment, getErr := c.ControlCluster.Clientset.
 			AppsV1().
 			Deployments(controlClusterNamespace).
-			Get(
+			Get(ctx,
 				machineControllerManagerDeploymentName,
 				metav1.GetOptions{},
 			)
@@ -340,7 +346,7 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(
 		_, updateErr := c.ControlCluster.Clientset.
 			AppsV1().
 			Deployments(controlClusterNamespace).
-			Update(mcmDeployment)
+			Update(ctx, mcmDeployment, metav1.UpdateOptions{})
 		return updateErr
 	})
 
@@ -350,7 +356,7 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(
 			deployment, err := c.ControlCluster.Clientset.
 				AppsV1().
 				Deployments(controlClusterNamespace).
-				Get(
+				Get(ctx,
 					machineControllerManagerDeploymentName,
 					metav1.GetOptions{},
 				)
@@ -362,6 +368,7 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(
 					CoreV1().
 					Pods(controlClusterNamespace).
 					List(
+						ctx,
 						metav1.ListOptions{
 							LabelSelector: "role=machine-controller-manager",
 						},
@@ -397,10 +404,13 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(
 
 func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
 
+	ctx := context.Background()
+
 	result, getErr := c.ControlCluster.Clientset.
 		AppsV1().
 		Deployments(controlClusterNamespace).
 		Get(
+			ctx,
 			machineControllerManagerDeploymentName,
 			metav1.GetOptions{},
 		)
@@ -416,6 +426,7 @@ func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
 			AppsV1().
 			Deployments(controlClusterNamespace).
 			Get(
+				ctx,
 				machineControllerManagerDeploymentName,
 				metav1.GetOptions{},
 			)
@@ -427,7 +438,9 @@ func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
 			AppsV1().
 			Deployments(controlClusterNamespace).
 			Update(
+				ctx,
 				result,
+				metav1.UpdateOptions{},
 			)
 		return updateErr
 	})
@@ -443,6 +456,8 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 	// probe for machine-class in the identified namespace and then creae a copy of this machine-class with
 	// additional delta available in machine-class-patch.json
 	// eg. tag (providerSpec.tags)  \"mcm-integration-test: "true"\"
+
+	ctx := context.Background()
 
 	if !c.ControlCluster.IsSeed(c.TargetCluster) {
 		//use yaml files
@@ -470,6 +485,7 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 				MachineV1alpha1().
 				MachineClasses(controlClusterNamespace).
 				Get(
+					ctx,
 					testMachineClassResources[0],
 					metav1.GetOptions{},
 				); err == nil {
@@ -477,17 +493,19 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 				_, createErr := c.ControlCluster.McmClient.
 					MachineV1alpha1().
 					MachineClasses(controlClusterNamespace).
-					Create(&v1alpha1.MachineClass{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:        testMachineClassResources[1],
-							Labels:      machineClass.ObjectMeta.Labels,
-							Annotations: machineClass.ObjectMeta.Annotations,
+					Create(ctx,
+						&v1alpha1.MachineClass{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:        testMachineClassResources[1],
+								Labels:      machineClass.ObjectMeta.Labels,
+								Annotations: machineClass.ObjectMeta.Annotations,
+							},
+							ProviderSpec:         machineClass.ProviderSpec,
+							SecretRef:            machineClass.SecretRef,
+							CredentialsSecretRef: machineClass.CredentialsSecretRef,
+							Provider:             machineClass.Provider,
 						},
-						ProviderSpec:         machineClass.ProviderSpec,
-						SecretRef:            machineClass.SecretRef,
-						CredentialsSecretRef: machineClass.CredentialsSecretRef,
-						Provider:             machineClass.Provider,
-					})
+						metav1.CreateOptions{})
 				if createErr != nil {
 					return createErr
 				}
@@ -499,19 +517,20 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 		if machineClasses, err := c.ControlCluster.McmClient.
 			MachineV1alpha1().
 			MachineClasses(controlClusterNamespace).
-			List(
+			List(ctx,
 				metav1.ListOptions{},
 			); err == nil {
 			// Create machine-class using any of existing machineclass resource and yaml combined
-			for _, resource_name := range testMachineClassResources {
+			for _, resourceName := range testMachineClassResources {
 				// create machine-class
 				_, createErr := c.ControlCluster.McmClient.
 					MachineV1alpha1().
 					MachineClasses(controlClusterNamespace).
 					Create(
+						ctx,
 						&v1alpha1.MachineClass{
 							ObjectMeta: metav1.ObjectMeta{
-								Name:        resource_name,
+								Name:        resourceName,
 								Labels:      machineClasses.Items[0].ObjectMeta.Labels,
 								Annotations: machineClasses.Items[0].ObjectMeta.Annotations,
 							},
@@ -520,6 +539,7 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 							CredentialsSecretRef: machineClasses.Items[0].CredentialsSecretRef,
 							Provider:             machineClasses.Items[0].Provider,
 						},
+						metav1.CreateOptions{},
 					)
 				if createErr == nil {
 					// patch
@@ -534,9 +554,11 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 								MachineV1alpha1().
 								MachineClasses(controlClusterNamespace).
 								Patch(
-									resource_name,
+									ctx,
+									resourceName,
 									types.MergePatchType,
 									data,
+									metav1.PatchOptions{},
 								)
 							return err
 						})
@@ -580,6 +602,7 @@ func rotateLogFile(fileName string) (*os.File, error) {
 // - Setup machineclass to use either by copying existing machineclass in seed cluster or by applying file.
 // - invokes InitializeResourcesTracker or rti for orphan resource check.
 func (c *IntegrationTestFramework) SetupBeforeSuite() {
+	ctx := context.Background()
 	log.SetOutput(ginkgo.GinkgoWriter)
 	mcContainerImage := os.Getenv("MC_CONTAINER_IMAGE")
 	mcmContainerImage := os.Getenv("MCM_CONTAINER_IMAGE")
@@ -666,7 +689,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	machineClass, err := c.ControlCluster.McmClient.
 		MachineV1alpha1().
 		MachineClasses(controlClusterNamespace).
-		Get(testMachineClassResources[0], metav1.GetOptions{})
+		Get(ctx, testMachineClassResources[0], metav1.GetOptions{})
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 	ginkgo.By("Determining control cluster name")
@@ -718,6 +741,7 @@ func (c *IntegrationTestFramework) BeforeEachCheck() {
 // machine deployment resource creation, scale-up, scale-down, update and deletion. And
 // orphan resource check by invoking IsOrphanedResourcesAvailable from rti
 func (c *IntegrationTestFramework) ControllerTests() {
+	ctx := context.Background()
 	// Testcase #01 | Machine
 	ginkgo.Describe("machine resource", func() {
 		var initialNodes int16
@@ -749,14 +773,14 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machinesList, _ := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						Machines(controlClusterNamespace).
-						List(metav1.ListOptions{})
+						List(ctx, metav1.ListOptions{})
 					if len(machinesList.Items) != 0 {
 						ginkgo.By("Checking for errors")
 						gomega.Expect(
 							c.ControlCluster.McmClient.
 								MachineV1alpha1().
 								Machines(controlClusterNamespace).
-								Delete("test-machine", &metav1.DeleteOptions{})).
+								Delete(ctx, "test-machine", metav1.DeleteOptions{})).
 							Should(gomega.BeNil(), "No Errors while deleting machine")
 
 						ginkgo.By("Waiting until number of ready nodes is equal to number of initial  nodes")
@@ -781,13 +805,13 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machinesList, _ := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						Machines(controlClusterNamespace).
-						List(metav1.ListOptions{})
+						List(ctx, metav1.ListOptions{})
 
 					if len(machinesList.Items) == 0 {
 						err := c.ControlCluster.McmClient.
 							MachineV1alpha1().
 							Machines(controlClusterNamespace).
-							Delete("test-machine-dummy", &metav1.DeleteOptions{})
+							Delete(ctx, "test-machine-dummy", metav1.DeleteOptions{})
 						ginkgo.By("Checking for errors")
 						gomega.Expect(err).To(gomega.HaveOccurred())
 						ginkgo.By("Checking number of nodes is eual to number of initial nodes")
@@ -828,12 +852,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDployment, _ := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get("test-machine-deployment", metav1.GetOptions{})
+						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
 					machineDployment.Spec.Replicas = 6
 					_, updateErr := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Update(machineDployment)
+						Update(ctx, machineDployment, metav1.UpdateOptions{})
 					return updateErr
 				})
 				ginkgo.By("Checking for errors")
@@ -858,12 +882,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDployment, _ := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get("test-machine-deployment", metav1.GetOptions{})
+						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
 					machineDployment.Spec.Replicas = 2
 					_, updateErr := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Update(machineDployment)
+						Update(ctx, machineDployment, metav1.UpdateOptions{})
 					return updateErr
 				})
 				ginkgo.By("Checking for errors")
@@ -895,6 +919,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						CoreV1().
 						Pods(controlClusterNamespace).
 						List(
+							ctx,
 							metav1.ListOptions{
 								LabelSelector: "role=machine-controller-manager",
 							},
@@ -909,9 +934,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						if providerSpecificRegexp.Match([]byte(containers[i].Image)) {
 							readCloser, err := c.ControlCluster.Clientset.CoreV1().
 								Pods(controlClusterNamespace).
-								GetLogs(mcmPod.Name, &coreV1.PodLogOptions{
-									Container: containers[i].Name,
-								}).Stream()
+								GetLogs(
+									mcmPod.Name,
+									&coreV1.PodLogOptions{
+										Container: containers[i].Name,
+									},
+								).Stream(ctx)
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
 							io.Copy(mcOutputFile, readCloser)
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
@@ -920,7 +948,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 								Pods(controlClusterNamespace).
 								GetLogs(mcmPod.Name, &coreV1.PodLogOptions{
 									Container: containers[i].Name,
-								}).Stream()
+								}).Stream(ctx)
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
 							io.Copy(mcmOutputFile, readCloser)
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
@@ -951,13 +979,13 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDployment, _ := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get("test-machine-deployment", metav1.GetOptions{})
+						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
 					machineDployment.Spec.Template.Spec.Class.Name = testMachineClassResources[1]
 					machineDployment.Spec.Replicas = 4
 					_, updateErr := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Update(machineDployment)
+						Update(ctx, machineDployment, metav1.UpdateOptions{})
 					return updateErr
 				})
 				ginkgo.By("Checking for errors")
@@ -967,7 +995,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDeployment, err := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get("test-machine-deployment", metav1.GetOptions{})
+						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
 					if err != nil {
 						log.Println("Failed to get machinedeployment object")
 					}
@@ -978,7 +1006,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDeployment, err := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get("test-machine-deployment", metav1.GetOptions{})
+						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
 					if err != nil {
 						log.Println("Failed to get machinedeployment object")
 					}
@@ -1004,7 +1032,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					_, err := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get("test-machine-deployment", metav1.GetOptions{})
+						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
 					if err == nil {
 						ginkgo.By("Checking for errors")
 						gomega.Expect(
@@ -1012,8 +1040,9 @@ func (c *IntegrationTestFramework) ControllerTests() {
 								MachineV1alpha1().
 								MachineDeployments(controlClusterNamespace).
 								Delete(
+									ctx,
 									"test-machine-deployment",
-									&metav1.DeleteOptions{},
+									metav1.DeleteOptions{},
 								)).
 							Should(gomega.BeNil())
 						ginkgo.By("Waiting until number of ready nodes is equal to number of initial  nodes")
@@ -1052,6 +1081,9 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 //Cleanup performs rollback of original resources and removes any machines created by the test
 func (c *IntegrationTestFramework) Cleanup() {
+
+	ctx := context.Background()
+
 	ginkgo.By("Running Cleanup")
 	//running locally
 	if !(len(os.Getenv("MC_CONTAINER_IMAGE")) != 0 && len(os.Getenv("MCM_CONTAINER_IMAGE")) != 0) {
@@ -1083,18 +1115,18 @@ func (c *IntegrationTestFramework) Cleanup() {
 		_, err := c.ControlCluster.McmClient.
 			MachineV1alpha1().
 			MachineDeployments(controlClusterNamespace).
-			Get("test-machine-deployment", metav1.GetOptions{})
+			Get(ctx, "test-machine-deployment", metav1.GetOptions{})
 		if err == nil {
 			log.Println("deleting test-machine-deployment")
 			watchMachinesDepl, _ := c.ControlCluster.McmClient.
 				MachineV1alpha1().
 				MachineDeployments(controlClusterNamespace).
-				Watch(metav1.ListOptions{TimeoutSeconds: &timeout}) //ResourceVersion: machineDeploymentObj.ResourceVersion
+				Watch(ctx, metav1.ListOptions{TimeoutSeconds: &timeout}) //ResourceVersion: machineDeploymentObj.ResourceVersion
 			for event := range watchMachinesDepl.ResultChan() {
 				c.ControlCluster.McmClient.
 					MachineV1alpha1().
 					MachineDeployments(controlClusterNamespace).
-					Delete("test-machine-deployment", &metav1.DeleteOptions{})
+					Delete(ctx, "test-machine-deployment", metav1.DeleteOptions{})
 				if event.Type == watch.Deleted {
 					watchMachinesDepl.Stop()
 					log.Println("machinedeployment deleted")
@@ -1107,18 +1139,18 @@ func (c *IntegrationTestFramework) Cleanup() {
 		_, err = c.ControlCluster.McmClient.
 			MachineV1alpha1().
 			Machines(controlClusterNamespace).
-			Get("test-machine", metav1.GetOptions{})
+			Get(ctx, "test-machine", metav1.GetOptions{})
 		if err == nil {
 			log.Println("deleting test-machine")
 			watchMachines, _ := c.ControlCluster.McmClient.
 				MachineV1alpha1().
 				Machines(controlClusterNamespace).
-				Watch(metav1.ListOptions{TimeoutSeconds: &timeout}) //ResourceVersion: machineObj.ResourceVersion
+				Watch(ctx, metav1.ListOptions{TimeoutSeconds: &timeout}) //ResourceVersion: machineObj.ResourceVersion
 			for event := range watchMachines.ResultChan() {
 				c.ControlCluster.McmClient.
 					MachineV1alpha1().
 					Machines(controlClusterNamespace).
-					Delete("test-machine", &metav1.DeleteOptions{})
+					Delete(ctx, "test-machine", metav1.DeleteOptions{})
 				if event.Type == watch.Deleted {
 					watchMachines.Stop()
 					log.Println("machine deleted")
@@ -1133,18 +1165,18 @@ func (c *IntegrationTestFramework) Cleanup() {
 			_, err = c.ControlCluster.McmClient.
 				MachineV1alpha1().
 				MachineClasses(controlClusterNamespace).
-				Get(machineClassName, metav1.GetOptions{})
+				Get(ctx, machineClassName, metav1.GetOptions{})
 			if err == nil {
 				log.Printf("deleting %s machineclass", machineClassName)
 				watchMachineClass, _ := c.ControlCluster.McmClient.
 					MachineV1alpha1().
 					MachineClasses(controlClusterNamespace).
-					Watch(metav1.ListOptions{TimeoutSeconds: &timeout})
+					Watch(ctx, metav1.ListOptions{TimeoutSeconds: &timeout})
 				for event := range watchMachineClass.ResultChan() {
 					c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineClasses(controlClusterNamespace).
-						Delete(machineClassName, &metav1.DeleteOptions{})
+						Delete(ctx, machineClassName, metav1.DeleteOptions{})
 					if event.Type == watch.Deleted {
 						watchMachineClass.Stop()
 						log.Println("machineclass deleted")
@@ -1162,7 +1194,7 @@ func (c *IntegrationTestFramework) Cleanup() {
 			_, updateErr := c.ControlCluster.Clientset.
 				AppsV1().
 				Deployments(mcmDeploymentOrigObj.Namespace).
-				Update(mcmDeploymentOrigObj)
+				Update(ctx, mcmDeploymentOrigObj, metav1.UpdateOptions{})
 			return updateErr
 		})
 	} else {
@@ -1177,29 +1209,33 @@ func (c *IntegrationTestFramework) Cleanup() {
 			log.Println("Deleting Clusterroles")
 
 			if err := c.ControlCluster.RbacClient.ClusterRoles().Delete(
+				ctx,
 				"machine-controller-manager-control",
-				&metav1.DeleteOptions{},
+				metav1.DeleteOptions{},
 			); err != nil {
 				log.Printf("Error occured while deleting clusterrole. %s", err.Error())
 			}
 
 			if err := c.ControlCluster.RbacClient.ClusterRoleBindings().Delete(
+				ctx,
 				"machine-controller-manager-control",
-				&metav1.DeleteOptions{},
+				metav1.DeleteOptions{},
 			); err != nil {
 				log.Printf("Error occured while deleting clusterrolebinding . %s", err.Error())
 			}
 
 			if err := c.TargetCluster.RbacClient.ClusterRoles().Delete(
+				ctx,
 				"machine-controller-manager-target",
-				&metav1.DeleteOptions{},
+				metav1.DeleteOptions{},
 			); err != nil {
 				log.Printf("Error occured while deleting clusterrole . %s", err.Error())
 			}
 
 			if err := c.TargetCluster.RbacClient.ClusterRoleBindings().Delete(
+				ctx,
 				"machine-controller-manager-target",
-				&metav1.DeleteOptions{},
+				metav1.DeleteOptions{},
 			); err != nil {
 				log.Printf("Error occured while deleting clusterrolebinding . %s", err.Error())
 			}
@@ -1207,13 +1243,14 @@ func (c *IntegrationTestFramework) Cleanup() {
 			c.ControlCluster.Clientset.
 				CoreV1().
 				Secrets(controlClusterNamespace).
-				Delete("machine-controller-manager", &metav1.DeleteOptions{})
+				Delete(ctx, "machine-controller-manager", metav1.DeleteOptions{})
 			c.ControlCluster.Clientset.
 				AppsV1().
 				Deployments(controlClusterNamespace).
 				Delete(
+					ctx,
 					machineControllerManagerDeploymentName,
-					&metav1.DeleteOptions{},
+					metav1.DeleteOptions{},
 				)
 		}
 	}
