@@ -433,16 +433,21 @@ func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
 		if getErr != nil {
 			return getErr
 		}
-		*result.Spec.Replicas = replicas
-		_, updateErr := c.ControlCluster.Clientset.
-			AppsV1().
-			Deployments(controlClusterNamespace).
-			Update(
-				ctx,
-				result,
-				metav1.UpdateOptions{},
-			)
-		return updateErr
+
+		// if number of replicas is not equal to the required replicas then update
+		if *result.Spec.Replicas != replicas {
+			*result.Spec.Replicas = replicas
+			_, updateErr := c.ControlCluster.Clientset.
+				AppsV1().
+				Deployments(controlClusterNamespace).
+				Update(
+					ctx,
+					result,
+					metav1.UpdateOptions{},
+				)
+			return updateErr
+		}
+		return nil
 	})
 	return retryErr
 }
@@ -1197,6 +1202,14 @@ func (c *IntegrationTestFramework) Cleanup() {
 				Update(ctx, mcmDeploymentOrigObj, metav1.UpdateOptions{})
 			return updateErr
 		})
+
+		// scale back up the MCM deployment to 1 in the Control Cluster
+		// This is needed when IT suite runs locally against a Control & Target cluster
+		err := c.scaleMcmDeployment(1)
+		if err != nil {
+			log.Println(err.Error())
+		}
+
 	} else {
 		log.Println("Deleting crds")
 		if err := c.ControlCluster.DeleteResources(
