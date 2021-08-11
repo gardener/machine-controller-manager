@@ -697,8 +697,8 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 		Get(ctx, testMachineClassResources[0], metav1.GetOptions{})
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	ginkgo.By("Determining control cluster name")
-	clusterName, err := c.ControlCluster.ClusterName()
+	ginkgo.By("Determining target cluster name")
+	clusterName, err := c.TargetCluster.ClusterName()
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 	ginkgo.By("Looking for secrets refered in machineclass in the control cluster")
