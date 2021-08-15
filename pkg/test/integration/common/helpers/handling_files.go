@@ -15,7 +15,7 @@ import (
 	mcmscheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/api/apps/v1"
 	rbacv1bata1 "k8s.io/api/rbac/v1beta1"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsscheme "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -102,10 +102,10 @@ func (c *Cluster) applyFile(filePath string, namespace string) error {
 		for key, obj := range runtimeobj {
 			switch kind[key].Kind {
 			case "CustomResourceDefinition":
-				crd := obj.(*apiextensionsv1beta1.CustomResourceDefinition)
+				crd := obj.(*apiextensionsv1.CustomResourceDefinition)
 
 				if _, err := c.apiextensionsClient.
-					ApiextensionsV1beta1().
+					ApiextensionsV1().
 					CustomResourceDefinitions().
 					Create(ctx, crd, metav1.CreateOptions{}); err != nil {
 					if !strings.Contains(err.Error(), "already exists") {
@@ -180,7 +180,7 @@ func (c *Cluster) applyFile(filePath string, namespace string) error {
 func (c *Cluster) checkEstablished(crdName string) error {
 	err := wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
 		crd, err := c.apiextensionsClient.
-			ApiextensionsV1beta1().
+			ApiextensionsV1().
 			CustomResourceDefinitions().
 			Get(
 				context.Background(),
@@ -192,13 +192,13 @@ func (c *Cluster) checkEstablished(crdName string) error {
 		}
 		for _, cond := range crd.Status.Conditions {
 			switch cond.Type {
-			case apiextensionsv1beta1.Established:
-				if cond.Status == apiextensionsv1beta1.ConditionTrue {
+			case apiextensionsv1.Established:
+				if cond.Status == apiextensionsv1.ConditionTrue {
 					// log.Printf("crd %s is established/ready\n", crdName)
 					return true, err
 				}
-			case apiextensionsv1beta1.NamesAccepted:
-				if cond.Status == apiextensionsv1beta1.ConditionFalse {
+			case apiextensionsv1.NamesAccepted:
+				if cond.Status == apiextensionsv1.ConditionFalse {
 					log.Printf("Name conflict: %v\n", cond.Reason)
 					log.Printf("Naming Conflict with created CRD %s\n", crdName)
 				}
@@ -230,7 +230,7 @@ func (c *Cluster) ApplyFiles(source string, namespace string) error {
 	return err
 }
 
-// deleteResource uses yaml to create resources in kubernetes
+// deleteResource uses yaml to delete resources in kubernetes
 func (c *Cluster) deleteResource(filePath string, namespace string) error {
 	ctx := context.Background()
 	runtimeobj, kind, err := parseK8sYaml(filePath)
@@ -238,9 +238,9 @@ func (c *Cluster) deleteResource(filePath string, namespace string) error {
 		for key, obj := range runtimeobj {
 			switch kind[key].Kind {
 			case "CustomResourceDefinition":
-				crd := obj.(*apiextensionsv1beta1.CustomResourceDefinition)
+				crd := obj.(*apiextensionsv1.CustomResourceDefinition)
 
-				if err := c.apiextensionsClient.ApiextensionsV1beta1().
+				if err := c.apiextensionsClient.ApiextensionsV1().
 					CustomResourceDefinitions().
 					Delete(
 						ctx,

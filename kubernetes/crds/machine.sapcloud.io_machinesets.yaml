@@ -330,8 +330,8 @@ spec:
                       description: OwnerRef
                       type: string
                     providerID:
-                      description: ProviderID represents the provider's unique ID
-                        given to a machine
+                      description: ProviderID represents the provider's unique ID given
+                        to a machine
                       type: string
                   type: object
                 type: array
