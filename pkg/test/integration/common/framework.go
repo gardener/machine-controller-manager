@@ -44,6 +44,11 @@ var (
 	// ignored if the target cluster is a shoot of the control cluster
 	controlClusterNamespace = os.Getenv("CONTROL_CLUSTER_NAMESPACE")
 
+	// mcContainerPrefix is the prefix used for the container name of
+	// machine controller in the MCM deployment
+	// eg: machine-controller-manager-provider-<provider-name>
+	mcContainerPrefix = "machine-controller-manager-provider-"
+
 	// make processes/sessions started by gexec. available only if the controllers are running in local setup. updated during runtime
 	mcmsession, mcsession *gexec.Session
 
@@ -284,7 +289,7 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(
 	mcmDeploymentOrigObj = result
 
 	// update containers spec
-	providerSpecificRegexp, _ := regexp.Compile("machine-controller-manager-provider-")
+	providerSpecificRegexp, _ := regexp.Compile(mcContainerPrefix)
 
 	containers := mcmDeploymentOrigObj.Spec.Template.Spec.Containers
 
@@ -619,7 +624,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	// if control cluster is not the seed, then applyCrds from the mcm repo by cloning
 	// if no image tags specified, then also clone the mcm repo as the the mcm process needs to be started
 
-	if !c.ControlCluster.IsSeed(c.TargetCluster) || !(len(mcContainerImage) != 0 && len(mcmContainerImage) != 0) {
+	if !c.ControlCluster.IsSeed(c.TargetCluster) || (len(mcContainerImage) == 0 || len(mcmContainerImage) == 0) {
 
 		ginkgo.By("Cloning Machine-Controller-Manager github repo")
 		gomega.Expect(helpers.CloneRepo("https://github.com/gardener/machine-controller-manager.git", mcmRepoPath)).
@@ -636,7 +641,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	}
 
 	// starting controllers
-	if len(mcContainerImage) != 0 && len(mcmContainerImage) != 0 {
+	if len(mcContainerImage) != 0 || len(mcmContainerImage) != 0 {
 
 		// if any of mcmContainerImage  or mcContainerImageTag flag is non-empty then,
 		// create/update machinecontrollermanager deployment in the control-cluster with specified image
@@ -932,7 +937,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 					mcmPod := podList.Items[0]
-					providerSpecificRegexp, _ := regexp.Compile("machine-controller-manager-provider-")
+					providerSpecificRegexp, _ := regexp.Compile(mcContainerPrefix)
 					containers := mcmPod.Spec.Containers
 
 					for i := range containers {
