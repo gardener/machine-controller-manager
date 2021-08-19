@@ -604,6 +604,39 @@ func rotateLogFile(fileName string) (*os.File, error) {
 	return os.Create(fileName)
 }
 
+//runControllersLocally run the machine controller and machine controller manager binary locally
+func (c *IntegrationTestFramework) runControllersLocally() {
+	ginkgo.By("Starting Machine Controller ")
+	args := strings.Fields(
+		fmt.Sprintf(
+			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false ",
+			"../../..",
+			c.ControlCluster.KubeConfigFilePath,
+			c.TargetCluster.KubeConfigFilePath,
+			controlClusterNamespace),
+	)
+	outputFile, err := rotateLogFile(mcLogFile)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	gomega.Expect(mcsession.ExitCode()).Should(gomega.Equal(-1))
+
+	ginkgo.By("Starting Machine Controller Manager")
+	args = strings.Fields(
+		fmt.Sprintf(
+			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms",
+			mcmRepoPath,
+			c.ControlCluster.KubeConfigFilePath,
+			c.TargetCluster.KubeConfigFilePath,
+			controlClusterNamespace),
+	)
+	outputFile, err = rotateLogFile(mcmLogFile)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	gomega.Expect(mcmsession.ExitCode()).Should(gomega.Equal(-1))
+}
+
 // SetupBeforeSuite performs the initial setup for the test by
 // - Checks control cluster and target clusters are accessible and initializes ControlCluster and TargetCluster.
 // - Check and optionally create crds (machineclass, machines, machinesets and machine deployment)
@@ -620,11 +653,46 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	ginkgo.By("Checking for the clusters if provided are available")
 	gomega.Expect(c.initalizeClusters()).To(gomega.BeNil())
 
-	// preparing resources
-	// if control cluster is not the seed, then applyCrds from the mcm repo by cloning
-	// if no image tags specified, then also clone the mcm repo as the the mcm process needs to be started
+	//setting up MCM either locally or by deploying after checking conditions
 
-	if !c.ControlCluster.IsSeed(c.TargetCluster) || (len(mcContainerImage) == 0 || len(mcmContainerImage) == 0) {
+	/* flow dealing with MCM deployment
+
+		- Check if control cluster is a seed cluster
+	    - If YES
+	        - Check if MC Image or MCM Image are set in the Makefile
+	            - If YES (that is, one of them or both of them are passed)
+	                - Prepare MCM Deployment in the Seed cluster by updating the images of the containers
+	            - If NO (that is both of them are not passed)
+	                - Clone the MCM repo
+	                - Scale down MCM running in seed to 0
+	                - Run MCM locally
+	    - If NO
+	        - Then, most likely this is a shoot whose original MCM is also running. Scale it down (this is challenging)
+	        - Apply the CRDs (Clone MCM repo before this as CRDs present in MCM repo)
+	        - Check if MC Image or MCM Image are set in the Makefile
+	            - If YES (that is, one of them or both of them are passed)
+	                - Prepare MCM Deployment in the control cluster by creating (/kubernetes/out-of-tree/deployment.yaml)
+	            - If NO (that is both of them are not passed)
+	                - Run MCM locally
+
+	*/
+	if c.ControlCluster.IsSeed(c.TargetCluster) {
+
+		if len(mcContainerImage) != 0 || len(mcmContainerImage) != 0 {
+			ginkgo.By("Updating MCM Deployemnt")
+			gomega.Expect(c.prepareMcmDeployment(mcContainerImage, mcmContainerImage, false)).To(gomega.BeNil())
+		} else {
+			ginkgo.By("Cloning Machine-Controller-Manager github repo")
+			gomega.Expect(helpers.CloneRepo("https://github.com/gardener/machine-controller-manager.git", mcmRepoPath)).
+				To(gomega.BeNil())
+
+			ginkgo.By("Scaledown existing machine controllers")
+			gomega.Expect(c.scaleMcmDeployment(0)).To(gomega.BeNil())
+
+			c.runControllersLocally()
+		}
+	} else {
+		//TODO : Scaledown the MCM deployment of the actual seed of the target cluster
 
 		ginkgo.By("Cloning Machine-Controller-Manager github repo")
 		gomega.Expect(helpers.CloneRepo("https://github.com/gardener/machine-controller-manager.git", mcmRepoPath)).
@@ -638,57 +706,12 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 			ApplyFiles(
 				filepath.Join(mcmRepoPath, "kubernetes/crds"), controlClusterNamespace)).To(gomega.BeNil())
 
-	}
-
-	// starting controllers
-	if len(mcContainerImage) != 0 || len(mcmContainerImage) != 0 {
-
-		// if any of mcmContainerImage  or mcContainerImageTag flag is non-empty then,
-		// create/update machinecontrollermanager deployment in the control-cluster with specified image
-		if c.ControlCluster.IsSeed(c.TargetCluster) {
-			ginkgo.By("Updating MCM Deployemnt")
-			gomega.Expect(c.prepareMcmDeployment(mcContainerImage, mcmContainerImage, false)).To(gomega.BeNil())
-		} else {
+		if len(mcContainerImage) != 0 || len(mcmContainerImage) != 0 {
 			ginkgo.By("Creating MCM Deployemnt")
 			gomega.Expect(c.prepareMcmDeployment(mcContainerImage, mcmContainerImage, true)).To(gomega.BeNil())
+		} else {
+			c.runControllersLocally()
 		}
-
-	} else {
-		// run mc and mcm locally
-		if c.ControlCluster.IsSeed(c.TargetCluster) {
-			ginkgo.By("Scaledown existing machine controllers")
-			gomega.Expect(c.scaleMcmDeployment(0)).To(gomega.BeNil())
-		}
-
-		ginkgo.By("Starting Machine Controller ")
-		args := strings.Fields(
-			fmt.Sprintf(
-				"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false ",
-				"../../..",
-				c.ControlCluster.KubeConfigFilePath,
-				c.TargetCluster.KubeConfigFilePath,
-				controlClusterNamespace),
-		)
-		outputFile, err := rotateLogFile(mcLogFile)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		gomega.Expect(mcsession.ExitCode()).Should(gomega.Equal(-1))
-
-		ginkgo.By("Starting Machine Controller Manager")
-		args = strings.Fields(
-			fmt.Sprintf(
-				"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms",
-				mcmRepoPath,
-				c.ControlCluster.KubeConfigFilePath,
-				c.TargetCluster.KubeConfigFilePath,
-				controlClusterNamespace),
-		)
-		outputFile, err = rotateLogFile(mcmLogFile)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		gomega.Expect(mcmsession.ExitCode()).Should(gomega.Equal(-1))
 	}
 
 	ginkgo.By("Setup MachineClass")
