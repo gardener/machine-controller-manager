@@ -25,7 +25,7 @@ import (
 )
 
 // parsek8sYaml reads a yaml file and parses it based on the scheme
-func parseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind, error) {
+func ParseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind, error) {
 	fileR, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		return nil, nil, err
@@ -97,7 +97,7 @@ func parseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind
 // applyFile uses yaml to create resources in kubernetes
 func (c *Cluster) applyFile(filePath string, namespace string) error {
 	ctx := context.Background()
-	runtimeobj, kind, err := parseK8sYaml(filePath)
+	runtimeobj, kind, err := ParseK8sYaml(filePath)
 	if err == nil {
 		for key, obj := range runtimeobj {
 			switch kind[key].Kind {
@@ -233,7 +233,7 @@ func (c *Cluster) ApplyFiles(source string, namespace string) error {
 // deleteResource uses yaml to delete resources in kubernetes
 func (c *Cluster) deleteResource(filePath string, namespace string) error {
 	ctx := context.Background()
-	runtimeobj, kind, err := parseK8sYaml(filePath)
+	runtimeobj, kind, err := ParseK8sYaml(filePath)
 	if err == nil {
 		for key, obj := range runtimeobj {
 			switch kind[key].Kind {
