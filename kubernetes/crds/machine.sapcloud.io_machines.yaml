@@ -19,7 +19,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Machine TODO
+        description: Machine is the representation of a physical or virtual machine.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -76,6 +76,7 @@ spec:
                 properties:
                   metadata:
                     type: object
+                    x-kubernetes-preserve-unknown-fields: true
                   spec:
                     description: NodeSpec describes the attributes that a node is
                       created with.

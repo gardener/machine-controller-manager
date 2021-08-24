@@ -204,6 +204,7 @@ spec:
                   metadata:
                     description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata'
                     type: object
+                    x-kubernetes-preserve-unknown-fields: true
                   spec:
                     description: 'Specification of the desired behavior of the machine.
                       More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status'
@@ -250,6 +251,7 @@ spec:
                         properties:
                           metadata:
                             type: object
+                            x-kubernetes-preserve-unknown-fields: true
                           spec:
                             description: NodeSpec describes the attributes that a
                               node is created with.
