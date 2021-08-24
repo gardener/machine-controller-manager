@@ -32,7 +32,7 @@ import (
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
-// Machine TODO
+// Machine is the representation of a physical or virtual machine.
 type Machine struct {
 	// ObjectMeta for machine object
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -81,6 +81,7 @@ type ClassSpec struct {
 
 // NodeTemplateSpec describes the data a node should have when created from a template
 type NodeTemplateSpec struct {
+	// +kubebuilder:validation:XPreserveUnknownFields
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
