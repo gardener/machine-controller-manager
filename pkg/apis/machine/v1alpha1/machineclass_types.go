@@ -37,6 +37,7 @@ type MachineClass struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
+	// +kubebuilder:validation:XPreserveUnknownFields
 	// Provider-specific configuration to use during node creation.
 	ProviderSpec runtime.RawExtension `json:"providerSpec"`
 	// SecretRef stores the necessary secrets such as credentials or userdata.

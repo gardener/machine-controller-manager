@@ -16,10 +16,21 @@ spec:
     singular: machine
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Current status of the machine.
+      jsonPath: .status.currentStatus.phase
+      name: Status
+      type: string
+    - description: |-
+        CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+        Populated by the system. Read-only. Null for lists. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Machine TODO
+        description: Machine is the representation of a physical or virtual machine.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -76,6 +87,7 @@ spec:
                 properties:
                   metadata:
                     type: object
+                    x-kubernetes-preserve-unknown-fields: true
                   spec:
                     description: NodeSpec describes the attributes that a node is
                       created with.

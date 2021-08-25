@@ -2309,7 +2309,7 @@ func schema_pkg_apis_machine_v1alpha1_Machine(ref common.ReferenceCallback) comm
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Machine TODO",
+				Description: "Machine is the representation of a physical or virtual machine.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"metadata": {
