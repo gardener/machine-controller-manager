@@ -725,27 +725,6 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 
 	//setting up MCM either locally or by deploying after checking conditions
 
-	/* flow dealing with MCM deployment
-
-		- Check if control cluster is a seed cluster
-	    - If YES
-	        - Check if MC Image or MCM Image are set in the Makefile
-	            - If YES (that is, one of them or both of them are passed)
-	                - Prepare MCM Deployment in the Seed cluster by updating the images of the containers
-	            - If NO (that is both of them are not passed)
-	                - Clone the MCM repo
-	                - Scale down MCM running in seed to 0
-	                - Run MCM locally
-	    - If NO
-	        - Then, most likely this is a shoot whose original MCM is also running. Scale it down (this is challenging)
-	        - Apply the CRDs (Clone MCM repo before this as CRDs present in MCM repo)
-	        - Check if MC Image or MCM Image are set in the Makefile
-	            - If YES (that is, one of them or both of them are passed)
-	                - Prepare MCM Deployment in the control cluster by creating (/kubernetes/out-of-tree/deployment.yaml)
-	            - If NO (that is both of them are not passed)
-	                - Run MCM locally
-
-	*/
 	if c.ControlCluster.IsSeed(c.TargetCluster) {
 
 		if len(mcContainerImage) != 0 || len(mcmContainerImage) != 0 {

@@ -8,11 +8,11 @@ Integration tests for `machine-controller-manager` and `machine-controller-manag
 - (optional) Copy the kubeconfig of the kubernetes cluster where you wish to deploy the machines into `dev/target-kubeconfig.yaml`. If you do this, also update the `Makefile` variable TARGET_KUBECONFIG to point to `dev/target-kubeconfig.yaml`.
 - If the tags on instances & associated resources on the provider are of string type (for example, GCP tags on its instances are of type string and not key-value pair) then add `TAGS_ARE_STRINGS := true` in the `Makefile`.
 - If tags for controller's container images are known, update the `Makefile` variables MCM_IMAGE_TAG and MC_IMAGE_TAG accordingly. These images will be used along with `kubernetes/deployment.yaml` to deploy/update controllers in the cluster. If none of the images are specified, the controllers will be started in the local system. 
-- If the kubernetes cluster referred by `dev/control-kubeconfig.yaml` is a gardener SHOOT cluster, then
+- If the kubernetes cluster referred by `dev/control-kubeconfig.yaml` is a Gardener SHOOT cluster, then
     - Deploy a secret named `test-mc-secret` that contains the provider secret and cloud-config into the kubernetes cluster. Refer [these](https://github.com/gardener/machine-controller-manager/tree/master/kubernetes/machine_classes) machineClass templates for the same.
     - Create a `dev/machineclassv1.yaml` file. The value of `providerSpec.secretRef.name` should be `test-mc-secret`. The name of the machineclass itself should be `test-mc-v1`. 
     - (optional) Create an additional `dev/machineclassv2.yaml` file similar to above but with a bigger machine type. If you do this, update the `Makefile` variable MACHINECLASS_V2 to point to `dev/machineclassv2.yaml`. 
-- If the cluster referred by `dev/control-kubeconfig.yaml` is a gardener SEED cluster then
+- If the cluster referred by `dev/control-kubeconfig.yaml` is a Gardener SEED cluster then
   - (optional) If you want to use a machineClass of your own for the test
     - Deploy a secret named `test-mc-secret` that contains the provider secret and cloud-config into the kubernetes cluster. Refer [these](https://github.com/gardener/machine-controller-manager/tree/master/kubernetes/machine_classes) machineClass templates for the same. Make sure that value of `metadata.namespace` is the technicalID i.e `shoot--<project>--<shoot-name>` of the shoot.
     - Create a `dev/machineclassv1.yaml` file.
