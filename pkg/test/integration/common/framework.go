@@ -38,7 +38,7 @@ var (
 	mcLogFile = filepath.Join(targetDir, "mc_process.log")
 
 	// relative path to clone machine-controller-manager repo.
-	// Only used if no mcm or mc image tag is available and thus running make command locally
+	// used when control cluster is shoot cluster
 	mcmRepoPath = filepath.Join("..", "..", "..", "dev", "mcm")
 
 	// control cluster namespace to create resources.
@@ -65,6 +65,9 @@ var (
 
 	// names of machineclass resource.
 	testMachineClassResources = []string{"test-mc-v1", "test-mc-v2"}
+
+	//name of secret resource referred by machineclass
+	testSecretName = "test-mc-secret"
 
 	// path for v1machineclass yaml file to be used while creating machine resources
 	// name of the machineclass will always be test-mc-v1. overriding the name of machineclass in yaml file
@@ -458,6 +461,84 @@ func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
 	return retryErr
 }
 
+func (c *IntegrationTestFramework) updatePatchFile() {
+	clusterName, _ := c.TargetCluster.ClusterName()
+	clusterTag := "kubernetes-io-cluster-" + clusterName
+	testRoleTag := "kubernetes-io-role-integration-test"
+
+	patchMachineClassData := MachineClassPatch{
+		ProviderSpec: ProviderSpecPatch{
+			Tags: []string{
+				clusterName,
+				clusterTag,
+				testRoleTag,
+			},
+		},
+	}
+
+	data, _ := json.MarshalIndent(patchMachineClassData, "", " ")
+
+	//writing to machine-class-patch.json
+	_ = ioutil.WriteFile(filepath.Join("..", "..", "..",
+		".ci",
+		"controllers-test",
+		"machine-class-patch.json"), data, 0644)
+}
+
+func (c *IntegrationTestFramework) patchMachineClass(ctx context.Context, resourceName string) error {
+
+	//adding cluster tag and noderole tag to the patch file if tags are strings
+	if isTagsStrings == "true" {
+		c.updatePatchFile()
+	}
+
+	if data, err := os.ReadFile(
+		filepath.Join("..", "..", "..",
+			".ci",
+			"controllers-test",
+			"machine-class-patch.json"),
+	); err == nil {
+		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			_, err := c.ControlCluster.McmClient.
+				MachineV1alpha1().
+				MachineClasses(controlClusterNamespace).
+				Patch(
+					ctx,
+					resourceName,
+					types.MergePatchType,
+					data,
+					metav1.PatchOptions{},
+				)
+			return err
+		})
+		if retryErr != nil {
+			return retryErr
+		}
+	} else {
+		// Error reading file. So skipping patch
+		log.Panicln("error while reading patch file. So skipping it")
+	}
+
+	return nil
+}
+
+func (c *IntegrationTestFramework) patchIntegrationTestMachineClasses() error {
+	for _, machineClassName := range testMachineClassResources {
+		if _, err := c.ControlCluster.McmClient.
+			MachineV1alpha1().
+			MachineClasses(controlClusterNamespace).
+			Get(context.Background(), machineClassName,
+				metav1.GetOptions{},
+			); err == nil {
+			//patch
+			if err = c.patchMachineClass(context.Background(), machineClassName); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // setupMachineClass reads the control cluster machineclass resource and creates a duplicate of it.
 // Additionally it adds the delta part found in file  .ci/controllers-test/machine-class-patch.json of provider specific repo
 // OR
@@ -498,61 +579,7 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 						},
 						metav1.CreateOptions{},
 					)
-				if createErr == nil {
-					//adding cluster tag and noderole tag to the patch file if provider is GCP
-					if isTagsStrings == "true" {
-						clusterName, _ := c.TargetCluster.ClusterName()
-						clusterTag := "kubernetes-io-cluster-" + clusterName
-						nodeRoleTag := "kubernetes-io-role-node"
-
-						patchMachineClassData := MachineClassPatch{
-							ProviderSpec: ProviderSpecPatch{
-								Tags: []string{
-									clusterName,
-									clusterTag,
-									nodeRoleTag,
-									"mcm-integration-test-true",
-								},
-							},
-						}
-
-						data, _ := json.MarshalIndent(patchMachineClassData, "", " ")
-
-						//writing to machine-class-patch.json
-						_ = ioutil.WriteFile(filepath.Join("..", "..", "..",
-							".ci",
-							"controllers-test",
-							"machine-class-patch.json"), data, 0644)
-					}
-
-					// patch
-					if data, err := os.ReadFile(
-						filepath.Join("..", "..", "..",
-							".ci",
-							"controllers-test",
-							"machine-class-patch.json"),
-					); err == nil {
-						retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-							_, err := c.ControlCluster.McmClient.
-								MachineV1alpha1().
-								MachineClasses(controlClusterNamespace).
-								Patch(
-									ctx,
-									resourceName,
-									types.MergePatchType,
-									data,
-									metav1.PatchOptions{},
-								)
-							return err
-						})
-						if retryErr != nil {
-							return retryErr
-						}
-					} else {
-						// Error reading file. So skipping patch
-						log.Panicln("error while reading patch file. So skipping it")
-					}
-				} else {
+				if createErr != nil {
 					return createErr
 				}
 			}
@@ -626,6 +653,10 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 		}
 	}
 
+	//patching the integration test machineclasses with IT role tag
+	if err := c.patchIntegrationTestMachineClasses(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1135,9 +1166,9 @@ func (c *IntegrationTestFramework) ControllerTests() {
 	})
 
 	// Testcase #03 | Orphaned Resources
-	ginkgo.Describe("zero Orphaned resource", func() {
+	ginkgo.Describe("orphaned resources excpet NICs", func() {
 		ginkgo.Context("when the hyperscaler resources are querried", func() {
-			ginkgo.It("should match with inital resources", func() {
+			ginkgo.It("should have been deleted and orphan NICs be listed", func() {
 				// if available, should delete orphaned resources in the cloud provider
 				ginkgo.By("Querrying and comparing")
 				gomega.Eventually(
@@ -1258,6 +1289,18 @@ func (c *IntegrationTestFramework) Cleanup() {
 				log.Println(err.Error())
 			}
 		}
+
+		//Check and delete test-mc-secret if exists
+		_, err = c.ControlCluster.Clientset.CoreV1().Secrets(controlClusterNamespace).Get(ctx, testSecretName, metav1.GetOptions{})
+		log.Printf("Checking if %s exists", testSecretName)
+		if err == nil {
+			log.Printf("deleting %s secret", testSecretName)
+			c.ControlCluster.Clientset.CoreV1().Secrets(controlClusterNamespace).Delete(ctx, testSecretName, metav1.DeleteOptions{})
+			log.Println("secret deleted")
+		} else {
+			log.Printf("%s doesn't exist", testSecretName)
+		}
+
 	}
 	if c.ControlCluster.IsSeed(c.TargetCluster) {
 		// scale back up the MCM deployment to 1 in the Control Cluster
@@ -1327,4 +1370,5 @@ func (c *IntegrationTestFramework) Cleanup() {
 				)
 		}
 	}
+
 }
