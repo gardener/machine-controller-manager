@@ -1145,9 +1145,9 @@ func (c *IntegrationTestFramework) ControllerTests() {
 	})
 
 	// Testcase #03 | Orphaned Resources
-	ginkgo.Describe("orphaned resources excpet NICs", func() {
+	ginkgo.Describe("orphaned resources", func() {
 		ginkgo.Context("when the hyperscaler resources are querried", func() {
-			ginkgo.It("should have been deleted and orphan NICs be listed", func() {
+			ginkgo.It("should have been deleted", func() {
 				// if available, should delete orphaned resources in the cloud provider
 				ginkgo.By("Querrying and comparing")
 				gomega.Eventually(
