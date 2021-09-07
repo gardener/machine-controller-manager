@@ -29,8 +29,7 @@ import (
 
 var (
 	// path for storing log files (mcm & mc processes)
-	targetDir = os.TempDir()
-
+	targetDir = filepath.Join("..", "..", "..", ".ci", "controllers-test", "logs")
 	// machine-controller-manager log file
 	mcmLogFile = filepath.Join(targetDir, "mcm_process.log")
 
@@ -65,9 +64,6 @@ var (
 
 	// names of machineclass resource.
 	testMachineClassResources = []string{"test-mc-v1", "test-mc-v2"}
-
-	//name of secret resource referred by machineclass
-	testSecretName = "test-mc-secret"
 
 	// path for v1machineclass yaml file to be used while creating machine resources
 	// name of the machineclass will always be test-mc-v1. overriding the name of machineclass in yaml file
@@ -1267,17 +1263,6 @@ func (c *IntegrationTestFramework) Cleanup() {
 			} else {
 				log.Println(err.Error())
 			}
-		}
-
-		//Check and delete test-mc-secret if exists
-		_, err = c.ControlCluster.Clientset.CoreV1().Secrets(controlClusterNamespace).Get(ctx, testSecretName, metav1.GetOptions{})
-		log.Printf("Checking if %s exists", testSecretName)
-		if err == nil {
-			log.Printf("deleting %s secret", testSecretName)
-			c.ControlCluster.Clientset.CoreV1().Secrets(controlClusterNamespace).Delete(ctx, testSecretName, metav1.DeleteOptions{})
-			log.Println("secret deleted")
-		} else {
-			log.Printf("%s doesn't exist", testSecretName)
 		}
 
 	}
