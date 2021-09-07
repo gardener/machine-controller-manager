@@ -24,7 +24,7 @@ import (
 	scheme "k8s.io/client-go/kubernetes/scheme"
 )
 
-// parsek8sYaml reads a yaml file and parses it based on the scheme
+// ParseK8sYaml reads a yaml file and parses it based on the scheme
 func ParseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind, error) {
 	fileR, err := ioutil.ReadFile(filepath)
 	if err != nil {
