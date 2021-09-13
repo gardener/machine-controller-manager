@@ -51,7 +51,7 @@ func (c *Cluster) CreateMachineDeployment(namespace string) error {
 					Strategy: v1alpha1.MachineDeploymentStrategy{
 						Type: v1alpha1.RollingUpdateMachineDeploymentStrategyType,
 						RollingUpdate: &v1alpha1.RollingUpdateMachineDeployment{
-							MaxSurge:       &intstr.IntOrString{IntVal: 1},
+							MaxSurge:       &intstr.IntOrString{IntVal: 2},
 							MaxUnavailable: &intstr.IntOrString{IntVal: 1},
 						},
 					},
