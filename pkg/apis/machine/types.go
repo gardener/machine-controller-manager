@@ -1204,16 +1204,18 @@ type MachineClass struct {
 	metav1.TypeMeta
 	// +optional
 	metav1.ObjectMeta
+	// CredentialsSecretRef can optionally store the credentials (in this case the SecretRef does not need to store them).
+	// This might be useful if multiple machine classes with the same credentials but different user-datas are used.
+	CredentialsSecretRef *corev1.SecretReference
+	// ExpectedNodeAttributes contains subfields the track all scale from zero resources
+	ExpectedNodeAttributes *ExpectedNodeAttributes
+	// Provider is the combination of name and location of cloud-specific drivers.
+	// eg. awsdriver//127.0.0.1:8080
+	Provider string
 	// Provider-specific configuration to use during node creation.
 	ProviderSpec runtime.RawExtension
 	// SecretRef stores the necessary secrets such as credentials or userdata.
 	SecretRef *corev1.SecretReference
-	// CredentialsSecretRef can optionally store the credentials (in this case the SecretRef does not need to store them).
-	// This might be useful if multiple machine classes with the same credentials but different user-datas are used.
-	CredentialsSecretRef *corev1.SecretReference
-	// Provider is the combination of name and location of cloud-specific drivers.
-	// eg. awsdriver//127.0.0.1:8080
-	Provider string
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -1223,4 +1225,20 @@ type MachineClassList struct {
 	metav1.TypeMeta
 	metav1.ListMeta
 	Items []MachineClass
+}
+
+// ExpectedNodeAttributes contains subfields to track all scale from zero resources
+type ExpectedNodeAttributes struct {
+	// CPU cores of the expected node
+	CPU *int64
+	// GPU cores of the expected node
+	GPU *int64
+	// Instance type of the expected node
+	InstanceType *string
+	// Memory of the expected node
+	Memory *int64
+	// Region of the expected node
+	Region *string
+	// Zone of the expected node
+	Zone *string
 }
