@@ -325,14 +325,9 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			Secret:       createMachineRequest.Secret,
 		},
 	)
-	if err == nil && (nodeName == "" || providerID == "") {
-		// Found VM with required machine name
-		klog.V(2).Infof("Found VM with required machine name. Adopting existing machine: %q with ProviderID: %s", machineName, getMachineStatusResponse.ProviderID)
-		nodeName = getMachineStatusResponse.NodeName
-		providerID = getMachineStatusResponse.ProviderID
-	} else if err != nil {
-		// VM with required name is not found.
 
+	if err != nil {
+		// VM with required name is not found.
 		machineErr, ok := status.FromError(err)
 		if !ok {
 			// Error occurred with decoding machine error status, abort with retry.
@@ -430,7 +425,14 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 
 			return machineutils.MediumRetry, err
 		}
+	} else {
+		if machine.Labels["node"] == "" || machine.Spec.ProviderID == "" {
+			klog.V(2).Infof("Found VM with required machine name. Adopting existing machine: %q with ProviderID: %s", machineName, getMachineStatusResponse.ProviderID)
+		}
+		nodeName = getMachineStatusResponse.NodeName
+		providerID = getMachineStatusResponse.ProviderID
 	}
+
 	_, machineNodeLabelPresent := createMachineRequest.Machine.Labels["node"]
 	_, machinePriorityAnnotationPresent := createMachineRequest.Machine.Annotations[machineutils.MachinePriority]
 
