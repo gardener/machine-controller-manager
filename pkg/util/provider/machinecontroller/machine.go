@@ -354,37 +354,39 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 
 				nodeName = createMachineResponse.NodeName
 				providerID = createMachineResponse.ProviderID
+
+				// Creation was successful
+				klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q", machine.Name, providerID, getNodeName(machine))
+
+				//if a stale node obj exists by the same nodeName
+				if _, err := c.nodeLister.Get(nodeName); err == nil {
+					//mark the machine obj as `Failed`
+					klog.Errorf("Stale node obj with name %q has been found", nodeName)
+
+					c.machineStatusUpdate(
+						ctx,
+						machine,
+						v1alpha1.LastOperation{
+							Description:    "VM using old node",
+							State:          v1alpha1.MachineStateFailed,
+							Type:           v1alpha1.MachineOperationCreate,
+							LastUpdateTime: metav1.Now(),
+						},
+						v1alpha1.CurrentStatus{
+							Phase:          v1alpha1.MachineFailed,
+							LastUpdateTime: metav1.Now(),
+						},
+						machine.Status.LastKnownState,
+					)
+
+					klog.V(2).Infof("Machine %q marked Failed as VM is referring to a stale node object", machine.Name)
+					return machineutils.ShortRetry, err
+				}
 			} else {
 				//if node label present that means there must be a backing VM ,without need of GetMachineStatus() call
 				nodeName = machine.Labels["node"]
 			}
-			// Creation was successful
-			klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q", machine.Name, providerID, getNodeName(machine))
 
-			//if a stale node obj exists by the same nodeName
-			if _, err := c.nodeLister.Get(nodeName); err == nil {
-				//mark the machine obj as `Failed`
-				klog.Errorf("Stale node obj with name %q has been found", nodeName)
-
-				c.machineStatusUpdate(
-					ctx,
-					machine,
-					v1alpha1.LastOperation{
-						Description:    "VM using old node",
-						State:          v1alpha1.MachineStateFailed,
-						Type:           v1alpha1.MachineOperationCreate,
-						LastUpdateTime: metav1.Now(),
-					},
-					v1alpha1.CurrentStatus{
-						Phase:          v1alpha1.MachineFailed,
-						LastUpdateTime: metav1.Now(),
-					},
-					machine.Status.LastKnownState,
-				)
-
-				klog.V(2).Infof("Machine %q marked Failed as VM is referring to a stale node object", machine.Name)
-				return machineutils.ShortRetry, err
-			}
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 			// GetMachineStatus() returned with one of the above error codes.
 			// Retry operation.
