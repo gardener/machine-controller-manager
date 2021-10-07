@@ -302,10 +302,12 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 func (c *controller) triggerCreationFlow(ctx context.Context, createMachineRequest *driver.CreateMachineRequest) (machineutils.RetryPeriod, error) {
 
 	var (
+		//Declarations
+		nodeName, providerID string
+
+		//Initializations
 		machine     = createMachineRequest.Machine
 		machineName = createMachineRequest.Machine.Name
-		nodeName    = ""
-		providerID  = ""
 	)
 
 	// we should avoid mutating Secret, since it goes all the way into the Informer's store
