@@ -365,11 +365,31 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 					//mark the machine obj as `Failed`
 					klog.Errorf("Stale node obj with name %q for machine %q has been found. Hence marking the created VM for deletion to trigger a new machine creation.", nodeName, machine.Name)
 
+					deleteMachineRequest := &driver.DeleteMachineRequest{
+						Machine: &v1alpha1.Machine{
+							ObjectMeta: machine.ObjectMeta,
+							Spec: v1alpha1.MachineSpec{
+								ProviderID: providerID,
+							},
+						},
+						MachineClass: createMachineRequest.MachineClass,
+						Secret:       secretCopy,
+					}
+
+					_, err := c.driver.DeleteMachine(ctx, deleteMachineRequest)
+
+					if err != nil {
+						klog.V(2).Infof("VM deletion in context of stale node obj failed for machine %q, will be retried. err=%q", machine.Name, err.Error())
+					} else {
+						klog.V(2).Infof("VM successfully deleted in context of stale node obj for machine %q", machine.Name)
+					}
+
+					//machine obj marked Failed for double surity
 					c.machineStatusUpdate(
 						ctx,
 						machine,
 						v1alpha1.LastOperation{
-							Description:    "VM using old node",
+							Description:    "VM using old node obj",
 							State:          v1alpha1.MachineStateFailed,
 							Type:           v1alpha1.MachineOperationCreate,
 							LastUpdateTime: metav1.Now(),
@@ -381,7 +401,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 						machine.Status.LastKnownState,
 					)
 
-					klog.V(2).Infof("Machine %q marked Failed as VM is referring to a stale node object", machine.Name)
+					klog.V(2).Infof("Machine %q marked Failed as VM was referring to a stale node object", machine.Name)
 					return machineutils.ShortRetry, err
 				}
 			} else {
