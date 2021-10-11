@@ -363,7 +363,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				//if a stale node obj exists by the same nodeName
 				if _, err := c.nodeLister.Get(nodeName); err == nil {
 					//mark the machine obj as `Failed`
-					klog.Errorf("Stale node obj with name %q has been found", nodeName)
+					klog.Errorf("Stale node obj with name %q for machine %q has been found. Hence marking the created VM for deletion to trigger a new machine creation.", nodeName, machine.Name)
 
 					c.machineStatusUpdate(
 						ctx,
