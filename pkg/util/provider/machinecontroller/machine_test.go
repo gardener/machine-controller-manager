@@ -381,9 +381,10 @@ var _ = Describe("machine", func() {
 
 	Describe("#triggerCreationFlow", func() {
 		type setup struct {
-			machineClaasses     []*v1alpha1.MachineClass
+			machineClasses      []*v1alpha1.MachineClass
 			machines            []*v1alpha1.Machine
 			secrets             []*corev1.Secret
+			nodes               []*corev1.Node
 			fakeResourceActions *customfake.ResourceActions
 		}
 		type action struct {
@@ -410,16 +411,21 @@ var _ = Describe("machine", func() {
 				defer close(stop)
 
 				machineObjects := []runtime.Object{}
-				for _, o := range data.setup.machineClaasses {
+				for _, o := range data.setup.machineClasses {
 					machineObjects = append(machineObjects, o)
 				}
 				for _, o := range data.setup.machines {
 					machineObjects = append(machineObjects, o)
 				}
 
-				coreObjects := []runtime.Object{}
+				controlCoreObjects := []runtime.Object{}
 				for _, o := range data.setup.secrets {
-					coreObjects = append(coreObjects, o)
+					controlCoreObjects = append(controlCoreObjects, o)
+				}
+
+				targetCoreObjects := []runtime.Object{}
+				for _, o := range data.setup.nodes {
+					targetCoreObjects = append(targetCoreObjects, o)
 				}
 
 				fakedriver := driver.NewFakeDriver(
@@ -431,7 +437,7 @@ var _ = Describe("machine", func() {
 					nil,
 				)
 
-				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, coreObjects, nil, fakedriver)
+				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, controlCoreObjects, targetCoreObjects, fakedriver)
 
 				defer trackers.Stop()
 
@@ -478,7 +484,7 @@ var _ = Describe("machine", func() {
 							Data:       map[string][]byte{"userData": []byte("test")},
 						},
 					},
-					machineClaasses: []*v1alpha1.MachineClass{
+					machineClasses: []*v1alpha1.MachineClass{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							SecretRef:  newSecretReference(objMeta, 0),
@@ -526,7 +532,7 @@ var _ = Describe("machine", func() {
 							Data:       map[string][]byte{"userData": []byte("test")},
 						},
 					},
-					machineClaasses: []*v1alpha1.MachineClass{
+					machineClasses: []*v1alpha1.MachineClass{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							SecretRef:  newSecretReference(objMeta, 0),
@@ -605,7 +611,7 @@ var _ = Describe("machine", func() {
 							Data:       map[string][]byte{"userData": []byte("test")},
 						},
 					},
-					machineClaasses: []*v1alpha1.MachineClass{
+					machineClasses: []*v1alpha1.MachineClass{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							SecretRef:  newSecretReference(objMeta, 0),
@@ -704,7 +710,7 @@ var _ = Describe("machine", func() {
 							Data:       map[string][]byte{"userData": []byte("test")},
 						},
 					},
-					machineClaasses: []*v1alpha1.MachineClass{
+					machineClasses: []*v1alpha1.MachineClass{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							SecretRef:  newSecretReference(objMeta, 0),
@@ -755,7 +761,7 @@ var _ = Describe("machine", func() {
 							Data:       map[string][]byte{"userData": []byte("test")},
 						},
 					},
-					machineClaasses: []*v1alpha1.MachineClass{
+					machineClasses: []*v1alpha1.MachineClass{
 						{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 							SecretRef:  newSecretReference(objMeta, 0),
@@ -798,7 +804,64 @@ var _ = Describe("machine", func() {
 					retry: machineutils.MediumRetry,
 				},
 			}),
-
+			Entry("Machine creation fails with Failure due to VM using stale node obj (case is for Provider AWS only)", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
+						},
+					},
+					machineClasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil, true, metav1.Now()),
+					nodes: []*corev1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "fakeNode-0",
+							},
+						},
+					},
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   false,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        nil,
+					},
+				},
+				expect: expect{
+					machine: newMachine(&v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machineClass",
+							},
+						},
+					}, &v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
+							Phase: v1alpha1.MachineFailed,
+						},
+					}, nil, nil, nil, true, metav1.Now()),
+					err:   nil,
+					retry: machineutils.ShortRetry,
+				},
+			}),
 			/*
 				Entry("Machine creation success even on temporary APIServer disruption", &data{
 					setup: setup{
