@@ -42,6 +42,34 @@ spec:
                   must be unique.
                 type: string
             type: object
+            x-kubernetes-preserve-unknown-fields: true
+          expectedNodeAttributes:
+            description: ExpectedNodeAttributes contains subfields the track all scale
+              from zero resources
+            properties:
+              cpu:
+                description: CPU cores of the expected node
+                format: int64
+                type: integer
+              gpu:
+                description: GPU cores of the expected node
+                format: int64
+                type: integer
+              instanceType:
+                description: Instance type of the expected node
+                type: string
+              memory:
+                description: Memory of the expected node
+                format: int64
+                type: integer
+              region:
+                description: Region of the expected node
+                type: string
+              zone:
+                description: Zone of the expected node
+                type: string
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
           kind:
             description: 'Kind is a string value representing the REST resource this
               object represents. Servers may infer this from the endpoint the client

@@ -65,6 +65,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.AzureVirtualMachineProperties":            schema_pkg_apis_machine_v1alpha1_AzureVirtualMachineProperties(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ClassSpec":                                schema_pkg_apis_machine_v1alpha1_ClassSpec(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.CurrentStatus":                            schema_pkg_apis_machine_v1alpha1_CurrentStatus(ref),
+		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ExpectedNodeAttributes":                   schema_pkg_apis_machine_v1alpha1_ExpectedNodeAttributes(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPDisk":                                  schema_pkg_apis_machine_v1alpha1_GCPDisk(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPMachineClass":                          schema_pkg_apis_machine_v1alpha1_GCPMachineClass(ref),
 		"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.GCPMachineClassList":                      schema_pkg_apis_machine_v1alpha1_GCPMachineClassList(ref),
@@ -1824,6 +1825,61 @@ func schema_pkg_apis_machine_v1alpha1_CurrentStatus(ref common.ReferenceCallback
 	}
 }
 
+func schema_pkg_apis_machine_v1alpha1_ExpectedNodeAttributes(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExpectedNodeAttributes contains subfields to track all scale from zero resources",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"cpu": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CPU cores of the expected node",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"gpu": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GPU cores of the expected node",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"instanceType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Instance type of the expected node",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"memory": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Memory of the expected node",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"region": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Region of the expected node",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"zone": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Zone of the expected node",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_machine_v1alpha1_GCPDisk(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2382,23 +2438,23 @@ func schema_pkg_apis_machine_v1alpha1_MachineClass(ref common.ReferenceCallback)
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
+					"credentialsSecretRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CredentialsSecretRef can optionally store the credentials (in this case the SecretRef does not need to store them). This might be useful if multiple machine classes with the same credentials but different user-datas are used.",
+							Ref:         ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
+					"expectedNodeAttributes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExpectedNodeAttributes contains subfields the track all scale from zero resources",
+							Ref:         ref("github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ExpectedNodeAttributes"),
+						},
+					},
 					"providerSpec": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provider-specific configuration to use during node creation.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
-						},
-					},
-					"secretRef": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SecretRef stores the necessary secrets such as credentials or userdata.",
-							Ref:         ref("k8s.io/api/core/v1.SecretReference"),
-						},
-					},
-					"credentialsSecretRef": {
-						SchemaProps: spec.SchemaProps{
-							Description: "CredentialsSecretRef can optionally store the credentials (in this case the SecretRef does not need to store them). This might be useful if multiple machine classes with the same credentials but different user-datas are used.",
-							Ref:         ref("k8s.io/api/core/v1.SecretReference"),
 						},
 					},
 					"provider": {
@@ -2408,12 +2464,18 @@ func schema_pkg_apis_machine_v1alpha1_MachineClass(ref common.ReferenceCallback)
 							Format:      "",
 						},
 					},
+					"secretRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecretRef stores the necessary secrets such as credentials or userdata.",
+							Ref:         ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
 				},
 				Required: []string{"providerSpec"},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.SecretReference", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
+			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.ExpectedNodeAttributes", "k8s.io/api/core/v1.SecretReference", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
 	}
 }
 
