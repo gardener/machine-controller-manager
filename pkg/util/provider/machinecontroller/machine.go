@@ -234,6 +234,33 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 }
 
 func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
+
+	node := newObj.(*corev1.Node)
+	if node == nil {
+		klog.Errorf("Couldn't convert to node from object")
+		return
+	}
+
+	// check for the TriggerDeletionByMCM annotation on the node object
+	// if it is present then mark the machine object for deletion
+	if value, ok := node.Annotations[machineutils.TriggerDeletionByMCM]; ok && value == "true" {
+
+		machine, err := c.getMachineFromNode(node.Name)
+		if err != nil {
+			klog.Errorf("Couldn't fetch machine %s, Error: %s", machine.Name, err)
+			return
+		}
+
+		if machine.DeletionTimestamp == nil {
+			klog.Infof("Node %s is annotated to trigger deletion by MCM.", node.Name)
+			if err := c.controlMachineClient.Machines(c.namespace).Delete(context.Background(), machine.Name, metav1.DeleteOptions{}); err != nil {
+				klog.Errorf("Machine object %s backing the node %s could not be marked for deletion.", machine.Name, node.Name)
+				return
+			}
+			klog.Infof("Machine object %s backing the node %s marked for deletion.", machine.Name, node.Name)
+		}
+	}
+
 	c.addNodeToMachine(newObj)
 }
 

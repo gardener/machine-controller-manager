@@ -26,34 +26,46 @@ import (
 const (
 	// GetVMStatus sets machine status to terminating and specifies next step as getting VMs
 	GetVMStatus = "Set machine status to termination. Now, getting VM Status"
+
 	// InitiateDrain specifies next step as initiate node drain
 	InitiateDrain = "Initiate node drain"
+
 	// InitiateVMDeletion specifies next step as initiate VM deletion
 	InitiateVMDeletion = "Initiate VM deletion"
+
 	// InitiateNodeDeletion specifies next step as node object deletion
 	InitiateNodeDeletion = "Initiate node object deletion"
+
 	// InitiateFinalizerRemoval specifies next step as machine finalizer removal
 	InitiateFinalizerRemoval = "Initiate machine object finalizer removal"
 
 	// LastAppliedALTAnnotation contains the last configuration of annotations, labels & taints applied on the node object
 	LastAppliedALTAnnotation = "node.machine.sapcloud.io/last-applied-anno-labels-taints"
+
 	// MachinePriority is the annotation used to specify priority
 	// associated with a machine while deleting it. The less its
 	// priority the more likely it is to be deleted first
 	// Default priority for a machine is set to 3
 	MachinePriority = "machinepriority.machine.sapcloud.io"
+
 	// MachineClassKind is used to identify the machineClassKind for generic machineClasses
 	MachineClassKind = "MachineClass"
+
 	// MigratedMachineClass annotation helps in identifying machineClasses who have been migrated by migration controller
 	MigratedMachineClass = "machine.sapcloud.io/migrated"
 
 	// NotManagedByMCM annotation helps in identifying the nodes which are not handled by MCM
 	NotManagedByMCM = "node.machine.sapcloud.io/not-managed-by-mcm"
 
+	// TriggerDeletionByMCM annotation on the node would trigger the deletion of the corresponding machine object in the control cluster
+	TriggerDeletionByMCM = "node.machine.sapcloud.io/trigger-deletion-by-mcm"
+
 	// NodeUnhealthy is a node termination reason for failed machines
 	NodeUnhealthy = "Unhealthy"
+
 	// NodeScaledDown is a node termination reason for healthy deleted machines
 	NodeScaledDown = "ScaleDown"
+
 	// NodeTerminationCondition describes nodes that are terminating
 	NodeTerminationCondition v1.NodeConditionType = "Terminating"
 )
