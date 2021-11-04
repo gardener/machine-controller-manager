@@ -17,6 +17,7 @@
 set -e
 
 export GO111MODULE=on
+export SKIP_INTEGRATION_TESTS=X
 
 # For the test step concourse will set the following environment variables:
 # SOURCE_PATH - path to component repository root directory.
