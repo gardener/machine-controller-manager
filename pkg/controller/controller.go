@@ -56,6 +56,12 @@ const (
 	MachineIDAnnotation = "machine.sapcloud.io/id"
 	// DeleteFinalizerName is the finalizer used to identify the controller acting on an object
 	DeleteFinalizerName = "machine.sapcloud.io/machine-controller-manager"
+
+	// MachinePriority is the annotation used to specify priority
+	// associated with a machine while deleting it. The less its
+	// priority the more likely it is to be deleted first
+	// Default priority for a machine is set to 3
+	MachinePriority = "machinepriority.machine.sapcloud.io"
 )
 
 // NewController returns a new Node controller.
@@ -102,9 +108,7 @@ func NewController(
 		machineQueue:                               workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
 		machineSetQueue:                            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
 		machineDeploymentQueue:                     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
-		machineSafetyOrphanVMsQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
 		machineSafetyOvershootingQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
-		machineSafetyAPIServerQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
 		safetyOptions:                              safetyOptions,
 		nodeConditions:                             nodeConditions,
 		bootstrapTokenAuthExtraGroups:              bootstrapTokenAuthExtraGroups,
@@ -164,202 +168,6 @@ func NewController(
 	controller.machineSetSynced = machineSetInformer.Informer().HasSynced
 	controller.machineDeploymentSynced = machineDeploymentInformer.Informer().HasSynced
 
-	// Secret Controller Informers
-	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.secretAdd,
-		DeleteFunc: controller.secretDelete,
-	})
-
-	openStackMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.openStackMachineClassToSecretAdd,
-		UpdateFunc: controller.openStackMachineClassToSecretUpdate,
-		DeleteFunc: controller.openStackMachineClassToSecretDelete,
-	})
-
-	gcpMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.gcpMachineClassToSecretAdd,
-		UpdateFunc: controller.gcpMachineClassToSecretUpdate,
-		DeleteFunc: controller.gcpMachineClassToSecretDelete,
-	})
-
-	azureMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.azureMachineClassToSecretAdd,
-		UpdateFunc: controller.azureMachineClassToSecretUpdate,
-		DeleteFunc: controller.azureMachineClassToSecretDelete,
-	})
-
-	alicloudMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.alicloudMachineClassToSecretAdd,
-		UpdateFunc: controller.alicloudMachineClassToSecretUpdate,
-		DeleteFunc: controller.alicloudMachineClassToSecretDelete,
-	})
-
-	awsMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.awsMachineClassToSecretAdd,
-		UpdateFunc: controller.awsMachineClassToSecretUpdate,
-		DeleteFunc: controller.awsMachineClassToSecretDelete,
-	})
-
-	packetMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.packetMachineClassToSecretAdd,
-		UpdateFunc: controller.packetMachineClassToSecretUpdate,
-		DeleteFunc: controller.packetMachineClassToSecretDelete,
-	})
-
-	// Openstack Controller Informers
-	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineDeploymentToOpenStackMachineClassDelete,
-	})
-
-	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineSetToOpenStackMachineClassDelete,
-	})
-
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.machineToOpenStackMachineClassAdd,
-		UpdateFunc: controller.machineToOpenStackMachineClassUpdate,
-		DeleteFunc: controller.machineToOpenStackMachineClassDelete,
-	})
-
-	openStackMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.openStackMachineClassAdd,
-		UpdateFunc: controller.openStackMachineClassUpdate,
-		DeleteFunc: controller.openStackMachineClassDelete,
-	})
-
-	// AWS Controller Informers
-	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineDeploymentToAWSMachineClassDelete,
-	})
-
-	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineSetToAWSMachineClassDelete,
-	})
-
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.machineToAWSMachineClassAdd,
-		UpdateFunc: controller.machineToAWSMachineClassUpdate,
-		DeleteFunc: controller.machineToAWSMachineClassDelete,
-	})
-
-	awsMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.awsMachineClassAdd,
-		UpdateFunc: controller.awsMachineClassUpdate,
-		DeleteFunc: controller.awsMachineClassDelete,
-	})
-
-	// Azure Controller Informers
-	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineDeploymentToAzureMachineClassDelete,
-	})
-
-	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineSetToAzureMachineClassDelete,
-	})
-
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.machineToAzureMachineClassAdd,
-		UpdateFunc: controller.machineToAzureMachineClassUpdate,
-		DeleteFunc: controller.machineToAzureMachineClassDelete,
-	})
-
-	azureMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.azureMachineClassAdd,
-		UpdateFunc: controller.azureMachineClassUpdate,
-		DeleteFunc: controller.azureMachineClassDelete,
-	})
-
-	// GCP Controller Informers
-	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineDeploymentToGCPMachineClassDelete,
-	})
-
-	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineSetToGCPMachineClassDelete,
-	})
-
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.machineToGCPMachineClassAdd,
-		UpdateFunc: controller.machineToGCPMachineClassUpdate,
-		DeleteFunc: controller.machineToGCPMachineClassDelete,
-	})
-
-	gcpMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.gcpMachineClassAdd,
-		UpdateFunc: controller.gcpMachineClassUpdate,
-		DeleteFunc: controller.gcpMachineClassDelete,
-	})
-
-	// Alicloud Controller Informers
-	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineDeploymentToAlicloudMachineClassDelete,
-	})
-
-	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineSetToAlicloudMachineClassDelete,
-	})
-
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.machineToAlicloudMachineClassAdd,
-		UpdateFunc: controller.machineToAlicloudMachineClassUpdate,
-		DeleteFunc: controller.machineToAlicloudMachineClassDelete,
-	})
-
-	alicloudMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.alicloudMachineClassAdd,
-		UpdateFunc: controller.alicloudMachineClassUpdate,
-		DeleteFunc: controller.alicloudMachineClassDelete,
-	})
-
-	// Packet Controller Informers
-	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineDeploymentToPacketMachineClassDelete,
-	})
-
-	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.machineSetToPacketMachineClassDelete,
-	})
-
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.machineToPacketMachineClassAdd,
-		UpdateFunc: controller.machineToPacketMachineClassUpdate,
-		DeleteFunc: controller.machineToPacketMachineClassDelete,
-	})
-
-	packetMachineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.packetMachineClassAdd,
-		UpdateFunc: controller.packetMachineClassUpdate,
-		DeleteFunc: controller.packetMachineClassDelete,
-	})
-
-	/* Node Controller Informers - Don't remove this, saved for future use case.
-	nodeInformer.Informer().AddEventHandler(
-		cache.FilteringResourceEventHandler{
-			FilterFunc: func(obj interface{}) bool {
-				//node := obj.(*apicorev1.Node)
-				return true //metav1.HasAnnotation(node.ObjectMeta, ClassAnnotation)
-			},
-			Handler: cache.ResourceEventHandlerFuncs{
-				AddFunc:    controller.nodeAdd,
-				UpdateFunc: controller.nodeUpdate,
-				DeleteFunc: controller.nodeDelete,
-			},
-		})
-	*/
-
-	// Machine Controller Informers
-	nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.addNodeToMachine,
-		UpdateFunc: controller.updateNodeToMachine,
-		DeleteFunc: controller.deleteNodeToMachine,
-	})
-
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.addMachine,
-		UpdateFunc: controller.updateMachine,
-		DeleteFunc: controller.deleteMachine,
-	})
-
 	// MachineSet Controller Informers
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.addMachineToMachineSet,
@@ -374,9 +182,6 @@ func NewController(
 	})
 
 	// MachineDeployment Controller Informers
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: controller.deleteMachineDeployment,
-	})
 
 	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.addMachineSetToDeployment,
@@ -395,16 +200,7 @@ func NewController(
 	// We follow the kubernetes way of reconciling the safety controller
 	// done by adding empty key objects. We initialize it, to trigger
 	// running of different safety loop on MCM startup.
-	controller.machineSafetyOrphanVMsQueue.Add("")
 	controller.machineSafetyOvershootingQueue.Add("")
-	controller.machineSafetyAPIServerQueue.Add("")
-
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		// addMachineToSafety makes sure machine objects does not overshoot
-		AddFunc: controller.addMachineToSafety,
-		// deleteMachineToSafety makes sure that orphan VM handler is invoked
-		DeleteFunc: controller.deleteMachineToSafety,
-	})
 
 	return controller, nil
 }
@@ -462,9 +258,7 @@ type controller struct {
 	machineQueue                   workqueue.RateLimitingInterface
 	machineSetQueue                workqueue.RateLimitingInterface
 	machineDeploymentQueue         workqueue.RateLimitingInterface
-	machineSafetyOrphanVMsQueue    workqueue.RateLimitingInterface
 	machineSafetyOvershootingQueue workqueue.RateLimitingInterface
-	machineSafetyAPIServerQueue    workqueue.RateLimitingInterface
 	// syncs
 	secretSynced                cache.InformerSynced
 	nodeSynced                  cache.InformerSynced
@@ -497,9 +291,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer c.machineQueue.ShutDown()
 	defer c.machineSetQueue.ShutDown()
 	defer c.machineDeploymentQueue.ShutDown()
-	defer c.machineSafetyOrphanVMsQueue.ShutDown()
 	defer c.machineSafetyOvershootingQueue.ShutDown()
-	defer c.machineSafetyAPIServerQueue.ShutDown()
 
 	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.openStackMachineClassSynced, c.awsMachineClassSynced, c.azureMachineClassSynced, c.gcpMachineClassSynced, c.alicloudMachineClassSynced, c.packetMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
 		runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
@@ -515,20 +307,9 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	prometheus.MustRegister(c)
 
 	for i := 0; i < workers; i++ {
-		createWorker(c.openStackMachineClassQueue, "ClusterOpenStackMachineClass", maxRetries, true, c.reconcileClusterOpenStackMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.awsMachineClassQueue, "ClusterAWSMachineClass", maxRetries, true, c.reconcileClusterAWSMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.azureMachineClassQueue, "ClusterAzureMachineClass", maxRetries, true, c.reconcileClusterAzureMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.gcpMachineClassQueue, "ClusterGCPMachineClass", maxRetries, true, c.reconcileClusterGCPMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.alicloudMachineClassQueue, "ClusterAlicloudMachineClass", maxRetries, true, c.reconcileClusterAlicloudMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.packetMachineClassQueue, "ClusterPacketMachineClass", maxRetries, true, c.reconcileClusterPacketMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.secretQueue, "ClusterSecret", maxRetries, true, c.reconcileClusterSecretKey, stopCh, &waitGroup)
-		createWorker(c.nodeQueue, "ClusterNode", maxRetries, true, c.reconcileClusterNodeKey, stopCh, &waitGroup)
-		createWorker(c.machineQueue, "ClusterMachine", maxRetries, true, c.reconcileClusterMachineKey, stopCh, &waitGroup)
 		createWorker(c.machineSetQueue, "ClusterMachineSet", maxRetries, true, c.reconcileClusterMachineSet, stopCh, &waitGroup)
 		createWorker(c.machineDeploymentQueue, "ClusterMachineDeployment", maxRetries, true, c.reconcileClusterMachineDeployment, stopCh, &waitGroup)
-		createWorker(c.machineSafetyOrphanVMsQueue, "ClusterMachineSafetyOrphanVMs", maxRetries, true, c.reconcileClusterMachineSafetyOrphanVMs, stopCh, &waitGroup)
 		createWorker(c.machineSafetyOvershootingQueue, "ClusterMachineSafetyOvershooting", maxRetries, true, c.reconcileClusterMachineSafetyOvershooting, stopCh, &waitGroup)
-		createWorker(c.machineSafetyAPIServerQueue, "ClusterMachineAPIServer", maxRetries, true, c.reconcileClusterMachineSafetyAPIServer, stopCh, &waitGroup)
 	}
 
 	<-stopCh

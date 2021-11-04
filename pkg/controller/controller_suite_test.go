@@ -242,15 +242,6 @@ func deepCopy(m map[string]string) map[string]string {
 	return r
 }
 
-func newMachineFromMachineSet(
-	machineSet *v1alpha1.MachineSet,
-	statusTemplate *v1alpha1.MachineStatus,
-	annotations map[string]string,
-	labels map[string]string,
-) *v1alpha1.Machine {
-	return newMachinesFromMachineSet(1, machineSet, statusTemplate, annotations, labels)[0]
-}
-
 func newMachinesFromMachineSet(
 	machineCount int,
 	machineSet *v1alpha1.MachineSet,
@@ -416,25 +407,6 @@ func newMachineStatus(statusTemplate *v1alpha1.MachineStatus, index int) *v1alph
 	return r
 }
 
-func newSecretReference(meta *metav1.ObjectMeta, index int) *corev1.SecretReference {
-	r := &corev1.SecretReference{
-		Namespace: meta.Namespace,
-	}
-
-	if meta.Name != "" {
-		r.Name = meta.Name
-		return r
-	}
-
-	if meta.GenerateName != "" {
-		r.Name = fmt.Sprintf("%s-%d", meta.GenerateName, index)
-		return r
-	}
-
-	r.Name = fmt.Sprintf("machine-%d", index)
-	return r
-}
-
 func createController(
 	stop <-chan struct{},
 	namespace string,
@@ -542,9 +514,7 @@ func createController(
 		machineQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
 		machineSetQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
 		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
-		machineSafetyOrphanVMsQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
 		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
-		machineSafetyAPIServerQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
 		expectations:                   NewUIDTrackingContExpectations(NewContExpectations()),
 		recorder:                       record.NewBroadcaster().NewRecorder(nil, corev1.EventSource{Component: ""}),
 		deleteMigratedMachineClass:     true,

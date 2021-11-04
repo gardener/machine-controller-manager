@@ -17,26 +17,24 @@ package controller
 
 import (
 	"context"
-	"time"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/driver"
 	cacheutil "github.com/gardener/machine-controller-manager/pkg/util/provider/cache"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+const testNamespace = "test"
+
 var _ = Describe("#machine_safety", func() {
 
 	DescribeTable("##checkAndFreezeORUnfreezeMachineSets",
 		func(
-			machineSet *v1alpha1.MachineSet,
+			machineSet *machinev1.MachineSet,
 			machineCount int,
 			FreezeMachineSet bool,
 		) {
@@ -71,7 +69,7 @@ var _ = Describe("#machine_safety", func() {
 
 		// When there is 1 machineSet with 1 replica and corresponding 1 machine Object
 		// MachineSet is not frozen
-		Entry("MachineSet with 1 replica & 1 machine object", newMachineSet(&v1alpha1.MachineTemplateSpec{
+		Entry("MachineSet with 1 replica & 1 machine object", newMachineSet(&machinev1.MachineTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "machine",
 				Namespace: testNamespace,
@@ -80,7 +78,7 @@ var _ = Describe("#machine_safety", func() {
 
 		// When there is 1 machineSet with 1 replica and corresponding 5 machine Object
 		// MachineSet is frozen by adding a label on MachineSet
-		Entry("MachineSet with 1 replica & 5 machine object", newMachineSet(&v1alpha1.MachineTemplateSpec{
+		Entry("MachineSet with 1 replica & 5 machine object", newMachineSet(&machinev1.MachineTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "machine",
 				Namespace: testNamespace,
@@ -90,7 +88,7 @@ var _ = Describe("#machine_safety", func() {
 		// When there is 1 machineSet with 5 replica and corresponding 2 machine Object
 		// with a {"Freeze": "True"} label set on the MachineSe, the MachineSet is unfrozen
 		// by removing a label on MachineSet
-		Entry("MachineSet with 5 replica & 2 machine object", newMachineSet(&v1alpha1.MachineTemplateSpec{
+		Entry("MachineSet with 5 replica & 2 machine object", newMachineSet(&machinev1.MachineTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "machine",
 				Namespace: testNamespace,
@@ -99,7 +97,7 @@ var _ = Describe("#machine_safety", func() {
 	)
 
 	DescribeTable("##freezeMachineSetsAndDeployments",
-		func(machineSet *v1alpha1.MachineSet) {
+		func(machineSet *machinev1.MachineSet) {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -127,7 +125,7 @@ var _ = Describe("#machine_safety", func() {
 				Expect(ms.Labels["freeze"]).To(Equal("True"))
 			}
 		},
-		Entry("one machineset", newMachineSet(&v1alpha1.MachineTemplateSpec{
+		Entry("one machineset", newMachineSet(&machinev1.MachineTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "machine",
 				Namespace: testNamespace,
@@ -137,7 +135,7 @@ var _ = Describe("#machine_safety", func() {
 
 	DescribeTable("##unfreezeMachineSetsAndDeployments",
 		func(machineSetExists, machineSetIsFrozen, parentExists, parentIsFrozen bool) {
-			testMachineSet := newMachineSet(&v1alpha1.MachineTemplateSpec{
+			testMachineSet := newMachineSet(&machinev1.MachineTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "machine",
 					Namespace: testNamespace,
@@ -149,17 +147,17 @@ var _ = Describe("#machine_safety", func() {
 			if machineSetIsFrozen {
 				testMachineSet.Labels["freeze"] = "True"
 				msStatus := testMachineSet.Status
-				mscond := NewMachineSetCondition(v1alpha1.MachineSetFrozen, v1alpha1.ConditionTrue, "testing", "freezing the machineset")
+				mscond := NewMachineSetCondition(machinev1.MachineSetFrozen, machinev1.ConditionTrue, "testing", "freezing the machineset")
 				SetCondition(&msStatus, mscond)
 			}
 
-			testMachineDeployment := &v1alpha1.MachineDeployment{
+			testMachineDeployment := &machinev1.MachineDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "testMachineDeployment",
 					Namespace: testNamespace,
 					Labels:    map[string]string{},
 				},
-				Spec: v1alpha1.MachineDeploymentSpec{
+				Spec: machinev1.MachineDeploymentSpec{
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"name": "testMachineDeployment",
@@ -170,7 +168,7 @@ var _ = Describe("#machine_safety", func() {
 			if parentIsFrozen {
 				testMachineDeployment.Labels["freeze"] = "True"
 				mdStatus := testMachineDeployment.Status
-				mdCond := NewMachineDeploymentCondition(v1alpha1.MachineDeploymentFrozen, v1alpha1.ConditionTrue, "testing", "freezing the machinedeployment")
+				mdCond := NewMachineDeploymentCondition(machinev1.MachineDeploymentFrozen, machinev1.ConditionTrue, "testing", "freezing the machinedeployment")
 				SetMachineDeploymentCondition(&mdStatus, *mdCond)
 			}
 
@@ -193,11 +191,11 @@ var _ = Describe("#machine_safety", func() {
 			machineSet, err := c.controlMachineClient.MachineSets(testMachineSet.Namespace).Get(context.TODO(), testMachineSet.Name, metav1.GetOptions{})
 			if machineSetExists {
 				Expect(machineSet.Labels["freeze"]).Should((BeEmpty()))
-				Expect(GetCondition(&machineSet.Status, v1alpha1.MachineSetFrozen)).Should(BeNil())
+				Expect(GetCondition(&machineSet.Status, machinev1.MachineSetFrozen)).Should(BeNil())
 				machineDeployment, err := c.controlMachineClient.MachineDeployments(testMachineDeployment.Namespace).Get(context.TODO(), testMachineDeployment.Name, metav1.GetOptions{})
 				if parentExists {
 					//Expect(machineDeployment.Labels["freeze"]).Should((BeEmpty()))
-					Expect(GetMachineDeploymentCondition(machineDeployment.Status, v1alpha1.MachineDeploymentFrozen)).Should(BeNil())
+					Expect(GetMachineDeploymentCondition(machineDeployment.Status, machinev1.MachineDeploymentFrozen)).Should(BeNil())
 				} else {
 					Expect(err).ShouldNot(BeNil())
 				}
@@ -216,24 +214,21 @@ var _ = Describe("#machine_safety", func() {
 		machineReplicas              int
 		machineSetAnnotations        map[string]string
 		machineSetLabels             map[string]string
-		machineSetConditions         []v1alpha1.MachineSetCondition
+		machineSetConditions         []machinev1.MachineSetCondition
 		machineDeploymentAnnotations map[string]string
 		machineDeploymentLabels      map[string]string
-		machineDeploymentConditions  []v1alpha1.MachineDeploymentCondition
-	}
-	type action struct {
+		machineDeploymentConditions  []machinev1.MachineDeploymentCondition
 	}
 	type expect struct {
 		machineSetAnnotations        map[string]string
 		machineSetLabels             map[string]string
-		machineSetConditions         []v1alpha1.MachineSetCondition
+		machineSetConditions         []machinev1.MachineSetCondition
 		machineDeploymentAnnotations map[string]string
 		machineDeploymentLabels      map[string]string
-		machineDeploymentConditions  []v1alpha1.MachineDeploymentCondition
+		machineDeploymentConditions  []machinev1.MachineDeploymentCondition
 	}
 	type data struct {
 		setup  setup
-		action action
 		expect expect
 	}
 
@@ -243,7 +238,7 @@ var _ = Describe("#machine_safety", func() {
 			defer close(stop)
 
 			machineDeployment := newMachineDeployment(
-				&v1alpha1.MachineTemplateSpec{
+				&machinev1.MachineTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "machine",
 						Namespace: testNamespace,
@@ -254,7 +249,7 @@ var _ = Describe("#machine_safety", func() {
 				},
 				1,
 				10,
-				&v1alpha1.MachineDeploymentStatus{
+				&machinev1.MachineDeploymentStatus{
 					Conditions: data.setup.machineDeploymentConditions,
 				},
 				nil,
@@ -264,7 +259,7 @@ var _ = Describe("#machine_safety", func() {
 			machineSet := newMachineSetFromMachineDeployment(
 				machineDeployment,
 				1,
-				&v1alpha1.MachineSetStatus{
+				&machinev1.MachineSetStatus{
 					Conditions: data.setup.machineSetConditions,
 				},
 				data.setup.machineSetAnnotations,
@@ -273,7 +268,7 @@ var _ = Describe("#machine_safety", func() {
 			machines := newMachinesFromMachineSet(
 				data.setup.machineReplicas,
 				machineSet,
-				&v1alpha1.MachineStatus{},
+				&machinev1.MachineStatus{},
 				nil,
 				nil,
 			)
@@ -358,20 +353,20 @@ var _ = Describe("#machine_safety", func() {
 					"freeze":  "True",
 					"machine": "test",
 				},
-				machineSetConditions: []v1alpha1.MachineSetCondition{
+				machineSetConditions: []machinev1.MachineSetCondition{
 					{
-						Type:    v1alpha1.MachineSetFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineSetFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
 				machineDeploymentLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+				machineDeploymentConditions: []machinev1.MachineDeploymentCondition{
 					{
-						Type:    v1alpha1.MachineDeploymentFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineDeploymentFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -383,20 +378,20 @@ var _ = Describe("#machine_safety", func() {
 				machineSetLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineSetConditions: []v1alpha1.MachineSetCondition{
+				machineSetConditions: []machinev1.MachineSetCondition{
 					{
-						Type:    v1alpha1.MachineSetFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineSetFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
 				machineDeploymentLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+				machineDeploymentConditions: []machinev1.MachineDeploymentCondition{
 					{
-						Type:    v1alpha1.MachineDeploymentFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineDeploymentFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -414,20 +409,20 @@ var _ = Describe("#machine_safety", func() {
 				machineSetLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineSetConditions: []v1alpha1.MachineSetCondition{
+				machineSetConditions: []machinev1.MachineSetCondition{
 					{
-						Type:    v1alpha1.MachineSetFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineSetFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
 				machineDeploymentLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+				machineDeploymentConditions: []machinev1.MachineDeploymentCondition{
 					{
-						Type:    v1alpha1.MachineDeploymentFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineDeploymentFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -437,20 +432,20 @@ var _ = Describe("#machine_safety", func() {
 					"freeze":  "True",
 					"machine": "test",
 				},
-				machineSetConditions: []v1alpha1.MachineSetCondition{
+				machineSetConditions: []machinev1.MachineSetCondition{
 					{
-						Type:    v1alpha1.MachineSetFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineSetFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
 				machineDeploymentLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+				machineDeploymentConditions: []machinev1.MachineDeploymentCondition{
 					{
-						Type:    v1alpha1.MachineDeploymentFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineDeploymentFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -459,10 +454,10 @@ var _ = Describe("#machine_safety", func() {
 		Entry("Unfreezing machineset with freeze conditions and none on machinedeployment", &data{
 			setup: setup{
 				machineReplicas: 3,
-				machineSetConditions: []v1alpha1.MachineSetCondition{
+				machineSetConditions: []machinev1.MachineSetCondition{
 					{
-						Type:    v1alpha1.MachineSetFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineSetFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -491,17 +486,17 @@ var _ = Describe("#machine_safety", func() {
 		Entry("Unfreezing machineset with freeze label and freeze label on machinedeployment", &data{
 			setup: setup{
 				machineReplicas: 3,
-				machineSetConditions: []v1alpha1.MachineSetCondition{
+				machineSetConditions: []machinev1.MachineSetCondition{
 					{
-						Type:    v1alpha1.MachineSetFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineSetFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
-				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+				machineDeploymentConditions: []machinev1.MachineDeploymentCondition{
 					{
-						Type:    v1alpha1.MachineDeploymentFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineDeploymentFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -541,20 +536,20 @@ var _ = Describe("#machine_safety", func() {
 				machineSetLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineSetConditions: []v1alpha1.MachineSetCondition{
+				machineSetConditions: []machinev1.MachineSetCondition{
 					{
-						Type:    v1alpha1.MachineSetFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineSetFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
 				machineDeploymentLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+				machineDeploymentConditions: []machinev1.MachineDeploymentCondition{
 					{
-						Type:    v1alpha1.MachineDeploymentFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineDeploymentFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -567,10 +562,10 @@ var _ = Describe("#machine_safety", func() {
 				machineDeploymentLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+				machineDeploymentConditions: []machinev1.MachineDeploymentCondition{
 					{
-						Type:    v1alpha1.MachineDeploymentFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineDeploymentFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -582,10 +577,10 @@ var _ = Describe("#machine_safety", func() {
 				machineSetLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineSetConditions: []v1alpha1.MachineSetCondition{
+				machineSetConditions: []machinev1.MachineSetCondition{
 					{
-						Type:    v1alpha1.MachineSetFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineSetFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -595,10 +590,10 @@ var _ = Describe("#machine_safety", func() {
 				machineDeploymentLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+				machineDeploymentConditions: []machinev1.MachineDeploymentCondition{
 					{
-						Type:    v1alpha1.MachineDeploymentFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineDeploymentFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -622,10 +617,10 @@ var _ = Describe("#machine_safety", func() {
 				machineSetLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineSetConditions: []v1alpha1.MachineSetCondition{
+				machineSetConditions: []machinev1.MachineSetCondition{
 					{
-						Type:    v1alpha1.MachineSetFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineSetFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -635,10 +630,10 @@ var _ = Describe("#machine_safety", func() {
 				machineDeploymentLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+				machineDeploymentConditions: []machinev1.MachineDeploymentCondition{
 					{
-						Type:    v1alpha1.MachineDeploymentFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineDeploymentFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -655,10 +650,10 @@ var _ = Describe("#machine_safety", func() {
 		Entry("Unfreeze a machineDeployment with freeze condition and no machinesets frozen", &data{
 			setup: setup{
 				machineReplicas: 1,
-				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+				machineDeploymentConditions: []machinev1.MachineDeploymentCondition{
 					{
-						Type:    v1alpha1.MachineDeploymentFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineDeploymentFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -690,17 +685,17 @@ var _ = Describe("#machine_safety", func() {
 				machineSetLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineSetConditions: []v1alpha1.MachineSetCondition{
+				machineSetConditions: []machinev1.MachineSetCondition{
 					{
-						Type:    v1alpha1.MachineSetFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineSetFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
-				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+				machineDeploymentConditions: []machinev1.MachineDeploymentCondition{
 					{
-						Type:    v1alpha1.MachineDeploymentFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineDeploymentFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -710,20 +705,20 @@ var _ = Describe("#machine_safety", func() {
 					"machine": "test",
 					"freeze":  "True",
 				},
-				machineSetConditions: []v1alpha1.MachineSetCondition{
+				machineSetConditions: []machinev1.MachineSetCondition{
 					{
-						Type:    v1alpha1.MachineSetFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineSetFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
 				machineDeploymentLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+				machineDeploymentConditions: []machinev1.MachineDeploymentCondition{
 					{
-						Type:    v1alpha1.MachineDeploymentFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineDeploymentFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -735,10 +730,10 @@ var _ = Describe("#machine_safety", func() {
 				machineSetLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineSetConditions: []v1alpha1.MachineSetCondition{
+				machineSetConditions: []machinev1.MachineSetCondition{
 					{
-						Type:    v1alpha1.MachineSetFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineSetFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -748,20 +743,20 @@ var _ = Describe("#machine_safety", func() {
 					"machine": "test",
 					"freeze":  "True",
 				},
-				machineSetConditions: []v1alpha1.MachineSetCondition{
+				machineSetConditions: []machinev1.MachineSetCondition{
 					{
-						Type:    v1alpha1.MachineSetFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineSetFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
 				machineDeploymentLabels: map[string]string{
 					"freeze": "True",
 				},
-				machineDeploymentConditions: []v1alpha1.MachineDeploymentCondition{
+				machineDeploymentConditions: []machinev1.MachineDeploymentCondition{
 					{
-						Type:    v1alpha1.MachineDeploymentFrozen,
-						Status:  v1alpha1.ConditionTrue,
+						Type:    machinev1.MachineDeploymentFrozen,
+						Status:  machinev1.ConditionTrue,
 						Message: "The number of machines backing MachineSet: machineset-0 is 4 >= 4 which is the Max-ScaleUp-Limit",
 					},
 				},
@@ -769,216 +764,216 @@ var _ = Describe("#machine_safety", func() {
 		}),
 	)
 
-	const (
-		zeroDuration        = time.Duration(0)
-		fiveSecondsDuration = 5 * time.Second
-		fiveMinutesDuration = 5 * time.Minute
-	)
-	DescribeTable("##reconcileClusterMachineSafetyAPIServer",
-		func(
-			controlAPIServerIsUp bool,
-			targetAPIServerIsUp bool,
-			apiServerInactiveDuration time.Duration,
-			preMachineControllerIsFrozen bool,
-			postMachineControllerFrozen bool,
-		) {
-			apiServerInactiveStartTime := time.Now().Add(-apiServerInactiveDuration)
-			stop := make(chan struct{})
-			defer close(stop)
+	// const (
+	// 	zeroDuration        = time.Duration(0)
+	// 	fiveSecondsDuration = 5 * time.Second
+	// 	fiveMinutesDuration = 5 * time.Minute
+	// )
+	// DescribeTable("##reconcileClusterMachineSafetyAPIServer",
+	// 	func(
+	// 		controlAPIServerIsUp bool,
+	// 		targetAPIServerIsUp bool,
+	// 		apiServerInactiveDuration time.Duration,
+	// 		preMachineControllerIsFrozen bool,
+	// 		postMachineControllerFrozen bool,
+	// 	) {
+	// 		apiServerInactiveStartTime := time.Now().Add(-apiServerInactiveDuration)
+	// 		stop := make(chan struct{})
+	// 		defer close(stop)
 
-			testMachine := &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "testmachine1",
-					Namespace: testNamespace,
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: v1alpha1.MachineUnknown,
-					},
-				},
-			}
-			controlMachineObjects := []runtime.Object{}
-			controlMachineObjects = append(controlMachineObjects, testMachine)
+	// 		testMachine := &machinev1.Machine{
+	// 			ObjectMeta: metav1.ObjectMeta{
+	// 				Name:      "testmachine1",
+	// 				Namespace: testNamespace,
+	// 			},
+	// 			Status: machinev1.MachineStatus{
+	// 				CurrentStatus: machinev1.CurrentStatus{
+	// 					Phase: machinev1.MachineUnknown,
+	// 				},
+	// 			},
+	// 		}
+	// 		controlMachineObjects := []runtime.Object{}
+	// 		controlMachineObjects = append(controlMachineObjects, testMachine)
 
-			c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, nil)
-			defer trackers.Stop()
-			waitForCacheSync(stop, c)
+	// 		c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, nil)
+	// 		defer trackers.Stop()
+	// 		waitForCacheSync(stop, c)
 
-			c.safetyOptions.APIserverInactiveStartTime = apiServerInactiveStartTime
-			c.safetyOptions.MachineControllerFrozen = preMachineControllerIsFrozen
-			if !controlAPIServerIsUp {
-				trackers.ControlMachine.SetError("APIServer is Not Reachable")
-				trackers.ControlCore.SetError("APIServer is Not Reachable")
-			}
-			if !targetAPIServerIsUp {
-				trackers.TargetCore.SetError("APIServer is Not Reachable")
-			}
+	// 		c.safetyOptions.APIserverInactiveStartTime = apiServerInactiveStartTime
+	// 		c.safetyOptions.MachineControllerFrozen = preMachineControllerIsFrozen
+	// 		if !controlAPIServerIsUp {
+	// 			trackers.ControlMachine.SetError("APIServer is Not Reachable")
+	// 			trackers.ControlCore.SetError("APIServer is Not Reachable")
+	// 		}
+	// 		if !targetAPIServerIsUp {
+	// 			trackers.TargetCore.SetError("APIServer is Not Reachable")
+	// 		}
 
-			c.reconcileClusterMachineSafetyAPIServer("")
+	// 		c.reconcileClusterMachineSafetyAPIServer("")
 
-			Expect(c.safetyOptions.MachineControllerFrozen).Should(Equal(postMachineControllerFrozen))
-		},
+	// 		Expect(c.safetyOptions.MachineControllerFrozen).Should(Equal(postMachineControllerFrozen))
+	// 	},
 
-		// Both APIServers are reachable
-		Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Inactive, Pre-Frozen: false = Post-Frozen: false",
-			true, true, zeroDuration, false, false),
-		Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Inactive, Pre-Frozen: true = Post-Frozen: false",
-			true, true, zeroDuration, true, false),
-		Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Started, Pre-Frozen: false = Post-Frozen: false",
-			true, true, fiveSecondsDuration, false, false),
-		Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Started, Pre-Frozen: true = Post-Frozen: false",
-			true, true, fiveSecondsDuration, true, false),
-		Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Elapsed, Pre-Frozen: false = Post-Frozen: false",
-			true, true, fiveMinutesDuration, false, false),
-		Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Elapsed, Pre-Frozen: true = Post-Frozen: false",
-			true, true, fiveMinutesDuration, true, false),
+	// 	// Both APIServers are reachable
+	// 	Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Inactive, Pre-Frozen: false = Post-Frozen: false",
+	// 		true, true, zeroDuration, false, false),
+	// 	Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Inactive, Pre-Frozen: true = Post-Frozen: false",
+	// 		true, true, zeroDuration, true, false),
+	// 	Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Started, Pre-Frozen: false = Post-Frozen: false",
+	// 		true, true, fiveSecondsDuration, false, false),
+	// 	Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Started, Pre-Frozen: true = Post-Frozen: false",
+	// 		true, true, fiveSecondsDuration, true, false),
+	// 	Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Elapsed, Pre-Frozen: false = Post-Frozen: false",
+	// 		true, true, fiveMinutesDuration, false, false),
+	// 	Entry("Control APIServer: Reachable, Target APIServer: Reachable, Inactive Timer: Elapsed, Pre-Frozen: true = Post-Frozen: false",
+	// 		true, true, fiveMinutesDuration, true, false),
 
-		// Target APIServer is not reachable
-		Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Inactive, Pre-Frozen: false = Post-Frozen: false",
-			true, false, zeroDuration, false, false),
-		Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Inactive, Pre-Frozen: true = Post-Frozen: true",
-			true, false, zeroDuration, true, true),
-		Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Started, Pre-Frozen: false = Post-Frozen: false",
-			true, false, fiveSecondsDuration, false, false),
-		Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Started, Pre-Frozen: true = Post-Frozen: true",
-			true, false, fiveSecondsDuration, true, true),
-		Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Elapsed, Pre-Frozen: false = Post-Frozen: true",
-			true, false, fiveMinutesDuration, false, true),
-		Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Elapsed, Pre-Frozen: true = Post-Frozen: true",
-			true, false, fiveMinutesDuration, true, true),
+	// 	// Target APIServer is not reachable
+	// 	Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Inactive, Pre-Frozen: false = Post-Frozen: false",
+	// 		true, false, zeroDuration, false, false),
+	// 	Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Inactive, Pre-Frozen: true = Post-Frozen: true",
+	// 		true, false, zeroDuration, true, true),
+	// 	Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Started, Pre-Frozen: false = Post-Frozen: false",
+	// 		true, false, fiveSecondsDuration, false, false),
+	// 	Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Started, Pre-Frozen: true = Post-Frozen: true",
+	// 		true, false, fiveSecondsDuration, true, true),
+	// 	Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Elapsed, Pre-Frozen: false = Post-Frozen: true",
+	// 		true, false, fiveMinutesDuration, false, true),
+	// 	Entry("Control APIServer: Reachable, Target APIServer: UnReachable, Inactive Timer: Elapsed, Pre-Frozen: true = Post-Frozen: true",
+	// 		true, false, fiveMinutesDuration, true, true),
 
-		// Control APIServer is not reachable
-		Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Inactive, Pre-Frozen: false = Post-Frozen: false",
-			false, true, zeroDuration, false, false),
-		Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Inactive, Pre-Frozen: true = Post-Frozen: true",
-			false, true, zeroDuration, true, true),
-		Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Started, Pre-Frozen: false = Post-Frozen: false",
-			false, true, fiveSecondsDuration, false, false),
-		Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Started, Pre-Frozen: true = Post-Frozen: true",
-			false, true, fiveSecondsDuration, true, true),
-		Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Elapsed, Pre-Frozen: false = Post-Frozen: true",
-			false, true, fiveMinutesDuration, false, true),
-		Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Elapsed, Pre-Frozen: true = Post-Frozen: true",
-			false, true, fiveMinutesDuration, true, true),
+	// 	// Control APIServer is not reachable
+	// 	Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Inactive, Pre-Frozen: false = Post-Frozen: false",
+	// 		false, true, zeroDuration, false, false),
+	// 	Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Inactive, Pre-Frozen: true = Post-Frozen: true",
+	// 		false, true, zeroDuration, true, true),
+	// 	Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Started, Pre-Frozen: false = Post-Frozen: false",
+	// 		false, true, fiveSecondsDuration, false, false),
+	// 	Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Started, Pre-Frozen: true = Post-Frozen: true",
+	// 		false, true, fiveSecondsDuration, true, true),
+	// 	Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Elapsed, Pre-Frozen: false = Post-Frozen: true",
+	// 		false, true, fiveMinutesDuration, false, true),
+	// 	Entry("Control APIServer: UnReachable, Target APIServer: Reachable, Inactive Timer: Elapsed, Pre-Frozen: true = Post-Frozen: true",
+	// 		false, true, fiveMinutesDuration, true, true),
 
-		// Both APIServers are not reachable
-		Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Inactive, Pre-Frozen: false = Post-Frozen: false",
-			false, false, zeroDuration, false, false),
-		Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Inactive, Pre-Frozen: true = Post-Frozen: true",
-			false, false, zeroDuration, true, true),
-		Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Started, Pre-Frozen: false = Post-Frozen: false",
-			false, false, fiveSecondsDuration, false, false),
-		Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Started, Pre-Frozen: true = Post-Frozen: true",
-			false, false, fiveSecondsDuration, true, true),
-		Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Elapsed, Pre-Frozen: false = Post-Frozen: true",
-			false, false, fiveMinutesDuration, false, true),
-		Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Elapsed, Pre-Frozen: true = Post-Frozen: true",
-			false, false, fiveMinutesDuration, true, true),
-	)
+	// 	// Both APIServers are not reachable
+	// 	Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Inactive, Pre-Frozen: false = Post-Frozen: false",
+	// 		false, false, zeroDuration, false, false),
+	// 	Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Inactive, Pre-Frozen: true = Post-Frozen: true",
+	// 		false, false, zeroDuration, true, true),
+	// 	Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Started, Pre-Frozen: false = Post-Frozen: false",
+	// 		false, false, fiveSecondsDuration, false, false),
+	// 	Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Started, Pre-Frozen: true = Post-Frozen: true",
+	// 		false, false, fiveSecondsDuration, true, true),
+	// 	Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Elapsed, Pre-Frozen: false = Post-Frozen: true",
+	// 		false, false, fiveMinutesDuration, false, true),
+	// 	Entry("Control APIServer: UnReachable, Target APIServer: UnReachable, Inactive Timer: Elapsed, Pre-Frozen: true = Post-Frozen: true",
+	// 		false, false, fiveMinutesDuration, true, true),
+	// )
 })
 
-var _ = Describe("machineCrashloopBackoff", func() {
-	objMeta := &metav1.ObjectMeta{
-		GenerateName: "class",
-		Namespace:    testNamespace,
-	}
+// var _ = Describe("machineCrashloopBackoff", func() {
+// 	objMeta := &metav1.ObjectMeta{
+// 		GenerateName: "class",
+// 		Namespace:    testNamespace,
+// 	}
 
-	classKind := "MachineClass"
-	secretData := map[string][]byte{
-		"userData":            []byte("dummy-data"),
-		"azureClientId":       []byte("dummy-client-id"),
-		"azureClientSecret":   []byte("dummy-client-secret"),
-		"azureSubscriptionId": []byte("dummy-subcription-id"),
-		"azureTenantId":       []byte("dummy-tenant-id"),
-	}
+// 	classKind := "MachineClass"
+// 	secretData := map[string][]byte{
+// 		"userData":            []byte("dummy-data"),
+// 		"azureClientId":       []byte("dummy-client-id"),
+// 		"azureClientSecret":   []byte("dummy-client-secret"),
+// 		"azureSubscriptionId": []byte("dummy-subcription-id"),
+// 		"azureTenantId":       []byte("dummy-tenant-id"),
+// 	}
 
-	Describe("machineCrashloopBackoff", func() {
+// 	Describe("machineCrashloopBackoff", func() {
 
-		It("Should delete the machine (old code)", func() {
-			stop := make(chan struct{})
-			defer close(stop)
+// 		It("Should delete the machine (old code)", func() {
+// 			stop := make(chan struct{})
+// 			defer close(stop)
 
-			// Create test secret and add it to controlCoreObject list
-			testSecret := &v1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-secret",
-					Namespace: testNamespace,
-				},
-				Data: secretData,
-			}
+// 			// Create test secret and add it to controlCoreObject list
+// 			testSecret := &v1.Secret{
+// 				ObjectMeta: metav1.ObjectMeta{
+// 					Name:      "test-secret",
+// 					Namespace: testNamespace,
+// 				},
+// 				Data: secretData,
+// 			}
 
-			// Create a test secretReference because the method checkMachineClass needs it
-			testSecretReference := &v1.SecretReference{
-				Name:      "test-secret",
-				Namespace: testNamespace,
-			}
+// 			// Create a test secretReference because the method checkMachineClass needs it
+// 			testSecretReference := &v1.SecretReference{
+// 				Name:      "test-secret",
+// 				Namespace: testNamespace,
+// 			}
 
-			testMachineClass := &machinev1.MachineClass{
-				ObjectMeta: *newObjectMeta(objMeta, 0),
-				SecretRef:  testSecretReference,
-			}
-			controlCoreObjects := []runtime.Object{}
-			controlCoreObjects = append(controlCoreObjects, testSecret)
+// 			testMachineClass := &machinev1.MachineClass{
+// 				ObjectMeta: *newObjectMeta(objMeta, 0),
+// 				SecretRef:  testSecretReference,
+// 			}
+// 			controlCoreObjects := []runtime.Object{}
+// 			controlCoreObjects = append(controlCoreObjects, testSecret)
 
-			// Create test machine object in CrashloopBackoff state
-			testMachineObject1 := &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "testmachine_1",
-					Namespace: testNamespace,
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: v1alpha1.MachineCrashLoopBackOff,
-					},
-				},
-			}
+// 			// Create test machine object in CrashloopBackoff state
+// 			testMachineObject1 := &machinev1.Machine{
+// 				ObjectMeta: metav1.ObjectMeta{
+// 					Name:      "testmachine_1",
+// 					Namespace: testNamespace,
+// 				},
+// 				Status: machinev1.MachineStatus{
+// 					CurrentStatus: machinev1.CurrentStatus{
+// 						Phase: machinev1.MachineCrashLoopBackOff,
+// 					},
+// 				},
+// 			}
 
-			// Create another test machine object in Running state
-			testMachineObject2 := &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "testmachine_2",
-					Namespace: testNamespace,
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: v1alpha1.MachineRunning,
-					},
-				},
-			}
+// 			// Create another test machine object in Running state
+// 			testMachineObject2 := &machinev1.Machine{
+// 				ObjectMeta: metav1.ObjectMeta{
+// 					Name:      "testmachine_2",
+// 					Namespace: testNamespace,
+// 				},
+// 				Status: machinev1.MachineStatus{
+// 					CurrentStatus: machinev1.CurrentStatus{
+// 						Phase: machinev1.MachineRunning,
+// 					},
+// 				},
+// 			}
 
-			controlMachineObjects := []runtime.Object{}
-			controlMachineObjects = append(controlMachineObjects, testMachineObject1)
-			controlMachineObjects = append(controlMachineObjects, testMachineObject2)
+// 			controlMachineObjects := []runtime.Object{}
+// 			controlMachineObjects = append(controlMachineObjects, testMachineObject1)
+// 			controlMachineObjects = append(controlMachineObjects, testMachineObject2)
 
-			c, trackers := createController(stop, testNamespace, controlMachineObjects, controlCoreObjects, nil)
-			defer trackers.Stop()
+// 			c, trackers := createController(stop, testNamespace, controlMachineObjects, controlCoreObjects, nil)
+// 			defer trackers.Stop()
 
-			fakeDriver := driver.NewDriver(
-				"",
-				secretData,
-				classKind,
-				testMachineClass,
-				"",
-			)
+// 			fakeDriver := driver.NewDriver(
+// 				"",
+// 				secretData,
+// 				classKind,
+// 				testMachineClass,
+// 				"",
+// 			)
 
-			// use type assertion to let Golang know that the
-			// returned fakeDriver is of type *driver.FakeDriver
-			fd := fakeDriver.(*driver.FakeDriver)
+// 			// use type assertion to let Golang know that the
+// 			// returned fakeDriver is of type *driver.FakeDriver
+// 			fd := fakeDriver.(*driver.FakeDriver)
 
-			_ = fd.Add("testmachine-ip1", "testmachine_1")
-			_ = fd.Add("testmachine-ip2", "testmachine_2")
+// 			_ = fd.Add("testmachine-ip1", "testmachine_1")
+// 			_ = fd.Add("testmachine-ip2", "testmachine_2")
 
-			waitForCacheSync(stop, c)
+// 			waitForCacheSync(stop, c)
 
-			// call checkMachineClass to delete the orphan VMs
-			c.checkMachineClass(context.TODO(), testMachineClass, testSecretReference, testSecretReference, objMeta.Name, classKind)
+// 			// call checkMachineClass to delete the orphan VMs
+// 			c.checkMachineClass(context.TODO(), testMachineClass, testSecretReference, testSecretReference, objMeta.Name, classKind)
 
-			listOfVMs, _ := fakeDriver.GetVMs("")
+// 			listOfVMs, _ := fakeDriver.GetVMs("")
 
-			// after this, the testmachine in crashloopbackoff phase should remain and the other one should
-			// be deleted because it is an orphan VM
-			Expect(listOfVMs["testmachine-ip1"]).To(Equal("testmachine_1"))
-			Expect(listOfVMs["testmachine-ip2"]).To(Equal(""))
-		})
-	})
-})
+// 			// after this, the testmachine in crashloopbackoff phase should remain and the other one should
+// 			// be deleted because it is an orphan VM
+// 			Expect(listOfVMs["testmachine-ip1"]).To(Equal("testmachine_1"))
+// 			Expect(listOfVMs["testmachine-ip2"]).To(Equal(""))
+// 		})
+// 	})
+// })

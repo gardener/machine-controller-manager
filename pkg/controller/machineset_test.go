@@ -485,8 +485,6 @@ var _ = Describe("machineset", func() {
 			Err := c.reconcileClusterMachineSet(Key)
 
 			waitForCacheSync(stop, c)
-			machines, _ = c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
-			//Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
 			Expect(Err).Should(BeNil())
 		})
 	})

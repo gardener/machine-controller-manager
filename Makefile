@@ -16,9 +16,9 @@ IMAGE_REPOSITORY   := eu.gcr.io/gardener-project/gardener/machine-controller-man
 IMAGE_TAG          := $(shell cat VERSION)
 COVERPROFILE       := test/output/coverprofile.out
 
-CONTROL_NAMESPACE  := default
-CONTROL_KUBECONFIG := dev/target-kubeconfig.yaml
-TARGET_KUBECONFIG  := dev/target-kubeconfig.yaml
+CONTROL_NAMESPACE	:= default
+CONTROL_KUBECONFIG  := dev/control-kubeconfig.yaml
+TARGET_KUBECONFIG   := dev/target-kubeconfig.yaml
 
 LEADER_ELECT 	   := "true"
 MACHINE_SAFETY_OVERSHOOTING_PERIOD:=1m
