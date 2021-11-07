@@ -39,18 +39,18 @@ type MachineClass struct {
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +optional
+	// +kubebuilder:validation:XPreserveUnknownFields
+	// NodeTemplate contains subfields to track all node resources and other node info required to scale nodegroup from zero
+	NodeTemplate *NodeTemplate `json:"nodeTemplate,omitempty"`
+
 	// +kubebuilder:validation:XPreserveUnknownFields
 	// CredentialsSecretRef can optionally store the credentials (in this case the SecretRef does not need to store them).
 	// This might be useful if multiple machine classes with the same credentials but different user-datas are used.
 	CredentialsSecretRef *corev1.SecretReference `json:"credentialsSecretRef,omitempty"`
 
-	// ExpectedNodeAttributes contains subfields the track all scale from zero resources
-	// +optional
 	// +kubebuilder:validation:XPreserveUnknownFields
-	ExpectedNodeAttributes *ExpectedNodeAttributes `json:"expectedNodeAttributes,omitempty"`
-
 	// Provider-specific configuration to use during node creation.
-	// +kubebuilder:validation:XPreserveUnknownFields
 	ProviderSpec runtime.RawExtension `json:"providerSpec"`
 
 	// Provider is the combination of name and location of cloud-specific drivers.
@@ -70,29 +70,18 @@ type MachineClassList struct {
 	Items           []MachineClass `json:"items"`
 }
 
-// ExpectedNodeAttributes contains subfields to track all scale from zero resources
-type ExpectedNodeAttributes struct {
-	// CPU cores of the expected node
-	// +optional
-	CPU *int64 `json:"cpu,omitempty"`
+// NodeTemplate contains subfields to track all node resources and other node info required to scale nodegroup from zero
+type NodeTemplate struct {
 
-	// GPU cores of the expected node
-	// +optional
-	GPU *int64 `json:"gpu,omitempty"`
+	// Capacity contains subfields to track all node resources required to scale nodegroup from zero
+	Capacity corev1.ResourceList `json:"capacity"`
 
-	// Instance type of the expected node
-	// +optional
-	InstanceType *string `json:"instanceType,omitempty"`
+	// Instance type of the node belonging to nodeGroup
+	InstanceType string `json:"instanceType"`
 
-	// Memory of the expected node
-	// +optional
-	Memory *int64 `json:"memory,omitempty"`
+	// Region of the expected node belonging to nodeGroup
+	Region string `json:"region"`
 
-	// Region of the expected node
-	// +optional
-	Region *string `json:"region,omitempty"`
-
-	// Zone of the expected node
-	// +optional
-	Zone *string `json:"zone,omitempty"`
+	// Zone of the expected node belonging to nodeGroup
+	Zone string `json:"zone"`
 }

@@ -133,6 +133,12 @@ func (c *controller) ValidateMachineClass(ctx context.Context, classSpec *v1alph
 		return nil, nil, machineutils.ShortRetry, err
 	}
 
+	err = c.validateNodeTemplate(machineClass.NodeTemplate)
+	if err != nil {
+		klog.Warning(err)
+		return nil, nil, machineutils.ShortRetry, err
+	}
+
 	return machineClass, secretData, retry, nil
 }
 
@@ -156,6 +162,34 @@ func (c *controller) getSecretData(machineClassName string, secretRefs ...*v1.Se
 	}
 
 	return secretData, nil
+}
+
+// validateNodeTemplate validates the optional nodeTemplate field is configured in the MachineClass
+func (c *controller) validateNodeTemplate(nodeTemplate *v1alpha1.NodeTemplate) error {
+	var allErr []error
+	capacityAttributes := []v1.ResourceName{"cpu", "gpu", "memory"}
+
+	if nodeTemplate == nil {
+		return nil
+	}
+
+	for _, attribute := range capacityAttributes {
+		if _, ok := nodeTemplate.Capacity[attribute]; !ok {
+			err := errors.New("MachineClass NodeTemplate Capacity should mandatorily have CPU, GPU and Memory configured")
+			allErr = append(allErr, err)
+		}
+	}
+
+	if nodeTemplate.InstanceType == "" || nodeTemplate.Region == "" || nodeTemplate.Zone == "" {
+		err := errors.New("MachineClass NodeTemplate Instance Type, region and zone cannot be empty")
+		allErr = append(allErr, err)
+	}
+
+	if allErr != nil {
+		return fmt.Errorf("%s", allErr)
+	}
+
+	return nil
 }
 
 // getSecret retrieves the kubernetes secret if found
