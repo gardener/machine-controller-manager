@@ -110,6 +110,15 @@ verify: check test
 check:
 	@.ci/check
 
+.PHONY: lint
+lint:
+	docker run --rm -v ${PWD}:/work -w /work golangci/golangci-lint:v1.43-alpine golangci-lint run \
+		--presets bugs \
+		--presets unused \
+		--max-issues-per-linter=0 \
+		--max-same-issues=0 \
+		--timeout 15m
+
 .PHONY: test
 test:
 	@.ci/test
