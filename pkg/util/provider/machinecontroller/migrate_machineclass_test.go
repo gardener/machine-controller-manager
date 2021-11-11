@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo"
@@ -115,9 +114,8 @@ var _ = Describe("machine", func() {
 
 	Describe("#TryMachineClassMigration", func() {
 		type setup struct {
-			gcpMachineClass     []*v1alpha1.GCPMachineClass
-			fakeResourceActions *customfake.ResourceActions
-			machineClass        []*v1alpha1.MachineClass
+			gcpMachineClass []*v1alpha1.GCPMachineClass
+			machineClass    []*v1alpha1.MachineClass
 		}
 		type action struct {
 			classSpec  *v1alpha1.ClassSpec

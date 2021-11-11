@@ -172,9 +172,9 @@ func ReorganizeTaints(node *v1.Node, overwrite bool, taintsToAdd []v1.Taint, tai
 // deleteTaints deletes the given taints from the node's taintlist.
 func deleteTaints(taintsToRemove []v1.Taint, newTaints *[]v1.Taint) ([]error, bool) {
 	allErrs := []error{}
-	var removed bool
+	var removedAll bool
 	for _, taintToRemove := range taintsToRemove {
-		removed = false
+		removed := false
 		if len(taintToRemove.Effect) > 0 {
 			*newTaints, removed = DeleteTaint(*newTaints, &taintToRemove)
 		} else {
@@ -183,8 +183,9 @@ func deleteTaints(taintsToRemove []v1.Taint, newTaints *[]v1.Taint) ([]error, bo
 		if !removed {
 			allErrs = append(allErrs, fmt.Errorf("taint %q not found", taintToRemove.ToString()))
 		}
+		removedAll = removedAll && removed
 	}
-	return allErrs, removed
+	return allErrs, removedAll
 }
 
 // addTaints adds the newTaints list to existing ones and updates the newTaints List.

@@ -242,15 +242,6 @@ func deepCopy(m map[string]string) map[string]string {
 	return r
 }
 
-func newMachineFromMachineSet(
-	machineSet *v1alpha1.MachineSet,
-	statusTemplate *v1alpha1.MachineStatus,
-	annotations map[string]string,
-	labels map[string]string,
-) *v1alpha1.Machine {
-	return newMachinesFromMachineSet(1, machineSet, statusTemplate, annotations, labels)[0]
-}
-
 func newMachinesFromMachineSet(
 	machineCount int,
 	machineSet *v1alpha1.MachineSet,

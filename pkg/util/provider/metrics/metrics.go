@@ -21,11 +21,9 @@ import (
 )
 
 const (
-	namespace                  = "mcm"
-	machineSubsystem           = "machine"
-	machinesetSubsystem        = "machine_set"
-	machinedeploymentSubsystem = "machine_deployment"
-	cloudAPISubsystem          = "cloud_api"
+	namespace         = "mcm"
+	machineSubsystem  = "machine"
+	cloudAPISubsystem = "cloud_api"
 )
 
 var (

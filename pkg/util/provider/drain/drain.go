@@ -428,18 +428,6 @@ func (o *Options) getTerminationGracePeriod(pod *api.Pod) time.Duration {
 	return time.Duration(*pod.Spec.TerminationGracePeriodSeconds) * time.Second
 }
 
-func (o *Options) getGlobalTimeoutForPodsWithoutPV(pods []*api.Pod) time.Duration {
-	var tgpsMax time.Duration
-	for _, pod := range pods {
-		tgps := o.getTerminationGracePeriod(pod)
-		if tgps > tgpsMax {
-			tgpsMax = tgps
-		}
-	}
-
-	return tgpsMax + PodsWithoutPVDrainGracePeriod
-}
-
 func (o *Options) evictPods(ctx context.Context, attemptEvict bool, pods []api.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error)) error {
 	returnCh := make(chan error, len(pods))
 	defer close(returnCh)
@@ -486,7 +474,6 @@ func (o *Options) evictPodsWithoutPv(ctx context.Context, attemptEvict bool, pod
 	for _, pod := range pods {
 		go o.evictPodWithoutPVInternal(ctx, attemptEvict, pod, policyGroupVersion, getPodFn, returnCh)
 	}
-	return
 }
 
 func sortPodsByPriority(pods []*corev1.Pod) {
@@ -504,7 +491,7 @@ func (o *Options) doAccountingOfPvs(ctx context.Context, pods []*corev1.Pod) map
 	)
 
 	for _, pod := range pods {
-		podPVs, _ := o.getPVList(pod)
+		podPVs := o.getPVList(pod)
 		pvMap[getPodKey(pod)] = podPVs
 	}
 
@@ -559,7 +546,7 @@ func filterSharedPVs(pvMap map[string][]string) {
 	for pod, vols := range pvMap {
 		volList := []string{}
 		for _, vol := range vols {
-			if sharedVol[vol] == false {
+			if !sharedVol[vol] {
 				volList = append(volList, vol)
 			}
 		}
@@ -585,7 +572,7 @@ func (o *Options) evictPodsWithPv(ctx context.Context, attemptEvict bool, pods [
 
 	if attemptEvict {
 		for i := 0; i < nretries; i++ {
-			remainingPods, fastTrack = o.evictPodsWithPVInternal(ctx, attemptEvict, pods, podVolumeInfoMap, policyGroupVersion, getPodFn, returnCh)
+			remainingPods, fastTrack = o.evictPodsWithPVInternal(ctx, attemptEvict, pods, podVolumeInfoMap, policyGroupVersion, returnCh)
 			if fastTrack || len(remainingPods) == 0 {
 				//Either all pods got evicted or we need to fast track the return (node deletion detected)
 				break
@@ -603,10 +590,10 @@ func (o *Options) evictPodsWithPv(ctx context.Context, attemptEvict bool, pods [
 		if !fastTrack && len(remainingPods) > 0 {
 			// Force delete the pods remaining after evict retries.
 			pods = remainingPods
-			remainingPods, _ = o.evictPodsWithPVInternal(ctx, false, pods, podVolumeInfoMap, policyGroupVersion, getPodFn, returnCh)
+			remainingPods, _ = o.evictPodsWithPVInternal(ctx, false, pods, podVolumeInfoMap, policyGroupVersion, returnCh)
 		}
 	} else {
-		remainingPods, _ = o.evictPodsWithPVInternal(ctx, false, pods, podVolumeInfoMap, policyGroupVersion, getPodFn, returnCh)
+		remainingPods, _ = o.evictPodsWithPVInternal(ctx, false, pods, podVolumeInfoMap, policyGroupVersion, returnCh)
 	}
 
 	// Placate the caller by returning the nil status for the remaining pods.
@@ -622,8 +609,6 @@ func (o *Options) evictPodsWithPv(ctx context.Context, attemptEvict bool, pods [
 			returnCh <- fmt.Errorf("Error deleting pod %s/%s from node %q", pod.Namespace, pod.Name, pod.Spec.NodeName)
 		}
 	}
-
-	return
 }
 
 // checkAndDeleteWorker is a helper method that check if volumeAttachmentHandler
@@ -640,7 +625,6 @@ func (o *Options) evictPodsWithPVInternal(
 	pods []*corev1.Pod,
 	podVolumeInfoMap map[string]PodVolumeInfo,
 	policyGroupVersion string,
-	getPodFn func(namespace, name string) (*api.Pod, error),
 	returnCh chan error,
 ) (remainingPods []*api.Pod, fastTrack bool) {
 	var (
@@ -770,7 +754,7 @@ func (o *Options) evictPodsWithPVInternal(
 	return retryPods, false
 }
 
-func (o *Options) getPVList(pod *corev1.Pod) ([]string, error) {
+func (o *Options) getPVList(pod *corev1.Pod) []string {
 	pvs := []string{}
 	for i := range pod.Spec.Volumes {
 		vol := &pod.Spec.Volumes[i]
@@ -803,7 +787,7 @@ func (o *Options) getPVList(pod *corev1.Pod) ([]string, error) {
 			}
 		}
 	}
-	return pvs, nil
+	return pvs
 }
 
 func (o *Options) waitForDetach(ctx context.Context, podVolumeInfo PodVolumeInfo, nodeName string) error {

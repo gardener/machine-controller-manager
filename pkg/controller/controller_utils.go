@@ -794,15 +794,6 @@ func (s ActiveMachines) Less(i, j int) bool {
 	return false
 }
 
-// afterOrZero checks if time t1 is after time t2; if one of them
-// is zero, the zero time is seen as after non-zero time.
-func afterOrZero(t1, t2 *metav1.Time) bool {
-	if t1.Time.IsZero() || t2.Time.IsZero() {
-		return t1.Time.IsZero()
-	}
-	return t1.After(t2.Time)
-}
-
 // IsMachineActive checks if machine was active
 func IsMachineActive(p *v1alpha1.Machine) bool {
 	if p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
@@ -961,7 +952,9 @@ func AddOrUpdateAnnotationOnNode(ctx context.Context, c clientset.Interface, nod
 		updated := false
 
 		newNode, updated, err = annotationsutils.AddOrUpdateAnnotation(oldNode, annotations)
-
+		if err != nil {
+			return err
+		}
 		if !updated {
 			return nil
 		}
@@ -1021,7 +1014,9 @@ func RemoveAnnotationsOffNode(ctx context.Context, c clientset.Interface, nodeNa
 
 		// Remove the annotations from the node.
 		newNode, updated, err = annotationsutils.RemoveAnnotation(oldNodeCopy, annotations)
-
+		if err != nil {
+			return err
+		}
 		if !updated {
 			return nil
 		}

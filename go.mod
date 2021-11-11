@@ -37,7 +37,7 @@ require (
 	k8s.io/component-base v0.20.6
 	k8s.io/klog/v2 v2.4.0
 	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd // keep this value in sync with k8s.io/apiserver
-	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
+	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b
 )
 
 replace (

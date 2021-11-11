@@ -37,7 +37,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/watch"
 	coreinformers "k8s.io/client-go/informers"
@@ -45,7 +44,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
 )
 
 func TestMachineControllerSuite(t *testing.T) {
@@ -54,245 +52,9 @@ func TestMachineControllerSuite(t *testing.T) {
 }
 
 var (
-	controllerKindMachine = v1alpha1.SchemeGroupVersion.WithKind("Machine")
-	MachineClass          = "MachineClass"
-	TestMachineClass      = "machineClass-0"
+	MachineClass     = "MachineClass"
+	TestMachineClass = "machineClass-0"
 )
-
-func newMachineDeployment(
-	specTemplate *v1alpha1.MachineTemplateSpec,
-	replicas int32,
-	minReadySeconds int32,
-	statusTemplate *v1alpha1.MachineDeploymentStatus,
-	owner *metav1.OwnerReference,
-	annotations map[string]string,
-	labels map[string]string,
-) *v1alpha1.MachineDeployment {
-	return newMachineDeployments(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner, annotations, labels)[0]
-}
-
-func newMachineDeployments(
-	machineDeploymentCount int,
-	specTemplate *v1alpha1.MachineTemplateSpec,
-	replicas int32,
-	minReadySeconds int32,
-	statusTemplate *v1alpha1.MachineDeploymentStatus,
-	owner *metav1.OwnerReference,
-	annotations map[string]string,
-	labels map[string]string,
-) []*v1alpha1.MachineDeployment {
-
-	intStr1 := intstr.FromInt(1)
-	machineDeployments := make([]*v1alpha1.MachineDeployment, machineDeploymentCount)
-	for i := range machineDeployments {
-		machineDeployment := &v1alpha1.MachineDeployment{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "machine.sapcloud.io",
-				Kind:       "MachineDeployment",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("machinedeployment-%d", i),
-				Namespace: testNamespace,
-				Labels:    labels,
-			},
-			Spec: v1alpha1.MachineDeploymentSpec{
-				MinReadySeconds: minReadySeconds,
-				Replicas:        replicas,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: deepCopy(specTemplate.ObjectMeta.Labels),
-				},
-				Strategy: v1alpha1.MachineDeploymentStrategy{
-					RollingUpdate: &v1alpha1.RollingUpdateMachineDeployment{
-						MaxSurge:       &intStr1,
-						MaxUnavailable: &intStr1,
-					},
-				},
-				Template: *specTemplate.DeepCopy(),
-			},
-		}
-
-		if statusTemplate != nil {
-			machineDeployment.Status = *statusTemplate.DeepCopy()
-		}
-
-		if owner != nil {
-			machineDeployment.OwnerReferences = append(machineDeployment.OwnerReferences, *owner.DeepCopy())
-		}
-
-		if annotations != nil {
-			machineDeployment.Annotations = annotations
-		}
-
-		machineDeployments[i] = machineDeployment
-	}
-	return machineDeployments
-}
-
-func newMachineSetFromMachineDeployment(
-	machineDeployment *v1alpha1.MachineDeployment,
-	replicas int32,
-	statusTemplate *v1alpha1.MachineSetStatus,
-	annotations map[string]string,
-	labels map[string]string,
-) *v1alpha1.MachineSet {
-	return newMachineSetsFromMachineDeployment(1, machineDeployment, replicas, statusTemplate, annotations, labels)[0]
-}
-
-func newMachineSetsFromMachineDeployment(
-	machineSetCount int,
-	machineDeployment *v1alpha1.MachineDeployment,
-	replicas int32,
-	statusTemplate *v1alpha1.MachineSetStatus,
-	annotations map[string]string,
-	labels map[string]string,
-) []*v1alpha1.MachineSet {
-
-	finalLabels := make(map[string]string)
-	for k, v := range labels {
-		finalLabels[k] = v
-	}
-	for k, v := range machineDeployment.Spec.Template.Labels {
-		finalLabels[k] = v
-	}
-
-	t := &machineDeployment.TypeMeta
-
-	return newMachineSets(
-		machineSetCount,
-		&machineDeployment.Spec.Template,
-		replicas,
-		machineDeployment.Spec.MinReadySeconds,
-		statusTemplate,
-		&metav1.OwnerReference{
-			APIVersion:         t.APIVersion,
-			Kind:               t.Kind,
-			Name:               machineDeployment.Name,
-			UID:                machineDeployment.UID,
-			BlockOwnerDeletion: pointer.BoolPtr(true),
-			Controller:         pointer.BoolPtr(true),
-		},
-		annotations,
-		finalLabels,
-	)
-}
-
-func newMachineSet(
-	specTemplate *v1alpha1.MachineTemplateSpec,
-	replicas int32,
-	minReadySeconds int32,
-	statusTemplate *v1alpha1.MachineSetStatus,
-	owner *metav1.OwnerReference,
-	annotations map[string]string,
-	labels map[string]string,
-) *v1alpha1.MachineSet {
-	return newMachineSets(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner, annotations, labels)[0]
-}
-
-func newMachineSets(
-	machineSetCount int,
-	specTemplate *v1alpha1.MachineTemplateSpec,
-	replicas int32,
-	minReadySeconds int32,
-	statusTemplate *v1alpha1.MachineSetStatus,
-	owner *metav1.OwnerReference,
-	annotations map[string]string,
-	labels map[string]string,
-) []*v1alpha1.MachineSet {
-
-	machineSets := make([]*v1alpha1.MachineSet, machineSetCount)
-	for i := range machineSets {
-		ms := &v1alpha1.MachineSet{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "machine.sapcloud.io",
-				Kind:       "MachineSet",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("machineset-%d", i),
-				Namespace: testNamespace,
-				Labels:    labels,
-			},
-			Spec: v1alpha1.MachineSetSpec{
-				MachineClass:    *specTemplate.Spec.Class.DeepCopy(),
-				MinReadySeconds: minReadySeconds,
-				Replicas:        replicas,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: deepCopy(specTemplate.ObjectMeta.Labels),
-				},
-				Template: *specTemplate.DeepCopy(),
-			},
-		}
-
-		if statusTemplate != nil {
-			ms.Status = *statusTemplate.DeepCopy()
-		}
-
-		if owner != nil {
-			ms.OwnerReferences = append(ms.OwnerReferences, *owner.DeepCopy())
-		}
-
-		if annotations != nil {
-			ms.Annotations = annotations
-		}
-
-		machineSets[i] = ms
-	}
-	return machineSets
-}
-
-func deepCopy(m map[string]string) map[string]string {
-	r := make(map[string]string, len(m))
-	for k := range m {
-		r[k] = m[k]
-	}
-	return r
-}
-
-func newMachineFromMachineSet(
-	machineSet *v1alpha1.MachineSet,
-	statusTemplate *v1alpha1.MachineStatus,
-	annotations map[string]string,
-	labels map[string]string,
-	addFinalizer bool,
-) *v1alpha1.Machine {
-	return newMachinesFromMachineSet(1, machineSet, statusTemplate, annotations, labels, addFinalizer)[0]
-}
-
-func newMachinesFromMachineSet(
-	machineCount int,
-	machineSet *v1alpha1.MachineSet,
-	statusTemplate *v1alpha1.MachineStatus,
-	annotations map[string]string,
-	labels map[string]string,
-	addFinalizer bool,
-) []*v1alpha1.Machine {
-	t := &machineSet.TypeMeta
-
-	finalLabels := make(map[string]string, 0)
-	for k, v := range labels {
-		finalLabels[k] = v
-	}
-	for k, v := range machineSet.Spec.Template.Labels {
-		finalLabels[k] = v
-	}
-
-	return newMachines(
-		machineCount,
-		&machineSet.Spec.Template,
-		statusTemplate,
-		&metav1.OwnerReference{
-			APIVersion:         t.APIVersion,
-			Kind:               t.Kind,
-			Name:               machineSet.Name,
-			UID:                machineSet.UID,
-			BlockOwnerDeletion: boolPtr(true),
-			Controller:         boolPtr(true),
-		},
-		annotations,
-		finalLabels,
-		addFinalizer,
-		metav1.Now(),
-	)
-}
 
 func newMachine(
 	specTemplate *v1alpha1.MachineTemplateSpec,
@@ -319,10 +81,10 @@ func newMachines(
 	machines := make([]*v1alpha1.Machine, machineCount)
 
 	if annotations == nil {
-		annotations = make(map[string]string, 0)
+		annotations = make(map[string]string)
 	}
 	if labels == nil {
-		labels = make(map[string]string, 0)
+		labels = make(map[string]string)
 	}
 
 	for i := range machines {
@@ -359,38 +121,6 @@ func newMachines(
 		machines[i] = m
 	}
 	return machines
-}
-
-func newNode(
-	nodeCount int,
-	nodeSpec *corev1.NodeSpec,
-	nodeStatus *corev1.NodeStatus,
-) *corev1.Node {
-	return newNodes(1, nodeSpec, nodeStatus)[0]
-}
-
-func newNodes(
-	nodeCount int,
-	nodeSpec *corev1.NodeSpec,
-	nodeStatus *corev1.NodeStatus,
-) []*corev1.Node {
-
-	nodes := make([]*corev1.Node, nodeCount)
-	for i := range nodes {
-		node := &corev1.Node{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Node",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("node-%d", i),
-			},
-			Spec: *nodeSpec.DeepCopy(),
-		}
-
-		nodes[i] = node
-	}
-	return nodes
 }
 
 func newObjectMeta(meta *metav1.ObjectMeta, index int) *metav1.ObjectMeta {
@@ -450,10 +180,6 @@ func newSecretReference(meta *metav1.ObjectMeta, index int) *corev1.SecretRefere
 
 	r.Name = fmt.Sprintf("machine-%d", index)
 	return r
-}
-
-func boolPtr(b bool) *bool {
-	return &b
 }
 
 func createController(

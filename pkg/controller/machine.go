@@ -620,7 +620,6 @@ func (c *controller) machineDelete(ctx context.Context, machine *v1alpha1.Machin
 		var (
 			forceDeletePods         = false
 			forceDeleteMachine      = false
-			timeOutOccurred         = false
 			maxEvictRetries         = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/PodEvictionRetryInterval.Seconds()))
 			pvDetachTimeOut         = c.safetyOptions.PvDetachTimeout.Duration
 			timeOutDuration         = c.getEffectiveDrainTimeout(machine).Duration
@@ -657,7 +656,7 @@ func (c *controller) machineDelete(ctx context.Context, machine *v1alpha1.Machin
 			}
 		}
 
-		timeOutOccurred = utiltime.HasTimeOutOccurred(*machine.DeletionTimestamp, timeOutDuration)
+		timeOutOccurred := utiltime.HasTimeOutOccurred(*machine.DeletionTimestamp, timeOutDuration)
 
 		if forceDeleteLabelPresent || timeOutOccurred {
 			// To perform forceful machine drain/delete either one of the below conditions must be satified

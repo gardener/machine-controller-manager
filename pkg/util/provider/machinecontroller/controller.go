@@ -89,14 +89,6 @@ func NewController(
 	nodeConditions string,
 	bootstrapTokenAuthExtraGroups string,
 ) (Controller, error) {
-	const (
-		// volumeAttachmentGroupName group name
-		volumeAttachmentGroupName = "storage.k8s.io"
-		// volumenAttachmentKind is the kind used for VolumeAttachment
-		volumeAttachmentResourceName = "volumeattachments"
-		// volumeAttachmentResource is the kind used for VolumeAttachment
-		volumeAttachmentResourceKind = "VolumeAttachment"
-	)
 
 	controller := &controller{
 		namespace:                     namespace,

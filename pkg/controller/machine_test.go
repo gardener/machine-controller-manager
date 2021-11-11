@@ -999,7 +999,6 @@ var _ = Describe("machine", func() {
 			fakeMachineStatus       *machinev1.MachineStatus
 		}
 		type expect struct {
-			machine        *machinev1.Machine
 			errOccurred    bool
 			machineDeleted bool
 			nodeDeleted    bool
@@ -1634,7 +1633,6 @@ var _ = Describe("machine", func() {
 		}
 		type expect struct {
 			machine *machinev1.Machine
-			err     bool
 		}
 		type data struct {
 			setup  setup
@@ -1669,7 +1667,7 @@ var _ = Describe("machine", func() {
 				waitForCacheSync(stop, controller)
 
 				action := data.action
-				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
+				machine, _ := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				//Expect(err).ToNot(HaveOccurred())
 
 				controller.checkMachineTimeout(context.TODO(), machine)
@@ -1852,7 +1850,6 @@ var _ = Describe("machine", func() {
 		}
 		type expect struct {
 			machine *machinev1.Machine
-			err     bool
 		}
 		type data struct {
 			setup  setup

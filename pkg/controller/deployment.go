@@ -221,47 +221,6 @@ func (dc *controller) deleteMachineSetToDeployment(obj interface{}) {
 	dc.enqueueMachineDeployment(d)
 }
 
-// deleteMachine will enqueue a Recreate Deployment once all of its Machines have stopped running.
-func (dc *controller) deleteMachineToMachineDeployment(ctx context.Context, obj interface{}) {
-	machine, ok := obj.(*v1alpha1.Machine)
-
-	// When a delete is dropped, the relist will notice a Machine in the store not
-	// in the list, leading to the insertion of a tombstone object which contains
-	// the deleted key/value. Note that this value might be stale. If the Machine
-	// changed labels the new deployment will not be woken up till the periodic resync.
-	if !ok {
-		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-		if !ok {
-			utilruntime.HandleError(fmt.Errorf("Couldn't get object from tombstone %#v", obj))
-			return
-		}
-		machine, ok = tombstone.Obj.(*v1alpha1.Machine)
-		if !ok {
-			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a machine %#v", obj))
-			return
-		}
-	}
-	klog.V(4).Infof("Machine %s deleted.", machine.Name)
-	if d := dc.getMachineDeploymentForMachine(ctx, machine); d != nil && d.Spec.Strategy.Type == v1alpha1.RecreateMachineDeploymentStrategyType {
-		// Sync if this Deployment now has no more Machines.
-		machineSets, err := ListMachineSets(d, IsListFromClient(ctx, dc.controlMachineClient))
-		if err != nil {
-			return
-		}
-		machineMap, err := dc.getMachineMapForMachineDeployment(d, machineSets)
-		if err != nil {
-			return
-		}
-		numMachines := 0
-		for _, machineList := range machineMap {
-			numMachines += len(machineList.Items)
-		}
-		if numMachines == 0 {
-			dc.enqueueMachineDeployment(d)
-		}
-	}
-}
-
 func (dc *controller) enqueueMachineDeployment(deployment *v1alpha1.MachineDeployment) {
 	key, err := KeyFunc(deployment)
 	if err != nil {
@@ -293,34 +252,6 @@ func (dc *controller) enqueueMachineDeploymentAfter(deployment *v1alpha1.Machine
 	dc.machineDeploymentQueue.AddAfter(key, after)
 }
 
-// getDeploymentForMachine returns the deployment managing the given Machine.
-func (dc *controller) getMachineDeploymentForMachine(ctx context.Context, machine *v1alpha1.Machine) *v1alpha1.MachineDeployment {
-	// Find the owning machine set
-	var is *v1alpha1.MachineSet
-	var err error
-	controllerRef := metav1.GetControllerOf(machine)
-	if controllerRef == nil {
-		// No controller owns this Machine.
-		return nil
-	}
-	if controllerRef.Kind != "MachineDeployment" { //TODO: Remove hardcoded string
-		// Not a Machine owned by a machine set.
-		return nil
-	}
-	is, err = dc.controlMachineClient.MachineSets(machine.Namespace).Get(ctx, controllerRef.Name, metav1.GetOptions{})
-	if err != nil || is.UID != controllerRef.UID {
-		klog.V(4).Infof("Cannot get machineset %q for machine %q: %v", controllerRef.Name, machine.Name, err)
-		return nil
-	}
-
-	// Now find the Deployment that owns that MachineSet.
-	controllerRef = metav1.GetControllerOf(is)
-	if controllerRef == nil {
-		return nil
-	}
-	return dc.resolveDeploymentControllerRef(is.Namespace, controllerRef)
-}
-
 // resolveControllerRef returns the controller referenced by a ControllerRef,
 // or nil if the ControllerRef could not be resolved to a matching controller
 // of the correct Kind.
@@ -340,23 +271,6 @@ func (dc *controller) resolveDeploymentControllerRef(namespace string, controlle
 		return nil
 	}
 	return d
-}
-
-func (dc *controller) handleErr(err error, key interface{}) {
-	if err == nil {
-		dc.machineDeploymentQueue.Forget(key)
-		return
-	}
-
-	if dc.machineDeploymentQueue.NumRequeues(key) < maxRetries {
-		klog.V(2).Infof("Error syncing deployment %v: %v", key, err)
-		dc.machineDeploymentQueue.AddRateLimited(key)
-		return
-	}
-
-	utilruntime.HandleError(err)
-	klog.V(2).Infof("Dropping deployment %q out of the queue: %v", key, err)
-	dc.machineDeploymentQueue.Forget(key)
 }
 
 // getMachineSetsForDeployment uses ControllerRefManager to reconcile

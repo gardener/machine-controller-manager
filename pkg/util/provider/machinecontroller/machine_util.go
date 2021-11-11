@@ -56,10 +56,6 @@ var (
 	emptyMap = make(map[string]string)
 )
 
-// TODO: use client library instead when it starts to support update retries
-//       see https://github.com/kubernetes/kubernetes/issues/21479
-type updateMachineFunc func(machine *v1alpha1.Machine) error
-
 /*
 // UpdateMachineWithRetries updates a machine with given applyUpdate function. Note that machine not found error is ignored.
 // The returned bool value can be used to tell if the machine is actually updated.

@@ -428,18 +428,6 @@ func (o *DrainOptions) getTerminationGracePeriod(pod *api.Pod) time.Duration {
 	return time.Duration(*pod.Spec.TerminationGracePeriodSeconds) * time.Second
 }
 
-func (o *DrainOptions) getGlobalTimeoutForPodsWithoutPV(pods []*api.Pod) time.Duration {
-	var tgpsMax time.Duration
-	for _, pod := range pods {
-		tgps := o.getTerminationGracePeriod(pod)
-		if tgps > tgpsMax {
-			tgpsMax = tgps
-		}
-	}
-
-	return tgpsMax + PodsWithoutPVDrainGracePeriod
-}
-
 func (o *DrainOptions) evictPods(ctx context.Context, attemptEvict bool, pods []api.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error)) error {
 	returnCh := make(chan error, len(pods))
 	defer close(returnCh)

@@ -381,11 +381,10 @@ var _ = Describe("machine", func() {
 
 	Describe("#triggerCreationFlow", func() {
 		type setup struct {
-			machineClasses      []*v1alpha1.MachineClass
-			machines            []*v1alpha1.Machine
-			secrets             []*corev1.Secret
-			nodes               []*corev1.Node
-			fakeResourceActions *customfake.ResourceActions
+			machineClasses []*v1alpha1.MachineClass
+			machines       []*v1alpha1.Machine
+			secrets        []*corev1.Secret
+			nodes          []*corev1.Node
 		}
 		type action struct {
 			machine    string
@@ -927,10 +926,8 @@ var _ = Describe("machine", func() {
 			fakeResourceActions *customfake.ResourceActions
 		}
 		type action struct {
-			machine                 string
-			forceDeleteLabelPresent bool
-			fakeMachineStatus       *v1alpha1.MachineStatus
-			fakeDriver              *driver.FakeDriver
+			machine    string
+			fakeDriver *driver.FakeDriver
 		}
 		type expect struct {
 			machine                       *v1alpha1.Machine
@@ -1515,7 +1512,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Skipping drain as nodeName is not a valid one for machine. Initiate VM deletion"),
+								Description:    "Skipping drain as nodeName is not a valid one for machine. Initiate VM deletion",
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),

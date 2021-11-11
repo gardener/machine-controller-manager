@@ -221,8 +221,6 @@ var _ = Describe("#machine_safety", func() {
 		machineDeploymentLabels      map[string]string
 		machineDeploymentConditions  []v1alpha1.MachineDeploymentCondition
 	}
-	type action struct {
-	}
 	type expect struct {
 		machineSetAnnotations        map[string]string
 		machineSetLabels             map[string]string
@@ -233,7 +231,6 @@ var _ = Describe("#machine_safety", func() {
 	}
 	type data struct {
 		setup  setup
-		action action
 		expect expect
 	}
 
