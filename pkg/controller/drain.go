@@ -448,7 +448,7 @@ func (o *DrainOptions) evictPods(ctx context.Context, attemptEvict bool, pods []
 		klog.V(3).Infof("Normal eviction of pods on the node: %q", o.nodeName)
 
 		// evcit all pods without PV in parallel and with PV in serial (waiting for vol detachment)
-		go o.evictPodsWithPv(ctx, attemptEvict, podsWithPv, policyGroupVersion, getPodFn, returnCh)
+		go o.evictPodsWithPv(ctx, attemptEvict, podsWithPv, policyGroupVersion, returnCh)
 		go o.evictPodsWithoutPv(ctx, attemptEvict, podsWithoutPv, policyGroupVersion, getPodFn, returnCh)
 	}
 
@@ -474,7 +474,6 @@ func (o *DrainOptions) evictPodsWithoutPv(ctx context.Context, attemptEvict bool
 	for _, pod := range pods {
 		go o.evictPodWithoutPVInternal(ctx, attemptEvict, pod, policyGroupVersion, getPodFn, returnCh)
 	}
-	return
 }
 
 func sortPodsByPriority(pods []*corev1.Pod) {
@@ -489,7 +488,7 @@ func (o *DrainOptions) doAccountingOfPvs(pods []*corev1.Pod) map[string][]string
 	pvMap := make(map[string][]string)
 
 	for _, pod := range pods {
-		podPVs, _ := o.getPvs(pod)
+		podPVs := o.getPvs(pod)
 		pvMap[pod.Namespace+"/"+pod.Name] = podPVs
 	}
 	klog.V(4).Info("PV map: ", pvMap)
@@ -538,7 +537,7 @@ func filterSharedPVs(pvMap map[string][]string) {
 	for pod, vols := range pvMap {
 		volList := []string{}
 		for _, vol := range vols {
-			if sharedVol[vol] == false {
+			if !sharedVol[vol] {
 				volList = append(volList, vol)
 			}
 		}
@@ -549,7 +548,6 @@ func filterSharedPVs(pvMap map[string][]string) {
 
 func (o *DrainOptions) evictPodsWithPv(ctx context.Context, attemptEvict bool, pods []*corev1.Pod,
 	policyGroupVersion string,
-	getPodFn func(namespace, name string) (*api.Pod, error),
 	returnCh chan error,
 ) {
 	sortPodsByPriority(pods)
@@ -564,7 +562,7 @@ func (o *DrainOptions) evictPodsWithPv(ctx context.Context, attemptEvict bool, p
 
 	if attemptEvict {
 		for i := 0; i < nretries; i++ {
-			remainingPods, fastTrack = o.evictPodsWithPVInternal(ctx, attemptEvict, pods, volMap, policyGroupVersion, getPodFn, returnCh)
+			remainingPods, fastTrack = o.evictPodsWithPVInternal(ctx, attemptEvict, pods, volMap, policyGroupVersion, returnCh)
 			if fastTrack || len(remainingPods) == 0 {
 				//Either all pods got evicted or we need to fast track the return (node deletion detected)
 				break
@@ -582,10 +580,10 @@ func (o *DrainOptions) evictPodsWithPv(ctx context.Context, attemptEvict bool, p
 		if !fastTrack && len(remainingPods) > 0 {
 			// Force delete the pods remaining after evict retries.
 			pods = remainingPods
-			remainingPods, _ = o.evictPodsWithPVInternal(ctx, false, pods, volMap, policyGroupVersion, getPodFn, returnCh)
+			remainingPods, _ = o.evictPodsWithPVInternal(ctx, false, pods, volMap, policyGroupVersion, returnCh)
 		}
 	} else {
-		remainingPods, _ = o.evictPodsWithPVInternal(ctx, false, pods, volMap, policyGroupVersion, getPodFn, returnCh)
+		remainingPods, _ = o.evictPodsWithPVInternal(ctx, false, pods, volMap, policyGroupVersion, returnCh)
 	}
 
 	// Placate the caller by returning the nil status for the remaining pods.
@@ -601,13 +599,10 @@ func (o *DrainOptions) evictPodsWithPv(ctx context.Context, attemptEvict bool, p
 			returnCh <- fmt.Errorf("Error deleting pod %s/%s from node %q", pod.Namespace, pod.Name, pod.Spec.NodeName)
 		}
 	}
-
-	return
 }
 
 func (o *DrainOptions) evictPodsWithPVInternal(ctx context.Context, attemptEvict bool, pods []*corev1.Pod, volMap map[string][]string,
 	policyGroupVersion string,
-	getPodFn func(namespace, name string) (*api.Pod, error),
 	returnCh chan error) (remainingPods []*api.Pod, fastTrack bool) {
 	var (
 		mainContext       context.Context
@@ -690,7 +685,7 @@ func (o *DrainOptions) evictPodsWithPVInternal(ctx context.Context, attemptEvict
 	return retryPods, false
 }
 
-func (o *DrainOptions) getPvs(pod *corev1.Pod) ([]string, error) {
+func (o *DrainOptions) getPvs(pod *corev1.Pod) []string {
 	pvs := []string{}
 	for i := range pod.Spec.Volumes {
 		vol := &pod.Spec.Volumes[i]
@@ -723,7 +718,7 @@ func (o *DrainOptions) getPvs(pod *corev1.Pod) ([]string, error) {
 			}
 		}
 	}
-	return pvs, nil
+	return pvs
 }
 
 func (o *DrainOptions) waitForDetach(ctx context.Context, volumeIDs []string, nodeName string) error {
@@ -875,7 +870,7 @@ func (o *DrainOptions) evictPodWithoutPVInternal(ctx context.Context, attemptEvi
 	}
 
 	bufferPeriod := 30 * time.Second
-	podArray, err = o.waitForDelete(podArray, Interval, timeout+bufferPeriod, true, getPodFn)
+	podArray, err = o.waitForDelete(podArray, Interval, timeout+bufferPeriod, getPodFn)
 	if err == nil {
 		if len(podArray) > 0 {
 			returnCh <- fmt.Errorf("timeout expired while waiting for pod %q terminating scheduled on node %v", pod.Name, pod.Spec.NodeName)
@@ -887,7 +882,7 @@ func (o *DrainOptions) evictPodWithoutPVInternal(ctx context.Context, attemptEvi
 	}
 }
 
-func (o *DrainOptions) waitForDelete(pods []*api.Pod, interval, timeout time.Duration, usingEviction bool, getPodFn func(string, string) (*api.Pod, error)) ([]*api.Pod, error) {
+func (o *DrainOptions) waitForDelete(pods []*api.Pod, interval, timeout time.Duration, getPodFn func(string, string) (*api.Pod, error)) ([]*api.Pod, error) {
 	err := wait.PollImmediate(interval, timeout, func() (bool, error) {
 		pendingPods := []*api.Pod{}
 		for i, pod := range pods {

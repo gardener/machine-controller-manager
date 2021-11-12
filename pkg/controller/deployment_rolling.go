@@ -96,10 +96,7 @@ func (dc *controller) rolloutRolling(ctx context.Context, d *v1alpha1.MachineDep
 	}
 
 	// Scale down, if we can.
-	scaledDown, err := dc.reconcileOldMachineSets(ctx, allISs, FilterActiveMachineSets(oldISs), newIS, d)
-	if err != nil {
-		return err
-	}
+	scaledDown := dc.reconcileOldMachineSets(ctx, allISs, FilterActiveMachineSets(oldISs), newIS, d)
 	if scaledDown {
 		// Update DeploymentStatus
 		return dc.syncRolloutStatus(ctx, allISs, newIS, d)
@@ -141,11 +138,11 @@ func (dc *controller) reconcileNewMachineSet(ctx context.Context, allISs []*v1al
 	return scaled, err
 }
 
-func (dc *controller) reconcileOldMachineSets(ctx context.Context, allISs []*v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
+func (dc *controller) reconcileOldMachineSets(ctx context.Context, allISs []*v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) bool {
 	oldMachinesCount := GetReplicaCountForMachineSets(oldISs)
 	if oldMachinesCount == 0 {
 		// Can't scale down further
-		return false, nil
+		return false
 	}
 
 	allMachinesCount := GetReplicaCountForMachineSets(allISs)
@@ -186,14 +183,14 @@ func (dc *controller) reconcileOldMachineSets(ctx context.Context, allISs []*v1a
 	newISUnavailableMachineCount := (newIS.Spec.Replicas) - newIS.Status.AvailableReplicas
 	maxScaledDown := allMachinesCount - minAvailable - newISUnavailableMachineCount
 	if maxScaledDown <= 0 {
-		return false, nil
+		return false
 	}
 
 	// Clean up unhealthy replicas first, otherwise unhealthy replicas will block deployment
 	// and cause timeout. See https://github.com/kubernetes/kubernetes/issues/16737
 	oldISs, cleanupCount, err := dc.cleanupUnhealthyReplicas(ctx, oldISs, deployment, maxScaledDown)
 	if err != nil {
-		return false, nil
+		return false
 	}
 	klog.V(4).Infof("Cleaned up unhealthy replicas from old ISes by %d", cleanupCount)
 
@@ -201,12 +198,12 @@ func (dc *controller) reconcileOldMachineSets(ctx context.Context, allISs []*v1a
 	allISs = append(oldISs, newIS)
 	scaledDownCount, err := dc.scaleDownOldMachineSetsForRollingUpdate(ctx, allISs, oldISs, deployment)
 	if err != nil {
-		return false, nil
+		return false
 	}
 	klog.V(4).Infof("Scaled down old ISes of deployment %s by %d", deployment.Name, scaledDownCount)
 
 	totalScaledDown := cleanupCount + scaledDownCount
-	return totalScaledDown > 0, nil
+	return totalScaledDown > 0
 }
 
 // cleanupUnhealthyReplicas will scale down old machine sets with unhealthy replicas, so that all unhealthy replicas will be deleted.

@@ -512,7 +512,7 @@ func getMachinesFinalizers(template *v1alpha1.MachineTemplateSpec) []string {
 	return desiredFinalizers
 }
 
-func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, object runtime.Object) labels.Set {
+func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec) labels.Set {
 	desiredAnnotations := make(labels.Set)
 	for k, v := range template.Annotations {
 		desiredAnnotations[k] = v
@@ -544,7 +544,7 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 	desiredLabels := getMachinesLabelSet(template)
 	//klog.Info(desiredLabels)
 	desiredFinalizers := getMachinesFinalizers(template)
-	desiredAnnotations := getMachinesAnnotationSet(template, parentObject)
+	desiredAnnotations := getMachinesAnnotationSet(template)
 
 	accessor, err := meta.Accessor(parentObject)
 	if err != nil {
@@ -706,7 +706,7 @@ func GetFakeMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentOb
 	desiredLabels := getMachinesLabelSet(template)
 	//klog.Info(desiredLabels)
 	desiredFinalizers := getMachinesFinalizers(template)
-	desiredAnnotations := getMachinesAnnotationSet(template, parentObject)
+	desiredAnnotations := getMachinesAnnotationSet(template)
 
 	accessor, err := meta.Accessor(parentObject)
 	if err != nil {

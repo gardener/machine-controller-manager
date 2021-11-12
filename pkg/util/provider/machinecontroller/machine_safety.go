@@ -303,11 +303,10 @@ func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alph
 
 // deleteMachineToSafety enqueues into machineSafetyQueue when a new machine is deleted
 func (c *controller) deleteMachineToSafety(obj interface{}) {
-	machine := obj.(*v1alpha1.Machine)
-	c.enqueueMachineSafetyOrphanVMsKey(machine)
+	c.enqueueMachineSafetyOrphanVMsKey()
 }
 
 // enqueueMachineSafetyOrphanVMsKey enqueues into machineSafetyOrphanVMsQueue
-func (c *controller) enqueueMachineSafetyOrphanVMsKey(obj interface{}) {
+func (c *controller) enqueueMachineSafetyOrphanVMsKey() {
 	c.machineSafetyOrphanVMsQueue.Add("")
 }

@@ -140,7 +140,6 @@ var _ = Describe("deployment_rolling", func() {
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
-						nil,
 					),
 				},
 				action: newMachineSets(
@@ -193,7 +192,6 @@ var _ = Describe("deployment_rolling", func() {
 								},
 							},
 						},
-						nil,
 					),
 					err: false,
 				},
@@ -305,7 +303,6 @@ var _ = Describe("deployment_rolling", func() {
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
-						nil,
 					),
 					existingAnnotations: map[string]string{
 						"anno1": "anno1",
@@ -359,7 +356,6 @@ var _ = Describe("deployment_rolling", func() {
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
-						nil,
 					),
 					existingAnnotations: map[string]string{
 						"anno1": "anno1",
@@ -412,7 +408,6 @@ var _ = Describe("deployment_rolling", func() {
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
-						nil,
 					),
 					existingAnnotations: map[string]string{
 						"anno1": "annoDummy",
@@ -465,7 +460,6 @@ var _ = Describe("deployment_rolling", func() {
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
-						nil,
 					),
 					existingAnnotations: map[string]string{
 						"anno2": "anno2",
@@ -609,7 +603,6 @@ var _ = Describe("deployment_rolling", func() {
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
-						nil,
 					),
 					existingAnnotations: map[string]string{
 						"anno1": "anno1",
@@ -665,7 +658,6 @@ var _ = Describe("deployment_rolling", func() {
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
-						nil,
 					),
 					existingAnnotations: map[string]string{
 						"anno1": "anno1",
@@ -721,7 +713,6 @@ var _ = Describe("deployment_rolling", func() {
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
-						nil,
 					),
 					existingAnnotations: map[string]string{
 						"anno1": "anno1",

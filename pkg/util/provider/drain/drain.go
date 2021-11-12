@@ -448,7 +448,7 @@ func (o *Options) evictPods(ctx context.Context, attemptEvict bool, pods []api.P
 		klog.V(3).Infof("Normal eviction of pods on the node: %q", o.nodeName)
 
 		// evcit all pods without PV in parallel and with PV in serial (waiting for vol detachment)
-		go o.evictPodsWithPv(ctx, attemptEvict, podsWithPv, policyGroupVersion, getPodFn, returnCh)
+		go o.evictPodsWithPv(ctx, attemptEvict, podsWithPv, policyGroupVersion, returnCh)
 		go o.evictPodsWithoutPv(ctx, attemptEvict, podsWithoutPv, policyGroupVersion, getPodFn, returnCh)
 	}
 
@@ -557,7 +557,6 @@ func filterSharedPVs(pvMap map[string][]string) {
 
 func (o *Options) evictPodsWithPv(ctx context.Context, attemptEvict bool, pods []*corev1.Pod,
 	policyGroupVersion string,
-	getPodFn func(namespace, name string) (*api.Pod, error),
 	returnCh chan error,
 ) {
 	sortPodsByPriority(pods)
@@ -1015,7 +1014,7 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 	}
 
 	bufferPeriod := 30 * time.Second
-	podArray, err = o.waitForDelete(podArray, Interval, timeout+bufferPeriod, true, getPodFn)
+	podArray, err = o.waitForDelete(podArray, Interval, timeout+bufferPeriod, getPodFn)
 	if err == nil {
 		if len(podArray) > 0 {
 			returnCh <- fmt.Errorf("timeout expired while waiting for pod %q terminating scheduled on node %v", pod.Name, pod.Spec.NodeName)
@@ -1027,7 +1026,7 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 	}
 }
 
-func (o *Options) waitForDelete(pods []*api.Pod, interval, timeout time.Duration, usingEviction bool, getPodFn func(string, string) (*api.Pod, error)) ([]*api.Pod, error) {
+func (o *Options) waitForDelete(pods []*api.Pod, interval, timeout time.Duration, getPodFn func(string, string) (*api.Pod, error)) ([]*api.Pod, error) {
 	err := wait.PollImmediate(interval, timeout, func() (bool, error) {
 		pendingPods := []*api.Pod{}
 		for i, pod := range pods {

@@ -611,23 +611,21 @@ func (c *controller) checkMachineClass(
 
 // addMachineToSafety enqueues into machineSafetyQueue when a new machine is added
 func (c *controller) addMachineToSafety(obj interface{}) {
-	machine := obj.(*v1alpha1.Machine)
-	c.enqueueMachineSafetyOvershootingKey(machine)
+	c.enqueueMachineSafetyOvershootingKey()
 }
 
 // deleteMachineToSafety enqueues into machineSafetyQueue when a new machine is deleted
 func (c *controller) deleteMachineToSafety(obj interface{}) {
-	machine := obj.(*v1alpha1.Machine)
-	c.enqueueMachineSafetyOrphanVMsKey(machine)
+	c.enqueueMachineSafetyOrphanVMsKey()
 }
 
 // enqueueMachineSafetyOvershootingKey enqueues into machineSafetyOvershootingQueue
-func (c *controller) enqueueMachineSafetyOvershootingKey(obj interface{}) {
+func (c *controller) enqueueMachineSafetyOvershootingKey() {
 	c.machineSafetyOvershootingQueue.Add("")
 }
 
 // enqueueMachineSafetyOrphanVMsKey enqueues into machineSafetyOrphanVMsQueue
-func (c *controller) enqueueMachineSafetyOrphanVMsKey(obj interface{}) {
+func (c *controller) enqueueMachineSafetyOrphanVMsKey() {
 	c.machineSafetyOrphanVMsQueue.Add("")
 }
 

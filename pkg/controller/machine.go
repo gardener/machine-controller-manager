@@ -147,10 +147,6 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		return errors.New(message)
 	}
 
-	if !shouldReconcileMachine(machine, time.Now()) {
-		return nil
-	}
-
 	// Validate Machine
 	internalMachine := &machineapi.Machine{}
 	err := c.internalExternalScheme.Convert(machine, internalMachine, nil)
@@ -1115,18 +1111,6 @@ func (c *controller) checkMachineTimeout(ctx context.Context, machine *v1alpha1.
 			c.enqueueMachineAfter(machine, sleepTime)
 		}
 	}
-}
-
-func shouldReconcileMachine(machine *v1alpha1.Machine, now time.Time) bool {
-	if machine.DeletionTimestamp != nil {
-		return true
-	}
-	if machine.Spec.ProviderID == "" {
-		return true
-	}
-	// TODO add more cases where this will be false
-
-	return true
 }
 
 // decodeMachineID is a generic way of decoding the Spec.ProviderID field of node-objects.

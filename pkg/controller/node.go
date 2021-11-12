@@ -24,14 +24,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-func (c *controller) nodeDelete(obj interface{}) {
-	node, ok := obj.(*v1.Node)
-	if node == nil || !ok {
-		return
-	}
-
-}
-
 // Not being used at the moment, saving it for a future use case.
 func (c *controller) reconcileClusterNodeKey(key string) error {
 	node, err := c.nodeLister.Get(key)

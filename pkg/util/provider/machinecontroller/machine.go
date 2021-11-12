@@ -545,44 +545,6 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 	return machineutils.LongRetry, nil
 }
 
-func (c *controller) triggerUpdationFlow(ctx context.Context, machine *v1alpha1.Machine, actualProviderID string) (machineutils.RetryPeriod, error) {
-	klog.V(2).Infof("Setting ProviderID of machine %s with backing node %s to %s", machine.Name, getNodeName(machine), actualProviderID)
-
-	for {
-		machine, err := c.controlMachineClient.Machines(machine.Namespace).Get(ctx, machine.Name, metav1.GetOptions{})
-		if err != nil {
-			klog.Warningf("Machine GET failed. Retrying, error: %s", err)
-			continue
-		}
-
-		clone := machine.DeepCopy()
-		clone.Spec.ProviderID = actualProviderID
-		machine, err = c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
-		if err != nil {
-			klog.Warningf("Machine UPDATE failed. Retrying, error: %s", err)
-			continue
-		}
-
-		clone = machine.DeepCopy()
-		lastOperation := v1alpha1.LastOperation{
-			Description:    "Updated provider ID",
-			State:          v1alpha1.MachineStateSuccessful,
-			Type:           v1alpha1.MachineOperationUpdate,
-			LastUpdateTime: metav1.Now(),
-		}
-		clone.Status.LastOperation = lastOperation
-		_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
-		if err != nil {
-			klog.Warningf("Machine/status UPDATE failed. Retrying, error: %s", err)
-			continue
-		}
-		// Update went through, exit out of infinite loop
-		break
-	}
-
-	return machineutils.LongRetry, nil
-}
-
 func (c *controller) triggerDeletionFlow(ctx context.Context, deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.RetryPeriod, error) {
 	var (
 		machine    = deleteMachineRequest.Machine

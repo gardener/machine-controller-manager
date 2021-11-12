@@ -340,13 +340,12 @@ func newNode(
 	nodeSpec *corev1.NodeSpec,
 	nodeStatus *corev1.NodeStatus,
 ) *corev1.Node {
-	return newNodes(1, nodeSpec, nodeStatus)[0]
+	return newNodes(1, nodeSpec)[0]
 }
 
 func newNodes(
 	nodeCount int,
 	nodeSpec *corev1.NodeSpec,
-	nodeStatus *corev1.NodeStatus,
 ) []*corev1.Node {
 
 	nodes := make([]*corev1.Node, nodeCount)

@@ -148,7 +148,6 @@ var _ = Describe("deployment_rollback", func() {
 								},
 							},
 						},
-						nil,
 					),
 				},
 				action: newMachineSets(
@@ -195,7 +194,6 @@ var _ = Describe("deployment_rollback", func() {
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
-						nil,
 					),
 					err: false,
 				},

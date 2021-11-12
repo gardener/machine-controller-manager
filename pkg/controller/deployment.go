@@ -429,7 +429,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 			return nil
 		}
 		klog.V(4).Infof("Deleting all child MachineSets as MachineDeployment %s has set deletionTimestamp", d.Name)
-		dc.terminateMachineSets(ctx, machineSets, d)
+		dc.terminateMachineSets(ctx, machineSets)
 		return dc.syncStatusOnly(ctx, d, machineSets, machineMap)
 	}
 
@@ -469,7 +469,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	return fmt.Errorf("unexpected deployment strategy type: %s", d.Spec.Strategy.Type)
 }
 
-func (dc *controller) terminateMachineSets(ctx context.Context, machineSets []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) {
+func (dc *controller) terminateMachineSets(ctx context.Context, machineSets []*v1alpha1.MachineSet) {
 	var (
 		wg               sync.WaitGroup
 		numOfMachinesets = len(machineSets)

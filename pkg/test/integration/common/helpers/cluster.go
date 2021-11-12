@@ -114,7 +114,7 @@ func (c *Cluster) GetSecretData(machineClassName string, secretRefs ...*v1.Secre
 			continue
 		}
 
-		secretRef, err := c.getSecret(secretRef, machineClassName)
+		secretRef, err := c.getSecret(secretRef)
 		if err != nil {
 			return nil, err
 		}
@@ -139,7 +139,7 @@ func mergeDataMaps(in map[string][]byte, maps ...map[string][]byte) map[string][
 }
 
 // getSecret retrieves the kubernetes secret if found
-func (c *Cluster) getSecret(ref *v1.SecretReference, MachineClassName string) (*v1.Secret, error) {
+func (c *Cluster) getSecret(ref *v1.SecretReference) (*v1.Secret, error) {
 	if ref == nil {
 		return nil, nil
 	}
