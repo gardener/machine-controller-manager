@@ -38,6 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/integer"
+	"k8s.io/utils/pointer"
 
 	"k8s.io/klog/v2"
 
@@ -369,14 +370,13 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		// after one of its machines fails.  Conveniently, this also prevents the
 		// event spam that those failures would generate.
 		successfulCreations, err := slowStartBatch(diff, SlowStartInitialBatchSize, func() error {
-			boolPtr := func(b bool) *bool { return &b }
 			controllerRef := &metav1.OwnerReference{
 				APIVersion:         controllerKindMachineSet.GroupVersion().String(), //#ToCheck
 				Kind:               controllerKindMachineSet.Kind,                    //machineSet.Kind,
 				Name:               machineSet.Name,
 				UID:                machineSet.UID,
-				BlockOwnerDeletion: boolPtr(true),
-				Controller:         boolPtr(true),
+				BlockOwnerDeletion: pointer.Bool(true),
+				Controller:         pointer.Bool(true),
 			}
 			err := c.machineControl.CreateMachinesWithControllerRef(ctx, machineSet.Namespace, &machineSet.Spec.Template, machineSet, controllerRef)
 			if err != nil && apierrors.IsTimeout(err) {
