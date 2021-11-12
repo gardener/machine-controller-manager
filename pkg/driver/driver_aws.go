@@ -19,7 +19,6 @@ package driver
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -344,8 +343,6 @@ func (d *AWSDriver) Delete(machineID string) error {
 			*vmState.CurrentState.Name == "terminated" {
 			return nil
 		}
-
-		err = errors.New("Machine already terminated")
 	}
 
 	klog.Errorf("Could not terminate machine: %s", err.Error())

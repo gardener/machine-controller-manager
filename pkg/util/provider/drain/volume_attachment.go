@@ -49,6 +49,8 @@ func (v *VolumeAttachmentHandler) dispatch(obj interface{}) {
 	volumeAttachment := obj.(*storagev1.VolumeAttachment)
 	if volumeAttachment == nil {
 		klog.Errorf("Couldn't convert to volumeAttachment from object %v", obj)
+		// no volumeattachement, nothing to dispatch here
+		return
 	}
 
 	klog.V(4).Infof("Dispatching request for PV %s", *volumeAttachment.Spec.Source.PersistentVolumeName)

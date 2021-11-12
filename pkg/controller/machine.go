@@ -330,7 +330,7 @@ func (c *controller) updateMachineState(ctx context.Context, machine *v1alpha1.M
 				nodeName = node.Name
 				clone := machine.DeepCopy()
 				clone.Status.Node = nodeName
-				clone, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
+				_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 				if err != nil {
 					klog.Errorf("Could not update status of the machine-object %s due to error %v", machine.Name, err)
 					return machine, err
