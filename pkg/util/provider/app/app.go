@@ -321,7 +321,7 @@ func getAvailableResources(clientBuilder coreclientbuilder.ClientBuilder) (map[s
 		return nil, fmt.Errorf("failed to get api versions from server: %v: %v", healthzContent, err)
 	}
 
-	resourceMap, err := discoveryClient.ServerResources()
+	_, resourceMap, err := discoveryClient.ServerGroupsAndResources()
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("unable to get all supported resources from server: %v", err))
 	}
