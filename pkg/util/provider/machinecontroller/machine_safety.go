@@ -250,8 +250,9 @@ func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alph
 		return machineutils.LongRetry, err
 	}
 
-	// Making sure that its not a VM just being created, machine object not yet updated at API server
-	if len(listMachineResponse.MachineList) > 1 {
+	// making sure cache is updated .This is for cases where a new machine object is at etcd, but cache is unaware
+	// and its correspinding VM is in the list.
+	if len(listMachineResponse.MachineList) > 0 {
 		stopCh := make(chan struct{})
 		defer close(stopCh)
 
@@ -265,15 +266,18 @@ func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alph
 		machine, err := c.machineLister.Machines(c.namespace).Get(machineName)
 
 		if err != nil && !apierrors.IsNotFound(err) {
-			// Any other types of errors
+			// errors other than NotFound error
 			klog.Errorf("SafetyController: Error while trying to GET machines. Error: %s", err)
-		} else if err != nil || machine.Spec.ProviderID != machineID {
-
-			// If machine exists and machine object is still been processed by the machine controller
-			if err == nil &&
-				(machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff) {
-				klog.V(3).Infof("SafetyController: Machine object %q with backing nodeName %q , providerID %q is being processed by machine controller, hence skipping", machine.Name, getNodeName(machine), getProviderID(machine))
-				continue
+		} else {
+			if err == nil {
+				if machine.Spec.ProviderID == machineID {
+					continue
+				}
+				// machine obj is still being processed by the machine controller
+				if machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
+					klog.V(3).Infof("SafetyController: Machine object %q with backing nodeName %q , providerID %q is being processed by machine controller, hence skipping", machine.Name, getNodeName(machine), getProviderID(machine))
+					continue
+				}
 			}
 
 			// Creating a dummy machine object to create deleteMachineRequest

@@ -26,7 +26,6 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -143,108 +142,163 @@ var _ = Describe("safety_logic", func() {
 		)
 	})
 
-	Describe("machineCrashloopBackoff", func() {
-		objMeta := &metav1.ObjectMeta{
-			GenerateName: "class",
-			Namespace:    testNamespace,
+	Describe("#Orphan VM collection", func() {
+		type setup struct {
+			machineObjects     []*v1alpha1.Machine
+			machinesOnProvider map[string]string
+		}
+		type expect struct {
+			//machineIds of machines which are expected to be deleted
+			toBeDeletedMachines []string
+			toBePresentMachines map[string]string
+		}
+		type data struct {
+			setup  setup
+			expect expect
 		}
 
-		// classKind := "MachineClass"
-		secretData := map[string][]byte{
-			"userData":            []byte("dummy-data"),
-			"azureClientId":       []byte("dummy-client-id"),
-			"azureClientSecret":   []byte("dummy-client-secret"),
-			"azureSubscriptionId": []byte("dummy-subcription-id"),
-			"azureTenantId":       []byte("dummy-tenant-id"),
-		}
+		DescribeTable("##reconcileClusterMachineSafetyOrphanVMs", func(data *data) {
+			objMeta := &metav1.ObjectMeta{
+				GenerateName: "class",
+				Namespace:    testNamespace,
+			}
 
-		Describe("machineCrashloopBackoff", func() {
+			// classKind := "MachineClass"
+			secretData := map[string][]byte{
+				"userData":            []byte("dummy-data"),
+				"azureClientId":       []byte("dummy-client-id"),
+				"azureClientSecret":   []byte("dummy-client-secret"),
+				"azureSubscriptionId": []byte("dummy-subcription-id"),
+				"azureTenantId":       []byte("dummy-tenant-id"),
+			}
 
-			It("Should delete the machine (old code)", func() {
-				stop := make(chan struct{})
-				defer close(stop)
+			stop := make(chan struct{})
+			defer close(stop)
 
-				// Create test secret and add it to controlCoreObject list
-				testSecret := &v1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-secret",
-						Namespace: testNamespace,
-					},
-					Data: secretData,
-				}
-
-				// Create a test secretReference because the method checkMachineClass needs it
-				testSecretReference := &v1.SecretReference{
+			// Create test secret and add it to controlCoreObject list
+			testSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-secret",
 					Namespace: testNamespace,
-				}
+				},
+				Data: secretData,
+			}
 
-				testMachineClass := &v1alpha1.MachineClass{
-					ObjectMeta: *newObjectMeta(objMeta, 0),
-					SecretRef:  testSecretReference,
-				}
+			// Create a test secretReference because the method checkMachineClass needs it
+			testSecretReference := &corev1.SecretReference{
+				Name:      "test-secret",
+				Namespace: testNamespace,
+			}
 
-				controlCoreObjects := []runtime.Object{}
-				controlCoreObjects = append(controlCoreObjects, testSecret)
+			testMachineClass := &v1alpha1.MachineClass{
+				ObjectMeta: *newObjectMeta(objMeta, 0),
+				SecretRef:  testSecretReference,
+			}
 
-				// Create test machine object in CrashloopBackoff state
-				testMachineObject1 := &v1alpha1.Machine{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "testmachine_1",
-						Namespace: testNamespace,
+			controlCoreObjects := []runtime.Object{}
+			controlCoreObjects = append(controlCoreObjects, testSecret)
+
+			controlMachineObjects := []runtime.Object{}
+			for _, obj := range data.setup.machineObjects {
+				controlMachineObjects = append(controlMachineObjects, obj)
+			}
+
+			fakeDriver := driver.NewFakeDriver(false, "", "", "", nil, nil)
+
+			c, trackers := createController(stop, testNamespace, controlMachineObjects, controlCoreObjects, nil, fakeDriver)
+			defer trackers.Stop()
+
+			fd := fakeDriver.(*driver.FakeDriver)
+
+			listMachinesRequest := &driver.ListMachinesRequest{
+				MachineClass: testMachineClass,
+				Secret:       testSecret,
+			}
+
+			for machineID, machineName := range data.setup.machinesOnProvider {
+				_ = fd.AddMachine(machineID, machineName)
+			}
+
+			waitForCacheSync(stop, c)
+
+			// call checkMachineClass to delete the orphan VMs
+			_, _ = c.checkMachineClass(context.TODO(), testMachineClass)
+
+			// after this, the testmachine in crashloopbackoff phase
+			// should remain and the other one should
+			// be deleted because it is an orphan VM
+			listMachinesResponse, _ := fd.ListMachines(context.Background(), listMachinesRequest)
+
+			for _, machineID := range data.expect.toBeDeletedMachines {
+				Expect(listMachinesResponse.MachineList[machineID]).To(Equal(""))
+			}
+
+			for machineID, machineName := range data.expect.toBePresentMachines {
+				Expect(listMachinesResponse.MachineList[machineID]).To(Equal(machineName))
+			}
+		},
+			Entry("machine object not found", &data{
+				setup: setup{
+					machineObjects: nil,
+					machinesOnProvider: map[string]string{
+						"testmachine-ip1": "testmachine_1",
 					},
-					Status: v1alpha1.MachineStatus{
-						CurrentStatus: v1alpha1.CurrentStatus{
-							Phase: v1alpha1.MachineCrashLoopBackOff,
+				},
+				expect: expect{
+					toBeDeletedMachines: []string{"testmachine-ip1"},
+				},
+			}),
+			Entry("machine object in CrashLoopBackOff state,so machine should NOT be deleted", &data{
+				setup: setup{
+					machineObjects: []*v1alpha1.Machine{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "testmachine_1",
+								Namespace: testNamespace,
+							},
+							Status: v1alpha1.MachineStatus{
+								CurrentStatus: v1alpha1.CurrentStatus{
+									Phase: v1alpha1.MachineCrashLoopBackOff,
+								},
+							},
 						},
 					},
-				}
-
-				// Create another test machine object in Running state
-				testMachineObject2 := &v1alpha1.Machine{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "testmachine_2",
-						Namespace: testNamespace,
+					machinesOnProvider: map[string]string{
+						"testmachine-ip1": "testmachine_1",
 					},
-					Status: v1alpha1.MachineStatus{
-						CurrentStatus: v1alpha1.CurrentStatus{
-							Phase: v1alpha1.MachineRunning,
+				},
+				expect: expect{
+					toBeDeletedMachines: nil,
+					toBePresentMachines: map[string]string{
+						"testmachine-ip1": "testmachine_1",
+					},
+				},
+			}),
+			Entry("machine object in Running state but doesn't refer to machine, so machine should be deleted", &data{
+				setup: setup{
+					machineObjects: []*v1alpha1.Machine{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "testmachine_1",
+								Namespace: testNamespace,
+							},
+							Status: v1alpha1.MachineStatus{
+								CurrentStatus: v1alpha1.CurrentStatus{
+									Phase: v1alpha1.MachineRunning,
+								},
+							},
 						},
 					},
-				}
-
-				controlMachineObjects := []runtime.Object{}
-				controlMachineObjects = append(controlMachineObjects, testMachineObject1)
-				controlMachineObjects = append(controlMachineObjects, testMachineObject2)
-
-				fakeDriver := driver.NewFakeDriver(false, "", "", "", nil, nil)
-
-				c, trackers := createController(stop, testNamespace, controlMachineObjects, controlCoreObjects, nil, fakeDriver)
-				defer trackers.Stop()
-
-				fd := fakeDriver.(*driver.FakeDriver)
-
-				listMachinesRequest := &driver.ListMachinesRequest{
-					MachineClass: testMachineClass,
-					Secret:       testSecret,
-				}
-
-				_ = fd.AddMachine("testmachine-ip1", "testmachine_1")
-				_ = fd.AddMachine("testmachine-ip2", "testmachine_2")
-				waitForCacheSync(stop, c)
-
-				// call checkMachineClass to delete the orphan VMs
-				_, _ = c.checkMachineClass(context.TODO(), testMachineClass)
-
-				// after this, the testmachine in crashloopbackoff phase
-				// should remain and the other one should
-				// be deleted because it is an orphan VM
-				listMachinesResponse, _ := fd.ListMachines(context.Background(), listMachinesRequest)
-
-				Expect(listMachinesResponse.MachineList["testmachine-ip1"]).To(Equal("testmachine_1"))
-				Expect(listMachinesResponse.MachineList["testmachine-ip2"]).To(Equal(""))
-			})
-		})
+					machinesOnProvider: map[string]string{
+						"testmachine-ip1": "testmachine_1",
+					},
+				},
+				expect: expect{
+					toBeDeletedMachines: []string{"testmachine-ip1"},
+					toBePresentMachines: nil,
+				},
+			}),
+		)
 	})
 
 	Describe("#AnnotateNodesUnmanagedByMCM", func() {
