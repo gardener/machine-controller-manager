@@ -265,10 +265,7 @@ func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alph
 	for machineID, machineName := range listMachineResponse.MachineList {
 		machine, err := c.machineLister.Machines(c.namespace).Get(machineName)
 
-		if err != nil && !apierrors.IsNotFound(err) {
-			// errors other than NotFound error
-			klog.Errorf("SafetyController: Error while trying to GET machines. Error: %s", err)
-		} else {
+		if apierrors.IsNotFound(err) || err == nil {
 			if err == nil {
 				if machine.Spec.ProviderID == machineID {
 					continue
@@ -300,8 +297,12 @@ func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alph
 			} else {
 				klog.V(2).Infof("SafetyController: Orphan VM found and terminated VM: %s, %s", machineName, machineID)
 			}
+		} else {
+			// errors other than NotFound error
+			klog.Errorf("SafetyController: Error while trying to GET machine %s. Error: %s", machineName, err)
 		}
 	}
+
 	return machineutils.LongRetry, nil
 }
 
