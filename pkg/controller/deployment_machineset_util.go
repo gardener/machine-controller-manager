@@ -219,9 +219,5 @@ func isMachineAvailable(machine *v1alpha1.Machine) bool {
 func isMachineReady(machine *v1alpha1.Machine) bool {
 
 	// TODO add more conditions
-	if machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
-		return true
-	}
-
-	return false
+	return machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning
 }
