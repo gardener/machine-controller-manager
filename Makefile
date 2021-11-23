@@ -16,7 +16,7 @@ IMAGE_REPOSITORY   := eu.gcr.io/gardener-project/gardener/machine-controller-man
 IMAGE_TAG          := $(shell cat VERSION)
 COVERPROFILE       := test/output/coverprofile.out
 
-CONTROL_NAMESPACE	:= default
+CONTROL_NAMESPACE   := default
 CONTROL_KUBECONFIG  := dev/control-kubeconfig.yaml
 TARGET_KUBECONFIG   := dev/target-kubeconfig.yaml
 
@@ -45,7 +45,6 @@ start:
 			--safety-up=2 \
 			--safety-down=1 \
 			--machine-creation-timeout=20m \
-			--machine-drain-timeout=5m \
 			--machine-pv-detach-timeout=2m \
 			--machine-health-timeout=10m \
 			--machine-safety-apiserver-statuscheck-timeout=30s \
