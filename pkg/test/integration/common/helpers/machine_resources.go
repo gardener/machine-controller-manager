@@ -2,8 +2,11 @@ package helpers
 
 import (
 	"context"
+	"os"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -74,4 +77,15 @@ func (c *Cluster) CreateMachineDeployment(namespace string) error {
 			metav1.CreateOptions{},
 		)
 	return err
+}
+
+// IsTestMachineDeleted returns boolean value of presence of 'test-machine' object
+func (c *Cluster) IsTestMachineDeleted() bool {
+	controlClusterNamespace := os.Getenv("CONTROL_CLUSTER_NAMESPACE")
+	_, err := c.McmClient.
+		MachineV1alpha1().
+		Machines(controlClusterNamespace).
+		Get(context.Background(), "test-machine", metav1.GetOptions{})
+
+	return errors.IsNotFound(err)
 }

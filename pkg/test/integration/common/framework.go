@@ -861,6 +861,13 @@ func (c *IntegrationTestFramework) ControllerTests() {
 								Delete(ctx, "test-machine", metav1.DeleteOptions{})).
 							Should(gomega.BeNil(), "No Errors while deleting machine")
 
+						ginkgo.By("Waiting until test-machine machine object is deleted")
+						gomega.Eventually(
+							c.ControlCluster.IsTestMachineDeleted,
+							c.timeout,
+							c.pollingInterval).
+							Should(gomega.BeTrue())
+
 						ginkgo.By("Waiting until number of ready nodes is equal to number of initial  nodes")
 						gomega.Eventually(
 							c.TargetCluster.GetNumberOfNodes,
