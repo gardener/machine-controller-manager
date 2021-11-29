@@ -43,33 +43,6 @@ spec:
                 type: string
             type: object
             x-kubernetes-preserve-unknown-fields: true
-          expectedNodeAttributes:
-            description: ExpectedNodeAttributes contains subfields the track all scale
-              from zero resources
-            properties:
-              cpu:
-                description: CPU cores of the expected node
-                format: int64
-                type: integer
-              gpu:
-                description: GPU cores of the expected node
-                format: int64
-                type: integer
-              instanceType:
-                description: Instance type of the expected node
-                type: string
-              memory:
-                description: Memory of the expected node
-                format: int64
-                type: integer
-              region:
-                description: Region of the expected node
-                type: string
-              zone:
-                description: Zone of the expected node
-                type: string
-            type: object
-            x-kubernetes-preserve-unknown-fields: true
           kind:
             description: 'Kind is a string value representing the REST resource this
               object represents. Servers may infer this from the endpoint the client
@@ -77,6 +50,36 @@ spec:
             type: string
           metadata:
             type: object
+          nodeTemplate:
+            description: NodeTemplate contains subfields to track all node resources
+              and other node info required to scale nodegroup from zero
+            properties:
+              capacity:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: Capacity contains subfields to track all node resources
+                  required to scale nodegroup from zero
+                type: object
+              instanceType:
+                description: Instance type of the node belonging to nodeGroup
+                type: string
+              region:
+                description: Region of the expected node belonging to nodeGroup
+                type: string
+              zone:
+                description: Zone of the expected node belonging to nodeGroup
+                type: string
+            required:
+            - capacity
+            - instanceType
+            - region
+            - zone
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
           provider:
             description: Provider is the combination of name and location of cloud-specific
               drivers.

@@ -18,6 +18,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -1995,4 +1997,112 @@ var _ = Describe("machine_util", func() {
 
 	})
 
+	Describe("#validateNodeTemplate", func() {
+
+		type setup struct {
+			machineClass *machinev1.MachineClass
+		}
+
+		type expect struct {
+			err error
+		}
+
+		type data struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("##table",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				controlObjects := []runtime.Object{}
+
+				machineClassObject := data.setup.machineClass
+
+				controlObjects = append(controlObjects, machineClassObject)
+
+				c, trackers := createController(stop, testNamespace, controlObjects, nil, nil, nil)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+
+				err := c.validateNodeTemplate(machineClassObject.NodeTemplate)
+
+				if data.expect.err == nil {
+					Expect(err).To(BeNil())
+				} else {
+					Expect(err).To(HaveOccurred())
+					Expect(err).To(Equal(data.expect.err))
+				}
+			},
+			Entry("MachineClass with proper nodetemplate field", &data{
+				setup: setup{
+					machineClass: &machinev1.MachineClass{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test-machine-class",
+							Namespace: testNamespace,
+						},
+						NodeTemplate: &machinev1.NodeTemplate{
+							Capacity: corev1.ResourceList{
+								"cpu":    resource.MustParse("2"),
+								"gpu":    resource.MustParse("2"),
+								"memory": resource.MustParse("512Gi"),
+							},
+							Region:       "test-region",
+							Zone:         "test-zone",
+							InstanceType: "test-instance-type",
+						},
+					},
+				},
+				expect: expect{
+					err: nil,
+				},
+			}),
+			Entry("MachineClass with improper capacity in nodetemplate attribute", &data{
+				setup: setup{
+					machineClass: &machinev1.MachineClass{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test-machine-class",
+							Namespace: testNamespace,
+						},
+						NodeTemplate: &machinev1.NodeTemplate{
+							Capacity: corev1.ResourceList{
+								"gpu":    resource.MustParse("2"),
+								"memory": resource.MustParse("512Gi"),
+							},
+							Region:       "test-region",
+							Zone:         "test-zone",
+							InstanceType: "test-instance-type",
+						},
+					},
+				},
+				expect: expect{
+					err: errors.New("[MachineClass NodeTemplate Capacity should mandatorily have CPU, GPU and Memory configured]"),
+				},
+			}),
+			Entry("MachineClass with missing region in nodetemplate attribute", &data{
+				setup: setup{
+					machineClass: &machinev1.MachineClass{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test-machine-class",
+							Namespace: testNamespace,
+						},
+						NodeTemplate: &machinev1.NodeTemplate{
+							Capacity: corev1.ResourceList{
+								"cpu":    resource.MustParse("2"),
+								"gpu":    resource.MustParse("2"),
+								"memory": resource.MustParse("512Gi"),
+							},
+							Zone:         "test-zone",
+							InstanceType: "test-instance-type",
+						},
+					},
+				},
+				expect: expect{
+					err: errors.New("[MachineClass NodeTemplate Instance Type, region and zone cannot be empty]"),
+				},
+			}),
+		)
+	})
 })
