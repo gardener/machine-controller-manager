@@ -200,6 +200,9 @@ func (c *IntegrationTestFramework) initalizeClusters() error {
 	} else if len(controlClusterNamespace) == 0 {
 		controlClusterNamespace = "default"
 	}
+
+	// setting env variable for later use
+	os.Setenv("CONTROL_CLUSTER_NAMESPACE", controlClusterNamespace)
 	return nil
 }
 
