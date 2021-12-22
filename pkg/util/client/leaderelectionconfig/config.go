@@ -44,7 +44,8 @@ func DefaultLeaderElectionConfiguration() options.LeaderElectionConfiguration {
 		LeaseDuration: metav1.Duration{Duration: DefaultLeaseDuration},
 		RenewDeadline: metav1.Duration{Duration: DefaultRenewDeadline},
 		RetryPeriod:   metav1.Duration{Duration: DefaultRetryPeriod},
-		ResourceLock:  rl.EndpointsResourceLock,
+		// TODO(acumino): migrate default to `leases` in one of the next releases
+		ResourceLock: rl.EndpointsLeasesResourceLock,
 	}
 }
 
@@ -69,5 +70,6 @@ func BindFlags(l *options.LeaderElectionConfiguration, fs *pflag.FlagSet) {
 		"of a leadership. This is only applicable if leader election is enabled.")
 	fs.StringVar(&l.ResourceLock, "leader-elect-resource-lock", l.ResourceLock, ""+
 		"The type of resource object that is used for locking during "+
-		"leader election. Supported options are `endpoints` (default) and `configmap`.")
+		"leader election. Supported options are 'endpoints', 'configmaps', "+
+		"'leases', 'endpointsleases' and 'configmapsleases'.")
 }
