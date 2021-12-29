@@ -1,0 +1,1 @@
+./gen-crd-api-reference-docs -config "providerspec-config.json" -api-dir "../../pkg/apis/machine/v1alpha1" -out-file="../../docs/docs/apis.md"
