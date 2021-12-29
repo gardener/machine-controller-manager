@@ -313,6 +313,11 @@ func (c *controller) updateMachineToSafety(oldObj, newObj interface{}) {
 	oldMachine := oldObj.(*v1alpha1.Machine)
 	newMachine := newObj.(*v1alpha1.Machine)
 
+	if oldMachine == nil || newMachine == nil {
+		klog.Errorf("Couldn't convert to machine resource from object")
+		return
+	}
+
 	if !strings.Contains(oldMachine.Status.LastOperation.Description, codes.OutOfRange.String()) && strings.Contains(newMachine.Status.LastOperation.Description, codes.OutOfRange.String()) {
 		klog.Warningf("Multiple VMs backing machine obj %q found, triggering orphan collection.", newMachine.Name)
 		c.enqueueMachineSafetyOrphanVMsKey(newMachine)
@@ -322,6 +327,10 @@ func (c *controller) updateMachineToSafety(oldObj, newObj interface{}) {
 // deleteMachineToSafety enqueues into machineSafetyQueue when a new machine is deleted
 func (c *controller) deleteMachineToSafety(obj interface{}) {
 	machine := obj.(*v1alpha1.Machine)
+	if machine == nil {
+		klog.Errorf("Couldn't convert to machine resource from object")
+		return
+	}
 	c.enqueueMachineSafetyOrphanVMsKey(machine)
 }
 
