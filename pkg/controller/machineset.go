@@ -728,7 +728,7 @@ func (c *controller) deleteMachineSetFinalizers(ctx context.Context, machineSet 
 	return nil
 }
 
-// updateMachineSetFinalizers tries to update the machineSet finalizers for a particular number of times
+// updateMachineSetFinalizers tries to update the machineSet finalizers for finalizerUpdateRetries number of times
 func (c *controller) updateMachineSetFinalizers(ctx context.Context, machineSet *v1alpha1.MachineSet, finalizers []string) error {
 	var err error
 	machineSetName := machineSet.Name
