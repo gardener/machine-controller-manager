@@ -731,7 +731,6 @@ func (c *controller) deleteMachineSetFinalizers(ctx context.Context, machineSet 
 // updateMachineSetFinalizers tries to update the machineSet finalizers for finalizerUpdateRetries number of times
 func (c *controller) updateMachineSetFinalizers(ctx context.Context, machineSet *v1alpha1.MachineSet, finalizers []string) error {
 	var err error
-	machineSetName := machineSet.Name
 
 	// Stop retrying if we exceed finalizerUpdateRetries - the machineSet will be requeued with rate limit
 	for i := 0; i < finalizerUpdateRetries; i++ {
@@ -752,6 +751,6 @@ func (c *controller) updateMachineSetFinalizers(ctx context.Context, machineSet 
 		}
 	}
 
-	klog.Warning(fmt.Sprintf("Updating machineset %q failed at time %q with err: %q, requeuing", machineSetName, time.Now(), err.Error()))
+	klog.Warning(fmt.Sprintf("Updating machineset %q failed at time %q with err: %q, requeuing", machineSet.Name, time.Now(), err.Error()))
 	return err
 }
