@@ -940,11 +940,12 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			c.addMachineSetFinalizers(context.TODO(), testMachineSet)
+			err := c.addMachineSetFinalizers(context.TODO(), testMachineSet)
 
 			waitForCacheSync(stop, c)
 			testMachineSet, _ := c.controlMachineClient.MachineSets(testNamespace).Get(context.TODO(), testMachineSet.Name, metav1.GetOptions{})
 
+			Expect(err).ToNot(HaveOccurred())
 			Expect(testMachineSet.Finalizers).To(HaveLen(1))
 			Expect(testMachineSet.Finalizers).To(ContainElement(DeleteFinalizerName))
 		})
@@ -1001,11 +1002,12 @@ var _ = Describe("machineset", func() {
 			testMachineSet.Finalizers = finalizers
 			Expect(testMachineSet.Finalizers).Should(Not(BeEmpty()))
 
-			c.deleteMachineSetFinalizers(context.TODO(), testMachineSet)
+			err := c.deleteMachineSetFinalizers(context.TODO(), testMachineSet)
 
 			waitForCacheSync(stop, c)
 			testMachineSet, _ = c.controlMachineClient.MachineSets(testNamespace).Get(context.TODO(), testMachineSet.Name, metav1.GetOptions{})
 
+			Expect(err).ToNot(HaveOccurred())
 			Expect(testMachineSet.Finalizers).Should(BeNil())
 		})
 	})
@@ -1058,11 +1060,12 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			c.updateMachineSetFinalizers(context.TODO(), testMachineSet, finalizers)
+			err := c.updateMachineSetFinalizers(context.TODO(), testMachineSet, finalizers)
 
 			waitForCacheSync(stop, c)
 			testMachineSet, _ := c.controlMachineClient.MachineSets(testNamespace).Get(context.TODO(), testMachineSet.Name, metav1.GetOptions{})
 
+			Expect(err).ToNot(HaveOccurred())
 			Expect(testMachineSet.Finalizers).To(Equal(finalizers))
 		})
 	})

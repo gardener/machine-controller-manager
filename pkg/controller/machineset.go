@@ -54,6 +54,9 @@ const (
 	// The number of times we retry updating a MachineSet's status.
 	statusUpdateRetries = 1
 
+	// The number of times we retry updating finalizer.
+	finalizerUpdateRetries = 2
+
 	// Kind for the machineSet
 	machineSetKind = "MachineSet"
 )
@@ -468,7 +471,9 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 
 	if machineSet.DeletionTimestamp == nil {
 		// Manipulate finalizers
-		c.addMachineSetFinalizers(ctx, machineSet)
+		if err := c.addMachineSetFinalizers(ctx, machineSet); err != nil {
+			return err
+		}
 	}
 
 	selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
@@ -524,7 +529,9 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		if len(filteredMachines) == 0 {
 			// If machines backing a machineSet are zero,
 			// remove the machineSetFinalizer
-			c.deleteMachineSetFinalizers(ctx, machineSet)
+			if err := c.deleteMachineSetFinalizers(ctx, machineSet); err != nil {
+				return err
+			}
 		} else if finalizers := sets.NewString(machineSet.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 			// Trigger deletion of machines backing the machineSet
 			klog.V(4).Infof("Deleting all child machines as MachineSet %s has set deletionTimestamp", machineSet.Name)
@@ -697,37 +704,53 @@ func (c *controller) terminateMachines(ctx context.Context, inactiveMachines []*
 	Manipulate Finalizers
 */
 
-func (c *controller) addMachineSetFinalizers(ctx context.Context, machineSet *v1alpha1.MachineSet) {
+func (c *controller) addMachineSetFinalizers(ctx context.Context, machineSet *v1alpha1.MachineSet) error {
 	clone := machineSet.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
 		finalizers.Insert(DeleteFinalizerName)
-		c.updateMachineSetFinalizers(ctx, clone, finalizers.List())
+		if err := c.updateMachineSetFinalizers(ctx, clone, finalizers.List()); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (c *controller) deleteMachineSetFinalizers(ctx context.Context, machineSet *v1alpha1.MachineSet) {
+func (c *controller) deleteMachineSetFinalizers(ctx context.Context, machineSet *v1alpha1.MachineSet) error {
 	clone := machineSet.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		finalizers.Delete(DeleteFinalizerName)
-		c.updateMachineSetFinalizers(ctx, clone, finalizers.List())
+		if err := c.updateMachineSetFinalizers(ctx, clone, finalizers.List()); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (c *controller) updateMachineSetFinalizers(ctx context.Context, machineSet *v1alpha1.MachineSet, finalizers []string) {
-	// Get the latest version of the machineSet so that we can avoid conflicts
-	machineSet, err := c.controlMachineClient.MachineSets(machineSet.Namespace).Get(ctx, machineSet.Name, metav1.GetOptions{})
-	if err != nil {
-		return
+// updateMachineSetFinalizers tries to update the machineSet finalizers for finalizerUpdateRetries number of times
+func (c *controller) updateMachineSetFinalizers(ctx context.Context, machineSet *v1alpha1.MachineSet, finalizers []string) error {
+	var err error
+
+	// Stop retrying if we exceed finalizerUpdateRetries - the machineSet will be requeued with rate limit
+	for i := 0; i < finalizerUpdateRetries; i++ {
+		// Get the latest version of the machineSet so that we can avoid conflicts
+		machineSet, err = c.controlMachineClient.MachineSets(machineSet.Namespace).Get(ctx, machineSet.Name, metav1.GetOptions{})
+		if err != nil {
+			klog.V(3).Infof("Failed to fetch machineSet %q from API server, will retry. Error: %q", machineSet.Name, err.Error())
+			return err
+		}
+
+		clone := machineSet.DeepCopy()
+		clone.Finalizers = finalizers
+
+		_, err = c.controlMachineClient.MachineSets(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
+
+		if err == nil {
+			return nil
+		}
 	}
 
-	clone := machineSet.DeepCopy()
-	clone.Finalizers = finalizers
-	_, err = c.controlMachineClient.MachineSets(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
-	if err != nil {
-		// Keep retrying until update goes through
-		klog.Warning("Updated failed, retrying")
-		c.updateMachineSetFinalizers(ctx, machineSet, finalizers)
-	}
+	klog.Warning(fmt.Sprintf("Updating machineset %q failed at time %q with err: %q, requeuing", machineSet.Name, time.Now(), err.Error()))
+	return err
 }
