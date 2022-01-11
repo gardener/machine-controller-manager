@@ -197,7 +197,9 @@ func NewController(
 	controller.machineSafetyOrphanVMsQueue.Add("")
 	controller.machineSafetyAPIServerQueue.Add("")
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		// deleteMachineToSafety makes sure that orphan VM handler is invoked
+		// updateMachineToSafety makes sure that orphan VM handler is invoked on some specific machine obj updates
+		UpdateFunc: controller.updateMachineToSafety,
+		// deleteMachineToSafety makes sure that orphan VM handler is invoked on any machine deletion
 		DeleteFunc: controller.deleteMachineToSafety,
 	})
 

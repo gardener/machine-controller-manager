@@ -32,6 +32,120 @@ import (
 
 var _ = Describe("safety_logic", func() {
 
+	Describe("#Event Handling functions", func() {
+		type setup struct {
+			machineObject, newMachineObject *v1alpha1.Machine
+		}
+		type expect struct {
+			expectedQueueSize int
+		}
+		type data struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("##deleteMachineToSafety", func(data *data) {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			objects := []runtime.Object{}
+
+			c, trackers := createController(stop, testNamespace, objects, nil, nil, nil)
+
+			defer trackers.Stop()
+			//waitForCacheSync(stop, c)
+			c.deleteMachineToSafety(data.setup.machineObject)
+
+			//waitForCacheSync(stop, c)
+			Expect(c.machineSafetyOrphanVMsQueue.Len()).To(Equal(data.expect.expectedQueueSize))
+		},
+			Entry("should enqueue the machine key", &data{
+				setup: setup{
+					machineObject: &v1alpha1.Machine{},
+				},
+				expect: expect{
+					expectedQueueSize: 1,
+				},
+			}),
+		)
+
+		DescribeTable("##updateMachineToSafety", func(data *data) {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			objects := []runtime.Object{}
+
+			c, trackers := createController(stop, testNamespace, objects, nil, nil, nil)
+
+			defer trackers.Stop()
+			//waitForCacheSync(stop, c)
+			c.updateMachineToSafety(data.setup.machineObject, data.setup.newMachineObject)
+
+			//waitForCacheSync(stop, c)
+			Expect(c.machineSafetyOrphanVMsQueue.Len()).To(Equal(data.expect.expectedQueueSize))
+		},
+			Entry("shouldn't enqueue machine key if OutOfRange error not there in last reconciliation", &data{
+				setup: setup{
+					machineObject:    &v1alpha1.Machine{},
+					newMachineObject: &v1alpha1.Machine{},
+				},
+				expect: expect{
+					expectedQueueSize: 0,
+				},
+			}),
+			Entry("shouldn't enqueue machine key if no OutOfRange error in last reconciliation", &data{
+				setup: setup{
+					machineObject: &v1alpha1.Machine{},
+					newMachineObject: &v1alpha1.Machine{
+						Status: v1alpha1.MachineStatus{
+							LastOperation: v1alpha1.LastOperation{
+								Description: "Cloud provider message - machine codes error: code = [NotFound] message = [AWS plugin is returning multiple VM instances backing this machine object. IDs for all backing VMs - [i-1234abcd i-5678efgh]",
+							},
+						},
+					},
+				},
+				expect: expect{
+					expectedQueueSize: 0,
+				},
+			}),
+			Entry("should enqueue machine key if OutOfRange error in last reconciliation", &data{
+				setup: setup{
+					machineObject: &v1alpha1.Machine{},
+					newMachineObject: &v1alpha1.Machine{
+						Status: v1alpha1.MachineStatus{
+							LastOperation: v1alpha1.LastOperation{
+								Description: "Cloud provider message - machine codes error: code = [OutOfRange] message = [AWS plugin is returning multiple VM instances backing this machine object. IDs for all backing VMs - [i-1234abcd i-5678efgh]",
+							},
+						},
+					},
+				},
+				expect: expect{
+					expectedQueueSize: 1,
+				},
+			}),
+			Entry("shouldn't enqueue if new machine obj doesn't have OutOfRange error which old machine obj had", &data{
+				setup: setup{
+					machineObject: &v1alpha1.Machine{
+						Status: v1alpha1.MachineStatus{
+							LastOperation: v1alpha1.LastOperation{
+								Description: "Cloud provider message - machine codes error: code = [OutOfRange] message = [AWS plugin is returning multiple VM instances backing this machine object. IDs for all backing VMs - [i-1234abcd i-5678efgh]",
+							},
+						},
+					},
+					newMachineObject: &v1alpha1.Machine{
+						Status: v1alpha1.MachineStatus{
+							LastOperation: v1alpha1.LastOperation{
+								Description: "Machine abc successfully joined the cluster",
+							},
+						},
+					},
+				},
+				expect: expect{
+					expectedQueueSize: 0,
+				},
+			}),
+		)
+	})
 	Describe("#machine_safety", func() {
 
 		const (
