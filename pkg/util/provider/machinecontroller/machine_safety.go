@@ -19,11 +19,13 @@ package controller
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/cache"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -306,9 +308,29 @@ func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alph
 	return machineutils.LongRetry, nil
 }
 
+// updateMachineToSafety enqueues into machineSafetyQueue when a machine is updated to particular status
+func (c *controller) updateMachineToSafety(oldObj, newObj interface{}) {
+	oldMachine := oldObj.(*v1alpha1.Machine)
+	newMachine := newObj.(*v1alpha1.Machine)
+
+	if oldMachine == nil || newMachine == nil {
+		klog.Errorf("Couldn't convert to machine resource from object")
+		return
+	}
+
+	if !strings.Contains(oldMachine.Status.LastOperation.Description, codes.OutOfRange.String()) && strings.Contains(newMachine.Status.LastOperation.Description, codes.OutOfRange.String()) {
+		klog.Warningf("Multiple VMs backing machine obj %q found, triggering orphan collection.", newMachine.Name)
+		c.enqueueMachineSafetyOrphanVMsKey(newMachine)
+	}
+}
+
 // deleteMachineToSafety enqueues into machineSafetyQueue when a new machine is deleted
 func (c *controller) deleteMachineToSafety(obj interface{}) {
 	machine := obj.(*v1alpha1.Machine)
+	if machine == nil {
+		klog.Errorf("Couldn't convert to machine resource from object")
+		return
+	}
 	c.enqueueMachineSafetyOrphanVMsKey(machine)
 }
 
