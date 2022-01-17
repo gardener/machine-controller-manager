@@ -48,9 +48,9 @@ If the Control Cluster  is a Gardener SEED cluster then, the suite ideally emplo
 1. The controllers log files (`mcm_process.log` and `mc_process.log`) are stored in `.ci/controllers-test/logs` repo and can be used later.
 ## Adding Integration Tests for new providers
 
-For a new provider, Running Integration tests works with no changes. But for the orphan resource test cases to work correctly, the provider-specific API calls and the Resource Tracker Interface (RTI) should be implemented. Please check (`machine-controller-manager-provider-aws`)[https://github.com/gardener/machine-controller-manager-provider-aws/test/integration/provider/rti.go] for reference.
+For a new provider, Running Integration tests works with no changes. But for the orphan resource test cases to work correctly, the provider-specific API calls and the Resource Tracker Interface (RTI) should be implemented. Please check [`machine-controller-manager-provider-aws`](../../test/integration/provider/rti.go) for reference.
 
 ## Extending integration tests
 
-- Update [ControllerTests](pkg/test/integration/common/framework.go#L481) to be extend the testcases for all providers. Common testcases for machine|machineDeployment creation|deletion|scaling are packaged into [ControllerTests](pkg/test/integration/common/framework.go#L481).
+- Update [ControllerTests](../../pkg/test/integration/common/framework.go#L481) to be extend the testcases for all providers. Common testcases for machine|machineDeployment creation|deletion|scaling are packaged into [ControllerTests](../../pkg/test/integration/common/framework.go#L481).
 - To extend the provider specfic test cases, the changes should be done in the `machine-controller-manager-provider-{provider-name}` repository. For example, to extended the testcases for `machine-controller-manager-provider-aws`, make changes to `test/integration/controller/controller_test.go` inside the `machine-controller-manager-provider-aws` repository. `commons` contains the `Cluster` and `Clientset` objects that makes it easy to extend the tests.

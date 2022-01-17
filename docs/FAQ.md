@@ -24,7 +24,7 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
   * [What are the different configuration options in MCM?](#What-are-the-different-configuration-options-in-MCM)
   * [What are the different timeouts/configurations in a machine's lifecycle?](#What-are-the-different-timeoutsconfigurations-in-a-machines-lifecycle)
   * [How is the drain of a machine implemented?](#How-is-the-drain-of-a-machine-implemented)
-  * [How are the stateful applications drained during machine deletion?](#How-are-the-stateful-applications-drained-during-machine-deletion?)
+  * [How are the stateful applications drained during machine deletion?](#how-are-the-stateful-applications-drained-during-machine-deletion)
   * [How does maxEvictRetries configuration work with drainTimeout configuration?](#How-does-maxEvictRetries-configuration-work-with-drainTimeout-configuration)
   * [What are the different phases of a machine?](#What-are-the-different-phases-of-a-machine)
 
@@ -55,7 +55,7 @@ A machine is deleted by MCM generally for 2 reasons-
 
 - Machine is unhealthy for at least `MachineHealthTimeout` period. The default `MachineHealthTimeout` is 10 minutes.
 
-   * By default, a machine is considered unhealthy if any of the following node conditions - `DiskPressure`, `KernelDeadlock`, `FileSystem`, `Readonly` is set to `true`, or `KubeletReady` is set to `false`. However, this is something that is configurable using the following [flag](https://github.com/gardener/machine-controller-manager/blob/rel-v0.34.0/kubernetes/deployment/out-of-tree/deployment.yaml#L30).
+   * By default, a machine is considered unhealthy if any of the following node conditions - `DiskPressure`, `KernelDeadlock`, `FileSystem`, `Readonly` is set to `true`, or `KubeletReady` is set to `false`. However, this is something that is configurable using the following [flag](../kubernetes/deployment/out-of-tree/deployment.yaml#L30).
 
 - Machine is scaled down by the `MachineDeployment` resource.
 

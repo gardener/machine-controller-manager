@@ -50,7 +50,7 @@ Our strong recommendation would be to follow the steps below. This provides the 
 
 ## Code changes required
 
-The contract between the Machine Controller Manager (MCM) and the Machine Controller (MC) AKA driver has been [documented here](machine_error_codes.MD) and the [machine error codes can be found here](/pkg/util/provider/machinecodes/codes/codes.go). You may refer to them for any queries.
+The contract between the Machine Controller Manager (MCM) and the Machine Controller (MC) AKA driver has been [documented here](./machine_error_codes.md) and the [machine error codes can be found here](/pkg/util/provider/machinecodes/codes/codes.go). You may refer to them for any queries.
 
 :warning:
 - Keep in mind that **there should be a unique way to map between machine objects and VMs**. This can be done by mapping machine object names with VM-Name/ tags/ other metadata.

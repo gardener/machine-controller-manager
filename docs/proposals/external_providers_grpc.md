@@ -49,8 +49,6 @@ Import the package `grpc/infraclient` and `grpc/infrapb` from MCM (currently in 
     * `GetSecret()`: Makes the call to MCM to get secret containing Cloud Config and CP's credentials
 
 ### Example implementation:
-This approach is implemented in MCM's "grpc-driver" branch:
-https://github.com/gardener/machine-controller-manager/tree/grpc-driver
 
 Refer GRPC based implementation for AWS client:
 https://github.com/ggaurav10/aws-driver-grpc
