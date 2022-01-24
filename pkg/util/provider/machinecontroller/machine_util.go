@@ -592,7 +592,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		if !c.isHealthy(clone) && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
 			// If machine is not healthy, and current state is running,
 			// change the machinePhase to unknown and activate health check timeout
-			description = fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown", clone.Name)
+			description = fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown. Node conditions: %+v", clone.Name, clone.Status.Conditions)
 			klog.Warning(description)
 
 			clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
