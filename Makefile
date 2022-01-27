@@ -135,6 +135,7 @@ test-clean:
 generate: controller-gen
 	$(CONTROLLER_GEN) crd paths=./pkg/apis/machine/v1alpha1... output:crd:dir=kubernetes/crds output:stdout
 	@./hack/generate-code
+	@./hack/api-reference/generate-spec-doc.sh
 
 # find or download controller-gen
 # download controller-gen if necessary
