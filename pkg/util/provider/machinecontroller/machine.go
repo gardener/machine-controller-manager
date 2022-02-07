@@ -433,7 +433,6 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				}
 			} else {
 				//if node label present that means there must be a backing VM ,without need of GetMachineStatus() call
-				klog.V(2).Infof("VM for machine %q should be visible in some time", machine.Name)
 				nodeName = machine.Labels["node"]
 			}
 
