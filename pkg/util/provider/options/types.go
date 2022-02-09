@@ -123,6 +123,8 @@ type SafetyOptions struct {
 	// MachineControllerFrozen indicates if the machine controller
 	// is frozen due to Unreachable APIServers
 	MachineControllerFrozen bool
+	//HealthChan is a channel limiting number of Unknown to Failed state updates of machines in a cluster
+	HealthChan chan interface{}
 }
 
 // LeaderElectionConfiguration defines the configuration of leader election

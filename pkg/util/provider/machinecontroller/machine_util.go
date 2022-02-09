@@ -47,7 +47,9 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
 
@@ -716,6 +718,48 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					timeOutDuration,
 					machine.Status.Conditions,
 				)
+
+				machineSetName := getMachineSetName(machine)
+				ch := c.safetyOptions.HealthChan
+
+				select {
+				case ch <- 1:
+					klog.Infof("Acquired lock ,machineName=%q , locks left to acquire %d", machine.Name, cap(ch)-len(ch))
+					//maybe sync cache before this?
+					// if !c.machineSynced() {
+					// 	klog.Infof("Lock acquired for machine %q but caches aren't synced. Retrying after short time", machine.Name)
+					// 	<-ch
+					// 	break
+					// }
+					markable, err := c.canMarkMachineFailed(machineSetName, 2)
+					if err != nil {
+						klog.Errorf("Couldn't check if machine can be marked as Failed. Error: %q", err)
+						<-ch
+						return machineutils.ShortRetry, err
+					}
+					if markable {
+						retryPeriod, err, updated := c.updateMachineToFailedState(ctx, description, machine, clone)
+						//wait for cache sync
+
+						if updated && !c.waitForFailedMachineCacheUpdate(machine, 1*time.Second) {
+							//waiting 1 sec since nothing else can be done if cache update is failing
+							klog.Infof("cache sync returned false, waiting 1 sec , machineName=%q", machine.Name)
+							<-time.After(1 * time.Second)
+						}
+						klog.Infof("Synced caches before leaving lock, machineName=%q", machine.Name)
+						//release lock
+						<-ch
+						return retryPeriod, err
+					}
+					//in case its not markable then give chance to other goroutines
+					klog.Infof("Can't mark machine %q as Failed as since machines other than Unknown and Running present", machine.Name)
+					<-ch
+				case <-time.After(1 * time.Second):
+					klog.Infof("Timedout waiting to acquire lock for machine %q", machine.Name)
+				}
+
+				err = fmt.Errorf("machine %q couldn't be marked FAILED", machine.Name)
+				return machineutils.ShortRetry, err
 			}
 
 			// Log the error message for machine failure
@@ -1339,6 +1383,107 @@ func (c *controller) UpdateNodeTerminationCondition(ctx context.Context, machine
 	return err
 }
 
+func (c *controller) updateMachineToFailedState(ctx context.Context, description string, machine, clone *v1alpha1.Machine) (machineutils.RetryPeriod, error, bool) {
+	// Log the error message for machine failure
+	klog.Error(description)
+
+	clone.Status.LastOperation = v1alpha1.LastOperation{
+		Description:    description,
+		State:          v1alpha1.MachineStateFailed,
+		Type:           machine.Status.LastOperation.Type,
+		LastUpdateTime: metav1.Now(),
+	}
+	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+		Phase: v1alpha1.MachineFailed,
+		//TimeoutActive:  false,
+		LastUpdateTime: metav1.Now(),
+	}
+
+	_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
+	updated := false
+	if err != nil {
+		// Keep retrying until update goes through
+		klog.Errorf("update failed for machine %q in function. Retrying, error: %q", machine.Name, err)
+	} else {
+		updated = true
+		klog.Infof("Machine State has been updated for %q with providerID %q and backing node %q", machine.Name, getProviderID(machine), getNodeName(machine))
+		// Return error for continuing in next iteration
+		err = fmt.Errorf("machine creation is successful. Machine State has been UPDATED")
+	}
+
+	return machineutils.ShortRetry, err, updated
+}
+
+func (c *controller) canMarkMachineFailed(machineSetName string, maxReplacements int) (bool, error) {
+	machineList, err := c.machineLister.List(labels.Everything())
+	if err != nil {
+		return false, err
+	}
+
+	//inProgress keeps count of number of machines which are counted as `getting replaced`
+	var inProgress int
+
+	var terminating, failed, pending, noPhase int
+
+	for _, machine := range machineList {
+		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineUnknown && machine.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
+			inProgress++
+			// `Terminating` is not considered as replaced because during replacement old machines are always in terminating
+			// state and so can't allow them to consume maxReplacement count
+			if machine.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating {
+
+				if machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
+					failed++
+				} else if machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending {
+					pending++
+				} else if machine.Status.CurrentStatus.Phase == "" {
+					noPhase++
+				}
+			} else {
+				terminating++
+				// counting terminated machine twice in `inProgress` to avoid case where there is delay by MS controller
+				// in adding new machine object and terminating machines are also gone.
+				inProgress++
+			}
+		}
+	}
+
+	klog.Infof("machineSetName=%q , terminating=%d , failed=%d , pending=%d , noPhase=%d , extraCountedProgress=%d", machineSetName, terminating, failed, pending, noPhase, terminating)
+
+	if inProgress < maxReplacements {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (c *controller) waitForFailedMachineCacheUpdate(machine *v1alpha1.Machine, timeout time.Duration) bool {
+	syncedPollPeriod := 100 * time.Millisecond
+
+	pollErr := wait.Poll(syncedPollPeriod, timeout, func() (bool, error) {
+		cachedMachine, err := c.machineLister.Machines(machine.Namespace).Get(machine.Name)
+		if apierrors.IsNotFound(err) {
+			return true, nil
+		}
+		if err != nil {
+			klog.Infof("%q : Unable to retrieve object from store: %s", machine.Name, err)
+			return false, err
+		}
+
+		if cachedMachine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed || cachedMachine.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating {
+			return true, nil
+		} else {
+			return false, nil
+		}
+	})
+
+	if pollErr != nil {
+		klog.V(4).Infof("poll failed for machine %q with error: %s", machine.Name, pollErr)
+		return false
+	}
+
+	return true
+}
+
 func setTerminationReasonByPhase(phase v1alpha1.MachinePhase, terminationCondition *v1.NodeCondition) {
 	if phase == v1alpha1.MachineFailed { // if failed, terminated due to health
 		terminationCondition.Reason = machineutils.NodeUnhealthy
@@ -1355,4 +1500,8 @@ func getProviderID(machine *v1alpha1.Machine) string {
 
 func getNodeName(machine *v1alpha1.Machine) string {
 	return machine.Status.Node
+}
+
+func getMachineSetName(machine *v1alpha1.Machine) string {
+	return machine.OwnerReferences[0].Name
 }
