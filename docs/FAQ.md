@@ -24,7 +24,7 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
   * [What are the different configuration options in MCM?](#What-are-the-different-configuration-options-in-MCM)
   * [What are the different timeouts/configurations in a machine's lifecycle?](#What-are-the-different-timeoutsconfigurations-in-a-machines-lifecycle)
   * [How is the drain of a machine implemented?](#How-is-the-drain-of-a-machine-implemented)
-  * [How are the stateful applications drained during machine deletion?](#how-are-the-stateful-applications-drained-during-machine-deletion)
+  * [How are the stateful applications drained during machine deletion?](#How-are-the-stateful-applications-drained-during-machine-deletion)
   * [How does maxEvictRetries configuration work with drainTimeout configuration?](#How-does-maxEvictRetries-configuration-work-with-drainTimeout-configuration)
   * [What are the different phases of a machine?](#What-are-the-different-phases-of-a-machine)
 
@@ -151,7 +151,7 @@ MCM imports the functionality from the upstream Kubernetes-drain library. Althou
 Drain internally uses the `EvictionAPI` to evict the pods and triggers the `Deletion` of pods after `MachineDrainTimeout`. Please note:
 
 * Stateless pods are evicted in parallel.
-* Stateful applications (with PVCs) are serially evicted. Please find more info in this [answer below](How-are-the-stateful-applications-drained-during-machine-deletion?).
+* Stateful applications (with PVCs) are serially evicted. Please find more info in this [answer below](#how-are-the-stateful-applications-drained-during-machine-deletion).
 
 
 ### How are the stateful applications drained during machine deletion?
