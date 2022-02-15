@@ -24,15 +24,25 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
+)
+
+const (
+	machineDeploy1     = "shoot--testProject--testShoot-testWorkerPool-z1"
+	machineDeploy2     = "shoot--testProject--testShoot-testWorkerPool-z2"
+	machineSet1Deploy1 = "shoot--testProject--testShoot-testWorkerPool-z1-mset1"
+	machineSet2Deploy1 = "shoot--testProject--testShoot-testWorkerPool-z1-mset2"
+	machineSet1Deploy2 = "shoot--testProject--testShoot-testWorkerPool-z2-mset1"
 )
 
 var _ = Describe("machine_util", func() {
@@ -2101,6 +2111,464 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					err: errors.New("[MachineClass NodeTemplate Instance Type, region and zone cannot be empty]"),
+				},
+			}),
+		)
+	})
+
+	Describe("#reconcileMachineHealth", func() {
+		var c *controller
+		var trackers *fakeclient.FakeObjectTrackers
+
+		type setup struct {
+			machines []*v1alpha1.Machine
+			nodes    []*v1.Node
+			//targetMachineName is name of machine for which `reconcileMachineHealth()` needs to be called
+			//Its must this machine in machine list
+			targetMachineName string
+		}
+		type expect struct {
+			retryPeriod   machineutils.RetryPeriod
+			err           error
+			expectedPhase v1alpha1.MachinePhase
+		}
+		type data struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("##General Machine Health Reconciliation", func(data *data) {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			controlMachineObjects := []runtime.Object{}
+			targetCoreObjects := []runtime.Object{}
+
+			var targetMachine *v1alpha1.Machine
+
+			for _, o := range data.setup.machines {
+				controlMachineObjects = append(controlMachineObjects, o)
+				if o.Name == data.setup.targetMachineName {
+					targetMachine = o
+				}
+			}
+
+			for _, o := range data.setup.nodes {
+				targetCoreObjects = append(targetCoreObjects, o)
+			}
+
+			c, trackers = createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil)
+			defer trackers.Stop()
+
+			waitForCacheSync(stop, c)
+
+			Expect(targetMachine).ToNot(BeNil())
+
+			retryPeriod, err := c.reconcileMachineHealth(context.TODO(), targetMachine)
+
+			Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
+
+			if data.expect.err == nil {
+				Expect(err).To(BeNil())
+			} else {
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(Equal(data.expect.err))
+			}
+
+			updatedTargetMachine, getErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), targetMachine.Name, metav1.GetOptions{})
+			Expect(getErr).To(BeNil())
+			Expect(data.expect.expectedPhase).To(Equal(updatedTargetMachine.Status.CurrentStatus.Phase))
+		},
+			Entry("simple machine with creation Timeout(20 min)", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node-0", CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-25 * time.Minute))}},
+							nil, nil, nil, true, metav1.Now()),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					expectedPhase: v1alpha1.MachineFailed,
+				},
+			}),
+			Entry("Unknown machine if Healthy should be marked Running", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node", CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.Now()}},
+							nil, nil, nil, true, metav1.Now()),
+					},
+					nodes: []*v1.Node{
+						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(true, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					expectedPhase: v1alpha1.MachineRunning,
+				},
+			}),
+			Entry("Running machine if Unhealthy due to kubelet not posting status should be marked Unknown", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node", CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineRunning, LastUpdateTime: metav1.Now()}},
+							nil, nil, nil, true, metav1.Now()),
+					},
+					nodes: []*v1.Node{
+						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					expectedPhase: v1alpha1.MachineUnknown,
+				},
+			}),
+			Entry("Running machine if Unhealthy due to other relevant Node conditions, should be marked Unknown", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node", CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineRunning, LastUpdateTime: metav1.Now()}},
+							nil, nil, nil, true, metav1.Now()),
+					},
+					nodes: []*v1.Node{
+						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(true, true, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					expectedPhase: v1alpha1.MachineUnknown,
+				},
+			}),
+			Entry("Running machine should be marked Unknown if node object not found", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node", CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineRunning, LastUpdateTime: metav1.Now()}, Conditions: nodeConditions(true, false, false, false, false)},
+							nil, nil, nil, true, metav1.Now()),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					expectedPhase: v1alpha1.MachineUnknown,
+				},
+			}),
+			Entry("Machine in Unknown state for over 10min(healthTimeout) should be marked Failed", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, nil, true, metav1.Now()),
+					},
+					nodes: []*v1.Node{
+						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					expectedPhase: v1alpha1.MachineFailed,
+				},
+			}),
+			Entry("simple machine WITHOUT creation Timeout(20 min) and Pending state", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node-0", Conditions: nodeConditions(true, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							nil, nil, nil, true, metav1.Now()),
+					},
+					nodes: []*v1.Node{
+						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(true, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.LongRetry,
+					err:           nil,
+					expectedPhase: v1alpha1.MachinePending,
+				},
+			}),
+		)
+
+		DescribeTable("##Meltdown scenario when many machines Unknown for over 10min(healthTimeout)", func(data *data) {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			controlMachineObjects := []runtime.Object{}
+			targetCoreObjects := []runtime.Object{}
+
+			var targetMachine *v1alpha1.Machine
+
+			for _, o := range data.setup.machines {
+				controlMachineObjects = append(controlMachineObjects, o)
+				if o.Name == data.setup.targetMachineName {
+					targetMachine = o
+				}
+			}
+
+			for _, o := range data.setup.nodes {
+				targetCoreObjects = append(targetCoreObjects, o)
+			}
+
+			c, trackers = createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil)
+			defer trackers.Stop()
+
+			waitForCacheSync(stop, c)
+
+			Expect(targetMachine).ToNot(BeNil())
+
+			retryPeriod, err := c.reconcileMachineHealth(context.TODO(), targetMachine)
+
+			Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
+
+			if data.expect.err == nil {
+				Expect(err).To(BeNil())
+			} else {
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(Equal(data.expect.err))
+			}
+
+			updatedTargetMachine, getErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), targetMachine.Name, metav1.GetOptions{})
+			Expect(getErr).To(BeNil())
+			Expect(data.expect.expectedPhase).To(Equal(updatedTargetMachine.Status.CurrentStatus.Phase))
+		},
+			//Note: Test cases assume 1 maxReplacements per machinedeployment
+
+			Entry("2 HealthTimedOut machines: from different machinedeployments,only 1 machine per machineDeployment present, targetMachine should be marked Failed", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, nil, true, metav1.Now()),
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy2}, 0)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, nil, true, metav1.Now()),
+					},
+					nodes: []*v1.Node{
+						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					expectedPhase: v1alpha1.MachineFailed,
+				},
+			}),
+			Entry("1 HealthTimedOut, 1 Failed machine: from different machinedeployments,only 1 machine per machineDeployment present, targetMachine should be marked Failed", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, nil, true, metav1.Now()),
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy2}, 0)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineFailed, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, nil, true, metav1.Now()),
+					},
+					nodes: []*v1.Node{
+						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					expectedPhase: v1alpha1.MachineFailed,
+				},
+			}),
+			Entry("2 HealthTimedOut machines: from same machinedeployment,only 2 machines for machineDeployment present, targetMachine should be marked Failed", &data{
+				setup: setup{
+					machines: newMachines(2,
+						&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+						&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+						&metav1.OwnerReference{Name: machineSet1Deploy1},
+						nil, nil, true, metav1.Now()),
+					nodes: []*v1.Node{
+						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					expectedPhase: v1alpha1.MachineFailed,
+				},
+			}),
+			Entry("1 HealthTimedOut , 1 Failed machine: from same machinedeployment,only 2 machines for machineDeployment present, healthTimeoutOut one should NOT be marked Failed", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 1)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineFailed, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+					},
+					nodes: []*v1.Node{
+						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           fmt.Errorf("machine %q couldn't be marked FAILED", machineSet1Deploy1+"-"+"0"),
+					expectedPhase: v1alpha1.MachineUnknown,
+				},
+			}),
+			Entry("1 HealthTimedOut , 1 Terminating machine: from same machinedeployment,only 2 machines for machineDeployment present, healthTimeoutOut one should NOT be marked Failed", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 1)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineTerminating, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+					},
+					nodes: []*v1.Node{
+						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           fmt.Errorf("machine %q couldn't be marked FAILED", machineSet1Deploy1+"-"+"0"),
+					expectedPhase: v1alpha1.MachineUnknown,
+				},
+			}),
+			Entry("1 HealthTimedOut , 1 NoPhase machine: from same machinedeployment,only 2 machines for machineDeployment present, healthTimeoutOut one should NOT be marked Failed", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 1)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: "", LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+					},
+					nodes: []*v1.Node{
+						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           fmt.Errorf("machine %q couldn't be marked FAILED", machineSet1Deploy1+"-"+"0"),
+					expectedPhase: v1alpha1.MachineUnknown,
+				},
+			}),
+			Entry("1 HealthTimedOut , 1 Pending machine: from same machinedeployment,only 2 machines for machineDeployment present, healthTimeoutOut one should NOT be marked Failed", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 1)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+					},
+					nodes: []*v1.Node{
+						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           fmt.Errorf("machine %q couldn't be marked FAILED", machineSet1Deploy1+"-"+"0"),
+					expectedPhase: v1alpha1.MachineUnknown,
+				},
+			}),
+			Entry("1 HealthTimedOut , 1 CrashLoopBackOff machine: from same machinedeployment,only 2 machines for machineDeployment present, healthTimeoutOut one should NOT be marked Failed", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 1)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineCrashLoopBackOff, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+					},
+					nodes: []*v1.Node{
+						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           fmt.Errorf("machine %q couldn't be marked FAILED", machineSet1Deploy1+"-"+"0"),
+					expectedPhase: v1alpha1.MachineUnknown,
+				},
+			}),
+			Entry("1 HealthTimedOut , 1 Pending machine: from same machinedeployment,but different machineSets ,only 2 machines for machineDeployment present, healthTimeoutOut one should NOT be marked Failed", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet2Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+					},
+					nodes: []*v1.Node{
+						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           fmt.Errorf("machine %q couldn't be marked FAILED", machineSet1Deploy1+"-"+"0"),
+					expectedPhase: v1alpha1.MachineUnknown,
 				},
 			}),
 		)
