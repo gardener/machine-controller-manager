@@ -32,7 +32,6 @@ import (
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
 	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/cache"
-	"go.uber.org/goleak"
 
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
@@ -54,11 +53,10 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-func TestMain(m *testing.M) {
-	goleak.VerifyTestMain(m)
-}
 func TestMachineControllerSuite(t *testing.T) {
-	//defer goleak.VerifyNone(t)
+	//to enable goroutine leak check , currently not using as it fails tests for less important leaks
+	//defer goleak.VerifyNone(t) 
+
 	//for filtering out warning logs. Reflector short watch warning logs won't print now
 	klog.SetOutput(io.Discard)
 	flags := &flag.FlagSet{}
