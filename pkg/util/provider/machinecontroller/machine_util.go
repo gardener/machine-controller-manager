@@ -48,6 +48,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -56,6 +57,10 @@ import (
 var (
 	// emptyMap is a dummy emptyMap to compare with
 	emptyMap = make(map[string]string)
+)
+
+const (
+	maxReplacements = 1
 )
 
 // TODO: use client library instead when it starts to support update retries
@@ -719,19 +724,21 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					machine.Status.Conditions,
 				)
 
-				machineSetName := getMachineSetName(machine)
-				ch := c.safetyOptions.HealthChan
+				machineSetName, machineDeployName := getMachineOwnerNames(machine)
+				//getting lock for machineDeployment this machine belongs to, creating lock if absent
+				tempCh := make(chan int, 1)
+				val, loaded := c.safetyOptions.HealthChanMap.LoadOrStore(machineDeployName, tempCh)
+				if loaded {
+					close(tempCh)
+				} else {
+					klog.Infof("Lock for machineDeploy=%s created", machineDeployName)
+				}
+				ch := val.(chan int)
 
 				select {
 				case ch <- 1:
 					klog.Infof("Acquired lock ,machineName=%q , locks left to acquire %d", machine.Name, cap(ch)-len(ch))
-					//maybe sync cache before this?
-					// if !c.machineSynced() {
-					// 	klog.Infof("Lock acquired for machine %q but caches aren't synced. Retrying after short time", machine.Name)
-					// 	<-ch
-					// 	break
-					// }
-					markable, err := c.canMarkMachineFailed(machineSetName, 2)
+					markable, err := c.canMarkMachineFailed(machineSetName, machineDeployName, machine.Namespace, maxReplacements)
 					if err != nil {
 						klog.Errorf("Couldn't check if machine can be marked as Failed. Error: %q", err)
 						<-ch
@@ -792,7 +799,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		} else {
 			klog.V(2).Infof("Machine State has been updated for %q with providerID %q and backing node %q", machine.Name, getProviderID(machine), getNodeName(machine))
 			// Return error for continuing in next iteration
-			err = fmt.Errorf("Machine creation is successful. Machine State has been UPDATED")
+			err = fmt.Errorf("machine creation is successful. Machine State has been UPDATED")
 		}
 
 		return machineutils.ShortRetry, err
@@ -1414,16 +1421,25 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 	return machineutils.ShortRetry, err, updated
 }
 
-func (c *controller) canMarkMachineFailed(machineSetName string, maxReplacements int) (bool, error) {
-	machineList, err := c.machineLister.List(labels.Everything())
+func (c *controller) canMarkMachineFailed(machineSetName, machineDeployName, namespace string, maxReplacements int) (bool, error) {
+	var (
+		list     = []string{machineDeployName}
+		selector = labels.NewSelector()
+		req, _   = labels.NewRequirement("name", selection.Equals, list)
+	)
+
+	selector = selector.Add(*req)
+	//listing all machines for machinedeployment
+	machineList, err := c.machineLister.Machines(namespace).List(selector)
 	if err != nil {
 		return false, err
 	}
 
+	klog.Infof("num machines in machineDeploy=%s is %d", machineDeployName, len(machineList))
 	//inProgress keeps count of number of machines which are counted as `getting replaced`
 	var inProgress int
 
-	var terminating, failed, pending, noPhase int
+	var terminating, failed, pending, noPhase, crashLooping int
 
 	for _, machine := range machineList {
 		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineUnknown && machine.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
@@ -1438,6 +1454,8 @@ func (c *controller) canMarkMachineFailed(machineSetName string, maxReplacements
 					pending++
 				} else if machine.Status.CurrentStatus.Phase == "" {
 					noPhase++
+				} else if machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
+					crashLooping++
 				}
 			} else {
 				terminating++
@@ -1448,7 +1466,7 @@ func (c *controller) canMarkMachineFailed(machineSetName string, maxReplacements
 		}
 	}
 
-	klog.Infof("machineSetName=%q , terminating=%d , failed=%d , pending=%d , noPhase=%d , extraCountedProgress=%d", machineSetName, terminating, failed, pending, noPhase, terminating)
+	klog.Errorf("machineDeployName=%q , terminating=%d , failed=%d , pending=%d , noPhase=%d , crashLooping=%d , extraCountedProgress=%d", machineDeployName, terminating, failed, pending, noPhase, crashLooping, terminating)
 
 	if inProgress < maxReplacements {
 		return true, nil
@@ -1502,6 +1520,15 @@ func getNodeName(machine *v1alpha1.Machine) string {
 	return machine.Status.Node
 }
 
-func getMachineSetName(machine *v1alpha1.Machine) string {
-	return machine.OwnerReferences[0].Name
+func getMachineOwnerNames(machine *v1alpha1.Machine) (string, string) {
+	machineSetName := machine.OwnerReferences[0].Name
+	var machineDeployName string
+	msLen := len(machineSetName)
+	for i := msLen - 1; i >= 0; i-- {
+		if machineSetName[i] == '-' {
+			machineDeployName = machineSetName[:i]
+			break
+		}
+	}
+	return machineSetName, machineDeployName
 }
