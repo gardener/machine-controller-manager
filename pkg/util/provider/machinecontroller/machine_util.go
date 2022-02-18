@@ -1523,12 +1523,7 @@ func getNodeName(machine *v1alpha1.Machine) string {
 func getMachineOwnerNames(machine *v1alpha1.Machine) (string, string) {
 	machineSetName := machine.OwnerReferences[0].Name
 	var machineDeployName string
-	msLen := len(machineSetName)
-	for i := msLen - 1; i >= 0; i-- {
-		if machineSetName[i] == '-' {
-			machineDeployName = machineSetName[:i]
-			break
-		}
-	}
+	machineSetNameParts := strings.Split(machineSetName, "-")
+	machineDeployName := strings.Join(machineSetNameParts[:len(machineSetNameParts)-1], "-")
 	return machineSetName, machineDeployName
 }
