@@ -2126,6 +2126,8 @@ var _ = Describe("machine_util", func() {
 			//targetMachineName is name of machine for which `reconcileMachineHealth()` needs to be called
 			//Its must this machine in machine list
 			targetMachineName string
+			//to check case when lock can't be acquired for long time
+			lockAlreadyAcquired bool
 		}
 		type expect struct {
 			retryPeriod   machineutils.RetryPeriod
@@ -2336,7 +2338,18 @@ var _ = Describe("machine_util", func() {
 
 			Expect(targetMachine).ToNot(BeNil())
 
+			if data.setup.lockAlreadyAcquired {
+				tempCh := make(chan struct{}, 1)
+				tempCh <- struct{}{}
+				c.safetyOptions.HealthChanMap.Store(machineDeploy1, tempCh)
+			}
+
 			retryPeriod, err := c.reconcileMachineHealth(context.TODO(), targetMachine)
+
+			if data.setup.lockAlreadyAcquired {
+				val, _ := c.safetyOptions.HealthChanMap.Load(machineDeploy1)
+				close(val.(chan struct{}))
+			}
 
 			Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
 
@@ -2564,6 +2577,27 @@ var _ = Describe("machine_util", func() {
 						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
 					},
 					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           fmt.Errorf("machine %q couldn't be marked FAILED", machineSet1Deploy1+"-"+"0"),
+					expectedPhase: v1alpha1.MachineUnknown,
+				},
+			}),
+			Entry("Timeout in acquring lock should also occur", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+					},
+					nodes: []*v1.Node{
+						newNode(1, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName:   machineSet1Deploy1 + "-" + "0",
+					lockAlreadyAcquired: true,
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
