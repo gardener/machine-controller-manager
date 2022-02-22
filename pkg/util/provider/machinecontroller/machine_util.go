@@ -755,6 +755,8 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				ch := val.(chan struct{})
 
 				klog.Errorf("Number of goroutines now %d\n", runtime.NumGoroutine())
+				lockAcquireCtx, cancelFn := context.WithTimeout(ctx, lockAcquireTimeout)
+				defer cancelFn()
 
 				select {
 				case ch <- struct{}{}:
@@ -781,7 +783,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					//in case its not markable then give chance to other goroutines
 					klog.Infof("Can't mark machine %q as Failed as since machines other than Unknown and Running present", machine.Name)
 					<-ch
-				case <-time.After(lockAcquireTimeout):
+				case <-lockAcquireCtx.Done():
 					klog.Infof("Timedout waiting to acquire lock for machine %q", machine.Name)
 				}
 
