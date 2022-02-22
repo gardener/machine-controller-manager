@@ -745,7 +745,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 						return machineutils.ShortRetry, err
 					}
 					if markable {
-						retryPeriod, err, updated := c.updateMachineToFailedState(ctx, description, machine, clone)
+						retryPeriod, updated, err := c.updateMachineToFailedState(ctx, description, machine, clone)
 						//wait for cache sync
 
 						if updated && !c.waitForFailedMachineCacheUpdate(machine, 1*time.Second) {
@@ -1390,7 +1390,7 @@ func (c *controller) UpdateNodeTerminationCondition(ctx context.Context, machine
 	return err
 }
 
-func (c *controller) updateMachineToFailedState(ctx context.Context, description string, machine, clone *v1alpha1.Machine) (machineutils.RetryPeriod, error, bool) {
+func (c *controller) updateMachineToFailedState(ctx context.Context, description string, machine, clone *v1alpha1.Machine) (machineutils.RetryPeriod, bool, error) {
 	// Log the error message for machine failure
 	klog.Error(description)
 
@@ -1418,7 +1418,7 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 		err = fmt.Errorf("machine creation is successful. Machine State has been UPDATED")
 	}
 
-	return machineutils.ShortRetry, err, updated
+	return machineutils.ShortRetry, updated, err
 }
 
 func (c *controller) canMarkMachineFailed(machineSetName, machineDeployName, namespace string, maxReplacements int) (bool, error) {
@@ -1489,9 +1489,9 @@ func (c *controller) waitForFailedMachineCacheUpdate(machine *v1alpha1.Machine, 
 
 		if cachedMachine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed || cachedMachine.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating {
 			return true, nil
-		} else {
-			return false, nil
 		}
+
+		return false, nil
 	})
 
 	if pollErr != nil {

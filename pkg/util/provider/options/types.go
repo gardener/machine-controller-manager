@@ -126,7 +126,7 @@ type SafetyOptions struct {
 	MachineControllerFrozen bool
 	//HealthChanMap store the channel per machinedeployment which is used to limit removal of `health timed out` machines
 	//Default limit is 1 machine per machinedeployment
-	HealthChanMap sync.Map
+	HealthChanMap *sync.Map
 }
 
 // LeaderElectionConfiguration defines the configuration of leader election

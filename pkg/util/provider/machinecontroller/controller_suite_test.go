@@ -23,6 +23,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -55,7 +56,7 @@ import (
 
 func TestMachineControllerSuite(t *testing.T) {
 	//to enable goroutine leak check , currently not using as it fails tests for less important leaks
-	//defer goleak.VerifyNone(t) 
+	//defer goleak.VerifyNone(t)
 
 	//for filtering out warning logs. Reflector short watch warning logs won't print now
 	klog.SetOutput(io.Discard)
@@ -577,6 +578,7 @@ func createController(
 		MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
 		MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
 		MaxEvictRetries:                          drain.DefaultMaxEvictRetries,
+		HealthChanMap:                            &sync.Map{},
 	}
 
 	controller := &controller{
