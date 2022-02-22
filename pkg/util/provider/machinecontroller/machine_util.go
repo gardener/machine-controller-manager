@@ -29,6 +29,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"runtime"
 	"strings"
 	"time"
 
@@ -60,7 +61,9 @@ var (
 )
 
 const (
-	maxReplacements = 1
+	maxReplacements    = 1
+	lockAcquireTimeout = 1 * time.Second
+	cacheUpdateTimeout = 1 * time.Second
 )
 
 // TODO: use client library instead when it starts to support update retries
@@ -715,8 +718,24 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					machine.Name,
 					timeOutDuration,
 				)
+				// Log the error message for machine failure
+				klog.Error(description)
+
+				clone.Status.LastOperation = v1alpha1.LastOperation{
+					Description:    description,
+					State:          v1alpha1.MachineStateFailed,
+					Type:           machine.Status.LastOperation.Type,
+					LastUpdateTime: metav1.Now(),
+				}
+				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+					Phase: v1alpha1.MachineFailed,
+					//TimeoutActive:  false,
+					LastUpdateTime: metav1.Now(),
+				}
+				objectRequiresUpdate = true
 			} else {
-				// Timeour occurred due to machine being unhealthy for too long
+
+				// Timeout occurred due to machine being unhealthy for too long
 				description = fmt.Sprintf(
 					"Machine %s is not healthy since %s minutes. Changing status to failed. Node Conditions: %+v",
 					machine.Name,
@@ -726,17 +745,19 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 
 				machineSetName, machineDeployName := getMachineOwnerNames(machine)
 				//getting lock for machineDeployment this machine belongs to, creating lock if absent
-				tempCh := make(chan int, 1)
+				tempCh := make(chan struct{}, 1)
 				val, loaded := c.safetyOptions.HealthChanMap.LoadOrStore(machineDeployName, tempCh)
 				if loaded {
 					close(tempCh)
 				} else {
 					klog.Infof("Lock for machineDeploy=%s created", machineDeployName)
 				}
-				ch := val.(chan int)
+				ch := val.(chan struct{})
+
+				klog.Errorf("Number of goroutines now %d\n", runtime.NumGoroutine())
 
 				select {
-				case ch <- 1:
+				case ch <- struct{}{}:
 					klog.Infof("Acquired lock ,machineName=%q , locks left to acquire %d", machine.Name, cap(ch)-len(ch))
 					markable, err := c.canMarkMachineFailed(machineSetName, machineDeployName, machine.Namespace, maxReplacements)
 					if err != nil {
@@ -747,8 +768,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					if markable {
 						retryPeriod, updated, err := c.updateMachineToFailedState(ctx, description, machine, clone)
 						//wait for cache sync
-
-						if updated && !c.waitForFailedMachineCacheUpdate(machine, 1*time.Second) {
+						if updated && !c.waitForFailedMachineCacheUpdate(machine, cacheUpdateTimeout) {
 							//waiting 1 sec since nothing else can be done if cache update is failing
 							klog.Infof("cache sync returned false, waiting 1 sec , machineName=%q", machine.Name)
 							<-time.After(1 * time.Second)
@@ -761,29 +781,13 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					//in case its not markable then give chance to other goroutines
 					klog.Infof("Can't mark machine %q as Failed as since machines other than Unknown and Running present", machine.Name)
 					<-ch
-				case <-time.After(1 * time.Second):
+				case <-time.After(lockAcquireTimeout):
 					klog.Infof("Timedout waiting to acquire lock for machine %q", machine.Name)
 				}
 
 				err = fmt.Errorf("machine %q couldn't be marked FAILED", machine.Name)
 				return machineutils.ShortRetry, err
 			}
-
-			// Log the error message for machine failure
-			klog.Error(description)
-
-			clone.Status.LastOperation = v1alpha1.LastOperation{
-				Description:    description,
-				State:          v1alpha1.MachineStateFailed,
-				Type:           machine.Status.LastOperation.Type,
-				LastUpdateTime: metav1.Now(),
-			}
-			clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-				Phase: v1alpha1.MachineFailed,
-				//TimeoutActive:  false,
-				LastUpdateTime: metav1.Now(),
-			}
-			objectRequiresUpdate = true
 		} else {
 			// If timeout has not occurred, re-enqueue the machine
 			// after a specified sleep time
