@@ -44,7 +44,7 @@ Create a Docker hub account at [Docker Hub](https://hub.docker.com/) if you don'
 :warning: Before you start developing, please ensure to comply with the following requirements:
 
 1. You have understood the [principles of Kubernetes](https://kubernetes.io/docs/concepts/), and its [components](https://kubernetes.io/docs/concepts/overview/components/), what their purpose is and how they interact with each other.
-1. You have understood the [architecture of the Machine Controller Manager](../design/README.md)
+1. You have understood the [architecture of the Machine Controller Manager](../../README.md#design-of-machine-controller-manager)
 
 The development of the Machine Controller Manager could happen by targetting any cluster. You basically need a Kubernetes cluster running on a set of machines. You just need the [Kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/authenticate-across-clusters-kubeconfig/) file with the required access permissions attached to it.
 
