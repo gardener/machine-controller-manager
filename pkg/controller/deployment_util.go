@@ -113,11 +113,11 @@ const (
 	// ClusterAutoscalerScaleDownDisabledAnnotationKey annotation to disable the scale-down of the nodes.
 	ClusterAutoscalerScaleDownDisabledAnnotationKey = "cluster-autoscaler.kubernetes.io/scale-down-disabled"
 	// ClusterAutoscalerScaleDownDisabledAnnotationValue annotation to disable the scale-down of the nodes.
-	ClusterAutoscalerScaleDownDisabledAnnotationValue = "True"
+	ClusterAutoscalerScaleDownDisabledAnnotationValue = "true"
 	// ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey annotation to disable the scale-down of the nodes.
 	ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey = "cluster-autoscaler.kubernetes.io/scale-down-disabled-by-mcm"
 	// ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue annotation to disable the scale-down of the nodes.
-	ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue = "True"
+	ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue = "true"
 
 	// RollbackRevisionNotFound is not found rollback event reason
 	RollbackRevisionNotFound = "DeploymentRollbackRevisionNotFound"
