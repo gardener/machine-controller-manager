@@ -772,8 +772,9 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 						//wait for cache sync
 						if updated && !c.waitForFailedMachineCacheUpdate(machine, pollInterval, cacheUpdateTimeout) {
 							//waiting 1 sec since nothing else can be done if cache update is failing
-							klog.Infof("cache sync returned false, waiting 1 sec , machineName=%q", machine.Name)
-							time.Sleep(1 * time.Second)
+							klog.Infof("cache sync returned false, waiting 10 sec , machineName=%q", machine.Name)
+							//TODO: This needs to be enhanced as cache update is not guaranteed.
+							time.Sleep(10 * time.Second)
 						}
 						klog.Infof("Synced caches before leaving lock, machineName=%q", machine.Name)
 						//release lock
