@@ -62,6 +62,7 @@ var (
 
 const (
 	maxReplacements    = 1
+	pollInterval       = 100 * time.Millisecond
 	lockAcquireTimeout = 1 * time.Second
 	cacheUpdateTimeout = 1 * time.Second
 )
@@ -585,18 +586,50 @@ func (c *controller) getCreateFailurePhase(machine *v1alpha1.Machine) v1alpha1.M
 // any change in node conditions or health
 func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
 	var (
-		objectRequiresUpdate = false
-		clone                = machine.DeepCopy()
-		description          string
-		lastOperationType    v1alpha1.MachineOperationType
+		cloneDirty        = false
+		clone             = machine.DeepCopy()
+		description       string
+		lastOperationType v1alpha1.MachineOperationType
 	)
 
 	node, err := c.nodeLister.Get(machine.Status.Node)
-	if err == nil {
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Node object is not found
+			if len(machine.Status.Conditions) > 0 &&
+				machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+				// If machine has conditions on it,
+				// and corresponding node object went missing
+				// and if machine object still reports healthy
+				description = fmt.Sprintf(
+					"Node object went missing. Machine %s is unhealthy - changing MachineState to Unknown",
+					machine.Name,
+				)
+				klog.Warning(description)
+
+				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+					Phase: v1alpha1.MachineUnknown,
+					//TimeoutActive:  true,
+					LastUpdateTime: metav1.Now(),
+				}
+				clone.Status.LastOperation = v1alpha1.LastOperation{
+					Description:    description,
+					State:          v1alpha1.MachineStateProcessing,
+					Type:           v1alpha1.MachineOperationHealthCheck,
+					LastUpdateTime: metav1.Now(),
+				}
+				cloneDirty = true
+			}
+		} else {
+			// Any other types of errors while fetching node object
+			klog.Errorf("Could not fetch node object for machine %q", machine.Name)
+			return machineutils.ShortRetry, err
+		}
+	} else {
 		if nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions) {
 			clone.Status.Conditions = node.Status.Conditions
 			klog.V(3).Infof("Conditions of Machine %q with providerID %q and backing node %q are changing", machine.Name, getProviderID(machine), getNodeName(machine))
-			objectRequiresUpdate = true
+			cloneDirty = true
 		}
 
 		if !c.isHealthy(clone) && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
@@ -616,7 +649,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				Type:           v1alpha1.MachineOperationHealthCheck,
 				LastUpdateTime: metav1.Now(),
 			}
-			objectRequiresUpdate = true
+			cloneDirty = true
 
 		} else if c.isHealthy(clone) && clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 			// If machine is healhy and current machinePhase is not running.
@@ -652,44 +685,11 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				//TimeoutActive:  false,
 				LastUpdateTime: metav1.Now(),
 			}
-			objectRequiresUpdate = true
+			cloneDirty = true
 		}
-
-	} else if err != nil && apierrors.IsNotFound(err) {
-		// Node object is not found
-
-		if len(machine.Status.Conditions) > 0 &&
-			machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
-			// If machine has conditions on it,
-			// and corresponding node object went missing
-			// and if machine object still reports healthy
-			description = fmt.Sprintf(
-				"Node object went missing. Machine %s is unhealthy - changing MachineState to Unknown",
-				machine.Name,
-			)
-			klog.Warning(description)
-
-			clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-				Phase: v1alpha1.MachineUnknown,
-				//TimeoutActive:  true,
-				LastUpdateTime: metav1.Now(),
-			}
-			clone.Status.LastOperation = v1alpha1.LastOperation{
-				Description:    description,
-				State:          v1alpha1.MachineStateProcessing,
-				Type:           v1alpha1.MachineOperationHealthCheck,
-				LastUpdateTime: metav1.Now(),
-			}
-			objectRequiresUpdate = true
-		}
-
-	} else {
-		// Any other types of errors while fetching node object
-		klog.Errorf("Could not fetch node object for machine %q", machine.Name)
-		return machineutils.ShortRetry, err
 	}
 
-	if !objectRequiresUpdate &&
+	if !cloneDirty &&
 		(machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending ||
 			machine.Status.CurrentStatus.Phase == v1alpha1.MachineUnknown) {
 		var (
@@ -697,10 +697,10 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			timeOutDuration time.Duration
 		)
 
-		checkCreationTimeout := machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending
+		isMachinePending := machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending
 		sleepTime := 1 * time.Minute
 
-		if checkCreationTimeout {
+		if isMachinePending {
 			timeOutDuration = c.getEffectiveCreationTimeout(machine).Duration
 		} else {
 			timeOutDuration = c.getEffectiveHealthTimeout(machine).Duration
@@ -711,7 +711,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		if timeOut > 0 {
 			// Machine health timeout occured while joining or rejoining of machine
 
-			if checkCreationTimeout {
+			if isMachinePending {
 				// Timeout occurred while machine creation
 				description = fmt.Sprintf(
 					"Machine %s failed to join the cluster in %s minutes.",
@@ -732,7 +732,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					//TimeoutActive:  false,
 					LastUpdateTime: metav1.Now(),
 				}
-				objectRequiresUpdate = true
+				cloneDirty = true
 			} else {
 
 				// Timeout occurred due to machine being unhealthy for too long
@@ -743,7 +743,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					machine.Status.Conditions,
 				)
 
-				machineSetName, machineDeployName := getMachineOwnerNames(machine)
+				machineDeployName := getMachineDeploymentName(machine)
 				//getting lock for machineDeployment this machine belongs to, creating lock if absent
 				tempCh := make(chan struct{}, 1)
 				val, loaded := c.safetyOptions.HealthChanMap.LoadOrStore(machineDeployName, tempCh)
@@ -761,24 +761,24 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				select {
 				case ch <- struct{}{}:
 					klog.Infof("Acquired lock ,machineName=%q , locks left to acquire %d", machine.Name, cap(ch)-len(ch))
-					markable, err := c.canMarkMachineFailed(machineSetName, machineDeployName, machine.Namespace, maxReplacements)
+					markable, err := c.canMarkMachineFailed(machineDeployName, machine.Namespace, maxReplacements)
 					if err != nil {
 						klog.Errorf("Couldn't check if machine can be marked as Failed. Error: %q", err)
 						<-ch
 						return machineutils.ShortRetry, err
 					}
 					if markable {
-						retryPeriod, updated, err := c.updateMachineToFailedState(ctx, description, machine, clone)
+						updated, err := c.updateMachineToFailedState(ctx, description, machine, clone)
 						//wait for cache sync
-						if updated && !c.waitForFailedMachineCacheUpdate(machine, cacheUpdateTimeout) {
+						if updated && !c.waitForFailedMachineCacheUpdate(machine, pollInterval, cacheUpdateTimeout) {
 							//waiting 1 sec since nothing else can be done if cache update is failing
-							klog.Infof("cache sync returned false, waiting 1 sec, machineName=%q", machine.Name)
-							<-time.After(1 * time.Second)
+							klog.Infof("cache sync returned false, waiting 1 sec , machineName=%q", machine.Name)
+							time.Sleep(1 * time.Second)
 						}
 						klog.Infof("Synced caches before leaving lock, machineName=%q", machine.Name)
 						//release lock
 						<-ch
-						return retryPeriod, err
+						return machineutils.ShortRetry, err
 					}
 					//in case its not markable then give chance to other goroutines
 					klog.Infof("Can't mark machine %q as Failed as since machines other than Unknown and Running present", machine.Name)
@@ -797,7 +797,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		}
 	}
 
-	if objectRequiresUpdate {
+	if cloneDirty {
 		_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
 			// Keep retrying until update goes through
@@ -1396,7 +1396,7 @@ func (c *controller) UpdateNodeTerminationCondition(ctx context.Context, machine
 	return err
 }
 
-func (c *controller) updateMachineToFailedState(ctx context.Context, description string, machine, clone *v1alpha1.Machine) (machineutils.RetryPeriod, bool, error) {
+func (c *controller) updateMachineToFailedState(ctx context.Context, description string, machine, clone *v1alpha1.Machine) (bool, error) {
 	// Log the error message for machine failure
 	klog.Error(description)
 
@@ -1420,14 +1420,12 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 	} else {
 		updated = true
 		klog.Infof("Machine State has been updated for %q with providerID %q and backing node %q", machine.Name, getProviderID(machine), getNodeName(machine))
-		// Return error for continuing in next iteration
-		err = fmt.Errorf("machine creation is successful. Machine State has been UPDATED")
 	}
 
-	return machineutils.ShortRetry, updated, err
+	return updated, err
 }
 
-func (c *controller) canMarkMachineFailed(machineSetName, machineDeployName, namespace string, maxReplacements int) (bool, error) {
+func (c *controller) canMarkMachineFailed(machineDeployName, namespace string, maxReplacements int) (bool, error) {
 	var (
 		list     = []string{machineDeployName}
 		selector = labels.NewSelector()
@@ -1435,14 +1433,14 @@ func (c *controller) canMarkMachineFailed(machineSetName, machineDeployName, nam
 	)
 
 	selector = selector.Add(*req)
-	//listing all machines for machinedeployment
+	// listing all machines for machinedeployment
 	machineList, err := c.machineLister.Machines(namespace).List(selector)
 	if err != nil {
 		return false, err
 	}
 
 	klog.Infof("num machines in machineDeploy=%s is %d", machineDeployName, len(machineList))
-	//inProgress keeps count of number of machines which are counted as `getting replaced`
+	// inProgress keeps count of number of machines which are counted as `getting replaced`
 	var inProgress int
 
 	var terminating, failed, pending, noPhase, crashLooping int
@@ -1450,24 +1448,20 @@ func (c *controller) canMarkMachineFailed(machineSetName, machineDeployName, nam
 	for _, machine := range machineList {
 		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineUnknown && machine.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 			inProgress++
-			// `Terminating` is not considered as replaced because during replacement old machines are always in terminating
-			// state and so can't allow them to consume maxReplacement count
-			if machine.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating {
-
-				if machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
-					failed++
-				} else if machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending {
-					pending++
-				} else if machine.Status.CurrentStatus.Phase == "" {
-					noPhase++
-				} else if machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
-					crashLooping++
-				}
-			} else {
+			switch machine.Status.CurrentStatus.Phase {
+			case v1alpha1.MachineTerminating:
 				terminating++
 				// counting terminated machine twice in `inProgress` to avoid case where there is delay by MS controller
 				// in adding new machine object and terminating machines are also gone.
 				inProgress++
+			case v1alpha1.MachineFailed:
+				failed++
+			case v1alpha1.MachinePending:
+				pending++
+			case v1alpha1.MachineCrashLoopBackOff:
+				crashLooping++
+			default:
+				noPhase++
 			}
 		}
 	}
@@ -1480,9 +1474,7 @@ func (c *controller) canMarkMachineFailed(machineSetName, machineDeployName, nam
 	return false, nil
 }
 
-func (c *controller) waitForFailedMachineCacheUpdate(machine *v1alpha1.Machine, timeout time.Duration) bool {
-	syncedPollPeriod := 100 * time.Millisecond
-
+func (c *controller) waitForFailedMachineCacheUpdate(machine *v1alpha1.Machine, syncedPollPeriod, timeout time.Duration) bool {
 	pollErr := wait.Poll(syncedPollPeriod, timeout, func() (bool, error) {
 		cachedMachine, err := c.machineLister.Machines(machine.Namespace).Get(machine.Name)
 		if apierrors.IsNotFound(err) {
@@ -1526,9 +1518,6 @@ func getNodeName(machine *v1alpha1.Machine) string {
 	return machine.Status.Node
 }
 
-func getMachineOwnerNames(machine *v1alpha1.Machine) (string, string) {
-	machineSetName := machine.OwnerReferences[0].Name
-	machineSetNameParts := strings.Split(machineSetName, "-")
-	machineDeployName := strings.Join(machineSetNameParts[:len(machineSetNameParts)-1], "-")
-	return machineSetName, machineDeployName
+func getMachineDeploymentName(machine *v1alpha1.Machine) string {
+	return machine.Labels["name"]
 }
