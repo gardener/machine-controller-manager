@@ -18,7 +18,6 @@ limitations under the License.
 package options
 
 import (
-	"sync"
 	"time"
 
 	mcmoptions "github.com/gardener/machine-controller-manager/pkg/options"
@@ -124,9 +123,6 @@ type SafetyOptions struct {
 	// MachineControllerFrozen indicates if the machine controller
 	// is frozen due to Unreachable APIServers
 	MachineControllerFrozen bool
-	//HealthChanMap store the channel per machinedeployment which is used to limit removal of `health timed out` machines
-	//Default limit is 1 machine per machinedeployment
-	HealthChanMap *sync.Map
 }
 
 // LeaderElectionConfiguration defines the configuration of leader election

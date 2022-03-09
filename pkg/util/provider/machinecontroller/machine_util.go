@@ -746,7 +746,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				machineDeployName := getMachineDeploymentName(machine)
 				//getting lock for machineDeployment this machine belongs to, creating lock if absent
 				tempCh := make(chan struct{}, 1)
-				val, loaded := c.safetyOptions.HealthChanMap.LoadOrStore(machineDeployName, tempCh)
+				val, loaded := c.deploymentMutexMap.LoadOrStore(machineDeployName, tempCh)
 				if loaded {
 					close(tempCh)
 				} else {

@@ -22,7 +22,6 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package options
 
 import (
-	"sync"
 	"time"
 
 	drain "github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
@@ -73,7 +72,6 @@ func NewMCServer() *MCServer {
 				MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 30 * time.Minute},
 				MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
 				MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
-				HealthChanMap:                            &sync.Map{},
 			},
 		},
 	}

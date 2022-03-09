@@ -578,7 +578,6 @@ func createController(
 		MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
 		MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
 		MaxEvictRetries:                          drain.DefaultMaxEvictRetries,
-		HealthChanMap:                            &sync.Map{},
 	}
 
 	controller := &controller{
@@ -607,6 +606,7 @@ func createController(
 		machineSafetyOrphanVMsQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
 		machineSafetyAPIServerQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
 		recorder:                    record.NewBroadcaster().NewRecorder(nil, corev1.EventSource{Component: ""}),
+		deploymentMutexMap:          &sync.Map{},
 	}
 
 	// controller.internalExternalScheme = runtime.NewScheme()

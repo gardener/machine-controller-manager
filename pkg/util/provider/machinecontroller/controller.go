@@ -115,6 +115,7 @@ func NewController(
 		driver:                        driver,
 		bootstrapTokenAuthExtraGroups: bootstrapTokenAuthExtraGroups,
 		volumeAttachmentHandler:       nil,
+		deploymentMutexMap:            &sync.Map{},
 	}
 
 	controller.internalExternalScheme = runtime.NewScheme()
@@ -244,6 +245,8 @@ type controller struct {
 	internalExternalScheme  *runtime.Scheme
 	driver                  driver.Driver
 	volumeAttachmentHandler *drain.VolumeAttachmentHandler
+	// deploymentMutexMap store the mutex per machinedeployment which is used to limit removal of `health timed out` machines
+	deploymentMutexMap *sync.Map
 
 	// listers
 	pvcLister               corelisters.PersistentVolumeClaimLister

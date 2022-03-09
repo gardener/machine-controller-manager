@@ -2340,13 +2340,13 @@ var _ = Describe("machine_util", func() {
 			if data.setup.lockAlreadyAcquired {
 				tempCh := make(chan struct{}, 1)
 				tempCh <- struct{}{}
-				c.safetyOptions.HealthChanMap.Store(machineDeploy1, tempCh)
+				c.deploymentMutexMap.Store(machineDeploy1, tempCh)
 			}
 
 			retryPeriod, err := c.reconcileMachineHealth(context.TODO(), targetMachine)
 
 			if data.setup.lockAlreadyAcquired {
-				val, _ := c.safetyOptions.HealthChanMap.Load(machineDeploy1)
+				val, _ := c.deploymentMutexMap.Load(machineDeploy1)
 				close(val.(chan struct{}))
 			}
 
