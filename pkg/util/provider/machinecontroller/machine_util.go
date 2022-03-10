@@ -35,6 +35,7 @@ import (
 
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	mcmcore "github.com/gardener/machine-controller-manager/pkg/controller"
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
@@ -744,6 +745,12 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				)
 
 				machineDeployName := getMachineDeploymentName(machine)
+
+				//ensuring rollout of machineDeployment is not happening
+				if c.isRollingOut(machine) {
+					klog.Infof("Skipping marking machine=%s Failed, as rollout for machineDeploy=%s is happening, will retry", machine.Name, machineDeployName)
+					return machineutils.MediumRetry, nil
+				}
 				//getting lock for machineDeployment this machine belongs to, creating lock if absent
 				tempCh := make(chan struct{}, 1)
 				val, loaded := c.deploymentMutexMap.LoadOrStore(machineDeployName, tempCh)
@@ -755,11 +762,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				ch := val.(chan struct{})
 
 				klog.Errorf("Number of goroutines now %d\n", runtime.NumGoroutine())
-				lockAcquireCtx, cancelFn := context.WithTimeout(ctx, lockAcquireTimeout)
-				defer cancelFn()
-
-				select {
-				case ch <- struct{}{}:
+				if TryLock(ch, lockAcquireTimeout) {
 					klog.Infof("Acquired lock ,machineName=%q , locks left to acquire %d", machine.Name, cap(ch)-len(ch))
 					markable, err := c.canMarkMachineFailed(machineDeployName, machine.Namespace, maxReplacements)
 					if err != nil {
@@ -771,7 +774,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 						updated, err := c.updateMachineToFailedState(ctx, description, machine, clone)
 						//wait for cache sync
 						if updated && !c.waitForFailedMachineCacheUpdate(machine, pollInterval, cacheUpdateTimeout) {
-							//waiting 1 sec since nothing else can be done if cache update is failing
+							//waiting 10 sec since nothing else can be done if cache update is failing
 							klog.Infof("cache sync returned false, waiting 10 sec , machineName=%q", machine.Name)
 							//TODO: This needs to be enhanced as cache update is not guaranteed.
 							time.Sleep(10 * time.Second)
@@ -784,7 +787,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					//in case its not markable then give chance to other goroutines
 					klog.Infof("Can't mark machine %q as Failed as since machines other than Unknown and Running present", machine.Name)
 					<-ch
-				case <-lockAcquireCtx.Done():
+				} else {
 					klog.Infof("Timedout waiting to acquire lock for machine %q", machine.Name)
 				}
 
@@ -1509,6 +1512,41 @@ func setTerminationReasonByPhase(phase v1alpha1.MachinePhase, terminationConditi
 		terminationCondition.Reason = machineutils.NodeScaledDown
 		terminationCondition.Message = "Machine Controller is scaling down machine"
 	}
+}
+
+// TryLock tries to write to channel. It times out after specified duration
+func TryLock(lockC chan<- struct{}, duration time.Duration) bool {
+	ctx, cancelFn := context.WithTimeout(context.Background(), duration)
+	defer cancelFn()
+	for {
+		select {
+		case lockC <- struct{}{}:
+			return true
+		case <-ctx.Done():
+			return false
+		}
+	}
+}
+
+func (c *controller) isRollingOut(machine *v1alpha1.Machine) bool {
+	nodeName := machine.Labels["node"]
+	node, err := c.nodeLister.Get(nodeName)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false
+		}
+		klog.Errorf("error fetching node object for machine %q", machine.Name)
+		return true
+	}
+
+	nodeAnnotations := node.Annotations
+	if nodeAnnotations == nil {
+		return false
+	} else if _, exists := nodeAnnotations[mcmcore.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey]; exists {
+		return true
+	}
+
+	return false
 }
 
 func getProviderID(machine *v1alpha1.Machine) string {
