@@ -751,23 +751,16 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					klog.Infof("Skipping marking machine=%s Failed, as rollout for machineDeploy=%s is happening, will retry", machine.Name, machineDeployName)
 					return machineutils.MediumRetry, nil
 				}
-				//getting lock for machineDeployment this machine belongs to, creating lock if absent
-				tempCh := make(chan struct{}, 1)
-				val, loaded := c.deploymentMutexMap.LoadOrStore(machineDeployName, tempCh)
-				if loaded {
-					close(tempCh)
-				} else {
-					klog.Infof("Lock for machineDeploy=%s created", machineDeployName)
-				}
-				ch := val.(chan struct{})
+				// creating lock for machineDeployment, if not allocated
+				c.permitGiver.RegisterPermits(machineDeployName, 1)
 
 				klog.Errorf("Number of goroutines now %d\n", runtime.NumGoroutine())
-				if TryLock(ch, lockAcquireTimeout) {
-					klog.Infof("Acquired lock ,machineName=%q , locks left to acquire %d", machine.Name, cap(ch)-len(ch))
-					markable, err := c.canMarkMachineFailed(machineDeployName, machine.Namespace, maxReplacements)
+				if c.permitGiver.TryPermit(machineDeployName, lockAcquireTimeout) {
+					klog.Infof("Acquired lock ,machineName=%q", machine.Name)
+					markable, err := c.canMarkMachineFailed(machineDeployName, machine.Name, machine.Namespace, maxReplacements)
 					if err != nil {
 						klog.Errorf("Couldn't check if machine can be marked as Failed. Error: %q", err)
-						<-ch
+						c.permitGiver.ReleasePermit(machineDeployName)
 						return machineutils.ShortRetry, err
 					}
 					if markable {
@@ -781,12 +774,12 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 						}
 						klog.Infof("Synced caches before leaving lock, machineName=%q", machine.Name)
 						//release lock
-						<-ch
+						c.permitGiver.ReleasePermit(machineDeployName)
 						return machineutils.ShortRetry, err
 					}
 					//in case its not markable then give chance to other goroutines
 					klog.Infof("Can't mark machine %q as Failed as since machines other than Unknown and Running present", machine.Name)
-					<-ch
+					c.permitGiver.ReleasePermit(machineDeployName)
 				} else {
 					klog.Infof("Timedout waiting to acquire lock for machine %q", machine.Name)
 				}
@@ -1429,7 +1422,7 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 	return updated, err
 }
 
-func (c *controller) canMarkMachineFailed(machineDeployName, namespace string, maxReplacements int) (bool, error) {
+func (c *controller) canMarkMachineFailed(machineDeployName, machineName, namespace string, maxReplacements int) (bool, error) {
 	var (
 		list     = []string{machineDeployName}
 		selector = labels.NewSelector()
@@ -1470,7 +1463,7 @@ func (c *controller) canMarkMachineFailed(machineDeployName, namespace string, m
 		}
 	}
 
-	klog.Errorf("machineDeployName=%q , terminating=%d , failed=%d , pending=%d , noPhase=%d , crashLooping=%d , extraCountedProgress=%d", machineDeployName, terminating, failed, pending, noPhase, crashLooping, terminating)
+	klog.Errorf("machineDeployName=%q for machine=%q , terminating=%d , failed=%d , pending=%d , noPhase=%d , crashLooping=%d , extraCountedProgress=%d", machineDeployName, machineName, terminating, failed, pending, noPhase, crashLooping, terminating)
 
 	if inProgress < maxReplacements {
 		return true, nil
