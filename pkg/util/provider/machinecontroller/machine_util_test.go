@@ -26,6 +26,7 @@ import (
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	mcmcore "github.com/gardener/machine-controller-manager/pkg/controller"
 	"github.com/gardener/machine-controller-manager/pkg/fakeclient"
+	"github.com/gardener/machine-controller-manager/pkg/util/permits"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -2163,6 +2164,9 @@ var _ = Describe("machine_util", func() {
 			c, trackers = createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil)
 			defer trackers.Stop()
 
+			c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
+			defer c.permitGiver.Close()
+
 			waitForCacheSync(stop, c)
 
 			Expect(targetMachine).ToNot(BeNil())
@@ -2370,21 +2374,22 @@ var _ = Describe("machine_util", func() {
 			c, trackers = createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil)
 			defer trackers.Stop()
 
+			c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
+			defer c.permitGiver.Close()
+
 			waitForCacheSync(stop, c)
 
 			Expect(targetMachine).ToNot(BeNil())
 
 			if data.setup.lockAlreadyAcquired {
-				tempCh := make(chan struct{}, 1)
-				tempCh <- struct{}{}
-				c.deploymentMutexMap.Store(machineDeploy1, tempCh)
+				c.permitGiver.RegisterPermits(machineDeploy1, 1)
+				c.permitGiver.TryPermit(machineDeploy1, 1*time.Second)
 			}
 
 			retryPeriod, err := c.reconcileMachineHealth(context.TODO(), targetMachine)
 
 			if data.setup.lockAlreadyAcquired {
-				val, _ := c.deploymentMutexMap.Load(machineDeploy1)
-				close(val.(chan struct{}))
+				c.permitGiver.DeletePermits(machineDeploy1)
 			}
 
 			Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
