@@ -18,6 +18,7 @@ package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 const (
@@ -307,10 +308,36 @@ var (
 )
 
 func init() {
-	prometheus.MustRegister(ScrapeFailedCounter)
-	prometheus.MustRegister(MachineInfo)
-	prometheus.MustRegister(MachineStatusCondition)
-	prometheus.MustRegister(MachineCSPhase)
+	reg := prometheus.NewRegistry()
+	promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Name:      "scrape_failure_total",
+		Help:      "Total count of scrape failures.",
+	}, []string{"kind"})
+
+	promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: machineSubsystem,
+		Name:      "info",
+		Help:      "Information of the Machines currently managed by the mcm.",
+	}, []string{"name", "namespace", "createdAt",
+		"spec_provider_id", "spec_class_api_group", "spec_class_kind", "spec_class_name"})
+
+	promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: machineSubsystem,
+		Name:      "status_condition",
+		Help:      "Information of the mcm managed Machines' status conditions.",
+	}, []string{"name", "namespace", "condition"})
+
+	promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: machineSubsystem,
+		Name:      "current_status_phase",
+		Help:      "Current status phase of the Machines currently managed by the mcm.",
+	}, []string{"name", "namespace"})
+
+	//register below commented collectors with promauto only not with MustRegister
 	/*
 		prometheus.MustRegister(MachineSetInfo)
 		prometheus.MustRegister(MachineSetInfoSpecReplicas)
@@ -339,6 +366,19 @@ func init() {
 		prometheus.MustRegister(MachineDeploymentStatusReplicas)
 		prometheus.MustRegister(MachineDeploymentStatusFailedMachines)
 	*/
-	prometheus.MustRegister(APIRequestCount)
-	prometheus.MustRegister(APIFailedRequestCount)
+	promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: cloudAPISubsystem,
+		Name:      "requests_total",
+		Help:      "Number of Cloud Service API requests, partitioned by provider, and service.",
+	}, []string{"provider", "service"},
+	)
+
+	promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: cloudAPISubsystem,
+		Name:      "requests_failed_total",
+		Help:      "Number of Failed Cloud Service API requests, partitioned by provider, and service.",
+	}, []string{"provider", "service"},
+	)
 }
