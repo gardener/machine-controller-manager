@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// package permits is used to provide permitGiver which maintains a sync map whose values can be
+// Package permits is used to provide permitGiver which maintains a sync map whose values can be
 // deleted if not accessed for a configured time
 package permits
 
@@ -25,6 +25,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// PermitGiver provides different operations regarding permit for a given key
 type PermitGiver interface {
 	RegisterPermits(key string, numPermits int)
 	TryPermit(key string, timeout time.Duration) bool
@@ -38,6 +39,7 @@ type permit struct {
 	lastAcquiredPermitTime time.Time
 }
 
+// NewPermitGiver returns a new PermitGiver
 func NewPermitGiver(stalePermitKeyTimeout time.Duration, janitorFreqency time.Duration) PermitGiver {
 	stopC := make(chan struct{})
 	pg := permitGiver{
