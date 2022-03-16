@@ -40,14 +40,14 @@ type permit struct {
 }
 
 // NewPermitGiver returns a new PermitGiver
-func NewPermitGiver(stalePermitKeyTimeout time.Duration, janitorFreqency time.Duration) PermitGiver {
+func NewPermitGiver(stalePermitKeyTimeout time.Duration, janitorFrequency time.Duration) PermitGiver {
 	stopC := make(chan struct{})
 	pg := permitGiver{
 		keyPermitsMap: sync.Map{},
 		stopC:         stopC,
 	}
 	go func() {
-		ticker := time.NewTicker(janitorFreqency)
+		ticker := time.NewTicker(janitorFrequency)
 		klog.Info("Janitor initialized")
 		for {
 			select {

@@ -756,34 +756,10 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 
 				klog.Errorf("Number of goroutines now %d\n", runtime.NumGoroutine())
 				if c.permitGiver.TryPermit(machineDeployName, lockAcquireTimeout) {
-					klog.Infof("Acquired lock ,machineName=%q", machine.Name)
-					markable, err := c.canMarkMachineFailed(machineDeployName, machine.Name, machine.Namespace, maxReplacements)
-					if err != nil {
-						klog.Errorf("Couldn't check if machine can be marked as Failed. Error: %q", err)
-						c.permitGiver.ReleasePermit(machineDeployName)
-						return machineutils.ShortRetry, err
-					}
-					if markable {
-						updated, err := c.updateMachineToFailedState(ctx, description, machine, clone)
-						//wait for cache sync
-						if updated && !c.waitForFailedMachineCacheUpdate(machine, pollInterval, cacheUpdateTimeout) {
-							//waiting 10 sec since nothing else can be done if cache update is failing
-							klog.Infof("cache sync returned false, waiting 10 sec , machineName=%q", machine.Name)
-							//TODO: This needs to be enhanced as cache update is not guaranteed.
-							time.Sleep(10 * time.Second)
-						}
-						klog.Infof("Synced caches before leaving lock, machineName=%q", machine.Name)
-						//release lock
-						c.permitGiver.ReleasePermit(machineDeployName)
-						return machineutils.ShortRetry, err
-					}
-					//in case its not markable then give chance to other goroutines
-					klog.Infof("Can't mark machine %q as Failed as since machines other than Unknown and Running present", machine.Name)
-					c.permitGiver.ReleasePermit(machineDeployName)
-				} else {
-					klog.Infof("Timedout waiting to acquire lock for machine %q", machine.Name)
+					return c.tryMarkingMachineFailed(ctx, machine, clone, machineDeployName, description)
 				}
 
+				klog.Infof("Timedout waiting to acquire lock for machine %q", machine.Name)
 				err = fmt.Errorf("machine %q couldn't be marked FAILED", machine.Name)
 				return machineutils.ShortRetry, err
 			}
@@ -1519,6 +1495,33 @@ func TryLock(lockC chan<- struct{}, duration time.Duration) bool {
 			return false
 		}
 	}
+}
+
+func (c *controller) tryMarkingMachineFailed(ctx context.Context, machine, clone *v1alpha1.Machine, machineDeployName, description string) (machineutils.RetryPeriod, error) {
+	defer c.permitGiver.ReleasePermit(machineDeployName)
+	klog.Infof("Acquired lock ,machineName=%q", machine.Name)
+	markable, err := c.canMarkMachineFailed(machineDeployName, machine.Name, machine.Namespace, maxReplacements)
+	if err != nil {
+		klog.Errorf("Couldn't check if machine can be marked as Failed. Error: %q", err)
+		return machineutils.ShortRetry, err
+	}
+	if markable {
+		var updated bool
+		updated, err = c.updateMachineToFailedState(ctx, description, machine, clone)
+		//wait for cache sync
+		if updated && !c.waitForFailedMachineCacheUpdate(machine, pollInterval, cacheUpdateTimeout) {
+			//waiting 10 sec since nothing else can be done if cache update is failing
+			klog.Infof("cache sync returned false, waiting 10 sec , machineName=%q", machine.Name)
+			//TODO: This needs to be enhanced as cache update is not guaranteed.
+			time.Sleep(10 * time.Second)
+		}
+		klog.Infof("Synced caches before leaving lock, machineName=%q", machine.Name)
+	} else {
+		//in case its not markable then give chance to other goroutines
+		klog.Infof("Can't mark machine %q as Failed as since machines other than Unknown and Running present", machine.Name)
+		err = fmt.Errorf("machine %q couldn't be marked FAILED", machine.Name)
+	}
+	return machineutils.ShortRetry, err
 }
 
 func (c *controller) isRollingOut(machine *v1alpha1.Machine) bool {

@@ -99,9 +99,9 @@ func NewController(
 		volumeAttachmentResourceKind = "VolumeAttachment"
 		// permitGiverStaleEntryTimeout is the time for which an entry can stay stale in the map
 		// maintained by permitGiver
-		permitGiverStaleEntryTimeout = 24 * time.Hour
+		permitGiverStaleEntryTimeout = 1 * time.Hour
 		// janitorFreq is the time after which permitGiver ranges its map for stale entries
-		janitorFreq = 1 * time.Hour
+		janitorFreq = 10 * time.Minute
 	)
 
 	controller := &controller{
