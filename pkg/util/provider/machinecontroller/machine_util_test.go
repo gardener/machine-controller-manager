@@ -2493,7 +2493,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           fmt.Errorf("machine %q couldn't be marked FAILED", machineSet1Deploy1+"-"+"0"),
+					err:           fmt.Errorf("machine %q couldn't be marked FAILED, other machines are getting replaced", machineSet1Deploy1+"-"+"0"),
 					expectedPhase: v1alpha1.MachineUnknown,
 				},
 			}),
@@ -2518,7 +2518,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           fmt.Errorf("machine %q couldn't be marked FAILED", machineSet1Deploy1+"-"+"0"),
+					err:           fmt.Errorf("machine %q couldn't be marked FAILED, other machines are getting replaced", machineSet1Deploy1+"-"+"0"),
 					expectedPhase: v1alpha1.MachineUnknown,
 				},
 			}),
@@ -2543,7 +2543,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           fmt.Errorf("machine %q couldn't be marked FAILED", machineSet1Deploy1+"-"+"0"),
+					err:           fmt.Errorf("machine %q couldn't be marked FAILED, other machines are getting replaced", machineSet1Deploy1+"-"+"0"),
 					expectedPhase: v1alpha1.MachineUnknown,
 				},
 			}),
@@ -2568,7 +2568,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           fmt.Errorf("machine %q couldn't be marked FAILED", machineSet1Deploy1+"-"+"0"),
+					err:           fmt.Errorf("machine %q couldn't be marked FAILED, other machines are getting replaced", machineSet1Deploy1+"-"+"0"),
 					expectedPhase: v1alpha1.MachineUnknown,
 				},
 			}),
@@ -2593,7 +2593,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           fmt.Errorf("machine %q couldn't be marked FAILED", machineSet1Deploy1+"-"+"0"),
+					err:           fmt.Errorf("machine %q couldn't be marked FAILED, other machines are getting replaced", machineSet1Deploy1+"-"+"0"),
 					expectedPhase: v1alpha1.MachineUnknown,
 				},
 			}),
@@ -2618,7 +2618,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           fmt.Errorf("machine %q couldn't be marked FAILED", machineSet1Deploy1+"-"+"0"),
+					err:           fmt.Errorf("machine %q couldn't be marked FAILED, other machines are getting replaced", machineSet1Deploy1+"-"+"0"),
 					expectedPhase: v1alpha1.MachineUnknown,
 				},
 			}),
@@ -2639,7 +2639,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           fmt.Errorf("machine %q couldn't be marked FAILED", machineSet1Deploy1+"-"+"0"),
+					err:           fmt.Errorf("timedout waiting to acquire lock for machine %q", machineSet1Deploy1+"-"+"0"),
 					expectedPhase: v1alpha1.MachineUnknown,
 				},
 			}),
