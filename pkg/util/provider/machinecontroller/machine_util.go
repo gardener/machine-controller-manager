@@ -754,7 +754,6 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				// creating lock for machineDeployment, if not allocated
 				c.permitGiver.RegisterPermits(machineDeployName, 1)
 
-				klog.Errorf("Number of goroutines now %d\n", runtime.NumGoroutine())
 				if c.permitGiver.TryPermit(machineDeployName, lockAcquireTimeout) {
 					return c.tryMarkingMachineFailed(ctx, machine, clone, machineDeployName, description)
 				}
@@ -1412,7 +1411,6 @@ func (c *controller) canMarkMachineFailed(machineDeployName, machineName, namesp
 		return false, err
 	}
 
-	klog.Infof("num machines in machineDeploy=%s is %d", machineDeployName, len(machineList))
 	// inProgress keeps count of number of machines which are counted as `getting replaced`
 	var inProgress int
 
@@ -1439,9 +1437,10 @@ func (c *controller) canMarkMachineFailed(machineDeployName, machineName, namesp
 		}
 	}
 
-	klog.Errorf("machineDeployName=%q for machine=%q , terminating=%d , failed=%d , pending=%d , noPhase=%d , crashLooping=%d , extraCountedProgress=%d", machineDeployName, machineName, terminating, failed, pending, noPhase, crashLooping, terminating)
+	klog.V(2).Infof("machineDeployName=%q for machine=%q , terminating=%d , failed=%d , pending=%d , noPhase=%d , crashLooping=%d , extraCountedProgress=%d", machineDeployName, machineName, terminating, failed, pending, noPhase, crashLooping, terminating)
 
 	if inProgress < maxReplacements {
+		klog.V(2).Infof("Number of goroutines now %d\n", runtime.NumGoroutine())
 		return true, nil
 	}
 	return false, nil
@@ -1499,7 +1498,6 @@ func TryLock(lockC chan<- struct{}, duration time.Duration) bool {
 
 func (c *controller) tryMarkingMachineFailed(ctx context.Context, machine, clone *v1alpha1.Machine, machineDeployName, description string) (machineutils.RetryPeriod, error) {
 	defer c.permitGiver.ReleasePermit(machineDeployName)
-	klog.Infof("Acquired lock ,machineName=%q", machine.Name)
 	markable, err := c.canMarkMachineFailed(machineDeployName, machine.Name, machine.Namespace, maxReplacements)
 	if err != nil {
 		klog.Errorf("Couldn't check if machine can be marked as Failed. Error: %q", err)
@@ -1518,7 +1516,6 @@ func (c *controller) tryMarkingMachineFailed(ctx context.Context, machine, clone
 		klog.Infof("Synced caches before leaving lock, machineName=%q", machine.Name)
 	} else {
 		//in case its not markable then give chance to other goroutines
-		klog.Infof("Can't mark machine %q as Failed as since machines other than Unknown and Running present", machine.Name)
 		err = fmt.Errorf("machine %q couldn't be marked FAILED", machine.Name)
 	}
 	return machineutils.ShortRetry, err
