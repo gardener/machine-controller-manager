@@ -1488,9 +1488,8 @@ func TryLock(lockC chan<- struct{}, duration time.Duration) bool {
 }
 
 func (c *controller) tryMarkingMachineFailed(ctx context.Context, machine, clone *v1alpha1.Machine, machineDeployName, description string, lockAcquireTimeout time.Duration) (machineutils.RetryPeriod, error) {
-	defer c.permitGiver.ReleasePermit(machineDeployName)
-
 	if c.permitGiver.TryPermit(machineDeployName, lockAcquireTimeout) {
+		defer c.permitGiver.ReleasePermit(machineDeployName)
 		markable, err := c.canMarkMachineFailed(machineDeployName, machine.Name, machine.Namespace, maxReplacements)
 		if err != nil {
 			klog.Errorf("Couldn't check if machine can be marked as Failed. Error: %q", err)
