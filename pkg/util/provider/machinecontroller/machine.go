@@ -388,6 +388,8 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q", machine.Name, providerID, getNodeName(machine))
 
 				//if a stale node obj exists by the same nodeName
+				// TODO: there is a case with Azure where VM reporting from infra is delayed but node joins
+				// in this case we would treat it as a stale node and trigger machine deletion.
 				if _, err := c.nodeLister.Get(nodeName); err == nil {
 					//mark the machine obj as `Failed`
 					klog.Errorf("Stale node obj with name %q for machine %q has been found. Hence marking the created VM for deletion to trigger a new machine creation.", nodeName, machine.Name)

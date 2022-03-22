@@ -18,7 +18,11 @@ package controller
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"io"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,6 +39,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -49,6 +54,15 @@ import (
 )
 
 func TestMachineControllerSuite(t *testing.T) {
+	//to enable goroutine leak check , currently not using as it fails tests for less important leaks
+	//defer goleak.VerifyNone(t)
+
+	//for filtering out warning logs. Reflector short watch warning logs won't print now
+	klog.SetOutput(io.Discard)
+	flags := &flag.FlagSet{}
+	klog.InitFlags(flags)
+	flags.Set("logtostderr", "false")
+
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Machine Controller Suite")
 }
@@ -303,7 +317,11 @@ func newMachine(
 	addFinalizer bool,
 	creationTimestamp metav1.Time,
 ) *v1alpha1.Machine {
-	return newMachines(1, specTemplate, statusTemplate, owner, annotations, labels, addFinalizer, creationTimestamp)[0]
+	machine := newMachines(1, specTemplate, statusTemplate, owner, annotations, labels, addFinalizer, creationTimestamp)[0]
+	if specTemplate.Name != "" {
+		machine.Name = specTemplate.Name
+	}
+	return machine
 }
 
 func newMachines(
@@ -332,7 +350,13 @@ func newMachines(
 				Kind:       "Machine",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:              fmt.Sprintf("machine-%d", i),
+				Name: func(generateName string, i int) string {
+					if generateName != "" {
+						return fmt.Sprintf("%s-%d", generateName, i)
+					} else {
+						return fmt.Sprintf("machine-%d", i)
+					}
+				}(specTemplate.ObjectMeta.GenerateName, i),
 				Namespace:         testNamespace,
 				Labels:            labels,
 				Annotations:       annotations,
@@ -363,14 +387,18 @@ func newMachines(
 
 func newNode(
 	nodeCount int,
+	labels map[string]string,
+	annotations map[string]string,
 	nodeSpec *corev1.NodeSpec,
 	nodeStatus *corev1.NodeStatus,
 ) *corev1.Node {
-	return newNodes(1, nodeSpec, nodeStatus)[0]
+	return newNodes(1, labels, annotations, nodeSpec, nodeStatus)[0]
 }
 
 func newNodes(
 	nodeCount int,
+	labels map[string]string,
+	annotations map[string]string,
 	nodeSpec *corev1.NodeSpec,
 	nodeStatus *corev1.NodeStatus,
 ) []*corev1.Node {
@@ -383,9 +411,12 @@ func newNodes(
 				Kind:       "Node",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("node-%d", i),
+				Name:        fmt.Sprintf("node-%d", i),
+				Labels:      labels,
+				Annotations: annotations,
 			},
-			Spec: *nodeSpec.DeepCopy(),
+			Spec:   *nodeSpec.DeepCopy(),
+			Status: *nodeStatus.DeepCopy(),
 		}
 
 		nodes[i] = node
@@ -454,6 +485,34 @@ func newSecretReference(meta *metav1.ObjectMeta, index int) *corev1.SecretRefere
 
 func boolPtr(b bool) *bool {
 	return &b
+}
+
+func nodeConditions(kubeletReady, readOnlyFileSystem, networkUnavailable, diskPressure, kernelDeadlock bool) []v1.NodeCondition {
+	// KernelDeadlock,ReadonlyFilesystem,DiskPressure,NetworkUnavailable
+	conditions := []v1.NodeCondition{
+		{
+			Type:   v1.NodeReady,
+			Status: v1.ConditionStatus(strings.Title(strconv.FormatBool(kubeletReady))),
+		},
+		{
+			Type:   "KernelDeadlock",
+			Status: v1.ConditionStatus(strings.Title(strconv.FormatBool(kernelDeadlock))),
+		},
+		{
+			Type:   "ReadonlyFilesystem",
+			Status: v1.ConditionStatus(strings.Title(strconv.FormatBool(readOnlyFileSystem))),
+		},
+		{
+			Type:   "DiskPressure",
+			Status: v1.ConditionStatus(strings.Title(strconv.FormatBool(diskPressure))),
+		},
+		{
+			Type:   "NetworkUnavailable",
+			Status: v1.ConditionStatus(strings.Title(strconv.FormatBool(networkUnavailable))),
+		},
+	}
+
+	return conditions
 }
 
 func createController(
@@ -528,6 +587,7 @@ func createController(
 
 	controller := &controller{
 		namespace:                   namespace,
+		nodeConditions:              "KernelDeadlock,ReadonlyFilesystem,DiskPressure,NetworkUnavailable",
 		driver:                      fakedriver,
 		safetyOptions:               safetyOptions,
 		machineClassLister:          machineClass.Lister(),
