@@ -30,6 +30,7 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/handlers"
 	"github.com/gardener/machine-controller-manager/pkg/util/k8sutils"
+	"github.com/gardener/machine-controller-manager/pkg/util/permits"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/options"
@@ -96,6 +97,11 @@ func NewController(
 		volumeAttachmentResourceName = "volumeattachments"
 		// volumeAttachmentResource is the kind used for VolumeAttachment
 		volumeAttachmentResourceKind = "VolumeAttachment"
+		// permitGiverStaleEntryTimeout is the time for which an entry can stay stale in the map
+		// maintained by permitGiver
+		permitGiverStaleEntryTimeout = 1 * time.Hour
+		// janitorFreq is the time after which permitGiver ranges its map for stale entries
+		janitorFreq = 10 * time.Minute
 	)
 
 	controller := &controller{
@@ -115,6 +121,7 @@ func NewController(
 		driver:                        driver,
 		bootstrapTokenAuthExtraGroups: bootstrapTokenAuthExtraGroups,
 		volumeAttachmentHandler:       nil,
+		permitGiver:                   permits.NewPermitGiver(permitGiverStaleEntryTimeout, janitorFreq),
 	}
 
 	controller.internalExternalScheme = runtime.NewScheme()
@@ -244,6 +251,11 @@ type controller struct {
 	internalExternalScheme  *runtime.Scheme
 	driver                  driver.Driver
 	volumeAttachmentHandler *drain.VolumeAttachmentHandler
+	// permitGiver store two things:
+	// - mutex per machinedeployment
+	// - lastAcquire time
+	// it is used to limit removal of `health timed out` machines
+	permitGiver permits.PermitGiver
 
 	// listers
 	pvcLister               corelisters.PersistentVolumeClaimLister
@@ -279,6 +291,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	)
 
 	defer runtimeutil.HandleCrash()
+	defer c.permitGiver.Close()
 	defer c.nodeQueue.ShutDown()
 	defer c.secretQueue.ShutDown()
 	defer c.machineClassQueue.ShutDown()
