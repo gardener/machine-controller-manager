@@ -31,6 +31,7 @@ var _ = Describe("permit", func() {
 		key1 = "key1"
 		key2 = "key2"
 	)
+
 	Describe("#RegisterPermits", func() {
 		BeforeEach(func() {
 			pg = NewPermitGiver(5*time.Second, 1*time.Second).(*permitGiver)
@@ -45,6 +46,93 @@ var _ = Describe("permit", func() {
 			Expect(pg.isPermitAllocated(key1)).To(BeFalse())
 			pg.RegisterPermits(key1, 1)
 			Expect(pg.isPermitAllocated(key1)).To(BeTrue())
+		})
+	})
+
+	Describe("#DeletePermits", func() {
+		BeforeEach(func() {
+			pg = NewPermitGiver(5*time.Second, 1*time.Second).(*permitGiver)
+			pg.RegisterPermits(key1, 1)
+		})
+		AfterEach(func() {
+			pg.Close()
+		})
+		It("should delete permit for given there is a permit related to that key", func() {
+			Expect(pg.isPermitAllocated(key1)).To(BeTrue())
+			pg.DeletePermits(key1)
+			Expect(pg.isPermitAllocated(key1)).To(BeFalse())
+		})
+		It("nothing changes if permit is not there already", func() {
+			Expect(pg.isPermitAllocated(key2)).To(BeFalse())
+			pg.DeletePermits(key2)
+			Expect(pg.isPermitAllocated(key2)).To(BeFalse())
+		})
+	})
+
+	Describe("#TryPermit", func() {
+		BeforeEach(func() {
+			pg = NewPermitGiver(5*time.Second, 1*time.Second).(*permitGiver)
+			pg.RegisterPermits(key1, 1)
+		})
+		It("should return false if permitGiver is closed", func() {
+			pg.Close()
+			Expect(pg.TryPermit(key1, 1*time.Second)).To(BeFalse())
+		})
+		It("should return false if there is no permit for that key", func() {
+			Expect(pg.TryPermit(key2, 1*time.Second)).To(BeFalse())
+		})
+		It("should return true if permit is avialable", func() {
+			Expect(pg.TryPermit(key1, 1*time.Second)).To(BeTrue())
+		})
+		// few more things to test is, if while trying to give permit the pg got closed, or the timeout occured,
+		//also if the time got written there correctly
+	})
+
+	Describe("#isClose", func() {
+		BeforeEach(func() {
+			pg = NewPermitGiver(5*time.Second, 1*time.Second).(*permitGiver)
+		})
+		It("return true if closed", func() {
+			pg.Close()
+			Expect(pg.isClosed()).To(BeTrue())
+		})
+		It("return false if not closed", func() {
+			Expect(pg.isClosed()).To(BeFalse())
+			pg.Close()
+		})
+	})
+
+	Describe("#Close", func() {
+		BeforeEach(func() {
+			pg = NewPermitGiver(5*time.Second, 1*time.Second).(*permitGiver)
+			pg.RegisterPermits(key1, 1)
+		})
+		It("closed the PermitGiver", func() {
+			Expect(pg.isClosed()).To(BeFalse())
+			pg.Close()
+			Expect(pg.isClosed()).To(BeTrue())
+		})
+	})
+
+	Describe("#Release Permit", func() {
+		BeforeEach(func() {
+			pg = NewPermitGiver(5*time.Second, 1*time.Second).(*permitGiver)
+			pg.RegisterPermits(key1, 1)
+			pg.TryPermit(key1, 10*time.Second)
+		})
+		AfterEach(func() {
+			pg.Close()
+		})
+		It("should release the key1 permit", func() {
+			Expect(pg.isPermitAllocated(key1)).To(BeTrue())
+			pg.ReleasePermit(key1)
+			Expect(pg.isPermitAllocated(key1)).To(BeFalse())
+		})
+		It("should not release if its not occupied already", func() {
+			Expect(pg.isPermitAllocated(key2)).To(BeFalse())
+			pg.ReleasePermit(key2)
+			//also need to check if it looged that there is no permit for this key
+			Expect(pg.isPermitAllocated(key2)).To(BeFalse())
 		})
 	})
 })
