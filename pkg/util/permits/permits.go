@@ -148,11 +148,23 @@ func (pg *permitGiver) isClosed() bool {
 }
 
 func (pg *permitGiver) isPermitAllocated(key string) bool {
-	_, ok := pg.keyPermitsMap.Load(key)
-	if !ok {
+	if pg.isClosed() {
 		return false
 	}
-	return true
+	_, ok := pg.keyPermitsMap.Load(key)
+	return ok
+}
+
+func (pg *permitGiver) isPermitAcquired(key string) bool {
+	if obj, ok := pg.keyPermitsMap.Load(key); ok {
+		p := obj.(permit)
+		if len(p.c) != 0 {
+			return true
+		}
+	} else {
+		klog.V(4).Infof("couldn't find a permit correspoding to key: %s", key)
+	}
+	return false
 }
 
 func (pg *permitGiver) cleanupStalePermitEntries(stalePermitKeyTimeout time.Duration) {
