@@ -245,9 +245,11 @@ type MachineDeploymentCondition struct {
 	Status ConditionStatus `json:"status"`
 
 	// The last time this condition was updated.
+	//+nullable
 	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
 
 	// Last time the condition transitioned from one status to another.
+	//+nullable
 	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
 
 	// The reason for the condition's last transition.

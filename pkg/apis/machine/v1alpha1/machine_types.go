@@ -119,6 +119,7 @@ type LastOperation struct {
 	Description string `json:"description,omitempty"`
 
 	// Last update time of current operation
+	//+nullable
 	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
 
 	// State of operation
@@ -209,6 +210,7 @@ type CurrentStatus struct {
 	TimeoutActive bool `json:"timeoutActive,omitempty"`
 
 	// Last update time of current status
+	//+nullable
 	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
 }
 

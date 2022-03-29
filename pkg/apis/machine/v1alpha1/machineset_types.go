@@ -102,6 +102,7 @@ type MachineSetCondition struct {
 
 	// The last time the condition transitioned from one status to another.
 	// +optional
+	//+nullable
 	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
 
 	// The reason for the condition's last transition.

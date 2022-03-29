@@ -393,10 +393,12 @@ spec:
                       description: Last time the condition transitioned from one status
                         to another.
                       format: date-time
+                      nullable: true
                       type: string
                     lastUpdateTime:
                       description: The last time this condition was updated.
                       format: date-time
+                      nullable: true
                       type: string
                     message:
                       description: A human readable message indicating details about
@@ -432,6 +434,7 @@ spec:
                         lastUpdateTime:
                           description: Last update time of current operation
                           format: date-time
+                          nullable: true
                           type: string
                         state:
                           description: State of operation

@@ -237,6 +237,7 @@ spec:
                   lastUpdateTime:
                     description: Last update time of current status
                     format: date-time
+                    nullable: true
                     type: string
                   phase:
                     description: MachinePhase is a label for the condition of a machines
@@ -260,6 +261,7 @@ spec:
                   lastUpdateTime:
                     description: Last update time of current operation
                     format: date-time
+                    nullable: true
                     type: string
                   state:
                     description: State of operation

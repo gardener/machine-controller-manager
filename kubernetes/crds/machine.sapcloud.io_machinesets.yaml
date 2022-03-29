@@ -315,6 +315,7 @@ spec:
                         lastUpdateTime:
                           description: Last update time of current operation
                           format: date-time
+                          nullable: true
                           type: string
                         state:
                           description: State of operation
@@ -349,6 +350,7 @@ spec:
                   lastUpdateTime:
                     description: Last update time of current operation
                     format: date-time
+                    nullable: true
                     type: string
                   state:
                     description: State of operation
@@ -368,6 +370,7 @@ spec:
                       description: The last time the condition transitioned from one
                         status to another.
                       format: date-time
+                      nullable: true
                       type: string
                     message:
                       description: A human readable message indicating details about

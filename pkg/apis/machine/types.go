@@ -162,6 +162,7 @@ type CurrentStatus struct {
 	TimeoutActive bool
 
 	// Last update time of current status
+	// +nullable
 	LastUpdateTime metav1.Time
 }
 
@@ -191,6 +192,7 @@ type LastOperation struct {
 	Description string
 
 	// Last update time of current operation
+	// +nullable
 	LastUpdateTime metav1.Time
 
 	// State of operation
@@ -336,6 +338,7 @@ type MachineSetCondition struct {
 	Status ConditionStatus
 
 	// The last time the condition transitioned from one status to another.
+	//+nullable
 	LastTransitionTime metav1.Time
 
 	// The reason for the condition's last transition.
@@ -598,9 +601,11 @@ type MachineDeploymentCondition struct {
 	Status ConditionStatus
 
 	// The last time this condition was updated.
+	//+nullable
 	LastUpdateTime metav1.Time
 
 	// Last time the condition transitioned from one status to another.
+	//+nullable
 	LastTransitionTime metav1.Time
 
 	// The reason for the condition's last transition.
