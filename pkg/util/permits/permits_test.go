@@ -162,16 +162,24 @@ var _ = Describe("permit", func() {
 	Describe("#NewPermitGiver", func() {
 		BeforeEach(func() {
 			pg = NewPermitGiver(5*time.Second, 1*time.Second).(*permitGiver)
+			pg.RegisterPermits(key1, 1)
 		})
 		AfterEach(func() {
 			pg.Close()
 		})
-		It("should Cleanup after 2 second of the permission being stale", func() {
-			pg.RegisterPermits(key1, 1)
+		It("should Cleanup after 5 second of the permission being stale", func() {
+			pg.TryPermit(key1, 1*time.Second) //updates the lastAllocationtime
 			pg.ReleasePermit(key1)
 			Expect(pg.isPermitAllocated(key1)).To(BeTrue())
-			time.Sleep(2 * time.Second)
+			time.Sleep(7 * time.Second)
 			Expect(pg.isPermitAllocated(key1)).To(BeFalse())
+		})
+		FIt("should not Cleanup before 5 second of the permission being stale", func() {
+			pg.TryPermit(key1, 1*time.Second) //updates the lastAllocationtime
+			pg.ReleasePermit(key1)
+			Expect(pg.isPermitAllocated(key1)).To(BeTrue())
+			time.Sleep(4 * time.Second)
+			Expect(pg.isPermitAllocated(key1)).To(BeTrue())
 		})
 		It("Should return an open permit giver", func() {
 			Expect(pg.isClosed()).To(BeFalse())

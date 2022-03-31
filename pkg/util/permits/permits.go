@@ -35,8 +35,8 @@ type PermitGiver interface {
 }
 
 type permit struct {
-	c                      chan struct{}
 	lastAcquiredPermitTime time.Time
+	c                      chan struct{}
 }
 
 // NewPermitGiver returns a new PermitGiver
@@ -70,9 +70,9 @@ func (pg *permitGiver) RegisterPermits(key string, numPermits int) {
 	if pg.isClosed() {
 		return
 	}
-
 	p := permit{
-		c: make(chan struct{}, numPermits),
+		c:                      make(chan struct{}, numPermits),
+		lastAcquiredPermitTime: time.Now(),
 	}
 	_, loaded := pg.keyPermitsMap.LoadOrStore(key, p)
 	if loaded {
