@@ -128,8 +128,8 @@ It can be unpaused again by removing the `Paused` field from the machine-deploym
 
 ### How to avoid garbage collection of your node?
 
-MCM has a safety mechanism where it garbage collects the VMs which no machine object is pointing to. This is done to save costs and is one of the key features of MCM.
-But sometimes users would like to add nodes by themselves to the cluster without the help of MCM or would not like MCM to garbage collect VMs which it created. 
+MCM provides an in-built safety mechanism to garbage collect VMs which have no corresponding machine object. This is done to save costs and is one of the key features of MCM.
+However, sometimes users might like to add nodes directly to the cluster without the help of MCM and would prefer MCM to not garbage collect such VMs. 
 To do so they should remove/not-use tags on their VMs containing the following strings:
 
 1) `kubernetes.io/cluster/`
