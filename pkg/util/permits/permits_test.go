@@ -125,7 +125,7 @@ var _ = Describe("permit", func() {
 			pg.ReleasePermit(key1)
 			Expect(pg.isPermitAcquired(key1)).To(BeFalse())
 		})
-		It("should not release if its not occupied already", func() {
+		It("should not release if its not acquired already", func() {
 			Expect(pg.isPermitAcquired(key2)).To(BeFalse())
 			pg.ReleasePermit(key2)
 			//also need to check if it looged that there is no permit for this key
