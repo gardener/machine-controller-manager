@@ -60,6 +60,10 @@ var _ = Describe("permit", func() {
 			pg.RegisterPermits(key1, 1)
 			Expect(pg.isPermitAllocated(key1)).To(BeTrue())
 			pg.RegisterPermits(key1, 2)
+			if obj, ok := pg.keyPermitsMap.Load(key1); ok {
+				p := obj.(permit)
+				Expect(cap(p.c)).To(Equal(1))
+			}
 			Expect(pg.isPermitAllocated(key1)).To(BeTrue())
 		})
 	})
@@ -107,11 +111,7 @@ var _ = Describe("permit", func() {
 		It("should return true if permit is available", func() {
 			Expect(pg.TryPermit(key1, 1*time.Second)).To(BeTrue())
 		})
-<<<<<<< HEAD
 		//TODO: few more things to test is, if while trying to give permit the pg got closed, or the timeout occured,
-=======
-		//TODO:  few more things to test is, if while trying to give permit the pg got closed, or the timeout occured,
->>>>>>> 76b418059d07bd7133cb21dd25663cd458d5f4fc
 		//also if the time got written there correctly
 	})
 
