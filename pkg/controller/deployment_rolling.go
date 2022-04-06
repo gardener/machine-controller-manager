@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,12 +46,11 @@ var (
 
 // rolloutRolling implements the logic for rolling a new machine set.
 func (dc *controller) rolloutRolling(ctx context.Context, d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
-
 	clusterAutoscalerScaleDownAnnotations := make(map[string]string)
-	clusterAutoscalerScaleDownAnnotations[ClusterAutoscalerScaleDownDisabledAnnotationKey] = ClusterAutoscalerScaleDownDisabledAnnotationValue
+	clusterAutoscalerScaleDownAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
 
 	// We do this to avoid accidentally deleting the user provided annotations.
-	clusterAutoscalerScaleDownAnnotations[ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
+	clusterAutoscalerScaleDownAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
 
 	newIS, oldISs, err := dc.getAllMachineSetsAndSyncRevision(ctx, d, isList, machineMap, true)
 	if err != nil {
@@ -292,7 +292,6 @@ func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(ctx context.Contex
 
 // taintNodesBackingMachineSets taints all nodes backing the machineSets
 func (dc *controller) taintNodesBackingMachineSets(ctx context.Context, MachineSets []*v1alpha1.MachineSet, taint *v1.Taint) error {
-
 	for _, machineSet := range MachineSets {
 
 		if _, exists := machineSet.Annotations[taint.Key]; exists {
@@ -377,7 +376,6 @@ func (dc *controller) taintNodesBackingMachineSets(ctx context.Context, MachineS
 
 // annotateNodesBackingMachineSets annotates all nodes backing the machineSets
 func (dc *controller) annotateNodesBackingMachineSets(ctx context.Context, MachineSets []*v1alpha1.MachineSet, annotations map[string]string) error {
-
 	for _, machineSet := range MachineSets {
 
 		klog.V(4).Infof("Trying to annotate nodes under the MachineSet object %q with %s", machineSet.Name, annotations)
@@ -430,7 +428,6 @@ func (dc *controller) machineSetsScaledToZero(MachineSets []*v1alpha1.MachineSet
 
 // removeAutoscalerAnnotationsIfRequired removes the annotations if needed from nodes backing machinesets.
 func (dc *controller) removeAutoscalerAnnotationsIfRequired(ctx context.Context, MachineSets []*v1alpha1.MachineSet, annotations map[string]string) error {
-
 	for _, machineSet := range MachineSets {
 
 		selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
@@ -467,7 +464,7 @@ func (dc *controller) removeAutoscalerAnnotationsIfRequired(ctx context.Context,
 
 				// Remove the autoscaler-related annotation only if the by-mcm annotation is already set. If
 				// by-mcm annotation is not set, the original annotation is likely be put by the end-user for their usecases.
-				if _, exists := nodeAnnotations[ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey]; exists {
+				if _, exists := nodeAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey]; exists {
 					err = RemoveAnnotationsOffNode(
 						ctx,
 						dc.targetCoreClient,
