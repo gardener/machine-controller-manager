@@ -74,7 +74,7 @@ var _ = Describe("permit", func() {
 				pg.Close()
 			}
 		})
-		It("should delete permit for given there is a permit related to that key", func() {
+		It("should delete permit if there is a permit related to that key", func() {
 			Expect(pg.isPermitAllocated(key1)).To(BeTrue())
 			pg.DeletePermits(key1)
 			Expect(pg.isPermitAllocated(key1)).To(BeFalse())
@@ -107,7 +107,11 @@ var _ = Describe("permit", func() {
 		It("should return true if permit is available", func() {
 			Expect(pg.TryPermit(key1, 1*time.Second)).To(BeTrue())
 		})
+<<<<<<< HEAD
 		//TODO: few more things to test is, if while trying to give permit the pg got closed, or the timeout occured,
+=======
+		//TODO:  few more things to test is, if while trying to give permit the pg got closed, or the timeout occured,
+>>>>>>> 76b418059d07bd7133cb21dd25663cd458d5f4fc
 		//also if the time got written there correctly
 	})
 
@@ -125,7 +129,7 @@ var _ = Describe("permit", func() {
 			pg.ReleasePermit(key1)
 			Expect(pg.isPermitAcquired(key1)).To(BeFalse())
 		})
-		It("should not release if its not occupied already", func() {
+		It("should not release if its not acquired already", func() {
 			Expect(pg.isPermitAcquired(key2)).To(BeFalse())
 			pg.ReleasePermit(key2)
 			//TODO: also need to check if it looged that there is no permit for this key

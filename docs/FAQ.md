@@ -18,6 +18,7 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
   * [How to scale down MachineDeployment by selective deletion of machines?](#How-to-scale-down-machinedeployment-by-selective-deletion-of-machines)
   * [How to force delete a machine?](#How-to-force-delete-a-machine)
   * [How to pause the ongoing rolling-update of the machinedeployment?](#How-to-pause-the-ongoing-rolling-update-of-the-machinedeployment)
+  * [How to avoid garbage collection of your node?](#How-to-avoid-garbage-collection-of-your-node)
 
 * [Internals](#internals)
   * [What is the high level design of MCM?](#What-is-the-high-level-design-of-MCM)
@@ -124,6 +125,17 @@ spec:
 ```
 
 It can be unpaused again by removing the `Paused` field from the machine-deployment.
+
+### How to avoid garbage collection of your node?
+
+MCM provides an in-built safety mechanism to garbage collect VMs which have no corresponding machine object. This is done to save costs and is one of the key features of MCM.
+However, sometimes users might like to add nodes directly to the cluster without the help of MCM and would prefer MCM to not garbage collect such VMs. 
+To do so they should remove/not-use tags on their VMs containing the following strings:
+
+1) `kubernetes.io/cluster/`
+2) `kubernetes.io/role/`
+3) `kubernetes-io-cluster-`
+4) `kubernetes-io-role-`
 
 # Internals
 ### What is the high level design of MCM?
