@@ -19,6 +19,7 @@ import (
 	"context"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -29,7 +30,6 @@ import (
 )
 
 var _ = Describe("deployment_rolling", func() {
-
 	Describe("#taintNodesBackingMachineSets", func() {
 		type setup struct {
 			nodes       []*corev1.Node
@@ -121,7 +121,6 @@ var _ = Describe("deployment_rolling", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualNode.Spec.Taints).Should(ConsistOf(expectedNode.Spec.Taints))
 				}
-
 			},
 			Entry("taints on nodes backing machineSet", &data{
 				setup: setup{
@@ -613,8 +612,8 @@ var _ = Describe("deployment_rolling", func() {
 					),
 					existingAnnotations: map[string]string{
 						"anno1": "anno1",
-						ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey: ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue,
-						ClusterAutoscalerScaleDownDisabledAnnotationKey:      ClusterAutoscalerScaleDownDisabledAnnotationValue,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey: autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey:      autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue,
 					},
 				},
 				action: action{
@@ -637,8 +636,8 @@ var _ = Describe("deployment_rolling", func() {
 						nil,
 					),
 					annotations: map[string]string{
-						ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey: ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue,
-						ClusterAutoscalerScaleDownDisabledAnnotationKey:      ClusterAutoscalerScaleDownDisabledAnnotationValue,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey: autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey:      autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue,
 					},
 				},
 				expect: expect{
@@ -669,7 +668,7 @@ var _ = Describe("deployment_rolling", func() {
 					),
 					existingAnnotations: map[string]string{
 						"anno1": "anno1",
-						ClusterAutoscalerScaleDownDisabledAnnotationKey: ClusterAutoscalerScaleDownDisabledAnnotationValue,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey: autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue,
 					},
 				},
 				action: action{
@@ -692,14 +691,14 @@ var _ = Describe("deployment_rolling", func() {
 						nil,
 					),
 					annotations: map[string]string{
-						ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey: ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue,
-						ClusterAutoscalerScaleDownDisabledAnnotationKey:      ClusterAutoscalerScaleDownDisabledAnnotationValue,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey: autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey:      autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue,
 					},
 				},
 				expect: expect{
 					nodeAnnotations: map[string]string{
 						"anno1": "anno1",
-						ClusterAutoscalerScaleDownDisabledAnnotationKey: ClusterAutoscalerScaleDownDisabledAnnotationValue,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey: autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue,
 					},
 					err: false,
 				},
@@ -747,8 +746,8 @@ var _ = Describe("deployment_rolling", func() {
 						nil,
 					),
 					annotations: map[string]string{
-						ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey: ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue,
-						ClusterAutoscalerScaleDownDisabledAnnotationKey:      ClusterAutoscalerScaleDownDisabledAnnotationValue,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey: autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey:      autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue,
 					},
 				},
 				expect: expect{

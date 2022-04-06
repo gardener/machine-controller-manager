@@ -24,7 +24,7 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	mcmcore "github.com/gardener/machine-controller-manager/pkg/controller"
+	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	"github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	"github.com/gardener/machine-controller-manager/pkg/util/permits"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
@@ -48,9 +48,7 @@ const (
 )
 
 var _ = Describe("machine_util", func() {
-
 	Describe("#syncMachineNodeTemplates", func() {
-
 		type setup struct {
 			machine *machinev1.Machine
 		}
@@ -96,7 +94,7 @@ var _ = Describe("machine_util", func() {
 					Expect(err).To(Equal(data.expect.err))
 				}
 
-				//updatedNodeObject, _ := c.nodeLister.Get(nodeObject.Name)
+				// updatedNodeObject, _ := c.nodeLister.Get(nodeObject.Name)
 				updatedNodeObject, _ := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), nodeObject.Name, metav1.GetOptions{})
 
 				if data.expect.node != nil {
@@ -134,11 +132,12 @@ var _ = Describe("machine_util", func() {
 										},
 									},
 									Spec: corev1.NodeSpec{
-										Taints: []corev1.Taint{{
-											Key:    "key1",
-											Value:  "value1",
-											Effect: "NoSchedule",
-										},
+										Taints: []corev1.Taint{
+											{
+												Key:    "key1",
+												Value:  "value1",
+												Effect: "NoSchedule",
+											},
 										},
 									},
 								},
@@ -437,11 +436,9 @@ var _ = Describe("machine_util", func() {
 				},
 			}),
 		)
-
 	})
 
 	Describe("#SyncMachineLabels", func() {
-
 		type setup struct{}
 		type action struct {
 			node    *corev1.Node
@@ -871,11 +868,9 @@ var _ = Describe("machine_util", func() {
 				},
 			}),
 		)
-
 	})
 
 	Describe("#SyncMachineAnnotations", func() {
-
 		type setup struct{}
 		type action struct {
 			node    *corev1.Node
@@ -1289,11 +1284,9 @@ var _ = Describe("machine_util", func() {
 				},
 			}),
 		)
-
 	})
 
 	Describe("#SyncMachineTaints", func() {
-
 		type setup struct{}
 		type action struct {
 			node    *corev1.Node
@@ -1868,11 +1861,9 @@ var _ = Describe("machine_util", func() {
 				},
 			}),
 		)
-
 	})
 
 	Describe("#isMachineStatusSimilar", func() {
-
 		type setup struct {
 			m1, m2 machinev1.MachineStatus
 		}
@@ -2006,11 +1997,9 @@ var _ = Describe("machine_util", func() {
 				},
 			}),
 		)
-
 	})
 
 	Describe("#validateNodeTemplate", func() {
-
 		type setup struct {
 			machineClass *machinev1.MachineClass
 		}
@@ -2125,10 +2114,10 @@ var _ = Describe("machine_util", func() {
 		type setup struct {
 			machines []*v1alpha1.Machine
 			nodes    []*v1.Node
-			//targetMachineName is name of machine for which `reconcileMachineHealth()` needs to be called
-			//Its must this machine in machine list
+			// targetMachineName is name of machine for which `reconcileMachineHealth()` needs to be called
+			// Its must this machine in machine list
 			targetMachineName string
-			//to check case when lock can't be acquired for long time
+			// to check case when lock can't be acquired for long time
 			lockAlreadyAcquired bool
 		}
 		type expect struct {
@@ -2320,7 +2309,7 @@ var _ = Describe("machine_util", func() {
 							nil, map[string]string{"node": "node-0"}, true, metav1.Now()),
 					},
 					nodes: []*v1.Node{
-						newNode(1, nil, map[string]string{mcmcore.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey: "true"}, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+						newNode(1, nil, map[string]string{autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey: "true"}, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
 					},
 					targetMachineName: machineSet1Deploy1 + "-" + "0",
 				},
@@ -2405,7 +2394,7 @@ var _ = Describe("machine_util", func() {
 			Expect(getErr).To(BeNil())
 			Expect(data.expect.expectedPhase).To(Equal(updatedTargetMachine.Status.CurrentStatus.Phase))
 		},
-			//Note: Test cases assume 1 maxReplacements per machinedeployment
+			// Note: Test cases assume 1 maxReplacements per machinedeployment
 
 			Entry("2 HealthTimedOut machines: from different machinedeployments,only 1 machine per machineDeployment present, targetMachine should be marked Failed", &data{
 				setup: setup{
