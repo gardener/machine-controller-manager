@@ -74,7 +74,7 @@ var _ = Describe("permit", func() {
 				pg.Close()
 			}
 		})
-		It("should delete permit for given there is a permit related to that key", func() {
+		It("should delete permit if there is a permit related to that key", func() {
 			Expect(pg.isPermitAllocated(key1)).To(BeTrue())
 			pg.DeletePermits(key1)
 			Expect(pg.isPermitAllocated(key1)).To(BeFalse())
