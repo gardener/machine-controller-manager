@@ -35,8 +35,8 @@ type PermitGiver interface {
 }
 
 type permit struct {
-	c                      chan struct{}
 	lastAcquiredPermitTime time.Time
+	c                      chan struct{}
 }
 
 // NewPermitGiver returns a new PermitGiver
@@ -70,9 +70,9 @@ func (pg *permitGiver) RegisterPermits(key string, numPermits int) {
 	if pg.isClosed() {
 		return
 	}
-
 	p := permit{
-		c: make(chan struct{}, numPermits),
+		c:                      make(chan struct{}, numPermits),
+		lastAcquiredPermitTime: time.Now(),
 	}
 	_, loaded := pg.keyPermitsMap.LoadOrStore(key, p)
 	if loaded {
@@ -148,11 +148,23 @@ func (pg *permitGiver) isClosed() bool {
 }
 
 func (pg *permitGiver) isPermitAllocated(key string) bool {
-	_, ok := pg.keyPermitsMap.Load(key)
-	if !ok {
+	if pg.isClosed() {
 		return false
 	}
-	return true
+	_, ok := pg.keyPermitsMap.Load(key)
+	return ok
+}
+
+func (pg *permitGiver) isPermitAcquired(key string) bool {
+	if obj, ok := pg.keyPermitsMap.Load(key); ok {
+		p := obj.(permit)
+		if len(p.c) != 0 {
+			return true
+		}
+	} else {
+		klog.V(4).Infof("couldn't find a permit corresponding to key: %s", key)
+	}
+	return false
 }
 
 func (pg *permitGiver) cleanupStalePermitEntries(stalePermitKeyTimeout time.Duration) {
