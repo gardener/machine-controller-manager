@@ -35,7 +35,7 @@ import (
 
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	mcmcore "github.com/gardener/machine-controller-manager/pkg/controller"
+	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
@@ -56,10 +56,8 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var (
-	// emptyMap is a dummy emptyMap to compare with
-	emptyMap = make(map[string]string)
-)
+// emptyMap is a dummy emptyMap to compare with
+var emptyMap = make(map[string]string)
 
 const (
 	maxReplacements    = 1
@@ -224,7 +222,6 @@ func (c *controller) getSecret(ref *v1.SecretReference, MachineClassName string)
 
 // nodeConditionsHaveChanged compares two node statuses to see if any of the statuses have changed
 func nodeConditionsHaveChanged(machineConditions []v1.NodeCondition, nodeConditions []v1.NodeCondition) bool {
-
 	if len(machineConditions) != len(nodeConditions) {
 		return true
 	}
@@ -610,7 +607,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 
 				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 					Phase: v1alpha1.MachineUnknown,
-					//TimeoutActive:  true,
+					// TimeoutActive:  true,
 					LastUpdateTime: metav1.Now(),
 				}
 				clone.Status.LastOperation = v1alpha1.LastOperation{
@@ -641,7 +638,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 
 			clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 				Phase: v1alpha1.MachineUnknown,
-				//TimeoutActive:  true,
+				// TimeoutActive:  true,
 				LastUpdateTime: metav1.Now(),
 			}
 			clone.Status.LastOperation = v1alpha1.LastOperation{
@@ -683,7 +680,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			}
 			clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 				Phase: v1alpha1.MachineRunning,
-				//TimeoutActive:  false,
+				// TimeoutActive:  false,
 				LastUpdateTime: metav1.Now(),
 			}
 			cloneDirty = true
@@ -730,7 +727,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				}
 				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 					Phase: v1alpha1.MachineFailed,
-					//TimeoutActive:  false,
+					// TimeoutActive:  false,
 					LastUpdateTime: metav1.Now(),
 				}
 				cloneDirty = true
@@ -742,7 +739,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					timeOutDuration,
 					machine.Status.Conditions,
 				)
-				//ensuring rollout of machineDeployment is not happening
+				// ensuring rollout of machineDeployment is not happening
 				if c.isRollingOut(machine) {
 					klog.V(2).Infof("Skipping marking machine=%s Failed, as rollout for corresponding machineDeployment is happening, will retry in next sync", machine.Name)
 					return machineutils.MediumRetry, nil
@@ -867,7 +864,7 @@ func (c *controller) setMachineTerminationStatus(ctx context.Context, deleteMach
 	}
 	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 		Phase: v1alpha1.MachineTerminating,
-		//TimeoutActive:  false,
+		// TimeoutActive:  false,
 		LastUpdateTime: metav1.Now(),
 	}
 
@@ -1008,7 +1005,6 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 	} else {
 
 		for _, condition := range machine.Status.Conditions {
-
 			if condition.Type == v1.NodeReady {
 				nodeReadyCondition = condition
 			} else if condition.Type == ReadonlyFilesystem {
@@ -1371,7 +1367,7 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 	}
 	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 		Phase: v1alpha1.MachineFailed,
-		//TimeoutActive:  false,
+		// TimeoutActive:  false,
 		LastUpdateTime: metav1.Now(),
 	}
 
@@ -1497,11 +1493,11 @@ func (c *controller) tryMarkingMachineFailed(ctx context.Context, machine, clone
 			if markable {
 				var updated bool
 				updated, err = c.updateMachineToFailedState(ctx, description, machine, clone)
-				//wait for cache sync
+				// wait for cache sync
 				if updated && !c.waitForFailedMachineCacheUpdate(machine, pollInterval, cacheUpdateTimeout) {
-					//waiting 10 sec since nothing else can be done if cache update is failing
+					// waiting 10 sec since nothing else can be done if cache update is failing
 					klog.Infof("cache sync returned false, waiting 10 sec , machineName=%q", machine.Name)
-					//TODO: This needs to be enhanced as cache update is not guaranteed.
+					// TODO: This needs to be enhanced as cache update is not guaranteed.
 					time.Sleep(10 * time.Second)
 				}
 				klog.V(3).Infof("Synced caches before leaving lock, machineName=%q", machine.Name)
@@ -1532,7 +1528,7 @@ func (c *controller) isRollingOut(machine *v1alpha1.Machine) bool {
 	nodeAnnotations := node.Annotations
 	if nodeAnnotations == nil {
 		return false
-	} else if _, exists := nodeAnnotations[mcmcore.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey]; exists {
+	} else if _, exists := nodeAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey]; exists {
 		return true
 	}
 

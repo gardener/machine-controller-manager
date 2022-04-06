@@ -110,14 +110,6 @@ const (
 	// PreferNoScheduleKey is used to identify machineSet nodes on which PreferNoSchedule taint is added on
 	// older machineSets during a rolling update
 	PreferNoScheduleKey = "deployment.machine.sapcloud.io/prefer-no-schedule"
-	// ClusterAutoscalerScaleDownDisabledAnnotationKey annotation to disable the scale-down of the nodes.
-	ClusterAutoscalerScaleDownDisabledAnnotationKey = "cluster-autoscaler.kubernetes.io/scale-down-disabled"
-	// ClusterAutoscalerScaleDownDisabledAnnotationValue annotation to disable the scale-down of the nodes.
-	ClusterAutoscalerScaleDownDisabledAnnotationValue = "true"
-	// ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey annotation to disable the scale-down of the nodes.
-	ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey = "cluster-autoscaler.kubernetes.io/scale-down-disabled-by-mcm"
-	// ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue annotation to disable the scale-down of the nodes.
-	ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue = "true"
 
 	// RollbackRevisionNotFound is not found rollback event reason
 	RollbackRevisionNotFound = "DeploymentRollbackRevisionNotFound"
@@ -316,7 +308,7 @@ func SetNewMachineSetAnnotations(deployment *v1alpha1.MachineDeployment, newIS *
 			klog.Warningf("Updating machine set revision OldRevision not int %s", err)
 			return false
 		}
-		//If the RS annotation is empty then initialise it to 0
+		// If the RS annotation is empty then initialise it to 0
 		oldRevisionInt = 0
 	}
 	newRevisionInt, err := strconv.ParseInt(newRevision, 10, 64)
@@ -366,7 +358,7 @@ func SetNewMachineSetNodeTemplate(deployment *v1alpha1.MachineDeployment, newIS 
 			klog.Warningf("Updating machine set revision OldRevision not int %s", err)
 			return false
 		}
-		//If the RS annotation is empty then initialise it to 0
+		// If the RS annotation is empty then initialise it to 0
 		oldRevisionInt = 0
 	}
 	newRevisionInt, err := strconv.ParseInt(newRevision, 10, 64)
@@ -416,7 +408,7 @@ func SetNewMachineSetConfig(deployment *v1alpha1.MachineDeployment, newIS *v1alp
 			klog.Warningf("Updating machine set revision OldRevision not int %s", err)
 			return false
 		}
-		//If the RS annotation is empty then initialise it to 0
+		// If the RS annotation is empty then initialise it to 0
 		oldRevisionInt = 0
 	}
 	newRevisionInt, err := strconv.ParseInt(newRevision, 10, 64)
@@ -511,7 +503,6 @@ func copyMachineDeploymentNodeTemplatesToMachineSet(deployment *v1alpha1.Machine
 // and returns true if machine set's configuration is changed.
 // Note that apply and revision configuration are not copied.
 func copyMachineDeploymentConfigToMachineSet(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet) bool {
-
 	isConfigChanged := !(apiequality.Semantic.DeepEqual(deployment.Spec.Template.Spec.MachineConfiguration, is.Spec.Template.Spec.MachineConfiguration))
 
 	if isConfigChanged {
@@ -1188,7 +1179,6 @@ func ResolveFenceposts(maxSurge, maxUnavailable *intstrutil.IntOrString, desired
 
 // statusUpdateRequired checks for if status update is required comparing two MachineDeployment statuses
 func statusUpdateRequired(old v1alpha1.MachineDeploymentStatus, new v1alpha1.MachineDeploymentStatus) bool {
-
 	if old.AvailableReplicas == new.AvailableReplicas &&
 		old.CollisionCount == new.CollisionCount &&
 		len(old.FailedMachines) == len(new.FailedMachines) &&
