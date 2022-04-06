@@ -107,7 +107,7 @@ var _ = Describe("permit", func() {
 		It("should return true if permit is avialable", func() {
 			Expect(pg.TryPermit(key1, 1*time.Second)).To(BeTrue())
 		})
-		// few more things to test is, if while trying to give permit the pg got closed, or the timeout occured,
+		//TODO:  few more things to test is, if while trying to give permit the pg got closed, or the timeout occured,
 		//also if the time got written there correctly
 	})
 
