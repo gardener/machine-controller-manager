@@ -104,10 +104,10 @@ var _ = Describe("permit", func() {
 		It("should return false if there is no permit for that key", func() {
 			Expect(pg.TryPermit(key2, 1*time.Second)).To(BeFalse())
 		})
-		It("should return true if permit is avialable", func() {
+		It("should return true if permit is available", func() {
 			Expect(pg.TryPermit(key1, 1*time.Second)).To(BeTrue())
 		})
-		// few more things to test is, if while trying to give permit the pg got closed, or the timeout occured,
+		//TODO: few more things to test is, if while trying to give permit the pg got closed, or the timeout occured,
 		//also if the time got written there correctly
 	})
 
@@ -128,7 +128,7 @@ var _ = Describe("permit", func() {
 		It("should not release if its not occupied already", func() {
 			Expect(pg.isPermitAcquired(key2)).To(BeFalse())
 			pg.ReleasePermit(key2)
-			//also need to check if it looged that there is no permit for this key
+			//TODO: also need to check if it looged that there is no permit for this key
 			Expect(pg.isPermitAcquired(key2)).To(BeFalse())
 		})
 	})
@@ -167,15 +167,15 @@ var _ = Describe("permit", func() {
 		AfterEach(func() {
 			pg.Close()
 		})
-		It("should Cleanup after 5 second of the permission being stale", func() {
-			pg.TryPermit(key1, 1*time.Second) //updates the lastAllocationtime
+		It("should cleanup if permit stale for more than 5 sec", func() {
+			pg.TryPermit(key1, 1*time.Second) //updates the lastAcquiredTime
 			pg.ReleasePermit(key1)
 			Expect(pg.isPermitAllocated(key1)).To(BeTrue())
-			time.Sleep(7 * time.Second)
+			time.Sleep(5 * time.Second)
 			Expect(pg.isPermitAllocated(key1)).To(BeFalse())
 		})
-		FIt("should not Cleanup before 5 second of the permission being stale", func() {
-			pg.TryPermit(key1, 1*time.Second) //updates the lastAllocationtime
+		It("should not cleanup if permit stale for less than 5 sec", func() {
+			pg.TryPermit(key1, 1*time.Second) //updates the lastAcquiredTime
 			pg.ReleasePermit(key1)
 			Expect(pg.isPermitAllocated(key1)).To(BeTrue())
 			time.Sleep(4 * time.Second)

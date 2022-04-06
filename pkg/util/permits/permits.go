@@ -162,7 +162,7 @@ func (pg *permitGiver) isPermitAcquired(key string) bool {
 			return true
 		}
 	} else {
-		klog.V(4).Infof("couldn't find a permit correspoding to key: %s", key)
+		klog.V(4).Infof("couldn't find a permit corresponding to key: %s", key)
 	}
 	return false
 }
