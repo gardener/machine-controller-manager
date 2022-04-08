@@ -175,7 +175,7 @@ var _ = Describe("permit", func() {
 			pg.TryPermit(key1, 1*time.Second) //updates the lastAcquiredTime
 			pg.ReleasePermit(key1)
 			Expect(pg.isPermitAllocated(key1)).To(BeTrue())
-			time.Sleep(5 * time.Second)
+			time.Sleep(7 * time.Second)
 			Expect(pg.isPermitAllocated(key1)).To(BeFalse())
 		})
 		It("should not cleanup if permit stale for less than 5 sec", func() {
