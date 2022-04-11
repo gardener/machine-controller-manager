@@ -85,10 +85,10 @@ type fatal struct {
 	string
 }
 
-// PodVolumeInfo is the struct used to hold the PersistantVolumeID and volumeID
+// PodVolumeInfo is the struct used to hold the PersistentVolumeID and volumeID
 // for all the PVs attached to the pod
 type PodVolumeInfo struct {
-	persistantVolumeList []string
+	persistentVolumeList []string
 	volumeList           []string
 }
 
@@ -511,9 +511,9 @@ func (o *Options) doAccountingOfPvs(ctx context.Context, pods []*corev1.Pod) map
 	// Filter the list of shared PVs
 	filterSharedPVs(pvMap)
 
-	for podKey, persistantVolumeList := range pvMap {
-		persistantVolumeListDeepCopy := persistantVolumeList
-		volumeList, err := o.getVolIDsFromDriver(ctx, persistantVolumeList)
+	for podKey, persistentVolumeList := range pvMap {
+		persistentVolumeListDeepCopy := persistentVolumeList
+		volumeList, err := o.getVolIDsFromDriver(ctx, persistentVolumeList)
 		if err != nil {
 			// In case of error, log and skip this set of volumes
 			klog.Errorf("Error getting volume ID from cloud provider. Skipping volumes for pod: %v. Err: %v", podKey, err)
@@ -521,7 +521,7 @@ func (o *Options) doAccountingOfPvs(ctx context.Context, pods []*corev1.Pod) map
 		}
 
 		podVolumeInfo := PodVolumeInfo{
-			persistantVolumeList: persistantVolumeListDeepCopy,
+			persistentVolumeList: persistentVolumeListDeepCopy,
 			volumeList:           volumeList,
 		}
 		podVolumeInfoMap[podKey] = podVolumeInfo
@@ -746,7 +746,7 @@ func (o *Options) evictPodsWithPVInternal(
 
 		if err != nil {
 			if err.Error() == reattachTimeoutErr {
-				klog.Warningf("Timeout occurred for following volumes to reattach: %v", podVolumeInfo.persistantVolumeList)
+				klog.Warningf("Timeout occurred for following volumes to reattach: %v", podVolumeInfo.persistentVolumeList)
 			} else {
 				klog.Errorf("Error when waiting for volume reattachment. Err: %v", err)
 				returnCh <- err
@@ -870,7 +870,7 @@ func (o *Options) waitForDetach(ctx context.Context, podVolumeInfo PodVolumeInfo
 }
 
 func isDesiredReattachment(volumeAttachment *storagev1.VolumeAttachment, previousNodeName string) bool {
-	// klog.Errorf("\nPV: %s = %s, \nAttached: %b, \nNode: %s = %s", *volumeAttachment.Spec.Source.PersistentVolumeName, persistantVolumeName, volumeAttachment.Status.Attached, volumeAttachment.Spec.NodeName, previousNodeName)
+	// klog.Errorf("\nPV: %s = %s, \nAttached: %b, \nNode: %s = %s", *volumeAttachment.Spec.Source.PersistentVolumeName, persistentVolumeName, volumeAttachment.Status.Attached, volumeAttachment.Spec.NodeName, previousNodeName)
 	if volumeAttachment.Status.Attached && volumeAttachment.Spec.NodeName != previousNodeName {
 		klog.V(4).Infof("ReattachmentSuccessful for PV: %q", *volumeAttachment.Spec.Source.PersistentVolumeName)
 		return true
@@ -883,19 +883,19 @@ func isDesiredReattachment(volumeAttachment *storagev1.VolumeAttachment, previou
 // 1. If CSI is enabled use determine reattach
 // 2. If all else fails, fallback to static timeout
 func (o *Options) waitForReattach(ctx context.Context, podVolumeInfo PodVolumeInfo, previousNodeName string, volumeAttachmentEventCh chan *storagev1.VolumeAttachment) error {
-	if len(podVolumeInfo.persistantVolumeList) == 0 || previousNodeName == "" {
+	if len(podVolumeInfo.persistentVolumeList) == 0 || previousNodeName == "" {
 		// If volume or node name is not available, nothing to do. Just log this as warning
-		klog.Warningf("List of pod PVs waiting for reattachment is 0: %v", podVolumeInfo.persistantVolumeList)
+		klog.Warningf("List of pod PVs waiting for reattachment is 0: %v", podVolumeInfo.persistentVolumeList)
 		return nil
 	}
 
-	klog.V(3).Infof("Waiting for following volumes to reattach: %v", podVolumeInfo.persistantVolumeList)
+	klog.V(3).Infof("Waiting for following volumes to reattach: %v", podVolumeInfo.persistentVolumeList)
 
 	var pvsWaitingForReattachments map[string]bool
 	if volumeAttachmentEventCh != nil {
 		pvsWaitingForReattachments = make(map[string]bool)
-		for _, persistantVolumeName := range podVolumeInfo.persistantVolumeList {
-			pvsWaitingForReattachments[persistantVolumeName] = true
+		for _, persistentVolumeName := range podVolumeInfo.persistentVolumeList {
+			pvsWaitingForReattachments[persistentVolumeName] = true
 		}
 	}
 
@@ -907,18 +907,18 @@ func (o *Options) waitForReattach(ctx context.Context, podVolumeInfo PodVolumeIn
 
 		case <-ctx.Done():
 			// Timeout occurred waiting for reattachment, exit function with error
-			klog.Warningf("Timeout occurred while waiting for PVs %v to reattach to a different node", podVolumeInfo.persistantVolumeList)
+			klog.Warningf("Timeout occurred while waiting for PVs %v to reattach to a different node", podVolumeInfo.persistentVolumeList)
 			return fmt.Errorf(reattachTimeoutErr)
 
 		case incomingEvent := <-volumeAttachmentEventCh:
-			persistantVolumeName := *incomingEvent.Spec.Source.PersistentVolumeName
-			klog.V(5).Infof("VolumeAttachment event received for PV: %s", persistantVolumeName)
+			persistentVolumeName := *incomingEvent.Spec.Source.PersistentVolumeName
+			klog.V(5).Infof("VolumeAttachment event received for PV: %s", persistentVolumeName)
 
 			// Checking if event for an PV that is being waited on
-			if _, present := pvsWaitingForReattachments[persistantVolumeName]; present {
+			if _, present := pvsWaitingForReattachments[persistentVolumeName]; present {
 				// Check if reattachment was successful
 				if reattachmentSuccess := isDesiredReattachment(incomingEvent, previousNodeName); reattachmentSuccess {
-					delete(pvsWaitingForReattachments, persistantVolumeName)
+					delete(pvsWaitingForReattachments, persistentVolumeName)
 				}
 			}
 		}
@@ -929,7 +929,7 @@ func (o *Options) waitForReattach(ctx context.Context, podVolumeInfo PodVolumeIn
 		}
 	}
 
-	klog.V(3).Infof("Successfully reattached volumes: %s", podVolumeInfo.persistantVolumeList)
+	klog.V(3).Infof("Successfully reattached volumes: %s", podVolumeInfo.persistentVolumeList)
 	return nil
 }
 

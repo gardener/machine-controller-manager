@@ -330,7 +330,7 @@ This string MAY be surfaced by MCM to end users.
 #### `GetVolumeIDs`
 
 A Provider can OPTIONALLY implement this driver call. Else should return a `UNIMPLEMENTED` status in error.
-This driver call will be called by the MCM to get the `VolumeIDs` for the list of `PersistantVolumes (PVs)` supplied.
+This driver call will be called by the MCM to get the `VolumeIDs` for the list of `PersistentVolumes (PVs)` supplied.
 This OPTIONAL (but recommended) driver call helps in serailzied eviction of pods with PVs while draining of machines. This implies applications backed by PVs would be evicted one by one, leading to shorter application downtimes.
 
 - On succesful returnal of a list of `Volume-IDs` for all supplied `PVSpecs`, the Provider MUST reply `0 OK`.
@@ -360,7 +360,7 @@ type GetVolumeIDsResponse struct {
 
 | machine Code | Condition | Description | Recovery Behavior | Auto Retry Required |
 |-----------|-----------|-------------|-------------------|------------|
-| 0 OK | Successful | The call getting list of `VolumeIDs` for the list of `PersistantVolumes` was successful. |  | N |
+| 0 OK | Successful | The call getting list of `VolumeIDs` for the list of `PersistentVolumes` was successful. |  | N |
 | 1 CANCELED | Cancelled | Call was cancelled. Perform any pending clean-up tasks and return the call |  | N |
 | 2 UNKNOWN | Something went wrong | Not enough information on what went wrong | Retry operation after sometime | Y |
 | 3 INVALID_ARGUMENT | Re-check supplied parameters | Re-check the supplied `PVSpecList` and make sure that it is in the desired format. Exact issue to be given in `.message` | Update `PVSpecList` to fix issues. | N |
