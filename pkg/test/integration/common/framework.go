@@ -27,6 +27,8 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
+const dwdIgnoreScalingAnnotation = "dependency-watchdog.gardener.cloud/ignore-scaling"
+
 var (
 	// path for storing log files (mcm & mc processes)
 	targetDir = filepath.Join("..", "..", "..", ".ci", "controllers-test", "logs")
@@ -442,6 +444,11 @@ func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
 			return getErr
 		}
 
+		if replicas == 0 {
+			result.ObjectMeta.Annotations[dwdIgnoreScalingAnnotation] = "true"
+		} else if replicas == 1 {
+			delete(result.ObjectMeta.Annotations, dwdIgnoreScalingAnnotation)
+		}
 		// if number of replicas is not equal to the required replicas then update
 		if *result.Spec.Replicas != replicas {
 			*result.Spec.Replicas = replicas
