@@ -86,7 +86,6 @@ func (c *controller) enqueueMachineAfter(obj interface{}, after time.Duration) {
 }
 
 func (c *controller) reconcileClusterMachineKey(key string) error {
-
 	ctx := context.Background()
 
 	_, name, err := cache.SplitMetaNamespaceKey(key)
@@ -198,7 +197,6 @@ var (
 )
 
 func (c *controller) addNodeToMachine(obj interface{}) {
-
 	node := obj.(*corev1.Node)
 	if node == nil {
 		klog.Errorf("Couldn't convert to node from object")
@@ -234,7 +232,6 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 }
 
 func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
-
 	node := newObj.(*corev1.Node)
 	if node == nil {
 		klog.Errorf("Couldn't convert to node from object")
@@ -327,12 +324,11 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 */
 
 func (c *controller) triggerCreationFlow(ctx context.Context, createMachineRequest *driver.CreateMachineRequest) (machineutils.RetryPeriod, error) {
-
 	var (
-		//Declarations
+		// Declarations
 		nodeName, providerID string
 
-		//Initializations
+		// Initializations
 		machine     = createMachineRequest.Machine
 		machineName = createMachineRequest.Machine.Name
 	)
@@ -387,11 +383,14 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				// Creation was successful
 				klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q", machine.Name, providerID, getNodeName(machine))
 
-				//if a stale node obj exists by the same nodeName
-				// TODO: there is a case with Azure where VM reporting from infra is delayed but node joins
-				// in this case we would treat it as a stale node and trigger machine deletion.
-				if _, err := c.nodeLister.Get(nodeName); err == nil {
-					//mark the machine obj as `Failed`
+				// If a node obj already exists by the same nodeName, treat it as a stale node and trigger machine deletion.
+				// TODO: there is a case with Azure where the VM may join the cluster before the CreateMachine call is completed,
+				// and that would make an otherwise healthy node, be marked as stale.
+				// To avoid this scenario, check if the name of the node is equal to the machine name before marking them as stale.
+				// Ideally, the check should compare that the providerID of the machine and the node are matching, but since this is
+				// not enforced  for MCM extensions the current best option is to compare the names.
+				if _, err := c.nodeLister.Get(nodeName); err == nil && nodeName != machineName {
+					// mark the machine obj as `Failed`
 					klog.Errorf("Stale node obj with name %q for machine %q has been found. Hence marking the created VM for deletion to trigger a new machine creation.", nodeName, machine.Name)
 
 					deleteMachineRequest := &driver.DeleteMachineRequest{
@@ -413,7 +412,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 						klog.V(2).Infof("VM successfully deleted in context of stale node obj for machine %q", machine.Name)
 					}
 
-					//machine obj marked Failed for double surity
+					// machine obj marked Failed for double surity
 					c.machineStatusUpdate(
 						ctx,
 						machine,
@@ -434,7 +433,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 					return machineutils.ShortRetry, err
 				}
 			} else {
-				//if node label present that means there must be a backing VM ,without need of GetMachineStatus() call
+				// if node label present that means there must be a backing VM ,without need of GetMachineStatus() call
 				nodeName = machine.Labels["node"]
 			}
 
