@@ -16,9 +16,9 @@ IMAGE_REPOSITORY   := eu.gcr.io/gardener-project/gardener/machine-controller-man
 IMAGE_TAG          := $(shell cat VERSION)
 COVERPROFILE       := test/output/coverprofile.out
 
-CONTROL_NAMESPACE  := default
+CONTROL_NAMESPACE := default
 CONTROL_KUBECONFIG := dev/target-kubeconfig.yaml
-TARGET_KUBECONFIG  := dev/target-kubeconfig.yaml
+TARGET_KUBECONFIG := dev/target-kubeconfig.yaml
 
 LEADER_ELECT 	   := "true"
 MACHINE_SAFETY_OVERSHOOTING_PERIOD:=1m
@@ -30,6 +30,31 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+###########################################
+# Rules When K8s cluster is Gardener Shoot#
+###########################################
+
+.PHONY: downlaod-kubeconfigs
+download-kubeconfigs:
+	@echo "enter project name"; \
+	read PROJECT; \
+	echo "enter seed name"; \
+	read SEED; \
+	echo "enter shoot name"; \
+	read SHOOT; \
+	./hack/local_setup.sh --SEED $$SEED --SHOOT $$SHOOT --PROJECT $$PROJECT;
+
+.PHONY: local-mcm-up
+local-mcm-up: download-kubeconfigs
+	$(MAKE) start;
+
+.PHONY: local-mcm-down
+local-mcm-down: 
+	@kubectl --kubeconfig=${CONTROL_KUBECONFIG} -n ${CONTROL_NAMESPACE} annotate --overwrite=true deployment/machine-controller-manager dependency-watchdog.gardener.cloud/ignore-scaling-
+	@kubectl --kubeconfig=${CONTROL_KUBECONFIG} scale -n ${CONTROL_NAMESPACE} deployment/machine-controller-manager --replicas=1
+	@rm ${CONTROL_KUBECONFIG}
+	@rm ${TARGET_KUBECONFIG}
+
 #########################################
 # Rules for local development scenarios #
 #########################################
@@ -39,9 +64,9 @@ start:
 	@GO111MODULE=on go run \
 			-mod=vendor \
 			cmd/machine-controller-manager/controller_manager.go \
-			--control-kubeconfig=$(CONTROL_KUBECONFIG) \
-			--target-kubeconfig=$(TARGET_KUBECONFIG) \
-			--namespace=$(CONTROL_NAMESPACE) \
+			--control-kubeconfig=${CONTROL_KUBECONFIG} \
+			--target-kubeconfig=${TARGET_KUBECONFIG} \
+			--namespace=${CONTROL_NAMESPACE} \
 			--safety-up=2 \
 			--safety-down=1 \
 			--machine-creation-timeout=20m \
