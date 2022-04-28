@@ -1,13 +1,6 @@
-{{- $vers := Split .versions "," -}}
-{{ $defaultBranch := (index $vers 0) }}
 structure:
 - name: _index.md
-  source: https://github.com/gardener/machine-controller-manager/blob/{{$defaultBranch}}/README.md
+  source: /README.md
 - name: docs
-  nodes:
-  - nodesSelector:
-      path: https://github.com/gardener/machine-controller-manager/tree/{{$defaultBranch}}/docs
-links:
-  downloads:
-    scope:
-      "gardener/machine-controller-manager/(blob|raw)/(.*)/docs": ~
+  nodesSelector:
+    path: /docs
