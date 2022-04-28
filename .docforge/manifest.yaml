@@ -2,5 +2,74 @@ structure:
 - name: _index.md
   source: /README.md
 - name: docs
+  properties:
+      frontmatter:
+        title: Documentation
   nodesSelector:
     path: /docs
+  nodes:
+  - name: FAQ.md
+    source: https://github.com/gardener/machine-controller-manager/blob/master/docs/FAQ.md
+    properties:
+      frontmatter:
+        title: Machine Controller Manager FAQ
+        description: Commonly asked questions about MCM
+  - name: deployment
+    properties:
+      frontmatter:
+        title: Deployment
+        weight: 1
+    nodesSelector:
+      path: /docs/deployment
+  - name: development
+    properties:
+      frontmatter:
+        title: Development
+        weight: 2
+    nodesSelector:
+      path: /docs/development
+    nodes:
+    - name: cp_support_old.md
+      source: https://github.com/gardener/machine-controller-manager/blob/master/docs/development/cp_support_old.md
+      properties:
+        frontmatter:
+          title: Adding Support for a Cloud Provider (Legacy)
+          draft: false
+    - name: cp_support_new.md
+      source: https://github.com/gardener/machine-controller-manager/blob/master/docs/development/cp_support_new.md
+      properties:
+        frontmatter:
+          title: Adding Support for a Cloud Provider
+  - name: docs
+    properties:
+      frontmatter:
+        title: Documents
+        weight: 3
+    nodesSelector:
+      path: /docs/docs
+    nodes:
+    - name: apis.md
+      source: https://github.com/gardener/machine-controller-manager/blob/master/docs/docs/apis.md
+      properties:
+        frontmatter:
+          title: APIs
+  - name: proposals
+    properties:
+      frontmatter:
+        title: Proposals
+        weight: 4
+    nodesSelector:
+      path: /docs/proposals
+    nodes:
+    - name: external_providers_grpc.md
+      source: https://github.com/gardener/machine-controller-manager/blob/master/docs/docs/external_providers_grpc.md
+      properties:
+        frontmatter:
+          title: GRPC Based Implementation of Cloud Providers
+  - name: usage
+    properties:
+      frontmatter:
+        title: Usage
+        weight: 5
+    nodesSelector:
+      path: /docs/usage
