@@ -16,6 +16,7 @@
 
 
 # THE SCRIPT SHOULD BE RUN WHILE IN THE `machine-controller-manager/hack` FOLDER & IT ASSUMES THAT IN THE PARENT DIRECTORY OF MCM THE MCM PROVIDER IS ALSO PRESENT
+# THE SCRIPT ALSO ASSUMES THAT THERE THE `machine-controller-manager-provider-<provider-name>/dev/kubeconfigs` FOLDER EXISTS.
 
 #HOW TO CALL 
 ################################################################################################
