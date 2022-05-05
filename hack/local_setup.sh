@@ -128,9 +128,9 @@ scaleDownMCM() {
 
 updateMCMMakefile() {
      # Point the makefiles to the correct kubeconfigs to use for local run
-     sed -i -e "s/\(CONTROL_NAMESPACE :=\).*/\1 shoot--"${PROJECT}"--"${SHOOT}"/1" "${PROJECT_ROOT}"/makefile
-     sed -i -e "s/\(CONTROL_KUBECONFIG :=\).*/\1 dev\/kubeconfigs\/kubeconfig_control.yaml/1" "${PROJECT_ROOT}"/makefile
-     sed -i -e "s/\(TARGET_KUBECONFIG :=\).*/\1 dev\/kubeconfigs\/kubeconfig_target.yaml/1" "${PROJECT_ROOT}"/makefile
+     sed -i -e "s/\(CONTROL_NAMESPACE *:=\).*/\1 shoot--"${PROJECT}"--"${SHOOT}"/1" "${PROJECT_ROOT}"/makefile
+     sed -i -e "s/\(CONTROL_KUBECONFIG *:=\).*/\1 dev\/kubeconfigs\/kubeconfig_control.yaml/1" "${PROJECT_ROOT}"/makefile
+     sed -i -e "s/\(TARGET_KUBECONFIG *:=\).*/\1 dev\/kubeconfigs\/kubeconfig_target.yaml/1" "${PROJECT_ROOT}"/makefile
 }
 
 exportVariables() {
@@ -141,9 +141,9 @@ exportVariables() {
 
 updateProviderMakefile() {
      # Makefile of provider also needs to point at those kubeconfigs
-     sed -i -e "s/\(CONTROL_NAMESPACE := \).*/\1 shoot--"${PROJECT}"--"${SHOOT}"/1" "${PROVIDER_PATH}"/makefile
-     sed -i -e "s/\(CONTROL_KUBECONFIG := \).*/\1 dev\/kubeconfigs\/kubeconfig_control.yaml/1" "${PROVIDER_PATH}"/makefile
-     sed -i -e "s/\(TARGET_KUBECONFIG := \).*/\1 dev\/kubeconfigs\/kubeconfig_target.yaml/1" "${PROVIDER_PATH}"/makefile
+     sed -i -e "s/\(CONTROL_NAMESPACE *:= *\).*/\1 shoot--"${PROJECT}"--"${SHOOT}"/1" "${PROVIDER_PATH}"/makefile
+     sed -i -e "s/\(CONTROL_KUBECONFIG *:= *\).*/\1 dev\/kubeconfigs\/kubeconfig_control.yaml/1" "${PROVIDER_PATH}"/makefile
+     sed -i -e "s/\(TARGET_KUBECONFIG *:= *\).*/\1 dev\/kubeconfigs\/kubeconfig_target.yaml/1" "${PROVIDER_PATH}"/makefile
 }
 
 main
