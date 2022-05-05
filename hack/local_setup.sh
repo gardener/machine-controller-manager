@@ -73,7 +73,8 @@ setPaths() {
      CURRENT_DIR=$(dirname $0)
      PROJECT_ROOT="${CURRENT_DIR}"/..
      KUBECONFIG_PATH="${PROJECT_ROOT}"/dev/kubeconfigs
-     PROVIDER_PATH="${PROJECT_ROOT}"/../machine-controller-manager-provider-"${SEED}"
+     PROVIDER=$(ls "${PROJECT_ROOT}"/../ | grep machine-controller-manager-provider-${SEED}.*)
+     PROVIDER_PATH="${PROJECT_ROOT}"/../${PROVIDER}
      PROVIDER_KUBECONFIG_PATH="${PROVIDER_PATH}"/dev/kubeconfigs
 }
 
