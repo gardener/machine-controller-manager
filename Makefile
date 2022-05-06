@@ -42,7 +42,9 @@ download-kubeconfigs:
 	read SEED; \
 	echo "enter shoot name"; \
 	read SHOOT; \
-	./hack/local_setup.sh --SEED $$SEED --SHOOT $$SHOOT --PROJECT $$PROJECT;
+	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)"; \
+	read PROVIDER; \
+	./hack/local_setup.sh --SEED $$SEED --SHOOT $$SHOOT --PROJECT $$PROJECT --PROVIDER $$PROVIDER
 
 .PHONY: local-mcm-up
 local-mcm-up: download-kubeconfigs
