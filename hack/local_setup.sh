@@ -21,7 +21,7 @@
 #HOW TO CALL 
 ################################################################################################
 
-# ./local_setup.sh --PROJECT <project-name> --SEED <seed-name> --SHOOT <shoot-name>
+# ./local_setup.sh --PROJECT <project-name> --SEED <seed-name> --SHOOT <shoot-name> --PROVIDER <cluster-provider-name>
 
 ################################################################################################
 #!/usr/bin/env bash
@@ -33,6 +33,7 @@ set -o pipefail
 declare SEED 
 declare SHOOT
 declare PROJECT 
+declare PROVIDER
 declare CURRENT_DIR
 declare PROJECT_ROOT
 declare KUBECONFIG_PATH
@@ -69,12 +70,10 @@ main() {
 }
 
 setPaths() {
-
      CURRENT_DIR=$(dirname $0)
      PROJECT_ROOT="${CURRENT_DIR}"/..
      KUBECONFIG_PATH="${PROJECT_ROOT}"/dev/kubeconfigs
-     PROVIDER=$(ls "${PROJECT_ROOT}"/../ | grep machine-controller-manager-provider-${SEED}.*)
-     PROVIDER_PATH="${PROJECT_ROOT}"/../${PROVIDER}
+     PROVIDER_PATH="${PROJECT_ROOT}"/../machine-controller-manager-provider-${PROVIDER}
      PROVIDER_KUBECONFIG_PATH="${PROVIDER_PATH}"/dev/kubeconfigs
 }
 
