@@ -19,6 +19,9 @@ structure:
       frontmatter:
         title: Deployment
         weight: 1
+        categories:
+          - Developers
+          - Operators
     nodesSelector:
       path: /docs/deployment
   - name: development
@@ -26,6 +29,8 @@ structure:
       frontmatter:
         title: Development
         weight: 2
+        categories:
+          - Developers
     nodesSelector:
       path: /docs/development
     nodes:
@@ -40,16 +45,18 @@ structure:
       properties:
         frontmatter:
           title: Adding Support for a Cloud Provider
-  - name: docs
+  - name: documents
     properties:
       frontmatter:
         title: Documents
         weight: 3
+        categories:
+          - Developers
     nodesSelector:
-      path: /docs/docs
+      path: /docs/documents
     nodes:
     - name: apis.md
-      source: https://github.com/gardener/machine-controller-manager/blob/master/docs/docs/apis.md
+      source: https://github.com/gardener/machine-controller-manager/blob/master/docs/documents/apis.md
       properties:
         frontmatter:
           title: APIs
@@ -58,6 +65,8 @@ structure:
       frontmatter:
         title: Proposals
         weight: 4
+        categories:
+          - Developers
     nodesSelector:
       path: /docs/proposals
     nodes:
@@ -71,5 +80,8 @@ structure:
       frontmatter:
         title: Usage
         weight: 5
+        categories:
+          - Users
+          - Operators
     nodesSelector:
       path: /docs/usage
