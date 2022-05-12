@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/Azure/azure-sdk-for-go v42.2.0+incompatible
-	github.com/Azure/go-autorest/autorest v0.11.1
+	github.com/Azure/go-autorest/autorest v0.11.12
 	github.com/Azure/go-autorest/autorest/adal v0.9.5
 	github.com/Azure/go-autorest/autorest/to v0.3.0
 	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20180828111155-cad214d7d71f
@@ -12,7 +12,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-git/go-git/v5 v5.4.2
-	github.com/go-openapi/spec v0.19.3
+	github.com/go-openapi/spec v0.19.5
 	github.com/gophercloud/gophercloud v0.7.0
 	github.com/gophercloud/utils v0.0.0-20200204043447-9864b6f1f12f
 	github.com/onsi/ginkgo v1.16.2
@@ -23,17 +23,17 @@ require (
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b
 	golang.org/x/oauth2 v0.0.0-20210514164344-f6687ab2804c
 	google.golang.org/api v0.30.0
-	k8s.io/api v0.20.6
-	k8s.io/apiextensions-apiserver v0.20.6
-	k8s.io/apimachinery v0.20.6
-	k8s.io/apiserver v0.20.6
-	k8s.io/client-go v0.20.6
-	k8s.io/cluster-bootstrap v0.20.6
-	k8s.io/code-generator v0.20.6
-	k8s.io/component-base v0.20.6
-	k8s.io/klog/v2 v2.4.0
-	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd // keep this value in sync with k8s.io/apiserver
-	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
+	k8s.io/api v0.21.12
+	k8s.io/apiextensions-apiserver v0.21.12
+	k8s.io/apimachinery v0.21.12
+	k8s.io/apiserver v0.21.12
+	k8s.io/client-go v0.21.12
+	k8s.io/cluster-bootstrap v0.21.12
+	k8s.io/code-generator v0.21.12
+	k8s.io/component-base v0.21.12
+	k8s.io/klog/v2 v2.9.0
+	k8s.io/kube-openapi v0.0.0-20211110012726-3cc51fd1e909 // keep this value in sync with k8s.io/apiserver
+	k8s.io/utils v0.0.0-20211116205334-6203023598ed
 )
 
 require (
@@ -57,7 +57,7 @@ require (
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.3.1 // indirect
-	github.com/go-logr/logr v0.2.0 // indirect
+	github.com/go-logr/logr v0.4.0 // indirect
 	github.com/go-openapi/jsonpointer v0.19.3 // indirect
 	github.com/go-openapi/jsonreference v0.19.3 // indirect
 	github.com/go-openapi/swag v0.19.5 // indirect
@@ -92,13 +92,13 @@ require (
 	go.uber.org/atomic v1.4.0 // indirect
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.10.0 // indirect
-	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b // indirect
+	golang.org/x/crypto v0.0.0-20211202192323-5770296d904e // indirect
 	golang.org/x/mod v0.4.2 // indirect
-	golang.org/x/net v0.0.0-20210525063256-abc453219eb5 // indirect
+	golang.org/x/net v0.0.0-20211209124913-491a49abca63 // indirect
 	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
-	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 // indirect
+	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d // indirect
 	golang.org/x/text v0.3.6 // indirect
-	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
+	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
 	golang.org/x/tools v0.1.5 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/appengine v1.6.6 // indirect
@@ -109,7 +109,7 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/gengo v0.0.0-20201113003025-83324d819ded // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.0.3 // indirect
+	k8s.io/gengo v0.0.0-20201214224949-b6c5ce23f027 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
