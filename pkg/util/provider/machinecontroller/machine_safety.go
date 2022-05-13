@@ -19,6 +19,7 @@ package controller
 
 import (
 	"context"
+	"k8s.io/klog/v2"
 	"strings"
 	"time"
 
@@ -32,28 +33,22 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/klog/v2"
-)
-
-const (
-	// OverShootingReplicaCount freeze reason when replica count overshoots
-	OverShootingReplicaCount = "OverShootingReplicaCount"
-	// MachineDeploymentStateSync freeze reason when machineDeployment was found with inconsistent state
-	MachineDeploymentStateSync = "MachineDeploymentStateSync"
-	// TimeoutOccurred freeze reason when machineSet timeout occurs
-	TimeoutOccurred = "MachineSetTimeoutOccurred"
-	// UnfreezeAnnotation indicates the controllers to unfreeze this object
-	UnfreezeAnnotation = "safety.machine.sapcloud.io/unfreeze"
 )
 
 // reconcileClusterMachineSafetyOrphanVMs checks for any orphan VMs and deletes them
-func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
+func (c *controller) reconcileClusterMachineSafetyOrphanVMs(_ string) error {
 	ctx := context.Background()
 	reSyncAfter := c.safetyOptions.MachineSafetyOrphanVMsPeriod.Duration
 	defer c.machineSafetyOrphanVMsQueue.AddAfter("", reSyncAfter)
 
 	klog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: Start")
 	defer klog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: End, reSync-Period: %v", reSyncAfter)
+
+	// skip orphan collection in case of machine controller freeze
+	if c.safetyOptions.MachineControllerFrozen {
+		klog.Info("Machine controller is frozen. Not doing orphan VM collection")
+		return nil
+	}
 
 	retryPeriod, err := c.checkMachineClasses(ctx)
 	if err != nil {
@@ -73,7 +68,7 @@ func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
 // reconcileClusterMachineSafetyAPIServer checks control and target clusters
 // and checks if their APIServer's are reachable
 // If they are not reachable, they set a machineControllerFreeze flag
-func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
+func (c *controller) reconcileClusterMachineSafetyAPIServer(_ string) error {
 	ctx := context.Background()
 	statusCheckTimeout := c.safetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration
 	statusCheckPeriod := c.safetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration
@@ -172,7 +167,7 @@ func (c *controller) isAPIServerUp(ctx context.Context) bool {
 	return true
 }
 
-// AnnotateNodesUnmanagedByMCM checks for nodes which are not handled by MCM and annotes them
+// AnnotateNodesUnmanagedByMCM checks for nodes which are not handled by MCM and annotates them
 func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineutils.RetryPeriod, error) {
 	// list all the nodes on target cluster
 	nodes, err := c.nodeLister.List(labels.Everything())
@@ -253,7 +248,7 @@ func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alph
 	}
 
 	// making sure cache is updated .This is for cases where a new machine object is at etcd, but cache is unaware
-	// and its correspinding VM is in the list.
+	// and its corresponding VM is in the list.
 	if len(listMachineResponse.MachineList) > 0 {
 		stopCh := make(chan struct{})
 		defer close(stopCh)
@@ -320,7 +315,7 @@ func (c *controller) updateMachineToSafety(oldObj, newObj interface{}) {
 
 	if !strings.Contains(oldMachine.Status.LastOperation.Description, codes.OutOfRange.String()) && strings.Contains(newMachine.Status.LastOperation.Description, codes.OutOfRange.String()) {
 		klog.Warningf("Multiple VMs backing machine obj %q found, triggering orphan collection.", newMachine.Name)
-		c.enqueueMachineSafetyOrphanVMsKey(newMachine)
+		c.enqueueMachineSafetyOrphanVMsKey()
 	}
 }
 
@@ -331,10 +326,10 @@ func (c *controller) deleteMachineToSafety(obj interface{}) {
 		klog.Errorf("Couldn't convert to machine resource from object")
 		return
 	}
-	c.enqueueMachineSafetyOrphanVMsKey(machine)
+	c.enqueueMachineSafetyOrphanVMsKey()
 }
 
 // enqueueMachineSafetyOrphanVMsKey enqueues into machineSafetyOrphanVMsQueue
-func (c *controller) enqueueMachineSafetyOrphanVMsKey(obj interface{}) {
+func (c *controller) enqueueMachineSafetyOrphanVMsKey() {
 	c.machineSafetyOrphanVMsQueue.Add("")
 }

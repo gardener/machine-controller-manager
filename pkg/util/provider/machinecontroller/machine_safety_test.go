@@ -258,8 +258,9 @@ var _ = Describe("safety_logic", func() {
 
 	Describe("#Orphan VM collection", func() {
 		type setup struct {
-			machineObjects     []*v1alpha1.Machine
-			machinesOnProvider map[string]string
+			machineObjects            []*v1alpha1.Machine
+			machinesOnProvider        map[string]string
+			isMachineControllerFrozen bool
 		}
 		type expect struct {
 			//machineIds of machines which are expected to be deleted
@@ -316,11 +317,16 @@ var _ = Describe("safety_logic", func() {
 			for _, obj := range data.setup.machineObjects {
 				controlMachineObjects = append(controlMachineObjects, obj)
 			}
+			controlMachineObjects = append(controlMachineObjects, testMachineClass)
 
 			fakeDriver := driver.NewFakeDriver(false, "", "", "", nil, nil)
 
 			c, trackers := createController(stop, testNamespace, controlMachineObjects, controlCoreObjects, nil, fakeDriver)
 			defer trackers.Stop()
+
+			if data.setup.isMachineControllerFrozen {
+				c.safetyOptions.MachineControllerFrozen = true
+			}
 
 			fd := fakeDriver.(*driver.FakeDriver)
 
@@ -335,8 +341,11 @@ var _ = Describe("safety_logic", func() {
 
 			waitForCacheSync(stop, c)
 
-			// call checkMachineClass to delete the orphan VMs
-			_, _ = c.checkMachineClass(context.TODO(), testMachineClass)
+			// call reconcileClusterMachineSafetyOrphanVMs to delete the orphan VMs
+			err := c.reconcileClusterMachineSafetyOrphanVMs("")
+			if err != nil {
+				return
+			}
 
 			// after this, the testmachine in crashloopbackoff phase
 			// should remain and the other one should
@@ -410,6 +419,20 @@ var _ = Describe("safety_logic", func() {
 				expect: expect{
 					toBeDeletedMachines: []string{"testmachine-ip1"},
 					toBePresentMachines: nil,
+				},
+			}),
+			Entry("shouldn't orphan collect if machine controller is frozen", &data{
+				setup: setup{
+					isMachineControllerFrozen: true,
+					machineObjects:            nil,
+					machinesOnProvider: map[string]string{
+						"testmachine-ip1": "testmachine_1",
+					},
+				},
+				expect: expect{
+					toBePresentMachines: map[string]string{
+						"testmachine-ip1": "testmachine_1",
+					},
 				},
 			}),
 		)
