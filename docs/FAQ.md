@@ -140,7 +140,7 @@ To do so they should remove/not-use tags on their VMs containing the following s
 # Internals
 ### What is the high level design of MCM?
 
-Please refer the following [document](https://github.com/gardener/machine-controller-manager/tree/master/docs/design).
+Please refer the following [document](../README.md#design-of-machine-controller-manager).
 
 ### What are the different configuration options in MCM?
 
