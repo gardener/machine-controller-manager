@@ -80,12 +80,6 @@ spec:
                       type: string
                     size:
                       type: integer
-                  required:
-                  - category
-                  - deleteWithInstance
-                  - encrypted
-                  - name
-                  - size
                   type: object
                 type: array
               imageID:
