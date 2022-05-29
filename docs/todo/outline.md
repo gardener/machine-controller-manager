@@ -35,7 +35,7 @@ MCM is a set controllers:
 | Minor  change  -  correct  the  comment,  first  word  should  always  be  the  method  name.  Currently  none  of  the  comments  have  correct  names. | pkg/controller/controller_util.go | pending |
 | There  are  too  many  deep  copies  made.  What  is  the  need  to  make  another  deep  copy  in  this  method?  You  are  not  really  changing  anything  here. | pkg/controller/deployment.go - updateMachineDeploymentFinalizers | pending |
 | Why  can't  these  validations  be  done  as  part  of  a  validating  webhook? | pkg/controller/machineset.go - reconcileClusterMachineSet | pending |
-| Small  change  to  the  following  `if`  condition.  `else  if`  is  not  required  a  simple  `else`  is  sufficient.[Code1]
+| Small  change  to  the  following  `if`  condition.  `else  if`  is  not  required  a  simple  `else`  is  sufficient. [Code1](#1.1-code1)
 | pkg/controller/machineset.go -  reconcileClusterMachineSet | pending |
 |  Why  call  these  `inactiveMachines`,  these  are  live  and  running  and  therefore  active. | pkg/controller/machineset.go - terminateMachines | pending |
 
@@ -55,12 +55,12 @@ MCM is a set controllers:
 | When  will  forgetAfterSuccess  be  false  and  why?  -  as  per  the  current  code  this  is  never  the  case.  -  Himanshu  will  check | cmd/app/controllermanager.go - createWorker | pending |
 | What  is  the  use  of  “ExpectationsInterface”  and  “UIDTrackingContExpectations”? <br />*  All  expectations  related  code  should  be  in  its  own  file  “expectations.go”  and  not  in  this  file. | pkg/controller/controller_util.go | pending |
 | Why  do  we  not  use  lister  but  directly  use  the  controlMachingClient  to  get  the  deployment?  Is  it  because  you  want  to  avoid  any  potential  delays  caused  by  update  of  the  local  cache  held  by  the  informer  and  accessed  by  the  lister?  What  is  the  load  on  API  server  due  to  this? | pkg/controller/deployment.go -  reconcileClusterMachineDeployment | pending |
-| Why  is  this  conversion  needed? [code2] | pkg/controller/deployment.go -  reconcileClusterMachineDeployment | pending |
+| Why  is  this  conversion  needed? [code2](#1.2-code2) | pkg/controller/deployment.go -  reconcileClusterMachineDeployment | pending |
 | A  deep  copy  of  `machineDeployment`  is  already  passed  and  within  the  function  another  deepCopy  is  made.  Any  reason  for  it? | pkg/controller/deployment.go - addMachineDeploymentFinalizers| pending |
 | What  is  an  `Status.ObservedGeneration`?  <br /> **Read  more  about  generations  and  observedGeneration  at: <br />  https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata <br />*  https://alenkacz.medium.com/kubernetes-operator-best-practices-implementing-observedgeneration-250728868792 <br /> Ideally the update to the `ObservedGeneration` should only be made after successful reconciliation and not before. I see that this is just copied from `deployment_controller.go` as is | pkg/controller/deployment.go -  reconcileClusterMachineDeployment | pending |
 | Why  and  when  will  a  `MachineDeployment`  be  marked  as  frozen  and  when  will  it  be  un-frozen? | pkg/controller/deployment.go -  reconcileClusterMachineDeployment | pending |
 | Shoudn't  the  validation  of  the  machine  deployment  be  done  during  the  creation  via  a  validating  webhook  instead  of  allowing  it  to  be  stored  in  etcd  and  then  failing  the  validation  during  sync?  I  saw  the  checks  and  these  can  be  done  via  validation  webhook. | pkg/controller/deployment.go -  reconcileClusterMachineDeployment | pending |
-| RollbackTo has been marked as deprecated. What is the replacement? [code3] | pkg/controller/deployment.go -  reconcileClusterMachineDeployment | pending |
+| RollbackTo has been marked as deprecated. What is the replacement? [code3](#1.3-code3) | pkg/controller/deployment.go -  reconcileClusterMachineDeployment | pending |
 | What  is  the  max  machineSet  deletions  that  you  could  process  in  a  single  run?  The  reason  for  asking  this  question  is  that  for  every  machineSetDeletion  a  new  goroutine  spawned. <br />*  Is  the  `Delete`  call  a  synchrounous  call?  Which  means  it  blocks  till  the  machineset  deletion  is  triggered  which  then  also  deletes  the  machines  (due  to  cascade-delete  and  blockOwnerDeletion=  true)?| pkg/controller/deployment.go - terminateMachineSets | pending |
 | If  there  are  validation  errors  or  error  when  creating  label  selector  then  a  nil  is  returned.  In  the  worker  reconcile  loop  if  the  return  value  is  nil  then  it  will  remove  it  from  the  queue  (forget  +  done).  What  is  the  way  to  see  any  errors?  Typically  when  we  describe  a  resource  the  errors  are  displayed.  Will  these  be  displayed  when  we  discribe  a  `MachineDeployment`? | pkg/controller/deployment.go - reconcileClusterMachineSet | pending |
 | If  an  error  is  returned  by  `updateMachineSetStatus`  and  it  is  `IsNotFound`  error  then  returning  an  error  will  again  queue  the  `MachineSet`.  Is  this  desired  as  `IsNotFound`  indicates  the  `MachineSet`  has  been  deleted  and  is  no  longer  there? | pkg/controller/deployment.go -  reconcileClusterMachineSet | pending |
@@ -77,7 +77,7 @@ MCM is a set controllers:
 
 
 Code references
-1. Code1 
+# 1.1 code1 
 ```go
        if machineSet.DeletionTimestamp == nil {
         
@@ -94,7 +94,7 @@ Code references
             //FIX: change this to simple else without the if
 ```
 
-2. Code2
+# 1.2 code2
 ```go
     defer dc.enqueueMachineDeploymentAfter(deployment, 10*time.Minute)
     
@@ -103,7 +103,7 @@ Code references
     err = v1alpha1.Convert_v1alpha1_MachineDeployment_To_machine_MachineDeployment(deployment, internalMachineDeployment, nil)
 ```
 
-3. Code3
+# 1.3 code3
 ```go
 
 // rollback is not re-entrant in case the underlying machine sets are updated with a new
