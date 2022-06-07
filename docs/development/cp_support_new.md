@@ -1,3 +1,7 @@
+---
+title: Adding Support for a Cloud Provider
+---
+
 # Adding support for a new provider
 
 Steps to be followed while implementing a new (hyperscale) provider are mentioned below. This is the easiest way to add new provider support using a blueprint code.
