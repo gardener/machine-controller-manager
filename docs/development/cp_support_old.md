@@ -1,6 +1,5 @@
 ---
 title: Adding Support for a Cloud Provider (Legacy)
-draft: false
 ---
 
 # Adding support for a new cloud provider
