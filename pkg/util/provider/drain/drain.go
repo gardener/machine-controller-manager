@@ -35,7 +35,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,7 +44,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	corelisters "k8s.io/client-go/listers/core/v1"
-	policylisters "k8s.io/client-go/listers/policy/v1beta1"
+	policylisters "k8s.io/client-go/listers/policy/v1"
 	"k8s.io/klog/v2"
 )
 
@@ -357,7 +357,7 @@ func (o *Options) evictPod(ctx context.Context, pod *api.Pod, policyGroupVersion
 		gracePeriodSeconds := int64(o.GracePeriodSeconds)
 		deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
 	}
-	eviction := &policyv1beta1.Eviction{
+	eviction := &policyv1.Eviction{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: policyGroupVersion,
 			Kind:       EvictionKind,
@@ -370,7 +370,7 @@ func (o *Options) evictPod(ctx context.Context, pod *api.Pod, policyGroupVersion
 	}
 	klog.V(3).Infof("Attempting to evict the pod:%q from node %q", pod.Name, o.nodeName)
 	// TODO: Remember to change the URL manipulation func when Evction's version change
-	return o.client.PolicyV1beta1().Evictions(eviction.Namespace).Evict(ctx, eviction)
+	return o.client.PolicyV1().Evictions(eviction.Namespace).Evict(ctx, eviction)
 }
 
 // deleteOrEvictPods deletes or evicts the pods on the api server
@@ -1122,7 +1122,7 @@ func (o *Options) RunCordonOrUncordon(ctx context.Context, desired bool) error {
 	return nil
 }
 
-func getPdbForPod(pdbLister policylisters.PodDisruptionBudgetLister, pod *corev1.Pod) *policyv1beta1.PodDisruptionBudget {
+func getPdbForPod(pdbLister policylisters.PodDisruptionBudgetLister, pod *corev1.Pod) *policyv1.PodDisruptionBudget {
 	// GetPodPodDisruptionBudgets returns an error only if no PodDisruptionBudgets are found.
 	// We don't return that as an error to the caller.
 	pdbs, err := pdbLister.GetPodPodDisruptionBudgets(pod)
@@ -1138,7 +1138,7 @@ func getPdbForPod(pdbLister policylisters.PodDisruptionBudgetLister, pod *corev1
 	return pdbs[0]
 }
 
-func isMisconfiguredPdb(pdb *policyv1beta1.PodDisruptionBudget) bool {
+func isMisconfiguredPdb(pdb *policyv1.PodDisruptionBudget) bool {
 	if pdb.ObjectMeta.Generation != pdb.Status.ObservedGeneration {
 		return false
 	}

@@ -25,7 +25,7 @@ import (
 	"time"
 
 	fakeuntyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/fake"
-	apipolicyv1beta1 "k8s.io/api/policy/v1beta1"
+	apipolicyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -37,8 +37,8 @@ import (
 	"k8s.io/client-go/discovery"
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
-	policyv1beta1 "k8s.io/client-go/kubernetes/typed/policy/v1beta1"
-	fakepolicyv1beta1 "k8s.io/client-go/kubernetes/typed/policy/v1beta1/fake"
+	policyv1 "k8s.io/client-go/kubernetes/typed/policy/v1"
+	fakepolicyv1 "k8s.io/client-go/kubernetes/typed/policy/v1/fake"
 	k8stesting "k8s.io/client-go/testing"
 )
 
@@ -541,49 +541,49 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 	return c.FakeDiscovery
 }
 
-// PolicyV1beta1 retrieves the PolicyV1beta1Client
-func (c *Clientset) PolicyV1beta1() policyv1beta1.PolicyV1beta1Interface {
-	return &FakePolicyV1beta1{
-		FakePolicyV1beta1: &fakepolicyv1beta1.FakePolicyV1beta1{
+// PolicyV1 retrieves the PolicyV1Client
+func (c *Clientset) PolicyV1() policyv1.PolicyV1Interface {
+	return &FakePolicyV1{
+		FakePolicyV1: &fakepolicyv1.FakePolicyV1{
 			Fake: &c.Fake,
 		},
 	}
 }
 
-// Policy retrieves the PolicyV1beta1Client
-func (c *Clientset) Policy() policyv1beta1.PolicyV1beta1Interface {
-	return c.PolicyV1beta1()
+// Policy retrieves the PolicyV1Client
+func (c *Clientset) Policy() policyv1.PolicyV1Interface {
+	return c.PolicyV1()
 }
 
-// FakePolicyV1beta1 extends fakepolicyv1beta1.FakePolicyV1beta1 to override the
+// FakePolicyV1 extends fakepolicyv1.FakePolicyV1 to override the
 // Policy implementation. This is because the default Policy fake implementation
 // does not propagate the eviction name.
-type FakePolicyV1beta1 struct {
-	*fakepolicyv1beta1.FakePolicyV1beta1
+type FakePolicyV1 struct {
+	*fakepolicyv1.FakePolicyV1
 }
 
-// Evictions extends fakepolicyv1beta1.FakeEvictions to override the
+// Evictions extends fakepolicyv1.FakeEvictions to override the
 // Policy implementation. This is because the default Policy fake implementation
 // does not propagate the eviction name.
-func (c *FakePolicyV1beta1) Evictions(namespace string) policyv1beta1.EvictionInterface {
+func (c *FakePolicyV1) Evictions(namespace string) policyv1.EvictionInterface {
 	return &FakeEvictions{
-		FakePolicyV1beta1: c.FakePolicyV1beta1,
-		ns:                namespace,
+		FakePolicyV1: c.FakePolicyV1,
+		ns:           namespace,
 	}
 }
 
-// FakeEvictions extends fakepolicyv1beta1.FakeEvictions to override the
+// FakeEvictions extends fakepolicyv1.FakeEvictions to override the
 // Policy implementation. This is because the default Policy fake implementation
 // does not propagate the eviction name.
 type FakeEvictions struct {
-	*fakepolicyv1beta1.FakePolicyV1beta1
+	*fakepolicyv1.FakePolicyV1
 	ns string
 }
 
-// Evict overrides the fakepolicyv1beta1.FakeEvictions to override the
+// Evict overrides the fakepolicyv1.FakeEvictions to override the
 // Policy implementation. This is because the default Policy fake implementation
 // does not propagate the eviction name.
-func (c *FakeEvictions) Evict(ctx context.Context, eviction *apipolicyv1beta1.Eviction) error {
+func (c *FakeEvictions) Evict(ctx context.Context, eviction *apipolicyv1.Eviction) error {
 	action := k8stesting.GetActionImpl{}
 	action.Name = eviction.Name
 	action.Verb = "post"

@@ -35,7 +35,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/driver"
 	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
-	policy "k8s.io/api/policy/v1beta1"
+	policy "k8s.io/api/policy/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -370,7 +370,7 @@ func (o *DrainOptions) evictPod(ctx context.Context, pod *api.Pod, policyGroupVe
 	}
 	klog.V(3).Infof("Attempting to evict the pod:%q from node %q", pod.Name, o.nodeName)
 	// TODO: Remember to change the URL manipulation func when Evction's version change
-	return o.client.PolicyV1beta1().Evictions(eviction.Namespace).Evict(ctx, eviction)
+	return o.client.PolicyV1().Evictions(eviction.Namespace).Evict(ctx, eviction)
 }
 
 // deleteOrEvictPods deletes or evicts the pods on the api server
