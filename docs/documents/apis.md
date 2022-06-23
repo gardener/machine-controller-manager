@@ -1,4 +1,9 @@
+---
+title: APIs
+---
+
 ## Specification
+
 ### ProviderSpec Schema
 <br>
 <h3 id="AWSMachineClass">

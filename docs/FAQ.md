@@ -1,3 +1,8 @@
+---
+title: Machine Controller Manager FAQ
+description: Commonly asked questions about MCM
+---
+
 # Frequently Asked Questions
 
 The answers in this FAQ apply to the newest (HEAD) version of Machine Controller Manager. If
