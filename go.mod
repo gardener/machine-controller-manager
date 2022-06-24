@@ -36,6 +36,8 @@ require (
 	k8s.io/utils v0.0.0-20211116205334-6203023598ed
 )
 
+require github.com/google/uuid v1.1.2
+
 require (
 	cloud.google.com/go v0.65.0 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
