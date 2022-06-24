@@ -378,6 +378,10 @@ func (dc *controller) taintNodesBackingMachineSets(ctx context.Context, MachineS
 func (dc *controller) annotateNodesBackingMachineSets(ctx context.Context, MachineSets []*v1alpha1.MachineSet, annotations map[string]string) error {
 	for _, machineSet := range MachineSets {
 
+		if machineSet == nil {
+			continue
+		}
+
 		klog.V(4).Infof("Trying to annotate nodes under the MachineSet object %q with %s", machineSet.Name, annotations)
 		selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
 		if err != nil {

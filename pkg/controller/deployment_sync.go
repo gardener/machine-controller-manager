@@ -295,7 +295,7 @@ func (dc *controller) getNewMachineSet(ctx context.Context, d *v1alpha1.MachineD
 		return nil, nil
 	}
 
-	// new ReplicaSet does not exist, create one.
+	// new MachineSet does not exist, create one.
 	newISTemplate := *d.Spec.Template.DeepCopy()
 	machineTemplateSpecHash := fmt.Sprintf("%d", ComputeHash(&newISTemplate, d.Status.CollisionCount))
 	newISTemplate.Labels = labelsutil.CloneAndAddLabel(d.Spec.Template.Labels, v1alpha1.DefaultMachineDeploymentUniqueLabelKey, machineTemplateSpecHash)
