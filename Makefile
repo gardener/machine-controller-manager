@@ -95,12 +95,8 @@ revendor:
 build:
 	@.ci/build
 
-.PHONY: build-local
-build-local:
-	@env LOCAL_BUILD=1 .ci/build
-
 .PHONY: release
-release: build build-local docker-image docker-login docker-push rename-binaries
+release: build docker-image docker-login docker-push
 
 .PHONY: docker-image
 docker-image:
@@ -115,16 +111,9 @@ docker-push:
 	@if ! docker images $(IMAGE_REPOSITORY) | awk '{ print $$2 }' | grep -q -F $(IMAGE_TAG); then echo "$(IMAGE_REPOSITORY) version $(IMAGE_TAG) is not yet built. Please run 'make docker-images'"; false; fi
 	@gcloud docker -- push $(IMAGE_REPOSITORY):$(IMAGE_TAG)
 
-.PHONY: rename-binaries
-rename-binaries:
-	@if [[ -f bin/machine-controller-manager ]]; then cp bin/machine-controller-manager machine-controller-manager-darwin-amd64; fi
-	@if [[ -f bin/rel/machine-controller-manager ]]; then cp bin/rel/machine-controller-manager machine-controller-manager-linux-amd64; fi
-
 .PHONY: clean
 clean:
 	@rm -rf bin/
-	@rm -f *linux-amd64
-	@rm -f *darwin-amd64
 
 #####################################################################
 # Rules for verification, formatting, linting, testing and cleaning #
