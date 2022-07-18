@@ -18,7 +18,9 @@ package controller
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"io"
 	"testing"
 	"time"
 
@@ -45,6 +47,12 @@ import (
 )
 
 func TestMachineControllerManagerSuite(t *testing.T) {
+	//for filtering out warning logs. Reflector short watch warning logs won't print now
+	klog.SetOutput(io.Discard)
+	flags := &flag.FlagSet{}
+	klog.InitFlags(flags)
+	flags.Set("logtostderr", "false")
+
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Machine Controller Manager Suite")
 }
