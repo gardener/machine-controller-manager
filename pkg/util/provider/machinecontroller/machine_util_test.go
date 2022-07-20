@@ -24,7 +24,6 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	"github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	"github.com/gardener/machine-controller-manager/pkg/util/permits"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
@@ -2297,26 +2296,6 @@ var _ = Describe("machine_util", func() {
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
 					expectedPhase: v1alpha1.MachineFailed,
-				},
-			}),
-			Entry("HealthTimedout machine shouldn't be marked Failed, if rolling update happening", &data{
-				setup: setup{
-					machines: []*v1alpha1.Machine{
-						newMachine(
-							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
-							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, map[string]string{"node": "node-0"}, true, metav1.Now()),
-					},
-					nodes: []*v1.Node{
-						newNode(1, nil, map[string]string{autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey: "true"}, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
-					},
-					targetMachineName: machineSet1Deploy1 + "-" + "0",
-				},
-				expect: expect{
-					retryPeriod:   machineutils.MediumRetry,
-					err:           nil,
-					expectedPhase: v1alpha1.MachineUnknown,
 				},
 			}),
 			Entry("simple machine WITHOUT creation Timeout(20 min) and Pending state", &data{
