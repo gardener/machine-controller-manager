@@ -1754,24 +1754,6 @@ var _ = Describe("machineDeployment", func() {
 					return nil
 				},
 			),
-			Entry("rolling-update case: scale down annotation of autoscaler should be added on the node object",
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
-					// This should trigger rolling-update.
-					testMachineDeployment.Spec.Template.Spec.Class.Name = "MachineClass-test-new"
-				},
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, testNode *corev1.Node) error {
-					// Can not add more advanced tests, as machine-deployment controller adds the annotation directly on nodes, and lifecycle of the node is managed outside the MCM.
-
-					if len(testMachineSets) != 2 {
-						return errors.New("it should have created a new machine set")
-					}
-
-					if _, ok := testNode.Annotations[ClusterAutoscalerScaleDownDisabledAnnotationKey]; !ok {
-						return errors.New("it should have added an scale-down annotation on the node")
-					}
-					return nil
-				},
-			),
 			Entry("rolling-back case: machine-deployment should point to old machine class and RollbackTo should be removed",
 				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
 					// This should trigger rolling-update..
