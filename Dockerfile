@@ -7,9 +7,7 @@ COPY . .
 RUN .ci/build
 
 #############      base                                     #############
-FROM alpine:3.15.4 as base
-
-RUN apk add --update bash curl tzdata
+FROM gcr.io/distroless/static-debian11:nonroot as base
 WORKDIR /
 
 #############      machine-controller-manager               #############
