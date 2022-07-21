@@ -72,7 +72,7 @@ Machine Controller Manager makes use of 4 CRD objects and 1 Kubernetes secret ob
 | `MachineDeployment`| A `MachineDeployment` provides a declarative update for `MachineSet` and `Machines`.|
 | `Secret`| A `Secret` here is a Kubernetes secret that stores cloudconfig (initialization scripts used to create VMs) and cloud specific credentials.|
 
-See [here](docs/docs/apis.md) for CRD API Documentation
+See [here](docs/documents/apis.md) for CRD API Documentation
 
 
 ## Components of Machine Controller Manager
