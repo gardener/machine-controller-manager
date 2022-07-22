@@ -31,7 +31,6 @@ rules:
    - nodes/status
    - configmaps
    - secrets
-   - endpoints
    - events
    verbs:
    - create
