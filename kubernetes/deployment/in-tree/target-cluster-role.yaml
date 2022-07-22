@@ -7,7 +7,6 @@ rules:
    - ""
    resources:
    - nodes
-   - endpoints
    - replicationcontrollers
    - pods
    verbs:
