@@ -14,7 +14,7 @@ import (
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	mcmscheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/api/apps/v1"
-	rbacv1bata1 "k8s.io/api/rbac/v1beta1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsscheme "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -150,20 +150,20 @@ func (c *Cluster) applyFile(filePath string, namespace string) error {
 					return err
 				}
 			case "ClusterRoleBinding":
-				resource := obj.(*rbacv1bata1.ClusterRoleBinding)
+				resource := obj.(*rbacv1.ClusterRoleBinding)
 				for i := range resource.Subjects {
 					resource.Subjects[i].Namespace = namespace
 				}
 
-				if _, err := c.Clientset.RbacV1beta1().
+				if _, err := c.Clientset.RbacV1().
 					ClusterRoleBindings().
 					Create(ctx, resource, metav1.CreateOptions{}); err != nil {
 					return err
 				}
 			case "ClusterRole":
-				resource := obj.(*rbacv1bata1.ClusterRole)
+				resource := obj.(*rbacv1.ClusterRole)
 
-				if _, err := c.Clientset.RbacV1beta1().
+				if _, err := c.Clientset.RbacV1().
 					ClusterRoles().
 					Create(ctx, resource, metav1.CreateOptions{}); err != nil {
 					return err
@@ -306,7 +306,7 @@ func (c *Cluster) deleteResource(filePath string, namespace string) error {
 					return err
 				}
 			case "ClusterRoleBinding":
-				resource := obj.(*rbacv1bata1.ClusterRoleBinding)
+				resource := obj.(*rbacv1.ClusterRoleBinding)
 				for i := range resource.Subjects {
 					resource.Subjects[i].Namespace = namespace
 				}
@@ -320,7 +320,7 @@ func (c *Cluster) deleteResource(filePath string, namespace string) error {
 					return err
 				}
 			case "ClusterRole":
-				resource := obj.(*rbacv1bata1.ClusterRole)
+				resource := obj.(*rbacv1.ClusterRole)
 				if err := c.Clientset.RbacV1beta1().
 					ClusterRoles().
 					Delete(
