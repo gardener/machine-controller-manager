@@ -24,6 +24,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"math/big"
+	"net/url"
 	"strings"
 	"time"
 
@@ -38,6 +39,9 @@ import (
 
 const placeholder = "<<BOOTSTRAP_TOKEN>>"
 
+// urlEncodedPlaceholder is a placeholder that can for instance occur in ignition userdata format
+var urlEncodedPlaceholder = url.QueryEscape(placeholder)
+
 func (c *controller) addBootstrapTokenToUserData(ctx context.Context, machineName string, driver driver.Driver) error {
 	userData := driver.GetUserData()
 	klog.V(4).Infof("Creating bootstrap token!")
@@ -50,8 +54,16 @@ func (c *controller) addBootstrapTokenToUserData(ctx context.Context, machineNam
 		string(bootstrapTokenSecret.Data[bootstraptokenapi.BootstrapTokenIDKey]),
 		string(bootstrapTokenSecret.Data[bootstraptokenapi.BootstrapTokenSecretKey]),
 	)
-	klog.V(4).Infof("replacing placeholder %s with %s in user-data!", placeholder, token)
-	userData = strings.ReplaceAll(userData, placeholder, token)
+
+	if strings.Contains(userData, placeholder) {
+		klog.V(4).Infof("replacing placeholder %s with %s in user-data!", placeholder, token)
+		userData = strings.ReplaceAll(userData, placeholder, token)
+	} else if strings.Contains(userData, urlEncodedPlaceholder) {
+		klog.V(4).Infof("replacing url encoded placeholder %s with %s in user-data!", urlEncodedPlaceholder, url.QueryEscape(token))
+		userData = strings.ReplaceAll(userData, urlEncodedPlaceholder, url.QueryEscape(token))
+	} else {
+		klog.V(4).Info("no bootstrap token placeholder found in user-data, nothing to replace!")
+	}
 
 	driver.SetUserData(userData)
 	return nil
