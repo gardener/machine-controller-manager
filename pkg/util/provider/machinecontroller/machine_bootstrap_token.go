@@ -25,6 +25,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"net/url"
 	"strings"
 	"time"
 
@@ -37,6 +38,9 @@ import (
 )
 
 const placeholder = "<<BOOTSTRAP_TOKEN>>"
+
+// urlEncodedPlaceholder is a placeholder that can for instance occur in ignition userdata format
+var urlEncodedPlaceholder = url.QueryEscape(placeholder)
 
 func (c *controller) addBootstrapTokenToUserData(ctx context.Context, machineName string, secret *corev1.Secret) error {
 	var (
@@ -61,8 +65,16 @@ func (c *controller) addBootstrapTokenToUserData(ctx context.Context, machineNam
 		string(bootstrapTokenSecret.Data[bootstraptokenapi.BootstrapTokenSecretKey]),
 	)
 
-	klog.V(4).Infof("replacing placeholder %s with %s in user-data!", placeholder, token)
-	userDataS = strings.ReplaceAll(userDataS, placeholder, token)
+	if strings.Contains(userDataS, placeholder) {
+		klog.V(4).Infof("replacing placeholder %s with %s in user-data!", placeholder, token)
+		userDataS = strings.ReplaceAll(userDataS, placeholder, token)
+	} else if strings.Contains(userDataS, urlEncodedPlaceholder) {
+		klog.V(4).Infof("replacing url encoded placeholder %s with %s in user-data!", urlEncodedPlaceholder, url.QueryEscape(token))
+		userDataS = strings.ReplaceAll(userDataS, urlEncodedPlaceholder, url.QueryEscape(token))
+	} else {
+		klog.V(4).Info("no bootstrap token placeholder found in user-data, nothing to replace!")
+	}
+
 	secret.Data["userData"] = []byte(userDataS)
 
 	return nil
