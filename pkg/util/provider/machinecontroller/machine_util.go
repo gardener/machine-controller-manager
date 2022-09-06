@@ -1073,6 +1073,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 
 			drainOptions := drain.NewDrainOptions(
 				c.targetCoreClient,
+				c.targetKubernetesVersion,
 				timeOutDuration,
 				maxEvictRetries,
 				pvDetachTimeOut,
@@ -1088,7 +1089,8 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				c.driver,
 				c.pvcLister,
 				c.pvLister,
-				c.pdbLister,
+				c.pdbV1beta1Lister,
+				c.pdbV1Lister,
 				c.nodeLister,
 				c.volumeAttachmentHandler,
 			)

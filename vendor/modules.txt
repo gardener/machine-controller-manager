@@ -33,6 +33,9 @@ github.com/Azure/go-autorest/logger
 # github.com/Azure/go-autorest/tracing v0.6.0
 ## explicit; go 1.12
 github.com/Azure/go-autorest/tracing
+# github.com/Masterminds/semver v1.5.0
+## explicit
+github.com/Masterminds/semver
 # github.com/Microsoft/go-winio v0.4.16
 ## explicit; go 1.12
 github.com/Microsoft/go-winio

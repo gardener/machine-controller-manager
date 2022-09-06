@@ -31,7 +31,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -84,7 +83,7 @@ var _ = Describe("drain", func() {
 		minDrainDuration time.Duration
 	}
 
-	type podDrainHandler func(client kubernetes.Interface, pod *api.Pod, detachExclusiveVolumesCh chan<- *api.Pod) error
+	type podDrainHandler func(client kubernetes.Interface, pod *corev1.Pod, detachExclusiveVolumesCh chan<- *corev1.Pod) error
 
 	run := func(setup *setup, podDrainHandlers []podDrainHandler, expected *expectation) {
 		stop := make(chan struct{})
@@ -105,7 +104,7 @@ var _ = Describe("drain", func() {
 			"volumes": "exclusive-and-shared",
 		})
 
-		var pods []*api.Pod
+		var pods []*corev1.Pod
 		pods = append(pods, podsWithoutPV...)
 		pods = append(pods, podsWithOnlyExclusivePV...)
 		pods = append(pods, podsWithOnlySharedPV...)
@@ -168,27 +167,28 @@ var _ = Describe("drain", func() {
 			Out:                          GinkgoWriter,
 			pvcLister:                    fakePVCLister,
 			pvLister:                     fakePVLister,
-			pdbLister:                    nil,
+			pdbV1beta1Lister:             nil,
+			pdbV1Lister:                  nil,
 			nodeLister:                   fakeNodeLister,
 			Timeout:                      2 * time.Minute,
 			volumeAttachmentHandler:      volumeAttachmentHandler,
 		}
 
 		// Get the pod directly from the ObjectTracker to avoid locking issues in the Fake object.
-		getPod := func(gvr schema.GroupVersionResource, ns, name string) (*api.Pod, error) {
+		getPod := func(gvr schema.GroupVersionResource, ns, name string) (*corev1.Pod, error) {
 			ro, err := tracker.Get(gvr, ns, name)
 			if err != nil {
 				return nil, err
 			}
 
-			return ro.(*api.Pod), nil
+			return ro.(*corev1.Pod), nil
 		}
 
 		// Serialize volume detachment to avoid concurrency issues during node update.
-		detachExclusiveVolumesCh := make(chan *api.Pod)
+		detachExclusiveVolumesCh := make(chan *corev1.Pod)
 		defer close(detachExclusiveVolumesCh)
 
-		runPodDrainHandlers := func(pod *api.Pod) {
+		runPodDrainHandlers := func(pod *corev1.Pod) {
 			var err error
 			for _, handler := range podDrainHandlers {
 				err = handler(d.client, pod, detachExclusiveVolumesCh)
@@ -216,7 +216,7 @@ var _ = Describe("drain", func() {
 				nodeUpdateRequired := false
 				{
 					remainingVolumesAttached := []corev1.AttachedVolume{}
-					pvcs := getPVCs([]*api.Pod{pod})
+					pvcs := getPVCs([]*corev1.Pod{pod})
 					pvs := getPVs(pvcs)
 					for i := range node.Status.VolumesAttached {
 						va := &node.Status.VolumesAttached[i]
@@ -295,7 +295,7 @@ var _ = Describe("drain", func() {
 						return
 					}
 
-					var pod *api.Pod
+					var pod *corev1.Pod
 					pod, err = getPod(action.GetResource(), ga.GetNamespace(), ga.GetName())
 					if err != nil {
 						return
@@ -327,7 +327,7 @@ var _ = Describe("drain", func() {
 				start := time.Now()
 				switch ga := action.(type) {
 				case k8stesting.DeleteAction:
-					var pod *api.Pod
+					var pod *corev1.Pod
 					pod, err = getPod(action.GetResource(), ga.GetNamespace(), ga.GetName())
 					if err != nil {
 						return
@@ -401,17 +401,17 @@ var _ = Describe("drain", func() {
 	}
 
 	sleepFor := func(d time.Duration) podDrainHandler {
-		return func(client kubernetes.Interface, pod *api.Pod, detachExclusiveVolumesCh chan<- *api.Pod) error {
+		return func(client kubernetes.Interface, pod *corev1.Pod, detachExclusiveVolumesCh chan<- *corev1.Pod) error {
 			time.Sleep(d)
 			return nil
 		}
 	}
 
-	deletePod := func(client kubernetes.Interface, pod *api.Pod, detachExclusiveVolumesCh chan<- *api.Pod) error {
+	deletePod := func(client kubernetes.Interface, pod *corev1.Pod, detachExclusiveVolumesCh chan<- *corev1.Pod) error {
 		return client.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
 	}
 
-	detachExclusiveVolumes := func(client kubernetes.Interface, pod *api.Pod, detachExclusiveVolumesCh chan<- *api.Pod) error {
+	detachExclusiveVolumes := func(client kubernetes.Interface, pod *corev1.Pod, detachExclusiveVolumesCh chan<- *corev1.Pod) error {
 		detachExclusiveVolumesCh <- pod
 		return nil
 	}
@@ -897,7 +897,7 @@ func getPodsWithoutPV(n int, ns, podPrefix, nodeName string, terminationGracePer
 func getPodWithPV(ns, name, exclusivePV, sharedPV, nodeName string, terminationGracePeriod time.Duration, labels map[string]string, numberOfExclusivePVs int) *corev1.Pod {
 	pod := getPodWithoutPV(ns, name, nodeName, terminationGracePeriod, labels)
 
-	appendVolume := func(pod *api.Pod, vol string) {
+	appendVolume := func(pod *corev1.Pod, vol string) {
 		pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
 			Name: vol,
 			VolumeSource: corev1.VolumeSource{

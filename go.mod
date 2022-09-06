@@ -7,12 +7,14 @@ require (
 	github.com/Azure/go-autorest/autorest v0.11.18
 	github.com/Azure/go-autorest/autorest/adal v0.9.13
 	github.com/Azure/go-autorest/autorest/to v0.3.0
+	github.com/Masterminds/semver v1.5.0
 	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20180828111155-cad214d7d71f
 	github.com/aws/aws-sdk-go v1.23.13
 	github.com/cenkalti/backoff/v4 v4.1.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-openapi/spec v0.19.5
+	github.com/google/uuid v1.1.2
 	github.com/gophercloud/gophercloud v0.7.0
 	github.com/gophercloud/utils v0.0.0-20200204043447-9864b6f1f12f
 	github.com/onsi/ginkgo v1.16.2
@@ -35,8 +37,6 @@ require (
 	k8s.io/kube-openapi v0.0.0-20211110012726-3cc51fd1e909 // keep this value in sync with k8s.io/apiserver
 	k8s.io/utils v0.0.0-20211116205334-6203023598ed
 )
-
-require github.com/google/uuid v1.1.2
 
 require (
 	cloud.google.com/go v0.65.0 // indirect
