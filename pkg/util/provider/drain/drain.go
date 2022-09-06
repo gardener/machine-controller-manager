@@ -32,9 +32,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
+	"github.com/gardener/machine-controller-manager/pkg/util/k8sutils"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
-	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -44,13 +46,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	corelisters "k8s.io/client-go/listers/core/v1"
-	policylisters "k8s.io/client-go/listers/policy/v1beta1"
+	policyv1listers "k8s.io/client-go/listers/policy/v1"
+	policyv1beta1listers "k8s.io/client-go/listers/policy/v1beta1"
 	"k8s.io/klog/v2"
 )
 
 // Options are configurable options while draining a node before deletion
 type Options struct {
 	client                       kubernetes.Interface
+	kubernetesVersion            *semver.Version
 	DeleteLocalData              bool
 	Driver                       driver.Driver
 	drainStartedOn               time.Time
@@ -67,7 +71,8 @@ type Options struct {
 	Out                          io.Writer
 	pvcLister                    corelisters.PersistentVolumeClaimLister
 	pvLister                     corelisters.PersistentVolumeLister
-	pdbLister                    policylisters.PodDisruptionBudgetLister
+	pdbV1beta1Lister             policyv1beta1listers.PodDisruptionBudgetLister
+	pdbV1Lister                  policyv1listers.PodDisruptionBudgetLister
 	nodeLister                   corelisters.NodeLister
 	volumeAttachmentHandler      *VolumeAttachmentHandler
 	Timeout                      time.Duration
@@ -75,7 +80,7 @@ type Options struct {
 
 // Takes a pod and returns a bool indicating whether or not to operate on the
 // pod, an optional warning message, and an optional fatal error.
-type podFilter func(api.Pod) (include bool, w *warning, f *fatal)
+type podFilter func(corev1.Pod) (include bool, w *warning, f *fatal)
 
 type warning struct {
 	string
@@ -135,6 +140,7 @@ var (
 // NewDrainOptions creates a new DrainOptions struct and returns a pointer to it
 func NewDrainOptions(
 	client kubernetes.Interface,
+	kubernetesVersion *semver.Version,
 	timeout time.Duration,
 	maxEvictRetries int32,
 	pvDetachTimeout time.Duration,
@@ -150,12 +156,14 @@ func NewDrainOptions(
 	driver driver.Driver,
 	pvcLister corelisters.PersistentVolumeClaimLister,
 	pvLister corelisters.PersistentVolumeLister,
-	pdbLister policylisters.PodDisruptionBudgetLister,
+	pdbV1beta1Lister policyv1beta1listers.PodDisruptionBudgetLister,
+	pdbV1Lister policyv1listers.PodDisruptionBudgetLister,
 	nodeLister corelisters.NodeLister,
 	volumeAttachmentHandler *VolumeAttachmentHandler,
 ) *Options {
 	return &Options{
 		client:                       client,
+		kubernetesVersion:            kubernetesVersion,
 		ForceDeletePods:              forceDeletePods,
 		IgnorePodsWithoutControllers: ignorePodsWithoutControllers,
 		GracePeriodSeconds:           gracePeriodSeconds,
@@ -171,7 +179,8 @@ func NewDrainOptions(
 		Driver:                       driver,
 		pvcLister:                    pvcLister,
 		pvLister:                     pvLister,
-		pdbLister:                    pdbLister,
+		pdbV1beta1Lister:             pdbV1beta1Lister,
+		pdbV1Lister:                  pdbV1Lister,
 		nodeLister:                   nodeLister,
 		volumeAttachmentHandler:      volumeAttachmentHandler,
 	}
@@ -225,13 +234,13 @@ func (o *Options) deleteOrEvictPodsSimple(ctx context.Context) error {
 	return err
 }
 
-func (o *Options) getPodController(pod api.Pod) *metav1.OwnerReference {
+func (o *Options) getPodController(pod corev1.Pod) *metav1.OwnerReference {
 	return metav1.GetControllerOf(&pod)
 }
 
-func (o *Options) unreplicatedFilter(pod api.Pod) (bool, *warning, *fatal) {
+func (o *Options) unreplicatedFilter(pod corev1.Pod) (bool, *warning, *fatal) {
 	// any finished pod can be removed
-	if pod.Status.Phase == api.PodSucceeded || pod.Status.Phase == api.PodFailed {
+	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
 		return true, nil, nil
 	}
 
@@ -245,7 +254,7 @@ func (o *Options) unreplicatedFilter(pod api.Pod) (bool, *warning, *fatal) {
 	return true, &warning{unmanagedWarning}, nil
 }
 
-func (o *Options) daemonsetFilter(pod api.Pod) (bool, *warning, *fatal) {
+func (o *Options) daemonsetFilter(pod corev1.Pod) (bool, *warning, *fatal) {
 	// Note that we return false in cases where the pod is DaemonSet managed,
 	// regardless of flags.  We never delete them, the only question is whether
 	// their presence constitutes an error.
@@ -264,14 +273,14 @@ func (o *Options) daemonsetFilter(pod api.Pod) (bool, *warning, *fatal) {
 	return false, &warning{daemonsetWarning}, nil
 }
 
-func mirrorPodFilter(pod api.Pod) (bool, *warning, *fatal) {
+func mirrorPodFilter(pod corev1.Pod) (bool, *warning, *fatal) {
 	if _, found := pod.ObjectMeta.Annotations[corev1.MirrorPodAnnotationKey]; found {
 		return false, nil, nil
 	}
 	return true, nil, nil
 }
 
-func hasLocalStorage(pod api.Pod) bool {
+func hasLocalStorage(pod corev1.Pod) bool {
 	for _, volume := range pod.Spec.Volumes {
 		if volume.EmptyDir != nil {
 			return true
@@ -281,7 +290,7 @@ func hasLocalStorage(pod api.Pod) bool {
 	return false
 }
 
-func (o *Options) localStorageFilter(pod api.Pod) (bool, *warning, *fatal) {
+func (o *Options) localStorageFilter(pod corev1.Pod) (bool, *warning, *fatal) {
 	if !hasLocalStorage(pod) {
 		return true, nil, nil
 	}
@@ -305,7 +314,7 @@ func (ps podStatuses) Message() string {
 
 // getPodsForDeletion returns all the pods we're going to delete.  If there are
 // any pods preventing us from deleting, we return that list in an error.
-func (o *Options) getPodsForDeletion(ctx context.Context) (pods []api.Pod, err error) {
+func (o *Options) getPodsForDeletion(ctx context.Context) (pods []corev1.Pod, err error) {
 	podList, err := o.client.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": o.nodeName}).String()})
 	if err != nil {
@@ -334,7 +343,7 @@ func (o *Options) getPodsForDeletion(ctx context.Context) (pods []api.Pod, err e
 	}
 
 	if len(fs) > 0 {
-		return []api.Pod{}, errors.New(fs.Message())
+		return []corev1.Pod{}, errors.New(fs.Message())
 	}
 	if len(ws) > 0 {
 		fmt.Fprintf(o.ErrOut, "WARNING: %s\n", ws.Message())
@@ -342,7 +351,7 @@ func (o *Options) getPodsForDeletion(ctx context.Context) (pods []api.Pod, err e
 	return pods, nil
 }
 
-func (o *Options) deletePod(ctx context.Context, pod *api.Pod) error {
+func (o *Options) deletePod(ctx context.Context, pod *corev1.Pod) error {
 	deleteOptions := metav1.DeleteOptions{}
 	gracePeriodSeconds := int64(0)
 	deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
@@ -351,7 +360,7 @@ func (o *Options) deletePod(ctx context.Context, pod *api.Pod) error {
 	return o.client.CoreV1().Pods(pod.Namespace).Delete(ctx, pod.Name, deleteOptions)
 }
 
-func (o *Options) evictPod(ctx context.Context, pod *api.Pod, policyGroupVersion string) error {
+func (o *Options) evictPod(ctx context.Context, pod *corev1.Pod, policyGroupVersion string) error {
 	deleteOptions := &metav1.DeleteOptions{}
 	if o.GracePeriodSeconds >= 0 {
 		gracePeriodSeconds := int64(o.GracePeriodSeconds)
@@ -374,7 +383,7 @@ func (o *Options) evictPod(ctx context.Context, pod *api.Pod, policyGroupVersion
 }
 
 // deleteOrEvictPods deletes or evicts the pods on the api server
-func (o *Options) deleteOrEvictPods(ctx context.Context, pods []api.Pod) error {
+func (o *Options) deleteOrEvictPods(ctx context.Context, pods []corev1.Pod) error {
 	if len(pods) == 0 {
 		return nil
 	}
@@ -384,7 +393,7 @@ func (o *Options) deleteOrEvictPods(ctx context.Context, pods []api.Pod) error {
 		return err
 	}
 
-	getPodFn := func(namespace, name string) (*api.Pod, error) {
+	getPodFn := func(namespace, name string) (*corev1.Pod, error) {
 		return o.client.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
 	}
 
@@ -397,8 +406,8 @@ func volIsPvc(vol *corev1.Volume) bool {
 	return vol.PersistentVolumeClaim != nil
 }
 
-func filterPodsWithPv(pods []api.Pod) ([]*api.Pod, []*api.Pod) {
-	podsWithPv, podsWithoutPv := []*api.Pod{}, []*api.Pod{}
+func filterPodsWithPv(pods []corev1.Pod) ([]*corev1.Pod, []*corev1.Pod) {
+	podsWithPv, podsWithoutPv := []*corev1.Pod{}, []*corev1.Pod{}
 
 	for i := range pods {
 		hasPv := false
@@ -420,7 +429,7 @@ func filterPodsWithPv(pods []api.Pod) ([]*api.Pod, []*api.Pod) {
 	return podsWithPv, podsWithoutPv
 }
 
-func (o *Options) getTerminationGracePeriod(pod *api.Pod) time.Duration {
+func (o *Options) getTerminationGracePeriod(pod *corev1.Pod) time.Duration {
 	if pod == nil || pod.Spec.TerminationGracePeriodSeconds == nil {
 		return time.Duration(0)
 	}
@@ -428,7 +437,7 @@ func (o *Options) getTerminationGracePeriod(pod *api.Pod) time.Duration {
 	return time.Duration(*pod.Spec.TerminationGracePeriodSeconds) * time.Second
 }
 
-func (o *Options) getGlobalTimeoutForPodsWithoutPV(pods []*api.Pod) time.Duration {
+func (o *Options) getGlobalTimeoutForPodsWithoutPV(pods []*corev1.Pod) time.Duration {
 	var tgpsMax time.Duration
 	for _, pod := range pods {
 		tgps := o.getTerminationGracePeriod(pod)
@@ -440,12 +449,12 @@ func (o *Options) getGlobalTimeoutForPodsWithoutPV(pods []*api.Pod) time.Duratio
 	return tgpsMax + PodsWithoutPVDrainGracePeriod
 }
 
-func (o *Options) evictPods(ctx context.Context, attemptEvict bool, pods []api.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error)) error {
+func (o *Options) evictPods(ctx context.Context, attemptEvict bool, pods []corev1.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*corev1.Pod, error)) error {
 	returnCh := make(chan error, len(pods))
 	defer close(returnCh)
 
 	if o.ForceDeletePods {
-		podsToDrain := make([]*api.Pod, len(pods))
+		podsToDrain := make([]*corev1.Pod, len(pods))
 		for i := range pods {
 			podsToDrain[i] = &pods[i]
 		}
@@ -480,7 +489,7 @@ func (o *Options) evictPods(ctx context.Context, attemptEvict bool, pods []api.P
 
 func (o *Options) evictPodsWithoutPv(ctx context.Context, attemptEvict bool, pods []*corev1.Pod,
 	policyGroupVersion string,
-	getPodFn func(namespace, name string) (*api.Pod, error),
+	getPodFn func(namespace, name string) (*corev1.Pod, error),
 	returnCh chan error,
 ) {
 	for _, pod := range pods {
@@ -570,7 +579,7 @@ func filterSharedPVs(pvMap map[string][]string) {
 
 func (o *Options) evictPodsWithPv(ctx context.Context, attemptEvict bool, pods []*corev1.Pod,
 	policyGroupVersion string,
-	getPodFn func(namespace, name string) (*api.Pod, error),
+	getPodFn func(namespace, name string) (*corev1.Pod, error),
 	returnCh chan error,
 ) {
 	sortPodsByPriority(pods)
@@ -578,7 +587,7 @@ func (o *Options) evictPodsWithPv(ctx context.Context, attemptEvict bool, pods [
 	podVolumeInfoMap := o.doAccountingOfPvs(ctx, pods)
 
 	var (
-		remainingPods []*api.Pod
+		remainingPods []*corev1.Pod
 		fastTrack     bool
 		nretries      = int(o.MaxEvictRetries)
 	)
@@ -617,9 +626,9 @@ func (o *Options) evictPodsWithPv(ctx context.Context, attemptEvict bool, pods [
 			// Return success to caller for all non-processed pods so that the caller function can move on.
 			returnCh <- nil
 		} else if attemptEvict {
-			returnCh <- fmt.Errorf("Error evicting pod %s/%s from node %q", pod.Namespace, pod.Name, pod.Spec.NodeName)
+			returnCh <- fmt.Errorf("error evicting pod %s/%s from node %q", pod.Namespace, pod.Name, pod.Spec.NodeName)
 		} else {
-			returnCh <- fmt.Errorf("Error deleting pod %s/%s from node %q", pod.Namespace, pod.Name, pod.Spec.NodeName)
+			returnCh <- fmt.Errorf("error deleting pod %s/%s from node %q", pod.Namespace, pod.Name, pod.Spec.NodeName)
 		}
 	}
 
@@ -640,13 +649,13 @@ func (o *Options) evictPodsWithPVInternal(
 	pods []*corev1.Pod,
 	podVolumeInfoMap map[string]PodVolumeInfo,
 	policyGroupVersion string,
-	getPodFn func(namespace, name string) (*api.Pod, error),
+	getPodFn func(namespace, name string) (*corev1.Pod, error),
 	returnCh chan error,
-) (remainingPods []*api.Pod, fastTrack bool) {
+) (remainingPods []*corev1.Pod, fastTrack bool) {
 	var (
 		mainContext       context.Context
 		cancelMainContext context.CancelFunc
-		retryPods         []*api.Pod
+		retryPods         []*corev1.Pod
 	)
 	mainContext, cancelMainContext = context.WithDeadline(ctx, o.drainStartedOn.Add(o.Timeout))
 	defer cancelMainContext()
@@ -681,14 +690,27 @@ func (o *Options) evictPodsWithPVInternal(
 			// Pod eviction failed because of PDB violation, we will retry one we are done with this list.
 			klog.V(3).Infof("Pod %s/%s couldn't be evicted from node %s. This may also occur due to PDB violation. Will be retried. Error: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
 
-			pdb := getPdbForPod(o.pdbLister, pod)
-			if pdb != nil {
-				if isMisconfiguredPdb(pdb) {
-					pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
-						pod.Name, pdb.Namespace, pdb.Name)
-					returnCh <- pdbErr
-					o.checkAndDeleteWorker(volumeAttachmentEventCh)
-					continue
+			if k8sutils.ConstraintK8sGreaterEqual121.Check(o.kubernetesVersion) {
+				pdb := getPdbV1ForPod(o.pdbV1Lister, pod)
+				if pdb != nil {
+					if isMisconfiguredPdbV1(pdb) {
+						pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
+							pod.Name, pdb.Namespace, pdb.Name)
+						returnCh <- pdbErr
+						o.checkAndDeleteWorker(volumeAttachmentEventCh)
+						continue
+					}
+				}
+			} else {
+				pdb := getPdbV1beta1ForPod(o.pdbV1beta1Lister, pod)
+				if pdb != nil {
+					if isMisconfiguredPdbV1beta1(pdb) {
+						pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
+							pod.Name, pdb.Namespace, pdb.Name)
+						returnCh <- pdbErr
+						o.checkAndDeleteWorker(volumeAttachmentEventCh)
+						continue
+					}
 				}
 			}
 
@@ -821,7 +843,7 @@ func (o *Options) waitForDetach(ctx context.Context, podVolumeInfo PodVolumeInfo
 		select {
 		case <-ctx.Done():
 			klog.Warningf("Timeout occurred while waiting for PVs to detach from node %q", nodeName)
-			return fmt.Errorf("Timeout while waiting for PVs to detach from node")
+			return fmt.Errorf("timeout while waiting for PVs to detach from node")
 		default:
 		}
 
@@ -964,7 +986,7 @@ func (o *Options) getVolIDsFromDriver(ctx context.Context, pvNames []string) ([]
 	return response.VolumeIDs, err
 }
 
-func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bool, pod *corev1.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*api.Pod, error), returnCh chan error) {
+func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bool, pod *corev1.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*corev1.Pod, error), returnCh chan error) {
 	var err error
 	klog.V(3).Infof(
 		"Evicting pod %s/%s from node %q ",
@@ -995,13 +1017,25 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 			// Pod couldn't be evicted because of PDB violation
 			klog.V(3).Infof("Pod %s/%s couldn't be evicted from node %s. This may also occur due to PDB violation. Will be retried. Error: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
 
-			pdb := getPdbForPod(o.pdbLister, pod)
-			if pdb != nil {
-				if isMisconfiguredPdb(pdb) {
-					pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
-						pod.Name, pdb.Namespace, pdb.Name)
-					returnCh <- pdbErr
-					return
+			if k8sutils.ConstraintK8sGreaterEqual121.Check(o.kubernetesVersion) {
+				pdb := getPdbV1ForPod(o.pdbV1Lister, pod)
+				if pdb != nil {
+					if isMisconfiguredPdbV1(pdb) {
+						pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
+							pod.Name, pdb.Namespace, pdb.Name)
+						returnCh <- pdbErr
+						return
+					}
+				}
+			} else {
+				pdb := getPdbV1beta1ForPod(o.pdbV1beta1Lister, pod)
+				if pdb != nil {
+					if isMisconfiguredPdbV1beta1(pdb) {
+						pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
+							pod.Name, pdb.Namespace, pdb.Name)
+						returnCh <- pdbErr
+						return
+					}
 				}
 			}
 
@@ -1022,7 +1056,7 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 		return
 	}
 
-	podArray := []*api.Pod{pod}
+	podArray := []*corev1.Pod{pod}
 
 	timeout := o.getTerminationGracePeriod(pod)
 	if timeout > o.Timeout {
@@ -1043,9 +1077,9 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 	}
 }
 
-func (o *Options) waitForDelete(pods []*api.Pod, interval, timeout time.Duration, usingEviction bool, getPodFn func(string, string) (*api.Pod, error)) ([]*api.Pod, error) {
+func (o *Options) waitForDelete(pods []*corev1.Pod, interval, timeout time.Duration, usingEviction bool, getPodFn func(string, string) (*corev1.Pod, error)) ([]*corev1.Pod, error) {
 	err := wait.PollImmediate(interval, timeout, func() (bool, error) {
-		pendingPods := []*api.Pod{}
+		pendingPods := []*corev1.Pod{}
 		for i, pod := range pods {
 			p, err := getPodFn(pod.Namespace, pod.Name)
 			if apierrors.IsNotFound(err) || (p != nil && p.ObjectMeta.UID != pod.ObjectMeta.UID) {
@@ -1122,7 +1156,7 @@ func (o *Options) RunCordonOrUncordon(ctx context.Context, desired bool) error {
 	return nil
 }
 
-func getPdbForPod(pdbLister policylisters.PodDisruptionBudgetLister, pod *corev1.Pod) *policyv1beta1.PodDisruptionBudget {
+func getPdbV1ForPod(pdbLister policyv1listers.PodDisruptionBudgetLister, pod *corev1.Pod) *policyv1.PodDisruptionBudget {
 	// GetPodPodDisruptionBudgets returns an error only if no PodDisruptionBudgets are found.
 	// We don't return that as an error to the caller.
 	pdbs, err := pdbLister.GetPodPodDisruptionBudgets(pod)
@@ -1138,7 +1172,31 @@ func getPdbForPod(pdbLister policylisters.PodDisruptionBudgetLister, pod *corev1
 	return pdbs[0]
 }
 
-func isMisconfiguredPdb(pdb *policyv1beta1.PodDisruptionBudget) bool {
+func getPdbV1beta1ForPod(pdbLister policyv1beta1listers.PodDisruptionBudgetLister, pod *corev1.Pod) *policyv1beta1.PodDisruptionBudget {
+	// GetPodPodDisruptionBudgets returns an error only if no PodDisruptionBudgets are found.
+	// We don't return that as an error to the caller.
+	pdbs, err := pdbLister.GetPodPodDisruptionBudgets(pod)
+	if err != nil {
+		klog.V(4).Infof("No PodDisruptionBudgets found for pod %s/%s.", pod.Namespace, pod.Name)
+		return nil
+	}
+
+	if len(pdbs) > 1 {
+		klog.Warningf("Pod %s/%s matches multiple PodDisruptionBudgets. Chose %q arbitrarily.", pod.Namespace, pod.Name, pdbs[0].Name)
+	}
+
+	return pdbs[0]
+}
+
+func isMisconfiguredPdbV1(pdb *policyv1.PodDisruptionBudget) bool {
+	if pdb.ObjectMeta.Generation != pdb.Status.ObservedGeneration {
+		return false
+	}
+
+	return pdb.Status.ExpectedPods > 0 && pdb.Status.CurrentHealthy >= pdb.Status.ExpectedPods && pdb.Status.DisruptionsAllowed == 0
+}
+
+func isMisconfiguredPdbV1beta1(pdb *policyv1beta1.PodDisruptionBudget) bool {
 	if pdb.ObjectMeta.Generation != pdb.Status.ObservedGeneration {
 		return false
 	}

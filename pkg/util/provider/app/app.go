@@ -32,10 +32,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Masterminds/semver"
 	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
 	coreclientbuilder "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/core"
 	machineclientbuilder "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/machine"
+	"github.com/gardener/machine-controller-manager/pkg/util/k8sutils"
 	machinecontroller "github.com/gardener/machine-controller-manager/pkg/util/provider/machinecontroller"
 	coreinformers "k8s.io/client-go/informers"
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
@@ -50,6 +52,8 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
+	policyv1informers "k8s.io/client-go/informers/policy/v1"
+	policyv1beta1informers "k8s.io/client-go/informers/policy/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/pkg/version"
@@ -225,6 +229,15 @@ func StartControllers(s *options.MCServer,
 		klog.Fatal(err)
 	}
 
+	targetServerVersion, err := targetCoreClient.Discovery().ServerVersion()
+	if err != nil {
+		return err
+	}
+	targetKubernetesVersion, err := semver.NewVersion(targetServerVersion.GitVersion)
+	if err != nil {
+		return err
+	}
+
 	if availableResources[machineGVR] {
 		klog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
@@ -247,6 +260,17 @@ func StartControllers(s *options.MCServer,
 			s.MinResyncPeriod.Duration,
 		)
 
+		var (
+			pdbV1Informer      policyv1informers.PodDisruptionBudgetInformer
+			pdbV1beta1Informer policyv1beta1informers.PodDisruptionBudgetInformer
+		)
+
+		if k8sutils.ConstraintK8sGreaterEqual121.Check(targetKubernetesVersion) {
+			pdbV1Informer = targetCoreInformerFactory.Policy().V1().PodDisruptionBudgets()
+		} else {
+			pdbV1beta1Informer = targetCoreInformerFactory.Policy().V1beta1().PodDisruptionBudgets()
+		}
+
 		// All shared informers are v1alpha1 API level
 		machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
 
@@ -261,7 +285,8 @@ func StartControllers(s *options.MCServer,
 			targetCoreInformerFactory.Core().V1().PersistentVolumes(),
 			controlCoreInformerFactory.Core().V1().Secrets(),
 			targetCoreInformerFactory.Core().V1().Nodes(),
-			targetCoreInformerFactory.Policy().V1beta1().PodDisruptionBudgets(),
+			pdbV1beta1Informer,
+			pdbV1Informer,
 			targetCoreInformerFactory.Storage().V1().VolumeAttachments(),
 			machineSharedInformers.MachineClasses(),
 			machineSharedInformers.Machines(),
@@ -269,6 +294,7 @@ func StartControllers(s *options.MCServer,
 			s.SafetyOptions,
 			s.NodeConditions,
 			s.BootstrapTokenAuthExtraGroups,
+			targetKubernetesVersion,
 		)
 		if err != nil {
 			return err
@@ -290,7 +316,7 @@ func StartControllers(s *options.MCServer,
 }
 
 // TODO: In general, any controller checking this needs to be dynamic so
-//  users don't have to restart their controller manager if they change the apiserver.
+// users don't have to restart their controller manager if they change the apiserver.
 // Until we get there, the structure here needs to be exposed for the construction of a proper ControllerContext.
 func getAvailableResources(clientBuilder coreclientbuilder.ClientBuilder) (map[schema.GroupVersionResource]bool, error) {
 	var discoveryClient discovery.DiscoveryInterface
