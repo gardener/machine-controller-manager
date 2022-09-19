@@ -130,7 +130,7 @@ var _ = Describe("deployment_rolling", func() {
 						machineSets[0],
 						&machinev1.MachineStatus{},
 						nil,
-						map[string]string{machinev1.MachineNodeLabelKey: "node-0"},
+						map[string]string{machinev1.NodeLabelKey: "node-0"},
 					),
 					nodes: newNodes(
 						1,
@@ -293,7 +293,7 @@ var _ = Describe("deployment_rolling", func() {
 						machineSets[0],
 						&machinev1.MachineStatus{},
 						nil,
-						map[string]string{machinev1.MachineNodeLabelKey: "node-0"},
+						map[string]string{machinev1.NodeLabelKey: "node-0"},
 					),
 					nodes: newNodes(
 						1,
@@ -345,7 +345,7 @@ var _ = Describe("deployment_rolling", func() {
 						machineSets[0],
 						&machinev1.MachineStatus{},
 						nil,
-						map[string]string{machinev1.MachineNodeLabelKey: "node-0"},
+						map[string]string{machinev1.NodeLabelKey: "node-0"},
 					),
 					nodes: newNodes(
 						1,
@@ -396,7 +396,7 @@ var _ = Describe("deployment_rolling", func() {
 						machineSets[0],
 						&machinev1.MachineStatus{},
 						nil,
-						map[string]string{machinev1.MachineNodeLabelKey: "node-0"},
+						map[string]string{machinev1.NodeLabelKey: "node-0"},
 					),
 					nodes: newNodes(
 						1,
@@ -447,7 +447,7 @@ var _ = Describe("deployment_rolling", func() {
 						machineSets[0],
 						&machinev1.MachineStatus{},
 						nil,
-						map[string]string{machinev1.MachineNodeLabelKey: "node-0"},
+						map[string]string{machinev1.NodeLabelKey: "node-0"},
 					),
 					nodes: newNodes(
 						0,
@@ -589,7 +589,7 @@ var _ = Describe("deployment_rolling", func() {
 						machineSets[0],
 						&machinev1.MachineStatus{},
 						nil,
-						map[string]string{machinev1.MachineNodeLabelKey: "node-0"},
+						map[string]string{machinev1.NodeLabelKey: "node-0"},
 					),
 					nodes: newNodes(
 						1,
@@ -643,7 +643,7 @@ var _ = Describe("deployment_rolling", func() {
 						machineSets[0],
 						&machinev1.MachineStatus{},
 						nil,
-						map[string]string{machinev1.MachineNodeLabelKey: "node-0"},
+						map[string]string{machinev1.NodeLabelKey: "node-0"},
 					),
 					nodes: newNodes(
 						1,
@@ -697,7 +697,7 @@ var _ = Describe("deployment_rolling", func() {
 						machineSets[0],
 						&machinev1.MachineStatus{},
 						nil,
-						map[string]string{machinev1.MachineNodeLabelKey: "node-0"},
+						map[string]string{machinev1.NodeLabelKey: "node-0"},
 					),
 					nodes: newNodes(
 						1,

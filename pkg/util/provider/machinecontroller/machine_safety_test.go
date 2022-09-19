@@ -447,7 +447,7 @@ var _ = Describe("safety_logic", func() {
 						Name:      "testmachine_1",
 						Namespace: testNamespace,
 						Labels: map[string]string{
-							v1alpha1.MachineNodeLabelKey: "test-node-1",
+							v1alpha1.NodeLabelKey: "test-node-1",
 						},
 					},
 					Status: v1alpha1.MachineStatus{
@@ -464,7 +464,7 @@ var _ = Describe("safety_logic", func() {
 						Name:      "testmachine_2",
 						Namespace: testNamespace,
 						Labels: map[string]string{
-							v1alpha1.MachineNodeLabelKey: "test-node-2",
+							v1alpha1.NodeLabelKey: "test-node-2",
 						},
 					},
 					Status: v1alpha1.MachineStatus{
@@ -481,7 +481,7 @@ var _ = Describe("safety_logic", func() {
 						Name:      "testmachine_3",
 						Namespace: testNamespace,
 						Labels: map[string]string{
-							v1alpha1.MachineNodeLabelKey: "test-node-2",
+							v1alpha1.NodeLabelKey: "test-node-2",
 						},
 					},
 					Status: v1alpha1.MachineStatus{

@@ -322,15 +322,15 @@ func (dc *controller) taintNodesBackingMachineSets(ctx context.Context, MachineS
 		// Iterate through all machines and place the PreferNoSchedule taint
 		// to avoid scheduling on older machines
 		for _, machine := range filteredMachines {
-			if machine.Labels[v1alpha1.MachineNodeLabelKey] != "" {
+			if machine.Labels[v1alpha1.NodeLabelKey] != "" {
 				err = nodeops.AddOrUpdateTaintOnNode(
 					ctx,
 					dc.targetCoreClient,
-					machine.Labels[v1alpha1.MachineNodeLabelKey],
+					machine.Labels[v1alpha1.NodeLabelKey],
 					taint,
 				)
 				if err != nil {
-					klog.Warningf("Node tainting failed for node: %s, %s", machine.Labels[v1alpha1.MachineNodeLabelKey], err)
+					klog.Warningf("Node tainting failed for node: %s, %s", machine.Labels[v1alpha1.NodeLabelKey], err)
 				}
 			}
 		}
@@ -403,15 +403,15 @@ func (dc *controller) annotateNodesBackingMachineSets(ctx context.Context, Machi
 		}
 
 		for _, machine := range filteredMachines {
-			if machine.Labels[v1alpha1.MachineNodeLabelKey] != "" {
+			if machine.Labels[v1alpha1.NodeLabelKey] != "" {
 				err = AddOrUpdateAnnotationOnNode(
 					ctx,
 					dc.targetCoreClient,
-					machine.Labels[v1alpha1.MachineNodeLabelKey],
+					machine.Labels[v1alpha1.NodeLabelKey],
 					annotations,
 				)
 				if err != nil {
-					klog.Warningf("Adding annotation failed for node: %s, %s", machine.Labels[v1alpha1.MachineNodeLabelKey], err)
+					klog.Warningf("Adding annotation failed for node: %s, %s", machine.Labels[v1alpha1.NodeLabelKey], err)
 				}
 			}
 		}
@@ -454,15 +454,15 @@ func (dc *controller) removeAutoscalerAnnotationsIfRequired(ctx context.Context,
 		}
 
 		for _, machine := range filteredMachines {
-			if machine.Labels[v1alpha1.MachineNodeLabelKey] != "" {
+			if machine.Labels[v1alpha1.NodeLabelKey] != "" {
 
 				nodeAnnotations, err := GetAnnotationsFromNode(
 					ctx,
 					dc.targetCoreClient,
-					machine.Labels[v1alpha1.MachineNodeLabelKey],
+					machine.Labels[v1alpha1.NodeLabelKey],
 				)
 				if err != nil {
-					klog.Warningf("Get annotations failed for node: %s, %s", machine.Labels[v1alpha1.MachineNodeLabelKey], err)
+					klog.Warningf("Get annotations failed for node: %s, %s", machine.Labels[v1alpha1.NodeLabelKey], err)
 					return err
 				}
 
@@ -472,14 +472,14 @@ func (dc *controller) removeAutoscalerAnnotationsIfRequired(ctx context.Context,
 					err = RemoveAnnotationsOffNode(
 						ctx,
 						dc.targetCoreClient,
-						machine.Labels[v1alpha1.MachineNodeLabelKey],
+						machine.Labels[v1alpha1.NodeLabelKey],
 						annotations,
 					)
 					if err != nil {
-						klog.Warningf("Removing annotation failed for node: %s, %s", machine.Labels[v1alpha1.MachineNodeLabelKey], err)
+						klog.Warningf("Removing annotation failed for node: %s, %s", machine.Labels[v1alpha1.NodeLabelKey], err)
 						return err
 					}
-					klog.V(4).Infof("De-annotated the node %q backed by MachineSet %q with %s", machine.Labels[v1alpha1.MachineNodeLabelKey], machineSet.Name, annotations)
+					klog.V(4).Infof("De-annotated the node %q backed by MachineSet %q with %s", machine.Labels[v1alpha1.NodeLabelKey], machineSet.Name, annotations)
 				}
 			}
 		}

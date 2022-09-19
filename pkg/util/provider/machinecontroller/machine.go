@@ -161,7 +161,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		return retry, err
 	}
 
-	if machine.Labels[v1alpha1.MachineNodeLabelKey] != "" {
+	if machine.Labels[v1alpha1.NodeLabelKey] != "" {
 		// If reference to node object exists execute the below
 		retry, err := c.reconcileMachineHealth(ctx, machine)
 		if err != nil {
@@ -173,7 +173,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 			return retry, err
 		}
 	}
-	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" || machine.Labels[v1alpha1.MachineNodeLabelKey] == "" {
+	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" || machine.Labels[v1alpha1.NodeLabelKey] == "" {
 		return c.triggerCreationFlow(
 			ctx,
 			&driver.CreateMachineRequest{
@@ -349,7 +349,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			// Either VM is not found
 			// or GetMachineStatus() call is not implemented
 			// In this case, invoke a CreateMachine() call
-			if _, present := machine.Labels[v1alpha1.MachineNodeLabelKey]; !present {
+			if _, present := machine.Labels[v1alpha1.NodeLabelKey]; !present {
 				// If node label is not present
 				klog.V(2).Infof("Creating a VM for machine %q, please wait!", machine.Name)
 				klog.V(2).Infof("The machine creation is triggered with timeout of %s", c.getEffectiveCreationTimeout(createMachineRequest.Machine).Duration)
@@ -417,7 +417,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				}
 			} else {
 				// if node label present that means there must be a backing VM ,without need of GetMachineStatus() call
-				nodeName = machine.Labels[v1alpha1.MachineNodeLabelKey]
+				nodeName = machine.Labels[v1alpha1.NodeLabelKey]
 			}
 
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
@@ -461,14 +461,14 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			return machineutils.MediumRetry, err
 		}
 	} else {
-		if machine.Labels[v1alpha1.MachineNodeLabelKey] == "" || machine.Spec.ProviderID == "" {
+		if machine.Labels[v1alpha1.NodeLabelKey] == "" || machine.Spec.ProviderID == "" {
 			klog.V(2).Infof("Found VM with required machine name. Adopting existing machine: %q with ProviderID: %s", machineName, getMachineStatusResponse.ProviderID)
 		}
 		nodeName = getMachineStatusResponse.NodeName
 		providerID = getMachineStatusResponse.ProviderID
 	}
 
-	_, machineNodeLabelPresent := createMachineRequest.Machine.Labels[v1alpha1.MachineNodeLabelKey]
+	_, machineNodeLabelPresent := createMachineRequest.Machine.Labels[v1alpha1.NodeLabelKey]
 	_, machinePriorityAnnotationPresent := createMachineRequest.Machine.Annotations[machineutils.MachinePriority]
 
 	if !machineNodeLabelPresent || !machinePriorityAnnotationPresent || machine.Spec.ProviderID == "" {
@@ -476,7 +476,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		if clone.Labels == nil {
 			clone.Labels = make(map[string]string)
 		}
-		clone.Labels[v1alpha1.MachineNodeLabelKey] = nodeName
+		clone.Labels[v1alpha1.NodeLabelKey] = nodeName
 		if clone.Annotations == nil {
 			clone.Annotations = make(map[string]string)
 		}

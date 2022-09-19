@@ -197,7 +197,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 	}
 
 	// Sync nodeTemplate between machine and node-objects.
-	node, _ := c.nodeLister.Get(machine.Labels[v1alpha1.MachineNodeLabelKey])
+	node, _ := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 	if node != nil {
 		err = c.syncMachineNodeTemplates(ctx, machine)
 		if err != nil {
@@ -297,7 +297,7 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	var (
 		list     = []string{nodeName}
 		selector = labels.NewSelector()
-		req, _   = labels.NewRequirement(v1alpha1.MachineNodeLabelKey, selection.Equals, list)
+		req, _   = labels.NewRequirement(v1alpha1.NodeLabelKey, selection.Equals, list)
 	)
 
 	selector = selector.Add(*req)
@@ -315,7 +315,7 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 func (c *controller) updateMachineState(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
 	nodeName := ""
 	if machine.Labels != nil {
-		nodeName = machine.Labels[v1alpha1.MachineNodeLabelKey]
+		nodeName = machine.Labels[v1alpha1.NodeLabelKey]
 	}
 
 	if nodeName == "" {
@@ -338,7 +338,7 @@ func (c *controller) updateMachineState(ctx context.Context, machine *v1alpha1.M
 				if clone.Labels == nil {
 					clone.Labels = make(map[string]string)
 				}
-				clone.Labels[v1alpha1.MachineNodeLabelKey] = nodeName
+				clone.Labels[v1alpha1.NodeLabelKey] = nodeName
 				machine, err = c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
 				if err != nil {
 					klog.Errorf("Could not update the machine-object %s due to error %v", machine.Name, err)
@@ -530,7 +530,7 @@ func (c *controller) machineCreate(ctx context.Context, machine *v1alpha1.Machin
 		if clone.Labels == nil {
 			clone.Labels = make(map[string]string)
 		}
-		clone.Labels[v1alpha1.MachineNodeLabelKey] = nodeName
+		clone.Labels[v1alpha1.NodeLabelKey] = nodeName
 
 		if clone.Annotations == nil {
 			clone.Annotations = make(map[string]string)
@@ -600,7 +600,7 @@ func (c *controller) machineUpdate(ctx context.Context, machine *v1alpha1.Machin
 
 func (c *controller) machineDelete(ctx context.Context, machine *v1alpha1.Machine, driver driver.Driver) error {
 	var err error
-	nodeName := machine.Labels[v1alpha1.MachineNodeLabelKey]
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 
 	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		klog.V(2).Infof("Deleting Machine %q", machine.Name)

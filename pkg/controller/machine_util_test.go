@@ -127,7 +127,7 @@ var _ = Describe("machine_util", func() {
 							},
 						},
 						&machinev1.MachineStatus{},
-						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
+						nil, nil, map[string]string{v1alpha1.NodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -222,7 +222,7 @@ var _ = Describe("machine_util", func() {
 							},
 						},
 						&machinev1.MachineStatus{},
-						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
+						nil, nil, map[string]string{v1alpha1.NodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -301,7 +301,7 @@ var _ = Describe("machine_util", func() {
 							},
 						},
 						&machinev1.MachineStatus{},
-						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
+						nil, nil, map[string]string{v1alpha1.NodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{},
@@ -353,7 +353,7 @@ var _ = Describe("machine_util", func() {
 							},
 						},
 						&machinev1.MachineStatus{},
-						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
+						nil, nil, map[string]string{v1alpha1.NodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -1909,7 +1909,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineStatus{
 							CurrentStatus: machinev1.CurrentStatus{Phase: MachineFailed},
 						},
-						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
+						nil, nil, map[string]string{v1alpha1.NodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -1954,7 +1954,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineStatus{
 							CurrentStatus: machinev1.CurrentStatus{Phase: MachineRunning},
 						},
-						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
+						nil, nil, map[string]string{v1alpha1.NodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -1999,7 +1999,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineStatus{
 							CurrentStatus: machinev1.CurrentStatus{Phase: MachineTerminating},
 						},
-						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
+						nil, nil, map[string]string{v1alpha1.NodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -2044,7 +2044,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineStatus{
 							CurrentStatus: machinev1.CurrentStatus{Phase: MachineTerminating},
 						},
-						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
+						nil, nil, map[string]string{v1alpha1.NodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -2093,7 +2093,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineStatus{
 							CurrentStatus: machinev1.CurrentStatus{Phase: MachineFailed},
 						},
-						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
+						nil, nil, map[string]string{v1alpha1.NodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -2137,7 +2137,7 @@ var _ = Describe("machine_util", func() {
 						&machinev1.MachineStatus{
 							CurrentStatus: machinev1.CurrentStatus{Phase: MachineTerminating},
 						},
-						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
+						nil, nil, map[string]string{v1alpha1.NodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{},

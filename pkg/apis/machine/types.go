@@ -33,11 +33,6 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// This is the valid key for machine node label
-const (
-	MachineNodeLabelKey string = "node"
-)
-
 // Machine TODO
 type Machine struct {
 	// ObjectMeta for machine object

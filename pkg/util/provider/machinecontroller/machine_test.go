@@ -122,7 +122,7 @@ var _ = Describe("machine", func() {
 			Entry("with NodeReady is Unknown", corev1.NodeReady, corev1.ConditionUnknown, false),
 		)
 	})
-	
+
 	Describe("#ValidateMachine", func() {
 		type data struct {
 			action machineapi.Machine
@@ -447,7 +447,7 @@ var _ = Describe("machine", func() {
 							},
 							ProviderID: "fakeID",
 						},
-					}, nil, nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "fakeNode-0"}, true, metav1.Now()),
+					}, nil, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "fakeNode-0"}, true, metav1.Now()),
 					err:   fmt.Errorf("Machine creation in process. Machine UPDATE successful"),
 					retry: machineutils.ShortRetry,
 				},
@@ -484,7 +484,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -521,7 +521,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -573,7 +573,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -618,7 +618,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -946,11 +946,11 @@ var _ = Describe("machine", func() {
 				Expect(machine.Finalizers).To(Equal(data.expect.machine.Finalizers))
 
 				if data.expect.nodeDeleted {
-					_, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Labels[v1alpha1.MachineNodeLabelKey], metav1.GetOptions{})
+					_, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Labels[v1alpha1.NodeLabelKey], metav1.GetOptions{})
 					Expect(nodeErr).To(HaveOccurred())
 				}
 				if data.expect.nodeTerminationConditionIsSet {
-					node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Labels[v1alpha1.MachineNodeLabelKey], metav1.GetOptions{})
+					node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Labels[v1alpha1.NodeLabelKey], metav1.GetOptions{})
 					Expect(nodeErr).To(Not(HaveOccurred()))
 					Expect(len(node.Status.Conditions)).To(Equal(1))
 					Expect(node.Status.Conditions[0].Type).To(Equal(machineutils.NodeTerminationCondition))
@@ -1000,7 +1000,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						false,
 						metav1.Now(),
@@ -1046,7 +1046,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						false,
 						metav1.Now(),
@@ -1095,7 +1095,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1141,7 +1141,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1190,7 +1190,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1236,7 +1236,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1285,7 +1285,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeNode-0",
+							v1alpha1.NodeLabelKey: "fakeNode-0",
 						},
 						true,
 						metav1.Now(),
@@ -1339,7 +1339,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1395,7 +1395,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "",
+							v1alpha1.NodeLabelKey: "",
 						},
 						true,
 						metav1.Now(),
@@ -1441,7 +1441,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "",
+							v1alpha1.NodeLabelKey: "",
 						},
 						true,
 						metav1.Now(),
@@ -1497,7 +1497,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1543,7 +1543,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1599,7 +1599,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1645,7 +1645,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1706,7 +1706,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1752,7 +1752,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1808,7 +1808,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1854,7 +1854,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1910,7 +1910,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1956,7 +1956,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2005,8 +2005,8 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
-							"force-deletion":             "True",
+							v1alpha1.NodeLabelKey: "fakeID-0",
+							"force-deletion":      "True",
 						},
 						true,
 						metav1.Now(),
@@ -2064,7 +2064,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2113,7 +2113,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.NewTime(time.Now().Add(-3*time.Minute)),
@@ -2171,7 +2171,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2220,7 +2220,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.NewTime(time.Now().Add(-3*time.Hour)),
@@ -2278,7 +2278,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2327,7 +2327,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeNode-0",
+							v1alpha1.NodeLabelKey: "fakeNode-0",
 						},
 						true,
 						metav1.Now(),
@@ -2385,7 +2385,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2434,7 +2434,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2480,7 +2480,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2529,7 +2529,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2583,7 +2583,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2632,7 +2632,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2677,7 +2677,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						false,
 						metav1.Now(),
@@ -2726,7 +2726,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2772,7 +2772,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							v1alpha1.NodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
