@@ -455,13 +455,7 @@ func newMachineStatus(statusTemplate *v1alpha1.MachineStatus, index int) *v1alph
 		return &v1alpha1.MachineStatus{}
 	}
 
-	r := statusTemplate.DeepCopy()
-	if r.Node == "" {
-		return r
-	}
-
-	r.Node = fmt.Sprintf("%s-%d", r.Node, index)
-	return r
+	return statusTemplate.DeepCopy()
 }
 
 func newSecretReference(meta *metav1.ObjectMeta, index int) *corev1.SecretReference {

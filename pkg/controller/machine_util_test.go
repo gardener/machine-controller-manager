@@ -126,10 +126,8 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						&machinev1.MachineStatus{
-							Node: "test-node",
-						},
-						nil, nil, nil),
+						&machinev1.MachineStatus{},
+						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -223,10 +221,8 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						&machinev1.MachineStatus{
-							Node: "test-node",
-						},
-						nil, nil, nil),
+						&machinev1.MachineStatus{},
+						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -304,10 +300,8 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						&machinev1.MachineStatus{
-							Node: "test-node",
-						},
-						nil, nil, nil),
+						&machinev1.MachineStatus{},
+						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{},
@@ -358,10 +352,8 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						&machinev1.MachineStatus{
-							Node: "test-node",
-						},
-						nil, nil, nil),
+						&machinev1.MachineStatus{},
+						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -1915,10 +1907,9 @@ var _ = Describe("machine_util", func() {
 					machine: newMachine(
 						&machinev1.MachineTemplateSpec{},
 						&machinev1.MachineStatus{
-							Node:          "test-node",
 							CurrentStatus: machinev1.CurrentStatus{Phase: MachineFailed},
 						},
-						nil, nil, nil),
+						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -1961,10 +1952,9 @@ var _ = Describe("machine_util", func() {
 					machine: newMachine(
 						&machinev1.MachineTemplateSpec{},
 						&machinev1.MachineStatus{
-							Node:          "test-node",
 							CurrentStatus: machinev1.CurrentStatus{Phase: MachineRunning},
 						},
-						nil, nil, nil),
+						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -2007,10 +1997,9 @@ var _ = Describe("machine_util", func() {
 					machine: newMachine(
 						&machinev1.MachineTemplateSpec{},
 						&machinev1.MachineStatus{
-							Node:          "test-node",
 							CurrentStatus: machinev1.CurrentStatus{Phase: MachineTerminating},
 						},
-						nil, nil, nil),
+						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -2053,10 +2042,9 @@ var _ = Describe("machine_util", func() {
 					machine: newMachine(
 						&machinev1.MachineTemplateSpec{},
 						&machinev1.MachineStatus{
-							Node:          "test-node",
 							CurrentStatus: machinev1.CurrentStatus{Phase: MachineTerminating},
 						},
-						nil, nil, nil),
+						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -2103,10 +2091,9 @@ var _ = Describe("machine_util", func() {
 					machine: newMachine(
 						&machinev1.MachineTemplateSpec{},
 						&machinev1.MachineStatus{
-							Node:          "test-node",
 							CurrentStatus: machinev1.CurrentStatus{Phase: MachineFailed},
 						},
-						nil, nil, nil),
+						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -2148,10 +2135,9 @@ var _ = Describe("machine_util", func() {
 					machine: newMachine(
 						&machinev1.MachineTemplateSpec{},
 						&machinev1.MachineStatus{
-							Node:          "test-node",
 							CurrentStatus: machinev1.CurrentStatus{Phase: MachineTerminating},
 						},
-						nil, nil, nil),
+						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}),
 				},
 				action: action{
 					node: &corev1.Node{},

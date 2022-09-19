@@ -122,83 +122,7 @@ var _ = Describe("machine", func() {
 			Entry("with NodeReady is Unknown", corev1.NodeReady, corev1.ConditionUnknown, false),
 		)
 	})
-
-	/*
-		Describe("##updateMachineConditions", func() {
-			Describe("Update conditions of a non-existing machine", func() {
-				It("should return error", func() {
-					stop := make(chan struct{})
-					defer close(stop)
-
-					objects := []runtime.Object{}
-					c, trackers := createController(stop, testNamespace, objects, nil, nil)
-					defer trackers.Stop()
-
-					testMachine := &v1alpha1.Machine{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "testmachine",
-							Namespace: testNamespace,
-						},
-						Status: v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase: v1alpha1.MachineTerminating,
-							},
-						},
-					}
-					conditions := []corev1.NodeCondition{}
-					var _, err = c.updateMachineConditions(testMachine, conditions)
-					Expect(err).Should(Not(BeNil()))
-				})
-			})
-			DescribeTable("Update conditions of an existing machine",
-				func(phase v1alpha1.MachinePhase, conditions []corev1.NodeCondition, expectedPhase v1alpha1.MachinePhase) {
-					stop := make(chan struct{})
-					defer close(stop)
-
-					testMachine := &v1alpha1.Machine{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "testmachine",
-							Namespace: testNamespace,
-						},
-						Status: v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase: phase,
-							},
-						},
-					}
-					objects := []runtime.Object{}
-					objects = append(objects, testMachine)
-
-					c, trackers := createController(stop, testNamespace, objects, nil, nil)
-					defer trackers.Stop()
-
-					var updatedMachine, err = c.updateMachineConditions(testMachine, conditions)
-					Expect(updatedMachine.Status.Conditions).Should(BeEquivalentTo(conditions))
-					Expect(updatedMachine.Status.CurrentStatus.Phase).Should(BeIdenticalTo(expectedPhase))
-					Expect(err).Should(BeNil())
-				},
-				Entry("healthy status but machine terminating", v1alpha1.MachineTerminating, []corev1.NodeCondition{
-					{
-						Type:   corev1.NodeReady,
-						Status: corev1.ConditionTrue,
-					},
-				}, v1alpha1.MachineTerminating),
-				Entry("unhealthy status but machine running", v1alpha1.MachineRunning, []corev1.NodeCondition{
-					{
-						Type:   corev1.NodeReady,
-						Status: corev1.ConditionFalse,
-					},
-				}, v1alpha1.MachineUnknown),
-				Entry("healthy status but machine not running", v1alpha1.MachineAvailable, []corev1.NodeCondition{
-					{
-						Type:   corev1.NodeReady,
-						Status: corev1.ConditionTrue,
-					},
-				}, v1alpha1.MachineRunning),
-			)
-		})
-	*/
-
+	
 	Describe("#ValidateMachine", func() {
 		type data struct {
 			action machineapi.Machine
@@ -470,10 +394,14 @@ var _ = Describe("machine", func() {
 				actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
 				Expect(err).To(BeNil())
 				Expect(actual.Spec.ProviderID).To(Equal(data.expect.machine.Spec.ProviderID))
-				Expect(actual.Status.Node).To(Equal(data.expect.machine.Status.Node))
 				Expect(actual.Finalizers).To(Equal(data.expect.machine.Finalizers))
 				Expect(retry).To(Equal(data.expect.retry))
 				Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
+				if data.expect.machine.Labels == nil {
+					Expect(actual.Labels).To(BeNil())
+				} else {
+					Expect(actual.Labels).To(Equal(data.expect.machine.Labels))
+				}
 			},
 
 			Entry("Machine creation succeeds with object UPDATE", &data{
@@ -519,7 +447,7 @@ var _ = Describe("machine", func() {
 							},
 							ProviderID: "fakeID",
 						},
-					}, nil, nil, nil, nil, true, metav1.Now()),
+					}, nil, nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "fakeNode-0"}, true, metav1.Now()),
 					err:   fmt.Errorf("Machine creation in process. Machine UPDATE successful"),
 					retry: machineutils.ShortRetry,
 				},
@@ -556,7 +484,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -584,7 +512,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase: v1alpha1.MachinePending,
 							},
@@ -594,7 +521,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -630,7 +557,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachinePending,
 								LastUpdateTime: metav1.Now(),
@@ -647,7 +573,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -675,7 +601,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase: v1alpha1.MachinePending,
 
@@ -693,7 +618,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1021,11 +946,11 @@ var _ = Describe("machine", func() {
 				Expect(machine.Finalizers).To(Equal(data.expect.machine.Finalizers))
 
 				if data.expect.nodeDeleted {
-					_, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Status.Node, metav1.GetOptions{})
+					_, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Labels[v1alpha1.MachineNodeLabelKey], metav1.GetOptions{})
 					Expect(nodeErr).To(HaveOccurred())
 				}
 				if data.expect.nodeTerminationConditionIsSet {
-					node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Status.Node, metav1.GetOptions{})
+					node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Labels[v1alpha1.MachineNodeLabelKey], metav1.GetOptions{})
 					Expect(nodeErr).To(Not(HaveOccurred()))
 					Expect(len(node.Status.Conditions)).To(Equal(1))
 					Expect(node.Status.Conditions[0].Type).To(Equal(machineutils.NodeTerminationCondition))
@@ -1059,7 +984,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineRunning,
 								LastUpdateTime: metav1.Now(),
@@ -1076,7 +1000,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						false,
 						metav1.Now(),
@@ -1106,7 +1030,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineRunning,
 								LastUpdateTime: metav1.Now(),
@@ -1123,7 +1046,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						false,
 						metav1.Now(),
@@ -1156,7 +1079,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineRunning,
 								LastUpdateTime: metav1.Now(),
@@ -1173,7 +1095,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1203,7 +1125,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1220,7 +1141,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1253,7 +1174,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1270,7 +1190,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1300,7 +1220,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1317,7 +1236,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1350,7 +1269,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1367,7 +1285,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeNode-0",
+							v1alpha1.MachineNodeLabelKey: "fakeNode-0",
 						},
 						true,
 						metav1.Now(),
@@ -1405,7 +1323,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1422,7 +1339,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1455,7 +1372,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1479,7 +1395,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "",
+							v1alpha1.MachineNodeLabelKey: "",
 						},
 						true,
 						metav1.Now(),
@@ -1509,7 +1425,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1526,7 +1441,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "",
+							v1alpha1.MachineNodeLabelKey: "",
 						},
 						true,
 						metav1.Now(),
@@ -1559,7 +1474,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1583,7 +1497,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1613,7 +1527,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1630,7 +1543,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1663,7 +1576,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1687,7 +1599,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1717,7 +1629,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1734,7 +1645,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1767,7 +1678,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1796,7 +1706,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1826,7 +1736,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1843,7 +1752,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1876,7 +1785,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1900,7 +1808,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1930,7 +1838,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -1947,7 +1854,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -1980,7 +1887,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2004,7 +1910,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2034,7 +1940,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2051,7 +1956,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2084,7 +1989,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2101,8 +2005,8 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node":           "fakeID-0",
-							"force-deletion": "True",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
+							"force-deletion":             "True",
 						},
 						true,
 						metav1.Now(),
@@ -2144,7 +2048,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2161,7 +2064,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2194,7 +2097,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.NewTime(time.Now().Add(-3 * time.Minute)),
@@ -2211,7 +2113,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.NewTime(time.Now().Add(-3*time.Minute)),
@@ -2253,7 +2155,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2270,7 +2171,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2303,7 +2204,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.NewTime(time.Now().Add(-2 * time.Hour)),
@@ -2320,7 +2220,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.NewTime(time.Now().Add(-3*time.Hour)),
@@ -2362,7 +2262,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2379,7 +2278,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2412,7 +2311,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2429,7 +2327,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeNode-0",
+							v1alpha1.MachineNodeLabelKey: "fakeNode-0",
 						},
 						true,
 						metav1.Now(),
@@ -2471,7 +2369,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2488,7 +2385,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2521,7 +2418,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2538,7 +2434,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2568,7 +2464,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2585,7 +2480,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2618,7 +2513,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeID",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2635,7 +2529,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2673,7 +2567,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2690,7 +2583,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2723,7 +2616,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2740,7 +2632,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2769,7 +2661,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2786,7 +2677,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						false,
 						metav1.Now(),
@@ -2819,7 +2710,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2836,7 +2726,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2866,7 +2756,6 @@ var _ = Describe("machine", func() {
 							},
 						},
 						&v1alpha1.MachineStatus{
-							Node: "fakeNode",
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase:          v1alpha1.MachineTerminating,
 								LastUpdateTime: metav1.Now(),
@@ -2883,7 +2772,7 @@ var _ = Describe("machine", func() {
 							machineutils.MachinePriority: "3",
 						},
 						map[string]string{
-							"node": "fakeID-0",
+							v1alpha1.MachineNodeLabelKey: "fakeID-0",
 						},
 						true,
 						metav1.Now(),
@@ -2892,495 +2781,5 @@ var _ = Describe("machine", func() {
 			}),
 		)
 	})
-	/*
-		Describe("#checkMachineTimeout", func() {
-			type setup struct {
-				machines []*v1alpha1.Machine
-			}
-			type action struct {
-				machine string
-			}
-			type expect struct {
-				machine *v1alpha1.Machine
-				err     bool
-			}
-			type data struct {
-				setup  setup
-				action action
-				expect expect
-			}
-			objMeta := &metav1.ObjectMeta{
-				GenerateName: "machine",
-				Namespace:    "test",
-			}
-
-			machineName := "machine-0"
-			timeOutOccurred := -21 * time.Minute
-			timeOutNotOccurred := -5 * time.Minute
-			creationTimeOut := 20 * time.Minute
-			healthTimeOut := 10 * time.Minute
-
-			DescribeTable("##Machine Timeout Scenarios",
-				func(data *data) {
-					stop := make(chan struct{})
-					defer close(stop)
-
-					machineObjects := []runtime.Object{}
-					for _, o := range data.setup.machines {
-						machineObjects = append(machineObjects, o)
-					}
-
-					coreObjects := []runtime.Object{}
-
-					controller, trackers := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
-					defer trackers.Stop()
-					waitForCacheSync(stop, controller)
-
-					action := data.action
-					machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
-					//Expect(err).ToNot(HaveOccurred())
-
-					controller.checkMachineTimeout(machine)
-
-					actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
-					Expect(err).To(BeNil())
-					Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
-					Expect(actual.Status.CurrentStatus.//TimeoutActive).To(Equal(data.expect.machine.Status.CurrentStatus.//TimeoutActive))
-					Expect(actual.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
-					Expect(actual.Status.LastOperation.State).To(Equal(data.expect.machine.Status.LastOperation.State))
-					Expect(actual.Status.LastOperation.Type).To(Equal(data.expect.machine.Status.LastOperation.Type))
-				},
-				Entry("Machine is still running", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachineRunning,
-								//TimeoutActive:  false,
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Machine % successfully joined the cluster", machineName),
-								State:          v1alpha1.MachineStateSuccessful,
-								Type:           v1alpha1.MachineOperationCreate,
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
-							},
-						}, nil, nil, nil),
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:         v1alpha1.MachineRunning,
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description: fmt.Sprintf("Machine % successfully joined the cluster", machineName),
-								State:       v1alpha1.MachineStateSuccessful,
-								Type:        v1alpha1.MachineOperationCreate,
-							},
-						}, nil, nil, nil),
-					},
-				}),
-				Entry("Machine creation has still not timed out", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachineUnknown,
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown", machineName),
-								State:          v1alpha1.MachineStateProcessing,
-								Type:           v1alpha1.MachineOperationCreate,
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
-							},
-						}, nil, nil, nil),
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:         v1alpha1.MachineUnknown,
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description: fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown", machineName),
-								State:       v1alpha1.MachineStateProcessing,
-								Type:        v1alpha1.MachineOperationCreate,
-							},
-						}, nil, nil, nil),
-					},
-				}),
-				Entry("Machine creation has timed out", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachinePending,
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description:    "Creating machine on cloud provider",
-								State:          v1alpha1.MachineStateProcessing,
-								Type:           v1alpha1.MachineOperationCreate,
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
-							},
-						}, nil, nil, nil),
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:         v1alpha1.MachineFailed,
-
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description: fmt.Sprintf(
-									"Machine %s failed to join the cluster in %s minutes.",
-									machineName,
-									creationTimeOut,
-								),
-								State: v1alpha1.MachineStateFailed,
-								Type:  v1alpha1.MachineOperationCreate,
-							},
-						}, nil, nil, nil),
-					},
-				}),
-				Entry("Machine health has timed out", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachineUnknown,
-
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown", machineName),
-								State:          v1alpha1.MachineStateProcessing,
-								Type:           v1alpha1.MachineOperationHealthCheck,
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
-							},
-						}, nil, nil, nil),
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:         v1alpha1.MachineFailed,
-
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description: fmt.Sprintf(
-									"Machine %s is not healthy since %s minutes. Changing status to failed. Node Conditions: %+v",
-									machineName,
-									healthTimeOut,
-									[]corev1.NodeCondition{},
-								),
-								State: v1alpha1.MachineStateFailed,
-								Type:  v1alpha1.MachineOperationHealthCheck,
-							},
-						}, nil, nil, nil),
-					},
-				}),
-			)
-		})
-
-		Describe("#updateMachineState", func() {
-			type setup struct {
-				machines []*v1alpha1.Machine
-				nodes    []*corev1.Node
-			}
-			type action struct {
-				machine string
-			}
-			type expect struct {
-				machine *v1alpha1.Machine
-				err     bool
-			}
-			type data struct {
-				setup  setup
-				action action
-				expect expect
-			}
-			objMeta := &metav1.ObjectMeta{
-				GenerateName: "machine",
-				// using default namespace for non-namespaced objects
-				// as our current fake client is with the assumption
-				// that all objects are namespaced
-				Namespace: "",
-			}
-
-			machineName := "machine-0"
-
-			DescribeTable("##Different machine state update scenrios",
-				func(data *data) {
-					stop := make(chan struct{})
-					defer close(stop)
-
-					machineObjects := []runtime.Object{}
-					for _, o := range data.setup.machines {
-						machineObjects = append(machineObjects, o)
-					}
-
-					coreObjects := []runtime.Object{}
-					for _, o := range data.setup.nodes {
-						coreObjects = append(coreObjects, o)
-					}
-
-					controller, trackers := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
-					defer trackers.Stop()
-					waitForCacheSync(stop, controller)
-
-					action := data.action
-					machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
-					Expect(err).ToNot(HaveOccurred())
-
-					controller.updateMachineState(machine)
-
-					actual, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
-					Expect(err).To(BeNil())
-					Expect(actual.Name).To(Equal(data.expect.machine.Name))
-					Expect(actual.Status.Node).To(Equal(data.expect.machine.Status.Node))
-					Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
-					Expect(actual.Status.CurrentStatus.//TimeoutActive).To(Equal(data.expect.machine.Status.CurrentStatus.//TimeoutActive))
-					Expect(actual.Status.LastOperation.State).To(Equal(data.expect.machine.Status.LastOperation.State))
-					Expect(actual.Status.LastOperation.Type).To(Equal(data.expect.machine.Status.LastOperation.Type))
-					Expect(actual.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
-
-					if data.expect.machine.Labels != nil {
-						if _, ok := data.expect.machine.Labels["node"]; ok {
-							Expect(actual.Labels["node"]).To(Equal(data.expect.machine.Labels["node"]))
-						}
-					}
-
-					for i := range actual.Status.Conditions {
-						Expect(actual.Status.Conditions[i].Type).To(Equal(data.expect.machine.Status.Conditions[i].Type))
-						Expect(actual.Status.Conditions[i].Status).To(Equal(data.expect.machine.Status.Conditions[i].Status))
-						Expect(actual.Status.Conditions[i].Reason).To(Equal(data.expect.machine.Status.Conditions[i].Reason))
-						Expect(actual.Status.Conditions[i].Message).To(Equal(data.expect.machine.Status.Conditions[i].Message))
-					}
-				},
-				Entry("Machine does not have a node backing", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{}, nil, nil, nil),
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{}, nil, nil, nil),
-					},
-				}),
-				Entry("Node object backing machine not found and machine conditions are empty", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							Node: "dummy-node",
-						}, nil, nil, nil),
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							Node: "dummy-node",
-						}, nil, nil, nil),
-					},
-				}),
-				Entry("Machine is running but node object is lost", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							Node: "dummy-node",
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachineRunning,
-								//TimeoutActive:  false,
-								LastUpdateTime: metav1.Now(),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Machine % successfully joined the cluster", machineName),
-								State:          v1alpha1.MachineStateSuccessful,
-								Type:           v1alpha1.MachineOperationCreate,
-								LastUpdateTime: metav1.Now(),
-							},
-							Conditions: []corev1.NodeCondition{
-								{
-									Message: "kubelet is posting ready status",
-									Reason:  "KubeletReady",
-									Status:  "True",
-									Type:    "Ready",
-								},
-							},
-						}, nil, nil, nil),
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							Node: "dummy-node",
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachineUnknown,
-
-								LastUpdateTime: metav1.Now(),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description: fmt.Sprintf(
-									"Node object went missing. Machine %s is unhealthy - changing MachineState to Unknown",
-									machineName,
-								),
-								State:          v1alpha1.MachineStateProcessing,
-								Type:           v1alpha1.MachineOperationHealthCheck,
-								LastUpdateTime: metav1.Now(),
-							},
-							Conditions: []corev1.NodeCondition{
-								{
-									Message: "kubelet is posting ready status",
-									Reason:  "KubeletReady",
-									Status:  "True",
-									Type:    "Ready",
-								},
-							},
-						}, nil, nil, nil),
-					},
-				}),
-				Entry("Machine and node both are present and kubelet ready status is updated", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							Node: "machine",
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachinePending,
-
-								LastUpdateTime: metav1.Now(),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description:    "Creating machine on cloud provider",
-								State:          v1alpha1.MachineStateProcessing,
-								Type:           v1alpha1.MachineOperationCreate,
-								LastUpdateTime: metav1.Now(),
-							},
-							Conditions: []corev1.NodeCondition{
-								{
-									Message: "kubelet is not ready",
-									Reason:  "KubeletReady",
-									Status:  "False",
-									Type:    "Ready",
-								},
-							},
-						}, nil, nil, nil),
-						nodes: []*corev1.Node{
-							{
-								ObjectMeta: *newObjectMeta(objMeta, 0),
-								Status: corev1.NodeStatus{
-									Conditions: []corev1.NodeCondition{
-										{
-											Message: "kubelet is posting ready status",
-											Reason:  "KubeletReady",
-											Status:  "True",
-											Type:    "Ready",
-										},
-									},
-								},
-							},
-						},
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							Node: "machine",
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachineRunning,
-								//TimeoutActive:  false,
-								LastUpdateTime: metav1.Now(),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description:    "Machine machine-0 successfully joined the cluster",
-								State:          v1alpha1.MachineStateSuccessful,
-								Type:           v1alpha1.MachineOperationCreate,
-								LastUpdateTime: metav1.Now(),
-							},
-							Conditions: []corev1.NodeCondition{
-								{
-									Message: "kubelet is posting ready status",
-									Reason:  "KubeletReady",
-									Status:  "True",
-									Type:    "Ready",
-								},
-							},
-						}, nil, nil, nil),
-					},
-				}),
-				Entry("Machine object does not have node-label and node exists", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							Node: "node",
-						}, nil, nil, nil),
-						nodes: []*corev1.Node{
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "node-0",
-								},
-							},
-						},
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "machine-0",
-							},
-						}, &v1alpha1.MachineStatus{
-							Node: "node",
-						}, nil, nil,
-							map[string]string{
-								"node": "node-0",
-							},
-						),
-					},
-				}),
-			)
-		})
-	*/
 
 })

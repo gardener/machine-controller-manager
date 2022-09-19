@@ -340,7 +340,7 @@ func newMachines(
 		}
 
 		if statusTemplate != nil {
-			m.Status = *newMachineStatus(statusTemplate, i)
+			m.Status = *newMachineStatus(statusTemplate)
 		}
 
 		if owner != nil {
@@ -410,18 +410,12 @@ func newMachineSpec(specTemplate *v1alpha1.MachineSpec, index int) *v1alpha1.Mac
 	return r
 }
 
-func newMachineStatus(statusTemplate *v1alpha1.MachineStatus, index int) *v1alpha1.MachineStatus {
+func newMachineStatus(statusTemplate *v1alpha1.MachineStatus) *v1alpha1.MachineStatus {
 	if statusTemplate == nil {
 		return &v1alpha1.MachineStatus{}
 	}
 
-	r := statusTemplate.DeepCopy()
-	if r.Node == "" {
-		return r
-	}
-
-	r.Node = fmt.Sprintf("%s-%d", r.Node, index)
-	return r
+	return statusTemplate.DeepCopy()
 }
 
 func newSecretReference(meta *metav1.ObjectMeta, index int) *corev1.SecretReference {

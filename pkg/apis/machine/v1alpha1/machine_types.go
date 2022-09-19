@@ -35,6 +35,11 @@ import (
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`,description="CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC.\nPopulated by the system. Read-only. Null for lists. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata"
 // +kubebuilder:printcolumn:name="Node",type=string,JSONPath=`.metadata.labels.node`,description="Node backing the machine object"
 
+// This is the valid key for machine node label
+const (
+	MachineNodeLabelKey string = "node"
+)
+
 // Machine is the representation of a physical or virtual machine.
 type Machine struct {
 	// ObjectMeta for machine object
@@ -95,9 +100,6 @@ type NodeTemplateSpec struct {
 
 // MachineStatus holds the most recently observed status of Machine.
 type MachineStatus struct {
-	// Node string
-	Node string `json:"node,omitempty"`
-
 	// Conditions of this machine, same as node
 	Conditions []corev1.NodeCondition `json:"conditions,omitempty"`
 

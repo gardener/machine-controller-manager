@@ -142,10 +142,8 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						&machinev1.MachineStatus{
-							Node: "test-node",
-						},
-						nil, nil, nil, true, metav1.Now()),
+						&machinev1.MachineStatus{},
+						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}, true, metav1.Now()),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -239,10 +237,8 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						&machinev1.MachineStatus{
-							Node: "test-node",
-						},
-						nil, nil, nil, true, metav1.Now()),
+						&machinev1.MachineStatus{},
+						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}, true, metav1.Now()),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -320,10 +316,8 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						&machinev1.MachineStatus{
-							Node: "test-node",
-						},
-						nil, nil, nil, true, metav1.Now()),
+						&machinev1.MachineStatus{},
+						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}, true, metav1.Now()),
 				},
 				action: action{
 					node: &corev1.Node{},
@@ -374,10 +368,8 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
-						&machinev1.MachineStatus{
-							Node: "test-node",
-						},
-						nil, nil, nil, true, metav1.Now()),
+						&machinev1.MachineStatus{},
+						nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "test-node-0"}, true, metav1.Now()),
 				},
 				action: action{
 					node: &corev1.Node{
@@ -2179,8 +2171,8 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node-0", CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-25 * time.Minute))}},
-							nil, nil, nil, true, metav1.Now()),
+							&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-25 * time.Minute))}},
+							nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "node-0-0"}, true, metav1.Now()),
 					},
 					targetMachineName: machineSet1Deploy1 + "-" + "0",
 				},
@@ -2195,8 +2187,8 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.Now()}},
-							nil, nil, nil, true, metav1.Now()),
+							&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.Now()}},
+							nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					},
 					nodes: []*v1.Node{
 						newNode(1, nil, nil, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(true, false, false, false, false)}),
@@ -2214,8 +2206,8 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineRunning, LastUpdateTime: metav1.Now()}},
-							nil, nil, nil, true, metav1.Now()),
+							&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineRunning, LastUpdateTime: metav1.Now()}},
+							nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					},
 					nodes: []*v1.Node{
 						newNode(1, nil, nil, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
@@ -2233,8 +2225,8 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineRunning, LastUpdateTime: metav1.Now()}},
-							nil, nil, nil, true, metav1.Now()),
+							&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineRunning, LastUpdateTime: metav1.Now()}},
+							nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					},
 					nodes: []*v1.Node{
 						newNode(1, nil, nil, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(true, true, false, false, false)}),
@@ -2252,8 +2244,8 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineRunning, LastUpdateTime: metav1.Now()}, Conditions: nodeConditions(true, false, false, false, false)},
-							nil, nil, nil, true, metav1.Now()),
+							&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineRunning, LastUpdateTime: metav1.Now()}, Conditions: nodeConditions(true, false, false, false, false)},
+							nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					},
 					targetMachineName: machineSet1Deploy1 + "-" + "0",
 				},
@@ -2268,9 +2260,9 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, nil, true, metav1.Now()),
+							nil, map[string]string{v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					},
 					nodes: []*v1.Node{
 						newNode(1, nil, nil, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
@@ -2287,9 +2279,9 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, nil, true, metav1.Now()),
+							nil, map[string]string{v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					},
 					targetMachineName: machineSet1Deploy1 + "-" + "0",
 				},
@@ -2303,8 +2295,8 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node-0", Conditions: nodeConditions(true, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
-							nil, nil, nil, true, metav1.Now()),
+							&machinev1.MachineStatus{Conditions: nodeConditions(true, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							nil, nil, map[string]string{v1alpha1.MachineNodeLabelKey: "node-0-0"}, true, metav1.Now()),
 					},
 					nodes: []*v1.Node{
 						newNode(1, nil, nil, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(true, false, false, false, false)}),
@@ -2380,14 +2372,14 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, nil, true, metav1.Now()),
+							nil, map[string]string{v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy2}, 0)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, nil, true, metav1.Now()),
+							nil, map[string]string{v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					},
 					nodes: []*v1.Node{
 						newNode(1, nil, nil, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
@@ -2404,14 +2396,14 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, nil, true, metav1.Now()),
+							nil, map[string]string{v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy2}, 0)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineFailed, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineFailed, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, nil, true, metav1.Now()),
+							nil, map[string]string{v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					},
 					nodes: []*v1.Node{
 						newNode(1, nil, nil, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
@@ -2427,9 +2419,9 @@ var _ = Describe("machine_util", func() {
 				setup: setup{
 					machines: newMachines(2,
 						&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-						&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+						&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 						&metav1.OwnerReference{Name: machineSet1Deploy1},
-						nil, nil, true, metav1.Now()),
+						nil, map[string]string{v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					nodes: []*v1.Node{
 						newNode(1, nil, nil, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
 					},
@@ -2445,14 +2437,14 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+							nil, map[string]string{"name": machineDeploy1, v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 1)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineFailed, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineFailed, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+							nil, map[string]string{"name": machineDeploy1, v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					},
 					nodes: []*v1.Node{
 						newNode(1, nil, nil, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
@@ -2470,14 +2462,14 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+							nil, map[string]string{"name": machineDeploy1, v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 1)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineTerminating, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineTerminating, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+							nil, map[string]string{"name": machineDeploy1, v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					},
 					nodes: []*v1.Node{
 						newNode(1, nil, nil, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
@@ -2495,14 +2487,14 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+							nil, map[string]string{"name": machineDeploy1, v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 1)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: "", LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: "", LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+							nil, map[string]string{"name": machineDeploy1, v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					},
 					nodes: []*v1.Node{
 						newNode(1, nil, nil, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
@@ -2520,14 +2512,14 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+							nil, map[string]string{"name": machineDeploy1, v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 1)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+							nil, map[string]string{"name": machineDeploy1, v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					},
 					nodes: []*v1.Node{
 						newNode(1, nil, nil, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
@@ -2545,14 +2537,14 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+							nil, map[string]string{"name": machineDeploy1, v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 1)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineCrashLoopBackOff, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineCrashLoopBackOff, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+							nil, map[string]string{"name": machineDeploy1, v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					},
 					nodes: []*v1.Node{
 						newNode(1, nil, nil, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
@@ -2570,14 +2562,14 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+							nil, map[string]string{"name": machineDeploy1, v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet2Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+							nil, map[string]string{"name": machineDeploy1, v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					},
 					nodes: []*v1.Node{
 						newNode(1, nil, nil, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
@@ -2595,9 +2587,9 @@ var _ = Describe("machine_util", func() {
 					machines: []*v1alpha1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{Node: "node", Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: v1alpha1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
-							nil, map[string]string{"name": machineDeploy1}, true, metav1.Now()),
+							nil, map[string]string{"name": machineDeploy1, v1alpha1.MachineNodeLabelKey: "node-0"}, true, metav1.Now()),
 					},
 					nodes: []*v1.Node{
 						newNode(1, nil, nil, &v1.NodeSpec{}, &v1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),

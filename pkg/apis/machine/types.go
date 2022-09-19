@@ -33,6 +33,11 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// This is the valid key for machine node label
+const (
+	MachineNodeLabelKey string = "node"
+)
+
 // Machine TODO
 type Machine struct {
 	// ObjectMeta for machine object
@@ -167,9 +172,6 @@ type CurrentStatus struct {
 
 // MachineStatus holds the most recently observed status of Machine.
 type MachineStatus struct {
-	// Node string
-	Node string
-
 	// Conditions of this machine, same as node
 	Conditions []corev1.NodeCondition
 

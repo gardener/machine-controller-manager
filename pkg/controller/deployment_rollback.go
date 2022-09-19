@@ -172,24 +172,24 @@ func (dc *controller) removeTaintNodesBackingMachineSet(ctx context.Context, mac
 	// Iterate through all machines and remove the PreferNoSchedule taint
 	// to avoid scheduling on older machines
 	for _, machine := range filteredMachines {
-		if machine.Status.Node != "" {
-			node, err := dc.targetCoreClient.CoreV1().Nodes().Get(ctx, machine.Status.Node, metav1.GetOptions{})
+		if machine.Labels[v1alpha1.MachineNodeLabelKey] != "" {
+			node, err := dc.targetCoreClient.CoreV1().Nodes().Get(ctx, machine.Labels[v1alpha1.MachineNodeLabelKey], metav1.GetOptions{})
 			if err != nil {
-				klog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Status.Node, err)
+				klog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Labels[v1alpha1.MachineNodeLabelKey], err)
 				continue
 			}
 
 			err = nodeops.RemoveTaintOffNode(
 				ctx,
 				dc.targetCoreClient,
-				machine.Status.Node,
+				machine.Labels[v1alpha1.MachineNodeLabelKey],
 				node,
 				taint,
 			)
 			if err != nil {
-				klog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Status.Node, err)
+				klog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Labels[v1alpha1.MachineNodeLabelKey], err)
 			}
-			node, err = dc.targetCoreClient.CoreV1().Nodes().Get(ctx, machine.Status.Node, metav1.GetOptions{})
+			node, err = dc.targetCoreClient.CoreV1().Nodes().Get(ctx, machine.Labels[v1alpha1.MachineNodeLabelKey], metav1.GetOptions{})
 		}
 	}
 
