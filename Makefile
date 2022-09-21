@@ -149,7 +149,7 @@ test-clean:
 	@rm -f $(COVERPROFILE)
 
 generate: controller-gen
-	$(CONTROLLER_GEN) crd paths=./pkg/apis/machine/v1alpha1... output:crd:dir=kubernetes/crds output:stdout
+	$(CONTROLLER_GEN) crd paths=./pkg/apis/machine/v1alpha1/... output:crd:dir=kubernetes/crds output:stdout
 	@./hack/generate-code
 	@./hack/api-reference/generate-spec-doc.sh
 
@@ -163,7 +163,7 @@ ifeq (, $(shell which controller-gen))
 	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$CONTROLLER_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.6.2 ;\
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.9.2 ;\
 	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen
