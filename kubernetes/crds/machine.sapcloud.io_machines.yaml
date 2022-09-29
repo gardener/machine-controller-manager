@@ -29,7 +29,6 @@ spec:
     - description: Node backing the machine object
       jsonPath: .metadata.labels.node
       name: Node
-      priority: 1
       type: string
     - description: ProviderID of the infra instance backing the machine object
       jsonPath: .spec.providerID
