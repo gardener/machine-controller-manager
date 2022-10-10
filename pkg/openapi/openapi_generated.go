@@ -2518,7 +2518,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineDeployment(ref common.ReferenceCall
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Deployment enables declarative updates for machines and MachineSets.",
+				Description: "MachineDeployment enables declarative updates for machines and MachineSets.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {

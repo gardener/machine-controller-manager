@@ -12,6 +12,8 @@ spec:
     kind: MachineDeployment
     listKind: MachineDeploymentList
     plural: machinedeployments
+    shortNames:
+    - machdeploy
     singular: machinedeployment
   scope: Namespaced
   versions:
@@ -43,7 +45,8 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Deployment enables declarative updates for machines and MachineSets.
+        description: MachineDeployment enables declarative updates for machines and
+          MachineSets.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
