@@ -1294,6 +1294,247 @@ Kubernetes core/v1.SecretReference
 </tbody>
 </table>
 <br>
+<h3 id="MachineDeployment">
+<b>MachineDeployment</b>
+</h3>
+<p>
+<p>MachineDeployment enables declarative updates for machines and MachineSets.</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>apiVersion</code>
+</td>
+<td>
+string
+</td>
+<td>
+<code>
+machine.sapcloud.io.v1alpha1
+</code>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code>
+</td>
+<td>
+string
+</td>
+<td>
+<code>MachineDeployment</code>
+</td>
+</tr>
+<tr>
+<td>
+<code>metadata</code>
+</td>
+<td>
+<em>
+<a href="#https%3a%2f%2fkubernetes.io%2fdocs%2freference%2fgenerated%2fkubernetes-api%2fv1.19%2f%23objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Standard object metadata.</p>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code>
+</td>
+<td>
+<em>
+<a href="#MachineDeploymentSpec">
+MachineDeploymentSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Specification of the desired behavior of the MachineDeployment.</p>
+<br/>
+<br/>
+<table>
+<tr>
+<td>
+<code>replicas</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Number of desired machines. This is a pointer to distinguish between explicit
+zero and not specified. Defaults to 0.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>selector</code>
+</td>
+<td>
+<em>
+<a href="#https%3a%2f%2fkubernetes.io%2fdocs%2freference%2fgenerated%2fkubernetes-api%2fv1.19%2f%23labelselector-v1-meta">
+Kubernetes meta/v1.LabelSelector
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Label selector for machines. Existing MachineSets whose machines are
+selected by this will be the ones affected by this MachineDeployment.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>template</code>
+</td>
+<td>
+<em>
+<a href="#MachineTemplateSpec">
+MachineTemplateSpec
+</a>
+</em>
+</td>
+<td>
+<p>Template describes the machines that will be created.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>strategy</code>
+</td>
+<td>
+<em>
+<a href="#MachineDeploymentStrategy">
+MachineDeploymentStrategy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The MachineDeployment strategy to use to replace existing machines with new ones.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>minReadySeconds</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Minimum number of seconds for which a newly created machine should be ready
+without any of its container crashing, for it to be considered available.
+Defaults to 0 (machine will be considered available as soon as it is ready)</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>revisionHistoryLimit</code>
+</td>
+<td>
+<em>
+*int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The number of old MachineSets to retain to allow rollback.
+This is a pointer to distinguish between explicit zero and not specified.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>paused</code>
+</td>
+<td>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Indicates that the MachineDeployment is paused and will not be processed by the
+MachineDeployment controller.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>rollbackTo</code>
+</td>
+<td>
+<em>
+<a href="#RollbackConfig">
+RollbackConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DEPRECATED.
+The config this MachineDeployment is rolling back to. Will be cleared after rollback is done.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>progressDeadlineSeconds</code>
+</td>
+<td>
+<em>
+*int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The maximum time in seconds for a MachineDeployment to make progress before it
+is considered to be failed. The MachineDeployment controller will continue to
+process failed MachineDeployments and a condition with a ProgressDeadlineExceeded
+reason will be surfaced in the MachineDeployment status. Note that progress will
+not be estimated during the time a MachineDeployment is paused. This is not set
+by default.</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code>
+</td>
+<td>
+<em>
+<a href="#MachineDeploymentStatus">
+MachineDeploymentStatus
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Most recently observed status of the MachineDeployment.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<br>
 <h3 id="MachineSet">
 <b>MachineSet</b>
 </h3>
@@ -4535,223 +4776,6 @@ Kubernetes meta/v1.Duration
 <td>
 <em>(Optional)</em>
 <p>NodeConditions are the set of conditions if set to true for MachineHealthTimeOut, machine will be declared failed.</p>
-</td>
-</tr>
-</tbody>
-</table>
-<br>
-<h3 id="MachineDeployment">
-<b>MachineDeployment</b>
-</h3>
-<p>
-<p>Deployment enables declarative updates for machines and MachineSets.</p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>metadata</code>
-</td>
-<td>
-<em>
-<a href="#https%3a%2f%2fkubernetes.io%2fdocs%2freference%2fgenerated%2fkubernetes-api%2fv1.19%2f%23objectmeta-v1-meta">
-Kubernetes meta/v1.ObjectMeta
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Standard object metadata.</p>
-Refer to the Kubernetes API documentation for the fields of the
-<code>metadata</code> field.
-</td>
-</tr>
-<tr>
-<td>
-<code>spec</code>
-</td>
-<td>
-<em>
-<a href="#MachineDeploymentSpec">
-MachineDeploymentSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Specification of the desired behavior of the MachineDeployment.</p>
-<br/>
-<br/>
-<table>
-<tr>
-<td>
-<code>replicas</code>
-</td>
-<td>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Number of desired machines. This is a pointer to distinguish between explicit
-zero and not specified. Defaults to 0.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>selector</code>
-</td>
-<td>
-<em>
-<a href="#https%3a%2f%2fkubernetes.io%2fdocs%2freference%2fgenerated%2fkubernetes-api%2fv1.19%2f%23labelselector-v1-meta">
-Kubernetes meta/v1.LabelSelector
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Label selector for machines. Existing MachineSets whose machines are
-selected by this will be the ones affected by this MachineDeployment.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>template</code>
-</td>
-<td>
-<em>
-<a href="#MachineTemplateSpec">
-MachineTemplateSpec
-</a>
-</em>
-</td>
-<td>
-<p>Template describes the machines that will be created.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>strategy</code>
-</td>
-<td>
-<em>
-<a href="#MachineDeploymentStrategy">
-MachineDeploymentStrategy
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>The MachineDeployment strategy to use to replace existing machines with new ones.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>minReadySeconds</code>
-</td>
-<td>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Minimum number of seconds for which a newly created machine should be ready
-without any of its container crashing, for it to be considered available.
-Defaults to 0 (machine will be considered available as soon as it is ready)</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>revisionHistoryLimit</code>
-</td>
-<td>
-<em>
-*int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>The number of old MachineSets to retain to allow rollback.
-This is a pointer to distinguish between explicit zero and not specified.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>paused</code>
-</td>
-<td>
-<em>
-bool
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Indicates that the MachineDeployment is paused and will not be processed by the
-MachineDeployment controller.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>rollbackTo</code>
-</td>
-<td>
-<em>
-<a href="#RollbackConfig">
-RollbackConfig
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>DEPRECATED.
-The config this MachineDeployment is rolling back to. Will be cleared after rollback is done.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>progressDeadlineSeconds</code>
-</td>
-<td>
-<em>
-*int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>The maximum time in seconds for a MachineDeployment to make progress before it
-is considered to be failed. The MachineDeployment controller will continue to
-process failed MachineDeployments and a condition with a ProgressDeadlineExceeded
-reason will be surfaced in the MachineDeployment status. Note that progress will
-not be estimated during the time a MachineDeployment is paused. This is not set
-by default.</p>
-</td>
-</tr>
-</table>
-</td>
-</tr>
-<tr>
-<td>
-<code>status</code>
-</td>
-<td>
-<em>
-<a href="#MachineDeploymentStatus">
-MachineDeploymentStatus
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Most recently observed status of the MachineDeployment.</p>
 </td>
 </tr>
 </tbody>
