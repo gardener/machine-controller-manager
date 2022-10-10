@@ -12,6 +12,8 @@ spec:
     kind: MachineSet
     listKind: MachineSetList
     plural: machinesets
+    shortNames:
+    - machset
     singular: machineset
   scope: Namespaced
   versions:

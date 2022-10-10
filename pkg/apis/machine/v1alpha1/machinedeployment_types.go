@@ -26,6 +26,7 @@ import (
 // +genclient
 // +genclient:method=UpdateScale,verb=update,subresource=scale,input=k8s.io/api/autoscaling/v1.Scale,result=k8s.io/api/autoscaling/v1.Scale
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:shortName="machdeploy"
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas
@@ -34,7 +35,8 @@ import (
 // +kubebuilder:printcolumn:name="Up-to-date",type=integer,JSONPath=`.status.updatedReplicas`,description="Total number of non-terminated machines targeted by this machine deployment that have the desired template spec."
 // +kubebuilder:printcolumn:name="Available",type=integer,JSONPath=`.status.availableReplicas`,description="Total number of available machines (ready for at least minReadySeconds) targeted by this machine deployment."
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`,description="CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC.\nPopulated by the system. Read-only. Null for lists. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata"
-// Deployment enables declarative updates for machines and MachineSets.
+
+// MachineDeployment enables declarative updates for machines and MachineSets.
 type MachineDeployment struct {
 	metav1.TypeMeta `json:",inline"`
 	// Standard object metadata.

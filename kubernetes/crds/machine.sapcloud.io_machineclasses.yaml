@@ -12,6 +12,8 @@ spec:
     kind: MachineClass
     listKind: MachineClassList
     plural: machineclasses
+    shortNames:
+    - machcls
     singular: machineclass
   scope: Namespaced
   versions:
