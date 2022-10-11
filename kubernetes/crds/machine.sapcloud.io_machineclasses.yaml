@@ -13,7 +13,7 @@ spec:
     listKind: MachineClassList
     plural: machineclasses
     shortNames:
-    - machclass
+    - mcc
     singular: machineclass
   scope: Namespaced
   versions:
