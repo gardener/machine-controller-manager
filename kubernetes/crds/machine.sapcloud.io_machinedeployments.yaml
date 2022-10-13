@@ -13,7 +13,7 @@ spec:
     listKind: MachineDeploymentList
     plural: machinedeployments
     shortNames:
-    - machdeploy
+    - mcd
     singular: machinedeployment
   scope: Namespaced
   versions:

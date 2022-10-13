@@ -13,7 +13,7 @@ spec:
     listKind: MachineSetList
     plural: machinesets
     shortNames:
-    - machset
+    - mcs
     singular: machineset
   scope: Namespaced
   versions:

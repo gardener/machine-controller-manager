@@ -27,7 +27,7 @@ import (
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:shortName="machclass"
+// +kubebuilder:resource:shortName="mcc"
 // +kubebuilder:object:root=true
 
 // MachineClass can be used to templatize and re-use provider configuration
