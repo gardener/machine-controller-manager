@@ -13,7 +13,7 @@ spec:
     listKind: MachineList
     plural: machines
     shortNames:
-    - mach
+    - mc
     singular: machine
   scope: Namespaced
   versions:
