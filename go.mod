@@ -1,6 +1,6 @@
 module github.com/gardener/machine-controller-manager
 
-go 1.17
+go 1.19
 
 require (
 	github.com/Azure/azure-sdk-for-go v42.2.0+incompatible
