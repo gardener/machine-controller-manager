@@ -282,7 +282,7 @@ func (dc *controller) enqueueRateLimited(deployment *v1alpha1.MachineDeployment)
 	dc.machineDeploymentQueue.AddRateLimited(key)
 }
 
-//  enqueueMachineDeploymentAfter will enqueue a deployment after the provided amount of time.
+// enqueueMachineDeploymentAfter will enqueue a deployment after the provided amount of time.
 func (dc *controller) enqueueMachineDeploymentAfter(deployment *v1alpha1.MachineDeployment, after time.Duration) {
 	key, err := KeyFunc(deployment)
 	if err != nil {

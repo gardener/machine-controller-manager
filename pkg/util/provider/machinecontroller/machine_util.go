@@ -66,7 +66,8 @@ const (
 )
 
 // TODO: use client library instead when it starts to support update retries
-//       see https://github.com/kubernetes/kubernetes/issues/21479
+//
+//	see https://github.com/kubernetes/kubernetes/issues/21479
 type updateMachineFunc func(machine *v1alpha1.Machine) error
 
 /*
@@ -816,8 +817,8 @@ func (c *controller) deleteMachineFinalizers(ctx context.Context, machine *v1alp
 }
 
 /*
-	SECTION
-	Helper Functions
+SECTION
+Helper Functions
 */
 func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 	numOfConditions := len(machine.Status.Conditions)

@@ -822,7 +822,7 @@ func IsMachineFailed(p *v1alpha1.Machine) bool {
 }
 
 // MachineKey is the function used to get the machine name from machine object
-//ToCheck : as machine-namespace does not matter
+// ToCheck : as machine-namespace does not matter
 func MachineKey(machine *v1alpha1.Machine) string {
 	return fmt.Sprintf("%v", machine.Name)
 }

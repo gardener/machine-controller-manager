@@ -42,8 +42,8 @@ import (
 )
 
 /*
-	SECTION
-	Machine controller - Machine add, update, delete watches
+SECTION
+Machine controller - Machine add, update, delete watches
 */
 func (c *controller) addMachine(obj interface{}) {
 	klog.V(5).Infof("Adding machine object")
@@ -188,8 +188,8 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 }
 
 /*
-	SECTION
-	Machine controller - nodeToMachine
+SECTION
+Machine controller - nodeToMachine
 */
 var (
 	errMultipleMachineMatch = errors.New("Multiple machines matching node")

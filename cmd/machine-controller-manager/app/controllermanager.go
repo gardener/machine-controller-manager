@@ -73,7 +73,7 @@ var (
 )
 
 // Run runs the MCMServer.  This should never exit.
-func Run(s *options.MCMServer) error {
+func Run(ctx context.Context, s *options.MCMServer) error {
 	// To help debugging, immediately log version
 	klog.V(4).Infof("Version: %+v", version.Get())
 	if err := s.Validate(); err != nil {
@@ -158,7 +158,7 @@ func Run(s *options.MCMServer) error {
 	}
 
 	if !s.LeaderElection.LeaderElect {
-		run(nil)
+		run(ctx)
 		panic("unreachable")
 	}
 
@@ -182,7 +182,6 @@ func Run(s *options.MCMServer) error {
 		klog.Fatalf("error creating lock: %v", err)
 	}
 
-	ctx := context.TODO()
 	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 		Lock:          rl,
 		LeaseDuration: s.LeaderElection.LeaseDuration.Duration,
@@ -298,8 +297,9 @@ func StartControllers(s *options.MCMServer,
 	select {}
 }
 
-// TODO: In general, any controller checking this needs to be dynamic so
-//  users don't have to restart their controller manager if they change the apiserver.
+// TODO: In general, any controller checking this needs to be dynamic so users don't have to
+// restart their controller manager if they change the apiserver.
+//
 // Until we get there, the structure here needs to be exposed for the construction of a proper ControllerContext.
 func getAvailableResources(clientBuilder corecontroller.ClientBuilder) (map[schema.GroupVersionResource]bool, error) {
 	var discoveryClient discovery.DiscoveryInterface
