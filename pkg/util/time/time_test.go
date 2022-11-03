@@ -30,14 +30,11 @@ var _ = Describe("time", func() {
 			timeStamp metav1.Time
 			period    time.Duration
 		}
-		type action struct {
-		}
 		type expect struct {
 			timeOutOccurred bool
 		}
 		type data struct {
 			setup  setup
-			action action
 			expect expect
 		}
 		DescribeTable("##TimeOut scenarios",

@@ -92,7 +92,7 @@ func (d *GCPDriver) Create() (string, string, error) {
 	for _, disk := range d.GCPMachineClass.Spec.Disks {
 		var attachedDisk compute.AttachedDisk
 		autoDelete := false
-		if disk.AutoDelete == nil || *disk.AutoDelete == true {
+		if disk.AutoDelete == nil || *disk.AutoDelete {
 			autoDelete = true
 		}
 		if disk.Type == "SCRATCH" {
@@ -137,7 +137,7 @@ func (d *GCPDriver) Create() (string, string, error) {
 	for _, nic := range d.GCPMachineClass.Spec.NetworkInterfaces {
 		computeNIC := &compute.NetworkInterface{}
 
-		if nic.DisableExternalIP == false {
+		if !nic.DisableExternalIP {
 			// When DisableExternalIP is false, implies Attach an external IP to VM
 			computeNIC.AccessConfigs = []*compute.AccessConfig{{}}
 		}

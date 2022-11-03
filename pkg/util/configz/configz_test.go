@@ -21,7 +21,7 @@ https://github.com/kubernetes/kubernetes/blob/release-1.8/pkg/util/configz/confi
 package configz
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -43,7 +43,7 @@ func TestConfigz(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestConfigz(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	body, err = ioutil.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestConfigz(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	body, err = ioutil.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

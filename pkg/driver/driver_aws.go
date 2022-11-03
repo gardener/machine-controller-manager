@@ -345,7 +345,7 @@ func (d *AWSDriver) Delete(machineID string) error {
 			return nil
 		}
 
-		err = errors.New("Machine already terminated")
+		err = errors.New("machine already terminated")
 	}
 
 	klog.Errorf("Could not terminate machine: %s", err.Error())

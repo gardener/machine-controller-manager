@@ -486,7 +486,6 @@ func (o *DrainOptions) evictPodsWithoutPv(ctx context.Context, attemptEvict bool
 	for _, pod := range pods {
 		go o.evictPodWithoutPVInternal(ctx, attemptEvict, pod, policyGroupVersion, getPodFn, returnCh)
 	}
-	return
 }
 
 func sortPodsByPriority(pods []*corev1.Pod) {
@@ -550,7 +549,7 @@ func filterSharedPVs(pvMap map[string][]string) {
 	for pod, vols := range pvMap {
 		volList := []string{}
 		for _, vol := range vols {
-			if sharedVol[vol] == false {
+			if !sharedVol[vol] {
 				volList = append(volList, vol)
 			}
 		}
@@ -613,8 +612,6 @@ func (o *DrainOptions) evictPodsWithPv(ctx context.Context, attemptEvict bool, p
 			returnCh <- fmt.Errorf("Error deleting pod %s/%s from node %q", pod.Namespace, pod.Name, pod.Spec.NodeName)
 		}
 	}
-
-	return
 }
 
 func (o *DrainOptions) evictPodsWithPVInternal(ctx context.Context, attemptEvict bool, pods []*corev1.Pod, volMap map[string][]string,

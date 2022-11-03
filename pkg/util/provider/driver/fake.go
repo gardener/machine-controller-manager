@@ -19,8 +19,6 @@ package driver
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 )
@@ -87,7 +85,7 @@ func (d *FakeDriver) DeleteMachine(ctx context.Context, deleteMachineRequest *De
 func (d *FakeDriver) GetMachineStatus(ctx context.Context, getMachineStatusRequest *GetMachineStatusRequest) (*GetMachineStatusResponse, error) {
 	switch {
 	case !d.VMExists:
-		errMessage := fmt.Sprintf("Fake plugin is returning no VM instances backing this machine object")
+		errMessage := "Fake plugin is returning no VM instances backing this machine object"
 		return nil, status.Error(codes.NotFound, errMessage)
 	case d.Err != nil:
 		return nil, d.Err

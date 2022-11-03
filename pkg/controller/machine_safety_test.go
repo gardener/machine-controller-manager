@@ -221,8 +221,6 @@ var _ = Describe("#machine_safety", func() {
 		machineDeploymentLabels      map[string]string
 		machineDeploymentConditions  []v1alpha1.MachineDeploymentCondition
 	}
-	type action struct {
-	}
 	type expect struct {
 		machineSetAnnotations        map[string]string
 		machineSetLabels             map[string]string
@@ -233,7 +231,6 @@ var _ = Describe("#machine_safety", func() {
 	}
 	type data struct {
 		setup  setup
-		action action
 		expect expect
 	}
 
@@ -807,11 +804,11 @@ var _ = Describe("#machine_safety", func() {
 			c.safetyOptions.APIserverInactiveStartTime = apiServerInactiveStartTime
 			c.safetyOptions.MachineControllerFrozen = preMachineControllerIsFrozen
 			if !controlAPIServerIsUp {
-				trackers.ControlMachine.SetError("APIServer is Not Reachable")
-				trackers.ControlCore.SetError("APIServer is Not Reachable")
+				Expect(trackers.ControlMachine.SetError("APIServer is Not Reachable")).NotTo(HaveOccurred())
+				Expect(trackers.ControlCore.SetError("APIServer is Not Reachable")).NotTo(HaveOccurred())
 			}
 			if !targetAPIServerIsUp {
-				trackers.TargetCore.SetError("APIServer is Not Reachable")
+				Expect(trackers.TargetCore.SetError("APIServer is Not Reachable")).NotTo(HaveOccurred())
 			}
 
 			c.reconcileClusterMachineSafetyAPIServer("")

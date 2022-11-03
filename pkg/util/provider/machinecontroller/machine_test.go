@@ -1515,7 +1515,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Skipping drain as nodeName is not a valid one for machine. Initiate VM deletion"),
+								Description:    "Skipping drain as nodeName is not a valid one for machine. Initiate VM deletion",
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/driver"
@@ -119,7 +119,7 @@ func main() {
 
 // Read function decodes the yaml file passed to it
 func Read(fileName string, decodedObj interface{}) error {
-	m, err := ioutil.ReadFile(fileName)
+	m, err := os.ReadFile(fileName)
 	if err != nil {
 		log.Fatalf("Could not read %s: %s", fileName, err)
 	}

@@ -105,7 +105,7 @@ func (dc *controller) checkPausedConditions(ctx context.Context, d *v1alpha1.Mac
 	}
 
 	var err error
-	d, err = dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(ctx, d, metav1.UpdateOptions{})
+	_, err = dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(ctx, d, metav1.UpdateOptions{})
 	return err
 }
 
@@ -284,7 +284,7 @@ func (dc *controller) getNewMachineSet(ctx context.Context, d *v1alpha1.MachineD
 			}
 			dCopy := d.DeepCopy()
 			dCopy.Status = newStatus
-			if d, err = dc.controlMachineClient.MachineDeployments(dCopy.Namespace).UpdateStatus(ctx, dCopy, metav1.UpdateOptions{}); err != nil {
+			if _, err = dc.controlMachineClient.MachineDeployments(dCopy.Namespace).UpdateStatus(ctx, dCopy, metav1.UpdateOptions{}); err != nil {
 				return nil, err
 			}
 		}

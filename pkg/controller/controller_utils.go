@@ -466,10 +466,10 @@ func validateControllerRef(controllerRef *metav1.OwnerReference) error {
 	if len(controllerRef.Kind) == 0 {
 		return fmt.Errorf("controllerRef has empty Kind")
 	}
-	if controllerRef.Controller == nil || *controllerRef.Controller != true {
+	if controllerRef.Controller == nil || !*controllerRef.Controller {
 		return fmt.Errorf("controllerRef.Controller is not set to true")
 	}
-	if controllerRef.BlockOwnerDeletion == nil || *controllerRef.BlockOwnerDeletion != true {
+	if controllerRef.BlockOwnerDeletion == nil || !*controllerRef.BlockOwnerDeletion {
 		return fmt.Errorf("controllerRef.BlockOwnerDeletion is not set")
 	}
 	return nil
@@ -814,11 +814,7 @@ func IsMachineActive(p *v1alpha1.Machine) bool {
 
 // IsMachineFailed checks if machine has failed
 func IsMachineFailed(p *v1alpha1.Machine) bool {
-	if p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
-		return true
-	}
-
-	return false
+	return p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed
 }
 
 // MachineKey is the function used to get the machine name from machine object
@@ -1019,6 +1015,10 @@ func RemoveAnnotationsOffNode(ctx context.Context, c clientset.Interface, nodeNa
 
 		// Remove the annotations from the node.
 		newNode, updated, err = annotationsutils.RemoveAnnotation(oldNodeCopy, annotations)
+		if err != nil {
+			klog.Errorf("Failed to remove annotations from node Node %s. Err: %v", nodeName, err)
+			return err
+		}
 
 		if !updated {
 			return nil
@@ -1030,7 +1030,7 @@ func RemoveAnnotationsOffNode(ctx context.Context, c clientset.Interface, nodeNa
 // GetAnnotationsFromNode returns all the annotations of the provided node.
 func GetAnnotationsFromNode(ctx context.Context, c clientset.Interface, nodeName string) (map[string]string, error) {
 
-	// Short circuit if annotation doesnt exist for limiting API calls.
+	// Short circuit if annotation doesn't exist for limiting API calls.
 	if nodeName == "" {
 		return nil, nil
 	}

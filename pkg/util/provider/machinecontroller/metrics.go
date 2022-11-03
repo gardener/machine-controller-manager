@@ -238,7 +238,7 @@ func (c *controller) CollectMachineSetMetrics(ch chan<- prometheus.Metric) {
 }
 */
 
-// CollectMachines is method to collect Machine related metrics.
+// CollectMachineMetrics is method to collect Machine related metrics.
 func (c *controller) CollectMachineMetrics(ch chan<- prometheus.Metric) {
 	// Collect the count of machines managed by the mcm.
 	machineList, err := c.machineLister.Machines(c.namespace).List(labels.Everything())

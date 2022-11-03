@@ -3,7 +3,6 @@ package helpers
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -26,7 +25,7 @@ import (
 
 // ParseK8sYaml reads a yaml file and parses it based on the scheme
 func ParseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind, error) {
-	fileR, err := ioutil.ReadFile(filepath)
+	fileR, err := os.ReadFile(filepath)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -50,7 +49,7 @@ func ParseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind
 			decode := apiextensionsscheme.Codecs.UniversalDeserializer().Decode
 			obj, groupVersionKind, err := decode([]byte(f), nil, nil)
 			if err != nil {
-				log.Println(fmt.Sprintf("Error while decoding YAML object. Err was: %s", err))
+				log.Printf(fmt.Sprintf("Error while decoding YAML object. Err was: %s", err))
 				retErr = err
 				continue
 			}
@@ -66,7 +65,7 @@ func ParseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind
 			decode := scheme.Codecs.UniversalDeserializer().Decode
 			obj, groupVersionKind, err := decode([]byte(f), nil, nil)
 			if err != nil {
-				log.Println(fmt.Sprintf("Error while decoding YAML object. Err was: %s", err))
+				log.Printf(fmt.Sprintf("Error while decoding YAML object. Err was: %s", err))
 				retErr = err
 				continue
 			}
@@ -77,7 +76,7 @@ func ParseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind
 			decode := mcmscheme.Codecs.UniversalDeserializer().Decode
 			obj, groupVersionKind, err := decode([]byte(f), nil, nil)
 			if err != nil {
-				log.Println(fmt.Sprintf("Error while decoding YAML object. Err was: %s", err))
+				log.Printf(fmt.Sprintf("Error while decoding YAML object. Err was: %s", err))
 				retErr = err
 				continue
 			}

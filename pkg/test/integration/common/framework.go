@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -485,7 +484,7 @@ func (c *IntegrationTestFramework) updatePatchFile() {
 	data, _ := json.MarshalIndent(patchMachineClassData, "", " ")
 
 	//writing to machine-class-patch.json
-	_ = ioutil.WriteFile(filepath.Join("..", "..", "..",
+	_ = os.WriteFile(filepath.Join("..", "..", "..",
 		".ci",
 		"controllers-test",
 		"machine-class-patch.json"), data, 0644)
@@ -672,9 +671,16 @@ func rotateLogFile(fileName string) (*os.File, error) {
 
 	if _, err := os.Stat(fileName); err == nil { // !strings.Contains(err.Error(), "no such file or directory") {
 		for i := 9; i > 0; i-- {
-			os.Rename(fmt.Sprintf("%s.%d", fileName, i), fmt.Sprintf("%s.%d", fileName, i+1))
+			oldName := fmt.Sprintf("%s.%d", fileName, i)
+			newName := fmt.Sprintf("%s.%d", fileName, i+1)
+			if err := os.Rename(oldName, newName); err != nil {
+				return nil, fmt.Errorf("failed to rename %s to %s: %w", oldName, newName, err)
+			}
 		}
-		os.Rename(fileName, fmt.Sprintf("%s.%d", fileName, 1))
+		newName := fmt.Sprintf("%s.%d", fileName, 1)
+		if err := os.Rename(fileName, newName); err != nil {
+			return nil, fmt.Errorf("failed to rename %s to %s: %w", fileName, newName, err)
+		}
 	}
 
 	return os.Create(fileName)
@@ -1036,7 +1042,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 									},
 								).Stream(ctx)
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
-							io.Copy(mcOutputFile, readCloser)
+							_, err = io.Copy(mcOutputFile, readCloser)
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
 						} else {
 							readCloser, err := c.ControlCluster.Clientset.CoreV1().
@@ -1045,7 +1051,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 									Container: containers[i].Name,
 								}).Stream(ctx)
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
-							io.Copy(mcmOutputFile, readCloser)
+							_, err = io.Copy(mcmOutputFile, readCloser)
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
 						}
 					}
@@ -1054,14 +1060,14 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.By("Searching for Froze in mcm log file")
 				frozeRegexp, _ := regexp.Compile(` Froze MachineSet`)
 				gomega.Eventually(func() bool {
-					data, _ := ioutil.ReadFile(mcmLogFile)
+					data, _ := os.ReadFile(mcmLogFile)
 					return frozeRegexp.Match(data)
 				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
 
 				ginkgo.By("Searching Unfroze in mcm log file")
 				unfrozeRegexp, _ := regexp.Compile(` Unfroze MachineSet`)
 				gomega.Eventually(func() bool {
-					data, _ := ioutil.ReadFile(mcmLogFile)
+					data, _ := os.ReadFile(mcmLogFile)
 					return unfrozeRegexp.Match(data)
 				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
 			})

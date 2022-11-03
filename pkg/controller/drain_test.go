@@ -257,7 +257,7 @@ var _ = Describe("drain", func() {
 					go func() {
 						defer wg.Done()
 						runPodDrainHandlers(pod)
-						fmt.Fprintf(GinkgoWriter, "Drained pod %s/%s in %s\n", pod.Namespace, pod.Name, time.Now().Sub(start).String())
+						fmt.Fprintf(GinkgoWriter, "Drained pod %s/%s in %s\n", pod.Namespace, pod.Name, time.Since(start).String())
 					}()
 
 					nEvictions++
@@ -289,7 +289,7 @@ var _ = Describe("drain", func() {
 					go func() {
 						defer wg.Done()
 						runPodDrainHandlers(pod)
-						fmt.Fprintf(GinkgoWriter, "Drained pod %s/%s in %s\n", pod.Namespace, pod.Name, time.Now().Sub(start).String())
+						fmt.Fprintf(GinkgoWriter, "Drained pod %s/%s in %s\n", pod.Namespace, pod.Name, time.Since(start).String())
 					}()
 				default:
 					err = fmt.Errorf("Expected type k8stesting.GetAction but got %T", action)

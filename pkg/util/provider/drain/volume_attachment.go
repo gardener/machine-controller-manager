@@ -49,16 +49,18 @@ func (v *VolumeAttachmentHandler) dispatch(obj interface{}) {
 	volumeAttachment := obj.(*storagev1.VolumeAttachment)
 	if volumeAttachment == nil {
 		klog.Errorf("Couldn't convert to volumeAttachment from object %v", obj)
+		// return here to avoid nil pointer dereference
+		return
 	}
 
-	klog.V(4).Infof("Dispatching request for PV %s", *volumeAttachment.Spec.Source.PersistentVolumeName)
-	defer klog.V(4).Infof("Done dispatching request for PV %s", *volumeAttachment.Spec.Source.PersistentVolumeName)
+	klog.V(4).Infof("Dispatching request for PV %s", volumeAttachment.Spec.Source.PersistentVolumeName)
+	defer klog.V(4).Infof("Done dispatching request for PV %s", volumeAttachment.Spec.Source.PersistentVolumeName)
 
 	v.Lock()
 	defer v.Unlock()
 
 	for i, worker := range v.workers {
-		klog.V(4).Infof("Dispatching request for PV %s to worker %d/%v", *volumeAttachment.Spec.Source.PersistentVolumeName, i, worker)
+		klog.V(4).Infof("Dispatching request for PV %s to worker %d/%v", volumeAttachment.Spec.Source.PersistentVolumeName, i, worker)
 
 		select {
 		case worker <- volumeAttachment:

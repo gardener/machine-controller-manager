@@ -163,7 +163,7 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 				// If timeout has not started
 				c.safetyOptions.APIserverInactiveStartTime = time.Now()
 			}
-			if time.Now().Sub(c.safetyOptions.APIserverInactiveStartTime) > statusCheckTimeout {
+			if time.Since(c.safetyOptions.APIserverInactiveStartTime) > statusCheckTimeout {
 				// If APIServer has been down for more than statusCheckTimeout
 				c.safetyOptions.MachineControllerFrozen = true
 				klog.V(2).Infof("SafetyController: Freezing Machine Controller")

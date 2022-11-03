@@ -614,7 +614,7 @@ func (d *AzureDriver) createVMNicDisk() (*compute.VirtualMachine, error) {
 				return nil, onARMAPIErrorFail(prometheusServiceVM, err, "MarketplaceAgreementsClient.Get failed for %s", d.AzureMachineClass.Name)
 			}
 
-			if agreement.Accepted == nil || *agreement.Accepted == false {
+			if agreement.Accepted == nil || !*agreement.Accepted {
 				// Need to accept the terms at least once for the subscription
 				klog.V(2).Info("Accepting terms for subscription to make use of the plan")
 
@@ -958,11 +958,9 @@ func (clients *azureDriverClients) deleteVMNicDisks(ctx context.Context, resourc
 
 	deleters := []func() error{nicDeleter, diskDeleter}
 
-	if dataDiskNames != nil {
-		for _, dataDiskName := range dataDiskNames {
-			dataDiskDeleter := clients.getDeleterForDisk(ctx, resourceGroupName, dataDiskName)
-			deleters = append(deleters, dataDiskDeleter)
-		}
+	for _, dataDiskName := range dataDiskNames {
+		dataDiskDeleter := clients.getDeleterForDisk(ctx, resourceGroupName, dataDiskName)
+		deleters = append(deleters, dataDiskDeleter)
 	}
 
 	return runInParallel(deleters)
@@ -1156,7 +1154,7 @@ func notFound(err error) bool {
 func retrieveRequestID(err error) (bool, string, *autorest.DetailedError) {
 	switch err.(type) {
 	case autorest.DetailedError:
-		detailedErr := autorest.DetailedError(err.(autorest.DetailedError))
+		detailedErr := err.(autorest.DetailedError)
 		if detailedErr.Response != nil {
 			requestID := strings.Join(detailedErr.Response.Header["X-Ms-Request-Id"], "")
 			return true, requestID, &detailedErr

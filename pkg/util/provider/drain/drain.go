@@ -568,7 +568,7 @@ func filterSharedPVs(pvMap map[string][]string) {
 	for pod, vols := range pvMap {
 		volList := []string{}
 		for _, vol := range vols {
-			if sharedVol[vol] == false {
+			if !sharedVol[vol] {
 				volList = append(volList, vol)
 			}
 		}

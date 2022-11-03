@@ -1634,7 +1634,6 @@ var _ = Describe("machine", func() {
 		}
 		type expect struct {
 			machine *machinev1.Machine
-			err     bool
 		}
 		type data struct {
 			setup  setup
@@ -1670,7 +1669,7 @@ var _ = Describe("machine", func() {
 
 				action := data.action
 				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
-				//Expect(err).ToNot(HaveOccurred())
+				Expect(err).ToNot(HaveOccurred())
 
 				controller.checkMachineTimeout(context.TODO(), machine)
 
@@ -1852,7 +1851,6 @@ var _ = Describe("machine", func() {
 		}
 		type expect struct {
 			machine *machinev1.Machine
-			err     bool
 		}
 		type data struct {
 			setup  setup
