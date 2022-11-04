@@ -131,8 +131,7 @@ func (c *controller) azureMachineClassDelete(obj interface{}) {
 
 // reconcileClusterAzureMachineClassKey reconciles an AzureMachineClass due to controller resync
 // or an event on the azureMachineClass.
-func (c *controller) reconcileClusterAzureMachineClassKey(key string) error {
-	ctx := context.Background()
+func (c *controller) reconcileClusterAzureMachineClassKey(ctx context.Context, key string) error {
 	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err

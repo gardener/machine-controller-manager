@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -414,7 +415,7 @@ type Controller interface {
 	// Run runs the controller until the given stop channel can be read from.
 	// workers specifies the number of goroutines, per resource, processing work
 	// from the resource workqueues
-	Run(workers int, stopCh <-chan struct{})
+	Run(ctx context.Context, workers int)
 }
 
 // controller is a concrete Controller.
@@ -479,29 +480,16 @@ type controller struct {
 	machineDeploymentSynced     cache.InformerSynced
 }
 
-func (c *controller) Run(workers int, stopCh <-chan struct{}) {
+func (c *controller) Run(ctx context.Context, workers int) {
 
 	var (
 		waitGroup sync.WaitGroup
 	)
 
 	defer runtimeutil.HandleCrash()
-	defer c.nodeQueue.ShutDown()
-	defer c.secretQueue.ShutDown()
-	defer c.openStackMachineClassQueue.ShutDown()
-	defer c.awsMachineClassQueue.ShutDown()
-	defer c.azureMachineClassQueue.ShutDown()
-	defer c.gcpMachineClassQueue.ShutDown()
-	defer c.alicloudMachineClassQueue.ShutDown()
-	defer c.packetMachineClassQueue.ShutDown()
-	defer c.machineQueue.ShutDown()
-	defer c.machineSetQueue.ShutDown()
-	defer c.machineDeploymentQueue.ShutDown()
-	defer c.machineSafetyOrphanVMsQueue.ShutDown()
-	defer c.machineSafetyOvershootingQueue.ShutDown()
-	defer c.machineSafetyAPIServerQueue.ShutDown()
+	defer c.shutdownQueues()
 
-	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.openStackMachineClassSynced, c.awsMachineClassSynced, c.azureMachineClassSynced, c.gcpMachineClassSynced, c.alicloudMachineClassSynced, c.packetMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), c.secretSynced, c.nodeSynced, c.openStackMachineClassSynced, c.awsMachineClassSynced, c.azureMachineClassSynced, c.gcpMachineClassSynced, c.alicloudMachineClassSynced, c.packetMachineClassSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
 		runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
@@ -515,36 +503,57 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	prometheus.MustRegister(c)
 
 	for i := 0; i < workers; i++ {
-		createWorker(c.openStackMachineClassQueue, "ClusterOpenStackMachineClass", maxRetries, true, c.reconcileClusterOpenStackMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.awsMachineClassQueue, "ClusterAWSMachineClass", maxRetries, true, c.reconcileClusterAWSMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.azureMachineClassQueue, "ClusterAzureMachineClass", maxRetries, true, c.reconcileClusterAzureMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.gcpMachineClassQueue, "ClusterGCPMachineClass", maxRetries, true, c.reconcileClusterGCPMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.alicloudMachineClassQueue, "ClusterAlicloudMachineClass", maxRetries, true, c.reconcileClusterAlicloudMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.packetMachineClassQueue, "ClusterPacketMachineClass", maxRetries, true, c.reconcileClusterPacketMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.secretQueue, "ClusterSecret", maxRetries, true, c.reconcileClusterSecretKey, stopCh, &waitGroup)
-		createWorker(c.nodeQueue, "ClusterNode", maxRetries, true, c.reconcileClusterNodeKey, stopCh, &waitGroup)
-		createWorker(c.machineQueue, "ClusterMachine", maxRetries, true, c.reconcileClusterMachineKey, stopCh, &waitGroup)
-		createWorker(c.machineSetQueue, "ClusterMachineSet", maxRetries, true, c.reconcileClusterMachineSet, stopCh, &waitGroup)
-		createWorker(c.machineDeploymentQueue, "ClusterMachineDeployment", maxRetries, true, c.reconcileClusterMachineDeployment, stopCh, &waitGroup)
-		createWorker(c.machineSafetyOrphanVMsQueue, "ClusterMachineSafetyOrphanVMs", maxRetries, true, c.reconcileClusterMachineSafetyOrphanVMs, stopCh, &waitGroup)
-		createWorker(c.machineSafetyOvershootingQueue, "ClusterMachineSafetyOvershooting", maxRetries, true, c.reconcileClusterMachineSafetyOvershooting, stopCh, &waitGroup)
-		createWorker(c.machineSafetyAPIServerQueue, "ClusterMachineAPIServer", maxRetries, true, c.reconcileClusterMachineSafetyAPIServer, stopCh, &waitGroup)
+		createWorker(ctx, c.openStackMachineClassQueue, "ClusterOpenStackMachineClass", maxRetries, true, c.reconcileClusterOpenStackMachineClassKey, &waitGroup)
+		createWorker(ctx, c.awsMachineClassQueue, "ClusterAWSMachineClass", maxRetries, true, c.reconcileClusterAWSMachineClassKey, &waitGroup)
+		createWorker(ctx, c.azureMachineClassQueue, "ClusterAzureMachineClass", maxRetries, true, c.reconcileClusterAzureMachineClassKey, &waitGroup)
+		createWorker(ctx, c.gcpMachineClassQueue, "ClusterGCPMachineClass", maxRetries, true, c.reconcileClusterGCPMachineClassKey, &waitGroup)
+		createWorker(ctx, c.alicloudMachineClassQueue, "ClusterAlicloudMachineClass", maxRetries, true, c.reconcileClusterAlicloudMachineClassKey, &waitGroup)
+		createWorker(ctx, c.packetMachineClassQueue, "ClusterPacketMachineClass", maxRetries, true, c.reconcileClusterPacketMachineClassKey, &waitGroup)
+		createWorker(ctx, c.secretQueue, "ClusterSecret", maxRetries, true, c.reconcileClusterSecretKey, &waitGroup)
+		createWorker(ctx, c.nodeQueue, "ClusterNode", maxRetries, true, c.reconcileClusterNodeKey, &waitGroup)
+		createWorker(ctx, c.machineQueue, "ClusterMachine", maxRetries, true, c.reconcileClusterMachineKey, &waitGroup)
+		createWorker(ctx, c.machineSetQueue, "ClusterMachineSet", maxRetries, true, c.reconcileClusterMachineSet, &waitGroup)
+		createWorker(ctx, c.machineDeploymentQueue, "ClusterMachineDeployment", maxRetries, true, c.reconcileClusterMachineDeployment, &waitGroup)
+		createWorker(ctx, c.machineSafetyOrphanVMsQueue, "ClusterMachineSafetyOrphanVMs", maxRetries, true, c.reconcileClusterMachineSafetyOrphanVMs, &waitGroup)
+		createWorker(ctx, c.machineSafetyOvershootingQueue, "ClusterMachineSafetyOvershooting", maxRetries, true, c.reconcileClusterMachineSafetyOvershooting, &waitGroup)
+		createWorker(ctx, c.machineSafetyAPIServerQueue, "ClusterMachineAPIServer", maxRetries, true, c.reconcileClusterMachineSafetyAPIServer, &waitGroup)
 	}
 
-	<-stopCh
 	klog.V(1).Info("Shutting down Machine Controller Manager ")
 	handlers.UpdateHealth(false)
 
+	c.shutdownQueues()
 	waitGroup.Wait()
+
+	// TODO: We need to figure out when the shared informers have stopped.
+	time.Sleep(2 * time.Second)
+}
+
+func (c *controller) shutdownQueues() {
+	c.nodeQueue.ShutDown()
+	c.secretQueue.ShutDown()
+	c.openStackMachineClassQueue.ShutDown()
+	c.awsMachineClassQueue.ShutDown()
+	c.azureMachineClassQueue.ShutDown()
+	c.gcpMachineClassQueue.ShutDown()
+	c.alicloudMachineClassQueue.ShutDown()
+	c.packetMachineClassQueue.ShutDown()
+	c.machineQueue.ShutDown()
+	c.machineSetQueue.ShutDown()
+	c.machineDeploymentQueue.ShutDown()
+	c.machineSafetyOrphanVMsQueue.ShutDown()
+	c.machineSafetyOvershootingQueue.ShutDown()
+	c.machineSafetyAPIServerQueue.ShutDown()
 }
 
 // createWorker creates and runs a worker thread that just processes items in the
 // specified queue. The worker will run until stopCh is closed. The worker will be
 // added to the wait group when started and marked done when finished.
-func createWorker(queue workqueue.RateLimitingInterface, resourceType string, maxRetries int, forgetAfterSuccess bool, reconciler func(key string) error, stopCh <-chan struct{}, waitGroup *sync.WaitGroup) {
+func createWorker(ctx context.Context, queue workqueue.RateLimitingInterface, resourceType string, maxRetries int, forgetAfterSuccess bool, reconciler func(ctx context.Context, key string) error, waitGroup *sync.WaitGroup) {
 	waitGroup.Add(1)
 	go func() {
-		wait.Until(worker(queue, resourceType, maxRetries, forgetAfterSuccess, reconciler), time.Second, stopCh)
+		wait.UntilWithContext(ctx, worker(queue, resourceType, maxRetries, forgetAfterSuccess, reconciler), time.Second)
+		klog.V(5).Infof("Stopped worker for type: %s", resourceType)
 		waitGroup.Done()
 	}()
 }
@@ -554,8 +563,8 @@ func createWorker(queue workqueue.RateLimitingInterface, resourceType string, ma
 // It enforces that the reconciler is never invoked concurrently with the same key.
 // If forgetAfterSuccess is true, it will cause the queue to forget the item should reconciliation
 // have no error.
-func worker(queue workqueue.RateLimitingInterface, resourceType string, maxRetries int, forgetAfterSuccess bool, reconciler func(key string) error) func() {
-	return func() {
+func worker(queue workqueue.RateLimitingInterface, resourceType string, maxRetries int, forgetAfterSuccess bool, reconciler func(ctx context.Context, key string) error) func(context.Context) {
+	return func(ctx context.Context) {
 		exit := false
 		for !exit {
 			exit = func() bool {
@@ -565,7 +574,7 @@ func worker(queue workqueue.RateLimitingInterface, resourceType string, maxRetri
 				}
 				defer queue.Done(key)
 
-				err := reconciler(key.(string))
+				err := reconciler(ctx, key.(string))
 				if err == nil {
 					if forgetAfterSuccess {
 						queue.Forget(key)

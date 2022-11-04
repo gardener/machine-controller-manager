@@ -30,6 +30,7 @@ import (
 	"os"
 	goruntime "runtime"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/Masterminds/semver"
@@ -74,7 +75,7 @@ var (
 )
 
 // Run runs the MCServer. This should never exit.
-func Run(s *options.MCServer, driver driver.Driver) error {
+func Run(ctx context.Context, s *options.MCServer, driver driver.Driver) error {
 	// To help debugging, immediately log version
 	klog.V(4).Infof("Version: %+v", version.Get())
 	if err := s.Validate(); err != nil {
@@ -125,8 +126,9 @@ func Run(s *options.MCServer, driver driver.Driver) error {
 
 	recorder := createRecorder(kubeClientControl)
 
-	run := func(ctx context.Context) {
-		var stop <-chan struct{}
+	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(1)
+	startControllers := func(ctx context.Context) {
 		// Control plane client used to interact with machine APIs
 		controlMachineClientBuilder := machineclientbuilder.SimpleClientBuilder{
 			ClientConfig: controlkubeconfig,
@@ -140,7 +142,8 @@ func Run(s *options.MCServer, driver driver.Driver) error {
 			ClientConfig: targetkubeconfig,
 		}
 
-		err := StartControllers(
+		if err := StartControllers(
+			ctx,
 			s,
 			controlkubeconfig,
 			targetkubeconfig,
@@ -149,17 +152,14 @@ func Run(s *options.MCServer, driver driver.Driver) error {
 			targetCoreClientBuilder,
 			driver,
 			recorder,
-			stop,
-		)
-
-		klog.Fatalf("error running controllers: %v", err)
-		panic("unreachable")
-
+		); err != nil {
+			klog.Fatalf("failed to start controllers: %v", err)
+		}
+		waitGroup.Done()
 	}
 
 	if !s.LeaderElection.LeaderElect {
-		run(nil)
-		panic("unreachable")
+		startControllers(ctx)
 	}
 
 	id, err := os.Hostname()
@@ -182,24 +182,27 @@ func Run(s *options.MCServer, driver driver.Driver) error {
 		klog.Fatalf("error creating lock: %v", err)
 	}
 
-	ctx := context.TODO()
 	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 		Lock:          rl,
 		LeaseDuration: s.LeaderElection.LeaseDuration.Duration,
 		RenewDeadline: s.LeaderElection.RenewDeadline.Duration,
 		RetryPeriod:   s.LeaderElection.RetryPeriod.Duration,
 		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: run,
+			OnStartedLeading: startControllers,
 			OnStoppedLeading: func() {
-				klog.Fatalf("leaderelection lost")
+				klog.Errorf("leaderelection lost")
+				waitGroup.Wait()
 			},
 		},
 	})
-	panic("unreachable")
+
+	return nil
 }
 
 // StartControllers starts all the controllers which are a part of machine-controller
-func StartControllers(s *options.MCServer,
+func StartControllers(
+	ctx context.Context,
+	s *options.MCServer,
 	controlCoreKubeconfig *rest.Config,
 	targetCoreKubeconfig *rest.Config,
 	controlMachineClientBuilder machineclientbuilder.ClientBuilder,
@@ -207,7 +210,7 @@ func StartControllers(s *options.MCServer,
 	targetCoreClientBuilder coreclientbuilder.ClientBuilder,
 	driver driver.Driver,
 	recorder record.EventRecorder,
-	stop <-chan struct{}) error {
+) error {
 
 	klog.V(5).Info("Getting available resources")
 	availableResources, err := getAvailableResources(controlCoreClientBuilder)
@@ -301,18 +304,23 @@ func StartControllers(s *options.MCServer,
 		}
 		klog.V(1).Info("Starting shared informers")
 
-		controlMachineInformerFactory.Start(stop)
-		controlCoreInformerFactory.Start(stop)
-		targetCoreInformerFactory.Start(stop)
+		controlMachineInformerFactory.Start(ctx.Done())
+		controlCoreInformerFactory.Start(ctx.Done())
+		targetCoreInformerFactory.Start(ctx.Done())
 
 		klog.V(5).Info("Running controller")
-		go machineController.Run(int(s.ConcurrentNodeSyncs), stop)
-
+		var waitGroup sync.WaitGroup
+		waitGroup.Add(1)
+		go func() {
+			machineController.Run(ctx, int(s.ConcurrentNodeSyncs))
+			waitGroup.Done()
+		}()
+		waitGroup.Wait()
 	} else {
 		return fmt.Errorf("unable to start machine controller: API GroupVersion %q is not available; \nFound: %#v", machineGVR, availableResources)
 	}
 
-	select {}
+	return nil
 }
 
 // TODO: In general, any controller checking this needs to be dynamic so

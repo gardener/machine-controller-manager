@@ -131,8 +131,7 @@ func (c *controller) awsMachineClassDelete(obj interface{}) {
 
 // reconcileClusterAWSMachineClassKey reconciles an AWSMachineClass due to controller resync
 // or an event on the awsMachineClass.
-func (c *controller) reconcileClusterAWSMachineClassKey(key string) error {
-	ctx := context.Background()
+func (c *controller) reconcileClusterAWSMachineClassKey(ctx context.Context, key string) error {
 	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err

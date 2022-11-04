@@ -130,8 +130,7 @@ func (c *controller) alicloudMachineClassDelete(obj interface{}) {
 
 // reconcileClusterAlicloudMachineClassKey reconciles an AlicloudMachineClass due to controller resync
 // or an event on the alicloudMachineClass.
-func (c *controller) reconcileClusterAlicloudMachineClassKey(key string) error {
-	ctx := context.Background()
+func (c *controller) reconcileClusterAlicloudMachineClassKey(ctx context.Context, key string) error {
 	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err

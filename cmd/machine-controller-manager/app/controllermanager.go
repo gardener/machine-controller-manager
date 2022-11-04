@@ -30,6 +30,7 @@ import (
 	"os"
 	goruntime "runtime"
 	"strconv"
+	"sync"
 	"time"
 
 	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
@@ -126,8 +127,9 @@ func Run(ctx context.Context, s *options.MCMServer) error {
 
 	recorder := createRecorder(kubeClientControl)
 
-	run := func(ctx context.Context) {
-		var stop <-chan struct{}
+	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(1)
+	startControllers := func(ctx context.Context) {
 		// Control plane client used to interact with machine APIs
 		controlMachineClientBuilder := machinecontroller.SimpleClientBuilder{
 			ClientConfig: controlkubeconfig,
@@ -141,7 +143,8 @@ func Run(ctx context.Context, s *options.MCMServer) error {
 			ClientConfig: targetkubeconfig,
 		}
 
-		err := StartControllers(
+		if err := StartControllers(
+			ctx,
 			s,
 			controlkubeconfig,
 			targetkubeconfig,
@@ -149,16 +152,14 @@ func Run(ctx context.Context, s *options.MCMServer) error {
 			controlCoreClientBuilder,
 			targetCoreClientBuilder,
 			recorder,
-			stop,
-		)
-
-		klog.Fatalf("error running controllers: %v", err)
-		panic("unreachable")
-
+		); err != nil {
+			klog.Fatalf("failed to start controllers: %v", err)
+		}
+		waitGroup.Done()
 	}
 
 	if !s.LeaderElection.LeaderElect {
-		run(ctx)
+		startControllers(ctx)
 	}
 
 	id, err := os.Hostname()
@@ -187,9 +188,10 @@ func Run(ctx context.Context, s *options.MCMServer) error {
 		RenewDeadline: s.LeaderElection.RenewDeadline.Duration,
 		RetryPeriod:   s.LeaderElection.RetryPeriod.Duration,
 		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: run,
+			OnStartedLeading: startControllers,
 			OnStoppedLeading: func() {
-				klog.Fatalf("leaderelection lost")
+				klog.Errorf("leaderelection lost")
+				waitGroup.Wait()
 			},
 		},
 	})
@@ -198,15 +200,16 @@ func Run(ctx context.Context, s *options.MCMServer) error {
 }
 
 // StartControllers starts all the controllers which are a part of machine-controller-manager
-func StartControllers(s *options.MCMServer,
+func StartControllers(
+	ctx context.Context,
+	s *options.MCMServer,
 	controlCoreKubeconfig *rest.Config,
 	targetCoreKubeconfig *rest.Config,
 	controlMachineClientBuilder machinecontroller.ClientBuilder,
 	controlCoreClientBuilder corecontroller.ClientBuilder,
 	targetCoreClientBuilder corecontroller.ClientBuilder,
 	recorder record.EventRecorder,
-	stop <-chan struct{}) error {
-
+) error {
 	klog.V(5).Info("Getting available resources")
 	availableResources, err := getAvailableResources(controlCoreClientBuilder)
 	if err != nil {
@@ -230,18 +233,16 @@ func StartControllers(s *options.MCMServer,
 	if availableResources[machineGVR] || availableResources[machineSetGVR] || availableResources[machineDeploymentGVR] {
 		klog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
-		controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
+		controlMachineInformerFactory := machineinformers.NewSharedInformerFactoryWithOptions(
 			controlMachineClientBuilder.ClientOrDie("control-machine-shared-informers"),
 			s.MinResyncPeriod.Duration,
-			s.Namespace,
-			nil,
+			machineinformers.WithNamespace(s.Namespace),
 		)
 
-		controlCoreInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
+		controlCoreInformerFactory := coreinformers.NewSharedInformerFactoryWithOptions(
 			controlCoreClientBuilder.ClientOrDie("control-core-shared-informers"),
 			s.MinResyncPeriod.Duration,
-			s.Namespace,
-			nil,
+			coreinformers.WithNamespace(s.Namespace),
 		)
 
 		targetCoreInformerFactory := coreinformers.NewSharedInformerFactory(
@@ -283,18 +284,23 @@ func StartControllers(s *options.MCMServer,
 		}
 		klog.V(1).Info("Starting shared informers")
 
-		controlMachineInformerFactory.Start(stop)
-		controlCoreInformerFactory.Start(stop)
-		targetCoreInformerFactory.Start(stop)
+		controlMachineInformerFactory.Start(ctx.Done())
+		controlCoreInformerFactory.Start(ctx.Done())
+		targetCoreInformerFactory.Start(ctx.Done())
 
 		klog.V(5).Info("Running controller")
-		go mcmcontroller.Run(int(s.ConcurrentNodeSyncs), stop)
-
+		var waitGroup sync.WaitGroup
+		waitGroup.Add(1)
+		go func() {
+			mcmcontroller.Run(ctx, int(s.ConcurrentNodeSyncs))
+			waitGroup.Done()
+		}()
+		waitGroup.Wait()
 	} else {
 		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q is not available; \nFound: %#v", machineGVR, machineSetGVR, machineDeploymentGVR, availableResources)
 	}
 
-	select {}
+	return nil
 }
 
 // TODO: In general, any controller checking this needs to be dynamic so users don't have to

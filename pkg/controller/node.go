@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 
@@ -48,7 +49,7 @@ func (c *controller) nodeDelete(obj interface{}) {
 }
 
 // Not being used at the moment, saving it for a future use case.
-func (c *controller) reconcileClusterNodeKey(key string) error {
+func (c *controller) reconcileClusterNodeKey(ctx context.Context, key string) error {
 	node, err := c.nodeLister.Get(key)
 	if apierrors.IsNotFound(err) {
 		return nil

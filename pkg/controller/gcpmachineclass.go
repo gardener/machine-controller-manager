@@ -131,8 +131,7 @@ func (c *controller) gcpMachineClassDelete(obj interface{}) {
 
 // reconcileClusterGCPMachineClassKey reconciles an GCPMachineClass due to controller resync
 // or an event on the gcpMachineClass.
-func (c *controller) reconcileClusterGCPMachineClassKey(key string) error {
-	ctx := context.Background()
+func (c *controller) reconcileClusterGCPMachineClassKey(ctx context.Context, key string) error {
 	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err

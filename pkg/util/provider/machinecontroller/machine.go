@@ -85,9 +85,7 @@ func (c *controller) enqueueMachineAfter(obj interface{}, after time.Duration) {
 	}
 }
 
-func (c *controller) reconcileClusterMachineKey(key string) error {
-	ctx := context.Background()
-
+func (c *controller) reconcileClusterMachineKey(ctx context.Context, key string) error {
 	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err

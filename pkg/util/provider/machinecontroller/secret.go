@@ -34,8 +34,7 @@ import (
 
 // reconcileClusterSecretKey reconciles an secret due to controller resync
 // or an event on the secret
-func (c *controller) reconcileClusterSecretKey(key string) error {
-	ctx := context.Background()
+func (c *controller) reconcileClusterSecretKey(ctx context.Context, key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err

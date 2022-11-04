@@ -1582,7 +1582,7 @@ var _ = Describe("machineDeployment", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 				Key := testNamespace + "/" + testMachineDeployment.Name
-				c.reconcileClusterMachineDeployment(Key)
+				c.reconcileClusterMachineDeployment(context.TODO(), Key)
 
 				waitForCacheSync(stop, c)
 				actualMachineDeployment, _ := c.controlMachineClient.MachineDeployments(testNamespace).Get(context.Background(), testMachineDeployment.Name, metav1.GetOptions{})

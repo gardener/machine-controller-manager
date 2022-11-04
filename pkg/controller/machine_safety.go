@@ -47,8 +47,7 @@ const (
 )
 
 // reconcileClusterMachineSafetyOrphanVMs checks for any orphan VMs and deletes them
-func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
-	ctx := context.Background()
+func (c *controller) reconcileClusterMachineSafetyOrphanVMs(ctx context.Context, key string) error {
 	reSyncAfter := c.safetyOptions.MachineSafetyOrphanVMsPeriod.Duration
 	defer c.machineSafetyOrphanVMsQueue.AddAfter("", reSyncAfter)
 
@@ -62,48 +61,39 @@ func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
 
 // reconcileClusterMachineSafetyOvershooting checks all machineSet/machineDeployment
 // if the number of machine objects backing them is way beyond its desired replicas
-func (c *controller) reconcileClusterMachineSafetyOvershooting(key string) error {
-	ctx := context.Background()
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-
+func (c *controller) reconcileClusterMachineSafetyOvershooting(ctx context.Context, key string) error {
 	reSyncAfter := c.safetyOptions.MachineSafetyOvershootingPeriod.Duration
 	defer c.machineSafetyOvershootingQueue.AddAfter("", reSyncAfter)
 
 	klog.V(4).Infof("reconcileClusterMachineSafetyOvershooting: Start")
 	defer klog.V(4).Infof("reconcileClusterMachineSafetyOvershooting: End, reSync-Period: %v", reSyncAfter)
 
-	err := c.checkAndFreezeORUnfreezeMachineSets(ctx)
-	if err != nil {
+	if err := c.checkAndFreezeORUnfreezeMachineSets(ctx); err != nil {
 		klog.Errorf("SafetyController: %v", err)
 	}
-	cache.WaitForCacheSync(stopCh, c.machineSetSynced, c.machineDeploymentSynced)
+	cache.WaitForCacheSync(ctx.Done(), c.machineSetSynced, c.machineDeploymentSynced)
 
-	err = c.syncMachineDeploymentFreezeState(ctx)
-	if err != nil {
+	if err := c.syncMachineDeploymentFreezeState(ctx); err != nil {
 		klog.Errorf("SafetyController: %v", err)
 	}
-	cache.WaitForCacheSync(stopCh, c.machineDeploymentSynced)
+	cache.WaitForCacheSync(ctx.Done(), c.machineDeploymentSynced)
 
-	err = c.unfreezeMachineDeploymentsWithUnfreezeAnnotation(ctx)
-	if err != nil {
+	if err := c.unfreezeMachineDeploymentsWithUnfreezeAnnotation(ctx); err != nil {
 		klog.Errorf("SafetyController: %v", err)
 	}
-	cache.WaitForCacheSync(stopCh, c.machineSetSynced)
+	cache.WaitForCacheSync(ctx.Done(), c.machineSetSynced)
 
-	err = c.unfreezeMachineSetsWithUnfreezeAnnotation(ctx)
-	if err != nil {
+	if err := c.unfreezeMachineSetsWithUnfreezeAnnotation(ctx); err != nil {
 		klog.Errorf("SafetyController: %v", err)
 	}
 
-	return err
+	return nil
 }
 
 // reconcileClusterMachineSafetyAPIServer checks control and target clusters
 // and checks if their APIServer's are reachable
 // If they are not reachable, they set a machineControllerFreeze flag
-func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
-	ctx := context.Background()
+func (c *controller) reconcileClusterMachineSafetyAPIServer(ctx context.Context, key string) error {
 	statusCheckTimeout := c.safetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration
 	statusCheckPeriod := c.safetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration
 
@@ -333,7 +323,6 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(ctx context.Context) er
 	}
 
 	for _, machineSet := range machineSets {
-
 		filteredMachines, err := c.machineLister.List(labels.Everything())
 		if err != nil {
 			klog.Error("SafetyController: Error while trying to LIST machines - ", err)
@@ -567,10 +556,7 @@ func (c *controller) checkMachineClass(
 
 	// Making sure that its not a VM just being created, machine object not yet updated at API server
 	if len(listOfVMs) > 1 {
-		stopCh := make(chan struct{})
-		defer close(stopCh)
-
-		if !cache.WaitForCacheSync(stopCh, c.machineSynced) {
+		if !cache.WaitForCacheSync(ctx.Done(), c.machineSynced) {
 			klog.Errorf("SafetyController: Timed out waiting for caches to sync. Error: %s", err)
 			return
 		}
@@ -660,7 +646,6 @@ func (c *controller) deleteOrphanVM(vm driver.VMs, secretData map[string][]byte,
 
 // freezeMachineSetAndDeployment freezes machineSet and machineDeployment (who is the owner of the machineSet)
 func (c *controller) freezeMachineSetAndDeployment(ctx context.Context, machineSet *v1alpha1.MachineSet, reason string, message string) error {
-
 	klog.V(2).Infof("SafetyController: Freezing MachineSet %q due to %q", machineSet.Name, reason)
 
 	// Get the latest version of the machineSet so that we can avoid conflicts

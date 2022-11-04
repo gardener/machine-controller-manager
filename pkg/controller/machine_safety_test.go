@@ -318,7 +318,7 @@ var _ = Describe("#machine_safety", func() {
 			Expect(err).To(BeNil())
 			Expect(len(machines)).To(Equal(data.setup.machineReplicas))
 
-			c.reconcileClusterMachineSafetyOvershooting("")
+			c.reconcileClusterMachineSafetyOvershooting(context.TODO(), "")
 
 			ms, err := c.controlMachineClient.MachineSets(testNamespace).List(context.TODO(), metav1.ListOptions{})
 			Expect(err).To(BeNil())
@@ -811,7 +811,7 @@ var _ = Describe("#machine_safety", func() {
 				Expect(trackers.TargetCore.SetError("APIServer is Not Reachable")).NotTo(HaveOccurred())
 			}
 
-			c.reconcileClusterMachineSafetyAPIServer("")
+			c.reconcileClusterMachineSafetyAPIServer(context.TODO(), "")
 
 			Expect(c.safetyOptions.MachineControllerFrozen).Should(Equal(postMachineControllerFrozen))
 		},

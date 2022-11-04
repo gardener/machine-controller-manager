@@ -131,8 +131,7 @@ func (c *controller) openStackMachineClassDelete(obj interface{}) {
 
 // reconcileClusterOpenStackMachineClassKey reconciles an OpenStackMachineClass due to controller resync
 // or an event on the openStackMachineClass.
-func (c *controller) reconcileClusterOpenStackMachineClassKey(key string) error {
-	ctx := context.Background()
+func (c *controller) reconcileClusterOpenStackMachineClassKey(ctx context.Context, key string) error {
 	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err

@@ -193,7 +193,7 @@ var _ = Describe("safety_logic", func() {
 					trackers.TargetCore.SetError("APIServer is Not Reachable")
 				}
 
-				c.reconcileClusterMachineSafetyAPIServer("")
+				c.reconcileClusterMachineSafetyAPIServer(context.TODO(), "")
 
 				Expect(c.safetyOptions.MachineControllerFrozen).Should(Equal(postMachineControllerFrozen))
 			},

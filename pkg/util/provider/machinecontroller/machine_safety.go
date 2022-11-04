@@ -47,8 +47,7 @@ const (
 )
 
 // reconcileClusterMachineSafetyOrphanVMs checks for any orphan VMs and deletes them
-func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
-	ctx := context.Background()
+func (c *controller) reconcileClusterMachineSafetyOrphanVMs(ctx context.Context, key string) error {
 	reSyncAfter := c.safetyOptions.MachineSafetyOrphanVMsPeriod.Duration
 	defer c.machineSafetyOrphanVMsQueue.AddAfter("", reSyncAfter)
 
@@ -73,8 +72,7 @@ func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
 // reconcileClusterMachineSafetyAPIServer checks control and target clusters
 // and checks if their APIServer's are reachable
 // If they are not reachable, they set a machineControllerFreeze flag
-func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
-	ctx := context.Background()
+func (c *controller) reconcileClusterMachineSafetyAPIServer(ctx context.Context, key string) error {
 	statusCheckTimeout := c.safetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration
 	statusCheckPeriod := c.safetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration
 

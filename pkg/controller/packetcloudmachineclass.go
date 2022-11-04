@@ -131,8 +131,7 @@ func (c *controller) packetMachineClassDelete(obj interface{}) {
 
 // reconcileClusterPacketMachineClassKey reconciles a PacketMachineClass due to controller resync
 // or an event on the packetMachineClass.
-func (c *controller) reconcileClusterPacketMachineClassKey(key string) error {
-	ctx := context.Background()
+func (c *controller) reconcileClusterPacketMachineClassKey(ctx context.Context, key string) error {
 	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err

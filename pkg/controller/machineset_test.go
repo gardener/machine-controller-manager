@@ -971,7 +971,7 @@ var _ = Describe("machineset", func() {
 			Expect(len(machines.Items)).To(Equal(int(0)))
 
 			Key := testNamespace + "/" + testMachineSet.Name
-			Err := c.reconcileClusterMachineSet(Key)
+			Err := c.reconcileClusterMachineSet(context.TODO(), Key)
 
 			waitForCacheSync(stop, c)
 			machines, _ = c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -993,7 +993,7 @@ var _ = Describe("machineset", func() {
 			Expect(len(machines.Items)).To(Equal(int(0)))
 
 			Key := testNamespace + "/" + testMachineSet.Name
-			Err := c.reconcileClusterMachineSet(Key)
+			Err := c.reconcileClusterMachineSet(context.TODO(), Key)
 
 			waitForCacheSync(stop, c)
 			Expect(Err).Should(BeNil())
@@ -1015,7 +1015,7 @@ var _ = Describe("machineset", func() {
 			Expect(len(machines.Items)).To(Equal(int(0)))
 
 			Key := testNamespace + "/" + testMachineSet.Name
-			Err := c.reconcileClusterMachineSet(Key)
+			Err := c.reconcileClusterMachineSet(context.TODO(), Key)
 
 			waitForCacheSync(stop, c)
 			Expect(Err).Should(BeNil())
@@ -1038,7 +1038,7 @@ var _ = Describe("machineset", func() {
 			Expect(len(machines.Items)).To(Equal(int(0)))
 
 			Key := testNamespace + "/" + testMachineSet.Name
-			Err := c.reconcileClusterMachineSet(Key)
+			Err := c.reconcileClusterMachineSet(context.TODO(), Key)
 
 			waitForCacheSync(stop, c)
 			machines, _ = c.controlMachineClient.Machines(testNamespace).List(context.Background(), metav1.ListOptions{})

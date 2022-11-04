@@ -107,8 +107,7 @@ func (c *controller) machineClassDelete(obj interface{}) {
 
 // reconcileClusterMachineClassKey reconciles an machineClass due to controller resync
 // or an event on the machineClass.
-func (c *controller) reconcileClusterMachineClassKey(key string) error {
-	ctx := context.Background()
+func (c *controller) reconcileClusterMachineClassKey(ctx context.Context, key string) error {
 	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err

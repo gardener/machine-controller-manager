@@ -427,8 +427,7 @@ func (dc *controller) getMachineMapForMachineDeployment(d *v1alpha1.MachineDeplo
 
 // reconcileClusterMachineDeployment will sync the deployment with the given key.
 // This function is not meant to be invoked concurrently with the same key.
-func (dc *controller) reconcileClusterMachineDeployment(key string) error {
-	ctx := context.Background()
+func (dc *controller) reconcileClusterMachineDeployment(ctx context.Context, key string) error {
 	startTime := time.Now()
 	klog.V(4).Infof("Started syncing machine deployment %q (%v)", key, startTime)
 	defer func() {

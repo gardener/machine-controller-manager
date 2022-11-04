@@ -431,10 +431,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 // syncMachineSet will sync the MachineSet with the given key if it has had its expectations fulfilled,
 // meaning it did not expect to see any more of its machines created or deleted. This function is not meant to be
 // invoked concurrently with the same key.
-func (c *controller) reconcileClusterMachineSet(key string) error {
-
-	ctx := context.Background()
-
+func (c *controller) reconcileClusterMachineSet(ctx context.Context, key string) error {
 	startTime := time.Now()
 	klog.V(4).Infof("Start syncing machine set %q", key)
 	defer func() {
