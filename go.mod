@@ -17,8 +17,8 @@ require (
 	github.com/google/uuid v1.1.2
 	github.com/gophercloud/gophercloud v0.7.0
 	github.com/gophercloud/utils v0.0.0-20200204043447-9864b6f1f12f
-	github.com/onsi/ginkgo v1.16.4
-	github.com/onsi/gomega v1.15.0
+	github.com/onsi/ginkgo v1.16.2
+	github.com/onsi/gomega v1.11.0
 	github.com/packethost/packngo v0.0.0-20181217122008-b3b45f1b4979
 	github.com/prometheus/client_golang v1.12.1
 	github.com/spf13/pflag v1.0.5
@@ -37,8 +37,6 @@ require (
 	k8s.io/kube-openapi v0.0.0-20211110012726-3cc51fd1e909 // keep this value in sync with k8s.io/apiserver
 	k8s.io/utils v0.0.0-20211116205334-6203023598ed
 )
-
-require sigs.k8s.io/controller-runtime v0.10.3
 
 require (
 	cloud.google.com/go v0.65.0 // indirect
@@ -104,7 +102,6 @@ require (
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	golang.org/x/tools v0.1.5 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
-	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c // indirect
 	google.golang.org/grpc v1.38.0 // indirect

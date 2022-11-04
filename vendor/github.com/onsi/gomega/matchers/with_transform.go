@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/onsi/gomega/internal/oraclematcher"
 	"github.com/onsi/gomega/types"
 )
 
@@ -76,5 +77,5 @@ func (m *WithTransformMatcher) MatchMayChangeInTheFuture(_ interface{}) bool {
 	// Querying the next matcher is fine if the transformer always will return the same value.
 	// But if the transformer is non-deterministic and returns a different value each time, then there
 	// is no point in querying the next matcher, since it can only comment on the last transformed value.
-	return types.MatchMayChangeInTheFuture(m.Matcher, m.transformedValue)
+	return oraclematcher.MatchMayChangeInTheFuture(m.Matcher, m.transformedValue)
 }

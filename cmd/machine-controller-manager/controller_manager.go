@@ -23,6 +23,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/util/signals"
 	"os"
 
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app"
@@ -33,7 +34,6 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/logs"
-	ctrl "sigs.k8s.io/controller-runtime"
 	// TODO version should be enabled later on. DON'T import k8s.io/kubernetes 	_ "k8s.io/kubernetes/pkg/version/prometheus"        // for version metric registration
 	// TODO version should be enabled later on. DON'T import k8s.io/kubernetes  "k8s.io/kubernetes/pkg/version/verflag"
 )
@@ -47,7 +47,7 @@ func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	if err := app.Run(ctrl.SetupSignalHandler(), s); err != nil {
+	if err := app.Run(signals.SetupSignalHandler(), s); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
