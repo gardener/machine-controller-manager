@@ -524,9 +524,6 @@ func (c *controller) Run(ctx context.Context, workers int) {
 
 	klog.V(1).Info("Shutting down Machine Controller Manager ")
 	handlers.UpdateHealth(false)
-
-	// TODO: We need to figure out when the shared informers have stopped.
-	time.Sleep(2 * time.Second)
 }
 
 func (c *controller) shutdownQueues() {

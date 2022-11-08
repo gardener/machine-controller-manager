@@ -2152,7 +2152,7 @@ var _ = Describe("machine_util", func() {
 			c, trackers = createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil)
 			defer trackers.Stop()
 
-			c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
+			c.permitGiver = permits.NewPermitGiver(context.TODO(), 5*time.Second, 1*time.Second)
 			defer c.permitGiver.Close()
 
 			waitForCacheSync(stop, c)
@@ -2342,7 +2342,7 @@ var _ = Describe("machine_util", func() {
 			c, trackers = createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil)
 			defer trackers.Stop()
 
-			c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
+			c.permitGiver = permits.NewPermitGiver(context.TODO(), 5*time.Second, 1*time.Second)
 			defer c.permitGiver.Close()
 
 			waitForCacheSync(stop, c)

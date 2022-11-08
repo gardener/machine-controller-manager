@@ -75,27 +75,7 @@ const (
 )
 
 // NewController returns a new Node controller.
-func NewController(
-	namespace string,
-	controlMachineClient machineapi.MachineV1alpha1Interface,
-	controlCoreClient kubernetes.Interface,
-	targetCoreClient kubernetes.Interface,
-	driver driver.Driver,
-	pvcInformer coreinformers.PersistentVolumeClaimInformer,
-	pvInformer coreinformers.PersistentVolumeInformer,
-	secretInformer coreinformers.SecretInformer,
-	nodeInformer coreinformers.NodeInformer,
-	pdbV1beta1Informer policyv1beta1informers.PodDisruptionBudgetInformer,
-	pdbV1Informer policyv1informers.PodDisruptionBudgetInformer,
-	volumeAttachmentInformer storageinformers.VolumeAttachmentInformer,
-	machineClassInformer machineinformers.MachineClassInformer,
-	machineInformer machineinformers.MachineInformer,
-	recorder record.EventRecorder,
-	safetyOptions options.SafetyOptions,
-	nodeConditions string,
-	bootstrapTokenAuthExtraGroups string,
-	targetKubernetesVersion *semver.Version,
-) (Controller, error) {
+func NewController(ctx context.Context, namespace string, controlMachineClient machineapi.MachineV1alpha1Interface, controlCoreClient kubernetes.Interface, targetCoreClient kubernetes.Interface, driver driver.Driver, pvcInformer coreinformers.PersistentVolumeClaimInformer, pvInformer coreinformers.PersistentVolumeInformer, secretInformer coreinformers.SecretInformer, nodeInformer coreinformers.NodeInformer, pdbV1beta1Informer policyv1beta1informers.PodDisruptionBudgetInformer, pdbV1Informer policyv1informers.PodDisruptionBudgetInformer, volumeAttachmentInformer storageinformers.VolumeAttachmentInformer, machineClassInformer machineinformers.MachineClassInformer, machineInformer machineinformers.MachineInformer, recorder record.EventRecorder, safetyOptions options.SafetyOptions, nodeConditions string, bootstrapTokenAuthExtraGroups string, targetKubernetesVersion *semver.Version) (Controller, error) {
 	const (
 		// volumeAttachmentGroupName group name
 		volumeAttachmentGroupName = "storage.k8s.io"
@@ -127,7 +107,7 @@ func NewController(
 		driver:                        driver,
 		bootstrapTokenAuthExtraGroups: bootstrapTokenAuthExtraGroups,
 		volumeAttachmentHandler:       nil,
-		permitGiver:                   permits.NewPermitGiver(permitGiverStaleEntryTimeout, janitorFreq),
+		permitGiver:                   permits.NewPermitGiver(ctx, permitGiverStaleEntryTimeout, janitorFreq),
 		targetKubernetesVersion:       targetKubernetesVersion,
 	}
 
@@ -144,6 +124,7 @@ func NewController(
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(klog.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: typedcorev1.New(controlCoreClient.CoreV1().RESTClient()).Events(namespace)})
+	defer eventBroadcaster.Shutdown()
 
 	// Controller listers
 	controller.pvcLister = pvcInformer.Lister()
@@ -301,11 +282,9 @@ type controller struct {
 }
 
 func (c *controller) Run(ctx context.Context, workers int) {
-
 	var (
 		waitGroup sync.WaitGroup
 	)
-
 	defer runtimeutil.HandleCrash()
 	defer c.shutDown()
 
@@ -343,9 +322,6 @@ func (c *controller) Run(ctx context.Context, workers int) {
 
 	klog.V(1).Info("Shutting down Machine Controller Manager ")
 	handlers.UpdateHealth(false)
-
-	// TODO: We need to figure out when the shared informers have stopped.
-	time.Sleep(2 * time.Second)
 }
 
 func (c *controller) shutDown() {

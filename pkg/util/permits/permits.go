@@ -19,6 +19,7 @@ limitations under the License.
 package permits
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -40,8 +41,8 @@ type permit struct {
 }
 
 // NewPermitGiver returns a new PermitGiver
-func NewPermitGiver(stalePermitKeyTimeout time.Duration, janitorFrequency time.Duration) PermitGiver {
-	stopC := make(chan struct{})
+func NewPermitGiver(ctx context.Context, stalePermitKeyTimeout time.Duration, janitorFrequency time.Duration) PermitGiver {
+	stopC := make(chan bool)
 	pg := permitGiver{
 		keyPermitsMap: sync.Map{},
 		stopC:         stopC,
@@ -52,6 +53,10 @@ func NewPermitGiver(stalePermitKeyTimeout time.Duration, janitorFrequency time.D
 		for {
 			select {
 			case <-stopC:
+				klog.Info("Janitor stopped")
+				return
+			case <-ctx.Done():
+				klog.Info("Janitor cancelled")
 				return
 			case <-ticker.C:
 				pg.cleanupStalePermitEntries(stalePermitKeyTimeout)
@@ -63,7 +68,7 @@ func NewPermitGiver(stalePermitKeyTimeout time.Duration, janitorFrequency time.D
 
 type permitGiver struct {
 	keyPermitsMap sync.Map
-	stopC         chan struct{}
+	stopC         chan bool
 }
 
 func (pg *permitGiver) RegisterPermits(key string, numPermits int) {
@@ -179,7 +184,9 @@ func (pg *permitGiver) cleanupStalePermitEntries(stalePermitKeyTimeout time.Dura
 }
 
 func (pg *permitGiver) Close() {
-	close(pg.stopC)
+	if !pg.isClosed() {
+		close(pg.stopC)
+	}
 	// close all permit channels
 	pg.keyPermitsMap.Range(func(key, value interface{}) bool {
 		p := value.(permit)

@@ -122,7 +122,7 @@ func Run(ctx context.Context, s *options.MCServer, driver driver.Driver) error {
 
 	leaderElectionClient := kubernetes.NewForConfigOrDie(rest.AddUserAgent(controlkubeconfig, "machine-leader-election"))
 	klog.V(4).Info("Starting http server and mux")
-	go startHTTP(s)
+	go startHTTP(ctx, s)
 
 	recorder := createRecorder(kubeClientControl)
 
@@ -191,6 +191,7 @@ func Run(ctx context.Context, s *options.MCServer, driver driver.Driver) error {
 			OnStartedLeading: startControllers,
 			OnStoppedLeading: func() {
 				klog.Errorf("leaderelection lost")
+				waitGroup.Wait()
 			},
 		},
 	})
@@ -243,18 +244,16 @@ func StartControllers(
 	if availableResources[machineGVR] {
 		klog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
-		controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
+		controlMachineInformerFactory := machineinformers.NewSharedInformerFactoryWithOptions(
 			controlMachineClientBuilder.ClientOrDie("control-machine-shared-informers"),
 			s.MinResyncPeriod.Duration,
-			s.Namespace,
-			nil,
+			machineinformers.WithNamespace(s.Namespace),
 		)
 
-		controlCoreInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
+		controlCoreInformerFactory := coreinformers.NewSharedInformerFactoryWithOptions(
 			controlCoreClientBuilder.ClientOrDie("control-core-shared-informers"),
 			s.MinResyncPeriod.Duration,
-			s.Namespace,
-			nil,
+			coreinformers.WithNamespace(s.Namespace),
 		)
 
 		targetCoreInformerFactory := coreinformers.NewSharedInformerFactory(
@@ -278,6 +277,7 @@ func StartControllers(
 
 		klog.V(5).Infof("Creating controllers...")
 		machineController, err := machinecontroller.NewController(
+			ctx,
 			s.Namespace,
 			controlMachineClient,
 			controlCoreClient,
@@ -364,12 +364,12 @@ func getAvailableResources(clientBuilder coreclientbuilder.ClientBuilder) (map[s
 
 	allResources := map[schema.GroupVersionResource]bool{}
 	for _, apiResourceList := range resources {
-		version, err := schema.ParseGroupVersion(apiResourceList.GroupVersion)
+		gv, err := schema.ParseGroupVersion(apiResourceList.GroupVersion)
 		if err != nil {
 			return nil, err
 		}
 		for _, apiResource := range apiResourceList.APIResources {
-			allResources[version.WithResource(apiResource.Name)] = true
+			allResources[gv.WithResource(apiResource.Name)] = true
 		}
 	}
 
@@ -384,7 +384,7 @@ func createRecorder(kubeClient *kubernetes.Clientset) record.EventRecorder {
 	return eventBroadcaster.NewRecorder(kubescheme.Scheme, v1.EventSource{Component: controllerManagerAgentName})
 }
 
-func startHTTP(s *options.MCServer) {
+func startHTTP(ctx context.Context, s *options.MCServer) {
 	mux := http.NewServeMux()
 	if s.EnableProfiling {
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -410,5 +410,10 @@ func startHTTP(s *options.MCServer) {
 		Addr:    net.JoinHostPort(s.Address, strconv.Itoa(int(s.Port))),
 		Handler: mux,
 	}
-	klog.Fatal(server.ListenAndServe())
+
+	if err := server.ListenAndServe(); err != http.ErrServerClosed {
+		klog.Fatal(server.ListenAndServe())
+	}
+
+	defer server.Shutdown(ctx)
 }

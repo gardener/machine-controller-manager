@@ -17,6 +17,7 @@ limitations under the License.
 package permits
 
 import (
+	"context"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -34,7 +35,7 @@ var _ = Describe("permit", func() {
 
 	Describe("#RegisterPermits", func() {
 		BeforeEach(func() {
-			pg = NewPermitGiver(5*time.Second, 1*time.Second).(*permitGiver)
+			pg = NewPermitGiver(context.TODO(), 5*time.Second, 1*time.Second).(*permitGiver)
 		})
 
 		AfterEach(func() {
@@ -70,7 +71,7 @@ var _ = Describe("permit", func() {
 
 	Describe("#DeletePermits", func() {
 		BeforeEach(func() {
-			pg = NewPermitGiver(5*time.Second, 1*time.Second).(*permitGiver)
+			pg = NewPermitGiver(context.TODO(), 5*time.Second, 1*time.Second).(*permitGiver)
 			pg.RegisterPermits(key1, 1)
 		})
 		AfterEach(func() {
@@ -98,7 +99,7 @@ var _ = Describe("permit", func() {
 
 	Describe("#TryPermit", func() {
 		BeforeEach(func() {
-			pg = NewPermitGiver(5*time.Second, 1*time.Second).(*permitGiver)
+			pg = NewPermitGiver(context.TODO(), 5*time.Second, 1*time.Second).(*permitGiver)
 			pg.RegisterPermits(key1, 1)
 		})
 		It("should return false if permitGiver is closed", func() {
@@ -117,7 +118,7 @@ var _ = Describe("permit", func() {
 
 	Describe("#Release Permit", func() {
 		BeforeEach(func() {
-			pg = NewPermitGiver(5*time.Second, 1*time.Second).(*permitGiver)
+			pg = NewPermitGiver(context.TODO(), 5*time.Second, 1*time.Second).(*permitGiver)
 			pg.RegisterPermits(key1, 1)
 			pg.TryPermit(key1, 5*time.Second)
 		})
@@ -139,7 +140,7 @@ var _ = Describe("permit", func() {
 
 	Describe("#isClose", func() {
 		BeforeEach(func() {
-			pg = NewPermitGiver(5*time.Second, 1*time.Second).(*permitGiver)
+			pg = NewPermitGiver(context.TODO(), 5*time.Second, 1*time.Second).(*permitGiver)
 		})
 		It("return true if closed", func() {
 			pg.Close()
@@ -153,7 +154,7 @@ var _ = Describe("permit", func() {
 
 	Describe("#Close", func() {
 		BeforeEach(func() {
-			pg = NewPermitGiver(5*time.Second, 1*time.Second).(*permitGiver)
+			pg = NewPermitGiver(context.TODO(), 5*time.Second, 1*time.Second).(*permitGiver)
 			pg.RegisterPermits(key1, 1)
 		})
 		It("closed the PermitGiver", func() {
@@ -165,7 +166,7 @@ var _ = Describe("permit", func() {
 
 	Describe("#NewPermitGiver", func() {
 		BeforeEach(func() {
-			pg = NewPermitGiver(5*time.Second, 1*time.Second).(*permitGiver)
+			pg = NewPermitGiver(context.TODO(), 5*time.Second, 1*time.Second).(*permitGiver)
 			pg.RegisterPermits(key1, 1)
 		})
 		AfterEach(func() {
