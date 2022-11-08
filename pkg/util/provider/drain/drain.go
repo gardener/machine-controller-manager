@@ -723,7 +723,7 @@ func (o *Options) evictPodsWithPVInternal(
 			o.checkAndDeleteWorker(volumeAttachmentEventCh)
 			continue
 		} else if err != nil {
-			klog.V(4).Infof("Error when evicting pod: %v/%v from node %v. Will be retried. Err: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
+			klog.Errorf("error when evicting pod: %v/%v from node %v. Will be retried. Err: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
 			retryPods = append(retryPods, pod)
 			o.checkAndDeleteWorker(volumeAttachmentEventCh)
 			continue

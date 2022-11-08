@@ -187,7 +187,7 @@ func (o *DrainOptions) RunDrain(ctx context.Context) error {
 
 	node, err := o.client.CoreV1().Nodes().Get(ctx, o.nodeName, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
-		klog.V(4).Infof("Node %q not found, skipping drain", o.nodeName)
+		klog.V(3).Infof("Node %q not found, skipping drain", o.nodeName)
 		return nil
 	} else if err != nil {
 		klog.Errorf("Error getting details for node: %q. Err: %v", o.nodeName, err)
@@ -661,7 +661,7 @@ func (o *DrainOptions) evictPodsWithPVInternal(ctx context.Context, attemptEvict
 			returnCh <- nil
 			continue
 		} else if err != nil {
-			klog.V(4).Infof("Error when evicting pod: %v/%v from node %v. Will be retried. Err: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
+			klog.Errorf("error when evicting pod: %v/%v from node %v. Will be retried. Err: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
 			retryPods = append(retryPods, pod)
 			continue
 		}
