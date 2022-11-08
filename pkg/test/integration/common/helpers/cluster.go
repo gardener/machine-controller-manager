@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-//Cluster type to hold cluster specific details
+// Cluster type to hold cluster specific details
 type Cluster struct {
 	restConfig          *rest.Config
 	Clientset           *kubernetes.Clientset
@@ -90,7 +90,7 @@ func (c *Cluster) IsSeed(target *Cluster) bool {
 	return false
 }
 
-//ClusterName retrieves cluster name from the kubeconfig
+// ClusterName retrieves cluster name from the kubeconfig
 func (c *Cluster) ClusterName() (string, error) {
 	var clusterName string
 	config, err := clientcmd.LoadFromFile(c.KubeConfigFilePath)

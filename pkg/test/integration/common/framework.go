@@ -81,12 +81,12 @@ var (
 	isTagsStrings = os.Getenv("TAGS_ARE_STRINGS")
 )
 
-//ProviderSpecPatch struct holds tags for provider, which we want to patch the  machineclass with
+// ProviderSpecPatch struct holds tags for provider, which we want to patch the  machineclass with
 type ProviderSpecPatch struct {
 	Tags []string `json:"tags"`
 }
 
-//MachineClassPatch struct holds values of patch for machine class for provider GCP
+// MachineClassPatch struct holds values of patch for machine class for provider GCP
 type MachineClassPatch struct {
 	ProviderSpec ProviderSpecPatch `json:"providerSpec"`
 }
@@ -680,7 +680,7 @@ func rotateLogFile(fileName string) (*os.File, error) {
 	return os.Create(fileName)
 }
 
-//runControllersLocally run the machine controller and machine controller manager binary locally
+// runControllersLocally run the machine controller and machine controller manager binary locally
 func (c *IntegrationTestFramework) runControllersLocally() {
 	ginkgo.By("Starting Machine Controller ")
 	args := strings.Fields(
@@ -1174,7 +1174,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 	})
 }
 
-//Cleanup performs rollback of original resources and removes any machines created by the test
+// Cleanup performs rollback of original resources and removes any machines created by the test
 func (c *IntegrationTestFramework) Cleanup() {
 
 	ctx := context.Background()

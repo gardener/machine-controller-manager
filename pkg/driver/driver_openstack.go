@@ -613,12 +613,12 @@ func (d *OpenStackDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]st
 	return names, nil
 }
 
-//GetUserData return the used data whit which the VM will be booted
+// GetUserData return the used data whit which the VM will be booted
 func (d *OpenStackDriver) GetUserData() string {
 	return d.UserData
 }
 
-//SetUserData set the used data whit which the VM will be booted
+// SetUserData set the used data whit which the VM will be booted
 func (d *OpenStackDriver) SetUserData(userData string) {
 	d.UserData = userData
 }

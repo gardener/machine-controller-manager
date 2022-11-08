@@ -501,12 +501,12 @@ func (d *AWSDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]string, 
 	return names, nil
 }
 
-//GetUserData return the used data whit which the VM will be booted
+// GetUserData return the used data whit which the VM will be booted
 func (d *AWSDriver) GetUserData() string {
 	return d.UserData
 }
 
-//SetUserData set the used data whit which the VM will be booted
+// SetUserData set the used data whit which the VM will be booted
 func (d *AWSDriver) SetUserData(userData string) {
 	d.UserData = userData
 }
@@ -516,11 +516,12 @@ var awsVolumeRegMatch = regexp.MustCompile("^vol-[^/]*$")
 
 // kubernetesVolumeIDToEBSVolumeID translates Kubernetes volume ID to EBS volume ID
 // KubernetsVolumeID forms:
-//  * aws://<zone>/<awsVolumeId>
-//  * aws:///<awsVolumeId>
-//  * <awsVolumeId>
+//   - aws://<zone>/<awsVolumeId>
+//   - aws:///<awsVolumeId>
+//   - <awsVolumeId>
+//
 // EBS Volume ID form:
-//  * vol-<alphanumberic>
+//   - vol-<alphanumberic>
 func kubernetesVolumeIDToEBSVolumeID(kubernetesID string) (string, error) {
 	// name looks like aws://availability-zone/awsVolumeId
 
