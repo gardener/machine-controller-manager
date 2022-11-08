@@ -191,7 +191,6 @@ func Run(ctx context.Context, s *options.MCServer, driver driver.Driver) error {
 			OnStartedLeading: startControllers,
 			OnStoppedLeading: func() {
 				klog.Errorf("leaderelection lost")
-				waitGroup.Wait()
 			},
 		},
 	})

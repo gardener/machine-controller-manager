@@ -307,13 +307,7 @@ func (c *controller) Run(ctx context.Context, workers int) {
 	)
 
 	defer runtimeutil.HandleCrash()
-	defer c.permitGiver.Close()
-	defer c.nodeQueue.ShutDown()
-	defer c.secretQueue.ShutDown()
-	defer c.machineClassQueue.ShutDown()
-	defer c.machineQueue.ShutDown()
-	defer c.machineSafetyOrphanVMsQueue.ShutDown()
-	defer c.machineSafetyAPIServerQueue.ShutDown()
+	defer c.shutDown()
 
 	if k8sutils.ConstraintK8sGreaterEqual121.Check(c.targetKubernetesVersion) {
 		if !cache.WaitForCacheSync(ctx.Done(), c.secretSynced, c.pvcSynced, c.pvSynced, c.pdbV1Synced, c.volumeAttachementSynced, c.nodeSynced, c.machineClassSynced, c.machineSynced) {
@@ -344,10 +338,24 @@ func (c *controller) Run(ctx context.Context, workers int) {
 		createWorker(ctx, c.machineSafetyAPIServerQueue, "ClusterMachineAPIServer", maxRetries, true, c.reconcileClusterMachineSafetyAPIServer, &waitGroup)
 	}
 
+	c.shutDown()
+	waitGroup.Wait()
+
 	klog.V(1).Info("Shutting down Machine Controller Manager ")
 	handlers.UpdateHealth(false)
 
-	waitGroup.Wait()
+	// TODO: We need to figure out when the shared informers have stopped.
+	time.Sleep(2 * time.Second)
+}
+
+func (c *controller) shutDown() {
+	c.permitGiver.Close()
+	c.nodeQueue.ShutDown()
+	c.secretQueue.ShutDown()
+	c.machineClassQueue.ShutDown()
+	c.machineQueue.ShutDown()
+	c.machineSafetyOrphanVMsQueue.ShutDown()
+	c.machineSafetyAPIServerQueue.ShutDown()
 }
 
 // createWorker creates and runs a worker thread that just processes items in the
