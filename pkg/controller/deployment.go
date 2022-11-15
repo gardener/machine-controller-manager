@@ -130,7 +130,7 @@ func (dc *controller) getMachineDeploymentsForMachineSet(machineSet *v1alpha1.Ma
 	if len(deployments) > 1 {
 		// ControllerRef will ensure we don't do anything crazy, but more than one
 		// item in this list nevertheless constitutes user error.
-		klog.V(4).Infof("user error! more than one deployment is selecting machine set %s with labels: %#v, returning %s",
+		klog.Errorf("user error! more than one deployment is selecting machine set %s with labels: %#v, returning %s",
 			machineSet.Name, machineSet.Labels, deployments[0].Name)
 	}
 	return deployments
@@ -282,7 +282,7 @@ func (dc *controller) enqueueRateLimited(deployment *v1alpha1.MachineDeployment)
 	dc.machineDeploymentQueue.AddRateLimited(key)
 }
 
-//  enqueueMachineDeploymentAfter will enqueue a deployment after the provided amount of time.
+// enqueueMachineDeploymentAfter will enqueue a deployment after the provided amount of time.
 func (dc *controller) enqueueMachineDeploymentAfter(deployment *v1alpha1.MachineDeployment, after time.Duration) {
 	key, err := KeyFunc(deployment)
 	if err != nil {

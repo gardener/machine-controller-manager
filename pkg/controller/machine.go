@@ -58,8 +58,8 @@ const (
 )
 
 /*
-	SECTION
-	Machine controller - Machine add, update, delete watches
+SECTION
+Machine controller - Machine add, update, delete watches
 */
 func (c *controller) addMachine(obj interface{}) {
 	klog.V(4).Infof("Adding machine object")
@@ -237,8 +237,8 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 }
 
 /*
-	SECTION
-	Machine controller - nodeToMachine
+SECTION
+Machine controller - nodeToMachine
 */
 func (c *controller) addNodeToMachine(obj interface{}) {
 	node := obj.(*corev1.Node)
@@ -1011,8 +1011,8 @@ func (c *controller) deleteMachineFinalizers(ctx context.Context, machine *v1alp
 }
 
 /*
-	SECTION
-	Helper Functions
+SECTION
+Helper Functions
 */
 func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 	numOfConditions := len(machine.Status.Conditions)

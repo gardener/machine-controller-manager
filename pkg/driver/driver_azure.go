@@ -384,12 +384,12 @@ func (d *AzureDriver) GetVMs(machineID string) (result VMs, err error) {
 	return
 }
 
-//GetUserData return the user data with which the VM will be booted
+// GetUserData return the user data with which the VM will be booted
 func (d *AzureDriver) GetUserData() string {
 	return d.UserData
 }
 
-//SetUserData set the used data whit which the VM will be booted
+// SetUserData set the used data whit which the VM will be booted
 func (d *AzureDriver) SetUserData(userData string) {
 	d.UserData = userData
 }

@@ -72,7 +72,7 @@ func (c *controller) addBootstrapTokenToUserData(ctx context.Context, machineNam
 		klog.V(4).Infof("replacing url encoded placeholder %s with %s in user-data!", urlEncodedPlaceholder, url.QueryEscape(token))
 		userDataS = strings.ReplaceAll(userDataS, urlEncodedPlaceholder, url.QueryEscape(token))
 	} else {
-		klog.V(4).Info("no bootstrap token placeholder found in user-data, nothing to replace!")
+		klog.Warningf("no bootstrap token placeholder found in user-data, nothing to replace! Without bootstrap token , node won't join.")
 	}
 
 	secret.Data["userData"] = []byte(userDataS)
