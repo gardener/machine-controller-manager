@@ -58,7 +58,8 @@ var (
 )
 
 // TODO: use client library instead when it starts to support update retries
-//       see https://github.com/kubernetes/kubernetes/issues/21479
+//
+//	see https://github.com/kubernetes/kubernetes/issues/21479
 type updateMachineFunc func(machine *v1alpha1.Machine) error
 
 // UpdateMachineWithRetries updates a machine with given applyUpdate function. Note that machine not found error is ignored.

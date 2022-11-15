@@ -326,12 +326,12 @@ func (c *AlicloudDriver) GetVolNames(specs []corev1.PersistentVolumeSpec) ([]str
 	return names, nil
 }
 
-//GetUserData return the used data whit which the VM will be booted
+// GetUserData return the used data whit which the VM will be booted
 func (c *AlicloudDriver) GetUserData() string {
 	return c.UserData
 }
 
-//SetUserData set the used data whit which the VM will be booted
+// SetUserData set the used data whit which the VM will be booted
 func (c *AlicloudDriver) SetUserData(userData string) {
 	c.UserData = userData
 }

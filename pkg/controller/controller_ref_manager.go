@@ -60,8 +60,8 @@ func (m *BaseControllerRefManager) CanAdopt() error {
 // ClaimObject tries to take ownership of an object for this controller.
 //
 // It will reconcile the following:
-//   * Adopt orphans if the match function returns true.
-//   * Release owned objects if the match function returns false.
+//   - Adopt orphans if the match function returns true.
+//   - Release owned objects if the match function returns false.
 //
 // A non-nil error is returned if some form of reconciliation was attempted and
 // failed. Usually, controllers should try again later in case reconciliation
@@ -146,8 +146,9 @@ type MachineControllerRefManager struct {
 // If CanAdopt() returns a non-nil error, all adoptions will fail.
 //
 // NOTE: Once CanAdopt() is called, it will not be called again by the same
-//       MachineControllerRefManager machine. Create a new machine if it makes
-//       sense to check CanAdopt() again (e.g. in a different sync pass).
+//
+//	MachineControllerRefManager machine. Create a new machine if it makes
+//	sense to check CanAdopt() again (e.g. in a different sync pass).
 func NewMachineControllerRefManager(
 	machineControl MachineControlInterface,
 	controller metav1.Object,
@@ -169,8 +170,8 @@ func NewMachineControllerRefManager(
 // ClaimMachines tries to take ownership of a list of Machines.
 //
 // It will reconcile the following:
-//   * Adopt orphans if the selector matches.
-//   * Release owned objects if the selector no longer matches.
+//   - Adopt orphans if the selector matches.
+//   - Release owned objects if the selector no longer matches.
 //
 // Optional: If one or more filters are specified, a Machine will only be claimed if
 // all filters return true.
@@ -289,8 +290,9 @@ type MachineSetControllerRefManager struct {
 // If CanAdopt() returns a non-nil error, all adoptions will fail.
 //
 // NOTE: Once CanAdopt() is called, it will not be called again by the same
-//       MachineSetControllerRefManager machine. Create a new machine if it
-//       makes sense to check CanAdopt() again (e.g. in a different sync pass).
+//
+//	MachineSetControllerRefManager machine. Create a new machine if it
+//	makes sense to check CanAdopt() again (e.g. in a different sync pass).
 func NewMachineSetControllerRefManager(
 	machineSetControl MachineSetControlInterface,
 	controller metav1.Object,
@@ -312,8 +314,8 @@ func NewMachineSetControllerRefManager(
 // ClaimMachineSets tries to take ownership of a list of MachineSets.
 //
 // It will reconcile the following:
-//   * Adopt orphans if the selector matches.
-//   * Release owned objects if the selector no longer matches.
+//   - Adopt orphans if the selector matches.
+//   - Release owned objects if the selector no longer matches.
 //
 // A non-nil error is returned if some form of reconciliation was attempted and
 // failed. Usually, controllers should try again later in case reconciliation

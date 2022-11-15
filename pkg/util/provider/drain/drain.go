@@ -525,7 +525,7 @@ func (o *Options) doAccountingOfPvs(ctx context.Context, pods []*corev1.Pod) map
 		volumeList, err := o.getVolIDsFromDriver(ctx, persistentVolumeList)
 		if err != nil {
 			// In case of error, log and skip this set of volumes
-			klog.Errorf("Error getting volume ID from cloud provider. Skipping volumes for pod: %v. Err: %v", podKey, err)
+			klog.Errorf("error getting volume ID from cloud provider. Skipping volumes for pod: %v. Err: %v", podKey, err)
 			continue
 		}
 
@@ -723,7 +723,7 @@ func (o *Options) evictPodsWithPVInternal(
 			o.checkAndDeleteWorker(volumeAttachmentEventCh)
 			continue
 		} else if err != nil {
-			klog.V(4).Infof("Error when evicting pod: %v/%v from node %v. Will be retried. Err: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
+			klog.Errorf("error when evicting pod: %v/%v from node %v. Will be retried. Err: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
 			retryPods = append(retryPods, pod)
 			o.checkAndDeleteWorker(volumeAttachmentEventCh)
 			continue
@@ -749,7 +749,7 @@ func (o *Options) evictPodsWithPVInternal(
 			o.checkAndDeleteWorker(volumeAttachmentEventCh)
 			return append(retryPods, pods[i+1:]...), true
 		} else if err != nil {
-			klog.Errorf("Error when waiting for volume to detach from node. Err: %v", err)
+			klog.Errorf("error when waiting for volume to detach from node. Err: %v", err)
 			returnCh <- err
 			o.checkAndDeleteWorker(volumeAttachmentEventCh)
 			continue
@@ -770,7 +770,7 @@ func (o *Options) evictPodsWithPVInternal(
 			if err.Error() == reattachTimeoutErr {
 				klog.Warningf("Timeout occurred for following volumes to reattach: %v", podVolumeInfo.persistentVolumeList)
 			} else {
-				klog.Errorf("Error when waiting for volume reattachment. Err: %v", err)
+				klog.Errorf("error when waiting for volume reattachment. Err: %v", err)
 				returnCh <- err
 				o.checkAndDeleteWorker(volumeAttachmentEventCh)
 				continue
@@ -811,7 +811,7 @@ func (o *Options) getPVList(pod *corev1.Pod) ([]string, error) {
 
 					if try == GetPvDetailsMaxRetries {
 						// Log warning, and skip trying this volume anymore
-						klog.Errorf("Error getting PVC. Err: %v", err)
+						klog.Errorf("error getting PVC. Err: %v", err)
 						break
 					}
 					// In case of error, try again after few seconds
@@ -854,7 +854,7 @@ func (o *Options) waitForDetach(ctx context.Context, podVolumeInfo PodVolumeInfo
 			klog.V(4).Info("Node not found: ", nodeName)
 			return err
 		} else if err != nil {
-			klog.Errorf("Error getting details for node: %q. Err: %v", nodeName, err)
+			klog.Errorf("error getting details for node: %q. Err: %v", nodeName, err)
 			return err
 		}
 

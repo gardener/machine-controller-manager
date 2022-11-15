@@ -40,7 +40,8 @@ import (
 )
 
 // TODO: use client library instead when it starts to support update retries
-//       see https://github.com/kubernetes/kubernetes/issues/21479
+//
+//	see https://github.com/kubernetes/kubernetes/issues/21479
 type updateISFunc func(is *v1alpha1.MachineSet) error
 
 // UpdateISWithRetries updates a RS with given applyUpdate function. Note that RS not found error is ignored.
