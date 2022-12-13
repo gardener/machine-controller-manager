@@ -79,9 +79,6 @@ func (dc *controller) sync(ctx context.Context, d *v1alpha1.MachineDeployment, i
 // These conditions are needed so that we won't accidentally report lack of progress for resumed deployments
 // that were paused for longer than progressDeadlineSeconds.
 func (dc *controller) checkPausedConditions(ctx context.Context, d *v1alpha1.MachineDeployment) error {
-	if d.Spec.ProgressDeadlineSeconds == nil {
-		return nil
-	}
 	cond := GetMachineDeploymentCondition(d.Status, v1alpha1.MachineDeploymentProgressing)
 	if cond != nil && cond.Reason == TimedOutReason {
 		// If we have reported lack of progress, do not overwrite it with a paused condition.
@@ -265,11 +262,8 @@ func (dc *controller) getNewMachineSet(ctx context.Context, d *v1alpha1.MachineD
 
 		// Should use the revision in existingNewRS's annotation, since it set by before
 		needsUpdate := SetMachineDeploymentRevision(d, isCopy.Annotations[RevisionAnnotation])
-		// If no other Progressing condition has been recorded and we need to estimate the progress
-		// of this deployment then it is likely that old users started caring about progress. In that
-		// case we need to take into account the first time we noticed their new machine set.
 		cond := GetMachineDeploymentCondition(d.Status, v1alpha1.MachineDeploymentProgressing)
-		if d.Spec.ProgressDeadlineSeconds != nil && cond == nil {
+		if cond == nil {
 			msg := fmt.Sprintf("Found new machine set %q", isCopy.Name)
 			condition := NewMachineDeploymentCondition(v1alpha1.MachineDeploymentProgressing, v1alpha1.ConditionTrue, FoundNewISReason, msg)
 			SetMachineDeploymentCondition(&d.Status, *condition)
@@ -340,7 +334,7 @@ func (dc *controller) getNewMachineSet(ctx context.Context, d *v1alpha1.MachineD
 	createdIS, err := dc.controlMachineClient.MachineSets(newIS.Namespace).Create(ctx, &newIS, metav1.CreateOptions{})
 	switch {
 	// We may end up hitting this due to a slow cache or a fast resync of the Deployment.
-	// Fetch a copy of the ReplicaSet. If its machineTemplateSpec is semantically deep equal
+	// Fetch a copy of the ReplicaSet. If its owner is our deployment and its machineTemplateSpec is semantically deep equal
 	// with the machineTemplateSpec of the Deployment, then that is our new ReplicaSet. Otherwise,
 	// this is a hash collision and we need to increment the collisionCount field in the
 	// status of the Deployment and try the creation again.
@@ -350,37 +344,42 @@ func (dc *controller) getNewMachineSet(ctx context.Context, d *v1alpha1.MachineD
 		if isErr != nil {
 			return nil, isErr
 		}
-		isEqual := EqualIgnoreHash(&d.Spec.Template, &is.Spec.Template)
+
+		// bought these changes from current latest k/k deployment code (https://github.com/kubernetes/kubernetes/blob/0e19bbb91644885a6db38a77ea3d697730269802/pkg/controller/deployment/sync.go#L240-L243)
+		controllerRef := metav1.GetControllerOf(is)
+		if controllerRef != nil && controllerRef.UID == d.UID && EqualIgnoreHash(&d.Spec.Template, &is.Spec.Template) {
+			// Pass through the matching ReplicaSet as the new ReplicaSet.
+			createdIS = is
+			err = nil
+			break
+		}
 
 		// Matching ReplicaSet is not equal - increment the collisionCount in the DeploymentStatus
 		// and requeue the Deployment.
-		if !isEqual {
-			if d.Status.CollisionCount == nil {
-				d.Status.CollisionCount = new(int32)
-			}
-			preCollisionCount := *d.Status.CollisionCount
-			*d.Status.CollisionCount++
-			// Update the collisionCount for the Deployment and let it requeue by returning the original
-			// error.
-			_, dErr := dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(ctx, d, metav1.UpdateOptions{})
-			if dErr == nil {
-				klog.V(2).Infof("Found a hash collision for machine deployment %q - bumping collisionCount (%d->%d) to resolve it", d.Name, preCollisionCount, *d.Status.CollisionCount)
-			}
-			return nil, err
+		if d.Status.CollisionCount == nil {
+			d.Status.CollisionCount = new(int32)
 		}
-		// Pass through the matching ReplicaSet as the new ReplicaSet.
-		createdIS = is
-		err = nil
+		preCollisionCount := *d.Status.CollisionCount
+		*d.Status.CollisionCount++
+		// Update the collisionCount for the Deployment and let it requeue by returning the original
+		// error.
+		_, dErr := dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(ctx, d, metav1.UpdateOptions{})
+		if dErr == nil {
+			klog.V(2).Infof("Found a hash collision for machine deployment %q - bumping collisionCount (%d->%d) to resolve it", d.Name, preCollisionCount, *d.Status.CollisionCount)
+		}
+		return nil, err
+	// bought this case from current latest k/k deployment code (https://github.com/kubernetes/kubernetes/blob/0e19bbb91644885a6db38a77ea3d697730269802/pkg/controller/deployment/sync.go#L260-L262)
+	case errors.HasStatusCause(err, v1.NamespaceTerminatingCause):
+		// if the namespace is terminating, all subsequent creates will fail and we can safely do nothing
+		return nil, err
 	case err != nil:
 		msg := fmt.Sprintf("Failed to create new machine set %q: %v", newIS.Name, err)
-		if d.Spec.ProgressDeadlineSeconds != nil {
-			cond := NewMachineDeploymentCondition(v1alpha1.MachineDeploymentProgressing, v1alpha1.ConditionFalse, FailedISCreateReason, msg)
-			SetMachineDeploymentCondition(&d.Status, *cond)
-			// We don't really care about this error at this point, since we have a bigger issue to report.
-			// TODO: Identify which errors are permanent and switch DeploymentIsFailed to take into account
-			// these reasons as well. Related issue: https://github.com/kubernetes/kubernetes/issues/18568
-			_, _ = dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(ctx, d, metav1.UpdateOptions{})
-		}
+		cond := NewMachineDeploymentCondition(v1alpha1.MachineDeploymentProgressing, v1alpha1.ConditionFalse, FailedISCreateReason, msg)
+		SetMachineDeploymentCondition(&d.Status, *cond)
+		// We don't really care about this error at this point, since we have a bigger issue to report.
+		// TODO: Identify which errors are permanent and switch DeploymentIsFailed  to take into account
+		// these reasons as well. Related issue: https://github.com/kubernetes/kubernetes/issues/18568
+		_, _ = dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(ctx, d, metav1.UpdateOptions{})
 		dc.recorder.Eventf(d, v1.EventTypeWarning, FailedISCreateReason, msg)
 		return nil, err
 	}
@@ -389,7 +388,7 @@ func (dc *controller) getNewMachineSet(ctx context.Context, d *v1alpha1.MachineD
 	}
 
 	needsUpdate := SetMachineDeploymentRevision(d, newRevision)
-	if !alreadyExists && d.Spec.ProgressDeadlineSeconds != nil {
+	if !alreadyExists {
 		msg := fmt.Sprintf("Created new machine set %q", createdIS.Name)
 		condition := NewMachineDeploymentCondition(v1alpha1.MachineDeploymentProgressing, v1alpha1.ConditionTrue, NewMachineSetReason, msg)
 		SetMachineDeploymentCondition(&d.Status, *condition)

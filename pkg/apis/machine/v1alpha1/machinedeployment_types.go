@@ -98,7 +98,7 @@ type MachineDeploymentSpec struct {
 	// process failed MachineDeployments and a condition with a ProgressDeadlineExceeded
 	// reason will be surfaced in the MachineDeployment status. Note that progress will
 	// not be estimated during the time a MachineDeployment is paused. This is not set
-	// by default.
+	// by default, which is treated as infinite deadline.
 	// +optional
 	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty"`
 }
@@ -219,8 +219,8 @@ const (
 
 	// Progressing means the MachineDeployment is progressing. Progress for a MachineDeployment is
 	// considered when a new machine set is created or adopted, and when new machines scale
-	// up or old machines scale down. Progress is not estimated for paused MachineDeployments or
-	// when progressDeadlineSeconds is not specified.
+	// up or old machines scale down. Progress is not estimated for paused MachineDeployments. It is also updated
+	// if progressDeadlineSeconds is not specified(treated as infinite deadline), in which case it would never be updated to "false".
 	MachineDeploymentProgressing MachineDeploymentConditionType = "Progressing"
 
 	// ReplicaFailure is added in a MachineDeployment when one of its machines fails to be created

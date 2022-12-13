@@ -40,19 +40,13 @@ import (
 func (dc *controller) syncRolloutStatus(ctx context.Context, allISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, d *v1alpha1.MachineDeployment) error {
 	newStatus := calculateDeploymentStatus(allISs, newIS, d)
 
-	// If there is no progressDeadlineSeconds set, remove any Progressing condition.
-	if d.Spec.ProgressDeadlineSeconds == nil {
-		RemoveMachineDeploymentCondition(&newStatus, v1alpha1.MachineDeploymentProgressing)
-	}
-
 	// If there is only one machine set that is active then that means we are not running
 	// a new rollout and this is a resync where we don't need to estimate any progress.
 	// In such a case, we should simply not estimate any progress for this deployment.
 	currentCond := GetMachineDeploymentCondition(d.Status, v1alpha1.MachineDeploymentProgressing)
 	isCompleteDeployment := newStatus.Replicas == newStatus.UpdatedReplicas && currentCond != nil && currentCond.Reason == NewISAvailableReason
-	// Check for progress only if there is a progress deadline set and the latest rollout
-	// hasn't completed yet.
-	if d.Spec.ProgressDeadlineSeconds != nil && !isCompleteDeployment {
+	// Check for progress only if the latest rollout hasn't completed yet.
+	if !isCompleteDeployment {
 		switch {
 		case MachineDeploymentComplete(d, &newStatus):
 			// Update the deployment conditions with a message for the new machine set that
@@ -87,6 +81,8 @@ func (dc *controller) syncRolloutStatus(ctx context.Context, allISs []*v1alpha1.
 			}
 			SetMachineDeploymentCondition(&newStatus, *condition)
 
+		// the case -> (mark `Progressing` condition reason as `ProgressDeadlineExceeded` only when non-infinite progressDeadline is set)
+		// is already handled inside `MachineDeploymentTimedOut()`
 		case MachineDeploymentTimedOut(d, &newStatus):
 			// Update the deployment with a timeout condition. If the condition already exists,
 			// we ignore this update.
@@ -161,6 +157,7 @@ func (dc *controller) getReplicaFailures(allISs []*v1alpha1.MachineSet, newIS *v
 // requeueStuckDeployment checks whether the provided deployment needs to be synced for a progress
 // check. It returns the time after the deployment will be requeued for the progress check, 0 if it
 // will be requeued now, or -1 if it does not need to be requeued.
+// This method is just to make sure that as soon as `progressDeadlineSeconds` timeout happens we update the `Progressing` Condition.
 func (dc *controller) requeueStuckMachineDeployment(d *v1alpha1.MachineDeployment, newStatus v1alpha1.MachineDeploymentStatus) time.Duration {
 	currentCond := GetMachineDeploymentCondition(d.Status, v1alpha1.MachineDeploymentProgressing)
 	// Can't estimate progress if there is no deadline in the spec or progressing condition in the current status.
