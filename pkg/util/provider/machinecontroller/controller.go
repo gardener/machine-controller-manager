@@ -317,8 +317,8 @@ func (c *controller) Run(ctx context.Context, workers int) {
 		createWorker(ctx, c.machineSafetyAPIServerQueue, "ClusterMachineAPIServer", maxRetries, true, c.reconcileClusterMachineSafetyAPIServer, &waitGroup)
 	}
 
-	c.shutDown()
 	waitGroup.Wait()
+	c.shutDown()
 
 	klog.V(1).Info("Shutting down Machine Controller Manager ")
 	handlers.UpdateHealth(false)
