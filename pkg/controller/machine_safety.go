@@ -358,6 +358,8 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(ctx context.Context) er
 		lowerThreshold := higherThreshold - c.safetyOptions.SafetyDown
 
 		machineDeployments := c.getMachineDeploymentsForMachineSet(machineSet)
+		// if we have a parent machineDeployment than we use a different higherThreshold and lowerThreshold,
+		// keeping in mind the rolling update scenario, as we won't want to freeze during a normal rolling update.
 		if len(machineDeployments) >= 1 {
 			machineDeployment := machineDeployments[0]
 			if machineDeployment != nil {
