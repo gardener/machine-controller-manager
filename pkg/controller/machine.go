@@ -58,8 +58,8 @@ const (
 )
 
 /*
-	SECTION
-	Machine controller - Machine add, update, delete watches
+SECTION
+Machine controller - Machine add, update, delete watches
 */
 func (c *controller) addMachine(obj interface{}) {
 	klog.V(4).Infof("Adding machine object")
@@ -236,8 +236,8 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 }
 
 /*
-	SECTION
-	Machine controller - nodeToMachine
+SECTION
+Machine controller - nodeToMachine
 */
 func (c *controller) addNodeToMachine(obj interface{}) {
 	node := obj.(*corev1.Node)
@@ -314,9 +314,7 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 
 func (c *controller) updateMachineState(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
 	nodeName := ""
-	if machine.Labels != nil {
-		nodeName = machine.Labels[v1alpha1.NodeLabelKey]
-	}
+	nodeName = machine.Labels[v1alpha1.NodeLabelKey]
 
 	if nodeName == "" {
 		// Check if any existing node-object can be adopted.
@@ -339,10 +337,10 @@ func (c *controller) updateMachineState(ctx context.Context, machine *v1alpha1.M
 					clone.Labels = make(map[string]string)
 				}
 				clone.Labels[v1alpha1.NodeLabelKey] = nodeName
-				machine, err = c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
+				clone, err = c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
 				if err != nil {
-					klog.Errorf("Could not update the machine-object %s due to error %v", machine.Name, err)
-					return machine, err
+					klog.Errorf("Could not update the node label for machine-object %s due to error %v", machine.Name, err)
+					return clone, err
 				}
 				break
 			}
@@ -998,8 +996,8 @@ func (c *controller) deleteMachineFinalizers(ctx context.Context, machine *v1alp
 }
 
 /*
-	SECTION
-	Helper Functions
+SECTION
+Helper Functions
 */
 func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 	numOfConditions := len(machine.Status.Conditions)

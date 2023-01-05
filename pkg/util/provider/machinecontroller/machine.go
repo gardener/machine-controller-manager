@@ -42,8 +42,8 @@ import (
 )
 
 /*
-	SECTION
-	Machine controller - Machine add, update, delete watches
+SECTION
+Machine controller - Machine add, update, delete watches
 */
 func (c *controller) addMachine(obj interface{}) {
 	klog.V(5).Infof("Adding machine object")
@@ -161,7 +161,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		return retry, err
 	}
 
-	if machine.Labels[v1alpha1.NodeLabelKey] != "" {
+	if machine.Labels[v1alpha1.NodeLabelKey] != "" && machine.Status.CurrentStatus.Phase != "" {
 		// If reference to node object exists execute the below
 		retry, err := c.reconcileMachineHealth(ctx, machine)
 		if err != nil {
@@ -173,7 +173,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 			return retry, err
 		}
 	}
-	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" || machine.Labels[v1alpha1.NodeLabelKey] == "" {
+	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" {
 		return c.triggerCreationFlow(
 			ctx,
 			&driver.CreateMachineRequest{
@@ -188,8 +188,8 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 }
 
 /*
-	SECTION
-	Machine controller - nodeToMachine
+SECTION
+Machine controller - nodeToMachine
 */
 var (
 	errMultipleMachineMatch = errors.New("Multiple machines matching node")
