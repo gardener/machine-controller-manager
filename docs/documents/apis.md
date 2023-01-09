@@ -5768,19 +5768,6 @@ MachineConfiguration
 <tbody>
 <tr>
 <td>
-<code>node</code>
-</td>
-<td>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Node string</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>conditions</code>
 </td>
 <td>

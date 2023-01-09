@@ -275,9 +275,6 @@ spec:
                     description: Type of operation
                     type: string
                 type: object
-              node:
-                description: Node string
-                type: string
             type: object
         type: object
     served: true

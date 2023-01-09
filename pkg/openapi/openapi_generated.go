@@ -3285,13 +3285,6 @@ func schema_pkg_apis_machine_v1alpha1_MachineStatus(ref common.ReferenceCallback
 				Description: "MachineStatus holds the most recently observed status of Machine.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"node": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Node string",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"conditions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Conditions of this machine, same as node",

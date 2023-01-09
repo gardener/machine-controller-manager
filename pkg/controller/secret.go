@@ -32,7 +32,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// reconcileClusterSecretKey reconciles an secret due to controller resync
+// reconcileClusterSecretKey reconciles a secret due to controller resync
 // or an event on the secret
 func (c *controller) reconcileClusterSecretKey(key string) error {
 	ctx := context.Background()

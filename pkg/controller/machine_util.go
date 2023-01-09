@@ -304,7 +304,7 @@ func (c *controller) syncMachineNodeTemplates(ctx context.Context, machine *v1al
 		currentlyAppliedALTJSONByte []byte
 	)
 
-	node, err := c.nodeLister.Get(machine.Status.Node)
+	node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 	if err != nil || node == nil {
 		klog.Errorf("Error: Could not get the node-object or node-object is missing - err: %q", err)
 		// Dont return error so that other steps can be executed.
@@ -517,8 +517,7 @@ func (c *controller) UpdateNodeTerminationCondition(ctx context.Context, machine
 		return nil
 	}
 
-	nodeName := machine.Status.Node
-
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	terminationCondition := v1.NodeCondition{
 		Type:               NodeTerminationCondition,
 		Status:             v1.ConditionTrue,

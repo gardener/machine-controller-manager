@@ -27,6 +27,11 @@ import (
 // IF YOU MODIFY ANY OF THE TYPES HERE COPY THEM TO ../types.go
 // AND RUN  ./hack/generate-code
 
+// NodeLabelKey is the key for node label on machine object
+const (
+	NodeLabelKey string = "node"
+)
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:shortName="mc"
@@ -97,9 +102,6 @@ type NodeTemplateSpec struct {
 
 // MachineStatus holds the most recently observed status of Machine.
 type MachineStatus struct {
-	// Node string
-	Node string `json:"node,omitempty"`
-
 	// Conditions of this machine, same as node
 	Conditions []corev1.NodeCondition `json:"conditions,omitempty"`
 

@@ -257,7 +257,7 @@ func (c *controller) syncMachineNodeTemplates(ctx context.Context, machine *v1al
 		lastAppliedALT              v1alpha1.NodeTemplateSpec
 	)
 
-	node, err := c.nodeLister.Get(machine.Status.Node)
+	node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 	if err != nil && apierrors.IsNotFound(err) {
 		// Dont return error so that other steps can be executed.
 		return machineutils.LongRetry, nil
@@ -590,7 +590,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		lastOperationType v1alpha1.MachineOperationType
 	)
 
-	node, err := c.nodeLister.Get(machine.Status.Node)
+	node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// Node object is not found
@@ -988,7 +988,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		pvReattachTimeOut                            = c.safetyOptions.PvReattachTimeout.Duration
 		timeOutDuration                              = c.getEffectiveDrainTimeout(deleteMachineRequest.Machine).Duration
 		forceDeleteLabelPresent                      = machine.Labels["force-deletion"] == "True"
-		nodeName                                     = machine.Labels["node"]
+		nodeName                                     = machine.Labels[v1alpha1.NodeLabelKey]
 		nodeNotReadyDuration                         = 5 * time.Minute
 		ReadonlyFilesystem      v1.NodeConditionType = "ReadonlyFilesystem"
 	)
@@ -1214,7 +1214,7 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 		state       v1alpha1.MachineState
 	)
 
-	nodeName := machine.Labels["node"]
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 
 	if nodeName != "" {
 		// Delete node object
@@ -1319,7 +1319,7 @@ func (c *controller) UpdateNodeTerminationCondition(ctx context.Context, machine
 		return nil
 	}
 
-	nodeName := machine.Labels["node"]
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 
 	terminationCondition := v1.NodeCondition{
 		Type:               machineutils.NodeTerminationCondition,
@@ -1516,7 +1516,7 @@ func getProviderID(machine *v1alpha1.Machine) string {
 }
 
 func getNodeName(machine *v1alpha1.Machine) string {
-	return machine.Status.Node
+	return machine.Labels[v1alpha1.NodeLabelKey]
 }
 
 func getMachineDeploymentName(machine *v1alpha1.Machine) string {
