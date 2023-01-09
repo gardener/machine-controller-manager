@@ -1514,8 +1514,8 @@ var _ = Describe("machineDeployment", func() {
 					Name:      "Machine-test",
 					Namespace: testNamespace,
 					Labels: map[string]string{
-						"test-label": "test-label",
-						"node":       "Node1-test",
+						"test-label":           "test-label",
+						machinev1.NodeLabelKey: "Node1-test",
 					},
 					UID: "1234567",
 					OwnerReferences: []metav1.OwnerReference{
@@ -1542,7 +1542,6 @@ var _ = Describe("machineDeployment", func() {
 					LastOperation: machinev1.LastOperation{
 						LastUpdateTime: metav1.Now(),
 					},
-					Node: "Node1-test",
 				},
 			}
 			testNode = &corev1.Node{

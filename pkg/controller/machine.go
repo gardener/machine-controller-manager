@@ -197,7 +197,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 	}
 
 	// Sync nodeTemplate between machine and node-objects.
-	node, _ := c.nodeLister.Get(machine.Status.Node)
+	node, _ := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 	if node != nil {
 		err = c.syncMachineNodeTemplates(ctx, machine)
 		if err != nil {
@@ -205,7 +205,6 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 			return err
 		}
 	}
-
 	if machine.DeletionTimestamp != nil {
 		// Processing of delete event
 		if err := c.machineDelete(ctx, machine, driver); err != nil {
@@ -298,7 +297,7 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	var (
 		list     = []string{nodeName}
 		selector = labels.NewSelector()
-		req, _   = labels.NewRequirement("node", selection.Equals, list)
+		req, _   = labels.NewRequirement(v1alpha1.NodeLabelKey, selection.Equals, list)
 	)
 
 	selector = selector.Add(*req)
@@ -314,7 +313,8 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 }
 
 func (c *controller) updateMachineState(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
-	nodeName := machine.Status.Node
+	nodeName := ""
+	nodeName = machine.Labels[v1alpha1.NodeLabelKey]
 
 	if nodeName == "" {
 		// Check if any existing node-object can be adopted.
@@ -333,11 +333,14 @@ func (c *controller) updateMachineState(ctx context.Context, machine *v1alpha1.M
 				klog.V(2).Infof("Adopting the node object %s for machine %s", node.Name, machine.Name)
 				nodeName = node.Name
 				clone := machine.DeepCopy()
-				clone.Status.Node = nodeName
-				clone, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
+				if clone.Labels == nil {
+					clone.Labels = make(map[string]string)
+				}
+				clone.Labels[v1alpha1.NodeLabelKey] = nodeName
+				clone, err = c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
 				if err != nil {
-					klog.Errorf("Could not update status of the machine-object %s due to error %v", machine.Name, err)
-					return machine, err
+					klog.Errorf("Could not update the node label for machine-object %s due to error %v", machine.Name, err)
+					return clone, err
 				}
 				break
 			}
@@ -345,7 +348,7 @@ func (c *controller) updateMachineState(ctx context.Context, machine *v1alpha1.M
 		// Couldnt adopt any node-object.
 		if nodeName == "" {
 			// There are no objects mapped to this machine object
-			// Hence node status need not be propogated to machine object
+			// Hence return
 			return machine, nil
 		}
 	}
@@ -393,25 +396,8 @@ func (c *controller) updateMachineState(ctx context.Context, machine *v1alpha1.M
 	}
 
 	machine, err = c.updateMachineConditions(ctx, machine, node.Status.Conditions)
-	if err != nil {
-		return machine, err
-	}
 
-	clone := machine.DeepCopy()
-	if clone.Labels == nil {
-		clone.Labels = make(map[string]string)
-	}
-
-	if n := clone.Labels["node"]; n == "" {
-		clone.Labels["node"] = machine.Status.Node
-		machine, err = c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
-		if err != nil {
-			klog.Warningf("Machine update failed. Retrying, error: %s", err)
-			return machine, err
-		}
-	}
-
-	return machine, nil
+	return machine, err
 }
 
 /*
@@ -542,7 +528,7 @@ func (c *controller) machineCreate(ctx context.Context, machine *v1alpha1.Machin
 		if clone.Labels == nil {
 			clone.Labels = make(map[string]string)
 		}
-		clone.Labels["node"] = nodeName
+		clone.Labels[v1alpha1.NodeLabelKey] = nodeName
 
 		if clone.Annotations == nil {
 			clone.Annotations = make(map[string]string)
@@ -558,7 +544,6 @@ func (c *controller) machineCreate(ctx context.Context, machine *v1alpha1.Machin
 		}
 
 		clone = machine.DeepCopy()
-		clone.Status.Node = nodeName
 		clone.Status.LastOperation = lastOperation
 		clone.Status.CurrentStatus = currentStatus
 		_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
@@ -613,7 +598,7 @@ func (c *controller) machineUpdate(ctx context.Context, machine *v1alpha1.Machin
 
 func (c *controller) machineDelete(ctx context.Context, machine *v1alpha1.Machine, driver driver.Driver) error {
 	var err error
-	nodeName := machine.Status.Node
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 
 	if finalizers := sets.NewString(machine.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		klog.V(2).Infof("Deleting Machine %q", machine.Name)

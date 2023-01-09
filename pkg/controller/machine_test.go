@@ -706,7 +706,8 @@ var _ = Describe("machine", func() {
 				actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
 				Expect(err).To(BeNil())
 				Expect(actual.Spec).To(Equal(data.expect.machine.Spec))
-				Expect(actual.Status.Node).To(Equal(data.expect.machine.Status.Node))
+				Expect(actual.Labels).ToNot(BeNil())
+				Expect(actual.Labels[v1alpha1.NodeLabelKey]).To(Equal(data.expect.machine.Labels[v1alpha1.NodeLabelKey]))
 				//TODO Conditions
 			},
 			Entry("OpenStackSimple", &data{
@@ -802,9 +803,8 @@ var _ = Describe("machine", func() {
 							ProviderID: "fakeID",
 						},
 					}, &machinev1.MachineStatus{
-						Node: "fakeNode",
 						//TODO conditions
-					}, nil, nil, nil),
+					}, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "fakeNode-0"}),
 					err: false,
 				},
 			}),
@@ -863,9 +863,8 @@ var _ = Describe("machine", func() {
 							ProviderID: "fakeID",
 						},
 					}, &machinev1.MachineStatus{
-						Node: "fakeNode",
 						//TODO conditions
-					}, nil, nil, nil),
+					}, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "fakeNode-0"}),
 					err: false,
 				},
 			}),
@@ -972,9 +971,8 @@ var _ = Describe("machine", func() {
 							ProviderID: "providerid",
 						},
 					}, &machinev1.MachineStatus{
-						Node: "",
 						//TODO conditions
-					}, nil, nil, nil),
+					}, nil, nil, map[string]string{v1alpha1.NodeLabelKey: ""}),
 					err: false,
 				},
 			}),
@@ -1097,7 +1095,7 @@ var _ = Describe("machine", func() {
 				}
 
 				if data.action.nodeRecentlyNotReady != nil {
-					node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Status.Node, metav1.GetOptions{})
+					node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Labels[v1alpha1.NodeLabelKey], metav1.GetOptions{})
 					Expect(nodeErr).To(Not(HaveOccurred()))
 					clone := node.DeepCopy()
 					newNodeCondition := corev1.NodeCondition{
@@ -1128,7 +1126,7 @@ var _ = Describe("machine", func() {
 					Expect(err).ToNot(HaveOccurred())
 				}
 
-				node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Status.Node, metav1.GetOptions{})
+				node, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Labels[v1alpha1.NodeLabelKey], metav1.GetOptions{})
 				machine, machineErr := controller.controlMachineClient.Machines(machine.Namespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
 
 				if data.expect.machineDeleted {
@@ -1376,7 +1374,6 @@ var _ = Describe("machine", func() {
 					fakeNodeName:   "fakeNode-0",
 					fakeError:      nil,
 					fakeMachineStatus: &machinev1.MachineStatus{
-						Node: "fakeNode-0",
 						LastOperation: machinev1.LastOperation{
 							Description:    "Deleting machine from cloud provider",
 							State:          v1alpha1.MachineStateProcessing,
@@ -1428,7 +1425,6 @@ var _ = Describe("machine", func() {
 					fakeNodeName:   "fakeNode-0",
 					fakeError:      nil,
 					fakeMachineStatus: &machinev1.MachineStatus{
-						Node: "fakeNode-0",
 						LastOperation: machinev1.LastOperation{
 							Description:    "Drain failed - for random reason",
 							State:          v1alpha1.MachineStateFailed,
@@ -1484,7 +1480,6 @@ var _ = Describe("machine", func() {
 					fakeNodeName:   "fakeNode-0",
 					fakeError:      nil,
 					fakeMachineStatus: &machinev1.MachineStatus{
-						Node: "fakeNode-0",
 						LastOperation: machinev1.LastOperation{
 							Description:    "Drain failed - for random reason",
 							State:          v1alpha1.MachineStateFailed,
@@ -1900,7 +1895,6 @@ var _ = Describe("machine", func() {
 
 				Expect(err).To(BeNil())
 				Expect(actual.Name).To(Equal(data.expect.machine.Name))
-				Expect(actual.Status.Node).To(Equal(data.expect.machine.Status.Node))
 				Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
 				Expect(actual.Status.CurrentStatus.TimeoutActive).To(Equal(data.expect.machine.Status.CurrentStatus.TimeoutActive))
 				Expect(actual.Status.LastOperation.State).To(Equal(data.expect.machine.Status.LastOperation.State))
@@ -1908,8 +1902,8 @@ var _ = Describe("machine", func() {
 				Expect(actual.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
 
 				if data.expect.machine.Labels != nil {
-					if _, ok := data.expect.machine.Labels["node"]; ok {
-						Expect(actual.Labels["node"]).To(Equal(data.expect.machine.Labels["node"]))
+					if _, ok := data.expect.machine.Labels[v1alpha1.NodeLabelKey]; ok {
+						Expect(actual.Labels[v1alpha1.NodeLabelKey]).To(Equal(data.expect.machine.Labels[v1alpha1.NodeLabelKey]))
 					}
 				}
 
@@ -1939,9 +1933,7 @@ var _ = Describe("machine", func() {
 				setup: setup{
 					machines: newMachines(1, &machinev1.MachineTemplateSpec{
 						ObjectMeta: *newObjectMeta(objMeta, 0),
-					}, &machinev1.MachineStatus{
-						Node: "dummy-node",
-					}, nil, nil, nil),
+					}, &machinev1.MachineStatus{}, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "dummy-node"}),
 				},
 				action: action{
 					machine: machineName,
@@ -1949,9 +1941,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					machine: newMachine(&machinev1.MachineTemplateSpec{
 						ObjectMeta: *newObjectMeta(objMeta, 0),
-					}, &machinev1.MachineStatus{
-						Node: "dummy-node",
-					}, nil, nil, nil),
+					}, &machinev1.MachineStatus{}, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "dummy-node"}),
 				},
 			}),
 			Entry("Machine is running but node object is lost", &data{
@@ -1962,7 +1952,6 @@ var _ = Describe("machine", func() {
 							ObjectMeta: *newObjectMeta(objMeta, 0),
 						},
 						&machinev1.MachineStatus{
-							Node: "dummy-node",
 							CurrentStatus: machinev1.CurrentStatus{
 								Phase:          machinev1.MachineRunning,
 								TimeoutActive:  false,
@@ -1982,7 +1971,7 @@ var _ = Describe("machine", func() {
 									Type:    "Ready",
 								},
 							},
-						}, nil, nil, nil),
+						}, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "dummy-node"}),
 				},
 				action: action{
 					machine: machineName,
@@ -1991,7 +1980,6 @@ var _ = Describe("machine", func() {
 					machine: newMachine(&machinev1.MachineTemplateSpec{
 						ObjectMeta: *newObjectMeta(objMeta, 0),
 					}, &machinev1.MachineStatus{
-						Node: "dummy-node",
 						CurrentStatus: machinev1.CurrentStatus{
 							Phase:          machinev1.MachineUnknown,
 							TimeoutActive:  true,
@@ -2014,7 +2002,7 @@ var _ = Describe("machine", func() {
 								Type:    "Ready",
 							},
 						},
-					}, nil, nil, nil),
+					}, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "dummy-node"}),
 				},
 			}),
 			Entry("Machine and node both are present and kubelet ready status is updated", &data{
@@ -2022,7 +2010,6 @@ var _ = Describe("machine", func() {
 					machines: newMachines(1, &machinev1.MachineTemplateSpec{
 						ObjectMeta: *newObjectMeta(objMeta, 0),
 					}, &machinev1.MachineStatus{
-						Node: "machine",
 						CurrentStatus: machinev1.CurrentStatus{
 							Phase:          machinev1.MachinePending,
 							TimeoutActive:  true,
@@ -2042,7 +2029,7 @@ var _ = Describe("machine", func() {
 								Type:    "Ready",
 							},
 						},
-					}, nil, nil, nil),
+					}, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "node-0"}),
 					nodes: []*corev1.Node{
 						{
 							TypeMeta: metav1.TypeMeta{
@@ -2050,7 +2037,7 @@ var _ = Describe("machine", func() {
 								APIVersion: "v1",
 							},
 							ObjectMeta: metav1.ObjectMeta{
-								Name: "machine-0",
+								Name: "node-0",
 							},
 							Status: corev1.NodeStatus{
 								Conditions: []corev1.NodeCondition{
@@ -2072,7 +2059,6 @@ var _ = Describe("machine", func() {
 					machine: newMachine(&machinev1.MachineTemplateSpec{
 						ObjectMeta: *newObjectMeta(objMeta, 0),
 					}, &machinev1.MachineStatus{
-						Node: "machine",
 						CurrentStatus: machinev1.CurrentStatus{
 							Phase:          machinev1.MachineRunning,
 							TimeoutActive:  false,
@@ -2092,42 +2078,10 @@ var _ = Describe("machine", func() {
 								Type:    "Ready",
 							},
 						},
-					}, nil, nil, nil),
+					}, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "node-0"}),
 				},
 			}),
-			Entry("Machine object does not have node-label and node exists", &data{
-				setup: setup{
-					machines: newMachines(1, &machinev1.MachineTemplateSpec{
-						ObjectMeta: *newObjectMeta(objMeta, 0),
-					}, &machinev1.MachineStatus{
-						Node: "node",
-					}, nil, nil, nil),
-					nodes: []*corev1.Node{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node-0",
-							},
-						},
-					},
-				},
-				action: action{
-					machine: machineName,
-				},
-				expect: expect{
-					machine: newMachine(&machinev1.MachineTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "machine-0",
-						},
-					}, &machinev1.MachineStatus{
-						Node: "node",
-					}, nil, nil,
-						map[string]string{
-							"node": "node-0",
-						},
-					),
-				},
-			}),
-			Entry("Machine object does not have status.node set and node exists then it should adopt node using providerID", &data{
+			Entry("Machine object does not have node label set and node exists then it should adopt node using providerID", &data{
 				setup: setup{
 					machines: newMachines(1, &machinev1.MachineTemplateSpec{
 						ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -2154,16 +2108,10 @@ var _ = Describe("machine", func() {
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "machine-0",
 						},
-					}, &machinev1.MachineStatus{
-						Node: "node",
-					}, nil, nil,
-						map[string]string{
-							"node": "node-0",
-						},
-					),
+					}, &machinev1.MachineStatus{}, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "node-0"}),
 				},
 			}),
-			Entry("Machine object does not have status.node set and node exists (without providerID) then it should not adopt node using providerID", &data{
+			Entry("Machine object does not have node label set and node exists (without providerID) then it should not adopt node using providerID", &data{
 				setup: setup{
 					machines: newMachines(1, &machinev1.MachineTemplateSpec{
 						ObjectMeta: *newObjectMeta(objMeta, 0),
