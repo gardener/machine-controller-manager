@@ -10,8 +10,9 @@ Currently
 - GCP provider extension [sanitizes](https://github.com/gardener/gardener-extension-provider-gcp/blob/eb851f716e45336b486f3aaf46268859de2adecb/pkg/controller/worker/machines.go#L312-L315) sanitize them, and then sets them as [labels in the MachineClass](https://github.com/gardener/gardener-extension-provider-gcp/blob/eb851f716e45336b486f3aaf46268859de2adecb/pkg/controller/worker/machines.go#L169). In GCP tags only have keys and are currently [hard coded](https://github.com/gardener/gardener-extension-provider-gcp/blob/eb851f716e45336b486f3aaf46268859de2adecb/pkg/controller/worker/machines.go#L204-L207). 
 
 Looking at an example of what machineClass tag section(from aws) looks like:
-```
+```yaml
 tags:
+    #section 1
     kubernetes.io/arch: amd64
     networking.gardener.cloud/node-local-dns-enabled: "true"
     node.kubernetes.io/role: node
@@ -20,9 +21,11 @@ tags:
     worker.gardener.cloud/pool: worker-1
     worker.gardener.cloud/system-components: "true"
     
+    #section 2
     kubernetes.io/cluster/shoot--i544024--rolling-test: "1"
     kubernetes.io/role/node: "1"     
-                              
+      
+    #section 3                        
     testlabel: "true"                                          
 ```
 
@@ -30,13 +33,14 @@ section1 -> [g/g](https://github.com/gardener/gardener/blob/c11c86ae07d8ea784f5c
 section2 -> [extension-provider](https://github.com/gardener/gardener-extension-provider-aws/blob/0a740eeca301320275d77d1c48d3c32d4ebcd7dd/pkg/controller/worker/machines.go#L160-L161)</br>
 section3 -> by user
 
-Out of these , MCM needs to put following tags(calling it `Must Tags`) on the VM for its orphan collection and GetVMStatus logic to work, can be seen in section2 above:
-```
+Out of these , MCM needs to depend on the following tags(calling it `Must Tags`) on the VM for its orphan collection and GetVMStatus logic to work, can be seen in section2 above:
+```yaml
 Name: <machineObj name> (only for AWS case as VM name differs from machineObj name)
 kubernetes.io/cluster/<cluster-full-name>: 1
 kuberenetes.io/role/<node/integration-test>: 1
 ```
 
+In Gardener context, `Must Tags` are placed by extension-providers when they create machineClasses.
 
 These tags transported to :
 AWS     -> [VM , Disks, Nics](https://github.com/gardener/machine-controller-manager-provider-aws/blob/0e4162b4bb50d555c831a294af89b5d1c62f8749/pkg/aws/core.go#L115-L128)</br>
