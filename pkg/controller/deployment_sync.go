@@ -670,28 +670,20 @@ func calculateDeploymentStatus(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.Ma
 //
 // rsList should come from getReplicaSetsForDeployment(d).
 // machineMap should come from getmachineMapForDeployment(d, rsList).
-func (dc *controller) isScalingEvent(ctx context.Context, d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) (bool, bool, error) {
+func (dc *controller) isScalingEvent(ctx context.Context, d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) (bool, error) {
 	newIS, oldISs, err := dc.getAllMachineSetsAndSyncRevision(ctx, d, isList, machineMap, false)
-	scaled := false
-	isScaleUp := false
 	if err != nil {
-		return scaled, isScaleUp, err
+		return false, err
 	}
 	allISs := append(oldISs, newIS)
 	for _, is := range FilterActiveMachineSets(allISs) {
-		prevDesired, ok := GetDesiredReplicasAnnotation(is)
+		desired, ok := GetDesiredReplicasAnnotation(is)
 		if !ok {
 			continue
 		}
-		if prevDesired != (d.Spec.Replicas) {
-			if prevDesired < d.Spec.Replicas {
-				isScaleUp = true
-			}
-			scaled = true
-			klog.V(4).Infof("(isScalingEvent) Scaling detected for machineDeployment %s. scaled=%s, isScaledUp=%s ", d.Name, scaled, isScaleUp)
-			break
+		if desired != (d.Spec.Replicas) {
+			return true, nil
 		}
 	}
-
-	return scaled, isScaleUp, nil
+	return false, nil
 }

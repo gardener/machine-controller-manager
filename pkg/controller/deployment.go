@@ -539,7 +539,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return dc.rollback(ctx, d, machineSets, machineMap)
 	}
 
-	scalingEvent, _, err := dc.isScalingEvent(ctx, d, machineSets, machineMap)
+	scalingEvent, err := dc.isScalingEvent(ctx, d, machineSets, machineMap)
 
 	if err != nil {
 		return err
