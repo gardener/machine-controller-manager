@@ -5,9 +5,9 @@
 We pass the `labels` which user provides in [shootYaml](https://github.com/gardener/gardener/blob/fb29d38e6615ed17d409a8271a285254d9dd00ad/example/90-shoot.yaml#L61-L62) as `tags` to the VM.
 For doing that we update the machineClass. This update is done by gardener-extension-provider-XYZ.
 Currently 
-- in aws provider directly passes the labels to the [tag section](https://github.com/gardener/gardener-extension-provider-aws/blob/0a740eeca301320275d77d1c48d3c32d4ebcd7dd/pkg/controller/worker/machines.go#L158-L164) of machineClass
-- in [azure](https://github.com/gardener/gardener-extension-provider-azure/blob/b6424f0122e174863e783555aa0ad68700edd87b/pkg/controller/worker/machines.go#L371-L373) sanitize them, and then pass. 
-- in [GCP](https://github.com/gardener/gardener-extension-provider-gcp/blob/eb851f716e45336b486f3aaf46268859de2adecb/pkg/controller/worker/machines.go#L312-L315) sanitize them, and then pass.
+-  AWS provider extension directly passes the labels to the [tag section](https://github.com/gardener/gardener-extension-provider-aws/blob/0a740eeca301320275d77d1c48d3c32d4ebcd7dd/pkg/controller/worker/machines.go#L158-L164) of machineClass.
+-  Azure provider extension [sanitizes](https://github.com/gardener/gardener-extension-provider-azure/blob/b6424f0122e174863e783555aa0ad68700edd87b/pkg/controller/worker/machines.go#L371-L373) the woker pool labels and adds them as [tags in MachineClass](https://github.com/gardener/gardener-extension-provider-azure/blob/b6424f0122e174863e783555aa0ad68700edd87b/pkg/controller/worker/machines.go#L187).
+- GCP provider extension [sanitizes](https://github.com/gardener/gardener-extension-provider-gcp/blob/eb851f716e45336b486f3aaf46268859de2adecb/pkg/controller/worker/machines.go#L312-L315) sanitize them, and then sets them as [labels in the MachineClass](https://github.com/gardener/gardener-extension-provider-gcp/blob/eb851f716e45336b486f3aaf46268859de2adecb/pkg/controller/worker/machines.go#L169). In GCP tags only have keys and are currently [hard coded](https://github.com/gardener/gardener-extension-provider-gcp/blob/eb851f716e45336b486f3aaf46268859de2adecb/pkg/controller/worker/machines.go#L204-L207). 
 
 Looking at an example of what machineClass tag section(from aws) looks like:
 ```
