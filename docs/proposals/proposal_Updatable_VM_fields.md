@@ -59,34 +59,42 @@ Currently Worker Spec in shoot Yaml has ProviderConfig as [runtime.rawExtension]
 Here we could provide provider specific configurations , but its also used to compute [Hash]() which is suffixed to the machineClass name. So if we add `tags` section here then update in them could lead to update in machineClass name and finally rolling update.
 Internally ProviderConfig holds values for the struct [WorkerConfig]()(AWS example). 
 
-We propose to 
+We propose the following solution: 
 
 ### On Gardener level 
-Update the workerConfig to have two fields:
 
-```golang
-type WorkerConfig struct {
-	RawMeta *runtime.RawExtension
-	TemplateConfig *TemplateConfig (which is all the fields which are there currently in WorkerConfig)
-}
-```
-
+In `WorkerConfig` struct, the fields which could be updated without replacement of the VM, would be marked as `updatable:true` (others can be `updatable:false`)
 While calculating [WorkerPoolHash](https://github.com/gardener/gardener/blob/d9376c117efb8f31334131cf1d995d99fc2f51d4/extensions/pkg/controller/worker/machines.go#L146-L148)
-we will then use just `ProviderConfig.TemplateConfig`, this helps us in passing parameters under providerConfig for infra resources(VM,disks,nics) which don't requrie rolling update
-
-Rolling update causing parameters, would go under `TemplateConfig`
+We will pass the fields with `updatable:false` tags, as additionalData in `WorkerPoolHash()`.
+This way an update in these fields would not change the machineClass name and they would also be updated in the machineClass.
 
 ### On MCM level
 
-Two possible solns:
-- Pass the non-rolling-update parameters(like tags) to machineClass only, and on change of these machines referring to that machineClass
-is reconciled. In machine reconciliation we look for any change in the non-rolling-update parameters and if its there, we update the VM,nics,disks.
-   - One way to figure out the changes in machineClass is to save the last synced machineClass as an annotation in machine object, and finding the changes 
-      with that as reference. Once we know what all changes are there, like tag update or iam policy update etc we could call that driver method.
-   - the driver interface would need to be updated.
-- keep only rolling-update parameters in machineClass. The non-rolling-update parameters should end up in machine object Spec
-   - will introduce a field in machine.Spec called `VMTemplateSpec` [here](https://github.com/gardener/machine-controller-manager/blob/d98eddffa3ef7a00ff6aaa753366c59bae881608/pkg/apis/machine/v1alpha1/machine_types.go#L69) of `runtime.RawExtension`
-   - this is filled up by g-ext and is unmarshalled only by mcm-provider.
-   - so update of non-rolling-update fields cause change here , and finally machine-controller notices this and calls the corresponding driver method.
-   - Problem
-      - But how to identify the update and which driver method to call from provider agnostic part of the code is still unclear.
+- Every machineClass update pushes the machines referring that machineClass to queue for reconciliation.
+- Machineclass has `last-updated-machineClass` annotation. The value of this anno is the machineClass that has been applied for the machines successfully, VM/Nic/Disk parameters are as per this.
+- We introduce a new driver call named `UpdateMachine`. The mcm-provider-XYZ has to implement it. If its not implemented, updatable/non-rolling-update parameters of the machine won't be updated.
+- We call `UpdateMachine` in `reconcileClusterMachine` only when the hash of current machineClass doesn't match the `last-updated-machineClass`
+- Error returned by `UpdateMachine` should be updated in the status of the machine object, and retry period should be according to the type of error(recoverable or long-recoverable)
+- If no error returned , `last-updated-machineClass` anno is updated with the current machineClass value.
+
+#### Implemenation of UpdateMachine hints
+
+Inside `UpdateMachine`:
+- the current machineClass providerSpec has to be unmarshalled inside mcm-provider-xyz
+- the `last-applied-machineClass` providerSpec also has to be unmarshalled
+- the logic should compare the updatable/non-rolling-update fields(they should be marked with `updatable:"true"` struct tag)
+- if there is a difference , then call the provider API for UpdateVM/nic/disk
+- if the fields can't be updated with single provider API call, their updates should happen serially,with minimum provider calls, and error should be returned.
+  - error returning could be as soon as an error occurs
+  - or it could be combined error from all api calls
+- the error(s) should be classified as `recoverable error` or `long-recoverable error`
+
+
+#### Allowing seperate set of tags for VM, Nics , Disks
+
+This would require update of machineClass. Currently there is just `tags` field available in most providerSpec (`labels` in gcp also present).
+This field is just to update tags for VM, and the same is applied on disks and nics.
+To allow seperate tags , `tags` field should be deprecated and new fields like `vmTags`, `nicTags`, `diskTags` needs to be introduced.
+Necessary changes would be required in Gardener extensions as well.
+
+
