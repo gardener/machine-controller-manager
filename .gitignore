@@ -22,3 +22,7 @@ kubectl
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *coverprofile.out*
+
+# Autogen tags
+tags
+docs/docs
