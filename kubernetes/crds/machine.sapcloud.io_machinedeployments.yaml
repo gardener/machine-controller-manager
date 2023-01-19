@@ -81,7 +81,7 @@ spec:
                   a condition with a ProgressDeadlineExceeded reason will be surfaced
                   in the MachineDeployment status. Note that progress will not be
                   estimated during the time a MachineDeployment is paused. This is
-                  not set by default.
+                  not set by default, which is treated as infinite deadline.
                 format: int32
                 type: integer
               replicas:
