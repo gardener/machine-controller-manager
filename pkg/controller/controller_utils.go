@@ -39,6 +39,7 @@ import (
 	hashutil "github.com/gardener/machine-controller-manager/pkg/util/hash"
 	"github.com/google/uuid"
 
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -745,8 +746,8 @@ func (s ActiveMachines) Less(i, j int) bool {
 	machineIPriority := 3
 	machineJPriority := 3
 
-	if s[i].Annotations != nil && s[i].Annotations[MachinePriority] != "" {
-		num, err := strconv.Atoi(s[i].Annotations[MachinePriority])
+	if s[i].Annotations != nil && s[i].Annotations[machineutils.MachinePriority] != "" {
+		num, err := strconv.Atoi(s[i].Annotations[machineutils.MachinePriority])
 		if err == nil {
 			machineIPriority = num
 		} else {
@@ -754,8 +755,8 @@ func (s ActiveMachines) Less(i, j int) bool {
 		}
 	}
 
-	if s[j].Annotations != nil && s[j].Annotations[MachinePriority] != "" {
-		num, err := strconv.Atoi(s[j].Annotations[MachinePriority])
+	if s[j].Annotations != nil && s[j].Annotations[machineutils.MachinePriority] != "" {
+		num, err := strconv.Atoi(s[j].Annotations[machineutils.MachinePriority])
 		if err == nil {
 			machineJPriority = num
 		} else {
