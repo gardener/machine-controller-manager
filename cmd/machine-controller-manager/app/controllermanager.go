@@ -254,7 +254,7 @@ func StartControllers(s *options.MCMServer,
 		machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
 
 		klog.V(5).Infof("Creating controllers...")
-		mcmcontroller, err := mcmcontroller.NewController(
+		mcmController, err := mcmcontroller.NewController(
 			s.Namespace,
 			controlMachineClient,
 			controlCoreClient,
@@ -263,20 +263,11 @@ func StartControllers(s *options.MCMServer,
 			targetCoreInformerFactory.Core().V1().PersistentVolumes(),
 			controlCoreInformerFactory.Core().V1().Secrets(),
 			targetCoreInformerFactory.Core().V1().Nodes(),
-			machineSharedInformers.OpenStackMachineClasses(),
-			machineSharedInformers.AWSMachineClasses(),
-			machineSharedInformers.AzureMachineClasses(),
-			machineSharedInformers.GCPMachineClasses(),
-			machineSharedInformers.AlicloudMachineClasses(),
-			machineSharedInformers.PacketMachineClasses(),
 			machineSharedInformers.Machines(),
 			machineSharedInformers.MachineSets(),
 			machineSharedInformers.MachineDeployments(),
 			recorder,
 			s.SafetyOptions,
-			s.NodeConditions,
-			s.BootstrapTokenAuthExtraGroups,
-			s.DeleteMigratedMachineClass,
 			s.AutoscalerScaleDownAnnotationDuringRollout,
 		)
 		if err != nil {
@@ -289,7 +280,7 @@ func StartControllers(s *options.MCMServer,
 		targetCoreInformerFactory.Start(stop)
 
 		klog.V(5).Info("Running controller")
-		go mcmcontroller.Run(int(s.ConcurrentNodeSyncs), stop)
+		go mcmController.Run(int(s.ConcurrentNodeSyncs), stop)
 
 	} else {
 		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q is not available; \nFound: %#v", machineGVR, machineSetGVR, machineDeploymentGVR, availableResources)
@@ -342,12 +333,12 @@ func getAvailableResources(clientBuilder corecontroller.ClientBuilder) (map[sche
 
 	allResources := map[schema.GroupVersionResource]bool{}
 	for _, apiResourceList := range resourceMap {
-		version, err := schema.ParseGroupVersion(apiResourceList.GroupVersion)
+		v, err := schema.ParseGroupVersion(apiResourceList.GroupVersion)
 		if err != nil {
 			return nil, err
 		}
 		for _, apiResource := range apiResourceList.APIResources {
-			allResources[version.WithResource(apiResource.Name)] = true
+			allResources[v.WithResource(apiResource.Name)] = true
 		}
 	}
 

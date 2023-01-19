@@ -69,9 +69,6 @@ func NewController(
 	machineDeploymentInformer machineinformers.MachineDeploymentInformer,
 	recorder record.EventRecorder,
 	safetyOptions options.SafetyOptions,
-	nodeConditions string,
-	bootstrapTokenAuthExtraGroups string,
-	deleteMigratedMachineClass bool,
 	autoscalerScaleDownAnnotationDuringRollout bool,
 ) (Controller, error) {
 	controller := &controller{
@@ -88,9 +85,6 @@ func NewController(
 		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
 		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
 		safetyOptions:                  safetyOptions,
-		nodeConditions:                 nodeConditions,
-		bootstrapTokenAuthExtraGroups:  bootstrapTokenAuthExtraGroups,
-		deleteMigratedMachineClass:     deleteMigratedMachineClass,
 		autoscalerScaleDownAnnotationDuringRollout: autoscalerScaleDownAnnotationDuringRollout,
 	}
 
@@ -190,9 +184,6 @@ type Controller interface {
 // controller is a concrete Controller.
 type controller struct {
 	namespace                                  string
-	nodeConditions                             string
-	bootstrapTokenAuthExtraGroups              string
-	deleteMigratedMachineClass                 bool
 	autoscalerScaleDownAnnotationDuringRollout bool
 
 	controlMachineClient machineapi.MachineV1alpha1Interface

@@ -62,18 +62,6 @@ var (
 	TestMachineClass = "machineClass-0"
 )
 
-func newMachineDeployment(
-	specTemplate *v1alpha1.MachineTemplateSpec,
-	replicas int32,
-	minReadySeconds int32,
-	statusTemplate *v1alpha1.MachineDeploymentStatus,
-	owner *metav1.OwnerReference,
-	annotations map[string]string,
-	labels map[string]string,
-) *v1alpha1.MachineDeployment {
-	return newMachineDeployments(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner, annotations, labels)[0]
-}
-
 func newMachineDeployments(
 	machineDeploymentCount int,
 	specTemplate *v1alpha1.MachineTemplateSpec,
@@ -353,7 +341,7 @@ func newMachines(
 }
 
 func newNode(
-	nodeCount int,
+	_ int,
 	nodeSpec *corev1.NodeSpec,
 	nodeStatus *corev1.NodeStatus,
 ) *corev1.Node {
@@ -363,7 +351,7 @@ func newNode(
 func newNodes(
 	nodeCount int,
 	nodeSpec *corev1.NodeSpec,
-	nodeStatus *corev1.NodeStatus,
+	_ *corev1.NodeStatus,
 ) []*corev1.Node {
 
 	nodes := make([]*corev1.Node, nodeCount)
@@ -528,7 +516,6 @@ func createController(
 		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
 		expectations:                   NewUIDTrackingContExpectations(NewContExpectations()),
 		recorder:                       record.NewBroadcaster().NewRecorder(nil, corev1.EventSource{Component: ""}),
-		deleteMigratedMachineClass:     true,
 	}
 
 	// controller.internalExternalScheme = runtime.NewScheme()

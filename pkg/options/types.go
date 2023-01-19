@@ -73,12 +73,6 @@ type MachineControllerManagerConfiguration struct {
 	MinResyncPeriod metav1.Duration
 	// SafetyOptions is the set of options to set to ensure safety of controller
 	SafetyOptions SafetyOptions
-	// NodeCondition is the string of known NodeConditions. If any of these NodeCondition is set for a timeout period, the machine  will be declared failed and will replaced.
-	NodeConditions string
-	// BootstrapTokenAuthExtraGroups is a comma-separated string of groups to set bootstrap token's "auth-extra-groups" field to.
-	BootstrapTokenAuthExtraGroups string
-	// DeleteMigratedMachineClass deletes any machine class with has the migrate machineclass
-	DeleteMigratedMachineClass bool
 	// AutoscalerScaleDownAnnotationDuringRollout is an option to disable annotating the node-objects during roll-out.
 	// The cluster autoscaler native annotation is "cluster-autoscaler.kubernetes.io/scale-down-disabled".
 	AutoscalerScaleDownAnnotationDuringRollout bool
@@ -92,10 +86,6 @@ type SafetyOptions struct {
 
 	// SafetyDown
 	SafetyDown int32
-
-	// Maximum number of times evicts would be attempted on a pod for it is forcibly deleted
-	// during draining of a machine.
-	MaxEvictRetries int32
 
 	// Period (in durartion) used to poll for overshooting
 	// of machine objects backing a machineSet by safety controller

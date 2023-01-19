@@ -22,7 +22,6 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package options
 
 import (
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
 	"time"
 
 	machineconfig "github.com/gardener/machine-controller-manager/pkg/options"
@@ -56,7 +55,6 @@ func NewMCMServer() *MCMServer {
 			Address:                 "0.0.0.0",
 			ConcurrentNodeSyncs:     10,
 			ContentType:             "application/vnd.kubernetes.protobuf",
-			NodeConditions:          "KernelDeadlock,ReadonlyFilesystem,DiskPressure,NetworkUnavailable",
 			MinResyncPeriod:         metav1.Duration{Duration: 12 * time.Hour},
 			KubeAPIQPS:              20.0,
 			KubeAPIBurst:            30,
@@ -66,7 +64,6 @@ func NewMCMServer() *MCMServer {
 			SafetyOptions: machineconfig.SafetyOptions{
 				SafetyUp:                        2,
 				SafetyDown:                      1,
-				MaxEvictRetries:                 drain.DefaultMaxEvictRetries,
 				MachineSafetyOvershootingPeriod: metav1.Duration{Duration: 1 * time.Minute},
 			},
 		},
@@ -95,12 +92,7 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&s.SafetyOptions.SafetyUp, "safety-up", s.SafetyOptions.SafetyUp, "The number of excess machine objects permitted for any machineSet/machineDeployment beyond its expected number of replicas based on desired and max-surge, we call this the upper-limit. When this upper-limit is reached, the objects are temporarily frozen until the number of objects reduce. upper-limit = desired + maxSurge (if applicable) + safetyUp.")
 	fs.Int32Var(&s.SafetyOptions.SafetyDown, "safety-down", s.SafetyOptions.SafetyDown, "Upper-limit minus safety-down value gives the lower-limit. This is the limits below which any temporarily frozen machineSet/machineDeployment object is unfrozen. lower-limit = desired + maxSurge (if applicable) + safetyUp - safetyDown.")
 
-	fs.Int32Var(&s.SafetyOptions.MaxEvictRetries, "machine-max-evict-retries", drain.DefaultMaxEvictRetries, "Maximum number of times evicts would be attempted on a pod before it is forcibly deleted during draining of a machine.")
-
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration, "machine-safety-overshooting-period", s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration, "Time period (in duration) used to poll for overshooting of machine objects backing a machineSet by safety controller.")
-	fs.StringVar(&s.NodeConditions, "node-conditions", s.NodeConditions, "List of comma-separated/case-sensitive node-conditions which when set to True will change machine to a failed state after MachineHealthTimeout duration. It may further be replaced with a new machine if the machine is backed by a machine-set object.")
-	fs.StringVar(&s.BootstrapTokenAuthExtraGroups, "bootstrap-token-auth-extra-groups", s.BootstrapTokenAuthExtraGroups, "Comma-separated list of groups to set bootstrap token's \"auth-extra-groups\" field to")
-	fs.BoolVar(&s.DeleteMigratedMachineClass, "delete-migrated-machine-class", false, "Deletes any (provider specific) machine class that has the machine.sapcloud.io/migrated annotation")
 
 	fs.BoolVar(&s.AutoscalerScaleDownAnnotationDuringRollout, "autoscaler-scaldown-annotation-during-rollout", true, "Add cluster autoscaler scale-down disabled annotation during roll-out.")
 
