@@ -36,9 +36,6 @@ type Driver interface {
 	ListMachines(context.Context, *ListMachinesRequest) (*ListMachinesResponse, error)
 	// GetVolumeIDs returns a list volumeIDs for the list of PVSpecs
 	GetVolumeIDs(context.Context, *GetVolumeIDsRequest) (*GetVolumeIDsResponse, error)
-	// GenerateMachineClassForMigration returns the generic machineClass for provider specific machine class CR
-	// e.g. AWSMachineClass --> MachineClass
-	GenerateMachineClassForMigration(context.Context, *GenerateMachineClassForMigrationRequest) (*GenerateMachineClassForMigrationResponse, error)
 }
 
 // CreateMachineRequest is the create request for VM creation
