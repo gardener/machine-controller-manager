@@ -35,17 +35,6 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const (
-	// OverShootingReplicaCount freeze reason when replica count overshoots
-	OverShootingReplicaCount = "OverShootingReplicaCount"
-	// MachineDeploymentStateSync freeze reason when machineDeployment was found with inconsistent state
-	MachineDeploymentStateSync = "MachineDeploymentStateSync"
-	// TimeoutOccurred freeze reason when machineSet timeout occurs
-	TimeoutOccurred = "MachineSetTimeoutOccurred"
-	// UnfreezeAnnotation indicates the controllers to unfreeze this object
-	UnfreezeAnnotation = "safety.machine.sapcloud.io/unfreeze"
-)
-
 // reconcileClusterMachineSafetyOrphanVMs checks for any orphan VMs and deletes them
 func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
 	ctx := context.Background()
