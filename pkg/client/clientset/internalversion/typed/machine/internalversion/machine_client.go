@@ -25,38 +25,16 @@ import (
 
 type MachineInterface interface {
 	RESTClient() rest.Interface
-	AWSMachineClassesGetter
-	AlicloudMachineClassesGetter
-	AzureMachineClassesGetter
-	GCPMachineClassesGetter
 	MachinesGetter
 	MachineClassesGetter
 	MachineDeploymentsGetter
 	MachineSetsGetter
 	MachineTemplatesGetter
-	OpenStackMachineClassesGetter
-	PacketMachineClassesGetter
 }
 
 // MachineClient is used to interact with features provided by the machine.sapcloud.io group.
 type MachineClient struct {
 	restClient rest.Interface
-}
-
-func (c *MachineClient) AWSMachineClasses(namespace string) AWSMachineClassInterface {
-	return newAWSMachineClasses(c, namespace)
-}
-
-func (c *MachineClient) AlicloudMachineClasses(namespace string) AlicloudMachineClassInterface {
-	return newAlicloudMachineClasses(c, namespace)
-}
-
-func (c *MachineClient) AzureMachineClasses(namespace string) AzureMachineClassInterface {
-	return newAzureMachineClasses(c, namespace)
-}
-
-func (c *MachineClient) GCPMachineClasses(namespace string) GCPMachineClassInterface {
-	return newGCPMachineClasses(c, namespace)
 }
 
 func (c *MachineClient) Machines(namespace string) MachineInterface {
@@ -77,14 +55,6 @@ func (c *MachineClient) MachineSets(namespace string) MachineSetInterface {
 
 func (c *MachineClient) MachineTemplates(namespace string) MachineTemplateInterface {
 	return newMachineTemplates(c, namespace)
-}
-
-func (c *MachineClient) OpenStackMachineClasses(namespace string) OpenStackMachineClassInterface {
-	return newOpenStackMachineClasses(c, namespace)
-}
-
-func (c *MachineClient) PacketMachineClasses(namespace string) PacketMachineClassInterface {
-	return newPacketMachineClasses(c, namespace)
 }
 
 // NewForConfig creates a new MachineClient for the given config.
