@@ -400,11 +400,6 @@ func (dc *controller) getNewMachineSet(ctx context.Context, d *v1alpha1.MachineD
 	return createdIS, err
 }
 
-// scale scales proportionally in order to mitigate risk. Otherwise, scaling up can increase the size
-// of the new machine set and scaling down can decrease the sizes of the old ones, both of which would
-// have the effect of hastening the rollout progress, which could produce a higher proportion of unavailable
-// replicas in the event of a problem with the rolled out template. Should run only on scaling events or
-// when a deployment is paused and not during the normal rollout process.
 func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDeployment, newIS *v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet) error {
 	// If there is only one active machine set then we should scale that up to the full count of the
 	// deployment. If there is no active machine set, then we should scale up the newest machine set.
@@ -412,7 +407,7 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 		if (activeOrLatest.Spec.Replicas) == (deployment.Spec.Replicas) {
 			return nil
 		}
-		klog.V(3).Infof("TestLog: Scaling latest/theOnlyActive machineSet %s", activeOrLatest.Name)
+		klog.V(3).Infof("Scaling latest/theOnlyActive machineSet %s", activeOrLatest.Name)
 		_, _, err := dc.scaleMachineSetAndRecordEvent(ctx, activeOrLatest, (deployment.Spec.Replicas), deployment)
 		return err
 	}
@@ -420,7 +415,7 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 	// If the new machine set is saturated, old machine sets should be fully scaled down.
 	// This case handles machine set adoption during a saturated new machine set.
 	if IsSaturated(deployment, newIS) {
-		klog.V(3).Infof("TestLog: Scaling old active machineSets as new machineSet %s is saturated", newIS.Name)
+		klog.V(3).Infof("Scaling old active machineSets as new machineSet %s is saturated", newIS.Name)
 		for _, old := range FilterActiveMachineSets(oldISs) {
 			if _, _, err := dc.scaleMachineSetAndRecordEvent(ctx, old, 0, deployment); err != nil {
 				return err
@@ -434,7 +429,7 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 	// - Scale up   ? -> scale up only the new machineSet
 	// - Scale down ? -> scale down the old machineSets proportionally
 	if IsRollingUpdate(deployment) {
-		klog.V(3).Infof("TestLog: Scaling all active machineSets proportionally for scale-down, while scaling up latest machineSet only for scale-up, machineDeployment %s", deployment.Name)
+		klog.V(3).Infof("Scaling all active machineSets proportionally for scale-in, while scaling up latest machineSet only for scale-out, machineDeployment %s", deployment.Name)
 		allISs := FilterActiveMachineSets(append(oldISs, newIS))
 		allISsReplicas := GetReplicaCountForMachineSets(allISs)
 
@@ -445,11 +440,11 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 
 		// Number of additional replicas that can be either added or removed from the total
 		// replicas count. These replicas should be distributed proportionally to the active
-		// machine sets in case of scale-down, while added only to the new machineSet during scale-up
-		klog.V(3).Infof("TestLog: machineDeployment: %s , replicasToAdd: %d, maxAllowedSize: %d, allMachineSetReplicas: %d", deployment.Name, allowedSize, allISsReplicas)
+		// machine sets in case of scale-in, while added only to the new machineSet during scale-out
+		klog.V(3).Infof("machineDeployment: %s , replicasToAdd: %d, maxAllowedSize: %d, allMachineSetReplicas: %d", deployment.Name, allowedSize, allISsReplicas)
 		deploymentReplicasToAdd := allowedSize - allISsReplicas
 
-		// During scale-down, the additional replicas should be distributed proportionally amongst the active
+		// During scale-in, the additional replicas should be distributed proportionally amongst the active
 		// machine sets from the larger to the smaller in size machine set.
 		// We should scale down older machine sets first if machine sets are of equal size.
 
@@ -477,7 +472,7 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 				if nameToSize[is.Name] < 0 {
 					nameToSize[is.Name] = 0
 				}
-				klog.V(3).Infof("TestLog: leftover proportion increase of %d done in largest machineSet %s", leftover, is.Name)
+				klog.V(3).Infof("leftover proportion increase of %d done in largest machineSet %s", leftover, is.Name)
 			}
 
 			// TODO: Use transactions when we have them.
@@ -514,7 +509,7 @@ func (dc *controller) scaleMachineSetsProportionally(allISs []*v1alpha1.MachineS
 		// nameToSize with the current sizes for each machine set.
 		if deploymentReplicasToAdd != 0 {
 			proportion := GetProportion(is, *deployment, deploymentReplicasToAdd, deploymentReplicasAdded)
-			klog.V(3).Infof("TestLog: final proportion increase for machineSet %s due to parent deployment's replica update is %d", is.Name, proportion)
+			klog.V(3).Infof("final proportion increase for machineSet %s due to parent deployment's replica update is %d", is.Name, proportion)
 			nameToSize[is.Name] = (is.Spec.Replicas) + proportion
 			deploymentReplicasAdded += proportion
 		} else {
@@ -666,7 +661,7 @@ func calculateDeploymentStatus(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.Ma
 }
 
 // isScalingEvent checks whether the provided deployment has been updated with a scaling event
-// by looking at the desired-replicas annotation in the active machine sets of the deployment, and returns if there was scale-up or not.
+// by looking at the desired-replicas annotation in the active machine sets of the deployment, and returns if there was scale-out or not.
 //
 // rsList should come from getReplicaSetsForDeployment(d).
 // machineMap should come from getmachineMapForDeployment(d, rsList).

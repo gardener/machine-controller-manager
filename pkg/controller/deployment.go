@@ -528,7 +528,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	}
 
 	if d.Spec.Paused {
-		klog.V(3).Infof("TestLog: Scaling detected for machineDeployment %s which is paused", d.Name)
+		klog.V(3).Infof("Scaling detected for machineDeployment %s which is paused", d.Name)
 		return dc.sync(ctx, d, machineSets, machineMap)
 	}
 
@@ -545,7 +545,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return err
 	}
 	if scalingEvent {
-		klog.V(3).Infof("TestLog: Scaling detected for machineDeployment %s", d.Name)
+		klog.V(3).Infof("Scaling detected for machineDeployment %s", d.Name)
 		return dc.sync(ctx, d, machineSets, machineMap)
 	}
 

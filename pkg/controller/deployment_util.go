@@ -658,7 +658,7 @@ func GetProportion(is *v1alpha1.MachineSet, d v1alpha1.MachineDeployment, deploy
 	isFraction := getMachineSetFraction(*is, d)
 	allowed := deploymentReplicasToAdd - deploymentReplicasAdded
 
-	klog.V(4).Infof("TestLog: allowed proportion increase= %d, proposed proportion increase= %d", allowed, isFraction)
+	klog.V(4).Infof("allowed proportion increase= %d, proposed proportion increase= %d", allowed, isFraction)
 	if deploymentReplicasToAdd > 0 {
 		// Use the minimum between the machine set fraction and the maximum allowed replicas
 		// when scaling up. This way we ensure we will not scale up more than the allowed
@@ -693,7 +693,7 @@ func getMachineSetFraction(is v1alpha1.MachineSet, d v1alpha1.MachineDeployment)
 	// will never be zero here.
 	newISsize := (float64((is.Spec.Replicas) * deploymentReplicas)) / float64(annotatedReplicas)
 
-	klog.V(4).Infof("TestLog: calculating proportion increase for machineSet %s. ms.desired=%d, maxDeploymentSizePossible=%d, maxDeploymentSizePossibleAsPerAnnotation=%d", is.Name, deploymentReplicas, annotatedReplicas)
+	klog.V(4).Infof("calculating proportion increase for machineSet %s. ms.desired=%d, maxDeploymentSizePossible=%d, maxDeploymentSizePossibleAsPerAnnotation=%d", is.Name, deploymentReplicas, annotatedReplicas)
 	return integer.RoundToInt32(newISsize) - (is.Spec.Replicas)
 }
 
