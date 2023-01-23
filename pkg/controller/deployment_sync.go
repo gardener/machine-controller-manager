@@ -408,7 +408,7 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 			return nil
 		}
 		klog.V(3).Infof("Scaling latest/theOnlyActive machineSet %s", activeOrLatest.Name)
-		_, _, err := dc.scaleMachineSetAndRecordEvent(ctx, activeOrLatest, (deployment.Spec.Replicas), deployment)
+		_, _, err := dc.scaleMachineSetAndRecordEvent(ctx, activeOrLatest, deployment.Spec.Replicas, deployment)
 		return err
 	}
 
