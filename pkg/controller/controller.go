@@ -19,15 +19,14 @@ package controller
 
 import (
 	"fmt"
-	"sync"
-	"time"
-
 	machineinternal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	machinev1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions/machine/v1alpha1"
 	machinelisters "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/worker"
+	"sync"
 
 	"github.com/gardener/machine-controller-manager/pkg/handlers"
 	"github.com/gardener/machine-controller-manager/pkg/options"
@@ -36,7 +35,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	runtimeutil "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -48,8 +46,6 @@ import (
 )
 
 const (
-	maxRetries = 15
-
 	// DeleteFinalizerName is the finalizer used to identify the controller acting on an object
 	DeleteFinalizerName = "machine.sapcloud.io/machine-controller-manager"
 )
@@ -238,9 +234,9 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	prometheus.MustRegister(c)
 
 	for i := 0; i < workers; i++ {
-		createWorker(c.machineSetQueue, "ClusterMachineSet", maxRetries, true, c.reconcileClusterMachineSet, stopCh, &waitGroup)
-		createWorker(c.machineDeploymentQueue, "ClusterMachineDeployment", maxRetries, true, c.reconcileClusterMachineDeployment, stopCh, &waitGroup)
-		createWorker(c.machineSafetyOvershootingQueue, "ClusterMachineSafetyOvershooting", maxRetries, true, c.reconcileClusterMachineSafetyOvershooting, stopCh, &waitGroup)
+		worker.Run(c.machineSetQueue, "ClusterMachineSet", worker.DefaultMaxRetries, true, c.reconcileClusterMachineSet, stopCh, &waitGroup)
+		worker.Run(c.machineDeploymentQueue, "ClusterMachineDeployment", worker.DefaultMaxRetries, true, c.reconcileClusterMachineDeployment, stopCh, &waitGroup)
+		worker.Run(c.machineSafetyOvershootingQueue, "ClusterMachineSafetyOvershooting", worker.DefaultMaxRetries, true, c.reconcileClusterMachineSafetyOvershooting, stopCh, &waitGroup)
 	}
 
 	<-stopCh
@@ -248,53 +244,4 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	handlers.UpdateHealth(false)
 
 	waitGroup.Wait()
-}
-
-// createWorker creates and runs a worker thread that just processes items in the
-// specified queue. The worker will run until stopCh is closed. The worker will be
-// added to the wait group when started and marked done when finished.
-func createWorker(queue workqueue.RateLimitingInterface, resourceType string, maxRetries int, forgetAfterSuccess bool, reconciler func(key string) error, stopCh <-chan struct{}, waitGroup *sync.WaitGroup) {
-	waitGroup.Add(1)
-	go func() {
-		wait.Until(worker(queue, resourceType, maxRetries, forgetAfterSuccess, reconciler), time.Second, stopCh)
-		waitGroup.Done()
-	}()
-}
-
-// worker runs a worker thread that just dequeues items, processes them, and marks them done.
-// If reconciler returns an error, requeue the item up to maxRetries before giving up.
-// It enforces that the reconciler is never invoked concurrently with the same key.
-// If forgetAfterSuccess is true, it will cause the queue to forget the item should reconciliation
-// have no error.
-func worker(queue workqueue.RateLimitingInterface, resourceType string, maxRetries int, forgetAfterSuccess bool, reconciler func(key string) error) func() {
-	return func() {
-		exit := false
-		for !exit {
-			exit = func() bool {
-				key, quit := queue.Get()
-				if quit {
-					return true
-				}
-				defer queue.Done(key)
-
-				err := reconciler(key.(string))
-				if err == nil {
-					if forgetAfterSuccess {
-						queue.Forget(key)
-					}
-					return false
-				}
-
-				if queue.NumRequeues(key) < maxRetries {
-					klog.V(4).Infof("Error syncing %s %v: %v", resourceType, key, err)
-					queue.AddRateLimited(key)
-					return false
-				}
-
-				klog.V(4).Infof("Dropping %s %q out of the queue: %v", resourceType, key, err)
-				queue.Forget(key)
-				return false
-			}()
-		}
-	}
 }

@@ -25,6 +25,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/util/worker"
 	"reflect"
 	"sync"
 	"time"
@@ -349,7 +350,7 @@ func (dc *controller) handleErr(err error, key interface{}) {
 		return
 	}
 
-	if dc.machineDeploymentQueue.NumRequeues(key) < maxRetries {
+	if dc.machineDeploymentQueue.NumRequeues(key) < worker.DefaultMaxRetries {
 		klog.V(2).Infof("Error syncing deployment %v: %v", key, err)
 		dc.machineDeploymentQueue.AddRateLimited(key)
 		return
