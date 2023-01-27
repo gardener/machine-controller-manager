@@ -318,7 +318,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 
 	// we should avoid mutating Secret, since it goes all the way into the Informer's store
 	secretCopy := createMachineRequest.Secret.DeepCopy()
-	err := c.addBootstrapTokenToUserData(ctx, machine.Name, secretCopy)
+	err := c.addBootstrapTokenToUserData(ctx, machine, secretCopy)
 	if err != nil {
 		return machineutils.ShortRetry, err
 	}
