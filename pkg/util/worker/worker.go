@@ -1,14 +1,16 @@
 package worker
 
 import (
+	"sync"
+	"time"
+
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	"sync"
-	"time"
 )
 
 const (
+	// DefaultMaxRetries is the default value for max number of re-queues when running worker.Run
 	DefaultMaxRetries = 15
 )
 
