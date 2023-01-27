@@ -94,8 +94,8 @@ MCM mainly contains the following sub-controllers:
 
 MCM can be installed in a cluster with following steps:
 
-* Apply all the CRDs from [here](https://github.com/gardener/machine-controller-manager/tree/master/kubernetes/deployment/in-tree)
-* Apply all the deployment, role-related objects from [here](https://github.com/gardener/machine-controller-manager/tree/master/kubernetes/deployment/in-tree).
+* Apply all the CRDs from [here](https://github.com/gardener/machine-controller-manager/tree/master/kubernetes/crds)
+* Apply all the deployment, role-related objects from [here](https://github.com/gardener/machine-controller-manager/tree/master/kubernetes/deployment/out-of-tree).
 
   * Control cluster is the one where the `machine-*` objects are stored. Target cluster is where all the node objects are registered.
 
