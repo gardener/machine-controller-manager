@@ -20,13 +20,14 @@ package controller
 import (
 	"context"
 	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
 
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/cache"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"k8s.io/klog/v2"
 )
 
@@ -41,7 +42,7 @@ const (
 
 // reconcileClusterMachineSafetyOvershooting checks all machineSet/machineDeployment
 // if the number of machine objects backing them is way beyond its desired replicas
-func (c *controller) reconcileClusterMachineSafetyOvershooting(key string) error {
+func (c *controller) reconcileClusterMachineSafetyOvershooting(_ string) error {
 	ctx := context.Background()
 	stopCh := make(chan struct{})
 	defer close(stopCh)
@@ -285,14 +286,14 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(ctx context.Context) er
 	return nil
 }
 
-// addMachineToSafetyOvershooting enqueues into machineSafetyQueue when a new machine is added
+// addMachineToSafetyOvershooting enqueues into machineSafetyOvershootingQueue when a new machine is added
 func (c *controller) addMachineToSafetyOvershooting(obj interface{}) {
 	machine := obj.(*v1alpha1.Machine)
 	c.enqueueMachineSafetyOvershootingKey(machine)
 }
 
 // enqueueMachineSafetyOvershootingKey enqueues into machineSafetyOvershootingQueue
-func (c *controller) enqueueMachineSafetyOvershootingKey(obj interface{}) {
+func (c *controller) enqueueMachineSafetyOvershootingKey(_ interface{}) {
 	c.machineSafetyOvershootingQueue.Add("")
 }
 
