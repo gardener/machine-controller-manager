@@ -22,24 +22,25 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Masterminds/semver"
-	machineinternal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	machinev1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
-	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions/machine/v1alpha1"
-	machinelisters "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
-
 	"github.com/gardener/machine-controller-manager/pkg/handlers"
 	"github.com/gardener/machine-controller-manager/pkg/util/k8sutils"
 	"github.com/gardener/machine-controller-manager/pkg/util/permits"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/options"
+	"github.com/gardener/machine-controller-manager/pkg/util/worker"
+
+	machineinternal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	machinev1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions/machine/v1alpha1"
+	machinelisters "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
+
+	"github.com/Masterminds/semver"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	runtimeutil "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	policyv1informers "k8s.io/client-go/informers/policy/v1"
 	policyv1beta1informers "k8s.io/client-go/informers/policy/v1beta1"
@@ -57,12 +58,6 @@ import (
 )
 
 const (
-	maxRetries = 15
-
-	// ClassAnnotation is the annotation used to identify a machine class
-	ClassAnnotation = "machine.sapcloud.io/class"
-	// MachineIDAnnotation is the annotation used to identify a machine ID
-	MachineIDAnnotation = "machine.sapcloud.io/id"
 	// MCMFinalizerName is the finalizer used to tag dependecies before deletion
 	// of the object. This finalizer is carried over from the MCM
 	MCMFinalizerName = "machine.sapcloud.io/machine-controller-manager"
@@ -96,14 +91,6 @@ func NewController(
 	targetKubernetesVersion *semver.Version,
 ) (Controller, error) {
 	const (
-		// volumeAttachmentGroupName group name
-		volumeAttachmentGroupName = "storage.k8s.io"
-		// volumenAttachmentKind is the kind used for VolumeAttachment
-		volumeAttachmentResourceName = "volumeattachments"
-		// volumeAttachmentResource is the kind used for VolumeAttachment
-		volumeAttachmentResourceKind = "VolumeAttachment"
-		// permitGiverStaleEntryTimeout is the time for which an entry can stay stale in the map
-		// maintained by permitGiver
 		permitGiverStaleEntryTimeout = 1 * time.Hour
 		// janitorFreq is the time after which permitGiver ranges its map for stale entries
 		janitorFreq = 10 * time.Minute
@@ -335,12 +322,12 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	prometheus.MustRegister(c)
 
 	for i := 0; i < workers; i++ {
-		createWorker(c.secretQueue, "ClusterSecret", maxRetries, true, c.reconcileClusterSecretKey, stopCh, &waitGroup)
-		createWorker(c.machineClassQueue, "ClusterMachineClass", maxRetries, true, c.reconcileClusterMachineClassKey, stopCh, &waitGroup)
-		createWorker(c.nodeQueue, "ClusterNode", maxRetries, true, c.reconcileClusterNodeKey, stopCh, &waitGroup)
-		createWorker(c.machineQueue, "ClusterMachine", maxRetries, true, c.reconcileClusterMachineKey, stopCh, &waitGroup)
-		createWorker(c.machineSafetyOrphanVMsQueue, "ClusterMachineSafetyOrphanVMs", maxRetries, true, c.reconcileClusterMachineSafetyOrphanVMs, stopCh, &waitGroup)
-		createWorker(c.machineSafetyAPIServerQueue, "ClusterMachineAPIServer", maxRetries, true, c.reconcileClusterMachineSafetyAPIServer, stopCh, &waitGroup)
+		worker.Run(c.secretQueue, "ClusterSecret", worker.DefaultMaxRetries, true, c.reconcileClusterSecretKey, stopCh, &waitGroup)
+		worker.Run(c.machineClassQueue, "ClusterMachineClass", worker.DefaultMaxRetries, true, c.reconcileClusterMachineClassKey, stopCh, &waitGroup)
+		worker.Run(c.nodeQueue, "ClusterNode", worker.DefaultMaxRetries, true, c.reconcileClusterNodeKey, stopCh, &waitGroup)
+		worker.Run(c.machineQueue, "ClusterMachine", worker.DefaultMaxRetries, true, c.reconcileClusterMachineKey, stopCh, &waitGroup)
+		worker.Run(c.machineSafetyOrphanVMsQueue, "ClusterMachineSafetyOrphanVMs", worker.DefaultMaxRetries, true, c.reconcileClusterMachineSafetyOrphanVMs, stopCh, &waitGroup)
+		worker.Run(c.machineSafetyAPIServerQueue, "ClusterMachineAPIServer", worker.DefaultMaxRetries, true, c.reconcileClusterMachineSafetyAPIServer, stopCh, &waitGroup)
 	}
 
 	<-stopCh
@@ -348,53 +335,4 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	handlers.UpdateHealth(false)
 
 	waitGroup.Wait()
-}
-
-// createWorker creates and runs a worker thread that just processes items in the
-// specified queue. The worker will run until stopCh is closed. The worker will be
-// added to the wait group when started and marked done when finished.
-func createWorker(queue workqueue.RateLimitingInterface, resourceType string, maxRetries int, forgetAfterSuccess bool, reconciler func(key string) error, stopCh <-chan struct{}, waitGroup *sync.WaitGroup) {
-	waitGroup.Add(1)
-	go func() {
-		wait.Until(worker(queue, resourceType, maxRetries, forgetAfterSuccess, reconciler), time.Second, stopCh)
-		waitGroup.Done()
-	}()
-}
-
-// worker runs a worker thread that just dequeues items, processes them, and marks them done.
-// If reconciler returns an error, requeue the item up to maxRetries before giving up.
-// It enforces that the reconciler is never invoked concurrently with the same key.
-// If forgetAfterSuccess is true, it will cause the queue to forget the item should reconciliation
-// have no error.
-func worker(queue workqueue.RateLimitingInterface, resourceType string, maxRetries int, forgetAfterSuccess bool, reconciler func(key string) error) func() {
-	return func() {
-		exit := false
-		for !exit {
-			exit = func() bool {
-				key, quit := queue.Get()
-				if quit {
-					return true
-				}
-				defer queue.Done(key)
-
-				err := reconciler(key.(string))
-				if err == nil {
-					if forgetAfterSuccess {
-						queue.Forget(key)
-					}
-					return false
-				}
-
-				if queue.NumRequeues(key) < maxRetries {
-					klog.V(4).Infof("Error syncing %s %v: %v", resourceType, key, err)
-					queue.AddRateLimited(key)
-					return false
-				}
-
-				klog.V(4).Infof("Dropping %s %q out of the queue: %v", resourceType, key, err)
-				queue.Forget(key)
-				return false
-			}()
-		}
-	}
 }

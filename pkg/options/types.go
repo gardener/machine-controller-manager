@@ -18,8 +18,6 @@ limitations under the License.
 package options
 
 import (
-	"time"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -75,12 +73,6 @@ type MachineControllerManagerConfiguration struct {
 	MinResyncPeriod metav1.Duration
 	// SafetyOptions is the set of options to set to ensure safety of controller
 	SafetyOptions SafetyOptions
-	// NodeCondition is the string of known NodeConditions. If any of these NodeCondition is set for a timeout period, the machine  will be declared failed and will replaced.
-	NodeConditions string
-	// BootstrapTokenAuthExtraGroups is a comma-separated string of groups to set bootstrap token's "auth-extra-groups" field to.
-	BootstrapTokenAuthExtraGroups string
-	// DeleteMigratedMachineClass deletes any machine class with has the migrate machineclass
-	DeleteMigratedMachineClass bool
 	// AutoscalerScaleDownAnnotationDuringRollout is an option to disable annotating the node-objects during roll-out.
 	// The cluster autoscaler native annotation is "cluster-autoscaler.kubernetes.io/scale-down-disabled".
 	AutoscalerScaleDownAnnotationDuringRollout bool
@@ -91,43 +83,13 @@ type MachineControllerManagerConfiguration struct {
 type SafetyOptions struct {
 	// SafetyUp
 	SafetyUp int32
+
 	// SafetyDown
 	SafetyDown int32
 
-	// Timeout (in durartion) used while creation of
-	// a machine before it is declared as failed
-	MachineCreationTimeout metav1.Duration
-	// Timeout (in durartion) used while health-check of
-	// a machine before it is declared as failed
-	MachineHealthTimeout metav1.Duration
-	// Deprecated. No effect. Timeout (in durartion) used while draining of machine before deletion,
-	// beyond which it forcefully deletes machine
-	MachineDrainTimeout metav1.Duration
-	// Maximum number of times evicts would be attempted on a pod for it is forcibly deleted
-	// during draining of a machine.
-	MaxEvictRetries int32
-	// Timeout (in duration) used while waiting for PV to detach
-	PvDetachTimeout metav1.Duration
-	// Timeout (in duration) for which the APIServer can be down before
-	// declare the machine controller frozen by safety controller
-	MachineSafetyAPIServerStatusCheckTimeout metav1.Duration
-
-	// Period (in durartion) used to poll for orphan VMs
-	// by safety controller
-	MachineSafetyOrphanVMsPeriod metav1.Duration
 	// Period (in durartion) used to poll for overshooting
 	// of machine objects backing a machineSet by safety controller
 	MachineSafetyOvershootingPeriod metav1.Duration
-	// Period (in duration) used to poll for APIServer's health
-	// by safety controller
-	MachineSafetyAPIServerStatusCheckPeriod metav1.Duration
-
-	// APIserverInactiveStartTime to keep track of the
-	// start time of when the APIServers were not reachable
-	APIserverInactiveStartTime time.Time
-	// MachineControllerFrozen indicates if the machine controller
-	// is frozen due to Unreachable APIServers
-	MachineControllerFrozen bool
 }
 
 // LeaderElectionConfiguration defines the configuration of leader election
