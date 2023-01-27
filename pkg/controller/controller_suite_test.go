@@ -353,7 +353,7 @@ func newMachines(
 }
 
 func newNode(
-	nodeCount int,
+	_ int,
 	nodeSpec *corev1.NodeSpec,
 	nodeStatus *corev1.NodeStatus,
 ) *corev1.Node {
@@ -363,7 +363,7 @@ func newNode(
 func newNodes(
 	nodeCount int,
 	nodeSpec *corev1.NodeSpec,
-	nodeStatus *corev1.NodeStatus,
+	_ *corev1.NodeStatus,
 ) []*corev1.Node {
 
 	nodes := make([]*corev1.Node, nodeCount)
@@ -465,8 +465,6 @@ func createController(
 	defer coreTargetInformerFactory.Start(stop)
 	coreTargetSharedInformers := coreTargetInformerFactory.Core().V1()
 	nodes := coreTargetSharedInformers.Nodes()
-	pvcs := coreTargetSharedInformers.PersistentVolumeClaims()
-	pvs := coreTargetSharedInformers.PersistentVolumes()
 
 	coreControlInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
 		fakeControlCoreClient,
@@ -487,10 +485,6 @@ func createController(
 	defer controlMachineInformerFactory.Start(stop)
 
 	machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
-	aws := machineSharedInformers.AWSMachineClasses()
-	azure := machineSharedInformers.AzureMachineClasses()
-	gcp := machineSharedInformers.GCPMachineClasses()
-	openstack := machineSharedInformers.OpenStackMachineClasses()
 	machines := machineSharedInformers.Machines()
 	machineSets := machineSharedInformers.MachineSets()
 	machineDeployments := machineSharedInformers.MachineDeployments()
@@ -500,33 +494,19 @@ func createController(
 	Expect(v1alpha1.AddToScheme(internalExternalScheme)).To(Succeed())
 
 	safetyOptions := options.SafetyOptions{
-		SafetyUp:                                 2,
-		SafetyDown:                               1,
-		MachineCreationTimeout:                   metav1.Duration{Duration: 20 * time.Minute},
-		MachineHealthTimeout:                     metav1.Duration{Duration: 10 * time.Minute},
-		MachineDrainTimeout:                      metav1.Duration{Duration: 5 * time.Minute},
-		MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 30 * time.Minute},
-		MachineSafetyOvershootingPeriod:          metav1.Duration{Duration: 1 * time.Minute},
-		MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
-		MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
+		SafetyUp:                        2,
+		SafetyDown:                      1,
+		MachineSafetyOvershootingPeriod: metav1.Duration{Duration: 1 * time.Minute},
 	}
 
 	controller := &controller{
 		namespace:                      namespace,
 		safetyOptions:                  safetyOptions,
-		awsMachineClassLister:          aws.Lister(),
-		awsMachineClassSynced:          aws.Informer().HasSynced,
-		azureMachineClassLister:        azure.Lister(),
-		gcpMachineClassLister:          gcp.Lister(),
-		openStackMachineClassLister:    openstack.Lister(),
 		targetCoreClient:               fakeTargetCoreClient,
 		controlCoreClient:              fakeControlCoreClient,
 		controlMachineClient:           fakeTypedMachineClient,
 		internalExternalScheme:         internalExternalScheme,
 		nodeLister:                     nodes.Lister(),
-		pvcLister:                      pvcs.Lister(),
-		pvLister:                       pvs.Lister(),
-		secretLister:                   secret.Lister(),
 		machineLister:                  machines.Lister(),
 		machineSetLister:               machineSets.Lister(),
 		machineDeploymentLister:        machineDeployments.Lister(),
@@ -537,19 +517,12 @@ func createController(
 		secretSynced:                   secret.Informer().HasSynced,
 		secretQueue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
 		nodeQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
-		openStackMachineClassQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "openstackmachineclass"),
-		awsMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "awsmachineclass"),
-		azureMachineClassQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "azuremachineclass"),
-		gcpMachineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "gcpmachineclass"),
 		machineQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
 		machineSetQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
 		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
-		machineSafetyOrphanVMsQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
 		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
-		machineSafetyAPIServerQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
 		expectations:                   NewUIDTrackingContExpectations(NewContExpectations()),
 		recorder:                       record.NewBroadcaster().NewRecorder(nil, corev1.EventSource{Component: ""}),
-		deleteMigratedMachineClass:     true,
 	}
 
 	// controller.internalExternalScheme = runtime.NewScheme()
@@ -568,7 +541,6 @@ func createController(
 func waitForCacheSync(stop <-chan struct{}, controller *controller) {
 	Expect(cache.WaitForCacheSync(
 		stop,
-		controller.awsMachineClassSynced,
 		controller.machineSynced,
 		controller.machineSetSynced,
 		controller.machineDeploymentSynced,

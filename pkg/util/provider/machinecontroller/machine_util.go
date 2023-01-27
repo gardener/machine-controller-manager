@@ -68,7 +68,7 @@ const (
 // TODO: use client library instead when it starts to support update retries
 //
 //	see https://github.com/kubernetes/kubernetes/issues/21479
-type updateMachineFunc func(machine *v1alpha1.Machine) error
+//type updateMachineFunc func(machine *v1alpha1.Machine) error
 
 /*
 // UpdateMachineWithRetries updates a machine with given applyUpdate function. Note that machine not found error is ignored.
@@ -103,16 +103,12 @@ func UpdateMachineWithRetries(machineClient v1alpha1client.MachineInterface, mac
 */
 
 // ValidateMachineClass validates the machine class.
-func (c *controller) ValidateMachineClass(ctx context.Context, classSpec *v1alpha1.ClassSpec) (*v1alpha1.MachineClass, map[string][]byte, machineutils.RetryPeriod, error) {
+func (c *controller) ValidateMachineClass(_ context.Context, classSpec *v1alpha1.ClassSpec) (*v1alpha1.MachineClass, map[string][]byte, machineutils.RetryPeriod, error) {
 	var (
 		machineClass *v1alpha1.MachineClass
 		err          error
 		retry        = machineutils.LongRetry
 	)
-
-	if classSpec.Kind != machineutils.MachineClassKind {
-		return c.TryMachineClassMigration(ctx, classSpec)
-	}
 
 	machineClass, err = c.machineClassLister.MachineClasses(c.namespace).Get(classSpec.Name)
 	if err != nil {
@@ -1463,20 +1459,6 @@ func setTerminationReasonByPhase(phase v1alpha1.MachinePhase, terminationConditi
 	} else { // in all other cases (except for already terminating): assume scale down
 		terminationCondition.Reason = machineutils.NodeScaledDown
 		terminationCondition.Message = "Machine Controller is scaling down machine"
-	}
-}
-
-// TryLock tries to write to channel. It times out after specified duration
-func TryLock(lockC chan<- struct{}, duration time.Duration) bool {
-	ctx, cancelFn := context.WithTimeout(context.Background(), duration)
-	defer cancelFn()
-	for {
-		select {
-		case lockC <- struct{}{}:
-			return true
-		case <-ctx.Done():
-			return false
-		}
 	}
 }
 

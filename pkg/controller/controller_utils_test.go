@@ -17,6 +17,7 @@ package controller
 
 import (
 	"context"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"sort"
 	"strconv"
 
@@ -29,6 +30,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
+
+const testNamespace = "test"
 
 var _ = Describe("#controllerUtils", func() {
 	Describe("##activeMachines", func() {
@@ -58,7 +61,7 @@ var _ = Describe("#controllerUtils", func() {
 				},
 				nil,
 				map[string]string{
-					MachinePriority: strconv.Itoa(1),
+					machineutils.MachinePriority: strconv.Itoa(1),
 				},
 				nil,
 			),
@@ -98,7 +101,7 @@ var _ = Describe("#controllerUtils", func() {
 				},
 				nil,
 				map[string]string{
-					MachinePriority: strconv.Itoa(5),
+					machineutils.MachinePriority: strconv.Itoa(5),
 				},
 				nil,
 			),

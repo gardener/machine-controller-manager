@@ -20,18 +20,14 @@ package controller
 import (
 	"context"
 	"fmt"
-	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
 
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/cache"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/driver"
 	"k8s.io/klog/v2"
 )
 
@@ -40,29 +36,13 @@ const (
 	OverShootingReplicaCount = "OverShootingReplicaCount"
 	// MachineDeploymentStateSync freeze reason when machineDeployment was found with inconsistent state
 	MachineDeploymentStateSync = "MachineDeploymentStateSync"
-	// TimeoutOccurred freeze reason when machineSet timeout occurs
-	TimeoutOccurred = "MachineSetTimeoutOccurred"
 	// UnfreezeAnnotation indicates the controllers to unfreeze this object
 	UnfreezeAnnotation = "safety.machine.sapcloud.io/unfreeze"
 )
 
-// reconcileClusterMachineSafetyOrphanVMs checks for any orphan VMs and deletes them
-func (c *controller) reconcileClusterMachineSafetyOrphanVMs(key string) error {
-	ctx := context.Background()
-	reSyncAfter := c.safetyOptions.MachineSafetyOrphanVMsPeriod.Duration
-	defer c.machineSafetyOrphanVMsQueue.AddAfter("", reSyncAfter)
-
-	klog.V(4).Infof("reconcileClusterMachineSafetyOrphanVMs: Start")
-	defer klog.V(4).Infof("reconcileClusterMachineSafetyOrphanVMs: End, reSync-Period: %v", reSyncAfter)
-
-	c.checkVMObjects(ctx)
-
-	return nil
-}
-
 // reconcileClusterMachineSafetyOvershooting checks all machineSet/machineDeployment
 // if the number of machine objects backing them is way beyond its desired replicas
-func (c *controller) reconcileClusterMachineSafetyOvershooting(key string) error {
+func (c *controller) reconcileClusterMachineSafetyOvershooting(_ string) error {
 	ctx := context.Background()
 	stopCh := make(chan struct{})
 	defer close(stopCh)
@@ -97,108 +77,6 @@ func (c *controller) reconcileClusterMachineSafetyOvershooting(key string) error
 	}
 
 	return err
-}
-
-// reconcileClusterMachineSafetyAPIServer checks control and target clusters
-// and checks if their APIServer's are reachable
-// If they are not reachable, they set a machineControllerFreeze flag
-func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
-	ctx := context.Background()
-	statusCheckTimeout := c.safetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration
-	statusCheckPeriod := c.safetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration
-
-	klog.V(4).Infof("reconcileClusterMachineSafetyAPIServer: Start")
-	defer klog.V(4).Infof("reconcileClusterMachineSafetyAPIServer: Stop")
-
-	if c.safetyOptions.MachineControllerFrozen {
-		// MachineController is frozen
-		if c.isAPIServerUp(ctx) {
-			// APIServer is up now, hence we need reset all machine health checks (to avoid unwanted freezes) and unfreeze
-			machines, err := c.machineLister.List(labels.Everything())
-			if err != nil {
-				klog.Error("SafetyController: Unable to LIST machines. Error:", err)
-				return err
-			}
-			for _, machine := range machines {
-				if machine.Status.CurrentStatus.Phase == v1alpha1.MachineUnknown {
-					machine, err := c.controlMachineClient.Machines(c.namespace).Get(ctx, machine.Name, metav1.GetOptions{})
-					if err != nil {
-						klog.Error("SafetyController: Unable to GET machines. Error:", err)
-						return err
-					}
-
-					machine.Status.CurrentStatus = v1alpha1.CurrentStatus{
-						Phase:          v1alpha1.MachineRunning,
-						TimeoutActive:  false,
-						LastUpdateTime: metav1.Now(),
-					}
-					machine.Status.LastOperation = v1alpha1.LastOperation{
-						Description:    "Machine Health Timeout was reset due to APIServer being unreachable",
-						LastUpdateTime: metav1.Now(),
-						State:          v1alpha1.MachineStateSuccessful,
-						Type:           v1alpha1.MachineOperationHealthCheck,
-					}
-					_, err = c.controlMachineClient.Machines(c.namespace).UpdateStatus(ctx, machine, metav1.UpdateOptions{})
-					if err != nil {
-						klog.Error("SafetyController: Unable to UPDATE machine/status. Error:", err)
-						return err
-					}
-
-					klog.V(2).Info("SafetyController: Reinitializing machine health check for ", machine.Name)
-				}
-
-				// En-queue after 30 seconds, to ensure all machine states are reconciled
-				c.enqueueMachineAfter(machine, 30*time.Second)
-			}
-
-			c.safetyOptions.MachineControllerFrozen = false
-			c.safetyOptions.APIserverInactiveStartTime = time.Time{}
-			klog.V(2).Infof("SafetyController: UnFreezing Machine Controller")
-		}
-	} else {
-		// MachineController is not frozen
-		if !c.isAPIServerUp(ctx) {
-			// If APIServer is not up
-			if c.safetyOptions.APIserverInactiveStartTime.Equal(time.Time{}) {
-				// If timeout has not started
-				c.safetyOptions.APIserverInactiveStartTime = time.Now()
-			}
-			if time.Now().Sub(c.safetyOptions.APIserverInactiveStartTime) > statusCheckTimeout {
-				// If APIServer has been down for more than statusCheckTimeout
-				c.safetyOptions.MachineControllerFrozen = true
-				klog.V(2).Infof("SafetyController: Freezing Machine Controller")
-			}
-
-			// Re-enqueue the safety check more often if APIServer is not active and is not frozen yet
-			defer c.machineSafetyAPIServerQueue.AddAfter("", statusCheckTimeout/5)
-			return nil
-		}
-	}
-
-	defer c.machineSafetyAPIServerQueue.AddAfter("", statusCheckPeriod)
-	return nil
-}
-
-// isAPIServerUp returns true if APIServers are up
-// Both control and target APIServers
-func (c *controller) isAPIServerUp(ctx context.Context) bool {
-	// Dummy get call to check if control APIServer is reachable
-	_, err := c.controlMachineClient.Machines(c.namespace).Get(ctx, "dummy_name", metav1.GetOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		// Get returns an error other than object not found = Assume APIServer is not reachable
-		klog.Error("SafetyController: Unable to GET on machine objects ", err)
-		return false
-	}
-
-	// Dummy get call to check if target APIServer is reachable
-	_, err = c.targetCoreClient.CoreV1().Nodes().Get(ctx, "dummy_name", metav1.GetOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		// Get returns an error other than object not found = Assume APIServer is not reachable
-		klog.Error("SafetyController: Unable to GET on node objects ", err)
-		return false
-	}
-
-	return true
 }
 
 // unfreezeMachineDeploymentsWithUnfreezeAnnotation unfreezes machineDeployment with unfreeze annotation
@@ -408,256 +286,15 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(ctx context.Context) er
 	return nil
 }
 
-// checkVMObjects checks for orphan VMs (VMs that don't have a machine object backing)
-func (c *controller) checkVMObjects(ctx context.Context) {
-	c.checkAWSMachineClass(ctx)
-	c.checkOSMachineClass(ctx)
-	c.checkAzureMachineClass(ctx)
-	c.checkGCPMachineClass(ctx)
-	c.checkAlicloudMachineClass(ctx)
-	c.checkPacketMachineClass(ctx)
-}
-
-// checkAWSMachineClass checks for orphan VMs in AWSMachinesClasses
-func (c *controller) checkAWSMachineClass(ctx context.Context) {
-	AWSMachineClasses, err := c.awsMachineClassLister.List(labels.Everything())
-	if err != nil {
-		klog.Error("SafetyController: Error while trying to LIST machineClasses ", err)
-		return
-	}
-
-	for _, machineClass := range AWSMachineClasses {
-		c.checkMachineClass(
-			ctx,
-			machineClass,
-			machineClass.Spec.SecretRef,
-			machineClass.Spec.CredentialsSecretRef,
-			machineClass.Name,
-			machineClass.Kind,
-		)
-	}
-}
-
-// checkOSMachineClass checks for orphan VMs in OSMachinesClasses
-func (c *controller) checkOSMachineClass(ctx context.Context) {
-	OSMachineClasses, err := c.openStackMachineClassLister.List(labels.Everything())
-	if err != nil {
-		klog.Error("SafetyController: Error while trying to LIST machineClasses ", err)
-		return
-	}
-
-	for _, machineClass := range OSMachineClasses {
-		c.checkMachineClass(
-			ctx,
-			machineClass,
-			machineClass.Spec.SecretRef,
-			machineClass.Spec.CredentialsSecretRef,
-			machineClass.Name,
-			machineClass.Kind,
-		)
-	}
-}
-
-// checkOSMachineClass checks for orphan VMs in AzureMachinesClasses
-func (c *controller) checkAzureMachineClass(ctx context.Context) {
-	AzureMachineClasses, err := c.azureMachineClassLister.List(labels.Everything())
-	if err != nil {
-		klog.Error("SafetyController: Error while trying to LIST machineClasses ", err)
-		return
-	}
-
-	for _, machineClass := range AzureMachineClasses {
-		c.checkMachineClass(
-			ctx,
-			machineClass,
-			machineClass.Spec.SecretRef,
-			machineClass.Spec.CredentialsSecretRef,
-			machineClass.Name,
-			machineClass.Kind,
-		)
-	}
-}
-
-// checkGCPMachineClass checks for orphan VMs in GCPMachinesClasses
-func (c *controller) checkGCPMachineClass(ctx context.Context) {
-	GCPMachineClasses, err := c.gcpMachineClassLister.List(labels.Everything())
-	if err != nil {
-		klog.Error("SafetyController: Error while trying to LIST machineClasses ", err)
-		return
-	}
-
-	for _, machineClass := range GCPMachineClasses {
-		c.checkMachineClass(
-			ctx,
-			machineClass,
-			machineClass.Spec.SecretRef,
-			machineClass.Spec.CredentialsSecretRef,
-			machineClass.Name,
-			machineClass.Kind,
-		)
-	}
-}
-
-// checkAlicloudMachineClass checks for orphan VMs in AlicloudMachinesClasses
-func (c *controller) checkAlicloudMachineClass(ctx context.Context) {
-	AlicloudMachineClasses, err := c.alicloudMachineClassLister.List(labels.Everything())
-	if err != nil {
-		klog.Error("SafetyController: Error while trying to LIST machineClasses ", err)
-		return
-	}
-
-	for _, machineClass := range AlicloudMachineClasses {
-		c.checkMachineClass(
-			ctx,
-			machineClass,
-			machineClass.Spec.SecretRef,
-			machineClass.Spec.CredentialsSecretRef,
-			machineClass.Name,
-			machineClass.Kind,
-		)
-	}
-}
-
-// checkPacketMachineClass checks for orphan VMs in PacketMachinesClasses
-func (c *controller) checkPacketMachineClass(ctx context.Context) {
-	PacketMachineClasses, err := c.packetMachineClassLister.List(labels.Everything())
-	if err != nil {
-		klog.Error("SafetyController: Error while trying to LIST machineClasses ", err)
-		return
-	}
-
-	for _, machineClass := range PacketMachineClasses {
-		c.checkMachineClass(
-			ctx,
-			machineClass,
-			machineClass.Spec.SecretRef,
-			machineClass.Spec.CredentialsSecretRef,
-			machineClass.Name,
-			machineClass.Kind,
-		)
-	}
-}
-
-// checkMachineClass checks a particular machineClass for orphan instances
-func (c *controller) checkMachineClass(
-	ctx context.Context,
-	machineClass interface{},
-	secretRef *corev1.SecretReference,
-	credentialsSecretRef *corev1.SecretReference,
-	className string,
-	classKind string) {
-
-	// Get secret data
-	secretData, err := c.getSecretData(className, secretRef, credentialsSecretRef)
-	if err != nil || secretData == nil {
-		klog.Errorf("SafetyController: Secret Data could not be computed for MachineClass: %q", className)
-		return
-	}
-
-	// Dummy driver object being created to invoke GetVMs
-	dvr := driver.NewDriver(
-		"",
-		secretData,
-		classKind,
-		machineClass,
-		"",
-	)
-	listOfVMs, err := dvr.GetVMs("")
-	if err != nil {
-		klog.Errorf("SafetyController: Failed to LIST VMs at provider. Error: %s", err)
-	}
-
-	// Making sure that its not a VM just being created, machine object not yet updated at API server
-	if len(listOfVMs) > 1 {
-		stopCh := make(chan struct{})
-		defer close(stopCh)
-
-		if !cache.WaitForCacheSync(stopCh, c.machineSynced) {
-			klog.Errorf("SafetyController: Timed out waiting for caches to sync. Error: %s", err)
-			return
-		}
-	}
-
-	for machineID, machineName := range listOfVMs {
-		machine, err := c.machineLister.Machines(c.namespace).Get(machineName)
-
-		if err != nil && !apierrors.IsNotFound(err) {
-			// Any other types of errors
-			klog.Errorf("SafetyController: Error while trying to GET machines. Error: %s", err)
-		} else if err != nil || machine.Spec.ProviderID != machineID {
-			// If machine exists and machine object is still been processed by the machine controller
-			if err == nil &&
-				(machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff) {
-				klog.V(3).Infof("SafetyController: Machine object %q is being processed by machine controller, hence skipping", machine.Name)
-				continue
-			}
-
-			// Re-check VM object existence
-			// before deleting orphan VM
-			result, _ := dvr.GetVMs(machineID)
-			for reMachineID := range result {
-				if reMachineID == machineID {
-					// Get latest version of machine object and verfiy again
-					machine, err := c.controlMachineClient.Machines(c.namespace).Get(ctx, machineName, metav1.GetOptions{})
-					if (err != nil && apierrors.IsNotFound(err)) || machine.Spec.ProviderID != machineID {
-						vm := make(map[string]string)
-						vm[machineID] = machineName
-						c.deleteOrphanVM(vm, secretData, classKind, machineClass)
-					}
-				}
-			}
-
-		}
-	}
-}
-
-// addMachineToSafety enqueues into machineSafetyQueue when a new machine is added
-func (c *controller) addMachineToSafety(obj interface{}) {
+// addMachineToSafetyOvershooting enqueues into machineSafetyOvershootingQueue when a new machine is added
+func (c *controller) addMachineToSafetyOvershooting(obj interface{}) {
 	machine := obj.(*v1alpha1.Machine)
 	c.enqueueMachineSafetyOvershootingKey(machine)
 }
 
-// deleteMachineToSafety enqueues into machineSafetyQueue when a new machine is deleted
-func (c *controller) deleteMachineToSafety(obj interface{}) {
-	machine := obj.(*v1alpha1.Machine)
-	c.enqueueMachineSafetyOrphanVMsKey(machine)
-}
-
 // enqueueMachineSafetyOvershootingKey enqueues into machineSafetyOvershootingQueue
-func (c *controller) enqueueMachineSafetyOvershootingKey(obj interface{}) {
+func (c *controller) enqueueMachineSafetyOvershootingKey(_ interface{}) {
 	c.machineSafetyOvershootingQueue.Add("")
-}
-
-// enqueueMachineSafetyOrphanVMsKey enqueues into machineSafetyOrphanVMsQueue
-func (c *controller) enqueueMachineSafetyOrphanVMsKey(obj interface{}) {
-	c.machineSafetyOrphanVMsQueue.Add("")
-}
-
-// deleteOrphanVM teriminates's the VM on the cloud provider passed to it
-func (c *controller) deleteOrphanVM(vm driver.VMs, secretData map[string][]byte, kind string, machineClass interface{}) {
-
-	var machineID string
-	var machineName string
-
-	for k, v := range vm {
-		machineID = k
-		machineName = v
-	}
-
-	dvr := driver.NewDriver(
-		machineID,
-		secretData,
-		kind,
-		machineClass,
-		machineName,
-	)
-
-	err := dvr.Delete(machineID)
-	if err != nil {
-		klog.Errorf("SafetyController: Error while trying to DELETE VM on CP - %s. Shall retry in next safety controller sync.", err)
-	} else {
-		klog.V(2).Infof("SafetyController: Orphan VM found and terminated VM: %s, %s", machineName, machineID)
-	}
 }
 
 // freezeMachineSetAndDeployment freezes machineSet and machineDeployment (who is the owner of the machineSet)

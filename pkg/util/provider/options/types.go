@@ -90,13 +90,13 @@ type MachineControllerConfiguration struct {
 // SafetyOptions are used to configure the upper-limit and lower-limit
 // while configuring freezing of machineSet objects
 type SafetyOptions struct {
-	// Timeout (in durartion) used while creation of
+	// Timeout (in duration) used while creation of
 	// a machine before it is declared as failed
 	MachineCreationTimeout metav1.Duration
-	// Timeout (in durartion) used while health-check of
+	// Timeout (in duration) used while health-check of
 	// a machine before it is declared as failed
 	MachineHealthTimeout metav1.Duration
-	// Deprecated. No effect. Timeout (in durartion) used while draining of machine before deletion,
+	// Timeout (in duration) used while draining of machine before deletion,
 	// beyond which it forcefully deletes machine
 	MachineDrainTimeout metav1.Duration
 	// Maximum number of times evicts would be attempted on a pod for it is forcibly deleted

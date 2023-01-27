@@ -26,6 +26,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	errorsutil "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/client-go/util/retry"
 	"reflect"
 	"sort"
 	"sync"
@@ -753,4 +758,85 @@ func (c *controller) updateMachineSetFinalizers(ctx context.Context, machineSet 
 
 	klog.Warning(fmt.Sprintf("Updating machineset %q failed at time %q with err: %q, requeuing", machineSet.Name, time.Now(), err.Error()))
 	return err
+}
+
+func (c *controller) updateMachineStatus(
+	ctx context.Context,
+	machine *v1alpha1.Machine,
+	lastOperation v1alpha1.LastOperation,
+	currentStatus v1alpha1.CurrentStatus,
+) (*v1alpha1.Machine, error) {
+	// Get the latest version of the machine so that we can avoid conflicts
+	latestMachine, err := c.controlMachineClient.Machines(machine.Namespace).Get(ctx, machine.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	clone := latestMachine.DeepCopy()
+
+	clone.Status.LastOperation = lastOperation
+	clone.Status.CurrentStatus = currentStatus
+	if isMachineStatusEqual(clone.Status, machine.Status) {
+		klog.V(3).Infof("Not updating the status of the machine object %q , as it is already same", clone.Name)
+		return machine, nil
+	}
+
+	clone, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
+	if err != nil {
+		// Keep retrying until update goes through
+		klog.V(3).Infof("Warning: Updated failed, retrying, error: %q", err)
+		return c.updateMachineStatus(ctx, machine, lastOperation, currentStatus)
+	}
+	return clone, nil
+}
+
+// isMachineStatusEqual checks if the status of 2 machines is same or not.
+func isMachineStatusEqual(s1, s2 v1alpha1.MachineStatus) bool {
+	tolerateTimeDiff := 30 * time.Minute
+	s1Copy, s2Copy := s1.DeepCopy(), s2.DeepCopy()
+	s1Copy.LastOperation.Description, s2Copy.LastOperation.Description = "", ""
+
+	if (s1Copy.LastOperation.LastUpdateTime.Time.Before(time.Now().Add(tolerateTimeDiff * -1))) || (s2Copy.LastOperation.LastUpdateTime.Time.Before(time.Now().Add(tolerateTimeDiff * -1))) {
+		return false
+	}
+	s1Copy.LastOperation.LastUpdateTime, s2Copy.LastOperation.LastUpdateTime = metav1.Time{}, metav1.Time{}
+
+	if (s1Copy.CurrentStatus.LastUpdateTime.Time.Before(time.Now().Add(tolerateTimeDiff * -1))) || (s2Copy.CurrentStatus.LastUpdateTime.Time.Before(time.Now().Add(tolerateTimeDiff * -1))) {
+		return false
+	}
+	s1Copy.CurrentStatus.LastUpdateTime, s2Copy.CurrentStatus.LastUpdateTime = metav1.Time{}, metav1.Time{}
+
+	return apiequality.Semantic.DeepEqual(s1Copy.LastOperation, s2Copy.LastOperation) && apiequality.Semantic.DeepEqual(s1Copy.CurrentStatus, s2Copy.CurrentStatus)
+}
+
+// see https://github.com/kubernetes/kubernetes/issues/21479
+type updateMachineFunc func(machine *v1alpha1.Machine) error
+
+// UpdateMachineWithRetries updates a machine with given applyUpdate function. Note that machine not found error is ignored.
+// The returned bool value can be used to tell if the machine is actually updated.
+func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.MachineInterface, machineLister v1alpha1listers.MachineLister, namespace, name string, applyUpdate updateMachineFunc) (*v1alpha1.Machine, error) {
+	var machine *v1alpha1.Machine
+
+	retryErr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		var err error
+		machine, err = machineLister.Machines(namespace).Get(name)
+		if err != nil {
+			return err
+		}
+		machine = machine.DeepCopy()
+		// Apply the update, then attempt to push it to the apiserver.
+		if applyErr := applyUpdate(machine); applyErr != nil {
+			return applyErr
+		}
+		machine, err = machineClient.Update(ctx, machine, metav1.UpdateOptions{})
+		return err
+	})
+
+	// Ignore the precondition violated error, this machine is already updated
+	// with the desired label.
+	if retryErr == errorsutil.ErrPreconditionViolated {
+		klog.V(4).Infof("Machine %s precondition doesn't hold, skip updating it.", name)
+		retryErr = nil
+	}
+
+	return machine, retryErr
 }

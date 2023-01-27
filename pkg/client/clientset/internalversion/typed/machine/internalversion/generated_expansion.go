@@ -18,14 +18,6 @@ limitations under the License.
 
 package internalversion
 
-type AWSMachineClassExpansion interface{}
-
-type AlicloudMachineClassExpansion interface{}
-
-type AzureMachineClassExpansion interface{}
-
-type GCPMachineClassExpansion interface{}
-
 type MachineExpansion interface{}
 
 type MachineClassExpansion interface{}
@@ -35,7 +27,3 @@ type MachineDeploymentExpansion interface{}
 type MachineSetExpansion interface{}
 
 type MachineTemplateExpansion interface{}
-
-type OpenStackMachineClassExpansion interface{}
-
-type PacketMachineClassExpansion interface{}
