@@ -3,7 +3,8 @@
 [![CI Build status](https://concourse.ci.gardener.cloud/api/v1/teams/gardener/pipelines/machine-controller-manager-master/jobs/master-head-update-job/badge)](https://concourse.ci.gardener.cloud/teams/gardener/pipelines/machine-controller-manager-master/jobs/master-head-update-job)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gardener/machine-controller-manager)](https://goreportcard.com/report/github.com/gardener/machine-controller-manager)
 
-:warning: We are in the progress of migrating and deprecating all the in-tree providers to OOT. Please avoid making any new feature enhancements to the intree providers. Kindly make it on the [OOT providers available here](https://github.com/gardener/?q=machine-controller-manager-provider&type=&language=). More details on adding [new OOT providers can be found here](https://github.com/gardener/machine-controller-manager/blob/master/docs/development/cp_support_new.md). 
+**Note**
+One can add support for a new cloud provider by following [Adding support for new provider](https://github.com/gardener/machine-controller-manager/blob/master/docs/development/cp_support_new.md). 
 
 # Overview
 
@@ -87,7 +88,7 @@ See [here](docs/documents/apis.md) for CRD API Documentation
     <tbody>
         <tr>
             <td>MachineDeployment controller</td>
-            <td>Machine Deployment controller reconciles the <code>MachineDeployment</code> objects and manages the lifecycle of <code>MachineSet</code> objects. <code>MachineDeployment</code> consumes provider specific <code>MachineClass` in its <code>spec.template.spec</code> which is the template of the VM spec that would be spawned on the cloud by MCM.</td>
+            <td>Machine Deployment controller reconciles the <code>MachineDeployment</code> objects and manages the lifecycle of <code>MachineSet</code> objects. <code>MachineDeployment</code> consumes provider specific <code>MachineClass</code> in its <code>spec.template.spec</code> which is the template of the VM spec that would be spawned on the cloud by MCM.</td>
         </tr>
         <tr>
             <td>MachineSet controller</td>
