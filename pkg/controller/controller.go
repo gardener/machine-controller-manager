@@ -60,9 +60,6 @@ func NewController(
 	controlMachineClient machineapi.MachineV1alpha1Interface,
 	controlCoreClient kubernetes.Interface,
 	targetCoreClient kubernetes.Interface,
-	pvcInformer coreinformers.PersistentVolumeClaimInformer,
-	pvInformer coreinformers.PersistentVolumeInformer,
-	secretInformer coreinformers.SecretInformer,
 	nodeInformer coreinformers.NodeInformer,
 	machineInformer machineinformers.MachineInformer,
 	machineSetInformer machineinformers.MachineSetInformer,
@@ -113,16 +110,12 @@ func NewController(
 	}
 
 	// Controller listers
-	controller.pvcLister = pvcInformer.Lister()
-	controller.pvLister = pvInformer.Lister()
-	controller.secretLister = secretInformer.Lister()
 	controller.nodeLister = nodeInformer.Lister()
 	controller.machineLister = machineInformer.Lister()
 	controller.machineSetLister = machineSetInformer.Lister()
 	controller.machineDeploymentLister = machineDeploymentInformer.Lister()
 
 	// Controller syncs
-	controller.secretSynced = secretInformer.Informer().HasSynced
 	controller.nodeSynced = nodeInformer.Informer().HasSynced
 	controller.machineSynced = machineInformer.Informer().HasSynced
 	controller.machineSetSynced = machineSetInformer.Informer().HasSynced
@@ -198,9 +191,6 @@ type controller struct {
 
 	internalExternalScheme *runtime.Scheme
 	// listers
-	pvcLister               corelisters.PersistentVolumeClaimLister
-	pvLister                corelisters.PersistentVolumeLister
-	secretLister            corelisters.SecretLister
 	nodeLister              corelisters.NodeLister
 	machineLister           machinelisters.MachineLister
 	machineSetLister        machinelisters.MachineSetLister

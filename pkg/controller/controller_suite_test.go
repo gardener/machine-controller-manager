@@ -62,6 +62,18 @@ var (
 	TestMachineClass = "machineClass-0"
 )
 
+func newMachineDeployment(
+	specTemplate *v1alpha1.MachineTemplateSpec,
+	replicas int32,
+	minReadySeconds int32,
+	statusTemplate *v1alpha1.MachineDeploymentStatus,
+	owner *metav1.OwnerReference,
+	annotations map[string]string,
+	labels map[string]string,
+) *v1alpha1.MachineDeployment {
+	return newMachineDeployments(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner, annotations, labels)[0]
+}
+
 func newMachineDeployments(
 	machineDeploymentCount int,
 	specTemplate *v1alpha1.MachineTemplateSpec,
@@ -453,8 +465,6 @@ func createController(
 	defer coreTargetInformerFactory.Start(stop)
 	coreTargetSharedInformers := coreTargetInformerFactory.Core().V1()
 	nodes := coreTargetSharedInformers.Nodes()
-	pvcs := coreTargetSharedInformers.PersistentVolumeClaims()
-	pvs := coreTargetSharedInformers.PersistentVolumes()
 
 	coreControlInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
 		fakeControlCoreClient,
@@ -497,9 +507,6 @@ func createController(
 		controlMachineClient:           fakeTypedMachineClient,
 		internalExternalScheme:         internalExternalScheme,
 		nodeLister:                     nodes.Lister(),
-		pvcLister:                      pvcs.Lister(),
-		pvLister:                       pvs.Lister(),
-		secretLister:                   secret.Lister(),
 		machineLister:                  machines.Lister(),
 		machineSetLister:               machineSets.Lister(),
 		machineDeploymentLister:        machineDeployments.Lister(),
