@@ -47,6 +47,8 @@ var _ = Describe("machine", func() {
 	var (
 		fakeMachineClient *fakemachineapi.FakeMachineV1alpha1
 		c                 *controller
+		testMachine       v1alpha1.Machine
+		testNode          v1.Node
 	)
 
 	Describe("#isHealthy", func() {
@@ -58,48 +60,51 @@ var _ = Describe("machine", func() {
 				controlMachineClient: fakeMachineClient,
 				nodeConditions:       "ReadonlyFilesystem,KernelDeadlock,DiskPressure,NetworkUnavailable",
 			}
+			testMachine = v1alpha1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "testmachine",
+					Namespace: testNamespace,
+				},
+				Status: v1alpha1.MachineStatus{
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:   corev1.NodeDiskPressure,
+							Status: corev1.ConditionFalse,
+						},
+						{
+							Type:   corev1.NodeMemoryPressure,
+							Status: corev1.ConditionFalse,
+						},
+						{
+							Type:   corev1.NodeNetworkUnavailable,
+							Status: corev1.ConditionFalse,
+						},
+						{
+							Type:   corev1.NodeReady,
+							Status: corev1.ConditionTrue,
+						},
+					},
+				},
+			}
+			testNode = v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "testnode",
+				},
+				Spec: v1.NodeSpec{
+					Taints: []v1.Taint{},
+				},
+			}
 		})
 
-		testMachine := v1alpha1.Machine{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "testmachine",
-				Namespace: testNamespace,
-			},
-			Status: v1alpha1.MachineStatus{
-				Conditions: []corev1.NodeCondition{},
-			},
-		}
 		DescribeTable("Checking health of the machine",
 			func(conditionType corev1.NodeConditionType, conditionStatus corev1.ConditionStatus, expected bool) {
-				testMachine.Status.Conditions = []corev1.NodeCondition{
-					{
-						Type:   corev1.NodeReady,
-						Status: corev1.ConditionTrue,
-					},
-					{
-						Type:   corev1.NodeDiskPressure,
-						Status: corev1.ConditionFalse,
-					},
-					{
-						Type:   corev1.NodeMemoryPressure,
-						Status: corev1.ConditionFalse,
-					},
-					{
-						Type:   corev1.NodeNetworkUnavailable,
-						Status: corev1.ConditionFalse,
-					},
-					{
-						Type:   corev1.NodeReady,
-						Status: corev1.ConditionTrue,
-					},
-				}
 				for i, condition := range testMachine.Status.Conditions {
 					if condition.Type == conditionType {
 						testMachine.Status.Conditions[i].Status = conditionStatus
 						break
 					}
 				}
-				Expect(c.isHealthy(&testMachine)).Should(BeIdenticalTo(expected))
+				Expect(c.isHealthy(&testMachine, &testNode)).Should(BeIdenticalTo(expected))
 			},
 			Entry("with NodeReady is True", corev1.NodeReady, corev1.ConditionTrue, true),
 			Entry("with NodeReady is False", corev1.NodeReady, corev1.ConditionFalse, false),
@@ -120,6 +125,16 @@ var _ = Describe("machine", func() {
 			Entry("with NodeReady is True", corev1.NodeReady, corev1.ConditionTrue, true),
 			Entry("with NodeReady is False", corev1.NodeReady, corev1.ConditionFalse, false),
 			Entry("with NodeReady is Unknown", corev1.NodeReady, corev1.ConditionUnknown, false),
+		)
+		DescribeTable("Checking readiness of the node",
+			func(nodeTaints []v1.Taint, expected bool) {
+				testNode.Spec.Taints = nodeTaints
+				Expect(c.isHealthy(&testMachine, &testNode)).Should(BeIdenticalTo(expected))
+			},
+			Entry("with empty taints is True", []v1.Taint{}, true),
+			Entry("with no taints is True", nil, true),
+			Entry("with unrelated taints is True", []v1.Taint{{Key: "unrelated", Effect: corev1.TaintEffectNoSchedule}}, true),
+			Entry("with critical-components-not-ready taint is False", []v1.Taint{{Key: "node.gardener.cloud/critical-components-not-ready", Effect: corev1.TaintEffectNoSchedule}}, false),
 		)
 	})
 

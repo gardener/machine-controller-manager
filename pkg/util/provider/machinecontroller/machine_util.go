@@ -59,16 +59,17 @@ import (
 var emptyMap = make(map[string]string)
 
 const (
-	maxReplacements    = 1
-	pollInterval       = 100 * time.Millisecond
-	lockAcquireTimeout = 1 * time.Second
-	cacheUpdateTimeout = 1 * time.Second
+	maxReplacements                     = 1
+	pollInterval                        = 100 * time.Millisecond
+	lockAcquireTimeout                  = 1 * time.Second
+	cacheUpdateTimeout                  = 1 * time.Second
+	taintNodeCriticalComponentsNotReady = "node.gardener.cloud/critical-components-not-ready"
 )
 
 // TODO: use client library instead when it starts to support update retries
 //
 //	see https://github.com/kubernetes/kubernetes/issues/21479
-//type updateMachineFunc func(machine *v1alpha1.Machine) error
+// type updateMachineFunc func(machine *v1alpha1.Machine) error
 
 /*
 // UpdateMachineWithRetries updates a machine with given applyUpdate function. Note that machine not found error is ignored.
@@ -626,7 +627,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			cloneDirty = true
 		}
 
-		if !c.isHealthy(clone) && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+		if !c.isHealthy(clone, node) && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
 			// If machine is not healthy, and current state is running,
 			// change the machinePhase to unknown and activate health check timeout
 			description = fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown. Node conditions: %+v", clone.Name, clone.Status.Conditions)
@@ -645,7 +646,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			}
 			cloneDirty = true
 
-		} else if c.isHealthy(clone) && clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
+		} else if c.isHealthy(clone, node) && clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 			// If machine is healhy and current machinePhase is not running.
 			// indicates that the machine is not healthy and status needs to be updated.
 
@@ -816,7 +817,7 @@ func (c *controller) deleteMachineFinalizers(ctx context.Context, machine *v1alp
 SECTION
 Helper Functions
 */
-func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
+func (c *controller) isHealthy(machine *v1alpha1.Machine, node *v1.Node) bool {
 	numOfConditions := len(machine.Status.Conditions)
 
 	if numOfConditions == 0 {
@@ -829,6 +830,7 @@ func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 			// If Kubelet is not ready
 			return false
 		}
+
 		conditions := strings.Split(*c.getEffectiveNodeConditions(machine), ",")
 		for _, c := range conditions {
 			if string(condition.Type) == c && condition.Status != v1.ConditionFalse {
@@ -836,6 +838,13 @@ func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 			}
 		}
 	}
+
+	for _, taint := range node.Spec.Taints {
+		if taint.Key == taintNodeCriticalComponentsNotReady && taint.Effect == v1.TaintEffectNoSchedule {
+			return false
+		}
+	}
+
 	return true
 }
 
