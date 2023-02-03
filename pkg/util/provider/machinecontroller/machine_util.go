@@ -59,11 +59,10 @@ import (
 var emptyMap = make(map[string]string)
 
 const (
-	maxReplacements                     = 1
-	pollInterval                        = 100 * time.Millisecond
-	lockAcquireTimeout                  = 1 * time.Second
-	cacheUpdateTimeout                  = 1 * time.Second
-	taintNodeCriticalComponentsNotReady = "node.gardener.cloud/critical-components-not-ready"
+	maxReplacements    = 1
+	pollInterval       = 100 * time.Millisecond
+	lockAcquireTimeout = 1 * time.Second
+	cacheUpdateTimeout = 1 * time.Second
 )
 
 // TODO: use client library instead when it starts to support update retries
@@ -627,7 +626,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			cloneDirty = true
 		}
 
-		if !c.isHealthy(clone, node) && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+		if !c.isHealthy(clone) && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
 			// If machine is not healthy, and current state is running,
 			// change the machinePhase to unknown and activate health check timeout
 			description = fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown. Node conditions: %+v", clone.Name, clone.Status.Conditions)
@@ -646,7 +645,24 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			}
 			cloneDirty = true
 
-		} else if c.isHealthy(clone, node) && clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
+		} else if c.isHealthy(clone) && clone.Status.CurrentStatus.Phase == v1alpha1.MachinePending {
+			// when checking if a healthy machine in Pending is ready to be Running,
+			// we need to take into account the CriticalNodeComponentsNotReadyTaint.
+			if !c.criticalComponentsNotReadyTaintPresent(node) {
+				// Machine is ready and has joined/re-joined the cluster
+				clone.Status.LastOperation = v1alpha1.LastOperation{
+					Description:    description,
+					State:          v1alpha1.MachineStateSuccessful,
+					Type:           lastOperationType,
+					LastUpdateTime: metav1.Now(),
+				}
+				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+					Phase:          v1alpha1.MachineRunning,
+					LastUpdateTime: metav1.Now(),
+				}
+				cloneDirty = true
+			}
+		} else if c.isHealthy(clone) && clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 			// If machine is healhy and current machinePhase is not running.
 			// indicates that the machine is not healthy and status needs to be updated.
 
@@ -817,7 +833,7 @@ func (c *controller) deleteMachineFinalizers(ctx context.Context, machine *v1alp
 SECTION
 Helper Functions
 */
-func (c *controller) isHealthy(machine *v1alpha1.Machine, node *v1.Node) bool {
+func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 	numOfConditions := len(machine.Status.Conditions)
 
 	if numOfConditions == 0 {
@@ -839,13 +855,16 @@ func (c *controller) isHealthy(machine *v1alpha1.Machine, node *v1.Node) bool {
 		}
 	}
 
+	return true
+}
+
+func (c *controller) criticalComponentsNotReadyTaintPresent(node *v1.Node) bool {
 	for _, taint := range node.Spec.Taints {
-		if taint.Key == taintNodeCriticalComponentsNotReady && taint.Effect == v1.TaintEffectNoSchedule {
-			return false
+		if taint.Key == machineutils.TaintNodeCriticalComponentsNotReady && taint.Effect == v1.TaintEffectNoSchedule {
+			return true
 		}
 	}
-
-	return true
+	return false
 }
 
 /*

@@ -68,6 +68,10 @@ const (
 
 	// NodeTerminationCondition describes nodes that are terminating
 	NodeTerminationCondition v1.NodeConditionType = "Terminating"
+
+	// TaintNodeCriticalComponentsNotReady is the name of a gardener taint
+	// indicating that a node is not yet ready to have user workload scheduled
+	TaintNodeCriticalComponentsNotReady = "node.gardener.cloud/critical-components-not-ready"
 )
 
 // RetryPeriod is an alias for specifying the retry period

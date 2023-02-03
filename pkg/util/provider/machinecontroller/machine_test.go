@@ -86,14 +86,6 @@ var _ = Describe("machine", func() {
 					},
 				},
 			}
-			testNode = v1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "testnode",
-				},
-				Spec: v1.NodeSpec{
-					Taints: []v1.Taint{},
-				},
-			}
 		})
 
 		DescribeTable("Checking health of the machine",
@@ -104,7 +96,7 @@ var _ = Describe("machine", func() {
 						break
 					}
 				}
-				Expect(c.isHealthy(&testMachine, &testNode)).Should(BeIdenticalTo(expected))
+				Expect(c.isHealthy(&testMachine)).Should(BeIdenticalTo(expected))
 			},
 			Entry("with NodeReady is True", corev1.NodeReady, corev1.ConditionTrue, true),
 			Entry("with NodeReady is False", corev1.NodeReady, corev1.ConditionFalse, false),
@@ -126,15 +118,33 @@ var _ = Describe("machine", func() {
 			Entry("with NodeReady is False", corev1.NodeReady, corev1.ConditionFalse, false),
 			Entry("with NodeReady is Unknown", corev1.NodeReady, corev1.ConditionUnknown, false),
 		)
+	})
+
+	Describe("#criticalComponentsNotReadyTaintPresent", func() {
+		BeforeEach(func() {
+			c = &controller{
+				controlMachineClient: fakeMachineClient,
+				nodeConditions:       "ReadonlyFilesystem,KernelDeadlock,DiskPressure,NetworkUnavailable",
+			}
+			testNode = v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "testnode",
+				},
+				Spec: v1.NodeSpec{
+					Taints: []v1.Taint{},
+				},
+			}
+		})
+
 		DescribeTable("Checking readiness of the node",
 			func(nodeTaints []v1.Taint, expected bool) {
 				testNode.Spec.Taints = nodeTaints
-				Expect(c.isHealthy(&testMachine, &testNode)).Should(BeIdenticalTo(expected))
+				Expect(c.criticalComponentsNotReadyTaintPresent(&testNode)).Should(BeIdenticalTo(expected))
 			},
-			Entry("with empty taints is True", []v1.Taint{}, true),
-			Entry("with no taints is True", nil, true),
-			Entry("with unrelated taints is True", []v1.Taint{{Key: "unrelated", Effect: corev1.TaintEffectNoSchedule}}, true),
-			Entry("with critical-components-not-ready taint is False", []v1.Taint{{Key: "node.gardener.cloud/critical-components-not-ready", Effect: corev1.TaintEffectNoSchedule}}, false),
+			Entry("with no taints is False", nil, false),
+			Entry("with empty taints is False", []v1.Taint{}, false),
+			Entry("with unrelated taints is False", []v1.Taint{{Key: "unrelated", Effect: corev1.TaintEffectNoSchedule}}, false),
+			Entry("with critical-components-not-ready taint is True", []v1.Taint{{Key: "node.gardener.cloud/critical-components-not-ready", Effect: corev1.TaintEffectNoSchedule}}, true),
 		)
 	})
 
