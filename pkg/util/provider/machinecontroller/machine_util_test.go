@@ -2309,6 +2309,92 @@ var _ = Describe("machine_util", func() {
 					expectedPhase: v1alpha1.MachinePending,
 				},
 			}),
+			Entry("pending machine is healthy, but node has `critical-components-not-ready` taint, shouldn't be marked Running", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newHealthyMachine(machineSet1Deploy1, "node-0", v1alpha1.MachinePending),
+					},
+					nodes: []*v1.Node{
+						newNode(
+							1,
+							nil,
+							nil,
+							&v1.NodeSpec{
+								Taints: []v1.Taint{
+									{
+										Key:    "node.gardener.cloud/critical-components-not-ready",
+										Effect: corev1.TaintEffectNoSchedule,
+									},
+								},
+							},
+							&v1.NodeStatus{
+								Phase:      corev1.NodeRunning,
+								Conditions: nodeConditions(true, false, false, false, false),
+							},
+						),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.LongRetry,
+					err:           nil,
+					expectedPhase: v1alpha1.MachinePending,
+				},
+			}),
+			Entry("pending machine is healthy, and node doesn't have `critical-components-not-ready taint`, should be marked Running", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newHealthyMachine(machineSet1Deploy1, "node-0", v1alpha1.MachinePending),
+					},
+					nodes: []*v1.Node{
+						newNode(
+							1,
+							nil,
+							nil,
+							&v1.NodeSpec{
+								Taints: []v1.Taint{},
+							},
+							&v1.NodeStatus{
+								Phase:      corev1.NodeRunning,
+								Conditions: nodeConditions(true, false, false, false, false),
+							},
+						),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					expectedPhase: v1alpha1.MachineRunning,
+				},
+			}),
+			Entry("unknown machine is healthy, and node doesn't have `critical-components-not-ready` taint, should be marked Running", &data{
+				setup: setup{
+					machines: []*v1alpha1.Machine{
+						newHealthyMachine(machineSet1Deploy1, "node-0", v1alpha1.MachineUnknown),
+					},
+					nodes: []*v1.Node{
+						newNode(
+							1,
+							nil,
+							nil,
+							&v1.NodeSpec{
+								Taints: []v1.Taint{},
+							},
+							&v1.NodeStatus{
+								Phase:      corev1.NodeRunning,
+								Conditions: nodeConditions(true, false, false, false, false),
+							},
+						),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					expectedPhase: v1alpha1.MachineRunning,
+				},
+			}),
 		)
 
 		DescribeTable("##Meltdown scenario when many machines Unknown for over 10min(healthTimeout)", func(data *data) {
