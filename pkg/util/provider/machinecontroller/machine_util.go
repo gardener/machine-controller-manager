@@ -646,10 +646,10 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			cloneDirty = true
 
 		} else if c.isHealthy(clone) && clone.Status.CurrentStatus.Phase == v1alpha1.MachinePending {
-			// when checking if a healthy machine in Pending is ready to be Running,
+			// when checking if a healthy machine in `Pending` is ready to be `Running`,
 			// we need to take into account the CriticalNodeComponentsNotReadyTaint.
 			if !c.criticalComponentsNotReadyTaintPresent(node) {
-				// Machine is ready and has joined/re-joined the cluster
+				// Machine is ready and has joined the cluster
 				clone.Status.LastOperation = v1alpha1.LastOperation{
 					Description:    description,
 					State:          v1alpha1.MachineStateSuccessful,
