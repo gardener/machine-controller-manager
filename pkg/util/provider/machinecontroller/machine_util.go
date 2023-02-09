@@ -626,30 +626,27 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			cloneDirty = true
 		}
 
-		if !c.isHealthy(clone) && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
-			// If machine is not healthy, and current state is running,
-			// change the machinePhase to unknown and activate health check timeout
-			description = fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown. Node conditions: %+v", clone.Name, clone.Status.Conditions)
-			klog.Warning(description)
+		if c.isHealthy(clone) {
+			if clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning && !isPendingMachineWithCriticalComponentsNotReadyTaint(clone, node) {
+				if clone.Status.LastOperation.Type == v1alpha1.MachineOperationCreate &&
+					clone.Status.LastOperation.State != v1alpha1.MachineStateSuccessful {
+					// When machine creation went through
+					description = fmt.Sprintf("Machine %s successfully joined the cluster", clone.Name)
+					lastOperationType = v1alpha1.MachineOperationCreate
 
-			clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-				Phase: v1alpha1.MachineUnknown,
-				// TimeoutActive:  true,
-				LastUpdateTime: metav1.Now(),
-			}
-			clone.Status.LastOperation = v1alpha1.LastOperation{
-				Description:    description,
-				State:          v1alpha1.MachineStateProcessing,
-				Type:           v1alpha1.MachineOperationHealthCheck,
-				LastUpdateTime: metav1.Now(),
-			}
-			cloneDirty = true
+					// Delete the bootstrap token
+					err = c.deleteBootstrapToken(ctx, clone.Name)
+					if err != nil {
+						klog.Warning(err)
+					}
+				} else {
+					// Machine rejoined the cluster after a health-check
+					description = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
+					lastOperationType = v1alpha1.MachineOperationHealthCheck
+				}
+				klog.V(2).Info(description)
 
-		} else if c.isHealthy(clone) && clone.Status.CurrentStatus.Phase == v1alpha1.MachinePending {
-			// when checking if a healthy machine in `Pending` is ready to be `Running`,
-			// we need to take into account the CriticalNodeComponentsNotReadyTaint.
-			if !c.criticalComponentsNotReadyTaintPresent(node) {
-				// Machine is ready and has joined the cluster
+				// Machine is ready and has joined/re-joined the cluster
 				clone.Status.LastOperation = v1alpha1.LastOperation{
 					Description:    description,
 					State:          v1alpha1.MachineStateSuccessful,
@@ -657,46 +654,32 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					LastUpdateTime: metav1.Now(),
 				}
 				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-					Phase:          v1alpha1.MachineRunning,
+					Phase: v1alpha1.MachineRunning,
+					// TimeoutActive:  false,
 					LastUpdateTime: metav1.Now(),
 				}
 				cloneDirty = true
 			}
-		} else if c.isHealthy(clone) && clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
-			// If machine is healhy and current machinePhase is not running.
-			// indicates that the machine is not healthy and status needs to be updated.
+		} else {
+			if clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+				// If machine is not healthy, and current state is running,
+				// change the machinePhase to unknown and activate health check timeout
+				description = fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown. Node conditions: %+v", clone.Name, clone.Status.Conditions)
+				klog.Warning(description)
 
-			if clone.Status.LastOperation.Type == v1alpha1.MachineOperationCreate &&
-				clone.Status.LastOperation.State != v1alpha1.MachineStateSuccessful {
-				// When machine creation went through
-				description = fmt.Sprintf("Machine %s successfully joined the cluster", clone.Name)
-				lastOperationType = v1alpha1.MachineOperationCreate
-
-				// Delete the bootstrap token
-				err = c.deleteBootstrapToken(ctx, clone.Name)
-				if err != nil {
-					klog.Warning(err)
+				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+					Phase: v1alpha1.MachineUnknown,
+					// TimeoutActive:  true,
+					LastUpdateTime: metav1.Now(),
 				}
-			} else {
-				// Machine rejoined the cluster after a healthcheck
-				description = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
-				lastOperationType = v1alpha1.MachineOperationHealthCheck
+				clone.Status.LastOperation = v1alpha1.LastOperation{
+					Description:    description,
+					State:          v1alpha1.MachineStateProcessing,
+					Type:           v1alpha1.MachineOperationHealthCheck,
+					LastUpdateTime: metav1.Now(),
+				}
+				cloneDirty = true
 			}
-			klog.V(2).Info(description)
-
-			// Machine is ready and has joined/re-joined the cluster
-			clone.Status.LastOperation = v1alpha1.LastOperation{
-				Description:    description,
-				State:          v1alpha1.MachineStateSuccessful,
-				Type:           lastOperationType,
-				LastUpdateTime: metav1.Now(),
-			}
-			clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-				Phase: v1alpha1.MachineRunning,
-				// TimeoutActive:  false,
-				LastUpdateTime: metav1.Now(),
-			}
-			cloneDirty = true
 		}
 	}
 
@@ -720,7 +703,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		// Timeout value obtained by subtracting last operation with expected time out period
 		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 		if timeOut > 0 {
-			// Machine health timeout occured while joining or rejoining of machine
+			// Machine health timeout occurred while joining or rejoining of machine
 
 			if isMachinePending {
 				// Timeout occurred while machine creation
@@ -858,13 +841,17 @@ func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 	return true
 }
 
-func (c *controller) criticalComponentsNotReadyTaintPresent(node *v1.Node) bool {
+func criticalComponentsNotReadyTaintPresent(node *v1.Node) bool {
 	for _, taint := range node.Spec.Taints {
 		if taint.Key == machineutils.TaintNodeCriticalComponentsNotReady && taint.Effect == v1.TaintEffectNoSchedule {
 			return true
 		}
 	}
 	return false
+}
+
+func isPendingMachineWithCriticalComponentsNotReadyTaint(clone *v1alpha1.Machine, node *v1.Node) bool {
+	return clone.Status.CurrentStatus.Phase == v1alpha1.MachinePending && criticalComponentsNotReadyTaintPresent(node)
 }
 
 /*

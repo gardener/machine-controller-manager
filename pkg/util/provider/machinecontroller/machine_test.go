@@ -139,7 +139,7 @@ var _ = Describe("machine", func() {
 		DescribeTable("Checking readiness of the node",
 			func(nodeTaints []v1.Taint, expected bool) {
 				testNode.Spec.Taints = nodeTaints
-				Expect(c.criticalComponentsNotReadyTaintPresent(&testNode)).Should(BeIdenticalTo(expected))
+				Expect(criticalComponentsNotReadyTaintPresent(&testNode)).Should(BeIdenticalTo(expected))
 			},
 			Entry("with no taints is False", nil, false),
 			Entry("with empty taints is False", []v1.Taint{}, false),
