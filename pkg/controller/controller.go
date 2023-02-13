@@ -71,7 +71,6 @@ func NewController(
 		targetCoreClient:               targetCoreClient,
 		recorder:                       recorder,
 		expectations:                   NewUIDTrackingContExpectations(NewContExpectations()),
-		secretQueue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
 		nodeQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
 		machineQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
 		machineSetQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
@@ -192,14 +191,12 @@ type controller struct {
 	machineSetLister        machinelisters.MachineSetLister
 	machineDeploymentLister machinelisters.MachineDeploymentLister
 	// queues
-	secretQueue                    workqueue.RateLimitingInterface
 	nodeQueue                      workqueue.RateLimitingInterface
 	machineQueue                   workqueue.RateLimitingInterface
 	machineSetQueue                workqueue.RateLimitingInterface
 	machineDeploymentQueue         workqueue.RateLimitingInterface
 	machineSafetyOvershootingQueue workqueue.RateLimitingInterface
 	// syncs
-	secretSynced            cache.InformerSynced
 	nodeSynced              cache.InformerSynced
 	machineSynced           cache.InformerSynced
 	machineSetSynced        cache.InformerSynced
@@ -214,13 +211,12 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 
 	defer runtimeutil.HandleCrash()
 	defer c.nodeQueue.ShutDown()
-	defer c.secretQueue.ShutDown()
 	defer c.machineQueue.ShutDown()
 	defer c.machineSetQueue.ShutDown()
 	defer c.machineDeploymentQueue.ShutDown()
 	defer c.machineSafetyOvershootingQueue.ShutDown()
 
-	if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.nodeSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
+	if !cache.WaitForCacheSync(stopCh, c.nodeSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
 		runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
