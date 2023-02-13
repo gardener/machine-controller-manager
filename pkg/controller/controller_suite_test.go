@@ -24,13 +24,6 @@ import (
 	"testing"
 	"time"
 
-	machine_internal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
-	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
-	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
-	"github.com/gardener/machine-controller-manager/pkg/options"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/cache"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -44,6 +37,14 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
+
+	machine_internal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
+	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
+	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
+	"github.com/gardener/machine-controller-manager/pkg/options"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/cache"
 )
 
 func TestMachineControllerManagerSuite(t *testing.T) {
@@ -473,8 +474,6 @@ func createController(
 		nil,
 	)
 	defer coreControlInformerFactory.Start(stop)
-	coreControlSharedInformers := coreControlInformerFactory.Core().V1()
-	secret := coreControlSharedInformers.Secrets()
 
 	controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
 		fakeControlMachineClient,
@@ -514,8 +513,6 @@ func createController(
 		machineSetSynced:               machineSets.Informer().HasSynced,
 		machineDeploymentSynced:        machineDeployments.Informer().HasSynced,
 		nodeSynced:                     nodes.Informer().HasSynced,
-		secretSynced:                   secret.Informer().HasSynced,
-		secretQueue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
 		nodeQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
 		machineQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
 		machineSetQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
