@@ -324,6 +324,17 @@ func newMachine(
 	return machine
 }
 
+func newHealthyMachine(generateName, nodeLabelKey string, phase v1alpha1.MachinePhase) *v1alpha1.Machine {
+	return newMachine(
+		&v1alpha1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: generateName}, 0)},
+		&v1alpha1.MachineStatus{
+			Conditions:    nodeConditions(true, false, false, false, false),
+			CurrentStatus: v1alpha1.CurrentStatus{Phase: phase, LastUpdateTime: metav1.Now()},
+		},
+		nil, nil, map[string]string{v1alpha1.NodeLabelKey: nodeLabelKey}, true, metav1.Now(),
+	)
+}
+
 func newMachines(
 	machineCount int,
 	specTemplate *v1alpha1.MachineTemplateSpec,
