@@ -21,6 +21,15 @@ machine-controller-manager:
                 build: ~
             registry: 'gcr-readwrite'
             image: 'eu.gcr.io/gardener-project/gardener/machine-controller-manager'
+            resource_labels:
+            - name: 'gardener.cloud/cve-categorisation'
+              value:
+                network_exposure: 'protected'
+                authentication_enforced: false
+                user_interaction: 'gardener-operator'
+                confidentiality_requirement: 'high'
+                integrity_requirement: 'high'
+                availability_requirement: 'low'
     steps:
       check:
         image: 'golang:1.19.4'
