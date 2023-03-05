@@ -345,7 +345,10 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	if len(staleMachines) >= 1 {
 		klog.V(2).Infof("Deleting stale machines")
 	}
-	c.terminateMachines(ctx, staleMachines, machineSet)
+	if err := c.terminateMachines(ctx, staleMachines, machineSet); err != nil {
+		// TODO: proper error handling needs to happen here
+		klog.Errorf("failed to terminate stale machines for machineset %s: %w", machineSet.Name, err)
+	}
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
 	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
@@ -366,7 +369,10 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		// UID, which would require locking *across* the create, which will turn
 		// into a performance bottleneck. We should generate a UID for the machine
 		// beforehand and store it via ExpectCreations.
-		c.expectations.ExpectCreations(machineSetKey, diff)
+		if err := c.expectations.ExpectCreations(machineSetKey, diff); err != nil {
+			// TODO: proper error handling needs to happen here
+			klog.Errorf("failed expect creations for machineset %s: %w", machineSet.Name, err)
+		}
 		klog.V(2).Infof("Too few replicas for MachineSet %s, need %d, creating %d", machineSet.Name, (machineSet.Spec.Replicas), diff)
 		// Batch the machine creates. Batch sizes start at SlowStartInitialBatchSize
 		// and double with each successful iteration in a kind of "slow start".
@@ -425,9 +431,15 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		// Note that if the labels on a machine/rs change in a way that the machine gets
 		// orphaned, the rs will only wake up after the expectations have
 		// expired even if other machines are deleted.
-		c.expectations.ExpectDeletions(machineSetKey, getMachineKeys(machinesToDelete))
+		if err := c.expectations.ExpectDeletions(machineSetKey, getMachineKeys(machinesToDelete)); err != nil {
+			// TODO: proper error handling needs to happen here
+			klog.Errorf("failed expect deletions for machineset %s: %w", machineSet.Name, err)
+		}
 
-		c.terminateMachines(ctx, machinesToDelete, machineSet)
+		if err := c.terminateMachines(ctx, machinesToDelete, machineSet); err != nil {
+			// TODO: proper error handling needs to happen here
+			klog.Errorf("failed to terminate machines for machineset %s: %w", machineSet.Name, err)
+		}
 	}
 
 	return nil
@@ -540,7 +552,10 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		} else if finalizers := sets.NewString(machineSet.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 			// Trigger deletion of machines backing the machineSet
 			klog.V(4).Infof("Deleting all child machines as MachineSet %s has set deletionTimestamp", machineSet.Name)
-			c.terminateMachines(ctx, filteredMachines, machineSet)
+			if err := c.terminateMachines(ctx, filteredMachines, machineSet); err != nil {
+				// TODO: proper error handling needs to happen here
+				klog.Errorf("failed terminate machines for machineset %s: %v", machineSet.Name, err)
+			}
 		}
 	}
 
@@ -674,7 +689,10 @@ func (c *controller) prepareMachineForDeletion(ctx context.Context, targetMachin
 		TimeoutActive:  false,
 		LastUpdateTime: metav1.Now(),
 	}
-	c.updateMachineStatus(ctx, targetMachine, lastOperation, currentStatus)
+	if _, err := c.updateMachineStatus(ctx, targetMachine, lastOperation, currentStatus); err != nil {
+		// TODO: proper error handling needs to happen here
+		klog.Errorf("failed to update machine status for machine %s: %w", targetMachine.Name, err)
+	}
 	klog.V(2).Infof("Delete machine from machineset %q", targetMachine.Name)
 }
 

@@ -101,8 +101,7 @@ func (dc *controller) checkPausedConditions(ctx context.Context, d *v1alpha1.Mac
 		return nil
 	}
 
-	var err error
-	d, err = dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(ctx, d, metav1.UpdateOptions{})
+	_, err := dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(ctx, d, metav1.UpdateOptions{})
 	return err
 }
 
@@ -278,7 +277,7 @@ func (dc *controller) getNewMachineSet(ctx context.Context, d *v1alpha1.MachineD
 			}
 			dCopy := d.DeepCopy()
 			dCopy.Status = newStatus
-			if d, err = dc.controlMachineClient.MachineDeployments(dCopy.Namespace).UpdateStatus(ctx, dCopy, metav1.UpdateOptions{}); err != nil {
+			if _, err = dc.controlMachineClient.MachineDeployments(dCopy.Namespace).UpdateStatus(ctx, dCopy, metav1.UpdateOptions{}); err != nil {
 				return nil, err
 			}
 		}
@@ -644,10 +643,7 @@ func calculateDeploymentStatus(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.Ma
 	}
 
 	// Copy conditions one by one so we won't mutate the original object.
-	conditions := deployment.Status.Conditions
-	for i := range conditions {
-		status.Conditions = append(status.Conditions, conditions[i])
-	}
+	status.Conditions = append(status.Conditions, deployment.Status.Conditions...)
 
 	if availableReplicas >= (deployment.Spec.Replicas)-MaxUnavailable(*deployment) {
 		minAvailability := NewMachineDeploymentCondition(v1alpha1.MachineDeploymentAvailable, v1alpha1.ConditionTrue, MinimumReplicasAvailable, "Deployment has minimum availability.")

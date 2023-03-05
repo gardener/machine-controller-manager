@@ -370,7 +370,7 @@ func getAvailableResources(clientBuilder coreclientbuilder.ClientBuilder) (map[s
 }
 
 func createRecorder(kubeClient *kubernetes.Clientset) record.EventRecorder {
-	machinescheme.AddToScheme(kubescheme.Scheme)
+	utilruntime.Must(machinescheme.AddToScheme(kubescheme.Scheme))
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(klog.Infof)
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.CoreV1().RESTClient()).Events("")})

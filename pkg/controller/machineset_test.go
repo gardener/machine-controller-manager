@@ -18,6 +18,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"k8s.io/utils/pointer"
 	"sync"
 	"time"
 
@@ -32,15 +33,12 @@ import (
 )
 
 const (
-	MachineRunning     = "Running"
-	MachineTerminating = "Terminating"
-	MachineFailed      = "Failed"
+	MachineRunning = "Running"
+	MachineFailed  = "Failed"
 )
 
 var _ = Describe("machineset", func() {
-
 	Describe("#getMachineMachineSets", func() {
-
 		// Testcase: It should return error when Machine does not have any labels.
 		It("should return error", func() {
 			stop := make(chan struct{})
@@ -177,11 +175,8 @@ var _ = Describe("machineset", func() {
 		var (
 			testMachineSet *machinev1.MachineSet
 			testMachine    *machinev1.Machine
-			ptrBool        bool
 		)
 		BeforeEach(func() {
-			ptrBool = true
-
 			testMachine = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "Machine-test",
@@ -194,7 +189,7 @@ var _ = Describe("machineset", func() {
 							Kind:       "MachineSet",
 							Name:       "MachineSet-test",
 							UID:        "1234567",
-							Controller: &ptrBool,
+							Controller: pointer.Bool(true),
 						},
 					},
 				},
@@ -267,7 +262,6 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			ptrBool = false
 			c.addMachineToMachineSet(testMachine)
 
 			waitForCacheSync(stop, c)
@@ -317,13 +311,8 @@ var _ = Describe("machineset", func() {
 		var (
 			testMachineSet *machinev1.MachineSet
 			testMachine    *machinev1.Machine
-			oldMachine     *machinev1.Machine
-			newMachine     *machinev1.Machine
-			ptrBool        bool
 		)
 		BeforeEach(func() {
-			ptrBool = true
-
 			testMachine = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "Machine-test",
@@ -337,7 +326,7 @@ var _ = Describe("machineset", func() {
 							Kind:       "MachineSet",
 							Name:       "MachineSet-test",
 							UID:        "1234567",
-							Controller: &ptrBool,
+							Controller: pointer.Bool(true),
 						},
 					},
 				},
@@ -402,8 +391,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		DescribeTable("Should enqueue the machineset",
-			func(preset func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine), oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
-
+			func(preset func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine)) {
 				machine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "Machine-test",
@@ -417,17 +405,17 @@ var _ = Describe("machineset", func() {
 								Kind:       "MachineSet",
 								Name:       "MachineSet-test",
 								UID:        "1234567",
-								Controller: &ptrBool,
+								Controller: pointer.Bool(true),
 							},
 						},
 					},
 				}
-				oldMachine = machine
-				newMachine = oldMachine.DeepCopy()
+
+				newMachine := machine.DeepCopy()
 				newMachine.ResourceVersion = "345"
 
 				stop := make(chan struct{})
-				preset(oldMachine, newMachine)
+				preset(machine, newMachine)
 				defer close(stop)
 
 				objects := []runtime.Object{}
@@ -436,7 +424,7 @@ var _ = Describe("machineset", func() {
 
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				c.updateMachineToMachineSet(oldMachine, newMachine)
+				c.updateMachineToMachineSet(machine, newMachine)
 
 				waitForCacheSync(stop, c)
 				Expect(c.machineSetQueue.Len()).To(Equal(1))
@@ -445,13 +433,11 @@ var _ = Describe("machineset", func() {
 				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
 					newMachine.ResourceVersion = "3456"
 				},
-				oldMachine, newMachine,
 			),
 			Entry("newMachine is being deleted",
 				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
 					oldMachine.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 				},
-				oldMachine, newMachine,
 			),
 			Entry("labels on newMachine has changed",
 				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
@@ -459,13 +445,11 @@ var _ = Describe("machineset", func() {
 						"dummy": "dummy",
 					}
 				},
-				oldMachine, newMachine,
 			),
 			Entry("if controllerRef has changed and new ref is nil",
 				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
 					newMachine.OwnerReferences = nil
 				},
-				oldMachine, newMachine,
 			),
 			Entry("if controllerRef has changed and new ref points to valid machineSet",
 				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
@@ -474,11 +458,10 @@ var _ = Describe("machineset", func() {
 							Kind:       "MachineSet",
 							Name:       "MachineSet-test-dummy",
 							UID:        "1234567",
-							Controller: &ptrBool,
+							Controller: pointer.Bool(true),
 						},
 					}
 				},
-				oldMachine, newMachine,
 			),
 		)
 
@@ -729,16 +712,13 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			machines, _ := c.controlMachineClient.Machines(testNamespace).List(context.Background(), metav1.ListOptions{})
-			//Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas) - 1))
-
 			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2}
-			Err := c.manageReplicas(context.Background(), activeMachines, testMachineSet)
+			Expect(c.manageReplicas(context.Background(), activeMachines, testMachineSet)).NotTo(HaveOccurred())
 			waitForCacheSync(stop, c)
 			//TODO: Could not use Listers here, need to check more.
-			machines, _ = c.controlMachineClient.Machines(testNamespace).List(context.Background(), metav1.ListOptions{})
+			machines, err := c.controlMachineClient.Machines(testNamespace).List(context.Background(), metav1.ListOptions{})
+			Expect(err).NotTo(HaveOccurred())
 			Expect(len(machines.Items)).To(Equal(int(BurstReplicas + len(activeMachines))))
-			Expect(Err).Should(BeNil())
 		})
 
 		//TestCase: ActiveMachines = DesiredMachines

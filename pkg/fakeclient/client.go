@@ -480,21 +480,17 @@ func NewFakeObjectTrackers(controlMachine, controlCore, targetCore *FakeObjectTr
 }
 
 // Start starts all object trackers as go routines
-func (o *FakeObjectTrackers) Start() error {
+func (o *FakeObjectTrackers) Start() {
 	go o.ControlMachine.Start()
 	go o.ControlCore.Start()
 	go o.TargetCore.Start()
-
-	return nil
 }
 
 // Stop stops all object trackers
-func (o *FakeObjectTrackers) Stop() error {
+func (o *FakeObjectTrackers) Stop() {
 	o.ControlMachine.Stop()
 	o.ControlCore.Stop()
 	o.TargetCore.Stop()
-
-	return nil
 }
 
 // NewCoreClientSet returns a clientset that will respond with the provided objects.
