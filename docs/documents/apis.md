@@ -1,3 +1,7 @@
+---
+title: APIs
+---
+
 ## Specification
 ### ProviderSpec Schema
 <br>
@@ -2944,7 +2948,7 @@ int32
 <a href="#AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
 </p>
 <p>
-<p>AzureHardwareProfile is specifies the hardware settings for the virtual machine.
+<p>AzureHardwareProfile specifies the hardware settings for the virtual machine.
 Refer github.com/Azure/azure-sdk-for-go/arm/compute/models.go for VMSizes</p>
 </p>
 <table>
@@ -2979,7 +2983,7 @@ string
 <a href="#AzureStorageProfile">AzureStorageProfile</a>)
 </p>
 <p>
-<p>AzureImageReference is specifies information about the image to use. You can specify information about platform images,
+<p>AzureImageReference specifies information about the image to use. You can specify information about platform images,
 marketplace images, or virtual machine images. This element is required when you want to use a platform image,
 marketplace image, or virtual machine image, but is not used in other creation operations.</p>
 </p>
@@ -3028,11 +3032,11 @@ string
 <a href="#AzureOSProfile">AzureOSProfile</a>)
 </p>
 <p>
-<p>AzureLinuxConfiguration is specifies the Linux operating system settings on the virtual machine. <br><br>For a list of
-supported Linux distributions, see <a href="https://docs.microsoft.com/azure/virtual-machines/virtual-machines-linux-endorsed-distros?toc=%2fazure%2fvirtual-machines%2flinux%2ftoc.json">Linux on Azure-Endorsed
+<p>AzureLinuxConfiguration specifies the Linux operating system settings on the virtual machine. <br><br>For a list of
+supported Linux distributions, see <a href="https://learn.microsoft.com/en-us/azure/virtual-machines/linux/endorsed-distros
+">Linux on Azure-Endorsed
 Distributions</a>
-<br><br> For running non-endorsed distributions, see <a href="https://docs.microsoft.com/azure/virtual-machines/virtual-machines-linux-create-upload-generic?toc=%2fazure%2fvirtual-machines%2flinux%2ftoc.json">Information for Non-Endorsed
-Distributions</a>.</p>
+</p>
 </p>
 <table>
 <thead>
@@ -3368,7 +3372,7 @@ bool
 <a href="#AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
 </p>
 <p>
-<p>AzureNetworkProfile is specifies the network interfaces of the virtual machine.</p>
+<p>AzureNetworkProfile specifies the network interfaces of the virtual machine.</p>
 </p>
 <table>
 <thead>
@@ -3416,9 +3420,9 @@ AzureNetworkInterfaceReference
 <a href="#AzureStorageProfile">AzureStorageProfile</a>)
 </p>
 <p>
-<p>AzureOSDisk is specifies information about the operating system disk used by the virtual machine. <br><br> For more
-information about disks, see <a href="https://docs.microsoft.com/azure/virtual-machines/virtual-machines-windows-about-disks-vhds?toc=%2fazure%2fvirtual-machines%2fwindows%2ftoc.json">About disks and VHDs for Azure virtual
-machines</a>.</p>
+<p>AzureOSDisk specifies information about the operating system disk used by the virtual machine. <br><br> For more
+information about disks, see <a href="https://learn.microsoft.com/en-us/azure/virtual-machines/managed-disks-overview
+">Introduction to Azure managed disks</a>.</p>
 </p>
 <table>
 <thead>
@@ -3502,7 +3506,7 @@ string
 <a href="#AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
 </p>
 <p>
-<p>AzureOSProfile is specifies the operating system settings for the virtual machine.</p>
+<p>AzureOSProfile specifies the operating system settings for the virtual machine.</p>
 </p>
 <table>
 <thead>
@@ -3669,7 +3673,7 @@ string
 <a href="#AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
 </p>
 <p>
-<p>AzureStorageProfile is specifies the storage settings for the virtual machine disks.</p>
+<p>AzureStorageProfile specifies the storage settings for the virtual machine disks.</p>
 </p>
 <table>
 <thead>
@@ -5935,7 +5939,7 @@ Kubernetes meta/v1.ObjectMeta
 <td>
 <em>(Optional)</em>
 <p>Standard object&rsquo;s metadata.
-More info: <a href="https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata">https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata</a></p>
+More info: <a href="https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata">API Conventions - Metadata</a></p>
 Refer to the Kubernetes API documentation for the fields of the
 <code>metadata</code> field.
 </td>
@@ -5954,7 +5958,8 @@ MachineSpec
 <td>
 <em>(Optional)</em>
 <p>Specification of the desired behavior of the machine.
-More info: <a href="https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status">https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status</a></p>
+More info: <a href="https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
+">API Conventions - Spec and Status</a></p>
 <br/>
 <br/>
 <table>
