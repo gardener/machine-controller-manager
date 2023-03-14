@@ -5958,8 +5958,7 @@ MachineSpec
 <td>
 <em>(Optional)</em>
 <p>Specification of the desired behavior of the machine.
-More info: <a href="https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
-">API Conventions - Spec and Status</a></p>
+More info: <a href="https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status">API Conventions - Spec and Status</a></p>
 <br/>
 <br/>
 <table>
