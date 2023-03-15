@@ -22,13 +22,13 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package options
 
 import (
-	"k8s.io/component-base/logs"
 	"time"
 
 	machineconfig "github.com/gardener/machine-controller-manager/pkg/options"
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/component-base/logs"
 
 	"github.com/gardener/machine-controller-manager/pkg/util/client/leaderelectionconfig"
 
