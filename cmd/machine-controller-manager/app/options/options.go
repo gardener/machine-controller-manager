@@ -97,6 +97,8 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 
 	fs.BoolVar(&s.AutoscalerScaleDownAnnotationDuringRollout, "autoscaler-scaldown-annotation-during-rollout", true, "Add cluster autoscaler scale-down disabled annotation during roll-out.")
 
+	logs.AddFlags(fs) // Here `logs` is `k8s.io/component-base/logs`.
+
 	leaderelectionconfig.BindFlags(&s.LeaderElection, fs)
 
 	logs.AddFlags(fs)
