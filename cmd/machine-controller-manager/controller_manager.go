@@ -43,7 +43,6 @@ func main() {
 	s.AddFlags(pflag.CommandLine)
 
 	flag.InitFlags()
-	logs.InitLogs()
 	defer logs.FlushLogs()
 
 	// verflag.PrintAndExitIfRequested()

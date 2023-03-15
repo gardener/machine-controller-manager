@@ -22,6 +22,7 @@ Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights 
 package options
 
 import (
+	"k8s.io/component-base/logs"
 	"time"
 
 	machineconfig "github.com/gardener/machine-controller-manager/pkg/options"
@@ -97,6 +98,9 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&s.AutoscalerScaleDownAnnotationDuringRollout, "autoscaler-scaldown-annotation-during-rollout", true, "Add cluster autoscaler scale-down disabled annotation during roll-out.")
 
 	leaderelectionconfig.BindFlags(&s.LeaderElection, fs)
+
+	logs.AddFlags(fs)
+
 	// TODO: DefaultFeatureGate is global and it adds all k8s flags
 	// utilfeature.DefaultFeatureGate.AddFlag(fs)
 }
