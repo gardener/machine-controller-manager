@@ -347,16 +347,16 @@ func getAvailableResources(clientBuilder coreclientbuilder.ClientBuilder) (map[s
 		return nil, fmt.Errorf("failed to get api versions from server: %v: %v", healthzContent, err)
 	}
 
-	resourceMap, err := discoveryClient.ServerResources()
+	_, resources, err := discoveryClient.ServerGroupsAndResources()
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("unable to get all supported resources from server: %v", err))
 	}
-	if len(resourceMap) == 0 {
+	if len(resources) == 0 {
 		return nil, fmt.Errorf("unable to get any supported resources from server")
 	}
 
 	allResources := map[schema.GroupVersionResource]bool{}
-	for _, apiResourceList := range resourceMap {
+	for _, apiResourceList := range resources {
 		version, err := schema.ParseGroupVersion(apiResourceList.GroupVersion)
 		if err != nil {
 			return nil, err
