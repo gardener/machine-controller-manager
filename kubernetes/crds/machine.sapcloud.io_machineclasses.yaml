@@ -35,11 +35,11 @@ spec:
               different user-datas are used.
             properties:
               name:
-                description: Name is unique within a namespace to reference a secret
+                description: name is unique within a namespace to reference a secret
                   resource.
                 type: string
               namespace:
-                description: Namespace defines the space within which the secret name
+                description: namespace defines the space within which the secret name
                   must be unique.
                 type: string
             type: object
@@ -94,11 +94,11 @@ spec:
               or userdata.
             properties:
               name:
-                description: Name is unique within a namespace to reference a secret
+                description: name is unique within a namespace to reference a secret
                   resource.
                 type: string
               namespace:
-                description: Namespace defines the space within which the secret name
+                description: namespace defines the space within which the secret name
                   must be unique.
                 type: string
             type: object
