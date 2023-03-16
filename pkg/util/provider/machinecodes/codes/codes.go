@@ -144,8 +144,6 @@ const (
 	// Unauthenticated indicates the request does not have valid
 	// authentication credentials for the operation.
 	Unauthenticated Code = 16
-
-	_maxCode = 17
 )
 
 var strToCode = map[string]Code{

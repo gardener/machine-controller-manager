@@ -460,10 +460,10 @@ func validateControllerRef(controllerRef *metav1.OwnerReference) error {
 	if len(controllerRef.Kind) == 0 {
 		return fmt.Errorf("controllerRef has empty Kind")
 	}
-	if controllerRef.Controller == nil || *controllerRef.Controller != true {
+	if controllerRef.Controller == nil || !*controllerRef.Controller {
 		return fmt.Errorf("controllerRef.Controller is not set to true")
 	}
-	if controllerRef.BlockOwnerDeletion == nil || *controllerRef.BlockOwnerDeletion != true {
+	if controllerRef.BlockOwnerDeletion == nil || !*controllerRef.BlockOwnerDeletion {
 		return fmt.Errorf("controllerRef.BlockOwnerDeletion is not set")
 	}
 	return nil
@@ -786,15 +786,6 @@ func (s ActiveMachines) Less(i, j int) bool {
 	return false
 }
 
-// afterOrZero checks if time t1 is after time t2; if one of them
-// is zero, the zero time is seen as after non-zero time.
-func afterOrZero(t1, t2 *metav1.Time) bool {
-	if t1.Time.IsZero() || t2.Time.IsZero() {
-		return t1.Time.IsZero()
-	}
-	return t1.After(t2.Time)
-}
-
 // IsMachineActive checks if machine was active
 func IsMachineActive(p *v1alpha1.Machine) bool {
 	if p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
@@ -808,11 +799,7 @@ func IsMachineActive(p *v1alpha1.Machine) bool {
 
 // IsMachineFailed checks if machine has failed
 func IsMachineFailed(p *v1alpha1.Machine) bool {
-	if p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
-		return true
-	}
-
-	return false
+	return p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed
 }
 
 // MachineKey is the function used to get the machine name from machine object
@@ -953,6 +940,9 @@ func AddOrUpdateAnnotationOnNode(ctx context.Context, c clientset.Interface, nod
 		updated := false
 
 		newNode, updated, err = annotationsutils.AddOrUpdateAnnotation(oldNode, annotations)
+		if err != nil {
+			return err
+		}
 
 		if !updated {
 			return nil
@@ -1013,6 +1003,9 @@ func RemoveAnnotationsOffNode(ctx context.Context, c clientset.Interface, nodeNa
 
 		// Remove the annotations from the node.
 		newNode, updated, err = annotationsutils.RemoveAnnotation(oldNodeCopy, annotations)
+		if err != nil {
+			return err
+		}
 
 		if !updated {
 			return nil
