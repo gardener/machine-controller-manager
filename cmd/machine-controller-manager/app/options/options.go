@@ -100,9 +100,6 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	logs.AddFlags(fs) // Here `logs` is `k8s.io/component-base/logs`.
 
 	leaderelectionconfig.BindFlags(&s.LeaderElection, fs)
-
-	logs.AddFlags(fs)
-
 	// TODO: DefaultFeatureGate is global and it adds all k8s flags
 	// utilfeature.DefaultFeatureGate.AddFlag(fs)
 }
