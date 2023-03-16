@@ -43,8 +43,7 @@ var (
 	// the code-generation can find it.
 	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
 	// AddToScheme is exposed for API installation
-	AddToScheme        = SchemeBuilder.AddToScheme
-	localSchemeBuilder = &SchemeBuilder
+	AddToScheme = SchemeBuilder.AddToScheme
 )
 
 func addKnownTypes(scheme *runtime.Scheme) error {
