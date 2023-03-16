@@ -25,7 +25,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/gardener/machine-controller-manager/pkg/util/worker"
 	"reflect"
 	"sync"
 	"time"
@@ -343,24 +342,6 @@ func (dc *controller) resolveDeploymentControllerRef(namespace string, controlle
 	return d
 }
 
-// TODO: Remove this method later if not required., it is not being used anywhere.
-func (dc *controller) handleErr(err error, key interface{}) {
-	if err == nil {
-		dc.machineDeploymentQueue.Forget(key)
-		return
-	}
-
-	if dc.machineDeploymentQueue.NumRequeues(key) < worker.DefaultMaxRetries {
-		klog.V(2).Infof("Error syncing deployment %v: %v", key, err)
-		dc.machineDeploymentQueue.AddRateLimited(key)
-		return
-	}
-
-	utilruntime.HandleError(err)
-	klog.V(2).Infof("Dropping deployment %q out of the queue: %v", key, err)
-	dc.machineDeploymentQueue.Forget(key)
-}
-
 // getMachineSetsForDeployment uses ControllerRefManager to reconcile
 // ControllerRef by adopting and orphaning.
 // It returns the list of MachineSets that this Deployment should manage.
@@ -487,7 +468,10 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		dc.recorder.Eventf(d, v1.EventTypeWarning, "SelectingAll", "This deployment is selecting all machines. A non-empty selector is required.")
 		if d.Status.ObservedGeneration < d.Generation {
 			d.Status.ObservedGeneration = d.Generation
-			dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(ctx, d, metav1.UpdateOptions{})
+			if _, err := dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(ctx, d, metav1.UpdateOptions{}); err != nil {
+				return fmt.Errorf("failed to update status for machine deployment %s: %w", deployment.Name, err)
+
+			}
 		}
 		return nil
 	}
@@ -573,7 +557,9 @@ func (dc *controller) terminateMachineSets(ctx context.Context, machineSets []*v
 			if machineSet.DeletionTimestamp != nil {
 				return
 			}
-			dc.controlMachineClient.MachineSets(machineSet.Namespace).Delete(ctx, machineSet.Name, metav1.DeleteOptions{})
+			if err := dc.controlMachineClient.MachineSets(machineSet.Namespace).Delete(ctx, machineSet.Name, metav1.DeleteOptions{}); err != nil {
+				klog.Errorf("failed to delete machineset %s: %v", machineSet.Name, err)
+			}
 		}(machineSet)
 	}
 	wg.Wait()

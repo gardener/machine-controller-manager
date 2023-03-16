@@ -34,7 +34,6 @@ var _ = Describe("deployment_sync", func() {
 	Describe("#getNewMachineSet", func() {
 		type setup struct {
 			machineDeployment  *machinev1.MachineDeployment
-			isList             []*machinev1.MachineSet
 			oldISs             []*machinev1.MachineSet
 			createIfNotExisted bool
 		}

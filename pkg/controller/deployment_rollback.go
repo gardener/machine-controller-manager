@@ -178,18 +178,15 @@ func (dc *controller) removeTaintNodesBackingMachineSet(ctx context.Context, mac
 				klog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Labels[v1alpha1.NodeLabelKey], err)
 				continue
 			}
-
-			err = nodeops.RemoveTaintOffNode(
+			if err := nodeops.RemoveTaintOffNode(
 				ctx,
 				dc.targetCoreClient,
 				machine.Labels[v1alpha1.NodeLabelKey],
 				node,
 				taint,
-			)
-			if err != nil {
+			); err != nil {
 				klog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Labels[v1alpha1.NodeLabelKey], err)
 			}
-			node, err = dc.targetCoreClient.CoreV1().Nodes().Get(ctx, machine.Labels[v1alpha1.NodeLabelKey], metav1.GetOptions{})
 		}
 	}
 
