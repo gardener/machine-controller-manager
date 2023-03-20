@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gardener/gardener/pkg/utils/test/matchers"
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/test/integration/common/helpers"
 	"github.com/onsi/ginkgo"
@@ -1229,7 +1230,7 @@ func (c *IntegrationTestFramework) Cleanup() {
 				gomega.Expect(c.ControlCluster.McmClient.
 					MachineV1alpha1().
 					MachineDeployments(controlClusterNamespace).
-					Delete(ctx, "test-machine-deployment", metav1.DeleteOptions{})).NotTo(gomega.HaveOccurred())
+					Delete(ctx, "test-machine-deployment", metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
 				if event.Type == watch.Deleted {
 					watchMachinesDepl.Stop()
 					log.Println("machinedeployment deleted")
@@ -1253,7 +1254,7 @@ func (c *IntegrationTestFramework) Cleanup() {
 				gomega.Expect(c.ControlCluster.McmClient.
 					MachineV1alpha1().
 					Machines(controlClusterNamespace).
-					Delete(ctx, "test-machine", metav1.DeleteOptions{})).NotTo(gomega.HaveOccurred())
+					Delete(ctx, "test-machine", metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
 				if event.Type == watch.Deleted {
 					watchMachines.Stop()
 					log.Println("machine deleted")
@@ -1279,7 +1280,7 @@ func (c *IntegrationTestFramework) Cleanup() {
 					gomega.Expect(c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineClasses(controlClusterNamespace).
-						Delete(ctx, machineClassName, metav1.DeleteOptions{})).NotTo(gomega.HaveOccurred())
+						Delete(ctx, machineClassName, metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
 					if event.Type == watch.Deleted {
 						watchMachineClass.Stop()
 						log.Println("machineclass deleted")
@@ -1348,14 +1349,15 @@ func (c *IntegrationTestFramework) Cleanup() {
 			gomega.Expect(c.ControlCluster.Clientset.
 				CoreV1().
 				Secrets(controlClusterNamespace).
-				Delete(ctx, "machine-controller-manager", metav1.DeleteOptions{})).NotTo(gomega.HaveOccurred())
+				Delete(ctx,
+					"machine-controller-manager",
+					metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
 			gomega.Expect(c.ControlCluster.Clientset.
 				AppsV1().
 				Deployments(controlClusterNamespace).
-				Delete(
-					ctx,
+				Delete(ctx,
 					machineControllerManagerDeploymentName,
-					metav1.DeleteOptions{})).NotTo(gomega.HaveOccurred())
+					metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
 		}
 	}
 
