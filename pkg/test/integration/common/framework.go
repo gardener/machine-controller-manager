@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/test/utils/matchers"
 	"io"
 	"log"
 	"os"
@@ -13,8 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gardener/gardener/pkg/utils/test/matchers"
-	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/test/integration/common/helpers"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
