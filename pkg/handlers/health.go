@@ -15,6 +15,7 @@
 package handlers
 
 import (
+	"k8s.io/apimachinery/pkg/util/runtime"
 	"net/http"
 	"sync"
 )
@@ -39,9 +40,12 @@ func Healthz(w http.ResponseWriter, r *http.Request) {
 	mutex.Unlock()
 	if isHealthy {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	} else {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Unhealthy"))
+		_, err := w.Write([]byte("OK"))
+		runtime.Must(err)
+		return
 	}
+
+	w.WriteHeader(http.StatusInternalServerError)
+	_, err := w.Write([]byte("Unhealthy"))
+	runtime.Must(err)
 }

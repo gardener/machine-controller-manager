@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/test/utils/matchers"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/test/integration/common/helpers"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
@@ -268,7 +268,7 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(
 		}
 
 		configFile, _ := os.ReadFile(c.TargetCluster.KubeConfigFilePath)
-		c.ControlCluster.Clientset.
+		if _, err := c.ControlCluster.Clientset.
 			CoreV1().
 			Secrets(controlClusterNamespace).
 			Create(ctx,
@@ -282,7 +282,9 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(
 					Type: coreV1.SecretTypeOpaque,
 				},
 				metav1.CreateOptions{},
-			)
+			); err != nil {
+			return err
+		}
 
 		if err := c.ControlCluster.
 			ApplyFiles(
@@ -485,10 +487,10 @@ func (c *IntegrationTestFramework) updatePatchFile() {
 	data, _ := json.MarshalIndent(patchMachineClassData, "", " ")
 
 	//writing to machine-class-patch.json
-	_ = ioutil.WriteFile(filepath.Join("..", "..", "..",
+	gomega.Expect(os.WriteFile(filepath.Join("..", "..", "..",
 		".ci",
 		"controllers-test",
-		"machine-class-patch.json"), data, 0644)
+		"machine-class-patch.json"), data, 0644)).NotTo(gomega.HaveOccurred())
 }
 
 func (c *IntegrationTestFramework) patchMachineClass(ctx context.Context, resourceName string) error {
@@ -669,14 +671,19 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 // rotateLogFile takes file name as input and returns a file object obtained by os.Create
 // If the file exists already then it renames it so that a new file can be created
 func rotateLogFile(fileName string) (*os.File, error) {
-
 	if _, err := os.Stat(fileName); err == nil { // !strings.Contains(err.Error(), "no such file or directory") {
 		for i := 9; i > 0; i-- {
-			os.Rename(fmt.Sprintf("%s.%d", fileName, i), fmt.Sprintf("%s.%d", fileName, i+1))
+			f := fmt.Sprintf("%s.%d", fileName, i)
+			fNew := fmt.Sprintf("%s.%d", fileName, i+1)
+			if err := os.Rename(f, fNew); err != nil {
+				return nil, fmt.Errorf("failed to rename file %s to %s: %w", f, fNew, err)
+			}
 		}
-		os.Rename(fileName, fmt.Sprintf("%s.%d", fileName, 1))
+		fNew := fmt.Sprintf("%s.%d", fileName, 1)
+		if err := os.Rename(fileName, fNew); err != nil {
+			return nil, fmt.Errorf("failed to rename file %s to %s: %w", fileName, fNew, err)
+		}
 	}
-
 	return os.Create(fileName)
 }
 
@@ -1036,7 +1043,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 									},
 								).Stream(ctx)
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
-							io.Copy(mcOutputFile, readCloser)
+							gomega.Expect(io.Copy(mcOutputFile, readCloser)).NotTo(gomega.HaveOccurred())
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
 						} else {
 							readCloser, err := c.ControlCluster.Clientset.CoreV1().
@@ -1045,7 +1052,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 									Container: containers[i].Name,
 								}).Stream(ctx)
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
-							io.Copy(mcmOutputFile, readCloser)
+							gomega.Expect(io.Copy(mcmOutputFile, readCloser)).NotTo(gomega.HaveOccurred())
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
 						}
 					}
@@ -1054,14 +1061,14 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.By("Searching for Froze in mcm log file")
 				frozeRegexp, _ := regexp.Compile(` Froze MachineSet`)
 				gomega.Eventually(func() bool {
-					data, _ := ioutil.ReadFile(mcmLogFile)
+					data, _ := os.ReadFile(mcmLogFile)
 					return frozeRegexp.Match(data)
 				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
 
 				ginkgo.By("Searching Unfroze in mcm log file")
 				unfrozeRegexp, _ := regexp.Compile(` Unfroze MachineSet`)
 				gomega.Eventually(func() bool {
-					data, _ := ioutil.ReadFile(mcmLogFile)
+					data, _ := os.ReadFile(mcmLogFile)
 					return unfrozeRegexp.Match(data)
 				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
 			})
@@ -1187,7 +1194,8 @@ func (c *IntegrationTestFramework) Cleanup() {
 				ginkgo.By("Restarting Machine Controller ")
 				outputFile, err := rotateLogFile(mcLogFile)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				gexec.Start(mcsession.Command, outputFile, outputFile)
+				_, err = gexec.Start(mcsession.Command, outputFile, outputFile)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				break
 			}
 			time.Sleep(2 * time.Second)
@@ -1197,7 +1205,8 @@ func (c *IntegrationTestFramework) Cleanup() {
 				ginkgo.By("Restarting Machine Controller Manager")
 				outputFile, err := rotateLogFile(mcmLogFile)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				gexec.Start(mcmsession.Command, outputFile, outputFile)
+				_, err = gexec.Start(mcmsession.Command, outputFile, outputFile)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				break
 			}
 			time.Sleep(2 * time.Second)
@@ -1218,10 +1227,10 @@ func (c *IntegrationTestFramework) Cleanup() {
 				MachineDeployments(controlClusterNamespace).
 				Watch(ctx, metav1.ListOptions{TimeoutSeconds: &timeout}) //ResourceVersion: machineDeploymentObj.ResourceVersion
 			for event := range watchMachinesDepl.ResultChan() {
-				c.ControlCluster.McmClient.
+				gomega.Expect(c.ControlCluster.McmClient.
 					MachineV1alpha1().
 					MachineDeployments(controlClusterNamespace).
-					Delete(ctx, "test-machine-deployment", metav1.DeleteOptions{})
+					Delete(ctx, "test-machine-deployment", metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
 				if event.Type == watch.Deleted {
 					watchMachinesDepl.Stop()
 					log.Println("machinedeployment deleted")
@@ -1242,10 +1251,10 @@ func (c *IntegrationTestFramework) Cleanup() {
 				Machines(controlClusterNamespace).
 				Watch(ctx, metav1.ListOptions{TimeoutSeconds: &timeout}) //ResourceVersion: machineObj.ResourceVersion
 			for event := range watchMachines.ResultChan() {
-				c.ControlCluster.McmClient.
+				gomega.Expect(c.ControlCluster.McmClient.
 					MachineV1alpha1().
 					Machines(controlClusterNamespace).
-					Delete(ctx, "test-machine", metav1.DeleteOptions{})
+					Delete(ctx, "test-machine", metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
 				if event.Type == watch.Deleted {
 					watchMachines.Stop()
 					log.Println("machine deleted")
@@ -1268,10 +1277,10 @@ func (c *IntegrationTestFramework) Cleanup() {
 					MachineClasses(controlClusterNamespace).
 					Watch(ctx, metav1.ListOptions{TimeoutSeconds: &timeout})
 				for event := range watchMachineClass.ResultChan() {
-					c.ControlCluster.McmClient.
+					gomega.Expect(c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineClasses(controlClusterNamespace).
-						Delete(ctx, machineClassName, metav1.DeleteOptions{})
+						Delete(ctx, machineClassName, metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
 					if event.Type == watch.Deleted {
 						watchMachineClass.Stop()
 						log.Println("machineclass deleted")
@@ -1337,18 +1346,18 @@ func (c *IntegrationTestFramework) Cleanup() {
 
 			log.Println("Deleting MCM deployment")
 
-			c.ControlCluster.Clientset.
+			gomega.Expect(c.ControlCluster.Clientset.
 				CoreV1().
 				Secrets(controlClusterNamespace).
-				Delete(ctx, "machine-controller-manager", metav1.DeleteOptions{})
-			c.ControlCluster.Clientset.
+				Delete(ctx,
+					"machine-controller-manager",
+					metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
+			gomega.Expect(c.ControlCluster.Clientset.
 				AppsV1().
 				Deployments(controlClusterNamespace).
-				Delete(
-					ctx,
+				Delete(ctx,
 					machineControllerManagerDeploymentName,
-					metav1.DeleteOptions{},
-				)
+					metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
 		}
 	}
 
