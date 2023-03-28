@@ -8,6 +8,12 @@
 
 * In GCP provider - `instance.ServiceAccounts` can be updated without the need to roll-over the instance. [See](https://cloud.google.com/compute/docs/access/service-accounts)
 
+
+
+## Boundary Condition
+
+All tags that are added via means other than MachineClass.ProviderSpec should be preserved as-is. Only updates done to tags in `MachineClass.ProviderSpec` should be applied to the infra resources (VM/NIC/Disk).
+
 ## What is available today?
 
 WorkerPool configuration inside [shootYaml](https://github.com/gardener/gardener/blob/fb29d38e6615ed17d409a8271a285254d9dd00ad/example/90-shoot.yaml#L61-L62) provides a way to set labels. As per the [definition](https://gardener.cloud/docs/gardener/api-reference/core/#core.gardener.cloud/v1beta1.Worker) these labels will be applied on `Node` resources. Currently these labels are also passed to the VMs as tags. There is no distinction made between `Node` labels and `VM` tags.
@@ -123,7 +129,7 @@ providerConfig:
 
 Under `tags` clear distinction is made between tags for VMs, Disks, network interface etc. Each provider has a different allowed-set of characters that it accepts as key names, has different limits on the tags that can be set on a resource (disk, NIC, VM etc.) and also has a different format (GCP network tags are only keys).
 
-> TODO (Madhav): 
+> TODO: 
 > 
 > * Check if worker.labels are getting added as tags on infra resources. We should continue to support it and double check that these should only be added to VMs and not to other resources. 
 > 
@@ -192,6 +198,7 @@ type Driver interface {
 // UpdateMachineRequest is the request to update machine tags. 
 type UpdateMachineRequest struct {
     ProviderID string
+    LastAppliedProviderSpec raw.Extension
     MachineClass *v1alpha1.MachineClass
     Secret *corev1.Secret
 }
@@ -199,7 +206,9 @@ type UpdateMachineRequest struct {
 
 > If any `machine-controller-manager-provider-<providername>` has not implemented `UpdateMachine` then updates of tags on Instances/NICs/Disks will not be done. An error message will be logged instead. 
 
-> TODO(Madhav): study all responses across providers for update calls and see if we need to return anything to the caller of Driver. If there is then introduce a new struct `UpdateMachineResponse`
+> 
+
+
 
 ### Machine Class reconciliation
 
@@ -213,7 +222,7 @@ In order to ensure that machines get updated eventually with changes to the `hot
 
 We should only fix [MCM Issue#751](https://github.com/gardener/machine-controller-manager/issues/751) in the MachineClass reconciliation and let it enqueue the machines as it does today. We additionally propose the following two things:
 
-1. Introduce a new annotation `last-applied-providerspec` on every machine resource. This will capture the last successfully applied `MachineClass.ProviderSpec` on this machine.
+1. Introduce a new annotation `last-applied-providerspec` on every machine resource. This will capture the last successfully applied `MachineClass.ProviderSpec` on this instance.
 
 2. Enhance the machine reconciliation to include code to hot-update machine. 
 
@@ -226,7 +235,7 @@ Check if the machine has `last-applied-providerspec` annotation.
 
 If the annotation is not present then there can be just 2 possibilities:
 
-* It is a fresh/new cluster and no backing resources (VM/NIC/Disk) exist yet. The current flow checks if the providerID is empty and `Status.CurrenStatus.Phase` is empty then it enters into the `triggerCreationFlow`.
+* It is a fresh/new machine and no backing resources (VM/NIC/Disk) exist yet. The current flow checks if the providerID is empty and `Status.CurrenStatus.Phase` is empty then it enters into the `triggerCreationFlow`.
 
 * It is an existing machine which does not yet have this annotation. In this case call `Driver.UpdateMachine`. If the driver returns no error then add `last-applied-providerspec` annotation with the value of `MachineClass.ProviderSpec` to this machine.
 
@@ -235,6 +244,10 @@ If the annotation is not present then there can be just 2 possibilities:
 If the annotation is present then compare the last applied provider-spec with the current provider-spec. If there are changes (check their hash values) then call `Driver.UpdateMachine`. If the driver returns no error then add `last-applied-providerspec` annotation with the value of `MachineClass.ProviderSpec` to this machine.
 
 > NOTE: It is assumed that if there are changes to the fields which are not marked as `hotupdatable` then it will result in the change of name for MachineClass resulting in a rolling update of machines. If the name has not changed + machine is enqueued + there is a change in machine-class then it will be change to a hotupdatable fields in the spec.
+
+
+
+Trigger update flow can be done after `reconcileMachineHealth` and `syncMachineNodeTemplates` in [machine-reconciliation](https://github.com/gardener/machine-controller-manager/blob/v0.48.1/pkg/util/provider/machinecontroller/machine.go#L164-L175).
 
 
 
@@ -262,127 +275,20 @@ The above situation can also happen when `Driver.UpdateMachine` is in the proces
 
 To handle the above edge cases there are 2 options:
 
-*Option #1*
 
-Introduce a new annotation `providerspec-apply-inprogress-hash` . The value of this annotation will be the hash value of the `MachineClass.ProviderSpec` that is in the process of getting applied on this machine. The machine will be updated with this annotation just before calling `Driver.UpdateMachine` (in the trigger-update-machine-flow). If the driver returns no error then (in a single update):
+
+*Option #1* 
+
+Introduce a new annotation `inflight-providerspec-hash` . The value of this annotation will be the hash value of the `MachineClass.ProviderSpec` that is in the process of getting applied on this machine. The machine will be updated with this annotation just before calling `Driver.UpdateMachine` (in the trigger-update-machine-flow). If the driver returns no error then (in a single update):
 
 1. `last-applied-providerspec` will be updated
 
-2. `providerspec-apply-inprogress-hash` annotation will be removed.
+2. `inflight-providerspec-hash` annotation will be removed.
 
 
 
-*Option #2*
+*Option #2* - Preferred 
 
 Leverage `Machine.Status.LastOperation` with `Type` set to `MachineOperationUpdate` and `State` set to `MachineStateProcessing` This status will be updated just before calling `Driver.UpdateMachine`.
 
 Semantically `LastOperation` captures the details of the operation post-operation and not pre-operation. So this solution would be a divergence from the norm.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Case 1:
-
-At T=0:
-Current MachineClass: C1
-
-Last Applied Annotation on Machine: C1
-
-At T=1
-
-Current MachineClass: C2 (only updatable fields changed)
-
--------------------------------------------------------------------------------------------
-
-Case 1.1
-
-    Driver.UpdateMachine is successful - Last Applied annotation on Machine: C2
-
-Case 1.2
-
-   Driver.UpdateMachine failed - Last Appliied annotation on Machine: C1
-
-Case 1.3
-
-    Driver.UpdateMachine is partially successful - Last Appliied annotation on Machine: C1
-
-   In Case 1.2 and 1.3 requeueing will ensure that eventually update succeeds and then Last Appliied annotation on Machine will change to C2
-
-##############################################################
-
-Case 2:
-
-At T=0:
-Current MachineClass: C1
-
-Last Applied Annotation on Machine: C1
-
-At T=1
-
-Current MachineClass: C2 (only updatable fields changed)
-
----------------------------------------------------------------------------------
-
-While you are applying C2, C3 change (where C3 != C1 and C3 != C2) also comes in.
-
-Case 2.1
-
-    Driver.UpdateMachine for C2 is successful - Last Applied annotation on Machine: C2 and then an atttempt to apply C3 will be made.
-
-Case 2.2
-
-    Driver.UpdateMachine for C2 has failed - Last Applied annotation on Machine: C1. You have requeued this machine to reattempt to apply C2. However C3 also comes in before call to UpdateMachine could finish. In this case an attempt to apply C3 will be made. So irrespective of the result of applying C3, any reattempt made will always only apply C3.
-
-Case 2.3 
-
-    Driver.UpdateMachine is partially successful - Last Applied annotation on Machine: C1. You have requeued this machine to reattempt to apply C2. However C3 also comes in before call to UpdateMachine could finish. Same as in 2.2
-
-##############################################################
-
-Case 1:
-
-At T=0:
-Current MachineClass: C1
-
-Last Applied Annotation on Machine: C1
-
-At T=1
-
-Current MachineClass: C2 (only updatable fields changed)
-
----
-
-While you are applying C2, C3 change (where C3 == C1 and C3 != C2) also comes in.
-
-Case 2.1
-
-    Driver.UpdateMachine for C2 is successful - Last Applied annotation on Machine: C2 and then an atttempt to apply C3 will be made.
-
-Case 2.2
-
-    Driver.UpdateMachine for C2 has failed - Last Applied annotation on Machine: C1. You have requeued this machine to reattempt to apply C2. However C3 also comes in before call to UpdateMachine could finish. In this case an attempt to apply C3 will be made but since there is no change between C3 and C1 nothing gets applied.
-
-Case 2.3
-
-    Driver.UpdateMachine is partially successful - Last Applied annotation on Machine: C1. You have requeued this machine to reattempt to apply C2. However C3 also comes in before call to UpdateMachine could finish. C3 == C1 and therefore no update will be applied and as consequence partially updated resources will never go back to C1/C3.
-
-Last Applied annotation on Machine: C1
-
-Applying MachineClassHash: C2-Hash
-
-or using LastOperation: state => MachineStateProcessing and type => MachineOperationUpdate
