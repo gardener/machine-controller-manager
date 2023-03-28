@@ -47,7 +47,7 @@ import (
 )
 
 func TestMachineControllerManagerSuite(t *testing.T) {
-	//for filtering out warning logs. Reflector short watch warning logs won't print now
+	// for filtering out warning logs. Reflector short watch warning logs won't print now
 	klog.SetOutput(io.Discard)
 	flags := &flag.FlagSet{}
 	klog.InitFlags(flags)
@@ -66,12 +66,20 @@ func newMachineDeployment(
 	specTemplate *v1alpha1.MachineTemplateSpec,
 	replicas int32,
 	minReadySeconds int32,
+	maxSurge int,
+	maxUnavailable int,
 	statusTemplate *v1alpha1.MachineDeploymentStatus,
 	owner *metav1.OwnerReference,
 	annotations map[string]string,
 	labels map[string]string,
 ) *v1alpha1.MachineDeployment {
-	return newMachineDeployments(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner, annotations, labels)[0]
+	md := newMachineDeployments(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner, annotations, labels)[0]
+	intStrMaxSurge := intstr.FromInt(maxSurge)
+	intStrMaxUnavailable := intstr.FromInt(maxUnavailable)
+	md.Spec.Strategy.RollingUpdate.MaxSurge = &intStrMaxSurge
+	md.Spec.Strategy.RollingUpdate.MaxUnavailable = &intStrMaxUnavailable
+
+	return md
 }
 
 func newMachineDeployments(
@@ -105,6 +113,7 @@ func newMachineDeployments(
 					MatchLabels: deepCopy(specTemplate.ObjectMeta.Labels),
 				},
 				Strategy: v1alpha1.MachineDeploymentStrategy{
+					Type: v1alpha1.RollingUpdateMachineDeploymentStrategyType,
 					RollingUpdate: &v1alpha1.RollingUpdateMachineDeployment{
 						MaxSurge:       &intStr1,
 						MaxUnavailable: &intStr1,
@@ -131,56 +140,9 @@ func newMachineDeployments(
 	return machineDeployments
 }
 
-func newMachineSetFromMachineDeployment(
-	machineDeployment *v1alpha1.MachineDeployment,
-	replicas int32,
-	statusTemplate *v1alpha1.MachineSetStatus,
-	annotations map[string]string,
-	labels map[string]string,
-) *v1alpha1.MachineSet {
-	return newMachineSetsFromMachineDeployment(1, machineDeployment, replicas, statusTemplate, annotations, labels)[0]
-}
-
-func newMachineSetsFromMachineDeployment(
-	machineSetCount int,
-	machineDeployment *v1alpha1.MachineDeployment,
-	replicas int32,
-	statusTemplate *v1alpha1.MachineSetStatus,
-	annotations map[string]string,
-	labels map[string]string,
-) []*v1alpha1.MachineSet {
-
-	finalLabels := make(map[string]string)
-	for k, v := range labels {
-		finalLabels[k] = v
-	}
-	for k, v := range machineDeployment.Spec.Template.Labels {
-		finalLabels[k] = v
-	}
-
-	t := &machineDeployment.TypeMeta
-
-	return newMachineSets(
-		machineSetCount,
-		&machineDeployment.Spec.Template,
-		replicas,
-		machineDeployment.Spec.MinReadySeconds,
-		statusTemplate,
-		&metav1.OwnerReference{
-			APIVersion:         t.APIVersion,
-			Kind:               t.Kind,
-			Name:               machineDeployment.Name,
-			UID:                machineDeployment.UID,
-			BlockOwnerDeletion: pointer.BoolPtr(true),
-			Controller:         pointer.BoolPtr(true),
-		},
-		annotations,
-		finalLabels,
-	)
-}
-
 func newMachineSet(
 	specTemplate *v1alpha1.MachineTemplateSpec,
+	name string,
 	replicas int32,
 	minReadySeconds int32,
 	statusTemplate *v1alpha1.MachineSetStatus,
@@ -188,7 +150,9 @@ func newMachineSet(
 	annotations map[string]string,
 	labels map[string]string,
 ) *v1alpha1.MachineSet {
-	return newMachineSets(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner, annotations, labels)[0]
+	ms := newMachineSets(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner, annotations, labels)[0]
+	ms.Name = name
+	return ms
 }
 
 func newMachineSets(
