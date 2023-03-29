@@ -209,41 +209,6 @@ func newMachineSets(
 	return machineSets
 }
 
-func modifyMachineSet(ms *v1alpha1.MachineSet, specTemplate *v1alpha1.MachineTemplateSpec,
-	replicas int32,
-	minReadySeconds int32,
-	statusTemplate *v1alpha1.MachineSetStatus,
-	owner *metav1.OwnerReference,
-	annotations map[string]string,
-	labels map[string]string) *v1alpha1.MachineSet {
-
-	if specTemplate != nil {
-		ms.Spec.Template = *specTemplate.DeepCopy()
-	}
-
-	Expect(ms).To(Not(BeNil()))
-	fmt.Println(*ms)
-	Expect(ms.Spec).To(Not(BeEmpty()))
-	ms.Spec.Replicas = replicas
-	ms.Spec.MinReadySeconds = minReadySeconds
-	if statusTemplate != nil {
-		ms.Status = *statusTemplate.DeepCopy()
-
-	}
-	if owner != nil {
-		ms.OwnerReferences = append(ms.OwnerReferences, *owner.DeepCopy())
-	}
-	if annotations != nil {
-		ms.Annotations = annotations
-	}
-
-	if labels != nil {
-		ms.Labels = labels
-	}
-
-	return ms
-}
-
 func deepCopy(m map[string]string) map[string]string {
 	r := make(map[string]string, len(m))
 	for k := range m {
