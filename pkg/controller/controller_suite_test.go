@@ -140,6 +140,54 @@ func newMachineDeployments(
 	return machineDeployments
 }
 
+func newMachineSetFromMachineDeployment(
+	machineDeployment *v1alpha1.MachineDeployment,
+	replicas int32,
+	statusTemplate *v1alpha1.MachineSetStatus,
+	annotations map[string]string,
+	labels map[string]string,
+) *v1alpha1.MachineSet {
+	return newMachineSetsFromMachineDeployment(1, machineDeployment, replicas, statusTemplate, annotations, labels)[0]
+}
+
+func newMachineSetsFromMachineDeployment(
+	machineSetCount int,
+	machineDeployment *v1alpha1.MachineDeployment,
+	replicas int32,
+	statusTemplate *v1alpha1.MachineSetStatus,
+	annotations map[string]string,
+	labels map[string]string,
+) []*v1alpha1.MachineSet {
+
+	finalLabels := make(map[string]string)
+	for k, v := range labels {
+		finalLabels[k] = v
+	}
+	for k, v := range machineDeployment.Spec.Template.Labels {
+		finalLabels[k] = v
+	}
+
+	t := &machineDeployment.TypeMeta
+
+	return newMachineSets(
+		machineSetCount,
+		&machineDeployment.Spec.Template,
+		replicas,
+		machineDeployment.Spec.MinReadySeconds,
+		statusTemplate,
+		&metav1.OwnerReference{
+			APIVersion:         t.APIVersion,
+			Kind:               t.Kind,
+			Name:               machineDeployment.Name,
+			UID:                machineDeployment.UID,
+			BlockOwnerDeletion: pointer.BoolPtr(true),
+			Controller:         pointer.BoolPtr(true),
+		},
+		annotations,
+		finalLabels,
+	)
+}
+
 func newMachineSet(
 	specTemplate *v1alpha1.MachineTemplateSpec,
 	name string,
