@@ -26,15 +26,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
+	"sort"
+	"sync"
+	"time"
+
 	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
-	"reflect"
-	"sort"
-	"sync"
-	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -347,7 +348,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	}
 	if err := c.terminateMachines(ctx, staleMachines, machineSet); err != nil {
 		// TODO: proper error handling needs to happen here
-		klog.Errorf("failed to terminate stale machines for machineset %s: %w", machineSet.Name, err)
+		klog.Errorf("failed to terminate stale machines for machineset %s: %v", machineSet.Name, err)
 	}
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
@@ -371,7 +372,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		// beforehand and store it via ExpectCreations.
 		if err := c.expectations.ExpectCreations(machineSetKey, diff); err != nil {
 			// TODO: proper error handling needs to happen here
-			klog.Errorf("failed expect creations for machineset %s: %w", machineSet.Name, err)
+			klog.Errorf("failed expect creations for machineset %s: %v", machineSet.Name, err)
 		}
 		klog.V(2).Infof("Too few replicas for MachineSet %s, need %d, creating %d", machineSet.Name, (machineSet.Spec.Replicas), diff)
 		// Batch the machine creates. Batch sizes start at SlowStartInitialBatchSize
@@ -433,12 +434,12 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		// expired even if other machines are deleted.
 		if err := c.expectations.ExpectDeletions(machineSetKey, getMachineKeys(machinesToDelete)); err != nil {
 			// TODO: proper error handling needs to happen here
-			klog.Errorf("failed expect deletions for machineset %s: %w", machineSet.Name, err)
+			klog.Errorf("failed expect deletions for machineset %s: %v", machineSet.Name, err)
 		}
 
 		if err := c.terminateMachines(ctx, machinesToDelete, machineSet); err != nil {
 			// TODO: proper error handling needs to happen here
-			klog.Errorf("failed to terminate machines for machineset %s: %w", machineSet.Name, err)
+			klog.Errorf("failed to terminate machines for machineset %s: %v", machineSet.Name, err)
 		}
 	}
 
@@ -691,7 +692,7 @@ func (c *controller) prepareMachineForDeletion(ctx context.Context, targetMachin
 	}
 	if _, err := c.updateMachineStatus(ctx, targetMachine, lastOperation, currentStatus); err != nil {
 		// TODO: proper error handling needs to happen here
-		klog.Errorf("failed to update machine status for machine %s: %w", targetMachine.Name, err)
+		klog.Errorf("failed to update machine status for machine %s: %v", targetMachine.Name, err)
 	}
 	klog.V(2).Infof("Delete machine from machineset %q", targetMachine.Name)
 }
