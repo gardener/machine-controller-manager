@@ -415,7 +415,6 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 	// If the new machine set is saturated, old machine sets should be fully scaled down.
 	// This case handles machine set adoption during a saturated new machine set.
 	if IsSaturated(deployment, newIS) {
-		fmt.Printf("Scaling old active machineSets as new machineSet %s is saturated", newIS.Name)
 		klog.V(3).Infof("Scaling old active machineSets as new machineSet %s is saturated", newIS.Name)
 		for _, old := range FilterActiveMachineSets(oldISs) {
 			if _, _, err := dc.scaleMachineSetAndRecordEvent(ctx, old, 0, deployment); err != nil {
@@ -431,7 +430,6 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 	// - Scale down ? -> scale down the old machineSets proportionally
 	if IsRollingUpdate(deployment) {
 		klog.V(3).Infof("Scaling all active machineSets proportionally for scale-in, while scaling up latest machineSet only for scale-out, machineDeployment %s", deployment.Name)
-		fmt.Printf("Scaling all active machineSets proportionally for scale-in, while scaling up latest machineSet only for scale-out, machineDeployment %s", deployment.Name)
 		allISs := FilterActiveMachineSets(append(oldISs, newIS))
 		allISsReplicas := GetReplicaCountForMachineSets(allISs)
 
