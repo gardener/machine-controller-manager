@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/watch"
 	coreinformers "k8s.io/client-go/informers"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -47,7 +48,7 @@ import (
 )
 
 func TestMachineControllerManagerSuite(t *testing.T) {
-	//for filtering out warning logs. Reflector short watch warning logs won't print now
+	// for filtering out warning logs. Reflector short watch warning logs won't print now
 	klog.SetOutput(io.Discard)
 	flags := &flag.FlagSet{}
 	klog.InitFlags(flags)
@@ -63,6 +64,99 @@ var (
 	AWSMachineClass  = "AWSMachineClass"
 	TestMachineClass = "machineClass-0"
 )
+
+func newMachineDeployment(
+	specTemplate *v1alpha1.MachineTemplateSpec,
+	replicas int32,
+	minReadySeconds int32,
+	maxSurge int,
+	maxUnavailable int,
+	statusTemplate *v1alpha1.MachineDeploymentStatus,
+	owner *metav1.OwnerReference,
+	annotations map[string]string,
+	labels map[string]string,
+) *v1alpha1.MachineDeployment {
+	md := newMachineDeployments(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner, annotations, labels)[0]
+	intStrMaxSurge := intstr.FromInt(maxSurge)
+	intStrMaxUnavailable := intstr.FromInt(maxUnavailable)
+	md.Spec.Strategy.RollingUpdate.MaxSurge = &intStrMaxSurge
+	md.Spec.Strategy.RollingUpdate.MaxUnavailable = &intStrMaxUnavailable
+
+	return md
+}
+
+func newMachineDeployments(
+	machineDeploymentCount int,
+	specTemplate *v1alpha1.MachineTemplateSpec,
+	replicas int32,
+	minReadySeconds int32,
+	statusTemplate *v1alpha1.MachineDeploymentStatus,
+	owner *metav1.OwnerReference,
+	annotations map[string]string,
+	labels map[string]string,
+) []*v1alpha1.MachineDeployment {
+
+	intStr1 := intstr.FromInt(1)
+	machineDeployments := make([]*v1alpha1.MachineDeployment, machineDeploymentCount)
+	for i := range machineDeployments {
+		machineDeployment := &v1alpha1.MachineDeployment{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "machine.sapcloud.io",
+				Kind:       "MachineDeployment",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("machinedeployment-%d", i),
+				Namespace: testNamespace,
+				Labels:    labels,
+			},
+			Spec: v1alpha1.MachineDeploymentSpec{
+				MinReadySeconds: minReadySeconds,
+				Replicas:        replicas,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: deepCopy(specTemplate.ObjectMeta.Labels),
+				},
+				Strategy: v1alpha1.MachineDeploymentStrategy{
+					Type: v1alpha1.RollingUpdateMachineDeploymentStrategyType,
+					RollingUpdate: &v1alpha1.RollingUpdateMachineDeployment{
+						MaxSurge:       &intStr1,
+						MaxUnavailable: &intStr1,
+					},
+				},
+				Template: *specTemplate.DeepCopy(),
+			},
+		}
+
+		if statusTemplate != nil {
+			machineDeployment.Status = *statusTemplate.DeepCopy()
+		}
+
+		if owner != nil {
+			machineDeployment.OwnerReferences = append(machineDeployment.OwnerReferences, *owner.DeepCopy())
+		}
+
+		if annotations != nil {
+			machineDeployment.Annotations = annotations
+		}
+
+		machineDeployments[i] = machineDeployment
+	}
+	return machineDeployments
+}
+
+func newMachineSet(
+	specTemplate *v1alpha1.MachineTemplateSpec,
+	name string,
+	replicas int32,
+	minReadySeconds int32,
+	statusTemplate *v1alpha1.MachineSetStatus,
+	owner *metav1.OwnerReference,
+	annotations map[string]string,
+	labels map[string]string,
+) *v1alpha1.MachineSet {
+	ms := newMachineSets(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner, annotations, labels)[0]
+	ms.Name = name
+	return ms
+}
 
 func newMachineSets(
 	machineSetCount int,
