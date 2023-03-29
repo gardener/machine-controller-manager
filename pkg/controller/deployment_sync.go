@@ -452,7 +452,7 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 		nameToSize := make(map[string]int32)
 		deploymentReplicasAdded := int32(0)
 		switch {
-		case deploymentReplicasToAdd > 0:
+		case deploymentReplicasToAdd >= 0:
 			scalingOperation = "up"
 			nameToSize = dc.scaleNewMachineSet(newIS, allISs, deploymentReplicasToAdd, deployment)
 			deploymentReplicasAdded = deploymentReplicasToAdd
@@ -478,6 +478,7 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 			// TODO: Use transactions when we have them.
 			if _, _, err := dc.scaleMachineSet(ctx, is, nameToSize[is.Name], deployment, scalingOperation); err != nil {
 				// Return as soon as we fail, the deployment is requeued
+				klog.Warningf("updating machineSet %s failed while scaling. This could lead to desired replicas annotation not being updated. err: %v", is.Name, err)
 				return err
 			}
 		}
@@ -677,6 +678,7 @@ func (dc *controller) isScalingEvent(ctx context.Context, d *v1alpha1.MachineDep
 			continue
 		}
 		if desired != (d.Spec.Replicas) {
+			klog.V(2).Infof("Desired replicas annotation value: %d on machineSet %s, Spec Desired Replicas value: %d on corresponding machineDeployment, so scaling has happened.", desired, is.Name, d.Spec.Replicas)
 			return true, nil
 		}
 	}

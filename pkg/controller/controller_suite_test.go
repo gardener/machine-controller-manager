@@ -47,7 +47,7 @@ import (
 )
 
 func TestMachineControllerManagerSuite(t *testing.T) {
-	//for filtering out warning logs. Reflector short watch warning logs won't print now
+	// for filtering out warning logs. Reflector short watch warning logs won't print now
 	klog.SetOutput(io.Discard)
 	flags := &flag.FlagSet{}
 	klog.InitFlags(flags)
@@ -66,12 +66,20 @@ func newMachineDeployment(
 	specTemplate *v1alpha1.MachineTemplateSpec,
 	replicas int32,
 	minReadySeconds int32,
+	maxSurge int,
+	maxUnavailable int,
 	statusTemplate *v1alpha1.MachineDeploymentStatus,
 	owner *metav1.OwnerReference,
 	annotations map[string]string,
 	labels map[string]string,
 ) *v1alpha1.MachineDeployment {
-	return newMachineDeployments(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner, annotations, labels)[0]
+	md := newMachineDeployments(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner, annotations, labels)[0]
+	intStrMaxSurge := intstr.FromInt(maxSurge)
+	intStrMaxUnavailable := intstr.FromInt(maxUnavailable)
+	md.Spec.Strategy.RollingUpdate.MaxSurge = &intStrMaxSurge
+	md.Spec.Strategy.RollingUpdate.MaxUnavailable = &intStrMaxUnavailable
+
+	return md
 }
 
 func newMachineDeployments(
@@ -105,6 +113,7 @@ func newMachineDeployments(
 					MatchLabels: deepCopy(specTemplate.ObjectMeta.Labels),
 				},
 				Strategy: v1alpha1.MachineDeploymentStrategy{
+					Type: v1alpha1.RollingUpdateMachineDeploymentStrategyType,
 					RollingUpdate: &v1alpha1.RollingUpdateMachineDeployment{
 						MaxSurge:       &intStr1,
 						MaxUnavailable: &intStr1,
@@ -181,6 +190,7 @@ func newMachineSetsFromMachineDeployment(
 
 func newMachineSet(
 	specTemplate *v1alpha1.MachineTemplateSpec,
+	name string,
 	replicas int32,
 	minReadySeconds int32,
 	statusTemplate *v1alpha1.MachineSetStatus,
@@ -188,7 +198,9 @@ func newMachineSet(
 	annotations map[string]string,
 	labels map[string]string,
 ) *v1alpha1.MachineSet {
-	return newMachineSets(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner, annotations, labels)[0]
+	ms := newMachineSets(1, specTemplate, replicas, minReadySeconds, statusTemplate, owner, annotations, labels)[0]
+	ms.Name = name
+	return ms
 }
 
 func newMachineSets(

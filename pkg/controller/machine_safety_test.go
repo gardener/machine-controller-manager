@@ -76,7 +76,7 @@ var _ = Describe("#machine_safety", func() {
 				Name:      "machine",
 				Namespace: testNamespace,
 			},
-		}, 1, 10, nil, nil, nil, nil), 1, false),
+		}, "machine", 1, 10, nil, nil, nil, nil), 1, false),
 
 		// When there is 1 machineSet with 1 replica and corresponding 5 machine Object
 		// MachineSet is frozen by adding a label on MachineSet
@@ -85,7 +85,7 @@ var _ = Describe("#machine_safety", func() {
 				Name:      "machine",
 				Namespace: testNamespace,
 			},
-		}, 1, 10, nil, nil, nil, nil), 5, true),
+		}, "machineSet-1", 1, 10, nil, nil, nil, nil), 5, true),
 
 		// When there is 1 machineSet with 5 replica and corresponding 2 machine Object
 		// with a {"Freeze": "True"} label set on the MachineSe, the MachineSet is unfrozen
@@ -95,7 +95,7 @@ var _ = Describe("#machine_safety", func() {
 				Name:      "machine",
 				Namespace: testNamespace,
 			},
-		}, 5, 10, nil, nil, nil, map[string]string{"Freeze": "True"}), 2, false),
+		}, "machineSet-1", 5, 10, nil, nil, nil, map[string]string{"Freeze": "True"}), 2, false),
 	)
 
 	DescribeTable("##freezeMachineSetsAndDeployments",
@@ -132,7 +132,7 @@ var _ = Describe("#machine_safety", func() {
 				Name:      "machine",
 				Namespace: testNamespace,
 			},
-		}, 1, 10, nil, nil, nil, nil)),
+		}, "machineSet-1", 1, 10, nil, nil, nil, nil)),
 	)
 
 	DescribeTable("##unfreezeMachineSetsAndDeployments",
@@ -145,7 +145,7 @@ var _ = Describe("#machine_safety", func() {
 						"name": "testMachineDeployment",
 					},
 				},
-			}, 1, 10, nil, nil, nil, map[string]string{})
+			}, "machineSet-1", 1, 10, nil, nil, nil, map[string]string{})
 			if machineSetIsFrozen {
 				testMachineSet.Labels["freeze"] = "True"
 				msStatus := testMachineSet.Status
@@ -196,7 +196,7 @@ var _ = Describe("#machine_safety", func() {
 				Expect(GetCondition(&machineSet.Status, v1alpha1.MachineSetFrozen)).Should(BeNil())
 				machineDeployment, err := c.controlMachineClient.MachineDeployments(testMachineDeployment.Namespace).Get(context.TODO(), testMachineDeployment.Name, metav1.GetOptions{})
 				if parentExists {
-					//Expect(machineDeployment.Labels["freeze"]).Should((BeEmpty()))
+					// Expect(machineDeployment.Labels["freeze"]).Should((BeEmpty()))
 					Expect(GetMachineDeploymentCondition(machineDeployment.Status, v1alpha1.MachineDeploymentFrozen)).Should(BeNil())
 				} else {
 					Expect(err).ShouldNot(BeNil())
@@ -206,7 +206,7 @@ var _ = Describe("#machine_safety", func() {
 			}
 		},
 
-		//Entry("Testdata format::::::", machineSetExists, machineSetFrozen, parentExists, parentFrozen)
+		// Entry("Testdata format::::::", machineSetExists, machineSetFrozen, parentExists, parentFrozen)
 		Entry("existing, frozen machineset and machinedeployment", true, true, true, true),
 		Entry("non-existing but frozen machineset and existing, frozen machinedeployment", false, true, true, true),
 		Entry("existing, frozen machineset but non-existing, frozen machinedeployment", true, true, false, true),
@@ -254,6 +254,8 @@ var _ = Describe("#machine_safety", func() {
 				},
 				1,
 				10,
+				1,
+				1,
 				&v1alpha1.MachineDeploymentStatus{
 					Conditions: data.setup.machineDeploymentConditions,
 				},
