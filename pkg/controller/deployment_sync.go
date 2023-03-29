@@ -477,6 +477,7 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 			// TODO: Use transactions when we have them.
 			if _, _, err := dc.scaleMachineSet(ctx, is, nameToSize[is.Name], deployment, scalingOperation); err != nil {
 				// Return as soon as we fail, the deployment is requeued
+				klog.Warningf("updating machineSet %s failed while scaling. This could lead to desired replicas annotation not being updated. err: %v", is.Name, err)
 				return err
 			}
 		}
