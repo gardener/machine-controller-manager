@@ -448,7 +448,7 @@ var _ = Describe("deployment_sync", func() {
 				stop := make(chan struct{})
 				defer close(stop)
 
-				controlObjects := []runtime.Object{}
+				var controlObjects []runtime.Object
 				Expect(data.setup.machineDeployment).To(Not(BeNil()))
 				controlObjects = append(controlObjects, data.setup.machineDeployment)
 
@@ -589,7 +589,7 @@ var _ = Describe("deployment_sync", func() {
 					err: false,
 				},
 			}),
-			Entry("if scale-down such that leftover replicas to add >0, then proportional scale-down, left over to be adjusted in latest machineSet", &data{
+			Entry("if scale-down such that leftover replicas to add > 0, then proportional scale-down, left over to be adjusted in latest machineSet", &data{
 				setup: setup{
 					machineDeployment: newMachineDeployment(mDeploymentSpecTemplate, 3, 500, 2, 0, nil, nil, nil, nil),
 					oldISs: []*machinev1.MachineSet{newMachineSet(
@@ -673,7 +673,7 @@ var _ = Describe("deployment_sync", func() {
 					err: false,
 				},
 			}),
-			Entry("if scale-down such that leftover replicas to add =0, then also proportional scale-down", &data{
+			Entry("if scale-down such that leftover replicas after proportional scaling =0, then proportional scale-down should be done", &data{
 				setup: setup{
 					machineDeployment: newMachineDeployment(mDeploymentSpecTemplate, 5, 500, 2, 0, nil, nil, nil, nil),
 					oldISs: []*machinev1.MachineSet{newMachineSet(
