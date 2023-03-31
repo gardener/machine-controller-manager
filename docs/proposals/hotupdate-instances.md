@@ -12,6 +12,7 @@
     - [Gardener provider extension changes](#gardener-provider-extension-changes)
     - [Driver interface changes](#driver-interface-changes)
     - [Machine Class reconciliation](#machine-class-reconciliation)
+      - [Overview](#overview)
       - [Reconciliation Changes](#reconciliation-changes)
 
 
@@ -230,6 +231,10 @@ type UpdateMachineRequest struct {
 Current [MachineClass reconciliation](https://github.com/gardener/machine-controller-manager/blob/v0.48.1/pkg/util/provider/machinecontroller/machineclass.go#L140-L194) does not reconcile `MachineClass` resource updates but it only enqueues associated machines. The reason is that it is assumed that anything that is changed in a MachineClass will result in a creation of a new MachineClass with a different name. This will result in a rolling update of all machines using the MachineClass as a template.
 
 However, it is possible that there is data that all machines in a `MachineSet` share which do not require a rolling update (e.g. tags), therefore there is a need to reconcile the MachineClass as well.
+
+#### Overview
+
+![Overview](HotUpdateMachine.drawio.png)
 
 #### Reconciliation Changes
 
