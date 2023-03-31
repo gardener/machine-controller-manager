@@ -1,5 +1,20 @@
 # Hot-Update VirtualMachine tags without triggering a rolling-update
 
+- [Hot-Update VirtualMachine tags without triggering a rolling-update](#hot-update-virtualmachine-tags-without-triggering-a-rolling-update)
+  - [Motivation](#motivation)
+  - [Boundary Condition](#boundary-condition)
+  - [What is available today?](#what-is-available-today)
+  - [What are the problems with the current approach?](#what-are-the-problems-with-the-current-approach)
+    - [MachineClass Update and its impact](#machineclass-update-and-its-impact)
+  - [Proposal](#proposal)
+    - [Shoot YAML changes](#shoot-yaml-changes)
+    - [Provider specific WorkerConfig API changes](#provider-specific-workerconfig-api-changes)
+    - [Gardener provider extension changes](#gardener-provider-extension-changes)
+    - [Driver interface changes](#driver-interface-changes)
+    - [Machine Class reconciliation](#machine-class-reconciliation)
+      - [Reconciliation Changes](#reconciliation-changes)
+
+
 ## Motivation
 
 * [MCM Issue#750](https://github.com/gardener/machine-controller-manager/issues/750) There is a requirement to provide a way for consumers to add tags which can be hot-updated onto VMs. This requirement can be generalized to also offer a convenient way to specify tags which can be applied to VMs, NICs, Devices etc.
