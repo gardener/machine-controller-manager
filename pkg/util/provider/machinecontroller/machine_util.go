@@ -613,6 +613,8 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					LastUpdateTime: metav1.Now(),
 				}
 				cloneDirty = true
+			} else if clone.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
+				return machineutils.ShortRetry, fmt.Errorf("node object not yet created for Machine %s", machine.Name)
 			}
 		} else {
 			// Any other types of errors while fetching node object
@@ -679,6 +681,8 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					LastUpdateTime: metav1.Now(),
 				}
 				cloneDirty = true
+			} else if clone.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
+				return machineutils.ShortRetry, fmt.Errorf("node object not Ready for Machine %s", machine.Name)
 			}
 		}
 	}
