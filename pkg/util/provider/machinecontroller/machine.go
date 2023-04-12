@@ -173,7 +173,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 			return retry, err
 		}
 	}
-	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" {
+	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
 		return c.triggerCreationFlow(
 			ctx,
 			&driver.CreateMachineRequest{
