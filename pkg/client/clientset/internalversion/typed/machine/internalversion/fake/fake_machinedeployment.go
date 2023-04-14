@@ -117,7 +117,7 @@ func (c *FakeMachineDeployments) UpdateStatus(ctx context.Context, machineDeploy
 // Delete takes name of the machineDeployment and deletes it. Returns an error if one occurs.
 func (c *FakeMachineDeployments) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(machinedeploymentsResource, c.ns, name), &machine.MachineDeployment{})
+		Invokes(testing.NewDeleteActionWithOptions(machinedeploymentsResource, c.ns, name, opts), &machine.MachineDeployment{})
 
 	return err
 }
