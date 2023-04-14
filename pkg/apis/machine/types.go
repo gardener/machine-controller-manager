@@ -220,7 +220,7 @@ const (
 	// MachineFailed means operation failed leading to machine status failure
 	MachineFailed MachinePhase = "Failed"
 
-	// MachineCrashLoopBackOff means creation or deletion of the machine is failing. It means that machine object is present but there is no corresponding node object.
+	// MachineCrashLoopBackOff means creation or deletion of the machine is failing. It means that machine object is present but there is no corresponding VM.
 	MachineCrashLoopBackOff MachinePhase = "CrashLoopBackOff"
 )
 
