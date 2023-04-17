@@ -863,6 +863,88 @@ var _ = Describe("machine", func() {
 					retry: machineutils.ShortRetry,
 				},
 			}),
+			Entry("CLBF machine turns to Pending if VM is present", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
+						},
+					},
+					machineClasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(
+						1,
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase: v1alpha1.MachineCrashLoopBackOff,
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{
+							v1alpha1.NodeLabelKey: "fakeID-0",
+						},
+						true,
+						metav1.Now(),
+					),
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   true,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        nil,
+					},
+				},
+				expect: expect{
+					machine: newMachine(
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase: v1alpha1.MachinePending,
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{
+							v1alpha1.NodeLabelKey: "fakeID-0",
+						},
+						true,
+						metav1.Now(),
+					),
+					err:   fmt.Errorf("Machine creation in process. Machine/Status UPDATE successful"),
+					retry: machineutils.ShortRetry,
+				},
+			}),
 			/*
 				Entry("Machine creation success even on temporary APIServer disruption", &data{
 					setup: setup{
