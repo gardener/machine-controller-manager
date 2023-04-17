@@ -2480,9 +2480,7 @@ Kubernetes core/v1.NodeConfigSource
 </td>
 <td>
 <em>(Optional)</em>
-<p>Deprecated. If specified, the source of the node&rsquo;s configuration.
-The DynamicKubeletConfig feature gate must be enabled for the Kubelet to use this field.
-This field is deprecated as of 1.22: <a href="https://git.k8s.io/enhancements/keps/sig-node/281-dynamic-kubelet-configuration">https://git.k8s.io/enhancements/keps/sig-node/281-dynamic-kubelet-configuration</a></p>
+<p>Deprecated: Previously used to specify the source of the node&rsquo;s configuration for the DynamicKubeletConfig feature. This feature is removed.</p>
 </td>
 </tr>
 <tr>

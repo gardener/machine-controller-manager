@@ -1326,7 +1326,7 @@ func (c *controller) getEffectiveNodeConditions(machine *v1alpha1.Machine) *stri
 
 // UpdateNodeTerminationCondition updates termination condition on the node object
 func (c *controller) UpdateNodeTerminationCondition(ctx context.Context, machine *v1alpha1.Machine) error {
-	if machine.Status.CurrentStatus.Phase == "" {
+	if machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
 		return nil
 	}
 
