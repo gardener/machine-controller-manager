@@ -105,7 +105,7 @@ func (c *FakeMachineTemplates) Update(ctx context.Context, machineTemplate *mach
 // Delete takes name of the machineTemplate and deletes it. Returns an error if one occurs.
 func (c *FakeMachineTemplates) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(machinetemplatesResource, c.ns, name), &machine.MachineTemplate{})
+		Invokes(testing.NewDeleteActionWithOptions(machinetemplatesResource, c.ns, name, opts), &machine.MachineTemplate{})
 
 	return err
 }

@@ -173,7 +173,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 			return retry, err
 		}
 	}
-	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" {
+	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
 		return c.triggerCreationFlow(
 			ctx,
 			&driver.CreateMachineRequest{
@@ -497,7 +497,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		return machineutils.ShortRetry, err
 	}
 
-	if machine.Status.CurrentStatus.Phase == "" {
+	if machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
 		clone := machine.DeepCopy()
 		clone.Status.LastOperation = v1alpha1.LastOperation{
 			Description:    "Creating machine on cloud provider",
