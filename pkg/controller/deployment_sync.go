@@ -440,8 +440,8 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 		// Number of additional replicas that can be either added or removed from the total
 		// replicas count. These replicas should be distributed proportionally to the active
 		// machine sets in case of scale-in, while added only to the new machineSet during scale-out
-		klog.V(3).Infof("machineDeployment: %s , replicasToAdd: %d, maxAllowedSize: %d, allMachineSetReplicas: %d", deployment.Name, allowedSize, allISsReplicas)
 		deploymentReplicasToAdd := allowedSize - allISsReplicas
+		klog.V(3).Infof("machineDeployment: %s , replicasToAdd: %d, maxAllowedSize: %d, allMachineSetReplicas: %d", deployment.Name, deploymentReplicasToAdd, allowedSize, allISsReplicas)
 
 		// During scale-in, the additional replicas should be distributed proportionally amongst the active
 		// machine sets from the larger to the smaller in size machine set.
