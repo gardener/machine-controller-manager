@@ -453,7 +453,7 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 		switch {
 		case deploymentReplicasToAdd >= 0:
 			scalingOperation = "up"
-			nameToSize = dc.scaleNewMachineSet(newIS, allISs, deploymentReplicasToAdd, deployment)
+			nameToSize = dc.scaleNewMachineSet(newIS, allISs, deploymentReplicasToAdd)
 			deploymentReplicasAdded = deploymentReplicasToAdd
 		case deploymentReplicasToAdd < 0:
 			scalingOperation = "down"
@@ -485,7 +485,7 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 	return nil
 }
 
-func (dc *controller) scaleNewMachineSet(newIS *v1alpha1.MachineSet, allISs []*v1alpha1.MachineSet, deploymentReplicasToAdd int32, deployment *v1alpha1.MachineDeployment) map[string]int32 {
+func (dc *controller) scaleNewMachineSet(newIS *v1alpha1.MachineSet, allISs []*v1alpha1.MachineSet, deploymentReplicasToAdd int32) map[string]int32 {
 	nameToSize := make(map[string]int32)
 	for _, is := range allISs {
 		nameToSize[is.Name] = is.Spec.Replicas
