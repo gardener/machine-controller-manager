@@ -491,7 +491,9 @@ func (dc *controller) scaleNewMachineSet(newIS *v1alpha1.MachineSet, allISs []*v
 		nameToSize[is.Name] = is.Spec.Replicas
 	}
 
-	nameToSize[newIS.Name] = newIS.Spec.Replicas + deploymentReplicasToAdd
+	if newIS != nil {
+		nameToSize[newIS.Name] = newIS.Spec.Replicas + deploymentReplicasToAdd
+	}
 
 	return nameToSize
 }
