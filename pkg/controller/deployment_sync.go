@@ -426,7 +426,7 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 	// There are old machine sets with machines and the new machine set is not saturated.
 	// So the scaling is handled this way:
 	// - Scale up   ? -> scale up only the new machineSet
-	// - Scale down ? -> scale down the old machineSets proportionally
+	// - Scale down ? -> scale down all active machineSets proportionally
 	if IsRollingUpdate(deployment) {
 		klog.V(3).Infof("Scaling all active machineSets proportionally for scale-in, while scaling up latest machineSet only for scale-out, machineDeployment %s", deployment.Name)
 		allISs := FilterActiveMachineSets(append(oldISs, newIS))
