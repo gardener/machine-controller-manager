@@ -426,7 +426,7 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 	// There are old machine sets with machines and the new machine set is not saturated.
 	// So the scaling is handled this way:
 	// - Scale up   ? -> scale up only the new machineSet
-	// - Scale down ? -> scale down the old machineSets proportionally
+	// - Scale down ? -> scale down all active machineSets proportionally
 	if IsRollingUpdate(deployment) {
 		klog.V(3).Infof("Scaling all active machineSets proportionally for scale-in, while scaling up latest machineSet only for scale-out, machineDeployment %s", deployment.Name)
 		allISs := FilterActiveMachineSets(append(oldISs, newIS))
@@ -440,8 +440,8 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 		// Number of additional replicas that can be either added or removed from the total
 		// replicas count. These replicas should be distributed proportionally to the active
 		// machine sets in case of scale-in, while added only to the new machineSet during scale-out
-		klog.V(3).Infof("machineDeployment: %s , replicasToAdd: %d, maxAllowedSize: %d, allMachineSetReplicas: %d", deployment.Name, allowedSize, allISsReplicas)
 		deploymentReplicasToAdd := allowedSize - allISsReplicas
+		klog.V(3).Infof("machineDeployment: %s , replicasToAdd: %d, maxAllowedSize: %d, allMachineSetReplicas: %d", deployment.Name, deploymentReplicasToAdd, allowedSize, allISsReplicas)
 
 		// During scale-in, the additional replicas should be distributed proportionally amongst the active
 		// machine sets from the larger to the smaller in size machine set.
@@ -491,7 +491,11 @@ func (dc *controller) scaleNewMachineSet(newIS *v1alpha1.MachineSet, allISs []*v
 		nameToSize[is.Name] = is.Spec.Replicas
 	}
 
-	nameToSize[newIS.Name] = newIS.Spec.Replicas + deploymentReplicasToAdd
+	if newIS != nil {
+		nameToSize[newIS.Name] = newIS.Spec.Replicas + deploymentReplicasToAdd
+	} else {
+		klog.V(3).Infof("New machineSet for machineDeployment %s which needs to be scaled-up is not present", deployment.Name)
+	}
 
 	return nameToSize
 }
