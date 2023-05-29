@@ -56,7 +56,7 @@ func (c *controller) CollectMachineMetrics(ch chan<- prometheus.Metric) {
 		updateMachineCSPhaseMetric(machine, mMeta)
 	}
 
-	updateMachineCountMetric(ch, err, machineList)
+	updateMachineCountMetric(ch, machineList)
 }
 
 // CollectMachineControllerFrozenStatusMetrics is method to collect Machine controller state related metrics.
@@ -73,7 +73,7 @@ func (c *controller) CollectMachineControllerFrozenStatusMetrics(ch chan<- prome
 	ch <- metric
 }
 
-func updateMachineCountMetric(ch chan<- prometheus.Metric, err error, machineList []*v1alpha1.Machine) {
+func updateMachineCountMetric(ch chan<- prometheus.Metric, machineList []*v1alpha1.Machine) {
 	metric, err := prometheus.NewConstMetric(metrics.MachineCountDesc, prometheus.GaugeValue, float64(len(machineList)))
 	if err != nil {
 		metrics.ScrapeFailedCounter.With(prometheus.Labels{"kind": "Machine-count"}).Inc()
