@@ -23,6 +23,7 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
   * [How to scale down MachineDeployment by selective deletion of machines?](#How-to-scale-down-machinedeployment-by-selective-deletion-of-machines)
   * [How to force delete a machine?](#How-to-force-delete-a-machine)
   * [How to pause the ongoing rolling-update of the machinedeployment?](#How-to-pause-the-ongoing-rolling-update-of-the-machinedeployment)
+  * [How to delete machine object immedietly if I don't have access to it?](#how-to-delete-machine-object-immedietly-if-i-dont-have-access-to-it)
   * [How to avoid garbage collection of your node?](#How-to-avoid-garbage-collection-of-your-node)
 
 * [Internals](#internals)
@@ -33,6 +34,9 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
   * [How are the stateful applications drained during machine deletion?](#How-are-the-stateful-applications-drained-during-machine-deletion)
   * [How does maxEvictRetries configuration work with drainTimeout configuration?](#How-does-maxEvictRetries-configuration-work-with-drainTimeout-configuration)
   * [What are the different phases of a machine?](#What-are-the-different-phases-of-a-machine)
+  * [What health checks are performed on a machine?](#what-health-checks-are-performed-on-a-machine)
+  * [How does rate limiting replacement of machine work in MCM ? How is it related to meltdown protection?](#how-does-rate-limiting-replacement-of-machine-work-in-mcm-how-is-it-related-to-meltdown-protection)
+  * [How MCM responds when scale-out/scale-in is done during rolling update of a machinedeployment?](#how-mcm-responds-when-scale-outscale-in-is-done-during-rolling-update-of-a-machinedeployment)
 
 * [Troubleshooting](#troubleshooting)
   * [My machine is stuck in deletion for 1 hr, why?](#My-machine-is-stuck-in-deletion-for-1-hr-why)
@@ -131,6 +135,15 @@ spec:
 
 It can be unpaused again by removing the `Paused` field from the machine-deployment.
 
+### How to delete machine object immedietly if I don't have access to it?
+
+If the user doesn't have access to the machine objects (like in case of Gardener clusters) and they would like to replace a node immedietly then they can place the annotation `node.machine.sapcloud.io/trigger-deletion-by-mcm: "true"` on their node. This will start the replacement of the machine with a new node.
+
+On the other hand if the user deletes the node object immedietly then replacement will start only after `MachineHealthTimeout`.
+
+This annotation can also be used if the user wants to expedite the [replacement of unhealthy nodes](#how-does-rate-limiting-replacement-of-machine-work-in-mcm-how-is-it-related-to-meltdown-protection)
+
+`NOTE`: `node.machine.sapcloud.io/trigger-deletion-by-mcm: "false"` annotation is NOT acted upon by MCM , neither does it mean that MCM will not replace this machine.
 ### How to avoid garbage collection of your node?
 
 MCM provides an in-built safety mechanism to garbage collect VMs which have no corresponding machine object. This is done to save costs and is one of the key features of MCM.
@@ -198,10 +211,47 @@ A phase of a `machine` can be identified with `Machine.Status.CurrentStatus.Phas
 
 * `Pending`: Machine creation call has succeeded. MCM is waiting for machine to join the cluster.
 * `CrashLoopBackOff`: Machine creation call has failed. MCM will retry the operation after a minor delay.
-* `Running`: Machine creation call has succeeded. Machine has joined the cluster successfully.
-* `Unknown`: Machine health checks are failing, eg `kubelet` has stopped posting the status.
-* `Failed`: Machine health checks have failed for a prolonged time. Hence it is declared failed. `MachineSet` controller will replace such machines immediately.
+* `Running`: Machine creation call has succeeded. Machine has joined the cluster successfully and corresponding node doesn't have `node.gardener.cloud/critical-components-not-ready` taint.
+* `Unknown`: Machine [health checks](#what-health-checks-are-performed-on-a-machine) are failing, eg `kubelet` has stopped posting the status.
+
+* `Failed`: Machine health checks have failed for a prolonged time. Hence it is declared failed by `Machine` controller. `Failed` machines get replaced, but in a rate limited fashion of 1 machine per machinedeployment.
+
 * `Terminating`: Machine is being terminated. Terminating state is set immediately when the deletion is triggered for the `machine` object. It also includes time when it's being drained. 
+
+`NOTE`: No phase means the machine is being created on the cloud-provider.
+
+### What health checks are performed on a machine?
+
+Health check performed on a machine are:
+- Existense of corresponding node obj
+- Status of certain user-configurable node conditions. 
+  - These conditions can be specified using the flag `--node-conditions` for OOT MCM provider or can be specified per machine object.
+  - The default user configurable node conditions can be found [here](https://github.com/gardener/machine-controller-manager/blob/91eec24516b8339767db5a40e82698f9fe0daacd/pkg/util/provider/app/options/options.go#L60)
+- `True` status of `NodeReady` condition . This condition shows kubelet's status
+
+If any of the above checks fails , the machine turns to `Unknown` phase.
+### How does rate limiting replacement of machine work in MCM? How is it related to meltdown protection?
+
+Currently MCM replaces the `1` `Unkown` machines at a time per machinedeployment. This means until the particular `Unknown` machine get terminated and it replacement joins, no other `Unknown` machine would be removed.
+
+The above is achieved by enabling `Machine` controller to turn machine from `Unknown` -> `Failed` only if the above condition is met. `MachineSet` controller on the other hand marks `Failed` machine as `Terminating` immedietly.
+
+One reason for this rate limited replacement was to ensure that in case of network failures , where node's kubelet can't reach out to kube-apiserver , all nodes are not removed together i.e. `meltdown protection`.
+In gardener context however, [DWD](https://github.com/gardener/dependency-watchdog/blob/master/docs/concepts/prober.md#origin) is deployed to deal with this scenario, but to stay protected from corner cases , this mechanism has been introduced in MCM.
+
+`NOTE`: Rate limiting replacement is not yet configurable 
+### How MCM responds when scale-out/scale-in is done during rolling update of a machinedeployment?
+ 
+ `Machinedeployment` controller executes the logic of `scaling` BEFORE logic of `rollout`. It identifies `scaling` by comparing the `deployment.kubernetes.io/desired-replicas` of each machineset under the machinedeployment with machinedeployment's `.spec.replicas`. If the difference is found for any machineSet, a scaling event is detected.
+
+ Case `scale-out` -> ONLY New machineSet is scaled out <br>
+ Case `scale-in`  -> ALL machineSets(new or old) are scaled in , in proportion to their replica count , any leftover is adjusted in the largest machineSet.
+
+During update for scaling event, a machineSet is updated if any of the below is true for it:
+- `.spec.Replicas` needs update
+- `deployment.kubernetes.io/desired-replicas` needs update
+
+Once scaling is achieved, rollout continues.
 
 # Troubleshooting
 ### My machine is stuck in deletion for 1 hr, why?
@@ -221,9 +271,17 @@ Though following could be the reasons but not limited to:
 In most cases, the `Machine.Status.LastOperation` provides information around why a machine can't be created.
 It could possibly be debugged with following steps:
 
+* Firstly make sure all the relevant controllers like `kube-controller-manager` , `cloud-controller-manager` are running.
 * Verify if the machine is actually created in the cloud. User can use the `Machine.Spec.ProviderId` to query the machine in cloud.
 * A Kubernetes node is generally bootstrapped with the cloud-config. Please verify, if `MachineDeployment` is pointing the correct `MachineClass`, and `MachineClass` is pointing to the correct `Secret`. The secret object contains the actual cloud-config in `base64` format which will be used to boot the machine.
 * User must also check the logs of the MCM pod to understand any broken logical flow of reconciliation.
+
+### My rolling update is stuck , why?
+
+The following can be the reason:
+- Insufficient capacity for the new instance type the machineClass mentions.
+- [Old machines are stuck in deletion](#my-machine-is-stuck-in-deletion-for-1-hr-why)
+- If you are using Gardener for setting up kubernetes cluster, then machine object won't turn to `Running` state until `node-critical-components` are ready. Refer [this](https://github.com/gardener/gardener/blob/master/docs/usage/node-readiness.md) for more details. 
 
 
 # Developer
@@ -236,6 +294,7 @@ It could possibly be debugged with following steps:
 ```
 make test-unit
 ```
+- Developer can locally run [integration tests](development/integration_tests.md) to ensure basic functioning of MCM is not altered
 
 ### I need to change the APIs, what are the recommended steps?
 
@@ -246,7 +305,7 @@ Developer should add/update the API fields at both of the following places:
 
 Once API changes are done, auto-generate the code using following command:
 ```
-./hack/generate-code
+make generate
 ```
 Please ignore the API-violation errors for now.
 
