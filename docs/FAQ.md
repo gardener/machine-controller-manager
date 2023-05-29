@@ -143,7 +143,10 @@ On the other hand if the user deletes the node object immedietly then replacemen
 
 This annotation can also be used if the user wants to expedite the [replacement of unhealthy nodes](#how-does-rate-limiting-replacement-of-machine-work-in-mcm-how-is-it-related-to-meltdown-protection)
 
-`NOTE`: `node.machine.sapcloud.io/trigger-deletion-by-mcm: "false"` annotation is NOT acted upon by MCM , neither does it mean that MCM will not replace this machine.
+`NOTE`: 
+- `node.machine.sapcloud.io/trigger-deletion-by-mcm: "false"` annotation is NOT acted upon by MCM , neither does it mean that MCM will not replace this machine.
+- this annotation would delete the desired machine but another machine would be created to maintain `desired replicas` specified for the machineDeployment/machineSet. Currently if the user doesn't have access to machineDeployment/machineSet then they cannot remove a machine without replacement.
+
 ### How to avoid garbage collection of your node?
 
 MCM provides an in-built safety mechanism to garbage collect VMs which have no corresponding machine object. This is done to save costs and is one of the key features of MCM.
@@ -294,7 +297,7 @@ The following can be the reason:
 ```
 make test-unit
 ```
-- Developer can locally run [integration tests](development/integration_tests.md) to ensure basic functioning of MCM is not altered
+- Developer can locally run [integration tests](development/integration_tests.md) to ensure basic functionality of MCM is not altered.
 
 ### I need to change the APIs, what are the recommended steps?
 
