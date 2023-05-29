@@ -24,6 +24,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -38,7 +39,7 @@ func (c *controller) Collect(ch chan<- prometheus.Metric) {
 	c.CollectMachineControllerFrozenStatusMetrics(ch)
 }
 
-// CollectMachines is method to collect Machine related metrics.
+// CollectMachineMetrics is method to collect Machine related metrics.
 func (c *controller) CollectMachineMetrics(ch chan<- prometheus.Metric) {
 	// Collect the count of machines managed by the mcm.
 	machineList, err := c.machineLister.Machines(c.namespace).List(labels.Everything())
@@ -50,62 +51,12 @@ func (c *controller) CollectMachineMetrics(ch chan<- prometheus.Metric) {
 	for _, machine := range machineList {
 		mMeta := machine.ObjectMeta
 		mSpec := machine.Spec
-
-		metrics.MachineInfo.With(prometheus.Labels{
-			"name":                 mMeta.Name,
-			"namespace":            mMeta.Namespace,
-			"createdAt":            strconv.FormatInt(mMeta.GetCreationTimestamp().Time.Unix(), 10),
-			"spec_provider_id":     mSpec.ProviderID,
-			"spec_class_api_group": mSpec.Class.APIGroup,
-			"spec_class_kind":      mSpec.Class.Kind,
-			"spec_class_name":      mSpec.Class.Name}).Set(float64(1))
-
-		for _, condition := range machine.Status.Conditions {
-			var status float64
-			switch condition.Status {
-			case v1.ConditionTrue:
-				status = 1
-			case v1.ConditionFalse:
-				status = 0
-			case v1.ConditionUnknown:
-				status = 2
-			}
-
-			metrics.MachineStatusCondition.With(prometheus.Labels{
-				"name":      mMeta.Name,
-				"namespace": mMeta.Namespace,
-				"condition": string(condition.Type),
-			}).Set(status)
-		}
-
-		var phase float64
-		switch machine.Status.CurrentStatus.Phase {
-		case v1alpha1.MachinePending:
-			phase = -2
-		case v1alpha1.MachineAvailable:
-			phase = -1
-		case v1alpha1.MachineRunning:
-			phase = 0
-		case v1alpha1.MachineTerminating:
-			phase = 1
-		case v1alpha1.MachineUnknown:
-			phase = 2
-		case v1alpha1.MachineFailed:
-			phase = 3
-		}
-		metrics.MachineCSPhase.With(prometheus.Labels{
-			"name":      mMeta.Name,
-			"namespace": mMeta.Namespace,
-		}).Set(phase)
-
+		updateMachineInfoMetric(mMeta, mSpec)
+		updateMachineStatusConditionMetric(machine, mMeta)
+		updateMachineCSPhaseMetric(machine, mMeta)
 	}
 
-	metric, err := prometheus.NewConstMetric(metrics.MachineCountDesc, prometheus.GaugeValue, float64(len(machineList)))
-	if err != nil {
-		metrics.ScrapeFailedCounter.With(prometheus.Labels{"kind": "Machine-count"}).Inc()
-		return
-	}
-	ch <- metric
+	updateMachineCountMetric(ch, err, machineList)
 }
 
 // CollectMachineControllerFrozenStatusMetrics is method to collect Machine controller state related metrics.
@@ -120,4 +71,66 @@ func (c *controller) CollectMachineControllerFrozenStatusMetrics(ch chan<- prome
 		return
 	}
 	ch <- metric
+}
+
+func updateMachineCountMetric(ch chan<- prometheus.Metric, err error, machineList []*v1alpha1.Machine) {
+	metric, err := prometheus.NewConstMetric(metrics.MachineCountDesc, prometheus.GaugeValue, float64(len(machineList)))
+	if err != nil {
+		metrics.ScrapeFailedCounter.With(prometheus.Labels{"kind": "Machine-count"}).Inc()
+		return
+	}
+	ch <- metric
+}
+
+func updateMachineCSPhaseMetric(machine *v1alpha1.Machine, mMeta metav1.ObjectMeta) {
+	var phase float64
+	switch machine.Status.CurrentStatus.Phase {
+	case v1alpha1.MachinePending:
+		phase = -2
+	case v1alpha1.MachineAvailable:
+		phase = -1
+	case v1alpha1.MachineRunning:
+		phase = 0
+	case v1alpha1.MachineTerminating:
+		phase = 1
+	case v1alpha1.MachineUnknown:
+		phase = 2
+	case v1alpha1.MachineFailed:
+		phase = 3
+	}
+	metrics.MachineCSPhase.With(prometheus.Labels{
+		"name":      mMeta.Name,
+		"namespace": mMeta.Namespace,
+	}).Set(phase)
+}
+
+func updateMachineStatusConditionMetric(machine *v1alpha1.Machine, mMeta metav1.ObjectMeta) {
+	for _, condition := range machine.Status.Conditions {
+		var status float64
+		switch condition.Status {
+		case v1.ConditionTrue:
+			status = 1
+		case v1.ConditionFalse:
+			status = 0
+		case v1.ConditionUnknown:
+			status = 2
+		}
+
+		metrics.MachineStatusCondition.With(prometheus.Labels{
+			"name":      mMeta.Name,
+			"namespace": mMeta.Namespace,
+			"condition": string(condition.Type),
+		}).Set(status)
+	}
+}
+
+func updateMachineInfoMetric(mMeta metav1.ObjectMeta, mSpec v1alpha1.MachineSpec) {
+	metrics.MachineInfo.With(prometheus.Labels{
+		"name":                 mMeta.Name,
+		"namespace":            mMeta.Namespace,
+		"createdAt":            strconv.FormatInt(mMeta.GetCreationTimestamp().Time.Unix(), 10),
+		"spec_provider_id":     mSpec.ProviderID,
+		"spec_class_api_group": mSpec.Class.APIGroup,
+		"spec_class_kind":      mSpec.Class.Kind,
+		"spec_class_name":      mSpec.Class.Name}).Set(float64(1))
 }
