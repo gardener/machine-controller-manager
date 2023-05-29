@@ -23,6 +23,7 @@ import (
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -45,112 +46,17 @@ func (c *controller) CollectMachineDeploymentMetrics(ch chan<- prometheus.Metric
 		metrics.ScrapeFailedCounter.With(prometheus.Labels{"kind": "Machinedeployment-count"}).Inc()
 		return
 	}
-	metric, err := prometheus.NewConstMetric(metrics.MachineDeploymentCountDesc, prometheus.GaugeValue, float64(len(machineDeploymentList)))
-	if err != nil {
-		metrics.ScrapeFailedCounter.With(prometheus.Labels{"kind": "Machinedeployment-count"}).Inc()
-		return
-	}
-	ch <- metric
 
 	for _, machineDeployment := range machineDeploymentList {
-
 		mdMeta := machineDeployment.ObjectMeta
 		mdSpec := machineDeployment.Spec
 
-		metrics.MachineDeploymentInfo.With(prometheus.Labels{
-			"name":               mdMeta.Name,
-			"namespace":          mdMeta.Namespace,
-			"createdAt":          strconv.FormatInt(mdMeta.GetCreationTimestamp().Time.Unix(), 10),
-			"spec_strategy_type": string(mdSpec.Strategy.Type),
-		}).Set(float64(1))
-
-		var paused float64
-		if mdSpec.Paused {
-			paused = 1
-		}
-		metrics.MachineDeploymentInfoSpecPaused.With(prometheus.Labels{
-			"name":      mdMeta.Name,
-			"namespace": mdMeta.Namespace}).Set(paused)
-
-		metrics.MachineDeploymentInfoSpecReplicas.With(prometheus.Labels{
-			"name":      mdMeta.Name,
-			"namespace": mdMeta.Namespace}).Set(float64(mdSpec.Replicas))
-
-		metrics.MachineDeploymentInfoSpecMinReadySeconds.With(prometheus.Labels{
-			"name":      mdMeta.Name,
-			"namespace": mdMeta.Namespace}).Set(float64(mdSpec.MinReadySeconds))
-
-		if mdSpec.Strategy.Type == v1alpha1.RollingUpdateMachineDeploymentStrategyType {
-			metrics.MachineDeploymentInfoSpecRollingUpdateMaxSurge.With(prometheus.Labels{
-				"name":      mdMeta.Name,
-				"namespace": mdMeta.Namespace}).Set(float64(mdSpec.Strategy.RollingUpdate.MaxSurge.IntValue()))
-			metrics.MachineDeploymentInfoSpecRollingUpdateMaxUnavailable.With(prometheus.Labels{
-				"name":      mdMeta.Name,
-				"namespace": mdMeta.Namespace}).Set(float64(mdSpec.Strategy.RollingUpdate.MaxUnavailable.IntValue()))
-		}
-		if mdSpec.RevisionHistoryLimit != nil {
-			metrics.MachineDeploymentInfoSpecRevisionHistoryLimit.With(prometheus.Labels{
-				"name":      mdMeta.Name,
-				"namespace": mdMeta.Namespace}).Set(float64(int64(*mdSpec.RevisionHistoryLimit)))
-		}
-		if mdSpec.ProgressDeadlineSeconds != nil {
-			metrics.MachineDeploymentInfoSpecProgressDeadlineSeconds.With(prometheus.Labels{
-				"name":      mdMeta.Name,
-				"namespace": mdMeta.Namespace}).Set(float64(int64(*mdSpec.ProgressDeadlineSeconds)))
-		}
-		if mdSpec.RollbackTo != nil {
-			metrics.MachineDeploymentInfoSpecRollbackToRevision.With(prometheus.Labels{
-				"name":      mdMeta.Name,
-				"namespace": mdMeta.Namespace}).Set(float64(mdSpec.RollbackTo.Revision))
-		}
-
-		for _, condition := range machineDeployment.Status.Conditions {
-			var status float64
-			switch condition.Status {
-			case v1alpha1.ConditionTrue:
-				status = 1
-			case v1alpha1.ConditionFalse:
-				status = 0
-			case v1alpha1.ConditionUnknown:
-				status = 2
-			}
-
-			metrics.MachineDeploymentStatusCondition.With(prometheus.Labels{
-				"name":      mdMeta.Name,
-				"namespace": mdMeta.Namespace,
-				"condition": string(condition.Type),
-			}).Set(status)
-		}
-
-		statusLabels := prometheus.Labels{
-			"name":      mdMeta.Name,
-			"namespace": mdMeta.Namespace,
-		}
-		metrics.MachineDeploymentStatusAvailableReplicas.With(statusLabels).Set(float64(machineDeployment.Status.AvailableReplicas))
-		metrics.MachineDeploymentStatusUnavailableReplicas.With(statusLabels).Set(float64(machineDeployment.Status.UnavailableReplicas))
-		metrics.MachineDeploymentStatusReadyReplicas.With(statusLabels).Set(float64(machineDeployment.Status.ReadyReplicas))
-		metrics.MachineDeploymentStatusUpdatedReplicas.With(statusLabels).Set(float64(machineDeployment.Status.UpdatedReplicas))
-		metrics.MachineDeploymentStatusReplicas.With(statusLabels).Set(float64(machineDeployment.Status.Replicas))
-
-		if machineDeployment.Status.CollisionCount != nil {
-			metrics.MachineDeploymentStatusCollisionCount.With(statusLabels).Set(float64(*machineDeployment.Status.CollisionCount))
-		}
-
-		if machineDeployment.Status.FailedMachines != nil {
-			for _, failedMachine := range machineDeployment.Status.FailedMachines {
-				metrics.MachineDeploymentStatusFailedMachines.With(prometheus.Labels{
-					"name":                                mdMeta.Name,
-					"namespace":                           mdMeta.Namespace,
-					"failed_machine_name":                 failedMachine.Name,
-					"failed_machine_provider_id":          failedMachine.ProviderID,
-					"failed_machine_last_operation_state": string(failedMachine.LastOperation.State),
-					"failed_machine_last_operation_machine_operation_type": string(failedMachine.LastOperation.Type),
-					"failed_machine_owner_ref":                             failedMachine.OwnerRef}).Set(float64(1))
-
-			}
-		}
+		updateMachineDeploymentInfoMetric(mdMeta, mdSpec)
+		updateMachineDeploymentSpecRelatedMetrics(mdSpec, mdMeta)
+		updateMachineDeploymentStatusRelatedMetrics(machineDeployment, mdMeta)
 
 	}
+	updateMachineDeploymentCountMetric(ch, machineDeploymentList)
 }
 
 // CollectMachineSetMetrics is method to collect machineSet related metrics.
@@ -160,83 +66,218 @@ func (c *controller) CollectMachineSetMetrics(ch chan<- prometheus.Metric) {
 		metrics.ScrapeFailedCounter.With(prometheus.Labels{"kind": "Machineset-count"}).Inc()
 		return
 	}
+
+	updateMachineSetCountMetric(ch, machineSetList)
+
+	for _, machineSet := range machineSetList {
+		msMeta := machineSet.ObjectMeta
+		msSpec := machineSet.Spec
+
+		updateMachineSetInfoMetric(msMeta, msSpec)
+		updateMachineSetSpecRelatedMetrics(msMeta, msSpec)
+		updateMachineSetStatusRelatedMetric(machineSet, msMeta)
+	}
+}
+
+func updateMachineSetStatusRelatedMetric(machineSet *v1alpha1.MachineSet, msMeta metav1.ObjectMeta) {
+	updateMachineSetStatusConditionMetric(machineSet, msMeta)
+	updateMachineSetStatusFailedMachinesMetric(machineSet, msMeta)
+
+	metrics.MachineSetStatusAvailableReplicas.With(prometheus.Labels{
+		"name":      msMeta.Name,
+		"namespace": msMeta.Namespace,
+	}).Set(float64(machineSet.Status.AvailableReplicas))
+
+	metrics.MachineSetStatusFullyLabelledReplicas.With(prometheus.Labels{
+		"name":      msMeta.Name,
+		"namespace": msMeta.Namespace,
+	}).Set(float64(machineSet.Status.FullyLabeledReplicas))
+
+	metrics.MachineSetStatusReadyReplicas.With(prometheus.Labels{
+		"name":      msMeta.Name,
+		"namespace": msMeta.Namespace,
+	}).Set(float64(machineSet.Status.ReadyReplicas))
+
+	metrics.MachineSetStatusReplicas.With(prometheus.Labels{
+		"name":      msMeta.Name,
+		"namespace": msMeta.Namespace,
+	}).Set(float64(machineSet.Status.ReadyReplicas))
+}
+
+func updateMachineSetStatusFailedMachinesMetric(machineSet *v1alpha1.MachineSet, msMeta metav1.ObjectMeta) {
+	if machineSet.Status.FailedMachines != nil {
+		for _, failedMachine := range *machineSet.Status.FailedMachines {
+			metrics.MachineSetStatusFailedMachines.With(prometheus.Labels{
+				"name":                                msMeta.Name,
+				"namespace":                           msMeta.Namespace,
+				"failed_machine_name":                 failedMachine.Name,
+				"failed_machine_provider_id":          failedMachine.ProviderID,
+				"failed_machine_last_operation_state": string(failedMachine.LastOperation.State),
+				"failed_machine_last_operation_machine_operation_type": string(failedMachine.LastOperation.Type),
+				"failed_machine_owner_ref":                             failedMachine.OwnerRef}).Set(float64(1))
+		}
+	}
+}
+
+func updateMachineSetStatusConditionMetric(machineSet *v1alpha1.MachineSet, msMeta metav1.ObjectMeta) {
+	for _, condition := range machineSet.Status.Conditions {
+		var status float64
+		switch condition.Status {
+		case v1alpha1.ConditionTrue:
+			status = 1
+		case v1alpha1.ConditionFalse:
+			status = 0
+		case v1alpha1.ConditionUnknown:
+			status = 2
+		}
+
+		metrics.MachineSetStatusCondition.With(prometheus.Labels{
+			"name":      msMeta.Name,
+			"namespace": msMeta.Namespace,
+			"condition": string(condition.Type),
+		}).Set(status)
+	}
+}
+
+func updateMachineSetSpecRelatedMetrics(msMeta metav1.ObjectMeta, msSpec v1alpha1.MachineSetSpec) {
+	metrics.MachineSetInfoSpecReplicas.With(prometheus.Labels{
+		"name":      msMeta.Name,
+		"namespace": msMeta.Namespace}).Set(float64(msSpec.Replicas))
+	metrics.MachineSetInfoSpecMinReadySeconds.With(prometheus.Labels{
+		"name":      msMeta.Name,
+		"namespace": msMeta.Namespace}).Set(float64(msSpec.MinReadySeconds))
+}
+
+func updateMachineSetInfoMetric(msMeta metav1.ObjectMeta, msSpec v1alpha1.MachineSetSpec) {
+	metrics.MachineSetInfo.With(prometheus.Labels{
+		"name":                         msMeta.Name,
+		"namespace":                    msMeta.Namespace,
+		"createdAt":                    strconv.FormatInt(msMeta.GetCreationTimestamp().Time.Unix(), 10),
+		"spec_machine_class_api_group": msSpec.MachineClass.APIGroup,
+		"spec_machine_class_kind":      msSpec.MachineClass.Kind,
+		"spec_machine_class_name":      msSpec.MachineClass.Name}).Set(float64(1))
+}
+
+func updateMachineSetCountMetric(ch chan<- prometheus.Metric, machineSetList []*v1alpha1.MachineSet) {
 	metric, err := prometheus.NewConstMetric(metrics.MachineSetCountDesc, prometheus.GaugeValue, float64(len(machineSetList)))
 	if err != nil {
 		metrics.ScrapeFailedCounter.With(prometheus.Labels{"kind": "Machineset-count"}).Inc()
 		return
 	}
 	ch <- metric
+}
 
-	for _, machineSet := range machineSetList {
+func updateMachineDeploymentStatusRelatedMetrics(machineDeployment *v1alpha1.MachineDeployment, mdMeta metav1.ObjectMeta) {
+	updateMachineDeploymentStatusConditionMetric(machineDeployment, mdMeta)
+	updateMachineDeploymentStatusFailedMachinesMetric(machineDeployment, mdMeta)
 
-		msMeta := machineSet.ObjectMeta
-		msSpec := machineSet.Spec
+	statusLabels := prometheus.Labels{
+		"name":      mdMeta.Name,
+		"namespace": mdMeta.Namespace,
+	}
+	metrics.MachineDeploymentStatusAvailableReplicas.With(statusLabels).Set(float64(machineDeployment.Status.AvailableReplicas))
+	metrics.MachineDeploymentStatusUnavailableReplicas.With(statusLabels).Set(float64(machineDeployment.Status.UnavailableReplicas))
+	metrics.MachineDeploymentStatusReadyReplicas.With(statusLabels).Set(float64(machineDeployment.Status.ReadyReplicas))
+	metrics.MachineDeploymentStatusUpdatedReplicas.With(statusLabels).Set(float64(machineDeployment.Status.UpdatedReplicas))
+	metrics.MachineDeploymentStatusReplicas.With(statusLabels).Set(float64(machineDeployment.Status.Replicas))
 
-		metrics.MachineSetInfo.With(prometheus.Labels{
-			"name":                         msMeta.Name,
-			"namespace":                    msMeta.Namespace,
-			"createdAt":                    strconv.FormatInt(msMeta.GetCreationTimestamp().Time.Unix(), 10),
-			"spec_machine_class_api_group": msSpec.MachineClass.APIGroup,
-			"spec_machine_class_kind":      msSpec.MachineClass.Kind,
-			"spec_machine_class_name":      msSpec.MachineClass.Name}).Set(float64(1))
+	if machineDeployment.Status.CollisionCount != nil {
+		metrics.MachineDeploymentStatusCollisionCount.With(statusLabels).Set(float64(*machineDeployment.Status.CollisionCount))
+	}
+}
 
-		metrics.MachineSetInfoSpecReplicas.With(prometheus.Labels{
-			"name":      msMeta.Name,
-			"namespace": msMeta.Namespace}).Set(float64(msSpec.Replicas))
-		metrics.MachineSetInfoSpecMinReadySeconds.With(prometheus.Labels{
-			"name":      msMeta.Name,
-			"namespace": msMeta.Namespace}).Set(float64(msSpec.MinReadySeconds))
+func updateMachineDeploymentStatusFailedMachinesMetric(machineDeployment *v1alpha1.MachineDeployment, mdMeta metav1.ObjectMeta) {
+	if machineDeployment.Status.FailedMachines != nil {
+		for _, failedMachine := range machineDeployment.Status.FailedMachines {
+			metrics.MachineDeploymentStatusFailedMachines.With(prometheus.Labels{
+				"name":                                mdMeta.Name,
+				"namespace":                           mdMeta.Namespace,
+				"failed_machine_name":                 failedMachine.Name,
+				"failed_machine_provider_id":          failedMachine.ProviderID,
+				"failed_machine_last_operation_state": string(failedMachine.LastOperation.State),
+				"failed_machine_last_operation_machine_operation_type": string(failedMachine.LastOperation.Type),
+				"failed_machine_owner_ref":                             failedMachine.OwnerRef}).Set(float64(1))
 
-		for _, condition := range machineSet.Status.Conditions {
-			var status float64
-			switch condition.Status {
-			case v1alpha1.ConditionTrue:
-				status = 1
-			case v1alpha1.ConditionFalse:
-				status = 0
-			case v1alpha1.ConditionUnknown:
-				status = 2
-			}
-
-			metrics.MachineSetStatusCondition.With(prometheus.Labels{
-				"name":      msMeta.Name,
-				"namespace": msMeta.Namespace,
-				"condition": string(condition.Type),
-			}).Set(status)
-		}
-
-		metrics.MachineSetStatusAvailableReplicas.With(prometheus.Labels{
-			"name":      msMeta.Name,
-			"namespace": msMeta.Namespace,
-		}).Set(float64(machineSet.Status.AvailableReplicas))
-
-		metrics.MachineSetStatusFullyLabelledReplicas.With(prometheus.Labels{
-			"name":      msMeta.Name,
-			"namespace": msMeta.Namespace,
-		}).Set(float64(machineSet.Status.FullyLabeledReplicas))
-
-		metrics.MachineSetStatusReadyReplicas.With(prometheus.Labels{
-			"name":      msMeta.Name,
-			"namespace": msMeta.Namespace,
-		}).Set(float64(machineSet.Status.ReadyReplicas))
-
-		metrics.MachineSetStatusReplicas.With(prometheus.Labels{
-			"name":      msMeta.Name,
-			"namespace": msMeta.Namespace,
-		}).Set(float64(machineSet.Status.ReadyReplicas))
-
-		if machineSet.Status.FailedMachines != nil {
-
-			for _, failedMachine := range *machineSet.Status.FailedMachines {
-				metrics.MachineSetStatusFailedMachines.With(prometheus.Labels{
-					"name":                                msMeta.Name,
-					"namespace":                           msMeta.Namespace,
-					"failed_machine_name":                 failedMachine.Name,
-					"failed_machine_provider_id":          failedMachine.ProviderID,
-					"failed_machine_last_operation_state": string(failedMachine.LastOperation.State),
-					"failed_machine_last_operation_machine_operation_type": string(failedMachine.LastOperation.Type),
-					"failed_machine_owner_ref":                             failedMachine.OwnerRef}).Set(float64(1))
-			}
 		}
 	}
+}
+
+func updateMachineDeploymentStatusConditionMetric(machineDeployment *v1alpha1.MachineDeployment, mdMeta metav1.ObjectMeta) {
+	for _, condition := range machineDeployment.Status.Conditions {
+		var status float64
+		switch condition.Status {
+		case v1alpha1.ConditionTrue:
+			status = 1
+		case v1alpha1.ConditionFalse:
+			status = 0
+		case v1alpha1.ConditionUnknown:
+			status = 2
+		}
+
+		metrics.MachineDeploymentStatusCondition.With(prometheus.Labels{
+			"name":      mdMeta.Name,
+			"namespace": mdMeta.Namespace,
+			"condition": string(condition.Type),
+		}).Set(status)
+	}
+}
+
+func updateMachineDeploymentSpecRelatedMetrics(mdSpec v1alpha1.MachineDeploymentSpec, mdMeta metav1.ObjectMeta) {
+	var paused float64
+	if mdSpec.Paused {
+		paused = 1
+	}
+	metrics.MachineDeploymentInfoSpecPaused.With(prometheus.Labels{
+		"name":      mdMeta.Name,
+		"namespace": mdMeta.Namespace}).Set(paused)
+
+	metrics.MachineDeploymentInfoSpecReplicas.With(prometheus.Labels{
+		"name":      mdMeta.Name,
+		"namespace": mdMeta.Namespace}).Set(float64(mdSpec.Replicas))
+
+	metrics.MachineDeploymentInfoSpecMinReadySeconds.With(prometheus.Labels{
+		"name":      mdMeta.Name,
+		"namespace": mdMeta.Namespace}).Set(float64(mdSpec.MinReadySeconds))
+
+	if mdSpec.Strategy.Type == v1alpha1.RollingUpdateMachineDeploymentStrategyType {
+		metrics.MachineDeploymentInfoSpecRollingUpdateMaxSurge.With(prometheus.Labels{
+			"name":      mdMeta.Name,
+			"namespace": mdMeta.Namespace}).Set(float64(mdSpec.Strategy.RollingUpdate.MaxSurge.IntValue()))
+		metrics.MachineDeploymentInfoSpecRollingUpdateMaxUnavailable.With(prometheus.Labels{
+			"name":      mdMeta.Name,
+			"namespace": mdMeta.Namespace}).Set(float64(mdSpec.Strategy.RollingUpdate.MaxUnavailable.IntValue()))
+	}
+	if mdSpec.RevisionHistoryLimit != nil {
+		metrics.MachineDeploymentInfoSpecRevisionHistoryLimit.With(prometheus.Labels{
+			"name":      mdMeta.Name,
+			"namespace": mdMeta.Namespace}).Set(float64(int64(*mdSpec.RevisionHistoryLimit)))
+	}
+	if mdSpec.ProgressDeadlineSeconds != nil {
+		metrics.MachineDeploymentInfoSpecProgressDeadlineSeconds.With(prometheus.Labels{
+			"name":      mdMeta.Name,
+			"namespace": mdMeta.Namespace}).Set(float64(int64(*mdSpec.ProgressDeadlineSeconds)))
+	}
+	if mdSpec.RollbackTo != nil {
+		metrics.MachineDeploymentInfoSpecRollbackToRevision.With(prometheus.Labels{
+			"name":      mdMeta.Name,
+			"namespace": mdMeta.Namespace}).Set(float64(mdSpec.RollbackTo.Revision))
+	}
+}
+
+func updateMachineDeploymentInfoMetric(mdMeta metav1.ObjectMeta, mdSpec v1alpha1.MachineDeploymentSpec) {
+	metrics.MachineDeploymentInfo.With(prometheus.Labels{
+		"name":               mdMeta.Name,
+		"namespace":          mdMeta.Namespace,
+		"createdAt":          strconv.FormatInt(mdMeta.GetCreationTimestamp().Time.Unix(), 10),
+		"spec_strategy_type": string(mdSpec.Strategy.Type),
+	}).Set(float64(1))
+}
+
+func updateMachineDeploymentCountMetric(ch chan<- prometheus.Metric, machineDeploymentList []*v1alpha1.MachineDeployment) {
+	metric, err := prometheus.NewConstMetric(metrics.MachineDeploymentCountDesc, prometheus.GaugeValue, float64(len(machineDeploymentList)))
+	if err != nil {
+		metrics.ScrapeFailedCounter.With(prometheus.Labels{"kind": "Machinedeployment-count"}).Inc()
+		return
+	}
+	ch <- metric
 }
