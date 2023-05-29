@@ -28,9 +28,14 @@ import (
 
 // Describe is method required to implement the prometheus.Collect interface.
 func (c *controller) Describe(ch chan<- *prometheus.Desc) {
-	ch <- metrics.MachineCountDesc
 	ch <- metrics.MachineSetCountDesc
 	ch <- metrics.MachineDeploymentCountDesc
+}
+
+// Collect is method required to implement the prometheus.Collect interface.
+func (c *controller) Collect(ch chan<- prometheus.Metric) {
+	c.CollectMachineSetMetrics(ch)
+	c.CollectMachineDeploymentMetrics(ch)
 }
 
 // CollectMachineDeploymentMetrics is method to collect machineSet related metrics.
@@ -234,10 +239,4 @@ func (c *controller) CollectMachineSetMetrics(ch chan<- prometheus.Metric) {
 			}
 		}
 	}
-}
-
-// Collect is method required to implement the prometheus.Collect interface.
-func (c *controller) Collect(ch chan<- prometheus.Metric) {
-	c.CollectMachineSetMetrics(ch)
-	c.CollectMachineDeploymentMetrics(ch)
 }
