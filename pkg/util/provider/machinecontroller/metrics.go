@@ -85,18 +85,18 @@ func updateMachineCountMetric(ch chan<- prometheus.Metric, machineList []*v1alph
 func updateMachineCSPhaseMetric(machine *v1alpha1.Machine, mMeta metav1.ObjectMeta) {
 	var phase float64
 	switch machine.Status.CurrentStatus.Phase {
-	case v1alpha1.MachinePending:
-		phase = -2
-	case v1alpha1.MachineAvailable:
-		phase = -1
-	case v1alpha1.MachineRunning:
-		phase = 0
 	case v1alpha1.MachineTerminating:
-		phase = 1
-	case v1alpha1.MachineUnknown:
-		phase = 2
+		phase = -4
 	case v1alpha1.MachineFailed:
-		phase = 3
+		phase = -3
+	case v1alpha1.MachineCrashLoopBackOff:
+		phase = -2
+	case v1alpha1.MachineUnknown:
+		phase = -1
+	case v1alpha1.MachinePending:
+		phase = 0
+	case v1alpha1.MachineRunning:
+		phase = 1
 	}
 	metrics.MachineCSPhase.With(prometheus.Labels{
 		"name":      mMeta.Name,
