@@ -18,7 +18,6 @@ package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 const (
@@ -87,69 +86,31 @@ var (
 var (
 	// ScrapeFailedCounter is a Prometheus metric, which counts errors during metrics collection.
 	ScrapeFailedCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace,
-		Subsystem: miscSubsystem,
-		Name:      "scrape_failure_total",
-		Help:      "Total count of scrape failures.",
+		Namespace:   namespace,
+		Subsystem:   miscSubsystem,
+		Name:        "scrape_failure_total",
+		Help:        "Total count of scrape failures.",
+		ConstLabels: map[string]string{"binary": "machine-controller-manager-provider"},
 	}, []string{"kind"})
 )
 
-func register_machine_subsystem_metrics(reg *prometheus.Registry) {
-	promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace,
-		Subsystem: machineSubsystem,
-		Name:      "info",
-		Help:      "Information of the Machines currently managed by the mcm.",
-	}, []string{"name", "namespace", "createdAt",
-		"spec_provider_id", "spec_class_api_group", "spec_class_kind", "spec_class_name"})
-
-	promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace,
-		Subsystem: machineSubsystem,
-		Name:      "status_condition",
-		Help:      "Information of the mcm managed Machines' status conditions.",
-	}, []string{"name", "namespace", "condition"})
-
-	promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace,
-		Subsystem: machineSubsystem,
-		Name:      "current_status_phase",
-		Help:      "Current status phase of the Machines currently managed by the mcm.",
-	}, []string{"name", "namespace"})
-
+func registerMachineSubsystemMetrics() {
+	prometheus.MustRegister(MachineInfo)
+	prometheus.MustRegister(MachineStatusCondition)
+	prometheus.MustRegister(MachineCSPhase)
 }
 
-func register_cloud_api_subsystem_metrics(reg *prometheus.Registry) {
-	promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace,
-		Subsystem: cloudAPISubsystem,
-		Name:      "requests_total",
-		Help:      "Number of Cloud Service API requests, partitioned by provider, and service.",
-	}, []string{"provider", "service"},
-	)
-
-	promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace,
-		Subsystem: cloudAPISubsystem,
-		Name:      "requests_failed_total",
-		Help:      "Number of Failed Cloud Service API requests, partitioned by provider, and service.",
-	}, []string{"provider", "service"},
-	)
+func registerCloudApiSubsystemMetrics() {
+	prometheus.MustRegister(APIRequestCount)
+	prometheus.MustRegister(APIFailedRequestCount)
 }
 
-func register_miscellaneous_metrics(reg *prometheus.Registry) {
-	promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace,
-		Subsystem: miscSubsystem,
-		Name:      "scrape_failure_total",
-		Help:      "Total count of scrape failures.",
-	}, []string{"kind"})
+func registerMiscellaneousMetrics() {
+	prometheus.MustRegister(ScrapeFailedCounter)
 }
 
 func init() {
-	reg := prometheus.NewRegistry()
-
-	register_machine_subsystem_metrics(reg)
-	register_cloud_api_subsystem_metrics(reg)
-	register_miscellaneous_metrics(reg)
+	registerMachineSubsystemMetrics()
+	registerCloudApiSubsystemMetrics()
+	registerMiscellaneousMetrics()
 }

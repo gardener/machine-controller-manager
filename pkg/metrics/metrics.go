@@ -24,7 +24,6 @@ const (
 	namespace                  = "mcm"
 	machinesetSubsystem        = "machine_set"
 	machinedeploymentSubsystem = "machine_deployment"
-	cloudAPISubsystem          = "cloud_api"
 	miscSubsystem              = "misc"
 )
 
@@ -254,39 +253,19 @@ var (
 		"failed_machine_last_operation_machine_operation_type"})
 )
 
-// variables for subsystem: cloud_api
-var (
-	// APIRequestCount Number of Cloud Service API requests, partitioned by provider, and service.
-	APIRequestCount = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace,
-		Subsystem: cloudAPISubsystem,
-		Name:      "requests_total",
-		Help:      "Number of Cloud Service API requests, partitioned by provider, and service.",
-	}, []string{"provider", "service"},
-	)
-
-	// APIFailedRequestCount Number of Failed Cloud Service API requests, partitioned by provider, and service.
-	APIFailedRequestCount = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace,
-		Subsystem: cloudAPISubsystem,
-		Name:      "requests_failed_total",
-		Help:      "Number of Failed Cloud Service API requests, partitioned by provider, and service.",
-	}, []string{"provider", "service"},
-	)
-)
-
 // variables for subsystem: misc
 var (
 	// ScrapeFailedCounter is a Prometheus metric, which counts errors during metrics collection.
 	ScrapeFailedCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace,
-		Subsystem: miscSubsystem,
-		Name:      "scrape_failure_total",
-		Help:      "Total count of scrape failures.",
+		Namespace:   namespace,
+		Subsystem:   miscSubsystem,
+		Name:        "scrape_failure_total",
+		Help:        "Total count of scrape failures.",
+		ConstLabels: map[string]string{"binary": "machine-controller-manager"},
 	}, []string{"kind"})
 )
 
-func register_machine_set_subsystem_metrics() {
+func registerMachineSetSubsystemMetrics() {
 	prometheus.MustRegister(MachineSetInfo)
 	prometheus.MustRegister(MachineSetInfoSpecReplicas)
 	prometheus.MustRegister(MachineSetInfoSpecMinReadySeconds)
@@ -298,7 +277,7 @@ func register_machine_set_subsystem_metrics() {
 	prometheus.MustRegister(MachineSetStatusFailedMachines)
 }
 
-func register_machine_deployment_subsystem_metrics() {
+func registerMachineDeploymentSubsystemMetrics() {
 	prometheus.MustRegister(MachineDeploymentInfo)
 	prometheus.MustRegister(MachineDeploymentInfoSpecPaused)
 	prometheus.MustRegister(MachineDeploymentInfoSpecReplicas)
@@ -318,18 +297,12 @@ func register_machine_deployment_subsystem_metrics() {
 	prometheus.MustRegister(MachineDeploymentStatusFailedMachines)
 }
 
-func register_cloud_api_subsystem_metrics() {
-	prometheus.MustRegister(APIRequestCount)
-	prometheus.MustRegister(APIFailedRequestCount)
-}
-
-func register_miscellaneous_metrics() {
+func registerMiscellaneousMetrics() {
 	prometheus.MustRegister(ScrapeFailedCounter)
 }
 
 func init() {
-	register_machine_set_subsystem_metrics()
-	register_machine_deployment_subsystem_metrics()
-	register_cloud_api_subsystem_metrics()
-	register_miscellaneous_metrics()
+	registerMachineSetSubsystemMetrics()
+	registerMachineDeploymentSubsystemMetrics()
+	registerMiscellaneousMetrics()
 }
