@@ -306,13 +306,3 @@ func init() {
 	registerMachineDeploymentSubsystemMetrics()
 	registerMiscellaneousMetrics()
 }
-
-func register_miscellaneous_metrics() {
-	prometheus.MustRegister(ScrapeFailedCounter)
-}
-
-func init() {
-	registerMachineSetSubsystemMetrics()
-	registerMachineDeploymentSubsystemMetrics()
-	register_miscellaneous_metrics()
-}
