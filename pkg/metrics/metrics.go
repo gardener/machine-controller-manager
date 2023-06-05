@@ -22,42 +22,13 @@ import (
 
 const (
 	namespace                  = "mcm"
-	machineSubsystem           = "machine"
 	machinesetSubsystem        = "machine_set"
 	machinedeploymentSubsystem = "machine_deployment"
-	cloudAPISubsystem          = "cloud_api"
+	miscSubsystem              = "misc"
 )
 
+// variables for subsystem: machine_set
 var (
-	// MachineControllerFrozenDesc is a metric about MachineController's frozen status
-	MachineControllerFrozenDesc = prometheus.NewDesc("mcm_machine_controller_frozen", "Frozen status of the machine controller manager.", nil, nil)
-	// MachineCountDesc is a metric about machine count of the mcm manages
-	MachineCountDesc = prometheus.NewDesc("mcm_machine_items_total", "Count of machines currently managed by the mcm.", nil, nil)
-
-	//MachineCSPhase Current status phase of the Machines currently managed by the mcm.
-	MachineCSPhase = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Subsystem: machineSubsystem,
-		Name:      "current_status_phase",
-		Help:      "Current status phase of the Machines currently managed by the mcm.",
-	}, []string{"name", "namespace"})
-
-	//MachineInfo Information of the Machines currently managed by the mcm.
-	MachineInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Subsystem: machineSubsystem,
-		Name:      "info",
-		Help:      "Information of the Machines currently managed by the mcm.",
-	}, []string{"name", "namespace", "createdAt",
-		"spec_provider_id", "spec_class_api_group", "spec_class_kind", "spec_class_name"})
-
-	// MachineStatusCondition Information of the mcm managed Machines' status conditions
-	MachineStatusCondition = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Subsystem: machineSubsystem,
-		Name:      "status_condition",
-		Help:      "Information of the mcm managed Machines' status conditions.",
-	}, []string{"name", "namespace", "condition"})
 
 	// MachineSetCountDesc Count of machinesets currently managed by the mcm
 	MachineSetCountDesc = prometheus.NewDesc("mcm_machine_set_items_total", "Count of machinesets currently managed by the mcm.", nil, nil)
@@ -136,7 +107,10 @@ var (
 		Name:      "status_replicas",
 		Help:      "Information of the mcm managed Machinesets' status for replicas.",
 	}, []string{"name", "namespace"})
+)
 
+// variables for subsystem: machine_deployment
+var (
 	// MachineDeploymentCountDesc Count of machinedeployments currently managed by the mcm.
 	MachineDeploymentCountDesc = prometheus.NewDesc("mcm_machine_deployment_items_total", "Count of machinedeployments currently managed by the mcm.", nil, nil)
 
@@ -277,38 +251,21 @@ var (
 	}, []string{"name", "namespace", "failed_machine_name", "failed_machine_provider_id", "failed_machine_owner_ref",
 		"failed_machine_last_operation_state",
 		"failed_machine_last_operation_machine_operation_type"})
+)
 
-	// APIRequestCount Number of Cloud Service API requests, partitioned by provider, and service.
-	APIRequestCount = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace,
-		Subsystem: cloudAPISubsystem,
-		Name:      "requests_total",
-		Help:      "Number of Cloud Service API requests, partitioned by provider, and service.",
-	}, []string{"provider", "service"},
-	)
-
-	// APIFailedRequestCount Number of Failed Cloud Service API requests, partitioned by provider, and service.
-	APIFailedRequestCount = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace,
-		Subsystem: cloudAPISubsystem,
-		Name:      "requests_failed_total",
-		Help:      "Number of Failed Cloud Service API requests, partitioned by provider, and service.",
-	}, []string{"provider", "service"},
-	)
-
+// variables for subsystem: misc
+var (
 	// ScrapeFailedCounter is a Prometheus metric, which counts errors during metrics collection.
 	ScrapeFailedCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace,
-		Name:      "scrape_failure_total",
-		Help:      "Total count of scrape failures.",
+		Namespace:   namespace,
+		Subsystem:   miscSubsystem,
+		Name:        "scrape_failure_total",
+		Help:        "Total count of scrape failures.",
+		ConstLabels: map[string]string{"binary": "machine-controller-manager"},
 	}, []string{"kind"})
 )
 
-func init() {
-	prometheus.MustRegister(ScrapeFailedCounter)
-	prometheus.MustRegister(MachineInfo)
-	prometheus.MustRegister(MachineStatusCondition)
-	prometheus.MustRegister(MachineCSPhase)
+func registerMachineSetSubsystemMetrics() {
 	prometheus.MustRegister(MachineSetInfo)
 	prometheus.MustRegister(MachineSetInfoSpecReplicas)
 	prometheus.MustRegister(MachineSetInfoSpecMinReadySeconds)
@@ -318,6 +275,9 @@ func init() {
 	prometheus.MustRegister(MachineSetStatusReplicas)
 	prometheus.MustRegister(MachineSetStatusCondition)
 	prometheus.MustRegister(MachineSetStatusFailedMachines)
+}
+
+func registerMachineDeploymentSubsystemMetrics() {
 	prometheus.MustRegister(MachineDeploymentInfo)
 	prometheus.MustRegister(MachineDeploymentInfoSpecPaused)
 	prometheus.MustRegister(MachineDeploymentInfoSpecReplicas)
@@ -335,6 +295,14 @@ func init() {
 	prometheus.MustRegister(MachineDeploymentStatusCollisionCount)
 	prometheus.MustRegister(MachineDeploymentStatusReplicas)
 	prometheus.MustRegister(MachineDeploymentStatusFailedMachines)
-	prometheus.MustRegister(APIRequestCount)
-	prometheus.MustRegister(APIFailedRequestCount)
+}
+
+func registerMiscellaneousMetrics() {
+	prometheus.MustRegister(ScrapeFailedCounter)
+}
+
+func init() {
+	registerMachineSetSubsystemMetrics()
+	registerMachineDeploymentSubsystemMetrics()
+	registerMiscellaneousMetrics()
 }
