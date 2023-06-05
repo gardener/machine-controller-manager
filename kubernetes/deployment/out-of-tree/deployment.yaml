@@ -37,6 +37,10 @@ spec:
           periodSeconds: 10
           successThreshold: 1
           timeoutSeconds: 5
+        ports:
+          - containerPort: 10258
+            name: metrics
+            protocol: TCP
       - command:
         - ./machine-controller
         - --control-kubeconfig=$(TARGET_KUBECONFIG) # Mandatory Parameter - Filepath to the target cluster's kubeconfig where node objects are expected to join.
