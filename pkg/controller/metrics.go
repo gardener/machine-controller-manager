@@ -19,12 +19,36 @@ package controller
 
 import (
 	"strconv"
+	"sync"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+)
+
+type staleMachinesRemovedCounter struct {
+	value int32
+	mutex sync.RWMutex
+}
+
+func (cntr *staleMachinesRemovedCounter) increment() {
+	cntr.mutex.Lock()
+	cntr.value++
+	cntr.mutex.Unlock()
+}
+
+func (cntr *staleMachinesRemovedCounter) readAndReset() int32 {
+	cntr.mutex.Lock()
+	defer cntr.mutex.Unlock()
+	value := cntr.value
+	cntr.value = 0
+	return value
+}
+
+var (
+	staleMachinesRemoved = &staleMachinesRemovedCounter{}
 )
 
 // Describe is method required to implement the prometheus.Collect interface.
@@ -41,9 +65,8 @@ func (c *controller) Collect(ch chan<- prometheus.Metric) {
 }
 
 // CollectMachineMetrics is a method to collect overall machine metrics
-func (c *controller) CollectMachineMetrics(ch chan<- prometheus.Metric){
-	// Expose stale machine count
-	metrics.StaleMachineCount.With(prometheus.Labels{"kind": "Machine-count"}).Add(float64(c.getStaleMachinesSinceLastCollect()))
+func (c *controller) CollectMachineMetrics(_ chan<- prometheus.Metric) {
+	metrics.StaleMachineCount.Add(float64(staleMachinesRemoved.readAndReset()))
 }
 
 // CollectMachineDeploymentMetrics is method to collect machineSet related metrics.

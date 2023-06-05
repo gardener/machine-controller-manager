@@ -69,18 +69,6 @@ const (
 
 var controllerKindMachineSet = v1alpha1.SchemeGroupVersion.WithKind("MachineSet")
 
-// Stale machine counter
-var staleMachineCounter = 0
-
-func (c *controller) getStaleMachinesSinceLastCollect() int {
-	defer resetStaleMachineCounter()
-	return staleMachineCounter
-}
-
-func resetStaleMachineCounter() {
-	staleMachineCounter = 0
-}
-
 // getMachineMachineSets returns the MachineSets matching the given Machine.
 func (c *controller) getMachineMachineSets(machine *v1alpha1.Machine) ([]*v1alpha1.MachineSet, error) {
 
@@ -128,7 +116,7 @@ func (c *controller) getMachineMachineSets(machine *v1alpha1.Machine) ([]*v1alph
 func (c *controller) resolveMachineSetControllerRef(namespace string, controllerRef *metav1.OwnerReference) *v1alpha1.MachineSet {
 	// We can't look up by UID, so look up by Name and then verify UID.
 	// Don't even try to look up by Name if it's the wrong Kind.
-	if controllerRef.Kind != machineSetKind { //TOCheck
+	if controllerRef.Kind != machineSetKind { // TOCheck
 		return nil
 	}
 	machineSet, err := c.machineSetLister.MachineSets(namespace).Get(controllerRef.Name)
@@ -348,7 +336,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	var activeMachines, staleMachines []*v1alpha1.Machine
 	for _, machine := range allMachines {
 		if IsMachineActive(machine) {
-			//klog.Info("Active machine: ", machine.Name)
+			// klog.Info("Active machine: ", machine.Name)
 			activeMachines = append(activeMachines, machine)
 		} else if IsMachineFailed(machine) {
 			staleMachines = append(staleMachines, machine)
@@ -357,7 +345,6 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 
 	if len(staleMachines) >= 1 {
 		klog.V(2).Infof("Deleting stale machines")
-		staleMachineCounter += len(staleMachines)
 	}
 	if err := c.terminateMachines(ctx, staleMachines, machineSet); err != nil {
 		// TODO: proper error handling needs to happen here
@@ -399,8 +386,8 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		successfulCreations, err := slowStartBatch(diff, SlowStartInitialBatchSize, func() error {
 			boolPtr := func(b bool) *bool { return &b }
 			controllerRef := &metav1.OwnerReference{
-				APIVersion:         controllerKindMachineSet.GroupVersion().String(), //#ToCheck
-				Kind:               controllerKindMachineSet.Kind,                    //machineSet.Kind,
+				APIVersion:         controllerKindMachineSet.GroupVersion().String(), // #ToCheck
+				Kind:               controllerKindMachineSet.Kind,                    // machineSet.Kind,
 				Name:               machineSet.Name,
 				UID:                machineSet.UID,
 				BlockOwnerDeletion: boolPtr(true),
@@ -546,7 +533,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	}
 
 	// TODO: Fix working of expectations to reflect correct behaviour
-	//machineSetNeedsSync := c.expectations.SatisfiedExpectations(key)
+	// machineSetNeedsSync := c.expectations.SatisfiedExpectations(key)
 	var manageReplicasErr error
 
 	if machineSet.DeletionTimestamp == nil {
@@ -683,12 +670,19 @@ func (c *controller) prepareMachineForDeletion(ctx context.Context, targetMachin
 		return
 	}
 
-	if err := c.machineControl.DeleteMachine(ctx, targetMachine.Namespace, targetMachine.Name, machineSet); err != nil {
+	err = c.machineControl.DeleteMachine(ctx, targetMachine.Namespace, targetMachine.Name, machineSet)
+	if err != nil {
 		// Decrement the expected number of deletes because the informer won't observe this deletion
 		machineKey := MachineKey(targetMachine)
 		klog.V(2).Infof("Failed to delete %v, decrementing expectations for %v %s/%s", machineKey, machineSet.Kind, machineSet.Namespace, machineSet.Name)
 		c.expectations.DeletionObserved(machineSetKey, machineKey)
 		errCh <- err
+	} else {
+		// successful delete of a Failed phase machine due to unhealthiness for too long, increments staleMachinesRemoved counter
+		// note: call is blocking and thread safe as other worker threads might be updating the counter as well
+		if IsMachineFailed(targetMachine) && targetMachine.Status.LastOperation.Type == v1alpha1.MachineOperationHealthCheck {
+			staleMachinesRemoved.increment()
+		}
 	}
 
 	// Force trigger deletion to reflect in machine status
