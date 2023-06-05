@@ -35,7 +35,7 @@ var (
 		Namespace: namespace,
 		Subsystem: machineSubsystem,
 		Name:      "stale_machines_total",
-		Help:      "Total count of machines that have been in stale state and flagged for termination.",
+		Help:      "Total count of stale machines flagged for termination that turned stale due to long unhealthiness",
 	})
 )
 
