@@ -100,7 +100,7 @@ func registerMachineSubsystemMetrics() {
 	prometheus.MustRegister(MachineCSPhase)
 }
 
-func registerCloudApiSubsystemMetrics() {
+func registerCloudAPISubsystemMetrics() {
 	prometheus.MustRegister(APIRequestCount)
 	prometheus.MustRegister(APIFailedRequestCount)
 }
@@ -111,6 +111,6 @@ func registerMiscellaneousMetrics() {
 
 func init() {
 	registerMachineSubsystemMetrics()
-	registerCloudApiSubsystemMetrics()
+	registerCloudAPISubsystemMetrics()
 	registerMiscellaneousMetrics()
 }
