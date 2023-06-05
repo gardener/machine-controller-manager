@@ -69,6 +69,18 @@ const (
 
 var controllerKindMachineSet = v1alpha1.SchemeGroupVersion.WithKind("MachineSet")
 
+// Stale machine counter
+var staleMachineCounter = 0
+
+func (c *controller) getStaleMachinesSinceLastCollect() int {
+	defer resetStaleMachineCounter()
+	return staleMachineCounter
+}
+
+func resetStaleMachineCounter() {
+	staleMachineCounter = 0
+}
+
 // getMachineMachineSets returns the MachineSets matching the given Machine.
 func (c *controller) getMachineMachineSets(machine *v1alpha1.Machine) ([]*v1alpha1.MachineSet, error) {
 
@@ -345,6 +357,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 
 	if len(staleMachines) >= 1 {
 		klog.V(2).Infof("Deleting stale machines")
+		staleMachineCounter += len(staleMachines)
 	}
 	if err := c.terminateMachines(ctx, staleMachines, machineSet); err != nil {
 		// TODO: proper error handling needs to happen here

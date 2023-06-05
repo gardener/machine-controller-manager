@@ -30,6 +30,15 @@ const (
 // variables for subsystem: machine_set
 var (
 
+	// StaleMachineCount Number of stale (failed) machines that get flagged for termination
+	StaleMachineCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: machinesetSubsystem,
+		Name:      "stale_machines_total",
+		Help:      "Total count of machines that have been in stale state and flagged for termination.",
+	}, []string{"kind"},
+	)
+
 	// MachineSetCountDesc Count of machinesets currently managed by the mcm
 	MachineSetCountDesc = prometheus.NewDesc("mcm_machine_set_items_total", "Count of machinesets currently managed by the mcm.", nil, nil)
 

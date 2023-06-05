@@ -35,8 +35,15 @@ func (c *controller) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect is method required to implement the prometheus.Collect interface.
 func (c *controller) Collect(ch chan<- prometheus.Metric) {
+	c.CollectMachineMetrics(ch)
 	c.CollectMachineSetMetrics(ch)
 	c.CollectMachineDeploymentMetrics(ch)
+}
+
+// CollectMachineMetrics is a method to collect overall machine metrics
+func (c *controller) CollectMachineMetrics(ch chan<- prometheus.Metric){
+	// Expose stale machine count
+	metrics.StaleMachineCount.With(prometheus.Labels{"kind": "Machine-count"}).Add(float64(c.getStaleMachinesSinceLastCollect()))
 }
 
 // CollectMachineDeploymentMetrics is method to collect machineSet related metrics.
