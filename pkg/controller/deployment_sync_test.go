@@ -841,7 +841,7 @@ var _ = Describe("deployment_sync", func() {
 					err: false,
 				},
 			}),
-			Entry("if no scaling happened but DesiredReplicas Annotation for the only active machineSet is outdated, it should be updated with the correct value", &data{
+			Entry("if no scaling needed but DesiredReplicas Annotation for the only active machineSet is outdated, it should be updated with the correct value", &data{
 				setup: setup{
 					machineDeployment: newMachineDeployment(mDeploymentSpecTemplate, 1, 500, 2, 0, nil, nil, nil, nil),
 					oldISs: []*machinev1.MachineSet{
