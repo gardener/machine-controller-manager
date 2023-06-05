@@ -456,8 +456,9 @@ var _ = Describe("deployment_sync", func() {
 					controlObjects = append(controlObjects, data.setup.oldISs[i])
 				}
 
-				controlObjects = append(controlObjects, data.setup.newIS)
-
+				if data.setup.newIS != nil {
+					controlObjects = append(controlObjects, data.setup.newIS)
+				}
 				c, trackers := createController(stop, testNamespace, controlObjects, nil, nil)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
@@ -839,6 +840,21 @@ var _ = Describe("deployment_sync", func() {
 						),
 					},
 					err: false,
+				},
+			}),
+			Entry("if no scaling happened but DesiredReplicas Annotation for the only active machineSet is outdated, it should be updated with the correct value", &data{
+				setup: setup{
+					machineDeployment: newMachineDeployment(mDeploymentSpecTemplate, 1, 500, 2, 0, nil, nil, nil, nil),
+					oldISs: []*machinev1.MachineSet{
+						newMachineSet(mSetSpecTemplate, nameMachineSet1, 1, 500, nil, nil, map[string]string{DesiredReplicasAnnotation: "2", MaxReplicasAnnotation: "3"}, nil),
+					},
+					newIS: nil,
+				},
+				expect: expect{
+					err: false,
+					machineSets: []*machinev1.MachineSet{
+						newMachineSet(mSetSpecTemplate, nameMachineSet1, 1, 500, nil, nil, map[string]string{DesiredReplicasAnnotation: "1", MaxReplicasAnnotation: "3"}, nil),
+					},
 				},
 			}),
 		)

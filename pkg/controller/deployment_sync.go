@@ -405,7 +405,10 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 	// deployment. If there is no active machine set, then we should scale up the newest machine set.
 	if activeOrLatest := FindActiveOrLatest(newIS, oldISs); activeOrLatest != nil {
 		if (activeOrLatest.Spec.Replicas) == (deployment.Spec.Replicas) {
-			return nil
+			// to deal with the case where the DesiredReplicas annotation is outdated (issue - https://github.com/gardener/machine-controller-manager/issues/815)
+			klog.V(3).Infof("DesiredReplicas annotation possibly outdated for the machineSet %s, updating if needed...", activeOrLatest.Name)
+			_, _, err := dc.scaleMachineSet(ctx, activeOrLatest, deployment.Spec.Replicas, deployment, "no-op")
+			return err
 		}
 		klog.V(3).Infof("Scaling latest/theOnlyActive machineSet %s", activeOrLatest.Name)
 		_, _, err := dc.scaleMachineSetAndRecordEvent(ctx, activeOrLatest, deployment.Spec.Replicas, deployment)
