@@ -18,9 +18,10 @@ package controller
 import (
 	"context"
 	"errors"
-	"k8s.io/utils/pointer"
 	"sync"
 	"time"
+
+	"k8s.io/utils/pointer"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	. "github.com/onsi/ginkgo"
@@ -652,8 +653,8 @@ var _ = Describe("machineset", func() {
 			}
 		})
 
-		//Testcase: ActiveMachines < DesiredMachines
-		//It should create new machines and should not return erros.
+		// Testcase: ActiveMachines < DesiredMachines
+		// It should create new machines and should not return erros.
 		It("should create new machines and should not return errors.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
@@ -670,13 +671,13 @@ var _ = Describe("machineset", func() {
 			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2}
 			Err := c.manageReplicas(context.TODO(), activeMachines, testMachineSet)
 			waitForCacheSync(stop, c)
-			//TODO: Could not use Listers here, need to check more.
+			// TODO: Could not use Listers here, need to check more.
 			machines, _ = c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
 			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
 			Expect(Err).Should(BeNil())
 		})
 
-		//It should return nil error if typemeta is missing in machine-set, to avoid constant reconciliations.
+		// It should return nil error if typemeta is missing in machine-set, to avoid constant reconciliations.
 		It("should return nil on buggy machineset and avoid reconciliations", func() {
 			stop := make(chan struct{})
 			defer close(stop)
@@ -699,8 +700,8 @@ var _ = Describe("machineset", func() {
 			Expect(Err).Should(BeNil())
 		})
 
-		//Testcase: diff > burstReplicas
-		//Create number of machines equal to the burst-replicas.
+		// Testcase: diff > burstReplicas
+		// Create number of machines equal to the burst-replicas.
 		It("should create new machines only equal to burstReplicas and should not return errors.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
@@ -715,14 +716,14 @@ var _ = Describe("machineset", func() {
 			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2}
 			Expect(c.manageReplicas(context.Background(), activeMachines, testMachineSet)).NotTo(HaveOccurred())
 			waitForCacheSync(stop, c)
-			//TODO: Could not use Listers here, need to check more.
+			// TODO: Could not use Listers here, need to check more.
 			machines, err := c.controlMachineClient.Machines(testNamespace).List(context.Background(), metav1.ListOptions{})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(machines.Items)).To(Equal(int(BurstReplicas + len(activeMachines))))
 		})
 
-		//TestCase: ActiveMachines = DesiredMachines
-		//Testcase: It should not return error.
+		// TestCase: ActiveMachines = DesiredMachines
+		// Testcase: It should not return error.
 		It("should not create or delete machines and should not return error", func() {
 			stop := make(chan struct{})
 			defer close(stop)
@@ -764,8 +765,8 @@ var _ = Describe("machineset", func() {
 			Expect(Err).Should(BeNil())
 		})
 
-		//TestCase: ActiveMachines > DesiredMachines
-		//Testcase: It should not return error and delete extra failed machine.
+		// TestCase: ActiveMachines > DesiredMachines
+		// Testcase: It should not return error and delete extra failed machine.
 		It("should not return error and should delete extra failed machine.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
@@ -827,8 +828,8 @@ var _ = Describe("machineset", func() {
 			Expect(Err).Should(BeNil())
 		})
 
-		//TestCase: ActiveMachines > DesiredMachines
-		//Testcase: It should not return error and delete extra running machine.
+		// TestCase: ActiveMachines > DesiredMachines
+		// Testcase: It should not return error and delete extra running machine.
 		It("should not return error and should delete extra running machine.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
@@ -892,7 +893,7 @@ var _ = Describe("machineset", func() {
 
 	})
 
-	//TODO: This method has dependency on generic-machineclass. Implement later.
+	// TODO: This method has dependency on generic-machineclass. Implement later.
 	Describe("#reconcileClusterMachineSet", func() {
 		var (
 			testMachineSet *machinev1.MachineSet
@@ -936,7 +937,7 @@ var _ = Describe("machineset", func() {
 			}
 		})
 
-		//Testcase: It should create new machines.
+		// Testcase: It should create new machines.
 		It("It should create new machines.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
@@ -959,7 +960,7 @@ var _ = Describe("machineset", func() {
 			Expect(Err).Should(BeNil())
 		})
 
-		//Testcase: Should return nil if the machineset doesnt exist, to avoid constant reconciliations.
+		// Testcase: Should return nil if the machineset doesnt exist, to avoid constant reconciliations.
 		It("It should return nil if machineset doesnt exist.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
@@ -979,7 +980,7 @@ var _ = Describe("machineset", func() {
 			Expect(Err).Should(BeNil())
 		})
 
-		//Testcase: It should return nil if the machineset validation fails.
+		// Testcase: It should return nil if the machineset validation fails.
 		It("It should return nil if machineset validation fails", func() {
 			stop := make(chan struct{})
 			defer close(stop)
@@ -1001,7 +1002,7 @@ var _ = Describe("machineset", func() {
 			Expect(Err).Should(BeNil())
 		})
 
-		//Testcase: It should delete all the machines as DeletionTimestamp is set.
+		// Testcase: It should delete all the machines as DeletionTimestamp is set.
 		It("It should delete all the machines as DeletionTimestamp is set on MachineSet", func() {
 			stop := make(chan struct{})
 			defer close(stop)
@@ -1077,7 +1078,7 @@ var _ = Describe("machineset", func() {
 			}
 		})
 
-		//Testcase: It should adopt new machines.
+		// Testcase: It should adopt new machines.
 		/* TBD: Looks like an patch issue with fake clients in 1.16 need to fix it.
 		FIt("should adopt new machines.", func() {
 			stop := make(chan struct{})
@@ -1099,7 +1100,7 @@ var _ = Describe("machineset", func() {
 		})
 		*/
 
-		//Testcase: It should release the machine due to not matching machine-labels.
+		// Testcase: It should release the machine due to not matching machine-labels.
 		It("should release the machine due to not matching machine-labels.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
@@ -1144,7 +1145,7 @@ var _ = Describe("machineset", func() {
 				return nil
 			}
 			fError = func() error {
-				//Throw Error
+				// Throw Error
 				err := errors.New("some error")
 				return err
 			}
@@ -1318,7 +1319,7 @@ var _ = Describe("machineset", func() {
 			}
 		})
 
-		//TestCase: It should delete the target machine.
+		// TestCase: It should delete the target machine.
 		It("should delete the target machine.", func() {
 			var errCh chan error
 			stop := make(chan struct{})
