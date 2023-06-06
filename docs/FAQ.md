@@ -217,7 +217,7 @@ A phase of a `machine` can be identified with `Machine.Status.CurrentStatus.Phas
 * `Running`: Machine creation call has succeeded. Machine has joined the cluster successfully and corresponding node doesn't have `node.gardener.cloud/critical-components-not-ready` taint.
 * `Unknown`: Machine [health checks](#what-health-checks-are-performed-on-a-machine) are failing, eg `kubelet` has stopped posting the status.
 
-* `Failed`: Machine health checks have failed for a prolonged time. Hence it is declared failed by `Machine` controller. `Failed` machines get replaced, but in a rate limited fashion of 1 machine per machinedeployment.
+* `Failed`: Machine health checks have failed for a prolonged time. Hence it is declared failed by `Machine` controller in a [rate limited fashion](#how-does-rate-limiting-replacement-of-machine-work-in-mcm-how-is-it-related-to-meltdown-protection). `Failed` machines get replaced immediately.  
 
 * `Terminating`: Machine is being terminated. Terminating state is set immediately when the deletion is triggered for the `machine` object. It also includes time when it's being drained. 
 
@@ -235,9 +235,9 @@ Health check performed on a machine are:
 If any of the above checks fails , the machine turns to `Unknown` phase.
 ### How does rate limiting replacement of machine work in MCM? How is it related to meltdown protection?
 
-Currently MCM replaces the `1` `Unkown` machines at a time per machinedeployment. This means until the particular `Unknown` machine get terminated and it replacement joins, no other `Unknown` machine would be removed.
+Currently MCM replaces only `1` `Unkown` machine at a time per machinedeployment. This means until the particular `Unknown` machine get terminated and its replacement joins, no other `Unknown` machine would be removed.
 
-The above is achieved by enabling `Machine` controller to turn machine from `Unknown` -> `Failed` only if the above condition is met. `MachineSet` controller on the other hand marks `Failed` machine as `Terminating` immedietly.
+The above is achieved by enabling `Machine` controller to turn machine from `Unknown` -> `Failed` only if the above condition is met. `MachineSet` controller on the other hand marks `Failed` machine as `Terminating` immediately.
 
 One reason for this rate limited replacement was to ensure that in case of network failures , where node's kubelet can't reach out to kube-apiserver , all nodes are not removed together i.e. `meltdown protection`.
 In gardener context however, [DWD](https://github.com/gardener/dependency-watchdog/blob/master/docs/concepts/prober.md#origin) is deployed to deal with this scenario, but to stay protected from corner cases , this mechanism has been introduced in MCM.
