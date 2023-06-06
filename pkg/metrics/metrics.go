@@ -22,14 +22,25 @@ import (
 
 const (
 	namespace                  = "mcm"
+	machineSubsystem           = "machine"
 	machinesetSubsystem        = "machine_set"
 	machinedeploymentSubsystem = "machine_deployment"
 	miscSubsystem              = "misc"
 )
 
+// variables for subsystem: machine
+var (
+	// StaleMachineCount Number of stale (failed) machines that get flagged for termination
+	StaleMachineCount = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: machineSubsystem,
+		Name:      "stale_machines_total",
+		Help:      "Total count of stale machines flagged for termination that turned stale due to long unhealthiness",
+	})
+)
+
 // variables for subsystem: machine_set
 var (
-
 	// MachineSetCountDesc Count of machinesets currently managed by the mcm
 	MachineSetCountDesc = prometheus.NewDesc("mcm_machine_set_items_total", "Count of machinesets currently managed by the mcm.", nil, nil)
 
@@ -265,6 +276,10 @@ var (
 	}, []string{"kind"})
 )
 
+func registerMachineSubsystemMetrics() {
+	prometheus.MustRegister(StaleMachineCount)
+}
+
 func registerMachineSetSubsystemMetrics() {
 	prometheus.MustRegister(MachineSetInfo)
 	prometheus.MustRegister(MachineSetInfoSpecReplicas)
@@ -302,6 +317,7 @@ func registerMiscellaneousMetrics() {
 }
 
 func init() {
+	registerMachineSubsystemMetrics()
 	registerMachineSetSubsystemMetrics()
 	registerMachineDeploymentSubsystemMetrics()
 	registerMiscellaneousMetrics()

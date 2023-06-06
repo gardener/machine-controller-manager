@@ -395,7 +395,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 						klog.V(2).Infof("VM successfully deleted in context of stale node obj for machine %q", machine.Name)
 					}
 
-					// machine obj marked Failed for double surity
+					// machine obj marked Failed for double security
 					c.machineStatusUpdate(
 						ctx,
 						machine,
