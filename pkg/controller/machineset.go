@@ -67,7 +67,10 @@ const (
 	machineSetKind = "MachineSet"
 )
 
-var controllerKindMachineSet = v1alpha1.SchemeGroupVersion.WithKind("MachineSet")
+var (
+	staleMachinesRemoved     = &staleMachinesRemovedCounter{}
+	controllerKindMachineSet = v1alpha1.SchemeGroupVersion.WithKind("MachineSet")
+)
 
 // getMachineMachineSets returns the MachineSets matching the given Machine.
 func (c *controller) getMachineMachineSets(machine *v1alpha1.Machine) ([]*v1alpha1.MachineSet, error) {

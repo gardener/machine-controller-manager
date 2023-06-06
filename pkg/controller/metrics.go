@@ -47,10 +47,6 @@ func (cntr *staleMachinesRemovedCounter) readAndReset() int32 {
 	return value
 }
 
-var (
-	staleMachinesRemoved = &staleMachinesRemovedCounter{}
-)
-
 // Describe is method required to implement the prometheus.Collect interface.
 func (c *controller) Describe(ch chan<- *prometheus.Desc) {
 	ch <- metrics.MachineSetCountDesc
