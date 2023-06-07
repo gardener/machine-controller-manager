@@ -205,12 +205,12 @@ spec:
                 description: Template describes the machines that will be created.
                 properties:
                   metadata:
-                    description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata'
+                    description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
                   spec:
                     description: 'Specification of the desired behavior of the machine.
-                      More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status'
+                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status'
                     properties:
                       class:
                         description: Class contains the machineclass attributes of
