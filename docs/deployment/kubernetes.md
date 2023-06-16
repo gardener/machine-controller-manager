@@ -53,4 +53,4 @@ Machine-controller-manager supports several configurable parameters while deploy
 
 ## Usage
 
-To start using Machine Controller Manager, follow the links given at [usage here](../README.md).
+To start using Machine Controller Manager, follow the links given at [usage here](../../README.md).
