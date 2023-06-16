@@ -80,6 +80,20 @@ var (
 		Help:      "Number of Failed Cloud Service API requests, partitioned by provider, and service.",
 	}, []string{"provider", "service"},
 	)
+
+	APIRequestDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: namespace,
+		Subsystem: cloudAPISubsystem,
+		Name:      "api_request_duration_seconds",
+		Help:      "Time(in seconds) it takes for a provider API request to complete",
+	}, []string{"provider", "service"})
+
+	DriverAPIRequestDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: namespace,
+		Subsystem: cloudAPISubsystem,
+		Name:      "driver_request_duration_seconds",
+		Help:      "Total time (in seconds) taken for a driver request to complete",
+	}, []string{"provider", "operation"})
 )
 
 // variables for subsystem: misc
@@ -103,6 +117,7 @@ func registerMachineSubsystemMetrics() {
 func registerCloudAPISubsystemMetrics() {
 	prometheus.MustRegister(APIRequestCount)
 	prometheus.MustRegister(APIFailedRequestCount)
+	prometheus.MustRegister(APIRequestDuration)
 }
 
 func registerMiscellaneousMetrics() {
