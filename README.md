@@ -118,12 +118,12 @@ Along with the above Custom Controllers and Resources, MCM requires the `Machine
 
 ## Development
 
-To start using or developing the Machine Controller Manager, see the documentation in the `/docs` repository, please [find the index here](docs/README.md).
+To start using or developing the Machine Controller Manager, see the documentation in the `/docs` repository.
 
 ## FAQ
-An FAQ is available [here](docs/FAQ.md)
+An FAQ is available [here](docs/FAQ.md).
 
-## Cluster-api Implementation
+## cluster-api Implementation
 - `cluster-api` branch of machine-controller-manager implements the machine-api aspect of the [cluster-api project](https://github.com/kubernetes-sigs/cluster-api).
 - Link: https://github.com/gardener/machine-controller-manager/tree/cluster-api
 - Once cluster-api project gets stable, we may make `master` branch of MCM as well cluster-api compliant, with well-defined migration notes.

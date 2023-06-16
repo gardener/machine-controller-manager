@@ -97,4 +97,4 @@ GO111MODULE=on go build -mod=vendor -o managevm cmd/machine-controller-manager-c
 
 ## Usage
 
-To start using Machine Controller Manager, follow the links given at [usage here](../README.md).
+To start using Machine Controller Manager, follow the links given at [usage here](../../README.md).
