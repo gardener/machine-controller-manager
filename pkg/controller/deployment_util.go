@@ -1192,6 +1192,7 @@ func statusUpdateRequired(old v1alpha1.MachineDeploymentStatus, new v1alpha1.Mac
 		old.ReadyReplicas == new.ReadyReplicas &&
 		old.Replicas == new.Replicas &&
 		old.UpdatedReplicas == new.UpdatedReplicas &&
+		old.UnavailableReplicas == new.UnavailableReplicas &&
 		reflect.DeepEqual(old.Conditions, new.Conditions) {
 		// If all conditions are matching
 
