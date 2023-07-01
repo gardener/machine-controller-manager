@@ -13,7 +13,7 @@
 
 > All paths are relative to the root location of this project repository.
 
-> Run the Machine Controller Manager either as described in [Setting up a local development environment](../development/local_setup.md) or [Deploying the Machine Controller Manager into a Kubernetes cluster](../deployment/kubernetes.md).
+> Run the Machine Controller Manager either as described in [Setting up a local development environment](../development/local_setup.md) or [Deploying the Machine Controller Manager into a Kubernetes cluster](../operations/deployment.md).
 
 > Make sure that the following steps are run before managing machines/ machine-sets/ machine-deploys.
 
@@ -27,7 +27,7 @@ $ export KUBECONFIG=<PATH_TO_REPO>/dev/kubeconfig.yaml
 
 ## Replace provider credentials and desired VM configurations
 
-Open `kubernetes/machine_classes/aws-machine-class.yaml` and replace required values there with the desired VM configurations. 
+Open `kubernetes/machine_classes/aws-machine-class.yaml` and replace required values there with the desired VM configurations.
 
 Similarily open `kubernetes/secrets/aws-secret.yaml` and replace - *userData, providerAccessKeyId, providerSecretAccessKey* with base64 encoded values of cloudconfig file, AWS access key id, and AWS secret access key respectively. Use the following command to get the base64 encoded value of your details
 
