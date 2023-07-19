@@ -612,7 +612,7 @@ func SetReplicasAnnotations(is *v1alpha1.MachineSet, desiredReplicas, maxReplica
 		updated = true
 	}
 
-	klog.V(4).Infof("(SetReplicasAnnotations) ms.Name: %s desired: %s , max: %s , updated: %d", is.Name, desiredString, maxString, updated)
+	klog.V(4).Infof("(SetReplicasAnnotations) ms.Name: %s desired: %s , max: %s , updated: %t", is.Name, desiredString, maxString, updated)
 	return updated
 }
 
