@@ -21,15 +21,6 @@ import (
 	"math"
 	"time"
 
-	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
-	fakemachineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
-	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -39,6 +30,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	k8stesting "k8s.io/client-go/testing"
+
+	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	fakemachineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
+	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 const testNamespace = "test"
@@ -1631,7 +1632,7 @@ var _ = Describe("machine", func() {
 					),
 				},
 			}),
-			Entry("Drain skipping as machine is NotReady for a long time (5 minutes)", &data{
+			Entry("Force Drain as machine is NotReady for a long time (5 minutes)", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
 						{
@@ -1696,7 +1697,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion),
+					err:   fmt.Errorf(fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach)),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -1715,7 +1716,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion),
+								Description:    fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach),
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -1733,7 +1734,7 @@ var _ = Describe("machine", func() {
 					),
 				},
 			}),
-			Entry("Drain skipping as machine is in ReadonlyFilesystem for a long time (5 minutes)", &data{
+			Entry("Force Drain as machine is in ReadonlyFilesystem for a long time (5 minutes)", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
 						{
@@ -1798,7 +1799,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("Skipping drain as machine is in ReadonlyFilesystem for over 5minutes. %s", machineutils.InitiateVMDeletion),
+					err:   fmt.Errorf(fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach)),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -1817,7 +1818,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Skipping drain as machine is in ReadonlyFilesystem for over 5minutes. %s", machineutils.InitiateVMDeletion),
+								Description:    fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach),
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -1835,7 +1836,7 @@ var _ = Describe("machine", func() {
 					),
 				},
 			}),
-			Entry("Drain skipping as machine is NotReady for a long time(5 min) ,also ReadonlyFilesystem is true for a long time (5 minutes)", &data{
+			Entry("Force Drain as machine is NotReady for a long time(5 min) ,also ReadonlyFilesystem is true for a long time (5 minutes)", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
 						{
@@ -1905,7 +1906,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion),
+					err:   fmt.Errorf(fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach)),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -1924,7 +1925,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Skipping drain as machine is NotReady for over 5minutes. %s", machineutils.InitiateVMDeletion),
+								Description:    fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach),
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -2236,7 +2237,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain failed due to - Failed to update node. However, since it's a force deletion shall continue deletion of VM. %s", machineutils.InitiateVMDeletion),
+								Description:    fmt.Sprintf("Drain failed due to - Failed to update node. However, since it's a force deletion shall continue deletion of VM. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach),
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -2450,7 +2451,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain failed due to - Failed to update node. However, since it's a force deletion shall continue deletion of VM. %s", machineutils.InitiateVMDeletion),
+								Description:    fmt.Sprintf("Drain failed due to - Failed to update node. However, since it's a force deletion shall continue deletion of VM. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach),
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),

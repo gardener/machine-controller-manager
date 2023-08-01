@@ -33,8 +33,6 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/gardener/machine-controller-manager/pkg/util/k8sutils"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
@@ -49,6 +47,9 @@ import (
 	policyv1listers "k8s.io/client-go/listers/policy/v1"
 	policyv1beta1listers "k8s.io/client-go/listers/policy/v1beta1"
 	"k8s.io/klog/v2"
+
+	"github.com/gardener/machine-controller-manager/pkg/util/k8sutils"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 )
 
 // Options are configurable options while draining a node before deletion
@@ -211,7 +212,9 @@ func (o *Options) RunDrain(ctx context.Context) error {
 	}
 
 	err := o.deleteOrEvictPodsSimple(ctx)
+
 	return err
+
 }
 
 func (o *Options) deleteOrEvictPodsSimple(ctx context.Context) error {

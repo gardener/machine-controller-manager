@@ -434,6 +434,13 @@ func schema_pkg_apis_machine_v1alpha1_LastOperation(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"lastStateTransitionTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastStateTransitionTime represents the Last Operation State Transition Time.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
 				},
 			},
 		},

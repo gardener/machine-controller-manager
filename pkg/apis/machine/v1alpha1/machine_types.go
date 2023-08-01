@@ -130,6 +130,9 @@ type LastOperation struct {
 
 	// Type of operation
 	Type MachineOperationType `json:"type,omitempty"`
+
+	// LastStateTransitionTime represents the Last Operation State Transition Time.
+	LastStateTransitionTime metav1.Time `json:"lastStateTransitionTime,omitempty"`
 }
 
 // MachinePhase is a label for the condition of a machines at the current time.
@@ -188,7 +191,7 @@ const (
 	// MachineOperationHealthCheck indicates that the operation was a create
 	MachineOperationHealthCheck MachineOperationType = "HealthCheck"
 
-	// MachineOperationDelete indicates that the operation was a create
+	// MachineOperationDelete indicates that the operation was a delete
 	MachineOperationDelete MachineOperationType = "Delete"
 )
 
