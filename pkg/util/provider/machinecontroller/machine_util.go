@@ -529,11 +529,6 @@ func (c *controller) machineStatusUpdate(
 		return nil
 	}
 
-	if lastOperation.LastStateTransitionTime.IsZero() {
-		// preserve the last op state transition time if un-specified
-		lastOperation.LastStateTransitionTime = machine.Status.LastOperation.LastStateTransitionTime
-	}
-
 	_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 	if err != nil {
 		// Keep retrying until update goes through
@@ -1150,11 +1145,10 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		ctx,
 		machine,
 		v1alpha1.LastOperation{
-			Description:             description,
-			State:                   state,
-			Type:                    v1alpha1.MachineOperationDelete,
-			LastUpdateTime:          now,
-			LastStateTransitionTime: now,
+			Description:    description,
+			State:          state,
+			Type:           v1alpha1.MachineOperationDelete,
+			LastUpdateTime: now,
 		},
 		// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
 		// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
@@ -1166,17 +1160,15 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 	return machineutils.ShortRetry, err
 }
 
-// deleteNodeVolAttachmentsAndWaitForDetach deletes VolumeAttachment(s) for a node and waits tillvolumes are detached from the node or detach timeout exceeded
+// deleteNodeVolAttachments deletes VolumeAttachment(s) for a node and waits tillvolumes are detached from the node or detach timeout exceeded
 // before moving to VM deletion stage.
-func (c *controller) deleteNodeVolAttachmentsAndWaitForDetach(ctx context.Context, deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.RetryPeriod, error) {
+func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.RetryPeriod, error) {
 	var (
-		description   string
-		state         v1alpha1.MachineState
-		machine       = deleteMachineRequest.Machine
-		lastOp        = machine.Status.LastOperation
-		detachTimeout = c.safetyOptions.PvDetachTimeout.Duration
-		nodeName      = machine.Labels[v1alpha1.NodeLabelKey]
-		retryPeriod   = machineutils.ShortRetry
+		description string
+		state       v1alpha1.MachineState
+		machine     = deleteMachineRequest.Machine
+		nodeName    = machine.Labels[v1alpha1.NodeLabelKey]
+		retryPeriod = machineutils.ShortRetry
 	)
 	node, err := c.nodeLister.Get(nodeName)
 	if err != nil {
@@ -1185,7 +1177,7 @@ func (c *controller) deleteNodeVolAttachmentsAndWaitForDetach(ctx context.Contex
 			return retryPeriod, err
 		}
 		// node not found move to vm deletion
-		description = fmt.Sprintf("Skipping deleteNodeVolAttachmentsAndWaitForDetach due to - %s. Moving to VM Deletion. %s", err.Error(), machineutils.InitiateVMDeletion)
+		description = fmt.Sprintf("Skipping deleteNodeVolAttachments due to - %s. Moving to VM Deletion. %s", err.Error(), machineutils.InitiateVMDeletion)
 		state = v1alpha1.MachineStateProcessing
 		retryPeriod = 0
 	} else if len(node.Status.VolumesAttached) == 0 {
@@ -1193,22 +1185,15 @@ func (c *controller) deleteNodeVolAttachmentsAndWaitForDetach(ctx context.Contex
 		state = v1alpha1.MachineStateProcessing
 		retryPeriod = 0
 	} else {
+		// case: where node.Status.VolumesAttached > 0
 		liveNodeVolAttachments, err := getLiveVolumeAttachmentsForNode(c.volumeAttachementLister, nodeName)
 		if err != nil {
-			klog.Errorf("(deleteNodeVolAttachmentsAndWaitForDetach) Error obtaining VolumeAttachment(s) for node %q: ", nodeName, err)
+			klog.Errorf("(deleteNodeVolAttachments) Error obtaining VolumeAttachment(s) for node %q: ", nodeName, err)
 			return retryPeriod, err
 		}
-		lastOpStateTransitionTime := lastOp.LastStateTransitionTime.Time
 		if len(liveNodeVolAttachments) == 0 {
-			waitedTime := metav1.Now().Sub(lastOpStateTransitionTime)
-			if waitedTime < detachTimeout {
-				klog.V(3).Infof("(deleteNodeVolAttachmentsAndWaitForDetach) For node %q, #node.Status.VolumesAttached=%d, lastOpStateTransitionTime: %s, wait more detachTimeout: %s not expired",
-					nodeName, len(node.Status.VolumesAttached), lastOpStateTransitionTime, detachTimeout)
-				return retryPeriod, nil
-			}
-			description = fmt.Sprintf("(deleteNodeVolAttachmentsAndWaitForDetach) Timeout: %s expired. Moving to VM Deletion. %s", detachTimeout, machineutils.InitiateVMDeletion)
+			description = fmt.Sprintf("No Live VolumeAttachments for node: %s. Moving to VM Deletion. %s", nodeName, machineutils.InitiateVMDeletion)
 			state = v1alpha1.MachineStateProcessing
-			retryPeriod = 0
 		} else {
 			err = deleteVolumeAttachmentsForNode(ctx, c.targetCoreClient.StorageV1().VolumeAttachments(), nodeName, liveNodeVolAttachments)
 			return retryPeriod, nil
@@ -1220,11 +1205,10 @@ func (c *controller) deleteNodeVolAttachmentsAndWaitForDetach(ctx context.Contex
 		ctx,
 		machine,
 		v1alpha1.LastOperation{
-			Description:             description,
-			State:                   state,
-			Type:                    machine.Status.LastOperation.Type,
-			LastUpdateTime:          now,
-			LastStateTransitionTime: now,
+			Description:    description,
+			State:          state,
+			Type:           machine.Status.LastOperation.Type,
+			LastUpdateTime: now,
 		},
 		machine.Status.CurrentStatus,
 		machine.Status.LastKnownState,

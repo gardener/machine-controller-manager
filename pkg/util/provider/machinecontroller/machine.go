@@ -594,7 +594,7 @@ func (c *controller) triggerDeletionFlow(ctx context.Context, deleteMachineReque
 		return c.drainNode(ctx, deleteMachineRequest)
 
 	case strings.Contains(machine.Status.LastOperation.Description, machineutils.DelVolumesAttachmentsAndWaitForDetach):
-		return c.deleteNodeVolAttachmentsAndWaitForDetach(ctx, deleteMachineRequest)
+		return c.deleteNodeVolAttachments(ctx, deleteMachineRequest)
 
 	case strings.Contains(machine.Status.LastOperation.Description, machineutils.InitiateVMDeletion):
 		return c.deleteVM(ctx, deleteMachineRequest)

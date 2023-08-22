@@ -263,11 +263,6 @@ spec:
                   description:
                     description: Description of the current operation
                     type: string
-                  lastStateTransitionTime:
-                    description: LastStateTransitionTime represents the Last Operation
-                      State Transition Time.
-                    format: date-time
-                    type: string
                   lastUpdateTime:
                     description: Last update time of current operation
                     format: date-time

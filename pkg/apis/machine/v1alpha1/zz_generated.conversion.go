@@ -365,7 +365,6 @@ func autoConvert_v1alpha1_LastOperation_To_machine_LastOperation(in *LastOperati
 	out.LastUpdateTime = in.LastUpdateTime
 	out.State = machine.MachineState(in.State)
 	out.Type = machine.MachineOperationType(in.Type)
-	out.LastStateTransitionTime = in.LastStateTransitionTime
 	return nil
 }
 
@@ -379,7 +378,6 @@ func autoConvert_machine_LastOperation_To_v1alpha1_LastOperation(in *machine.Las
 	out.LastUpdateTime = in.LastUpdateTime
 	out.State = MachineState(in.State)
 	out.Type = MachineOperationType(in.Type)
-	out.LastStateTransitionTime = in.LastStateTransitionTime
 	return nil
 }
 

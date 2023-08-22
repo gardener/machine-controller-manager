@@ -914,21 +914,6 @@ MachineOperationType
 <p>Type of operation</p>
 </td>
 </tr>
-<tr>
-<td>
-<code>lastStateTransitionTime</code>
-</td>
-<td>
-<em>
-<a href="#https%3a%2f%2fkubernetes.io%2fdocs%2freference%2fgenerated%2fkubernetes-api%2fv1.19%2f%23time-v1-meta">
-Kubernetes meta/v1.Time
-</a>
-</em>
-</td>
-<td>
-<p>LastStateTransitionTime represents the Last Operation State Transition Time.</p>
-</td>
-</tr>
 </tbody>
 </table>
 <br>

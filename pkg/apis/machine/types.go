@@ -195,9 +195,6 @@ type LastOperation struct {
 
 	// Type of operation
 	Type MachineOperationType
-
-	// LastStateTransitionTime represents the Last Operation State Transition Time.
-	LastStateTransitionTime metav1.Time
 }
 
 // MachinePhase is a label for the condition of a machines at the current time.

@@ -65,7 +65,6 @@ func (in *CurrentStatus) DeepCopy() *CurrentStatus {
 func (in *LastOperation) DeepCopyInto(out *LastOperation) {
 	*out = *in
 	in.LastUpdateTime.DeepCopyInto(&out.LastUpdateTime)
-	in.LastStateTransitionTime.DeepCopyInto(&out.LastStateTransitionTime)
 	return
 }
 
