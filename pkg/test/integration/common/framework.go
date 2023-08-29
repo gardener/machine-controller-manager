@@ -1043,7 +1043,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 									},
 								).Stream(ctx)
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
-							gomega.Expect(io.Copy(mcOutputFile, readCloser)).NotTo(gomega.HaveOccurred())
+							_, err = io.Copy(mcOutputFile, readCloser)
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
 						} else {
 							readCloser, err := c.ControlCluster.Clientset.CoreV1().
@@ -1052,7 +1052,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 									Container: containers[i].Name,
 								}).Stream(ctx)
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
-							gomega.Expect(io.Copy(mcmOutputFile, readCloser)).NotTo(gomega.HaveOccurred())
+							_, err = io.Copy(mcmOutputFile, readCloser)
 							gomega.Expect(err).NotTo(gomega.HaveOccurred())
 						}
 					}
