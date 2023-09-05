@@ -48,6 +48,8 @@ type Status struct {
 	// [google.rpc.Status.details][google.rpc.Status.details] field, or localized
 	// by the client.
 	message string
+	// cause captures the underlying error
+	cause error
 }
 
 // Code returns the status code contained in status.
@@ -63,7 +65,15 @@ func (s *Status) Message() string {
 	return s.message
 }
 
+// Cause returns the underlying error if captured.
+func (s *Status) Cause() error {
+	return s.cause
+}
+
 // Error returns the error message for the status.
+// WARNING: There is an unwritten contract for anyone using status.Status. One MUST never change
+// the message text. It expects error code to be in the first square brackets and error message in the next. Therefore,
+// any change made here should never change that. Any square brackets added after code and error are ignored when parsing.
 func (s *Status) Error() string {
 	return fmt.Sprintf("machine codes error: code = [%s] message = [%s]", s.Code(), s.Message())
 }
@@ -78,6 +88,15 @@ func Error(c codes.Code, msg string) error {
 	return New(c, msg)
 }
 
+// WrapError creates an instance of status.Status wrapping the underlying cause along with the code and custom error message.
+func WrapError(c codes.Code, msg string, cause error) *Status {
+	return &Status{
+		code:    int32(c),
+		message: msg,
+		cause:   cause,
+	}
+}
+
 // FromError returns a Status representing err if it was produced from this
 // package or has a method `GRPCStatus() *Status`. Otherwise, ok is false and a
 // Status is returned with codes.Unknown and the original error message.
@@ -88,10 +107,17 @@ func FromError(err error) (s *Status, ok bool) {
 
 	if matches, errInFind := findInString(err.Error()); errInFind == nil {
 		code := codes.StringToCode(matches[0])
-		return New(code, matches[1]), true
+		return &Status{
+			code:    int32(code),
+			message: matches[1],
+		}, true
 	}
 
-	return New(codes.Unknown, err.Error()), false
+	return &Status{
+		code:    int32(codes.Unknown),
+		message: err.Error(),
+		cause:   err,
+	}, false
 }
 
 // findInString need to check if this logic can be optimized
