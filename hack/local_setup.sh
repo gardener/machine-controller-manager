@@ -1,150 +1,218 @@
-# /*
-# Copyright (c) YEAR SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
-
+#!/usr/bin/env bash
+# Copyright 2023 SAP SE or an SAP affiliate company
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
+#
 #      http://www.apache.org/licenses/LICENSE-2.0
-
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# */
-
-
-# THE SCRIPT SHOULD BE RUN WHILE IN THE `machine-controller-manager/hack` FOLDER & IT ASSUMES THAT IN THE PARENT DIRECTORY OF MCM THE MCM PROVIDER IS ALSO PRESENT
-# THE SCRIPT ALSO ASSUMES THAT THERE THE `machine-controller-manager-provider-<provider-name>/dev/kubeconfigs` FOLDER EXISTS.
-
-#HOW TO CALL 
-################################################################################################
-
-# ./local_setup.sh --PROJECT <project-name> --SEED <seed-name> --SHOOT <shoot-name> --PROVIDER <cluster-provider-name>
-
-################################################################################################
-#!/usr/bin/env bash
 
 set -o errexit
-set -o nounset
 set -o pipefail
 
-declare SEED 
-declare SHOOT
-declare PROJECT 
-declare PROVIDER
-declare CURRENT_DIR
-declare PROJECT_ROOT
-declare KUBECONFIG_PATH
-declare PROVIDER_PATH
-declare PROVIDER_KUBECONFIG_PATH
+##############################################################################################################
+# Script sets up local development environment enabling you to start MCM process locally.
+# It does the following:
+# 1. Downloads short-lived control and target cluster kube-configs
+# 2. Ensures that kube-configs are copied to both mcm and provider-mcm project directory
+# 3. Scales down MCM to 0
+# 4. Places annotation dependency-watchdog.gardener.cloud/ignore-scaling on MCM deployment, thus preventing
+#    DWD from scaling it back up.
+# 5. Updates Makefile for mcm and provider-mcm projects and exports variables used by the makefile.
+##############################################################################################################
 
-while [ $# -gt 0 ]; do
+declare SEED SHOOT PROJECT PROVIDER # these are mandatory cli flags to be provided by the user
+# these are optional cli flags
+declare PROVIDER_MCM_PROJECT_DIR
+declare RELATIVE_KUBECONFIG_PATH="dev/kube-configs"
+declare LANDSCAPE_NAME="dev"
+declare KUBECONFIG_EXPIRY_SECONDS="3600"
+declare VIRTUAL_GARDEN_CLUSTER
+declare ABSOLUTE_KUBE_CONFIG_PATH
+declare ABSOLUTE_PROVIDER_KUBECONFIG_PATH
 
-if [[ $1 == *"--"* ]]; then
-     v="${1/--/}"
-     declare $v="$2"
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+PROJECT_DIR="$(cd "$(dirname "${SCRIPT_DIR}")" &>/dev/null && pwd)"
 
-shift
-done
-
-main() {
-     setPaths
-     echo "Targeting gardener to get the kubeconfig of ${SHOOT} cluster control plane"
-     setControlKubeconfig
-     echo "Targeting seed cluster to get the kubeconfig of ${SHOOT} cluster"
-     setTargetKubeconfig
-     echo "Placing kubeconfigs at /dev/kubeconfigs/kubeconfig_<target/control>.yaml"
-     copyFilesToProvider
-     # All the kubeconfigs are at place
-     echo "Annotating deployment/machine-controller-manager with dependency-watchdog.gardener.cloud/ignore-scaling=true"
-     addAnnotation
-     echo "Scaling down deployment/machine-controller-manager to 0"
-     scaleDownMCM
-     echo "Updating and exporting variables for starting the local MCM instance"
-     updateMCMMakefile
-     exportVariables
-     updateProviderMakefile
+function create_usage() {
+  usage=$(printf '%s\n' "
+    Usage: $(basename $0) [Options]
+    Options:
+      -d | --seed                       <seed-cluster-name>                 (Required) Name of the Gardener Seed Cluster
+      -t | --shoot                      <shoot-cluster-name>                (Required) Name of the Gardener Shoot Cluster
+      -p | --project                    <project-name>                      (Required) Name of the Gardener Project
+      -i | --provider                   <provider-name>                     (Required) Infrastructure provider name. Supported providers (gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)
+      -l | --landscape                  <landscape-name>                    (Optional) Name of the landscape. Defaults to dev
+      -k | --kubeconfig-path            <relative-kubeconfig-path>          (Optional) Relative path to the <PROJECT-DIR> where kubeconfigs will be downloaded. Path should not start with '/'. Default: <PROJECT-DIR>/dev/kube-configs
+      -m | --mcm-provider-project-path  <absolute-mcm-provider-project-dir> (Optional) MCM Provider project directory. If not provided then it assumes that both mcm and mcm-provider projects are under the same parent directory
+      -e | --kubeconfig-expiry-seconds  <expiry-duration-in-seconds>        (Optional) Common expiry durations in seconds for control and target KubeConfigs. Default: 3600 seconds
+    ")
+  echo "${usage}"
 }
 
-setPaths() {
-     CURRENT_DIR=$(dirname $0)
-     PROJECT_ROOT="${CURRENT_DIR}"/..
-     KUBECONFIG_PATH="${PROJECT_ROOT}"/dev/kubeconfigs
-     PROVIDER_PATH="${PROJECT_ROOT}"/../machine-controller-manager-provider-${PROVIDER}
-     PROVIDER_KUBECONFIG_PATH="${PROVIDER_PATH}"/dev/kubeconfigs
+function parse_flags() {
+  while test $# -gt 0; do
+    case "$1" in
+    --seed | -d)
+      shift
+      SEED="$1"
+      ;;
+    --shoot | -t)
+      shift
+      SHOOT="$1"
+      ;;
+    --project | -p)
+      shift
+      PROJECT="$1"
+      ;;
+    --provider | -i)
+      shift
+      PROVIDER="$1"
+      ;;
+    --kubeconfig-path | -k)
+      shift
+      RELATIVE_KUBECONFIG_PATH="$1"
+      ;;
+    --mcm-provider-project-path | -m)
+      shift
+      PROVIDER_MCM_PROJECT_DIR="$1"
+      ;;
+    --kubeconfig-expiry-seconds | -e)
+      shift
+      KUBECONFIG_EXPIRY_SECONDS="$1"
+      ;;
+    --landscape | -l)
+      shift
+      LANDSCAPE_NAME="$1"
+      ;;
+    --help | -h)
+      shift
+      echo "${USAGE}"
+      exit 0
+      ;;
+    esac
+    shift
+  done
 }
 
-setControlKubeconfig() {
-     gardenctl target --garden sap-landscape-dev --project garden
-
-     eval $(gardenctl kubectl-env bash)
-
-     echo "$(kubectl get secret/"${SEED}".kubeconfig --template={{.data.kubeconfig}} | base64 -d)" > "${KUBECONFIG_PATH}"/kubeconfig_control.yaml
+function validate_args() {
+  if [[ -z "${SEED}" ]]; then
+    echo -e "Seed has not been passed. Please provide Seed either by specifying --seed or -d argument"
+    exit 1
+  fi
+  if [[ -z "${SHOOT}" ]]; then
+    echo -e "Shoot has not been passed. Please provide Shoot either by specifying --shoot or -t argument"
+    exit 1
+  fi
+  if [[ -z "${PROJECT}" ]]; then
+    echo -e "Project name has not been passed. Please provide Project name either by specifying --project or -p argument"
+    exit 1
+  fi
+  if [[ -z "${PROVIDER}" ]]; then
+    echo -e "Infrastructure provider name has not been passed. Please provide infrastructure provider name either by specifying --provider or -i argument"
+    exit 1
+  fi
 }
 
-setTargetKubeconfig() {
-
-     #setting up the target config
-
-     gardenctl target --garden sap-landscape-dev --project "${PROJECT}" --shoot "${SHOOT}" --control-plane  
-
-     eval $(gardenctl kubectl-env bash)
-
-     secret=$(kubectl get secrets | awk '{ print $1 }' |grep user-kubeconfig-)
-
-     echo "$(kubectl get secret/"${secret}" -n shoot--"${PROJECT}"--"${SHOOT}" --template={{.data.kubeconfig}} | base64 -d)" > "${KUBECONFIG_PATH}"/kubeconfig_target.yaml
+function initialize() {
+  if [[ -z "${PROVIDER_MCM_PROJECT_DIR}" ]]; then
+    PROVIDER_MCM_PROJECT_DIR=$(dirname "${PROJECT_DIR}")/machine-controller-manager-provider-"${PROVIDER}"
+  fi
+  echo "Creating directory ${RELATIVE_KUBECONFIG_PATH} if it does not exist..."
+  mkdir -p "${RELATIVE_KUBECONFIG_PATH}"
+  ABSOLUTE_KUBE_CONFIG_PATH="$(cd "$(dirname "${RELATIVE_KUBECONFIG_PATH}")"; pwd)/$(basename "${RELATIVE_KUBECONFIG_PATH}")"
+  ABSOLUTE_PROVIDER_KUBECONFIG_PATH="${PROVIDER_MCM_PROJECT_DIR}/dev/kube-configs"
+  echo "Creating directory ${ABSOLUTE_PROVIDER_KUBECONFIG_PATH} if it does not exist..."
+  mkdir -p "${ABSOLUTE_PROVIDER_KUBECONFIG_PATH}"
+  VIRTUAL_GARDEN_CLUSTER="sap-landscape-${LANDSCAPE_NAME}"
 }
 
-copyFilesToProvider() {
-     # Copy both the kubeconfigs to dev folder of provider 
+function download_kubeconfigs() {
+  readonly garden_namespace="garden"
+  local project_namespace="${garden_namespace}-${PROJECT}"
 
-     cp "${KUBECONFIG_PATH}"/kubeconfig_target.yaml "${PROVIDER_KUBECONFIG_PATH}"/kubeconfig_target.yaml
-     cp "${KUBECONFIG_PATH}"/kubeconfig_control.yaml "${PROVIDER_KUBECONFIG_PATH}"/kubeconfig_control.yaml
+  kubeconfig_request_path=$(create_kubeconfig_request_yaml)
+
+  echo "Targeting Virtual Garden Cluster ${VIRTUAL_GARDEN_CLUSTER}..."
+  gardenctl target --garden "${VIRTUAL_GARDEN_CLUSTER}"
+  eval "$(gardenctl kubectl-env zsh)"
+
+  echo "Downloading kubeconfig for control cluster to ${ABSOLUTE_KUBE_CONFIG_PATH}..."
+  kubectl create \
+    -f "${kubeconfig_request_path}" \
+    --raw "/apis/core.gardener.cloud/v1beta1/namespaces/${garden_namespace}/shoots/${SEED}/adminkubeconfig" |
+    jq -r '.status.kubeconfig' |
+    base64 -d >"${ABSOLUTE_KUBE_CONFIG_PATH}/kubeconfig_control.yaml"
+
+  echo "Downloading kubeconfig for target cluster to ${ABSOLUTE_KUBE_CONFIG_PATH}..."
+  kubectl create \
+    -f "${kubeconfig_request_path}" \
+    --raw "/apis/core.gardener.cloud/v1beta1/namespaces/${project_namespace}/shoots/${SHOOT}/adminkubeconfig" |
+    jq -r '.status.kubeconfig' |
+    base64 -d >"${ABSOLUTE_KUBE_CONFIG_PATH}/kubeconfig_target.yaml"
 }
 
-addAnnotation() {
-     # Adding annotation
-
-     kubectl annotate --overwrite=true deployment/machine-controller-manager dependency-watchdog.gardener.cloud/ignore-scaling=true
-
-     # Another way of adding annotation
-     # kubectl patch deployment/machine-controller-manager -p '{"metadata":{"annotations":{"dependency-watchdog.gardener.cloud/ignore-scaling":true}} }'
-
-     # Removing the annotation, needs to be called after done with local setup
-
-     # kubectl annotate --overwrite=true deployment/machine-controller-manager dependency-watchdog.gardener.cloud/ignore-scaling-
-
+function create_kubeconfig_request_yaml() {
+  local expiry_seconds template_path target_request_path
+  expiry_seconds=${KUBECONFIG_EXPIRY_SECONDS}
+  template_path="${SCRIPT_DIR}"/admin-kube-config-request-template.json
+  target_request_path="${SCRIPT_DIR}"/admin-kube-config-request.json
+  export expiry_seconds
+  envsubst <"${template_path}" >"${target_request_path}"
+  unset expiry_seconds
+  echo "${target_request_path}"
 }
 
-scaleDownMCM() {
-     # Scale down the MCM
-     kubectl scale deployment/machine-controller-manager --replicas=0
-
-     # If delete is required, when Scale Down operation is not working due to some reason
-     # kubectl delete deployment/machine-controller-manager
+function copy_kubeconfigs_to_provider_mcm() {
+  for kc in "${ABSOLUTE_KUBE_CONFIG_PATH}"/*.yaml; do
+    cp -v "${kc}" "${ABSOLUTE_PROVIDER_KUBECONFIG_PATH}"
+  done
 }
 
-updateMCMMakefile() {
-     # Point the makefiles to the correct kubeconfigs to use for local run
-     sed -i -e "s/\(CONTROL_NAMESPACE *:=\).*/\1 shoot--"${PROJECT}"--"${SHOOT}"/1" "${PROJECT_ROOT}"/makefile
-     sed -i -e "s/\(CONTROL_KUBECONFIG *:=\).*/\1 dev\/kubeconfigs\/kubeconfig_control.yaml/1" "${PROJECT_ROOT}"/makefile
-     sed -i -e "s/\(TARGET_KUBECONFIG *:=\).*/\1 dev\/kubeconfigs\/kubeconfig_target.yaml/1" "${PROJECT_ROOT}"/makefile
+function scale_down_mcm() {
+  gardenctl target --garden "${VIRTUAL_GARDEN_CLUSTER}" --project "${PROJECT}" --shoot "${SHOOT}" --control-plane
+  eval "$(gardenctl kubectl-env zsh)"
+
+  echo "annotating deployment/machine-controller-manager with dependency-watchdog.gardener.cloud/ignore-scaling=true..."
+  kubectl annotate --overwrite=true deployment/machine-controller-manager dependency-watchdog.gardener.cloud/ignore-scaling=true
+  # NOTE: One must remove the annotation after local setup is no longer needed. Use the below command to remove the annotation on machine-controller-manager deployment resource:
+  # kubectl annotate --overwrite=true deployment/machine-controller-manager dependency-watchdog.gardener.cloud/ignore-scaling-
+  echo "scaling down deployment/machine-controller-manager to 0..."
+  kubectl scale deployment/machine-controller-manager --replicas=0
 }
 
-exportVariables() {
-     export CONTROL_NAMESPACE=shoot--"${PROJECT}"--"${SHOOT}"
-     export CONTROL_KUBECONFIG="${KUBECONFIG_PATH}"/kubeconfig_control.yaml
-     export TARGET_KUBECONFIG="${KUBECONFIG_PATH}"/kubeconfig_target.yaml
+# create_makefile_env creates a .env file that will get copied to both mcm and mcm-provider project directories for their
+# respective Makefile to use.
+function set_makefile_env() {
+  if [[ $# -ne 2 ]]; then
+    echo -e "${FUNCNAME[0]} expects two arguments - project-directory and target-kube-config-path"
+    fi
+   local target_project_dir target_kube_config_path
+   target_project_dir="$1"
+   target_kube_config_path="$2"
+  {
+    printf "\n%s" "CONTROL_NAMESPACE=shoot--${PROJECT}--${SHOOT}"
+    printf "\n%s" "CONTROL_KUBECONFIG=${target_kube_config_path}/kubeconfig_control.yaml" >> "${target_project_dir}/.env"
+    printf "\n%s" "TARGET_KUBECONFIG=${target_kube_config_path}/kubeconfig_target.yaml" >> "${target_project_dir}/.env"
+  } >> "${target_project_dir}/.env"
 }
 
-updateProviderMakefile() {
-     # Makefile of provider also needs to point at those kubeconfigs
-     sed -i -e "s/\(CONTROL_NAMESPACE *:= *\).*/\1 shoot--"${PROJECT}"--"${SHOOT}"/1" "${PROVIDER_PATH}"/makefile
-     sed -i -e "s/\(CONTROL_KUBECONFIG *:= *\).*/\1 dev\/kubeconfigs\/kubeconfig_control.yaml/1" "${PROVIDER_PATH}"/makefile
-     sed -i -e "s/\(TARGET_KUBECONFIG *:= *\).*/\1 dev\/kubeconfigs\/kubeconfig_target.yaml/1" "${PROVIDER_PATH}"/makefile
+function main() {
+  parse_flags "$@"
+  validate_args
+  initialize
+  download_kubeconfigs
+  copy_kubeconfigs_to_provider_mcm
+  scale_down_mcm
+  set_makefile_env "${PROJECT_DIR}" "${ABSOLUTE_KUBE_CONFIG_PATH}"
+  set_makefile_env "${PROVIDER_MCM_PROJECT_DIR}" "${ABSOLUTE_PROVIDER_KUBECONFIG_PATH}"
 }
 
-main
+USAGE=$(create_usage)
+main "$@"

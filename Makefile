@@ -12,13 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+include .env
+
 IMAGE_REPOSITORY   := eu.gcr.io/gardener-project/gardener/machine-controller-manager
 IMAGE_TAG          := $(shell cat VERSION)
 COVERPROFILE       := test/output/coverprofile.out
-
-CONTROL_NAMESPACE := default
-CONTROL_KUBECONFIG := dev/target-kubeconfig.yaml
-TARGET_KUBECONFIG := dev/target-kubeconfig.yaml
 
 LEADER_ELECT 	   := "true"
 MACHINE_SAFETY_OVERSHOOTING_PERIOD:=1m
@@ -34,8 +32,8 @@ endif
 # Rules When K8s cluster is Gardener Shoot#
 ###########################################
 
-.PHONY: downlaod-kubeconfigs
-download-kubeconfigs:
+.PHONY: setup
+setup:
 	@echo "enter project name"; \
 	read PROJECT; \
 	echo "enter seed name"; \
@@ -44,18 +42,21 @@ download-kubeconfigs:
 	read SHOOT; \
 	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)"; \
 	read PROVIDER; \
-	./hack/local_setup.sh --SEED $$SEED --SHOOT $$SHOOT --PROJECT $$PROJECT --PROVIDER $$PROVIDER
+	./hack/local_setup.sh --seed $$SEED --shoot $$SHOOT --project $$PROJECT --provider $$PROVIDER
 
 .PHONY: local-mcm-up
-local-mcm-up: download-kubeconfigs
+local-mcm-up: setup
 	$(MAKE) start;
 
-.PHONY: local-mcm-down
-local-mcm-down: 
-	@kubectl --kubeconfig=${CONTROL_KUBECONFIG} -n ${CONTROL_NAMESPACE} annotate --overwrite=true deployment/machine-controller-manager dependency-watchdog.gardener.cloud/ignore-scaling-
-	@kubectl --kubeconfig=${CONTROL_KUBECONFIG} scale -n ${CONTROL_NAMESPACE} deployment/machine-controller-manager --replicas=1
-	@rm ${CONTROL_KUBECONFIG}
-	@rm ${TARGET_KUBECONFIG}
+.PHONY: restore
+restore:
+	@echo "enter project name"; \
+	read PROJECT; \
+	echo "enter shoot name"; \
+	read SHOOT; \
+	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)"; \
+	read PROVIDER; \
+	./hack/local_restore.sh --shoot $$SHOOT --project $$PROJECT --provider $$PROVIDER
 
 #########################################
 # Rules for local development scenarios #
@@ -163,3 +164,7 @@ CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif
+
+.PHONY: add-license-headers
+add-license-headers: $(GO_ADD_LICENSE)
+	@./hack/add_license_headers.sh
