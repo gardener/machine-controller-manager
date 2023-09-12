@@ -1020,7 +1020,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 			}
 		}
 
-		klog.V(3).Infof("(drainNode) HOWDY. nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeReadyCondition, readOnlyFileSystemCondition)
+		klog.V(3).Infof("(drainNode) nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeReadyCondition, readOnlyFileSystemCondition)
 		if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != v1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
 			message := "Setting forceDeletePods & forceDeleteMachine to true for drain as machine is NotReady for over 5min"
 			forceDeleteMachine = true
