@@ -30,8 +30,8 @@ const (
 	// InitiateDrain specifies next step as initiate node drain
 	InitiateDrain = "Initiate node drain"
 
-	// DelVolumesAttachmentsAndWaitForDetach specifies next step as deleting volume attachments and waiting for their detachment.
-	DelVolumesAttachmentsAndWaitForDetach = "Delete Volume Attachments and Wait For Detach"
+	// DelVolumesAttachments specifies next step as deleting volume attachments
+	DelVolumesAttachments = "Delete Volume Attachments and Wait For Detach"
 
 	// InitiateVMDeletion specifies next step as initiate VM deletion
 	InitiateVMDeletion = "Initiate VM deletion"

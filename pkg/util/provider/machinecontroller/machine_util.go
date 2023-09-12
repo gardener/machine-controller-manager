@@ -1116,7 +1116,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				klog.V(2).Infof("Drain successful for machine %q ,providerID %q, backing node %q. \nBuf:%v \nErrBuf:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf)
 
 				if forceDeletePods {
-					description = fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach)
+					description = fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachments)
 					err = fmt.Errorf(description)
 				} else { // regular drain already waits for vol detach and attach for another node.
 					description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
@@ -1129,7 +1129,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				// Drain failed on force deletion
 				klog.Warningf("Drain failed for machine %q. However, since it's a force deletion shall continue deletion of VM. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
 
-				description = fmt.Sprintf("Drain failed due to - %s. However, since it's a force deletion shall continue deletion of VM. %s", err.Error(), machineutils.DelVolumesAttachmentsAndWaitForDetach)
+				description = fmt.Sprintf("Drain failed due to - %s. However, since it's a force deletion shall continue deletion of VM. %s", err.Error(), machineutils.DelVolumesAttachments)
 				state = v1alpha1.MachineStateProcessing
 			} else {
 				klog.Warningf("Drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)

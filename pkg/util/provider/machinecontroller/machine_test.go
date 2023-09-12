@@ -1697,7 +1697,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf(fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach)),
+					err:   fmt.Errorf(fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachments)),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -1716,7 +1716,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach),
+								Description:    fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachments),
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -1799,7 +1799,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf(fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach)),
+					err:   fmt.Errorf(fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachments)),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -1818,7 +1818,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach),
+								Description:    fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachments),
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -1906,7 +1906,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf(fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach)),
+					err:   fmt.Errorf(fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachments)),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -1925,7 +1925,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach),
+								Description:    fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachments),
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -2237,7 +2237,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain failed due to - Failed to update node. However, since it's a force deletion shall continue deletion of VM. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach),
+								Description:    fmt.Sprintf("Drain failed due to - Failed to update node. However, since it's a force deletion shall continue deletion of VM. %s", machineutils.DelVolumesAttachments),
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -2451,7 +2451,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain failed due to - Failed to update node. However, since it's a force deletion shall continue deletion of VM. %s", machineutils.DelVolumesAttachmentsAndWaitForDetach),
+								Description:    fmt.Sprintf("Drain failed due to - Failed to update node. However, since it's a force deletion shall continue deletion of VM. %s", machineutils.DelVolumesAttachments),
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
