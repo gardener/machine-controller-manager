@@ -2725,4 +2725,71 @@ var _ = Describe("machine_util", func() {
 			}),
 		)
 	})
+
+	Describe("#Adjust Machine Create Retry Timeout", func() {
+		type setup struct {
+			machine         *machinev1.Machine
+			mcCreateTimeout metav1.Duration
+			createOpRetry   machineutils.RetryPeriod
+		}
+
+		type expect struct {
+			retryAdjusted bool
+		}
+
+		type data struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("##table",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				c, trackers := createController(stop, testNamespace, nil, nil, nil, nil)
+				defer trackers.Stop()
+
+				c.safetyOptions.MachineCreationTimeout = data.setup.mcCreateTimeout
+
+				adjustedRetry := c.adjustCreateRetryRequired(data.setup.machine, machineutils.RetryPeriod(data.setup.createOpRetry))
+
+				if data.expect.retryAdjusted {
+					Expect(adjustedRetry).Should(BeNumerically("<=", machineutils.RetryPeriod(c.getEffectiveCreationTimeout(data.setup.machine).Duration)))
+				} else {
+					Expect(adjustedRetry).To(Equal(data.setup.createOpRetry))
+				}
+			},
+			Entry("Should not adjust machine create retry period if retry is set to occur before machine create deadline", &data{
+				setup: setup{
+					createOpRetry:   machineutils.RetryPeriod(3 * time.Minute),
+					mcCreateTimeout: metav1.Duration{Duration: 20 * time.Minute},
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{
+							Spec: machinev1.MachineSpec{},
+						},
+						&machinev1.MachineStatus{},
+						nil, nil, map[string]string{v1alpha1.NodeLabelKey: "test-node-0"}, true, metav1.Now()),
+				},
+				expect: expect{
+					retryAdjusted: false,
+				},
+			}),
+			Entry("Should adjust machine create retry period to machine create deadline if retry is set to occur after machine create deadline", &data{
+				setup: setup{
+					createOpRetry:   machineutils.RetryPeriod(4 * time.Minute),
+					mcCreateTimeout: metav1.Duration{Duration: 3 * time.Minute},
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{
+							Spec: machinev1.MachineSpec{},
+						},
+						&machinev1.MachineStatus{},
+						nil, nil, map[string]string{v1alpha1.NodeLabelKey: "test-node-0"}, true, metav1.Now()),
+				},
+				expect: expect{
+					retryAdjusted: true,
+				},
+			}),
+		)
+	})
 })

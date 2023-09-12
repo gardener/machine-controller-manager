@@ -476,7 +476,7 @@ func SyncMachineTaints(
 	return toBeUpdated
 }
 
-// machineCreateErrorHandler TODO
+// machineCreateErrorHandler handles errors when machine creation does not succeed
 func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1alpha1.Machine, createMachineResponse *driver.CreateMachineResponse, err error) (machineutils.RetryPeriod, error) {
 	var (
 		retryRequired  = machineutils.MediumRetry
@@ -494,7 +494,7 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		lastKnownState = createMachineResponse.LastKnownState
 	}
 
-	c.machineStatusUpdate(
+	statusUpdErr := c.machineStatusUpdate(
 		ctx,
 		machine,
 		v1alpha1.LastOperation{
@@ -510,8 +510,23 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		},
 		lastKnownState,
 	)
+	return retryRequired, statusUpdErr
+}
 
-	return retryRequired, nil
+// adjustCreateRetryRequired adjusts the retry period  if needed so that we don't have a case where the machine is reconciled after machineCreationTimeout
+// if the retry period is too large so that, it is adjusted so that it causes a reconcile at the machineCreationTimeout
+// if the machineCreationTimeout has already passed, return `ShortRetry` so that the machine is immediately reconciled
+func (c *controller) adjustCreateRetryRequired(machine *v1alpha1.Machine, retryRequired machineutils.RetryPeriod) machineutils.RetryPeriod {
+	adjustedRetry := retryRequired
+	machineCreationDeadline := machine.CreationTimestamp.Time.Add(c.getEffectiveCreationTimeout(machine).Duration)
+	if time.Now().After(machineCreationDeadline) {
+		adjustedRetry = machineutils.ShortRetry
+	} else if time.Now().Add(time.Duration(retryRequired)).After(machineCreationDeadline) {
+		// Machine will reconcile after create deadline. Adapt RetryPeriod to reconcile machine at deadline
+		adjustedRetry = machineutils.RetryPeriod(machineCreationDeadline.Sub(time.Now()))
+	}
+
+	return adjustedRetry
 }
 
 func (c *controller) machineStatusUpdate(
@@ -977,7 +992,7 @@ func isConditionEmpty(condition v1.NodeCondition) bool {
 	return condition == v1.NodeCondition{}
 }
 
-// initializes err and description with the passed string message
+// printLogInitError initializes err and description with the passed string message
 func printLogInitError(s string, err *error, description *string, machine *v1alpha1.Machine) {
 	klog.Warningf(s+" machine: %q ", machine.Name)
 	*err = fmt.Errorf(s+" %s", machineutils.InitiateVMDeletion)
@@ -1372,7 +1387,7 @@ func (c *controller) getEffectiveHealthTimeout(machine *v1alpha1.Machine) *metav
 	return effectiveHealthTimeout
 }
 
-// getEffectiveHealthTimeout returns the creationTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
+// getEffectiveCreationTimeout returns the creationTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
 func (c *controller) getEffectiveCreationTimeout(machine *v1alpha1.Machine) *metav1.Duration {
 	var effectiveCreationTimeout *metav1.Duration
 	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineConfiguration.MachineCreationTimeout != nil {
@@ -1392,6 +1407,11 @@ func (c *controller) getEffectiveNodeConditions(machine *v1alpha1.Machine) *stri
 		effectiveNodeConditions = &c.nodeConditions
 	}
 	return effectiveNodeConditions
+}
+
+func (c *controller) getCreationContext(parentCtx context.Context, machine *v1alpha1.Machine) (context.Context, context.CancelFunc) {
+	timeOutDuration := c.getEffectiveCreationTimeout(machine).Duration
+	return context.WithDeadline(parentCtx, machine.CreationTimestamp.Time.Add(timeOutDuration))
 }
 
 // UpdateNodeTerminationCondition updates termination condition on the node object

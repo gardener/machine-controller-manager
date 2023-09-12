@@ -175,7 +175,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		}
 	}
 	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
-		return c.triggerCreationFlow(
+		retry, err = c.triggerCreationFlow(
 			ctx,
 			&driver.CreateMachineRequest{
 				Machine:      machine,
@@ -183,6 +183,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 				Secret:       &corev1.Secret{Data: secretData},
 			},
 		)
+		return c.adjustCreateRetryRequired(machine, retry), err
 	}
 
 	return machineutils.LongRetry, nil
@@ -354,7 +355,9 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				// If node label is not present
 				klog.V(2).Infof("Creating a VM for machine %q, please wait!", machine.Name)
 				klog.V(2).Infof("The machine creation is triggered with timeout of %s", c.getEffectiveCreationTimeout(createMachineRequest.Machine).Duration)
-				createMachineResponse, err := c.driver.CreateMachine(ctx, createMachineRequest)
+				createMCCtx, cancelFunc := c.getCreationContext(ctx, machine)
+				defer cancelFunc()
+				createMachineResponse, err := c.driver.CreateMachine(createMCCtx, createMachineRequest)
 				if err != nil {
 					// Create call returned an error.
 					klog.Errorf("Error while creating machine %s: %s", machine.Name, err.Error())
