@@ -42,7 +42,7 @@ setup:
 	read SHOOT; \
 	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)"; \
 	read PROVIDER; \
-	./hack/local_setup.sh --seed $$SEED --shoot $$SHOOT --project $$PROJECT --provider $$PROVIDER
+	./hack/local_setup.sh --seed $$SEED --shoot $$SHOOT --project $$PROJECT --provider $$PROVIDER --run-in-gardener
 
 .PHONY: local-mcm-up
 local-mcm-up: setup

@@ -19,7 +19,7 @@ set -o pipefail
 
 ##############################################################################################################
 # Script restores MCM deployment and removes the annotation dependency-watchdog.gardener.cloud/ignore-scaling
-# This script should be called once you are done using local_setup.sh
+# This script should be called once you are done using local_setup_for_gardener.sh
 ##############################################################################################################
 
 declare SHOOT PROJECT PROVIDER
