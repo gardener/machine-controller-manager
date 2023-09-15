@@ -871,6 +871,20 @@ string
 </tr>
 <tr>
 <td>
+<code>errorCode</code>
+</td>
+<td>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ErrorCode of the current operation if any</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>lastUpdateTime</code>
 </td>
 <td>

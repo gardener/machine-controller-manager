@@ -479,7 +479,8 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		retryRequired  = machineutils.MediumRetry
 		lastKnownState string
 	)
-	if machineErr, ok := status.FromError(err); ok {
+	machineErr, ok := status.FromError(err)
+	if ok {
 		switch machineErr.Code() {
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 			retryRequired = machineutils.ShortRetry
@@ -495,6 +496,7 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		machine,
 		v1alpha1.LastOperation{
 			Description:    "Cloud provider message - " + err.Error(),
+			ErrorCode:      machineErr.Code().String(),
 			State:          v1alpha1.MachineStateFailed,
 			Type:           v1alpha1.MachineOperationCreate,
 			LastUpdateTime: metav1.Now(),
@@ -608,6 +610,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				}
 				clone.Status.LastOperation = v1alpha1.LastOperation{
 					Description:    description,
+					ErrorCode:      "",
 					State:          v1alpha1.MachineStateProcessing,
 					Type:           v1alpha1.MachineOperationHealthCheck,
 					LastUpdateTime: metav1.Now(),
@@ -649,6 +652,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				// Machine is ready and has joined/re-joined the cluster
 				clone.Status.LastOperation = v1alpha1.LastOperation{
 					Description:    description,
+					ErrorCode:      "",
 					State:          v1alpha1.MachineStateSuccessful,
 					Type:           lastOperationType,
 					LastUpdateTime: metav1.Now(),
@@ -674,6 +678,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				}
 				clone.Status.LastOperation = v1alpha1.LastOperation{
 					Description:    description,
+					ErrorCode:      "",
 					State:          v1alpha1.MachineStateProcessing,
 					Type:           v1alpha1.MachineOperationHealthCheck,
 					LastUpdateTime: metav1.Now(),
@@ -717,6 +722,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 
 				clone.Status.LastOperation = v1alpha1.LastOperation{
 					Description:    description,
+					ErrorCode:      "",
 					State:          v1alpha1.MachineStateFailed,
 					Type:           machine.Status.LastOperation.Type,
 					LastUpdateTime: metav1.Now(),
@@ -864,6 +870,7 @@ func (c *controller) setMachineTerminationStatus(ctx context.Context, deleteMach
 	clone := deleteMachineRequest.Machine.DeepCopy()
 	clone.Status.LastOperation = v1alpha1.LastOperation{
 		Description:    machineutils.GetVMStatus,
+		ErrorCode:      "",
 		State:          v1alpha1.MachineStateProcessing,
 		Type:           v1alpha1.MachineOperationDelete,
 		LastUpdateTime: metav1.Now(),
@@ -948,6 +955,7 @@ func (c *controller) getVMStatus(ctx context.Context, getMachineStatusRequest *d
 		getMachineStatusRequest.Machine,
 		v1alpha1.LastOperation{
 			Description:    description,
+			ErrorCode:      "",
 			State:          state,
 			Type:           v1alpha1.MachineOperationDelete,
 			LastUpdateTime: metav1.Now(),
@@ -1136,6 +1144,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		machine,
 		v1alpha1.LastOperation{
 			Description:    description,
+			ErrorCode:      "",
 			State:          state,
 			Type:           v1alpha1.MachineOperationDelete,
 			LastUpdateTime: metav1.Now(),
@@ -1203,6 +1212,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		machine,
 		v1alpha1.LastOperation{
 			Description:    description,
+			ErrorCode:      "",
 			State:          state,
 			Type:           v1alpha1.MachineOperationDelete,
 			LastUpdateTime: metav1.Now(),
@@ -1255,6 +1265,7 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 		machine,
 		v1alpha1.LastOperation{
 			Description:    description,
+			ErrorCode:      "",
 			State:          state,
 			Type:           v1alpha1.MachineOperationDelete,
 			LastUpdateTime: metav1.Now(),
@@ -1369,6 +1380,7 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 
 	clone.Status.LastOperation = v1alpha1.LastOperation{
 		Description:    description,
+		ErrorCode:      "",
 		State:          v1alpha1.MachineStateFailed,
 		Type:           machine.Status.LastOperation.Type,
 		LastUpdateTime: metav1.Now(),

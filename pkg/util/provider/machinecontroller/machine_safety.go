@@ -94,6 +94,7 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 					}
 					machine.Status.LastOperation = v1alpha1.LastOperation{
 						Description:    "Machine Health Timeout was reset due to APIServer being unreachable",
+						ErrorCode:      "",
 						LastUpdateTime: metav1.Now(),
 						State:          v1alpha1.MachineStateSuccessful,
 						Type:           v1alpha1.MachineOperationHealthCheck,

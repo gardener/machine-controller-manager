@@ -401,6 +401,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 						machine,
 						v1alpha1.LastOperation{
 							Description:    "VM using old node obj",
+							ErrorCode:      "",
 							State:          v1alpha1.MachineStateFailed,
 							Type:           v1alpha1.MachineOperationCreate,
 							LastUpdateTime: metav1.Now(),
@@ -428,6 +429,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				machine,
 				v1alpha1.LastOperation{
 					Description:    "Cloud provider message - " + err.Error(),
+					ErrorCode:      "",
 					State:          v1alpha1.MachineStateFailed,
 					Type:           v1alpha1.MachineOperationCreate,
 					LastUpdateTime: metav1.Now(),
@@ -447,6 +449,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				machine,
 				v1alpha1.LastOperation{
 					Description:    "Cloud provider message - " + err.Error(),
+					ErrorCode:      "",
 					State:          v1alpha1.MachineStateFailed,
 					Type:           v1alpha1.MachineOperationCreate,
 					LastUpdateTime: metav1.Now(),
@@ -501,6 +504,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		clone := machine.DeepCopy()
 		clone.Status.LastOperation = v1alpha1.LastOperation{
 			Description:    "Creating machine on cloud provider",
+			ErrorCode:      "",
 			State:          v1alpha1.MachineStateProcessing,
 			Type:           v1alpha1.MachineOperationCreate,
 			LastUpdateTime: metav1.Now(),
