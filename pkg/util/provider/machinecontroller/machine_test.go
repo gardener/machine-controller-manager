@@ -760,10 +760,8 @@ var _ = Describe("machine", func() {
 				action: action{
 					machine: "machine-0",
 					fakeDriver: &driver.FakeDriver{
-						VMExists:   false,
-						ProviderID: "fakeID-0",
-						NodeName:   "fakeNode-0",
-						Err:        status.Error(codes.Internal, "Provider is returning error on create call"),
+						VMExists: false,
+						Err:      status.Error(codes.Internal, "Provider is returning error on create call"),
 					},
 				},
 				expect: expect{
@@ -814,10 +812,8 @@ var _ = Describe("machine", func() {
 				action: action{
 					machine: "machine-0",
 					fakeDriver: &driver.FakeDriver{
-						VMExists:   false,
-						ProviderID: "fakeID-0",
-						NodeName:   "fakeNode-0",
-						Err:        status.Error(codes.ResourceExhausted, "Provider does not have capacity to create VM"),
+						VMExists: false,
+						Err:      status.Error(codes.ResourceExhausted, "Provider does not have capacity to create VM"),
 					},
 				},
 				expect: expect{
@@ -868,10 +864,8 @@ var _ = Describe("machine", func() {
 				action: action{
 					machine: "machine-0",
 					fakeDriver: &driver.FakeDriver{
-						VMExists:   false,
-						ProviderID: "fakeID-0",
-						NodeName:   "fakeNode-0",
-						Err:        status.Error(codes.Internal, "Provider is returning error on create call"),
+						VMExists: false,
+						Err:      status.Error(codes.Internal, "Provider is returning error on create call"),
 					},
 				},
 				expect: expect{

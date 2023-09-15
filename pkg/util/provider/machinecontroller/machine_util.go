@@ -610,7 +610,6 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				}
 				clone.Status.LastOperation = v1alpha1.LastOperation{
 					Description:    description,
-					ErrorCode:      "",
 					State:          v1alpha1.MachineStateProcessing,
 					Type:           v1alpha1.MachineOperationHealthCheck,
 					LastUpdateTime: metav1.Now(),
@@ -652,7 +651,6 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				// Machine is ready and has joined/re-joined the cluster
 				clone.Status.LastOperation = v1alpha1.LastOperation{
 					Description:    description,
-					ErrorCode:      "",
 					State:          v1alpha1.MachineStateSuccessful,
 					Type:           lastOperationType,
 					LastUpdateTime: metav1.Now(),
@@ -678,7 +676,6 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				}
 				clone.Status.LastOperation = v1alpha1.LastOperation{
 					Description:    description,
-					ErrorCode:      "",
 					State:          v1alpha1.MachineStateProcessing,
 					Type:           v1alpha1.MachineOperationHealthCheck,
 					LastUpdateTime: metav1.Now(),
@@ -722,7 +719,6 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 
 				clone.Status.LastOperation = v1alpha1.LastOperation{
 					Description:    description,
-					ErrorCode:      "",
 					State:          v1alpha1.MachineStateFailed,
 					Type:           machine.Status.LastOperation.Type,
 					LastUpdateTime: metav1.Now(),
@@ -870,7 +866,6 @@ func (c *controller) setMachineTerminationStatus(ctx context.Context, deleteMach
 	clone := deleteMachineRequest.Machine.DeepCopy()
 	clone.Status.LastOperation = v1alpha1.LastOperation{
 		Description:    machineutils.GetVMStatus,
-		ErrorCode:      "",
 		State:          v1alpha1.MachineStateProcessing,
 		Type:           v1alpha1.MachineOperationDelete,
 		LastUpdateTime: metav1.Now(),
@@ -955,7 +950,6 @@ func (c *controller) getVMStatus(ctx context.Context, getMachineStatusRequest *d
 		getMachineStatusRequest.Machine,
 		v1alpha1.LastOperation{
 			Description:    description,
-			ErrorCode:      "",
 			State:          state,
 			Type:           v1alpha1.MachineOperationDelete,
 			LastUpdateTime: metav1.Now(),
@@ -1144,7 +1138,6 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		machine,
 		v1alpha1.LastOperation{
 			Description:    description,
-			ErrorCode:      "",
 			State:          state,
 			Type:           v1alpha1.MachineOperationDelete,
 			LastUpdateTime: metav1.Now(),
@@ -1212,7 +1205,6 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		machine,
 		v1alpha1.LastOperation{
 			Description:    description,
-			ErrorCode:      "",
 			State:          state,
 			Type:           v1alpha1.MachineOperationDelete,
 			LastUpdateTime: metav1.Now(),
@@ -1265,7 +1257,6 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 		machine,
 		v1alpha1.LastOperation{
 			Description:    description,
-			ErrorCode:      "",
 			State:          state,
 			Type:           v1alpha1.MachineOperationDelete,
 			LastUpdateTime: metav1.Now(),
@@ -1380,7 +1371,6 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 
 	clone.Status.LastOperation = v1alpha1.LastOperation{
 		Description:    description,
-		ErrorCode:      "",
 		State:          v1alpha1.MachineStateFailed,
 		Type:           machine.Status.LastOperation.Type,
 		LastUpdateTime: metav1.Now(),
