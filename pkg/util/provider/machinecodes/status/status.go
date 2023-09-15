@@ -32,8 +32,6 @@ package status
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 )
 
@@ -134,7 +132,8 @@ func findCodeAndMessage(encodedMsg string) ([]string, error) {
 				counter--
 				temp = append(temp, char)
 				if counter == 0 {
-					decoded = append(decoded, strings.Trim(string(temp), "[]"))
+					tempString := string(temp)
+					decoded = append(decoded, tempString[1:len(tempString)-1])
 					temp = nil
 				}
 			}
