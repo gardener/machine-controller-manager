@@ -503,6 +503,11 @@ var _ = Describe("machine", func() {
 				} else {
 					Expect(actual.Labels).To(Equal(data.expect.machine.Labels))
 				}
+				if data.expect.machine.Status.LastOperation.ErrorCode != "" {
+					Expect(actual.Status.LastOperation.ErrorCode).To(Equal(data.expect.machine.Status.LastOperation.ErrorCode))
+				} else {
+					Expect(actual.Status.LastOperation.ErrorCode).To(Equal(""))
+				}
 			},
 
 			Entry("Machine creation succeeds with object UPDATE", &data{
@@ -728,7 +733,7 @@ var _ = Describe("machine", func() {
 					retry: machineutils.LongRetry,
 				},
 			}),
-			Entry("Machine creation fails with CrashLoopBackOff", &data{
+			Entry("Machine creation fails with CrashLoopBackOff due to Internal error", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
 						{
@@ -755,10 +760,8 @@ var _ = Describe("machine", func() {
 				action: action{
 					machine: "machine-0",
 					fakeDriver: &driver.FakeDriver{
-						VMExists:   false,
-						ProviderID: "fakeID-0",
-						NodeName:   "fakeNode-0",
-						Err:        status.Error(codes.Internal, "Provider is returning error on create call"),
+						VMExists: false,
+						Err:      status.Error(codes.Internal, "Provider is returning error on create call"),
 					},
 				},
 				expect: expect{
@@ -773,6 +776,61 @@ var _ = Describe("machine", func() {
 					}, &v1alpha1.MachineStatus{
 						CurrentStatus: v1alpha1.CurrentStatus{
 							Phase: v1alpha1.MachineCrashLoopBackOff,
+						},
+						LastOperation: v1alpha1.LastOperation{
+							ErrorCode: codes.Internal.String(),
+						},
+					}, nil, nil, nil, true, metav1.Now()),
+					err:   nil,
+					retry: machineutils.MediumRetry,
+				},
+			}),
+			Entry("Machine creation fails with CrashLoopBackOff due to resource exhaustion", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
+						},
+					},
+					machineClasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil, true, metav1.Now()),
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists: false,
+						Err:      status.Error(codes.ResourceExhausted, "Provider does not have capacity to create VM"),
+					},
+				},
+				expect: expect{
+					machine: newMachine(&v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machineClass",
+							},
+						},
+					}, &v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
+							Phase: v1alpha1.MachineCrashLoopBackOff,
+						},
+						LastOperation: v1alpha1.LastOperation{
+							ErrorCode: codes.ResourceExhausted.String(),
 						},
 					}, nil, nil, nil, true, metav1.Now()),
 					err:   nil,
@@ -806,10 +864,8 @@ var _ = Describe("machine", func() {
 				action: action{
 					machine: "machine-0",
 					fakeDriver: &driver.FakeDriver{
-						VMExists:   false,
-						ProviderID: "fakeID-0",
-						NodeName:   "fakeNode-0",
-						Err:        status.Error(codes.Internal, "Provider is returning error on create call"),
+						VMExists: false,
+						Err:      status.Error(codes.Internal, "Provider is returning error on create call"),
 					},
 				},
 				expect: expect{
@@ -824,6 +880,9 @@ var _ = Describe("machine", func() {
 					}, &v1alpha1.MachineStatus{
 						CurrentStatus: v1alpha1.CurrentStatus{
 							Phase: v1alpha1.MachineFailed,
+						},
+						LastOperation: v1alpha1.LastOperation{
+							ErrorCode: codes.Internal.String(),
 						},
 					}, nil, nil, nil, true, metav1.NewTime(metav1.Now().Add(-time.Hour))),
 					err:   nil,
