@@ -413,6 +413,13 @@ func schema_pkg_apis_machine_v1alpha1_LastOperation(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"errorCode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ErrorCode of the current operation if any",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"lastUpdateTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Last update time of current operation",

@@ -479,7 +479,8 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		retryRequired  = machineutils.MediumRetry
 		lastKnownState string
 	)
-	if machineErr, ok := status.FromError(err); ok {
+	machineErr, ok := status.FromError(err)
+	if ok {
 		switch machineErr.Code() {
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 			retryRequired = machineutils.ShortRetry
@@ -495,6 +496,7 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		machine,
 		v1alpha1.LastOperation{
 			Description:    "Cloud provider message - " + err.Error(),
+			ErrorCode:      machineErr.Code().String(),
 			State:          v1alpha1.MachineStateFailed,
 			Type:           v1alpha1.MachineOperationCreate,
 			LastUpdateTime: metav1.Now(),

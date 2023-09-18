@@ -32,9 +32,6 @@ package status
 
 import (
 	"fmt"
-	"regexp"
-	"strings"
-
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 )
 
@@ -105,7 +102,7 @@ func FromError(err error) (s *Status, ok bool) {
 		return nil, true
 	}
 
-	if matches, errInFind := findInString(err.Error()); errInFind == nil {
+	if matches, errInFind := findCodeAndMessage(err.Error()); errInFind == nil {
 		code := codes.StringToCode(matches[0])
 		return &Status{
 			code:    int32(code),
@@ -120,21 +117,35 @@ func FromError(err error) (s *Status, ok bool) {
 	}, false
 }
 
-// findInString need to check if this logic can be optimized
-func findInString(input string) ([]string, error) {
-	var matches []string
+func findCodeAndMessage(encodedMsg string) ([]string, error) {
+	var decoded []string
+	var temp []rune
+	counter := 0
 
-	re := regexp.MustCompile(`\[([^\[\]]*)\]`)
-	submatchall := re.FindAllString(input, -1)
-	if submatchall == nil || len(submatchall) != 2 {
-		return nil, fmt.Errorf("Unable to decode for machine code error")
+	for _, char := range encodedMsg {
+		switch char {
+		case '[':
+			counter++
+			temp = append(temp, char)
+		case ']':
+			if counter > 0 {
+				counter--
+				temp = append(temp, char)
+				if counter == 0 {
+					tempString := string(temp)
+					decoded = append(decoded, tempString[1:len(tempString)-1])
+					temp = nil
+				}
+			}
+		default:
+			if counter > 0 {
+				temp = append(temp, char)
+			}
+		}
 	}
 
-	for _, element := range submatchall {
-		element = strings.Trim(element, "[")
-		element = strings.Trim(element, "]")
-		matches = append(matches, element)
+	if len(decoded) != 2 {
+		return nil, fmt.Errorf("unable to decode for machine code error")
 	}
-
-	return matches, nil
+	return decoded, nil
 }

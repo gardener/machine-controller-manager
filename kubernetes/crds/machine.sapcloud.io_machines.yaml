@@ -263,6 +263,9 @@ spec:
                   description:
                     description: Description of the current operation
                     type: string
+                  errorCode:
+                    description: ErrorCode of the current operation if any
+                    type: string
                   lastUpdateTime:
                     description: Last update time of current operation
                     format: date-time

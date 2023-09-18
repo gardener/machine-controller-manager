@@ -187,6 +187,10 @@ type LastOperation struct {
 	// Description of the current operation
 	Description string
 
+	// ErrorCode of the current operation if any
+	// +optional
+	ErrorCode string
+
 	// Last update time of current operation
 	LastUpdateTime metav1.Time
 

@@ -122,6 +122,10 @@ type LastOperation struct {
 	// Description of the current operation
 	Description string `json:"description,omitempty"`
 
+	// ErrorCode of the current operation if any
+	// +optional
+	ErrorCode string `json:"errorCode,omitempty"`
+
 	// Last update time of current operation
 	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
 
