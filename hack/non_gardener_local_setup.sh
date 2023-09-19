@@ -17,16 +17,14 @@ set -o errexit
 set -o pipefail
 
 ##############################################################################################################
-# Script sets up local development environment enabling you to start MCM process locally.
+# Script sets up local development environment enabling you to start MCM process locally. This is a non-gardener
+# setup. Therefore it is left to the consumer to ensure that user configured in the kubeconfig has sufficient
+# permissions to modify the machine-controller-manager deployment.
+#
 # It does the following:
-# 1. Downloads short-lived control and target cluster kube-configs (only if running in gardener context). If
-#    this script is called in a non-gardener context then it is expected that the consumer will provide and place
-#    the target and control plane kubeconfig files into a desired directory before invoking this script.
-# 2. Ensures that kube-configs are copied to both mcm and provider-mcm project directory
-# 3. Scales down MCM to 0
-# 4. Places annotation dependency-watchdog.gardener.cloud/ignore-scaling on MCM deployment, thus preventing
-#    DWD from scaling it back up.
-# 5. Updates Makefile for mcm and provider-mcm projects and exports variables used by the makefile.
+# 1. Ensures that kube-configs are copied to both mcm and provider-mcm project directory
+# 2. Scales down MCM to 0
+# 3. Updates Makefile for mcm and provider-mcm projects and exports variables used by the makefile.
 ##############################################################################################################
 
 # these are mandatory cli flags to be provided by the user

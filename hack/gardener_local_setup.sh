@@ -19,9 +19,7 @@ set -o pipefail
 ##############################################################################################################
 # Script sets up local development environment enabling you to start MCM process locally.
 # It does the following:
-# 1. Downloads short-lived control and target cluster kube-configs (only if running in gardener context). If
-#    this script is called in a non-gardener context then it is expected that the consumer will provide and place
-#    the target and control plane kubeconfig files into a desired directory before invoking this script.
+# 1. Downloads short-lived control and target cluster kube-configs
 # 2. Ensures that kube-configs are copied to both mcm and provider-mcm project directory
 # 3. Scales down MCM to 0
 # 4. Places annotation dependency-watchdog.gardener.cloud/ignore-scaling on MCM deployment, thus preventing
@@ -35,15 +33,13 @@ declare PROVIDER_MCM_PROJECT_DIR
 declare RELATIVE_KUBECONFIG_PATH="dev/kube-configs"
 declare LANDSCAPE_NAME="dev"
 declare KUBECONFIG_EXPIRY_SECONDS="3600"
-#declare VIRTUAL_GARDEN_CLUSTER
+declare VIRTUAL_GARDEN_CLUSTER
 declare ABSOLUTE_KUBE_CONFIG_PATH
 declare ABSOLUTE_PROVIDER_KUBECONFIG_PATH
-declare RUN_IN_GARDENER="false"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 PROJECT_DIR="$(cd "$(dirname "${SCRIPT_DIR}")" &>/dev/null && pwd)"
 
-# create_usage creates a CLI usage string.
 function create_usage() {
   usage=$(printf '%s\n' "
     Usage: $(basename $0) [Options]
@@ -56,12 +52,10 @@ function create_usage() {
       -k | --kubeconfig-path            <relative-kubeconfig-path>          (Optional) Relative path to the <PROJECT-DIR> where kubeconfigs will be downloaded. Path should not start with '/'. Default: <PROJECT-DIR>/dev/kube-configs
       -m | --mcm-provider-project-path  <absolute-mcm-provider-project-dir> (Optional) MCM Provider project directory. If not provided then it assumes that both mcm and mcm-provider projects are under the same parent directory
       -e | --kubeconfig-expiry-seconds  <expiry-duration-in-seconds>        (Optional) Common expiry durations in seconds for control and target KubeConfigs. Default: 3600 seconds
-      -g | --run-in-gardener                                                (Optional) Allows the script in both gardener and non-gardener context. If present then it will set the context as gardener.
     ")
   echo "${usage}"
 }
 
-# parse_flags parses the CLI arguments passed by the consumer.
 function parse_flags() {
   while test $# -gt 0; do
     case "$1" in
@@ -97,9 +91,6 @@ function parse_flags() {
       shift
       LANDSCAPE_NAME="$1"
       ;;
-    --run-in-gardener | -g)
-      RUN_IN_GARDENER="true"
-      ;;
     --help | -h)
       shift
       echo "${USAGE}"
@@ -110,7 +101,6 @@ function parse_flags() {
   done
 }
 
-# validate_args validates the CLI arguments being passed.
 function validate_args() {
   if [[ -z "${SEED}" ]]; then
     echo -e "Seed has not been passed. Please provide Seed either by specifying --seed or -d argument"
@@ -130,49 +120,27 @@ function validate_args() {
   fi
 }
 
-# init_kubeconfig_dirs creates the directories if they do not exist where the kube configs should be placed.
-# it also initializes variables which are used by other functions in this script.
-function init_kubeconfig_dirs() {
+function initialize() {
   if [[ -z "${PROVIDER_MCM_PROJECT_DIR}" ]]; then
     PROVIDER_MCM_PROJECT_DIR=$(dirname "${PROJECT_DIR}")/machine-controller-manager-provider-"${PROVIDER}"
   fi
   echo "Creating directory ${RELATIVE_KUBECONFIG_PATH} if it does not exist..."
   mkdir -p "${RELATIVE_KUBECONFIG_PATH}"
-  ABSOLUTE_KUBE_CONFIG_PATH="$(
-    cd "$(dirname "${RELATIVE_KUBECONFIG_PATH}")"
-    pwd
-  )/$(basename "${RELATIVE_KUBECONFIG_PATH}")"
+  ABSOLUTE_KUBE_CONFIG_PATH="$(cd "$(dirname "${RELATIVE_KUBECONFIG_PATH}")"; pwd)/$(basename "${RELATIVE_KUBECONFIG_PATH}")"
   ABSOLUTE_PROVIDER_KUBECONFIG_PATH="${PROVIDER_MCM_PROJECT_DIR}/dev/kube-configs"
   echo "Creating directory ${ABSOLUTE_PROVIDER_KUBECONFIG_PATH} if it does not exist..."
   mkdir -p "${ABSOLUTE_PROVIDER_KUBECONFIG_PATH}"
+  VIRTUAL_GARDEN_CLUSTER="sap-landscape-${LANDSCAPE_NAME}"
 }
 
-#function initialize() {
-#  if [[ -z "${PROVIDER_MCM_PROJECT_DIR}" ]]; then
-#    PROVIDER_MCM_PROJECT_DIR=$(dirname "${PROJECT_DIR}")/machine-controller-manager-provider-"${PROVIDER}"
-#  fi
-#  echo "Creating directory ${RELATIVE_KUBECONFIG_PATH} if it does not exist..."
-#  mkdir -p "${RELATIVE_KUBECONFIG_PATH}"
-#  ABSOLUTE_KUBE_CONFIG_PATH="$(
-#    cd "$(dirname "${RELATIVE_KUBECONFIG_PATH}")"
-#    pwd
-#  )/$(basename "${RELATIVE_KUBECONFIG_PATH}")"
-#  ABSOLUTE_PROVIDER_KUBECONFIG_PATH="${PROVIDER_MCM_PROJECT_DIR}/dev/kube-configs"
-#  echo "Creating directory ${ABSOLUTE_PROVIDER_KUBECONFIG_PATH} if it does not exist..."
-#  mkdir -p "${ABSOLUTE_PROVIDER_KUBECONFIG_PATH}"
-#  VIRTUAL_GARDEN_CLUSTER="sap-landscape-${LANDSCAPE_NAME}"
-#}
-
-# download_kubeconfigs downloads short lived admin kubeconfigs from the virtual garden cluster.
 function download_kubeconfigs() {
   readonly garden_namespace="garden"
   local project_namespace="${garden_namespace}-${PROJECT}"
-  local virtual_garden_cluster="sap-landscape-${LANDSCAPE_NAME}"
 
   kubeconfig_request_path=$(create_kubeconfig_request_yaml)
 
-  echo "Targeting Virtual Garden Cluster ${virtual_garden_cluster}..."
-  gardenctl target --garden "${virtual_garden_cluster}"
+  echo "Targeting Virtual Garden Cluster ${VIRTUAL_GARDEN_CLUSTER}..."
+  gardenctl target --garden "${VIRTUAL_GARDEN_CLUSTER}"
   eval "$(gardenctl kubectl-env zsh)"
 
   echo "Downloading kubeconfig for control cluster to ${ABSOLUTE_KUBE_CONFIG_PATH}..."
@@ -190,20 +158,6 @@ function download_kubeconfigs() {
     base64 -d >"${ABSOLUTE_KUBE_CONFIG_PATH}/kubeconfig_target.yaml"
 }
 
-# verify_kubeconfigs_present verifies if required kubeconfig files have been put in the desired directory.
-# In a non-gardener context it is expected that the control plan and target plane kubeconfig files are put by the consumer before running this script.
-function verify_kubeconfigs_present() {
-  if [[ ! -f "${ABSOLUTE_KUBE_CONFIG_PATH}"/kubeconfig_control.yaml ]]; then
-    echo -e "script expects kubeconfig_control.yaml file to be put at ${ABSOLUTE_KUBE_CONFIG_PATH}"
-    exit 1
-  fi
-  if [[ ! -f "${ABSOLUTE_KUBE_CONFIG_PATH}"/kubeconfig_target.yaml ]]; then
-    echo -e "script expects kubeconfig_target.yaml file to be put at ${ABSOLUTE_KUBE_CONFIG_PATH}"
-    exit 1
-  fi
-}
-
-# create_kubeconfig_request_yaml creates an admin kubeconfig request from a template.
 function create_kubeconfig_request_yaml() {
   local expiry_seconds template_path target_request_path
   expiry_seconds=${KUBECONFIG_EXPIRY_SECONDS}
@@ -215,7 +169,6 @@ function create_kubeconfig_request_yaml() {
   echo "${target_request_path}"
 }
 
-# copy_kubeconfigs_to_provider_mcm copies the downloaded or manually put kubeconfig files to the MCM provider git repo.
 function copy_kubeconfigs_to_provider_mcm() {
   for kc in "${ABSOLUTE_KUBE_CONFIG_PATH}"/*.yaml; do
     cp -v "${kc}" "${ABSOLUTE_PROVIDER_KUBECONFIG_PATH}"
@@ -223,15 +176,15 @@ function copy_kubeconfigs_to_provider_mcm() {
 }
 
 function scale_down_mcm() {
-  #gardenctl target --garden "${VIRTUAL_GARDEN_CLUSTER}" --project "${PROJECT}" --shoot "${SHOOT}" --control-plane
-  #eval "$(gardenctl kubectl-env zsh)"
+  gardenctl target --garden "${VIRTUAL_GARDEN_CLUSTER}" --project "${PROJECT}" --shoot "${SHOOT}" --control-plane
+  eval "$(gardenctl kubectl-env zsh)"
 
   echo "annotating deployment/machine-controller-manager with dependency-watchdog.gardener.cloud/ignore-scaling=true..."
-  KUBECONFIG="${ABSOLUTE_KUBE_CONFIG_PATH}/kubeconfig_control.yaml" kubectl annotate --overwrite=true deployment/machine-controller-manager dependency-watchdog.gardener.cloud/ignore-scaling=true
+  kubectl annotate --overwrite=true deployment/machine-controller-manager dependency-watchdog.gardener.cloud/ignore-scaling=true
   # NOTE: One must remove the annotation after local setup is no longer needed. Use the below command to remove the annotation on machine-controller-manager deployment resource:
   # kubectl annotate --overwrite=true deployment/machine-controller-manager dependency-watchdog.gardener.cloud/ignore-scaling-
   echo "scaling down deployment/machine-controller-manager to 0..."
-  KUBECONFIG="${ABSOLUTE_KUBE_CONFIG_PATH}/kubeconfig_control.yaml" kubectl scale deployment/machine-controller-manager --replicas=0
+  kubectl scale deployment/machine-controller-manager --replicas=0
 }
 
 # create_makefile_env creates a .env file that will get copied to both mcm and mcm-provider project directories for their
@@ -239,28 +192,22 @@ function scale_down_mcm() {
 function set_makefile_env() {
   if [[ $# -ne 2 ]]; then
     echo -e "${FUNCNAME[0]} expects two arguments - project-directory and target-kube-config-path"
-  fi
-  local target_project_dir target_kube_config_path
-  target_project_dir="$1"
-  target_kube_config_path="$2"
+    fi
+   local target_project_dir target_kube_config_path
+   target_project_dir="$1"
+   target_kube_config_path="$2"
   {
     printf "\n%s" "CONTROL_NAMESPACE=shoot--${PROJECT}--${SHOOT}"
-    printf "\n%s" "CONTROL_KUBECONFIG=${target_kube_config_path}/kubeconfig_control.yaml" >>"${target_project_dir}/.env"
-    printf "\n%s" "TARGET_KUBECONFIG=${target_kube_config_path}/kubeconfig_target.yaml" >>"${target_project_dir}/.env"
-  } >>"${target_project_dir}/.env"
+    printf "\n%s" "CONTROL_KUBECONFIG=${target_kube_config_path}/kubeconfig_control.yaml" >> "${target_project_dir}/.env"
+    printf "\n%s" "TARGET_KUBECONFIG=${target_kube_config_path}/kubeconfig_target.yaml" >> "${target_project_dir}/.env"
+  } >> "${target_project_dir}/.env"
 }
 
-# main is the entry point to this script.
 function main() {
   parse_flags "$@"
   validate_args
-  init_kubeconfig_dirs
-#  initialize
-  if [[ "${RUN_IN_GARDENER}" == "true" ]]; then
-    download_kubeconfigs
-  else
-    verify_kubeconfigs_present
-  fi
+  initialize
+  download_kubeconfigs
   copy_kubeconfigs_to_provider_mcm
   scale_down_mcm
   set_makefile_env "${PROJECT_DIR}" "${ABSOLUTE_KUBE_CONFIG_PATH}"
