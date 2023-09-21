@@ -1140,7 +1140,6 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		}
 	}
 
-	now := metav1.Now()
 	c.machineStatusUpdate(
 		ctx,
 		machine,
@@ -1148,7 +1147,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 			Description:    description,
 			State:          state,
 			Type:           v1alpha1.MachineOperationDelete,
-			LastUpdateTime: now,
+			LastUpdateTime: metav1.Now(),
 		},
 		// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
 		// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
@@ -1160,8 +1159,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 	return machineutils.ShortRetry, err
 }
 
-// deleteNodeVolAttachments deletes VolumeAttachment(s) for a node and waits tillvolumes are detached from the node or detach timeout exceeded
-// before moving to VM deletion stage.
+// deleteNodeVolAttachments deletes VolumeAttachment(s) for a node before moving to VM deletion stage.
 func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.RetryPeriod, error) {
 	var (
 		description string
@@ -1196,6 +1194,11 @@ func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachine
 			state = v1alpha1.MachineStateProcessing
 		} else {
 			err = deleteVolumeAttachmentsForNode(ctx, c.targetCoreClient.StorageV1().VolumeAttachments(), nodeName, liveNodeVolAttachments)
+			if err != nil {
+				klog.Errorf("(deleteNodeVolAttachments) Error deleting volume attachments for node %q: %s", nodeName, err)
+			} else {
+				klog.V(3).Infof("(deleteNodeVolAttachments) Successfully deleted all volume attachments for node %q", nodeName)
+			}
 			return retryPeriod, nil
 		}
 	}
@@ -1595,7 +1598,6 @@ func deleteVolumeAttachmentsForNode(ctx context.Context, attachIf storageclient.
 	for _, va := range volAttachments {
 		err := attachIf.Delete(ctx, va.Name, delOpts)
 		if err != nil {
-			klog.Errorf("(deleteVolumeAttachmentsForNode) Error deleting VolumeAttachment %q for node %q: %s", va.Name, nodeName, err)
 			errs = append(errs, err)
 		}
 		klog.V(4).Infof("(deleteVolumeAttachmentsForNode) Deleted VolumeAttachment %q for node %q", va.Name, nodeName)
