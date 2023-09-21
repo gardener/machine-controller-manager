@@ -37,7 +37,7 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
   * [What health checks are performed on a machine?](#what-health-checks-are-performed-on-a-machine)
   * [How does rate limiting replacement of machine work in MCM ? How is it related to meltdown protection?](#how-does-rate-limiting-replacement-of-machine-work-in-mcm-how-is-it-related-to-meltdown-protection)
   * [How MCM responds when scale-out/scale-in is done during rolling update of a machinedeployment?](#how-mcm-responds-when-scale-outscale-in-is-done-during-rolling-update-of-a-machinedeployment)
-  * [How does MCM handle an unhealthy node?](#how-does-mcm-handle-an-unhealthy-node-)
+  * [How some unhealthy machines are drained quickly?](#how-some-unhealthy-machines-are-drained-quickly-)
 
 * [Troubleshooting](#troubleshooting)
   * [My machine is stuck in deletion for 1 hr, why?](#My-machine-is-stuck-in-deletion-for-1-hr-why)
@@ -257,19 +257,23 @@ During update for scaling event, a machineSet is updated if any of the below is 
 
 Once scaling is achieved, rollout continues.
 
-## How does MCM handle an unhealthy node ?
+## How some unhealthy machines are drained quickly ?
 
-A node is considered unhealthy if the `Ready` condition is `False` or one of the
-supplementary: `KernelDeadlock`, `ReadonlyFilesystem`, `DiskPressure` , `NetworkUnavailable` is `True`
-
-As soon as a node is detected as unhealthy, the controller health-check moves the machine phase to `Unknown`. If the
-node is unhealthy for more than the `machine-health-timeout` specified for the `machine-controller`, the controller
+If a node is unhealthy for more than the `machine-health-timeout` specified for the `machine-controller`, the controller
 health-check moves the machine phase to `Failed`. By default, the `machine-health-timeout` is 10` minutes.
 
 `Failed` machines have their deletion timestamp set and the machine then moves to the `Terminating` phase. The node
-drain process is initiated. If the machine has not been `Ready` for greater than `5` minutes then the node is forcefully
-drained. Other-wise the node is gracefully drained. This is followed by the deletion of the cloud provider VM associated
-with the `Machine` and then finally ending with the `Node` object deletion.
+drain process is initiated. The drain process is invoked either *gracefully* or *forcefully*.
+
+The usual drain process is graceful. Pods are evicted from the node and the drain process waits until any existing
+attached volumes are mounted on new node. However, if the node `Ready` is `False` or the `ReadonlyFilesystem` is `True`
+for greater than `5` minutes, then a forceful drain is initiated. In a forceful drain, pods are deleted
+and `VolumeAttachment` objects associated with the old node are also deleted. This is followed by the deletion of the
+cloud provider VM associated with the `Machine` and then finally ending with the `Node` object deletion. 
+
+During the deletion of the VM we only delete the local data and boot disks associated with the VM. The disks associated
+with persistent volumes are left un-touched as their attach/de-detach, mount/unmount processes are handled by k8s
+attach-detach controller in conjunction with the CSI driver.
 
 
 
