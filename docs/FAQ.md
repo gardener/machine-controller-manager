@@ -37,7 +37,7 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
   * [What health checks are performed on a machine?](#what-health-checks-are-performed-on-a-machine)
   * [How does rate limiting replacement of machine work in MCM ? How is it related to meltdown protection?](#how-does-rate-limiting-replacement-of-machine-work-in-mcm-how-is-it-related-to-meltdown-protection)
   * [How MCM responds when scale-out/scale-in is done during rolling update of a machinedeployment?](#how-mcm-responds-when-scale-outscale-in-is-done-during-rolling-update-of-a-machinedeployment)
-  * [How does MCM handle an unhealthy node?](#how-does-mcm-handle-an-unhealthy-node)
+  * [How does MCM handle an unhealthy node?](#how-does-mcm-handle-an-unhealthy-node-)
 
 * [Troubleshooting](#troubleshooting)
   * [My machine is stuck in deletion for 1 hr, why?](#My-machine-is-stuck-in-deletion-for-1-hr-why)
