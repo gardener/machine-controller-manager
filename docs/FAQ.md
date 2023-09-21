@@ -275,10 +275,6 @@ During the deletion of the VM we only delete the local data and boot disks assoc
 with persistent volumes are left un-touched as their attach/de-detach, mount/unmount processes are handled by k8s
 attach-detach controller in conjunction with the CSI driver.
 
-
-
-
-
 # Troubleshooting
 ### My machine is stuck in deletion for 1 hr, why?
 
