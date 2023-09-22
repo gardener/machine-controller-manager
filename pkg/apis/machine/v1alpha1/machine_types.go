@@ -192,7 +192,7 @@ const (
 	// MachineOperationHealthCheck indicates that the operation was a create
 	MachineOperationHealthCheck MachineOperationType = "HealthCheck"
 
-	// MachineOperationDelete indicates that the operation was a create
+	// MachineOperationDelete indicates that the operation was a delete
 	MachineOperationDelete MachineOperationType = "Delete"
 )
 
