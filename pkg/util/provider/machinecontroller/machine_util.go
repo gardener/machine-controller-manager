@@ -1020,7 +1020,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 			}
 		}
 
-		klog.V(3).Infof("(drainNode) nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeReadyCondition, readOnlyFileSystemCondition)
+		klog.V(3).Infof("(drainNode) For node %q, machine %q, nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeName, machine.Name, nodeReadyCondition, readOnlyFileSystemCondition)
 		if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != v1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
 			message := "Setting forceDeletePods & forceDeleteMachine to true for drain as machine is NotReady for over 5min"
 			forceDeleteMachine = true
@@ -1116,12 +1116,11 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				klog.V(2).Infof("Drain successful for machine %q ,providerID %q, backing node %q. \nBuf:%v \nErrBuf:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf)
 
 				if forceDeletePods {
-					description = fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachments)
-					err = fmt.Errorf(description)
+					description = fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments)
 				} else { // regular drain already waits for vol detach and attach for another node.
 					description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
-					err = fmt.Errorf("Machine deletion in process. " + description)
 				}
+				err = fmt.Errorf(description)
 				state = v1alpha1.MachineStateProcessing
 
 				// Return error even when machine object is updated
@@ -1184,9 +1183,9 @@ func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachine
 		retryPeriod = 0
 	} else {
 		// case: where node.Status.VolumesAttached > 0
-		liveNodeVolAttachments, err := getLiveVolumeAttachmentsForNode(c.volumeAttachementLister, nodeName)
+		liveNodeVolAttachments, err := getLiveVolumeAttachmentsForNode(c.volumeAttachementLister, nodeName, machine.Name)
 		if err != nil {
-			klog.Errorf("(deleteNodeVolAttachments) Error obtaining VolumeAttachment(s) for node %q: ", nodeName, err)
+			klog.Errorf("(deleteNodeVolAttachments) Error obtaining VolumeAttachment(s) for node %q, machine %q: %s", nodeName, machine.Name, err)
 			return retryPeriod, err
 		}
 		if len(liveNodeVolAttachments) == 0 {
@@ -1195,15 +1194,15 @@ func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachine
 		} else {
 			err = deleteVolumeAttachmentsForNode(ctx, c.targetCoreClient.StorageV1().VolumeAttachments(), nodeName, liveNodeVolAttachments)
 			if err != nil {
-				klog.Errorf("(deleteNodeVolAttachments) Error deleting volume attachments for node %q: %s", nodeName, err)
+				klog.Errorf("(deleteNodeVolAttachments) Error deleting volume attachments for node %q, machine %q: %s", nodeName, machine.Name, err)
 			} else {
-				klog.V(3).Infof("(deleteNodeVolAttachments) Successfully deleted all volume attachments for node %q", nodeName)
+				klog.V(3).Infof("(deleteNodeVolAttachments) Successfully deleted all volume attachments for node %q, machine %q", nodeName, machine.Name)
 			}
 			return retryPeriod, nil
 		}
 	}
 	now := metav1.Now()
-	klog.V(4).Infof("(deleteVolumeAttachmentsForNode) For node %q, set LastOperation.Description: %q", nodeName, description)
+	klog.V(4).Infof("(deleteVolumeAttachmentsForNode) For node %q, machine %q, set LastOperation.Description: %q", nodeName, machine.Name, description)
 	err = c.machineStatusUpdate(
 		ctx,
 		machine,
@@ -1577,10 +1576,10 @@ func (c *controller) tryMarkingMachineFailed(ctx context.Context, machine, clone
 	return machineutils.ShortRetry, err
 }
 
-func getLiveVolumeAttachmentsForNode(volAttachLister storagelisters.VolumeAttachmentLister, nodeName string) ([]*storagev1.VolumeAttachment, error) {
+func getLiveVolumeAttachmentsForNode(volAttachLister storagelisters.VolumeAttachmentLister, nodeName string, machineName string) ([]*storagev1.VolumeAttachment, error) {
 	volAttachments, err := volAttachLister.List(labels.NewSelector())
 	if err != nil {
-		return nil, fmt.Errorf("cant list volume attachments for node %q: %w", nodeName, err)
+		return nil, fmt.Errorf("cant list volume attachments for node %q, machine %q: %w", nodeName, machineName, err)
 	}
 	nodeVolAttachments := make([]*storagev1.VolumeAttachment, 0, len(volAttachments))
 	for _, va := range volAttachments {

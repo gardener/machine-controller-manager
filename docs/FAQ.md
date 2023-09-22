@@ -267,11 +267,11 @@ drain process is initiated. The drain process is invoked either *gracefully* or 
 
 The usual drain process is graceful. Pods are evicted from the node and the drain process waits until any existing
 attached volumes are mounted on new node. However, if the node `Ready` is `False` or the `ReadonlyFilesystem` is `True`
-for greater than `5` minutes, then a forceful drain is initiated. In a forceful drain, pods are deleted
-and `VolumeAttachment` objects associated with the old node are also deleted. This is followed by the deletion of the
+for greater than `5` minutes (non-configurable), then a forceful drain is initiated. In a forceful drain, pods are deleted
+and `VolumeAttachment` objects associated with the old node are also marked for deletion. This is followed by the deletion of the
 cloud provider VM associated with the `Machine` and then finally ending with the `Node` object deletion. 
 
-During the deletion of the VM we only delete the local data and boot disks associated with the VM. The disks associated
+During the deletion of the VM we only delete the local data disks and boot disks associated with the VM. The disks associated
 with persistent volumes are left un-touched as their attach/de-detach, mount/unmount processes are handled by k8s
 attach-detach controller in conjunction with the CSI driver.
 
