@@ -24,13 +24,6 @@ import (
 	"strings"
 	"time"
 
-	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +32,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
+
+	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 /*
@@ -591,6 +592,9 @@ func (c *controller) triggerDeletionFlow(ctx context.Context, deleteMachineReque
 
 	case strings.Contains(machine.Status.LastOperation.Description, machineutils.InitiateDrain):
 		return c.drainNode(ctx, deleteMachineRequest)
+
+	case strings.Contains(machine.Status.LastOperation.Description, machineutils.DelVolumesAttachments):
+		return c.deleteNodeVolAttachments(ctx, deleteMachineRequest)
 
 	case strings.Contains(machine.Status.LastOperation.Description, machineutils.InitiateVMDeletion):
 		return c.deleteVM(ctx, deleteMachineRequest)
