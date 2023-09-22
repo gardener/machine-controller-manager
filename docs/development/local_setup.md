@@ -66,9 +66,9 @@ $ kubectl apply -f kubernetes/crds.yaml
 
 ## Getting started
 
-### Testing with Gardener
+**Setup and Restore with Gardener**
 
-**Setup**
+_Setup_
 
 In gardener access to static kubeconfig files is no longer supported due to security reasons. One needs to generate short-lived (max TTL = 1 day) admin kube configs for target and control clusters.
 A convenience script/Makefile target has been provided to do the required initial setup which includes:
@@ -81,7 +81,7 @@ A convenience script/Makefile target has been provided to do the required initia
 
 To do the above you can either invoke `make gardener-setup` or you can directly invoke the script `./hack/gardener_local_setup.sh`. If you invoke the script with `-h or --help` option then it will give you all CLI options that one can pass. 
 
-**Restore**
+_Restore_
 
 Once the testing is over you can invoke a convenience script/Makefile target which does the following:
 * Removes all generated admin kubeconfig files from both `machine-controller-manager` and in `machine-controller-manager-provider-<provider-name>` projects.
@@ -91,9 +91,9 @@ Once the testing is over you can invoke a convenience script/Makefile target whi
 
 To do the above you can either invoke `make gardener-restore` or you can directly invoke the script `./hack/gardener_local_restore.sh`. If you invoke the script with `-h or --help` option then it will give you all CLI options that one can pass.
 
-### Testing without Gardener
+**Setup and Restore without Gardener**
 
-**Setup**
+_Setup_
 
 If you are not running MCM components in a gardener cluster, then it is assumed that there is not going to be any `DWD (Dependency Watchdog)` component.
 A convenience script/Makefile target has been provided to the required initial setup which includes:
@@ -103,7 +103,7 @@ A convenience script/Makefile target has been provided to the required initial s
 
 To do the above you can either invoke `make non-gardener-setup` or you can directly invoke the script `./hack/non_gardener_local_setup.sh`. If you invoke the script with `-h or --help` option then it will give you all CLI options that one can pass.
 
-**Restore**
+_Restore_
 
 Once the testing is over you can invoke a convenience script/Makefile target which does the following:
 * Removes all provided kubeconfig files from both `machine-controller-manager` and in `machine-controller-manager-provider-<provider-name>` projects.
@@ -111,6 +111,8 @@ Once the testing is over you can invoke a convenience script/Makefile target whi
 * Scales up `machine-controller-manager` deployment in the control cluster back to 1 replica.
 
 To do the above you can either invoke `make non-gardener-restore` or you can directly invoke the script `./hack/non_gardener_local_restore.sh`. If you invoke the script with `-h or --help` option then it will give you all CLI options that one can pass.
+
+Once the setup is done then you can start the `machine-controller-manager` as a local process using the following `Makefile` target:
 
 ```bash
 $ make start
