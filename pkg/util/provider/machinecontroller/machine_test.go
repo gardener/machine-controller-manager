@@ -1492,7 +1492,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:                           fmt.Errorf("Machine deletion in process. Drain successful. %s", machineutils.InitiateVMDeletion),
+					err:                           fmt.Errorf("Drain successful. %s", machineutils.InitiateVMDeletion),
 					retry:                         machineutils.ShortRetry,
 					nodeTerminationConditionIsSet: true,
 					machine: newMachine(
@@ -1697,7 +1697,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf(fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachments)),
+					err:   fmt.Errorf(fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments)),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -1716,7 +1716,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachments),
+								Description:    fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments),
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -1799,7 +1799,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf(fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachments)),
+					err:   fmt.Errorf(fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments)),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -1818,7 +1818,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachments),
+								Description:    fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments),
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -1906,7 +1906,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf(fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachments)),
+					err:   fmt.Errorf(fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments)),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -1925,7 +1925,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain successful. %s", machineutils.DelVolumesAttachments),
+								Description:    fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments),
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -2008,7 +2008,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("Machine deletion in process. Drain successful. %s", machineutils.InitiateVMDeletion),
+					err:   fmt.Errorf("Drain successful. %s", machineutils.InitiateVMDeletion),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -2110,7 +2110,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("Machine deletion in process. Drain successful. %s", machineutils.InitiateVMDeletion),
+					err:   fmt.Errorf("Drain successful. %s", machineutils.InitiateVMDeletion),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
