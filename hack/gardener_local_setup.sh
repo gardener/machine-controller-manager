@@ -163,6 +163,9 @@ function download_kubeconfigs() {
     --raw "/apis/core.gardener.cloud/v1beta1/namespaces/${project_namespace}/shoots/${SHOOT}/adminkubeconfig" |
     jq -r '.status.kubeconfig' |
     base64 -d >"${ABSOLUTE_KUBE_CONFIG_PATH}/kubeconfig_target.yaml"
+
+  echo "Removing generated admin kube config json..."
+  rm -f "${SCRIPT_DIR}"/admin-kube-config-request.json
 }
 
 function create_kubeconfig_request_yaml() {

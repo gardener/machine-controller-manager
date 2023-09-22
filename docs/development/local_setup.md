@@ -46,7 +46,7 @@ Create a Docker hub account at [Docker Hub](https://hub.docker.com/) if you don'
 1. You have understood the [principles of Kubernetes](https://kubernetes.io/docs/concepts/), and its [components](https://kubernetes.io/docs/concepts/overview/components/), what their purpose is and how they interact with each other.
 1. You have understood the [architecture of the Machine Controller Manager](../../README.md#design-of-machine-controller-manager)
 
-The development of the Machine Controller Manager could happen by targetting any cluster. You basically need a Kubernetes cluster running on a set of machines. You just need the [Kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/authenticate-across-clusters-kubeconfig/) file with the required access permissions attached to it.
+The development of the Machine Controller Manager could happen by targeting any cluster. You basically need a Kubernetes cluster running on a set of machines. You just need the [Kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/authenticate-across-clusters-kubeconfig/) file with the required access permissions attached to it.
 
 ### Installing the Machine Controller Manager locally
 Clone the repository from GitHub.
@@ -66,10 +66,51 @@ $ kubectl apply -f kubernetes/crds.yaml
 
 ## Getting started
 
-- Create a `dev` directory.
-- Copy the kubeconfig of kubernetes cluster where you wish to deploy the machines into `dev/target-kubeconfig.yaml`.
-- (optional) Copy the kubeconfig of kubernetes cluster from where you wish to manage the machines into `dev/control-kubeconfig.yaml`. If you do this, also update the `Makefile` variable CONTROL_KUBECONFIG to point to `dev/control-kubeconfig.yaml` and CONTROL_NAMESPACE to the namespace in which your controller watches over.
-- There is a rule dev in the `Makefile` which will automatically start the Machine Controller Manager with development settings:
+### Testing with Gardener
+
+**Setup**
+
+In gardener access to static kubeconfig files is no longer supported due to security reasons. One needs to generate short-lived (max TTL = 1 day) admin kube configs for target and control clusters.
+A convenience script/Makefile target has been provided to do the required initial setup which includes:
+* Creating a temporary directory where target and control kubeconfigs will be stored.
+* Create a request to generate the short lived admin kubeconfigs. These are downloaded and stored in the temporary folder created above.
+* In gardener clusters `DWD (Dependency Watchdog)` runs as an additional component which can interfere when MCM/CA is scaled down. To prevent that an annotation `dependency-watchdog.gardener.cloud/ignore-scaling` is added to `machine-controller-manager` deployment which prevents `DWD` from scaling up the deployment replicas.
+* Scales down `machine-controller-manager` deployment in the control cluster to 0 replica.
+* Creates the required `.env` file and populates required environment variables which are then used by the `Makefile` in both `machine-controller-manager` and in `machine-controller-manager-provider-<provider-name>` projects.
+* Copies the generated and downloaded kubeconfig files for the target and control clusters to `machine-controller-manager-provider-<provider-name>` project as well.
+
+To do the above you can either invoke `make gardener-setup` or you can directly invoke the script `./hack/gardener_local_setup.sh`. If you invoke the script with `-h or --help` option then it will give you all CLI options that one can pass. 
+
+**Restore**
+
+Once the testing is over you can invoke a convenience script/Makefile target which does the following:
+* Removes all generated admin kubeconfig files from both `machine-controller-manager` and in `machine-controller-manager-provider-<provider-name>` projects.
+* Removes the `.env` file that was generated as part of the setup from both `machine-controller-manager` and in `machine-controller-manager-provider-<provider-name>` projects.
+* Scales up `machine-controller-manager` deployment in the control cluster back to 1 replica.
+* Removes the annotation `dependency-watchdog.gardener.cloud/ignore-scaling` that was added to prevent `DWD` to scale up MCM.
+
+To do the above you can either invoke `make gardener-restore` or you can directly invoke the script `./hack/gardener_local_restore.sh`. If you invoke the script with `-h or --help` option then it will give you all CLI options that one can pass.
+
+### Testing without Gardener
+
+**Setup**
+
+If you are not running MCM components in a gardener cluster, then it is assumed that there is not going to be any `DWD (Dependency Watchdog)` component.
+A convenience script/Makefile target has been provided to the required initial setup which includes:
+* Copies the provided control and target kubeconfig files to `machine-controller-manager-provider-<provider-name>` project.
+* Scales down `machine-controller-manager` deployment in the control cluster to 0 replica.
+* Creates the required `.env` file and populates required environment variables which are then used by the `Makefile` in both `machine-controller-manager` and in `machine-controller-manager-provider-<provider-name>` projects.
+
+To do the above you can either invoke `make non-gardener-setup` or you can directly invoke the script `./hack/non_gardener_local_setup.sh`. If you invoke the script with `-h or --help` option then it will give you all CLI options that one can pass.
+
+**Restore**
+
+Once the testing is over you can invoke a convenience script/Makefile target which does the following:
+* Removes all provided kubeconfig files from both `machine-controller-manager` and in `machine-controller-manager-provider-<provider-name>` projects.
+* Removes the `.env` file that was generated as part of the setup from both `machine-controller-manager` and in `machine-controller-manager-provider-<provider-name>` projects.
+* Scales up `machine-controller-manager` deployment in the control cluster back to 1 replica.
+
+To do the above you can either invoke `make non-gardener-restore` or you can directly invoke the script `./hack/non_gardener_local_restore.sh`. If you invoke the script with `-h or --help` option then it will give you all CLI options that one can pass.
 
 ```bash
 $ make start
