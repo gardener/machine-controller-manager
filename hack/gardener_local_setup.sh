@@ -51,7 +51,7 @@ function create_usage() {
       -l | --landscape                  <landscape-name>                    (Optional) Name of the landscape. Defaults to dev
       -k | --kubeconfig-path            <relative-kubeconfig-path>          (Optional) Relative path to the <PROJECT-DIR> where kubeconfigs will be downloaded. Path should not start with '/'. Default: <PROJECT-DIR>/dev/kube-configs
       -m | --mcm-provider-project-path  <absolute-mcm-provider-project-dir> (Optional) MCM Provider project directory. If not provided then it assumes that both mcm and mcm-provider projects are under the same parent directory
-      -e | --kubeconfig-expiry-seconds  <expiry-duration-in-seconds>        (Optional) Common expiry durations in seconds for control and target KubeConfigs. Default: 3600 seconds
+      -e | --kubeconfig-expiry-seconds  <expiry-duration-in-seconds>        (Optional) Common expiry durations in seconds for control and target KubeConfigs. Default: 3600 seconds. Max accepted value is 86400 seconds.
     ")
   echo "${usage}"
 }
@@ -118,6 +118,10 @@ function validate_args() {
     echo -e "Infrastructure provider name has not been passed. Please provide infrastructure provider name either by specifying --provider or -i argument"
     exit 1
   fi
+  if [[ -n "${KUBECONFIG_EXPIRY_SECONDS}" ]] && [[ "${KUBECONFIG_EXPIRY_SECONDS}" -gt 86400 ]]; then
+    echo -e "KubeConfig expiration seconds cannot be greater than 86400"
+    exit 1
+  fi
 }
 
 function initialize() {
@@ -126,7 +130,10 @@ function initialize() {
   fi
   echo "Creating directory ${RELATIVE_KUBECONFIG_PATH} if it does not exist..."
   mkdir -p "${RELATIVE_KUBECONFIG_PATH}"
-  ABSOLUTE_KUBE_CONFIG_PATH="$(cd "$(dirname "${RELATIVE_KUBECONFIG_PATH}")"; pwd)/$(basename "${RELATIVE_KUBECONFIG_PATH}")"
+  ABSOLUTE_KUBE_CONFIG_PATH="$(
+    cd "$(dirname "${RELATIVE_KUBECONFIG_PATH}")"
+    pwd
+  )/$(basename "${RELATIVE_KUBECONFIG_PATH}")"
   ABSOLUTE_PROVIDER_KUBECONFIG_PATH="${PROVIDER_MCM_PROJECT_DIR}/dev/kube-configs"
   echo "Creating directory ${ABSOLUTE_PROVIDER_KUBECONFIG_PATH} if it does not exist..."
   mkdir -p "${ABSOLUTE_PROVIDER_KUBECONFIG_PATH}"
@@ -156,6 +163,9 @@ function download_kubeconfigs() {
     --raw "/apis/core.gardener.cloud/v1beta1/namespaces/${project_namespace}/shoots/${SHOOT}/adminkubeconfig" |
     jq -r '.status.kubeconfig' |
     base64 -d >"${ABSOLUTE_KUBE_CONFIG_PATH}/kubeconfig_target.yaml"
+
+  echo "Removing generated admin kube config json..."
+  rm -f "${SCRIPT_DIR}"/admin-kube-config-request.json
 }
 
 function create_kubeconfig_request_yaml() {
@@ -192,15 +202,15 @@ function scale_down_mcm() {
 function set_makefile_env() {
   if [[ $# -ne 2 ]]; then
     echo -e "${FUNCNAME[0]} expects two arguments - project-directory and target-kube-config-path"
-    fi
-   local target_project_dir target_kube_config_path
-   target_project_dir="$1"
-   target_kube_config_path="$2"
+  fi
+  local target_project_dir target_kube_config_path
+  target_project_dir="$1"
+  target_kube_config_path="$2"
   {
     printf "\n%s" "CONTROL_NAMESPACE=shoot--${PROJECT}--${SHOOT}"
-    printf "\n%s" "CONTROL_KUBECONFIG=${target_kube_config_path}/kubeconfig_control.yaml" >> "${target_project_dir}/.env"
-    printf "\n%s" "TARGET_KUBECONFIG=${target_kube_config_path}/kubeconfig_target.yaml" >> "${target_project_dir}/.env"
-  } >> "${target_project_dir}/.env"
+    printf "\n%s" "CONTROL_KUBECONFIG=${target_kube_config_path}/kubeconfig_control.yaml" >>"${target_project_dir}/.env"
+    printf "\n%s" "TARGET_KUBECONFIG=${target_kube_config_path}/kubeconfig_target.yaml" >>"${target_project_dir}/.env"
+  } >>"${target_project_dir}/.env"
 }
 
 function main() {

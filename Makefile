@@ -13,6 +13,7 @@
 # limitations under the License.
 
 include .env
+include hack/tools.mk
 
 IMAGE_REPOSITORY   := eu.gcr.io/gardener-project/gardener/machine-controller-manager
 IMAGE_TAG          := $(shell cat VERSION)
@@ -29,11 +30,11 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 ###########################################
-# Rules When K8s cluster is Gardener Shoot#
+# Setup targets for gardener shoot 		  #
 ###########################################
 
-.PHONY: setup
-setup:
+.PHONY: gardener-setup
+gardener-setup:
 	@echo "enter project name"; \
 	read PROJECT; \
 	echo "enter seed name"; \
@@ -42,21 +43,53 @@ setup:
 	read SHOOT; \
 	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)"; \
 	read PROVIDER; \
-	./hack/local_setup.sh --seed $$SEED --shoot $$SHOOT --project $$PROJECT --provider $$PROVIDER
+	./hack/gardener_local_setup.sh --seed $$SEED --shoot $$SHOOT --project $$PROJECT --provider $$PROVIDER
 
-.PHONY: local-mcm-up
-local-mcm-up: setup
+.PHONY: gardener-local-mcm-up
+gardener-local-mcm-up: gardener-setup
 	$(MAKE) start;
 
-.PHONY: restore
-restore:
+.PHONY: gardener-restore
+gardener-restore:
 	@echo "enter project name"; \
 	read PROJECT; \
 	echo "enter shoot name"; \
 	read SHOOT; \
 	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)"; \
 	read PROVIDER; \
-	./hack/local_restore.sh --shoot $$SHOOT --project $$PROJECT --provider $$PROVIDER
+	./hack/gardener_local_restore.sh --shoot $$SHOOT --project $$PROJECT --provider $$PROVIDER
+
+
+###########################################
+# Setup targets for non-gardener          #
+###########################################
+
+.PHONY: non-gardener-setup
+non-gardener-setup:
+	@echo "enter namespace"; \
+	read NAMESPACE; \
+	echo "enter control kubeconfig path"; \
+	read CONTROL_KUBECONFIG_PATH; \
+	echo "enter target kubeconfig path"; \
+	read TARGET_KUBECONFIG_PATH; \
+	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)"; \
+	read PROVIDER; \
+	./hack/non_gardener_local_setup.sh --namespace $$NAMESPACE --control-kubeconfig-path $$CONTROL_KUBECONFIG_PATH --target-kubeconfig-path $$TARGET_KUBECONFIG_PATH --provider $$PROVIDER
+
+.PHONY: non-gardener-local-mcm-up
+non-gardener-local-mcm-up: non-gardener-setup
+	$(MAKE) start;
+
+.PHONY: non-gardener-restore
+non-gardener-restore:
+	@echo "enter namespace"; \
+	read NAMESPACE; \
+	echo "enter control kubeconfig path"; \
+	read CONTROL_KUBECONFIG_PATH; \
+	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)"; \
+	read PROVIDER; \
+	@echo "enter project name"; \
+	./hack/non_gardener_local_restore.sh --namespace $$NAMESPACE --control-kubeconfig-path $$CONTROL_KUBECONFIG_PATH --provider $$PROVIDER
 
 #########################################
 # Rules for local development scenarios #

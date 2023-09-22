@@ -18,14 +18,14 @@ set -o errexit
 set -o pipefail
 
 ##############################################################################################################
-# Script restores MCM deployment and removes the annotation dependency-watchdog.gardener.cloud/ignore-scaling
-# This script should be called once you are done using local_setup.sh
+# Script restores MCM deployment and cleans up any temporary files that were required or created by its
+# counter-part script  non_gardener_local_setup.sh.
+# This script should be called once you are done using gardener_local_setup.sh
 ##############################################################################################################
 
-declare SHOOT PROJECT PROVIDER
+declare PROVIDER NAMESPACE CONTROL_KUBECONFIG_PATH
 declare PROVIDER_MCM_PROJECT_DIR
 declare RELATIVE_KUBECONFIG_PATH="dev/kube-configs"
-declare LANDSCAPE_NAME="dev"
 
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
@@ -35,11 +35,9 @@ function create_usage() {
   usage=$(printf '%s\n' "
     Usage: $(basename $0) [Options]
     Options:
-      -t | --shoot                      <shoot-cluster-name>                (Required) Name of the Gardener Shoot Cluster
-      -p | --project                    <project-name>                      (Required) Name of the Gardener Project
-      -l | --landscape                  <landscape-name>                    (Optional) Name of the landscape. Defaults to dev
+      -n | --namespace                  <namespace>                         (Required) This is the namespace where MCM pods are deployed.
+      -c | --control-kubeconfig-path    <control-kubeconfig-path>           (Required) Kubeconfig file path which points to the control-plane of cluster where MCM is running.
       -i | --provider                   <provider-name>                     (Required) Infrastructure provider name. Supported providers (gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)
-      -k | --kubeconfig-path            <relative-kubeconfig-path>          (Optional) Relative path to the <PROJECT-DIR> where kubeconfigs will be downloaded. Path should not start with '/'. Default: <PROJECT-DIR>/dev/kube-configs
       -m | --mcm-provider-project-path  <absolute-mcm-provider-project-dir> (Optional) MCM Provider project directory. If not provided then it assumes that both mcm and mcm-provider projects are under the same parent directory
     ")
   echo "${usage}"
@@ -48,25 +46,17 @@ function create_usage() {
 function parse_flags() {
   while test $# -gt 0; do
     case "$1" in
-    --shoot | -t)
+    --namespace | -n)
       shift
-      SHOOT="$1"
+      NAMESPACE="$1"
       ;;
-    --project | -p)
+    --control-kubeconfig-path | -c)
       shift
-      PROJECT="$1"
-      ;;
-    --landscape | -l)
-      shift
-      LANDSCAPE_NAME="$1"
+      CONTROL_KUBECONFIG_PATH="$1"
       ;;
     --provider | -i)
       shift
       PROVIDER="$1"
-      ;;
-    --kubeconfig-path | -k)
-      shift
-      RELATIVE_KUBECONFIG_PATH="$1"
       ;;
     --mcm-provider-project-path | -m)
       shift
@@ -83,12 +73,16 @@ function parse_flags() {
 }
 
 function validate_args() {
-  if [[ -z "${SHOOT}" ]]; then
-    echo -e "Shoot has not been passed. Please provide Shoot either by specifying --shoot or -t argument"
+  if [[ -z "${NAMESPACE}" ]]; then
+    echo -e "Namespace has not been passed. Please provide it either by specifying --namespace or -n argument"
     exit 1
   fi
-  if [[ -z "${PROJECT}" ]]; then
-    echo -e "Project name has not been passed. Please provide Project name either by specifying --project or -p argument"
+  if [[ -z "${CONTROL_KUBECONFIG_PATH}" ]]; then
+    echo -e "Kubeconfig file path for control cluster has not been passed. Please provide it either by specifying --control-kubeconfig-path or -c argument"
+    exit 1
+  fi
+  if [[ -z "${PROVIDER}" ]]; then
+    echo -e "Provider name has not been passed. Please provide it either by specifying --provider or -p argument"
     exit 1
   fi
 }
@@ -102,13 +96,8 @@ function initialize_variables() {
 }
 
 function restore_mcm_deployment() {
-  local virtual_garden_cluster="sap-landscape-${LANDSCAPE_NAME}"
-  gardenctl target --garden "${virtual_garden_cluster}" --project "${PROJECT}" --shoot "${SHOOT}" --control-plane
-  eval "$(gardenctl kubectl-env zsh)"
-  echo "removing annotation dependency-watchdog.gardener.cloud/ignore-scaling from mcm deployment..."
-  kubectl annotate --overwrite=true deployment/machine-controller-manager dependency-watchdog.gardener.cloud/ignore-scaling-
   echo "scaling up mcm deployment to 1..."
-  kubectl scale deployment/machine-controller-manager --replicas=1
+  KUBECONFIG="${CONTROL_KUBECONFIG_PATH}" kubectl scale deployment/machine-controller-manager --replicas=1
 }
 
 function delete_generated_configs() {
@@ -118,8 +107,6 @@ function delete_generated_configs() {
   echo "Clearing .env files..."
   sed -r -i '/^#/!d' "${PROJECT_DIR}"/.env
   sed -r -i '/^#/!d' "${PROVIDER_MCM_PROJECT_DIR}"/.env
-  echo "Removing generated admin kube config json..."
-  rm -f "${SCRIPT_DIR}"/admin-kube-config-request.json
 }
 
 function main() {

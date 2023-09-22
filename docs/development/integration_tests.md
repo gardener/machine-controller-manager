@@ -8,11 +8,12 @@ Integration tests for `machine-controller-manager-provider-{provider-name}` can 
 
 1. Clone the repository `machine-controller-manager-provider-{provider-name}` on the local system.
 1. Navigate to `machine-controller-manager-provider-{provider-name}` directory and create a `dev` sub-directory in it.
-1. Copy the kubeconfig of the Control Cluster into `dev/control-kubeconfig.yaml` and update the `Makefile` variable `CONTROL_KUBECONFIG` to point to `dev/control-kubeconfig.yaml`. 
-1. Update the `Makefile` variable `CONTROL_NAMESPACE` to a valid namespace of the control cluster. This is the namespace that is used to deploy all resources and run tests.
-1. (optional) Copy the kubeconfig of the Target Cluster into `dev/target-kubeconfig.yaml` and update the `Makefile` variable `TARGET_KUBECONFIG` to point to `dev/target-kubeconfig.yaml`.
-1. If the tags on instances & associated resources on the provider are of `String` type (for example, GCP tags on its instances are of type `String` and not key-value pair) then add `TAGS_ARE_STRINGS := true` in the `Makefile` and export it.
-1. Atleast, one of the two controllers' container images must be set in the `Makefile` variables `MCM_IMAGE` and `MC_IMAGE` for the controllers to run in the Control Cluster. These images will be used along with `kubernetes/deployment.yaml` to deploy/update controllers in the Control Cluster. If the intention is to run the controllers locally then unset the variables `MCM_IMAGE` and `MC_IMAGE` and set variable `MACHINE_CONTROLLER_MANAGER_DEPLOYMENT_NAME := machine-controller-manager` in the `Makefile`.
+1. Create a `.env` file at the root of the `machine-controller-manager-provider-{provider-name}` project. This file serves as an environments file where all key-value pairs that are used in the `Makefile` are defined.
+1. Copy the kubeconfig of the Control Cluster into `dev/control-kubeconfig.yaml` and add an entry in the `.env` file with `CONTROL_KUBECONFIG=dev/control-kubeconfig.yaml`. 
+1. Add `CONTROL_NAMESPACE=<namespace of the control cluster>` to the `.env` file. This is the namespace that is used to deploy all resources and run tests.
+1. (optional) Copy the kubeconfig of the Target Cluster into `dev/target-kubeconfig.yaml` and add an entry in the `.env` file with `TARGET_KUBECONFIG=dev/target-kubeconfig.yaml`.
+1. If the tags on instances & associated resources on the provider are of `String` type (for example, GCP tags on its instances are of type `String` and not key-value pair) then add `TAGS_ARE_STRINGS := true` in the `Makefile` and export it. For GCP this has already been hard coded in the `Makefile`.
+1. If the intention is to run any controllers in the control cluster, then `.env` should have at least one of `MCM_IMAGE` and `MC_IMAGE` defined. These images will be used along with `kubernetes/deployment.yaml` to deploy/update controllers in the Control Cluster. If the intention is to run the controllers locally then remove `MCM_IMAGE` and `MC_IMAGE` key-value pairs defined in `.env` and set `MACHINE_CONTROLLER_MANAGER_DEPLOYMENT_NAME=machine-controller-manager` in the `.env` file.
 1. In order to apply the CRDs when the Control Cluster is a Gardener Shoot or if none of the controller images are specified, `machine-controller-manager` repository will be cloned automatically. Incase, this repository already exists in local system, then create a softlink as below which helps to test changes in `machine-controller-manager` quickly.
     ```bash
     ln -sf <path-for-machine-controller-manager-repo> dev/mcm
