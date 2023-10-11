@@ -513,8 +513,8 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 	return retryRequired, statusUpdErr
 }
 
-// adjustCreateRetryRequired adjusts the retry period  if needed so that we don't have a case where the machine is reconciled after machineCreationTimeout
-// if the retry period is too large so that, it is adjusted so that it causes a reconcile at the machineCreationTimeout
+// adjustCreateRetryRequired adjusts the retry period if needed so that we don't have a case where the machine is reconciled long (<=ShortRetry) after machineCreationTimeout
+// if the retry period is too large, it is adjusted to cause a reconcile at the machineCreationTimeout
 // if the machineCreationTimeout has already passed, return `ShortRetry` so that the machine is immediately reconciled
 func (c *controller) adjustCreateRetryRequired(machine *v1alpha1.Machine, retryRequired machineutils.RetryPeriod) machineutils.RetryPeriod {
 	adjustedRetry := retryRequired
@@ -522,7 +522,7 @@ func (c *controller) adjustCreateRetryRequired(machine *v1alpha1.Machine, retryR
 	if time.Now().After(machineCreationDeadline) {
 		adjustedRetry = machineutils.ShortRetry
 	} else if time.Now().Add(time.Duration(retryRequired)).After(machineCreationDeadline) {
-		// Machine will reconcile after create deadline. Adapt RetryPeriod to reconcile machine at deadline
+		// Machine will reconcile after create deadline, so adapt RetryPeriod to reconcile machine at deadline
 		adjustedRetry = machineutils.RetryPeriod(machineCreationDeadline.Sub(time.Now()))
 	}
 

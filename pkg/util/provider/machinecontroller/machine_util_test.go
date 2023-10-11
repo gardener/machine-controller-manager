@@ -2726,7 +2726,7 @@ var _ = Describe("machine_util", func() {
 		)
 	})
 
-	Describe("#Adjust Machine Create Retry Timeout", func() {
+	Describe("#Adjust Machine Create Retry Period if near Timeout", func() {
 		type setup struct {
 			machine         *machinev1.Machine
 			mcCreateTimeout metav1.Duration
@@ -2755,6 +2755,7 @@ var _ = Describe("machine_util", func() {
 				adjustedRetry := c.adjustCreateRetryRequired(data.setup.machine, machineutils.RetryPeriod(data.setup.createOpRetry))
 
 				if data.expect.retryAdjusted {
+					// Considering time.Now() = 0
 					Expect(adjustedRetry).Should(BeNumerically("<=", machineutils.RetryPeriod(c.getEffectiveCreationTimeout(data.setup.machine).Duration)))
 				} else {
 					Expect(adjustedRetry).To(Equal(data.setup.createOpRetry))
@@ -2775,7 +2776,7 @@ var _ = Describe("machine_util", func() {
 					retryAdjusted: false,
 				},
 			}),
-			Entry("Should adjust machine create retry period to machine create deadline if retry is set to occur after machine create deadline", &data{
+			Entry("Should adjust machine create retry period to retry at machine create deadline if retry is set to occur after machine create deadline", &data{
 				setup: setup{
 					createOpRetry:   machineutils.RetryPeriod(4 * time.Minute),
 					mcCreateTimeout: metav1.Duration{Duration: 3 * time.Minute},

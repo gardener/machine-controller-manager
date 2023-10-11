@@ -355,9 +355,10 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				// If node label is not present
 				klog.V(2).Infof("Creating a VM for machine %q, please wait!", machine.Name)
 				klog.V(2).Infof("The machine creation is triggered with timeout of %s", c.getEffectiveCreationTimeout(createMachineRequest.Machine).Duration)
-				createMCCtx, cancelFunc := c.getCreationContext(ctx, machine)
+				createMachineCtx, cancelFunc := c.getCreationContext(ctx, machine)
 				defer cancelFunc()
-				createMachineResponse, err := c.driver.CreateMachine(createMCCtx, createMachineRequest)
+				//TODO Adapt all mcm-providers driver method implementations to use the passed context
+				createMachineResponse, err := c.driver.CreateMachine(createMachineCtx, createMachineRequest)
 				if err != nil {
 					// Create call returned an error.
 					klog.Errorf("Error while creating machine %s: %s", machine.Name, err.Error())
