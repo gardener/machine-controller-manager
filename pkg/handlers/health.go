@@ -38,6 +38,8 @@ func Healthz(w http.ResponseWriter, r *http.Request) {
 	mutex.Lock()
 	isHealthy := healthy
 	mutex.Unlock()
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'")
 	if isHealthy {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("OK"))
