@@ -22,7 +22,7 @@ Integration tests for `machine-controller-manager-provider-{provider-name}` can 
 ### Gardener Shoot as the Control Cluster 
 
 If the Control Cluster is a Gardener Shoot cluster then,
-git
+
 1. Deploy a `Secret` named `test-mc-secret` (that contains the provider secret and cloud-config) in the `default` namespace of the Control Cluster.
 1. Create a `dev/machineclassv1.yaml` file in the cloned repository and add an entry in the `.env` file with `MACHINECLASS_V1=dev/machineclassv1.yaml`. The name of the `MachineClass` itself should be `test-mc-v1`. The value of `providerSpec.secretRef.name` should be `test-mc-secret`. 
 1. (Optional) Create an additional `dev/machineclassv2.yaml` file similar to above but with a bigger machine type and add an entry in the `.env` file with `MACHINECLASS_V2=dev/machineclassv2.yaml`.
