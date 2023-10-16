@@ -9,7 +9,7 @@ Integration tests for `machine-controller-manager-provider-{provider-name}` can 
 1. Clone the repository `machine-controller-manager-provider-{provider-name}` on the local system.
 1. Navigate to `machine-controller-manager-provider-{provider-name}` directory and create a `dev` sub-directory in it.
 1. Create a `.env` file at the root of the `machine-controller-manager-provider-{provider-name}` project. This file serves as an environments file where all key-value pairs that are used in the `Makefile` are defined.
-1. Copy the kubeconfig of the Control Cluster into `dev/control-kubeconfig.yaml` and add an entry in the `.env` file with `CONTROL_KUBECONFIG=dev/control-kubeconfig.yaml`.
+1. Copy the kubeconfig of the Control Cluster into `dev/control-kubeconfig.yaml` and add an entry in the `.env` file with `CONTROL_KUBECONFIG=dev/control-kubeconfig.yaml`. 
 1. Add `CONTROL_NAMESPACE=<namespace of the control cluster>` to the `.env` file. This is the namespace that is used to deploy all resources and run tests.
 1. (optional) Copy the kubeconfig of the Target Cluster into `dev/target-kubeconfig.yaml` and add an entry in the `.env` file with `TARGET_KUBECONFIG=dev/target-kubeconfig.yaml`.
 1. If the tags on instances & associated resources on the provider are of `String` type (for example, GCP tags on its instances are of type `String` and not key-value pair) then add `TAGS_ARE_STRINGS := true` in the `Makefile` and export it. For GCP this has already been hard coded in the `Makefile`.
