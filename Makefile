@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-include .env
+-include .env
 include hack/tools.mk
 
 IMAGE_REPOSITORY   := eu.gcr.io/gardener-project/gardener/machine-controller-manager
