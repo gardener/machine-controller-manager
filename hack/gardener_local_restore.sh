@@ -115,9 +115,9 @@ function delete_generated_configs() {
   echo "Removing downloaded kubeconfigs..."
   rm -f "${ABSOLUTE_KUBE_CONFIG_PATH}"/*.yaml
   rm -f "${ABSOLUTE_PROVIDER_KUBECONFIG_PATH}"/*.yaml
-  echo "Clearing .env files..."
-  sed -r -i '/^#/!d' "${PROJECT_DIR}"/.env
-  sed -r -i '/^#/!d' "${PROVIDER_MCM_PROJECT_DIR}"/.env
+  echo "Deleting .env files..."
+  rm -f "${PROJECT_DIR}"/.env
+  rm -f "${PROVIDER_MCM_PROJECT_DIR}"/.env
   echo "Removing generated admin kube config json if any..."
   rm -f "${SCRIPT_DIR}"/admin-kube-config-request.json
 }
