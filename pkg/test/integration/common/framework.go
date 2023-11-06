@@ -687,17 +687,17 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 // If the file exists already then it renames it so that a new file can be created
 func rotateLogFile(fileName string) (*os.File, error) {
 	if _, err := os.Stat(fileName); err == nil { // !strings.Contains(err.Error(), "no such file or directory") {
-		no_of_files := 1
+		noOfFiles := 1
 		temp := fileName + "." + strconv.Itoa(no_of_files)
 		_, err := os.Stat(temp)
 		// Finding the total number of log files
 		for err == nil {
-			no_of_files += 1
+			noOfFiles += 1
 			temp = fileName + "." + strconv.Itoa(no_of_files)
 			_, err = os.Stat(temp)
 		}
 		// Renaming all log files having last characters as ".x" where x >=1
-		for i := no_of_files - 1; i > 0; i-- {
+		for i := noOfFiles - 1; i > 0; i-- {
 			f := fmt.Sprintf("%s.%d", fileName, i)
 			fNew := fmt.Sprintf("%s.%d", fileName, i+1)
 			if err := os.Rename(f, fNew); err != nil {
@@ -711,6 +711,7 @@ func rotateLogFile(fileName string) (*os.File, error) {
 			return nil, fmt.Errorf("failed to rename file %s to %s: %w", fileName, fNew, err)
 		}
 	}
+	// Creating a new log file
 	return os.Create(fileName)
 }
 
