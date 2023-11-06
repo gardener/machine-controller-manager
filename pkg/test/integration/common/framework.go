@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -686,18 +687,29 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 // If the file exists already then it renames it so that a new file can be created
 func rotateLogFile(fileName string) (*os.File, error) {
 	if _, err := os.Stat(fileName); err == nil { // !strings.Contains(err.Error(), "no such file or directory") {
-		for i := 9; i > 0; i-- {
+		noOfFiles := 0
+		temp := fileName + "." + strconv.Itoa(noOfFiles+1)
+		_, err := os.Stat(temp)
+		// Finding the log files ending with ".x" where x >= 1 and renaming
+		for err == nil {
+			noOfFiles++
+			temp = fileName + "." + strconv.Itoa(noOfFiles+1)
+			_, err = os.Stat(temp)
+		}
+		for i := noOfFiles; i > 0; i-- {
 			f := fmt.Sprintf("%s.%d", fileName, i)
 			fNew := fmt.Sprintf("%s.%d", fileName, i+1)
 			if err := os.Rename(f, fNew); err != nil {
 				return nil, fmt.Errorf("failed to rename file %s to %s: %w", f, fNew, err)
 			}
 		}
+		// Renaming the log file without suffix ".x" to log file ending with ".1"
 		fNew := fmt.Sprintf("%s.%d", fileName, 1)
 		if err := os.Rename(fileName, fNew); err != nil {
 			return nil, fmt.Errorf("failed to rename file %s to %s: %w", fileName, fNew, err)
 		}
 	}
+	// Creating a new log file
 	return os.Create(fileName)
 }
 
