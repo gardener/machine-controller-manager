@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -686,10 +687,22 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 // If the file exists already then it renames it so that a new file can be created
 func rotateLogFile(fileName string) (*os.File, error) {
 	if _, err := os.Stat(fileName); err == nil { // !strings.Contains(err.Error(), "no such file or directory") {
-		for i := 9; i > 0; i-- {
+		no_of_files := 1
+		temp := fileName + "." + strconv.Itoa(no_of_files)
+		_, err := os.Stat(temp)
+		// Finding number of log files ending with ".x" ( x -> 1,2,3... )
+		for err == nil {
+			no_of_files += 1
+			temp = fileName + "." + strconv.Itoa(no_of_files)
+			_, err = os.Stat(temp)
+		}
+		// Renaming all such files
+		for i := no_of_files - 1; i > 0; i-- {
+			fmt.Println()
 			f := fmt.Sprintf("%s.%d", fileName, i)
 			fNew := fmt.Sprintf("%s.%d", fileName, i+1)
 			if err := os.Rename(f, fNew); err != nil {
+				fmt.Println(i, " ")
 				return nil, fmt.Errorf("failed to rename file %s to %s: %w", f, fNew, err)
 			}
 		}
