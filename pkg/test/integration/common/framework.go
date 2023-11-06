@@ -698,7 +698,6 @@ func rotateLogFile(fileName string) (*os.File, error) {
 		}
 		// Renaming all such files
 		for i := no_of_files - 1; i > 0; i-- {
-			fmt.Println()
 			f := fmt.Sprintf("%s.%d", fileName, i)
 			fNew := fmt.Sprintf("%s.%d", fileName, i+1)
 			if err := os.Rename(f, fNew); err != nil {
