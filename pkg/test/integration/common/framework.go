@@ -688,12 +688,12 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 func rotateLogFile(fileName string) (*os.File, error) {
 	if _, err := os.Stat(fileName); err == nil { // !strings.Contains(err.Error(), "no such file or directory") {
 		noOfFiles := 1
-		temp := fileName + "." + strconv.Itoa(no_of_files)
+		temp := fileName + "." + strconv.Itoa(noOfFiles)
 		_, err := os.Stat(temp)
 		// Finding the total number of log files
 		for err == nil {
-			noOfFiles += 1
-			temp = fileName + "." + strconv.Itoa(no_of_files)
+			noOfFiles++
+			temp = fileName + "." + strconv.Itoa(noOfFiles)
 			_, err = os.Stat(temp)
 		}
 		// Renaming all log files having last characters as ".x" where x >=1
