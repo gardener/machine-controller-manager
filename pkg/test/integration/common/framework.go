@@ -690,13 +690,13 @@ func rotateLogFile(fileName string) (*os.File, error) {
 		no_of_files := 1
 		temp := fileName + "." + strconv.Itoa(no_of_files)
 		_, err := os.Stat(temp)
-		// Finding number of log files ending with ".x" ( x -> 1,2,3... )
+		// Finding the total number of log files
 		for err == nil {
 			no_of_files += 1
 			temp = fileName + "." + strconv.Itoa(no_of_files)
 			_, err = os.Stat(temp)
 		}
-		// Renaming all such files
+		// Renaming all log files having last characters as ".x" where x >=1
 		for i := no_of_files - 1; i > 0; i-- {
 			f := fmt.Sprintf("%s.%d", fileName, i)
 			fNew := fmt.Sprintf("%s.%d", fileName, i+1)
@@ -705,6 +705,7 @@ func rotateLogFile(fileName string) (*os.File, error) {
 				return nil, fmt.Errorf("failed to rename file %s to %s: %w", f, fNew, err)
 			}
 		}
+		// Renaming the log file without suffix ".x" to log file ending with ".1"
 		fNew := fmt.Sprintf("%s.%d", fileName, 1)
 		if err := os.Rename(fileName, fNew); err != nil {
 			return nil, fmt.Errorf("failed to rename file %s to %s: %w", fileName, fNew, err)
