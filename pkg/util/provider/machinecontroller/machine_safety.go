@@ -193,8 +193,9 @@ func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineut
 					machineutils.NotManagedByMCM: "1",
 				}
 
+				klog.V(3).Infof("Adding NotManagedByMCM annotation to Node %q", node.Name)
 				// err is returned only when node update fails
-				if err := c.updateNodeWithAnnotation(ctx, nodeCopy, annotations); err != nil {
+				if err := c.updateNodeWithAnnotations(ctx, nodeCopy, annotations); err != nil {
 					return machineutils.MediumRetry, err
 				}
 			}
@@ -206,9 +207,8 @@ func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineut
 			klog.V(3).Infof("Removing NotManagedByMCM annotation from Node %q associated with Machine %q", node.Name, machine.Name)
 			nodeCopy := node.DeepCopy()
 			delete(nodeCopy.Annotations, machineutils.NotManagedByMCM)
-			_, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
-			if err != nil {
-				klog.Errorf("Failed to remove NotManagedByMCM from Node %q associated with Machine %q due to: %s", node.Name, machine.Name, err)
+			if err := c.updateNodeWithAnnotations(ctx, nodeCopy, nil); err != nil {
+				return machineutils.MediumRetry, err
 			}
 		}
 	}
