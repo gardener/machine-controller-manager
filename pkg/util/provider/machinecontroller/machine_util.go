@@ -1022,7 +1022,13 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 			}
 		}
 
-		klog.V(3).Infof("(drainNode) For node %q, machine %q, nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeName, machine.Name, nodeReadyCondition, readOnlyFileSystemCondition)
+		// verify and log node object's existence
+		if _, err := c.nodeLister.Get(nodeName); err == nil {
+			klog.V(3).Infof("(drainNode) For node %q, machine %q, nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeName, machine.Name, nodeReadyCondition, readOnlyFileSystemCondition)
+		} else if apierrors.IsNotFound(err) {
+			klog.Warningf("(drainNode) Node %q for machine %q doesn't exist, so drain will finish instantly", nodeName, machine.Name)
+		}
+
 		if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != v1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
 			message := "Setting forceDeletePods & forceDeleteMachine to true for drain as machine is NotReady for over 5min"
 			forceDeleteMachine = true
@@ -1502,12 +1508,13 @@ func (c *controller) canMarkMachineFailed(machineDeployName, machineName, namesp
 		}
 	}
 
-	klog.V(2).Infof("machineDeployName=%q for machine=%q , terminating=%d , failed=%d , pending=%d , noPhase=%d , crashLooping=%d , extraCountedProgress=%d", machineDeployName, machineName, terminating, failed, pending, noPhase, crashLooping, terminating)
+	klog.V(2).Infof("Performing rate-limit check for machine=%q. Under machineDeployment=%q : terminating=%d , failed=%d , pending=%d , noPhase=%d , crashLooping=%d , extraCountedProgress=%d", machineName, machineDeployName, terminating, failed, pending, noPhase, crashLooping, terminating)
 
 	if inProgress < maxReplacements {
 		klog.V(2).Infof("Number of goroutines now %d\n", runtime.NumGoroutine())
 		return true, nil
 	}
+	klog.V(2).Infof("Cannot mark `Unknown` machine=%q as `Failed` as max rate-limit reached for machineDeployment=%q. maxAllowedReplacements=%d and inProgressReplacements=%d", machineName, machineDeployName, maxReplacements, inProgress)
 	return false, nil
 }
 
