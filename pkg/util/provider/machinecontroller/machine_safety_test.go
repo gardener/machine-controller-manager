@@ -418,7 +418,8 @@ var _ = Describe("safety_logic", func() {
 	Describe("#AnnotateNodesUnmanagedByMCM", func() {
 
 		type setup struct {
-			node *corev1.Node
+			node                     *corev1.Node
+			associateNodeWithMachine bool
 		}
 		type action struct {
 		}
@@ -440,6 +441,25 @@ var _ = Describe("safety_logic", func() {
 
 				targetCoreObjects := []runtime.Object{}
 				controlMachineObjects := []runtime.Object{}
+
+				if data.setup.associateNodeWithMachine {
+					//optional machine object for test-node-1 ie data.setup.node
+					testMachineObject := &v1alpha1.Machine{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "testmachine_0",
+							Namespace: testNamespace,
+							Labels: map[string]string{
+								v1alpha1.NodeLabelKey: data.setup.node.Name,
+							},
+						},
+						Status: v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase: v1alpha1.MachineRunning,
+							},
+						},
+					}
+					controlMachineObjects = append(controlMachineObjects, testMachineObject)
+				}
 
 				//machine object for test-node-1
 				testMachineObject := &v1alpha1.Machine{
@@ -695,6 +715,66 @@ var _ = Describe("safety_logic", func() {
 							Annotations: map[string]string{
 								"anno1":                      "value1",
 								machineutils.NotManagedByMCM: "1",
+							},
+						},
+					},
+					node1: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-1",
+							Annotations: map[string]string{
+								"anno1": "value1",
+							},
+						},
+					},
+					node2: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-2",
+							Annotations: map[string]string{
+								"anno1": "value1",
+							},
+						},
+					},
+					retry: machineutils.LongRetry,
+					err:   nil,
+				},
+			}),
+			Entry("Node incorrectly assigned NotManagedByMCM annotation", &data{
+				setup: setup{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1":                      "value1",
+								machineutils.NotManagedByMCM: "1",
+							},
+						},
+					},
+					associateNodeWithMachine: true,
+				},
+				action: action{},
+				expect: expect{
+					node0: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							// node0 no longer has NotManagedByMCM since it has a backing machine object.
+							Annotations: map[string]string{
+								"anno1": "value1",
 							},
 						},
 					},
