@@ -198,6 +198,19 @@ func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineut
 					return machineutils.MediumRetry, err
 				}
 			}
+		} else {
+			// FIX: Remove NotManagedByMCM for managed nodes https://github.com/gardener/machine-controller-manager/issues/863
+			_, hasAnnot := node.Annotations[machineutils.NotManagedByMCM]
+			if !hasAnnot {
+				continue
+			}
+			klog.V(3).Infof("Removing NotManagedByMCM annotation from Node %q", node.Name)
+			nodeCopy := node.DeepCopy()
+			delete(nodeCopy.Annotations, machineutils.NotManagedByMCM)
+			_, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
+			if err != nil {
+				klog.Errorf("Failed to remove NotManagedByMCM from Node %q due to: %s", node.Name, err)
+			}
 		}
 	}
 

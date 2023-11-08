@@ -24,12 +24,13 @@ package options
 import (
 	"time"
 
-	drain "github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
-	machineconfig "github.com/gardener/machine-controller-manager/pkg/util/provider/options"
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/component-base/logs"
+
+	drain "github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
+	machineconfig "github.com/gardener/machine-controller-manager/pkg/util/provider/options"
 
 	"github.com/gardener/machine-controller-manager/pkg/util/client/leaderelectionconfig"
 
@@ -70,7 +71,7 @@ func NewMCServer() *MCServer {
 				MaxEvictRetries:                          drain.DefaultMaxEvictRetries,
 				PvDetachTimeout:                          metav1.Duration{Duration: 2 * time.Minute},
 				PvReattachTimeout:                        metav1.Duration{Duration: 90 * time.Second},
-				MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 30 * time.Minute},
+				MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 15 * time.Minute},
 				MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
 				MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
 			},
