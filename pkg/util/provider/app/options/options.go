@@ -24,13 +24,12 @@ package options
 import (
 	"time"
 
+	drain "github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
+	machineconfig "github.com/gardener/machine-controller-manager/pkg/util/provider/options"
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/component-base/logs"
-
-	drain "github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
-	machineconfig "github.com/gardener/machine-controller-manager/pkg/util/provider/options"
 
 	"github.com/gardener/machine-controller-manager/pkg/util/client/leaderelectionconfig"
 
