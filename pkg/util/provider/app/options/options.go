@@ -70,7 +70,7 @@ func NewMCServer() *MCServer {
 				MaxEvictRetries:                          drain.DefaultMaxEvictRetries,
 				PvDetachTimeout:                          metav1.Duration{Duration: 2 * time.Minute},
 				PvReattachTimeout:                        metav1.Duration{Duration: 90 * time.Second},
-				MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 30 * time.Minute},
+				MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 15 * time.Minute},
 				MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
 				MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
 			},

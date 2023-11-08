@@ -22,7 +22,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func (c *controller) updateNodeWithAnnotation(ctx context.Context, node *v1.Node, annotations map[string]string) error {
+func (c *controller) updateNodeWithAnnotations(ctx context.Context, node *v1.Node, annotations map[string]string) error {
 
 	// Initialize node annotations if empty
 	if node.Annotations == nil {
@@ -37,10 +37,9 @@ func (c *controller) updateNodeWithAnnotation(ctx context.Context, node *v1.Node
 	_, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 
 	if err != nil {
-		klog.Errorf("Couldn't patch the node %q , Error: %s", node.Name, err)
+		klog.Errorf("Failed to update annotations for Node %q due to error: %s", node.Name, err)
 		return err
 	}
-	klog.V(2).Infof("Annotated node %q was annotated with NotManagedByMCM successfully", node.Name)
 
 	return nil
 }
