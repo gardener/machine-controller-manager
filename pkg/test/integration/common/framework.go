@@ -94,6 +94,10 @@ var (
 
 	// if true, means that the tags present on VM are strings not key-value pairs
 	isTagsStrings = os.Getenv("TAGS_ARE_STRINGS")
+
+	// if true, control cluster is a seed
+	// only set this variable if operating in gardener context
+	isControlSeed = os.Getenv("IS_CONTROL_CLUSTER_SEED")
 )
 
 // ProviderSpecPatch struct holds tags for provider, which we want to patch the  machineclass with
@@ -205,17 +209,14 @@ func (c *IntegrationTestFramework) initalizeClusters() error {
 			return err
 		}
 	}
-
-	// Update namespace to use
-	if c.ControlCluster.IsSeed(c.TargetCluster) {
-		_, err := c.TargetCluster.ClusterName()
-		if err != nil {
-			log.Println("Failed to determine shoot cluster namespace")
-			return err
-		}
-		controlClusterNamespace, _ = c.TargetCluster.ClusterName()
-	} else if len(controlClusterNamespace) == 0 {
+	// set default control cluster namespace if not specified
+	if len(controlClusterNamespace) == 0 {
 		controlClusterNamespace = "default"
+	}
+	// Verify the control cluster namespace
+	err := c.ControlCluster.VerifyControlClusterNamespace(isControlSeed, controlClusterNamespace)
+	if err != nil {
+		return err
 	}
 
 	// setting env variable for later use
@@ -485,14 +486,14 @@ func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
 }
 
 func (c *IntegrationTestFramework) updatePatchFile() {
-	clusterName, _ := c.TargetCluster.ClusterName()
-	clusterTag := "kubernetes-io-cluster-" + clusterName
+	targetClusterName := controlClusterNamespace
+	clusterTag := "kubernetes-io-cluster-" + targetClusterName
 	testRoleTag := "kubernetes-io-role-integration-test"
 
 	patchMachineClassData := MachineClassPatch{
 		ProviderSpec: ProviderSpecPatch{
 			Tags: []string{
-				clusterName,
+				targetClusterName,
 				clusterTag,
 				testRoleTag,
 			},
@@ -573,8 +574,7 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 	// eg. tag (providerSpec.tags)  \"mcm-integration-test: "true"\"
 
 	ctx := context.Background()
-
-	if c.ControlCluster.IsSeed(c.TargetCluster) && len(v1MachineClassPath) == 0 {
+	if isControlSeed == "true" && len(v1MachineClassPath) == 0 {
 		if machineClasses, err := c.ControlCluster.McmClient.
 			MachineV1alpha1().
 			MachineClasses(controlClusterNamespace).
@@ -763,8 +763,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	gomega.Expect(c.initalizeClusters()).To(gomega.BeNil())
 
 	//setting up MCM either locally or by deploying after checking conditions
-
-	if c.ControlCluster.IsSeed(c.TargetCluster) {
+	if isControlSeed == "true" {
 
 		if len(mcContainerImage) != 0 || len(mcmContainerImage) != 0 {
 			ginkgo.By("Updating MCM Deployemnt")
@@ -813,9 +812,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 		Get(ctx, testMachineClassResources[0], metav1.GetOptions{})
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	ginkgo.By("Determining target cluster name")
-	clusterName, err := c.TargetCluster.ClusterName()
-	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	clusterName := controlClusterNamespace
 
 	ginkgo.By("Looking for secrets refered in machineclass in the control cluster")
 	secretData, err := c.ControlCluster.
@@ -1318,7 +1315,7 @@ func (c *IntegrationTestFramework) Cleanup() {
 		}
 
 	}
-	if c.ControlCluster.IsSeed(c.TargetCluster) {
+	if isControlSeed == "true" {
 		// scale back up the MCM deployment to 1 in the Control Cluster
 		// This is needed when IT suite runs locally against a Control & Target cluster
 
