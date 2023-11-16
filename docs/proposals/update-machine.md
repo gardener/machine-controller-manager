@@ -1,10 +1,10 @@
-# Update Machine Instance
+# Post Create Updation and Hot Updation of Instance
 
 ## Background
 
 Today the [driver.Driver](https://github.com/gardener/machine-controller-manager/blob/rel-v0.49/pkg/util/provider/driver/driver.go#L28) facade represents the boundary between the the `machine-controller` and its various provider specific implementations.
 
-We have abstract operations for creation/deletion and listing of machines (actually compute instances) but no abstract operation to represent the update of an instance after creation.
+We have abstract operations for creation/deletion and listing of machines (actually compute instances) but we do not correctly handle post-creation startup logic. Nor do we provide an  abstract operation to represent the hot update of an instance after creation.
 
 We have found this to be necessary for several use cases. Today in the MCM AWS Provider, we already misuse `driver.GetMachineStatus`  which is supposed to be a read-only operation obtaining the status of an instance. 
 
@@ -21,42 +21,22 @@ We have other uses-cases such as  [MCM Issue#750](https://github.com/gardener/ma
 
 We will split the fulfilment of this overall need into 2 stages of implementation.
 
-1. **Stage-A**: Introduction of `Driver.UpdateMachine` and supporting one-time post-startup configuration/adjustment of the instance. The [triggerCreationFlow](https://github.com/gardener/machine-controller-manager/blob/rel-v0.50/pkg/util/provider/machinecontroller/machine.go#L310) - a reconciliation sub-flow of the MCM responsible for orchestrating instance startup and updating machine status - will be updated to invoke `Driver.UpdateMachine` after `Driver.CreateMachine`
+1. **Stage-A**: Support post-VM creation logic in implementations of `Driver.CreateMachine` by permitting provider implementors to add one-time logic after VM creation, return with special new error code `codes.Startup` for post-VM errors and correspondingly support a new machine operation stage `InitiateStartup`. The [triggerCreationFlow](https://github.com/gardener/machine-controller-manager/blob/rel-v0.50/pkg/util/provider/machinecontroller/machine.go#L310) - a reconciliation sub-flow of the MCM responsible for orchestrating instance creation and updating machine status will be changed to support this behaviour.
 
-    _NOTE_: There is a legitimate argument to be made that `Driver.UpdateMachine` should be restricted to hot-updatable fields only and  post-startup initialization activities should be handled within the provider implementation of `CreateMachine`. Unfortunately, our `triggerCreationFlow` in the MCM 
 
-2. **Stage-B**: Enhancing the MCM, MCM providers and gardener extension providers to support hot update of instances through `Driver.UpdateMachine`.  The MCM[triggerUpdationFlow](https://github.com/gardener/machine-controller-manager/blob/v0.50.1/pkg/util/provider/machinecontroller/machine.go#L531) - a reconciliation sub-flow of the MCM which is supposed to be responsible for orchestrating instance update - but currently not used, will be updated to invoke the provider `Driver.UpdateMachine` on hot-updates to to the `Machine` object
+
+2. **Stage-B**: Introduction of `Driver.UpdateMachine` and enhancing the MCM, MCM providers and gardener extension providers to support hot update of instances through `Driver.UpdateMachine`.  The MCM [triggerUpdationFlow](https://github.com/gardener/machine-controller-manager/blob/v0.50.1/pkg/util/provider/machinecontroller/machine.go#L531) - a reconciliation sub-flow of the MCM which is supposed to be responsible for orchestrating instance update - but currently not used, will be updated to invoke the provider `Driver.UpdateMachine` on hot-updates to to the `Machine` object
 
 ## Stage-A Proposal
 
 
-### Enhancement of Driver Interface
-
-We propose the following signature for the new `UpdateMachine` method.
-```go
-type Driver interface {
-    // .. existing methods are omitted for brevity.
-
-    // UpdateMachine call is responsible for updation of provider instance using the data in the given UpdateMachineRequest.
-    UpdateMachine(context.Context, *UpdateMachineRequest) error
-}
-
-// UpdateMachineRequest is the request encapsulating identification and updation data regarding instance configuration. 
-type UpdateMachineRequest struct {
-    ProviderID string
-    LastAppliedProviderSpec raw.Extension
-    MachineClass *v1alpha1.MachineClass
-    Secret *corev1.Secret
-}
-```
 ### Instance Not Ready Taint 
 
-- Due to the fact that creation flow for machines has now a post startup update, we should not scheduled workload until the post startup udpate is done. (`Driver.CreateMachine`->`Driver.UpdateMachine`)
-- We propose a new taint `node.machine.sapcloud.io/instance-not-ready` which is added as a node startup taint.
-- The will will then removed by MCM, once the machine becomes fully ready. 
+- Due to the fact that creation flow for machines will now be enhanced to correctly support post-creation startup logic, we should not scheduled workload until this startup logic is complete.  Even without this feature we have a need for such a taint as described in [MCM#740](https://github.com/gardener/machine-controller-manager/issues/740)
+- We propose a new taint `node.machine.sapcloud.io/instance-not-ready` which  will be added as a node startup taint in gardener core [KubeletConfiguration.RegisterWithTaints](https://github.com/gardener/gardener/blob/v1.83.1/pkg/component/extensions/operatingsystemconfig/original/components/kubelet/config.go#L101)
+- The will will then removed by MCM in health check reconciliation, once the machine becomes fully ready. (when moving to `Running` phase)
 - We will add this taint as part of `--ignore-taint` in CA
 - We will introduce a disclaimer / prerequisite in the MCM FAQ, to add this taint as part of kubelet config under `--register-with-taints`, otherwise workload could get scheduled , before machine beomes `Running`
-- Q, NOTE: Unclear on where to contribute g/g changes ??
 
 
 ### Current MCM triggerCreationFlow
@@ -66,7 +46,7 @@ Today, [reconcileClusterMachine](https://github.com/gardener/machine-controller-
 ```mermaid
 %%{ init: {
     'themeVariables':
-        { 'fontSize': '10px'}
+        { 'fontSize': '12px'}
 } }%%
 flowchart LR
 
@@ -78,9 +58,9 @@ Phase empty or CrashLoopBackOff ?
 chk--noo-->LongRetry["return machineutils.LongRetry"]
 ```
 
-Today, the `triggerCreationFlow` looks like the below. 
+Today, the `triggerCreationFlow` is illustrated below with some minor details omitted/compressed for brevity 
 
-* some minor details omitted/compressed for brevity 
+*NOTES*
 * The `lastop` below is an abbreviation for `machine.Status.LastOperation`. This, along with the machine phase is generally updated on the `Machine` object just before returning from the method.
 * `machineCreateErrorHandler` is a separate method on the controller that handles 
 * regarding `phase=CrashLoopBackOff|Failed`. the machine phase may either be `CrashLoopBackOff` or move to `Failed` if the difference between current time  and the `machine.CreationTimestamp` has exceeded the configured `MachineCreationTimeout`.
@@ -89,7 +69,7 @@ Today, the `triggerCreationFlow` looks like the below.
 ```mermaid
 %%{ init: {
     'themeVariables':
-        { 'fontSize': '11px'}
+        { 'fontSize': '12px'}
 } }%%
 flowchart TD
 
@@ -128,38 +108,56 @@ subgraph noteA [" "]
 end
 style noteA opacity:0
 
-subgraph noteB [" "]
-    machinepending -.- note2(["Proposal: call to Driver.UpdateMachine in this section"])
-end
 
+subgraph noteB [" "]
+    createFailed-.- note2(["Proposal: Enhance handling to support startup logic"])
+end
 ```
 
 ### Enhancement of MCM triggerCreationFlow
 
-(NOTE: WILL DRAW REVISED FLOWCHART FOR triggerCreationFlow ONLY AFTER CLARIFICATION)
+The following changes are proposed with a view towards minimal impact on current code and no introduction of a new Machine Phase.
 
-1. We need to introduce a call to `Driver.UpdateMachine` in the flow illustrated above.
-1. Observe that after the call to a successful `Driver.CreateMachine`, the machine phase is set to `Pending`, the `LastOperation.Type` is set to `Create` and the `LastOperation.State` set to `Processing`before returning with a `ShortRetry`. 
-1. After interrogating the machine status (`Driver.GetMachineStatus`) and obtaining the `statusResp`, we can introduce the call do `Driver.CreateMachine`.
-   1. We only do this invocation if  `Phase:Pending, LastOperation.Type:Create, LastOperation.State: Processing` OR if `Phase:Pending, LastOperation.Type:Update,LastOperation.State: Failed`
-   1. After invocation of a successful call to `Driver.UpdateMachine`, we will update the machine object with `Phase: Pending, LastOperation.Type:Update, LastOperation.State: Successful`
-      1. NOTE: This is a bit disharmonious, since in the earlier cycle the `LastOperation.State` was set to `Processing` after a successful call to `Driver.CreateMachine`. Q: What should be the right operation state ?
-   1. After invocation of a failed call to `Driver.UpdateMachine` we will update the machine object with `Phase: Pending, LastOperation.Type:Update, LastOperation.State: Failed`
-
-
-### Driver.UpdateMachine Implementation
-
-#### AWS Provider Changes
-The sequence of activities for the AWS Provider will look something like:
-1. Check `providerSpec.SrcAndDstChecksEnabled`, construct `ModifyInstanceAttributeInput` and call `ModifyInstanceAttribute`
-1. Check `providerSpec.NetworkInterfaces` and if `Ipv6PrefixCount` is not `nil`, then construct `AssignIpv6AddressesInput` and call `AssignIpv6Addresses` 
-
-NOTE: Do I modify the [existing PR](https://github.com/gardener/machine-controller-manager-provider-aws/pull/128) for this ? 
-
-
-#### TODO: Azure Provider
-#### TODO: Other Providers
+1. We need to introduce enhancements around the call to `Driver.CreateMachine` in the flow illustrated above.
+1. Observe that after the call to a successful `Driver.CreateMachine`, the machine phase is set to `Pending`, the `LastOperation.Type` is currently set to `Create` and the `LastOperation.State` set to `Processing`before returning with a `ShortRetry`. The `LastOperation.Description` is (unfortunately) set to the fixed message: `Creating machine on cloud provider`.
+1. Observe that after an erroneous call to `Driver.CreateMachine`, the machine phase is set to `CrashLoopBackOff` or `Failed`  (in case of creation timeout).
+1. We propose introducing a new MC error code `codes.Startup` indicating that the VM Instance was created but there was a startup error in post VM creation activities. The implementor of `Driver.CreateMachine` can return this error code, indicating that `CreateMachine` needs to be called again. However, the Machine Controller will keep the machine phase for such a situation as  `Pending` and not change the phase to `CrashLoopBackOff` when encountering a `codes.Startup` error. (The instance for the machine HAS been created hence `CrashLoopBackoff` is inappropriate)
+1. We will introduce a new _machine operation_ stage `InitiateStartup`. In case of an `codes.Startup` error, the `machine.Status.LastOperation.Description` will be set to this stage, the `LastOperation.Type` will be set to `Create` and the `LastOperation.State` set to `Failed` before returning with a `ShortRetry`
+1. In addition to the usual logic, the main machine controller reconciliation loop will now re-invoke the `triggerCreationFlow` again if the machine phase is `Pending` and `machine.Status.LastOperation.Description` specifically contains `InitiateStartup` with `machine.Status.LastOperation.State` as `Failed`
 
 
 
 
+#### AWS Provider Changes for Driver.CreateMachine
+
+The enhancement for the AWS Provider will look something like:
+1. After the VM instance is available,
+1. Check `providerSpec.SrcAndDstChecksEnabled`, construct `ModifyInstanceAttributeInput` and call `ModifyInstanceAttribute`. In case of an error return `codes.Startup` instead of `codes.Internal`
+1. Check `providerSpec.NetworkInterfaces` and if `Ipv6PrefixCount` is not `nil`, then construct `AssignIpv6AddressesInput` and call `AssignIpv6Addresses`. In case of an error return `codes.Startup` instead of `codes.Internal`
+
+The [existing Ipv6 PR](https://github.com/gardener/machine-controller-manager-provider-aws/pull/128) will need modifications.
+
+
+
+## Stage-B Proposal
+
+### Enhancement of Driver Interface
+
+We propose the following signature for the new `UpdateMachine` method.
+```go
+type Driver interface {
+    // .. existing methods are omitted for brevity.
+
+    // UpdateMachine call is responsible for updation of provider instance using the data in the given UpdateMachineRequest.
+    UpdateMachine(context.Context, *UpdateMachineRequest) error
+}
+
+// UpdateMachineRequest is the request encapsulating identification and updation data regarding instance configuration. 
+type UpdateMachineRequest struct {
+    ProviderID string
+    LastAppliedProviderSpec raw.Extension
+    MachineClass *v1alpha1.MachineClass
+    Secret *corev1.Secret
+}
+```
+Kindly refer to the [Hot-Update Instances](./hotupdate-instances.md) design which provides elaborate detail.
