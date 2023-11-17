@@ -98,6 +98,9 @@ var (
 	// if true, control cluster is a seed
 	// only set this variable if operating in gardener context
 	isControlSeed = os.Getenv("IS_CONTROL_CLUSTER_SEED")
+
+	// To detect orphans with this tag
+	clusterTagSuffix = "integration-test-cluster"
 )
 
 // ProviderSpecPatch struct holds tags for provider, which we want to patch the  machineclass with
@@ -486,7 +489,7 @@ func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
 }
 
 func (c *IntegrationTestFramework) updatePatchFile() {
-	targetClusterName := controlClusterNamespace
+	targetClusterName := clusterTagSuffix
 	clusterTag := "kubernetes-io-cluster-" + targetClusterName
 	testRoleTag := "kubernetes-io-role-integration-test"
 
@@ -812,7 +815,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 		Get(ctx, testMachineClassResources[0], metav1.GetOptions{})
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	clusterName := controlClusterNamespace
+	clusterName := clusterTagSuffix
 
 	ginkgo.By("Looking for secrets refered in machineclass in the control cluster")
 	secretData, err := c.ControlCluster.
