@@ -16,6 +16,7 @@ package helpers
 
 import (
 	"context"
+	"fmt"
 
 	mcmClientset "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned"
 	v1 "k8s.io/api/core/v1"
@@ -77,48 +78,6 @@ func NewCluster(kubeConfigPath string) (c *Cluster, e error) {
 	return c, err
 }
 
-// IsSeed checks whether the cluster is seed of target cluster
-func (c *Cluster) IsSeed(target *Cluster) bool {
-	/*
-		- (Check if the control cluster is a seed cluster
-			Try to retrieve the cluster-name (clusters[0].name) from the target kubeconfig passed in.
-			 ---- Check if there is any cluster resource available ( means it is a seed cluster ) and see if there is any cluster with name same as to target cluster-name
-			 ---- Alternatively check if there is a namespace with same name as that of cluster name found in kube config
-			 ---- when both control and target cluster are the same then return false
-			 kubectl get clusters -A
-			NAME                             AGE
-			shoot--landscape--project-shoot   46h
-	*/
-	controlClusterName, _ := c.ClusterName()
-	targetClusterName, _ := target.ClusterName()
-
-	if controlClusterName == targetClusterName {
-		return false
-	}
-	nameSpaces, _ := c.Clientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
-	for _, namespace := range nameSpaces.Items {
-		if namespace.Name == targetClusterName {
-			return true
-		}
-	}
-	return false
-}
-
-// ClusterName retrieves cluster name from the kubeconfig
-func (c *Cluster) ClusterName() (string, error) {
-	var clusterName string
-	config, err := clientcmd.LoadFromFile(c.KubeConfigFilePath)
-	if err != nil {
-		return clusterName, err
-	}
-	for contextName, context := range config.Contexts {
-		if contextName == config.CurrentContext {
-			clusterName = context.Cluster
-		}
-	}
-	return clusterName, err
-}
-
 // GetSecretData combines secrets
 func (c *Cluster) GetSecretData(machineClassName string, secretRefs ...*v1.SecretReference) (map[string][]byte, error) {
 	var secretData map[string][]byte
@@ -162,4 +121,24 @@ func (c *Cluster) getSecret(ref *v1.SecretReference, MachineClassName string) (*
 		return nil, err
 	}
 	return secretRef, err
+}
+
+// VerifyControlClusterNamespace validates the control namespace provided by the user. It checks the following:-
+// 1. If it is a seed, then it should not use a default namespace as the control namespace.
+// 2. The control namespace should be present in the control cluster.
+func (c *Cluster) VerifyControlClusterNamespace(isControlSeed string, controlClusterNamespace string) error {
+	if isControlSeed == "true" {
+		if controlClusterNamespace == "default" {
+			return fmt.Errorf("Cannot use default namespace when control cluster is a seed")
+		}
+	}
+
+	// check if control namespace exist inside control cluster
+	nameSpaces, _ := c.Clientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+	for _, namespace := range nameSpaces.Items {
+		if namespace.Name == controlClusterNamespace {
+			return nil
+		}
+	}
+	return fmt.Errorf("Control Namespace not found inside control cluster")
 }
