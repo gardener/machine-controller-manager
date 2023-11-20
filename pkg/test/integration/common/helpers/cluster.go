@@ -123,7 +123,9 @@ func (c *Cluster) getSecret(ref *v1.SecretReference, MachineClassName string) (*
 	return secretRef, err
 }
 
-// VerifyControlClusterNamespace validates the control namespace inside the control cluster
+// VerifyControlClusterNamespace validates the control namespace provided by the user. It checks the following:-
+// 1. If it is a seed, then it should not use a default namespace as the control namespace.
+// 2. The control namespace should be present in the control cluster.
 func (c *Cluster) VerifyControlClusterNamespace(isControlSeed string, controlClusterNamespace string) error {
 	if isControlSeed == "true" {
 		if controlClusterNamespace == "default" {

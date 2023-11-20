@@ -42,7 +42,12 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-const dwdIgnoreScalingAnnotation = "dependency-watchdog.gardener.cloud/ignore-scaling"
+const (
+	dwdIgnoreScalingAnnotation = "dependency-watchdog.gardener.cloud/ignore-scaling"
+
+	// Suffix for the`kubernetes-io-cluster` tag and cluster name for the orphan resource tracker
+	targetClusterPlaceholder = "integration-test-cluster"
+)
 
 var (
 	// path for storing log files (mcm & mc processes)
@@ -98,11 +103,6 @@ var (
 	// if true, control cluster is a seed
 	// only set this variable if operating in gardener context
 	isControlSeed = os.Getenv("IS_CONTROL_CLUSTER_SEED")
-)
-
-const (
-	// Suffix for the`kubernetes-io-cluster` tag and cluster name for the orphan resource tracker
-	targetClusterPlaceholder = "integration-test-cluster"
 )
 
 // ProviderSpecPatch struct holds tags for provider, which we want to patch the  machineclass with
