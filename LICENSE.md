@@ -286,12 +286,12 @@ https://github.com/modern-go/reflect2.
 Apache 2 license (https://github.com/modern-go/reflect2/blob/master/LICENSE)  
 
 Ginkgo.  
-https://github.com/onsi/ginkgo.  
+https://github.com/onsi/ginkgo/v2.  
 Copyright (c) 2013-2014 Onsi Fakhouri
-MIT license (https://github.com/onsi/ginkgo/blob/master/LICENSE)  
+MIT license (https://github.com/onsi/ginkgo/v2/blob/master/LICENSE)  
 
 Gomega.  
-https://github.com/onsi/ginkgo.  
+https://github.com/onsi/ginkgo/v2.  
 Copyright (c) 2013-2014 Onsi Fakhouri
 MIT license (https://github.com/onsi/gomega/blob/master/LICENSE)  
 
