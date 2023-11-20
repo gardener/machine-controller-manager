@@ -98,7 +98,9 @@ var (
 	// if true, control cluster is a seed
 	// only set this variable if operating in gardener context
 	isControlSeed = os.Getenv("IS_CONTROL_CLUSTER_SEED")
+)
 
+const (
 	// Suffix for the`kubernetes-io-cluster` tag and cluster name for the orphan resource tracker
 	targetClusterPlaceholder = "integration-test-cluster"
 )
