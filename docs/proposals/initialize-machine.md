@@ -1,4 +1,4 @@
-# Post Create Updation and Hot Updation of Instance
+# Post-Create Initialization of Machine Instance
 
 ## Background
 
@@ -13,7 +13,7 @@ For [EC2 NAT](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_NAT_Instance.
 these should be disabled. This is done by issuing
 a [ModifyInstanceAttribute](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_ModifyInstanceAttribute.html) request with the `SourceDestCheck` set to `false`. The MCM AWS Provider, decodes the  [AWSProviderSpec](https://github.com/gardener/machine-controller-manager-provider-aws/blob/39318bb2b5b4a573fdc77eaf400839d12c4abf59/pkg/aws/apis/aws_provider_spec.go#L63), reads `providerSpec.SrcAndDstChecksEnabled` and correspondingly issues the call to modify the already launched instance. However, this should be done as an action after creating the instance and should not be part of the VM status retrieval.
 
-2. Similarly, there is a [pending PR](https://github.com/gardener/machine-controller-manager-provider-aws/pull/128) to add the `Ipv6AddessCount` and `Ipv6PrefixCount` to enable the assignment of an ipv6 address and an ipv6 prefix to instances. This requires constructing and issuing an [AssignIpv6Addresses](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_AssignIpv6Addresses.html) request after the instance is started.
+2. Similarly, there is a [pending PR](https://github.com/gardener/machine-controller-manager-provider-aws/pull/128) to add the `Ipv6AddessCount` and `Ipv6PrefixCount` to enable the assignment of an ipv6 address and an ipv6 prefix to instances. This requires constructing and issuing an [AssignIpv6Addresses](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_AssignIpv6Addresses.html) request after the EC2 instance is available. 
 
 3. We have other uses-cases such as  [MCM Issue#750](https://github.com/gardener/machine-controller-manager/issues/750) where there is a requirement to provide a way for consumers to add tags which can be hot-updated onto instances. This requirement can be generalized to also offer a convenient way to specify tags which can be applied to VMs, NICs, Devices etc.
 
@@ -24,7 +24,7 @@ a [ModifyInstanceAttribute](https://docs.aws.amazon.com/AWSEC2/latest/APIReferen
 
 We will split the fulfilment of this overall need into 2 stages of implementation.
 
-1. **Stage-A**: Support post-VM creation initialization logic in implementations of `Driver.CreateMachine` by permitting provider implementors to add initialization logic after VM creation, return with special new error code `codes.Initialization` for post-VM errors and correspondingly support a new machine operation stage `InstanceInitialization`. The [triggerCreationFlow](https://github.com/gardener/machine-controller-manager/blob/rel-v0.50/pkg/util/provider/machinecontroller/machine.go#L310) - a reconciliation sub-flow of the MCM responsible for orchestrating instance creation and updating machine status will be changed to support this behaviour.
+1. **Stage-A**: Support post-VM creation initialization logic of the instance suing a proposed `Driver.InitializeMachine` by permitting provider implementors to add initialization logic after VM creation, return with special new error code `codes.Initialization` for initialization errors and correspondingly support a new machine operation stage `InstanceInitialization` which will be updated in the machine `LastOperation`. The [triggerCreationFlow](https://github.com/gardener/machine-controller-manager/blob/rel-v0.50/pkg/util/provider/machinecontroller/machine.go#L310) - a reconciliation sub-flow of the MCM responsible for orchestrating instance creation and updating machine status will be changed to support this behaviour.
 
 
 2. **Stage-B**: Introduction of `Driver.UpdateMachine` and enhancing the MCM, MCM providers and gardener extension providers to support hot update of instances through `Driver.UpdateMachine`.  The MCM [triggerUpdationFlow](https://github.com/gardener/machine-controller-manager/blob/v0.50.1/pkg/util/provider/machinecontroller/machine.go#L531) - a reconciliation sub-flow of the MCM which is supposed to be responsible for orchestrating instance update - but currently not used, will be updated to invoke the provider `Driver.UpdateMachine` on hot-updates to to the `Machine` object
@@ -111,7 +111,7 @@ style noteA opacity:0
 
 
 subgraph noteB [" "]
-    createFailed-.- note2(["Proposal: Enhance handling to support startup logic"])
+    setnodename-.- note2(["Proposal: Introduce Driver.InitializeMachine after this"])
 end
 ```
 
@@ -122,63 +122,47 @@ end
 1. Observe that after the call to a successful `Driver.CreateMachine`, the machine phase is set to `Pending`, the `LastOperation.Type` is currently set to `Create` and the `LastOperation.State` set to `Processing` before returning with a `ShortRetry`. The `LastOperation.Description` is (unfortunately) set to the fixed message: `Creating machine on cloud provider`.
 1. Observe that after an erroneous call to `Driver.CreateMachine`, the machine phase is set to `CrashLoopBackOff` or `Failed`  (in case of creation timeout).
 
-The following changes are proposed with a view towards minimal impact on current code and no introduction of a new Machine Phase.
+The following changes are proposed with a view towards minimal impact on current code and no introduction of a new Machine Phase. 
 
 #### MCM Changes
-1. We propose introducing a new MC error code `codes.Initialization` indicating that the VM Instance was created but there was an error in initialization after VM creation. The implementor of `Driver.CreateMachine` can return this error code, indicating that `CreateMachine` needs to be called again. The Machine Controller will change the phase to `CrashLoopBackOff` as usual when encountering a `codes.Initialization` error. 
-1. We will introduce a new _machine operation_ stage `InstanceInitialization`. In case of an `codes.Initialization` error, the `machine.Status.LastOperation.Description` will be set to this stage, the `LastOperation.Type` will be set to `Create` and the `LastOperation.State` set to `Failed` before returning with a `ShortRetry`
+1. We propose introducing a new machine operation `Driver.InitializeMachine` with the following signature
+    ```go
+    type Driver interface {
+        // .. existing methods are omitted for brevity.
+
+        // InitializeMachine call is responsible for post-create initialization of the provider instance.
+        InitializeMachine(context.Context, *InitializeMachineRequest) error
+    }
+
+    // InitializeMachineRequest is the initialization request for machine instance initialization
+    type InitializeMachineRequest struct {
+        // Machine object whose VM instance should be initialized 
+        Machine *v1alpha1.Machine
+
+        // MachineClass backing the machine object
+        MachineClass *v1alpha1.MachineClass
+
+        // Secret backing the machineClass object
+        Secret *corev1.Secret
+
+    }
+    ```
+1. We propose introducing a new MC error code `codes.Initialization` indicating that the VM Instance was created but there was an error in initialization after VM creation. The implementor of `Driver.InitializeMachine` can return this error code, indicating that `InitializeMachine` needs to be called again. The Machine Controller will change the phase to `CrashLoopBackOff` as usual when encountering a `codes.Initialization` error. 
+1. We will introduce a new _machine operation_ stage `InstanceInitialization`. In case of an `codes.Initialization` error 
+   1. the `machine.Status.LastOperation.Description` will be set to `InstanceInitialization`, 
+   1. `machine.Status.LastOperation.ErrorCode` will be set to `codes.Initialization`
+   1. the `LastOperation.Type` will be set to `Create` 
+   1. the `LastOperation.State` set to `Failed` before returning with a `ShortRetry`
 1. The semantics of `Driver.GetMachineStatus` will be changed. If the instance associated with machine exists, but the instance was not initialized as expected, the provider implementations of `GetMachineStatus` should return an error:  `status.Error(codes.Initialization)`.
-1. If `Driver.GetMachineStatus` returned an error encapsulating `codes.Initialization` then `Driver.CreateMachine` will be invoked again in the `triggerCreationFlow`.
+1. If `Driver.GetMachineStatus` returned an error encapsulating `codes.Initialization` then `Driver.InitializeMachine` will be invoked again in the `triggerCreationFlow`. 
 1. As according to the usual logic, the main machine controller reconciliation loop will now re-invoke the `triggerCreationFlow` again if the machine phase is `CrashLoopBackOff`. 
 
 
-#### Enhanced triggerCreationFlow
-
-```mermaid
-%%{ init: {
-    'themeVariables':
-        { 'fontSize': '12px'}
-} }%%
-flowchart TD
-
-
-end1(("end"))
-begin((" "))
-medretry["return MediumRetry, err"]
-shortretry["return ShortRetry, err"]
-medretry-->end1
-shortretry-->end1
-
-begin-->AddBootstrapTokenToUserData
--->gms["statusResp,statusErr=driver.GetMachineStatus(...)"]
--->chkstatuserr{"statusErr Code ?"}
-chkstatuserr--notFound|initialization-->chknodelbl{"Chk Node Label"}
-chkstatuserr--else-->createFailed["lastop.Type=Create,lastop.state=Failed,phase=CrashLoopBackOff|Failed"]-->medretry
-chkstatuserr--nil-->initnodename["nodeName = statusResp.NodeName"]-->setnodename
-
-
-chknodelbl--notset-->createmachine["createResp, createErr=driver.CreateMachine(...)"]-->chkCreateErr{"Check createErr"}
-
-chkCreateErr--else-->createFailed
-chkCreateErr--Initialization-->initFailed["lastop.Type=Create,lastop.state=Failed,lastOp.Description=InstanceInitialization,phase=CrashLoopBackOff|Failed"]
-
-chkCreateErr--nil-->getnodename["nodeName = createResp.NodeName"]
--->chkstalenode{"nodeName != machine.Name\n//chk stale node"}
-chkstalenode--false-->setnodename["if unset machine.Labels['node']= nodeName"]
--->machinepending["if empty/crashloopbackoff lastop.type=Create,lastop.State=Processing,phase=Pending"]
--->shortretry
-
-chkstalenode--true-->delmachine["driver.DeleteMachine(...)"]
--->permafail["lastop.type=Create,lastop.state=Failed,Phase=Failed"]
--->shortretry
-
-```
-
 #### AWS Provider Changes 
 
-##### Driver.CreateMachine
+##### Driver.InitializeMachine
 
-The enhancement for the AWS Provider will look something like:
+The implementation for the AWS Provider will look something like:
 1. After the VM instance is available, check `providerSpec.SrcAndDstChecksEnabled`, construct `ModifyInstanceAttributeInput` and call `ModifyInstanceAttribute`. In case of an error return `codes.Initialization` instead of the current `codes.Internal`
 1. Check `providerSpec.NetworkInterfaces` and if `Ipv6PrefixCount` is not `nil`, then construct `AssignIpv6AddressesInput` and call `AssignIpv6Addresses`. In case of an error return `codes.Initialization`. Don't use the generic `codes.Internal`
 
