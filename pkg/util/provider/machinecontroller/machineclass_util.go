@@ -22,37 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-/*
-TODO: Move this code to MCM/MachineSet controller as well?
-func (c *controller) findMachineDeploymentsForClass(kind, name string) ([]*v1alpha1.MachineDeployment, error) {
-	machineDeployments, err := c.machineDeploymentLister.List(labels.Everything())
-	if err != nil {
-		return nil, err
-	}
-	var filtered []*v1alpha1.MachineDeployment
-	for _, machineDeployment := range machineDeployments {
-		if machineDeployment.Spec.Template.Spec.Class.Kind == kind && machineDeployment.Spec.Template.Spec.Class.Name == name {
-			filtered = append(filtered, machineDeployment)
-		}
-	}
-	return filtered, nil
-}
-
-func (c *controller) findMachineSetsForClass(kind, name string) ([]*v1alpha1.MachineSet, error) {
-	machineSets, err := c.machineSetLister.List(labels.Everything())
-	if err != nil {
-		return nil, err
-	}
-	var filtered []*v1alpha1.MachineSet
-	for _, machineSet := range machineSets {
-		if machineSet.Spec.Template.Spec.Class.Kind == kind && machineSet.Spec.Template.Spec.Class.Name == name {
-			filtered = append(filtered, machineSet)
-		}
-	}
-	return filtered, nil
-}
-*/
-
 func (c *controller) findMachinesForClass(kind, name string) ([]*v1alpha1.Machine, error) {
 	machines, err := c.machineLister.List(labels.Everything())
 	if err != nil {

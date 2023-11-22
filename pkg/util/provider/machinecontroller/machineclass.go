@@ -171,16 +171,16 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 func (c *controller) addMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass) error {
 	finalizers := sets.NewString(class.Finalizers...)
 	finalizers.Insert(MCMFinalizerName)
-	return c.updateMachineClassFinalizers(ctx, class, finalizers.List())
+	return c.updateMachineClassFinalizers(ctx, class, finalizers.List(),true)
 }
 
 func (c *controller) deleteMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass) error {
 	finalizers := sets.NewString(class.Finalizers...)
 	finalizers.Delete(MCMFinalizerName)
-	return c.updateMachineClassFinalizers(ctx, class, finalizers.List())
+	return c.updateMachineClassFinalizers(ctx, class, finalizers.List(),false)
 }
 
-func (c *controller) updateMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass, finalizers []string) error {
+func (c *controller) updateMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass, finalizers []string, addFinalizers bool) error {
 	// Get the latest version of the class so that we can avoid conflicts
 	class, err := c.controlMachineClient.MachineClasses(class.Namespace).Get(ctx, class.Name, metav1.GetOptions{})
 	if err != nil {
@@ -194,7 +194,11 @@ func (c *controller) updateMachineClassFinalizers(ctx context.Context, class *v1
 		klog.Warning("Updating machineClass failed, retrying. ", class.Name, err)
 		return err
 	}
-	klog.V(3).Infof("Successfully added/removed finalizer on the machineclass %q", class.Name)
+	if addFinalizers{
+		klog.V(3).Infof("Successfully added finalizer on the machineclass %q", class.Name)
+	}else{
+		klog.V(3).Infof("Successfully removed finalizer on the machineclass %q", class.Name)
+	}
 	return err
 }
 
