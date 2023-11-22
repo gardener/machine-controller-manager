@@ -80,10 +80,6 @@ func (c *controller) reconcileClusterSecret(ctx context.Context, secret *corev1.
 			return err
 		}
 	} else {
-		if finalizers := sets.NewString(secret.Finalizers...); !finalizers.Has(MCFinalizerName) {
-			// Finalizer doesn't exist, simply return nil
-			return nil
-		}
 		err = c.deleteSecretFinalizers(ctx, secret)
 		if err != nil {
 			return err
