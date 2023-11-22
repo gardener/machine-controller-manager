@@ -172,7 +172,6 @@ func NewController(
 	// Machine Class Controller's Informers
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.machineToMachineClassAdd,
-		UpdateFunc: controller.machineToMachineClassUpdate,
 		DeleteFunc: controller.machineToMachineClassDelete,
 	})
 
