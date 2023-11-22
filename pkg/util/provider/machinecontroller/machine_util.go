@@ -60,6 +60,7 @@ import (
 
 // emptyMap is a dummy emptyMap to compare with
 var emptyMap = make(map[string]string)
+var errSuccessfulPhaseUpdate = errors.New("machine creation is successful. Machine Phase/Conditions have been UPDATED")
 
 const (
 	maxReplacements    = 1
@@ -67,43 +68,6 @@ const (
 	lockAcquireTimeout = 1 * time.Second
 	cacheUpdateTimeout = 1 * time.Second
 )
-
-// TODO: use client library instead when it starts to support update retries
-//
-//	see https://github.com/kubernetes/kubernetes/issues/21479
-// type updateMachineFunc func(machine *v1alpha1.Machine) error
-
-/*
-// UpdateMachineWithRetries updates a machine with given applyUpdate function. Note that machine not found error is ignored.
-// The returned bool value can be used to tell if the machine is actually updated.
-func UpdateMachineWithRetries(machineClient v1alpha1client.MachineInterface, machineLister v1alpha1listers.MachineLister, namespace, name string, applyUpdate updateMachineFunc) (*v1alpha1.Machine, error) {
-	var machine *v1alpha1.Machine
-
-	retryErr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		var err error
-		machine, err = machineLister.Machines(namespace).Get(name)
-		if err != nil {
-			return err
-		}
-		machine = machine.DeepCopy()
-		// Apply the update, then attempt to push it to the apiserver.
-		if applyErr := applyUpdate(machine); applyErr != nil {
-			return applyErr
-		}
-		machine, err = machineClient.Update(machine)
-		return err
-	})
-
-	// Ignore the precondition violated error, this machine is already updated
-	// with the desired label.
-	if retryErr == errorsutil.ErrPreconditionViolated {
-		klog.V(4).Infof("Machine %s precondition doesn't hold, skip updating it.", name)
-		retryErr = nil
-	}
-
-	return machine, retryErr
-}
-*/
 
 // ValidateMachineClass validates the machine class.
 func (c *controller) ValidateMachineClass(_ context.Context, classSpec *v1alpha1.ClassSpec) (*v1alpha1.MachineClass, map[string][]byte, machineutils.RetryPeriod, error) {
@@ -219,19 +183,38 @@ func (c *controller) getSecret(ref *v1.SecretReference, MachineClassName string)
 	return secretRef, err
 }
 
-// nodeConditionsHaveChanged compares two node statuses to see if any of the statuses have changed
-func nodeConditionsHaveChanged(machineConditions []v1.NodeCondition, nodeConditions []v1.NodeCondition) bool {
-	if len(machineConditions) != len(nodeConditions) {
-		return true
+// nodeConditionsHaveChanged compares two node status.conditions to see if any of the statuses have changed
+func nodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions []v1.NodeCondition) ([]v1.NodeCondition, []v1.NodeCondition, bool) {
+	var (
+		oldConditionsByType      = make(map[v1.NodeConditionType]v1.NodeCondition, len(oldConditions))
+		newConditionsByType      = make(map[v1.NodeConditionType]v1.NodeCondition, len(newConditions))
+		addedOrUpdatedConditions = make([]v1.NodeCondition, 0, len(newConditions))
+		removedConditions        = make([]v1.NodeCondition, 0, len(oldConditions))
+	)
+
+	for _, c := range oldConditions {
+		oldConditionsByType[c.Type] = c
+	}
+	for _, c := range newConditions {
+		newConditionsByType[c.Type] = c
 	}
 
-	for i := range nodeConditions {
-		if nodeConditions[i].Status != machineConditions[i].Status {
-			return true
+	// checking for any added/updated new condition
+	for _, c := range newConditions {
+		oldC, exists := oldConditionsByType[c.Type]
+		if !exists || (oldC.Status != c.Status) {
+			addedOrUpdatedConditions = append(addedOrUpdatedConditions, c)
 		}
 	}
 
-	return false
+	// checking for any deleted condition
+	for _, c := range oldConditions {
+		if _, exists := newConditionsByType[c.Type]; !exists {
+			removedConditions = append(removedConditions, c)
+		}
+	}
+
+	return addedOrUpdatedConditions, removedConditions, len(addedOrUpdatedConditions) != 0 || len(removedConditions) != 0
 }
 
 func mergeDataMaps(in map[string][]byte, maps ...map[string][]byte) map[string][]byte {
@@ -601,14 +584,13 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				// and corresponding node object went missing
 				// and if machine object still reports healthy
 				description = fmt.Sprintf(
-					"Node object went missing. Machine %s is unhealthy - changing MachineState to Unknown",
+					"Node object went missing. Machine %s is unhealthy - changing MachinePhase to Unknown",
 					machine.Name,
 				)
 				klog.Warning(description)
 
 				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-					Phase: v1alpha1.MachineUnknown,
-					// TimeoutActive:  true,
+					Phase:          v1alpha1.MachineUnknown,
 					LastUpdateTime: metav1.Now(),
 				}
 				clone.Status.LastOperation = v1alpha1.LastOperation{
@@ -625,9 +607,11 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			return machineutils.ShortRetry, err
 		}
 	} else {
-		if nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions) {
+		populatedConditions, removedConditions, isChanged := nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions)
+		if isChanged {
 			clone.Status.Conditions = node.Status.Conditions
-			klog.V(3).Infof("Conditions of Machine %q with providerID %q and backing node %q are changing", machine.Name, getProviderID(machine), getNodeName(machine))
+
+			klog.V(3).Infof("Conditions of Machine %q with providerID %q and backing node %q are changing.\nAdded/Updated Conditions:\n\n%s\nRemoved Conditions:\n\n%s", machine.Name, getProviderID(machine), getNodeName(machine), getFormattedNodeConditions(populatedConditions), getFormattedNodeConditions(removedConditions))
 			cloneDirty = true
 		}
 
@@ -756,18 +740,35 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 	if cloneDirty {
 		_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
-			// Keep retrying until update goes through
-			klog.Errorf("Update failed for machine %q. Retrying, error: %q", machine.Name, err)
+			// Keep retrying across reconciles until update goes through
+			klog.Errorf("Update of Phase/Conditions failed for machine %q. Retrying, error: %q", machine.Name, err)
 		} else {
-			klog.V(2).Infof("Machine State has been updated for %q with providerID %q and backing node %q", machine.Name, getProviderID(machine), getNodeName(machine))
-			// Return error for continuing in next iteration
-			err = fmt.Errorf("machine creation is successful. Machine State has been UPDATED")
+			klog.V(2).Infof("Machine Phase/Conditions have been updated for %q with providerID %q and backing node %q", machine.Name, getProviderID(machine), getNodeName(machine))
+			// Return error to end the reconcile
+			err = errSuccessfulPhaseUpdate
 		}
 
 		return machineutils.ShortRetry, err
 	}
 
 	return machineutils.LongRetry, nil
+}
+
+func NodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions []v1.NodeCondition) ([]v1.NodeCondition, []v1.NodeCondition, bool) {
+	return nodeConditionsHaveChanged(oldConditions, newConditions)
+}
+
+func GetFormattedNodeConditions(conditions []v1.NodeCondition) string {
+	return getFormattedNodeConditions(conditions)
+}
+
+func getFormattedNodeConditions(conditions []v1.NodeCondition) string {
+	var result string
+	for _, c := range conditions {
+		result = fmt.Sprintf("%sType: %s | Status: %s | Reason: %s | Message: %s\n", result, c.Type, c.Status, c.Reason, c.Message)
+	}
+
+	return result
 }
 
 /*
