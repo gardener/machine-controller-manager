@@ -61,26 +61,26 @@ func (c *controller) deleteMachine(obj interface{}) {
 	c.enqueueMachine(obj)
 }
 
-// isToBeEnqueued returns true if the key is to be managed by this controller
-func (c *controller) isToBeEnqueued(obj interface{}) (bool, string) {
+// getKeyForObj returns key for object, else returns false
+func (c *controller) getKeyForObj(obj interface{}) (string, bool) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
 		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
-		return false, ""
+		return "", false
 	}
-
-	return true, key
+	return key, true
 }
 
+
 func (c *controller) enqueueMachine(obj interface{}) {
-	if toBeEnqueued, key := c.isToBeEnqueued(obj); toBeEnqueued {
+	if key, ok := c.getKeyForObj(obj); ok {
 		klog.V(5).Infof("Adding machine object to the queue %q", key)
 		c.machineQueue.Add(key)
 	}
 }
 
 func (c *controller) enqueueMachineAfter(obj interface{}, after time.Duration) {
-	if toBeEnqueued, key := c.isToBeEnqueued(obj); toBeEnqueued {
+	if key, ok := c.getKeyForObj(obj); ok {
 		klog.V(5).Infof("Adding machine object to the queue %q after %s", key, after)
 		c.machineQueue.AddAfter(key, after)
 	}
