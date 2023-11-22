@@ -84,7 +84,7 @@ shortretry-->end1
 
 begin-->AddBootstrapTokenToUserData
 -->gms["statusResp,statusErr=driver.GetMachineStatus(...)"]
--->chkstatuserr{"Checkk statusErr"}
+-->chkstatuserr{"Check statusErr"}
 chkstatuserr--notFound-->chknodelbl{"Chk Node Label"}
 chkstatuserr--else-->createFailed["lastop.Type=Create,lastop.state=Failed,phase=CrashLoopBackOff|Failed"]-->medretry
 chkstatuserr--nil-->initnodename["nodeName = statusResp.NodeName"]-->setnodename
@@ -157,6 +157,9 @@ The following changes are proposed with a view towards minimal impact on current
 1. If `Driver.GetMachineStatus` returned an error encapsulating `codes.Initialization` then `Driver.InitializeMachine` will be invoked again in the `triggerCreationFlow`. 
 1. As according to the usual logic, the main machine controller reconciliation loop will now re-invoke the `triggerCreationFlow` again if the machine phase is `CrashLoopBackOff`. 
 
+#### Illustration
+
+![Enhanced triggerCreationFlow](./initialize-machine-triggercreationflow.svg)
 
 #### AWS Provider Changes 
 
