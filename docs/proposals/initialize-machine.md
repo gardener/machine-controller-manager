@@ -32,14 +32,6 @@ We will split the fulfilment of this overall need into 2 stages of implementatio
 ## Stage-A Proposal
 
 
-### Instance Not Ready Taint 
-
-- Due to the fact that creation flow for machines will now be enhanced to correctly support post-creation startup logic, we should not scheduled workload until this startup logic is complete.  Even without this feature we have a need for such a taint as described in [MCM#740](https://github.com/gardener/machine-controller-manager/issues/740)
-- We propose a new taint `node.machine.sapcloud.io/instance-not-ready` which  will be added as a node startup taint in gardener core [KubeletConfiguration.RegisterWithTaints](https://github.com/gardener/gardener/blob/v1.83.1/pkg/component/extensions/operatingsystemconfig/original/components/kubelet/config.go#L101)
-- The will will then removed by MCM in health check reconciliation, once the machine becomes fully ready. (when moving to `Running` phase)
-- We will add this taint as part of `--ignore-taint` in CA
-- We will introduce a disclaimer / prerequisite in the MCM FAQ, to add this taint as part of kubelet config under `--register-with-taints`, otherwise workload could get scheduled , before machine beomes `Running`
-
 
 ### Current MCM triggerCreationFlow
 
@@ -144,7 +136,6 @@ The following changes are proposed with a view towards minimal impact on current
 
         // Secret backing the machineClass object
         Secret *corev1.Secret
-
     }
     ```
 1. We propose introducing a new MC error code `codes.Initialization` indicating that the VM Instance was created but there was an error in initialization after VM creation. The implementor of `Driver.InitializeMachine` can return this error code, indicating that `InitializeMachine` needs to be called again. The Machine Controller will change the phase to `CrashLoopBackOff` as usual when encountering a `codes.Initialization` error. 
@@ -176,26 +167,20 @@ The [existing Ipv6 PR](https://github.com/gardener/machine-controller-manager-pr
 1. If `providerSpec.SrcAndDstChecksEnabled` is `false`, check `ec2.Instance.SourceDestCheck`. If it does not match then return `status.Error(codes.Initialization)`
 1. Check `providerSpec.NetworkInterfaces` and if `Ipv6PrefixCount` is not `nil`, check `ec2.Instance.NetworkInterfaces` and check if `InstanceNetworkInterface.Ipv6Addresses` has a non-nil slice. If this is not the case then return `status.Error(codes.Initialization)`
 
+### Instance Not Ready Taint 
+
+- Due to the fact that creation flow for machines will now be enhanced to correctly support post-creation startup logic, we should not scheduled workload until this startup logic is complete.  Even without this feature we have a need for such a taint as described in [MCM#740](https://github.com/gardener/machine-controller-manager/issues/740)
+- We propose a new taint `node.machine.sapcloud.io/instance-not-ready` which  will be added as a node startup taint in gardener core [KubeletConfiguration.RegisterWithTaints](https://github.com/gardener/gardener/blob/v1.83.1/pkg/component/extensions/operatingsystemconfig/original/components/kubelet/config.go#L101)
+- The will will then removed by MCM in health check reconciliation, once the machine becomes fully ready. (when moving to `Running` phase)
+- We will add this taint as part of `--ignore-taint` in CA
+- We will introduce a disclaimer / prerequisite in the MCM FAQ, to add this taint as part of kubelet config under `--register-with-taints`, otherwise workload could get scheduled , before machine beomes `Running`
+
+
 
 ## Stage-B Proposal
 
-### Enhancement of Driver Interface
+### Enhancement of Driver Interface for Hot Updation
 
-We propose the following signature for the new `UpdateMachine` method.
-```go
-type Driver interface {
-    // .. existing methods are omitted for brevity.
-
-    // UpdateMachine call is responsible for updation of provider instance using the data in the given UpdateMachineRequest.
-    UpdateMachine(context.Context, *UpdateMachineRequest) error
-}
-
-// UpdateMachineRequest is the request encapsulating identification and updation data regarding instance configuration. 
-type UpdateMachineRequest struct {
-    ProviderID string
-    LastAppliedProviderSpec raw.Extension
-    MachineClass *v1alpha1.MachineClass
-    Secret *corev1.Secret
-}
-```
 Kindly refer to the [Hot-Update Instances](./hotupdate-instances.md) design which provides elaborate detail.
+
+
