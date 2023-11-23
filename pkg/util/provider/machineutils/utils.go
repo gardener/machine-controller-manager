@@ -54,9 +54,6 @@ const (
 	// MachineClassKind is used to identify the machineClassKind for generic machineClasses
 	MachineClassKind = "MachineClass"
 
-	// MigratedMachineClass annotation helps in identifying machineClasses who have been migrated by migration controller
-	MigratedMachineClass = "machine.sapcloud.io/migrated"
-
 	// NotManagedByMCM annotation helps in identifying the nodes which are not handled by MCM
 	NotManagedByMCM = "node.machine.sapcloud.io/not-managed-by-mcm"
 
