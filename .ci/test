@@ -17,7 +17,6 @@
 set -e
 
 export GO111MODULE=on
-export SKIP_INTEGRATION_TESTS=X
 
 # For the test step concourse will set the following environment variables:
 # SOURCE_PATH - path to component repository root directory.
@@ -67,12 +66,9 @@ else
   echo ">>>>> Finished executing unit tests"
 fi
 
+# Integration tests here will always be skipped.
 if [[ "${SKIP_INTEGRATION_TESTS}" != "" ]]; then
   echo ">>>>> Skipping integration tests"
-else
-  echo ">>>>> Invoking intergration tests"
-  .ci/integration-tests
-  echo ">>>>> Finished executing integration tests"
 fi
 
 #TODO: return success failure properly
