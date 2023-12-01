@@ -1555,7 +1555,7 @@ to be.</p>
 <a href="#CurrentStatus">CurrentStatus</a>)
 </p>
 <p>
-<p>MachinePhase is a label for the condition of a machines at the current time.</p>
+<p>MachinePhase is a label for the condition of a machine at the current time.</p>
 </p>
 <br>
 <h3 id="MachineSetCondition">
@@ -1992,7 +1992,7 @@ MachineConfiguration
 <a href="#LastOperation">LastOperation</a>)
 </p>
 <p>
-<p>MachineState is a current state of the machine.</p>
+<p>MachineState is a current state of the operation.</p>
 </p>
 <br>
 <h3 id="MachineStatus">

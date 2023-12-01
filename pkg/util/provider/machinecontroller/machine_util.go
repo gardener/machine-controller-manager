@@ -768,14 +768,6 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 	return machineutils.LongRetry, nil
 }
 
-func NodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions []v1.NodeCondition) ([]v1.NodeCondition, []v1.NodeCondition, bool) {
-	return nodeConditionsHaveChanged(oldConditions, newConditions)
-}
-
-func GetFormattedNodeConditions(conditions []v1.NodeCondition) string {
-	return getFormattedNodeConditions(conditions)
-}
-
 func getFormattedNodeConditions(conditions []v1.NodeCondition) string {
 	var result string
 	if len(conditions) == 0 {
