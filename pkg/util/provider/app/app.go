@@ -209,7 +209,7 @@ func StartControllers(s *options.MCServer,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) error {
 
-	klog.V(5).Info("Getting available resources")
+	klog.V(4).Info("Getting available resources")
 	availableResources, err := getAvailableResources(controlCoreClientBuilder)
 	if err != nil {
 		return err
@@ -239,7 +239,7 @@ func StartControllers(s *options.MCServer,
 	}
 
 	if availableResources[machineGVR] {
-		klog.V(5).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
+		klog.V(4).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
 		controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
 			controlMachineClientBuilder.ClientOrDie("control-machine-shared-informers"),
@@ -274,7 +274,7 @@ func StartControllers(s *options.MCServer,
 		// All shared informers are v1alpha1 API level
 		machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
 
-		klog.V(5).Infof("Creating controllers...")
+		klog.V(4).Infof("Creating controllers...")
 		machineController, err := machinecontroller.NewController(
 			s.Namespace,
 			controlMachineClient,
@@ -305,7 +305,7 @@ func StartControllers(s *options.MCServer,
 		controlCoreInformerFactory.Start(stop)
 		targetCoreInformerFactory.Start(stop)
 
-		klog.V(5).Info("Running controller")
+		klog.V(4).Info("Running controller")
 		go machineController.Run(int(s.ConcurrentNodeSyncs), stop)
 
 	} else {
