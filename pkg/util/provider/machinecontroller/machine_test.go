@@ -2794,7 +2794,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:         fmt.Errorf("Machine deletion in process. Deletion of node object was succesful"),
+					err:         fmt.Errorf("Machine deletion in process. Deletion of node object was successful"),
 					retry:       machineutils.ShortRetry,
 					nodeDeleted: true,
 					machine: newMachine(
