@@ -47,18 +47,28 @@ SECTION
 Machine controller - Machine add, update, delete watches
 */
 func (c *controller) addMachine(obj interface{}) {
-	klog.V(5).Infof("Adding machine object")
-	c.enqueueMachine(obj)
+	c.enqueueMachine(obj, "handling machine obj ADD event")
 }
 
 func (c *controller) updateMachine(oldObj, newObj interface{}) {
-	klog.V(5).Info("Updating machine object")
-	c.enqueueMachine(newObj)
+	oldMachine := oldObj.(*v1alpha1.Machine)
+	newMachine := newObj.(*v1alpha1.Machine)
+
+	if oldMachine == nil || newMachine == nil {
+		klog.Errorf("Couldn't convert to machine resource from object")
+		return
+	}
+
+	if oldMachine.ResourceVersion != newMachine.ResourceVersion && oldMachine.Generation == newMachine.Generation {
+		klog.V(3).Infof("Skipping non-spec updates for machine %s", oldMachine.Name)
+		return
+	}
+
+	c.enqueueMachine(newObj, "handling machine object UPDATE event")
 }
 
 func (c *controller) deleteMachine(obj interface{}) {
-	klog.V(5).Info("Deleting machine object")
-	c.enqueueMachine(obj)
+	c.enqueueMachine(obj, "handling machine object DELETE event")
 }
 
 // getKeyForObj returns key for object, else returns false
@@ -71,17 +81,16 @@ func (c *controller) getKeyForObj(obj interface{}) (string, bool) {
 	return key, true
 }
 
-
-func (c *controller) enqueueMachine(obj interface{}) {
+func (c *controller) enqueueMachine(obj interface{}, reason string) {
 	if key, ok := c.getKeyForObj(obj); ok {
-		klog.V(5).Infof("Adding machine object to the queue %q", key)
+		klog.V(3).Infof("Adding machine object to queue %q, reason: %s", key, reason)
 		c.machineQueue.Add(key)
 	}
 }
 
-func (c *controller) enqueueMachineAfter(obj interface{}, after time.Duration) {
+func (c *controller) enqueueMachineAfter(obj interface{}, after time.Duration, reason string) {
 	if key, ok := c.getKeyForObj(obj); ok {
-		klog.V(5).Infof("Adding machine object to the queue %q after %s", key, after)
+		klog.V(3).Infof("Adding machine object to queue %q after %s, reason: %s", key, after, reason)
 		c.machineQueue.AddAfter(key, after)
 	}
 }
@@ -105,16 +114,19 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 	}
 
 	retryPeriod, err := c.reconcileClusterMachine(ctx, machine)
-	klog.V(5).Info(err, retryPeriod)
 
-	c.enqueueMachineAfter(machine, time.Duration(retryPeriod))
+	var reEnqueReason = "periodic reconcile"
+	if err != nil {
+		reEnqueReason = err.Error()
+	}
+	c.enqueueMachineAfter(machine, time.Duration(retryPeriod), reEnqueReason)
 
 	return nil
 }
 
 func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
-	klog.V(5).Infof("Start Reconciling machine: %q , nodeName: %q ,providerID: %q", machine.Name, getNodeName(machine), getProviderID(machine))
-	defer klog.V(5).Infof("Stop Reconciling machine %q, nodeName: %q ,providerID: %q", machine.Name, getNodeName(machine), getProviderID(machine))
+	klog.V(2).Infof("reconcileClusterMachine: Start for %q with phase:%q, description:%q", machine.Name, machine.Status.CurrentStatus.Phase, machine.Status.LastOperation.Description)
+	defer klog.V(2).Infof("reconcileClusterMachine: Stop for %q", machine.Name)
 
 	if c.safetyOptions.MachineControllerFrozen && machine.DeletionTimestamp == nil {
 		// If Machine controller is frozen and
@@ -132,7 +144,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 
 	validationerr := validation.ValidateMachine(internalMachine)
 	if validationerr.ToAggregate() != nil && len(validationerr.ToAggregate().Errors()) > 0 {
-		err := fmt.Errorf("Validation of Machine failed %s", validationerr.ToAggregate().Error())
+		err := fmt.Errorf("validation of Machine failed %s", validationerr.ToAggregate().Error())
 		klog.Error(err)
 		return machineutils.LongRetry, err
 	}
@@ -140,7 +152,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 	// Validate MachineClass
 	machineClass, secretData, retry, err := c.ValidateMachineClass(ctx, &machine.Spec.Class)
 	if err != nil {
-		klog.Error(err)
+		klog.Errorf("Cannot reconcile machine %s: %s", machine.Name, err)
 		return retry, err
 	}
 
@@ -193,8 +205,8 @@ SECTION
 Machine controller - nodeToMachine
 */
 var (
-	errMultipleMachineMatch = errors.New("Multiple machines matching node")
-	errNoMachineMatch       = errors.New("No machines matching node found")
+	errMultipleMachineMatch = errors.New("multiple machines matching node")
+	errNoMachineMatch       = errors.New("no machines matching node found")
 )
 
 func (c *controller) addNodeToMachine(obj interface{}) {
@@ -226,9 +238,12 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 		return
 	}
 
-	if machine.Status.CurrentStatus.Phase != v1alpha1.MachineCrashLoopBackOff && nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions) {
-		klog.V(5).Infof("Enqueue machine object %q as conditions of backing node %q have changed", machine.Name, getNodeName(machine))
-		c.enqueueMachine(machine)
+	isMachineCrashLooping := machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff
+	isMachineTerminating := machine.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating
+	_, _, nodeConditionsHaveChanged := nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions)
+
+	if !isMachineCrashLooping && !isMachineTerminating && nodeConditionsHaveChanged {
+		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. conditions of backing node %q have changed", getNodeName(machine)))
 	}
 }
 
@@ -242,7 +257,6 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 	// check for the TriggerDeletionByMCM annotation on the node object
 	// if it is present then mark the machine object for deletion
 	if value, ok := node.Annotations[machineutils.TriggerDeletionByMCM]; ok && value == "true" {
-
 		machine, err := c.getMachineFromNode(node.Name)
 		if err != nil {
 			klog.Errorf("Couldn't fetch machine %s, Error: %s", machine.Name, err)
@@ -250,7 +264,7 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 		}
 
 		if machine.DeletionTimestamp == nil {
-			klog.Infof("Node %s is annotated to trigger deletion by MCM.", node.Name)
+			klog.Infof("Node %s for machine %s is annotated to trigger deletion by MCM.", node.Name, machine.Name)
 			if err := c.controlMachineClient.Machines(c.namespace).Delete(context.Background(), machine.Name, metav1.DeleteOptions{}); err != nil {
 				klog.Errorf("Machine object %s backing the node %s could not be marked for deletion.", machine.Name, node.Name)
 				return
@@ -275,7 +289,10 @@ func (c *controller) deleteNodeToMachine(obj interface{}) {
 		return
 	}
 
-	c.enqueueMachine(machine)
+	// donot respond if machine obj is already in termination flow
+	if machine.DeletionTimestamp == nil {
+		c.enqueueMachine(machine, fmt.Sprintf("backing node obj %q got deleted", key))
+	}
 }
 
 /*
@@ -304,7 +321,7 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 
 /*
 	SECTION
-	Machine operations - Create, Update, Delete
+	Machine operations - Create, Delete
 */
 
 func (c *controller) triggerCreationFlow(ctx context.Context, createMachineRequest *driver.CreateMachineRequest) (machineutils.RetryPeriod, error) {
@@ -397,7 +414,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 					}
 
 					// machine obj marked Failed for double security
-					c.machineStatusUpdate(
+					updateErr := c.machineStatusUpdate(
 						ctx,
 						machine,
 						v1alpha1.LastOperation{
@@ -412,6 +429,11 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 						},
 						machine.Status.LastKnownState,
 					)
+					if apierrors.IsConflict(updateErr) {
+						return machineutils.ConflictRetry, err
+					} else if updateErr != nil {
+						return machineutils.ShortRetry, updateErr
+					}
 
 					klog.V(2).Infof("Machine %q marked Failed as VM was referring to a stale node object", machine.Name)
 					return machineutils.ShortRetry, err
@@ -424,7 +446,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 			// GetMachineStatus() returned with one of the above error codes.
 			// Retry operation.
-			c.machineStatusUpdate(
+			updateErr := c.machineStatusUpdate(
 				ctx,
 				machine,
 				v1alpha1.LastOperation{
@@ -439,11 +461,16 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				},
 				machine.Status.LastKnownState,
 			)
+			if apierrors.IsConflict(updateErr) {
+				return machineutils.ConflictRetry, err
+			} else if updateErr != nil {
+				return machineutils.ShortRetry, updateErr
+			}
 
 			return machineutils.ShortRetry, err
 
 		default:
-			c.machineStatusUpdate(
+			updateErr := c.machineStatusUpdate(
 				ctx,
 				machine,
 				v1alpha1.LastOperation{
@@ -458,6 +485,11 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				},
 				machine.Status.LastKnownState,
 			)
+			if apierrors.IsConflict(updateErr) {
+				return machineutils.ConflictRetry, err
+			} else if updateErr != nil {
+				return machineutils.MediumRetry, updateErr
+			}
 
 			return machineutils.MediumRetry, err
 		}
@@ -523,44 +555,6 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		}
 
 		return machineutils.ShortRetry, err
-	}
-
-	return machineutils.LongRetry, nil
-}
-
-func (c *controller) triggerUpdationFlow(ctx context.Context, machine *v1alpha1.Machine, actualProviderID string) (machineutils.RetryPeriod, error) {
-	klog.V(2).Infof("Setting ProviderID of machine %s with backing node %s to %s", machine.Name, getNodeName(machine), actualProviderID)
-
-	for {
-		machine, err := c.controlMachineClient.Machines(machine.Namespace).Get(ctx, machine.Name, metav1.GetOptions{})
-		if err != nil {
-			klog.Warningf("Machine GET failed. Retrying, error: %s", err)
-			continue
-		}
-
-		clone := machine.DeepCopy()
-		clone.Spec.ProviderID = actualProviderID
-		machine, err = c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
-		if err != nil {
-			klog.Warningf("Machine UPDATE failed. Retrying, error: %s", err)
-			continue
-		}
-
-		clone = machine.DeepCopy()
-		lastOperation := v1alpha1.LastOperation{
-			Description:    "Updated provider ID",
-			State:          v1alpha1.MachineStateSuccessful,
-			Type:           v1alpha1.MachineOperationUpdate,
-			LastUpdateTime: metav1.Now(),
-		}
-		clone.Status.LastOperation = lastOperation
-		_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
-		if err != nil {
-			klog.Warningf("Machine/status UPDATE failed. Retrying, error: %s", err)
-			continue
-		}
-		// Update went through, exit out of infinite loop
-		break
 	}
 
 	return machineutils.LongRetry, nil
