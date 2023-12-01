@@ -934,7 +934,7 @@ func (o *Options) waitForReattach(ctx context.Context, podVolumeInfo PodVolumeIn
 
 		case incomingEvent := <-volumeAttachmentEventCh:
 			persistentVolumeName := *incomingEvent.Spec.Source.PersistentVolumeName
-			klog.V(5).Infof("VolumeAttachment event received for PV: %s", persistentVolumeName)
+			klog.V(4).Infof("VolumeAttachment event received for PV: %s", persistentVolumeName)
 
 			// Checking if event for an PV that is being waited on
 			if _, present := pvsWaitingForReattachments[persistentVolumeName]; present {

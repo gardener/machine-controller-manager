@@ -70,13 +70,13 @@ func (v *VolumeAttachmentHandler) dispatch(obj interface{}) {
 
 // AddVolumeAttachment is the event handler for VolumeAttachment add
 func (v *VolumeAttachmentHandler) AddVolumeAttachment(obj interface{}) {
-	klog.V(5).Infof("Adding volume attachment object")
+	klog.V(4).Infof("Adding volume attachment object")
 	v.dispatch(obj)
 }
 
 // UpdateVolumeAttachment is the event handler for VolumeAttachment update
 func (v *VolumeAttachmentHandler) UpdateVolumeAttachment(oldObj, newObj interface{}) {
-	klog.V(5).Info("Updating volume attachment object")
+	klog.V(4).Info("Updating volume attachment object")
 	v.dispatch(newObj)
 }
 
