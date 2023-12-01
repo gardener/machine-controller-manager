@@ -96,12 +96,12 @@ func (c *controller) reconcileClusterMachineClassKey(key string) error {
 
 	err = c.reconcileClusterMachineClass(ctx, class)
 	if err != nil {
-		// Re-enqueue after a 10s window
-		c.enqueueMachineClassAfter(class, 10*time.Second)
+		// Re-enqueue after a ShortRetry window
+		c.enqueueMachineClassAfter(class, time.Duration(machineutils.ShortRetry))
 	} else {
 		// Re-enqueue periodically to avoid missing of events
 		// TODO: Get ride of this logic
-		c.enqueueMachineClassAfter(class, 10*time.Minute)
+		c.enqueueMachineClassAfter(class, time.Duration(machineutils.LongRetry))
 	}
 
 	return nil
@@ -137,7 +137,7 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 			// Enqueue all machines once finalizer is added to machineClass
 			// This is to allow processing of such machines
 			for _, machine := range machines {
-				c.enqueueMachine(machine)
+				c.enqueueMachine(machine, "finalizer placed on machineClass")
 			}
 		}
 
@@ -171,13 +171,13 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 func (c *controller) addMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass) error {
 	finalizers := sets.NewString(class.Finalizers...)
 	finalizers.Insert(MCMFinalizerName)
-	return c.updateMachineClassFinalizers(ctx, class, finalizers.List(),true)
+	return c.updateMachineClassFinalizers(ctx, class, finalizers.List(), true)
 }
 
 func (c *controller) deleteMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass) error {
 	finalizers := sets.NewString(class.Finalizers...)
 	finalizers.Delete(MCMFinalizerName)
-	return c.updateMachineClassFinalizers(ctx, class, finalizers.List(),false)
+	return c.updateMachineClassFinalizers(ctx, class, finalizers.List(), false)
 }
 
 func (c *controller) updateMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass, finalizers []string, addFinalizers bool) error {
@@ -194,9 +194,9 @@ func (c *controller) updateMachineClassFinalizers(ctx context.Context, class *v1
 		klog.Warning("Updating machineClass failed, retrying. ", class.Name, err)
 		return err
 	}
-	if addFinalizers{
+	if addFinalizers {
 		klog.V(3).Infof("Successfully added finalizer on the machineclass %q", class.Name)
-	}else{
+	} else {
 		klog.V(3).Infof("Successfully removed finalizer on the machineclass %q", class.Name)
 	}
 	return err
