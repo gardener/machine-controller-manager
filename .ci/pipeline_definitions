@@ -5,6 +5,8 @@ machine-controller-manager:
         preprocess:
           'inject-commit-hash'
         inject_effective_version: true
+      component_descriptor:
+        ocm_repository: europe-docker.pkg.dev/gardener-project/snapshots
       publish:
         oci-builder: docker-buildx
         platforms:
@@ -17,7 +19,7 @@ machine-controller-manager:
                 source: ~ # default
               steps:
                 build: ~
-            image: 'eu.gcr.io/gardener-project/gardener/machine-controller-manager'
+            image: europe-docker.pkg.dev/gardener-project/snapshots/gardener/machine-controller-manager
             resource_labels:
             - name: 'gardener.cloud/cve-categorisation'
               value:
@@ -38,7 +40,9 @@ machine-controller-manager:
   jobs:
     head-update:
       traits:
-        component_descriptor: ~
+        component_descriptor:
+          ocm_repository_mappings:
+            - repository: europe-docker.pkg.dev/gardener-project/releases
         draft_release: ~
     pull-request:
       traits:
@@ -47,9 +51,14 @@ machine-controller-manager:
       traits:
         version:
           preprocess: 'finalize'
-        component_descriptor: ~
+        component_descriptor:
+          ocm_repository: europe-docker.pkg.dev/gardener-project/releases
         release:
           nextversion: 'bump_minor'
+        publish:
+          dockerimages:
+            machine-controller-manager:
+              image: europe-docker.pkg.dev/gardener-project/releases/gardener/machine-controller-manager
         slack:
           default_channel: 'internal_scp_workspace'
           channel_cfgs:
