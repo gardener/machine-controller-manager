@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: machine-controller-manager
-        image: eu.gcr.io/gardener-project/gardener/machine-controller-manager:v0.39.0
+        image: europe-docker.pkg.dev/gardener-project/public/gardener/machine-controller-manager:v0.39.0
         imagePullPolicy: Always
         command:
           - ./machine-controller-manager
