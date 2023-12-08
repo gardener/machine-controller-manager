@@ -88,3 +88,7 @@ const (
 	// LongRetry tells the controller to retry after a long duration - 10 minutes
 	LongRetry RetryPeriod = RetryPeriod(10 * time.Minute)
 )
+
+// EssentialTaints are taints on node object which if added/removed, require an immediate reconcile by machine controller
+// TODO: update this when taints for ALT updation and PostCreate operations is introduced.
+var EssentialTaints = []string{TaintNodeCriticalComponentsNotReady}
