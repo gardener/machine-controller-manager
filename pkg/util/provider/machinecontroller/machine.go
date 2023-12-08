@@ -21,7 +21,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"time"
 
@@ -275,10 +274,9 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 		}
 	}
 
-	// to reconcile on removal of critical component taint
-	nodeSpecHasChanged := isNodeSpecChanged(oldNode, node)
-	if nodeSpecHasChanged {
-		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. spec of backing node %q has changed", getNodeName(machine)))
+	// to reconcile on addition/removal of essential taints in machine lifecycle, example - critical component taint
+	if areEssentialTaintsUpdated(oldNode, node, machineutils.EssentialTaints) {
+		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. atleast one of essential taints on backing node %q has changed", getNodeName(machine)))
 		return
 	}
 
@@ -328,8 +326,26 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	return machines[0], nil
 }
 
-func isNodeSpecChanged(oldNode *corev1.Node, node *corev1.Node) bool {
-	return !reflect.DeepEqual(oldNode.Spec, node.Spec)
+func areEssentialTaintsUpdated(oldNode, node *corev1.Node, taintKeys []string) bool {
+	mapOldNodeTaintKeys := make(map[string]bool)
+	mapNodeTaintKeys := make(map[string]bool)
+
+	for _, t := range oldNode.Spec.Taints {
+		mapOldNodeTaintKeys[t.Key] = true
+	}
+
+	for _, t := range node.Spec.Taints {
+		mapNodeTaintKeys[t.Key] = true
+	}
+
+	for _, tk := range taintKeys {
+		_, oldNodeHasTaint := mapOldNodeTaintKeys[tk]
+		_, newNodeHasTaint := mapNodeTaintKeys[tk]
+		if oldNodeHasTaint != newNodeHasTaint {
+			return true
+		}
+	}
+	return false
 }
 
 /*
