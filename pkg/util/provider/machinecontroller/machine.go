@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -248,21 +249,22 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 }
 
 func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
+	oldNode := oldObj.(*corev1.Node)
 	node := newObj.(*corev1.Node)
 	if node == nil {
 		klog.Errorf("Couldn't convert to node from object")
 		return
 	}
 
+	machine, err := c.getMachineFromNode(node.Name)
+	if err != nil {
+		klog.Errorf("Couldn't fetch machine %s, Error: %s", machine.Name, err)
+		return
+	}
+
 	// check for the TriggerDeletionByMCM annotation on the node object
 	// if it is present then mark the machine object for deletion
 	if value, ok := node.Annotations[machineutils.TriggerDeletionByMCM]; ok && value == "true" {
-		machine, err := c.getMachineFromNode(node.Name)
-		if err != nil {
-			klog.Errorf("Couldn't fetch machine %s, Error: %s", machine.Name, err)
-			return
-		}
-
 		if machine.DeletionTimestamp == nil {
 			klog.Infof("Node %s for machine %s is annotated to trigger deletion by MCM.", node.Name, machine.Name)
 			if err := c.controlMachineClient.Machines(c.namespace).Delete(context.Background(), machine.Name, metav1.DeleteOptions{}); err != nil {
@@ -271,6 +273,13 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 			}
 			klog.Infof("Machine object %s backing the node %s marked for deletion.", machine.Name, node.Name)
 		}
+	}
+
+	// to reconcile on removal of critical component taint
+	nodeSpecHasChanged := isNodeSpecChanged(oldNode, node)
+	if nodeSpecHasChanged {
+		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. spec of backing node %q has changed", getNodeName(machine)))
+		return
 	}
 
 	c.addNodeToMachine(newObj)
@@ -317,6 +326,10 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	}
 
 	return machines[0], nil
+}
+
+func isNodeSpecChanged(oldNode *corev1.Node, node *corev1.Node) bool {
+	return !reflect.DeepEqual(oldNode.Spec, node.Spec)
 }
 
 /*
