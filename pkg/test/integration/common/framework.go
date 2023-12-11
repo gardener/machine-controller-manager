@@ -689,7 +689,13 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 
 // rotateLogFile takes file name as input and returns a file object obtained by os.Create
 // If the file exists already then it renames it so that a new file can be created
-func rotateLogFile(fileName string) (*os.File, error) {
+func rotateAndAppendLogFile(fileName string, isRotate bool) (*os.File, error) {
+	if !isRotate{
+		if _, err := os.Stat(fileName); err != nil{
+			return os.Create(fileName)
+		}
+		return os.OpenFile(fileName,os.O_APPEND|os.O_WRONLY,0600)
+	}
 	if _, err := os.Stat(fileName); err == nil { // !strings.Contains(err.Error(), "no such file or directory") {
 		noOfFiles := 0
 		temp := fileName + "." + strconv.Itoa(noOfFiles+1)
@@ -728,7 +734,7 @@ func (c *IntegrationTestFramework) runControllersLocally() {
 			c.TargetCluster.KubeConfigFilePath,
 			controlClusterNamespace),
 	)
-	outputFile, err := rotateLogFile(mcLogFile)
+	outputFile, err := rotateAndAppendLogFile(mcLogFile, true)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -743,7 +749,7 @@ func (c *IntegrationTestFramework) runControllersLocally() {
 			c.TargetCluster.KubeConfigFilePath,
 			controlClusterNamespace),
 	)
-	outputFile, err = rotateLogFile(mcmLogFile)
+	outputFile, err = rotateAndAppendLogFile(mcmLogFile, true)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -1039,9 +1045,9 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				if mcsession == nil {
 					// controllers running in pod
 					// Create log file from container log
-					mcmOutputFile, err := rotateLogFile(mcmLogFile)
+					mcmOutputFile, err := rotateAndAppendLogFile(mcmLogFile, true)
 					gomega.Expect(err).NotTo(gomega.HaveOccurred())
-					mcOutputFile, err := rotateLogFile(mcLogFile)
+					mcOutputFile, err := rotateAndAppendLogFile(mcLogFile, true)
 					gomega.Expect(err).NotTo(gomega.HaveOccurred())
 					ginkgo.By("Reading container log is leading to no errors")
 					podList, err := c.ControlCluster.Clientset.
@@ -1219,9 +1225,19 @@ func (c *IntegrationTestFramework) Cleanup() {
 		for i := 0; i < 5; i++ {
 			if mcsession.ExitCode() != -1 {
 				ginkgo.By("Restarting Machine Controller ")
-				outputFile, err := rotateLogFile(mcLogFile)
+				outputFile, err := rotateAndAppendLogFile(mcLogFile, false)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				_, err = gexec.Start(mcsession.Command, outputFile, outputFile)
+				_,err = outputFile.WriteString("\n------------RESTARTED MC------------\n")
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				args := strings.Fields(
+					fmt.Sprintf(
+						"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false ",
+						"../../..",
+						c.ControlCluster.KubeConfigFilePath,
+						c.TargetCluster.KubeConfigFilePath,
+						controlClusterNamespace),
+				)
+				mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				break
 			}
@@ -1230,9 +1246,19 @@ func (c *IntegrationTestFramework) Cleanup() {
 		for i := 0; i < 5; i++ {
 			if mcmsession.ExitCode() != -1 {
 				ginkgo.By("Restarting Machine Controller Manager")
-				outputFile, err := rotateLogFile(mcmLogFile)
+				outputFile, err := rotateAndAppendLogFile(mcmLogFile, false)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				_, err = gexec.Start(mcmsession.Command, outputFile, outputFile)
+				_,err = outputFile.WriteString("\n------------RESTARTED MCM------------\n")
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				args := strings.Fields(
+					fmt.Sprintf(
+						"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms",
+						mcmRepoPath,
+						c.ControlCluster.KubeConfigFilePath,
+						c.TargetCluster.KubeConfigFilePath,
+						controlClusterNamespace),
+				)
+				mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				break
 			}
