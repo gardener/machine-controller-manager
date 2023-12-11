@@ -690,11 +690,11 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 // rotateLogFile takes file name as input and returns a file object obtained by os.Create
 // If the file exists already then it renames it so that a new file can be created
 func rotateAndAppendLogFile(fileName string, isRotate bool) (*os.File, error) {
-	if !isRotate{
-		if _, err := os.Stat(fileName); err != nil{
+	if !isRotate {
+		if _, err := os.Stat(fileName); err != nil {
 			return os.Create(fileName)
 		}
-		return os.OpenFile(fileName,os.O_APPEND|os.O_WRONLY,0600)
+		return os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0600)
 	}
 	if _, err := os.Stat(fileName); err == nil { // !strings.Contains(err.Error(), "no such file or directory") {
 		noOfFiles := 0
@@ -1227,7 +1227,7 @@ func (c *IntegrationTestFramework) Cleanup() {
 				ginkgo.By("Restarting Machine Controller ")
 				outputFile, err := rotateAndAppendLogFile(mcLogFile, false)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				_,err = outputFile.WriteString("\n------------RESTARTED MC------------\n")
+				_, err = outputFile.WriteString("\n------------RESTARTED MC------------\n")
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				args := strings.Fields(
 					fmt.Sprintf(
@@ -1248,7 +1248,7 @@ func (c *IntegrationTestFramework) Cleanup() {
 				ginkgo.By("Restarting Machine Controller Manager")
 				outputFile, err := rotateAndAppendLogFile(mcmLogFile, false)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				_,err = outputFile.WriteString("\n------------RESTARTED MCM------------\n")
+				_, err = outputFile.WriteString("\n------------RESTARTED MCM------------\n")
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				args := strings.Fields(
 					fmt.Sprintf(
@@ -1258,7 +1258,7 @@ func (c *IntegrationTestFramework) Cleanup() {
 						c.TargetCluster.KubeConfigFilePath,
 						controlClusterNamespace),
 				)
-				mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				break
 			}
