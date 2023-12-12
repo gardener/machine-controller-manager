@@ -885,7 +885,7 @@ var _ = Describe("machine", func() {
 							ErrorCode: codes.Internal.String(),
 						},
 					}, nil, nil, nil, true, metav1.NewTime(metav1.Now().Add(-time.Hour))),
-					err:   nil,
+					err:   status.Error(codes.Internal, "Provider is returning error on create call"),
 					retry: machineutils.MediumRetry,
 				},
 			}),
