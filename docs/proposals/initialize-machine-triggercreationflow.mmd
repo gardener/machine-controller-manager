@@ -1,0 +1,35 @@
+flowchart TD
+
+end1(("end"))
+begin((" "))
+medretry["return MediumRetry, err"]
+shortretry["return ShortRetry, err"]
+medretry-->end1
+shortretry-->end1
+
+begin-->AddBootstrapTokenToUserData
+-->gms["statusResp,statusErr=driver.GetMachineStatus(...)"]
+-->chkstatuserr{"Check statusErr"}
+chkstatuserr--NotFound-->chknodelbl{"Chk Node Label"}
+chkstatuserr--Initialization-->initMachine["initErr := driver.InitializeMachine(...)"]
+chkstatuserr--else-->createFailed["lastop.Type=Create,lastop.state=Failed,\nphase=CrashLoopBackOff|Failed"]-->medretry
+chkstatuserr--nil-->initnodename["nodeName = statusResp.NodeName"]-->setnodename
+
+initMachine-->chkInitErr{"Chk initErr"}
+
+chknodelbl--notset-->createmachine["createResp, createErr=driver.CreateMachine(...)"]-->chkCreateErr{"Check createErr"}
+
+chkCreateErr--notnil-->createFailed
+
+chkCreateErr--nil-->getnodename["nodeName = createResp.NodeName"]
+-->chkstalenode{"nodeName != machine.Name\n//chk stale node"}
+chkstalenode--false-->setnodename["if unset machine.Labels['node']= nodeName"]
+
+setnodename-->initMachine
+chkInitErr--nil-->machinepending["if empty/crashloopbackoff lastop.type=Create,lastop.State=Processing,\nphase=Pending"]-->shortretry
+chkInitErr--notnil-->initFailed["lastop.Type=Create,lastop.Description=InstanceInitialization\n,lastop.state=Failed,phase=CrashLoopBackOff|Failed"]
+-->shortretry
+
+chkstalenode--true-->delmachine["driver.DeleteMachine(...)"]
+-->permafail["lastop.type=Create,lastop.state=Failed,Phase=Failed"]
+-->shortretry
