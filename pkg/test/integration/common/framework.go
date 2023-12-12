@@ -689,9 +689,9 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 
 // rotateLogFile takes file name as input and returns a file object obtained by os.Create
 // If the file exists already then it renames it so that a new file can be created
-func rotateAndAppendLogFile(fileName string, isRotate bool) (*os.File, error) {
-	if !isRotate {
-		if _, err := os.Stat(fileName); err != nil {
+func rotateOrAppendLogFile(fileName string, shouldRotate bool) (*os.File, error) {
+	if !shouldRotate {
+		if _, err := os.Stat(fileName); os.IsNotExist(err) {
 			return os.Create(fileName)
 		}
 		return os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0600)
@@ -734,7 +734,7 @@ func (c *IntegrationTestFramework) runControllersLocally() {
 			c.TargetCluster.KubeConfigFilePath,
 			controlClusterNamespace),
 	)
-	outputFile, err := rotateAndAppendLogFile(mcLogFile, true)
+	outputFile, err := rotateOrAppendLogFile(mcLogFile, true)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -749,7 +749,7 @@ func (c *IntegrationTestFramework) runControllersLocally() {
 			c.TargetCluster.KubeConfigFilePath,
 			controlClusterNamespace),
 	)
-	outputFile, err = rotateAndAppendLogFile(mcmLogFile, true)
+	outputFile, err = rotateOrAppendLogFile(mcmLogFile, true)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -1045,9 +1045,9 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				if mcsession == nil {
 					// controllers running in pod
 					// Create log file from container log
-					mcmOutputFile, err := rotateAndAppendLogFile(mcmLogFile, true)
+					mcmOutputFile, err := rotateOrAppendLogFile(mcmLogFile, true)
 					gomega.Expect(err).NotTo(gomega.HaveOccurred())
-					mcOutputFile, err := rotateAndAppendLogFile(mcLogFile, true)
+					mcOutputFile, err := rotateOrAppendLogFile(mcLogFile, true)
 					gomega.Expect(err).NotTo(gomega.HaveOccurred())
 					ginkgo.By("Reading container log is leading to no errors")
 					podList, err := c.ControlCluster.Clientset.
@@ -1225,7 +1225,7 @@ func (c *IntegrationTestFramework) Cleanup() {
 		for i := 0; i < 5; i++ {
 			if mcsession.ExitCode() != -1 {
 				ginkgo.By("Restarting Machine Controller ")
-				outputFile, err := rotateAndAppendLogFile(mcLogFile, false)
+				outputFile, err := rotateOrAppendLogFile(mcLogFile, false)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				_, err = outputFile.WriteString("\n------------RESTARTED MC------------\n")
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
@@ -1246,7 +1246,7 @@ func (c *IntegrationTestFramework) Cleanup() {
 		for i := 0; i < 5; i++ {
 			if mcmsession.ExitCode() != -1 {
 				ginkgo.By("Restarting Machine Controller Manager")
-				outputFile, err := rotateAndAppendLogFile(mcmLogFile, false)
+				outputFile, err := rotateOrAppendLogFile(mcmLogFile, false)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				_, err = outputFile.WriteString("\n------------RESTARTED MCM------------\n")
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
