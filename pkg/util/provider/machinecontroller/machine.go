@@ -59,7 +59,7 @@ func (c *controller) updateMachine(oldObj, newObj interface{}) {
 		return
 	}
 
-	if oldMachine.ResourceVersion != newMachine.ResourceVersion && oldMachine.Generation == newMachine.Generation {
+	if oldMachine.Generation == newMachine.Generation {
 		klog.V(3).Infof("Skipping non-spec updates for machine %s", oldMachine.Name)
 		return
 	}
@@ -342,6 +342,7 @@ func addedOrRemovedEssentialTaints(oldNode, node *corev1.Node, taintKeys []strin
 		_, oldNodeHasTaint := mapOldNodeTaintKeys[tk]
 		_, newNodeHasTaint := mapNodeTaintKeys[tk]
 		if oldNodeHasTaint != newNodeHasTaint {
+			klog.V(2).Infof("Taint with key %q has been added/removed from the node %q", tk, node.Name)
 			return true
 		}
 	}
@@ -443,7 +444,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 					}
 
 					// machine obj marked Failed for double security
-					updateErr := c.machineStatusUpdate(
+					updateRetryRequired, updateErr := c.machineStatusUpdate(
 						ctx,
 						machine,
 						v1alpha1.LastOperation{
@@ -458,10 +459,9 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 						},
 						machine.Status.LastKnownState,
 					)
-					if apierrors.IsConflict(updateErr) {
-						return machineutils.ConflictRetry, err
-					} else if updateErr != nil {
-						return machineutils.ShortRetry, updateErr
+
+					if updateErr != nil {
+						return updateRetryRequired, updateErr
 					}
 
 					klog.V(2).Infof("Machine %q marked Failed as VM was referring to a stale node object", machine.Name)
@@ -475,7 +475,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 			// GetMachineStatus() returned with one of the above error codes.
 			// Retry operation.
-			updateErr := c.machineStatusUpdate(
+			updateRetryRequired, updateErr := c.machineStatusUpdate(
 				ctx,
 				machine,
 				v1alpha1.LastOperation{
@@ -490,16 +490,14 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				},
 				machine.Status.LastKnownState,
 			)
-			if apierrors.IsConflict(updateErr) {
-				return machineutils.ConflictRetry, err
-			} else if updateErr != nil {
-				return machineutils.ShortRetry, updateErr
+			if updateErr != nil {
+				return updateRetryRequired, updateErr
 			}
 
 			return machineutils.ShortRetry, err
 
 		default:
-			updateErr := c.machineStatusUpdate(
+			updateRetryRequired, updateErr := c.machineStatusUpdate(
 				ctx,
 				machine,
 				v1alpha1.LastOperation{
@@ -514,10 +512,8 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				},
 				machine.Status.LastKnownState,
 			)
-			if apierrors.IsConflict(updateErr) {
-				return machineutils.ConflictRetry, err
-			} else if updateErr != nil {
-				return machineutils.MediumRetry, updateErr
+			if updateErr != nil {
+				return updateRetryRequired, updateErr
 			}
 
 			return machineutils.MediumRetry, err
