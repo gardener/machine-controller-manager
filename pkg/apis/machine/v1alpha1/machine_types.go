@@ -156,19 +156,19 @@ const (
 	// MachineUnknown indicates that the node is not ready at the movement
 	MachineUnknown MachinePhase = "Unknown"
 
-	// MachineFailed means operation timeod out
+	// MachineFailed means operation timed out
 	MachineFailed MachinePhase = "Failed"
 
-	// MachineCrashLoopBackOff means creation machine is failing. It means that machine object is present but there is no corresponding VM.
+	// MachineCrashLoopBackOff means machine creation is failing. It means that machine object is present but there is no corresponding VM.
 	MachineCrashLoopBackOff MachinePhase = "CrashLoopBackOff"
 )
 
 // MachineState is a current state of the operation.
 type MachineState string
 
-// These are the valid states of the operation performed on the machine.
+// These are the valid states of operations performed on the machine.
 const (
-	// MachineStateProcessing means  operation is not yet complete
+	// MachineStateProcessing means operation is not yet complete
 	MachineStateProcessing MachineState = "Processing"
 
 	// MachineStateFailed means operation failed 

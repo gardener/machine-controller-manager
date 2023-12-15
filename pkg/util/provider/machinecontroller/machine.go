@@ -55,7 +55,7 @@ func (c *controller) updateMachine(oldObj, newObj interface{}) {
 	newMachine := newObj.(*v1alpha1.Machine)
 
 	if oldMachine == nil || newMachine == nil {
-		klog.Errorf("Couldn't convert to machine resource from object")
+		klog.Errorf("couldn't convert to machine resource from object")
 		return
 	}
 
@@ -152,7 +152,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 	// Validate MachineClass
 	machineClass, secretData, retry, err := c.ValidateMachineClass(ctx, &machine.Spec.Class)
 	if err != nil {
-		klog.Errorf("Cannot reconcile machine %s: %s", machine.Name, err)
+		klog.Errorf("cannot reconcile machine %s: %s", machine.Name, err)
 		return retry, err
 	}
 
@@ -257,7 +257,7 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 
 	machine, err := c.getMachineFromNode(node.Name)
 	if err != nil {
-		klog.Errorf("Couldn't fetch machine %s, Error: %s", machine.Name, err)
+		klog.Errorf("Unable to handle update event for node %s, couldn't fetch machine %s, Error: %s", machine.Name, err)
 		return
 	}
 
