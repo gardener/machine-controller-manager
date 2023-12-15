@@ -275,7 +275,7 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 	}
 
 	// to reconcile on addition/removal of essential taints in machine lifecycle, example - critical component taint
-	if areEssentialTaintsUpdated(oldNode, node, machineutils.EssentialTaints) {
+	if addedOrRemovedEssentialTaints(oldNode, node, machineutils.EssentialTaints) {
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. atleast one of essential taints on backing node %q has changed", getNodeName(machine)))
 		return
 	}
@@ -326,7 +326,7 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	return machines[0], nil
 }
 
-func areEssentialTaintsUpdated(oldNode, node *corev1.Node, taintKeys []string) bool {
+func addedOrRemovedEssentialTaints(oldNode, node *corev1.Node, taintKeys []string) bool {
 	mapOldNodeTaintKeys := make(map[string]bool)
 	mapNodeTaintKeys := make(map[string]bool)
 

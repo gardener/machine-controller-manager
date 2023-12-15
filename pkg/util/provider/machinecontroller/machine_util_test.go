@@ -2363,7 +2363,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           errors.New("machine creation is successful. Machine Phase/Conditions have been UPDATED"),
+					err:           errSuccessfulPhaseUpdate,
 					expectedPhase: v1alpha1.MachineRunning,
 				},
 			}),
@@ -2390,7 +2390,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           errors.New("machine creation is successful. Machine Phase/Conditions have been UPDATED"),
+					err:           errSuccessfulPhaseUpdate,
 					expectedPhase: v1alpha1.MachineRunning,
 				},
 			}),
@@ -2424,7 +2424,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           errors.New("machine creation is successful. Machine Phase/Conditions have been UPDATED"),
+					err:           errSuccessfulPhaseUpdate,
 					expectedPhase: v1alpha1.MachineRunning,
 				},
 			}),
