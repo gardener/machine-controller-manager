@@ -107,8 +107,9 @@ func (c *controller) reconcileClusterMachineSafetyAPIServer(key string) error {
 					klog.V(2).Infof("SafetyController: Reinitializing machine health check for machine: %q with backing node: %q and providerID: %q", machine.Name, getNodeName(machine), getProviderID(machine))
 				}
 
-				// En-queue after 30 seconds, to ensure all machine states are reconciled
-				c.enqueueMachineAfter(machine, 30*time.Second)
+				// En-queue after 30 seconds, to ensure all machine phases are reconciled to their actual value
+				// as they are currently reset to `Running`
+				c.enqueueMachineAfter(machine, 30*time.Second, "kube-api-servers are up again, so reconcile of machine phase is needed")
 			}
 
 			c.safetyOptions.MachineControllerFrozen = false

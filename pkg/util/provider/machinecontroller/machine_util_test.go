@@ -196,7 +196,7 @@ var _ = Describe("machine_util", func() {
 							},
 						},
 					},
-					err: fmt.Errorf("Machine ALTs have been reconciled"),
+					err: errSuccessfulALTsync,
 				},
 			}),
 
@@ -276,7 +276,7 @@ var _ = Describe("machine_util", func() {
 							},
 						},
 					},
-					err: fmt.Errorf("Machine ALTs have been reconciled"),
+					err: errSuccessfulALTsync,
 				},
 			}),
 
@@ -422,7 +422,7 @@ var _ = Describe("machine_util", func() {
 							},
 						},
 					},
-					err: fmt.Errorf("Machine ALTs have been reconciled"),
+					err: errSuccessfulALTsync,
 				},
 			}),
 		)
@@ -2177,7 +2177,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					err:           errSuccessfulPhaseUpdate,
 					expectedPhase: v1alpha1.MachineFailed,
 				},
 			}),
@@ -2196,7 +2196,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					err:           errSuccessfulPhaseUpdate,
 					expectedPhase: v1alpha1.MachineRunning,
 				},
 			}),
@@ -2215,7 +2215,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					err:           errSuccessfulPhaseUpdate,
 					expectedPhase: v1alpha1.MachineUnknown,
 				},
 			}),
@@ -2234,7 +2234,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					err:           errSuccessfulPhaseUpdate,
 					expectedPhase: v1alpha1.MachineUnknown,
 				},
 			}),
@@ -2250,7 +2250,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					err:           errSuccessfulPhaseUpdate,
 					expectedPhase: v1alpha1.MachineUnknown,
 				},
 			}),
@@ -2363,7 +2363,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					err:           errSuccessfulPhaseUpdate,
 					expectedPhase: v1alpha1.MachineRunning,
 				},
 			}),
@@ -2390,7 +2390,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					err:           errSuccessfulPhaseUpdate,
 					expectedPhase: v1alpha1.MachineRunning,
 				},
 			}),
@@ -2424,7 +2424,7 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
-					err:           errors.New("machine creation is successful. Machine State has been UPDATED"),
+					err:           errSuccessfulPhaseUpdate,
 					expectedPhase: v1alpha1.MachineRunning,
 				},
 			}),

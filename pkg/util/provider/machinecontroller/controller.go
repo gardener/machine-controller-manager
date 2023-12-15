@@ -135,7 +135,6 @@ func NewController(
 	controller.pvcLister = pvcInformer.Lister()
 	controller.pvLister = pvInformer.Lister()
 	controller.secretLister = secretInformer.Lister()
-	// TODO: Need to handle K8s versions below 1.13 differently
 	controller.volumeAttachementLister = volumeAttachmentInformer.Lister()
 	controller.machineClassLister = machineClassInformer.Lister()
 	controller.nodeLister = nodeInformer.Lister()
@@ -158,7 +157,7 @@ func NewController(
 		controller.pdbV1beta1Synced = pdbV1beta1Informer.Informer().HasSynced
 	}
 
-	// Secret Controller Informers
+	// Secret Controller's Informers
 	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.secretAdd,
 		DeleteFunc: controller.secretDelete,
@@ -170,10 +169,9 @@ func NewController(
 		DeleteFunc: controller.machineClassToSecretDelete,
 	})
 
-	// Machine Class Controller Informers
+	// Machine Class Controller's Informers
 	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.machineToMachineClassAdd,
-		UpdateFunc: controller.machineToMachineClassUpdate,
 		DeleteFunc: controller.machineToMachineClassDelete,
 	})
 
@@ -183,7 +181,7 @@ func NewController(
 		DeleteFunc: controller.machineClassDelete,
 	})
 
-	// Machine Controller Informers
+	// Machine Controller's Informers
 	nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.addNodeToMachine,
 		UpdateFunc: controller.updateNodeToMachine,
@@ -196,7 +194,7 @@ func NewController(
 		DeleteFunc: controller.deleteMachine,
 	})
 
-	// MachineSafety Controller Informers
+	// MachineSafety Controller's Informers
 	// We follow the kubernetes way of reconciling the safety controller
 	// done by adding empty key objects. We initialize it, to trigger
 	// running of different safety loop on MCM startup.
@@ -209,7 +207,7 @@ func NewController(
 		DeleteFunc: controller.deleteMachineToSafety,
 	})
 
-	// Drain Controller Informers
+	// Drain Controller's Informers
 	if k8sutils.IsResourceSupported(
 		targetCoreClient,
 		schema.GroupResource{

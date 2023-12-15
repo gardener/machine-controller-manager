@@ -136,10 +136,10 @@ type LastOperation struct {
 	Type MachineOperationType `json:"type,omitempty"`
 }
 
-// MachinePhase is a label for the condition of a machines at the current time.
+// MachinePhase is a label for the condition of a machine at the current time.
 type MachinePhase string
 
-// These are the valid statuses of machines.
+// These are the valid phases of machines.
 const (
 	// MachinePending means that the machine is being created
 	MachinePending MachinePhase = "Pending"
@@ -156,25 +156,25 @@ const (
 	// MachineUnknown indicates that the node is not ready at the movement
 	MachineUnknown MachinePhase = "Unknown"
 
-	// MachineFailed means operation failed leading to machine status failure
+	// MachineFailed means operation timed out
 	MachineFailed MachinePhase = "Failed"
 
-	// MachineCrashLoopBackOff means creation or deletion of the machine is failing. It means that machine object is present but there is no corresponding VM.
+	// MachineCrashLoopBackOff means machine creation is failing. It means that machine object is present but there is no corresponding VM.
 	MachineCrashLoopBackOff MachinePhase = "CrashLoopBackOff"
 )
 
-// MachineState is a current state of the machine.
+// MachineState is a current state of the operation.
 type MachineState string
 
-// These are the valid statuses of machines.
+// These are the valid states of operations performed on the machine.
 const (
-	// MachineStatePending means there are operations pending on this machine state
+	// MachineStateProcessing means operation is not yet complete
 	MachineStateProcessing MachineState = "Processing"
 
-	// MachineStateFailed means operation failed leading to machine status failure
+	// MachineStateFailed means operation failed 
 	MachineStateFailed MachineState = "Failed"
 
-	// MachineStateSuccessful indicates that the node is not ready at the moment
+	// MachineStateSuccessful means operation completed successfully 
 	MachineStateSuccessful MachineState = "Successful"
 )
 
@@ -189,7 +189,7 @@ const (
 	// MachineOperationUpdate indicates that the operation was an update
 	MachineOperationUpdate MachineOperationType = "Update"
 
-	// MachineOperationHealthCheck indicates that the operation was a create
+	// MachineOperationHealthCheck indicates that the operation was a health check of node object
 	MachineOperationHealthCheck MachineOperationType = "HealthCheck"
 
 	// MachineOperationDelete indicates that the operation was a delete

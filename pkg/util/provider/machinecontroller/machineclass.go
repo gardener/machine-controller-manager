@@ -45,36 +45,6 @@ func (c *controller) machineToMachineClassAdd(obj interface{}) {
 	}
 }
 
-func (c *controller) machineToMachineClassUpdate(oldObj, newObj interface{}) {
-	oldMachine, ok := oldObj.(*v1alpha1.Machine)
-	if oldMachine == nil || !ok {
-		klog.Warningf("Couldn't get machine from object: %+v", oldObj)
-		return
-	}
-	newMachine, ok := newObj.(*v1alpha1.Machine)
-	if newMachine == nil || !ok {
-		klog.Warningf("Couldn't get machine from object: %+v", newObj)
-		return
-	}
-
-	if oldMachine.Spec.Class.Kind == newMachine.Spec.Class.Kind {
-		if newMachine.Spec.Class.Kind == machineutils.MachineClassKind {
-			// Both old and new machine refer to the same machineClass object
-			// And the correct kind so enqueuing only one of them.
-			c.machineClassQueue.Add(newMachine.Spec.Class.Name)
-		}
-	} else {
-		// If both are pointing to different machineClasses
-		// we might have to enqueue both.
-		if oldMachine.Spec.Class.Kind == machineutils.MachineClassKind {
-			c.machineClassQueue.Add(oldMachine.Spec.Class.Name)
-		}
-		if newMachine.Spec.Class.Kind == machineutils.MachineClassKind {
-			c.machineClassQueue.Add(newMachine.Spec.Class.Name)
-		}
-	}
-}
-
 func (c *controller) machineToMachineClassDelete(obj interface{}) {
 	c.machineToMachineClassAdd(obj)
 }
@@ -126,12 +96,12 @@ func (c *controller) reconcileClusterMachineClassKey(key string) error {
 
 	err = c.reconcileClusterMachineClass(ctx, class)
 	if err != nil {
-		// Re-enqueue after a 10s window
-		c.enqueueMachineClassAfter(class, 10*time.Second)
+		// Re-enqueue after a ShortRetry window
+		c.enqueueMachineClassAfter(class, time.Duration(machineutils.ShortRetry))
 	} else {
 		// Re-enqueue periodically to avoid missing of events
 		// TODO: Get ride of this logic
-		c.enqueueMachineClassAfter(class, 10*time.Minute)
+		c.enqueueMachineClassAfter(class, time.Duration(machineutils.LongRetry))
 	}
 
 	return nil
@@ -159,7 +129,7 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 
 		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(MCMFinalizerName) {
 			// Add machineClassFinalizer as if doesn't exist
-			err = c.addMachineClassFinalizers(ctx, class)
+			err = c.addMCMFinalizerToMachineClass(ctx, class)
 			if err != nil {
 				return err
 			}
@@ -167,7 +137,7 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 			// Enqueue all machines once finalizer is added to machineClass
 			// This is to allow processing of such machines
 			for _, machine := range machines {
-				c.enqueueMachine(machine)
+				c.enqueueMachine(machine, "finalizer placed on machineClass")
 			}
 		}
 
@@ -187,7 +157,7 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 
 	if finalizers := sets.NewString(class.Finalizers...); finalizers.Has(MCMFinalizerName) {
 		// Delete finalizer if exists on machineClass
-		return c.deleteMachineClassFinalizers(ctx, class)
+		return c.deleteMCMFinalizerFromMachineClass(ctx, class)
 	}
 
 	return nil
@@ -198,19 +168,19 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 	Manipulate Finalizers
 */
 
-func (c *controller) addMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass) error {
+func (c *controller) addMCMFinalizerToMachineClass(ctx context.Context, class *v1alpha1.MachineClass) error {
 	finalizers := sets.NewString(class.Finalizers...)
 	finalizers.Insert(MCMFinalizerName)
-	return c.updateMachineClassFinalizers(ctx, class, finalizers.List())
+	return c.updateMachineClassFinalizers(ctx, class, finalizers.List(), true)
 }
 
-func (c *controller) deleteMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass) error {
+func (c *controller) deleteMCMFinalizerFromMachineClass(ctx context.Context, class *v1alpha1.MachineClass) error {
 	finalizers := sets.NewString(class.Finalizers...)
 	finalizers.Delete(MCMFinalizerName)
-	return c.updateMachineClassFinalizers(ctx, class, finalizers.List())
+	return c.updateMachineClassFinalizers(ctx, class, finalizers.List(), false)
 }
 
-func (c *controller) updateMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass, finalizers []string) error {
+func (c *controller) updateMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass, finalizers []string, addFinalizers bool) error {
 	// Get the latest version of the class so that we can avoid conflicts
 	class, err := c.controlMachineClient.MachineClasses(class.Namespace).Get(ctx, class.Name, metav1.GetOptions{})
 	if err != nil {
@@ -224,7 +194,11 @@ func (c *controller) updateMachineClassFinalizers(ctx context.Context, class *v1
 		klog.Warning("Updating machineClass failed, retrying. ", class.Name, err)
 		return err
 	}
-	klog.V(3).Infof("Successfully added/removed finalizer on the machineclass %q", class.Name)
+	if addFinalizers {
+		klog.V(3).Infof("Successfully added finalizer on the machineclass %q", class.Name)
+	} else {
+		klog.V(3).Infof("Successfully removed finalizer on the machineclass %q", class.Name)
+	}
 	return err
 }
 
