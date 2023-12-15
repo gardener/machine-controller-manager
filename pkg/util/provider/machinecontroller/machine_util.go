@@ -482,7 +482,7 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		lastKnownState = createMachineResponse.LastKnownState
 	}
 
-	updateErr := c.machineStatusUpdate(
+	updateRetryRequired, updateErr := c.machineStatusUpdate(
 		ctx,
 		machine,
 		v1alpha1.LastOperation{
@@ -498,10 +498,9 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		},
 		lastKnownState,
 	)
-	if apierrors.IsConflict(updateErr) {
-		return machineutils.ConflictRetry, err
-	} else if updateErr != nil {
-		return retryRequired, updateErr
+
+	if updateErr != nil {
+		return updateRetryRequired, updateErr
 	}
 
 	return retryRequired, err
@@ -513,7 +512,7 @@ func (c *controller) machineStatusUpdate(
 	lastOperation v1alpha1.LastOperation,
 	currentStatus v1alpha1.CurrentStatus,
 	lastKnownState string,
-) error {
+) (machineutils.RetryPeriod, error) {
 	clone := machine.DeepCopy()
 	clone.Status.LastOperation = lastOperation
 	clone.Status.CurrentStatus = currentStatus
@@ -521,7 +520,7 @@ func (c *controller) machineStatusUpdate(
 
 	if isMachineStatusSimilar(clone.Status, machine.Status) {
 		klog.V(3).Infof("Not updating the status of the machine object %q, as the content is similar", clone.Name)
-		return nil
+		return machineutils.ShortRetry, nil
 	}
 
 	_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
@@ -532,7 +531,11 @@ func (c *controller) machineStatusUpdate(
 		klog.V(2).Infof("Machine/status UPDATE for %q", machine.Name)
 	}
 
-	return err
+	if apierrors.IsConflict(err) {
+		return machineutils.ConflictRetry, err
+	}
+
+	return machineutils.ShortRetry, err
 }
 
 // isMachineStatusSimilar checks if the status of 2 machines is similar or not.
@@ -966,7 +969,7 @@ func (c *controller) getVMStatus(ctx context.Context, getMachineStatusRequest *d
 		}
 	}
 
-	updateErr := c.machineStatusUpdate(
+	updateRetryRequired, updateErr := c.machineStatusUpdate(
 		ctx,
 		getMachineStatusRequest.Machine,
 		v1alpha1.LastOperation{
@@ -981,10 +984,9 @@ func (c *controller) getVMStatus(ctx context.Context, getMachineStatusRequest *d
 		getMachineStatusRequest.Machine.Status.CurrentStatus,
 		getMachineStatusRequest.Machine.Status.LastKnownState,
 	)
-	if apierrors.IsConflict(updateErr) {
-		return machineutils.ConflictRetry, err
-	} else if updateErr != nil {
-		return retry, updateErr
+
+	if updateErr != nil {
+		return updateRetryRequired, updateErr
 	}
 
 	return retry, err
@@ -1170,7 +1172,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		}
 	}
 
-	updateErr := c.machineStatusUpdate(
+	updateRetryRequired, updateErr := c.machineStatusUpdate(
 		ctx,
 		machine,
 		v1alpha1.LastOperation{
@@ -1185,10 +1187,9 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		machine.Status.CurrentStatus,
 		machine.Status.LastKnownState,
 	)
-	if apierrors.IsConflict(updateErr) {
-		return machineutils.ConflictRetry, err
-	} else if updateErr != nil {
-		return machineutils.ShortRetry, updateErr
+
+	if updateErr != nil {
+		return updateRetryRequired, updateErr
 	}
 
 	return machineutils.ShortRetry, err
@@ -1239,7 +1240,7 @@ func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachine
 	}
 	now := metav1.Now()
 	klog.V(4).Infof("(deleteVolumeAttachmentsForNode) For node %q, machine %q, set LastOperation.Description: %q", nodeName, machine.Name, description)
-	updateErr := c.machineStatusUpdate(
+	updateRetryRequired, updateErr := c.machineStatusUpdate(
 		ctx,
 		machine,
 		v1alpha1.LastOperation{
@@ -1251,10 +1252,9 @@ func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachine
 		machine.Status.CurrentStatus,
 		machine.Status.LastKnownState,
 	)
-	if apierrors.IsConflict(updateErr) {
-		return machineutils.ConflictRetry, err
-	} else if updateErr != nil {
-		return retryPeriod, updateErr
+
+	if updateErr != nil {
+		return updateRetryRequired, updateErr
 	}
 
 	return retryPeriod, err
@@ -1308,7 +1308,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		lastKnownState = deleteMachineResponse.LastKnownState
 	}
 
-	updateErr := c.machineStatusUpdate(
+	updateRetryRequired, updateErr := c.machineStatusUpdate(
 		ctx,
 		machine,
 		v1alpha1.LastOperation{
@@ -1323,10 +1323,9 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		machine.Status.CurrentStatus,
 		lastKnownState,
 	)
-	if apierrors.IsConflict(updateErr) {
-		return machineutils.ConflictRetry, err
-	} else if updateErr != nil {
-		return retryRequired, updateErr
+
+	if updateErr != nil {
+		return updateRetryRequired, updateErr
 	}
 
 	return retryRequired, err
@@ -1365,7 +1364,7 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 		err = fmt.Errorf("Machine deletion in process. No node object found")
 	}
 
-	updateErr := c.machineStatusUpdate(
+	updateRetryRequired, updateErr := c.machineStatusUpdate(
 		ctx,
 		machine,
 		v1alpha1.LastOperation{
@@ -1380,10 +1379,9 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 		machine.Status.CurrentStatus,
 		machine.Status.LastKnownState,
 	)
-	if apierrors.IsConflict(updateErr) {
-		return machineutils.ConflictRetry, err
-	} else if updateErr != nil {
-		return machineutils.ShortRetry, updateErr
+
+	if updateErr != nil {
+		return updateRetryRequired, updateErr
 	}
 
 	return machineutils.ShortRetry, err
