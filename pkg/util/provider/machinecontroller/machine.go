@@ -444,7 +444,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 					}
 
 					// machine obj marked Failed for double security
-					updateRetryRequired, updateErr := c.machineStatusUpdate(
+					updateRetryPeriod, updateErr := c.machineStatusUpdate(
 						ctx,
 						machine,
 						v1alpha1.LastOperation{
@@ -461,7 +461,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 					)
 
 					if updateErr != nil {
-						return updateRetryRequired, updateErr
+						return updateRetryPeriod, updateErr
 					}
 
 					klog.V(2).Infof("Machine %q marked Failed as VM was referring to a stale node object", machine.Name)
@@ -475,7 +475,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 			// GetMachineStatus() returned with one of the above error codes.
 			// Retry operation.
-			updateRetryRequired, updateErr := c.machineStatusUpdate(
+			updateRetryPeriod, updateErr := c.machineStatusUpdate(
 				ctx,
 				machine,
 				v1alpha1.LastOperation{
@@ -491,13 +491,13 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				machine.Status.LastKnownState,
 			)
 			if updateErr != nil {
-				return updateRetryRequired, updateErr
+				return updateRetryPeriod, updateErr
 			}
 
 			return machineutils.ShortRetry, err
 
 		default:
-			updateRetryRequired, updateErr := c.machineStatusUpdate(
+			updateRetryPeriod, updateErr := c.machineStatusUpdate(
 				ctx,
 				machine,
 				v1alpha1.LastOperation{
@@ -513,7 +513,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				machine.Status.LastKnownState,
 			)
 			if updateErr != nil {
-				return updateRetryRequired, updateErr
+				return updateRetryPeriod, updateErr
 			}
 
 			return machineutils.MediumRetry, err

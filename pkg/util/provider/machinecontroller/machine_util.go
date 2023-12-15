@@ -482,7 +482,7 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		lastKnownState = createMachineResponse.LastKnownState
 	}
 
-	updateRetryRequired, updateErr := c.machineStatusUpdate(
+	updateRetryPeriod, updateErr := c.machineStatusUpdate(
 		ctx,
 		machine,
 		v1alpha1.LastOperation{
@@ -500,7 +500,7 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 	)
 
 	if updateErr != nil {
-		return updateRetryRequired, updateErr
+		return updateRetryPeriod, updateErr
 	}
 
 	return retryRequired, err
@@ -969,7 +969,7 @@ func (c *controller) getVMStatus(ctx context.Context, getMachineStatusRequest *d
 		}
 	}
 
-	updateRetryRequired, updateErr := c.machineStatusUpdate(
+	updateRetryPeriod, updateErr := c.machineStatusUpdate(
 		ctx,
 		getMachineStatusRequest.Machine,
 		v1alpha1.LastOperation{
@@ -986,7 +986,7 @@ func (c *controller) getVMStatus(ctx context.Context, getMachineStatusRequest *d
 	)
 
 	if updateErr != nil {
-		return updateRetryRequired, updateErr
+		return updateRetryPeriod, updateErr
 	}
 
 	return retry, err
@@ -1172,7 +1172,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		}
 	}
 
-	updateRetryRequired, updateErr := c.machineStatusUpdate(
+	updateRetryPeriod, updateErr := c.machineStatusUpdate(
 		ctx,
 		machine,
 		v1alpha1.LastOperation{
@@ -1189,7 +1189,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 	)
 
 	if updateErr != nil {
-		return updateRetryRequired, updateErr
+		return updateRetryPeriod, updateErr
 	}
 
 	return machineutils.ShortRetry, err
@@ -1240,7 +1240,7 @@ func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachine
 	}
 	now := metav1.Now()
 	klog.V(4).Infof("(deleteVolumeAttachmentsForNode) For node %q, machine %q, set LastOperation.Description: %q", nodeName, machine.Name, description)
-	updateRetryRequired, updateErr := c.machineStatusUpdate(
+	updateRetryPeriod, updateErr := c.machineStatusUpdate(
 		ctx,
 		machine,
 		v1alpha1.LastOperation{
@@ -1254,7 +1254,7 @@ func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachine
 	)
 
 	if updateErr != nil {
-		return updateRetryRequired, updateErr
+		return updateRetryPeriod, updateErr
 	}
 
 	return retryPeriod, err
@@ -1308,7 +1308,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		lastKnownState = deleteMachineResponse.LastKnownState
 	}
 
-	updateRetryRequired, updateErr := c.machineStatusUpdate(
+	updateRetryPeriod, updateErr := c.machineStatusUpdate(
 		ctx,
 		machine,
 		v1alpha1.LastOperation{
@@ -1325,7 +1325,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 	)
 
 	if updateErr != nil {
-		return updateRetryRequired, updateErr
+		return updateRetryPeriod, updateErr
 	}
 
 	return retryRequired, err
@@ -1364,7 +1364,7 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 		err = fmt.Errorf("Machine deletion in process. No node object found")
 	}
 
-	updateRetryRequired, updateErr := c.machineStatusUpdate(
+	updateRetryPeriod, updateErr := c.machineStatusUpdate(
 		ctx,
 		machine,
 		v1alpha1.LastOperation{
@@ -1381,7 +1381,7 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 	)
 
 	if updateErr != nil {
-		return updateRetryRequired, updateErr
+		return updateRetryPeriod, updateErr
 	}
 
 	return machineutils.ShortRetry, err
