@@ -129,7 +129,7 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 
 		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(MCMFinalizerName) {
 			// Add machineClassFinalizer as if doesn't exist
-			err = c.addMachineClassFinalizers(ctx, class)
+			err = c.addMCMFinalizerToMachineClass(ctx, class)
 			if err != nil {
 				return err
 			}
@@ -157,7 +157,7 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 
 	if finalizers := sets.NewString(class.Finalizers...); finalizers.Has(MCMFinalizerName) {
 		// Delete finalizer if exists on machineClass
-		return c.deleteMachineClassFinalizers(ctx, class)
+		return c.deleteMCMFinalizerFromMachineClass(ctx, class)
 	}
 
 	return nil
@@ -168,13 +168,13 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 	Manipulate Finalizers
 */
 
-func (c *controller) addMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass) error {
+func (c *controller) addMCMFinalizerToMachineClass(ctx context.Context, class *v1alpha1.MachineClass) error {
 	finalizers := sets.NewString(class.Finalizers...)
 	finalizers.Insert(MCMFinalizerName)
 	return c.updateMachineClassFinalizers(ctx, class, finalizers.List(), true)
 }
 
-func (c *controller) deleteMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass) error {
+func (c *controller) deleteMCMFinalizerFromMachineClass(ctx context.Context, class *v1alpha1.MachineClass) error {
 	finalizers := sets.NewString(class.Finalizers...)
 	finalizers.Delete(MCMFinalizerName)
 	return c.updateMachineClassFinalizers(ctx, class, finalizers.List(), false)
