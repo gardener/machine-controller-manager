@@ -61,10 +61,10 @@ func (c *controller) reconcileClusterSecretKey(key string) error {
 func (c *controller) reconcileClusterSecret(ctx context.Context, secret *corev1.Secret) error {
 	startTime := time.Now()
 
-	klog.V(5).Infof("Start syncing %q", secret.Name)
+	klog.V(4).Infof("Start syncing %q", secret.Name)
 	defer func() {
 		c.enqueueSecretAfter(secret, 10*time.Minute)
-		klog.V(5).Infof("Finished syncing %q (%v)", secret.Name, time.Since(startTime))
+		klog.V(4).Infof("Finished syncing %q (%v)", secret.Name, time.Since(startTime))
 	}()
 
 	// Check if machineClasses are referring to this secret
@@ -80,10 +80,6 @@ func (c *controller) reconcileClusterSecret(ctx context.Context, secret *corev1.
 			return err
 		}
 	} else {
-		if finalizers := sets.NewString(secret.Finalizers...); !finalizers.Has(MCFinalizerName) {
-			// Finalizer doesn't exist, simply return nil
-			return nil
-		}
 		err = c.deleteSecretFinalizers(ctx, secret)
 		if err != nil {
 			return err
