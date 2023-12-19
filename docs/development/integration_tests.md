@@ -31,8 +31,9 @@ If the Control Cluster is a Gardener Shoot cluster then,
 
 If the Control Cluster is a Gardener SEED cluster, then the suite ideally employs the already existing `MachineClass` and Secrets. However,
 
-1. Define the variable `IS_CONTROL_SEED` in the `.env` file and set it to `true`. 
+1. Define the variable `IS_CONTROL_CLUSTER_SEED` in the `.env` file and set it to `true`. 
 `Warning:` Make sure to set the `CONTROL_NAMESPACE` variable to the shoot namespace where the control plane of the target resides.
+1. Please pass `TARGET_RESOURCE_GROUP` in the `.env` file and set it to the name of the target cluster. This is only required for Azure clusters.
 1. (Optional) User can employ a custom `MachineClass` for the tests using below steps:
     1. Deploy a `Secret` named `test-mc-secret` (that contains the provider secret and cloud-config) in the shoot namespace of the Control Cluster. That is, the value of `metadata.namespace` should be `technicalID` of the Shoot and it will be of the pattern `shoot--<project>--<shoot-name>`.
     1. Create a `dev/machineclassv1.yaml` file and add an entry in the `.env` file with `MACHINECLASS_V1=dev/machineclassv1.yaml`.
