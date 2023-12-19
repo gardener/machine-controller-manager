@@ -30,7 +30,7 @@ var (
 func init() {
 	var err error
 
-	ConstraintK8sGreaterEqual121, err = semver.NewConstraint(">= 1.21")
+	ConstraintK8sGreaterEqual121, err = semver.NewConstraint(">= 1.21-0")
 	utilruntime.Must(err)
 }
 
