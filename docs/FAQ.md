@@ -334,11 +334,10 @@ Please ignore the API-violation errors for now.
 ### How can I update the dependencies of MCM?
 
 MCM uses `gomod` for depedency management.
-Developer should add/udpate depedency in the go.mod file. Please run following command to automatically revendor the dependencies.
+Developer should add/udpate depedency in the go.mod file. Please run following command to automatically tidy the dependencies.
 ```
-make revendor
+make tidy
 ```
-
 
 # In the context of Gardener
 

@@ -29,6 +29,10 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+.PHONY: help
+help: ## Display this help.
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+
 ###########################################
 # Setup targets for gardener shoot 		  #
 ###########################################
@@ -98,7 +102,6 @@ non-gardener-restore:
 .PHONY: start
 start:
 	@GO111MODULE=on go run \
-			-mod=vendor \
 			cmd/machine-controller-manager/controller_manager.go \
 			--control-kubeconfig=${CONTROL_KUBECONFIG} \
 			--target-kubeconfig=${TARGET_KUBECONFIG} \
@@ -113,10 +116,9 @@ start:
 # Rules related to binary build, Docker image build and release #
 #################################################################
 
-.PHONY: revendor
-revendor:
-	@GO111MODULE=on go mod tidy -v
-	@GO111MODULE=on go mod vendor -v
+.PHONY: tidy
+tidy:
+	@GO111MODULE=on go mod tidy
 
 .PHONY: build
 build:
@@ -175,29 +177,118 @@ test-clean:
 	@find . -name "*.coverprofile" -type f -delete
 	@rm -f $(COVERPROFILE)
 
-generate: controller-gen
+##@ Deployment
+
+.PHONY: fmt
+fmt: goimports ## Run goimports against code.
+	$(GOIMPORTS) -w .
+
+.PHONY: vet
+vet: ## Run go vet against code.
+	go vet ./...
+
+.PHONY: lint
+lint: golangci-lint ## Run golangci-lint on the code.
+	$(GOLANGCI_LINT) run ./...
+
+.PHONY: add-license
+add-license: addlicense ## Add license headers to all go files.
+	find . -name '*.go' -exec $(ADDLICENSE) -f hack/LICENSE_BOILERPLATE.txt {} +
+
+.PHONY: check-license
+check-license: addlicense ## Check that every file has a license header present.
+	find . -name '*.go' -exec $(ADDLICENSE) -check -c 'SAP SE or an SAP affiliate company' {} +
+
+.PHONY: generate
+generate: vgopath deepcopy-gen defaulter-gen conversion-gen openapi-gen controller-gen
 	$(CONTROLLER_GEN) crd paths=./pkg/apis/machine/v1alpha1/... output:crd:dir=kubernetes/crds output:stdout
-	@./hack/generate-code
-	@./hack/api-reference/generate-spec-doc.sh
+	VGOPATH=$(VGOPATH) \
+	DEEPCOPY_GEN=$(DEEPCOPY_GEN) \
+	DEFAULTER_GEN=$(DEFAULTER_GEN) \
+	CONVERSION_GEN=$(CONVERSION_GEN) \
+	OPENAPI_GEN=$(OPENAPI_GEN) \
+	./hack/update-codegen.sh
 
-# find or download controller-gen
-# download controller-gen if necessary
+##@ Tools
+
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+
+## Tool Binaries
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+DEEPCOPY_GEN ?= $(LOCALBIN)/deepcopy-gen
+DEFAULTER_GEN ?= $(LOCALBIN)/defaulter-gen
+CONVERSION_GEN ?= $(LOCALBIN)/conversion-gen
+OPENAPI_GEN ?= $(LOCALBIN)/openapi-gen
+VGOPATH ?= $(LOCALBIN)/vgopath
+GEN_CRD_API_REFERENCE_DOCS ?= $(LOCALBIN)/gen-crd-api-reference-docs
+ADDLICENSE ?= $(LOCALBIN)/addlicense
+GOIMPORTS ?= $(LOCALBIN)/goimports
+GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
+
+## Tool Versions
+CODE_GENERATOR_VERSION ?= v0.28.2
+VGOPATH_VERSION ?= v0.1.3
+CONTROLLER_TOOLS_VERSION ?= v0.13.0
+GEN_CRD_API_REFERENCE_DOCS_VERSION ?= v0.3.0
+ADDLICENSE_VERSION ?= v1.1.1
+GOIMPORTS_VERSION ?= v0.13.0
+GOLANGCI_LINT_VERSION ?= v1.55.2
+
 .PHONY: controller-gen
-controller-gen:
-ifeq (, $(shell which controller-gen))
-	@{ \
-	set -e ;\
-	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$CONTROLLER_GEN_TMP_DIR ;\
-	go mod init tmp ;\
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.9.2 ;\
-	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
-	}
-CONTROLLER_GEN=$(GOBIN)/controller-gen
-else
-CONTROLLER_GEN=$(shell which controller-gen)
-endif
+controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
+$(CONTROLLER_GEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
-.PHONY: add-license-headers
-add-license-headers: $(GO_ADD_LICENSE)
-	@./hack/add_license_headers.sh
+.PHONY: deepcopy-gen
+deepcopy-gen: $(DEEPCOPY_GEN) ## Download deepcopy-gen locally if necessary.
+$(DEEPCOPY_GEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/deepcopy-gen || GOBIN=$(LOCALBIN) go install k8s.io/code-generator/cmd/deepcopy-gen@$(CODE_GENERATOR_VERSION)
+
+.PHONY: defaulter-gen
+defaulter-gen: $(DEFAULTER_GEN) ## Download defaulter-gen locally if necessary.
+$(DEFAULTER_GEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/defaulter-gen || GOBIN=$(LOCALBIN) go install k8s.io/code-generator/cmd/defaulter-gen@$(CODE_GENERATOR_VERSION)
+
+.PHONY: conversion-gen
+conversion-gen: $(CONVERSION_GEN) ## Download conversion-gen locally if necessary.
+$(CONVERSION_GEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/conversion-gen || GOBIN=$(LOCALBIN) go install k8s.io/code-generator/cmd/conversion-gen@$(CODE_GENERATOR_VERSION)
+
+.PHONY: openapi-gen
+openapi-gen: $(OPENAPI_GEN) ## Download openapi-gen locally if necessary.
+$(OPENAPI_GEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/openapi-gen || GOBIN=$(LOCALBIN) go install k8s.io/code-generator/cmd/openapi-gen@$(CODE_GENERATOR_VERSION)
+
+.PHONY: vgopath
+vgopath: $(VGOPATH) ## Download vgopath locally if necessary.
+.PHONY: $(VGOPATH)
+$(VGOPATH): $(LOCALBIN)
+	@if test -x $(LOCALBIN)/vgopath && ! $(LOCALBIN)/vgopath version | grep -q $(VGOPATH_VERSION); then \
+		echo "$(LOCALBIN)/vgopath version is not expected $(VGOPATH_VERSION). Removing it before installing."; \
+		rm -rf $(LOCALBIN)/vgopath; \
+	fi
+	test -s $(LOCALBIN)/vgopath || GOBIN=$(LOCALBIN) go install github.com/ironcore-dev/vgopath@$(VGOPATH_VERSION)
+
+.PHONY: gen-crd-api-reference-docs
+gen-crd-api-reference-docs: $(GEN_CRD_API_REFERENCE_DOCS) ## Download gen-crd-api-reference-docs locally if necessary.
+$(GEN_CRD_API_REFERENCE_DOCS): $(LOCALBIN)
+	test -s $(LOCALBIN)/gen-crd-api-reference-docs || GOBIN=$(LOCALBIN) go install github.com/ahmetb/gen-crd-api-reference-docs@$(GEN_CRD_API_REFERENCE_DOCS_VERSION)
+
+.PHONY: addlicense
+addlicense: $(ADDLICENSE) ## Download addlicense locally if necessary.
+$(ADDLICENSE): $(LOCALBIN)
+	test -s $(LOCALBIN)/addlicense || GOBIN=$(LOCALBIN) go install github.com/google/addlicense@$(ADDLICENSE_VERSION)
+
+.PHONY: goimports
+goimports: $(GOIMPORTS) ## Download goimports locally if necessary.
+$(GOIMPORTS): $(LOCALBIN)
+	test -s $(LOCALBIN)/goimports || GOBIN=$(LOCALBIN) go install golang.org/x/tools/cmd/goimports@$(GOIMPORTS_VERSION)
+
+.PHONY: golangci-lint
+golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
+$(GOLANGCI_LINT): $(LOCALBIN)
+	test -s $(LOCALBIN)/golangci-lint || GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
