@@ -44,14 +44,13 @@ import (
 
 const (
 	dwdIgnoreScalingAnnotation = "dependency-watchdog.gardener.cloud/ignore-scaling"
-
-	// Suffix for the`kubernetes-io-cluster` tag and cluster name for the orphan resource tracker
-	targetClusterPlaceholder = "integration-test-cluster"
 )
 
 var (
 	// path for storing log files (mcm & mc processes)
 	targetDir = filepath.Join("..", "..", "..", ".ci", "controllers-test", "logs")
+	// Suffix for the`kubernetes-io-cluster` tag and cluster name for the orphan resource tracker
+	targetClusterName = os.Getenv("TARGET_RESOURCE_GROUP")
 	// machine-controller-manager log file
 	mcmLogFile = filepath.Join(targetDir, "mcm_process.log")
 
@@ -491,13 +490,13 @@ func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
 }
 
 func (c *IntegrationTestFramework) updatePatchFile() {
-	clusterTag := "kubernetes-io-cluster-" + targetClusterPlaceholder
+	clusterTag := "kubernetes-io-cluster-" + targetClusterName
 	testRoleTag := "kubernetes-io-role-integration-test"
 
 	patchMachineClassData := MachineClassPatch{
 		ProviderSpec: ProviderSpecPatch{
 			Tags: []string{
-				targetClusterPlaceholder,
+				targetClusterName,
 				clusterTag,
 				testRoleTag,
 			},
@@ -822,7 +821,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 		Get(ctx, testMachineClassResources[0], metav1.GetOptions{})
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	clusterName := targetClusterPlaceholder
+	clusterName := targetClusterName
 
 	ginkgo.By("Looking for secrets refered in machineclass in the control cluster")
 	secretData, err := c.ControlCluster.
