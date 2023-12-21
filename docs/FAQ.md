@@ -25,6 +25,7 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
   * [How to pause the ongoing rolling-update of the machinedeployment?](#How-to-pause-the-ongoing-rolling-update-of-the-machinedeployment)
   * [How to delete machine object immedietly if I don't have access to it?](#how-to-delete-machine-object-immedietly-if-i-dont-have-access-to-it)
   * [How to avoid garbage collection of your node?](#How-to-avoid-garbage-collection-of-your-node)
+  * [How to trigger rolling update of a machinedeployment?](#how-to-trigger-rolling-update-of-a-machinedeployment)
 
 * [Internals](#internals)
   * [What is the high level design of MCM?](#What-is-the-high-level-design-of-MCM)
@@ -160,6 +161,12 @@ To do so they should remove/not-use tags on their VMs containing the following s
 3) `kubernetes-io-cluster-`
 4) `kubernetes-io-role-`
 
+### How to trigger rolling update of a machinedeployment?
+
+Rolling update can be triggered for a machineDeployment by updating one of the following:
+  * .spec.template.annotations
+  * .spec.template.spec.class.name
+
 # Internals
 ### What is the high level design of MCM?
 
@@ -224,6 +231,10 @@ A phase of a `machine` can be identified with `Machine.Status.CurrentStatus.Phas
 * `Terminating`: Machine is being terminated. Terminating state is set immediately when the deletion is triggered for the `machine` object. It also includes time when it's being drained. 
 
 `NOTE`: No phase means the machine is being created on the cloud-provider.
+
+Below is a simple phase transition diagram:
+![image](images/machine_phase_transition.png)
+
 
 ### What health checks are performed on a machine?
 
