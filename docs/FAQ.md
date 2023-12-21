@@ -38,6 +38,7 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
   * [How does rate limiting replacement of machine work in MCM ? How is it related to meltdown protection?](#how-does-rate-limiting-replacement-of-machine-work-in-mcm-how-is-it-related-to-meltdown-protection)
   * [How MCM responds when scale-out/scale-in is done during rolling update of a machinedeployment?](#how-mcm-responds-when-scale-outscale-in-is-done-during-rolling-update-of-a-machinedeployment)
   * [How some unhealthy machines are drained quickly?](#how-some-unhealthy-machines-are-drained-quickly-)
+  * [How does MCM prioritize the machines for deletion on scale-down of machinedeployment?](#how-does-mcm-prioritize-the-machines-for-deletion-on-scale-down-of-machinedeployment)
 
 * [Troubleshooting](#troubleshooting)
   * [My machine is stuck in deletion for 1 hr, why?](#My-machine-is-stuck-in-deletion-for-1-hr-why)
@@ -256,6 +257,14 @@ During update for scaling event, a machineSet is updated if any of the below is 
 - `deployment.kubernetes.io/desired-replicas` needs update
 
 Once scaling is achieved, rollout continues.
+
+### How does MCM prioritize the machines for deletion on scale-down of machinedeployment?
+There could be many machines under a machinedeployment with different phases, creationTimestamp. When a scale down is triggered, MCM decides to remove the machine using the following logic:
+
+* Machine with least value of `machinepriority.machine.sapcloud.io` annotation is picked up.
+* If all machines have equal priorities, then following precedence is followed:
+  * Terminating > Failed > CrashloopBackoff > Unknown > Pending > Available > Running
+* If still there is no match, the machine with oldest creation time (.i.e. creationTimestamp) is picked up.
 
 ## How some unhealthy machines are drained quickly ?
 
