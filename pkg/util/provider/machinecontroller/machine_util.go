@@ -1354,20 +1354,24 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 	if nodeName != "" {
 		// Delete node object
 		err = c.targetCoreClient.CoreV1().Nodes().Delete(ctx, nodeName, metav1.DeleteOptions{})
+		klog.V(3).Infof("Deleting node %q associated with machine %q", nodeName, machine.Name)
 		if err != nil && !apierrors.IsNotFound(err) {
 			// If its an error, and any other error than object not found
 			description = fmt.Sprintf("Deletion of Node Object %q failed due to error: %s. %s", nodeName, err, machineutils.InitiateNodeDeletion)
+			klog.Error(description)
 			state = v1alpha1.MachineStateFailed
 		} else if err == nil {
 			description = fmt.Sprintf("Deletion of Node Object %q is successful. %s", nodeName, machineutils.InitiateFinalizerRemoval)
+			klog.V(3).Info(description)
 			state = v1alpha1.MachineStateProcessing
-
 			err = fmt.Errorf("Machine deletion in process. Deletion of node object was successful")
 		} else {
 			description = fmt.Sprintf("No node object found for %q, continuing deletion flow. %s", nodeName, machineutils.InitiateFinalizerRemoval)
+			klog.Warning(description)
 			state = v1alpha1.MachineStateProcessing
 		}
 	} else {
+		klog.Errorf("Label %q not present on machine %q. Cannot delete associated Node", v1alpha1.NodeLabelKey, machine.Name)
 		description = fmt.Sprintf("No node object found for machine, continuing deletion flow. %s", machineutils.InitiateFinalizerRemoval)
 		state = v1alpha1.MachineStateProcessing
 
