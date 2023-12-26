@@ -920,9 +920,19 @@ func (c *controller) getVMStatus(ctx context.Context, getMachineStatusRequest *d
 		state       v1alpha1.MachineState
 	)
 
-	_, err := c.driver.GetMachineStatus(ctx, getMachineStatusRequest)
+	statusResp, err := c.driver.GetMachineStatus(ctx, getMachineStatusRequest)
 	if err == nil {
 		// VM Found
+
+		// If `node` label is missing on machine obj, then update this label on Machine object with nodeName from status response
+		nodeName := getMachineStatusRequest.Machine.Labels[v1alpha1.NodeLabelKey]
+		if nodeName == "" {
+			err = c.updateMachineNodeLabel(ctx, getMachineStatusRequest.Machine, statusResp.NodeName)
+			if err != nil {
+				return machineutils.ShortRetry, err
+			}
+		}
+
 		description = machineutils.InitiateDrain
 		state = v1alpha1.MachineStateProcessing
 		retry = machineutils.ShortRetry
@@ -1665,4 +1675,20 @@ func getNodeName(machine *v1alpha1.Machine) string {
 
 func getMachineDeploymentName(machine *v1alpha1.Machine) string {
 	return machine.Labels["name"]
+}
+
+func (c *controller) updateMachineNodeLabel(ctx context.Context, machine *v1alpha1.Machine, nodeName string) error {
+	klog.V(2).Infof("Updating %q label on machine %q to %q", v1alpha1.NodeLabelKey, machine.Name, nodeName)
+	clone := machine.DeepCopy()
+	if clone.Labels == nil {
+		clone.Labels = make(map[string]string)
+	}
+	clone.Labels[v1alpha1.NodeLabelKey] = nodeName
+	_, err := c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Warningf("Failed to update %q label on machine %q to %q. Retrying, error: %s", v1alpha1.NodeLabelKey, machine.Name, nodeName, err)
+		return err
+	}
+	klog.V(2).Infof("Updated %q label on machine %q to %q", v1alpha1.NodeLabelKey, machine.Name, nodeName)
+	return nil
 }
