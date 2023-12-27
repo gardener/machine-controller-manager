@@ -920,9 +920,19 @@ func (c *controller) getVMStatus(ctx context.Context, getMachineStatusRequest *d
 		state       v1alpha1.MachineState
 	)
 
-	_, err := c.driver.GetMachineStatus(ctx, getMachineStatusRequest)
+	statusResp, err := c.driver.GetMachineStatus(ctx, getMachineStatusRequest)
 	if err == nil {
 		// VM Found
+
+		// If `node` label is missing on machine obj, then update this label on Machine object with nodeName from status response
+		nodeName := getMachineStatusRequest.Machine.Labels[v1alpha1.NodeLabelKey]
+		if nodeName == "" {
+			err = c.updateMachineNodeLabel(ctx, getMachineStatusRequest.Machine, statusResp.NodeName)
+			if err != nil {
+				return machineutils.ShortRetry, err
+			}
+		}
+
 		description = machineutils.InitiateDrain
 		state = v1alpha1.MachineStateProcessing
 		retry = machineutils.ShortRetry
@@ -1344,23 +1354,26 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 	if nodeName != "" {
 		// Delete node object
 		err = c.targetCoreClient.CoreV1().Nodes().Delete(ctx, nodeName, metav1.DeleteOptions{})
+		klog.V(3).Infof("Deleting node %q associated with machine %q", nodeName, machine.Name)
 		if err != nil && !apierrors.IsNotFound(err) {
 			// If its an error, and any other error than object not found
 			description = fmt.Sprintf("Deletion of Node Object %q failed due to error: %s. %s", nodeName, err, machineutils.InitiateNodeDeletion)
+			klog.Error(description)
 			state = v1alpha1.MachineStateFailed
 		} else if err == nil {
 			description = fmt.Sprintf("Deletion of Node Object %q is successful. %s", nodeName, machineutils.InitiateFinalizerRemoval)
+			klog.V(3).Info(description)
 			state = v1alpha1.MachineStateProcessing
-
 			err = fmt.Errorf("Machine deletion in process. Deletion of node object was successful")
 		} else {
 			description = fmt.Sprintf("No node object found for %q, continuing deletion flow. %s", nodeName, machineutils.InitiateFinalizerRemoval)
+			klog.Warning(description)
 			state = v1alpha1.MachineStateProcessing
 		}
 	} else {
-		description = fmt.Sprintf("No node object found for machine, continuing deletion flow. %s", machineutils.InitiateFinalizerRemoval)
+		description = fmt.Sprintf("Label %q not present on machine %q or no associated node object found, continuing deletion flow. %s", v1alpha1.NodeLabelKey, machine.Name, machineutils.InitiateFinalizerRemoval)
+		klog.Error(description)
 		state = v1alpha1.MachineStateProcessing
-
 		err = fmt.Errorf("Machine deletion in process. No node object found")
 	}
 
@@ -1665,4 +1678,20 @@ func getNodeName(machine *v1alpha1.Machine) string {
 
 func getMachineDeploymentName(machine *v1alpha1.Machine) string {
 	return machine.Labels["name"]
+}
+
+func (c *controller) updateMachineNodeLabel(ctx context.Context, machine *v1alpha1.Machine, nodeName string) error {
+	klog.V(2).Infof("Updating %q label on machine %q to %q", v1alpha1.NodeLabelKey, machine.Name, nodeName)
+	clone := machine.DeepCopy()
+	if clone.Labels == nil {
+		clone.Labels = make(map[string]string)
+	}
+	clone.Labels[v1alpha1.NodeLabelKey] = nodeName
+	_, err := c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Warningf("Failed to update %q label on machine %q to %q. Retrying, error: %s", v1alpha1.NodeLabelKey, machine.Name, nodeName, err)
+		return err
+	}
+	klog.V(2).Infof("Updated %q label on machine %q to %q", v1alpha1.NodeLabelKey, machine.Name, nodeName)
+	return nil
 }
