@@ -1371,10 +1371,9 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 			state = v1alpha1.MachineStateProcessing
 		}
 	} else {
-		klog.Errorf("Label %q not present on machine %q. Cannot delete associated Node", v1alpha1.NodeLabelKey, machine.Name)
-		description = fmt.Sprintf("No node object found for machine, continuing deletion flow. %s", machineutils.InitiateFinalizerRemoval)
+		description = fmt.Sprintf("Label %q not present on machine %q or no associated node object found, continuing deletion flow. %s", v1alpha1.NodeLabelKey, machine.Name, machineutils.InitiateFinalizerRemoval)
+		klog.Error(description)
 		state = v1alpha1.MachineStateProcessing
-
 		err = fmt.Errorf("Machine deletion in process. No node object found")
 	}
 
