@@ -164,8 +164,8 @@ To do so they should remove/not-use tags on their VMs containing the following s
 ### How to trigger rolling update of a machinedeployment?
 
 Rolling update can be triggered for a machineDeployment by updating one of the following:
-  * .spec.template.annotations
-  * .spec.template.spec.class.name
+  * `.spec.template.annotations`
+  * `.spec.template.spec.class.name`
 
 # Internals
 ### What is the high level design of MCM?
