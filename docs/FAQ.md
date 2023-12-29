@@ -25,6 +25,7 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
   * [How to pause the ongoing rolling-update of the machinedeployment?](#How-to-pause-the-ongoing-rolling-update-of-the-machinedeployment)
   * [How to delete machine object immedietly if I don't have access to it?](#how-to-delete-machine-object-immedietly-if-i-dont-have-access-to-it)
   * [How to avoid garbage collection of your node?](#How-to-avoid-garbage-collection-of-your-node)
+  * [How to trigger rolling update of a machinedeployment?](#how-to-trigger-rolling-update-of-a-machinedeployment)
 
 * [Internals](#internals)
   * [What is the high level design of MCM?](#What-is-the-high-level-design-of-MCM)
@@ -38,6 +39,7 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
   * [How does rate limiting replacement of machine work in MCM ? How is it related to meltdown protection?](#how-does-rate-limiting-replacement-of-machine-work-in-mcm-how-is-it-related-to-meltdown-protection)
   * [How MCM responds when scale-out/scale-in is done during rolling update of a machinedeployment?](#how-mcm-responds-when-scale-outscale-in-is-done-during-rolling-update-of-a-machinedeployment)
   * [How some unhealthy machines are drained quickly?](#how-some-unhealthy-machines-are-drained-quickly-)
+  * [How does MCM prioritize the machines for deletion on scale-down of machinedeployment?](#how-does-mcm-prioritize-the-machines-for-deletion-on-scale-down-of-machinedeployment)
 
 * [Troubleshooting](#troubleshooting)
   * [My machine is stuck in deletion for 1 hr, why?](#My-machine-is-stuck-in-deletion-for-1-hr-why)
@@ -159,6 +161,12 @@ To do so they should remove/not-use tags on their VMs containing the following s
 3) `kubernetes-io-cluster-`
 4) `kubernetes-io-role-`
 
+### How to trigger rolling update of a machinedeployment?
+
+Rolling update can be triggered for a machineDeployment by updating one of the following:
+  * `.spec.template.annotations`
+  * `.spec.template.spec.class.name`
+
 # Internals
 ### What is the high level design of MCM?
 
@@ -224,6 +232,10 @@ A phase of a `machine` can be identified with `Machine.Status.CurrentStatus.Phas
 
 `NOTE`: No phase means the machine is being created on the cloud-provider.
 
+Below is a simple phase transition diagram:
+![image](images/machine_phase_transition.png)
+
+
 ### What health checks are performed on a machine?
 
 Health check performed on a machine are:
@@ -256,6 +268,14 @@ During update for scaling event, a machineSet is updated if any of the below is 
 - `deployment.kubernetes.io/desired-replicas` needs update
 
 Once scaling is achieved, rollout continues.
+
+### How does MCM prioritize the machines for deletion on scale-down of machinedeployment?
+There could be many machines under a machinedeployment with different phases, creationTimestamp. When a scale down is triggered, MCM decides to remove the machine using the following logic:
+
+* Machine with least value of `machinepriority.machine.sapcloud.io` annotation is picked up.
+* If all machines have equal priorities, then following precedence is followed:
+  * Terminating > Failed > CrashloopBackoff > Unknown > Pending > Available > Running
+* If still there is no match, the machine with oldest creation time (.i.e. creationTimestamp) is picked up.
 
 ## How some unhealthy machines are drained quickly ?
 
