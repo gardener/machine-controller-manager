@@ -20,14 +20,24 @@ package driver
 import (
 	"context"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 )
 
 // Driver is the common interface for creation/deletion of the VMs over different cloud-providers.
 type Driver interface {
 	// CreateMachine call is responsible for VM creation on the provider
 	CreateMachine(context.Context, *CreateMachineRequest) (*CreateMachineResponse, error)
+	// InitializeMachine call is responsible for VM initialization on the provider.
+	// This should one-time post VM creation activities like network configuration, etc.
+	//
+	// In case of an error, this operation should return an error with one of the following status codes
+	//  - codes.Unimplemented if the provider does not support VM instance initialization.
+	//  - codes.Uninitialized initialization of VM instance failed due to errors
+	//  - codes.NotFound if VM instance was not found.
+	//  - codes.Aborted if VM instance was aborted by the provider.
+	InitializeMachine(context.Context, *InitializeMachineRequest) (*InitializeMachineResponse, error)
 	// DeleteMachine call is responsible for VM deletion/termination on the provider
 	DeleteMachine(context.Context, *DeleteMachineRequest) (*DeleteMachineResponse, error)
 	// GetMachineStatus call get's the status of the VM backing the machine object on the provider
@@ -61,6 +71,32 @@ type CreateMachineResponse struct {
 	NodeName string
 
 	// LastKnownState represents the last state of the VM during an creation/deletion error
+	LastKnownState string
+}
+
+// InitializeMachineRequest encapsulates params for the VM Initialization operation in the Driver facade.
+type InitializeMachineRequest struct {
+	// Machine object representing VM that must be initialized
+	Machine *v1alpha1.Machine
+
+	// MachineClass backing the machine object
+	MachineClass *v1alpha1.MachineClass
+
+	//  Secret backing the machineClass object
+	Secret *corev1.Secret
+}
+
+// InitializeMachineResponse is the response for VM instance initialization (Driver.InitializeMachine).
+type InitializeMachineResponse struct {
+	// ProviderID is the unique identification of the VM at the cloud provider.
+	// ProviderID typically matches with the node.Spec.ProviderID on the node object.
+	// Eg: gce://project-name/region/vm-ID
+	ProviderID string
+
+	// NodeName is the name of the node-object registered to kubernetes.
+	NodeName string
+
+	// LastKnownState represents the last state of the VM instance after initialization operation.
 	LastKnownState string
 }
 
