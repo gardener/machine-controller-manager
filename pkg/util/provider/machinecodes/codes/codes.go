@@ -169,6 +169,7 @@ var strToCode = map[string]Code{
 	"Unavailable":        Unavailable,
 	"DataLoss":           DataLoss,
 	"Unauthenticated":    Unauthenticated,
+	"Uninitialized":      Uninitialized,
 }
 
 // StringToCode coverts string into the Code.

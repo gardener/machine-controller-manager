@@ -533,6 +533,13 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		providerID = getMachineStatusResponse.ProviderID
 	}
 
+	if newlyCreatedOrUninitializedMachine {
+		retryPeriod, err := c.initializeMachine(ctx, createMachineRequest.Machine, createMachineRequest.MachineClass, createMachineRequest.Secret)
+		if err != nil {
+			return retryPeriod, err
+		}
+	}
+
 	_, machineNodeLabelPresent := createMachineRequest.Machine.Labels[v1alpha1.NodeLabelKey]
 	_, machinePriorityAnnotationPresent := createMachineRequest.Machine.Annotations[machineutils.MachinePriority]
 
@@ -561,12 +568,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		}
 		return machineutils.ShortRetry, err
 	}
-	if newlyCreatedOrUninitializedMachine {
-		retryPeriod, err := c.initializeMachine(ctx, createMachineRequest.Machine, createMachineRequest.MachineClass, createMachineRequest.Secret)
-		if err != nil {
-			return retryPeriod, err
-		}
-	}
+
 	if machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
 		clone := machine.DeepCopy()
 		clone.Status.LastOperation = v1alpha1.LastOperation{
@@ -623,7 +625,7 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 			klog.Warningf("VM instance initialization for machine %q was aborted/cancelled.", machine.Name)
 			return 0, nil
 		}
-		return c.machineStatusUpdate(
+		retryPeriod, _ := c.machineStatusUpdate(
 			ctx,
 			machine,
 			v1alpha1.LastOperation{
@@ -639,9 +641,10 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 			},
 			machine.Status.LastKnownState,
 		)
+		return retryPeriod, err
 	}
 
-	klog.Infof("VM instance %q for machine %q was initialized with last known state: %q", resp.ProviderID, machine.Name, resp.LastKnownState)
+	klog.V(3).Infof("VM instance %q for machine %q was initialized with last known state: %q", resp.ProviderID, machine.Name, resp.LastKnownState)
 	return 0, nil
 }
 
