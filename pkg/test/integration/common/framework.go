@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/onsi/ginkgo/v2"
 	"io"
 	"log"
 	"os"
@@ -29,9 +28,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/test/integration/common/helpers"
-	"github.com/gardener/machine-controller-manager/pkg/test/utils/matchers"
+	"github.com/onsi/ginkgo/v2"
+
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 	appsV1 "k8s.io/api/apps/v1"
@@ -40,6 +38,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/retry"
+
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/test/integration/common/helpers"
+	"github.com/gardener/machine-controller-manager/pkg/test/utils/matchers"
 )
 
 const (
@@ -778,9 +780,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 			ginkgo.By("Updating MCM Deployemnt")
 			gomega.Expect(c.prepareMcmDeployment(mcContainerImage, mcmContainerImage, false)).To(gomega.BeNil())
 		} else {
-			ginkgo.By("Cloning Machine-Controller-Manager github repo")
-			gomega.Expect(helpers.CloneRepo("https://github.com/gardener/machine-controller-manager.git", mcmRepoPath)).
-				To(gomega.BeNil())
+			checkMcmRepoAvailable()
 
 			ginkgo.By("Scaledown existing machine controllers")
 			gomega.Expect(c.scaleMcmDeployment(0)).To(gomega.BeNil())
@@ -790,9 +790,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	} else {
 		//TODO : Scaledown the MCM deployment of the actual seed of the target cluster
 
-		ginkgo.By("Cloning Machine-Controller-Manager github repo")
-		gomega.Expect(helpers.CloneRepo("https://github.com/gardener/machine-controller-manager.git", mcmRepoPath)).
-			To(gomega.BeNil())
+		checkMcmRepoAvailable()
 
 		//create the custom resources in the control cluster using yaml files
 		//available in kubernetes/crds directory of machine-controller-manager repo
@@ -1221,47 +1219,49 @@ func (c *IntegrationTestFramework) Cleanup() {
 	ginkgo.By("Running Cleanup")
 	//running locally, means none of the image is specified
 	if len(os.Getenv("MC_CONTAINER_IMAGE")) == 0 && len(os.Getenv("MCM_CONTAINER_IMAGE")) == 0 {
-		for i := 0; i < 5; i++ {
-			if mcsession.ExitCode() != -1 {
-				ginkgo.By("Restarting Machine Controller ")
-				outputFile, err := rotateOrAppendLogFile(mcLogFile, false)
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				_, err = outputFile.WriteString("\n------------RESTARTED MC------------\n")
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				args := strings.Fields(
-					fmt.Sprintf(
-						"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false ",
-						"../../..",
-						c.ControlCluster.KubeConfigFilePath,
-						c.TargetCluster.KubeConfigFilePath,
-						controlClusterNamespace),
-				)
-				mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				break
+		if mcmsession != nil {
+			for i := 0; i < 5; i++ {
+				if mcsession.ExitCode() != -1 {
+					ginkgo.By("Restarting Machine Controller ")
+					outputFile, err := rotateOrAppendLogFile(mcLogFile, false)
+					gomega.Expect(err).NotTo(gomega.HaveOccurred())
+					_, err = outputFile.WriteString("\n------------RESTARTED MC------------\n")
+					gomega.Expect(err).NotTo(gomega.HaveOccurred())
+					args := strings.Fields(
+						fmt.Sprintf(
+							"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false ",
+							"../../..",
+							c.ControlCluster.KubeConfigFilePath,
+							c.TargetCluster.KubeConfigFilePath,
+							controlClusterNamespace),
+					)
+					mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
+					gomega.Expect(err).NotTo(gomega.HaveOccurred())
+					break
+				}
+				time.Sleep(2 * time.Second)
 			}
-			time.Sleep(2 * time.Second)
-		}
-		for i := 0; i < 5; i++ {
-			if mcmsession.ExitCode() != -1 {
-				ginkgo.By("Restarting Machine Controller Manager")
-				outputFile, err := rotateOrAppendLogFile(mcmLogFile, false)
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				_, err = outputFile.WriteString("\n------------RESTARTED MCM------------\n")
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				args := strings.Fields(
-					fmt.Sprintf(
-						"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms",
-						mcmRepoPath,
-						c.ControlCluster.KubeConfigFilePath,
-						c.TargetCluster.KubeConfigFilePath,
-						controlClusterNamespace),
-				)
-				mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				break
+			for i := 0; i < 5; i++ {
+				if mcmsession.ExitCode() != -1 {
+					ginkgo.By("Restarting Machine Controller Manager")
+					outputFile, err := rotateOrAppendLogFile(mcmLogFile, false)
+					gomega.Expect(err).NotTo(gomega.HaveOccurred())
+					_, err = outputFile.WriteString("\n------------RESTARTED MCM------------\n")
+					gomega.Expect(err).NotTo(gomega.HaveOccurred())
+					args := strings.Fields(
+						fmt.Sprintf(
+							"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms",
+							mcmRepoPath,
+							c.ControlCluster.KubeConfigFilePath,
+							c.TargetCluster.KubeConfigFilePath,
+							controlClusterNamespace),
+					)
+					mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
+					gomega.Expect(err).NotTo(gomega.HaveOccurred())
+					break
+				}
+				time.Sleep(2 * time.Second)
 			}
-			time.Sleep(2 * time.Second)
 		}
 	}
 
@@ -1413,4 +1413,12 @@ func (c *IntegrationTestFramework) Cleanup() {
 		}
 	}
 
+}
+
+func checkMcmRepoAvailable() {
+	ginkgo.By("Checking Machine-Controller-Manager repo is available at: " + mcmRepoPath)
+	_, err := os.Stat(mcmRepoPath)
+	gomega.Expect(err).To(gomega.BeNil(), "No MCM dir at: "+mcmRepoPath)
+	_, err = os.Stat(mcmRepoPath + "/.git")
+	gomega.Expect(err).To(gomega.BeNil(), "Not a git repo at: "+mcmRepoPath)
 }
