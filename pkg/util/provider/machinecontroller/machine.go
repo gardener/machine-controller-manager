@@ -616,7 +616,7 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 		klog.Errorf("Error occurred while initializing VM instance for machine %q: %s", machine.Name, err)
 		switch errStatus.Code() {
 		case codes.Unimplemented:
-			klog.Warningf("Provider does not support Driver.InitializeMachine - skipping VM instance initialization for %q.", machine.Name)
+			klog.V(3).Infof("Provider does not support Driver.InitializeMachine - skipping VM instance initialization for %q.", machine.Name)
 			return 0, nil
 		case codes.NotFound:
 			klog.Warningf("No VM instance found for machine %q. Skipping VM instance initialization.", machine.Name)
