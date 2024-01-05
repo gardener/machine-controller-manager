@@ -1219,49 +1219,47 @@ func (c *IntegrationTestFramework) Cleanup() {
 	ginkgo.By("Running Cleanup")
 	//running locally, means none of the image is specified
 	if len(os.Getenv("MC_CONTAINER_IMAGE")) == 0 && len(os.Getenv("MCM_CONTAINER_IMAGE")) == 0 {
-		if mcmsession != nil {
-			for i := 0; i < 5; i++ {
-				if mcsession.ExitCode() != -1 {
-					ginkgo.By("Restarting Machine Controller ")
-					outputFile, err := rotateOrAppendLogFile(mcLogFile, false)
-					gomega.Expect(err).NotTo(gomega.HaveOccurred())
-					_, err = outputFile.WriteString("\n------------RESTARTED MC------------\n")
-					gomega.Expect(err).NotTo(gomega.HaveOccurred())
-					args := strings.Fields(
-						fmt.Sprintf(
-							"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false ",
-							"../../..",
-							c.ControlCluster.KubeConfigFilePath,
-							c.TargetCluster.KubeConfigFilePath,
-							controlClusterNamespace),
-					)
-					mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
-					gomega.Expect(err).NotTo(gomega.HaveOccurred())
-					break
-				}
-				time.Sleep(2 * time.Second)
+		for i := 0; i < 5; i++ {
+			if mcsession == nil || mcsession.ExitCode() != -1 {
+				ginkgo.By("Restarting Machine Controller ")
+				outputFile, err := rotateOrAppendLogFile(mcLogFile, false)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				_, err = outputFile.WriteString("\n------------RESTARTED MC------------\n")
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				args := strings.Fields(
+					fmt.Sprintf(
+						"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false ",
+						"../../..",
+						c.ControlCluster.KubeConfigFilePath,
+						c.TargetCluster.KubeConfigFilePath,
+						controlClusterNamespace),
+				)
+				mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				break
 			}
-			for i := 0; i < 5; i++ {
-				if mcmsession.ExitCode() != -1 {
-					ginkgo.By("Restarting Machine Controller Manager")
-					outputFile, err := rotateOrAppendLogFile(mcmLogFile, false)
-					gomega.Expect(err).NotTo(gomega.HaveOccurred())
-					_, err = outputFile.WriteString("\n------------RESTARTED MCM------------\n")
-					gomega.Expect(err).NotTo(gomega.HaveOccurred())
-					args := strings.Fields(
-						fmt.Sprintf(
-							"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms",
-							mcmRepoPath,
-							c.ControlCluster.KubeConfigFilePath,
-							c.TargetCluster.KubeConfigFilePath,
-							controlClusterNamespace),
-					)
-					mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
-					gomega.Expect(err).NotTo(gomega.HaveOccurred())
-					break
-				}
-				time.Sleep(2 * time.Second)
+			time.Sleep(2 * time.Second)
+		}
+		for i := 0; i < 5; i++ {
+			if mcmsession == nil || mcmsession.ExitCode() != -1 {
+				ginkgo.By("Restarting Machine Controller Manager")
+				outputFile, err := rotateOrAppendLogFile(mcmLogFile, false)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				_, err = outputFile.WriteString("\n------------RESTARTED MCM------------\n")
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				args := strings.Fields(
+					fmt.Sprintf(
+						"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms",
+						mcmRepoPath,
+						c.ControlCluster.KubeConfigFilePath,
+						c.TargetCluster.KubeConfigFilePath,
+						controlClusterNamespace),
+				)
+				mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				break
 			}
+			time.Sleep(2 * time.Second)
 		}
 	}
 
