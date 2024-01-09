@@ -257,7 +257,7 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 
 	machine, err := c.getMachineFromNode(node.Name)
 	if err != nil {
-		klog.Errorf("Unable to handle update event for node %s, couldn't fetch machine %s, Error: %s", machine.Name, err)
+		klog.Errorf("Unable to handle update event for node %s, couldn't fetch associated machine. Error: %s", node.Name, err)
 		return
 	}
 
