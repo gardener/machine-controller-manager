@@ -679,4 +679,7 @@ type NodeTemplate struct {
 
 	// Zone of the node belonging to nodeGroup
 	Zone string
+
+	// Architecture of the node belonging to nodeGroup
+	Architecture string
 }

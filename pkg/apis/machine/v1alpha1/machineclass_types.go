@@ -84,4 +84,7 @@ type NodeTemplate struct {
 
 	// Zone of the expected node belonging to nodeGroup
 	Zone string `json:"zone"`
+
+	// Architecture of the node belonging to nodeGroup
+	Architecture string `json:"architecture"`
 }
