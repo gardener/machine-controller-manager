@@ -1600,13 +1600,12 @@ func schema_pkg_apis_machine_v1alpha1_NodeTemplate(ref common.ReferenceCallback)
 					"architecture": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Architecture of the node belonging to nodeGroup",
-							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 				},
-				Required: []string{"capacity", "instanceType", "region", "zone", "architecture"},
+				Required: []string{"capacity", "instanceType", "region", "zone"},
 			},
 		},
 		Dependencies: []string{

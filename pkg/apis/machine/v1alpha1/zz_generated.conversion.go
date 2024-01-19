@@ -1013,7 +1013,7 @@ func autoConvert_v1alpha1_NodeTemplate_To_machine_NodeTemplate(in *NodeTemplate,
 	out.InstanceType = in.InstanceType
 	out.Region = in.Region
 	out.Zone = in.Zone
-	out.Architecture = in.Architecture
+	out.Architecture = (*string)(unsafe.Pointer(in.Architecture))
 	return nil
 }
 
@@ -1027,7 +1027,7 @@ func autoConvert_machine_NodeTemplate_To_v1alpha1_NodeTemplate(in *machine.NodeT
 	out.InstanceType = in.InstanceType
 	out.Region = in.Region
 	out.Zone = in.Zone
-	out.Architecture = in.Architecture
+	out.Architecture = (*string)(unsafe.Pointer(in.Architecture))
 	return nil
 }
 

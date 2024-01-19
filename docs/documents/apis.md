@@ -2356,10 +2356,11 @@ string
 </td>
 <td>
 <em>
-string
+*string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>Architecture of the node belonging to nodeGroup</p>
 </td>
 </tr>

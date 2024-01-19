@@ -78,7 +78,6 @@ spec:
                 description: Zone of the expected node belonging to nodeGroup
                 type: string
             required:
-            - architecture
             - capacity
             - instanceType
             - region
