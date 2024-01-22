@@ -9,6 +9,7 @@
 *.html
 .vscode
 .idea
+.run 
 **/.env
 *.DS_Store
 managevm
