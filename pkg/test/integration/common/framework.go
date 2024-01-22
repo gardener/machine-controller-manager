@@ -51,8 +51,8 @@ const (
 var (
 	// path for storing log files (mcm & mc processes)
 	targetDir = filepath.Join("..", "..", "..", ".ci", "controllers-test", "logs")
-	// Suffix for the`kubernetes-io-cluster` tag and cluster name for the orphan resource tracker. Currently relevant only for Azure
-	targetClusterName = os.Getenv("TARGET_RESOURCE_GROUP")
+	// Suffix for the`kubernetes-io-cluster` tag and cluster name for the orphan resource tracker. Used as ResourceGroupName for Azure clusters
+	targetClusterName = os.Getenv("TARGET_CLUSTER_NAME")
 	// machine-controller-manager log file
 	mcmLogFile = filepath.Join(targetDir, "mcm_process.log")
 
