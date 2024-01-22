@@ -2361,7 +2361,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Architecture of the node belonging to nodeGroup</p>
+<p>CPU Architecture of the node belonging to nodeGroup</p>
 </td>
 </tr>
 </tbody>

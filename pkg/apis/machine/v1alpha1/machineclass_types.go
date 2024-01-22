@@ -86,6 +86,6 @@ type NodeTemplate struct {
 	Zone string `json:"zone"`
 
 	// +optional
-	// Architecture of the node belonging to nodeGroup
+	// CPU Architecture of the node belonging to nodeGroup
 	Architecture *string `json:"architecture,omitempty"`
 }
