@@ -679,4 +679,8 @@ type NodeTemplate struct {
 
 	// Zone of the node belonging to nodeGroup
 	Zone string
+
+	// +optional
+	// CPU Architecture of the node belonging to nodeGroup
+	Architecture *string
 }

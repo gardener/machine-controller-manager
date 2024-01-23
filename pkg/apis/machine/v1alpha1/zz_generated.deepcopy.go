@@ -661,6 +661,11 @@ func (in *NodeTemplate) DeepCopyInto(out *NodeTemplate) {
 			(*out)[key] = val.DeepCopy()
 		}
 	}
+	if in.Architecture != nil {
+		in, out := &in.Architecture, &out.Architecture
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 
