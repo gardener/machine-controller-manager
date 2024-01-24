@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/onsi/ginkgo/v2"
 	"io"
 	"log"
 	"os"
@@ -29,9 +28,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/test/integration/common/helpers"
-	"github.com/gardener/machine-controller-manager/pkg/test/utils/matchers"
+	"github.com/onsi/ginkgo/v2"
+
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 	appsV1 "k8s.io/api/apps/v1"
@@ -40,6 +38,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/retry"
+
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/test/integration/common/helpers"
+	"github.com/gardener/machine-controller-manager/pkg/test/utils/matchers"
 )
 
 const (
@@ -49,8 +51,8 @@ const (
 var (
 	// path for storing log files (mcm & mc processes)
 	targetDir = filepath.Join("..", "..", "..", ".ci", "controllers-test", "logs")
-	// Suffix for the`kubernetes-io-cluster` tag and cluster name for the orphan resource tracker. Currently relevant only for Azure
-	targetClusterName = os.Getenv("TARGET_RESOURCE_GROUP")
+	// Suffix for the`kubernetes-io-cluster` tag and cluster name for the orphan resource tracker. Used as ResourceGroupName for Azure clusters
+	targetClusterName = os.Getenv("TARGET_CLUSTER_NAME")
 	// machine-controller-manager log file
 	mcmLogFile = filepath.Join(targetDir, "mcm_process.log")
 
@@ -778,9 +780,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 			ginkgo.By("Updating MCM Deployemnt")
 			gomega.Expect(c.prepareMcmDeployment(mcContainerImage, mcmContainerImage, false)).To(gomega.BeNil())
 		} else {
-			ginkgo.By("Cloning Machine-Controller-Manager github repo")
-			gomega.Expect(helpers.CloneRepo("https://github.com/gardener/machine-controller-manager.git", mcmRepoPath)).
-				To(gomega.BeNil())
+			checkMcmRepoAvailable()
 
 			ginkgo.By("Scaledown existing machine controllers")
 			gomega.Expect(c.scaleMcmDeployment(0)).To(gomega.BeNil())
@@ -790,9 +790,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	} else {
 		//TODO : Scaledown the MCM deployment of the actual seed of the target cluster
 
-		ginkgo.By("Cloning Machine-Controller-Manager github repo")
-		gomega.Expect(helpers.CloneRepo("https://github.com/gardener/machine-controller-manager.git", mcmRepoPath)).
-			To(gomega.BeNil())
+		checkMcmRepoAvailable()
 
 		//create the custom resources in the control cluster using yaml files
 		//available in kubernetes/crds directory of machine-controller-manager repo
@@ -1412,5 +1410,15 @@ func (c *IntegrationTestFramework) Cleanup() {
 					metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
 		}
 	}
+
+}
+
+func checkMcmRepoAvailable() {
+	ginkgo.By("Checking Machine-Controller-Manager repo is available at: " + mcmRepoPath)
+	_, err := os.Stat(mcmRepoPath)
+	gomega.Expect(err).To(gomega.BeNil(), "No MCM dir at: "+mcmRepoPath)
+
+	_, err = os.Stat(mcmRepoPath + "/.git")
+	gomega.Expect(err).To(gomega.BeNil(), "Not a git repo at: "+mcmRepoPath)
 
 }
