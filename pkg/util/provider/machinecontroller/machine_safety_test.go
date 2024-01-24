@@ -19,14 +19,15 @@ import (
 	"context"
 	"time"
 
-	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 var _ = Describe("safety_logic", func() {
@@ -316,7 +317,7 @@ var _ = Describe("safety_logic", func() {
 				controlMachineObjects = append(controlMachineObjects, obj)
 			}
 
-			fakeDriver := driver.NewFakeDriver(false, "", "", "", nil, nil)
+			fakeDriver := driver.NewFakeDriver(false, "", "", "", nil, nil, nil)
 
 			c, trackers := createController(stop, testNamespace, controlMachineObjects, controlCoreObjects, nil, fakeDriver)
 			defer trackers.Stop()

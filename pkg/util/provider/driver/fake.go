@@ -35,17 +35,19 @@ type FakeDriver struct {
 	NodeName       string
 	LastKnownState string
 	Err            error
+	InitErr        error
 	fakeVMs        VMs
 }
 
 // NewFakeDriver returns a new fakedriver object
-func NewFakeDriver(vmExists bool, providerID, nodeName, lastKnownState string, err error, fakeVMs VMs) Driver {
+func NewFakeDriver(vmExists bool, providerID, nodeName, lastKnownState string, err error, initError error, fakeVMs VMs) Driver {
 	fakeDriver := &FakeDriver{
 		VMExists:       vmExists,
 		ProviderID:     providerID,
 		NodeName:       nodeName,
 		LastKnownState: lastKnownState,
 		Err:            err,
+		InitErr:        initError,
 		fakeVMs:        make(VMs),
 	}
 	if providerID != "" && nodeName != "" {
@@ -74,6 +76,19 @@ func (d *FakeDriver) CreateMachine(ctx context.Context, createMachineRequest *Cr
 	return nil, d.Err
 }
 
+// InitializeMachine makes a call to the driver to initialize the VM instance of machine.
+func (d *FakeDriver) InitializeMachine(ctx context.Context, initMachineRequest *InitializeMachineRequest) (*InitializeMachineResponse, error) {
+	if d.InitErr == nil {
+		d.VMExists = true
+		return &InitializeMachineResponse{
+			ProviderID:     d.ProviderID,
+			NodeName:       d.NodeName,
+			LastKnownState: d.LastKnownState,
+		}, nil
+	}
+	return nil, d.InitErr
+}
+
 // DeleteMachine make a call to the driver to delete the machine.
 func (d *FakeDriver) DeleteMachine(ctx context.Context, deleteMachineRequest *DeleteMachineRequest) (*DeleteMachineResponse, error) {
 	d.VMExists = false
@@ -91,6 +106,8 @@ func (d *FakeDriver) GetMachineStatus(ctx context.Context, getMachineStatusReque
 		return nil, status.Error(codes.NotFound, errMessage)
 	case d.Err != nil:
 		return nil, d.Err
+	case d.InitErr != nil:
+		return nil, d.InitErr
 	}
 
 	return &GetMachineStatusResponse{

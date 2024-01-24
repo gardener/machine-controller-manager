@@ -21,15 +21,16 @@ import (
 	"math"
 	"time"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 const (
@@ -80,6 +81,7 @@ var _ = Describe("machineclass", func() {
 					data.action.fakeDriver.NodeName,
 					data.action.fakeDriver.LastKnownState,
 					data.action.fakeDriver.Err,
+					nil,
 					nil,
 				)
 
