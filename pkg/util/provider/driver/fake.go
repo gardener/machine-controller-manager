@@ -74,6 +74,20 @@ func (d *FakeDriver) CreateMachine(ctx context.Context, createMachineRequest *Cr
 	return nil, d.Err
 }
 
+// InitializeMachine makes a call to the driver to initialize the VM instance of machine.
+func (d *FakeDriver) InitializeMachine(ctx context.Context, initMachineRequest *InitializeMachineRequest) (*InitializeMachineResponse, error) {
+	statusErr, ok := status.FromError(d.Err)
+	if ok && statusErr != nil && statusErr.Code() == codes.Uninitialized {
+		return nil, d.Err
+	}
+	d.VMExists = true
+	return &InitializeMachineResponse{
+		ProviderID:     d.ProviderID,
+		NodeName:       d.NodeName,
+		LastKnownState: d.LastKnownState,
+	}, nil
+}
+
 // DeleteMachine make a call to the driver to delete the machine.
 func (d *FakeDriver) DeleteMachine(ctx context.Context, deleteMachineRequest *DeleteMachineRequest) (*DeleteMachineResponse, error) {
 	d.VMExists = false
@@ -92,7 +106,6 @@ func (d *FakeDriver) GetMachineStatus(ctx context.Context, getMachineStatusReque
 	case d.Err != nil:
 		return nil, d.Err
 	}
-
 	return &GetMachineStatusResponse{
 		ProviderID: d.ProviderID,
 		NodeName:   d.NodeName,
