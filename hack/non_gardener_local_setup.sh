@@ -42,11 +42,12 @@ function create_usage() {
   usage=$(printf '%s\n' "
     Usage: $(basename $0) [Options]
     Options:
-      -n | --namespace                  <namespace>                         (Required) This is the namespace where MCM pods are deployed.
-      -c | --control-kubeconfig-path    <control-kubeconfig-path>           (Required) Kubeconfig file path which points to the control-plane of cluster where MCM is running.
-      -t | --target-kubeconfig-path     <target-kubeconfig-path>            (Required) Kubeconfig file path which points to control plane of the cluster where nodes are created.
-      -i | --provider                   <provider-name>                     (Required) Infrastructure provider name. Supported providers (gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)
-      -m | --mcm-provider-project-path  <absolute-mcm-provider-project-dir> (Optional) MCM Provider project directory. If not provided then it assumes that both mcm and mcm-provider projects are under the same parent directory
+      -n    | --namespace                  <namespace>                         (Required) This is the namespace where MCM pods are deployed.
+      -c    | --control-kubeconfig-path    <control-kubeconfig-path>           (Required) Kubeconfig file path which points to the control-plane of cluster where MCM is running.
+      -t    | --target-kubeconfig-path     <target-kubeconfig-path>            (Required) Kubeconfig file path which points to control plane of the cluster where nodes are created.
+      -mcc  | --machineclass               <machineclass-v1>                   (Required) MachineClassV1 name. This is the machineclass that will be used to create the nodes.
+      -i    | --provider                   <provider-name>                     (Required) Infrastructure provider name. Supported providers (gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)
+      -m    | --mcm-provider-project-path  <absolute-mcm-provider-project-dir> (Optional) MCM Provider project directory. If not provided then it assumes that both mcm and mcm-provider projects are under the same parent directory
     ")
   echo "${usage}"
 }
@@ -74,6 +75,10 @@ function parse_flags() {
     --mcm-provider-project-path | -m)
       shift
       PROVIDER_MCM_PROJECT_DIR="$1"
+      ;;
+    --machineclass | -mcc)
+      shift
+      MACHINECLASS="$1"
       ;;
     --help | -h)
       shift
@@ -111,6 +116,10 @@ function validate_args() {
     echo -e "Infrastructure provider name has not been passed. Please provide infrastructure provider name either by specifying --provider or -i argument"
     exit 1
   fi
+  if [[ -z "${MACHINECLASS}" ]]; then
+    echo -e "MACHINECLASS has not been passed. Please provide MACHINECLASS either by specifying --machineclass or -mcc argument"
+    exit 1
+  fi
 }
 
 function init_provider_paths() {
@@ -130,7 +139,12 @@ function copy_kubeconfigs_to_provider_mcm() {
 
 function scale_down_mcm() {
   echo "scaling down deployment/machine-controller-manager to 0..."
+  set +e
   KUBECONFIG="${CONTROL_KUBECONFIG_PATH}" kubectl -n "${NAMESPACE}" scale deployment/machine-controller-manager --replicas=0
+  if [[ $? -ne 0 ]]; then
+    echo "MCM does not exist or failed to scale down deployment/machine-controller-manager to 0"
+  fi
+  set -e
 }
 
 # create_makefile_env creates a .env file that will get copied to both mcm and mcm-provider project directories for their
@@ -142,9 +156,11 @@ function set_makefile_env() {
 
   local target_project_dir="$1"
   {
-    printf "\n%s" "CONTROL_NAMESPACE=${NAMESPACE}"
+    printf "\n%s" "IS_CONTROL_CLUSTER_SEED=false" > "${target_project_dir}/.env"
+    printf "\n%s" "CONTROL_NAMESPACE=${NAMESPACE}" >> "${target_project_dir}/.env"
     printf "\n%s" "CONTROL_KUBECONFIG=${CONTROL_KUBECONFIG_PATH}" >>"${target_project_dir}/.env"
     printf "\n%s" "TARGET_KUBECONFIG=${TARGET_KUBECONFIG_PATH}" >>"${target_project_dir}/.env"
+    printf "\n%s" "MACHINECLASS_V1=${MACHINECLASS}" >>"${target_project_dir}/.env"
   } >>"${target_project_dir}/.env"
 }
 
