@@ -45,7 +45,6 @@ function create_usage() {
       -n    | --namespace                  <namespace>                         (Required) This is the namespace where MCM pods are deployed.
       -c    | --control-kubeconfig-path    <control-kubeconfig-path>           (Required) Kubeconfig file path which points to the control-plane of cluster where MCM is running.
       -t    | --target-kubeconfig-path     <target-kubeconfig-path>            (Required) Kubeconfig file path which points to control plane of the cluster where nodes are created.
-      -mcc  | --machineclass               <machineclass-v1>                   (Required) MachineClassV1 name. This is the machineclass that will be used to create the nodes.
       -i    | --provider                   <provider-name>                     (Required) Infrastructure provider name. Supported providers (gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)
       -m    | --mcm-provider-project-path  <absolute-mcm-provider-project-dir> (Optional) MCM Provider project directory. If not provided then it assumes that both mcm and mcm-provider projects are under the same parent directory
     ")
@@ -75,10 +74,6 @@ function parse_flags() {
     --mcm-provider-project-path | -m)
       shift
       PROVIDER_MCM_PROJECT_DIR="$1"
-      ;;
-    --machineclass | -mcc)
-      shift
-      MACHINECLASS="$1"
       ;;
     --help | -h)
       shift
@@ -114,10 +109,6 @@ function validate_args() {
   fi
   if [[ -z "${PROVIDER}" ]]; then
     echo -e "Infrastructure provider name has not been passed. Please provide infrastructure provider name either by specifying --provider or -i argument"
-    exit 1
-  fi
-  if [[ -z "${MACHINECLASS}" ]]; then
-    echo -e "MACHINECLASS has not been passed. Please provide MACHINECLASS either by specifying --machineclass or -mcc argument"
     exit 1
   fi
 }
@@ -157,10 +148,10 @@ function set_makefile_env() {
   local target_project_dir="$1"
   {
     printf "\n%s" "IS_CONTROL_CLUSTER_SEED=false" > "${target_project_dir}/.env"
-    printf "\n%s" "CONTROL_NAMESPACE=${NAMESPACE}" >> "${target_project_dir}/.env"
+    printf "\n%s" "CONTROL_CLUSTER_NAMESPACE=${NAMESPACE}" >> "${target_project_dir}/.env"
     printf "\n%s" "CONTROL_KUBECONFIG=${CONTROL_KUBECONFIG_PATH}" >>"${target_project_dir}/.env"
     printf "\n%s" "TARGET_KUBECONFIG=${TARGET_KUBECONFIG_PATH}" >>"${target_project_dir}/.env"
-    printf "\n%s" "MACHINECLASS_V1=${MACHINECLASS}" >>"${target_project_dir}/.env"
+
   } >>"${target_project_dir}/.env"
 }
 

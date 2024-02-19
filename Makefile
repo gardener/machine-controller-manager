@@ -74,9 +74,7 @@ non-gardener-setup:
 	read TARGET_KUBECONFIG_PATH; \
 	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)"; \
 	read PROVIDER; \
-	echo "enter machineclass path"; \
-	read MACHINECLASS; \
-	./hack/non_gardener_local_setup.sh --namespace $$NAMESPACE --control-kubeconfig-path $$CONTROL_KUBECONFIG_PATH --target-kubeconfig-path $$TARGET_KUBECONFIG_PATH --provider $$PROVIDER --machineclass $$MACHINECLASS
+	./hack/non_gardener_local_setup.sh --namespace $$NAMESPACE --control-kubeconfig-path $$CONTROL_KUBECONFIG_PATH --target-kubeconfig-path $$TARGET_KUBECONFIG_PATH --provider $$PROVIDER
 
 .PHONY: non-gardener-local-mcm-up
 non-gardener-local-mcm-up: non-gardener-setup
