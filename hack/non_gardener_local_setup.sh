@@ -133,7 +133,7 @@ function scale_down_mcm() {
   set +e
   KUBECONFIG="${CONTROL_KUBECONFIG_PATH}" kubectl -n "${NAMESPACE}" scale deployment/machine-controller-manager --replicas=0
   if [[ $? -ne 0 ]]; then
-    echo "MCM does not exist or failed to scale down deployment/machine-controller-manager to 0"
+    echo "deployment/machine-controller-manager does not exist or failed to scale down to 0"
   fi
   set -e
 }
