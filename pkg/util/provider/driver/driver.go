@@ -36,7 +36,6 @@ type Driver interface {
 	//  - codes.Unimplemented if the provider does not support VM instance initialization.
 	//  - codes.Uninitialized initialization of VM instance failed due to errors
 	//  - codes.NotFound if VM instance was not found.
-	//  - codes.Aborted if VM instance was aborted by the provider.
 	InitializeMachine(context.Context, *InitializeMachineRequest) (*InitializeMachineResponse, error)
 	// DeleteMachine call is responsible for VM deletion/termination on the provider
 	DeleteMachine(context.Context, *DeleteMachineRequest) (*DeleteMachineResponse, error)
@@ -95,9 +94,6 @@ type InitializeMachineResponse struct {
 
 	// NodeName is the name of the node-object registered to kubernetes.
 	NodeName string
-
-	// LastKnownState represents the last state of the VM instance after initialization operation.
-	LastKnownState string
 }
 
 // DeleteMachineRequest is the delete request for VM deletion
