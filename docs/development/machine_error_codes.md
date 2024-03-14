@@ -147,7 +147,7 @@ This string MAY be surfaced by MCM to end users.
 
 #### `InitializeMachine`
 
-Provider can OPTIONALLY implement this driver call. Else should return a UNIMPLEMENTED status in error.  
+Provider can OPTIONALLY implement this driver call. Else should return a `UNIMPLEMENTED` status in error.  
 This interface method will be called by the MCM to initialize a new VM just after creation. This can be used to configure network configuration etc.
 
 - This call requests the provider to initialize a newly created VM backing the machine-object.
@@ -196,7 +196,6 @@ The MCM MUST implement the specified error recovery behavior when it encounters 
 | 0 OK | Successful | The call was successful in initializing a VM that matches supplied initialization request. The `InitializeMachineResponse` is returned with desired values |  | N |
 | 5  NOT_FOUND | Timeout | VM Instance for Machine isn't found at provider | Skip Initialization and Continue | N |
 | 12 UNIMPLEMENTED | Not implemented | Unimplemented indicates operation is not implemented or not supported/enabled in this service. | Skip Initialization and continue | N |
-| 13 INTERNAL | Major error | Means some invariants expected by underlying system has been broken. If you see one of these errors, something is very broken. | Needs manual intervension to fix this | Y |
 | 13 INTERNAL | Major error | Means some invariants expected by underlying system has been broken. If you see one of these errors, something is very broken. | Needs manual intervension to fix this | Y |
 | 17 UNINITIALIZED | Failed Initialization| VM Instance could not be initializaed | Initialization is reattempted in next reconcile cycle | Y |
 
@@ -326,6 +325,7 @@ If the conditions defined below are encountered, the provider MUST return the sp
 | 13 INTERNAL | Major error | Means some invariants expected by underlying system has been broken. If you see one of these errors, something is very broken. | Needs manual intervension to fix this | N |
 | 14 UNAVAILABLE | Not Available | Unavailable indicates the service is currently unavailable. | Retry operation after sometime | Y |
 | 16 UNAUTHENTICATED | Missing provider credentials | Request does not have valid authentication credentials for the operation | Fix the provider credentials | N |
+| 17 UNINITIALIZED | Failed Initialization| VM Instance could not be initializaed | Initialization is reattempted in next reconcile cycle | N |
 
 The status `message` MUST contain a human readable description of error, if the status `code` is not `OK`.
 This string MAY be surfaced by MCM to end users.
