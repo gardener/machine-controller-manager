@@ -145,6 +145,65 @@ The MCM MUST implement the specified error recovery behavior when it encounters 
 The status `message` MUST contain a human readable description of error, if the status `code` is not `OK`.
 This string MAY be surfaced by MCM to end users.
 
+#### `InitializeMachine`
+
+Provider can OPTIONALLY implement this driver call. Else should return a UNIMPLEMENTED status in error.  
+This interface method will be called by the MCM to initialize a new VM just after creation. This can be used to configure network configuration etc.
+
+- This call requests the provider to initialize a newly created VM backing the machine-object.
+- The `InitializeMachineResponse` returned by this method is expected to return
+  - `ProviderID` that uniquely identifys the VM at the provider. This is expected to match with the `node.Spec.ProviderID` on the node object.
+  - `NodeName` that is the expected name of the machine when it joins the cluster. It must match with the node name.
+
+```protobuf
+// InitializeMachine call is responsible for VM initialization on the provider.
+InitializeMachine(context.Context, *InitializeMachineRequest) (*InitializeMachineResponse, error)
+
+// InitializeMachineRequest encapsulates params for the VM Initialization operation (Driver.InitializeMachine).
+type InitializeMachineRequest struct {
+	// Machine object representing VM that must be initialized
+	Machine *v1alpha1.Machine
+
+	// MachineClass backing the machine object
+	MachineClass *v1alpha1.MachineClass
+
+	// Secret backing the machineClass object
+	Secret *corev1.Secret
+}
+
+// InitializeMachineResponse is the response for VM instance initialization (Driver.InitializeMachine).
+type InitializeMachineResponse struct {
+	// ProviderID is the unique identification of the VM at the cloud provider.
+	// ProviderID typically matches with the node.Spec.ProviderID on the node object.
+	// Eg: gce://project-name/region/vm-ID
+	ProviderID string
+
+	// NodeName is the name of the node-object registered to kubernetes.
+	NodeName string
+}
+
+```
+
+##### InitializeMachine Errors
+
+If the provider is unable to complete the `InitializeMachine` call successfully, it MUST return a non-ok machine code in the machine status.
+
+If the conditions defined below are encountered, the provider MUST return the specified machine error code.
+The MCM MUST implement the specified error recovery behavior when it encounters the machine error code.
+
+| machine Code | Condition | Description | Recovery Behavior | Auto Retry Required |
+|-----------|-----------|-------------|-------------------|------------|
+| 0 OK | Successful | The call was successful in initializing a VM that matches supplied initialization request. The `InitializeMachineResponse` is returned with desired values |  | N |
+| 5  NOT_FOUND | Timeout | VM Instance for Machine isn't found at provider | Skip Initialization and Continue | N |
+| 12 UNIMPLEMENTED | Not implemented | Unimplemented indicates operation is not implemented or not supported/enabled in this service. | Skip Initialization and continue | N |
+| 13 INTERNAL | Major error | Means some invariants expected by underlying system has been broken. If you see one of these errors, something is very broken. | Needs manual intervension to fix this | Y |
+| 13 INTERNAL | Major error | Means some invariants expected by underlying system has been broken. If you see one of these errors, something is very broken. | Needs manual intervension to fix this | Y |
+| 17 UNINITIALIZED | Failed Initialization| VM Instance could not be initializaed | Initialization is reattempted in next reconcile cycle | Y |
+
+The status `message` MUST contain a human readable description of error, if the status `code` is not `OK`.
+This string MAY be surfaced by MCM to end users.
+
+
 #### `DeleteMachine`
 
 A Provider is REQUIRED to implement this driver call.
