@@ -90,9 +90,8 @@ func (d *FakeDriver) InitializeMachine(ctx context.Context, initMachineRequest *
 	}
 	d.VMExists = true
 	return &InitializeMachineResponse{
-		ProviderID:     d.ProviderID,
-		NodeName:       d.NodeName,
-		LastKnownState: d.LastKnownState,
+		ProviderID: d.ProviderID,
+		NodeName:   d.NodeName,
 	}, d.Err
 }
 

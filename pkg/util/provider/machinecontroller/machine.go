@@ -646,7 +646,7 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 		return machineutils.ShortRetry, err
 	}
 
-	klog.V(3).Infof("VM instance %q for machine %q was initialized with last known state: %q", resp.ProviderID, machine.Name, resp.LastKnownState)
+	klog.V(3).Infof("VM instance %q for machine %q was initialized", resp.ProviderID, machine.Name)
 	return 0, nil
 }
 
