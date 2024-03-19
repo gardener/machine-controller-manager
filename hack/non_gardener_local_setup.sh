@@ -120,7 +120,12 @@ function copy_kubeconfigs_to_provider_mcm() {
 
 function scale_down_mcm() {
   echo "scaling down deployment/machine-controller-manager to 0..."
+  set +e
   KUBECONFIG="${CONTROL_KUBECONFIG_PATH}" kubectl -n "${NAMESPACE}" scale deployment/machine-controller-manager --replicas=0
+  if [[ $? -ne 0 ]]; then
+    echo "deployment/machine-controller-manager does not exist or failed to scale down to 0"
+  fi
+  set -e
 }
 
 # create_makefile_env creates a .env file that will get copied to both mcm and mcm-provider project directories for their
@@ -132,7 +137,8 @@ function set_makefile_env() {
 
   local target_project_dir="$1"
   {
-    printf "\n%s" "CONTROL_NAMESPACE=${NAMESPACE}"
+    printf "\n%s" "IS_CONTROL_CLUSTER_SEED=false" > "${target_project_dir}/.env"
+    printf "\n%s" "CONTROL_CLUSTER_NAMESPACE=${NAMESPACE}" >> "${target_project_dir}/.env"
     printf "\n%s" "CONTROL_KUBECONFIG=${CONTROL_KUBECONFIG_PATH}" >>"${target_project_dir}/.env"
     printf "\n%s" "TARGET_KUBECONFIG=${TARGET_KUBECONFIG_PATH}" >>"${target_project_dir}/.env"
   } >>"${target_project_dir}/.env"
