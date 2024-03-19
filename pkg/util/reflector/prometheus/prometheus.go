@@ -16,7 +16,7 @@ limitations under the License.
 This file was copied and modified from the kubernetes/kubernetes project
 https://github.com/kubernetes/kubernetes/blob/release-1.8/pkg/util/reflector/prometheus/prometheus.go
 
-Modifications Copyright (c) 2018 SAP SE or an SAP affiliate company. All rights reserved.
+Modifications Copyright SAP SE or an SAP affiliate company and Gardener contributors
 */
 
 // Package prometheus sets the cache DefaultMetricsFactory to produce
