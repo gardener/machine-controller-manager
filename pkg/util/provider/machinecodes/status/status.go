@@ -17,7 +17,7 @@
  * This file was copied and modified from the github.com/grpc/grpc-go project
  * https://github.com/grpc/grpc-go/blob/v1.29.x/status/status.go
  *
- * Modifications Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved.
+ * Modifications Copyright SAP SE or an SAP affiliate company and Gardener contributors
  *
  */
 
