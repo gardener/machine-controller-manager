@@ -405,7 +405,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				klog.V(2).Infof("The machine creation is triggered with timeout of %s", c.getEffectiveCreationTimeout(createMachineRequest.Machine).Duration)
 				createMachineResponse, err := c.driver.CreateMachine(ctx, createMachineRequest)
 				if err != nil {
-					// Create call returned a					// Create call returned an error.n error.
+					// Create call returned an error
 					klog.Errorf("Error while creating machine %s: %s", machine.Name, err.Error())
 					return c.machineCreateErrorHandler(ctx, machine, createMachineResponse, err)
 				}
