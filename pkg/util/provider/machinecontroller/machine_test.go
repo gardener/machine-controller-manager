@@ -497,6 +497,9 @@ var _ = Describe("machine", func() {
 				} else {
 					Expect(actual.Status.LastOperation.ErrorCode).To(Equal(""))
 				}
+				if data.expect.machine.Status.LastOperation.Description != "" {
+					Expect(actual.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
+				}
 			},
 
 			Entry("Machine creation succeeds with object UPDATE", &data{
@@ -1015,6 +1018,70 @@ var _ = Describe("machine", func() {
 						metav1.Now(),
 					),
 					err:   fmt.Errorf("Machine creation in process. Machine/Status UPDATE successful"),
+					retry: machineutils.ShortRetry,
+				},
+			}),
+			Entry("Machine initialization failed due to VM instance initialization error", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
+						},
+					},
+					machineClasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil, true, metav1.Now()),
+					nodes: []*corev1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "fakeNode-0",
+							},
+						},
+					},
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   true,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        status.Error(codes.Uninitialized, "VM instance could not be initialized"),
+					},
+				},
+				expect: expect{
+					machine: newMachine(&v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machineClass",
+							},
+						},
+					}, &v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
+							Phase: v1alpha1.MachineCrashLoopBackOff,
+						},
+						LastOperation: v1alpha1.LastOperation{
+							Description: fmt.Sprintf("Provider error: %s. %s", status.Error(codes.Uninitialized, "VM instance could not be initialized").Error(), machineutils.InstanceInitialization),
+							ErrorCode:   codes.Uninitialized.String(),
+							State:       v1alpha1.MachineStateFailed,
+							Type:        v1alpha1.MachineOperationCreate,
+						},
+					}, nil, nil, nil, true, metav1.Now()),
+					err:   status.Error(codes.Uninitialized, "VM instance could not be initialized"),
 					retry: machineutils.ShortRetry,
 				},
 			}),

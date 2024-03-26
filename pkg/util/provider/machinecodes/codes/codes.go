@@ -144,6 +144,11 @@ const (
 	// Unauthenticated indicates the request does not have valid
 	// authentication credentials for the operation.
 	Unauthenticated Code = 16
+
+	// Uninitialized indicates that the VM instance initialization was not performed.
+	// This is meant to be used by providers in implementation of
+	// [github.com/gardener/machine-controller-manager/pkg/util/provider/driver.Driver.GetMachineStatus]
+	Uninitialized Code = 17
 )
 
 var strToCode = map[string]Code{
@@ -164,6 +169,7 @@ var strToCode = map[string]Code{
 	"Unavailable":        Unavailable,
 	"DataLoss":           DataLoss,
 	"Unauthenticated":    Unauthenticated,
+	"Uninitialized":      Uninitialized,
 }
 
 // StringToCode coverts string into the Code.
