@@ -88,7 +88,6 @@ non-gardener-restore:
 .PHONY: start
 start:
 	@GO111MODULE=on go run \
-			-mod=vendor \
 			cmd/machine-controller-manager/controller_manager.go \
 			--control-kubeconfig=${CONTROL_KUBECONFIG} \
 			--target-kubeconfig=${TARGET_KUBECONFIG} \
@@ -103,10 +102,9 @@ start:
 # Rules related to binary build, Docker image build and release #
 #################################################################
 
-.PHONY: revendor
-revendor:
+.PHONY: tidy
+tidy:
 	@GO111MODULE=on go mod tidy -v
-	@GO111MODULE=on go mod vendor -v
 
 .PHONY: build
 build:
