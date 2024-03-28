@@ -74,9 +74,9 @@ The contract between the Machine Controller Manager (MCM) and the Machine Contro
     ```bash
     make test
     ```
-1. Re-generate the vendors to update any new vendors imported.
+1. Tidy the go dependencies.
     ```bash
-    make revendor
+    make tidy
     ```
 1. Update the sample YAML files on the `kubernetes/` directory to provide sample files through which the working of the machine controller can be tested.
 1. Update `README.md` to reflect any additional changes
