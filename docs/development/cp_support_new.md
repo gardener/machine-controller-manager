@@ -66,7 +66,7 @@ The contract between the Machine Controller Manager (MCM) and the Machine Contro
 1. Fill in the methods described at `pkg/provider/core.go` to manage VMs on your cloud provider. Comments are provided above each method to help you fill them up with desired `REQUEST` and `RESPONSE` parameters.
     - A sample provider implementation for these methods can be found [here](https://github.com/gardener/machine-controller-manager-provider-aws/blob/master/pkg/aws/core.go).
     - Fill in the required methods `CreateMachine()`, and `DeleteMachine()` methods.
-    - Optionally fill in methods like `GetMachineStatus()`, `ListMachines()`, and `GetVolumeIDs()`. You may choose to fill these once the working of the required methods seems to be working.
+    - Optionally fill in methods like `GetMachineStatus()`, `InitializeMachine`, `ListMachines()`, and `GetVolumeIDs()`. You may choose to fill these once the working of the required methods seems to be working.
     - `GetVolumeIDs()` expects VolumeIDs to be decoded from the volumeSpec based on the cloud provider.
     - There is also an OPTIONAL method `GenerateMachineClassForMigration()` that helps in migration of `{ProviderSpecific}MachineClass` to `MachineClass` CR (custom resource). This only makes sense if you have an existing implementation (in-tree) acting on different CRD types. You would like to migrate this. If not, you MUST return an error (machine error UNIMPLEMENTED) to avoid processing this step.
 1. Perform validation of APIs that you have described and make it a part of your methods as required at each request.
