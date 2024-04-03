@@ -196,7 +196,7 @@ The MCM MUST implement the specified error recovery behavior when it encounters 
 | 0 OK | Successful | The call was successful in initializing a VM that matches supplied initialization request. The `InitializeMachineResponse` is returned with desired values |  | N |
 | 5  NOT_FOUND | Timeout | VM Instance for Machine isn't found at provider | Skip Initialization and Continue | N |
 | 12 UNIMPLEMENTED | Not implemented | Unimplemented indicates operation is not implemented or not supported/enabled in this service. | Skip Initialization and continue | N |
-| 13 INTERNAL | Major error | Means some invariants expected by underlying system has been broken. If you see one of these errors, something is very broken. | Needs manual intervension to fix this | Y |
+| 13 INTERNAL | Major error | Means some invariants expected by underlying system has been broken.  | Needs investigation and possible intervention to fix this | Y |
 | 17 UNINITIALIZED | Failed Initialization| VM Instance could not be initializaed | Initialization is reattempted in next reconcile cycle | Y |
 
 The status `message` MUST contain a human readable description of error, if the status `code` is not `OK`.
