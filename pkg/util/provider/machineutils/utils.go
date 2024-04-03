@@ -16,6 +16,9 @@ const (
 	// GetVMStatus sets machine status to terminating and specifies next step as getting VMs
 	GetVMStatus = "Set machine status to termination. Now, getting VM Status"
 
+	// InstanceInitialization is a step that represents initialization of a VM instance (post-creation).
+	InstanceInitialization = "Initialize VM Instance"
+
 	// InitiateDrain specifies next step as initiate node drain
 	InitiateDrain = "Initiate node drain"
 
