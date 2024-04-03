@@ -20,7 +20,7 @@ GOLANGCI_LINT ?= $(TOOLS_BIN_DIR)/golangci-lint
 ## Tool Versions
 CODE_GENERATOR_VERSION ?= v0.28.2
 VGOPATH_VERSION ?= v0.1.3
-CONTROLLER_TOOLS_VERSION ?= v0.13.0
+CONTROLLER_TOOLS_VERSION ?= v0.14.0
 GEN_CRD_API_REFERENCE_DOCS_VERSION ?= v0.3.0
 ADDLICENSE_VERSION ?= v1.1.1
 GOIMPORTS_VERSION ?= v0.13.0
@@ -38,36 +38,35 @@ export PATH := $(abspath $(TOOLS_BIN_DIR)):$(PATH)
 #########################################
 
 $(GO_ADD_LICENSE):
-	test -s $(TOOLS_BIN_DIR)/addlicense || GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/google/addlicense@$(GO_ADD_LICENSE_VERSION)
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/google/addlicense@$(GO_ADD_LICENSE_VERSION)
 
 $(CONTROLLER_GEN):
-	test -s $(TOOLS_BIN_DIR)/controller-gen && $(TOOLS_BIN_DIR)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
 	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
 $(DEEPCOPY_GEN):
-	test -s $(TOOLS_BIN_DIR)/deepcopy-gen || GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install k8s.io/code-generator/cmd/deepcopy-gen@$(CODE_GENERATOR_VERSION)
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install k8s.io/code-generator/cmd/deepcopy-gen@$(CODE_GENERATOR_VERSION)
 
 $(DEFAULTER_GEN):
-	test -s $(TOOLS_BIN_DIR)/defaulter-gen || GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install k8s.io/code-generator/cmd/defaulter-gen@$(CODE_GENERATOR_VERSION)
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install k8s.io/code-generator/cmd/defaulter-gen@$(CODE_GENERATOR_VERSION)
 
 $(CONVERSION_GEN):
-	test -s $(TOOLS_BIN_DIR)/conversion-gen || GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install k8s.io/code-generator/cmd/conversion-gen@$(CODE_GENERATOR_VERSION)
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install k8s.io/code-generator/cmd/conversion-gen@$(CODE_GENERATOR_VERSION)
 
 $(OPENAPI_GEN):
-	test -s $(TOOLS_BIN_DIR)/openapi-gen || GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install k8s.io/code-generator/cmd/openapi-gen@$(CODE_GENERATOR_VERSION)
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install k8s.io/code-generator/cmd/openapi-gen@$(CODE_GENERATOR_VERSION)
 
 $(VGOPATH):
 	@if test -x $(TOOLS_BIN_DIR)/vgopath && ! $(TOOLS_BIN_DIR)/vgopath version | grep -q $(VGOPATH_VERSION); then \
 		echo "$(TOOLS_BIN_DIR)/vgopath version is not expected $(VGOPATH_VERSION). Removing it before installing."; \
 		rm -rf $(TOOLS_BIN_DIR)/vgopath; \
 	fi
-	test -s $(TOOLS_BIN_DIR)/vgopath || GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/ironcore-dev/vgopath@$(VGOPATH_VERSION)
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/ironcore-dev/vgopath@$(VGOPATH_VERSION)
 
 $(GEN_CRD_API_REFERENCE_DOCS):
-	test -s $(TOOLS_BIN_DIR)/gen-crd-api-reference-docs || GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/ahmetb/gen-crd-api-reference-docs@$(GEN_CRD_API_REFERENCE_DOCS_VERSION)
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/ahmetb/gen-crd-api-reference-docs@$(GEN_CRD_API_REFERENCE_DOCS_VERSION)
 
 $(GOIMPORTS):
-	test -s $(TOOLS_BIN_DIR)/goimports || GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install golang.org/x/tools/cmd/goimports@$(GOIMPORTS_VERSION)
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install golang.org/x/tools/cmd/goimports@$(GOIMPORTS_VERSION)
 
 $(GOLANGCI_LINT): $(TOOLS_BIN_DIR)
-	test -s $(TOOLS_BIN_DIR)/golangci-lint || GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
