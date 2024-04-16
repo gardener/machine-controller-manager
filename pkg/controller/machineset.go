@@ -427,7 +427,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		}
 		klog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (machineSet.Spec.Replicas), diff)
 
-		logMachinesWithPriorityAnnotation(activeMachines)
+		logMachinesWithPriority1(activeMachines)
 		machinesToDelete := getMachinesToDelete(activeMachines, diff)
 		logMachinesToDelete(machinesToDelete)
 
@@ -498,6 +498,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 			return err
 		}
 	}
+	klog.V(3).Infof("Processing the machineset %q with replicas %d associated with machine class: %q", machineSet.Name, machineSet.Spec.Replicas, machineSet.Spec.MachineClass.Name)
 
 	selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
 	if err != nil {
