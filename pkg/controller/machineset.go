@@ -427,7 +427,9 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		}
 		klog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (machineSet.Spec.Replicas), diff)
 
+		logMachinesWithPriorityAnnotation(activeMachines)
 		machinesToDelete := getMachinesToDelete(activeMachines, diff)
+		logMachinesToDelete(machinesToDelete)
 
 		// Snapshot the UIDs (ns/name) of the machines we're expecting to see
 		// deleted, so we know to record their expectations exactly once either
