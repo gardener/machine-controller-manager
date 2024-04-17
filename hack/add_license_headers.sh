@@ -20,7 +20,6 @@ addlicense \
   -f $temp_file \
   -ignore ".idea/**" \
   -ignore ".vscode/**" \
-  -ignore "vendor/**" \
   -ignore "**/*.md" \
   -ignore "**/*.yaml" \
   -ignore "**/Dockerfile" \

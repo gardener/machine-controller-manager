@@ -34,6 +34,5 @@ cd "${SOURCE_PATH}"
 
 CGO_ENABLED=0 GO111MODULE=on go build \
   -v \
-  -mod=vendor \
   -o "${BINARY_PATH}/machine-controller-manager" \
   cmd/machine-controller-manager/controller_manager.go

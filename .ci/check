@@ -26,20 +26,16 @@ fi
 cd "${SOURCE_PATH}"
 
 # Build Golint.
-go install -mod=vendor ./vendor/golang.org/x/lint/golint
+go install golang.org/x/lint/golint
 
 ###############################################################################
 
-PACKAGES="$(go list -mod=vendor -e ./... | grep -vE '/pkg/client|/pkg/apis|/pkg/openapi')"
+PACKAGES="$(go list -e ./... | grep -vE '/pkg/client|/pkg/apis|/pkg/openapi')"
 PACKAGES_DIRS="$(echo ${PACKAGES} | sed "s|github.com/gardener/machine-controller-manager|.|g")"
 
 # Execute static code checks.
 echo "Running go vet..."
-go vet -mod=vendor ${PACKAGES}
-
-# go fmt ignores -mod=vendor and performs module lookup (https://github.com/golang/go/issues/27841).
-# Also go fmt is just alias for gofmt -l -w and does not support flags that gofmt does.
-# That is why gofmt is used.
+go vet ${PACKAGES}
 
 # Execute automatic code formatting directive.
 echo "Running gofmt..."

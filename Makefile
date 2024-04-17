@@ -88,7 +88,6 @@ non-gardener-restore:
 .PHONY: start
 start:
 	@GO111MODULE=on go run \
-			-mod=vendor \
 			cmd/machine-controller-manager/controller_manager.go \
 			--control-kubeconfig=${CONTROL_KUBECONFIG} \
 			--target-kubeconfig=${TARGET_KUBECONFIG} \
@@ -103,10 +102,9 @@ start:
 # Rules related to binary build, Docker image build and release #
 #################################################################
 
-.PHONY: revendor
-revendor:
+.PHONY: tidy
+tidy:
 	@GO111MODULE=on go mod tidy -v
-	@GO111MODULE=on go mod vendor -v
 
 .PHONY: build
 build:
@@ -165,28 +163,12 @@ test-clean:
 	@find . -name "*.coverprofile" -type f -delete
 	@rm -f $(COVERPROFILE)
 
-generate: controller-gen
+.PHONY: generate
+generate: $(VGOPATH) $(DEEPCOPY_GEN) $(DEFAULTER_GEN) $(CONVERSION_GEN) $(OPENAPI_GEN) $(CONTROLLER_GEN) $(GEN_CRD_API_REFERENCE_DOCS)
 	$(CONTROLLER_GEN) crd paths=./pkg/apis/machine/v1alpha1/... output:crd:dir=kubernetes/crds output:stdout
 	@./hack/generate-code
 	@./hack/api-reference/generate-spec-doc.sh
 
-# find or download controller-gen
-# download controller-gen if necessary
-.PHONY: controller-gen
-controller-gen:
-ifeq (, $(shell which controller-gen))
-	@{ \
-	set -e ;\
-	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$CONTROLLER_GEN_TMP_DIR ;\
-	go mod init tmp ;\
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.9.2 ;\
-	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
-	}
-CONTROLLER_GEN=$(GOBIN)/controller-gen
-else
-CONTROLLER_GEN=$(shell which controller-gen)
-endif
 
 .PHONY: add-license-headers
 add-license-headers: $(GO_ADD_LICENSE)
