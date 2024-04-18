@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package nodeops is used to provide the node functionalities
 package nodeops
 

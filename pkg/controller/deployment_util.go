@@ -691,10 +691,10 @@ func getMachineSetFraction(is v1alpha1.MachineSet, d v1alpha1.MachineDeployment)
 
 	// We should never proportionally scale up from zero which means rs.spec.replicas and annotatedReplicas
 	// will never be zero here.
-	newISsize := (float64((is.Spec.Replicas) * deploymentReplicas)) / float64(annotatedReplicas)
+	newISsize := integer.RoundToInt32((float64((is.Spec.Replicas) * deploymentReplicas)) / float64(annotatedReplicas))
 
-	klog.V(4).Infof("calculating proportion increase for machineSet %s. ms.desired=%d, maxDeploymentSizePossible=%d, maxDeploymentSizePossibleAsPerAnnotation=%d", is.Name, deploymentReplicas, annotatedReplicas)
-	return integer.RoundToInt32(newISsize) - (is.Spec.Replicas)
+	klog.V(4).Infof("calculating proportion increase for machineSet %s. ms.desired=%d, maxDeploymentSizePossible=%d, maxDeploymentSizePossibleAsPerAnnotation=%d", is.Name, newISsize, deploymentReplicas, annotatedReplicas)
+	return newISsize - (is.Spec.Replicas)
 }
 
 // GetAllMachineSets returns the old and new machine sets targeted by the given Deployment. It gets MachineList and MachineSetList from client interface.

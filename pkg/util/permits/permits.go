@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package permits is used to provide permitGiver which maintains a sync map whose values can be
 // deleted if not accessed for a configured time
 package permits
