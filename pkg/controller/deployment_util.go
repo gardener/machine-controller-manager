@@ -693,7 +693,7 @@ func getMachineSetFraction(is v1alpha1.MachineSet, d v1alpha1.MachineDeployment)
 	// will never be zero here.
 	newISsize := integer.RoundToInt32((float64((is.Spec.Replicas) * deploymentReplicas)) / float64(annotatedReplicas))
 
-	klog.V(4).Infof("calculating proportion increase for machineSet %s. ms.desired=%d, maxDeploymentSizePossible=%d, maxDeploymentSizePossibleAsPerAnnotation=%d", is.Name, newISsize, deploymentReplicas, annotatedReplicas)
+	klog.V(3).Infof("calculating proportion increase for machineSet %s. ms.desired=%d, maxDeploymentSizePossible=%d, maxDeploymentSizePossibleAsPerAnnotation=%d", is.Name, newISsize, deploymentReplicas, annotatedReplicas)
 	return newISsize - (is.Spec.Replicas)
 }
 
