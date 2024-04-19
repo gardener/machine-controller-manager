@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package time is used to provide the core functionalities of machine-controller-manager
 package time
 

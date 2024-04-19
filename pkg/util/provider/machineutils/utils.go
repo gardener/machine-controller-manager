@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package machineutils contains the consts and global vaariables for machine operation
 package machineutils
 

@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package k8sutils is used to provider helper consts and functions for k8s operations
 package k8sutils
 
