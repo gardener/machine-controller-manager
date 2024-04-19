@@ -347,7 +347,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	}
 
 	if len(staleMachines) >= 1 {
-		klog.V(2).Infof("Deleting stale machines")
+		klog.V(3).Infof("Deleting stale machines %s", getMachineKeys(staleMachines))
 	}
 	if err := c.terminateMachines(ctx, staleMachines, machineSet); err != nil {
 		// TODO: proper error handling needs to happen here
