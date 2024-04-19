@@ -592,7 +592,7 @@ func (dc *controller) cleanupMachineDeployment(ctx context.Context, oldISs []*v1
 		if is.Status.Replicas != 0 || (is.Spec.Replicas) != 0 || is.Generation > is.Status.ObservedGeneration || is.DeletionTimestamp != nil {
 			continue
 		}
-		klog.V(4).Infof("Trying to cleanup machine set %q for deployment %q", is.Name, deployment.Name)
+		klog.V(3).Infof("Trying to cleanup machine set %q for deployment %q", is.Name, deployment.Name)
 		if err := dc.controlMachineClient.MachineSets(is.Namespace).Delete(ctx, is.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
 			// Return error instead of aggregating and continuing DELETEs on the theory
 			// that we may be overloading the api server.

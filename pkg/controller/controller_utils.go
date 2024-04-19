@@ -366,7 +366,7 @@ func (u *UIDTrackingContExpectations) DeletionObserved(rcKey, deleteKey string) 
 
 	uids := u.GetUIDs(rcKey)
 	if uids != nil && uids.Has(deleteKey) {
-		klog.V(4).Infof("Controller %v received delete for machine %v", rcKey, deleteKey)
+		klog.V(3).Infof("Controller %v received delete for machine %v", rcKey, deleteKey)
 		u.ExpectationsInterface.DeletionObserved(rcKey)
 		uids.Delete(deleteKey)
 	}
@@ -592,7 +592,7 @@ func (r RealMachineControl) createMachines(ctx context.Context, namespace string
 		return nil
 	}
 
-	klog.V(2).Infof("Controller %v created machine %v", accessor.GetName(), newMachine.Name)
+	klog.V(3).Infof("Controller %v created machine %v", accessor.GetName(), newMachine.Name)
 	r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulCreateMachineReason, "Created Machine: %v", newMachine.Name)
 
 	return nil
@@ -610,7 +610,7 @@ func (r RealMachineControl) DeleteMachine(ctx context.Context, namespace string,
 	if err != nil {
 		return fmt.Errorf("object does not have ObjectMeta, %v", err)
 	}
-	klog.V(2).Infof("Controller %v deleting machine %v", accessor.GetName(), machineID)
+	klog.V(3).Infof("Controller %v deleting machine %v", accessor.GetName(), machineID)
 
 	if err := r.controlMachineClient.Machines(namespace).Delete(ctx, machineID, metav1.DeleteOptions{}); err != nil {
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeleteMachineReason, "Error deleting: %v", err)

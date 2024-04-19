@@ -25,6 +25,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 
 	"k8s.io/klog/v2"
 
@@ -200,4 +201,19 @@ func copyMachineSetClassKindToMachines(machineset *v1alpha1.MachineSet, machine 
 	}
 
 	return false
+}
+
+func logMachinesWithPriority1(machines []*v1alpha1.Machine) {
+	for _, m := range machines {
+		priority := m.Annotations[machineutils.MachinePriority]
+		if priority == "1" {
+			klog.V(3).Infof("Machine %q has %s annotation set to 1", m.Name, machineutils.MachinePriority)
+		}
+	}
+}
+
+func logMachinesToDelete(machines []*v1alpha1.Machine) {
+	for _, m := range machines {
+		klog.V(3).Infof("Machine %q needs to be deleted", m.Name)
+	}
 }

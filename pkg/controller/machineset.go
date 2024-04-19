@@ -152,7 +152,7 @@ func (c *controller) machineSetUpdate(old, cur interface{}) {
 	// that bad as MachineSets that haven't met expectations yet won't
 	// sync, and all the listing is done using local stores.
 	if oldMachineSet.Spec.Replicas != currentMachineSet.Spec.Replicas {
-		klog.V(4).Infof("%v updated. Desired machine count change: %d->%d", currentMachineSet.Name, oldMachineSet.Spec.Replicas, currentMachineSet.Spec.Replicas)
+		klog.V(3).Infof("%v updated. Desired machine count change: %d->%d", currentMachineSet.Name, oldMachineSet.Spec.Replicas, currentMachineSet.Spec.Replicas)
 	}
 	c.enqueueMachineSet(currentMachineSet)
 }
@@ -347,7 +347,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	}
 
 	if len(staleMachines) >= 1 {
-		klog.V(2).Infof("Deleting stale machines")
+		klog.V(3).Infof("Deleting stale machines %s", getMachineKeys(staleMachines))
 	}
 	if err := c.terminateMachines(ctx, staleMachines, machineSet); err != nil {
 		// TODO: proper error handling needs to happen here
@@ -427,7 +427,9 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		}
 		klog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (machineSet.Spec.Replicas), diff)
 
+		logMachinesWithPriority1(activeMachines)
 		machinesToDelete := getMachinesToDelete(activeMachines, diff)
+		logMachinesToDelete(machinesToDelete)
 
 		// Snapshot the UIDs (ns/name) of the machines we're expecting to see
 		// deleted, so we know to record their expectations exactly once either
@@ -496,6 +498,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 			return err
 		}
 	}
+	klog.V(3).Infof("Processing the machineset %q with replicas %d associated with machine class: %q", machineSet.Name, machineSet.Spec.Replicas, machineSet.Spec.MachineClass.Name)
 
 	selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
 	if err != nil {
@@ -555,7 +558,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 			}
 		} else if finalizers := sets.NewString(machineSet.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 			// Trigger deletion of machines backing the machineSet
-			klog.V(4).Infof("Deleting all child machines as MachineSet %s has set deletionTimestamp", machineSet.Name)
+			klog.V(3).Infof("Deleting all child machines as MachineSet %s has set deletionTimestamp", machineSet.Name)
 			if err := c.terminateMachines(ctx, filteredMachines, machineSet); err != nil {
 				// TODO: proper error handling needs to happen here
 				klog.Errorf("failed terminate machines for machineset %s: %v", machineSet.Name, err)

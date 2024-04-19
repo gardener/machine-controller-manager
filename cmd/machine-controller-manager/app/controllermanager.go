@@ -75,7 +75,7 @@ var (
 // Run runs the MCMServer.  This should never exit.
 func Run(s *options.MCMServer) error {
 	// To help debugging, immediately log version
-	klog.V(4).Infof("Version: %+v", version.Get())
+	klog.V(3).Infof("Version: %+v", version.Get())
 	if err := s.Validate(); err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func Run(s *options.MCMServer) error {
 	}
 
 	leaderElectionClient := kubernetes.NewForConfigOrDie(rest.AddUserAgent(controlkubeconfig, "machine-leader-election"))
-	klog.V(4).Info("Starting http server and mux")
+	klog.V(3).Info("Starting http server and mux")
 	go startHTTP(s)
 
 	recorder := createRecorder(kubeClientControl)
@@ -229,7 +229,7 @@ func StartControllers(s *options.MCMServer,
 	}
 
 	if availableResources[machineGVR] || availableResources[machineSetGVR] || availableResources[machineDeploymentGVR] {
-		klog.V(4).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
+		klog.V(3).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
 
 		controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
 			controlMachineClientBuilder.ClientOrDie("control-machine-shared-informers"),

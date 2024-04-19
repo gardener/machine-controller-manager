@@ -1517,7 +1517,7 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 		klog.Errorf("update failed for machine %q in function. Retrying, error: %q", machine.Name, err)
 	} else {
 		updated = true
-		klog.Infof("Machine State has been updated for %q with providerID %q and backing node %q", machine.Name, getProviderID(machine), getNodeName(machine))
+		klog.Infof("Machine State has been updated to Phase %q for %q with providerID %q and backing node %q", clone.Status.CurrentStatus.Phase, machine.Name, getProviderID(machine), getNodeName(machine))
 	}
 
 	return updated, err

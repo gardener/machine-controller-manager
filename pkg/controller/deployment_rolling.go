@@ -149,7 +149,7 @@ func (dc *controller) reconcileOldMachineSets(ctx context.Context, allISs []*v1a
 	}
 
 	allMachinesCount := GetReplicaCountForMachineSets(allISs)
-	klog.V(4).Infof("New machine set %s has %d available machines.", newIS.Name, newIS.Status.AvailableReplicas)
+	klog.V(3).Infof("New machine set %s has %d available machines.", newIS.Name, newIS.Status.AvailableReplicas)
 	maxUnavailable := MaxUnavailable(*deployment)
 
 	// Check if we can scale down. We can scale down in the following 2 cases:
@@ -195,7 +195,7 @@ func (dc *controller) reconcileOldMachineSets(ctx context.Context, allISs []*v1a
 	if err != nil {
 		return false, nil
 	}
-	klog.V(4).Infof("Cleaned up unhealthy replicas from old ISes by %d", cleanupCount)
+	klog.V(3).Infof("Cleaned up unhealthy replicas from old ISes by %d", cleanupCount)
 
 	// Scale down old machine sets, need check maxUnavailable to ensure we can scale down
 	allISs = append(oldISs, newIS)
@@ -203,7 +203,7 @@ func (dc *controller) reconcileOldMachineSets(ctx context.Context, allISs []*v1a
 	if err != nil {
 		return false, nil
 	}
-	klog.V(4).Infof("Scaled down old ISes of deployment %s by %d", deployment.Name, scaledDownCount)
+	klog.V(3).Infof("Scaled down old ISes of deployment %s by %d", deployment.Name, scaledDownCount)
 
 	totalScaledDown := cleanupCount + scaledDownCount
 	return totalScaledDown > 0, nil
@@ -415,7 +415,7 @@ func (dc *controller) annotateNodesBackingMachineSets(ctx context.Context, Machi
 				}
 			}
 		}
-		klog.V(4).Infof("Annotated the nodes backed by MachineSet %q with %s", machineSet.Name, annotations)
+		klog.V(3).Infof("Annotated the nodes backed by MachineSet %q with %s", machineSet.Name, annotations)
 	}
 
 	return nil
@@ -479,7 +479,7 @@ func (dc *controller) removeAutoscalerAnnotationsIfRequired(ctx context.Context,
 						klog.Warningf("Removing annotation failed for node: %s, %s", machine.Labels[v1alpha1.NodeLabelKey], err)
 						return err
 					}
-					klog.V(4).Infof("De-annotated the node %q backed by MachineSet %q with %s", machine.Labels[v1alpha1.NodeLabelKey], machineSet.Name, annotations)
+					klog.V(3).Infof("De-annotated the node %q backed by MachineSet %q with %s", machine.Labels[v1alpha1.NodeLabelKey], machineSet.Name, annotations)
 				}
 			}
 		}
