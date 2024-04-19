@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package annotations implements utilites for working with annotatoins
 package annotations
 

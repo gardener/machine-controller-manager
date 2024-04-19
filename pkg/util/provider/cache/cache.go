@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Copied from cacheUtil.WaitForCacheSync to use wait.PollUntil() method instead of wait.PollImmediateUntil()
 // method in the waitForCacheSync() function
 

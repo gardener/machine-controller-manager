@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package controller is used to provide the core functionalities of machine-controller-manager
 package controller
 
@@ -380,7 +379,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			klog.Errorf("Error occurred while decoding machine error for machine %q: %s", machine.Name, err)
 			return machineutils.MediumRetry, err
 		}
-		klog.Warningf("For machine %q, obtained VM error status as: %s", machineErr)
+		klog.Warningf("For machine %q, obtained VM error status as: %s", machineName, machineErr)
 
 		// Decoding machine error code
 		switch machineErr.Code() {
