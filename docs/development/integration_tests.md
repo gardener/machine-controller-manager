@@ -12,11 +12,12 @@ Integration tests for `machine-controller-manager-provider-{provider-name}` can 
 
 ## Running the tests
 
-1. There is a rule `test-integration` in the `Makefile`, which can be used to start the integration test:
+1. There is a rule `test-integration` in the `Makefile` of the provider repository, which can be used to start the integration test:
     ```bash
     $ make test-integration 
     ```
 1. This will ask for additional inputs. Most of them are self explanatory except:
+ - The script assumes that both the control and target clusters are already being created.
  - In case of non-gardener setup (control cluster is not a gardener seed), the name of the machineclass must be `test-mc-v1` and the value of `providerSpec.secretRef.name` should be `test-mc-secret`.
  - In case of azure, `TARGET_CLUSTER_NAME` must be same as the name of the Azure ResourceGroup for the cluster.
  - If you are deploying the secret manually, a `Secret` named `test-mc-secret` (that contains the provider secret and cloud-config) in the `default` namespace of the Control Cluster should be created.
