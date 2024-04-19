@@ -152,7 +152,7 @@ func (c *controller) machineSetUpdate(old, cur interface{}) {
 	// that bad as MachineSets that haven't met expectations yet won't
 	// sync, and all the listing is done using local stores.
 	if oldMachineSet.Spec.Replicas != currentMachineSet.Spec.Replicas {
-		klog.V(4).Infof("%v updated. Desired machine count change: %d->%d", currentMachineSet.Name, oldMachineSet.Spec.Replicas, currentMachineSet.Spec.Replicas)
+		klog.V(3).Infof("%v updated. Desired machine count change: %d->%d", currentMachineSet.Name, oldMachineSet.Spec.Replicas, currentMachineSet.Spec.Replicas)
 	}
 	c.enqueueMachineSet(currentMachineSet)
 }
@@ -558,7 +558,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 			}
 		} else if finalizers := sets.NewString(machineSet.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 			// Trigger deletion of machines backing the machineSet
-			klog.V(4).Infof("Deleting all child machines as MachineSet %s has set deletionTimestamp", machineSet.Name)
+			klog.V(3).Infof("Deleting all child machines as MachineSet %s has set deletionTimestamp", machineSet.Name)
 			if err := c.terminateMachines(ctx, filteredMachines, machineSet); err != nil {
 				// TODO: proper error handling needs to happen here
 				klog.Errorf("failed terminate machines for machineset %s: %v", machineSet.Name, err)
