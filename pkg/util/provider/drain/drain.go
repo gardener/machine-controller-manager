@@ -32,7 +32,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/gardener/machine-controller-manager/pkg/util/k8sutils"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	corev1 "k8s.io/api/core/v1"
