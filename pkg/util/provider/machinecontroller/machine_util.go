@@ -231,6 +231,36 @@ func mergeDataMaps(in map[string][]byte, maps ...map[string][]byte) map[string][
 	return out
 }
 
+func (c *controller) syncMachineNameToNode(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+	node, err := c.nodeLister.Get(getNodeName(machine))
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Don't return error so that other steps can be executed.
+			return machineutils.LongRetry, nil
+		}
+		klog.Errorf("Error occurred while trying to fetch node object - err: %s", err)
+		return machineutils.LongRetry, err
+	}
+
+	if node.Labels[machineutils.LabelMachineName] == machine.Name {
+		return machineutils.LongRetry, nil
+	}
+
+	if node.Labels == nil {
+		node.Labels = make(map[string]string)
+	}
+	node.Labels[machineutils.LabelMachineName] = machine.Name
+
+	if _, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{}); err != nil {
+		if apierrors.IsConflict(err) {
+			return machineutils.ConflictRetry, err
+		}
+		return machineutils.ShortRetry, err
+	}
+
+	return machineutils.LongRetry, nil
+}
+
 // syncMachineNodeTemplate syncs nodeTemplates between machine and corresponding node-object.
 // It ensures, that any nodeTemplate element available on Machine should be available on node-object.
 // Although there could be more elements already available on node-object which will not be touched.
@@ -241,12 +271,12 @@ func (c *controller) syncMachineNodeTemplates(ctx context.Context, machine *v1al
 		lastAppliedALT              v1alpha1.NodeTemplateSpec
 	)
 
-	node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
-	if err != nil && apierrors.IsNotFound(err) {
-		// Dont return error so that other steps can be executed.
-		return machineutils.LongRetry, nil
-	}
+	node, err := c.nodeLister.Get(getNodeName(machine))
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Don't return error so that other steps can be executed.
+			return machineutils.LongRetry, nil
+		}
 		klog.Errorf("Error occurred while trying to fetch node object - err: %s", err)
 		return machineutils.LongRetry, err
 	}
