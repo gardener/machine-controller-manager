@@ -3,7 +3,7 @@ module github.com/gardener/machine-controller-manager
 go 1.21
 
 require (
-	github.com/Masterminds/semver v1.5.0
+	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/google/uuid v1.3.0
