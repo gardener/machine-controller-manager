@@ -32,7 +32,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	machinescheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
 	coreclientbuilder "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/core"
