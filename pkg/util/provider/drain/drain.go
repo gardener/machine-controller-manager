@@ -653,16 +653,12 @@ func (o *Options) evictPodsWithPVInternal(
 	returnCh chan error,
 ) (remainingPods []*corev1.Pod, fastTrack bool) {
 	var (
-		mainContext       context.Context
-		cancelMainContext context.CancelFunc
-		retryPods         []*corev1.Pod
+		retryPods []*corev1.Pod
 	)
-	mainContext, cancelMainContext = context.WithDeadline(ctx, o.drainStartedOn.Add(o.Timeout))
-	defer cancelMainContext()
 
 	for i, pod := range pods {
 		select {
-		case <-mainContext.Done():
+		case <-ctx.Done():
 			// Timeout occurred. Abort and report the remaining pods.
 			returnCh <- nil
 			return append(retryPods, pods[i+1:]...), true
@@ -739,7 +735,7 @@ func (o *Options) evictPodsWithPVInternal(
 		)
 
 		podVolumeInfo := podVolumeInfoMap[getPodKey(pod)]
-		ctx, cancelFn := context.WithTimeout(mainContext, o.getTerminationGracePeriod(pod)+o.PvDetachTimeout)
+		ctx, cancelFn := context.WithTimeout(ctx, o.getTerminationGracePeriod(pod)+o.PvDetachTimeout)
 		err = o.waitForDetach(ctx, podVolumeInfo, o.nodeName)
 		cancelFn()
 
@@ -762,7 +758,7 @@ func (o *Options) evictPodsWithPVInternal(
 			time.Since(podEvictionStartTime),
 		)
 
-		ctx, cancelFn = context.WithTimeout(mainContext, o.PvReattachTimeout)
+		ctx, cancelFn = context.WithTimeout(ctx, o.PvReattachTimeout)
 		err = o.waitForReattach(ctx, podVolumeInfo, o.nodeName, volumeAttachmentEventCh)
 		cancelFn()
 
@@ -1000,7 +996,12 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 		if i >= nretries {
 			attemptEvict = false
 		}
-
+		select {
+		case <-ctx.Done():
+			// Timeout occurred. Abort and report the remaining pods.
+			returnCh <- fmt.Errorf("timeout occured while waiting for pod %q terminating scheduled on node %v", pod.Name, pod.Spec.NodeName)
+		default:
+		}
 		if attemptEvict {
 			err = o.evictPod(ctx, pod, policyGroupVersion)
 		} else {

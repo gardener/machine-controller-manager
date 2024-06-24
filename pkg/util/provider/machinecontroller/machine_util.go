@@ -1044,6 +1044,8 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		ReadonlyFilesystem      v1.NodeConditionType = "ReadonlyFilesystem"
 	)
 
+	drainContext, cancelFn := context.WithDeadline(ctx, deleteMachineRequest.Machine.DeletionTimestamp.Add(timeOutDuration))
+	defer cancelFn()
 	if !isValidNodeName(nodeName) {
 		message := "Skipping drain as nodeName is not a valid one for machine."
 		printLogInitError(message, &err, &description, machine)
@@ -1112,7 +1114,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		}
 
 		// update node with the machine's phase prior to termination
-		if err = c.UpdateNodeTerminationCondition(ctx, machine); err != nil {
+		if err = c.UpdateNodeTerminationCondition(drainContext, machine); err != nil {
 			if forceDeleteMachine {
 				klog.Warningf("Failed to update node conditions: %v. However, since it's a force deletion shall continue deletion of VM.", err)
 			} else {
@@ -1153,7 +1155,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				c.volumeAttachmentHandler,
 			)
 			klog.V(3).Infof("(drainNode) Invoking RunDrain, forceDeleteMachine: %t, forceDeletePods: %t, timeOutDuration: %s", forceDeletePods, forceDeleteMachine, timeOutDuration)
-			err = drainOptions.RunDrain(ctx)
+			err = drainOptions.RunDrain(drainContext)
 			if err == nil {
 				// Drain successful
 				klog.V(2).Infof("Drain successful for machine %q ,providerID %q, backing node %q. \nBuf:%v \nErrBuf:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf)
@@ -1183,7 +1185,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 	}
 
 	updateRetryPeriod, updateErr := c.machineStatusUpdate(
-		ctx,
+		drainContext,
 		machine,
 		v1alpha1.LastOperation{
 			Description:    description,
@@ -1408,6 +1410,7 @@ func (c *controller) getEffectiveDrainTimeout(machine *v1alpha1.Machine) *metav1
 	} else {
 		effectiveDrainTimeout = &c.safetyOptions.MachineDrainTimeout
 	}
+	effectiveDrainTimeout.Duration -= time.Now().Sub(machine.DeletionTimestamp.Time)
 	return effectiveDrainTimeout
 }
 
