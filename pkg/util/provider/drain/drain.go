@@ -996,12 +996,6 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 		if i >= nretries {
 			attemptEvict = false
 		}
-		select {
-		case <-ctx.Done():
-			// Timeout occurred. Abort and report the remaining pods.
-			returnCh <- fmt.Errorf("timeout occured while waiting for pod %q terminating scheduled on node %v", pod.Name, pod.Spec.NodeName)
-		default:
-		}
 		if attemptEvict {
 			err = o.evictPod(ctx, pod, policyGroupVersion)
 		} else {
