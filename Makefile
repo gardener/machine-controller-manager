@@ -116,7 +116,6 @@ release: build docker-image docker-login docker-push
 platform ?= linux/amd64
 .PHONY: docker-image
 docker-image:
-	@echo $(platform)
 	@docker buildx build --platform $(platform)  -t $(IMAGE_REPOSITORY):$(IMAGE_TAG) --rm .
 
 .PHONY: docker-login
