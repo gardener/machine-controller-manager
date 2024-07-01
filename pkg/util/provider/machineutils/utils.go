@@ -64,8 +64,8 @@ const (
 	// indicating that a node is not yet ready to have user workload scheduled
 	TaintNodeCriticalComponentsNotReady = "node.gardener.cloud/critical-components-not-ready"
 
-	// LabelMachineName defines the labels which contains the name of the machine of a node
-	LabelMachineName = "node.gardener.cloud/machine-name"
+	// MachineLabelKey defines the labels which contains the name of the machine of a node
+	MachineLabelKey = "node.gardener.cloud/machine-name"
 )
 
 // RetryPeriod is an alias for specifying the retry period

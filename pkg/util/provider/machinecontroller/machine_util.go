@@ -242,14 +242,14 @@ func (c *controller) syncMachineNameToNode(ctx context.Context, machine *v1alpha
 		return machineutils.LongRetry, err
 	}
 
-	if node.Labels[machineutils.LabelMachineName] == machine.Name {
+	if node.Labels[machineutils.MachineLabelKey] == machine.Name {
 		return machineutils.LongRetry, nil
 	}
 
 	if node.Labels == nil {
 		node.Labels = make(map[string]string)
 	}
-	node.Labels[machineutils.LabelMachineName] = machine.Name
+	node.Labels[machineutils.MachineLabelKey] = machine.Name
 
 	if _, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{}); err != nil {
 		if apierrors.IsConflict(err) {
