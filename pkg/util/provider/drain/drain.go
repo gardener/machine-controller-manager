@@ -996,6 +996,7 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 		if i >= nretries {
 			attemptEvict = false
 		}
+
 		if attemptEvict {
 			err = o.evictPod(ctx, pod, policyGroupVersion)
 		} else {
