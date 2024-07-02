@@ -381,7 +381,6 @@ func (o *Options) evictPod(ctx context.Context, pod *corev1.Pod, policyGroupVers
 	}
 	klog.V(3).Infof("Attempting to evict the pod:%q from node %q", pod.Name, o.nodeName)
 	// TODO: Remember to change the URL manipulation func when Evction's version change
-	time.Sleep(6 * time.Minute)
 	return o.client.PolicyV1beta1().Evictions(eviction.Namespace).Evict(ctx, eviction)
 }
 

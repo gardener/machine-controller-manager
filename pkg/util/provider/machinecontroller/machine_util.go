@@ -1043,6 +1043,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		nodeNotReadyDuration                         = 5 * time.Minute
 		ReadonlyFilesystem      v1.NodeConditionType = "ReadonlyFilesystem"
 	)
+
 	if !isValidNodeName(nodeName) {
 		message := "Skipping drain as nodeName is not a valid one for machine."
 		printLogInitError(message, &err, &description, machine)
