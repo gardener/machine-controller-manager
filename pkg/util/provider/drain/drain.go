@@ -189,6 +189,7 @@ func NewDrainOptions(
 // RunDrain runs the 'drain' command
 func (o *Options) RunDrain(ctx context.Context) error {
 	o.drainStartedOn = time.Now()
+	drainContext, cancelFn := context.WithDeadline(ctx, o.drainStartedOn.Add(o.Timeout))
 	klog.V(4).Infof(
 		"Machine drain started on %s for %q",
 		o.drainStartedOn,
@@ -197,6 +198,7 @@ func (o *Options) RunDrain(ctx context.Context) error {
 
 	defer func() {
 		o.drainEndedOn = time.Now()
+		cancelFn()
 		klog.Infof(
 			"Machine drain ended on %s and took %s for %q",
 			o.drainEndedOn,
@@ -205,12 +207,12 @@ func (o *Options) RunDrain(ctx context.Context) error {
 		)
 	}()
 
-	if err := o.RunCordonOrUncordon(ctx, true); err != nil {
+	if err := o.RunCordonOrUncordon(drainContext, true); err != nil {
 		klog.Errorf("Drain Error: Cordoning of node failed with error: %v", err)
 		return err
 	}
 
-	err := o.deleteOrEvictPodsSimple(ctx)
+	err := o.deleteOrEvictPodsSimple(drainContext)
 	return err
 }
 
@@ -653,16 +655,12 @@ func (o *Options) evictPodsWithPVInternal(
 	returnCh chan error,
 ) (remainingPods []*corev1.Pod, fastTrack bool) {
 	var (
-		mainContext       context.Context
-		cancelMainContext context.CancelFunc
-		retryPods         []*corev1.Pod
+		retryPods []*corev1.Pod
 	)
-	mainContext, cancelMainContext = context.WithDeadline(ctx, o.drainStartedOn.Add(o.Timeout))
-	defer cancelMainContext()
 
 	for i, pod := range pods {
 		select {
-		case <-mainContext.Done():
+		case <-ctx.Done():
 			// Timeout occurred. Abort and report the remaining pods.
 			returnCh <- nil
 			return append(retryPods, pods[i+1:]...), true
@@ -739,7 +737,7 @@ func (o *Options) evictPodsWithPVInternal(
 		)
 
 		podVolumeInfo := podVolumeInfoMap[getPodKey(pod)]
-		ctx, cancelFn := context.WithTimeout(mainContext, o.getTerminationGracePeriod(pod)+o.PvDetachTimeout)
+		ctx, cancelFn := context.WithTimeout(ctx, o.getTerminationGracePeriod(pod)+o.PvDetachTimeout)
 		err = o.waitForDetach(ctx, podVolumeInfo, o.nodeName)
 		cancelFn()
 
@@ -762,7 +760,7 @@ func (o *Options) evictPodsWithPVInternal(
 			time.Since(podEvictionStartTime),
 		)
 
-		ctx, cancelFn = context.WithTimeout(mainContext, o.PvReattachTimeout)
+		ctx, cancelFn = context.WithTimeout(ctx, o.PvReattachTimeout)
 		err = o.waitForReattach(ctx, podVolumeInfo, o.nodeName, volumeAttachmentEventCh)
 		cancelFn()
 
