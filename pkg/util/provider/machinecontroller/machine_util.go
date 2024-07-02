@@ -1410,7 +1410,6 @@ func (c *controller) getEffectiveDrainTimeout(machine *v1alpha1.Machine) *metav1
 	} else {
 		effectiveDrainTimeout = &c.safetyOptions.MachineDrainTimeout
 	}
-	effectiveDrainTimeout.Duration -= time.Now().Sub(machine.DeletionTimestamp.Time)
 	return effectiveDrainTimeout
 }
 
