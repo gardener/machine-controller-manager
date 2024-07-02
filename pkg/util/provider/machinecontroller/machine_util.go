@@ -1043,9 +1043,6 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		nodeNotReadyDuration                         = 5 * time.Minute
 		ReadonlyFilesystem      v1.NodeConditionType = "ReadonlyFilesystem"
 	)
-
-	drainContext, cancelFn := context.WithDeadline(ctx, time.Now().Add(timeOutDuration))
-	defer cancelFn()
 	if !isValidNodeName(nodeName) {
 		message := "Skipping drain as nodeName is not a valid one for machine."
 		printLogInitError(message, &err, &description, machine)
@@ -1155,7 +1152,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				c.volumeAttachmentHandler,
 			)
 			klog.V(3).Infof("(drainNode) Invoking RunDrain, forceDeleteMachine: %t, forceDeletePods: %t, timeOutDuration: %s", forceDeletePods, forceDeleteMachine, timeOutDuration)
-			err = drainOptions.RunDrain(drainContext)
+			err = drainOptions.RunDrain(ctx)
 			if err == nil {
 				// Drain successful
 				klog.V(2).Infof("Drain successful for machine %q ,providerID %q, backing node %q. \nBuf:%v \nErrBuf:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf)

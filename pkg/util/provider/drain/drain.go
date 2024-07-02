@@ -189,6 +189,7 @@ func NewDrainOptions(
 // RunDrain runs the 'drain' command
 func (o *Options) RunDrain(ctx context.Context) error {
 	o.drainStartedOn = time.Now()
+	drainContext, cancelFn := context.WithDeadline(ctx, o.drainStartedOn.Add(o.Timeout))
 	klog.V(4).Infof(
 		"Machine drain started on %s for %q",
 		o.drainStartedOn,
@@ -197,6 +198,7 @@ func (o *Options) RunDrain(ctx context.Context) error {
 
 	defer func() {
 		o.drainEndedOn = time.Now()
+		cancelFn()
 		klog.Infof(
 			"Machine drain ended on %s and took %s for %q",
 			o.drainEndedOn,
@@ -205,12 +207,12 @@ func (o *Options) RunDrain(ctx context.Context) error {
 		)
 	}()
 
-	if err := o.RunCordonOrUncordon(ctx, true); err != nil {
+	if err := o.RunCordonOrUncordon(drainContext, true); err != nil {
 		klog.Errorf("Drain Error: Cordoning of node failed with error: %v", err)
 		return err
 	}
 
-	err := o.deleteOrEvictPodsSimple(ctx)
+	err := o.deleteOrEvictPodsSimple(drainContext)
 	return err
 }
 
@@ -379,6 +381,7 @@ func (o *Options) evictPod(ctx context.Context, pod *corev1.Pod, policyGroupVers
 	}
 	klog.V(3).Infof("Attempting to evict the pod:%q from node %q", pod.Name, o.nodeName)
 	// TODO: Remember to change the URL manipulation func when Evction's version change
+	time.Sleep(6 * time.Minute)
 	return o.client.PolicyV1beta1().Evictions(eviction.Namespace).Evict(ctx, eviction)
 }
 
