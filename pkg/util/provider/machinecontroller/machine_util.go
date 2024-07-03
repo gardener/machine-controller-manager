@@ -231,6 +231,8 @@ func mergeDataMaps(in map[string][]byte, maps ...map[string][]byte) map[string][
 	return out
 }
 
+// syncMachineNameToNode syncs the machine name on the corresponding node object
+// by adding a machine name label to its metadata.
 func (c *controller) syncMachineNameToNode(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
 	node, err := c.nodeLister.Get(getNodeName(machine))
 	if err != nil {
@@ -239,7 +241,7 @@ func (c *controller) syncMachineNameToNode(ctx context.Context, machine *v1alpha
 			return machineutils.LongRetry, nil
 		}
 		klog.Errorf("Error occurred while trying to fetch node object - err: %s", err)
-		return machineutils.LongRetry, err
+		return machineutils.ShortRetry, err
 	}
 
 	if node.Labels[machineutils.MachineLabelKey] == machine.Name {
