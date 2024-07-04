@@ -280,7 +280,7 @@ func (c *controller) syncMachineNodeTemplates(ctx context.Context, machine *v1al
 			return machineutils.LongRetry, nil
 		}
 		klog.Errorf("Error occurred while trying to fetch node object - err: %s", err)
-		return machineutils.LongRetry, err
+		return machineutils.ShortRetry, err
 	}
 
 	nodeCopy := node.DeepCopy()
