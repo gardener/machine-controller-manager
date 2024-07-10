@@ -9,7 +9,7 @@
     <td>
         <em>
             {{ if linkForType .Type }}
-                <a href="#?id={{ linkForType .Type }}">
+                <a href="{{ linkForType .Type }}">
                     {{ typeDisplayName .Type }}
                 </a>
             {{ else }}
