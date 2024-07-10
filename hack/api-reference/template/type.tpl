@@ -12,7 +12,7 @@
         {{- range . -}}
             {{- if $prev -}}, {{ end -}}
             {{ $prev = . }}
-            <a href="#?id={{ linkForType . }}">{{ typeDisplayName . }}</a>
+            <a href="{{ linkForType . }}">{{ typeDisplayName . }}</a>
         {{- end -}}
         )
     </p>
