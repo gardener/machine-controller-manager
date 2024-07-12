@@ -5,6 +5,7 @@
 /dev
 /test
 /logs
+/hack/tools/bin
 
 *.html
 .vscode
