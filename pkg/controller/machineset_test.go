@@ -419,29 +419,29 @@ var _ = Describe("machineset", func() {
 				Expect(c.machineSetQueue.Len()).To(Equal(1))
 			},
 			Entry("ResourceVersion is different for new machine",
-				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
+				func(_ *machinev1.Machine, newMachine *machinev1.Machine) {
 					newMachine.ResourceVersion = "3456"
 				},
 			),
 			Entry("newMachine is being deleted",
-				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
+				func(oldMachine *machinev1.Machine, _ *machinev1.Machine) {
 					oldMachine.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 				},
 			),
 			Entry("labels on newMachine has changed",
-				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
+				func(_ *machinev1.Machine, newMachine *machinev1.Machine) {
 					newMachine.Labels = map[string]string{
 						"dummy": "dummy",
 					}
 				},
 			),
 			Entry("if controllerRef has changed and new ref is nil",
-				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
+				func(_ *machinev1.Machine, newMachine *machinev1.Machine) {
 					newMachine.OwnerReferences = nil
 				},
 			),
 			Entry("if controllerRef has changed and new ref points to valid machineSet",
-				func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine) {
+				func(_ *machinev1.Machine, newMachine *machinev1.Machine) {
 					newMachine.OwnerReferences = []metav1.OwnerReference{
 						{
 							Kind:       "MachineSet",

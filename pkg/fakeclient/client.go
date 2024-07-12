@@ -54,7 +54,9 @@ func (t *FakeObjectTracker) Add(obj runtime.Object) error {
 // Get receives an get event with the object
 func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string) (runtime.Object, error) {
 	if t.fakingEnabled {
-		defer t.DecrementCounter()
+		defer func(t *FakeObjectTracker) {
+			_ = t.DecrementCounter()
+		}(t)
 
 		err := t.RunFakeInvocations()
 		if err != nil {
@@ -75,7 +77,9 @@ func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string
 // Create receives an create event with the object
 func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.Object, ns string) error {
 	if t.fakingEnabled {
-		defer t.DecrementCounter()
+		defer func(t *FakeObjectTracker) {
+			_ = t.DecrementCounter()
+		}(t)
 
 		err := t.RunFakeInvocations()
 		if err != nil {
@@ -104,7 +108,9 @@ func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.
 func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.Object, ns string) error {
 
 	if t.fakingEnabled {
-		defer t.DecrementCounter()
+		defer func(t *FakeObjectTracker) {
+			_ = t.DecrementCounter()
+		}(t)
 
 		err := t.RunFakeInvocations()
 		if err != nil {
@@ -138,7 +144,9 @@ func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.
 // List receives an list event with the object
 func (t *FakeObjectTracker) List(gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, ns string) (runtime.Object, error) {
 	if t.fakingEnabled {
-		defer t.DecrementCounter()
+		defer func(t *FakeObjectTracker) {
+			_ = t.DecrementCounter()
+		}(t)
 
 		err := t.RunFakeInvocations()
 		if err != nil {
@@ -151,7 +159,9 @@ func (t *FakeObjectTracker) List(gvr schema.GroupVersionResource, gvk schema.Gro
 // Delete receives an delete event with the object
 func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name string) error {
 	if t.fakingEnabled {
-		defer t.DecrementCounter()
+		defer func(t *FakeObjectTracker) {
+			_ = t.DecrementCounter()
+		}(t)
 
 		err := t.RunFakeInvocations()
 		if err != nil {
@@ -184,7 +194,9 @@ func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name str
 // Watch receives an watch event with the object
 func (t *FakeObjectTracker) Watch(gvr schema.GroupVersionResource, name string) (watch.Interface, error) {
 	if t.fakingEnabled {
-		defer t.DecrementCounter()
+		defer func(t *FakeObjectTracker) {
+			_ = t.DecrementCounter()
+		}(t)
 
 		err := t.RunFakeInvocations()
 		if err != nil {
@@ -206,7 +218,9 @@ func (t *FakeObjectTracker) watchReactionfunc(action k8stesting.Action) (bool, w
 			FakeWatcher: watch.NewFake(),
 			action:      a,
 		}
-		go w.dispatchInitialObjects(a, t)
+		go func() {
+			_ = w.dispatchInitialObjects(a, t)
+		}()
 		t.trackerMutex.Lock()
 		defer t.trackerMutex.Unlock()
 		t.watchers = append(t.watchers, w)
@@ -401,7 +415,7 @@ func (o *fakingOptions) ClearOptions() error {
 func (o *fakingOptions) DecrementCounter() error {
 	o.counter--
 	if o.counter == 0 {
-		o.ClearOptions()
+		_ = o.ClearOptions()
 	}
 	return nil
 }
@@ -430,7 +444,7 @@ func NewMachineClientSet(objects ...runtime.Object) (*fakeuntyped.Clientset, *Fa
 	var codecs = serializer.NewCodecFactory(scheme)
 
 	metav1.AddToGroupVersion(scheme, schema.GroupVersion{Version: "v1"})
-	fakeuntyped.AddToScheme(scheme)
+	_ = fakeuntyped.AddToScheme(scheme)
 
 	o := &FakeObjectTracker{
 		FakeWatcher: watch.NewFake(),
@@ -469,9 +483,15 @@ func NewFakeObjectTrackers(controlMachine, controlCore, targetCore *FakeObjectTr
 
 // Start starts all object trackers as go routines
 func (o *FakeObjectTrackers) Start() {
-	go o.ControlMachine.Start()
-	go o.ControlCore.Start()
-	go o.TargetCore.Start()
+	go func() {
+		_ = o.ControlMachine.Start()
+	}()
+	go func() {
+		_ = o.ControlCore.Start()
+	}()
+	go func() {
+		_ = o.TargetCore.Start()
+	}()
 }
 
 // Stop stops all object trackers
@@ -491,7 +511,7 @@ func NewCoreClientSet(objects ...runtime.Object) (*Clientset, *FakeObjectTracker
 	var codecs = serializer.NewCodecFactory(scheme)
 
 	metav1.AddToGroupVersion(scheme, schema.GroupVersion{Version: "v1"})
-	k8sfake.AddToScheme(scheme)
+	_ = k8sfake.AddToScheme(scheme)
 
 	o := &FakeObjectTracker{
 		FakeWatcher: watch.NewFake(),
@@ -567,7 +587,7 @@ type FakeEvictions struct {
 // Evict overrides the fakepolicyv1beta1.FakeEvictions to override the
 // Policy implementation. This is because the default Policy fake implementation
 // does not propagate the eviction name.
-func (c *FakeEvictions) Evict(ctx context.Context, eviction *apipolicyv1beta1.Eviction) error {
+func (c *FakeEvictions) Evict(_ context.Context, eviction *apipolicyv1beta1.Eviction) error {
 	action := k8stesting.GetActionImpl{}
 	action.Name = eviction.Name
 	action.Verb = "post"

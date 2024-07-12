@@ -125,7 +125,7 @@ func Run(s *options.MCServer, driver driver.Driver) error {
 
 	recorder := createRecorder(kubeClientControl)
 
-	run := func(ctx context.Context) {
+	run := func(_ context.Context) {
 		var stop <-chan struct{}
 		// Control plane client used to interact with machine APIs
 		controlMachineClientBuilder := machineclientbuilder.SimpleClientBuilder{
@@ -238,79 +238,77 @@ func StartControllers(s *options.MCServer,
 		return err
 	}
 
-	if availableResources[machineGVR] {
-		klog.V(4).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
-
-		controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
-			controlMachineClientBuilder.ClientOrDie("control-machine-shared-informers"),
-			s.MinResyncPeriod.Duration,
-			s.Namespace,
-			nil,
-		)
-
-		controlCoreInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
-			controlCoreClientBuilder.ClientOrDie("control-core-shared-informers"),
-			s.MinResyncPeriod.Duration,
-			s.Namespace,
-			nil,
-		)
-
-		targetCoreInformerFactory := coreinformers.NewSharedInformerFactory(
-			targetCoreClientBuilder.ClientOrDie("target-core-shared-informers"),
-			s.MinResyncPeriod.Duration,
-		)
-
-		var (
-			pdbV1Informer      policyv1informers.PodDisruptionBudgetInformer
-			pdbV1beta1Informer policyv1beta1informers.PodDisruptionBudgetInformer
-		)
-
-		if k8sutils.ConstraintK8sGreaterEqual121.Check(targetKubernetesVersion) {
-			pdbV1Informer = targetCoreInformerFactory.Policy().V1().PodDisruptionBudgets()
-		} else {
-			pdbV1beta1Informer = targetCoreInformerFactory.Policy().V1beta1().PodDisruptionBudgets()
-		}
-
-		// All shared informers are v1alpha1 API level
-		machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
-
-		klog.V(4).Infof("Creating controllers...")
-		machineController, err := machinecontroller.NewController(
-			s.Namespace,
-			controlMachineClient,
-			controlCoreClient,
-			targetCoreClient,
-			driver,
-			targetCoreInformerFactory.Core().V1().PersistentVolumeClaims(),
-			targetCoreInformerFactory.Core().V1().PersistentVolumes(),
-			controlCoreInformerFactory.Core().V1().Secrets(),
-			targetCoreInformerFactory.Core().V1().Nodes(),
-			pdbV1beta1Informer,
-			pdbV1Informer,
-			targetCoreInformerFactory.Storage().V1().VolumeAttachments(),
-			machineSharedInformers.MachineClasses(),
-			machineSharedInformers.Machines(),
-			recorder,
-			s.SafetyOptions,
-			s.NodeConditions,
-			s.BootstrapTokenAuthExtraGroups,
-			targetKubernetesVersion,
-		)
-		if err != nil {
-			return err
-		}
-		klog.V(1).Info("Starting shared informers")
-
-		controlMachineInformerFactory.Start(stop)
-		controlCoreInformerFactory.Start(stop)
-		targetCoreInformerFactory.Start(stop)
-
-		klog.V(4).Info("Running controller")
-		go machineController.Run(int(s.ConcurrentNodeSyncs), stop)
-
-	} else {
+	if !availableResources[machineGVR] {
 		return fmt.Errorf("unable to start machine controller: API GroupVersion %q is not available; \nFound: %#v", machineGVR, availableResources)
 	}
+	klog.V(4).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
+
+	controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
+		controlMachineClientBuilder.ClientOrDie("control-machine-shared-informers"),
+		s.MinResyncPeriod.Duration,
+		s.Namespace,
+		nil,
+	)
+
+	controlCoreInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
+		controlCoreClientBuilder.ClientOrDie("control-core-shared-informers"),
+		s.MinResyncPeriod.Duration,
+		s.Namespace,
+		nil,
+	)
+
+	targetCoreInformerFactory := coreinformers.NewSharedInformerFactory(
+		targetCoreClientBuilder.ClientOrDie("target-core-shared-informers"),
+		s.MinResyncPeriod.Duration,
+	)
+
+	var (
+		pdbV1Informer      policyv1informers.PodDisruptionBudgetInformer
+		pdbV1beta1Informer policyv1beta1informers.PodDisruptionBudgetInformer
+	)
+
+	if k8sutils.ConstraintK8sGreaterEqual121.Check(targetKubernetesVersion) {
+		pdbV1Informer = targetCoreInformerFactory.Policy().V1().PodDisruptionBudgets()
+	} else {
+		pdbV1beta1Informer = targetCoreInformerFactory.Policy().V1beta1().PodDisruptionBudgets()
+	}
+
+	// All shared informers are v1alpha1 API level
+	machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
+
+	klog.V(4).Infof("Creating controllers...")
+	machineController, err := machinecontroller.NewController(
+		s.Namespace,
+		controlMachineClient,
+		controlCoreClient,
+		targetCoreClient,
+		driver,
+		targetCoreInformerFactory.Core().V1().PersistentVolumeClaims(),
+		targetCoreInformerFactory.Core().V1().PersistentVolumes(),
+		controlCoreInformerFactory.Core().V1().Secrets(),
+		targetCoreInformerFactory.Core().V1().Nodes(),
+		pdbV1beta1Informer,
+		pdbV1Informer,
+		targetCoreInformerFactory.Storage().V1().VolumeAttachments(),
+		machineSharedInformers.MachineClasses(),
+		machineSharedInformers.Machines(),
+		recorder,
+		s.SafetyOptions,
+		s.NodeConditions,
+		s.BootstrapTokenAuthExtraGroups,
+		targetKubernetesVersion,
+	)
+	if err != nil {
+		return err
+	}
+	klog.V(1).Info("Starting shared informers")
+
+	controlMachineInformerFactory.Start(stop)
+	controlCoreInformerFactory.Start(stop)
+	targetCoreInformerFactory.Start(stop)
+
+	klog.V(4).Info("Running controller")
+	go machineController.Run(int(s.ConcurrentNodeSyncs), stop)
 
 	select {}
 }

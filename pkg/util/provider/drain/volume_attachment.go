@@ -36,6 +36,7 @@ func (v *VolumeAttachmentHandler) dispatch(obj interface{}) {
 	volumeAttachment := obj.(*storagev1.VolumeAttachment)
 	if volumeAttachment == nil {
 		klog.Errorf("Couldn't convert to volumeAttachment from object %v", obj)
+		return
 	}
 
 	klog.V(4).Infof("Dispatching request for PV %s", *volumeAttachment.Spec.Source.PersistentVolumeName)
@@ -62,7 +63,7 @@ func (v *VolumeAttachmentHandler) AddVolumeAttachment(obj interface{}) {
 }
 
 // UpdateVolumeAttachment is the event handler for VolumeAttachment update
-func (v *VolumeAttachmentHandler) UpdateVolumeAttachment(oldObj, newObj interface{}) {
+func (v *VolumeAttachmentHandler) UpdateVolumeAttachment(_, newObj interface{}) {
 	klog.V(4).Info("Updating volume attachment object")
 	v.dispatch(newObj)
 }

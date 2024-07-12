@@ -14,7 +14,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -229,7 +228,7 @@ var _ = Describe("#controllerUtils", func() {
 
 	Describe("##AddOrUpdateAnnotationOnNode", func() {
 		type setup struct {
-			node *v1.Node
+			node *corev1.Node
 		}
 		type expect struct {
 			expectedAnnotations map[string]string
@@ -265,12 +264,11 @@ var _ = Describe("#controllerUtils", func() {
 
 				err := AddOrUpdateAnnotationOnNode(context.TODO(), c.targetCoreClient, data.action.nodeName, data.action.toBeAppliedAnnotations)
 
-				if !data.expect.err {
-					Expect(err).To(BeNil())
-				} else {
+				if data.expect.err {
 					Expect(err).To(HaveOccurred())
 					return
 				}
+				Expect(err).To(BeNil())
 
 				nodeObject, _ = c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), data.action.nodeName, metav1.GetOptions{})
 
@@ -405,7 +403,7 @@ var _ = Describe("#controllerUtils", func() {
 
 	Describe("##RemoveAnnotationsOffNode", func() {
 		type setup struct {
-			node *v1.Node
+			node *corev1.Node
 		}
 		type expect struct {
 			expectedAnnotations map[string]string
@@ -441,12 +439,11 @@ var _ = Describe("#controllerUtils", func() {
 
 				err := RemoveAnnotationsOffNode(context.TODO(), c.targetCoreClient, data.action.nodeName, data.action.toBeRemovedAnnotations)
 
-				if !data.expect.err {
-					Expect(err).To(BeNil())
-				} else {
+				if data.expect.err {
 					Expect(err).To(HaveOccurred())
 					return
 				}
+				Expect(err).To(BeNil())
 
 				nodeObject, _ = c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), data.action.nodeName, metav1.GetOptions{})
 

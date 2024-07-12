@@ -79,7 +79,7 @@ func (v *Config) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.val)
 }
 
-func handle(w http.ResponseWriter, r *http.Request) {
+func handle(w http.ResponseWriter, _ *http.Request) {
 	if err := write(w); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

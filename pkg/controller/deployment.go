@@ -543,7 +543,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	return fmt.Errorf("unexpected deployment strategy type: %s", d.Spec.Strategy.Type)
 }
 
-func (dc *controller) terminateMachineSets(ctx context.Context, machineSets []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) {
+func (dc *controller) terminateMachineSets(ctx context.Context, machineSets []*v1alpha1.MachineSet, _ *v1alpha1.MachineDeployment) {
 	var (
 		wg               sync.WaitGroup
 		numOfMachinesets = len(machineSets)

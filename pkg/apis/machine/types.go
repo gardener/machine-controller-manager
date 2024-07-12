@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package machine is the internal version of the API.
 package machine
 
@@ -217,7 +216,7 @@ const (
 	MachineCrashLoopBackOff MachinePhase = "CrashLoopBackOff"
 )
 
-// MachinePhase is a label for the condition of a machines at the current time.
+// MachineState is a label for the state of a machines at the current time.
 type MachineState string
 
 // These are the valid statuses of machines.
@@ -252,6 +251,7 @@ const (
 
 // The below types are used by kube_client and api_server.
 
+// ConditionStatus is a label for condition statuses
 type ConditionStatus string
 
 // These are valid condition statuses. "ConditionTrue" means a resource is in the condition;
@@ -384,7 +384,7 @@ type MachineSummary struct {
 // +genclient:method=UpdateScale,verb=update,subresource=scale,input=Scale,result=Scale
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// Deployment enables declarative updates for machines and MachineSets.
+// MachineDeployment enables declarative updates for machines and MachineSets.
 type MachineDeployment struct {
 	metav1.TypeMeta
 	// Standard object metadata.
@@ -442,8 +442,8 @@ type MachineDeploymentSpec struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// DEPRECATED.
 // MachineDeploymentRollback stores the information required to rollback a MachineDeployment.
+// DEPRECATED.
 type MachineDeploymentRollback struct {
 	metav1.TypeMeta
 
@@ -457,13 +457,14 @@ type MachineDeploymentRollback struct {
 	RollbackTo RollbackConfig
 }
 
+// RollbackConfig is the config of a MachineDeployment rollback
 type RollbackConfig struct {
 	// The revision to rollback to. If set to 0, rollback to the last revision.
 	Revision int64
 }
 
 const (
-	// DefaultDeploymentUniqueLabelKey is the default key of the selector that is added
+	// DefaultMachineDeploymentUniqueLabelKey is the default key of the selector that is added
 	// to existing MCs (and label key that is added to its machines) to prevent the existing MCs
 	// to select new machines (and old machines being select by new MC).
 	DefaultMachineDeploymentUniqueLabelKey string = "machine-template-hash"
@@ -482,17 +483,18 @@ type MachineDeploymentStrategy struct {
 	RollingUpdate *RollingUpdateMachineDeployment
 }
 
+// MachineDeploymentStrategyType is the strategy to be used for rolling a MachineDeployment
 type MachineDeploymentStrategyType string
 
 const (
-	// Kill all existing machines before creating new ones.
+	// RecreateMachineDeploymentStrategyType means that all existing machines will be killed before creating new ones.
 	RecreateMachineDeploymentStrategyType MachineDeploymentStrategyType = "Recreate"
 
-	// Replace the old MCs by new one using rolling update i.e gradually scale down the old MCs and scale up the new one.
+	// RollingUpdateMachineDeploymentStrategyType means that old MCs will be replaced by new one using rolling update i.e gradually scale down the old MCs and scale up the new one.
 	RollingUpdateMachineDeploymentStrategyType MachineDeploymentStrategyType = "RollingUpdate"
 )
 
-// Spec to control the desired behavior of rolling update.
+// RollingUpdateMachineDeployment specifies the spec to control the desired behavior of rolling update.
 type RollingUpdateMachineDeployment struct {
 	// The maximum number of machines that can be unavailable during the update.
 	// Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%).
@@ -556,6 +558,7 @@ type MachineDeploymentStatus struct {
 	FailedMachines []*MachineSummary
 }
 
+// MachineDeploymentConditionType are the valid conditions of a MachineDeployment.
 type MachineDeploymentConditionType string
 
 // These are valid conditions of a MachineDeployment.

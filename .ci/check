@@ -25,8 +25,14 @@ fi
 
 cd "${SOURCE_PATH}"
 
-# Build Golint.
-go install golang.org/x/lint/golint
+## Build Golint.
+#go install golang.org/x/lint/golint
+
+# Install golangci-lint (linting tool).
+if [[ -z "${GOLANGCI_LINT_VERSION}" ]]; then
+  export GOLANGCI_LINT_VERSION=v1.57.1
+fi
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@"${GOLANGCI_LINT_VERSION}"
 
 ###############################################################################
 
@@ -41,8 +47,12 @@ go vet ${PACKAGES}
 echo "Running gofmt..."
 gofmt -s -l -w ${PACKAGES_DIRS}
 
-# Execute lint checks.
-echo "Running golint..."
-for dir in ${PACKAGES_DIRS}; do
-  golint -set_exit_status $(find $dir -maxdepth 1 -name "*.go" | grep -vE 'zz_generated|_test.go')
-done
+## Execute lint checks.
+#echo "Running golint..."
+#for dir in ${PACKAGES_DIRS}; do
+#  golint -set_exit_status $(find $dir -maxdepth 1 -name "*.go" | grep -vE 'zz_generated|_test.go')
+#done
+
+echo "Running golangci-lint..."
+# golangci-lint can't be run from outside the directory
+(cd ${SOURCE_PATH} && golangci-lint run -c .golangci.yaml --timeout 10m)

@@ -24,7 +24,7 @@ func UpdateHealth(isHealthy bool) {
 
 // Healthz is an HTTP handler for the /healthz endpoint which responds with 200 OK status code
 // if the Machine Controller Manager is healthy; and with 500 Internal Server error status code otherwise.
-func Healthz(w http.ResponseWriter, r *http.Request) {
+func Healthz(w http.ResponseWriter, _ *http.Request) {
 	mutex.Lock()
 	isHealthy := healthy
 	mutex.Unlock()

@@ -23,13 +23,13 @@ func (c *controller) nodeAdd(obj interface{}) {
 	c.nodeQueue.Add(key)
 }
 
-func (c *controller) nodeUpdate(oldObj, newObj interface{}) {
+func (c *controller) nodeUpdate(newObj interface{}) {
 	c.nodeAdd(newObj)
 }
 
 func (c *controller) nodeDelete(obj interface{}) {
-	node, ok := obj.(*v1.Node)
-	if node == nil || !ok {
+	node, _ := obj.(*v1.Node)
+	if node == nil {
 		return
 	}
 
@@ -49,6 +49,6 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 	return c.reconcileClusterNode(node)
 }
 
-func (c *controller) reconcileClusterNode(node *v1.Node) error {
+func (c *controller) reconcileClusterNode(_ *v1.Node) error {
 	return nil
 }

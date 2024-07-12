@@ -416,15 +416,13 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(
 				podsCount := len(pods.Items)
 				readyPods := 0
 				for _, pod := range pods.Items {
-					if len(pod.Spec.Containers) == 2 && pod.Status.ContainerStatuses[0].Ready {
-						if pod.Status.ContainerStatuses[1].Ready {
-							readyPods++
-						} else {
-							return fmt.Errorf("container(s) not ready.\n%s", pod.Status.ContainerStatuses[1].State.String())
-						}
-					} else {
+					if len(pod.Spec.Containers) != 2 && pod.Status.ContainerStatuses[0].Ready {
 						return fmt.Errorf("containers(s) not ready.\n%s", pod.Status.ContainerStatuses[0].State.String())
 					}
+					if !pod.Status.ContainerStatuses[1].Ready {
+						return fmt.Errorf("container(s) not ready.\n%s", pod.Status.ContainerStatuses[1].State.String())
+					}
+					readyPods++
 				}
 				if podsCount == readyPods {
 					return nil
@@ -511,31 +509,31 @@ func (c *IntegrationTestFramework) patchMachineClass(ctx context.Context, resour
 		c.updatePatchFile()
 	}
 
-	if data, err := os.ReadFile(
+	data, err := os.ReadFile(
 		filepath.Join("..", "..", "..",
 			".ci",
 			"controllers-test",
 			"machine-class-patch.json"),
-	); err == nil {
-		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			_, err := c.ControlCluster.McmClient.
-				MachineV1alpha1().
-				MachineClasses(controlClusterNamespace).
-				Patch(
-					ctx,
-					resourceName,
-					types.MergePatchType,
-					data,
-					metav1.PatchOptions{},
-				)
-			return err
-		})
-		if retryErr != nil {
-			return retryErr
-		}
-	} else {
+	)
+	if err != nil {
 		// Error reading file. So skipping patch
 		log.Panicln("error while reading patch file. So skipping it")
+	}
+	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		_, err := c.ControlCluster.McmClient.
+			MachineV1alpha1().
+			MachineClasses(controlClusterNamespace).
+			Patch(
+				ctx,
+				resourceName,
+				types.MergePatchType,
+				data,
+				metav1.PatchOptions{},
+			)
+		return err
+	})
+	if retryErr != nil {
+		return retryErr
 	}
 
 	return nil
@@ -570,39 +568,39 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 
 	ctx := context.Background()
 	if isControlSeed == "true" && len(v1MachineClassPath) == 0 {
-		if machineClasses, err := c.ControlCluster.McmClient.
+		machineClasses, err := c.ControlCluster.McmClient.
 			MachineV1alpha1().
 			MachineClasses(controlClusterNamespace).
 			List(ctx,
 				metav1.ListOptions{},
-			); err == nil {
-			// Create machine-class using any of existing machineclass resource and yaml combined
-			for _, resourceName := range testMachineClassResources {
-				// create machine-class
-				_, createErr := c.ControlCluster.McmClient.
-					MachineV1alpha1().
-					MachineClasses(controlClusterNamespace).
-					Create(
-						ctx,
-						&v1alpha1.MachineClass{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:        resourceName,
-								Labels:      machineClasses.Items[0].ObjectMeta.Labels,
-								Annotations: machineClasses.Items[0].ObjectMeta.Annotations,
-							},
-							ProviderSpec:         machineClasses.Items[0].ProviderSpec,
-							SecretRef:            machineClasses.Items[0].SecretRef,
-							CredentialsSecretRef: machineClasses.Items[0].CredentialsSecretRef,
-							Provider:             machineClasses.Items[0].Provider,
-						},
-						metav1.CreateOptions{},
-					)
-				if createErr != nil {
-					return createErr
-				}
-			}
-		} else {
+			)
+		if err != nil {
 			return err
+		}
+		// Create machine-class using any of existing machineclass resource and yaml combined
+		for _, resourceName := range testMachineClassResources {
+			// create machine-class
+			_, createErr := c.ControlCluster.McmClient.
+				MachineV1alpha1().
+				MachineClasses(controlClusterNamespace).
+				Create(
+					ctx,
+					&v1alpha1.MachineClass{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        resourceName,
+							Labels:      machineClasses.Items[0].ObjectMeta.Labels,
+							Annotations: machineClasses.Items[0].ObjectMeta.Annotations,
+						},
+						ProviderSpec:         machineClasses.Items[0].ProviderSpec,
+						SecretRef:            machineClasses.Items[0].SecretRef,
+						CredentialsSecretRef: machineClasses.Items[0].CredentialsSecretRef,
+						Provider:             machineClasses.Items[0].Provider,
+					},
+					metav1.CreateOptions{},
+				)
+			if createErr != nil {
+				return createErr
+			}
 		}
 	} else {
 		//use yaml files
@@ -637,37 +635,37 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 			}
 		} else {
 			// use v1MachineClass but with different name
-			if machineClass, err := c.ControlCluster.McmClient.
+			machineClass, err := c.ControlCluster.McmClient.
 				MachineV1alpha1().
 				MachineClasses(controlClusterNamespace).
 				Get(
 					ctx,
 					testMachineClassResources[0],
 					metav1.GetOptions{},
-				); err == nil {
-
-				_, createErr := c.ControlCluster.McmClient.
-					MachineV1alpha1().
-					MachineClasses(controlClusterNamespace).
-					Create(ctx,
-						&v1alpha1.MachineClass{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:        testMachineClassResources[1],
-								Labels:      machineClass.ObjectMeta.Labels,
-								Annotations: machineClass.ObjectMeta.Annotations,
-							},
-							ProviderSpec:         machineClass.ProviderSpec,
-							SecretRef:            machineClass.SecretRef,
-							CredentialsSecretRef: machineClass.CredentialsSecretRef,
-							Provider:             machineClass.Provider,
-						},
-						metav1.CreateOptions{})
-				if createErr != nil {
-					return createErr
-				}
-			} else {
+				)
+			if err != nil {
 				return err
 			}
+			_, createErr := c.ControlCluster.McmClient.
+				MachineV1alpha1().
+				MachineClasses(controlClusterNamespace).
+				Create(ctx,
+					&v1alpha1.MachineClass{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        testMachineClassResources[1],
+							Labels:      machineClass.ObjectMeta.Labels,
+							Annotations: machineClass.ObjectMeta.Annotations,
+						},
+						ProviderSpec:         machineClass.ProviderSpec,
+						SecretRef:            machineClass.SecretRef,
+						CredentialsSecretRef: machineClass.CredentialsSecretRef,
+						Provider:             machineClass.Provider,
+					},
+					metav1.CreateOptions{})
+			if createErr != nil {
+				return createErr
+			}
+
 		}
 	}
 

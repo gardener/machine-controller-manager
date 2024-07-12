@@ -22,7 +22,6 @@ Modifications Copyright SAP SE or an SAP affiliate company and Gardener contribu
 package controller
 
 import (
-	clientgoclientset "k8s.io/client-go/kubernetes"
 	clientset "k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 
@@ -35,8 +34,8 @@ type ClientBuilder interface {
 	ConfigOrDie(name string) *restclient.Config
 	Client(name string) (clientset.Interface, error)
 	ClientOrDie(name string) clientset.Interface
-	ClientGoClient(name string) (clientgoclientset.Interface, error)
-	ClientGoClientOrDie(name string) clientgoclientset.Interface
+	ClientGoClient(name string) (clientset.Interface, error)
+	ClientGoClientOrDie(name string) clientset.Interface
 }
 
 // SimpleControllerClientBuilder returns a fixed client with different user agents
@@ -79,16 +78,16 @@ func (b SimpleControllerClientBuilder) ClientOrDie(name string) clientset.Interf
 }
 
 // ClientGoClient builds a go client
-func (b SimpleControllerClientBuilder) ClientGoClient(name string) (clientgoclientset.Interface, error) {
+func (b SimpleControllerClientBuilder) ClientGoClient(name string) (clientset.Interface, error) {
 	clientConfig, err := b.Config(name)
 	if err != nil {
 		return nil, err
 	}
-	return clientgoclientset.NewForConfig(clientConfig)
+	return clientset.NewForConfig(clientConfig)
 }
 
 // ClientGoClientOrDie builds a go client or die's
-func (b SimpleControllerClientBuilder) ClientGoClientOrDie(name string) clientgoclientset.Interface {
+func (b SimpleControllerClientBuilder) ClientGoClientOrDie(name string) clientset.Interface {
 	client, err := b.ClientGoClient(name)
 	if err != nil {
 		klog.Fatal(err)

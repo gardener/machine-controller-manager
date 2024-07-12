@@ -6,13 +6,11 @@ package controller
 
 import (
 	"context"
-
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -86,7 +84,7 @@ var _ = Describe("deployment_rolling", func() {
 				err := controller.taintNodesBackingMachineSets(
 					context.TODO(),
 					data.action,
-					&v1.Taint{
+					&corev1.Taint{
 						Key:    PreferNoScheduleKey,
 						Value:  "True",
 						Effect: "PreferNoSchedule",
