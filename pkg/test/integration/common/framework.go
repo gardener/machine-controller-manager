@@ -416,7 +416,10 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(
 				podsCount := len(pods.Items)
 				readyPods := 0
 				for _, pod := range pods.Items {
-					if len(pod.Spec.Containers) != 2 && pod.Status.ContainerStatuses[0].Ready {
+					if len(pod.Status.ContainerStatuses) < 2 {
+						return fmt.Errorf("containers(s) not ready")
+					}
+					if !pod.Status.ContainerStatuses[0].Ready {
 						return fmt.Errorf("containers(s) not ready.\n%s", pod.Status.ContainerStatuses[0].State.String())
 					}
 					if !pod.Status.ContainerStatuses[1].Ready {
