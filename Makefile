@@ -9,7 +9,7 @@ IMAGE_REPOSITORY   := europe-docker.pkg.dev/gardener-project/public/gardener/mac
 IMAGE_TAG          := $(shell cat VERSION)
 COVERPROFILE       := test/output/coverprofile.out
 
-LEADER_ELECT 	   := "true"
+LEADER_ELECT 	   ?= "true" # If LEADER_ELECT is not set in the environment, use the default value "true"
 MACHINE_SAFETY_OVERSHOOTING_PERIOD:=1m
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)

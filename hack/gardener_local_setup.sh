@@ -196,11 +196,13 @@ function set_makefile_env() {
   local target_project_dir target_kube_config_path
   target_project_dir="$1"
   target_kube_config_path="$2"
+  echo "IS_CONTROL_CLUSTER_SEED=true" > "${target_project_dir}/.env"
   {
-    printf "\n%s" "IS_CONTROL_CLUSTER_SEED=true" >"${target_project_dir}/.env"
-    printf "\n%s" "CONTROL_CLUSTER_NAMESPACE=shoot--${PROJECT}--${SHOOT}" >> "${target_project_dir}/.env"
-    printf "\n%s" "CONTROL_KUBECONFIG=${target_kube_config_path}/kubeconfig_control.yaml" >>"${target_project_dir}/.env"
-    printf "\n%s" "TARGET_KUBECONFIG=${target_kube_config_path}/kubeconfig_target.yaml" >>"${target_project_dir}/.env"
+    printf "CONTROL_CLUSTER_NAMESPACE=%s--%s\n" "${PROJECT}" "${SHOOT}";
+    printf "CONTROL_NAMESPACE=%s--%s\n" "${PROJECT}" "${SHOOT}";
+    printf "CONTROL_KUBECONFIG=%s\n" "${target_kube_config_path}/kubeconfig_control.yaml";
+    printf "TARGET_KUBECONFIG=%s\n" "${target_kube_config_path}/kubeconfig_target.yaml";
+    printf "LEADER_ELECT=false\n"
   } >>"${target_project_dir}/.env"
 }
 
