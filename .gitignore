@@ -27,3 +27,6 @@ kubectl
 
 # Autogen tags
 tags
+
+# dont check in tool binariess
+hack/tools/bin/

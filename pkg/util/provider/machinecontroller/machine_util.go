@@ -969,6 +969,10 @@ func (c *controller) getVMStatus(ctx context.Context, getMachineStatusRequest *d
 				description = "Error occurred with decoding machine error status while getting VM status, aborting with retry. " + machineutils.GetVMStatus
 				state = v1alpha1.MachineStateFailed
 				retry = machineutils.ShortRetry
+			case codes.Uninitialized:
+				description = "VM instance was not initalized. Moving forward to node drain. " + machineutils.InitiateDrain
+				state = v1alpha1.MachineStateProcessing
+				retry = machineutils.ShortRetry
 
 			default:
 				// Error occurred with decoding machine error status, abort with retry.
