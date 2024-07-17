@@ -248,12 +248,14 @@ func (c *controller) syncMachineNameToNode(ctx context.Context, machine *v1alpha
 		return machineutils.LongRetry, nil
 	}
 
-	if node.Labels == nil {
-		node.Labels = make(map[string]string)
-	}
-	node.Labels[machineutils.MachineLabelKey] = machine.Name
+	nodeCopy := node.DeepCopy()
 
-	if _, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{}); err != nil {
+	if nodeCopy.Labels == nil {
+		nodeCopy.Labels = make(map[string]string)
+	}
+	nodeCopy.Labels[machineutils.MachineLabelKey] = machine.Name
+
+	if _, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{}); err != nil {
 		if apierrors.IsConflict(err) {
 			return machineutils.ConflictRetry, err
 		}
