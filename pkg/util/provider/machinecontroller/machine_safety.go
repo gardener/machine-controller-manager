@@ -272,7 +272,8 @@ func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alph
 			// Creating a dummy machine object to create deleteMachineRequest
 			machine = &v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: machineName,
+					Name:      machineName,
+					Namespace: machineClass.Namespace,
 				},
 				Spec: v1alpha1.MachineSpec{
 					ProviderID: machineID,
