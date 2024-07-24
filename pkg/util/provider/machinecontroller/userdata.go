@@ -1,22 +1,7 @@
-/*
-(c) 2017 SAP SE or an SAP affiliate company. All rights reserved.
+// SPDX-FileCopyrightText: 2024 SAP SE or an SAP affiliate company and Gardener contributors
+//
+// SPDX-License-Identifier: Apache-2.0
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-Modifications Copyright (c) 2017 SAP SE or an SAP affiliate company. All rights reserved.
-*/
-
-// Package controller is used to provide the core functionalities of machine-controller-manager
 package controller
 
 import (
@@ -29,19 +14,27 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	bootstraptokenapi "k8s.io/cluster-bootstrap/token/api"
 	bootstraptokenutil "k8s.io/cluster-bootstrap/token/util"
 	"k8s.io/klog/v2"
+
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 )
 
-const placeholder = "<<BOOTSTRAP_TOKEN>>"
+const (
+	bootstrapTokenPlaceholder = "<<BOOTSTRAP_TOKEN>>"
+	machineNamePlaceholder    = "<<MACHINE_NAME>>"
+)
 
-// urlEncodedPlaceholder is a placeholder that can for instance occur in ignition userdata format
-var urlEncodedPlaceholder = url.QueryEscape(placeholder)
+var (
+	// urlEncodedBootstrapTokenPlaceholder is a bootstrapTokenPlaceholder that can for instance occur in ignition userdata format
+	urlEncodedBootstrapTokenPlaceholder = url.QueryEscape(bootstrapTokenPlaceholder)
+	// urlEncodedMachineNamePlaceholder is a machineNamePlaceholder that can for instance occur in ignition userdata format
+	urlEncodedMachineNamePlaceholder = url.QueryEscape(machineNamePlaceholder)
+)
 
 func (c *controller) addBootstrapTokenToUserData(ctx context.Context, machine *v1alpha1.Machine, secret *corev1.Secret) error {
 	var (
@@ -52,7 +45,7 @@ func (c *controller) addBootstrapTokenToUserData(ctx context.Context, machine *v
 
 	if userDataB, exists = secret.Data["userData"]; !exists {
 		// If userData key is not founds
-		return fmt.Errorf("Userdata field not found in secret for machine %q", machine.Name)
+		return fmt.Errorf("userdata field not found in secret for machine %q", machine.Name)
 	}
 	userDataS = string(userDataB)
 
@@ -66,14 +59,42 @@ func (c *controller) addBootstrapTokenToUserData(ctx context.Context, machine *v
 		string(bootstrapTokenSecret.Data[bootstraptokenapi.BootstrapTokenSecretKey]),
 	)
 
-	if strings.Contains(userDataS, placeholder) {
-		klog.V(4).Infof("replacing placeholder %s with %s in user-data!", placeholder, token)
-		userDataS = strings.ReplaceAll(userDataS, placeholder, token)
-	} else if strings.Contains(userDataS, urlEncodedPlaceholder) {
-		klog.V(4).Infof("replacing url encoded placeholder %s with %s in user-data!", urlEncodedPlaceholder, url.QueryEscape(token))
-		userDataS = strings.ReplaceAll(userDataS, urlEncodedPlaceholder, url.QueryEscape(token))
+	if strings.Contains(userDataS, bootstrapTokenPlaceholder) {
+		klog.V(4).Infof("replacing placeholder %s with %s in user-data!", bootstrapTokenPlaceholder, token)
+		userDataS = strings.ReplaceAll(userDataS, bootstrapTokenPlaceholder, token)
+	} else if strings.Contains(userDataS, urlEncodedBootstrapTokenPlaceholder) {
+		klog.V(4).Infof("replacing url encoded placeholder %s with %s in user-data!", urlEncodedBootstrapTokenPlaceholder, url.QueryEscape(token))
+		userDataS = strings.ReplaceAll(userDataS, urlEncodedBootstrapTokenPlaceholder, url.QueryEscape(token))
 	} else {
 		klog.Warningf("no bootstrap token placeholder found in user-data, nothing to replace! Without bootstrap token , node won't join.")
+	}
+
+	secret.Data["userData"] = []byte(userDataS)
+
+	return nil
+}
+
+func (c *controller) addMachineNameToUserData(machine *v1alpha1.Machine, secret *corev1.Secret) error {
+	var (
+		userDataB []byte
+		userDataS string
+		exists    bool
+	)
+
+	if userDataB, exists = secret.Data["userData"]; !exists {
+		// If userData key is not founds
+		return fmt.Errorf("userdata field not found in secret for machine %q", machine.Name)
+	}
+	userDataS = string(userDataB)
+
+	if strings.Contains(userDataS, machineNamePlaceholder) {
+		klog.V(4).Infof("replacing placeholder %s with %s in user-data!", machineNamePlaceholder, machine.Name)
+		userDataS = strings.ReplaceAll(userDataS, machineNamePlaceholder, machine.Name)
+	} else if strings.Contains(userDataS, urlEncodedMachineNamePlaceholder) {
+		klog.V(4).Infof("replacing url encoded placeholder %s with %s in user-data!", urlEncodedMachineNamePlaceholder, url.QueryEscape(machine.Name))
+		userDataS = strings.ReplaceAll(userDataS, urlEncodedMachineNamePlaceholder, url.QueryEscape(machine.Name))
+	} else {
+		klog.Info("no machine name placeholder found in user-data, nothing to replace! Without machine name , node won't join if node-agent-authorizer is enabled.")
 	}
 
 	secret.Data["userData"] = []byte(userDataS)
@@ -92,7 +113,7 @@ func (c *controller) getBootstrapTokenOrCreateIfNotExist(ctx context.Context, ma
 				return nil, err
 			}
 			data := map[string][]byte{
-				bootstraptokenapi.BootstrapTokenDescriptionKey:      []byte("A bootstrap token generated by MachineControllManager."),
+				bootstraptokenapi.BootstrapTokenDescriptionKey:      []byte(fmt.Sprintf("A bootstrap token for machine %q generated by MachineControllerManager.", machine.Name)),
 				bootstraptokenapi.BootstrapTokenIDKey:               []byte(tokenID),
 				bootstraptokenapi.BootstrapTokenSecretKey:           []byte(bootstrapTokenSecretKey),
 				bootstraptokenapi.BootstrapTokenExpirationKey:       []byte(metav1.Now().Add(c.getEffectiveCreationTimeout(machine).Duration).Format(time.RFC3339)),
@@ -132,9 +153,9 @@ func (c *controller) deleteBootstrapToken(ctx context.Context, machineName strin
 // The set of allowed characters can be specified. Returns error if there was a problem during the random generation.
 func generateRandomStringFromCharset(n int, allowedCharacters string) (string, error) {
 	output := make([]byte, n)
-	max := new(big.Int).SetInt64(int64(len(allowedCharacters)))
+	maximum := new(big.Int).SetInt64(int64(len(allowedCharacters)))
 	for i := range output {
-		randomCharacter, err := rand.Int(rand.Reader, max)
+		randomCharacter, err := rand.Int(rand.Reader, maximum)
 		if err != nil {
 			return "", err
 		}
