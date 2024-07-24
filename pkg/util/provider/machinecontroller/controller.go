@@ -146,37 +146,37 @@ func NewController(
 	}
 
 	// Secret Controller's Informers
-	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.secretAdd,
 		DeleteFunc: controller.secretDelete,
 	})
 
-	machineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = machineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.machineClassToSecretAdd,
 		UpdateFunc: controller.machineClassToSecretUpdate,
 		DeleteFunc: controller.machineClassToSecretDelete,
 	})
 
 	// Machine Class Controller's Informers
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.machineToMachineClassAdd,
 		DeleteFunc: controller.machineToMachineClassDelete,
 	})
 
-	machineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = machineClassInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.machineClassAdd,
 		UpdateFunc: controller.machineClassUpdate,
 		DeleteFunc: controller.machineClassDelete,
 	})
 
 	// Machine Controller's Informers
-	nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.addNodeToMachine,
 		UpdateFunc: controller.updateNodeToMachine,
 		DeleteFunc: controller.deleteNodeToMachine,
 	})
 
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.addMachine,
 		UpdateFunc: controller.updateMachine,
 		DeleteFunc: controller.deleteMachine,
@@ -188,7 +188,7 @@ func NewController(
 	// running of different safety loop on MCM startup.
 	controller.machineSafetyOrphanVMsQueue.Add("")
 	controller.machineSafetyAPIServerQueue.Add("")
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		// updateMachineToSafety makes sure that orphan VM handler is invoked on some specific machine obj updates
 		UpdateFunc: controller.updateMachineToSafety,
 		// deleteMachineToSafety makes sure that orphan VM handler is invoked on any machine deletion
@@ -204,7 +204,7 @@ func NewController(
 		},
 	) {
 		controller.volumeAttachmentHandler = drain.NewVolumeAttachmentHandler()
-		volumeAttachmentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		_, _ = volumeAttachmentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc:    controller.volumeAttachmentHandler.AddVolumeAttachment,
 			UpdateFunc: controller.volumeAttachmentHandler.UpdateVolumeAttachment,
 		})

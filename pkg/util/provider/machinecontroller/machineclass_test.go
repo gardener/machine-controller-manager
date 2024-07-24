@@ -81,7 +81,7 @@ var _ = Describe("machineclass", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				if data.setup.fakeResourceActions != nil {
-					trackers.TargetCore.SetFakeResourceActions(data.setup.fakeResourceActions, math.MaxInt32)
+					_ = trackers.TargetCore.SetFakeResourceActions(data.setup.fakeResourceActions, math.MaxInt32)
 				}
 
 				err = controller.reconcileClusterMachineClass(context.TODO(), machineClass)

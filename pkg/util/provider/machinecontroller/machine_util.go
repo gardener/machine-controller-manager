@@ -589,35 +589,34 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 
 	node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			// Node object is not found
-			if len(machine.Status.Conditions) > 0 &&
-				machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
-				// If machine has conditions on it,
-				// and corresponding node object went missing
-				// and if machine object still reports healthy
-				description = fmt.Sprintf(
-					"Node object went missing. Machine %s is unhealthy - changing MachinePhase to Unknown",
-					machine.Name,
-				)
-				klog.Warning(description)
-
-				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-					Phase:          v1alpha1.MachineUnknown,
-					LastUpdateTime: metav1.Now(),
-				}
-				clone.Status.LastOperation = v1alpha1.LastOperation{
-					Description:    description,
-					State:          v1alpha1.MachineStateProcessing,
-					Type:           v1alpha1.MachineOperationHealthCheck,
-					LastUpdateTime: metav1.Now(),
-				}
-				cloneDirty = true
-			}
-		} else {
+		if !apierrors.IsNotFound(err) {
 			// Any other types of errors while fetching node object
 			klog.Errorf("Could not fetch node object for machine %q", machine.Name)
 			return machineutils.ShortRetry, err
+		}
+		// Node object is not found
+		if len(machine.Status.Conditions) > 0 &&
+			machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+			// If machine has conditions on it,
+			// and corresponding node object went missing
+			// and if machine object still reports healthy
+			description = fmt.Sprintf(
+				"Node object went missing. Machine %s is unhealthy - changing MachinePhase to Unknown",
+				machine.Name,
+			)
+			klog.Warning(description)
+
+			clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+				Phase:          v1alpha1.MachineUnknown,
+				LastUpdateTime: metav1.Now(),
+			}
+			clone.Status.LastOperation = v1alpha1.LastOperation{
+				Description:    description,
+				State:          v1alpha1.MachineStateProcessing,
+				Type:           v1alpha1.MachineOperationHealthCheck,
+				LastUpdateTime: metav1.Now(),
+			}
+			cloneDirty = true
 		}
 	} else {
 		populatedConditions, removedConditions, isChanged := nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions)
@@ -707,29 +706,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		if timeOut > 0 {
 			// Machine health timeout occurred while joining or rejoining of machine
 
-			if isMachinePending {
-				// Timeout occurred while machine creation
-				description = fmt.Sprintf(
-					"Machine %s failed to join the cluster in %s minutes.",
-					machine.Name,
-					timeOutDuration,
-				)
-				// Log the error message for machine failure
-				klog.Error(description)
-
-				clone.Status.LastOperation = v1alpha1.LastOperation{
-					Description:    description,
-					State:          v1alpha1.MachineStateFailed,
-					Type:           machine.Status.LastOperation.Type,
-					LastUpdateTime: metav1.Now(),
-				}
-				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-					Phase: v1alpha1.MachineFailed,
-					// TimeoutActive:  false,
-					LastUpdateTime: metav1.Now(),
-				}
-				cloneDirty = true
-			} else {
+			if !isMachinePending {
 				// Timeout occurred due to machine being unhealthy for too long
 				description = fmt.Sprintf(
 					"Machine %s health checks failing since last %s minutes. Updating machine phase to Failed. Node Conditions: %+v",
@@ -743,6 +720,27 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				c.permitGiver.RegisterPermits(machineDeployName, 1)
 				return c.tryMarkingMachineFailed(ctx, machine, clone, machineDeployName, description, lockAcquireTimeout)
 			}
+			// Timeout occurred while machine creation
+			description = fmt.Sprintf(
+				"Machine %s failed to join the cluster in %s minutes.",
+				machine.Name,
+				timeOutDuration,
+			)
+			// Log the error message for machine failure
+			klog.Error(description)
+
+			clone.Status.LastOperation = v1alpha1.LastOperation{
+				Description:    description,
+				State:          v1alpha1.MachineStateFailed,
+				Type:           machine.Status.LastOperation.Type,
+				LastUpdateTime: metav1.Now(),
+			}
+			clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+				Phase: v1alpha1.MachineFailed,
+				// TimeoutActive:  false,
+				LastUpdateTime: metav1.Now(),
+			}
+			cloneDirty = true
 		} else {
 			// If timeout has not occurred, re-enqueue the machine
 			// after a specified sleep time
@@ -1239,10 +1237,7 @@ func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachine
 			klog.Errorf("(deleteNodeVolAttachments) Error obtaining VolumeAttachment(s) for node %q, machine %q: %s", nodeName, machine.Name, err)
 			return retryPeriod, err
 		}
-		if len(liveNodeVolAttachments) == 0 {
-			description = fmt.Sprintf("No Live VolumeAttachments for node: %s. Moving to VM Deletion. %s", nodeName, machineutils.InitiateVMDeletion)
-			state = v1alpha1.MachineStateProcessing
-		} else {
+		if len(liveNodeVolAttachments) != 0 {
 			err = deleteVolumeAttachmentsForNode(ctx, c.targetCoreClient.StorageV1().VolumeAttachments(), nodeName, liveNodeVolAttachments)
 			if err != nil {
 				klog.Errorf("(deleteNodeVolAttachments) Error deleting volume attachments for node %q, machine %q: %s", nodeName, machine.Name, err)
@@ -1251,6 +1246,8 @@ func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachine
 			}
 			return retryPeriod, nil
 		}
+		description = fmt.Sprintf("No Live VolumeAttachments for node: %s. Moving to VM Deletion. %s", nodeName, machineutils.InitiateVMDeletion)
+		state = v1alpha1.MachineStateProcessing
 	}
 	now := metav1.Now()
 	klog.V(4).Infof("(deleteVolumeAttachmentsForNode) For node %q, machine %q, set LastOperation.Description: %q", nodeName, machine.Name, description)

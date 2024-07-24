@@ -174,14 +174,14 @@ var _ = Describe("safety_logic", func() {
 				c.safetyOptions.APIserverInactiveStartTime = apiServerInactiveStartTime
 				c.safetyOptions.MachineControllerFrozen = preMachineControllerIsFrozen
 				if !controlAPIServerIsUp {
-					trackers.ControlMachine.SetError("APIServer is Not Reachable")
-					trackers.ControlCore.SetError("APIServer is Not Reachable")
+					_ = trackers.ControlMachine.SetError("APIServer is Not Reachable")
+					_ = trackers.ControlCore.SetError("APIServer is Not Reachable")
 				}
 				if !targetAPIServerIsUp {
-					trackers.TargetCore.SetError("APIServer is Not Reachable")
+					_ = trackers.TargetCore.SetError("APIServer is Not Reachable")
 				}
 
-				c.reconcileClusterMachineSafetyAPIServer("")
+				_ = c.reconcileClusterMachineSafetyAPIServer("")
 
 				Expect(c.safetyOptions.MachineControllerFrozen).Should(Equal(postMachineControllerFrozen))
 			},

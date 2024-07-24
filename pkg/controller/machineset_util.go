@@ -97,7 +97,7 @@ func (c *controller) syncMachinesNodeTemplates(ctx context.Context, machineList 
 		// Only sync the machine that doesn't already have the latest nodeTemplate.
 		if nodeTemplateChanged {
 			_, err := UpdateMachineWithRetries(ctx, controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
-				func(machineToUpdate *v1alpha1.Machine) error {
+				func(_ *v1alpha1.Machine) error {
 					return nil
 				})
 			if err != nil {
@@ -120,7 +120,7 @@ func (c *controller) syncMachinesClassKind(ctx context.Context, machineList []*v
 		// Only sync the machine that doesn't already have the matching classKind.
 		if classKindChanged {
 			_, err := UpdateMachineWithRetries(ctx, controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
-				func(machineToUpdate *v1alpha1.Machine) error {
+				func(_ *v1alpha1.Machine) error {
 					return nil
 				})
 			if err != nil {
@@ -163,7 +163,7 @@ func (c *controller) syncMachinesConfig(ctx context.Context, machineList []*v1al
 		// Only sync the machine that doesn't already have the latest config.
 		if configChanged {
 			_, err := UpdateMachineWithRetries(ctx, controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
-				func(machineToUpdate *v1alpha1.Machine) error {
+				func(_ *v1alpha1.Machine) error {
 					return nil
 				})
 			if err != nil {

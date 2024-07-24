@@ -161,10 +161,10 @@ const (
 	// MachineStateProcessing means operation is not yet complete
 	MachineStateProcessing MachineState = "Processing"
 
-	// MachineStateFailed means operation failed 
+	// MachineStateFailed means operation failed
 	MachineStateFailed MachineState = "Failed"
 
-	// MachineStateSuccessful means operation completed successfully 
+	// MachineStateSuccessful means operation completed successfully
 	MachineStateSuccessful MachineState = "Successful"
 )
 
@@ -188,6 +188,7 @@ const (
 
 // The below types are used by kube_client and api_server.
 
+// ConditionStatus are valid condition statuses
 type ConditionStatus string
 
 // These are valid condition statuses. "ConditionTrue" means a resource is in the condition;

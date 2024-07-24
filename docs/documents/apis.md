@@ -770,6 +770,7 @@ string
 <a href="#machine.sapcloud.io/v1alpha1.MachineSetCondition">MachineSetCondition</a>)
 </p>
 <p>
+<p>ConditionStatus are valid condition statuses</p>
 </p>
 <br>
 <h3 id="machine.sapcloud.io/v1alpha1.CurrentStatus">
@@ -1145,6 +1146,7 @@ string
 <a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentCondition">MachineDeploymentCondition</a>)
 </p>
 <p>
+<p>MachineDeploymentConditionType are valid conditions of MachineDeployments</p>
 </p>
 <br>
 <h3 id="machine.sapcloud.io/v1alpha1.MachineDeploymentSpec">
@@ -1534,6 +1536,7 @@ to be.</p>
 <a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentStrategy">MachineDeploymentStrategy</a>)
 </p>
 <p>
+<p>MachineDeploymentStrategyType are valid strategy types for rolling MachineDeployments</p>
 </p>
 <br>
 <h3 id="machine.sapcloud.io/v1alpha1.MachineOperationType">
@@ -2540,6 +2543,7 @@ see: <a href="https://issues.k8s.io/61966">https://issues.k8s.io/61966</a></p>
 <a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentSpec">MachineDeploymentSpec</a>)
 </p>
 <p>
+<p>RollbackConfig is the config to rollback a MachineDeployment</p>
 </p>
 <table>
 <thead>
@@ -2575,7 +2579,7 @@ int64
 <a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentStrategy">MachineDeploymentStrategy</a>)
 </p>
 <p>
-<p>Spec to control the desired behavior of rolling update.</p>
+<p>RollingUpdateMachineDeployment is the spec to control the desired behavior of rolling update.</p>
 </p>
 <table>
 <thead>

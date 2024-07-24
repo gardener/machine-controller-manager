@@ -67,7 +67,7 @@ var _ = Describe("machineDeployment", func() {
 		})
 
 		DescribeTable("Should enqueue the machineDeployment",
-			func(preset func(), machineDeployment *machinev1.MachineDeployment) {
+			func(preset func(), _ *machinev1.MachineDeployment) {
 				stop := make(chan struct{})
 				preset()
 				defer close(stop)
@@ -135,7 +135,7 @@ var _ = Describe("machineDeployment", func() {
 		})
 
 		DescribeTable("Should enqueue the machineDeployment",
-			func(preset func(), machineDeployment *machinev1.MachineDeployment) {
+			func(preset func(), _ *machinev1.MachineDeployment) {
 				stop := make(chan struct{})
 				preset()
 				defer close(stop)
@@ -204,7 +204,7 @@ var _ = Describe("machineDeployment", func() {
 		})
 
 		DescribeTable("Should enqueue the machineDeployment",
-			func(preset func(), machineDeployment *machinev1.MachineDeployment) {
+			func(preset func(), _ *machinev1.MachineDeployment) {
 				stop := make(chan struct{})
 				preset()
 				defer close(stop)
@@ -319,7 +319,7 @@ var _ = Describe("machineDeployment", func() {
 				Expect(c.machineDeploymentQueue.Len()).To(Equal(queueLength))
 			},
 			Entry("be enqueued as MachineSet is added",
-				func(testMachineSet *machinev1.MachineSet) {}, 1,
+				func(_ *machinev1.MachineSet) {}, 1,
 			),
 			Entry("be enqueued as MachineSet is deleted",
 				func(testMachineSet *machinev1.MachineSet) {
@@ -453,13 +453,13 @@ var _ = Describe("machineDeployment", func() {
 				}, 0,
 			),
 			Entry("be enqueued as newMachineSet is being deleted",
-				func(oldMachineSet *machinev1.MachineSet, newMachineSet *machinev1.MachineSet) {
+				func(oldMachineSet *machinev1.MachineSet, _ *machinev1.MachineSet) {
 					oldMachineSet.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 				},
 				1,
 			),
 			Entry("be enqueued as newMachineSet's label has changed",
-				func(oldMachineSet *machinev1.MachineSet, newMachineSet *machinev1.MachineSet) {
+				func(_ *machinev1.MachineSet, newMachineSet *machinev1.MachineSet) {
 					newMachineSet.Labels = map[string]string{
 						"dummy": "dummy",
 					}
@@ -467,7 +467,7 @@ var _ = Describe("machineDeployment", func() {
 				1,
 			),
 			Entry("be enqueued as newMachineSet's controllerRef has changed",
-				func(oldMachineSet *machinev1.MachineSet, newMachineSet *machinev1.MachineSet) {
+				func(_ *machinev1.MachineSet, newMachineSet *machinev1.MachineSet) {
 					newMachineSet.OwnerReferences = nil
 				},
 				1,
@@ -480,7 +480,7 @@ var _ = Describe("machineDeployment", func() {
 				0,
 			),
 			Entry("be enqueued as newMachineSet's controllerRef has changed and points to a other valid MachineDeployment",
-				func(oldMachineSet *machinev1.MachineSet, newMachineSet *machinev1.MachineSet) {
+				func(_ *machinev1.MachineSet, newMachineSet *machinev1.MachineSet) {
 					newMachineSet.OwnerReferences = []metav1.OwnerReference{
 						{
 							Kind:       "MachineDeployment",
@@ -587,7 +587,7 @@ var _ = Describe("machineDeployment", func() {
 				Expect(c.machineDeploymentQueue.Len()).To(Equal(queueLength))
 			},
 			Entry("be enqueued as MachineSet is deleted",
-				func(testMachineSet *machinev1.MachineSet) {}, 1,
+				func(_ *machinev1.MachineSet) {}, 1,
 			),
 			Entry("not be enqueued as MachineSet's controllerRef is nil",
 				func(testMachineSet *machinev1.MachineSet) {
@@ -717,7 +717,7 @@ var _ = Describe("machineDeployment", func() {
 				Expect(c.machineDeploymentQueue.Len()).To(Equal(queueLength))
 			},
 			Entry("not be enqueued as Machine is deleted",
-				func(testMachine *machinev1.Machine, testMachineDeployment *machinev1.MachineDeployment) {}, 0,
+				func(_ *machinev1.Machine, _ *machinev1.MachineDeployment) {}, 0,
 			),
 		)
 	})
@@ -766,7 +766,7 @@ var _ = Describe("machineDeployment", func() {
 		})
 
 		DescribeTable("MachineDeployment should",
-			func(preset func(testMachineDeployment *machinev1.MachineDeployment), machineDeployment *machinev1.MachineDeployment, queueLength int) {
+			func(preset func(testMachineDeployment *machinev1.MachineDeployment), _ *machinev1.MachineDeployment, queueLength int) {
 				stop := make(chan struct{})
 				preset(testMachineDeployment)
 				defer close(stop)
@@ -783,7 +783,7 @@ var _ = Describe("machineDeployment", func() {
 				Expect(c.machineDeploymentQueue.Len()).To(Equal(queueLength))
 			},
 			Entry("be enqueued as valid MachineDeployment object is provided",
-				func(testMachineDeployment *machinev1.MachineDeployment) {},
+				func(_ *machinev1.MachineDeployment) {},
 				testMachineDeployment, 1,
 			),
 		)
@@ -833,7 +833,7 @@ var _ = Describe("machineDeployment", func() {
 		})
 
 		DescribeTable("MachineDeployment should",
-			func(preset func(testMachineDeployment *machinev1.MachineDeployment), machineDeployment *machinev1.MachineDeployment, queueLength int) {
+			func(preset func(testMachineDeployment *machinev1.MachineDeployment), _ *machinev1.MachineDeployment, queueLength int) {
 				stop := make(chan struct{})
 				preset(testMachineDeployment)
 				defer close(stop)
@@ -850,7 +850,7 @@ var _ = Describe("machineDeployment", func() {
 				Expect(c.machineDeploymentQueue.Len()).To(Equal(queueLength))
 			},
 			Entry("be enqueued as valid MachineDeployment object is provided",
-				func(testMachineDeployment *machinev1.MachineDeployment) {},
+				func(_ *machinev1.MachineDeployment) {},
 				testMachineDeployment, 1,
 			),
 		)
@@ -900,7 +900,7 @@ var _ = Describe("machineDeployment", func() {
 		})
 
 		DescribeTable("MachineDeployment should",
-			func(postSet func(), machineDeployment *machinev1.MachineDeployment, queueLength int) {
+			func(postSet func(), _ *machinev1.MachineDeployment, queueLength int) {
 				stop := make(chan struct{})
 				defer close(stop)
 
@@ -1048,23 +1048,23 @@ var _ = Describe("machineDeployment", func() {
 
 			},
 			Entry("return the expected machine deployment",
-				func(testMachine *machinev1.Machine, testMachineSet *machinev1.MachineSet) {},
+				func(_ *machinev1.Machine, _ *machinev1.MachineSet) {},
 				"MachineDeployment-test",
 			),
 			Entry("return nil as machine's controller-ref is buggy",
-				func(testMachine *machinev1.Machine, testMachineSet *machinev1.MachineSet) {
+				func(testMachine *machinev1.Machine, _ *machinev1.MachineSet) {
 					testMachine.OwnerReferences[0].Kind = "MachineSetDummy"
 				},
 				"",
 			),
 			Entry("return nil as machine's controller-ref has different UID",
-				func(testMachine *machinev1.Machine, testMachineSet *machinev1.MachineSet) {
+				func(testMachine *machinev1.Machine, _ *machinev1.MachineSet) {
 					testMachine.OwnerReferences[0].UID = "000-dummy"
 				},
 				"",
 			),
 			Entry("return nil as machine-set's controller-ref is nil",
-				func(testMachine *machinev1.Machine, testMachineSet *machinev1.MachineSet) {
+				func(_ *machinev1.Machine, testMachineSet *machinev1.MachineSet) {
 					testMachineSet.OwnerReferences = nil
 				},
 				"",
@@ -1197,11 +1197,11 @@ var _ = Describe("machineDeployment", func() {
 
 			},
 			Entry("return both machineSets as selector matches.",
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet1 *machinev1.MachineSet, testMachineSet2 *machinev1.MachineSet) {
+				func(_ *machinev1.MachineDeployment, _ *machinev1.MachineSet, _ *machinev1.MachineSet) {
 				}, []string{"MachineSet-test-1", "MachineSet-test-2"}, nil,
 			),
 			Entry("return no machineSets as selector matches none.",
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet1 *machinev1.MachineSet, testMachineSet2 *machinev1.MachineSet) {
+				func(_ *machinev1.MachineDeployment, testMachineSet1 *machinev1.MachineSet, testMachineSet2 *machinev1.MachineSet) {
 					testMachineSet1.Labels = nil
 					testMachineSet2.Labels = nil
 					testMachineSet1.OwnerReferences = nil
@@ -1209,7 +1209,7 @@ var _ = Describe("machineDeployment", func() {
 				}, []string{}, nil,
 			),
 			Entry("return no machineSets as selector is invalid.",
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet1 *machinev1.MachineSet, testMachineSet2 *machinev1.MachineSet) {
+				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet, _ *machinev1.MachineSet) {
 					testMachineDeployment.Spec.Selector = &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"test-label-1": "dummy",
@@ -1224,7 +1224,7 @@ var _ = Describe("machineDeployment", func() {
 				}, []string{}, errors.New("invalid operator error"),
 			),
 			Entry("return only one machineSet as other one doesnt match the selector",
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet1 *machinev1.MachineSet, testMachineSet2 *machinev1.MachineSet) {
+				func(_ *machinev1.MachineDeployment, testMachineSet1 *machinev1.MachineSet, _ *machinev1.MachineSet) {
 					testMachineSet1.OwnerReferences = nil
 					testMachineSet1.Labels = nil
 				}, []string{"MachineSet-test-2"}, nil,
@@ -1370,12 +1370,12 @@ var _ = Describe("machineDeployment", func() {
 
 			},
 			Entry("return all the machines in the map",
-				func(testMachine *machinev1.Machine, testMachineSet *machinev1.MachineSet, testMachineDeployment *machinev1.MachineDeployment) {
+				func(_ *machinev1.Machine, _ *machinev1.MachineSet, _ *machinev1.MachineDeployment) {
 				},
 				[]string{"Machine-1", "Machine-2", "Machine-3"}, nil,
 			),
 			Entry("return none of the machines in the map as selector doesnt match",
-				func(testMachine *machinev1.Machine, testMachineSet *machinev1.MachineSet, testMachineDeployment *machinev1.MachineDeployment) {
+				func(testMachine *machinev1.Machine, _ *machinev1.MachineSet, _ *machinev1.MachineDeployment) {
 					testMachine.Labels = nil
 					testMachine.OwnerReferences = nil
 				},
@@ -1579,19 +1579,19 @@ var _ = Describe("machineDeployment", func() {
 				Expect(postCheck(actualMachineDeployment, actualMachineSets.Items, testNode)).To(BeNil())
 			},
 			Entry("reconcile the machineDeployment and return nil",
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {},
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, testNode *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, _ *machinev1.MachineSet) {},
+				func(_ *machinev1.MachineDeployment, _ []machinev1.MachineSet, _ *corev1.Node) error {
 					return nil
 				},
 			),
 			Entry("create a machineSet while reconciling",
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
+				func(_ *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
 					testMachineSet.ObjectMeta = metav1.ObjectMeta{}
 					testMachineSet.TypeMeta = metav1.TypeMeta{}
 					testMachineSet.Spec = machinev1.MachineSetSpec{}
 					testMachineSet.Status = machinev1.MachineSetStatus{}
 				},
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, testNode *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
 					if len(testMachineSets) != 1 {
 						return errors.New("it should have created one machine set")
 					}
@@ -1599,10 +1599,10 @@ var _ = Describe("machineDeployment", func() {
 				},
 			),
 			Entry("should not create new machineSet if labelSelector is empty",
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
+				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
 					testMachineDeployment.Spec.Selector = &metav1.LabelSelector{}
 				},
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, testNode *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
 					if len(testMachineSets) > 1 {
 						return errors.New("it should not have created one machine set")
 					}
@@ -1610,10 +1610,10 @@ var _ = Describe("machineDeployment", func() {
 				},
 			),
 			Entry("should remove the finalizer from deployment when deleted and no machineSets are available.",
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
+				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
 					testMachineDeployment.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 				},
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, testNode *corev1.Node) error {
+				func(testMachineDeployment *machinev1.MachineDeployment, _ []machinev1.MachineSet, _ *corev1.Node) error {
 					if len(testMachineDeployment.Finalizers) > 0 {
 						return errors.New("it should have removed the finalizers")
 					}
@@ -1630,7 +1630,7 @@ var _ = Describe("machineDeployment", func() {
 					testMachineSet.Spec = machinev1.MachineSetSpec{}
 					testMachineSet.Status = machinev1.MachineSetStatus{}
 				},
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, testNode *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
 					if len(testMachineSets) != 0 {
 						return errors.New("it shouldn't have created machine set")
 					}
@@ -1647,7 +1647,7 @@ var _ = Describe("machineDeployment", func() {
 					testMachineSet.Spec = machinev1.MachineSetSpec{}
 					testMachineSet.Status = machinev1.MachineSetStatus{}
 				},
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, testNode *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
 					if len(testMachineSets) < 1 {
 						return errors.New("it should have created one machine set")
 					}
@@ -1655,13 +1655,13 @@ var _ = Describe("machineDeployment", func() {
 				},
 			),
 			Entry("Recreate case: should completely scale-down the old machineSet",
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
+				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
 					testMachineDeployment.Spec.Strategy = machinev1.MachineDeploymentStrategy{
 						Type: machinev1.RecreateMachineDeploymentStrategyType,
 					}
 					testMachineDeployment.Spec.Template.Spec.Class.Name = "MachineClass-test-new"
 				},
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, testNode *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
 					// Old machine set should exist and should be scaled-down to zero.
 					if len(testMachineSets) == 0 || testMachineSets[0].Spec.Replicas != 0 {
 						return errors.New("it should have scaled-down old machineSet to zero")
@@ -1690,7 +1690,7 @@ var _ = Describe("machineDeployment", func() {
 					}
 					testMachine = &machinev1.Machine{}
 				},
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, testNode *corev1.Node) error {
+				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
 
 					fmt.Println(testMachineSets)
 
@@ -1702,11 +1702,11 @@ var _ = Describe("machineDeployment", func() {
 			),
 
 			Entry("rolling-update case: should create new machine-set with rolling-update",
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
+				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
 					// This should trigger rolling-update.
 					testMachineDeployment.Spec.Template.Spec.Class.Name = "MachineClass-test-new"
 				},
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, testNode *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
 					if len(testMachineSets) != 2 {
 						return errors.New("it should have created a new machine set")
 					}
@@ -1714,11 +1714,11 @@ var _ = Describe("machineDeployment", func() {
 				},
 			),
 			Entry("rolling-update case: both new and old machineSet should have appropriate desired replicas",
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
+				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
 					// This should trigger rolling-update.
 					testMachineDeployment.Spec.Template.Spec.Class.Name = "MachineClass-test-new"
 				},
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, testNode *corev1.Node) error {
+				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
 					/*TODO: when we create a new RS then we assign it the replica count and
 					then we again see if the replica count can be increased in the same reconciliation loop
 					So in our case we first assign it replica count of 1(note a new machine is not created)
@@ -1742,7 +1742,7 @@ var _ = Describe("machineDeployment", func() {
 				},
 			),
 			Entry("rolling-back case: machine-deployment should point to old machine class and RollbackTo should be removed",
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
+				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
 					// This should trigger rolling-update..
 					testMachineDeployment.Spec.Template.Spec.Class.Name = "MachineClass-test-new"
 					testMachineDeployment.Spec.RollbackTo = &machinev1.RollbackConfig{
@@ -1750,7 +1750,7 @@ var _ = Describe("machineDeployment", func() {
 					}
 
 				},
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, testNode *corev1.Node) error {
+				func(testMachineDeployment *machinev1.MachineDeployment, _ []machinev1.MachineSet, _ *corev1.Node) error {
 					// RollbackTo should be removed after rollback.
 					if testMachineDeployment.Spec.RollbackTo != nil {
 						return errors.New("RollbackTo field should have been removed from machine-deployment")
@@ -1765,12 +1765,12 @@ var _ = Describe("machineDeployment", func() {
 				},
 			),
 			Entry("paused case: Replicas of the machineSet should not change after the paused field is set",
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
+				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
 					// This should trigger rolling-update.
 					testMachineDeployment.Spec.Template.Spec.Class.Name = "MachineClass-test-new"
 					testMachineDeployment.Spec.Paused = true
 				},
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, testNode *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
 
 					if len(testMachineSets) != 1 {
 						return errors.New("there should be only one old machine-set")
@@ -1907,7 +1907,7 @@ var _ = Describe("machineDeployment", func() {
 
 			},
 			Entry("delete all the machineSets",
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet1 *machinev1.MachineSet, testMachineSet2 *machinev1.MachineSet) {
+				func(_ *machinev1.MachineDeployment, _ *machinev1.MachineSet, _ *machinev1.MachineSet) {
 				}, 0,
 			),
 		)

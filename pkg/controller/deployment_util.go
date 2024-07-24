@@ -443,7 +443,7 @@ func SetNewMachineSetConfig(deployment *v1alpha1.MachineDeployment, newIS *v1alp
 
 // UpdateMachineSetClassKind updates class.Kind appropriately by updating its revision and
 // copying required deployment class.Kind to it; it returns true if machine set's class.Kind is changed.
-func UpdateMachineSetClassKind(deployment *v1alpha1.MachineDeployment, newIS *v1alpha1.MachineSet, newRevision string, exists bool) bool {
+func UpdateMachineSetClassKind(deployment *v1alpha1.MachineDeployment, newIS *v1alpha1.MachineSet, _ string, _ bool) bool {
 	classKindChanged := copyMachineDeploymentClassKindToMachineSet(deployment, newIS)
 	return classKindChanged
 }

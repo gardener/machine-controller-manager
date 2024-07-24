@@ -27,7 +27,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -49,7 +48,7 @@ func TestMachineControllerSuite(t *testing.T) {
 	klog.SetOutput(io.Discard)
 	flags := &flag.FlagSet{}
 	klog.InitFlags(flags)
-	flags.Set("logtostderr", "false")
+	_ = flags.Set("logtostderr", "false")
 
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Machine Controller Suite")
@@ -372,7 +371,7 @@ func newMachines(
 		m.Finalizers = finalizers.List()
 
 		if statusTemplate != nil {
-			m.Status = *newMachineStatus(statusTemplate, i)
+			m.Status = *newMachineStatus(statusTemplate)
 		}
 
 		if owner != nil {
@@ -385,7 +384,7 @@ func newMachines(
 }
 
 func newNode(
-	nodeCount int,
+	_ int,
 	labels map[string]string,
 	annotations map[string]string,
 	nodeSpec *corev1.NodeSpec,
@@ -449,7 +448,7 @@ func newMachineSpec(specTemplate *v1alpha1.MachineSpec, index int) *v1alpha1.Mac
 	return r
 }
 
-func newMachineStatus(statusTemplate *v1alpha1.MachineStatus, index int) *v1alpha1.MachineStatus {
+func newMachineStatus(statusTemplate *v1alpha1.MachineStatus) *v1alpha1.MachineStatus {
 	if statusTemplate == nil {
 		return &v1alpha1.MachineStatus{}
 	}
@@ -480,28 +479,28 @@ func boolPtr(b bool) *bool {
 	return &b
 }
 
-func nodeConditions(kubeletReady, readOnlyFileSystem, networkUnavailable, diskPressure, kernelDeadlock bool) []v1.NodeCondition {
+func nodeConditions(kubeletReady, readOnlyFileSystem, networkUnavailable, diskPressure, kernelDeadlock bool) []corev1.NodeCondition {
 	// KernelDeadlock,ReadonlyFilesystem,DiskPressure,NetworkUnavailable
-	conditions := []v1.NodeCondition{
+	conditions := []corev1.NodeCondition{
 		{
-			Type:   v1.NodeReady,
-			Status: v1.ConditionStatus(strings.Title(strconv.FormatBool(kubeletReady))),
+			Type:   corev1.NodeReady,
+			Status: corev1.ConditionStatus(strings.Title(strconv.FormatBool(kubeletReady))),
 		},
 		{
 			Type:   "KernelDeadlock",
-			Status: v1.ConditionStatus(strings.Title(strconv.FormatBool(kernelDeadlock))),
+			Status: corev1.ConditionStatus(strings.Title(strconv.FormatBool(kernelDeadlock))),
 		},
 		{
 			Type:   "ReadonlyFilesystem",
-			Status: v1.ConditionStatus(strings.Title(strconv.FormatBool(readOnlyFileSystem))),
+			Status: corev1.ConditionStatus(strings.Title(strconv.FormatBool(readOnlyFileSystem))),
 		},
 		{
 			Type:   "DiskPressure",
-			Status: v1.ConditionStatus(strings.Title(strconv.FormatBool(diskPressure))),
+			Status: corev1.ConditionStatus(strings.Title(strconv.FormatBool(diskPressure))),
 		},
 		{
 			Type:   "NetworkUnavailable",
-			Status: v1.ConditionStatus(strings.Title(strconv.FormatBool(networkUnavailable))),
+			Status: corev1.ConditionStatus(strings.Title(strconv.FormatBool(networkUnavailable))),
 		},
 	}
 
