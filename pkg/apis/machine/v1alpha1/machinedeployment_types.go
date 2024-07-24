@@ -94,7 +94,7 @@ type MachineDeploymentSpec struct {
 }
 
 const (
-	// DefaultDeploymentUniqueLabelKey is the default key of the selector that is added
+	// DefaultMachineDeploymentUniqueLabelKey is the default key of the selector that is added
 	// to existing MCs (and label key that is added to its machines) to prevent the existing MCs
 	// to select new machines (and old machines being select by new MC).
 	DefaultMachineDeploymentUniqueLabelKey string = "machine-template-hash"
@@ -115,17 +115,18 @@ type MachineDeploymentStrategy struct {
 	RollingUpdate *RollingUpdateMachineDeployment `json:"rollingUpdate,omitempty"`
 }
 
+// MachineDeploymentStrategyType are valid strategy types for rolling MachineDeployments
 type MachineDeploymentStrategyType string
 
 const (
-	// Kill all existing machines before creating new ones.
+	// RecreateMachineDeploymentStrategyType means that all existing machines will be killed before creating new ones.
 	RecreateMachineDeploymentStrategyType MachineDeploymentStrategyType = "Recreate"
 
-	// Replace the old MCs by new one using rolling update i.e gradually scale down the old MCs and scale up the new one.
+	// RollingUpdateMachineDeploymentStrategyType means that old MCs will be replaced by new one using rolling update i.e gradually scale down the old MCs and scale up the new one.
 	RollingUpdateMachineDeploymentStrategyType MachineDeploymentStrategyType = "RollingUpdate"
 )
 
-// Spec to control the desired behavior of rolling update.
+// RollingUpdateMachineDeployment is the spec to control the desired behavior of rolling update.
 type RollingUpdateMachineDeployment struct {
 	// The maximum number of machines that can be unavailable during the update.
 	// Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%).
@@ -199,6 +200,7 @@ type MachineDeploymentStatus struct {
 	FailedMachines []*MachineSummary `json:"failedMachines,omitempty"`
 }
 
+// MachineDeploymentConditionType are valid conditions of MachineDeployments
 type MachineDeploymentConditionType string
 
 // These are valid conditions of a MachineDeployment.
@@ -222,6 +224,7 @@ const (
 	MachineDeploymentFrozen MachineDeploymentConditionType = "Frozen"
 )
 
+// RollbackConfig is the config to rollback a MachineDeployment
 type RollbackConfig struct {
 	// The revision to rollback to. If set to 0, rollback to the last revision.
 	// +optional

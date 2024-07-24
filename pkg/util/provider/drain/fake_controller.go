@@ -30,7 +30,9 @@ func createFakeController(
 	*customfake.FakeObjectTracker) {
 
 	fakeTargetCoreClient, targetCoreObjectTracker := customfake.NewCoreClientSet(targetCoreObjects...)
-	go targetCoreObjectTracker.Start()
+	go func() {
+		_ = targetCoreObjectTracker.Start()
+	}()
 
 	coreTargetInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
 		fakeTargetCoreClient,

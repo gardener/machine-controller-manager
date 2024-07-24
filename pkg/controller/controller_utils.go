@@ -506,7 +506,7 @@ func getMachinesFinalizers(template *v1alpha1.MachineTemplateSpec) []string {
 	return desiredFinalizers
 }
 
-func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, object runtime.Object) labels.Set {
+func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, _ runtime.Object) labels.Set {
 	desiredAnnotations := make(labels.Set)
 	for k, v := range template.Annotations {
 		desiredAnnotations[k] = v

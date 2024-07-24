@@ -22,8 +22,7 @@ Modifications Copyright SAP SE or an SAP affiliate company and Gardener contribu
 package controller
 
 import (
-	clientgoclientset "k8s.io/client-go/kubernetes"
-	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 
 	"k8s.io/klog/v2"
@@ -33,10 +32,10 @@ import (
 type ClientBuilder interface {
 	Config(name string) (*restclient.Config, error)
 	ConfigOrDie(name string) *restclient.Config
-	Client(name string) (clientset.Interface, error)
-	ClientOrDie(name string) clientset.Interface
-	ClientGoClient(name string) (clientgoclientset.Interface, error)
-	ClientGoClientOrDie(name string) clientgoclientset.Interface
+	Client(name string) (kubernetes.Interface, error)
+	ClientOrDie(name string) kubernetes.Interface
+	ClientGoClient(name string) (kubernetes.Interface, error)
+	ClientGoClientOrDie(name string) kubernetes.Interface
 }
 
 // SimpleControllerClientBuilder returns a fixed client with different user agents
@@ -61,16 +60,16 @@ func (b SimpleControllerClientBuilder) ConfigOrDie(name string) *restclient.Conf
 }
 
 // Client builds a new client for clientBuilder
-func (b SimpleControllerClientBuilder) Client(name string) (clientset.Interface, error) {
+func (b SimpleControllerClientBuilder) Client(name string) (kubernetes.Interface, error) {
 	clientConfig, err := b.Config(name)
 	if err != nil {
 		return nil, err
 	}
-	return clientset.NewForConfig(clientConfig)
+	return kubernetes.NewForConfig(clientConfig)
 }
 
 // ClientOrDie builds a client or die's
-func (b SimpleControllerClientBuilder) ClientOrDie(name string) clientset.Interface {
+func (b SimpleControllerClientBuilder) ClientOrDie(name string) kubernetes.Interface {
 	client, err := b.Client(name)
 	if err != nil {
 		klog.Fatal(err)
@@ -79,16 +78,16 @@ func (b SimpleControllerClientBuilder) ClientOrDie(name string) clientset.Interf
 }
 
 // ClientGoClient builds a go client
-func (b SimpleControllerClientBuilder) ClientGoClient(name string) (clientgoclientset.Interface, error) {
+func (b SimpleControllerClientBuilder) ClientGoClient(name string) (kubernetes.Interface, error) {
 	clientConfig, err := b.Config(name)
 	if err != nil {
 		return nil, err
 	}
-	return clientgoclientset.NewForConfig(clientConfig)
+	return kubernetes.NewForConfig(clientConfig)
 }
 
 // ClientGoClientOrDie builds a go client or die's
-func (b SimpleControllerClientBuilder) ClientGoClientOrDie(name string) clientgoclientset.Interface {
+func (b SimpleControllerClientBuilder) ClientGoClientOrDie(name string) kubernetes.Interface {
 	client, err := b.ClientGoClient(name)
 	if err != nil {
 		klog.Fatal(err)

@@ -31,11 +31,11 @@ machine-controller-manager:
                 availability_requirement: 'low'
     steps:
       check:
-        image: 'golang:1.21.4'
+        image: 'golang:1.22.5'
       test:
         image: europe-docker.pkg.dev/gardener-project/releases/testmachinery/base-step:stable
       build:
-        image: 'golang:1.21.4'
+        image: 'golang:1.22.5'
         output_dir: 'binary'
   jobs:
     head-update:

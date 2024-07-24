@@ -102,7 +102,7 @@ func mergeDataMaps(in map[string][]byte, maps ...map[string][]byte) map[string][
 }
 
 // getSecret retrieves the kubernetes secret if found
-func (c *Cluster) getSecret(ref *v1.SecretReference, MachineClassName string) (*v1.Secret, error) {
+func (c *Cluster) getSecret(ref *v1.SecretReference, _ string) (*v1.Secret, error) {
 	if ref == nil {
 		return nil, nil
 	}

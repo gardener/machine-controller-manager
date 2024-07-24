@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package validation is used to validate all the machine CRD objects
 package validation
 
@@ -18,11 +17,11 @@ func ValidateMachine(machine *machine.Machine) field.ErrorList {
 
 func internalValidateMachine(machine *machine.Machine) field.ErrorList {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, validateMachineSpec(&machine.Spec, field.NewPath("spec"))...)
+	allErrs = append(allErrs, validateMachineSpec(&machine.Spec)...)
 	return allErrs
 }
 
-func validateMachineSpec(spec *machine.MachineSpec, fldPath *field.Path) field.ErrorList {
+func validateMachineSpec(spec *machine.MachineSpec) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, validateClassReference(&spec.Class, field.NewPath("spec.class"))...)
 	return allErrs

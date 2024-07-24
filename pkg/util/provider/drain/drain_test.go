@@ -204,9 +204,14 @@ var _ = Describe("drain", func() {
 					remainingVolumesAttached := []corev1.AttachedVolume{}
 					pvcs := getPVCs([]*corev1.Pod{pod})
 					pvs := getPVs(pvcs)
+					regexpObj, err := regexp.Compile("expv-")
+					if err != nil {
+						return
+					}
 					for i := range node.Status.VolumesAttached {
 						va := &node.Status.VolumesAttached[i]
-						if matched, err := regexp.Match("expv-", []byte(va.Name)); err != nil || !matched {
+
+						if !regexpObj.Match([]byte(va.Name)) {
 							// Detach only exclusive volumes
 							remainingVolumesAttached = append(remainingVolumesAttached, *va)
 							continue
@@ -387,17 +392,17 @@ var _ = Describe("drain", func() {
 	}
 
 	sleepFor := func(d time.Duration) podDrainHandler {
-		return func(client kubernetes.Interface, pod *corev1.Pod, detachExclusiveVolumesCh chan<- *corev1.Pod) error {
+		return func(_ kubernetes.Interface, _ *corev1.Pod, _ chan<- *corev1.Pod) error {
 			time.Sleep(d)
 			return nil
 		}
 	}
 
-	deletePod := func(client kubernetes.Interface, pod *corev1.Pod, detachExclusiveVolumesCh chan<- *corev1.Pod) error {
+	deletePod := func(client kubernetes.Interface, pod *corev1.Pod, _ chan<- *corev1.Pod) error {
 		return client.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
 	}
 
-	detachExclusiveVolumes := func(client kubernetes.Interface, pod *corev1.Pod, detachExclusiveVolumesCh chan<- *corev1.Pod) error {
+	detachExclusiveVolumes := func(_ kubernetes.Interface, pod *corev1.Pod, detachExclusiveVolumesCh chan<- *corev1.Pod) error {
 		detachExclusiveVolumesCh <- pod
 		return nil
 	}
@@ -1047,7 +1052,7 @@ type drainDriver struct {
 	*driver.FakeDriver
 }
 
-func (d *drainDriver) GetVolumeIDs(ctx context.Context, req *driver.GetVolumeIDsRequest) (*driver.GetVolumeIDsResponse, error) {
+func (d *drainDriver) GetVolumeIDs(_ context.Context, req *driver.GetVolumeIDsRequest) (*driver.GetVolumeIDsResponse, error) {
 	volNames := make([]string, len(req.PVSpecs))
 	for i := range req.PVSpecs {
 		volNames[i] = getDrainTestVolumeName(req.PVSpecs[i])

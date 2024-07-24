@@ -105,30 +105,30 @@ func NewController(
 	controller.machineDeploymentSynced = machineDeploymentInformer.Informer().HasSynced
 
 	// MachineSet Controller Informers
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.addMachineToMachineSet,
 		UpdateFunc: controller.updateMachineToMachineSet,
 		DeleteFunc: controller.deleteMachineToMachineSet,
 	})
 
-	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.enqueueMachineSet,
 		UpdateFunc: controller.machineSetUpdate,
 		DeleteFunc: controller.enqueueMachineSet,
 	})
 
 	// MachineDeployment Controller Informers
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: controller.deleteMachineDeployment,
 	})
 
-	machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = machineSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.addMachineSetToDeployment,
 		UpdateFunc: controller.updateMachineSetToDeployment,
 		DeleteFunc: controller.deleteMachineSetToDeployment,
 	})
 
-	machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = machineDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.addMachineDeployment,
 		UpdateFunc: controller.updateMachineDeployment,
 		DeleteFunc: controller.deleteMachineDeployment,
@@ -141,7 +141,7 @@ func NewController(
 	// running of different safety loop on MCM startup.
 	controller.machineSafetyOvershootingQueue.Add("")
 
-	machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		// addMachineToSafetyOvershooting makes sure machine objects does not overshoot
 		AddFunc: controller.addMachineToSafetyOvershooting,
 	})

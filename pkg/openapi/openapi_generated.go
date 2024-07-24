@@ -1630,7 +1630,8 @@ func schema_pkg_apis_machine_v1alpha1_RollbackConfig(ref common.ReferenceCallbac
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "RollbackConfig is the config to rollback a MachineDeployment",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"revision": {
 						SchemaProps: spec.SchemaProps{
@@ -1649,7 +1650,7 @@ func schema_pkg_apis_machine_v1alpha1_RollingUpdateMachineDeployment(ref common.
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Spec to control the desired behavior of rolling update.",
+				Description: "RollingUpdateMachineDeployment is the spec to control the desired behavior of rolling update.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"maxUnavailable": {

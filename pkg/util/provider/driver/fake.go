@@ -7,8 +7,6 @@ package driver
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 )
@@ -49,7 +47,7 @@ func (d *FakeDriver) AddMachine(machineID, machineName string) error {
 }
 
 // CreateMachine makes a call to the driver to create the machine.
-func (d *FakeDriver) CreateMachine(ctx context.Context, createMachineRequest *CreateMachineRequest) (*CreateMachineResponse, error) {
+func (d *FakeDriver) CreateMachine(_ context.Context, _ *CreateMachineRequest) (*CreateMachineResponse, error) {
 	if d.Err == nil {
 		d.VMExists = true
 		return &CreateMachineResponse{
@@ -63,7 +61,7 @@ func (d *FakeDriver) CreateMachine(ctx context.Context, createMachineRequest *Cr
 }
 
 // InitializeMachine makes a call to the driver to initialize the VM instance of machine.
-func (d *FakeDriver) InitializeMachine(ctx context.Context, initMachineRequest *InitializeMachineRequest) (*InitializeMachineResponse, error) {
+func (d *FakeDriver) InitializeMachine(_ context.Context, _ *InitializeMachineRequest) (*InitializeMachineResponse, error) {
 	sErr, ok := status.FromError(d.Err)
 	if ok && sErr != nil {
 		switch sErr.Code() {
@@ -84,7 +82,7 @@ func (d *FakeDriver) InitializeMachine(ctx context.Context, initMachineRequest *
 }
 
 // DeleteMachine make a call to the driver to delete the machine.
-func (d *FakeDriver) DeleteMachine(ctx context.Context, deleteMachineRequest *DeleteMachineRequest) (*DeleteMachineResponse, error) {
+func (d *FakeDriver) DeleteMachine(_ context.Context, deleteMachineRequest *DeleteMachineRequest) (*DeleteMachineResponse, error) {
 	d.VMExists = false
 	delete(d.fakeVMs, deleteMachineRequest.Machine.Spec.ProviderID)
 	return &DeleteMachineResponse{
@@ -93,10 +91,10 @@ func (d *FakeDriver) DeleteMachine(ctx context.Context, deleteMachineRequest *De
 }
 
 // GetMachineStatus makes a gRPC call to the driver to check existance of machine
-func (d *FakeDriver) GetMachineStatus(ctx context.Context, getMachineStatusRequest *GetMachineStatusRequest) (*GetMachineStatusResponse, error) {
+func (d *FakeDriver) GetMachineStatus(_ context.Context, _ *GetMachineStatusRequest) (*GetMachineStatusResponse, error) {
 	switch {
 	case !d.VMExists:
-		errMessage := fmt.Sprintf("Fake plugin is returning no VM instances backing this machine object")
+		errMessage := "Fake plugin is returning no VM instances backing this machine object"
 		return nil, status.Error(codes.NotFound, errMessage)
 	case d.Err != nil:
 		return nil, d.Err
@@ -108,21 +106,21 @@ func (d *FakeDriver) GetMachineStatus(ctx context.Context, getMachineStatusReque
 }
 
 // ListMachines have to list machines
-func (d *FakeDriver) ListMachines(ctx context.Context, listMachinesRequest *ListMachinesRequest) (*ListMachinesResponse, error) {
+func (d *FakeDriver) ListMachines(_ context.Context, _ *ListMachinesRequest) (*ListMachinesResponse, error) {
 	return &ListMachinesResponse{
 		MachineList: d.fakeVMs,
 	}, d.Err
 }
 
 // GetVolumeIDs returns a list of VolumeIDs for the PV spec list supplied
-func (d *FakeDriver) GetVolumeIDs(ctx context.Context, getVolumeIDs *GetVolumeIDsRequest) (*GetVolumeIDsResponse, error) {
+func (d *FakeDriver) GetVolumeIDs(_ context.Context, _ *GetVolumeIDsRequest) (*GetVolumeIDsResponse, error) {
 	return &GetVolumeIDsResponse{
 		VolumeIDs: []string{},
 	}, d.Err
 }
 
 // GenerateMachineClassForMigration converts providerMachineClass to (generic)MachineClass
-func (d *FakeDriver) GenerateMachineClassForMigration(ctx context.Context, req *GenerateMachineClassForMigrationRequest) (*GenerateMachineClassForMigrationResponse, error) {
+func (d *FakeDriver) GenerateMachineClassForMigration(_ context.Context, req *GenerateMachineClassForMigrationRequest) (*GenerateMachineClassForMigrationResponse, error) {
 	req.MachineClass.Provider = "FakeProvider"
 	return &GenerateMachineClassForMigrationResponse{}, d.Err
 }

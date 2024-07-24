@@ -93,80 +93,79 @@ func ParseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind
 func (c *Cluster) applyFile(filePath string, namespace string) error {
 	ctx := context.Background()
 	runtimeobj, kind, err := ParseK8sYaml(filePath)
-	if err == nil {
-		for key, obj := range runtimeobj {
-			switch kind[key].Kind {
-			case "CustomResourceDefinition":
-				crd := obj.(*apiextensionsv1.CustomResourceDefinition)
+	if err != nil {
+		return err
+	}
+	for key, obj := range runtimeobj {
+		switch kind[key].Kind {
+		case "CustomResourceDefinition":
+			crd := obj.(*apiextensionsv1.CustomResourceDefinition)
 
-				if _, err := c.apiextensionsClient.
-					ApiextensionsV1().
-					CustomResourceDefinitions().
-					Create(ctx, crd, metav1.CreateOptions{}); err != nil {
-					if !strings.Contains(err.Error(), "already exists") {
-						return err
-					}
-				}
-				err = c.checkEstablished(crd.Name)
-				if err != nil {
-					log.Printf("%s crd can not be established because of an error\n", crd.Name)
-					return err
-				}
-			case "MachineClass":
-				resource := obj.(*v1alpha1.MachineClass)
-
-				if _, err := c.McmClient.MachineV1alpha1().
-					MachineClasses(namespace).
-					Create(ctx, resource, metav1.CreateOptions{}); err != nil {
-					return err
-				}
-			case "Machine":
-				resource := obj.(*v1alpha1.Machine)
-
-				if _, err := c.McmClient.MachineV1alpha1().
-					Machines(namespace).
-					Create(ctx, resource, metav1.CreateOptions{}); err != nil {
-					return err
-				}
-			case "MachineDeployment":
-				resource := obj.(*v1alpha1.MachineDeployment)
-
-				if _, err := c.McmClient.MachineV1alpha1().
-					MachineDeployments(namespace).
-					Create(ctx, resource, metav1.CreateOptions{}); err != nil {
-					return err
-				}
-			case "Deployment":
-				resource := obj.(*v1.Deployment)
-
-				if _, err := c.Clientset.AppsV1().
-					Deployments(namespace).
-					Create(ctx, resource, metav1.CreateOptions{}); err != nil {
-					return err
-				}
-			case "ClusterRoleBinding":
-				resource := obj.(*rbacv1.ClusterRoleBinding)
-				for i := range resource.Subjects {
-					resource.Subjects[i].Namespace = namespace
-				}
-
-				if _, err := c.Clientset.RbacV1().
-					ClusterRoleBindings().
-					Create(ctx, resource, metav1.CreateOptions{}); err != nil {
-					return err
-				}
-			case "ClusterRole":
-				resource := obj.(*rbacv1.ClusterRole)
-
-				if _, err := c.Clientset.RbacV1().
-					ClusterRoles().
-					Create(ctx, resource, metav1.CreateOptions{}); err != nil {
+			if _, err := c.apiextensionsClient.
+				ApiextensionsV1().
+				CustomResourceDefinitions().
+				Create(ctx, crd, metav1.CreateOptions{}); err != nil {
+				if !strings.Contains(err.Error(), "already exists") {
 					return err
 				}
 			}
+			err = c.checkEstablished(crd.Name)
+			if err != nil {
+				log.Printf("%s crd can not be established because of an error\n", crd.Name)
+				return err
+			}
+		case "MachineClass":
+			resource := obj.(*v1alpha1.MachineClass)
+
+			if _, err := c.McmClient.MachineV1alpha1().
+				MachineClasses(namespace).
+				Create(ctx, resource, metav1.CreateOptions{}); err != nil {
+				return err
+			}
+		case "Machine":
+			resource := obj.(*v1alpha1.Machine)
+
+			if _, err := c.McmClient.MachineV1alpha1().
+				Machines(namespace).
+				Create(ctx, resource, metav1.CreateOptions{}); err != nil {
+				return err
+			}
+		case "MachineDeployment":
+			resource := obj.(*v1alpha1.MachineDeployment)
+
+			if _, err := c.McmClient.MachineV1alpha1().
+				MachineDeployments(namespace).
+				Create(ctx, resource, metav1.CreateOptions{}); err != nil {
+				return err
+			}
+		case "Deployment":
+			resource := obj.(*v1.Deployment)
+
+			if _, err := c.Clientset.AppsV1().
+				Deployments(namespace).
+				Create(ctx, resource, metav1.CreateOptions{}); err != nil {
+				return err
+			}
+		case "ClusterRoleBinding":
+			resource := obj.(*rbacv1.ClusterRoleBinding)
+			for i := range resource.Subjects {
+				resource.Subjects[i].Namespace = namespace
+			}
+
+			if _, err := c.Clientset.RbacV1().
+				ClusterRoleBindings().
+				Create(ctx, resource, metav1.CreateOptions{}); err != nil {
+				return err
+			}
+		case "ClusterRole":
+			resource := obj.(*rbacv1.ClusterRole)
+
+			if _, err := c.Clientset.RbacV1().
+				ClusterRoles().
+				Create(ctx, resource, metav1.CreateOptions{}); err != nil {
+				return err
+			}
 		}
-	} else {
-		return err
 	}
 	return nil
 }
@@ -206,7 +205,7 @@ func (c *Cluster) checkEstablished(crdName string) error {
 
 // ApplyFiles invokes ApplyFile on a each file
 func (c *Cluster) ApplyFiles(source string, namespace string) error {
-	err := filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(source, func(path string, info os.FileInfo, _ error) error {
 		if info.Mode().IsDir() {
 			log.Printf("%s is a directory.\n", path)
 		} else if info.Mode().IsRegular() {
@@ -229,106 +228,104 @@ func (c *Cluster) ApplyFiles(source string, namespace string) error {
 func (c *Cluster) deleteResource(filePath string, namespace string) error {
 	ctx := context.Background()
 	runtimeobj, kind, err := ParseK8sYaml(filePath)
-	if err == nil {
-		for key, obj := range runtimeobj {
-			switch kind[key].Kind {
-			case "CustomResourceDefinition":
-				crd := obj.(*apiextensionsv1.CustomResourceDefinition)
+	if err != nil {
+		return err
+	}
+	for key, obj := range runtimeobj {
+		switch kind[key].Kind {
+		case "CustomResourceDefinition":
+			crd := obj.(*apiextensionsv1.CustomResourceDefinition)
 
-				if err := c.apiextensionsClient.ApiextensionsV1().
-					CustomResourceDefinitions().
-					Delete(
-						ctx,
-						crd.Name,
-						metav1.DeleteOptions{},
-					); err != nil {
+			if err := c.apiextensionsClient.ApiextensionsV1().
+				CustomResourceDefinitions().
+				Delete(
+					ctx,
+					crd.Name,
+					metav1.DeleteOptions{},
+				); err != nil {
 
-					if strings.Contains(err.Error(), " not found") {
-					} else {
-						return err
-					}
-				}
-			case "MachineClass":
-				resource := obj.(*v1alpha1.MachineClass)
-				err := c.McmClient.
-					MachineV1alpha1().
-					MachineClasses(namespace).
-					Delete(
-						ctx,
-						resource.Name,
-						metav1.DeleteOptions{},
-					)
-				if err != nil {
-					return err
-				}
-			case "MachineDeployment":
-				resource := obj.(*v1alpha1.MachineDeployment)
-				err := c.McmClient.
-					MachineV1alpha1().
-					MachineDeployments(namespace).
-					Delete(
-						ctx,
-						resource.Name,
-						metav1.DeleteOptions{},
-					)
-				if err != nil {
-					return err
-				}
-			case "Machine":
-				resource := obj.(*v1alpha1.Machine)
-				err := c.McmClient.
-					MachineV1alpha1().
-					Machines(namespace).
-					Delete(
-						ctx,
-						resource.Name,
-						metav1.DeleteOptions{},
-					)
-				if err != nil {
-					return err
-				}
-			case "Deployment":
-				resource := obj.(*v1.Deployment)
-				err := c.Clientset.
-					AppsV1().
-					Deployments(namespace).
-					Delete(
-						ctx,
-						resource.Name,
-						metav1.DeleteOptions{},
-					)
-				if err != nil {
-					return err
-				}
-			case "ClusterRoleBinding":
-				resource := obj.(*rbacv1.ClusterRoleBinding)
-				for i := range resource.Subjects {
-					resource.Subjects[i].Namespace = namespace
-				}
-				if err := c.Clientset.RbacV1beta1().
-					ClusterRoleBindings().
-					Delete(
-						ctx,
-						resource.Name,
-						metav1.DeleteOptions{},
-					); err != nil {
-					return err
-				}
-			case "ClusterRole":
-				resource := obj.(*rbacv1.ClusterRole)
-				if err := c.Clientset.RbacV1beta1().
-					ClusterRoles().
-					Delete(
-						ctx,
-						resource.Name,
-						metav1.DeleteOptions{},
-					); err != nil {
+				if !strings.Contains(err.Error(), " not found") {
 					return err
 				}
 			}
+		case "MachineClass":
+			resource := obj.(*v1alpha1.MachineClass)
+			err := c.McmClient.
+				MachineV1alpha1().
+				MachineClasses(namespace).
+				Delete(
+					ctx,
+					resource.Name,
+					metav1.DeleteOptions{},
+				)
+			if err != nil {
+				return err
+			}
+		case "MachineDeployment":
+			resource := obj.(*v1alpha1.MachineDeployment)
+			err := c.McmClient.
+				MachineV1alpha1().
+				MachineDeployments(namespace).
+				Delete(
+					ctx,
+					resource.Name,
+					metav1.DeleteOptions{},
+				)
+			if err != nil {
+				return err
+			}
+		case "Machine":
+			resource := obj.(*v1alpha1.Machine)
+			err := c.McmClient.
+				MachineV1alpha1().
+				Machines(namespace).
+				Delete(
+					ctx,
+					resource.Name,
+					metav1.DeleteOptions{},
+				)
+			if err != nil {
+				return err
+			}
+		case "Deployment":
+			resource := obj.(*v1.Deployment)
+			err := c.Clientset.
+				AppsV1().
+				Deployments(namespace).
+				Delete(
+					ctx,
+					resource.Name,
+					metav1.DeleteOptions{},
+				)
+			if err != nil {
+				return err
+			}
+		case "ClusterRoleBinding":
+			resource := obj.(*rbacv1.ClusterRoleBinding)
+			for i := range resource.Subjects {
+				resource.Subjects[i].Namespace = namespace
+			}
+			if err := c.Clientset.RbacV1beta1().
+				ClusterRoleBindings().
+				Delete(
+					ctx,
+					resource.Name,
+					metav1.DeleteOptions{},
+				); err != nil {
+				return err
+			}
+		case "ClusterRole":
+			resource := obj.(*rbacv1.ClusterRole)
+			if err := c.Clientset.RbacV1beta1().
+				ClusterRoles().
+				Delete(
+					ctx,
+					resource.Name,
+					metav1.DeleteOptions{},
+				); err != nil {
+				return err
+			}
 		}
-	} else {
-		return err
 	}
 	return nil
 }
@@ -337,7 +334,7 @@ func (c *Cluster) deleteResource(filePath string, namespace string) error {
 func (c *Cluster) DeleteResources(source string, namespace string) error {
 	return filepath.Walk(
 		source,
-		func(path string, info os.FileInfo, err error) error {
+		func(path string, info os.FileInfo, _ error) error {
 			if info.Mode().IsDir() {
 				log.Printf("%s is a directory.\n", path)
 			} else if info.Mode().

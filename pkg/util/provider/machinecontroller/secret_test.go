@@ -45,7 +45,7 @@ var _ = Describe("secret", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			c.addSecretFinalizers(context.TODO(), testSecret)
+			_ = c.addSecretFinalizers(context.TODO(), testSecret)
 
 			waitForCacheSync(stop, c)
 			expectedSecret, _ := c.controlCoreClient.CoreV1().Secrets(testSecret.Namespace).Get(context.TODO(), testSecret.Name, metav1.GetOptions{})
@@ -87,7 +87,7 @@ var _ = Describe("secret", func() {
 			testSecret, _ := c.controlCoreClient.CoreV1().Secrets(rightFinalizers.Namespace).Get(context.TODO(), rightFinalizers.Name, metav1.GetOptions{})
 			Expect(testSecret.Finalizers).Should(Not(BeEmpty()))
 
-			c.deleteSecretFinalizers(context.TODO(), testSecret)
+			_ = c.deleteSecretFinalizers(context.TODO(), testSecret)
 
 			waitForCacheSync(stop, c)
 
@@ -107,7 +107,7 @@ var _ = Describe("secret", func() {
 			testSecret, _ := c.controlCoreClient.CoreV1().Secrets(wrongFinalizers.Namespace).Get(context.TODO(), wrongFinalizers.Name, metav1.GetOptions{})
 			Expect(testSecret.Finalizers).Should(Not(BeEmpty()))
 
-			c.deleteSecretFinalizers(context.TODO(), testSecret)
+			_ = c.deleteSecretFinalizers(context.TODO(), testSecret)
 
 			waitForCacheSync(stop, c)
 
@@ -144,7 +144,7 @@ var _ = Describe("secret", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			c.updateSecretFinalizers(context.TODO(), testSecret, finalizers)
+			_ = c.updateSecretFinalizers(context.TODO(), testSecret, finalizers)
 
 			waitForCacheSync(stop, c)
 

@@ -126,7 +126,7 @@ func Run(s *options.MCMServer) error {
 
 	recorder := createRecorder(kubeClientControl)
 
-	run := func(ctx context.Context) {
+	run := func(_ context.Context) {
 		var stop <-chan struct{}
 		// Control plane client used to interact with machine APIs
 		controlMachineClientBuilder := machinecontroller.SimpleClientBuilder{
@@ -228,60 +228,58 @@ func StartControllers(s *options.MCMServer,
 		klog.Fatal(err)
 	}
 
-	if availableResources[machineGVR] || availableResources[machineSetGVR] || availableResources[machineDeploymentGVR] {
-		klog.V(3).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
-
-		controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
-			controlMachineClientBuilder.ClientOrDie("control-machine-shared-informers"),
-			s.MinResyncPeriod.Duration,
-			s.Namespace,
-			nil,
-		)
-
-		controlCoreInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
-			controlCoreClientBuilder.ClientOrDie("control-core-shared-informers"),
-			s.MinResyncPeriod.Duration,
-			s.Namespace,
-			nil,
-		)
-
-		targetCoreInformerFactory := coreinformers.NewSharedInformerFactory(
-			targetCoreClientBuilder.ClientOrDie("target-core-shared-informers"),
-			s.MinResyncPeriod.Duration,
-		)
-
-		// All shared informers are v1alpha1 API level
-		machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
-
-		klog.V(4).Infof("Creating controllers...")
-		mcmController, err := mcmcontroller.NewController(
-			s.Namespace,
-			controlMachineClient,
-			controlCoreClient,
-			targetCoreClient,
-			targetCoreInformerFactory.Core().V1().Nodes(),
-			machineSharedInformers.Machines(),
-			machineSharedInformers.MachineSets(),
-			machineSharedInformers.MachineDeployments(),
-			recorder,
-			s.SafetyOptions,
-			s.AutoscalerScaleDownAnnotationDuringRollout,
-		)
-		if err != nil {
-			return err
-		}
-		klog.V(1).Info("Starting shared informers")
-
-		controlMachineInformerFactory.Start(stop)
-		controlCoreInformerFactory.Start(stop)
-		targetCoreInformerFactory.Start(stop)
-
-		klog.V(4).Info("Running controller")
-		go mcmController.Run(int(s.ConcurrentNodeSyncs), stop)
-
-	} else {
+	if !availableResources[machineGVR] && !availableResources[machineSetGVR] && !availableResources[machineDeploymentGVR] {
 		return fmt.Errorf("unable to start machine controller: API GroupVersion %q or %q or %q is not available; \nFound: %#v", machineGVR, machineSetGVR, machineDeploymentGVR, availableResources)
 	}
+	klog.V(3).Infof("Creating shared informers; resync interval: %v", s.MinResyncPeriod)
+
+	controlMachineInformerFactory := machineinformers.NewFilteredSharedInformerFactory(
+		controlMachineClientBuilder.ClientOrDie("control-machine-shared-informers"),
+		s.MinResyncPeriod.Duration,
+		s.Namespace,
+		nil,
+	)
+
+	controlCoreInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
+		controlCoreClientBuilder.ClientOrDie("control-core-shared-informers"),
+		s.MinResyncPeriod.Duration,
+		s.Namespace,
+		nil,
+	)
+
+	targetCoreInformerFactory := coreinformers.NewSharedInformerFactory(
+		targetCoreClientBuilder.ClientOrDie("target-core-shared-informers"),
+		s.MinResyncPeriod.Duration,
+	)
+
+	// All shared informers are v1alpha1 API level
+	machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
+
+	klog.V(4).Infof("Creating controllers...")
+	mcmController, err := mcmcontroller.NewController(
+		s.Namespace,
+		controlMachineClient,
+		controlCoreClient,
+		targetCoreClient,
+		targetCoreInformerFactory.Core().V1().Nodes(),
+		machineSharedInformers.Machines(),
+		machineSharedInformers.MachineSets(),
+		machineSharedInformers.MachineDeployments(),
+		recorder,
+		s.SafetyOptions,
+		s.AutoscalerScaleDownAnnotationDuringRollout,
+	)
+	if err != nil {
+		return err
+	}
+	klog.V(1).Info("Starting shared informers")
+
+	controlMachineInformerFactory.Start(stop)
+	controlCoreInformerFactory.Start(stop)
+	targetCoreInformerFactory.Start(stop)
+
+	klog.V(4).Info("Running controller")
+	go mcmController.Run(int(s.ConcurrentNodeSyncs), stop)
 
 	select {}
 }
@@ -343,7 +341,7 @@ func getAvailableResources(clientBuilder corecontroller.ClientBuilder) (map[sche
 }
 
 func createRecorder(kubeClient *kubernetes.Clientset) record.EventRecorder {
-	machinescheme.AddToScheme(kubescheme.Scheme)
+	_ = machinescheme.AddToScheme(kubescheme.Scheme)
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(klog.Infof)
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.CoreV1().RESTClient()).Events("")})

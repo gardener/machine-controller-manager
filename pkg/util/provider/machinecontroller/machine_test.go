@@ -13,7 +13,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -37,7 +36,7 @@ var _ = Describe("machine", func() {
 		fakeMachineClient *fakemachineapi.FakeMachineV1alpha1
 		c                 *controller
 		testMachine       v1alpha1.Machine
-		testNode          v1.Node
+		testNode          corev1.Node
 	)
 
 	Describe("#isHealthy", func() {
@@ -115,25 +114,25 @@ var _ = Describe("machine", func() {
 				controlMachineClient: fakeMachineClient,
 				nodeConditions:       "ReadonlyFilesystem,KernelDeadlock,DiskPressure,NetworkUnavailable",
 			}
-			testNode = v1.Node{
+			testNode = corev1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "testnode",
 				},
-				Spec: v1.NodeSpec{
-					Taints: []v1.Taint{},
+				Spec: corev1.NodeSpec{
+					Taints: []corev1.Taint{},
 				},
 			}
 		})
 
 		DescribeTable("Checking readiness of the node",
-			func(nodeTaints []v1.Taint, expected bool) {
+			func(nodeTaints []corev1.Taint, expected bool) {
 				testNode.Spec.Taints = nodeTaints
 				Expect(criticalComponentsNotReadyTaintPresent(&testNode)).Should(BeIdenticalTo(expected))
 			},
 			Entry("with no taints is False", nil, false),
-			Entry("with empty taints is False", []v1.Taint{}, false),
-			Entry("with unrelated taints is False", []v1.Taint{{Key: "unrelated", Effect: corev1.TaintEffectNoSchedule}}, false),
-			Entry("with critical-components-not-ready taint is True", []v1.Taint{{Key: "node.gardener.cloud/critical-components-not-ready", Effect: corev1.TaintEffectNoSchedule}}, true),
+			Entry("with empty taints is False", []corev1.Taint{}, false),
+			Entry("with unrelated taints is False", []corev1.Taint{{Key: "unrelated", Effect: corev1.TaintEffectNoSchedule}}, false),
+			Entry("with critical-components-not-ready taint is True", []corev1.Taint{{Key: "node.gardener.cloud/critical-components-not-ready", Effect: corev1.TaintEffectNoSchedule}}, true),
 		)
 	})
 
@@ -1220,7 +1219,7 @@ var _ = Describe("machine", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				if data.setup.fakeResourceActions != nil {
-					trackers.TargetCore.SetFakeResourceActions(data.setup.fakeResourceActions, math.MaxInt32)
+					_ = trackers.TargetCore.SetFakeResourceActions(data.setup.fakeResourceActions, math.MaxInt32)
 				}
 
 				// Deletion of machine is triggered
@@ -1252,7 +1251,7 @@ var _ = Describe("machine", func() {
 					Expect(nodeErr).To(Not(HaveOccurred()))
 					Expect(len(node.Status.Conditions)).To(Equal(1))
 					Expect(node.Status.Conditions[0].Type).To(Equal(machineutils.NodeTerminationCondition))
-					Expect(node.Status.Conditions[0].Status).To(Equal(v1.ConditionTrue))
+					Expect(node.Status.Conditions[0].Status).To(Equal(corev1.ConditionTrue))
 				}
 
 			},
@@ -1728,7 +1727,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Skipping drain as nodeName is not a valid one for machine. Initiate VM deletion"),
+								Description:    "Skipping drain as nodeName is not a valid one for machine. Initiate VM deletion",
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),

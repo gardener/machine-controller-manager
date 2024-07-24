@@ -497,7 +497,6 @@ func (o *Options) evictPodsWithoutPv(ctx context.Context, attemptEvict bool, pod
 	for _, pod := range pods {
 		go o.evictPodWithoutPVInternal(ctx, attemptEvict, pod, policyGroupVersion, getPodFn, returnCh)
 	}
-	return
 }
 
 func sortPodsByPriority(pods []*corev1.Pod) {
@@ -570,7 +569,7 @@ func filterSharedPVs(pvMap map[string][]string) {
 	for pod, vols := range pvMap {
 		volList := []string{}
 		for _, vol := range vols {
-			if sharedVol[vol] == false {
+			if !sharedVol[vol] {
 				volList = append(volList, vol)
 			}
 		}
@@ -633,8 +632,6 @@ func (o *Options) evictPodsWithPv(ctx context.Context, attemptEvict bool, pods [
 			returnCh <- fmt.Errorf("error deleting pod %s/%s from node %q", pod.Namespace, pod.Name, pod.Spec.NodeName)
 		}
 	}
-
-	return
 }
 
 // checkAndDeleteWorker is a helper method that check if volumeAttachmentHandler
@@ -651,7 +648,7 @@ func (o *Options) evictPodsWithPVInternal(
 	pods []*corev1.Pod,
 	podVolumeInfoMap map[string]PodVolumeInfo,
 	policyGroupVersion string,
-	getPodFn func(namespace, name string) (*corev1.Pod, error),
+	_ func(namespace, name string) (*corev1.Pod, error),
 	returnCh chan error,
 ) (remainingPods []*corev1.Pod, fastTrack bool) {
 	var (
@@ -765,14 +762,13 @@ func (o *Options) evictPodsWithPVInternal(
 		cancelFn()
 
 		if err != nil {
-			if err.Error() == reattachTimeoutErr {
-				klog.Warningf("Timeout occurred for following volumes to reattach: %v", podVolumeInfo.persistentVolumeList)
-			} else {
+			if err.Error() != reattachTimeoutErr {
 				klog.Errorf("error when waiting for volume reattachment. Err: %v", err)
 				returnCh <- err
 				o.checkAndDeleteWorker(volumeAttachmentEventCh)
 				continue
 			}
+			klog.Warningf("Timeout occurred for following volumes to reattach: %v", podVolumeInfo.persistentVolumeList)
 		}
 
 		o.checkAndDeleteWorker(volumeAttachmentEventCh)
@@ -1011,37 +1007,36 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 			klog.V(3).Info("\t", pod.Name, " evicted from node ", pod.Spec.NodeName)
 			returnCh <- nil
 			return
-		} else if attemptEvict && apierrors.IsTooManyRequests(err) {
-			// Pod couldn't be evicted because of PDB violation
-			klog.V(3).Infof("Pod %s/%s couldn't be evicted from node %s. This may also occur due to PDB violation. Will be retried. Error: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
-
-			if k8sutils.ConstraintK8sGreaterEqual121.Check(o.kubernetesVersion) {
-				pdb := getPdbV1ForPod(o.pdbV1Lister, pod)
-				if pdb != nil {
-					if isMisconfiguredPdbV1(pdb) {
-						pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
-							pod.Name, pdb.Namespace, pdb.Name)
-						returnCh <- pdbErr
-						return
-					}
-				}
-			} else {
-				pdb := getPdbV1beta1ForPod(o.pdbV1beta1Lister, pod)
-				if pdb != nil {
-					if isMisconfiguredPdbV1beta1(pdb) {
-						pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
-							pod.Name, pdb.Namespace, pdb.Name)
-						returnCh <- pdbErr
-						return
-					}
-				}
-			}
-
-			time.Sleep(PodEvictionRetryInterval)
-		} else {
+		} else if !attemptEvict || !apierrors.IsTooManyRequests(err) {
 			returnCh <- fmt.Errorf("error when evicting pod %q: %v scheduled on node %v", pod.Name, err, pod.Spec.NodeName)
 			return
 		}
+		// Pod couldn't be evicted because of PDB violation
+		klog.V(3).Infof("Pod %s/%s couldn't be evicted from node %s. This may also occur due to PDB violation. Will be retried. Error: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
+
+		if k8sutils.ConstraintK8sGreaterEqual121.Check(o.kubernetesVersion) {
+			pdb := getPdbV1ForPod(o.pdbV1Lister, pod)
+			if pdb != nil {
+				if isMisconfiguredPdbV1(pdb) {
+					pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
+						pod.Name, pdb.Namespace, pdb.Name)
+					returnCh <- pdbErr
+					return
+				}
+			}
+		} else {
+			pdb := getPdbV1beta1ForPod(o.pdbV1beta1Lister, pod)
+			if pdb != nil {
+				if isMisconfiguredPdbV1beta1(pdb) {
+					pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
+						pod.Name, pdb.Namespace, pdb.Name)
+					returnCh <- pdbErr
+					return
+				}
+			}
+		}
+
+		time.Sleep(PodEvictionRetryInterval)
 	}
 
 	if o.ForceDeletePods {
@@ -1063,7 +1058,7 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 	}
 
 	bufferPeriod := 30 * time.Second
-	podArray, err = o.waitForDelete(podArray, Interval, timeout+bufferPeriod, true, getPodFn)
+	podArray, err = o.waitForDelete(podArray, Interval, timeout+bufferPeriod, getPodFn)
 	if err == nil {
 		if len(podArray) > 0 {
 			returnCh <- fmt.Errorf("timeout expired while waiting for pod %q terminating scheduled on node %v", pod.Name, pod.Spec.NodeName)
@@ -1075,7 +1070,7 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 	}
 }
 
-func (o *Options) waitForDelete(pods []*corev1.Pod, interval, timeout time.Duration, usingEviction bool, getPodFn func(string, string) (*corev1.Pod, error)) ([]*corev1.Pod, error) {
+func (o *Options) waitForDelete(pods []*corev1.Pod, interval, timeout time.Duration, getPodFn func(string, string) (*corev1.Pod, error)) ([]*corev1.Pod, error) {
 	err := wait.PollImmediate(interval, timeout, func() (bool, error) {
 		pendingPods := []*corev1.Pod{}
 		for i, pod := range pods {
