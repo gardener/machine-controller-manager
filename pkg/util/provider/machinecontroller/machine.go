@@ -169,6 +169,11 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 			return retry, err
 		}
 
+		retry, err = c.syncMachineNameToNode(ctx, machine)
+		if err != nil {
+			return retry, err
+		}
+
 		retry, err = c.syncMachineNodeTemplates(ctx, machine)
 		if err != nil {
 			return retry, err
@@ -355,8 +360,10 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 
 	// we should avoid mutating Secret, since it goes all the way into the Informer's store
 	secretCopy := createMachineRequest.Secret.DeepCopy()
-	err := c.addBootstrapTokenToUserData(ctx, machine, secretCopy)
-	if err != nil {
+	if err := c.addBootstrapTokenToUserData(ctx, machine, secretCopy); err != nil {
+		return machineutils.ShortRetry, err
+	}
+	if err := c.addMachineNameToUserData(machine, secretCopy); err != nil {
 		return machineutils.ShortRetry, err
 	}
 	createMachineRequest.Secret = secretCopy
