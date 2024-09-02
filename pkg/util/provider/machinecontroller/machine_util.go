@@ -944,77 +944,95 @@ func (c *controller) setMachineTerminationStatus(ctx context.Context, deleteMach
 	return machineutils.ShortRetry, err
 }
 
-// getVMStatus tries to retrive VM status backed by machine
+// getVMStatus tries to retrieve VM status backed by machine
 func (c *controller) getVMStatus(ctx context.Context, getMachineStatusRequest *driver.GetMachineStatusRequest) (machineutils.RetryPeriod, error) {
 	var (
 		retry       machineutils.RetryPeriod
 		description string
 		state       v1alpha1.MachineState
+		err         error
 	)
-
-	statusResp, err := c.driver.GetMachineStatus(ctx, getMachineStatusRequest)
-	if err == nil {
-		// VM Found
-
-		// If `node` label is missing on machine obj, then update this label on Machine object with nodeName from status response
-		nodeName := getMachineStatusRequest.Machine.Labels[v1alpha1.NodeLabelKey]
-		if nodeName == "" {
-			err = c.updateMachineNodeLabel(ctx, getMachineStatusRequest.Machine, statusResp.NodeName)
-			if err != nil {
-				return machineutils.ShortRetry, err
+	// Node label is required for drain of node, therefore we try to update machine object before proceeding to drain.
+	isNodeLabelUpdated := false
+	//check if node name label is already present in machine object
+	nodeName := getMachineStatusRequest.Machine.Labels[v1alpha1.NodeLabelKey]
+	if isValidNodeName(nodeName) {
+		isNodeLabelUpdated = true
+	} else {
+		// Figure out node label either by checking all nodes for label matching machine name or retrieving it using GetMachineStatus
+		// TODO check if this is the right function to use, also is err a new variable?
+		// get all nodes and check if any node has the machine name as label
+		nodes, err := c.nodeLister.List(labels.Everything())
+		if err != nil {
+			for _, node := range nodes {
+				//TODO check if label key should be declared as constant somewhere
+				if node.Labels["node.gardener.cloud/machine-name"] == getMachineStatusRequest.Machine.Name {
+					nodeName := node.Name
+					err = c.updateMachineNodeLabel(ctx, getMachineStatusRequest.Machine, nodeName)
+					if err != nil {
+						return machineutils.ShortRetry, err
+					}
+					isNodeLabelUpdated = true
+					break
+				}
 			}
 		}
-
-		description = machineutils.InitiateDrain
-		state = v1alpha1.MachineStateProcessing
-		retry = machineutils.ShortRetry
-
-		// Return error even when machine object is updated to ensure reconcilation is restarted
-		err = fmt.Errorf("Machine deletion in process. VM with matching ID found")
-
-	} else {
-		if machineErr, ok := status.FromError(err); !ok {
-			// Error occurred with decoding machine error status, aborting without retry.
-			description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. " + err.Error() + " " + machineutils.GetVMStatus
-			state = v1alpha1.MachineStateFailed
-			retry = machineutils.LongRetry
-
-			err = fmt.Errorf("Machine deletion has failed. %s", description)
-		} else {
-			// Decoding machine error code
-			switch machineErr.Code() {
-
-			case codes.Unimplemented:
-				// GetMachineStatus() call is not implemented
-				// In this case, try to drain and delete
-				description = machineutils.InitiateDrain
-				state = v1alpha1.MachineStateProcessing
-				retry = machineutils.ShortRetry
-
-			case codes.NotFound:
-				// VM was not found at provder
-				description = "VM was not found at provider. " + machineutils.InitiateNodeDeletion
-				state = v1alpha1.MachineStateProcessing
-				retry = machineutils.ShortRetry
-
-			case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
-				description = "Error occurred with decoding machine error status while getting VM status, aborting with retry. " + machineutils.GetVMStatus
-				state = v1alpha1.MachineStateFailed
-				retry = machineutils.ShortRetry
-			case codes.Uninitialized:
-				description = "VM instance was not initalized. Moving forward to node drain. " + machineutils.InitiateDrain
-				state = v1alpha1.MachineStateProcessing
-				retry = machineutils.ShortRetry
-
-			default:
-				// Error occurred with decoding machine error status, abort with retry.
-				description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. machine code: " + err.Error() + " " + machineutils.GetVMStatus
-				state = v1alpha1.MachineStateFailed
-				retry = machineutils.MediumRetry
+		if !isNodeLabelUpdated {
+			//since node label is not yet updated, fetch node name using GetMachineStatus.
+			statusResp, err := c.driver.GetMachineStatus(ctx, getMachineStatusRequest)
+			if err == nil {
+				err = c.updateMachineNodeLabel(ctx, getMachineStatusRequest.Machine, statusResp.NodeName)
+				if err != nil {
+					return machineutils.ShortRetry, err
+				}
+				isNodeLabelUpdated = true
+			} else {
+				if machineErr, ok := status.FromError(err); !ok {
+					// Error occurred with decoding machine error status, aborting without retry.
+					description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. " + err.Error() + " " + machineutils.GetVMStatus
+					state = v1alpha1.MachineStateFailed
+					retry = machineutils.LongRetry
+					err = fmt.Errorf("Machine deletion has failed. " + description)
+				} else {
+					// Decoding machine error code
+					switch machineErr.Code() {
+					case codes.Unimplemented:
+						// GetMachineStatus() call is not implemented
+						// In this case, try to drain and delete
+						description = machineutils.InitiateDrain
+						state = v1alpha1.MachineStateProcessing
+						retry = machineutils.ShortRetry
+					case codes.NotFound:
+						// VM was not found at provider, proceed to initiateDrain to ensure associated orphan resources such as NICs are deleted in the next few steps, before node object is deleted
+						description = "VM was not found at provider. Moving forward to node drain. " + machineutils.InitiateDrain
+						state = v1alpha1.MachineStateProcessing
+						retry = machineutils.ShortRetry
+					case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
+						description = "Error occurred with decoding machine error status while getting VM status, aborting with retry. " + machineutils.GetVMStatus
+						state = v1alpha1.MachineStateFailed
+						retry = machineutils.ShortRetry
+					case codes.Uninitialized:
+						description = "VM instance was not initialized. Moving forward to node drain. " + machineutils.InitiateDrain
+						state = v1alpha1.MachineStateProcessing
+						retry = machineutils.ShortRetry
+					default:
+						// Error occurred with decoding machine error status, abort with retry.
+						description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. machine code: " + err.Error() + " " + machineutils.GetVMStatus
+						state = v1alpha1.MachineStateFailed
+						retry = machineutils.MediumRetry
+					}
+				}
 			}
+
+		}
+		if isNodeLabelUpdated {
+			description = machineutils.InitiateDrain
+			state = v1alpha1.MachineStateProcessing
+			retry = machineutils.ShortRetry
+			// Return error even when machine object is updated to ensure reconcilation is restarted
+			err = fmt.Errorf("Machine deletion in process. VM with matching ID found")
 		}
 	}
-
 	updateRetryPeriod, updateErr := c.machineStatusUpdate(
 		ctx,
 		getMachineStatusRequest.Machine,
@@ -1030,11 +1048,9 @@ func (c *controller) getVMStatus(ctx context.Context, getMachineStatusRequest *d
 		getMachineStatusRequest.Machine.Status.CurrentStatus,
 		getMachineStatusRequest.Machine.Status.LastKnownState,
 	)
-
 	if updateErr != nil {
 		return updateRetryPeriod, updateErr
 	}
-
 	return retry, err
 }
 
@@ -1199,7 +1215,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				} else { // regular drain already waits for vol detach and attach for another node.
 					description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
 				}
-				err = fmt.Errorf("%s", description)
+				err = fmt.Errorf(description)
 				state = v1alpha1.MachineStateProcessing
 
 				// Return error even when machine object is updated
@@ -1346,7 +1362,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		description = fmt.Sprintf("VM deletion was successful. %s", machineutils.InitiateNodeDeletion)
 		state = v1alpha1.MachineStateProcessing
 
-		err = fmt.Errorf("Machine deletion in process. %s", description)
+		err = fmt.Errorf("Machine deletion in process. " + description)
 	}
 
 	if deleteMachineResponse != nil && deleteMachineResponse.LastKnownState != "" {
