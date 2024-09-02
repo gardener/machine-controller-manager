@@ -528,13 +528,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		providerID = getMachineStatusResponse.ProviderID
 	}
 
-	if uninitializedMachine {
-		retryPeriod, err := c.initializeMachine(ctx, createMachineRequest.Machine, createMachineRequest.MachineClass, createMachineRequest.Secret)
-		if err != nil {
-			return retryPeriod, err
-		}
-	}
-
+	//Update labels
 	_, machineNodeLabelPresent := createMachineRequest.Machine.Labels[v1alpha1.NodeLabelKey]
 	_, machinePriorityAnnotationPresent := createMachineRequest.Machine.Annotations[machineutils.MachinePriority]
 
@@ -590,10 +584,15 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 
 		return machineutils.ShortRetry, err
 	}
+	if uninitializedMachine {
+		retryPeriod, err := c.initializeMachine(ctx, createMachineRequest.Machine, createMachineRequest.MachineClass, createMachineRequest.Secret)
+		if err != nil {
+			return retryPeriod, err
+		}
+	}
 
 	return machineutils.LongRetry, nil
 }
-
 func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass, secret *corev1.Secret) (machineutils.RetryPeriod, error) {
 	req := &driver.InitializeMachineRequest{
 		Machine:      machine,
@@ -612,9 +611,6 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 		switch errStatus.Code() {
 		case codes.Unimplemented:
 			klog.V(3).Infof("Provider does not support Driver.InitializeMachine - skipping VM instance initialization for %q.", machine.Name)
-			return 0, nil
-		case codes.NotFound:
-			klog.Warningf("No VM instance found for machine %q. Skipping VM instance initialization.", machine.Name)
 			return 0, nil
 		}
 		updateRetryPeriod, updateErr := c.machineStatusUpdate(
