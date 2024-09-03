@@ -377,7 +377,6 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			Secret:       createMachineRequest.Secret,
 		},
 	)
-
 	if err != nil {
 		// VM with required name is not found.
 		machineErr, ok := status.FromError(err)
@@ -387,7 +386,6 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			return machineutils.MediumRetry, err
 		}
 		klog.Warningf("For machine %q, obtained VM error status as: %s", machineName, machineErr)
-
 		// Decoding machine error code
 		switch machineErr.Code() {
 		case codes.NotFound, codes.Unimplemented:
@@ -404,13 +402,10 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 					klog.Errorf("Error while creating machine %s: %s", machine.Name, err.Error())
 					return c.machineCreateErrorHandler(ctx, machine, createMachineResponse, err)
 				}
-
 				nodeName = createMachineResponse.NodeName
 				providerID = createMachineResponse.ProviderID
-
 				// Creation was successful
 				klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q", machine.Name, providerID, getNodeName(machine))
-
 				// If a node obj already exists by the same nodeName, treat it as a stale node and trigger machine deletion.
 				// TODO: there is a case with Azure where the VM may join the cluster before the CreateMachine call is completed,
 				// and that would make an otherwise healthy node, be marked as stale.
@@ -607,12 +602,11 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 			klog.Errorf("Cannot decode Driver error for machine %q: %s. Unexpected behaviour as Driver errors are expected to be of type status.Status", machine.Name, err)
 			return machineutils.LongRetry, err
 		}
-		klog.Errorf("Error occurred while initializing VM instance for machine %q: %s", machine.Name, err)
-		switch errStatus.Code() {
-		case codes.Unimplemented:
+		if errStatus.Code() == codes.Unimplemented {
 			klog.V(3).Infof("Provider does not support Driver.InitializeMachine - skipping VM instance initialization for %q.", machine.Name)
 			return 0, nil
 		}
+		klog.Errorf("Error occurred while initializing VM instance for machine %q: %s", machine.Name, err)
 		updateRetryPeriod, updateErr := c.machineStatusUpdate(
 			ctx,
 			machine,
@@ -629,14 +623,11 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 			},
 			machine.Status.LastKnownState,
 		)
-
 		if updateErr != nil {
 			return updateRetryPeriod, updateErr
 		}
-
 		return machineutils.ShortRetry, err
 	}
-
 	klog.V(3).Infof("VM instance %q for machine %q was initialized", resp.ProviderID, machine.Name)
 	return 0, nil
 }
