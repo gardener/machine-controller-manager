@@ -39,7 +39,9 @@ type FakeObjectTracker struct {
 	fakingOptions
 }
 
-// Add receives an add event with the object
+var _ k8stesting.ObjectTracker = &FakeObjectTracker{}
+
+// Add receives an add event with the object.
 func (t *FakeObjectTracker) Add(obj runtime.Object) error {
 	if t.fakingEnabled {
 		err := t.RunFakeInvocations()
@@ -51,8 +53,8 @@ func (t *FakeObjectTracker) Add(obj runtime.Object) error {
 	return t.delegatee.Add(obj)
 }
 
-// Get receives an get event with the object
-func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string) (runtime.Object, error) {
+// Get receives a get event with the object.
+func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string, opts ...metav1.GetOptions) (runtime.Object, error) {
 	if t.fakingEnabled {
 		defer func(t *FakeObjectTracker) {
 			_ = t.DecrementCounter()
@@ -71,11 +73,11 @@ func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string
 
 	}
 
-	return t.delegatee.Get(gvr, ns, name)
+	return t.delegatee.Get(gvr, ns, name, opts...)
 }
 
-// Create receives an create event with the object
-func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.Object, ns string) error {
+// Create receives a create event with the object.
+func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.Object, ns string, opts ...metav1.CreateOptions) error {
 	if t.fakingEnabled {
 		defer func(t *FakeObjectTracker) {
 			_ = t.DecrementCounter()
@@ -87,7 +89,7 @@ func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.
 		}
 	}
 
-	err := t.delegatee.Create(gvr, obj, ns)
+	err := t.delegatee.Create(gvr, obj, ns, opts...)
 	if err != nil {
 		return err
 	}
@@ -104,9 +106,8 @@ func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.
 	return nil
 }
 
-// Update receives an update event with the object
-func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.Object, ns string) error {
-
+// Update receives an update event with the object.
+func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.Object, ns string, opts ...metav1.UpdateOptions) error {
 	if t.fakingEnabled {
 		defer func(t *FakeObjectTracker) {
 			_ = t.DecrementCounter()
@@ -124,7 +125,7 @@ func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.
 		}
 	}
 
-	err := t.delegatee.Update(gvr, obj, ns)
+	err := t.delegatee.Update(gvr, obj, ns, opts...)
 	if err != nil {
 		return err
 	}
@@ -141,8 +142,8 @@ func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.
 	return nil
 }
 
-// List receives an list event with the object
-func (t *FakeObjectTracker) List(gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, ns string) (runtime.Object, error) {
+// List receives a list event with the object.
+func (t *FakeObjectTracker) List(gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, ns string, opts ...metav1.ListOptions) (runtime.Object, error) {
 	if t.fakingEnabled {
 		defer func(t *FakeObjectTracker) {
 			_ = t.DecrementCounter()
@@ -153,11 +154,11 @@ func (t *FakeObjectTracker) List(gvr schema.GroupVersionResource, gvk schema.Gro
 			return nil, err
 		}
 	}
-	return t.delegatee.List(gvr, gvk, ns)
+	return t.delegatee.List(gvr, gvk, ns, opts...)
 }
 
-// Delete receives an delete event with the object
-func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name string) error {
+// Delete receives a delete event with the object.
+func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name string, opts ...metav1.DeleteOptions) error {
 	if t.fakingEnabled {
 		defer func(t *FakeObjectTracker) {
 			_ = t.DecrementCounter()
@@ -170,7 +171,7 @@ func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name str
 	}
 
 	obj, errGet := t.delegatee.Get(gvr, ns, name)
-	err := t.delegatee.Delete(gvr, ns, name)
+	err := t.delegatee.Delete(gvr, ns, name, opts...)
 	if err != nil {
 		return err
 	}
@@ -191,8 +192,8 @@ func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name str
 	return nil
 }
 
-// Watch receives an watch event with the object
-func (t *FakeObjectTracker) Watch(gvr schema.GroupVersionResource, name string) (watch.Interface, error) {
+// Watch receives a watch event with the object
+func (t *FakeObjectTracker) Watch(gvr schema.GroupVersionResource, name string, opts ...metav1.ListOptions) (watch.Interface, error) {
 	if t.fakingEnabled {
 		defer func(t *FakeObjectTracker) {
 			_ = t.DecrementCounter()
@@ -204,7 +205,52 @@ func (t *FakeObjectTracker) Watch(gvr schema.GroupVersionResource, name string) 
 		}
 	}
 
-	return t.delegatee.Watch(gvr, name)
+	return t.delegatee.Watch(gvr, name, opts...)
+}
+
+// Patch receives a patch event with the object.
+func (t *FakeObjectTracker) Patch(gvr schema.GroupVersionResource, obj runtime.Object, ns string, opts ...metav1.PatchOptions) error {
+	if t.fakingEnabled {
+		defer func(t *FakeObjectTracker) {
+			_ = t.DecrementCounter()
+		}(t)
+
+		err := t.RunFakeInvocations()
+		if err != nil {
+			return err
+		}
+
+		if gvr.Resource == "nodes" {
+			if t.fakingOptions.failAt.Node.Update != "" {
+				return errors.New(t.fakingOptions.failAt.Node.Update)
+			}
+		}
+	}
+
+	err := t.delegatee.Patch(gvr, obj, ns, opts...)
+	if err != nil {
+		return err
+	}
+
+	if t.FakeWatcher == nil {
+		return errors.New("Error sending event on a tracker with no watch support")
+	}
+
+	if t.IsStopped() {
+		return errors.New("Error sending event on a stopped tracker")
+	}
+
+	t.FakeWatcher.Modify(obj)
+	return nil
+}
+
+// Apply receives an apply event with the object.
+func (t *FakeObjectTracker) Apply(gvr schema.GroupVersionResource, applyConfiguration runtime.Object, ns string, opts ...metav1.PatchOptions) error {
+	_ = gvr
+	_ = applyConfiguration
+	_ = ns
+	_ = opts
+	return fmt.Errorf("method Apply not implemented yet in FakeObjectTracker")
 }
 
 func (t *FakeObjectTracker) watchReactionfunc(action k8stesting.Action) (bool, watch.Interface, error) {

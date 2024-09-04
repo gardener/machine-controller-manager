@@ -6,9 +6,10 @@ package controller
 
 import (
 	"context"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"sort"
 	"strconv"
+
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -274,7 +275,7 @@ var _ = Describe("#controllerUtils", func() {
 
 				// Merge the annotations in the newNodeObject.
 				annotationsOnNewNodeObject := make(map[string]string)
-				if nodeObject != nil {
+				if nodeObject != nil && len(nodeObject.Annotations) > 0 {
 					annotationsOnNewNodeObject = nodeObject.Annotations
 				}
 
@@ -449,7 +450,7 @@ var _ = Describe("#controllerUtils", func() {
 
 				// Merge the annotations in the newNodeObject.
 				annotationsOnNewNodeObject := make(map[string]string)
-				if nodeObject != nil {
+				if nodeObject != nil && len(nodeObject.Annotations) > 0 {
 					annotationsOnNewNodeObject = nodeObject.Annotations
 				}
 

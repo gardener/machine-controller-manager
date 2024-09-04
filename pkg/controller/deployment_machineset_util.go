@@ -61,7 +61,7 @@ func updateMachineSetStatus(ctx context.Context, machineClient machineapi.Machin
 	var getErr, updateErr error
 	var updatedIS *v1alpha1.MachineSet
 	for i, is := 0, is; ; i++ {
-		klog.V(4).Infof(fmt.Sprintf("Updating status for MachineSet: %s/%s, ", is.Namespace, is.Name) +
+		klog.V(4).Info(fmt.Sprintf("Updating status for MachineSet: %s/%s, ", is.Namespace, is.Name) +
 			fmt.Sprintf("replicas %d->%d (need %d), ", is.Status.Replicas, newStatus.Replicas, is.Spec.Replicas) +
 			fmt.Sprintf("fullyLabeledReplicas %d->%d, ", is.Status.FullyLabeledReplicas, newStatus.FullyLabeledReplicas) +
 			fmt.Sprintf("readyReplicas %d->%d, ", is.Status.ReadyReplicas, newStatus.ReadyReplicas) +

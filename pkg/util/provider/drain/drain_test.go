@@ -184,7 +184,7 @@ var _ = Describe("drain", func() {
 			}
 
 			if err != nil {
-				fmt.Fprintf(GinkgoWriter, "Error simulating eviction for the pod %s/%s: %s", pod.Namespace, pod.Name, err)
+				_, _ = fmt.Fprintf(GinkgoWriter, "Error simulating eviction for the pod %s/%s: %s", pod.Namespace, pod.Name, err)
 			}
 		}
 
@@ -194,7 +194,7 @@ var _ = Describe("drain", func() {
 				nodes := d.client.CoreV1().Nodes()
 				node, err := nodes.Get(context.TODO(), pod.Spec.NodeName, metav1.GetOptions{})
 				if err != nil {
-					fmt.Fprintln(GinkgoWriter, err)
+					_, _ = fmt.Fprintln(GinkgoWriter, err)
 					continue
 				}
 
@@ -245,10 +245,10 @@ var _ = Describe("drain", func() {
 				}
 
 				_, err = nodes.Update(context.TODO(), node, metav1.UpdateOptions{})
-				fmt.Fprintln(GinkgoWriter, err)
+				_, _ = fmt.Fprintln(GinkgoWriter, err)
 
 				_, err = nodes.UpdateStatus(context.TODO(), node, metav1.UpdateOptions{})
-				fmt.Fprintln(GinkgoWriter, err)
+				_, _ = fmt.Fprintln(GinkgoWriter, err)
 			}
 		}()
 

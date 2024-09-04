@@ -1810,7 +1810,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf(fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments)),
+					err:   fmt.Errorf("Force Drain successful. %s", machineutils.DelVolumesAttachments),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -1912,7 +1912,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf(fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments)),
+					err:   fmt.Errorf("Force Drain successful. %s", machineutils.DelVolumesAttachments),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -2019,7 +2019,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf(fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments)),
+					err:   fmt.Errorf("Force Drain successful. %s", machineutils.DelVolumesAttachments),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{

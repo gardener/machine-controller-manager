@@ -362,7 +362,7 @@ func (c *controller) unfreezeMachineSet(ctx context.Context, machineSet *v1alpha
 
 	if machineSet == nil {
 		err := fmt.Errorf("SafetyController: Machine Set not passed")
-		klog.Errorf(err.Error())
+		klog.Errorf("%s", err.Error())
 		return err
 	}
 
@@ -443,7 +443,7 @@ func (c *controller) unfreezeMachineDeployment(ctx context.Context, machineDeplo
 
 	if machineDeployment == nil {
 		err := fmt.Errorf("SafetyController: Machine Deployment not passed")
-		klog.Errorf(err.Error())
+		klog.Errorf("%s", err.Error())
 		return err
 	}
 
