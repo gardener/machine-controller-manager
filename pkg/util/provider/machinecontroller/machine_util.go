@@ -963,7 +963,7 @@ func (c *controller) getVMStatus(ctx context.Context, getMachineStatusRequest *d
 		// TODO check if this is the right function to use, also is err a new variable?
 		// get all nodes and check if any node has the machine name as label
 		nodes, err := c.nodeLister.List(labels.Everything())
-		if err != nil {
+		if err == nil {
 			for _, node := range nodes {
 				//TODO check if label key should be declared as constant somewhere
 				if node.Labels["node.gardener.cloud/machine-name"] == getMachineStatusRequest.Machine.Name {
@@ -1023,15 +1023,14 @@ func (c *controller) getVMStatus(ctx context.Context, getMachineStatusRequest *d
 					}
 				}
 			}
-
 		}
-		if isNodeLabelUpdated {
-			description = machineutils.InitiateDrain
-			state = v1alpha1.MachineStateProcessing
-			retry = machineutils.ShortRetry
-			// Return error even when machine object is updated to ensure reconcilation is restarted
-			err = fmt.Errorf("Machine deletion in process. VM with matching ID found")
-		}
+	}
+	if isNodeLabelUpdated {
+		description = machineutils.InitiateDrain
+		state = v1alpha1.MachineStateProcessing
+		retry = machineutils.ShortRetry
+		// Return error even when machine object is updated to ensure reconcilation is restarted
+		err = fmt.Errorf("Machine deletion in process. VM with matching ID found")
 	}
 	updateRetryPeriod, updateErr := c.machineStatusUpdate(
 		ctx,
