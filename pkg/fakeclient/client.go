@@ -39,6 +39,47 @@ type FakeObjectTracker struct {
 	fakingOptions
 }
 
+// Patch applies the changes to the object tracker.
+func (t *FakeObjectTracker) Patch(gvr schema.GroupVersionResource, obj runtime.Object, ns string, opts ...metav1.PatchOptions) error {
+	if t.fakingEnabled {
+		defer func(t *FakeObjectTracker) {
+			_ = t.DecrementCounter()
+		}(t)
+
+		err := t.RunFakeInvocations()
+		if err != nil {
+			return err
+		}
+
+		if gvr.Resource == "nodes" {
+			if t.fakingOptions.failAt.Node.Update != "" {
+				return errors.New(t.fakingOptions.failAt.Node.Update)
+			}
+		}
+	}
+
+	err := t.delegatee.Patch(gvr, obj, ns, opts...)
+	if err != nil {
+		return err
+	}
+
+	if t.FakeWatcher == nil {
+		return errors.New("Error sending event on a tracker with no watch support")
+	}
+
+	if t.IsStopped() {
+		return errors.New("Error sending event on a stopped tracker")
+	}
+
+	t.FakeWatcher.Modify(obj)
+	return nil
+}
+
+// Apply applies the changes to the object tracker.
+func (t *FakeObjectTracker) Apply(gvr schema.GroupVersionResource, obj runtime.Object, ns string, options ...metav1.PatchOptions) error {
+	return t.delegatee.Apply(gvr, obj, ns, options...)
+}
+
 // Add receives an add event with the object
 func (t *FakeObjectTracker) Add(obj runtime.Object) error {
 	if t.fakingEnabled {
@@ -52,7 +93,7 @@ func (t *FakeObjectTracker) Add(obj runtime.Object) error {
 }
 
 // Get receives an get event with the object
-func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string) (runtime.Object, error) {
+func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string, opts ...metav1.GetOptions) (runtime.Object, error) {
 	if t.fakingEnabled {
 		defer func(t *FakeObjectTracker) {
 			_ = t.DecrementCounter()
@@ -71,11 +112,11 @@ func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string
 
 	}
 
-	return t.delegatee.Get(gvr, ns, name)
+	return t.delegatee.Get(gvr, ns, name, opts...)
 }
 
 // Create receives an create event with the object
-func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.Object, ns string) error {
+func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.Object, ns string, opts ...metav1.CreateOptions) error {
 	if t.fakingEnabled {
 		defer func(t *FakeObjectTracker) {
 			_ = t.DecrementCounter()
@@ -87,17 +128,17 @@ func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.
 		}
 	}
 
-	err := t.delegatee.Create(gvr, obj, ns)
+	err := t.delegatee.Create(gvr, obj, ns, opts...)
 	if err != nil {
 		return err
 	}
 
 	if t.FakeWatcher == nil {
-		return errors.New("Error sending event on a tracker with no watch support")
+		return errors.New("error sending event on a tracker with no watch support")
 	}
 
 	if t.IsStopped() {
-		return errors.New("Error sending event on a stopped tracker")
+		return errors.New("error sending event on a stopped tracker")
 	}
 
 	t.FakeWatcher.Add(obj)
@@ -105,7 +146,7 @@ func (t *FakeObjectTracker) Create(gvr schema.GroupVersionResource, obj runtime.
 }
 
 // Update receives an update event with the object
-func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.Object, ns string) error {
+func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.Object, ns string, opts ...metav1.UpdateOptions) error {
 
 	if t.fakingEnabled {
 		defer func(t *FakeObjectTracker) {
@@ -124,17 +165,17 @@ func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.
 		}
 	}
 
-	err := t.delegatee.Update(gvr, obj, ns)
+	err := t.delegatee.Update(gvr, obj, ns, opts...)
 	if err != nil {
 		return err
 	}
 
 	if t.FakeWatcher == nil {
-		return errors.New("Error sending event on a tracker with no watch support")
+		return errors.New("error sending event on a tracker with no watch support")
 	}
 
 	if t.IsStopped() {
-		return errors.New("Error sending event on a stopped tracker")
+		return errors.New("error sending event on a stopped tracker")
 	}
 
 	t.FakeWatcher.Modify(obj)
@@ -142,7 +183,7 @@ func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.
 }
 
 // List receives an list event with the object
-func (t *FakeObjectTracker) List(gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, ns string) (runtime.Object, error) {
+func (t *FakeObjectTracker) List(gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, ns string, opts ...metav1.ListOptions) (runtime.Object, error) {
 	if t.fakingEnabled {
 		defer func(t *FakeObjectTracker) {
 			_ = t.DecrementCounter()
@@ -153,11 +194,11 @@ func (t *FakeObjectTracker) List(gvr schema.GroupVersionResource, gvk schema.Gro
 			return nil, err
 		}
 	}
-	return t.delegatee.List(gvr, gvk, ns)
+	return t.delegatee.List(gvr, gvk, ns, opts...)
 }
 
 // Delete receives an delete event with the object
-func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name string) error {
+func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name string, opts ...metav1.DeleteOptions) error {
 	if t.fakingEnabled {
 		defer func(t *FakeObjectTracker) {
 			_ = t.DecrementCounter()
@@ -170,7 +211,7 @@ func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name str
 	}
 
 	obj, errGet := t.delegatee.Get(gvr, ns, name)
-	err := t.delegatee.Delete(gvr, ns, name)
+	err := t.delegatee.Delete(gvr, ns, name, opts...)
 	if err != nil {
 		return err
 	}
@@ -180,11 +221,11 @@ func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name str
 	}
 
 	if t.FakeWatcher == nil {
-		return errors.New("Error sending event on a tracker with no watch support")
+		return errors.New("error sending event on a tracker with no watch support")
 	}
 
 	if t.IsStopped() {
-		return errors.New("Error sending event on a stopped tracker")
+		return errors.New("error sending event on a stopped tracker")
 	}
 
 	t.FakeWatcher.Delete(obj)
@@ -192,7 +233,7 @@ func (t *FakeObjectTracker) Delete(gvr schema.GroupVersionResource, ns, name str
 }
 
 // Watch receives an watch event with the object
-func (t *FakeObjectTracker) Watch(gvr schema.GroupVersionResource, name string) (watch.Interface, error) {
+func (t *FakeObjectTracker) Watch(gvr schema.GroupVersionResource, name string, opts ...metav1.ListOptions) (watch.Interface, error) {
 	if t.fakingEnabled {
 		defer func(t *FakeObjectTracker) {
 			_ = t.DecrementCounter()
@@ -204,12 +245,12 @@ func (t *FakeObjectTracker) Watch(gvr schema.GroupVersionResource, name string) 
 		}
 	}
 
-	return t.delegatee.Watch(gvr, name)
+	return t.delegatee.Watch(gvr, name, opts...)
 }
 
 func (t *FakeObjectTracker) watchReactionfunc(action k8stesting.Action) (bool, watch.Interface, error) {
 	if t.FakeWatcher == nil {
-		return false, nil, errors.New("Cannot watch on a tracker with no watch support")
+		return false, nil, errors.New("cannot watch on a tracker with no watch support")
 	}
 
 	switch a := action.(type) {
@@ -226,14 +267,14 @@ func (t *FakeObjectTracker) watchReactionfunc(action k8stesting.Action) (bool, w
 		t.watchers = append(t.watchers, w)
 		return true, w, nil
 	default:
-		return false, nil, fmt.Errorf("Expected WatchAction but got %v", action)
+		return false, nil, fmt.Errorf("expected WatchAction but got %v", action)
 	}
 }
 
 // Start begins tracking of an FakeObjectTracker
 func (t *FakeObjectTracker) Start() error {
 	if t.FakeWatcher == nil {
-		return errors.New("Tracker has no watch support")
+		return errors.New("tracker has no watch support")
 	}
 
 	for event := range t.ResultChan() {
@@ -252,7 +293,7 @@ func (t *FakeObjectTracker) dispatch(event *watch.Event) {
 // Stop terminates tracking of an FakeObjectTracker
 func (t *FakeObjectTracker) Stop() {
 	if t.FakeWatcher == nil {
-		panic(errors.New("Tracker has no watch support"))
+		panic(errors.New("tracker has no watch support"))
 	}
 
 	t.trackerMutex.Lock()
