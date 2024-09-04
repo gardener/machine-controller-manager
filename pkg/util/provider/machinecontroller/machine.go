@@ -539,20 +539,23 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		if clone.Annotations[machineutils.MachinePriority] == "" {
 			clone.Annotations[machineutils.MachinePriority] = "3"
 		}
-
 		clone.Spec.ProviderID = providerID
 		_, err := c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Warningf("Machine UPDATE failed for %q. Retrying, error: %s", machine.Name, err)
 		} else {
 			klog.V(2).Infof("Machine labels/annotations UPDATE for %q", machine.Name)
-
 			// Return error even when machine object is updated
 			err = fmt.Errorf("Machine creation in process. Machine UPDATE successful")
 		}
 		return machineutils.ShortRetry, err
 	}
-
+	if uninitializedMachine {
+		retryPeriod, err := c.initializeMachine(ctx, createMachineRequest.Machine, createMachineRequest.MachineClass, createMachineRequest.Secret)
+		if err != nil {
+			return retryPeriod, err
+		}
+	}
 	if machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
 		clone := machine.DeepCopy()
 		clone.Status.LastOperation = v1alpha1.LastOperation{
@@ -566,7 +569,6 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			TimeoutActive:  true,
 			LastUpdateTime: metav1.Now(),
 		}
-
 		_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Warningf("Machine/status UPDATE failed for %q. Retrying, error: %s", machine.Name, err)
@@ -576,18 +578,11 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			// Return error even when machine object is updated
 			err = fmt.Errorf("Machine creation in process. Machine/Status UPDATE successful")
 		}
-
 		return machineutils.ShortRetry, err
 	}
-	if uninitializedMachine {
-		retryPeriod, err := c.initializeMachine(ctx, createMachineRequest.Machine, createMachineRequest.MachineClass, createMachineRequest.Secret)
-		if err != nil {
-			return retryPeriod, err
-		}
-	}
-
 	return machineutils.LongRetry, nil
 }
+
 func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass, secret *corev1.Secret) (machineutils.RetryPeriod, error) {
 	req := &driver.InitializeMachineRequest{
 		Machine:      machine,
