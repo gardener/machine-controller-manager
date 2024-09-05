@@ -43,7 +43,7 @@ func newDeepEqualMatcher(expected interface{}) gomegatypes.GomegaMatcher {
 
 func (m *deepMatcher) Match(actual interface{}) (success bool, err error) {
 	if actual == nil && m.expected == nil {
-		return false, fmt.Errorf(deepMatcherNilError)
+		return false, fmt.Errorf("%s", deepMatcherNilError)
 	}
 
 	return m.compareFn(m.expected, actual), nil

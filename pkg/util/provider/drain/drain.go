@@ -924,7 +924,7 @@ func (o *Options) waitForReattach(ctx context.Context, podVolumeInfo PodVolumeIn
 		case <-ctx.Done():
 			// Timeout occurred waiting for reattachment, exit function with error
 			klog.Warningf("Timeout occurred while waiting for PVs %v to reattach to a different node", podVolumeInfo.persistentVolumeList)
-			return fmt.Errorf(reattachTimeoutErr)
+			return fmt.Errorf("%s", reattachTimeoutErr)
 
 		case incomingEvent := <-volumeAttachmentEventCh:
 			persistentVolumeName := *incomingEvent.Spec.Source.PersistentVolumeName
