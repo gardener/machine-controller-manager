@@ -548,13 +548,13 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			// Return error even when machine object is updated
 			err = fmt.Errorf("Machine creation in process. Machine UPDATE successful")
 		}
-		return machineutils.ShortRetry, err
 	}
 	if uninitializedMachine {
 		retryPeriod, err := c.initializeMachine(ctx, createMachineRequest.Machine, createMachineRequest.MachineClass, createMachineRequest.Secret)
 		if err != nil {
 			return retryPeriod, err
 		}
+		return machineutils.ShortRetry, err
 	}
 	if machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
 		clone := machine.DeepCopy()
