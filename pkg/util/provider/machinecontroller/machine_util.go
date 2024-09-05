@@ -960,12 +960,10 @@ func (c *controller) getVMStatus(ctx context.Context, getMachineStatusRequest *d
 		isNodeLabelUpdated = true
 	} else {
 		// Figure out node label either by checking all nodes for label matching machine name or retrieving it using GetMachineStatus
-		// TODO check if this is the right function to use, also is err a new variable?
 		// get all nodes and check if any node has the machine name as label
 		nodes, err := c.nodeLister.List(labels.Everything())
 		if err == nil {
 			for _, node := range nodes {
-				//TODO check if label key should be declared as constant somewhere
 				if node.Labels["node.gardener.cloud/machine-name"] == getMachineStatusRequest.Machine.Name {
 					nodeName := node.Name
 					err = c.updateMachineNodeLabel(ctx, getMachineStatusRequest.Machine, nodeName)
