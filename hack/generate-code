@@ -15,7 +15,6 @@ CODE_GEN_DIR=$(go list -m -f '{{.Dir}}' k8s.io/code-generator)
 
 # We need to explicitly pass GO111MODULE=off to k8s.io/code-generator as it is significantly slower otherwise,
 # see https://github.com/kubernetes/code-generator/issues/100.
-export GO111MODULE=off
 
 rm -f ${GOPATH}/bin/*-gen
 
@@ -23,25 +22,36 @@ CURRENT_DIR=$(dirname $0)
 PROJECT_ROOT="${CURRENT_DIR}"/..
 export PROJECT_ROOT
 
-bash "${CODE_GEN_DIR}"/generate-internal-groups.sh \
-  deepcopy,defaulter,conversion,client,lister,informer \
-  github.com/gardener/machine-controller-manager/pkg/client \
-  github.com/gardener/machine-controller-manager/pkg/apis \
-  github.com/gardener/machine-controller-manager/pkg/apis \
-  "machine:v1alpha1" \
-  -h "${PROJECT_ROOT}/hack/LICENSE_BOILERPLATE.txt"
+source "${CODE_GEN_DIR}/kube_codegen.sh"
+
+kube::codegen::gen_helpers \
+  --boilerplate "${PROJECT_ROOT}/hack/LICENSE_BOILERPLATE.txt" \
+  "${PROJECT_ROOT}/pkg/apis"
+
+kube::codegen::gen_client \
+  --one-input-api "machine" \
+  --output-dir "${PROJECT_ROOT}/pkg/client" \
+  --output-pkg "github.com/gardener/machine-controller-manager/pkg/client" \
+  --boilerplate "${PROJECT_ROOT}/hack/LICENSE_BOILERPLATE.txt" \
+  "${PROJECT_ROOT}/pkg/apis"
 
 echo "Generating openapi definitions"
 rm -Rf ./${PROJECT_ROOT}/openapi/openapi_generated.go
+
+GO111MODULE=on go install k8s.io/kube-openapi/cmd/openapi-gen
+
 ${GOPATH}/bin/openapi-gen "$@" \
   --v 1 \
   --logtostderr \
-  --input-dirs=github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1 \
-  --input-dirs=k8s.io/api/core/v1 \
-  --input-dirs=k8s.io/apimachinery/pkg/apis/meta/v1 \
-  --input-dirs=k8s.io/apimachinery/pkg/api/resource \
-  --input-dirs=k8s.io/apimachinery/pkg/types \
-  --input-dirs=k8s.io/apimachinery/pkg/version \
-  --input-dirs=k8s.io/apimachinery/pkg/runtime \
-  --output-package=github.com/gardener/machine-controller-manager/pkg/openapi \
-  -h "${PROJECT_ROOT}/hack/LICENSE_BOILERPLATE.txt"
+  --output-file openapi_generated.go \
+  --go-header-file "${PROJECT_ROOT}/hack/LICENSE_BOILERPLATE.txt" \
+  --output-dir "${PROJECT_ROOT}/pkg/openapi" \
+  --output-pkg "github.com/gardener/machine-controller-manager/pkg/openapi" \
+  --report-filename "${PROJECT_ROOT}/pkg/openapi/api_violations.report" \
+  "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1" \
+  "k8s.io/api/core/v1" \
+  "k8s.io/apimachinery/pkg/apis/meta/v1" \
+  "k8s.io/apimachinery/pkg/api/resource" \
+  "k8s.io/apimachinery/pkg/types" \
+  "k8s.io/apimachinery/pkg/version" \
+  "k8s.io/apimachinery/pkg/runtime"

@@ -29,22 +29,24 @@ var machineclassesKind = v1alpha1.SchemeGroupVersion.WithKind("MachineClass")
 
 // Get takes name of the machineClass, and returns the corresponding machineClass object, and an error if there is any.
 func (c *FakeMachineClasses) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.MachineClass, err error) {
+	emptyResult := &v1alpha1.MachineClass{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(machineclassesResource, c.ns, name), &v1alpha1.MachineClass{})
+		Invokes(testing.NewGetActionWithOptions(machineclassesResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.MachineClass), err
 }
 
 // List takes label and field selectors, and returns the list of MachineClasses that match those selectors.
 func (c *FakeMachineClasses) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.MachineClassList, err error) {
+	emptyResult := &v1alpha1.MachineClassList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(machineclassesResource, machineclassesKind, c.ns, opts), &v1alpha1.MachineClassList{})
+		Invokes(testing.NewListActionWithOptions(machineclassesResource, machineclassesKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -63,28 +65,30 @@ func (c *FakeMachineClasses) List(ctx context.Context, opts v1.ListOptions) (res
 // Watch returns a watch.Interface that watches the requested machineClasses.
 func (c *FakeMachineClasses) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(machineclassesResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(machineclassesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a machineClass and creates it.  Returns the server's representation of the machineClass, and an error, if there is any.
 func (c *FakeMachineClasses) Create(ctx context.Context, machineClass *v1alpha1.MachineClass, opts v1.CreateOptions) (result *v1alpha1.MachineClass, err error) {
+	emptyResult := &v1alpha1.MachineClass{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(machineclassesResource, c.ns, machineClass), &v1alpha1.MachineClass{})
+		Invokes(testing.NewCreateActionWithOptions(machineclassesResource, c.ns, machineClass, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.MachineClass), err
 }
 
 // Update takes the representation of a machineClass and updates it. Returns the server's representation of the machineClass, and an error, if there is any.
 func (c *FakeMachineClasses) Update(ctx context.Context, machineClass *v1alpha1.MachineClass, opts v1.UpdateOptions) (result *v1alpha1.MachineClass, err error) {
+	emptyResult := &v1alpha1.MachineClass{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(machineclassesResource, c.ns, machineClass), &v1alpha1.MachineClass{})
+		Invokes(testing.NewUpdateActionWithOptions(machineclassesResource, c.ns, machineClass, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.MachineClass), err
 }
@@ -99,7 +103,7 @@ func (c *FakeMachineClasses) Delete(ctx context.Context, name string, opts v1.De
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeMachineClasses) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(machineclassesResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(machineclassesResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.MachineClassList{})
 	return err
@@ -107,11 +111,12 @@ func (c *FakeMachineClasses) DeleteCollection(ctx context.Context, opts v1.Delet
 
 // Patch applies the patch and returns the patched machineClass.
 func (c *FakeMachineClasses) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.MachineClass, err error) {
+	emptyResult := &v1alpha1.MachineClass{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(machineclassesResource, c.ns, name, pt, data, subresources...), &v1alpha1.MachineClass{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(machineclassesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.MachineClass), err
 }

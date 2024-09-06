@@ -979,7 +979,7 @@ func (c *controller) getVMStatus(ctx context.Context, getMachineStatusRequest *d
 			state = v1alpha1.MachineStateFailed
 			retry = machineutils.LongRetry
 
-			err = fmt.Errorf("Machine deletion has failed. " + description)
+			err = fmt.Errorf("Machine deletion has failed. %s", description)
 		} else {
 			// Decoding machine error code
 			switch machineErr.Code() {
@@ -1199,7 +1199,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				} else { // regular drain already waits for vol detach and attach for another node.
 					description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
 				}
-				err = fmt.Errorf(description)
+				err = fmt.Errorf("%s", description)
 				state = v1alpha1.MachineStateProcessing
 
 				// Return error even when machine object is updated
@@ -1346,7 +1346,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		description = fmt.Sprintf("VM deletion was successful. %s", machineutils.InitiateNodeDeletion)
 		state = v1alpha1.MachineStateProcessing
 
-		err = fmt.Errorf("Machine deletion in process. " + description)
+		err = fmt.Errorf("Machine deletion in process. %s", description)
 	}
 
 	if deleteMachineResponse != nil && deleteMachineResponse.LastKnownState != "" {
