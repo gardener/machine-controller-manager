@@ -545,8 +545,6 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			klog.Warningf("Machine UPDATE failed for %q. Retrying, error: %s", machine.Name, err)
 		} else {
 			klog.V(2).Infof("Machine labels/annotations UPDATE for %q", machine.Name)
-			// Return error even when machine object is updated
-			err = fmt.Errorf("Machine creation in process. Machine UPDATE successful")
 		}
 	}
 	if uninitializedMachine {
@@ -554,6 +552,8 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		if err != nil {
 			return retryPeriod, err
 		}
+		// Return error even when machine object is updated
+		err = fmt.Errorf("Machine creation in process. Machine UPDATE successful")
 		return machineutils.ShortRetry, err
 	}
 	if machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
