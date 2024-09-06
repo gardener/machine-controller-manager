@@ -6,9 +6,10 @@ package controller
 
 import (
 	"context"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"sort"
 	"strconv"
+
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -394,7 +395,7 @@ var _ = Describe("#controllerUtils", func() {
 					},
 				},
 				expect: expect{
-					expectedAnnotations: map[string]string{},
+					expectedAnnotations: nil,
 					err:                 false,
 				},
 			}),
@@ -545,7 +546,7 @@ var _ = Describe("#controllerUtils", func() {
 					},
 				},
 				expect: expect{
-					expectedAnnotations: map[string]string{},
+					expectedAnnotations: nil,
 					err:                 false,
 				},
 			}),
