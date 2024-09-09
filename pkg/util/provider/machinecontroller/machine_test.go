@@ -545,7 +545,7 @@ var _ = Describe("machine", func() {
 							ProviderID: "fakeID",
 						},
 					}, nil, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "fakeNode-0"}, true, metav1.Now()),
-					err:   fmt.Errorf("Machine creation in process. Machine UPDATE successful"),
+					err:   fmt.Errorf("Machine creation in process. Machine initialization (if required) is successful."),
 					retry: machineutils.ShortRetry,
 				},
 			}),
@@ -1068,6 +1068,7 @@ var _ = Describe("machine", func() {
 								Kind: "MachineClass",
 								Name: "machineClass",
 							},
+							ProviderID: "fakeID",
 						},
 					}, &v1alpha1.MachineStatus{
 						CurrentStatus: v1alpha1.CurrentStatus{
@@ -1079,7 +1080,7 @@ var _ = Describe("machine", func() {
 							State:       v1alpha1.MachineStateFailed,
 							Type:        v1alpha1.MachineOperationCreate,
 						},
-					}, nil, nil, nil, true, metav1.Now()),
+					}, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "fakeNode-0"}, true, metav1.Now()),
 					err:   status.Error(codes.Uninitialized, "VM instance could not be initialized"),
 					retry: machineutils.ShortRetry,
 				},

@@ -92,17 +92,14 @@ func (d *FakeDriver) DeleteMachine(_ context.Context, deleteMachineRequest *Dele
 
 // GetMachineStatus makes a gRPC call to the driver to check existance of machine
 func (d *FakeDriver) GetMachineStatus(_ context.Context, _ *GetMachineStatusRequest) (*GetMachineStatusResponse, error) {
-	switch {
-	case !d.VMExists:
+	if !d.VMExists {
 		errMessage := "Fake plugin is returning no VM instances backing this machine object"
 		return nil, status.Error(codes.NotFound, errMessage)
-	case d.Err != nil:
-		return nil, d.Err
 	}
 	return &GetMachineStatusResponse{
 		ProviderID: d.ProviderID,
 		NodeName:   d.NodeName,
-	}, nil
+	}, d.Err
 }
 
 // ListMachines have to list machines
