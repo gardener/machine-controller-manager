@@ -973,7 +973,7 @@ func (c *controller) updateMachineStatusAndNodeLabel(ctx context.Context, getMac
 				description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. " + err.Error() + " " + machineutils.GetVMStatus
 				state = v1alpha1.MachineStateFailed
 				retry = machineutils.LongRetry
-				err = fmt.Errorf("Machine deletion has failed. %s", description)
+				err = fmt.Errorf("machine deletion has failed. %s", description)
 			} else {
 				// Decoding machine error code
 				switch machineErr.Code() {
@@ -1010,7 +1010,7 @@ func (c *controller) updateMachineStatusAndNodeLabel(ctx context.Context, getMac
 		state = v1alpha1.MachineStateProcessing
 		retry = machineutils.ShortRetry
 		// Return error even when machine object is updated to ensure reconcilation is restarted
-		err = fmt.Errorf("Machine deletion in process. VM with matching ID found")
+		err = fmt.Errorf("machine deletion in process. VM with matching ID found")
 	}
 	updateRetryPeriod, updateErr := c.machineStatusUpdate(
 		ctx,

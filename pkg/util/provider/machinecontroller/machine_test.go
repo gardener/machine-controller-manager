@@ -545,7 +545,7 @@ var _ = Describe("machine", func() {
 							ProviderID: "fakeID",
 						},
 					}, nil, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "fakeNode-0"}, true, metav1.Now()),
-					err:   fmt.Errorf("Machine creation in process. Machine initialization (if required) is successful."),
+					err:   fmt.Errorf("machine creation in process. Machine initialization (if required) is successful"),
 					retry: machineutils.ShortRetry,
 				},
 			}),
@@ -623,7 +623,7 @@ var _ = Describe("machine", func() {
 						true,
 						metav1.Now(),
 					),
-					err:   fmt.Errorf("Machine creation in process. Machine/Status UPDATE successful"),
+					err:   fmt.Errorf("machine creation in process. Machine/Status UPDATE successful"),
 					retry: machineutils.ShortRetry,
 				},
 			}),
@@ -1016,7 +1016,7 @@ var _ = Describe("machine", func() {
 						true,
 						metav1.Now(),
 					),
-					err:   fmt.Errorf("Machine creation in process. Machine/Status UPDATE successful"),
+					err:   fmt.Errorf("machine creation in process. Machine/Status UPDATE successful"),
 					retry: machineutils.ShortRetry,
 				},
 			}),
@@ -1504,7 +1504,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("Machine deletion in process. VM with matching ID found"),
+					err:   fmt.Errorf("machine deletion in process. VM with matching ID found"),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
