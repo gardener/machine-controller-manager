@@ -963,7 +963,7 @@ func (c *controller) updateMachineStatusAndNodeLabel(ctx context.Context, getMac
 		// Figure out node label either by checking all nodes for label matching machine name or retrieving it using GetMachineStatus
 		nodeName, err = c.getNodeName(ctx, getMachineStatusRequest)
 		if err == nil {
-			if err := c.updateMachineNodeLabel(ctx, getMachineStatusRequest.Machine, nodeName); err != nil {
+			if err = c.updateMachineNodeLabel(ctx, getMachineStatusRequest.Machine, nodeName); err != nil {
 				return machineutils.ShortRetry, err
 			}
 			isNodeLabelUpdated = true
