@@ -521,6 +521,8 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		if machine.Labels[v1alpha1.NodeLabelKey] == "" || machine.Spec.ProviderID == "" {
 			klog.V(2).Infof("Found VM with required machine name. Adopting existing machine: %q with ProviderID: %s", machineName, getMachineStatusResponse.ProviderID)
 		}
+		//clean me up. I'm dirty.
+		//TODO@thiyyakat add a pointer to a boolean variable indicating whether initialization has happened successfully.
 		nodeName = getMachineStatusResponse.NodeName
 		providerID = getMachineStatusResponse.ProviderID
 	}
