@@ -377,7 +377,6 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			Secret:       createMachineRequest.Secret,
 		},
 	)
-
 	if err != nil {
 		// VM with required name is not found.
 		machineErr, ok := status.FromError(err)
@@ -387,7 +386,6 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			return machineutils.MediumRetry, err
 		}
 		klog.Warningf("For machine %q, obtained VM error status as: %s", machineName, machineErr)
-
 		// Decoding machine error code
 		switch machineErr.Code() {
 		case codes.NotFound, codes.Unimplemented:
@@ -404,13 +402,10 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 					klog.Errorf("Error while creating machine %s: %s", machine.Name, err.Error())
 					return c.machineCreateErrorHandler(ctx, machine, createMachineResponse, err)
 				}
-
 				nodeName = createMachineResponse.NodeName
 				providerID = createMachineResponse.ProviderID
-
 				// Creation was successful
 				klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q", machine.Name, providerID, getNodeName(machine))
-
 				// If a node obj already exists by the same nodeName, treat it as a stale node and trigger machine deletion.
 				// TODO: there is a case with Azure where the VM may join the cluster before the CreateMachine call is completed,
 				// and that would make an otherwise healthy node, be marked as stale.
@@ -497,6 +492,10 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		case codes.Uninitialized:
 			uninitializedMachine = true
 			klog.Infof("VM instance associated with machine %s was created but not initialized.", machine.Name)
+			//clean me up. I'm dirty.
+			//TODO@thiyyakat add a pointer to a boolean variable indicating whether initialization has happened successfully.
+			nodeName = getMachineStatusResponse.NodeName
+			providerID = getMachineStatusResponse.ProviderID
 
 		default:
 			updateRetryPeriod, updateErr := c.machineStatusUpdate(
@@ -527,43 +526,23 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		nodeName = getMachineStatusResponse.NodeName
 		providerID = getMachineStatusResponse.ProviderID
 	}
-
+	//Update labels, providerID
+	var clone *v1alpha1.Machine
+	clone, err = c.updateLabels(ctx, createMachineRequest.Machine, nodeName, providerID)
+	//initialize VM if not initialized
 	if uninitializedMachine {
-		retryPeriod, err := c.initializeMachine(ctx, createMachineRequest.Machine, createMachineRequest.MachineClass, createMachineRequest.Secret)
+		var retryPeriod machineutils.RetryPeriod
+		retryPeriod, err = c.initializeMachine(ctx, clone, createMachineRequest.MachineClass, createMachineRequest.Secret)
 		if err != nil {
 			return retryPeriod, err
 		}
-	}
-
-	_, machineNodeLabelPresent := createMachineRequest.Machine.Labels[v1alpha1.NodeLabelKey]
-	_, machinePriorityAnnotationPresent := createMachineRequest.Machine.Annotations[machineutils.MachinePriority]
-
-	if !machineNodeLabelPresent || !machinePriorityAnnotationPresent || machine.Spec.ProviderID == "" {
-		clone := machine.DeepCopy()
-		if clone.Labels == nil {
-			clone.Labels = make(map[string]string)
-		}
-		clone.Labels[v1alpha1.NodeLabelKey] = nodeName
-		if clone.Annotations == nil {
-			clone.Annotations = make(map[string]string)
-		}
-		if clone.Annotations[machineutils.MachinePriority] == "" {
-			clone.Annotations[machineutils.MachinePriority] = "3"
-		}
-
-		clone.Spec.ProviderID = providerID
-		_, err := c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
-		if err != nil {
-			klog.Warningf("Machine UPDATE failed for %q. Retrying, error: %s", machine.Name, err)
-		} else {
-			klog.V(2).Infof("Machine labels/annotations UPDATE for %q", machine.Name)
-
-			// Return error even when machine object is updated
-			err = fmt.Errorf("Machine creation in process. Machine UPDATE successful")
-		}
+		// Return error even when machine object is updated
+		err = fmt.Errorf("machine creation in process. Machine initialization (if required) is successful")
 		return machineutils.ShortRetry, err
 	}
-
+	if err != nil {
+		return machineutils.ShortRetry, err
+	}
 	if machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
 		clone := machine.DeepCopy()
 		clone.Status.LastOperation = v1alpha1.LastOperation{
@@ -577,21 +556,47 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			TimeoutActive:  true,
 			LastUpdateTime: metav1.Now(),
 		}
-
 		_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Warningf("Machine/status UPDATE failed for %q. Retrying, error: %s", machine.Name, err)
 		} else {
 			klog.V(2).Infof("Machine/status UPDATE for %q during creation", machine.Name)
-
 			// Return error even when machine object is updated
-			err = fmt.Errorf("Machine creation in process. Machine/Status UPDATE successful")
+			err = fmt.Errorf("machine creation in process. Machine/Status UPDATE successful")
 		}
-
 		return machineutils.ShortRetry, err
 	}
-
 	return machineutils.LongRetry, nil
+}
+
+func (c *controller) updateLabels(ctx context.Context, machine *v1alpha1.Machine, nodeName, providerID string) (clone *v1alpha1.Machine, err error) {
+	machineNodeLabelPresent := metav1.HasLabel(machine.ObjectMeta, v1alpha1.NodeLabelKey)
+	machinePriorityAnnotationPresent := metav1.HasAnnotation(machine.ObjectMeta, machineutils.MachinePriority)
+	clone = machine.DeepCopy()
+	if !machineNodeLabelPresent || !machinePriorityAnnotationPresent || machine.Spec.ProviderID == "" {
+		if clone.Labels == nil {
+			clone.Labels = make(map[string]string)
+		}
+		clone.Labels[v1alpha1.NodeLabelKey] = nodeName
+		if clone.Annotations == nil {
+			clone.Annotations = make(map[string]string)
+		}
+		if clone.Annotations[machineutils.MachinePriority] == "" {
+			clone.Annotations[machineutils.MachinePriority] = "3"
+		}
+		clone.Spec.ProviderID = providerID
+		var updatedMachine *v1alpha1.Machine
+		updatedMachine, err = c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Warningf("Machine labels/annotations UPDATE failed for %q. Will retry after VM initialization (if required), error: %s", machine.Name, err)
+			clone = machine.DeepCopy()
+		} else {
+			clone = updatedMachine
+			klog.V(2).Infof("Machine labels/annotations UPDATE for %q", clone.Name)
+			err = fmt.Errorf("machine creation in process. Machine labels/annotations update is successful")
+		}
+	}
+	return clone, err
 }
 
 func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass, secret *corev1.Secret) (machineutils.RetryPeriod, error) {
@@ -608,15 +613,11 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 			klog.Errorf("Cannot decode Driver error for machine %q: %s. Unexpected behaviour as Driver errors are expected to be of type status.Status", machine.Name, err)
 			return machineutils.LongRetry, err
 		}
-		klog.Errorf("Error occurred while initializing VM instance for machine %q: %s", machine.Name, err)
-		switch errStatus.Code() {
-		case codes.Unimplemented:
+		if errStatus.Code() == codes.Unimplemented {
 			klog.V(3).Infof("Provider does not support Driver.InitializeMachine - skipping VM instance initialization for %q.", machine.Name)
 			return 0, nil
-		case codes.NotFound:
-			klog.Warningf("No VM instance found for machine %q. Skipping VM instance initialization.", machine.Name)
-			return 0, nil
 		}
+		klog.Errorf("Error occurred while initializing VM instance for machine %q: %s", machine.Name, err)
 		updateRetryPeriod, updateErr := c.machineStatusUpdate(
 			ctx,
 			machine,
@@ -633,14 +634,11 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 			},
 			machine.Status.LastKnownState,
 		)
-
 		if updateErr != nil {
 			return updateRetryPeriod, updateErr
 		}
-
 		return machineutils.ShortRetry, err
 	}
-
 	klog.V(3).Infof("VM instance %q for machine %q was initialized", resp.ProviderID, machine.Name)
 	return 0, nil
 }
@@ -661,7 +659,7 @@ func (c *controller) triggerDeletionFlow(ctx context.Context, deleteMachineReque
 		return c.setMachineTerminationStatus(ctx, deleteMachineRequest)
 
 	case strings.Contains(machine.Status.LastOperation.Description, machineutils.GetVMStatus):
-		return c.getVMStatus(
+		return c.updateMachineStatusAndNodeLabel(
 			ctx,
 			&driver.GetMachineStatusRequest{
 				Machine:      deleteMachineRequest.Machine,
