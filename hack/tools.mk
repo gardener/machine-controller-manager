@@ -53,7 +53,7 @@ $(CONVERSION_GEN):
 	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install k8s.io/code-generator/cmd/conversion-gen@$(CODE_GENERATOR_VERSION)
 
 $(OPENAPI_GEN):
-	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install k8s.io/code-generator/cmd/openapi-gen@$(CODE_GENERATOR_VERSION)
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install k8s.io/kube-openapi/cmd/openapi-gen
 
 $(VGOPATH):
 	@if test -x $(TOOLS_BIN_DIR)/vgopath && ! $(TOOLS_BIN_DIR)/vgopath version | grep -q $(VGOPATH_VERSION); then \
