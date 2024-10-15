@@ -911,8 +911,8 @@ var _ = Describe("drain", func() {
 			pods = append(pods, getPodWithPV("foo", "bar", "exclusive", "", "", terminationGracePeriodDefault, nil, 1))
 
 			pvcs := getPVCs(pods)
-			addAll(pvcInformer, toListOfAny(pvcs)...)
-			addAll(pvInformer, toListOfAny(appendSuffixToVolumeHandles(getPVs(pvcs), "-id"))...)
+			addAll(pvcInformer, pvcs...)
+			addAll(pvInformer, appendSuffixToVolumeHandles(getPVs(pvcs), "-id")...)
 
 			podVolumeInfos := drain.getPodVolumeInfos(ctx, pods)
 			Expect(podVolumeInfos).To(HaveLen(1))
@@ -928,8 +928,8 @@ var _ = Describe("drain", func() {
 			pods = append(pods, getPodsWithPV(2, 2, 1, 1, "foo", "bar", "exclusive", "shared", "", terminationGracePeriodDefault, nil)...)
 
 			pvcs := getPVCs(pods)
-			addAll(pvcInformer, toListOfAny(pvcs)...)
-			addAll(pvInformer, toListOfAny(getPVs(pvcs))...)
+			addAll(pvcInformer, pvcs...)
+			addAll(pvInformer, getPVs(pvcs)...)
 
 			podVolumeInfos := drain.getPodVolumeInfos(ctx, pods)
 			Expect(podVolumeInfos).To(HaveLen(2))
@@ -947,7 +947,7 @@ var _ = Describe("drain", func() {
 			pods = append(pods, getPodWithPV("foo", "bar", "exclusive", "", "", terminationGracePeriodDefault, nil, 1))
 
 			pvcs := getPVCs(pods)
-			addAll(pvcInformer, toListOfAny(pvcs)...)
+			addAll(pvcInformer, pvcs...)
 
 			pvs := getPVs(pvcs)
 			pvs[0].Spec.CSI = nil
@@ -955,7 +955,7 @@ var _ = Describe("drain", func() {
 				Server: "my-nfs-server.example.com",
 				Path:   "/my-share",
 			}
-			addAll(pvInformer, toListOfAny(pvs)...)
+			addAll(pvInformer, pvs...)
 
 			podVolumeInfos := drain.getPodVolumeInfos(ctx, pods)
 			Expect(podVolumeInfos).To(HaveLen(1))
@@ -977,8 +977,7 @@ var _ = Describe("drain", func() {
 		It("should filter out non-existing persistent volumes", func() {
 			pods = append(pods, getPodWithPV("foo", "bar", "exclusive", "", "", terminationGracePeriodDefault, nil, 1))
 
-			pvcs := getPVCs(pods)
-			addAll(pvcInformer, toListOfAny(pvcs)...)
+			addAll(pvcInformer, getPVCs(pods)...)
 
 			podVolumeInfos := drain.getPodVolumeInfos(ctx, pods)
 			Expect(podVolumeInfos).To(HaveLen(1))
@@ -1299,20 +1298,12 @@ func matchPodVolumeIDs(matcher gomegatypes.GomegaMatcher) gomegatypes.GomegaMatc
 	})
 }
 
-func addAll(informer cache.SharedIndexInformer, objects ...any) {
+func addAll[T runtime.Object](informer cache.SharedIndexInformer, objects ...T) {
 	GinkgoHelper()
 
 	for _, object := range objects {
 		Expect(informer.GetStore().Add(object)).NotTo(HaveOccurred())
 	}
-}
-
-func toListOfAny[T any](objects []T) []any {
-	out := make([]any, len(objects))
-	for i := range objects {
-		out[i] = objects[i]
-	}
-	return out
 }
 
 func appendSuffixToVolumeHandles(pvs []*corev1.PersistentVolume, suffix string) []*corev1.PersistentVolume {
