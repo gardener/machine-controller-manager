@@ -13,19 +13,23 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gardener/machine-controller-manager/pkg/fakeclient"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gcustom"
+	gomegatypes "github.com/onsi/gomega/types"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	coreinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/gardener/machine-controller-manager/pkg/fakeclient"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 )
 
 var _ = Describe("drain", func() {
@@ -854,6 +858,134 @@ var _ = Describe("drain", func() {
 				minDrainDuration: terminationGracePeriodMedium,
 			}),
 	)
+
+	Describe("getPodVolumeInfos", func() {
+		var (
+			ctx context.Context
+
+			drain *Options
+
+			pvInformer, pvcInformer cache.SharedIndexInformer
+
+			pods []*corev1.Pod
+		)
+
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			kubeInformerFactory := coreinformers.NewSharedInformerFactory(nil, 0)
+
+			pvInformer = kubeInformerFactory.Core().V1().PersistentVolumes().Informer()
+			_ = pvInformer
+			pvcInformer = kubeInformerFactory.Core().V1().PersistentVolumeClaims().Informer()
+			_ = pvcInformer
+
+			drain = &Options{
+				ErrOut: GinkgoWriter,
+				Out:    GinkgoWriter,
+
+				Driver:    &drainDriver{},
+				pvLister:  kubeInformerFactory.Core().V1().PersistentVolumes().Lister(),
+				pvcLister: kubeInformerFactory.Core().V1().PersistentVolumeClaims().Lister(),
+			}
+
+			pods = []*corev1.Pod{}
+		})
+
+		It("should return empty map for empty pod list", func() {
+			Expect(drain.getPodVolumeInfos(ctx, pods)).To(BeEmpty())
+		})
+
+		It("should return empty volume list for pods without volumes", func() {
+			pods = append(pods, getPodsWithoutPV(2, "foo", "bar", "", terminationGracePeriodDefault, nil)...)
+
+			podVolumeInfos := drain.getPodVolumeInfos(ctx, pods)
+			Expect(podVolumeInfos).To(HaveLen(2))
+			Expect(podVolumeInfos).To(And(
+				HaveKeyWithValue("foo/bar0", matchPodPersistentVolumeNames(BeEmpty())),
+				HaveKeyWithValue("foo/bar1", matchPodPersistentVolumeNames(BeEmpty())),
+			))
+		})
+
+		It("should return list of exclusive volumes", func() {
+			pods = append(pods, getPodWithPV("foo", "bar", "exclusive", "", "", terminationGracePeriodDefault, nil, 1))
+
+			pvcs := getPVCs(pods)
+			addAll(pvcInformer, pvcs...)
+			addAll(pvInformer, appendSuffixToVolumeHandles(getPVs(pvcs), "-id")...)
+
+			podVolumeInfos := drain.getPodVolumeInfos(ctx, pods)
+			Expect(podVolumeInfos).To(HaveLen(1))
+			Expect(podVolumeInfos).To(HaveKeyWithValue(
+				"foo/bar", And(
+					matchPodPersistentVolumeNames(ConsistOf("exclusive-0")),
+					matchPodVolumeIDs(ConsistOf("exclusive-0-id")),
+				),
+			))
+		})
+
+		It("should filter out shared volumes", func() {
+			pods = append(pods, getPodsWithPV(2, 2, 1, 1, "foo", "bar", "exclusive", "shared", "", terminationGracePeriodDefault, nil)...)
+
+			pvcs := getPVCs(pods)
+			addAll(pvcInformer, pvcs...)
+			addAll(pvInformer, getPVs(pvcs)...)
+
+			podVolumeInfos := drain.getPodVolumeInfos(ctx, pods)
+			Expect(podVolumeInfos).To(HaveLen(2))
+			Expect(podVolumeInfos).To(And(
+				HaveKeyWithValue(
+					"foo/bar0", matchPodPersistentVolumeNames(ConsistOf("exclusive0-0")),
+				),
+				HaveKeyWithValue(
+					"foo/bar1", matchPodPersistentVolumeNames(ConsistOf("exclusive1-0")),
+				),
+			))
+		})
+
+		It("should filter out provider-unrelated volumes", func() {
+			pods = append(pods, getPodWithPV("foo", "bar", "exclusive", "", "", terminationGracePeriodDefault, nil, 1))
+
+			pvcs := getPVCs(pods)
+			addAll(pvcInformer, pvcs...)
+
+			pvs := getPVs(pvcs)
+			pvs[0].Spec.CSI = nil
+			pvs[0].Spec.NFS = &corev1.NFSVolumeSource{
+				Server: "my-nfs-server.example.com",
+				Path:   "/my-share",
+			}
+			addAll(pvInformer, pvs...)
+
+			podVolumeInfos := drain.getPodVolumeInfos(ctx, pods)
+			Expect(podVolumeInfos).To(HaveLen(1))
+			Expect(podVolumeInfos).To(HaveKeyWithValue(
+				"foo/bar", matchPodPersistentVolumeNames(BeEmpty()),
+			))
+		})
+
+		It("should filter out non-existing PVCs", func() {
+			pods = append(pods, getPodWithPV("foo", "bar", "exclusive", "", "", terminationGracePeriodDefault, nil, 1))
+
+			podVolumeInfos := drain.getPodVolumeInfos(ctx, pods)
+			Expect(podVolumeInfos).To(HaveLen(1))
+			Expect(podVolumeInfos).To(HaveKeyWithValue(
+				"foo/bar", matchPodPersistentVolumeNames(BeEmpty()),
+			))
+		})
+
+		It("should filter out non-existing persistent volumes", func() {
+			pods = append(pods, getPodWithPV("foo", "bar", "exclusive", "", "", terminationGracePeriodDefault, nil, 1))
+
+			addAll(pvcInformer, getPVCs(pods)...)
+
+			podVolumeInfos := drain.getPodVolumeInfos(ctx, pods)
+			Expect(podVolumeInfos).To(HaveLen(1))
+			Expect(podVolumeInfos).To(HaveKeyWithValue(
+				"foo/bar", matchPodPersistentVolumeNames(BeEmpty()),
+			))
+		})
+	})
 })
 
 func getPodWithoutPV(ns, name, nodeName string, terminationGracePeriod time.Duration, labels map[string]string) *corev1.Pod {
@@ -1053,10 +1185,15 @@ type drainDriver struct {
 }
 
 func (d *drainDriver) GetVolumeIDs(_ context.Context, req *driver.GetVolumeIDsRequest) (*driver.GetVolumeIDsResponse, error) {
-	volNames := make([]string, len(req.PVSpecs))
-	for i := range req.PVSpecs {
-		volNames[i] = getDrainTestVolumeName(req.PVSpecs[i])
+	volNames := make([]string, 0, len(req.PVSpecs))
+
+	for _, spec := range req.PVSpecs {
+		// real drivers filter volumes in GetVolumeIDs and only return IDs of provider-related volumes
+		if volumeName := getDrainTestVolumeName(spec); volumeName != "" {
+			volNames = append(volNames, volumeName)
+		}
 	}
+
 	return &driver.GetVolumeIDsResponse{
 		VolumeIDs: volNames,
 	}, nil
@@ -1145,4 +1282,33 @@ func updateVolumeAttachments(drainOptions *Options, pvName string, nodeName stri
 	Expect(err).To(BeNil())
 
 	drainOptions.volumeAttachmentHandler.AddVolumeAttachment(newVolumeAttachment)
+}
+
+// matchPodPersistentVolumeNames applies the given matcher to the result of PodVolumeInfo.PersistentVolumeNames().
+func matchPodPersistentVolumeNames(matcher gomegatypes.GomegaMatcher) gomegatypes.GomegaMatcher {
+	return gcustom.MakeMatcher(func(actual PodVolumeInfo) (bool, error) {
+		return matcher.Match(actual.PersistentVolumeNames())
+	})
+}
+
+// matchPodVolumeIDs applies the given matcher to the result of PodVolumeInfo.VolumeIDs().
+func matchPodVolumeIDs(matcher gomegatypes.GomegaMatcher) gomegatypes.GomegaMatcher {
+	return gcustom.MakeMatcher(func(actual PodVolumeInfo) (bool, error) {
+		return matcher.Match(actual.VolumeIDs())
+	})
+}
+
+func addAll[T runtime.Object](informer cache.SharedIndexInformer, objects ...T) {
+	GinkgoHelper()
+
+	for _, object := range objects {
+		Expect(informer.GetStore().Add(object)).NotTo(HaveOccurred())
+	}
+}
+
+func appendSuffixToVolumeHandles(pvs []*corev1.PersistentVolume, suffix string) []*corev1.PersistentVolume {
+	for _, pv := range pvs {
+		pv.Spec.CSI.VolumeHandle += suffix
+	}
+	return pvs
 }
