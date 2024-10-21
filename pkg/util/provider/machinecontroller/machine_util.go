@@ -1175,7 +1175,9 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				c.pvLister,
 				c.pdbLister,
 				c.nodeLister,
+				c.podLister,
 				c.volumeAttachmentHandler,
+				c.podSynced,
 			)
 			klog.V(3).Infof("(drainNode) Invoking RunDrain, forceDeleteMachine: %t, forceDeletePods: %t, timeOutDuration: %s", forceDeletePods, forceDeleteMachine, timeOutDuration)
 			err = drainOptions.RunDrain(ctx)

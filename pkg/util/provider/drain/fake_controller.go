@@ -24,6 +24,8 @@ func createFakeController(
 	corelisters.PersistentVolumeLister,
 	corelisters.PersistentVolumeClaimLister,
 	corelisters.NodeLister,
+	corelisters.PodLister,
+	func() bool,
 	func() bool,
 	func() bool,
 	func() bool,
@@ -45,14 +47,17 @@ func createFakeController(
 	pvcs := coreTargetSharedInformers.PersistentVolumeClaims()
 	pvs := coreTargetSharedInformers.PersistentVolumes()
 	nodes := coreTargetSharedInformers.Nodes()
+	pods := coreTargetSharedInformers.Pods()
 
 	pvcLister := pvcs.Lister()
 	pvLister := pvs.Lister()
 	nodeLister := nodes.Lister()
+	podLister := pods.Lister()
 
 	pvcSynced := pvcs.Informer().HasSynced
 	pvSynced := pvs.Informer().HasSynced
 	nodeSynced := nodes.Informer().HasSynced
+	podSynced := pods.Informer().HasSynced
 
-	return fakeTargetCoreClient, pvLister, pvcLister, nodeLister, pvcSynced, pvSynced, nodeSynced, targetCoreObjectTracker
+	return fakeTargetCoreClient, pvLister, pvcLister, nodeLister, podLister, pvcSynced, pvSynced, nodeSynced, podSynced, targetCoreObjectTracker
 }
