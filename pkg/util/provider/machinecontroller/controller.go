@@ -31,13 +31,11 @@ import (
 	runtimeutil "k8s.io/apimachinery/pkg/util/runtime"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	policyv1informers "k8s.io/client-go/informers/policy/v1"
-	policyv1beta1informers "k8s.io/client-go/informers/policy/v1beta1"
 	storageinformers "k8s.io/client-go/informers/storage/v1"
 	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	policyv1listers "k8s.io/client-go/listers/policy/v1"
-	policyv1beta1listers "k8s.io/client-go/listers/policy/v1beta1"
 	storagelisters "k8s.io/client-go/listers/storage/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -67,8 +65,7 @@ func NewController(
 	pvInformer coreinformers.PersistentVolumeInformer,
 	secretInformer coreinformers.SecretInformer,
 	nodeInformer coreinformers.NodeInformer,
-	pdbV1beta1Informer policyv1beta1informers.PodDisruptionBudgetInformer,
-	pdbV1Informer policyv1informers.PodDisruptionBudgetInformer,
+	pdbInformer policyv1informers.PodDisruptionBudgetInformer,
 	volumeAttachmentInformer storageinformers.VolumeAttachmentInformer,
 	machineClassInformer machineinformers.MachineClassInformer,
 	machineInformer machineinformers.MachineInformer,
@@ -137,13 +134,8 @@ func NewController(
 	controller.nodeSynced = nodeInformer.Informer().HasSynced
 	controller.machineSynced = machineInformer.Informer().HasSynced
 
-	if k8sutils.ConstraintK8sGreaterEqual121.Check(targetKubernetesVersion) {
-		controller.pdbV1Lister = pdbV1Informer.Lister()
-		controller.pdbV1Synced = pdbV1Informer.Informer().HasSynced
-	} else {
-		controller.pdbV1beta1Lister = pdbV1beta1Informer.Lister()
-		controller.pdbV1beta1Synced = pdbV1beta1Informer.Informer().HasSynced
-	}
+	controller.pdbLister = pdbInformer.Lister()
+	controller.pdbSynced = pdbInformer.Informer().HasSynced
 
 	// Secret Controller's Informers
 	_, _ = secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -248,8 +240,7 @@ type controller struct {
 	pvLister                corelisters.PersistentVolumeLister
 	secretLister            corelisters.SecretLister
 	nodeLister              corelisters.NodeLister
-	pdbV1beta1Lister        policyv1beta1listers.PodDisruptionBudgetLister
-	pdbV1Lister             policyv1listers.PodDisruptionBudgetLister
+	pdbLister               policyv1listers.PodDisruptionBudgetLister
 	volumeAttachementLister storagelisters.VolumeAttachmentLister
 	machineClassLister      machinelisters.MachineClassLister
 	machineLister           machinelisters.MachineLister
@@ -264,8 +255,7 @@ type controller struct {
 	pvcSynced               cache.InformerSynced
 	pvSynced                cache.InformerSynced
 	secretSynced            cache.InformerSynced
-	pdbV1beta1Synced        cache.InformerSynced
-	pdbV1Synced             cache.InformerSynced
+	pdbSynced               cache.InformerSynced
 	volumeAttachementSynced cache.InformerSynced
 	nodeSynced              cache.InformerSynced
 	machineClassSynced      cache.InformerSynced
@@ -288,12 +278,12 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer c.machineSafetyAPIServerQueue.ShutDown()
 
 	if k8sutils.ConstraintK8sGreaterEqual121.Check(c.targetKubernetesVersion) {
-		if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.pvcSynced, c.pvSynced, c.pdbV1Synced, c.volumeAttachementSynced, c.nodeSynced, c.machineClassSynced, c.machineSynced) {
+		if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.pvcSynced, c.pvSynced, c.pdbSynced, c.volumeAttachementSynced, c.nodeSynced, c.machineClassSynced, c.machineSynced) {
 			runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 			return
 		}
 	} else {
-		if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.pvcSynced, c.pvSynced, c.pdbV1beta1Synced, c.volumeAttachementSynced, c.nodeSynced, c.machineClassSynced, c.machineSynced) {
+		if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.pvcSynced, c.pvSynced, c.volumeAttachementSynced, c.nodeSynced, c.machineClassSynced, c.machineSynced) {
 			runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 			return
 		}
