@@ -27,6 +27,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/tools/cache"
 	"regexp"
 	"sort"
 	"strings"
@@ -39,7 +41,6 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -72,8 +73,10 @@ type Options struct {
 	pvLister                     corelisters.PersistentVolumeLister
 	pdbLister                    policyv1listers.PodDisruptionBudgetLister
 	nodeLister                   corelisters.NodeLister
+	podLister                    corelisters.PodLister
 	volumeAttachmentHandler      *VolumeAttachmentHandler
 	Timeout                      time.Duration
+	podSynced                    cache.InformerSynced
 }
 
 // Takes a pod and returns a bool indicating whether or not to operate on the
@@ -181,7 +184,9 @@ func NewDrainOptions(
 	pvLister corelisters.PersistentVolumeLister,
 	pdbLister policyv1listers.PodDisruptionBudgetLister,
 	nodeLister corelisters.NodeLister,
+	podLister corelisters.PodLister,
 	volumeAttachmentHandler *VolumeAttachmentHandler,
+	podSynced cache.InformerSynced,
 ) *Options {
 	return &Options{
 		client:                       client,
@@ -203,7 +208,9 @@ func NewDrainOptions(
 		pvLister:                     pvLister,
 		pdbLister:                    pdbLister,
 		nodeLister:                   nodeLister,
+		podLister:                    podLister,
 		volumeAttachmentHandler:      volumeAttachmentHandler,
+		podSynced:                    podSynced,
 	}
 }
 
@@ -232,20 +239,26 @@ func (o *Options) RunDrain(ctx context.Context) error {
 		klog.Errorf("Drain Error: Cordoning of node failed with error: %v", err)
 		return err
 	}
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+	if !cache.WaitForCacheSync(stopCh, o.podSynced) {
+		err := fmt.Errorf("timed out waiting for pod cache to sync")
+		return err
+	}
 
 	err := o.deleteOrEvictPodsSimple(drainContext)
 	return err
 }
 
 func (o *Options) deleteOrEvictPodsSimple(ctx context.Context) error {
-	pods, err := o.getPodsForDeletion(ctx)
+	pods, err := o.getPodsForDeletion()
 	if err != nil {
 		return err
 	}
 
 	err = o.deleteOrEvictPods(ctx, pods)
 	if err != nil {
-		pendingPods, newErr := o.getPodsForDeletion(ctx)
+		pendingPods, newErr := o.getPodsForDeletion()
 		if newErr != nil {
 			return newErr
 		}
@@ -337,31 +350,34 @@ func (ps podStatuses) Message() string {
 
 // getPodsForDeletion returns all the pods we're going to delete.  If there are
 // any pods preventing us from deleting, we return that list in an error.
-func (o *Options) getPodsForDeletion(ctx context.Context) (pods []corev1.Pod, err error) {
-	podList, err := o.client.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
-		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": o.nodeName}).String()})
+func (o *Options) getPodsForDeletion() (pods []corev1.Pod, err error) {
+	podList, err := o.podLister.List(labels.Everything())
 	if err != nil {
-		return pods, err
+		return nil, err
 	}
-
+	if len(podList) == 0 {
+		klog.Infof("no pods found in store")
+		return
+	}
 	ws := podStatuses{}
 	fs := podStatuses{}
 
-	for _, pod := range podList.Items {
-		podOk := true
-		for _, filt := range []podFilter{mirrorPodFilter, o.localStorageFilter, o.unreplicatedFilter, o.daemonsetFilter} {
-			filterOk, w, f := filt(pod)
-
-			podOk = podOk && filterOk
-			if w != nil {
-				ws[w.string] = append(ws[w.string], pod.Name)
+	for _, pod := range podList {
+		if pod.Spec.NodeName == o.nodeName {
+			podOk := true
+			for _, filt := range []podFilter{mirrorPodFilter, o.localStorageFilter, o.unreplicatedFilter, o.daemonsetFilter} {
+				filterOk, w, f := filt(*pod)
+				podOk = podOk && filterOk
+				if w != nil {
+					ws[w.string] = append(ws[w.string], pod.Name)
+				}
+				if f != nil {
+					fs[f.string] = append(fs[f.string], pod.Name)
+				}
 			}
-			if f != nil {
-				fs[f.string] = append(fs[f.string], pod.Name)
+			if podOk {
+				pods = append(pods, *pod)
 			}
-		}
-		if podOk {
-			pods = append(pods, pod)
 		}
 	}
 
