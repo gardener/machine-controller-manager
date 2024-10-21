@@ -37,7 +37,6 @@ import (
 	machineinformers "github.com/gardener/machine-controller-manager/pkg/client/informers/externalversions"
 	coreclientbuilder "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/core"
 	machineclientbuilder "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/machine"
-	"github.com/gardener/machine-controller-manager/pkg/util/k8sutils"
 	machinecontroller "github.com/gardener/machine-controller-manager/pkg/util/provider/machinecontroller"
 	coreinformers "k8s.io/client-go/informers"
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
@@ -52,8 +51,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
-	policyv1informers "k8s.io/client-go/informers/policy/v1"
-	policyv1beta1informers "k8s.io/client-go/informers/policy/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/pkg/version"
@@ -262,16 +259,7 @@ func StartControllers(s *options.MCServer,
 		s.MinResyncPeriod.Duration,
 	)
 
-	var (
-		pdbV1Informer      policyv1informers.PodDisruptionBudgetInformer
-		pdbV1beta1Informer policyv1beta1informers.PodDisruptionBudgetInformer
-	)
-
-	if k8sutils.ConstraintK8sGreaterEqual121.Check(targetKubernetesVersion) {
-		pdbV1Informer = targetCoreInformerFactory.Policy().V1().PodDisruptionBudgets()
-	} else {
-		pdbV1beta1Informer = targetCoreInformerFactory.Policy().V1beta1().PodDisruptionBudgets()
-	}
+	pdbInformer := targetCoreInformerFactory.Policy().V1().PodDisruptionBudgets()
 
 	// All shared informers are v1alpha1 API level
 	machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
@@ -287,8 +275,7 @@ func StartControllers(s *options.MCServer,
 		targetCoreInformerFactory.Core().V1().PersistentVolumes(),
 		controlCoreInformerFactory.Core().V1().Secrets(),
 		targetCoreInformerFactory.Core().V1().Nodes(),
-		pdbV1beta1Informer,
-		pdbV1Informer,
+		pdbInformer,
 		targetCoreInformerFactory.Storage().V1().VolumeAttachments(),
 		machineSharedInformers.MachineClasses(),
 		machineSharedInformers.Machines(),

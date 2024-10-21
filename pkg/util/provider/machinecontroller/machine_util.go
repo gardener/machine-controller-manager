@@ -1173,8 +1173,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				c.driver,
 				c.pvcLister,
 				c.pvLister,
-				c.pdbV1beta1Lister,
-				c.pdbV1Lister,
+				c.pdbLister,
 				c.nodeLister,
 				c.volumeAttachmentHandler,
 			)
