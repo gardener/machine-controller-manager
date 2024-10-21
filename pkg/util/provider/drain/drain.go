@@ -502,17 +502,17 @@ func (o *Options) evictPods(ctx context.Context, attemptEvict bool, pods []corev
 	}
 
 	doneCount := 0
-	var errors []error
+	var evictErrors []error
 
 	numPods := len(pods)
 	for doneCount < numPods {
 		err := <-returnCh
 		doneCount++
 		if err != nil {
-			errors = append(errors, err)
+			evictErrors = append(evictErrors, err)
 		}
 	}
-	return utilerrors.NewAggregate(errors)
+	return utilerrors.NewAggregate(evictErrors)
 }
 
 func (o *Options) evictPodsWithoutPv(ctx context.Context, attemptEvict bool, pods []*corev1.Pod,
@@ -771,8 +771,8 @@ func (o *Options) evictPodsWithPVInternal(
 		)
 
 		podVolumeInfo := podVolumeInfoMap[getPodKey(pod)]
-		ctx, cancelFn := context.WithTimeout(ctx, o.getTerminationGracePeriod(pod)+o.PvDetachTimeout)
-		err = o.waitForDetach(ctx, podVolumeInfo, o.nodeName)
+		volDetachCtx, cancelFn := context.WithTimeout(ctx, o.getTerminationGracePeriod(pod)+o.PvDetachTimeout)
+		err = o.waitForDetach(volDetachCtx, podVolumeInfo, o.nodeName)
 		cancelFn()
 
 		if apierrors.IsNotFound(err) {
@@ -794,8 +794,8 @@ func (o *Options) evictPodsWithPVInternal(
 			time.Since(podEvictionStartTime),
 		)
 
-		ctx, cancelFn = context.WithTimeout(ctx, o.PvReattachTimeout)
-		err = o.waitForReattach(ctx, podVolumeInfo, o.nodeName, volumeAttachmentEventCh)
+		volReattachCtx, cancelFn := context.WithTimeout(ctx, o.PvReattachTimeout)
+		err = o.waitForReattach(volReattachCtx, podVolumeInfo, o.nodeName, volumeAttachmentEventCh)
 		cancelFn()
 
 		if err != nil {
@@ -1086,11 +1086,7 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 
 	if o.ForceDeletePods {
 		// Skip waiting for pod termination in case of forced drain
-		if err == nil {
-			returnCh <- nil
-		} else {
-			returnCh <- err
-		}
+		returnCh <- nil
 		return
 	}
 
