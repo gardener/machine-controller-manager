@@ -239,9 +239,7 @@ func (o *Options) RunDrain(ctx context.Context) error {
 		klog.Errorf("Drain Error: Cordoning of node failed with error: %v", err)
 		return err
 	}
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-	if !cache.WaitForCacheSync(stopCh, o.podSynced) {
+	if !cache.WaitForCacheSync(drainContext.Done(), o.podSynced) {
 		err := fmt.Errorf("timed out waiting for pod cache to sync")
 		return err
 	}
@@ -353,7 +351,7 @@ func (ps podStatuses) Message() string {
 func (o *Options) getPodsForDeletion() (pods []corev1.Pod, err error) {
 	podList, err := o.podLister.List(labels.Everything())
 	if err != nil {
-		return nil, err
+		return
 	}
 	if len(podList) == 0 {
 		klog.Infof("no pods found in store")
@@ -363,21 +361,22 @@ func (o *Options) getPodsForDeletion() (pods []corev1.Pod, err error) {
 	fs := podStatuses{}
 
 	for _, pod := range podList {
-		if pod.Spec.NodeName == o.nodeName {
-			podOk := true
-			for _, filt := range []podFilter{mirrorPodFilter, o.localStorageFilter, o.unreplicatedFilter, o.daemonsetFilter} {
-				filterOk, w, f := filt(*pod)
-				podOk = podOk && filterOk
-				if w != nil {
-					ws[w.string] = append(ws[w.string], pod.Name)
-				}
-				if f != nil {
-					fs[f.string] = append(fs[f.string], pod.Name)
-				}
+		if pod.Spec.NodeName != o.nodeName {
+			continue
+		}
+		podOk := true
+		for _, filt := range []podFilter{mirrorPodFilter, o.localStorageFilter, o.unreplicatedFilter, o.daemonsetFilter} {
+			filterOk, w, f := filt(*pod)
+			podOk = podOk && filterOk
+			if w != nil {
+				ws[w.string] = append(ws[w.string], pod.Name)
 			}
-			if podOk {
-				pods = append(pods, *pod)
+			if f != nil {
+				fs[f.string] = append(fs[f.string], pod.Name)
 			}
+		}
+		if podOk {
+			pods = append(pods, *pod)
 		}
 	}
 
