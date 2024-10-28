@@ -65,6 +65,7 @@ func NewController(
 	pvInformer coreinformers.PersistentVolumeInformer,
 	secretInformer coreinformers.SecretInformer,
 	nodeInformer coreinformers.NodeInformer,
+	podInformer coreinformers.PodInformer,
 	pdbInformer policyv1informers.PodDisruptionBudgetInformer,
 	volumeAttachmentInformer storageinformers.VolumeAttachmentInformer,
 	machineClassInformer machineinformers.MachineClassInformer,
@@ -124,6 +125,7 @@ func NewController(
 	controller.machineClassLister = machineClassInformer.Lister()
 	controller.nodeLister = nodeInformer.Lister()
 	controller.machineLister = machineInformer.Lister()
+	controller.podLister = podInformer.Lister()
 
 	// Controller syncs
 	controller.pvcSynced = pvcInformer.Informer().HasSynced
@@ -133,6 +135,7 @@ func NewController(
 	controller.machineClassSynced = machineClassInformer.Informer().HasSynced
 	controller.nodeSynced = nodeInformer.Informer().HasSynced
 	controller.machineSynced = machineInformer.Informer().HasSynced
+	controller.podSynced = podInformer.Informer().HasSynced
 
 	controller.pdbLister = pdbInformer.Lister()
 	controller.pdbSynced = pdbInformer.Informer().HasSynced
@@ -244,6 +247,7 @@ type controller struct {
 	volumeAttachementLister storagelisters.VolumeAttachmentLister
 	machineClassLister      machinelisters.MachineClassLister
 	machineLister           machinelisters.MachineLister
+	podLister               corelisters.PodLister
 	// queues
 	secretQueue                 workqueue.RateLimitingInterface
 	nodeQueue                   workqueue.RateLimitingInterface
@@ -260,6 +264,7 @@ type controller struct {
 	nodeSynced              cache.InformerSynced
 	machineClassSynced      cache.InformerSynced
 	machineSynced           cache.InformerSynced
+	podSynced               cache.InformerSynced
 }
 
 func (c *controller) Run(workers int, stopCh <-chan struct{}) {

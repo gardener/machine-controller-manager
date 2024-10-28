@@ -539,6 +539,7 @@ func createController(
 	nodes := coreTargetSharedInformers.Nodes()
 	pvcs := coreTargetSharedInformers.PersistentVolumeClaims()
 	pvs := coreTargetSharedInformers.PersistentVolumes()
+	pods := coreTargetSharedInformers.Pods()
 
 	coreControlInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
 		fakeControlCoreClient,
@@ -593,9 +594,11 @@ func createController(
 		secretLister:                secrets.Lister(),
 		pvLister:                    pvs.Lister(),
 		machineLister:               machines.Lister(),
+		podLister:                   pods.Lister(),
 		machineSynced:               machines.Informer().HasSynced,
 		nodeSynced:                  nodes.Informer().HasSynced,
 		secretSynced:                secrets.Informer().HasSynced,
+		podSynced:                   pods.Informer().HasSynced,
 		machineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineclass"),
 		secretQueue:                 workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
 		nodeQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
