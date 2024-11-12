@@ -25,15 +25,17 @@ import (
 )
 
 const (
-	bootstrapTokenPlaceholder = "<<BOOTSTRAP_TOKEN>>"
-	machineNamePlaceholder    = "<<MACHINE_NAME>>"
+	// BootstrapTokenPlaceholder is a placeholder that can be used in userdata to be replaced with the actual bootstrap token.
+	BootstrapTokenPlaceholder = "<<BOOTSTRAP_TOKEN>>"
+	// MachineNamePlaceholder is a placeholder that can be used in userdata to be replaced with the actual machine name.
+	MachineNamePlaceholder = "<<MACHINE_NAME>>"
 )
 
 var (
-	// urlEncodedBootstrapTokenPlaceholder is a bootstrapTokenPlaceholder that can for instance occur in ignition userdata format
-	urlEncodedBootstrapTokenPlaceholder = url.QueryEscape(bootstrapTokenPlaceholder)
-	// urlEncodedMachineNamePlaceholder is a machineNamePlaceholder that can for instance occur in ignition userdata format
-	urlEncodedMachineNamePlaceholder = url.QueryEscape(machineNamePlaceholder)
+	// urlEncodedBootstrapTokenPlaceholder is a BootstrapTokenPlaceholder that can for instance occur in ignition userdata format
+	urlEncodedBootstrapTokenPlaceholder = url.QueryEscape(BootstrapTokenPlaceholder)
+	// urlEncodedMachineNamePlaceholder is a MachineNamePlaceholder that can for instance occur in ignition userdata format
+	urlEncodedMachineNamePlaceholder = url.QueryEscape(MachineNamePlaceholder)
 )
 
 func (c *controller) addBootstrapTokenToUserData(ctx context.Context, machine *v1alpha1.Machine, secret *corev1.Secret) error {
@@ -59,9 +61,9 @@ func (c *controller) addBootstrapTokenToUserData(ctx context.Context, machine *v
 		string(bootstrapTokenSecret.Data[bootstraptokenapi.BootstrapTokenSecretKey]),
 	)
 
-	if strings.Contains(userDataS, bootstrapTokenPlaceholder) {
-		klog.V(4).Infof("replacing placeholder %s with %s in user-data!", bootstrapTokenPlaceholder, token)
-		userDataS = strings.ReplaceAll(userDataS, bootstrapTokenPlaceholder, token)
+	if strings.Contains(userDataS, BootstrapTokenPlaceholder) {
+		klog.V(4).Infof("replacing placeholder %s with %s in user-data!", BootstrapTokenPlaceholder, token)
+		userDataS = strings.ReplaceAll(userDataS, BootstrapTokenPlaceholder, token)
 	} else if strings.Contains(userDataS, urlEncodedBootstrapTokenPlaceholder) {
 		klog.V(4).Infof("replacing url encoded placeholder %s with %s in user-data!", urlEncodedBootstrapTokenPlaceholder, url.QueryEscape(token))
 		userDataS = strings.ReplaceAll(userDataS, urlEncodedBootstrapTokenPlaceholder, url.QueryEscape(token))
@@ -87,9 +89,9 @@ func (c *controller) addMachineNameToUserData(machine *v1alpha1.Machine, secret 
 	}
 	userDataS = string(userDataB)
 
-	if strings.Contains(userDataS, machineNamePlaceholder) {
-		klog.V(4).Infof("replacing placeholder %s with %s in user-data!", machineNamePlaceholder, machine.Name)
-		userDataS = strings.ReplaceAll(userDataS, machineNamePlaceholder, machine.Name)
+	if strings.Contains(userDataS, MachineNamePlaceholder) {
+		klog.V(4).Infof("replacing placeholder %s with %s in user-data!", MachineNamePlaceholder, machine.Name)
+		userDataS = strings.ReplaceAll(userDataS, MachineNamePlaceholder, machine.Name)
 	} else if strings.Contains(userDataS, urlEncodedMachineNamePlaceholder) {
 		klog.V(4).Infof("replacing url encoded placeholder %s with %s in user-data!", urlEncodedMachineNamePlaceholder, url.QueryEscape(machine.Name))
 		userDataS = strings.ReplaceAll(userDataS, urlEncodedMachineNamePlaceholder, url.QueryEscape(machine.Name))
