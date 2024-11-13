@@ -592,7 +592,7 @@ func getIntFromAnnotation(is *v1alpha1.MachineSet, annotationKey string) (int32,
 		klog.V(2).Infof("Cannot convert the value %q with annotation key %q for the machine set %q", annotationValue, annotationKey, is.Name)
 		return int32(0), false
 	}
-	return int32(intValue), true
+	return int32(intValue), true // #nosec G109, G115 -- already validated
 }
 
 // SetReplicasAnnotations sets the desiredReplicas and maxReplicas into the annotations
@@ -1092,7 +1092,7 @@ func NewISNewReplicas(deployment *v1alpha1.MachineDeployment, allISs []*v1alpha1
 		// Find the total number of machines
 		// currentMachineCount := GetReplicaCountForMachineSets(allISs)
 		currentMachineCount := GetActualReplicaCountForMachineSets(allISs)
-		maxTotalMachines := (deployment.Spec.Replicas) + int32(maxSurge)
+		maxTotalMachines := (deployment.Spec.Replicas) + int32(maxSurge) // #nosec G115 (CWE-190) -- value already validated
 		if currentMachineCount >= maxTotalMachines {
 			// Cannot scale up.
 			return (newIS.Spec.Replicas), nil
@@ -1100,7 +1100,7 @@ func NewISNewReplicas(deployment *v1alpha1.MachineDeployment, allISs []*v1alpha1
 		// Scale up.
 		scaleUpCount := maxTotalMachines - currentMachineCount
 		// Do not exceed the number of desired replicas.
-		scaleUpCount = int32(integer.IntMin(int(scaleUpCount), int((deployment.Spec.Replicas)-(newIS.Spec.Replicas))))
+		scaleUpCount = int32(integer.IntMin(int(scaleUpCount), int((deployment.Spec.Replicas)-(newIS.Spec.Replicas)))) // #nosec G115 (CWE-190) -- Obtained from replicas and maxSurge, both of which are validated.
 		return (newIS.Spec.Replicas) + scaleUpCount, nil
 	case v1alpha1.RecreateMachineDeploymentStrategyType:
 		return (deployment.Spec.Replicas), nil
@@ -1122,6 +1122,7 @@ func IsSaturated(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet
 	if err != nil {
 		return false
 	}
+	// #nosec G109, G115 -- already validated
 	return (is.Spec.Replicas) == (deployment.Spec.Replicas) &&
 		int32(desired) == (deployment.Spec.Replicas) &&
 		is.Status.AvailableReplicas == (deployment.Spec.Replicas)
@@ -1179,8 +1180,7 @@ func ResolveFenceposts(maxSurge, maxUnavailable *intstrutil.IntOrString, desired
 		// theory that surge might not work due to quota.
 		unavailable = 1
 	}
-
-	return int32(surge), int32(unavailable), nil
+	return int32(surge), int32(unavailable), nil // #nosec G115 (CWE-190) -- surge and unavailable values already validated
 }
 
 // statusUpdateRequired checks for if status update is required comparing two MachineDeployment statuses

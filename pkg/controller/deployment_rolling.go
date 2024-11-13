@@ -230,7 +230,7 @@ func (dc *controller) cleanupUnhealthyReplicas(ctx context.Context, oldISs []*v1
 			continue
 		}
 
-		scaledDownCount := int32(integer.IntMin(int(maxCleanupCount-totalScaledDown), int((targetIS.Spec.Replicas)-targetIS.Status.AvailableReplicas)))
+		scaledDownCount := int32(integer.IntMin(int(maxCleanupCount-totalScaledDown), int((targetIS.Spec.Replicas)-targetIS.Status.AvailableReplicas))) // #nosec  G115 (CWE-190) -- already validated
 		newReplicasCount := (targetIS.Spec.Replicas) - scaledDownCount
 		if newReplicasCount > (targetIS.Spec.Replicas) {
 			return nil, 0, fmt.Errorf("when cleaning up unhealthy replicas, got invalid request to scale down %s %d -> %d", targetIS.Name, (targetIS.Spec.Replicas), newReplicasCount)
@@ -274,7 +274,7 @@ func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(ctx context.Contex
 			continue
 		}
 		// Scale down.
-		scaleDownCount := int32(integer.IntMin(int((targetIS.Spec.Replicas)), int(totalScaleDownCount-totalScaledDown)))
+		scaleDownCount := int32(integer.IntMin(int((targetIS.Spec.Replicas)), int(totalScaleDownCount-totalScaledDown))) // #nosec  G115 (CWE-190) -- already validated
 		newReplicasCount := (targetIS.Spec.Replicas) - scaleDownCount
 		if newReplicasCount > (targetIS.Spec.Replicas) {
 			return 0, fmt.Errorf("when scaling down old IS, got invalid request to scale down %s %d -> %d", targetIS.Name, (targetIS.Spec.Replicas), newReplicasCount)

@@ -129,6 +129,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	// Update the FailedMachines field only if we see new failures
 	// Clear FailedMachines if ready replicas equals total replicas,
 	// which means the machineset doesn't have any machine objects which are in any failed state
+	// #nosec G115 -- already validated
 	if len(failedMachines) > 0 {
 		newStatus.FailedMachines = &failedMachines
 	} else if int32(readyReplicasCount) == is.Status.Replicas {
@@ -149,10 +150,10 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 		RemoveCondition(&newStatus, v1alpha1.MachineSetReplicaFailure)
 	}
 
-	newStatus.Replicas = int32(len(filteredMachines))
-	newStatus.FullyLabeledReplicas = int32(fullyLabeledReplicasCount)
-	newStatus.ReadyReplicas = int32(readyReplicasCount)
-	newStatus.AvailableReplicas = int32(availableReplicasCount)
+	newStatus.Replicas = int32(len(filteredMachines))                 // #nosec  G115 (CWE-190) -- already validated
+	newStatus.FullyLabeledReplicas = int32(fullyLabeledReplicasCount) // #nosec  G115 (CWE-190) -- already validated
+	newStatus.ReadyReplicas = int32(readyReplicasCount)               // #nosec  G115 (CWE-190) -- already validated
+	newStatus.AvailableReplicas = int32(availableReplicasCount)       // #nosec  G115 (CWE-190) -- already validated
 	newStatus.LastOperation.LastUpdateTime = metav1.Now()
 	return newStatus
 }

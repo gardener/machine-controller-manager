@@ -23,6 +23,7 @@ package hash
 
 import (
 	"hash"
+	"k8s.io/klog/v2"
 
 	"github.com/davecgh/go-spew/spew"
 )
@@ -38,5 +39,8 @@ func DeepHashObject(hasher hash.Hash, objectToWrite interface{}) {
 		DisableMethods: true,
 		SpewKeys:       true,
 	}
-	printer.Fprintf(hasher, "%#v", objectToWrite)
+	_, err := printer.Fprintf(hasher, "%#v", objectToWrite)
+	if err != nil {
+		klog.Warningf("Failed to hash object: %v", err)
+	}
 }

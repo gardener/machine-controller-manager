@@ -170,7 +170,16 @@ generate: $(VGOPATH) $(DEEPCOPY_GEN) $(DEFAULTER_GEN) $(CONVERSION_GEN) $(OPENAP
 	@./hack/generate-code
 	@./hack/api-reference/generate-spec-doc.sh
 
-
 .PHONY: add-license-headers
 add-license-headers: $(GO_ADD_LICENSE)
 	@./hack/add_license_headers.sh
+
+.PHONY: sast
+sast: $(GOSEC)
+	@chmod +xw hack/sast.sh
+	@./hack/sast.sh
+
+.PHONY: sast-report
+sast-report:$(GOSEC)
+	@chmod +xw hack/sast.sh
+	@./hack/sast.sh --gosec-report true

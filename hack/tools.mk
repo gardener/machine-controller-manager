@@ -16,6 +16,7 @@ GEN_CRD_API_REFERENCE_DOCS ?= $(TOOLS_BIN_DIR)/gen-crd-api-reference-docs
 ADDLICENSE ?= $(TOOLS_BIN_DIR)/addlicense
 GOIMPORTS ?= $(TOOLS_BIN_DIR)/goimports
 GOLANGCI_LINT ?= $(TOOLS_BIN_DIR)/golangci-lint
+GOSEC ?= $(TOOLS_BIN_DIR)/gosec
 
 ## Tool Versions
 CODE_GENERATOR_VERSION ?= v0.31.0
@@ -25,6 +26,7 @@ GEN_CRD_API_REFERENCE_DOCS_VERSION ?= v0.3.0
 ADDLICENSE_VERSION ?= v1.1.1
 GOIMPORTS_VERSION ?= v0.13.0
 GOLANGCI_LINT_VERSION ?= v1.60.3
+GOSEC_VERSION ?= v2.21.4
 
 
 # default tool versions
@@ -70,3 +72,6 @@ $(GOIMPORTS):
 
 $(GOLANGCI_LINT): $(TOOLS_BIN_DIR)
 	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+
+$(GOSEC):
+	GOSEC_VERSION=$(GOSEC_VERSION) bash $(abspath $(TOOLS_DIR))/install-gosec.sh

@@ -31,3 +31,6 @@ tags
 
 # dont check in tool binariess
 hack/tools/bin/
+
+# gosec
+gosec-report.sarif

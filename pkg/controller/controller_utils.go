@@ -903,8 +903,11 @@ func ComputeHash(template *v1alpha1.MachineTemplateSpec, collisionCount *int32) 
 	// Add collisionCount in the hash if it exists.
 	if collisionCount != nil {
 		collisionCountBytes := make([]byte, 8)
-		binary.LittleEndian.PutUint32(collisionCountBytes, uint32(*collisionCount))
-		machineTemplateSpecHasher.Write(collisionCountBytes)
+		binary.LittleEndian.PutUint32(collisionCountBytes, uint32(*collisionCount)) // #nosec G115 (CWE-190) -- collisionCount cannot be negative
+		_, err := machineTemplateSpecHasher.Write(collisionCountBytes)
+		if err != nil {
+			klog.Warningf("Unable to write collision count: %v", err)
+		}
 	}
 
 	return machineTemplateSpecHasher.Sum32()
