@@ -26,9 +26,9 @@ import (
 
 const (
 	// BootstrapTokenPlaceholder is a placeholder that can be used in userdata to be replaced with the actual bootstrap token.
-	BootstrapTokenPlaceholder = "<<BOOTSTRAP_TOKEN>>"
+	BootstrapTokenPlaceholder = "<<BOOTSTRAP_TOKEN>>" // #nosec G101 -- No credential.
 	// MachineNamePlaceholder is a placeholder that can be used in userdata to be replaced with the actual machine name.
-	MachineNamePlaceholder = "<<MACHINE_NAME>>"
+	MachineNamePlaceholder = "<<MACHINE_NAME>>" // #nosec G101 -- No credential.
 )
 
 var (

@@ -385,7 +385,7 @@ func startHTTP(s *options.MCServer) {
 	handlers.UpdateHealth(true)
 	mux.HandleFunc("/healthz", handlers.Healthz)
 
-	server := &http.Server{
+	server := &http.Server{ // #nosec  G112 (CWE-400) -- Only used for metrics, profiling and health checks.
 		Addr:    net.JoinHostPort(s.Address, strconv.Itoa(int(s.Port))),
 		Handler: mux,
 	}

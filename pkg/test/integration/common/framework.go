@@ -216,7 +216,10 @@ func (c *IntegrationTestFramework) initalizeClusters() error {
 	}
 
 	// setting env variable for later use
-	os.Setenv("CONTROL_CLUSTER_NAMESPACE", controlClusterNamespace)
+	err = os.Setenv("CONTROL_CLUSTER_NAMESPACE", controlClusterNamespace)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -502,7 +505,7 @@ func (c *IntegrationTestFramework) updatePatchFile() {
 	gomega.Expect(os.WriteFile(filepath.Join("..", "..", "..",
 		".ci",
 		"controllers-test",
-		"machine-class-patch.json"), data, 0644)).NotTo(gomega.HaveOccurred())
+		"machine-class-patch.json"), data, 0644)).NotTo(gomega.HaveOccurred()) // #nosec G306 -- Test only
 }
 
 func (c *IntegrationTestFramework) patchMachineClass(ctx context.Context, resourceName string) error {
@@ -684,9 +687,9 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 func rotateOrAppendLogFile(fileName string, shouldRotate bool) (*os.File, error) {
 	if !shouldRotate {
 		if _, err := os.Stat(fileName); os.IsNotExist(err) {
-			return os.Create(fileName)
+			return os.Create(fileName) // #nosec G304 -- Test only
 		}
-		return os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0600)
+		return os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0600) // #nosec G304 -- Test only
 	}
 	if _, err := os.Stat(fileName); err == nil { // !strings.Contains(err.Error(), "no such file or directory") {
 		noOfFiles := 0
@@ -712,7 +715,7 @@ func rotateOrAppendLogFile(fileName string, shouldRotate bool) (*os.File, error)
 		}
 	}
 	// Creating a new log file
-	return os.Create(fileName)
+	return os.Create(fileName) // #nosec G304 -- Test only
 }
 
 // runControllersLocally run the machine controller and machine controller manager binary locally
@@ -728,7 +731,7 @@ func (c *IntegrationTestFramework) runControllersLocally() {
 	)
 	outputFile, err := rotateOrAppendLogFile(mcLogFile, true)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
+	mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	gomega.Expect(mcsession.ExitCode()).Should(gomega.Equal(-1))
 
@@ -743,7 +746,7 @@ func (c *IntegrationTestFramework) runControllersLocally() {
 	)
 	outputFile, err = rotateOrAppendLogFile(mcmLogFile, true)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
+	mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	gomega.Expect(mcmsession.ExitCode()).Should(gomega.Equal(-1))
 }
@@ -1082,14 +1085,14 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.By("Searching for Froze in mcm log file")
 				frozeRegexp, _ := regexp.Compile(` Froze MachineSet`)
 				gomega.Eventually(func() bool {
-					data, _ := os.ReadFile(mcmLogFile)
+					data, _ := os.ReadFile(mcmLogFile) // #nosec G304 -- Test only
 					return frozeRegexp.Match(data)
 				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
 
 				ginkgo.By("Searching Unfroze in mcm log file")
 				unfrozeRegexp, _ := regexp.Compile(` Unfroze MachineSet`)
 				gomega.Eventually(func() bool {
-					data, _ := os.ReadFile(mcmLogFile)
+					data, _ := os.ReadFile(mcmLogFile) // #nosec G304 -- Test only
 					return unfrozeRegexp.Match(data)
 				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
 			})
@@ -1225,7 +1228,7 @@ func (c *IntegrationTestFramework) Cleanup() {
 						c.TargetCluster.KubeConfigFilePath,
 						controlClusterNamespace),
 				)
-				mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
+				mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				break
 			}
@@ -1246,7 +1249,7 @@ func (c *IntegrationTestFramework) Cleanup() {
 						c.TargetCluster.KubeConfigFilePath,
 						controlClusterNamespace),
 				)
-				mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
+				mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				break
 			}

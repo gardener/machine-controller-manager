@@ -54,7 +54,7 @@ func (s *Status) Code() codes.Code {
 	if s == nil {
 		return codes.OK
 	}
-	return codes.Code(s.code)
+	return codes.Code(s.code) // #nosec G115 (CWE-190) -- restricted to predefined values
 }
 
 // Message returns the message contained in status.
@@ -77,7 +77,7 @@ func (s *Status) Error() string {
 
 // New returns a Status representing c and msg.
 func New(c codes.Code, msg string) *Status {
-	return &Status{code: int32(c), message: msg}
+	return &Status{code: int32(c), message: msg} // #nosec G115 (CWE-190) -- restricted to predefined values
 }
 
 // Error returns an error representing c and msg.  If c is OK, returns nil.
@@ -88,7 +88,7 @@ func Error(c codes.Code, msg string) error {
 // WrapError creates an instance of status.Status wrapping the underlying cause along with the code and custom error message.
 func WrapError(c codes.Code, msg string, cause error) *Status {
 	return &Status{
-		code:    int32(c),
+		code:    int32(c), // #nosec G115 (CWE-190) -- restricted to predefined values
 		message: msg,
 		cause:   cause,
 	}
@@ -105,7 +105,7 @@ func FromError(err error) (s *Status, ok bool) {
 	if matches, errInFind := findCodeAndMessage(err.Error()); errInFind == nil {
 		code := codes.StringToCode(matches[0])
 		return &Status{
-			code:    int32(code),
+			code:    int32(code), // #nosec G115 (CWE-190) -- restricted to predefined values
 			message: matches[1],
 		}, true
 	}
