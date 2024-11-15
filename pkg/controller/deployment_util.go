@@ -592,7 +592,7 @@ func getIntFromAnnotation(is *v1alpha1.MachineSet, annotationKey string) (int32,
 		klog.V(2).Infof("Cannot convert the value %q with annotation key %q for the machine set %q", annotationValue, annotationKey, is.Name)
 		return int32(0), false
 	}
-	return int32(intValue), true // #nosec G109, G115 -- already validated
+	return int32(intValue), true // #nosec G109, G115 -- value obtained from MachineDeployment.Spec.Replicas which is of type int32 and is already validated
 }
 
 // SetReplicasAnnotations sets the desiredReplicas and maxReplicas into the annotations
@@ -1122,7 +1122,7 @@ func IsSaturated(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet
 	if err != nil {
 		return false
 	}
-	// #nosec G109, G115 -- already validated
+	// #nosec G109, G115 -- obtained from MachineDeployement.Spec.Replicas, which is already validated
 	return (is.Spec.Replicas) == (deployment.Spec.Replicas) &&
 		int32(desired) == (deployment.Spec.Replicas) &&
 		is.Status.AvailableReplicas == (deployment.Spec.Replicas)
