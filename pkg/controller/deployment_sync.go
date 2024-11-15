@@ -578,7 +578,7 @@ func (dc *controller) cleanupMachineDeployment(ctx context.Context, oldISs []*v1
 	}
 	cleanableISes := FilterMachineSets(oldISs, aliveFilter)
 
-	diff := int32(len(cleanableISes)) - *deployment.Spec.RevisionHistoryLimit
+	diff := int32(len(cleanableISes)) - *deployment.Spec.RevisionHistoryLimit // #nosec G115 (CWE-190) -- number will never reach MaxInt32, and len() cannot be negative
 	if diff <= 0 {
 		return nil
 	}

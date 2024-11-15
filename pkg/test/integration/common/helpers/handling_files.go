@@ -29,7 +29,7 @@ import (
 
 // ParseK8sYaml reads a yaml file and parses it based on the scheme
 func ParseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind, error) {
-	fileR, err := os.ReadFile(filepath)
+	fileR, err := os.ReadFile(filepath) // #nosec G304 -- Test only
 	if err != nil {
 		return nil, nil, err
 	}

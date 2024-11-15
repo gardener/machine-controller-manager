@@ -238,8 +238,7 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(ctx context.Context) er
 					klog.Error("SafetyController: Error while trying to GET surge value - ", err)
 					return err
 				}
-
-				higherThreshold = machineDeployment.Spec.Replicas + int32(surge) + c.safetyOptions.SafetyUp
+				higherThreshold = machineDeployment.Spec.Replicas + int32(surge) + c.safetyOptions.SafetyUp // #nosec G115 (CWE-190) -- value already validated
 				lowerThreshold = higherThreshold - c.safetyOptions.SafetyDown
 			}
 		}
