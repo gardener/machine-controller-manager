@@ -7,7 +7,6 @@ package controller
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -1693,9 +1692,6 @@ var _ = Describe("machineDeployment", func() {
 					testMachine = &machinev1.Machine{}
 				},
 				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
-
-					fmt.Println(testMachineSets)
-
 					if len(testMachineSets) != 2 || testMachineSets[0].Spec.Replicas != testMachineDeployment.Spec.Replicas {
 						return errors.New("it should have fully scaled-up the new machineSet")
 					}

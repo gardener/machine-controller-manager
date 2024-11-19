@@ -15,9 +15,12 @@ import (
 )
 
 var _ = Describe("deployment_util", func() {
-	Describe("#SetNewMachineSetNodeTemplate", func() {
+	var (
+		machineDeployment *machinev1.MachineDeployment
+	)
 
-		machineDeployment := &machinev1.MachineDeployment{
+	BeforeEach(func() {
+		machineDeployment = &machinev1.MachineDeployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "MachineDeployment-test",
 				Namespace: testNamespace,
@@ -75,7 +78,9 @@ var _ = Describe("deployment_util", func() {
 				},
 			},
 		}
+	})
 
+	Describe("#SetNewMachineSetNodeTemplate", func() {
 		It("when nodeTemplate is updated in MachineSet", func() {
 			stop := make(chan struct{})
 			defer close(stop)
@@ -202,66 +207,6 @@ var _ = Describe("deployment_util", func() {
 	})
 
 	Describe("#copyMachineDeploymentNodeTemplatesToMachineSet", func() {
-
-		machineDeployment := &machinev1.MachineDeployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "MachineDeployment-test",
-				Namespace: testNamespace,
-			},
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "MachineDeployment",
-				APIVersion: "machine.sapcloud.io/v1alpha1",
-			},
-			Spec: machinev1.MachineDeploymentSpec{
-				Replicas: 1,
-				Template: machinev1.MachineTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							"test-label": "test-label",
-						},
-					},
-					Spec: machinev1.MachineSpec{
-						Class: machinev1.ClassSpec{
-							Kind: "AWSMachineClass",
-							Name: "test-machine-class",
-						},
-						NodeTemplateSpec: machinev1.NodeTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Labels: map[string]string{
-									"key1": "value1",
-								},
-								Annotations: map[string]string{
-									"anno1": "anno1",
-								},
-							},
-							Spec: corev1.NodeSpec{
-								Taints: []corev1.Taint{{
-									Key:    "taintKey",
-									Value:  "taintValue",
-									Effect: "NoSchedule",
-								},
-								},
-							},
-						},
-					},
-				},
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						"test-label": "test-label",
-					},
-				},
-				Strategy: machinev1.MachineDeploymentStrategy{
-					Type: "RollingUpdate",
-					RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
-						UpdateConfiguration: machinev1.UpdateConfiguration{
-							MaxUnavailable: &intstr.IntOrString{IntVal: 1},
-							MaxSurge:       &intstr.IntOrString{IntVal: 1},
-						},
-					},
-				},
-			},
-		}
-
 		It("when nodeTemplate is updated in MachineSet", func() {
 			stop := make(chan struct{})
 			defer close(stop)
@@ -379,5 +324,4 @@ var _ = Describe("deployment_util", func() {
 		})
 
 	})
-
 })
