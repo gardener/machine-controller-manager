@@ -1426,8 +1426,10 @@ var _ = Describe("machineDeployment", func() {
 					Strategy: machinev1.MachineDeploymentStrategy{
 						Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
 						RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
-							MaxUnavailable: &intstr.IntOrString{IntVal: int32(1)},
-							MaxSurge:       &intstr.IntOrString{IntVal: int32(1)},
+							UpdateConfiguration: machinev1.UpdateConfiguration{
+								MaxUnavailable: &intstr.IntOrString{IntVal: int32(1)},
+								MaxSurge:       &intstr.IntOrString{IntVal: int32(1)},
+							},
 						},
 					},
 					Selector: &metav1.LabelSelector{

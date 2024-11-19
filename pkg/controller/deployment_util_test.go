@@ -67,8 +67,10 @@ var _ = Describe("deployment_util", func() {
 				Strategy: machinev1.MachineDeploymentStrategy{
 					Type: "RollingUpdate",
 					RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
-						MaxUnavailable: &intstr.IntOrString{IntVal: 1},
-						MaxSurge:       &intstr.IntOrString{IntVal: 1},
+						UpdateConfiguration: machinev1.UpdateConfiguration{
+							MaxUnavailable: &intstr.IntOrString{IntVal: 1},
+							MaxSurge:       &intstr.IntOrString{IntVal: 1},
+						},
 					},
 				},
 			},
@@ -251,8 +253,10 @@ var _ = Describe("deployment_util", func() {
 				Strategy: machinev1.MachineDeploymentStrategy{
 					Type: "RollingUpdate",
 					RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
-						MaxUnavailable: &intstr.IntOrString{IntVal: 1},
-						MaxSurge:       &intstr.IntOrString{IntVal: 1},
+						UpdateConfiguration: machinev1.UpdateConfiguration{
+							MaxUnavailable: &intstr.IntOrString{IntVal: 1},
+							MaxSurge:       &intstr.IntOrString{IntVal: 1},
+						},
 					},
 				},
 			},
