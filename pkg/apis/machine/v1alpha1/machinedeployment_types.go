@@ -113,6 +113,11 @@ type MachineDeploymentStrategy struct {
 	// to be.
 	// +optional
 	RollingUpdate *RollingUpdateMachineDeployment `json:"rollingUpdate,omitempty"`
+
+	// InPlaceUpdate update config params. Present only if MachineDeploymentStrategyType =
+	// InPlaceUpdate.
+	// +optional
+	InPlaceUpdate *InPlaceUpdateMachineDeployment `json:"inPlaceUpdate,omitempty"`
 }
 
 // MachineDeploymentStrategyType are valid strategy types for rolling MachineDeployments
@@ -124,10 +129,27 @@ const (
 
 	// RollingUpdateMachineDeploymentStrategyType means that old MCs will be replaced by new one using rolling update i.e gradually scale down the old MCs and scale up the new one.
 	RollingUpdateMachineDeploymentStrategyType MachineDeploymentStrategyType = "RollingUpdate"
+
+	// InPlaceUpdateMachineDeploymentStrategyType signifies that machines will be updated in place,
+	// gradually transitioning from the old MachineSet to the new MachineSet without requiring machine recreation.
+	InPlaceUpdateMachineDeploymentStrategyType MachineDeploymentStrategyType = "InPlaceUpdate"
 )
 
 // RollingUpdateMachineDeployment is the spec to control the desired behavior of rolling update.
 type RollingUpdateMachineDeployment struct {
+	UpdateConfiguration `json:",inline"`
+}
+
+// InPlaceUpdateMachineDeployment specifies the spec to control the desired behavior of inplace rolling update.
+type InPlaceUpdateMachineDeployment struct {
+	UpdateConfiguration `json:",inline"`
+
+	// OrchestrationType specifies the orchestration type for the inplace update.
+	OrchestrationType OrchestrationType `json:"orchestrationType,omitempty"`
+}
+
+// UpdateConfiguration specifies the udpate configuration for the rolling strategy.
+type UpdateConfiguration struct {
 	// The maximum number of machines that can be unavailable during the update.
 	// Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%).
 	// Absolute number is calculated from percentage by rounding down.
@@ -153,6 +175,16 @@ type RollingUpdateMachineDeployment struct {
 	// +optional
 	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 }
+
+// OrchestrationType specifies the orchestration type for the inplace update.
+type OrchestrationType string
+
+const (
+	// OrchestrationTypeAuto signifies that the machines are selected automatically based on MaxUnavailable for being updated.
+	OrchestrationTypeAuto OrchestrationType = "Auto"
+	// OrchestrationTypeManual signifies that the user has to select the machines to be updated manually.
+	OrchestrationTypeManual OrchestrationType = "Manual"
+)
 
 // MachineDeploymentStatus is the most recently observed status of the MachineDeployment.
 type MachineDeploymentStatus struct {
