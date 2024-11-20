@@ -47,6 +47,7 @@ import (
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/integer"
+	"k8s.io/utils/ptr"
 
 	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
 )
@@ -618,15 +619,30 @@ func SetReplicasAnnotations(is *v1alpha1.MachineSet, desiredReplicas, maxReplica
 
 // MaxUnavailable returns the maximum unavailable machines a rolling deployment can take.
 func MaxUnavailable(deployment v1alpha1.MachineDeployment) int32 {
-	if !IsRollingUpdate(&deployment) || (deployment.Spec.Replicas) == 0 {
+	if !IsRollingUpdate(&deployment) && !IsInPlaceUpdate(&deployment) || (deployment.Spec.Replicas) == 0 {
 		return int32(0)
 	}
+
+	var maxSurge, maxUnavailable *intstrutil.IntOrString
+
+	if IsRollingUpdate(&deployment) {
+		maxSurge = deployment.Spec.Strategy.RollingUpdate.MaxSurge
+		maxUnavailable = deployment.Spec.Strategy.RollingUpdate.MaxUnavailable
+	} else {
+		maxSurge = deployment.Spec.Strategy.InPlaceUpdate.MaxSurge
+		maxUnavailable = deployment.Spec.Strategy.InPlaceUpdate.MaxUnavailable
+
+		if deployment.Spec.Strategy.InPlaceUpdate.OrchestrationType == v1alpha1.OrchestrationTypeManual {
+			maxSurge = ptr.To(intstrutil.FromInt(0))
+		}
+	}
+
 	// Error caught by validation
-	_, maxUnavailable, _ := ResolveFenceposts(deployment.Spec.Strategy.RollingUpdate.MaxSurge, deployment.Spec.Strategy.RollingUpdate.MaxUnavailable, (deployment.Spec.Replicas))
-	if maxUnavailable > deployment.Spec.Replicas {
+	_, maxUnavailableReplicas, _ := ResolveFenceposts(maxSurge, maxUnavailable, (deployment.Spec.Replicas))
+	if maxUnavailableReplicas > deployment.Spec.Replicas {
 		return deployment.Spec.Replicas
 	}
-	return maxUnavailable
+	return maxUnavailableReplicas
 }
 
 // MinAvailable returns the minimum available machines of a given deployment
@@ -1003,6 +1019,11 @@ func IsRollingUpdate(deployment *v1alpha1.MachineDeployment) bool {
 	return deployment.Spec.Strategy.Type == v1alpha1.RollingUpdateMachineDeploymentStrategyType
 }
 
+// IsInPlaceUpdate returns true if the strategy type is a inplace update.
+func IsInPlaceUpdate(deployment *v1alpha1.MachineDeployment) bool {
+	return deployment.Spec.Strategy.Type == v1alpha1.InPlaceUpdateMachineDeploymentStrategyType
+}
+
 // MachineDeploymentComplete considers a deployment to be complete once all of its desired replicas
 // are updated and available, and no old machines are running.
 func MachineDeploymentComplete(deployment *v1alpha1.MachineDeployment, newStatus *v1alpha1.MachineDeploymentStatus) bool {
@@ -1104,6 +1125,31 @@ func NewISNewReplicas(deployment *v1alpha1.MachineDeployment, allISs []*v1alpha1
 		return (newIS.Spec.Replicas) + scaleUpCount, nil
 	case v1alpha1.RecreateMachineDeploymentStrategyType:
 		return (deployment.Spec.Replicas), nil
+	case v1alpha1.InPlaceUpdateMachineDeploymentStrategyType:
+		if deployment.Spec.Strategy.InPlaceUpdate != nil && deployment.Spec.Strategy.InPlaceUpdate.OrchestrationType == v1alpha1.OrchestrationTypeManual {
+			// when newIs is created, its replicas should be zero as it will have machines only after the old machines are updated and
+			// moved to the new machine set
+			return int32(0), nil // In case of inplace update with manual update, newIS should not have any replicas
+		}
+
+		// For inplace update without manual update, when new IS is created we will scale it up to the max surge.
+		// Check if we can scale up.
+		maxSurge, err := intstrutil.GetValueFromIntOrPercent(deployment.Spec.Strategy.InPlaceUpdate.MaxSurge, int((deployment.Spec.Replicas)), true)
+		if err != nil {
+			return 0, err
+		}
+		// Find the total number of machines
+		currentMachineCount := GetActualReplicaCountForMachineSets(allISs)
+		maxTotalMachines := (deployment.Spec.Replicas) + int32(maxSurge) // #nosec G115 (CWE-190) -- value already validated
+		if currentMachineCount >= maxTotalMachines {
+			// Cannot scale up.
+			return (newIS.Spec.Replicas), nil
+		}
+		// Scale up.
+		scaleUpCount := maxTotalMachines - currentMachineCount
+		// Do not exceed the number of desired replicas.
+		scaleUpCount = int32(integer.IntMin(int(scaleUpCount), int((deployment.Spec.Replicas)-(newIS.Spec.Replicas)))) // #nosec G115 (CWE-190) -- Obtained from replicas and maxSurge, both of which are validated.
+		return (newIS.Spec.Replicas) + scaleUpCount, nil
 	default:
 		return 0, fmt.Errorf("machine deployment type %v isn't supported", deployment.Spec.Strategy.Type)
 	}
