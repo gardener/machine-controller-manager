@@ -674,8 +674,16 @@ func (dc *controller) isScalingEvent(ctx context.Context, d *v1alpha1.MachineDep
 	if err != nil {
 		return false, err
 	}
+	if newIS == nil {
+		return false, nil
+	}
 	allISs := append(oldISs, newIS)
-	for _, is := range FilterActiveMachineSets(allISs) {
+	activeMachineSets := FilterActiveMachineSets(allISs)
+	//if this is a scale from zero scenario, return true
+	if len(activeMachineSets) == 0 && d.Spec.Replicas > 0 {
+		return true, nil
+	}
+	for _, is := range activeMachineSets {
 		desired, ok := GetDesiredReplicasAnnotation(is)
 		if !ok {
 			continue
