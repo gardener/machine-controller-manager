@@ -214,3 +214,58 @@ func TestAddLabelToSelector(t *testing.T) {
 		}
 	}
 }
+
+func TestGetFormatedLabels(t *testing.T) {
+	cases := []struct {
+		labels map[string]string
+		want   []string
+	}{
+		{
+			labels: map[string]string{
+				"foo1": "bar1",
+				"foo2": "bar2",
+			},
+			want: []string{`"foo1":"bar1","foo2":"bar2"`, `"foo2":"bar2","foo1":"bar1"`},
+		},
+		{
+			labels: map[string]string{},
+			want:   []string{"", ""}, // Expected empty string for no labels
+		},
+	}
+
+	for _, tc := range cases {
+		got := GetFormatedLabels(tc.labels)
+		if got != tc.want[0] && got != tc.want[1] {
+			t.Errorf("GetFormatedLabels(%v) = %q, want %q", tc.labels, got, tc.want)
+		}
+	}
+}
+func TestRemoveLabels(t *testing.T) {
+	cases := []struct {
+		labelsToRemove []string
+		want           string
+	}{
+		{
+			labelsToRemove: []string{"foo1", "foo2"},
+			want:           `{"metadata":{"labels":{"foo1":null,"foo2":null}}}`,
+		},
+		{
+			labelsToRemove: []string{"foo3"},
+			want:           `{"metadata":{"labels":{"foo3":null}}}`,
+		},
+		{
+			labelsToRemove: []string{},
+			want:           `{"metadata":{"labels":{}}}`,
+		},
+	}
+
+	for _, tc := range cases {
+		got, err := RemoveLabels(tc.labelsToRemove)
+		if err != nil {
+			t.Errorf("RemoveLabels(%v) returned error: %v", tc.labelsToRemove, err)
+		}
+		if string(got) != tc.want {
+			t.Errorf("RemoveLabels(%v) = %q, want %q", tc.labelsToRemove, got, tc.want)
+		}
+	}
+}

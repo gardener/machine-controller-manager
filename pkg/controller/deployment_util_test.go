@@ -497,4 +497,223 @@ var _ = Describe("deployment_util", func() {
 		})
 
 	})
+
+	Describe("#MergeStringMaps", func() {
+		It("should merge maps correctly with no conflicts", func() {
+			oldMap := map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+			}
+			newMap1 := map[string]string{
+				"key3": "value3",
+			}
+			newMap2 := map[string]string{
+				"key4": "value4",
+			}
+
+			expected := map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+				"key3": "value3",
+				"key4": "value4",
+			}
+
+			result := MergeStringMaps(oldMap, newMap1, newMap2)
+			Expect(result).To(Equal(expected))
+		})
+
+		It("should overwrite values from oldMap with values from newMaps", func() {
+			oldMap := map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+			}
+			newMap1 := map[string]string{
+				"key2": "newValue2",
+			}
+			newMap2 := map[string]string{
+				"key1": "newValue1",
+			}
+
+			expected := map[string]string{
+				"key1": "newValue1",
+				"key2": "newValue2",
+			}
+
+			result := MergeStringMaps(oldMap, newMap1, newMap2)
+			Expect(result).To(Equal(expected))
+		})
+
+		It("should handle nil oldMap correctly", func() {
+			var oldMap map[string]string
+			newMap1 := map[string]string{
+				"key1": "value1",
+			}
+			newMap2 := map[string]string{
+				"key2": "value2",
+			}
+
+			expected := map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+			}
+
+			result := MergeStringMaps(oldMap, newMap1, newMap2)
+			Expect(result).To(Equal(expected))
+		})
+
+		It("should handle nil newMaps correctly", func() {
+			oldMap := map[string]string{
+				"key1": "value1",
+			}
+			var newMap1 map[string]string
+			newMap2 := map[string]string{
+				"key2": "value2",
+			}
+
+			expected := map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+			}
+
+			result := MergeStringMaps(oldMap, newMap1, newMap2)
+			Expect(result).To(Equal(expected))
+		})
+
+		It("should return an empty map if all inputs are nil", func() {
+			var oldMap map[string]string
+			var newMap1 map[string]string
+			var newMap2 map[string]string
+			var expected map[string]string
+
+			result := MergeStringMaps(oldMap, newMap1, newMap2)
+			Expect(result).To(Equal(expected))
+		})
+	})
+
+	Describe("#MergeWithOverwriteAndFilter", func() {
+		It("should merge maps correctly with no conflicts", func() {
+			current := map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+			}
+			oldIS := map[string]string{
+				"key3": "value3",
+			}
+			newIS := map[string]string{
+				"key4": "value4",
+			}
+
+			expected := map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+				"key4": "value4",
+			}
+
+			result := MergeWithOverwriteAndFilter(current, oldIS, newIS)
+			Expect(result).To(Equal(expected))
+		})
+
+		It("should overwrite values from current with values from newIS", func() {
+			current := map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+			}
+			oldIS := map[string]string{
+				"key3": "value3",
+			}
+			newIS := map[string]string{
+				"key2": "newValue2",
+			}
+
+			expected := map[string]string{
+				"key1": "value1",
+				"key2": "newValue2",
+			}
+
+			result := MergeWithOverwriteAndFilter(current, oldIS, newIS)
+			Expect(result).To(Equal(expected))
+		})
+
+		It("should not include keys from current that are present in oldIS", func() {
+			current := map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+			}
+			oldIS := map[string]string{
+				"key2": "value2",
+			}
+			newIS := map[string]string{
+				"key3": "value3",
+			}
+
+			expected := map[string]string{
+				"key1": "value1",
+				"key3": "value3",
+			}
+
+			result := MergeWithOverwriteAndFilter(current, oldIS, newIS)
+			Expect(result).To(Equal(expected))
+		})
+
+		It("should handle nil current map correctly", func() {
+			var current map[string]string
+			oldIS := map[string]string{
+				"key1": "value1",
+			}
+			newIS := map[string]string{
+				"key2": "value2",
+			}
+
+			expected := map[string]string{
+				"key2": "value2",
+			}
+
+			result := MergeWithOverwriteAndFilter(current, oldIS, newIS)
+			Expect(result).To(Equal(expected))
+		})
+
+		It("should handle nil oldIS map correctly", func() {
+			current := map[string]string{
+				"key1": "value1",
+			}
+			var oldIS map[string]string
+			newIS := map[string]string{
+				"key2": "value2",
+			}
+
+			expected := map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+			}
+
+			result := MergeWithOverwriteAndFilter(current, oldIS, newIS)
+			Expect(result).To(Equal(expected))
+		})
+
+		It("should handle nil newIS map correctly", func() {
+			current := map[string]string{
+				"key1": "value1",
+			}
+			oldIS := map[string]string{
+				"key2": "value2",
+			}
+			var newIS map[string]string
+
+			expected := map[string]string{
+				"key1": "value1",
+			}
+
+			result := MergeWithOverwriteAndFilter(current, oldIS, newIS)
+			Expect(result).To(Equal(expected))
+		})
+
+		It("should return an empty map if all inputs are nil", func() {
+			var current map[string]string
+			var oldIS map[string]string
+			var newIS map[string]string
+
+			result := MergeWithOverwriteAndFilter(current, oldIS, newIS)
+			Expect(result).To(Equal(map[string]string{}))
+		})
+	})
 })

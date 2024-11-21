@@ -748,6 +748,31 @@ func GetNewMachineSet(ctx context.Context, deployment *v1alpha1.MachineDeploymen
 	return FindNewMachineSet(deployment, rsList), nil
 }
 
+func filterMachinesWithUpdateSuccessfulLabel(machines []*v1alpha1.Machine) []*v1alpha1.Machine {
+	machinesWithUpdateSuccessfulLabel := make([]*v1alpha1.Machine, 0)
+	for _, machine := range machines {
+		if labelValue, ok := machine.Labels[v1alpha1.LabelKeyNodeUpdateResult]; ok && labelValue == v1alpha1.LabelValueNodeUpdateSuccessful {
+			cond := getMachineCondition(machine, v1alpha1.NodeInPlaceUpdate)
+			// only consider machines with the update successful condition
+			if cond != nil && cond.Reason == v1alpha1.UpdateSuccessful {
+				machinesWithUpdateSuccessfulLabel = append(machinesWithUpdateSuccessfulLabel, machine)
+			}
+		}
+	}
+
+	return machinesWithUpdateSuccessfulLabel
+}
+
+// getMachineCondition returns a condition matching the type from the machines's status
+func getMachineCondition(machine *v1alpha1.Machine, conditionType v1.NodeConditionType) *v1.NodeCondition {
+	for _, cond := range machine.Status.Conditions {
+		if cond.Type == conditionType {
+			return &cond
+		}
+	}
+	return nil
+}
+
 // IsListFromClient returns an rsListFunc that wraps the given client.
 func IsListFromClient(ctx context.Context, c v1alpha1client.MachineV1alpha1Interface) IsListFunc {
 	return func(namespace string, options metav1.ListOptions) ([]*v1alpha1.MachineSet, error) {
@@ -1265,4 +1290,50 @@ func statusUpdateRequired(old v1alpha1.MachineDeploymentStatus, new v1alpha1.Mac
 	}
 
 	return true
+}
+
+// MergeWithOverwriteAndFilter returns a new map containing keys and values from the `current` map
+// that are not present in `oldIS`, combined with all keys and values from `newIS`.
+// If a key exists in both `current` and `newIS`, the value from `newIS` is used.
+// This effectively merges the maps while overwriting and filtering as described.
+func MergeWithOverwriteAndFilter[T any](current, oldIS, newIS map[string]T) map[string]T {
+	out := make(map[string]T, len(newIS))
+
+	// copy the keys and values from the current map that are not present in the oldIS.
+	for k := range current {
+		if _, ok := oldIS[k]; !ok {
+			out[k] = current[k]
+		}
+	}
+
+	for k := range newIS {
+		out[k] = newIS[k]
+	}
+
+	return out
+}
+
+// MergeStringMaps merges the content of the newMaps with the oldMap. If a key already exists then
+// it gets overwritten by the last value with the same key.
+func MergeStringMaps[T any](oldMap map[string]T, newMaps ...map[string]T) map[string]T {
+	var out map[string]T
+
+	if oldMap != nil {
+		out = make(map[string]T, len(oldMap))
+	}
+	for k, v := range oldMap {
+		out[k] = v
+	}
+
+	for _, newMap := range newMaps {
+		if newMap != nil && out == nil {
+			out = make(map[string]T)
+		}
+
+		for k, v := range newMap {
+			out[k] = v
+		}
+	}
+
+	return out
 }
