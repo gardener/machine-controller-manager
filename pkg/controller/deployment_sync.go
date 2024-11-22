@@ -666,6 +666,7 @@ func calculateDeploymentStatus(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.Ma
 
 // isScalingEvent checks whether the provided deployment has been updated with a scaling event
 // by looking at the desired-replicas annotation in the active machine sets of the deployment, and returns if there was scale-out or not.
+// However, when there are no active machine sets, but the replica count in the machine deployment's spec > 0, it is recognized as a scale-out event.
 //
 // rsList should come from getReplicaSetsForDeployment(d).
 // machineMap should come from getmachineMapForDeployment(d, rsList).
