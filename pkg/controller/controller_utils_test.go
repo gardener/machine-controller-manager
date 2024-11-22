@@ -595,6 +595,7 @@ var _ = Describe("#controllerUtils", func() {
 			},
 		}
 		It("should return an empty list when machine sets have 0 replicas", func() {
+			testMachineSet.Spec.Replicas = 0
 			testMachineSets := []*machinev1.MachineSet{
 				testMachineSet,
 			}
