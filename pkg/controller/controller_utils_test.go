@@ -552,4 +552,60 @@ var _ = Describe("#controllerUtils", func() {
 			}),
 		)
 	})
+	Describe("##FilterActiveMachineSets", func() {
+		testMachineSet := &machinev1.MachineSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "MachineSet-test",
+				Namespace: testNamespace,
+				Labels: map[string]string{
+					"test-label": "test-label",
+				},
+				Annotations: map[string]string{
+					"deployment.kubernetes.io/revision": "1",
+				},
+				UID: "1234567",
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						Kind:       "MachineDeployment",
+						Name:       "MachineDeployment-test",
+						UID:        "1234567",
+						Controller: nil,
+					},
+				},
+				Generation: 5,
+			},
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "MachineSet",
+				APIVersion: "machine.sapcloud.io/v1alpha1",
+			},
+			Spec: machinev1.MachineSetSpec{
+				Replicas: 0,
+				Template: machinev1.MachineTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"test-label": "test-label",
+						},
+					},
+				},
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"test-label": "test-label",
+					},
+				},
+			},
+		}
+		It("should return an empty list when machine sets have 0 replicas", func() {
+			testMachineSets := []*machinev1.MachineSet{
+				testMachineSet,
+			}
+			Expect(FilterActiveMachineSets(testMachineSets)).To(HaveLen(0))
+		})
+		It("should return expected machine sets when replicas are positive", func() {
+			testMachineSet.Spec.Replicas = 1
+			testMachineSets := []*machinev1.MachineSet{
+				testMachineSet,
+			}
+			Expect(FilterActiveMachineSets(testMachineSets)).To(HaveLen(1))
+		})
+	})
 })
