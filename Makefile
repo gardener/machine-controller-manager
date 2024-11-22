@@ -176,10 +176,8 @@ add-license-headers: $(GO_ADD_LICENSE)
 
 .PHONY: sast
 sast: $(GOSEC)
-	@chmod +xw hack/sast.sh
 	@./hack/sast.sh
 
 .PHONY: sast-report
 sast-report:$(GOSEC)
-	@chmod +xw hack/sast.sh
 	@./hack/sast.sh --gosec-report true
