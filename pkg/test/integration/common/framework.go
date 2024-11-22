@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/controller"
 	"io"
 	"log"
 	"os"
@@ -953,27 +954,74 @@ func (c *IntegrationTestFramework) ControllerTests() {
 	// Testcase #02 | machine deployment
 	ginkgo.Describe("machine deployment resource", func() {
 		var initialNodes int16 // initialization should be part of creation test logic
-		ginkgo.Context("creation with replicas=3", func() {
-			ginkgo.It("should not lead to errors and add 3 more nodes to target cluster", func() {
+		ginkgo.Context("creation with replicas=0, scale up with replicas=1", func() {
+			ginkgo.It("should not lead to errors and add 1 more node to target cluster", func() {
+				var machineDeployment *v1alpha1.MachineDeployment
 				//probe initialnodes before continuing
 				initialNodes = c.TargetCluster.GetNumberOfNodes()
 
 				ginkgo.By("Checking for errors")
-				gomega.Expect(c.ControlCluster.CreateMachineDeployment(controlClusterNamespace)).To(gomega.BeNil())
+				gomega.Expect(c.ControlCluster.CreateMachineDeployment(controlClusterNamespace, 0)).To(gomega.BeNil())
 
-				ginkgo.By("Waiting until number of ready nodes are 3 more than initial")
+				ginkgo.By("Waiting for Machine Set to be created")
+				gomega.Eventually(func() int { return c.getNumberOfMachineSets(ctx, controlClusterNamespace) }, c.timeout, c.pollingInterval).Should(gomega.BeNumerically("==", 1))
+
+				ginkgo.By("Updating machineDeployment replicas to 1")
+				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					machineDeployment, _ = c.ControlCluster.McmClient.
+						MachineV1alpha1().
+						MachineDeployments(controlClusterNamespace).
+						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
+					machineDeployment.Spec.Replicas = 1
+					_, updateErr := c.ControlCluster.McmClient.
+						MachineV1alpha1().
+						MachineDeployments(controlClusterNamespace).
+						Update(ctx, machineDeployment, metav1.UpdateOptions{})
+					return updateErr
+				})
+				gomega.Expect(retryErr).NotTo(gomega.HaveOccurred())
+
+				//check machineDeploymentStatus to make sure correct condition is reflected
+				ginkgo.By("Checking if machineDeployment's status has been updated with correct conditions")
+				gomega.Eventually(func() bool {
+					var err error
+					machineDeployment, err = c.ControlCluster.McmClient.
+						MachineV1alpha1().
+						MachineDeployments(controlClusterNamespace).
+						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
+					gomega.Expect(err).NotTo(gomega.HaveOccurred())
+					if len(machineDeployment.Status.Conditions) != 2 {
+						return false
+					}
+					isMCDAvailable := false
+					hasMCDProgressed := false
+					for _, condition := range machineDeployment.Status.Conditions {
+						if condition.Type == v1alpha1.MachineDeploymentAvailable && condition.Status == v1alpha1.ConditionTrue && condition.Reason == controller.MinimumReplicasAvailable {
+							isMCDAvailable = true
+						}
+						if condition.Type == v1alpha1.MachineDeploymentProgressing && condition.Status == v1alpha1.ConditionTrue && condition.Reason == controller.NewISAvailableReason {
+							hasMCDProgressed = true
+						}
+					}
+					return hasMCDProgressed && isMCDAvailable && machineDeployment.Status.AvailableReplicas == 1
+				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+
+				//check number of ready nodes
+				ginkgo.By("Checking number of ready nodes==1")
 				gomega.Eventually(
 					c.TargetCluster.GetNumberOfNodes,
-					c.timeout, c.pollingInterval).
-					Should(gomega.BeNumerically("==", initialNodes+3))
+					c.timeout,
+					c.pollingInterval).
+					Should(gomega.BeNumerically("==", initialNodes+1))
 				gomega.Eventually(
 					c.TargetCluster.GetNumberOfReadyNodes,
-					c.timeout, c.pollingInterval).
-					Should(gomega.BeNumerically("==", initialNodes+3))
+					c.timeout,
+					c.pollingInterval).
+					Should(gomega.BeNumerically("==", initialNodes+1))
 			})
 		})
 		ginkgo.Context("scale-up with replicas=6", func() {
-			ginkgo.It("should not lead to errors and add futher 3 nodes to target cluster", func() {
+			ginkgo.It("should not lead to errors and add further 5 nodes to target cluster", func() {
 				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					machineDployment, _ := c.ControlCluster.McmClient.
 						MachineV1alpha1().
@@ -1405,6 +1453,18 @@ func (c *IntegrationTestFramework) Cleanup() {
 		}
 	}
 
+}
+
+func (c *IntegrationTestFramework) getNumberOfMachineSets(ctx context.Context, namespace string) int {
+	machineSets, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineSets(namespace).List(ctx, metav1.ListOptions{})
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	count := 0
+	for _, machineSet := range machineSets.Items {
+		if machineSet.OwnerReferences[0].Name == "test-machine-deployment" {
+			count++
+		}
+	}
+	return count
 }
 
 func checkMcmRepoAvailable() {

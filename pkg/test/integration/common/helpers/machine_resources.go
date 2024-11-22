@@ -40,7 +40,7 @@ func (c *Cluster) CreateMachine(namespace string) error {
 }
 
 // CreateMachineDeployment creates a test-machine-deployment with 3 replicas and returns error if it occurs
-func (c *Cluster) CreateMachineDeployment(namespace string) error {
+func (c *Cluster) CreateMachineDeployment(namespace string, replicas int32) error {
 	labels := map[string]string{"test-label": "test-label"}
 	_, err := c.McmClient.
 		MachineV1alpha1().
@@ -53,7 +53,7 @@ func (c *Cluster) CreateMachineDeployment(namespace string) error {
 					Namespace: namespace,
 				},
 				Spec: v1alpha1.MachineDeploymentSpec{
-					Replicas:        3,
+					Replicas:        replicas,
 					MinReadySeconds: 500,
 					Strategy: v1alpha1.MachineDeploymentStrategy{
 						Type: v1alpha1.RollingUpdateMachineDeploymentStrategyType,
