@@ -666,6 +666,7 @@ func calculateDeploymentStatus(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.Ma
 
 // isScalingEvent checks whether the provided deployment has been updated with a scaling event
 // by looking at the desired-replicas annotation in the active machine sets of the deployment, and returns if there was scale-out or not.
+// However, when there are no active machine sets, but the replica count in the machine deployment's spec > 0, it is recognized as a scale-out event.
 //
 // rsList should come from getReplicaSetsForDeployment(d).
 // machineMap should come from getmachineMapForDeployment(d, rsList).
@@ -674,8 +675,16 @@ func (dc *controller) isScalingEvent(ctx context.Context, d *v1alpha1.MachineDep
 	if err != nil {
 		return false, err
 	}
+	if newIS == nil {
+		return false, nil
+	}
 	allISs := append(oldISs, newIS)
-	for _, is := range FilterActiveMachineSets(allISs) {
+	activeMachineSets := FilterActiveMachineSets(allISs)
+	//if this is a scale from zero scenario, return true
+	if len(activeMachineSets) == 0 && d.Spec.Replicas > 0 {
+		return true, nil
+	}
+	for _, is := range activeMachineSets {
 		desired, ok := GetDesiredReplicasAnnotation(is)
 		if !ok {
 			continue

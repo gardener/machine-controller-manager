@@ -36,10 +36,10 @@ func canConvertIntOrStringToInt32(val *intstr.IntOrString, replicas int) bool {
 
 func validateUpdateStrategy(spec *machine.MachineDeploymentSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	if spec.Strategy.Type != "RollingUpdate" && spec.Strategy.Type != "Recreate" {
+	if spec.Strategy.Type != machine.RollingUpdateMachineDeploymentStrategyType && spec.Strategy.Type != machine.RecreateMachineDeploymentStrategyType {
 		allErrs = append(allErrs, field.Required(fldPath.Child("strategy.type"), "Type can either be RollingUpdate or Recreate"))
 	}
-	if spec.Strategy.Type == "RollingUpdate" {
+	if spec.Strategy.Type == machine.RollingUpdateMachineDeploymentStrategyType {
 		if spec.Strategy.RollingUpdate == nil {
 			allErrs = append(allErrs, field.Required(fldPath.Child("strategy.rollingUpdate"), "RollingUpdate parameter cannot be nil for rolling update strategy"))
 		} else {
