@@ -229,8 +229,14 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(ctx context.Context) er
 		if len(machineDeployments) >= 1 {
 			machineDeployment := machineDeployments[0]
 			if machineDeployment != nil {
+				var maxSurge *intstrutil.IntOrString
+				if machineDeployment.Spec.Strategy.RollingUpdate != nil {
+					maxSurge = machineDeployment.Spec.Strategy.RollingUpdate.MaxSurge
+				} else if machineDeployment.Spec.Strategy.InPlaceUpdate != nil {
+					maxSurge = machineDeployment.Spec.Strategy.InPlaceUpdate.MaxSurge
+				}
 				surge, err := intstrutil.GetValueFromIntOrPercent(
-					machineDeployment.Spec.Strategy.RollingUpdate.MaxSurge,
+					maxSurge,
 					int(machineDeployment.Spec.Replicas),
 					true,
 				)
