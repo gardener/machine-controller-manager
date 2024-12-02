@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 -include .env
+TOOLS_DIR := hack/tools
 include hack/tools.mk
 
 IMAGE_REPOSITORY   := europe-docker.pkg.dev/gardener-project/public/gardener/machine-controller-manager
