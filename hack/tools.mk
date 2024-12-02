@@ -2,7 +2,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-TOOLS_DIR                  := hack/tools
+ifeq ($(strip $(shell go list -m 2>/dev/null)),github.com/gardener/machine-controller-manager)
+TOOLS_PKG_PATH             := ./hack/tools
+else
+# dependency on github.com/gardener/machine-controller-manager/hack/tools is optional and only needed if other projects want to reuse
+# install-gosec.sh. If they don't use it and the project doesn't depend on the package,
+# silence the error to minimize confusion.
+TOOLS_PKG_PATH             := $(shell go list -tags tools -f '{{ .Dir }}' github.com/gardener/machine-controller-manager/hack/tools 2>/dev/null)
+endif
 TOOLS_BIN_DIR              := $(TOOLS_DIR)/bin
 
 ## Tool Binaries
@@ -13,7 +20,7 @@ CONVERSION_GEN ?= $(TOOLS_BIN_DIR)/conversion-gen
 OPENAPI_GEN ?= $(TOOLS_BIN_DIR)/openapi-gen
 VGOPATH ?= $(TOOLS_BIN_DIR)/vgopath
 GEN_CRD_API_REFERENCE_DOCS ?= $(TOOLS_BIN_DIR)/gen-crd-api-reference-docs
-ADDLICENSE ?= $(TOOLS_BIN_DIR)/addlicense
+GO_ADD_LICENSE ?= $(TOOLS_BIN_DIR)/addlicense
 GOIMPORTS ?= $(TOOLS_BIN_DIR)/goimports
 GOLANGCI_LINT ?= $(TOOLS_BIN_DIR)/golangci-lint
 GOSEC ?= $(TOOLS_BIN_DIR)/gosec
@@ -74,4 +81,4 @@ $(GOLANGCI_LINT): $(TOOLS_BIN_DIR)
 	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 $(GOSEC):
-	GOSEC_VERSION=$(GOSEC_VERSION) bash $(abspath $(TOOLS_DIR))/install-gosec.sh
+	GOSEC_VERSION=$(GOSEC_VERSION) bash $(TOOLS_PKG_PATH)/install-gosec.sh
