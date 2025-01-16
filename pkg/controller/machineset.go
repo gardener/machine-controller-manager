@@ -33,6 +33,7 @@ import (
 
 	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
@@ -374,6 +375,11 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		// If MachineSet is frozen and no deletion timestamp, don't process it
 		if machineSet.Labels["freeze"] == "True" && machineSet.DeletionTimestamp == nil {
 			klog.V(2).Infof("MachineSet %q is frozen, and hence not processing", machineSet.Name)
+			return nil
+		}
+
+		if _, ok := machineSet.Labels[machineutils.LabelKeyMachineSetScaleUpDisabled]; ok {
+			klog.V(2).Infof("MachineSet %s has label %s, and hence not creating new machines for it", machineSet.Name, machineutils.LabelKeyMachineSetScaleUpDisabled)
 			return nil
 		}
 

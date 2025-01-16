@@ -880,6 +880,34 @@ var _ = Describe("machineset", func() {
 			Expect(Err).Should(BeNil())
 		})
 
+		// Testcase: ActiveMachines < DesiredMachines
+		// It should not create new machines and should not return error.
+		It("should not create new machines and should not return error if machine set is labelled with node.machine.sapcloud.io/scale-up-disabled.", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			testMachineSet.Labels = map[string]string{
+				"test-label": "test-label",
+				"node.machine.sapcloud.io/scale-up-disabled": "true",
+			}
+
+			objects := []runtime.Object{}
+			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			machines, _ := c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
+			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas) - 1))
+
+			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2}
+			Err := c.manageReplicas(context.TODO(), activeMachines, testMachineSet)
+			waitForCacheSync(stop, c)
+			machines, _ = c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
+			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas) - 1))
+			Expect(Err).Should(BeNil())
+		})
+
 		Describe("machine with update-result label", func() {
 			// Testcase: ActiveMachines + MachinesWithUpdateSuccessfulLabel < DesiredMachines
 			// It should create new machines and should not return erros.
