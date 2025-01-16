@@ -7,19 +7,18 @@ package controller
 import (
 	"context"
 	"errors"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"sync"
 	"time"
 
-	"k8s.io/utils/pointer"
-
-	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
 	k8sError "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/pointer"
+
+	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 const (
@@ -568,6 +567,7 @@ var _ = Describe("machineset", func() {
 			testActiveMachine2 *machinev1.Machine
 			testActiveMachine3 *machinev1.Machine
 			testActiveMachine4 *machinev1.Machine
+			testActiveMachine5 *machinev1.Machine
 		)
 
 		BeforeEach(func() {
@@ -871,7 +871,180 @@ var _ = Describe("machineset", func() {
 			// replica count is still maintained.
 			Expect(len(afterMachines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
 			Expect(err).Should(BeNil())
+		})
 
+		Describe("machine with update-result label", func() {
+			// Testcase: ActiveMachines + MachinesWithUpdateSuccessfulLabel < DesiredMachines
+			// It should create new machines and should not return erros.
+			It("should create new machines and should not return errors.", func() {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				testActiveMachine3 = &machinev1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "machine-3",
+						Namespace: testNamespace,
+						UID:       "12345610",
+						Labels: map[string]string{
+							"test-label":                             "test-label",
+							"node.machine.sapcloud.io/update-result": "successful",
+						},
+					},
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Machine",
+						APIVersion: "machine.sapcloud.io/v1alpha1",
+					},
+					Status: machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase: MachineRunning,
+						},
+					},
+				}
+
+				objects := []runtime.Object{}
+				objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine3)
+				c, trackers := createController(stop, testNamespace, objects, nil, nil)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+
+				machines, _ := c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
+				Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas) - 1))
+
+				activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine3}
+				Err := c.manageReplicas(context.TODO(), activeMachines, testMachineSet)
+				waitForCacheSync(stop, c)
+				machines, _ = c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
+				Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
+				Expect(Err).Should(BeNil())
+			})
+
+			// Testcase: ActiveMachines + MachinesWithUpdateSuccessfulLabel = DesiredMachines
+			// It should not return error.
+			It("should not create or delete machines and should not return error", func() {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				testActiveMachine3 = &machinev1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "machine-3",
+						Namespace: testNamespace,
+						UID:       "12345610",
+						Labels: map[string]string{
+							"test-label":                             "test-label",
+							"node.machine.sapcloud.io/update-result": "successful",
+						},
+					},
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Machine",
+						APIVersion: "machine.sapcloud.io/v1alpha1",
+					},
+					Status: machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase: MachineRunning,
+						},
+					},
+				}
+
+				objects := []runtime.Object{}
+				objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2, testActiveMachine3)
+				c, trackers := createController(stop, testNamespace, objects, nil, nil)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+
+				machines, _ := c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
+				Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
+
+				activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2, testActiveMachine3}
+				Err := c.manageReplicas(context.TODO(), activeMachines, testMachineSet)
+				waitForCacheSync(stop, c)
+				machines, _ = c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
+				Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
+				Expect(Err).Should(BeNil())
+			})
+
+			// TestCase: ActiveMachines + MachinesWithUpdateSuccessfulLabel > DesiredMachines
+			// Testcase: It should not return error and delete extra running machine.
+			It("should not create or delete machines and should not return error", func() {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				testActiveMachine3 = &machinev1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "machine-3",
+						Namespace: testNamespace,
+						UID:       "12345610",
+						Labels: map[string]string{
+							"test-label":                             "test-label",
+							"node.machine.sapcloud.io/update-result": "successful",
+						},
+					},
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Machine",
+						APIVersion: "machine.sapcloud.io/v1alpha1",
+					},
+					Status: machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase: MachineRunning,
+						},
+					},
+				}
+
+				testActiveMachine4 = &machinev1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "machine-4",
+						Namespace: testNamespace,
+						UID:       "12345611",
+						Labels: map[string]string{
+							"test-label": "test-label",
+						},
+					},
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Machine",
+						APIVersion: "machine.sapcloud.io/v1alpha1",
+					},
+					Status: machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase: MachineRunning,
+						},
+					},
+				}
+
+				testActiveMachine5 = &machinev1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "machine-5",
+						Namespace: testNamespace,
+						UID:       "12345612",
+						Labels: map[string]string{
+							"test-label": "test-label",
+						},
+					},
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Machine",
+						APIVersion: "machine.sapcloud.io/v1alpha1",
+					},
+					Status: machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase: MachineRunning,
+						},
+					},
+				}
+
+				objects := []runtime.Object{}
+				objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2, testActiveMachine3, testActiveMachine4, testActiveMachine5)
+				c, trackers := createController(stop, testNamespace, objects, nil, nil)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+
+				machines, _ := c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
+				Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas) + 2))
+
+				activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2, testActiveMachine3, testActiveMachine4, testActiveMachine5}
+				Err := c.manageReplicas(context.TODO(), activeMachines, testMachineSet)
+				waitForCacheSync(stop, c)
+				machines, _ = c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
+				Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas) + 1))
+				Expect(Err).Should(BeNil())
+			})
 		})
 	})
 

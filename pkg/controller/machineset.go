@@ -26,31 +26,29 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"reflect"
 	"sort"
 	"sync"
 	"time"
 
-	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
-	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	errorsutil "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/client-go/util/retry"
-
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/utils/integer"
-
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/integer"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 const (
@@ -337,8 +335,14 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		return nil
 	}
 
-	var activeMachines, staleMachines []*v1alpha1.Machine
+	var activeMachines, staleMachines, machinesWithUpdateSuccessfulLabel []*v1alpha1.Machine
 	for _, m := range allMachines {
+		if labelValue, ok := m.Labels[v1alpha1.LabelKeyNodeUpdateResult]; ok && labelValue == v1alpha1.LabelValueNodeUpdateSuccessful {
+			klog.V(3).Infof("Ignoring machine %s moved to new machine set during inplace update", m.Name)
+			machinesWithUpdateSuccessfulLabel = append(machinesWithUpdateSuccessfulLabel, m)
+			continue
+		}
+
 		if machineutils.IsMachineFailed(m) || machineutils.IsMachineTriggeredForDeletion(m) {
 			staleMachines = append(staleMachines, m)
 		} else if machineutils.IsMachineActive(m) {
@@ -355,6 +359,14 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	}
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
+	if diff < 0 {
+		if diff+len(machinesWithUpdateSuccessfulLabel) >= 0 {
+			diff = 0
+		} else if diff+len(machinesWithUpdateSuccessfulLabel) < 0 {
+			diff += len(machinesWithUpdateSuccessfulLabel)
+		}
+	}
+
 	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
 
 	if diff < 0 {

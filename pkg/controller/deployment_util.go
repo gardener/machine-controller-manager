@@ -25,18 +25,12 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"k8s.io/klog/v2"
-
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
-	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
 	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -47,10 +41,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/integer"
 	"k8s.io/utils/ptr"
 
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
+	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 // MachineDeploymentListerExpansion allows custom methods to be added to MachineDeploymentLister.
