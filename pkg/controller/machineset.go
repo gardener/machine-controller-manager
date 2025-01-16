@@ -336,8 +336,14 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		return nil
 	}
 
-	var activeMachines, staleMachines []*v1alpha1.Machine
+	var activeMachines, staleMachines, machinesWithUpdateSuccessfulLabel []*v1alpha1.Machine
 	for _, machine := range allMachines {
+		if labelValue, ok := machine.Labels[v1alpha1.LabelKeyNodeUpdateResult]; ok && labelValue == v1alpha1.LabelValueNodeUpdateSuccessful {
+			klog.V(3).Infof("Ignoring machine %s moved to new machine set during inplace update", machine.Name)
+			machinesWithUpdateSuccessfulLabel = append(machinesWithUpdateSuccessfulLabel, machine)
+			continue
+		}
+
 		if IsMachineActive(machine) {
 			activeMachines = append(activeMachines, machine)
 		} else if IsMachineFailed(machine) {
@@ -354,6 +360,14 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	}
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
+	if diff < 0 {
+		if diff+len(machinesWithUpdateSuccessfulLabel) >= 0 {
+			diff = 0
+		} else if diff+len(machinesWithUpdateSuccessfulLabel) < 0 {
+			diff += len(machinesWithUpdateSuccessfulLabel)
+		}
+	}
+
 	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
 
 	if diff < 0 {
