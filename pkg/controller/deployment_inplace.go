@@ -13,6 +13,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,6 +46,15 @@ func (dc *controller) rolloutAutoInPlace(ctx context.Context, d *v1alpha1.Machin
 			Effect: "PreferNoSchedule",
 		},
 	)
+
+	if len(oldISs) > 0 && !dc.machineSetsScaledToZero(oldISs) {
+		// Label all the old machine sets to disable the scale up.
+		err := dc.labelMachineSets(ctx, oldISs, map[string]string{machineutils.LabelKeyMachineSetScaleUpDisabled: "true"})
+		if err != nil {
+			klog.Errorf("Failed to add label %s on all machine sets. Error: %s", machineutils.LabelKeyMachineSetScaleUpDisabled, err)
+			return err
+		}
+	}
 
 	if dc.autoscalerScaleDownAnnotationDuringRollout {
 		// Add the annotation on the all machinesets if there are any old-machinesets and not scaled-to-zero.
@@ -527,4 +537,23 @@ func (dc *controller) getMachinesForDrain(is *v1alpha1.MachineSet, readyForDrain
 		return candidateForUpdateMachines[:readyForDrain], nil
 	}
 	return candidateForUpdateMachines, nil
+}
+
+// labelMachineSets label all the machineSets with the given label
+func (dc *controller) labelMachineSets(ctx context.Context, MachineSets []*v1alpha1.MachineSet, labels map[string]string) error {
+	for _, machineSet := range MachineSets {
+
+		if machineSet == nil {
+			continue
+		}
+
+		labels := MergeStringMaps(machineSet.Labels, labels)
+		addLabelPatch := fmt.Sprintf(`{"metadata":{"labels":{%s}}}`, labelsutil.GetFormatedLabels(labels))
+
+		if err := dc.machineSetControl.PatchMachineSet(ctx, machineSet.Namespace, machineSet.Name, []byte(addLabelPatch)); err != nil {
+			return fmt.Errorf("failed to label MachineSet %s: %w", machineSet.Name, err)
+		}
+	}
+
+	return nil
 }
