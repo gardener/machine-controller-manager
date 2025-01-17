@@ -468,26 +468,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 			// GetMachineStatus() returned with one of the above error codes.
 			// Retry operation.
-			updateRetryPeriod, updateErr := c.machineStatusUpdate(
-				ctx,
-				machine,
-				v1alpha1.LastOperation{
-					Description:    "Cloud provider message - " + err.Error(),
-					State:          v1alpha1.MachineStateFailed,
-					Type:           v1alpha1.MachineOperationCreate,
-					LastUpdateTime: metav1.Now(),
-				},
-				v1alpha1.CurrentStatus{
-					Phase:          c.getCreateFailurePhase(machine),
-					LastUpdateTime: metav1.Now(),
-				},
-				machine.Status.LastKnownState,
-			)
-			if updateErr != nil {
-				return updateRetryPeriod, updateErr
-			}
-
-			return machineutils.ShortRetry, err
+			return c.machineCreateErrorHandler(ctx, machine, nil, err)
 
 		case codes.Uninitialized:
 			uninitializedMachine = true
@@ -498,26 +479,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			providerID = getMachineStatusResponse.ProviderID
 
 		default:
-			updateRetryPeriod, updateErr := c.machineStatusUpdate(
-				ctx,
-				machine,
-				v1alpha1.LastOperation{
-					Description:    "Cloud provider message - " + err.Error(),
-					State:          v1alpha1.MachineStateFailed,
-					Type:           v1alpha1.MachineOperationCreate,
-					LastUpdateTime: metav1.Now(),
-				},
-				v1alpha1.CurrentStatus{
-					Phase:          c.getCreateFailurePhase(machine),
-					LastUpdateTime: metav1.Now(),
-				},
-				machine.Status.LastKnownState,
-			)
-			if updateErr != nil {
-				return updateRetryPeriod, updateErr
-			}
-
-			return machineutils.MediumRetry, err
+			return c.machineCreateErrorHandler(ctx, machine, nil, err)
 		}
 	} else {
 		if machine.Labels[v1alpha1.NodeLabelKey] == "" || machine.Spec.ProviderID == "" {
