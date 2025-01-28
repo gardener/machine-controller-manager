@@ -52,11 +52,15 @@ func (c *controller) updateMachine(oldObj, newObj interface{}) {
 		return
 	}
 
-	c.enqueueMachine(newObj, "handling machine object UPDATE event")
+	if newMachine.DeletionTimestamp != nil {
+		c.enqueueMachineTermination(newObj, "handling terminating machine object UPDATE event")
+	} else {
+		c.enqueueMachine(newObj, "handling machine object UPDATE event")
+	}
 }
 
 func (c *controller) deleteMachine(obj interface{}) {
-	c.enqueueMachine(obj, "handling machine object DELETE event")
+	c.enqueueMachineTermination(obj, "handling terminating machine object DELETE event")
 }
 
 // getKeyForObj returns key for object, else returns false
@@ -83,6 +87,20 @@ func (c *controller) enqueueMachineAfter(obj interface{}, after time.Duration, r
 	}
 }
 
+func (c *controller) enqueueMachineTermination(obj interface{}, reason string) {
+	if key, ok := c.getKeyForObj(obj); ok {
+		klog.V(3).Infof("Adding machine object to termination queue %q, reason: %s", key, reason)
+		c.machineTerminationQueue.Add(key)
+	}
+}
+
+func (c *controller) enqueueMachineTerminationAfter(obj interface{}, after time.Duration, reason string) {
+	if key, ok := c.getKeyForObj(obj); ok {
+		klog.V(3).Infof("Adding machine object to termination queue %q after %s, reason: %s", key, after, reason)
+		c.machineTerminationQueue.AddAfter(key, after)
+	}
+}
+
 func (c *controller) reconcileClusterMachineKey(key string) error {
 	ctx := context.Background()
 
@@ -101,12 +119,18 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 		return err
 	}
 
+	if machine.DeletionTimestamp != nil {
+		klog.Errorf("should be in machine termination queue %s", machine.Name)
+		return nil
+	}
+
 	retryPeriod, err := c.reconcileClusterMachine(ctx, machine)
 
 	var reEnqueReason = "periodic reconcile"
 	if err != nil {
 		reEnqueReason = err.Error()
 	}
+
 	c.enqueueMachineAfter(machine, time.Duration(retryPeriod), reEnqueReason)
 
 	return nil
@@ -144,18 +168,6 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		return retry, err
 	}
 
-	if machine.DeletionTimestamp != nil {
-		// Process a delete event
-		return c.triggerDeletionFlow(
-			ctx,
-			&driver.DeleteMachineRequest{
-				Machine:      machine,
-				MachineClass: machineClass,
-				Secret:       &corev1.Secret{Data: secretData},
-			},
-		)
-	}
-
 	// Add finalizers if not present on machine object
 	retry, err = c.addMachineFinalizers(ctx, machine)
 	if err != nil {
@@ -191,6 +203,57 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 	}
 
 	return machineutils.LongRetry, nil
+}
+
+func (c *controller) reconcileClusterMachineTermination(key string) error {
+	ctx := context.Background()
+
+	_, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return err
+	}
+
+	machine, err := c.machineLister.Machines(c.namespace).Get(name)
+	if apierrors.IsNotFound(err) {
+		klog.V(4).Infof("Machine %q: Not doing work because it is not found", key)
+		return nil
+	}
+	if err != nil {
+		klog.Errorf("Machine %q: Unable to retrieve object from store: %v", key, err)
+		return err
+	}
+
+	klog.V(2).Infof("reconcileClusterMachineTermination: Start for %q with phase:%q, description:%q",
+		machine.Name, machine.Status.CurrentStatus.Phase, machine.Status.LastOperation.Description)
+	defer klog.V(2).Infof("reconcileClusterMachineTermination: Stop for %q", machine.Name)
+
+	machineClass, secretData, retry, err := c.ValidateMachineClass(ctx, &machine.Spec.Class)
+	if err != nil {
+		klog.Errorf("cannot reconcile machine %s: %s", machine.Name, err)
+		c.enqueueMachineTerminationAfter(machine, time.Duration(retry), err.Error())
+		return err
+	}
+
+	if machine.DeletionTimestamp != nil {
+		// Process a delete event
+		retryPeriod, err := c.triggerDeletionFlow(
+			ctx,
+			&driver.DeleteMachineRequest{
+				Machine:      machine,
+				MachineClass: machineClass,
+				Secret:       &corev1.Secret{Data: secretData},
+			},
+		)
+
+		if err != nil {
+			c.enqueueMachineTerminationAfter(machine, time.Duration(retryPeriod), err.Error())
+			return err
+		}
+	}
+
+	c.enqueueMachineTerminationAfter(machine, time.Duration(machineutils.LongRetry), "periodic reconcile")
+
+	return nil
 }
 
 /*
