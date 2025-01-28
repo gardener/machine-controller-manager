@@ -92,6 +92,7 @@ func NewController(
 		nodeQueue:                     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
 		machineClassQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineclass"),
 		machineQueue:                  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
+		machineTerminationQueue:       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinetermination"),
 		machineSafetyOrphanVMsQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
 		machineSafetyAPIServerQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
 		safetyOptions:                 safetyOptions,
@@ -253,6 +254,7 @@ type controller struct {
 	nodeQueue                   workqueue.RateLimitingInterface
 	machineClassQueue           workqueue.RateLimitingInterface
 	machineQueue                workqueue.RateLimitingInterface
+	machineTerminationQueue     workqueue.RateLimitingInterface
 	machineSafetyOrphanVMsQueue workqueue.RateLimitingInterface
 	machineSafetyAPIServerQueue workqueue.RateLimitingInterface
 	// syncs
@@ -279,6 +281,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer c.secretQueue.ShutDown()
 	defer c.machineClassQueue.ShutDown()
 	defer c.machineQueue.ShutDown()
+	defer c.machineTerminationQueue.ShutDown()
 	defer c.machineSafetyOrphanVMsQueue.ShutDown()
 	defer c.machineSafetyAPIServerQueue.ShutDown()
 
@@ -307,6 +310,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 		worker.Run(c.machineClassQueue, "ClusterMachineClass", worker.DefaultMaxRetries, true, c.reconcileClusterMachineClassKey, stopCh, &waitGroup)
 		worker.Run(c.nodeQueue, "ClusterNode", worker.DefaultMaxRetries, true, c.reconcileClusterNodeKey, stopCh, &waitGroup)
 		worker.Run(c.machineQueue, "ClusterMachine", worker.DefaultMaxRetries, true, c.reconcileClusterMachineKey, stopCh, &waitGroup)
+		worker.Run(c.machineTerminationQueue, "ClusterMachineTermination", worker.DefaultMaxRetries, true, c.reconcileClusterMachineTermination, stopCh, &waitGroup)
 		worker.Run(c.machineSafetyOrphanVMsQueue, "ClusterMachineSafetyOrphanVMs", worker.DefaultMaxRetries, true, c.reconcileClusterMachineSafetyOrphanVMs, stopCh, &waitGroup)
 		worker.Run(c.machineSafetyAPIServerQueue, "ClusterMachineAPIServer", worker.DefaultMaxRetries, true, c.reconcileClusterMachineSafetyAPIServer, stopCh, &waitGroup)
 	}
