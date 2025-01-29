@@ -35,7 +35,6 @@ import (
 	"k8s.io/klog/v2"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -425,7 +424,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return err
 	}
 	deployment, err := dc.controlMachineClient.MachineDeployments(dc.namespace).Get(ctx, name, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		klog.V(4).Infof("Deployment %v has been deleted", key)
 		return nil
 	}
