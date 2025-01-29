@@ -25,6 +25,9 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"reflect"
 	"sync"
 	"time"
@@ -512,6 +515,11 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return err
 	}
 
+	err = dc.setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(ctx, d)
+	if err != nil {
+		return err
+	}
+
 	if d.Spec.Paused {
 		klog.V(3).Infof("Scaling detected for machineDeployment %s which is paused", d.Name)
 		return dc.sync(ctx, d, machineSets, machineMap)
@@ -603,4 +611,60 @@ func (dc *controller) updateMachineDeploymentFinalizers(ctx context.Context, mac
 		klog.Warning("Updated failed, retrying")
 		dc.updateMachineDeploymentFinalizers(ctx, machineDeployment, finalizers)
 	}
+}
+
+func (dc *controller) setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(ctx context.Context, mcd *v1alpha1.MachineDeployment) error {
+	var toBeDeletedMachineNames, toBeSkippedMachineNames []string
+	toBeDeletedMachineNames = annotations.GetMachineNamesTriggeredForDeletion(mcd)
+	if len(toBeDeletedMachineNames) == 0 {
+		return nil
+	}
+	klog.V(3).Infof(" MachineDeployment %q has #%d machine(s) triggered for deletion, toBeDeletedMachineNames=%v", mcd.Name, len(toBeDeletedMachineNames), toBeDeletedMachineNames)
+	for _, machineName := range toBeDeletedMachineNames {
+		mc, err := dc.machineLister.Machines(dc.namespace).Get(machineName)
+		if apierrors.IsNotFound(err) {
+			klog.V(4).Infof("Machine %q is not found in MachineDeployment %q - skip setting MachinePriority=1 annotation", machineName, mcd.Name)
+			toBeSkippedMachineNames = append(toBeSkippedMachineNames, machineName)
+			continue
+		}
+		if machineutils.IsMachineFailedOrTerminating(mc) {
+			klog.V(4).Infof("Machine %q of MachineDeployment %q is in Failed/Terminating state - skip setting MachinePriority=1 annotation", machineName, mcd.Name)
+			toBeSkippedMachineNames = append(toBeSkippedMachineNames, machineName)
+			continue
+		}
+		if mc.Annotations[machineutils.MachinePriority] == "1" {
+			klog.V(4).Infof("Machine %q of MachineDeployment %q already marked with MachinePriority=1 annotation", machineName, mcd.Name)
+			continue
+		}
+		mcAdjust := mc.DeepCopy()
+		mcAdjust.Annotations[machineutils.MachinePriority] = "1"
+		_, err = dc.controlMachineClient.Machines(mcAdjust.Namespace).Update(ctx, mcAdjust, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("Failed to set MachinePriority=1 annotation on Machine %q of MachineDeployment %q: %v", machineName, mcd.Name, err)
+			//TODO: Return error here or just log and continue for best-effort?
+			return err
+		}
+		klog.V(3).Infof("Machine %q of MachineDeployment %q marked with MachinePriority=1 annotation successfully", machineName, mcd.Name)
+	}
+
+	if len(toBeSkippedMachineNames) == 0 {
+		return nil
+	}
+
+	toBeDeletedMachineNames = sets.NewString(toBeDeletedMachineNames...).Delete(toBeSkippedMachineNames...).List()
+	triggerDeletionAnnotValue := annotations.CreateMachinesTriggeredForDeletionAnnotValue(toBeDeletedMachineNames)
+
+	if mcd.Annotations[machineutils.TriggerDeletionByMCM] == triggerDeletionAnnotValue {
+		return nil
+	}
+
+	mcdAdjust := mcd.DeepCopy()
+	mcdAdjust.Annotations[machineutils.TriggerDeletionByMCM] = triggerDeletionAnnotValue
+	_, err := dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdAdjust, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("Failed to update MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(toBeDeletedMachineNames), triggerDeletionAnnotValue)
+		return err
+	}
+	klog.V(3).Infof("Updated MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(toBeDeletedMachineNames), triggerDeletionAnnotValue)
+	return nil
 }
