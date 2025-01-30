@@ -618,7 +618,7 @@ func (dc *controller) setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(
 	if len(toBeDeletedMachineNames) == 0 {
 		return nil
 	}
-	klog.V(3).Infof(" MachineDeployment %q has #%d machine(s) triggered for deletion, toBeDeletedMachineNames=%v", mcd.Name, len(toBeDeletedMachineNames), toBeDeletedMachineNames)
+	klog.V(3).Infof("MachineDeployment %q has #%d machine(s) marked for deletion, toBeDeletedMachineNames=%v", mcd.Name, len(toBeDeletedMachineNames), toBeDeletedMachineNames)
 	for _, machineName := range toBeDeletedMachineNames {
 		mc, err := dc.machineLister.Machines(dc.namespace).Get(machineName)
 		if apierrors.IsNotFound(err) {
@@ -658,12 +658,18 @@ func (dc *controller) setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(
 	}
 
 	mcdAdjust := mcd.DeepCopy()
-	mcdAdjust.Annotations[machineutils.TriggerDeletionByMCM] = triggerDeletionAnnotValue
+	if triggerDeletionAnnotValue != "" {
+		mcdAdjust.Annotations[machineutils.TriggerDeletionByMCM] = triggerDeletionAnnotValue
+	} else {
+		delete(mcdAdjust.Annotations, machineutils.TriggerDeletionByMCM)
+	}
 	_, err := dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdAdjust, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("Failed to update MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(toBeDeletedMachineNames), triggerDeletionAnnotValue)
 		return err
 	}
-	klog.V(3).Infof("Updated MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(toBeDeletedMachineNames), triggerDeletionAnnotValue)
+	if triggerDeletionAnnotValue != "" {
+		klog.V(3).Infof("Updated MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(toBeDeletedMachineNames), triggerDeletionAnnotValue)
+	}
 	return nil
 }
