@@ -15,8 +15,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+const gnaSecretNameLabelKey = "worker.gardener.cloud/gardener-node-agent-secret-name"
+
 // CreateMachine creates a test-machine using machineclass "test-mc"
-func (c *Cluster) CreateMachine(namespace string) error {
+func (c *Cluster) CreateMachine(namespace string, gnaSecretName string) error {
 	_, err := c.McmClient.
 		MachineV1alpha1().
 		Machines(namespace).
@@ -32,6 +34,13 @@ func (c *Cluster) CreateMachine(namespace string) error {
 						Kind: "MachineClass",
 						Name: "test-mc-v1",
 					},
+					NodeTemplateSpec: v1alpha1.NodeTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								gnaSecretNameLabelKey: gnaSecretName,
+							},
+						},
+					},
 				},
 			},
 			metav1.CreateOptions{},
@@ -40,7 +49,7 @@ func (c *Cluster) CreateMachine(namespace string) error {
 }
 
 // CreateMachineDeployment creates a test-machine-deployment with 3 replicas and returns error if it occurs
-func (c *Cluster) CreateMachineDeployment(namespace string, replicas int32) error {
+func (c *Cluster) CreateMachineDeployment(namespace string, gnaSecretName string, replicas int32) error {
 	labels := map[string]string{"test-label": "test-label"}
 	_, err := c.McmClient.
 		MachineV1alpha1().
@@ -73,6 +82,13 @@ func (c *Cluster) CreateMachineDeployment(namespace string, replicas int32) erro
 							Class: v1alpha1.ClassSpec{
 								Kind: "MachineClass",
 								Name: "test-mc-v1",
+							},
+							NodeTemplateSpec: v1alpha1.NodeTemplateSpec{
+								ObjectMeta: metav1.ObjectMeta{
+									Labels: map[string]string{
+										gnaSecretNameLabelKey: gnaSecretName,
+									},
+								},
 							},
 						},
 					},
