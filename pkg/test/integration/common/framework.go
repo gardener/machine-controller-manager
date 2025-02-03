@@ -95,6 +95,9 @@ var (
 	// if true, control cluster is a seed
 	// only set this variable if operating in gardener context
 	isControlSeed = os.Getenv("IS_CONTROL_CLUSTER_SEED")
+
+	//values for gardener-node-agent-secret-name
+	gnaSecretNameLabelValue = os.Getenv("GNA_SECRET_NAME")
 )
 
 // ProviderSpecPatch struct holds tags for provider, which we want to patch the  machineclass with
@@ -870,7 +873,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				// Probe nodes currently available in target cluster
 				initialNodes = c.TargetCluster.GetNumberOfNodes()
 				ginkgo.By("Checking for errors")
-				gomega.Expect(c.ControlCluster.CreateMachine(controlClusterNamespace)).To(gomega.BeNil())
+				gomega.Expect(c.ControlCluster.CreateMachine(controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.BeNil())
 
 				ginkgo.By("Waiting until number of ready nodes is 1 more than initial nodes")
 				gomega.Eventually(
@@ -961,7 +964,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				initialNodes = c.TargetCluster.GetNumberOfNodes()
 
 				ginkgo.By("Checking for errors")
-				gomega.Expect(c.ControlCluster.CreateMachineDeployment(controlClusterNamespace, 0)).To(gomega.BeNil())
+				gomega.Expect(c.ControlCluster.CreateMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 0)).To(gomega.BeNil())
 
 				ginkgo.By("Waiting for Machine Set to be created")
 				gomega.Eventually(func() int { return c.getNumberOfMachineSets(ctx, controlClusterNamespace) }, c.timeout, c.pollingInterval).Should(gomega.BeNumerically("==", 1))
