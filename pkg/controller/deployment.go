@@ -653,10 +653,6 @@ func (dc *controller) setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(
 	toBeDeletedMachineNames = sets.NewString(toBeDeletedMachineNames...).Delete(toBeSkippedMachineNames...).List()
 	triggerDeletionAnnotValue := annotations.CreateMachinesTriggeredForDeletionAnnotValue(toBeDeletedMachineNames)
 
-	if mcd.Annotations[machineutils.TriggerDeletionByMCM] == triggerDeletionAnnotValue {
-		return nil
-	}
-
 	mcdAdjust := mcd.DeepCopy()
 	if triggerDeletionAnnotValue != "" {
 		mcdAdjust.Annotations[machineutils.TriggerDeletionByMCM] = triggerDeletionAnnotValue
@@ -668,8 +664,6 @@ func (dc *controller) setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(
 		klog.Errorf("Failed to update MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(toBeDeletedMachineNames), triggerDeletionAnnotValue)
 		return err
 	}
-	if triggerDeletionAnnotValue != "" {
-		klog.V(3).Infof("Updated MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(toBeDeletedMachineNames), triggerDeletionAnnotValue)
-	}
+	klog.V(3).Infof("Updated MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(toBeDeletedMachineNames), triggerDeletionAnnotValue)
 	return nil
 }
