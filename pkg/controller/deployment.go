@@ -640,7 +640,6 @@ func (dc *controller) setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(
 		_, err = dc.controlMachineClient.Machines(mcAdjust.Namespace).Update(ctx, mcAdjust, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf("Failed to set MachinePriority=1 annotation on Machine %q of MachineDeployment %q: %v", machineName, mcd.Name, err)
-			//TODO: Return error here or just log and continue for best-effort?
 			return err
 		}
 		klog.V(3).Infof("Machine %q of MachineDeployment %q marked with MachinePriority=1 annotation successfully", machineName, mcd.Name)
