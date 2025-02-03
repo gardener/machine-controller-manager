@@ -75,6 +75,9 @@ func DeleteAnnotation(nodeAnnotations map[string]string, annotations map[string]
 
 // GetMachineNamesTriggeredForDeletion returns the set of machine names contained within the machineutils.TriggerDeletionByMCM annotation on the given MachineDeployment
 func GetMachineNamesTriggeredForDeletion(mcd *v1alpha1.MachineDeployment) []string {
+	if mcd.Annotations == nil || mcd.Annotations[machineutils.TriggerDeletionByMCM] == "" {
+		return nil
+	}
 	return strings.Split(mcd.Annotations[machineutils.TriggerDeletionByMCM], ",")
 }
 
