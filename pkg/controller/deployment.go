@@ -25,6 +25,9 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"reflect"
 	"sync"
 	"time"
@@ -32,7 +35,6 @@ import (
 	"k8s.io/klog/v2"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -422,7 +424,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return err
 	}
 	deployment, err := dc.controlMachineClient.MachineDeployments(dc.namespace).Get(ctx, name, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		klog.V(4).Infof("Deployment %v has been deleted", key)
 		return nil
 	}
@@ -509,6 +511,11 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	// a deployment. In this way, we can be sure that we won't timeout when a user
 	// resumes a Deployment with a set progressDeadlineSeconds.
 	if err = dc.checkPausedConditions(ctx, d); err != nil {
+		return err
+	}
+
+	err = dc.setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(ctx, d)
+	if err != nil {
 		return err
 	}
 
@@ -603,4 +610,59 @@ func (dc *controller) updateMachineDeploymentFinalizers(ctx context.Context, mac
 		klog.Warning("Updated failed, retrying")
 		dc.updateMachineDeploymentFinalizers(ctx, machineDeployment, finalizers)
 	}
+}
+
+func (dc *controller) setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(ctx context.Context, mcd *v1alpha1.MachineDeployment) error {
+	var triggerForDeletionMachineNames, skipTriggerForDeletionMachineNames []string
+	triggerForDeletionMachineNames = annotations.GetMachineNamesTriggeredForDeletion(mcd)
+	if len(triggerForDeletionMachineNames) == 0 {
+		return nil
+	}
+	klog.V(3).Infof("MachineDeployment %q has #%d machine(s) marked for deletion, triggerForDeletionMachineNames=%v", mcd.Name, len(triggerForDeletionMachineNames), triggerForDeletionMachineNames)
+	for _, machineName := range triggerForDeletionMachineNames {
+		mc, err := dc.machineLister.Machines(dc.namespace).Get(machineName)
+		if apierrors.IsNotFound(err) {
+			klog.V(4).Infof("Machine %q is not found in MachineDeployment %q - skip setting MachinePriority=1 annotation", machineName, mcd.Name)
+			skipTriggerForDeletionMachineNames = append(skipTriggerForDeletionMachineNames, machineName)
+			continue
+		}
+		if machineutils.IsMachineFailedOrTerminating(mc) {
+			klog.V(4).Infof("Machine %q of MachineDeployment %q is in Failed/Terminating state - skip setting MachinePriority=1 annotation", machineName, mcd.Name)
+			skipTriggerForDeletionMachineNames = append(skipTriggerForDeletionMachineNames, machineName)
+			continue
+		}
+		if mc.Annotations[machineutils.MachinePriority] == "1" {
+			klog.V(4).Infof("Machine %q of MachineDeployment %q already marked with MachinePriority=1 annotation", machineName, mcd.Name)
+			continue
+		}
+		mcAdjust := mc.DeepCopy()
+		mcAdjust.Annotations[machineutils.MachinePriority] = "1"
+		_, err = dc.controlMachineClient.Machines(mcAdjust.Namespace).Update(ctx, mcAdjust, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("Failed to set MachinePriority=1 annotation on Machine %q of MachineDeployment %q: %v", machineName, mcd.Name, err)
+			return err
+		}
+		klog.V(3).Infof("Machine %q of MachineDeployment %q marked with MachinePriority=1 annotation successfully", machineName, mcd.Name)
+	}
+
+	if len(skipTriggerForDeletionMachineNames) == 0 {
+		return nil
+	}
+
+	triggerForDeletionMachineNames = sets.NewString(triggerForDeletionMachineNames...).Delete(skipTriggerForDeletionMachineNames...).List()
+	triggerDeletionAnnotValue := annotations.CreateMachinesTriggeredForDeletionAnnotValue(triggerForDeletionMachineNames)
+
+	mcdAdjust := mcd.DeepCopy()
+	if triggerDeletionAnnotValue != "" {
+		mcdAdjust.Annotations[machineutils.TriggerDeletionByMCM] = triggerDeletionAnnotValue
+	} else {
+		delete(mcdAdjust.Annotations, machineutils.TriggerDeletionByMCM)
+	}
+	_, err := dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdAdjust, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("Failed to update MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(triggerForDeletionMachineNames), triggerDeletionAnnotValue)
+		return err
+	}
+	klog.V(3).Infof("Updated MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(triggerForDeletionMachineNames), triggerDeletionAnnotValue)
+	return nil
 }

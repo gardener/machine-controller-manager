@@ -34,3 +34,6 @@ hack/tools/bin/
 
 # gosec
 gosec-report.sarif
+
+# ignore test binary fines
+**/*.test

@@ -6,7 +6,11 @@
 package annotations
 
 import (
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	v1 "k8s.io/api/core/v1"
+	"slices"
+	"strings"
 )
 
 // AddOrUpdateAnnotation tries to add an annotation. Returns a new copy of updated Node and true if something was updated
@@ -67,4 +71,18 @@ func DeleteAnnotation(nodeAnnotations map[string]string, annotations map[string]
 		newAnnotations[key] = value
 	}
 	return newAnnotations, deleted
+}
+
+// GetMachineNamesTriggeredForDeletion returns the set of machine names contained within the machineutils.TriggerDeletionByMCM annotation on the given MachineDeployment
+func GetMachineNamesTriggeredForDeletion(mcd *v1alpha1.MachineDeployment) []string {
+	if mcd.Annotations == nil || mcd.Annotations[machineutils.TriggerDeletionByMCM] == "" {
+		return nil
+	}
+	return strings.Split(mcd.Annotations[machineutils.TriggerDeletionByMCM], ",")
+}
+
+// CreateMachinesTriggeredForDeletionAnnotValue constructs the annotation value for machineutils.TriggerDeletionByMCM from the given machine names.
+func CreateMachinesTriggeredForDeletionAnnotValue(machineNames []string) string {
+	slices.Sort(machineNames)
+	return strings.Join(machineNames, ",")
 }

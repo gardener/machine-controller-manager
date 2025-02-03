@@ -6,6 +6,7 @@
 package machineutils
 
 import (
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -49,6 +50,8 @@ const (
 	NotManagedByMCM = "node.machine.sapcloud.io/not-managed-by-mcm"
 
 	// TriggerDeletionByMCM annotation on the node would trigger the deletion of the corresponding machine object in the control cluster
+	// This annotation can also be set on the MachineDeployment and contains the machine names for which deletion should be triggered.
+	// This feature is leveraged by the CA-MCM cloud provider.
 	TriggerDeletionByMCM = "node.machine.sapcloud.io/trigger-deletion-by-mcm"
 
 	// NodeUnhealthy is a node termination reason for failed machines
@@ -86,3 +89,11 @@ const (
 // EssentialTaints are taints on node object which if added/removed, require an immediate reconcile by machine controller
 // TODO: update this when taints for ALT updation and PostCreate operations is introduced.
 var EssentialTaints = []string{TaintNodeCriticalComponentsNotReady}
+
+// IsMachineFailedOrTerminating returns true if machine is Failed or already being Terminated.
+func IsMachineFailedOrTerminating(machine *v1alpha1.Machine) bool {
+	if !machine.GetDeletionTimestamp().IsZero() || machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
+		return true
+	}
+	return false
+}
