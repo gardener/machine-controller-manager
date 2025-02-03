@@ -613,22 +613,22 @@ func (dc *controller) updateMachineDeploymentFinalizers(ctx context.Context, mac
 }
 
 func (dc *controller) setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(ctx context.Context, mcd *v1alpha1.MachineDeployment) error {
-	var toBeDeletedMachineNames, toBeSkippedMachineNames []string
-	toBeDeletedMachineNames = annotations.GetMachineNamesTriggeredForDeletion(mcd)
-	if len(toBeDeletedMachineNames) == 0 {
+	var triggerForDeletionMachineNames, skipTriggerForDeletionMachineNames []string
+	triggerForDeletionMachineNames = annotations.GetMachineNamesTriggeredForDeletion(mcd)
+	if len(triggerForDeletionMachineNames) == 0 {
 		return nil
 	}
-	klog.V(3).Infof("MachineDeployment %q has #%d machine(s) marked for deletion, toBeDeletedMachineNames=%v", mcd.Name, len(toBeDeletedMachineNames), toBeDeletedMachineNames)
-	for _, machineName := range toBeDeletedMachineNames {
+	klog.V(3).Infof("MachineDeployment %q has #%d machine(s) marked for deletion, triggerForDeletionMachineNames=%v", mcd.Name, len(triggerForDeletionMachineNames), triggerForDeletionMachineNames)
+	for _, machineName := range triggerForDeletionMachineNames {
 		mc, err := dc.machineLister.Machines(dc.namespace).Get(machineName)
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("Machine %q is not found in MachineDeployment %q - skip setting MachinePriority=1 annotation", machineName, mcd.Name)
-			toBeSkippedMachineNames = append(toBeSkippedMachineNames, machineName)
+			skipTriggerForDeletionMachineNames = append(skipTriggerForDeletionMachineNames, machineName)
 			continue
 		}
 		if machineutils.IsMachineFailedOrTerminating(mc) {
 			klog.V(4).Infof("Machine %q of MachineDeployment %q is in Failed/Terminating state - skip setting MachinePriority=1 annotation", machineName, mcd.Name)
-			toBeSkippedMachineNames = append(toBeSkippedMachineNames, machineName)
+			skipTriggerForDeletionMachineNames = append(skipTriggerForDeletionMachineNames, machineName)
 			continue
 		}
 		if mc.Annotations[machineutils.MachinePriority] == "1" {
@@ -645,12 +645,12 @@ func (dc *controller) setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(
 		klog.V(3).Infof("Machine %q of MachineDeployment %q marked with MachinePriority=1 annotation successfully", machineName, mcd.Name)
 	}
 
-	if len(toBeSkippedMachineNames) == 0 {
+	if len(skipTriggerForDeletionMachineNames) == 0 {
 		return nil
 	}
 
-	toBeDeletedMachineNames = sets.NewString(toBeDeletedMachineNames...).Delete(toBeSkippedMachineNames...).List()
-	triggerDeletionAnnotValue := annotations.CreateMachinesTriggeredForDeletionAnnotValue(toBeDeletedMachineNames)
+	triggerForDeletionMachineNames = sets.NewString(triggerForDeletionMachineNames...).Delete(skipTriggerForDeletionMachineNames...).List()
+	triggerDeletionAnnotValue := annotations.CreateMachinesTriggeredForDeletionAnnotValue(triggerForDeletionMachineNames)
 
 	mcdAdjust := mcd.DeepCopy()
 	if triggerDeletionAnnotValue != "" {
@@ -660,9 +660,9 @@ func (dc *controller) setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(
 	}
 	_, err := dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdAdjust, metav1.UpdateOptions{})
 	if err != nil {
-		klog.Errorf("Failed to update MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(toBeDeletedMachineNames), triggerDeletionAnnotValue)
+		klog.Errorf("Failed to update MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(triggerForDeletionMachineNames), triggerDeletionAnnotValue)
 		return err
 	}
-	klog.V(3).Infof("Updated MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(toBeDeletedMachineNames), triggerDeletionAnnotValue)
+	klog.V(3).Infof("Updated MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(triggerForDeletionMachineNames), triggerDeletionAnnotValue)
 	return nil
 }
