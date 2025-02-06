@@ -313,6 +313,20 @@ func (dc *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allISs
 		return false, nil
 	}
 
+	// If maxSurge is defined, there will be machines left in the old machine set that do not require an update
+	// because the new machine set already has the required replicas due to the additional machines added as per maxSurge.
+	// In that case we simply scale down the old machine set to zero.
+	if (newIS.Spec.Replicas) == (deployment.Spec.Replicas) {
+		// Scale down old machine sets to zero.
+		for _, is := range oldISs {
+			_, _, err := dc.scaleMachineSetAndRecordEvent(ctx, is, 0, deployment)
+			if err != nil {
+				return false, err
+			}
+		}
+		return true, nil
+	}
+
 	allMachinesCount := GetReplicaCountForMachineSets(allISs)
 	klog.V(3).Infof("New machine set %s has %d available machines.", newIS.Name, newIS.Status.AvailableReplicas)
 	maxUnavailable := MaxUnavailable(*deployment)
