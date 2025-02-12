@@ -35,7 +35,12 @@ SECTION
 Machine controller - Machine add, update, delete watches
 */
 func (c *controller) addMachine(obj interface{}) {
-	c.enqueueMachine(obj, "handling machine obj ADD event")
+	machine := obj.(*v1alpha1.Machine)
+	if machine.DeletionTimestamp != nil {
+		c.enqueueMachineTermination(obj, "handling terminating machine object ADD event")
+	} else {
+		c.enqueueMachine(obj, "handling machine obj ADD event")
+	}
 }
 
 func (c *controller) updateMachine(oldObj, newObj interface{}) {
@@ -250,8 +255,6 @@ func (c *controller) reconcileClusterMachineTermination(key string) error {
 			return err
 		}
 	}
-
-	c.enqueueMachineTerminationAfter(machine, time.Duration(machineutils.LongRetry), "periodic reconcile")
 
 	return nil
 }
