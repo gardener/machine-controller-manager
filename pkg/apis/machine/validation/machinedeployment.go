@@ -6,10 +6,13 @@
 package validation
 
 import (
+	"fmt"
+	"math"
+
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"math"
 )
 
 // ValidateMachineDeployment and returns a list of errors.
@@ -36,9 +39,12 @@ func canConvertIntOrStringToInt32(val *intstr.IntOrString, replicas int) bool {
 
 func validateUpdateStrategy(spec *machine.MachineDeploymentSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	if spec.Strategy.Type != machine.RollingUpdateMachineDeploymentStrategyType && spec.Strategy.Type != machine.RecreateMachineDeploymentStrategyType {
-		allErrs = append(allErrs, field.Required(fldPath.Child("strategy.type"), "Type can either be RollingUpdate or Recreate"))
+
+	strategy := sets.New(machine.RecreateMachineDeploymentStrategyType, machine.RollingUpdateMachineDeploymentStrategyType, machine.InPlaceUpdateMachineDeploymentStrategyType)
+	if !strategy.Has(spec.Strategy.Type) {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("strategy.type"), spec.Strategy.Type, fmt.Sprintf("strategy type must be one of %v", strategy.UnsortedList())))
 	}
+
 	if spec.Strategy.Type == machine.RollingUpdateMachineDeploymentStrategyType {
 		if spec.Strategy.RollingUpdate == nil {
 			allErrs = append(allErrs, field.Required(fldPath.Child("strategy.rollingUpdate"), "RollingUpdate parameter cannot be nil for rolling update strategy"))
@@ -51,6 +57,20 @@ func validateUpdateStrategy(spec *machine.MachineDeploymentSpec, fldPath *field.
 			}
 		}
 	}
+
+	if spec.Strategy.Type == machine.InPlaceUpdateMachineDeploymentStrategyType {
+		if spec.Strategy.InPlaceUpdate == nil {
+			allErrs = append(allErrs, field.Required(fldPath.Child("strategy.inPlaceUpdate"), "InPlaceUpdate parameter cannot be nil for in-place update strategy"))
+		} else {
+			if !canConvertIntOrStringToInt32(spec.Strategy.InPlaceUpdate.MaxUnavailable, int(spec.Replicas)) {
+				allErrs = append(allErrs, field.Required(fldPath.Child("strategy.inPlaceUpdate.maxUnavailable"), "unable to convert maxUnavailable to int32"))
+			}
+			if !canConvertIntOrStringToInt32(spec.Strategy.InPlaceUpdate.MaxSurge, int(spec.Replicas)) {
+				allErrs = append(allErrs, field.Required(fldPath.Child("strategy.inPlaceUpdate.maxSurge"), "unable to convert maxSurge to int32"))
+			}
+		}
+	}
+
 	return allErrs
 }
 

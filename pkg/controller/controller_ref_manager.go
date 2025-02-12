@@ -210,8 +210,6 @@ func (m *MachineControllerRefManager) ClaimMachines(ctx context.Context, machine
 	for _, machine := range machines {
 		ok, err := m.ClaimObject(machine, match, adopt, release)
 
-		//klog.Info(machine.Name, " OK:", ok, " ERR:", err)
-
 		if err != nil {
 			errlist = append(errlist, err)
 			continue

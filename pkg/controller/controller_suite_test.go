@@ -106,8 +106,10 @@ func newMachineDeployments(
 				Strategy: v1alpha1.MachineDeploymentStrategy{
 					Type: v1alpha1.RollingUpdateMachineDeploymentStrategyType,
 					RollingUpdate: &v1alpha1.RollingUpdateMachineDeployment{
-						MaxSurge:       &intStr1,
-						MaxUnavailable: &intStr1,
+						UpdateConfiguration: v1alpha1.UpdateConfiguration{
+							MaxSurge:       &intStr1,
+							MaxUnavailable: &intStr1,
+						},
 					},
 				},
 				Template: *specTemplate.DeepCopy(),
