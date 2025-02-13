@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gardener/machine-controller-manager/pkg/controller"
 	"io"
 	"log"
 	"os"
@@ -18,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gardener/machine-controller-manager/pkg/controller"
 
 	"github.com/onsi/ginkgo/v2"
 
@@ -806,6 +807,12 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 		}
 	}
 
+	ginkgo.By("Cleaning any old resources")
+	if c.ControlCluster.McmClient != nil {
+		timeout := int64(900)
+		c.cleanTestResources(ctx, timeout)
+	}
+
 	ginkgo.By("Setup MachineClass")
 	gomega.Expect(c.setupMachineClass()).To(gomega.BeNil())
 
@@ -826,19 +833,12 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 			machineClass.SecretRef,
 			machineClass.CredentialsSecretRef,
 		)
-	gomega.Expect(err).
-		NotTo(
-			gomega.HaveOccurred(),
-		)
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	ginkgo.By(
-		"Initializing orphan resource tracker",
-	)
+	ginkgo.By("Initializing orphan resource tracker")
 	err = c.resourcesTracker.InitializeResourcesTracker(machineClass, secretData, clusterName)
-
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	log.Println("orphan resource tracker initialized")
-
 }
 
 // BeforeEachCheck checks if all the nodes are ready and the controllers are runnings
@@ -1310,82 +1310,7 @@ func (c *IntegrationTestFramework) Cleanup() {
 
 	if c.ControlCluster.McmClient != nil {
 		timeout := int64(900)
-		// Check and delete machinedeployment resource
-		_, err := c.ControlCluster.McmClient.
-			MachineV1alpha1().
-			MachineDeployments(controlClusterNamespace).
-			Get(ctx, "test-machine-deployment", metav1.GetOptions{})
-		if err == nil {
-			log.Println("deleting test-machine-deployment")
-			watchMachinesDepl, _ := c.ControlCluster.McmClient.
-				MachineV1alpha1().
-				MachineDeployments(controlClusterNamespace).
-				Watch(ctx, metav1.ListOptions{TimeoutSeconds: &timeout}) //ResourceVersion: machineDeploymentObj.ResourceVersion
-			for event := range watchMachinesDepl.ResultChan() {
-				gomega.Expect(c.ControlCluster.McmClient.
-					MachineV1alpha1().
-					MachineDeployments(controlClusterNamespace).
-					Delete(ctx, "test-machine-deployment", metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
-				if event.Type == watch.Deleted {
-					watchMachinesDepl.Stop()
-					log.Println("machinedeployment deleted")
-				}
-			}
-		} else {
-			log.Println(err.Error())
-		}
-		// Check and delete machine resource
-		_, err = c.ControlCluster.McmClient.
-			MachineV1alpha1().
-			Machines(controlClusterNamespace).
-			Get(ctx, "test-machine", metav1.GetOptions{})
-		if err == nil {
-			log.Println("deleting test-machine")
-			watchMachines, _ := c.ControlCluster.McmClient.
-				MachineV1alpha1().
-				Machines(controlClusterNamespace).
-				Watch(ctx, metav1.ListOptions{TimeoutSeconds: &timeout}) //ResourceVersion: machineObj.ResourceVersion
-			for event := range watchMachines.ResultChan() {
-				gomega.Expect(c.ControlCluster.McmClient.
-					MachineV1alpha1().
-					Machines(controlClusterNamespace).
-					Delete(ctx, "test-machine", metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
-				if event.Type == watch.Deleted {
-					watchMachines.Stop()
-					log.Println("machine deleted")
-				}
-			}
-		} else {
-			log.Println(err.Error())
-		}
-
-		for _, machineClassName := range testMachineClassResources {
-			// Check and delete machine class resource
-			_, err = c.ControlCluster.McmClient.
-				MachineV1alpha1().
-				MachineClasses(controlClusterNamespace).
-				Get(ctx, machineClassName, metav1.GetOptions{})
-			if err == nil {
-				log.Printf("deleting %s machineclass", machineClassName)
-				watchMachineClass, _ := c.ControlCluster.McmClient.
-					MachineV1alpha1().
-					MachineClasses(controlClusterNamespace).
-					Watch(ctx, metav1.ListOptions{TimeoutSeconds: &timeout})
-				for event := range watchMachineClass.ResultChan() {
-					gomega.Expect(c.ControlCluster.McmClient.
-						MachineV1alpha1().
-						MachineClasses(controlClusterNamespace).
-						Delete(ctx, machineClassName, metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
-					if event.Type == watch.Deleted {
-						watchMachineClass.Stop()
-						log.Println("machineclass deleted")
-					}
-				}
-			} else {
-				log.Println(err.Error())
-			}
-		}
-
+		c.cleanTestResources(ctx, timeout)
 	}
 	if isControlSeed == "true" {
 		// scale back up the MCM deployment to 1 in the Control Cluster
@@ -1456,6 +1381,111 @@ func (c *IntegrationTestFramework) Cleanup() {
 		}
 	}
 
+	if mcsession.ExitCode() == -1 {
+		log.Println("killing mc process")
+		mcsession.Kill()
+	}
+	if mcmsession.ExitCode() == -1 {
+		log.Println("killing mcm process")
+		mcmsession.Kill()
+	}
+}
+
+func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeout int64) {
+	// Check and delete machinedeployment resource
+	if err := c.cleanMachineDeployment(ctx, "test-machine-deployment", timeout); err != nil {
+		log.Println(err.Error())
+	}
+	// Check and delete machine resource
+	if err := c.cleanMachine(ctx, "test-machine", timeout); err != nil {
+		log.Println(err.Error())
+	}
+
+	for _, machineClassName := range testMachineClassResources {
+		// Check and delete machine class resource
+		if err := c.cleanMachineClass(ctx, machineClassName, timeout); err != nil {
+			log.Println(err.Error())
+		}
+	}
+}
+
+func (c *IntegrationTestFramework) cleanMachineDeployment(ctx context.Context, name string, timeout int64) error {
+	_, err := c.ControlCluster.McmClient.
+		MachineV1alpha1().
+		MachineDeployments(controlClusterNamespace).
+		Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	log.Printf("deleting %s\n", name)
+	watchMachinesDepl, _ := c.ControlCluster.McmClient.
+		MachineV1alpha1().
+		MachineDeployments(controlClusterNamespace).
+		Watch(ctx, metav1.ListOptions{TimeoutSeconds: &timeout}) //ResourceVersion: machineDeploymentObj.ResourceVersion
+	for event := range watchMachinesDepl.ResultChan() {
+		gomega.Expect(c.ControlCluster.McmClient.
+			MachineV1alpha1().
+			MachineDeployments(controlClusterNamespace).
+			Delete(ctx, name, metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
+		if event.Type == watch.Deleted {
+			watchMachinesDepl.Stop()
+			log.Println("machinedeployment deleted")
+		}
+	}
+	return nil
+}
+
+func (c *IntegrationTestFramework) cleanMachine(ctx context.Context, name string, timeout int64) error {
+	_, err := c.ControlCluster.McmClient.
+		MachineV1alpha1().
+		Machines(controlClusterNamespace).
+		Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	log.Printf("deleting %s\n", name)
+	watchMachines, _ := c.ControlCluster.McmClient.
+		MachineV1alpha1().
+		Machines(controlClusterNamespace).
+		Watch(ctx, metav1.ListOptions{TimeoutSeconds: &timeout}) //ResourceVersion: machineObj.ResourceVersion
+	for event := range watchMachines.ResultChan() {
+		gomega.Expect(c.ControlCluster.McmClient.
+			MachineV1alpha1().
+			Machines(controlClusterNamespace).
+			Delete(ctx, name, metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
+		if event.Type == watch.Deleted {
+			watchMachines.Stop()
+			log.Println("machine deleted")
+		}
+	}
+	return nil
+}
+
+func (c *IntegrationTestFramework) cleanMachineClass(ctx context.Context, machineClassName string, timeout int64) error {
+	_, err := c.ControlCluster.McmClient.
+		MachineV1alpha1().
+		MachineClasses(controlClusterNamespace).
+		Get(ctx, machineClassName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	log.Printf("deleting %s machineclass", machineClassName)
+	watchMachineClass, _ := c.ControlCluster.McmClient.
+		MachineV1alpha1().
+		MachineClasses(controlClusterNamespace).
+		Watch(ctx, metav1.ListOptions{TimeoutSeconds: &timeout})
+	for event := range watchMachineClass.ResultChan() {
+		gomega.Expect(c.ControlCluster.McmClient.
+			MachineV1alpha1().
+			MachineClasses(controlClusterNamespace).
+			Delete(ctx, machineClassName, metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
+		if event.Type == watch.Deleted {
+			watchMachineClass.Stop()
+			log.Println("machineclass deleted")
+		}
+	}
+	return nil
 }
 
 func (c *IntegrationTestFramework) getNumberOfMachineSets(ctx context.Context, namespace string) int {

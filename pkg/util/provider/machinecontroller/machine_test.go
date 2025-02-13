@@ -226,12 +226,36 @@ var _ = Describe("machine", func() {
 				action: machineapi.Machine{
 					Spec: machineapi.MachineSpec{
 						Class: machineapi.ClassSpec{
-							Kind: "AWSMachineClass",
+							Kind: "MachineClass",
 							Name: "aws",
 						},
 					},
 				},
 				expect: field.ErrorList{},
+			}),
+		)
+		DescribeTable("#machine validation fails with no class name",
+			func(data *data) {
+				errList := validation.ValidateMachine(&data.action)
+				Expect(errList).To(Equal(data.expect))
+			},
+			Entry("aws", &data{
+				action: machineapi.Machine{
+					Spec: machineapi.MachineSpec{
+						Class: machineapi.ClassSpec{
+							Kind: "MachineClass",
+							Name: "",
+						},
+					},
+				},
+				expect: field.ErrorList{
+					{
+						Type:     "FieldValueRequired",
+						Field:    "spec.class.name",
+						BadValue: "",
+						Detail:   "Name is required",
+					},
+				},
 			}),
 		)
 	})
