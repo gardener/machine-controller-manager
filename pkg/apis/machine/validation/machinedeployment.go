@@ -8,6 +8,7 @@ package validation
 import (
 	"fmt"
 	"math"
+	"sort"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -42,7 +43,9 @@ func validateUpdateStrategy(spec *machine.MachineDeploymentSpec, fldPath *field.
 
 	strategy := sets.New(machine.RecreateMachineDeploymentStrategyType, machine.RollingUpdateMachineDeploymentStrategyType, machine.InPlaceUpdateMachineDeploymentStrategyType)
 	if !strategy.Has(spec.Strategy.Type) {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("strategy.type"), spec.Strategy.Type, fmt.Sprintf("strategy type must be one of %v", strategy.UnsortedList())))
+		strategies := strategy.UnsortedList()
+		sort.Slice(strategies, func(i, j int) bool { return strategies[i] < strategies[j] })
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("strategy.type"), spec.Strategy.Type, fmt.Sprintf("strategy type must be one of %v", strategies)))
 	}
 
 	if spec.Strategy.Type == machine.RollingUpdateMachineDeploymentStrategyType {
@@ -67,6 +70,9 @@ func validateUpdateStrategy(spec *machine.MachineDeploymentSpec, fldPath *field.
 			}
 			if !canConvertIntOrStringToInt32(spec.Strategy.InPlaceUpdate.MaxSurge, int(spec.Replicas)) {
 				allErrs = append(allErrs, field.Required(fldPath.Child("strategy.inPlaceUpdate.maxSurge"), "unable to convert maxSurge to int32"))
+			}
+			if spec.Strategy.InPlaceUpdate.OrchestrationType != machine.OrchestrationTypeAuto && spec.Strategy.InPlaceUpdate.OrchestrationType != machine.OrchestrationTypeManual {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("strategy.inPlaceUpdate.orchestrationType"), spec.Strategy.InPlaceUpdate.OrchestrationType, "orchestrationType must be either Auto or Manual"))
 			}
 		}
 	}
