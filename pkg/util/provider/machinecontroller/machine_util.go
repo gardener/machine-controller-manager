@@ -509,6 +509,7 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		switch machineErr.Code() {
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 			retryRequired = machineutils.ShortRetry
+			lastKnownState = machine.Status.LastKnownState
 		}
 	}
 
