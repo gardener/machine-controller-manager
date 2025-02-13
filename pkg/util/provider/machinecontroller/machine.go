@@ -239,21 +239,19 @@ func (c *controller) reconcileClusterMachineTermination(key string) error {
 		return err
 	}
 
-	if machine.DeletionTimestamp != nil {
-		// Process a delete event
-		retryPeriod, err := c.triggerDeletionFlow(
-			ctx,
-			&driver.DeleteMachineRequest{
-				Machine:      machine,
-				MachineClass: machineClass,
-				Secret:       &corev1.Secret{Data: secretData},
-			},
-		)
+	// Process a delete event
+	retryPeriod, err := c.triggerDeletionFlow(
+		ctx,
+		&driver.DeleteMachineRequest{
+			Machine:      machine,
+			MachineClass: machineClass,
+			Secret:       &corev1.Secret{Data: secretData},
+		},
+	)
 
-		if err != nil {
-			c.enqueueMachineTerminationAfter(machine, time.Duration(retryPeriod), err.Error())
-			return err
-		}
+	if err != nil {
+		c.enqueueMachineTerminationAfter(machine, time.Duration(retryPeriod), err.Error())
+		return err
 	}
 
 	return nil
