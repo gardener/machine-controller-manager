@@ -29,10 +29,10 @@ func validateMachineSpec(spec *machine.MachineSpec) field.ErrorList {
 
 func validateClassReference(classSpec *machine.ClassSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	if "" == classSpec.Kind {
+	if classSpec.Kind == "" {
 		allErrs = append(allErrs, field.Required(fldPath.Child("kind"), "Kind is required"))
 	}
-	if "" == classSpec.Name {
+	if classSpec.Name == "" {
 		allErrs = append(allErrs, field.Required(fldPath.Child("name"), "Name is required"))
 	}
 
