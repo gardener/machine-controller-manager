@@ -5,6 +5,8 @@
 package common
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,6 +14,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -99,6 +102,9 @@ var (
 
 	//values for gardener-node-agent-secret-name
 	gnaSecretNameLabelValue = os.Getenv("GNA_SECRET_NAME")
+
+	// Should the CR be preserved during cleanup at the end
+	preserveCRDuringCleanup = os.Getenv("PRESERVE_CRD_AT_END")
 )
 
 // ProviderSpecPatch struct holds tags for provider, which we want to patch the  machineclass with
@@ -772,6 +778,9 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	ginkgo.By("Checking for the clusters if provided are available")
 	gomega.Expect(c.initalizeClusters()).To(gomega.BeNil())
 
+	ginkgo.By("Killing any existing processes")
+	// FIXME: errHandling
+	_ = stopMCM(ctx)
 	//setting up MCM either locally or by deploying after checking conditions
 	if isControlSeed == "true" {
 
@@ -1308,7 +1317,8 @@ func (c *IntegrationTestFramework) Cleanup() {
 		}
 	}
 
-	if c.ControlCluster.McmClient != nil {
+	log.Printf("Preserve CRD: %s\n", preserveCRDuringCleanup)
+	if c.ControlCluster.McmClient != nil && preserveCRDuringCleanup != "true" {
 		timeout := int64(900)
 		c.cleanTestResources(ctx, timeout)
 	}
@@ -1381,14 +1391,9 @@ func (c *IntegrationTestFramework) Cleanup() {
 		}
 	}
 
-	if mcsession.ExitCode() == -1 {
-		log.Println("killing mc process")
-		mcsession.Kill()
-	}
-	if mcmsession.ExitCode() == -1 {
-		log.Println("killing mcm process")
-		mcmsession.Kill()
-	}
+	ginkgo.By("Killing any existing processes")
+	// FIXME: errHandling
+	_ = stopMCM(ctx)
 }
 
 func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeout int64) {
@@ -1486,6 +1491,84 @@ func (c *IntegrationTestFramework) cleanMachineClass(ctx context.Context, machin
 		}
 	}
 	return nil
+}
+
+func stopMCM(ctx context.Context) (err error) {
+	processesToKill := []string{
+		"controller_manager --control-kubeconfig",
+		"main --control-kubeconfig",
+		"go run cmd/machine-controller/main.go",
+		"go run cmd/machine-controller-manager/controller_manager.go",
+		"make --directory=../../..",
+	}
+	for _, proc := range processesToKill {
+		pids, err := findAndKillProcess(ctx, proc)
+		if err != nil {
+			return err
+		}
+		if len(pids) > 0 {
+			log.Printf("stopMCM killed MCM process(es) with pid(s): %v\n", pids)
+		}
+	}
+	return
+}
+
+func findAndKillProcess(ctx context.Context, prefix string) (pids []int, err error) {
+	pids, err = findPidsByPrefix(ctx, prefix)
+	if len(pids) == 0 {
+		err = fmt.Errorf("failed to find pid(s) for process with prefix %q", prefix)
+		return
+	}
+	var proc *os.Process
+	for _, pid := range pids {
+		proc, err = os.FindProcess(pid)
+		if err != nil {
+			err = fmt.Errorf("failed to find process with PID %d: %v", pid, err)
+			return
+		}
+		err = proc.Kill()
+		if err != nil {
+			err = fmt.Errorf("failed to kill process with PID %d: %v", pid, err)
+			return
+		}
+	}
+	return
+}
+
+func findPidsByPrefix(ctx context.Context, prefix string) (pids []int, err error) {
+	cmd := exec.CommandContext(ctx, "ps", "-e", "-o", "pid,command")
+	psOutput, err := cmd.Output()
+	if err != nil {
+		log.Printf("FindProcess could not run ps command: %v", err)
+		return
+	}
+	scanner := bufio.NewScanner(bytes.NewReader(psOutput))
+	var pid int
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		// Process the PID and command columns
+		pidStr := fields[0]
+		commandPath := fields[1]
+		commandName := path.Base(commandPath)
+		if len(fields) > 2 {
+			commandName = commandName + " " + strings.Join(fields[2:], " ")
+		}
+
+		if strings.HasPrefix(commandName, prefix) {
+			log.Println(commandName)
+			pid, err = strconv.Atoi(pidStr)
+			if err != nil {
+				err = fmt.Errorf("invalid pid: %s", pidStr)
+				return
+			}
+			pids = append(pids, pid)
+		}
+	}
+	return
 }
 
 func (c *IntegrationTestFramework) getNumberOfMachineSets(ctx context.Context, namespace string) int {
