@@ -234,226 +234,6 @@ func (c *IntegrationTestFramework) initalizeClusters() error {
 	return nil
 }
 
-func (c *IntegrationTestFramework) prepareMcmDeployment(
-
-	mcContainerImage string,
-	mcmContainerImage string,
-	byCreating bool) error {
-
-	ctx := context.Background()
-
-	if len(machineControllerManagerDeploymentName) == 0 {
-		machineControllerManagerDeploymentName = "machine-controller-manager"
-	}
-
-	if byCreating {
-		// Create clusterroles and clusterrolebindings for control and target cluster
-		// Create secret containing target kubeconfig file
-		// Create machine-deployment using the yaml file
-		controlClusterRegexp, _ := regexp.Compile("control-cluster-role")
-		targetClusterRegexp, _ := regexp.Compile("target-cluster-role")
-		log.Printf("Creating required roles and rolebinginds")
-
-		err := filepath.Walk(
-			filepath.Join(
-				mcmRepoPath,
-				"kubernetes/deployment/out-of-tree/",
-			),
-			func(
-				path string,
-				info os.FileInfo,
-				err error,
-			) error {
-
-				if err != nil {
-					return err
-				}
-
-				if !info.IsDir() {
-					if controlClusterRegexp.MatchString(info.Name()) {
-						err = c.
-							ControlCluster.
-							ApplyFiles(
-								path,
-								controlClusterNamespace,
-							)
-					} else if targetClusterRegexp.MatchString(info.Name()) {
-						err = c.
-							TargetCluster.
-							ApplyFiles(
-								path,
-								"default",
-							)
-					}
-				}
-				return err
-			})
-
-		if err != nil {
-			return err
-		}
-
-		configFile, _ := os.ReadFile(c.TargetCluster.KubeConfigFilePath)
-		if _, err := c.ControlCluster.Clientset.
-			CoreV1().
-			Secrets(controlClusterNamespace).
-			Create(ctx,
-				&coreV1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "machine-controller-manager",
-					},
-					Data: map[string][]byte{
-						"kubeconfig": configFile,
-					},
-					Type: coreV1.SecretTypeOpaque,
-				},
-				metav1.CreateOptions{},
-			); err != nil {
-			return err
-		}
-
-		if err := c.ControlCluster.
-			ApplyFiles(
-				"../../../kubernetes/deployment.yaml",
-				controlClusterNamespace,
-			); err != nil {
-			return err
-		}
-	}
-
-	// mcmDeploymentOrigObj holds a copy of original mcm deployment
-	result, getErr := c.ControlCluster.Clientset.
-		AppsV1().
-		Deployments(controlClusterNamespace).
-		Get(ctx, machineControllerManagerDeploymentName, metav1.GetOptions{})
-
-	if getErr != nil {
-		log.Printf("failed to get latest version of Deployment: %v", getErr)
-		return getErr
-	}
-
-	mcmDeploymentOrigObj = result
-
-	// update containers spec
-	providerSpecificRegexp, _ := regexp.Compile(mcContainerPrefix)
-
-	containers := mcmDeploymentOrigObj.Spec.Template.Spec.Containers
-
-	for i := range containers {
-		if providerSpecificRegexp.MatchString(containers[i].Image) {
-			// set container image to mcContainerImageTag as the name of the container contains provider
-			if len(mcContainerImage) != 0 {
-				containers[i].Image = mcContainerImage
-				var isOptionAvailable bool
-				for option := range containers[i].Command {
-					if strings.Contains(containers[i].Command[option], "machine-drain-timeout=") {
-						isOptionAvailable = true
-						containers[i].Command[option] = "--machine-drain-timeout=5m"
-					}
-				}
-				if !isOptionAvailable {
-					containers[i].Command = append(containers[i].Command, "--machine-drain-timeout=5m")
-				}
-			}
-		} else {
-			// set container image to mcmContainerImageTag as the name of container contains provider
-			if len(mcmContainerImage) != 0 {
-				containers[i].Image = mcmContainerImage
-			}
-
-			// set machine-safety-overshooting-period to 300ms for freeze check to succeed
-			var isOptionAvailable bool
-			for option := range containers[i].Command {
-				if strings.Contains(containers[i].Command[option], "machine-safety-overshooting-period=") {
-					isOptionAvailable = true
-					containers[i].Command[option] = "--machine-safety-overshooting-period=300ms"
-				}
-			}
-			if !isOptionAvailable {
-				containers[i].Command = append(containers[i].Command, "--machine-safety-overshooting-period=300ms")
-			}
-		}
-	}
-
-	// apply updated containers spec to mcmDeploymentObj in kubernetes cluster
-	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		// Retrieve the latest version of Deployment before attempting to update
-		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
-
-		mcmDeployment, getErr := c.ControlCluster.Clientset.
-			AppsV1().
-			Deployments(controlClusterNamespace).
-			Get(ctx,
-				machineControllerManagerDeploymentName,
-				metav1.GetOptions{},
-			)
-
-		if getErr != nil {
-			log.Printf("failed to get latest version of Deployment: %v", getErr)
-			return getErr
-		}
-
-		mcmDeployment.Spec.Template.Spec.Containers = containers
-		_, updateErr := c.ControlCluster.Clientset.
-			AppsV1().
-			Deployments(controlClusterNamespace).
-			Update(ctx, mcmDeployment, metav1.UpdateOptions{})
-		return updateErr
-	})
-
-	ginkgo.By("Checking controllers are ready in kubernetes cluster")
-	gomega.Eventually(
-		func() error {
-			deployment, err := c.ControlCluster.Clientset.
-				AppsV1().
-				Deployments(controlClusterNamespace).
-				Get(ctx,
-					machineControllerManagerDeploymentName,
-					metav1.GetOptions{},
-				)
-			if err != nil {
-				return err
-			}
-			if deployment.Status.ReadyReplicas == 1 {
-				pods, err := c.ControlCluster.Clientset.
-					CoreV1().
-					Pods(controlClusterNamespace).
-					List(
-						ctx,
-						metav1.ListOptions{
-							LabelSelector: "role=machine-controller-manager",
-						},
-					)
-				if err != nil {
-					return err
-				}
-				podsCount := len(pods.Items)
-				readyPods := 0
-				for _, pod := range pods.Items {
-					if len(pod.Status.ContainerStatuses) < 2 {
-						return fmt.Errorf("containers(s) not ready")
-					}
-					if !pod.Status.ContainerStatuses[0].Ready {
-						return fmt.Errorf("containers(s) not ready.\n%s", pod.Status.ContainerStatuses[0].State.String())
-					}
-					if !pod.Status.ContainerStatuses[1].Ready {
-						return fmt.Errorf("container(s) not ready.\n%s", pod.Status.ContainerStatuses[1].State.String())
-					}
-					readyPods++
-				}
-				if podsCount == readyPods {
-					return nil
-				}
-			}
-			return fmt.Errorf("deployment replicas are not ready.\n%s", deployment.Status.String())
-		},
-		c.timeout,
-		c.pollingInterval).
-		Should(gomega.BeNil())
-
-	return retryErr
-}
-
 func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
 
 	ctx := context.Background()
@@ -772,33 +552,21 @@ func (c *IntegrationTestFramework) runControllersLocally() {
 func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	ctx := context.Background()
 	log.SetOutput(ginkgo.GinkgoWriter)
-	mcContainerImage := os.Getenv("MC_CONTAINER_IMAGE")
-	mcmContainerImage := os.Getenv("MCM_CONTAINER_IMAGE")
 
 	ginkgo.By("Checking for the clusters if provided are available")
 	gomega.Expect(c.initalizeClusters()).To(gomega.BeNil())
 
 	ginkgo.By("Killing any existing processes")
-	// FIXME: errHandling
-	_ = stopMCM(ctx)
+	stopMCM(ctx)
 	//setting up MCM either locally or by deploying after checking conditions
+
+	checkMcmRepoAvailable()
+
 	if isControlSeed == "true" {
-
-		if len(mcContainerImage) != 0 || len(mcmContainerImage) != 0 {
-			ginkgo.By("Updating MCM Deployemnt")
-			gomega.Expect(c.prepareMcmDeployment(mcContainerImage, mcmContainerImage, false)).To(gomega.BeNil())
-		} else {
-			checkMcmRepoAvailable()
-
-			ginkgo.By("Scaledown existing machine controllers")
-			gomega.Expect(c.scaleMcmDeployment(0)).To(gomega.BeNil())
-
-			c.runControllersLocally()
-		}
+		ginkgo.By("Scaledown existing machine controllers")
+		gomega.Expect(c.scaleMcmDeployment(0)).To(gomega.BeNil())
 	} else {
 		//TODO : Scaledown the MCM deployment of the actual seed of the target cluster
-
-		checkMcmRepoAvailable()
 
 		//create the custom resources in the control cluster using yaml files
 		//available in kubernetes/crds directory of machine-controller-manager repo
@@ -807,14 +575,8 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 		gomega.Expect(c.ControlCluster.
 			ApplyFiles(
 				filepath.Join(mcmRepoPath, "kubernetes/crds"), controlClusterNamespace)).To(gomega.BeNil())
-
-		if len(mcContainerImage) != 0 || len(mcmContainerImage) != 0 {
-			ginkgo.By("Creating MCM Deployemnt")
-			gomega.Expect(c.prepareMcmDeployment(mcContainerImage, mcmContainerImage, true)).To(gomega.BeNil())
-		} else {
-			c.runControllersLocally()
-		}
 	}
+	c.runControllersLocally()
 
 	ginkgo.By("Cleaning any old resources")
 	if c.ControlCluster.McmClient != nil {
@@ -1338,62 +1100,10 @@ func (c *IntegrationTestFramework) Cleanup() {
 		); err != nil {
 			log.Printf("Error occured while deleting crds. %s", err.Error())
 		}
-
-		if len(os.Getenv("MC_CONTAINER_IMAGE")) != 0 || len(os.Getenv("MCM_CONTAINER_IMAGE")) != 0 {
-			log.Println("Deleting Clusterroles")
-
-			if err := c.ControlCluster.RbacClient.ClusterRoles().Delete(
-				ctx,
-				"machine-controller-manager-control",
-				metav1.DeleteOptions{},
-			); err != nil {
-				log.Printf("Error occured while deleting clusterrole. %s", err.Error())
-			}
-
-			if err := c.ControlCluster.RbacClient.ClusterRoleBindings().Delete(
-				ctx,
-				"machine-controller-manager-control",
-				metav1.DeleteOptions{},
-			); err != nil {
-				log.Printf("Error occured while deleting clusterrolebinding . %s", err.Error())
-			}
-
-			if err := c.TargetCluster.RbacClient.ClusterRoles().Delete(
-				ctx,
-				"machine-controller-manager-target",
-				metav1.DeleteOptions{},
-			); err != nil {
-				log.Printf("Error occured while deleting clusterrole . %s", err.Error())
-			}
-
-			if err := c.TargetCluster.RbacClient.ClusterRoleBindings().Delete(
-				ctx,
-				"machine-controller-manager-target",
-				metav1.DeleteOptions{},
-			); err != nil {
-				log.Printf("Error occured while deleting clusterrolebinding . %s", err.Error())
-			}
-
-			log.Println("Deleting MCM deployment")
-
-			gomega.Expect(c.ControlCluster.Clientset.
-				CoreV1().
-				Secrets(controlClusterNamespace).
-				Delete(ctx,
-					"machine-controller-manager",
-					metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
-			gomega.Expect(c.ControlCluster.Clientset.
-				AppsV1().
-				Deployments(controlClusterNamespace).
-				Delete(ctx,
-					machineControllerManagerDeploymentName,
-					metav1.DeleteOptions{})).To(gomega.Or(gomega.Succeed(), matchers.BeNotFoundError()))
-		}
 	}
 
 	ginkgo.By("Killing any existing processes")
-	// FIXME: errHandling
-	_ = stopMCM(ctx)
+	stopMCM(ctx)
 }
 
 func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeout int64) {
@@ -1493,7 +1203,7 @@ func (c *IntegrationTestFramework) cleanMachineClass(ctx context.Context, machin
 	return nil
 }
 
-func stopMCM(ctx context.Context) (err error) {
+func stopMCM(ctx context.Context) {
 	processesToKill := []string{
 		"controller_manager --control-kubeconfig",
 		"main --control-kubeconfig",
@@ -1504,32 +1214,29 @@ func stopMCM(ctx context.Context) (err error) {
 	for _, proc := range processesToKill {
 		pids, err := findAndKillProcess(ctx, proc)
 		if err != nil {
-			return err
+			log.Println(err.Error())
 		}
 		if len(pids) > 0 {
 			log.Printf("stopMCM killed MCM process(es) with pid(s): %v\n", pids)
 		}
 	}
-	return
 }
 
 func findAndKillProcess(ctx context.Context, prefix string) (pids []int, err error) {
 	pids, err = findPidsByPrefix(ctx, prefix)
-	if len(pids) == 0 {
-		err = fmt.Errorf("failed to find pid(s) for process with prefix %q", prefix)
-		return
-	}
-	var proc *os.Process
-	for _, pid := range pids {
-		proc, err = os.FindProcess(pid)
-		if err != nil {
-			err = fmt.Errorf("failed to find process with PID %d: %v", pid, err)
-			return
-		}
-		err = proc.Kill()
-		if err != nil {
-			err = fmt.Errorf("failed to kill process with PID %d: %v", pid, err)
-			return
+	if len(pids) != 0 {
+		var proc *os.Process
+		for _, pid := range pids {
+			proc, err = os.FindProcess(pid)
+			if err != nil {
+				err = fmt.Errorf("failed to find process with PID %d: %v", pid, err)
+				return
+			}
+			err = proc.Kill()
+			if err != nil {
+				err = fmt.Errorf("failed to kill process with PID %d: %v", pid, err)
+				return
+			}
 		}
 	}
 	return
