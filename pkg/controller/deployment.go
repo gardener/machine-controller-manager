@@ -636,6 +636,9 @@ func (dc *controller) setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(
 			continue
 		}
 		mcAdjust := mc.DeepCopy()
+		if mcAdjust.Annotations == nil {
+			mcAdjust.Annotations = make(map[string]string)
+		}
 		mcAdjust.Annotations[machineutils.MachinePriority] = "1"
 		_, err = dc.controlMachineClient.Machines(mcAdjust.Namespace).Update(ctx, mcAdjust, metav1.UpdateOptions{})
 		if err != nil {
