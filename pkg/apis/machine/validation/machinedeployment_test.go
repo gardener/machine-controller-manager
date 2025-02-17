@@ -47,8 +47,8 @@ var _ = Describe("MachineDeployment API Validation", func() {
 					Type: machine.RollingUpdateMachineDeploymentStrategyType,
 					RollingUpdate: &machine.RollingUpdateMachineDeployment{
 						UpdateConfiguration: machine.UpdateConfiguration{
-							MaxUnavailable: ptr.To(intstr.FromInt(1)),
-							MaxSurge:       ptr.To(intstr.FromInt(1)),
+							MaxUnavailable: ptr.To(intstr.FromInt32(1)),
+							MaxSurge:       ptr.To(intstr.FromInt32(1)),
 						},
 					},
 				},
@@ -136,8 +136,8 @@ var _ = Describe("MachineDeployment API Validation", func() {
 						Type: machine.InPlaceUpdateMachineDeploymentStrategyType,
 						InPlaceUpdate: &machine.InPlaceUpdateMachineDeployment{
 							UpdateConfiguration: machine.UpdateConfiguration{
-								MaxUnavailable: ptr.To(intstr.FromInt(1)),
-								MaxSurge:       ptr.To(intstr.FromInt(1)),
+								MaxUnavailable: ptr.To(intstr.FromInt32(1)),
+								MaxSurge:       ptr.To(intstr.FromInt32(1)),
 							},
 							OrchestrationType: machine.OrchestrationTypeAuto,
 						},
