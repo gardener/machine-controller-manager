@@ -207,13 +207,13 @@ func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineut
 
 // checkCommonMachineClass checks for orphan VMs in MachinesClasses
 func (c *controller) checkMachineClasses(ctx context.Context) (machineutils.RetryPeriod, error) {
-	MachineClasses, err := c.machineClassLister.List(labels.Everything())
+	machineClasses, err := c.machineClassLister.List(labels.Everything())
 	if err != nil {
 		klog.Error("Safety-Net: Error getting machineClasses")
 		return machineutils.LongRetry, err
 	}
 
-	for _, machineClass := range MachineClasses {
+	for _, machineClass := range machineClasses {
 		retry, err := c.checkMachineClass(ctx, machineClass)
 		if err != nil {
 			return retry, err

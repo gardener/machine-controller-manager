@@ -85,7 +85,7 @@ type RetryPeriod time.Duration
 const (
 	// ConflictRetry tells the controller to retry quickly - 200 milliseconds
 	ConflictRetry RetryPeriod = RetryPeriod(200 * time.Millisecond)
-	// ShortRetry tells the controller to retry after a short duration - 15 seconds
+	// ShortRetry tells the controller to retry after a short duration - 5 seconds
 	ShortRetry RetryPeriod = RetryPeriod(5 * time.Second)
 	// MediumRetry tells the controller to retry after a medium duration - 2 minutes
 	MediumRetry RetryPeriod = RetryPeriod(3 * time.Minute)
