@@ -497,8 +497,8 @@ const (
 	// RollingUpdateMachineDeploymentStrategyType means that old MCs will be replaced by new one using rolling update i.e gradually scale down the old MCs and scale up the new one.
 	RollingUpdateMachineDeploymentStrategyType MachineDeploymentStrategyType = "RollingUpdate"
 
-	// InPlaceUpdateMachineDeploymentStrategyType signifies that machines will be updated in place,
-	// gradually transitioning from the old MachineSet to the new MachineSet without requiring machine recreation.
+	// InPlaceUpdateMachineDeploymentStrategyType signifies that VMs will be updated in place and
+	// machine objects will gradually transition from the old MachineSet to the new MachineSet without requiring VM recreation.
 	InPlaceUpdateMachineDeploymentStrategyType MachineDeploymentStrategyType = "InPlaceUpdate"
 )
 
@@ -507,7 +507,7 @@ type RollingUpdateMachineDeployment struct {
 	UpdateConfiguration
 }
 
-// InPlaceUpdateMachineDeployment specifies the spec to control the desired behavior of inplace rolling update.
+// InPlaceUpdateMachineDeployment specifies the spec to control the desired behavior of inplace update.
 type InPlaceUpdateMachineDeployment struct {
 	UpdateConfiguration
 
@@ -515,7 +515,7 @@ type InPlaceUpdateMachineDeployment struct {
 	OrchestrationType OrchestrationType
 }
 
-// UpdateConfiguration specifies the udpate configuration for the rolling strategy.
+// UpdateConfiguration specifies the udpate configuration for the deployment strategy.
 type UpdateConfiguration struct {
 	// The maximum number of machines that can be unavailable during the update.
 	// Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%).
@@ -523,7 +523,7 @@ type UpdateConfiguration struct {
 	// This can not be 0 if MaxSurge is 0.
 	// By default, a fixed value of 1 is used.
 	// Example: when this is set to 30%, the old MC can be scaled down to 70% of desired machines
-	// immediately when the rolling update starts. Once new machines are ready, old MC
+	// immediately when the update starts. Once new machines are ready, old MC
 	// can be scaled down further, followed by scaling up the new MC, ensuring
 	// that the total number of machines available at all times during the update is at
 	// least 70% of desired machines.
@@ -536,7 +536,7 @@ type UpdateConfiguration struct {
 	// Absolute number is calculated from percentage by rounding up.
 	// By default, a value of 1 is used.
 	// Example: when this is set to 30%, the new MC can be scaled up immediately when
-	// the rolling update starts, such that the total number of old and new machines do not exceed
+	// the update starts, such that the total number of old and new machines do not exceed
 	// 130% of desired machines. Once old machines have been killed,
 	// new MC can be scaled up further, ensuring that total number of machines running
 	// at any time during the update is atmost 130% of desired machines.

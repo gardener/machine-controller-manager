@@ -41,9 +41,9 @@ func canConvertIntOrStringToInt32(val *intstr.IntOrString, replicas int) bool {
 func validateUpdateStrategy(spec *machine.MachineDeploymentSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	strategy := sets.New(machine.RecreateMachineDeploymentStrategyType, machine.RollingUpdateMachineDeploymentStrategyType, machine.InPlaceUpdateMachineDeploymentStrategyType)
-	if !strategy.Has(spec.Strategy.Type) {
-		strategies := strategy.UnsortedList()
+	supportedStrategies := sets.New(machine.RecreateMachineDeploymentStrategyType, machine.RollingUpdateMachineDeploymentStrategyType, machine.InPlaceUpdateMachineDeploymentStrategyType)
+	if !supportedStrategies.Has(spec.Strategy.Type) {
+		strategies := supportedStrategies.UnsortedList()
 		sort.Slice(strategies, func(i, j int) bool { return strategies[i] < strategies[j] })
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("strategy.type"), spec.Strategy.Type, fmt.Sprintf("strategy type must be one of %v", strategies)))
 	}

@@ -406,18 +406,18 @@ func schema_pkg_apis_machine_v1alpha1_InPlaceUpdateMachineDeployment(ref common.
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "InPlaceUpdateMachineDeployment specifies the spec to control the desired behavior of inplace rolling update.",
+				Description: "InPlaceUpdateMachineDeployment specifies the spec to control the desired behavior of inplace update.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"maxUnavailable": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The maximum number of machines that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. Example: when this is set to 30%, the old machine set can be scaled down to 70% of desired machines immediately when the rolling update starts. Once new machines are ready, old machine set can be scaled down further, followed by scaling up the new machine set, ensuring that the total number of machines available at all times during the update is at least 70% of desired machines.",
+							Description: "The maximum number of machines that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. Example: when this is set to 30%, the old machine set can be scaled down to 70% of desired machines immediately when the update starts. Once new machines are ready, old machine set can be scaled down further, followed by scaling up the new machine set, ensuring that the total number of machines available at all times during the update is at least 70% of desired machines.",
 							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"maxSurge": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The maximum number of machines that can be scheduled above the desired number of machines. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. Example: when this is set to 30%, the new machine set can be scaled up immediately when the rolling update starts, such that the total number of old and new machines does not exceed 130% of desired machines. Once old machines have been killed, new machine set can be scaled up further, ensuring that total number of machines running at any time during the update is utmost 130% of desired machines.",
+							Description: "The maximum number of machines that can be scheduled above the desired number of machines. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. Example: when this is set to 30%, the new machine set can be scaled up immediately when the update starts, such that the total number of old and new machines does not exceed 130% of desired machines. Once old machines have been killed, new machine set can be scaled up further, ensuring that total number of machines running at any time during the update is utmost 130% of desired machines.",
 							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
@@ -1705,13 +1705,13 @@ func schema_pkg_apis_machine_v1alpha1_RollingUpdateMachineDeployment(ref common.
 				Properties: map[string]spec.Schema{
 					"maxUnavailable": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The maximum number of machines that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. Example: when this is set to 30%, the old machine set can be scaled down to 70% of desired machines immediately when the rolling update starts. Once new machines are ready, old machine set can be scaled down further, followed by scaling up the new machine set, ensuring that the total number of machines available at all times during the update is at least 70% of desired machines.",
+							Description: "The maximum number of machines that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. Example: when this is set to 30%, the old machine set can be scaled down to 70% of desired machines immediately when the update starts. Once new machines are ready, old machine set can be scaled down further, followed by scaling up the new machine set, ensuring that the total number of machines available at all times during the update is at least 70% of desired machines.",
 							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"maxSurge": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The maximum number of machines that can be scheduled above the desired number of machines. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. Example: when this is set to 30%, the new machine set can be scaled up immediately when the rolling update starts, such that the total number of old and new machines does not exceed 130% of desired machines. Once old machines have been killed, new machine set can be scaled up further, ensuring that total number of machines running at any time during the update is utmost 130% of desired machines.",
+							Description: "The maximum number of machines that can be scheduled above the desired number of machines. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. Example: when this is set to 30%, the new machine set can be scaled up immediately when the update starts, such that the total number of old and new machines does not exceed 130% of desired machines. Once old machines have been killed, new machine set can be scaled up further, ensuring that total number of machines running at any time during the update is utmost 130% of desired machines.",
 							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
@@ -1727,18 +1727,18 @@ func schema_pkg_apis_machine_v1alpha1_UpdateConfiguration(ref common.ReferenceCa
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "UpdateConfiguration specifies the udpate configuration for the rolling strategy.",
+				Description: "UpdateConfiguration specifies the udpate configuration for the deployment strategy.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"maxUnavailable": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The maximum number of machines that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. Example: when this is set to 30%, the old machine set can be scaled down to 70% of desired machines immediately when the rolling update starts. Once new machines are ready, old machine set can be scaled down further, followed by scaling up the new machine set, ensuring that the total number of machines available at all times during the update is at least 70% of desired machines.",
+							Description: "The maximum number of machines that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. Example: when this is set to 30%, the old machine set can be scaled down to 70% of desired machines immediately when the update starts. Once new machines are ready, old machine set can be scaled down further, followed by scaling up the new machine set, ensuring that the total number of machines available at all times during the update is at least 70% of desired machines.",
 							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"maxSurge": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The maximum number of machines that can be scheduled above the desired number of machines. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. Example: when this is set to 30%, the new machine set can be scaled up immediately when the rolling update starts, such that the total number of old and new machines does not exceed 130% of desired machines. Once old machines have been killed, new machine set can be scaled up further, ensuring that total number of machines running at any time during the update is utmost 130% of desired machines.",
+							Description: "The maximum number of machines that can be scheduled above the desired number of machines. Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. Example: when this is set to 30%, the new machine set can be scaled up immediately when the update starts, such that the total number of old and new machines does not exceed 130% of desired machines. Once old machines have been killed, new machine set can be scaled up further, ensuring that total number of machines running at any time during the update is utmost 130% of desired machines.",
 							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
