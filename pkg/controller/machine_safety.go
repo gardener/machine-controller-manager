@@ -330,6 +330,7 @@ func (c *controller) freezeMachineSetAndDeployment(ctx context.Context, machineS
 		}
 	}
 
+	c.recorder.Eventf(machineSet, "Normal", "FrozeMachineSet", "SafetyController: Froze MachineSet %s due to replica overshooting", machineSet.Name)
 	klog.V(2).Infof("SafetyController: Froze MachineSet %q due to overshooting of replicas", machineSet.Name)
 	return nil
 }
@@ -398,6 +399,7 @@ func (c *controller) unfreezeMachineSet(ctx context.Context, machineSet *v1alpha
 		return err
 	}
 
+	c.recorder.Eventf(machineSet, "Normal", "UnfrozeMachineSet", "SafetyController: Unfroze MachineSet %s", machineSet.Name)
 	klog.V(2).Infof("SafetyController: Unfroze MachineSet %q", machineSet.Name)
 	return nil
 }
