@@ -10,13 +10,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -28,7 +26,6 @@ import (
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 	appsV1 "k8s.io/api/apps/v1"
-	coreV1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
@@ -728,6 +725,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 	// Testcase #02 | machine deployment
 	ginkgo.Describe("machine deployment resource", func() {
 		var initialNodes int16 // initialization should be part of creation test logic
+		initialEventCount := 0
 		ginkgo.Context("creation with replicas=0, scale up with replicas=1", func() {
 			ginkgo.It("should not lead to errors and add 1 more node to target cluster", func() {
 				var machineDeployment *v1alpha1.MachineDeployment
@@ -738,7 +736,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				gomega.Expect(c.ControlCluster.CreateMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 0)).To(gomega.BeNil())
 
 				ginkgo.By("Waiting for Machine Set to be created")
-				gomega.Eventually(func() int { return c.getNumberOfMachineSets(ctx, controlClusterNamespace) }, c.timeout, c.pollingInterval).Should(gomega.BeNumerically("==", 1))
+				gomega.Eventually(func() int { return len(c.getTestMachineSets(ctx, controlClusterNamespace)) }, c.timeout, c.pollingInterval).Should(gomega.BeNumerically("==", 1))
 
 				ginkgo.By("Updating machineDeployment replicas to 1")
 				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -792,6 +790,8 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.timeout,
 					c.pollingInterval).
 					Should(gomega.BeNumerically("==", initialNodes+1))
+				ginkgo.By("Fetching initial number of machineset freeze events")
+				initialEventCount = c.machineSetFreezeEventCount(ctx, controlClusterNamespace)
 			})
 		})
 		ginkgo.Context("scale-up with replicas=6", func() {
@@ -855,68 +855,9 @@ func (c *IntegrationTestFramework) ControllerTests() {
 			})
 			// rapid scaling back to 2, should lead to freezing and unfreezing
 			ginkgo.It("should freeze and unfreeze machineset temporarily", func() {
-				if mcsession == nil {
-					// controllers running in pod
-					// Create log file from container log
-					mcmOutputFile, err := rotateOrAppendLogFile(mcmLogFile, true)
-					gomega.Expect(err).NotTo(gomega.HaveOccurred())
-					mcOutputFile, err := rotateOrAppendLogFile(mcLogFile, true)
-					gomega.Expect(err).NotTo(gomega.HaveOccurred())
-					ginkgo.By("Reading container log is leading to no errors")
-					podList, err := c.ControlCluster.Clientset.
-						CoreV1().
-						Pods(controlClusterNamespace).
-						List(
-							ctx,
-							metav1.ListOptions{
-								LabelSelector: "role=machine-controller-manager",
-							},
-						)
-					gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-					mcmPod := podList.Items[0]
-					providerSpecificRegexp, _ := regexp.Compile(mcContainerPrefix)
-					containers := mcmPod.Spec.Containers
-
-					for i := range containers {
-						if providerSpecificRegexp.Match([]byte(containers[i].Image)) {
-							readCloser, err := c.ControlCluster.Clientset.CoreV1().
-								Pods(controlClusterNamespace).
-								GetLogs(
-									mcmPod.Name,
-									&coreV1.PodLogOptions{
-										Container: containers[i].Name,
-									},
-								).Stream(ctx)
-							gomega.Expect(err).NotTo(gomega.HaveOccurred())
-							_, err = io.Copy(mcOutputFile, readCloser)
-							gomega.Expect(err).NotTo(gomega.HaveOccurred())
-						} else {
-							readCloser, err := c.ControlCluster.Clientset.CoreV1().
-								Pods(controlClusterNamespace).
-								GetLogs(mcmPod.Name, &coreV1.PodLogOptions{
-									Container: containers[i].Name,
-								}).Stream(ctx)
-							gomega.Expect(err).NotTo(gomega.HaveOccurred())
-							_, err = io.Copy(mcmOutputFile, readCloser)
-							gomega.Expect(err).NotTo(gomega.HaveOccurred())
-						}
-					}
-				}
-
-				ginkgo.By("Searching for Froze in mcm log file")
-				frozeRegexp, _ := regexp.Compile(` Froze MachineSet`)
-				gomega.Eventually(func() bool {
-					data, _ := os.ReadFile(mcmLogFile) // #nosec G304 -- Test only
-					return frozeRegexp.Match(data)
-				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
-
-				ginkgo.By("Searching Unfroze in mcm log file")
-				unfrozeRegexp, _ := regexp.Compile(` Unfroze MachineSet`)
-				gomega.Eventually(func() bool {
-					data, _ := os.ReadFile(mcmLogFile) // #nosec G304 -- Test only
-					return unfrozeRegexp.Match(data)
-				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+				gomega.Eventually(func() int {
+					return c.machineSetFreezeEventCount(ctx, controlClusterNamespace)
+				}).Should(gomega.Equal(initialEventCount + 2))
 			})
 		})
 		ginkgo.Context("updation to v2 machine-class and replicas=4", func() {
@@ -1079,8 +1020,9 @@ func (c *IntegrationTestFramework) Cleanup() {
 		}
 	}
 
-	log.Printf("Preserve CRD: %s\n", preserveCRDuringCleanup)
-	if c.ControlCluster.McmClient != nil && preserveCRDuringCleanup != "true" {
+	if preserveCRDuringCleanup == "true" {
+		log.Printf("Preserve CRD: %s\n", preserveCRDuringCleanup)
+	} else if c.ControlCluster.McmClient != nil {
 		timeout := int64(900)
 		c.cleanTestResources(ctx, timeout)
 	}
@@ -1278,16 +1220,35 @@ func findPidsByPrefix(ctx context.Context, prefix string) (pids []int, err error
 	return
 }
 
-func (c *IntegrationTestFramework) getNumberOfMachineSets(ctx context.Context, namespace string) int {
+func (c *IntegrationTestFramework) getTestMachineSets(ctx context.Context, namespace string) []string {
 	machineSets, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineSets(namespace).List(ctx, metav1.ListOptions{})
+	testMachineSets := []string{}
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
-	count := 0
 	for _, machineSet := range machineSets.Items {
 		if machineSet.OwnerReferences[0].Name == "test-machine-deployment" {
-			count++
+			testMachineSets = append(testMachineSets, machineSet.Name)
 		}
 	}
-	return count
+	return testMachineSets
+}
+
+func (c *IntegrationTestFramework) machineSetFreezeEventCount(ctx context.Context, namespace string) int {
+	eventCount := 0
+	testMachineSets := c.getTestMachineSets(ctx, namespace)
+	for _, machineSet := range testMachineSets {
+		for _, reason := range []string{"reason=FrozeMachineSet", "reason=UnfrozeMachineSet"} {
+			event := fmt.Sprintf("%s,involvedObject.name=%s", reason, machineSet)
+			// TODO: handle error
+			frozenEvents, _ := c.ControlCluster.Clientset.
+				CoreV1().
+				Events(namespace).
+				List(ctx, metav1.ListOptions{
+					FieldSelector: event,
+				})
+			eventCount += len(frozenEvents.Items)
+		}
+	}
+	return eventCount
 }
 
 func checkMcmRepoAvailable() {
