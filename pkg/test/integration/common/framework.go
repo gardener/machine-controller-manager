@@ -10,13 +10,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -28,7 +26,6 @@ import (
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 	appsV1 "k8s.io/api/apps/v1"
-	coreV1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
@@ -866,68 +863,24 @@ func (c *IntegrationTestFramework) ControllerTests() {
 			})
 			// rapid scaling back to 2, should lead to freezing and unfreezing
 			ginkgo.It("should freeze and unfreeze machineset temporarily", func() {
-				if mcsession == nil {
-					// controllers running in pod
-					// Create log file from container log
-					mcmOutputFile, err := rotateOrAppendLogFile(mcmLogFile, true)
-					gomega.Expect(err).NotTo(gomega.HaveOccurred())
-					mcOutputFile, err := rotateOrAppendLogFile(mcLogFile, true)
-					gomega.Expect(err).NotTo(gomega.HaveOccurred())
-					ginkgo.By("Reading container log is leading to no errors")
-					podList, err := c.ControlCluster.Clientset.
-						CoreV1().
-						Pods(controlClusterNamespace).
-						List(
-							ctx,
-							metav1.ListOptions{
-								LabelSelector: "role=machine-controller-manager",
-							},
-						)
-					gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-					mcmPod := podList.Items[0]
-					providerSpecificRegexp, _ := regexp.Compile(mcContainerPrefix)
-					containers := mcmPod.Spec.Containers
-
-					for i := range containers {
-						if providerSpecificRegexp.Match([]byte(containers[i].Image)) {
-							readCloser, err := c.ControlCluster.Clientset.CoreV1().
-								Pods(controlClusterNamespace).
-								GetLogs(
-									mcmPod.Name,
-									&coreV1.PodLogOptions{
-										Container: containers[i].Name,
-									},
-								).Stream(ctx)
-							gomega.Expect(err).NotTo(gomega.HaveOccurred())
-							_, err = io.Copy(mcOutputFile, readCloser)
-							gomega.Expect(err).NotTo(gomega.HaveOccurred())
-						} else {
-							readCloser, err := c.ControlCluster.Clientset.CoreV1().
-								Pods(controlClusterNamespace).
-								GetLogs(mcmPod.Name, &coreV1.PodLogOptions{
-									Container: containers[i].Name,
-								}).Stream(ctx)
-							gomega.Expect(err).NotTo(gomega.HaveOccurred())
-							_, err = io.Copy(mcmOutputFile, readCloser)
-							gomega.Expect(err).NotTo(gomega.HaveOccurred())
-						}
-					}
-				}
-
-				ginkgo.By("Searching for Froze in mcm log file")
-				frozeRegexp, _ := regexp.Compile(` Froze MachineSet`)
-				gomega.Eventually(func() bool {
-					data, _ := os.ReadFile(mcmLogFile) // #nosec G304 -- Test only
-					return frozeRegexp.Match(data)
-				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
-
-				ginkgo.By("Searching Unfroze in mcm log file")
-				unfrozeRegexp, _ := regexp.Compile(` Unfroze MachineSet`)
-				gomega.Eventually(func() bool {
-					data, _ := os.ReadFile(mcmLogFile) // #nosec G304 -- Test only
-					return unfrozeRegexp.Match(data)
-				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+				ginkgo.By("Checking for freeze machineset event")
+				frozenEvents, _ := c.ControlCluster.Clientset.
+					CoreV1().
+					Events(controlClusterNamespace).
+					List(ctx, metav1.ListOptions{
+						FieldSelector: "reason=FrozeMachineSet",
+						TypeMeta:      metav1.TypeMeta{Kind: "MachineSet"},
+					})
+				gomega.Expect(len(frozenEvents.Items) >= 1).Should(gomega.BeTrue())
+				ginkgo.By("Checking for unfreeze machineset event")
+				unfrozenEvents, _ := c.ControlCluster.Clientset.
+					CoreV1().
+					Events(controlClusterNamespace).
+					List(ctx, metav1.ListOptions{
+						FieldSelector: "reason=UnfrozeMachineSet",
+						TypeMeta:      metav1.TypeMeta{Kind: "MachineSet"},
+					})
+				gomega.Expect(len(unfrozenEvents.Items) >= 1).Should(gomega.BeTrue())
 			})
 		})
 		ginkgo.Context("updation to v2 machine-class and replicas=4", func() {
