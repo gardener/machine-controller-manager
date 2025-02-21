@@ -180,7 +180,7 @@ type UpdateConfiguration struct {
 type OrchestrationType string
 
 const (
-	// OrchestrationTypeAuto signifies that the machines are selected automatically based on MaxUnavailable for being updated.
+	// OrchestrationTypeAuto signifies that the machines are automatically selected for update based on UpdateConfiguration.
 	OrchestrationTypeAuto OrchestrationType = "Auto"
 	// OrchestrationTypeManual signifies that the user has to select the machines to be updated manually.
 	OrchestrationTypeManual OrchestrationType = "Manual"
