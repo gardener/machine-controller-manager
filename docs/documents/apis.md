@@ -836,6 +836,60 @@ Kubernetes meta/v1.Time
 </tbody>
 </table>
 <br>
+<h3 id="machine.sapcloud.io/v1alpha1.InPlaceUpdateMachineDeployment">
+<b>InPlaceUpdateMachineDeployment</b>
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentStrategy">MachineDeploymentStrategy</a>)
+</p>
+<p>
+<p>InPlaceUpdateMachineDeployment specifies the spec to control the desired behavior of inplace update.</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>UpdateConfiguration</code>
+</td>
+<td>
+<em>
+<a href="#machine.sapcloud.io/v1alpha1.UpdateConfiguration">
+UpdateConfiguration
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>UpdateConfiguration</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>orchestrationType</code>
+</td>
+<td>
+<em>
+<a href="#machine.sapcloud.io/v1alpha1.OrchestrationType">
+OrchestrationType
+</a>
+</em>
+</td>
+<td>
+<p>OrchestrationType specifies the orchestration type for the inplace update.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<br>
 <h3 id="machine.sapcloud.io/v1alpha1.LastOperation">
 <b>LastOperation</b>
 </h3>
@@ -1523,6 +1577,23 @@ RollingUpdateMachineDeployment
 <h2>RollingUpdate.</h2>
 <p>TODO: Update this to follow our convention for oneOf, whatever we decide it
 to be.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>inPlaceUpdate</code>
+</td>
+<td>
+<em>
+<a href="#machine.sapcloud.io/v1alpha1.InPlaceUpdateMachineDeployment">
+InPlaceUpdateMachineDeployment
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>InPlaceUpdate update config params. Present only if MachineDeploymentStrategyType =
+InPlaceUpdate.</p>
 </td>
 </tr>
 </tbody>
@@ -2535,6 +2606,17 @@ see: <a href="https://issues.k8s.io/61966">https://issues.k8s.io/61966</a></p>
 </tbody>
 </table>
 <br>
+<h3 id="machine.sapcloud.io/v1alpha1.OrchestrationType">
+<b>OrchestrationType</b>
+(<code>string</code> alias)</p></h3>
+<p>
+(<em>Appears on:</em>
+<a href="#machine.sapcloud.io/v1alpha1.InPlaceUpdateMachineDeployment">InPlaceUpdateMachineDeployment</a>)
+</p>
+<p>
+<p>OrchestrationType specifies the orchestration type for the inplace update.</p>
+</p>
+<br>
 <h3 id="machine.sapcloud.io/v1alpha1.RollbackConfig">
 <b>RollbackConfig</b>
 </h3>
@@ -2592,6 +2674,46 @@ int64
 <tbody>
 <tr>
 <td>
+<code>UpdateConfiguration</code>
+</td>
+<td>
+<em>
+<a href="#machine.sapcloud.io/v1alpha1.UpdateConfiguration">
+UpdateConfiguration
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>UpdateConfiguration</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+</tbody>
+</table>
+<br>
+<h3 id="machine.sapcloud.io/v1alpha1.UpdateConfiguration">
+<b>UpdateConfiguration</b>
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#machine.sapcloud.io/v1alpha1.InPlaceUpdateMachineDeployment">InPlaceUpdateMachineDeployment</a>, 
+<a href="#machine.sapcloud.io/v1alpha1.RollingUpdateMachineDeployment">RollingUpdateMachineDeployment</a>)
+</p>
+<p>
+<p>UpdateConfiguration specifies the udpate configuration for the deployment strategy.</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
 <code>maxUnavailable</code>
 </td>
 <td>
@@ -2608,7 +2730,7 @@ Value can be an absolute number (ex: 5) or a percentage of desired machines (ex:
 Absolute number is calculated from percentage by rounding down.
 This can not be 0 if MaxSurge is 0.
 Example: when this is set to 30%, the old machine set can be scaled down to 70% of desired machines
-immediately when the rolling update starts. Once new machines are ready, old machine set
+immediately when the update starts. Once new machines are ready, old machine set
 can be scaled down further, followed by scaling up the new machine set, ensuring
 that the total number of machines available at all times during the update is at
 least 70% of desired machines.</p>
@@ -2633,7 +2755,7 @@ Value can be an absolute number (ex: 5) or a percentage of desired machines (ex:
 This can not be 0 if MaxUnavailable is 0.
 Absolute number is calculated from percentage by rounding up.
 Example: when this is set to 30%, the new machine set can be scaled up immediately when
-the rolling update starts, such that the total number of old and new machines does not exceed
+the update starts, such that the total number of old and new machines does not exceed
 130% of desired machines. Once old machines have been killed,
 new machine set can be scaled up further, ensuring that total number of machines running
 at any time during the update is utmost 130% of desired machines.</p>
