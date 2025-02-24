@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package validation is used to validate all the machine CRD objects
 package validation
 
