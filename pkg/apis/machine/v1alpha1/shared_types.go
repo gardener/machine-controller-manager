@@ -40,6 +40,10 @@ type MachineConfiguration struct {
 	// +optional
 	MachineCreationTimeout *metav1.Duration `json:"creationTimeout,omitempty"`
 
+	// MachineInPlaceUpdateTimeout is the timeout after which in-place update is declared failed.
+	// +optional
+	MachineInPlaceUpdateTimeout *metav1.Duration `json:"inPlaceUpdateTimeout,omitempty"`
+
 	// MaxEvictRetries is the number of retries that will be attempted while draining the node.
 	// +optional
 	MaxEvictRetries *int32 `json:"maxEvictRetries,omitempty"`

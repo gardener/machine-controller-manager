@@ -87,6 +87,9 @@ type SafetyOptions struct {
 	// Timeout (in duration) used while draining of machine before deletion,
 	// beyond which it forcefully deletes machine
 	MachineDrainTimeout metav1.Duration
+	// Timeout (in duration) used while in-place updating of a machine,
+	// beyond which it is declared as failed
+	MachineInPlaceUpdateTimeout metav1.Duration
 	// Maximum number of times evicts would be attempted on a pod for it is forcibly deleted
 	// during draining of a machine.
 	MaxEvictRetries int32
