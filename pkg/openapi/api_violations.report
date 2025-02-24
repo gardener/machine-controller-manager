@@ -5,6 +5,7 @@ API rule violation: list_type_missing,github.com/gardener/machine-controller-man
 API rule violation: names_match,github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1,MachineConfiguration,MachineCreationTimeout
 API rule violation: names_match,github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1,MachineConfiguration,MachineDrainTimeout
 API rule violation: names_match,github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1,MachineConfiguration,MachineHealthTimeout
+API rule violation: names_match,github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1,MachineConfiguration,MachineInPlaceUpdateTimeout
 API rule violation: names_match,github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1,MachineSetStatus,Conditions
 API rule violation: names_match,github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1,MachineSpec,NodeTemplateSpec
 API rule violation: names_match,k8s.io/api/core/v1,AzureDiskVolumeSource,DataDiskURI

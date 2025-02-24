@@ -1055,6 +1055,36 @@ Kubernetes meta/v1.Duration
 </tr>
 <tr>
 <td>
+<code>inPlaceUpdateTimeout</code>
+</td>
+<td>
+<em>
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MachineInPlaceUpdateTimeout is the timeout after which in-place update is declared failed.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>disableHealthTimeout</code>
+</td>
+<td>
+<em>
+*bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>maxEvictRetries</code>
 </td>
 <td>

@@ -204,6 +204,16 @@ func (in *MachineConfiguration) DeepCopyInto(out *MachineConfiguration) {
 		*out = new(metav1.Duration)
 		**out = **in
 	}
+	if in.MachineInPlaceUpdateTimeout != nil {
+		in, out := &in.MachineInPlaceUpdateTimeout, &out.MachineInPlaceUpdateTimeout
+		*out = new(metav1.Duration)
+		**out = **in
+	}
+	if in.DisableHealthTimeout != nil {
+		in, out := &in.DisableHealthTimeout, &out.DisableHealthTimeout
+		*out = new(bool)
+		**out = **in
+	}
 	if in.MaxEvictRetries != nil {
 		in, out := &in.MaxEvictRetries, &out.MaxEvictRetries
 		*out = new(int32)
