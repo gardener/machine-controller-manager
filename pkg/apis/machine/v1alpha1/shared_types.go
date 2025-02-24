@@ -44,6 +44,10 @@ type MachineConfiguration struct {
 	// +optional
 	MachineInPlaceUpdateTimeout *metav1.Duration `json:"inPlaceUpdateTimeout,omitempty"`
 
+	// DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.
+	// +optional
+	DisableHealthTimeout *bool `json:"disableHealthTimeout,omitempty"`
+
 	// MaxEvictRetries is the number of retries that will be attempted while draining the node.
 	// +optional
 	MaxEvictRetries *int32 `json:"maxEvictRetries,omitempty"`
