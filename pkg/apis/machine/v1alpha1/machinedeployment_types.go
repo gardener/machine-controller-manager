@@ -113,6 +113,11 @@ type MachineDeploymentStrategy struct {
 	// to be.
 	// +optional
 	RollingUpdate *RollingUpdateMachineDeployment `json:"rollingUpdate,omitempty"`
+
+	// InPlaceUpdate update config params. Present only if MachineDeploymentStrategyType =
+	// InPlaceUpdate.
+	// +optional
+	InPlaceUpdate *InPlaceUpdateMachineDeployment `json:"inPlaceUpdate,omitempty"`
 }
 
 // MachineDeploymentStrategyType are valid strategy types for rolling MachineDeployments
@@ -124,16 +129,33 @@ const (
 
 	// RollingUpdateMachineDeploymentStrategyType means that old MCs will be replaced by new one using rolling update i.e gradually scale down the old MCs and scale up the new one.
 	RollingUpdateMachineDeploymentStrategyType MachineDeploymentStrategyType = "RollingUpdate"
+
+	// InPlaceUpdateMachineDeploymentStrategyType signifies that VMs will be updated in place and
+	// machine objects will gradually transition from the old MachineSet to the new MachineSet without requiring VM recreation.
+	InPlaceUpdateMachineDeploymentStrategyType MachineDeploymentStrategyType = "InPlaceUpdate"
 )
 
 // RollingUpdateMachineDeployment is the spec to control the desired behavior of rolling update.
 type RollingUpdateMachineDeployment struct {
+	UpdateConfiguration `json:",inline"`
+}
+
+// InPlaceUpdateMachineDeployment specifies the spec to control the desired behavior of inplace update.
+type InPlaceUpdateMachineDeployment struct {
+	UpdateConfiguration `json:",inline"`
+
+	// OrchestrationType specifies the orchestration type for the inplace update.
+	OrchestrationType OrchestrationType `json:"orchestrationType,omitempty"`
+}
+
+// UpdateConfiguration specifies the udpate configuration for the deployment strategy.
+type UpdateConfiguration struct {
 	// The maximum number of machines that can be unavailable during the update.
 	// Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%).
 	// Absolute number is calculated from percentage by rounding down.
 	// This can not be 0 if MaxSurge is 0.
 	// Example: when this is set to 30%, the old machine set can be scaled down to 70% of desired machines
-	// immediately when the rolling update starts. Once new machines are ready, old machine set
+	// immediately when the update starts. Once new machines are ready, old machine set
 	// can be scaled down further, followed by scaling up the new machine set, ensuring
 	// that the total number of machines available at all times during the update is at
 	// least 70% of desired machines.
@@ -146,13 +168,23 @@ type RollingUpdateMachineDeployment struct {
 	// This can not be 0 if MaxUnavailable is 0.
 	// Absolute number is calculated from percentage by rounding up.
 	// Example: when this is set to 30%, the new machine set can be scaled up immediately when
-	// the rolling update starts, such that the total number of old and new machines does not exceed
+	// the update starts, such that the total number of old and new machines does not exceed
 	// 130% of desired machines. Once old machines have been killed,
 	// new machine set can be scaled up further, ensuring that total number of machines running
 	// at any time during the update is utmost 130% of desired machines.
 	// +optional
 	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 }
+
+// OrchestrationType specifies the orchestration type for the inplace update.
+type OrchestrationType string
+
+const (
+	// OrchestrationTypeAuto signifies that the machines are automatically selected for update based on UpdateConfiguration.
+	OrchestrationTypeAuto OrchestrationType = "Auto"
+	// OrchestrationTypeManual signifies that the user has to select the machines to be updated manually.
+	OrchestrationTypeManual OrchestrationType = "Manual"
+)
 
 // MachineDeploymentStatus is the most recently observed status of the MachineDeployment.
 type MachineDeploymentStatus struct {
