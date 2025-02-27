@@ -102,6 +102,9 @@ var (
 
 	// Should the CR be preserved during cleanup at the end
 	preserveCRDuringCleanup = os.Getenv("PRESERVE_CRD_AT_END")
+
+	// Are the tests running for the virtual provider
+	isVirtualProvider = os.Getenv("IS_VIRTUAL_PROVIDER")
 )
 
 // ProviderSpecPatch struct holds tags for provider, which we want to patch the  machineclass with
@@ -385,6 +388,7 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 							Labels:      machineClasses.Items[0].ObjectMeta.Labels,
 							Annotations: machineClasses.Items[0].ObjectMeta.Annotations,
 						},
+						NodeTemplate:         machineClasses.Items[0].NodeTemplate,
 						ProviderSpec:         machineClasses.Items[0].ProviderSpec,
 						SecretRef:            machineClasses.Items[0].SecretRef,
 						CredentialsSecretRef: machineClasses.Items[0].CredentialsSecretRef,
@@ -559,10 +563,10 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 
 	checkMcmRepoAvailable()
 
-	if isControlSeed == "true" {
+	if isControlSeed == "true" && isVirtualProvider != "true" {
 		ginkgo.By("Scaledown existing machine controllers")
 		gomega.Expect(c.scaleMcmDeployment(0)).To(gomega.BeNil())
-	} else {
+	} else if isControlSeed != "true" {
 		//TODO : Scaledown the MCM deployment of the actual seed of the target cluster
 
 		//create the custom resources in the control cluster using yaml files
@@ -573,6 +577,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 			ApplyFiles(
 				filepath.Join(mcmRepoPath, "kubernetes/crds"), controlClusterNamespace)).To(gomega.BeNil())
 	}
+
 	c.runControllersLocally()
 
 	ginkgo.By("Cleaning any old resources")
@@ -638,6 +643,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 		var initialNodes int16
 		ginkgo.Context("creation", func() {
 			ginkgo.It("should not lead to any errors and add 1 more node in target cluster", func() {
+				// In case of existing deployments creating nodes when starting virtual
+				// provider, the change in node count can be >1, this delay prevents
+				// checking node count immediately to allow for a correct initial count
+				if isVirtualProvider == "true" {
+					time.Sleep(2 * time.Second)
+				}
 				// Probe nodes currently available in target cluster
 				initialNodes = c.TargetCluster.GetNumberOfNodes()
 				ginkgo.By("Checking for errors")
@@ -1147,6 +1158,8 @@ func (c *IntegrationTestFramework) cleanMachineClass(ctx context.Context, machin
 
 func stopMCM(ctx context.Context) {
 	processesToKill := []string{
+		"machine-controller-manager --control-kubeconfig", // virt
+		"machine-controller --control-kubeconfig",         // virt
 		"controller_manager --control-kubeconfig",
 		"main --control-kubeconfig",
 		"go run cmd/machine-controller/main.go",
