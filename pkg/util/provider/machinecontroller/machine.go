@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
@@ -37,7 +38,7 @@ Machine controller - Machine add, update, delete watches
 func (c *controller) addMachine(obj interface{}) {
 	machine := obj.(*v1alpha1.Machine)
 	if machine.DeletionTimestamp != nil {
-		c.enqueueMachineTermination(obj, "handling terminating machine object ADD event")
+		c.enqueueMachineTermination(machine, "handling terminating machine object ADD event")
 	} else {
 		c.enqueueMachine(obj, "handling machine obj ADD event")
 	}
@@ -58,14 +59,26 @@ func (c *controller) updateMachine(oldObj, newObj interface{}) {
 	}
 
 	if newMachine.DeletionTimestamp != nil {
-		c.enqueueMachineTermination(newObj, "handling terminating machine object UPDATE event")
+		c.enqueueMachineTermination(newMachine, "handling terminating machine object UPDATE event")
 	} else {
 		c.enqueueMachine(newObj, "handling machine object UPDATE event")
 	}
 }
 
 func (c *controller) deleteMachine(obj interface{}) {
-	c.enqueueMachineTermination(obj, "handling terminating machine object DELETE event")
+	machine, ok := obj.(*v1alpha1.Machine)
+	if !ok {
+		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			return
+		}
+		machine, ok = tombstone.Obj.(*v1alpha1.Machine)
+		if !ok {
+			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a Machine Deployment %#v", obj))
+			return
+		}
+	}
+	c.enqueueMachineTermination(machine, "handling terminating machine object DELETE event")
 }
 
 // getKeyForObj returns key for object, else returns false
@@ -92,15 +105,22 @@ func (c *controller) enqueueMachineAfter(obj interface{}, after time.Duration, r
 	}
 }
 
-func (c *controller) enqueueMachineTermination(obj interface{}, reason string) {
-	if key, ok := c.getKeyForObj(obj); ok {
+func (c *controller) enqueueMachineTermination(machine *v1alpha1.Machine, reason string) {
+
+	if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(machine); err != nil {
+		utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %#v: %v", machine, err))
+		return
+	} else {
 		klog.V(3).Infof("Adding machine object to termination queue %q, reason: %s", key, reason)
 		c.machineTerminationQueue.Add(key)
 	}
 }
 
-func (c *controller) enqueueMachineTerminationAfter(obj interface{}, after time.Duration, reason string) {
-	if key, ok := c.getKeyForObj(obj); ok {
+func (c *controller) enqueueMachineTerminationAfter(machine *v1alpha1.Machine, after time.Duration, reason string) {
+	if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(machine); err != nil {
+		utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %#v: %v", machine, err))
+		return
+	} else {
 		klog.V(3).Infof("Adding machine object to termination queue %q after %s, reason: %s", key, after, reason)
 		c.machineTerminationQueue.AddAfter(key, after)
 	}
@@ -528,11 +548,6 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				// if node label present that means there must be a backing VM ,without need of GetMachineStatus() call
 				nodeName = machine.Labels[v1alpha1.NodeLabelKey]
 			}
-
-		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
-			// GetMachineStatus() returned with one of the above error codes.
-			// Retry operation.
-			return c.machineCreateErrorHandler(ctx, machine, nil, err)
 
 		case codes.Uninitialized:
 			uninitializedMachine = true
