@@ -36,7 +36,11 @@ SECTION
 Machine controller - Machine add, update, delete watches
 */
 func (c *controller) addMachine(obj interface{}) {
-	machine := obj.(*v1alpha1.Machine)
+	machine, ok := obj.(*v1alpha1.Machine)
+	if !ok {
+		klog.Errorf("couldn't convert to machine resource from object")
+		return
+	}
 	if machine.DeletionTimestamp != nil {
 		c.enqueueMachineTermination(machine, "handling terminating machine object ADD event")
 	} else {
