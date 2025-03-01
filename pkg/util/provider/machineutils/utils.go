@@ -23,6 +23,9 @@ const (
 	// InitiateDrain specifies next step as initiate node drain
 	InitiateDrain = "Initiate node drain"
 
+	// NodeReadyForUpdate specifies next step as node ready for update.
+	NodeReadyForUpdate = "Node drain successful. Node is ready for update"
+
 	// DelVolumesAttachments specifies next step as deleting volume attachments
 	DelVolumesAttachments = "Delete Volume Attachments"
 
