@@ -227,7 +227,13 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		if err != nil {
 			return retry, err
 		}
+
+		retry, err = c.inPlaceUpdate(ctx, machine)
+		if err != nil {
+			return retry, err
+		}
 	}
+
 	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
 		return c.triggerCreationFlow(
 			ctx,
