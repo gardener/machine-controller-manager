@@ -360,6 +360,99 @@ func (c *controller) updateNodeConditionBasedOnLabel(ctx context.Context, machin
 	return machineutils.LongRetry, nil
 }
 
+func (c *controller) inPlaceUpdate(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+	cond, err := nodeops.GetNodeCondition(ctx, c.targetCoreClient, getNodeName(machine), v1alpha1.NodeInPlaceUpdate)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Don't return error so that other steps can be executed.
+			return machineutils.LongRetry, nil
+		}
+		return machineutils.ShortRetry, err
+	}
+
+	if cond != nil {
+		// if the condition is present and the reason is selected for update then drain the node
+		if cond.Reason == v1alpha1.SelectedForUpdate {
+			retry, err := c.drainNodeForInPlace(ctx, machine)
+			if err != nil {
+				return retry, err
+			}
+
+			// if the node is drained successfully then fetch the node condition again
+			cond, err = nodeops.GetNodeCondition(ctx, c.targetCoreClient, getNodeName(machine), v1alpha1.NodeInPlaceUpdate)
+			if err != nil {
+				return machineutils.ShortRetry, err
+			}
+		}
+
+		// if the condition is present and the reason is drain successful then the node is ready for update
+		if cond.Reason == v1alpha1.DrainSuccessful {
+			cond.Reason = v1alpha1.ReadyForUpdate
+			cond.LastTransitionTime = metav1.Now()
+			cond.Message = "Node is ready for in-place update"
+			if err := nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, getNodeName(machine), *cond); err != nil {
+				return machineutils.ShortRetry, err
+			}
+			// give machine time for update to get applied
+			return machineutils.MediumRetry, fmt.Errorf("node %s is ready for in-place update", getNodeName(machine))
+		}
+		if cond.Reason == v1alpha1.ReadyForUpdate {
+			// give machine time for update to get applied
+			return machineutils.MediumRetry, fmt.Errorf("node %s is ready for in-place update", getNodeName(machine))
+		}
+	}
+
+	return machineutils.LongRetry, nil
+}
+
+func (c *controller) updateMachineStatusAndNodeCondition(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+	// update machine status to indicate that the machine will undergo an in-place update
+	description := fmt.Sprintf("Machine %s is undergoing an in-place update", machine.Name)
+	klog.V(2).Infof("%s with backing node %q is undergoing an in-place update", description, getNodeName(machine))
+
+	machine.Status.CurrentStatus = v1alpha1.CurrentStatus{
+		Phase:          v1alpha1.MachineInPlaceUpdating,
+		LastUpdateTime: metav1.Now(),
+	}
+	machine.Status.LastOperation = v1alpha1.LastOperation{
+		Description:    description,
+		State:          v1alpha1.MachineStateProcessing,
+		Type:           v1alpha1.MachineOperationInPlaceUpdate,
+		LastUpdateTime: metav1.Now(),
+	}
+
+	if _, err := c.controlMachineClient.Machines(machine.Namespace).UpdateStatus(ctx, machine, metav1.UpdateOptions{}); err != nil {
+		// Keep retrying across reconciles until update goes through
+		klog.Errorf("Update of Phase/Conditions failed for machine %q. Retrying, error: %q", machine.Name, err)
+		if apierrors.IsConflict(err) {
+			return machineutils.ConflictRetry, err
+		}
+	}
+
+	cond, err := nodeops.GetNodeCondition(ctx, c.targetCoreClient, getNodeName(machine), v1alpha1.NodeInPlaceUpdate)
+	if err != nil {
+		return machineutils.ShortRetry, err
+	}
+
+	if cond == nil {
+		// Add the condition to the node
+		cond = &v1.NodeCondition{
+			Type: v1alpha1.NodeInPlaceUpdate,
+		}
+	}
+
+	cond.Status = v1.ConditionTrue
+	cond.LastTransitionTime = metav1.Now()
+	cond.Reason = v1alpha1.DrainSuccessful
+	cond.Message = "Node draining successful"
+
+	if err := nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, getNodeName(machine), *cond); err != nil {
+		return machineutils.ShortRetry, err
+	}
+
+	return machineutils.ShortRetry, err
+}
+
 // syncMachineNodeTemplate syncs nodeTemplates between machine and corresponding node-object.
 // It ensures, that any nodeTemplate element available on Machine should be available on node-object.
 // Although there could be more elements already available on node-object which will not be touched.
@@ -1140,6 +1233,179 @@ func printLogInitError(s string, err *error, description *string, machine *v1alp
 	klog.Warningf(s+" machine: %q ", machine.Name)
 	*err = fmt.Errorf(s+" %s", machineutils.InitiateVMDeletion)
 	*description = fmt.Sprintf(s+" %s", machineutils.InitiateVMDeletion)
+}
+
+// initializes err and description with the passed string message
+func printLogInitErrorInPlace(s string, err *error, description *string, machine *v1alpha1.Machine) {
+	klog.Warningf(s+" machine: %q ", machine.Name)
+	*err = fmt.Errorf("%s", s)
+	*description = fmt.Sprint(s)
+}
+
+// drainNodeForInPlace attempts to drain the node backed by the machine object
+// for now I have copied the code from the original controller
+func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+	var (
+		// Declarations
+		node            *v1.Node
+		err             error
+		forceDeletePods bool
+		timeOutOccurred bool
+		skipDrain       bool
+		description     string
+		state           v1alpha1.MachineState
+
+		readOnlyFileSystemCondition, nodeReadyCondition v1.NodeCondition
+
+		// Initialization
+		maxEvictRetries                             = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
+		pvDetachTimeOut                             = c.safetyOptions.PvDetachTimeout.Duration
+		pvReattachTimeOut                           = c.safetyOptions.PvReattachTimeout.Duration
+		timeOutDuration                             = c.getEffectiveDrainTimeout(machine).Duration
+		forceDrainLabelPresent                      = machine.Labels["force-drain"] == "True"
+		nodeName                                    = machine.Labels[v1alpha1.NodeLabelKey]
+		nodeNotReadyDuration                        = 5 * time.Minute
+		ReadonlyFilesystem     v1.NodeConditionType = "ReadonlyFilesystem"
+	)
+
+	if nodeName == "" {
+		message := "Skipping drain as nodeName is not a valid one for machine."
+		printLogInitErrorInPlace(message, &err, &description, machine)
+		skipDrain = true
+	} else {
+		for _, condition := range machine.Status.Conditions {
+			if condition.Type == v1.NodeReady {
+				nodeReadyCondition = condition
+			} else if condition.Type == ReadonlyFilesystem {
+				readOnlyFileSystemCondition = condition
+			}
+		}
+
+		// verify and log node object's existence
+		if node, err = c.nodeLister.Get(nodeName); err == nil {
+			klog.V(3).Infof("(drainNode) For node %q, machine %q, nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeName, machine.Name, nodeReadyCondition, readOnlyFileSystemCondition)
+		} else if apierrors.IsNotFound(err) {
+			klog.Warningf("(drainNode) Node %q for machine %q doesn't exist, so drain will finish instantly", nodeName, machine.Name)
+		}
+
+		if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != v1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+			message := "Setting forceDeletePods to true for drain as machine is NotReady for over 5min"
+			forceDeletePods = true
+			printLogInitErrorInPlace(message, &err, &description, machine)
+		} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != v1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+			message := "Setting forceDeletePods to true for drain as machine is in ReadonlyFilesystem for over 5min"
+			forceDeletePods = true
+			printLogInitErrorInPlace(message, &err, &description, machine)
+		}
+	}
+
+	if skipDrain {
+		state = v1alpha1.MachineStateProcessing
+	} else {
+		if node != nil {
+			cond := nodeops.GetCondition(node, v1alpha1.NodeInPlaceUpdate)
+			if cond != nil && cond.Reason == v1alpha1.SelectedForUpdate {
+				timeOutOccurred = utiltime.HasTimeOutOccurred(cond.LastTransitionTime, timeOutDuration)
+			}
+		}
+
+		if forceDrainLabelPresent || timeOutOccurred {
+			forceDeletePods = true
+			timeOutDuration = 1 * time.Minute
+			maxEvictRetries = 1
+
+			klog.V(2).Infof(
+				"Force drain has been triggerred for machine %q with providerID %q and backing node %q due to Label:%t, timeout:%t",
+				machine.Name,
+				getProviderID(machine),
+				getNodeName(machine),
+				forceDrainLabelPresent,
+				timeOutOccurred,
+			)
+		} else {
+			klog.V(2).Infof(
+				"Normal drain has been triggerred for machine %q with providerID %q and backing node %q with drain-timeout:%v & maxEvictRetries:%d",
+				machine.Name,
+				getProviderID(machine),
+				getNodeName(machine),
+				timeOutDuration,
+				maxEvictRetries,
+			)
+		}
+
+		buf := bytes.NewBuffer([]byte{})
+		errBuf := bytes.NewBuffer([]byte{})
+
+		drainOptions := drain.NewDrainOptions(
+			c.targetCoreClient,
+			c.targetKubernetesVersion,
+			timeOutDuration,
+			maxEvictRetries,
+			pvDetachTimeOut,
+			pvReattachTimeOut,
+			nodeName,
+			-1,
+			forceDeletePods,
+			true,
+			true,
+			true,
+			buf,
+			errBuf,
+			c.driver,
+			c.pvcLister,
+			c.pvLister,
+			c.pdbLister,
+			c.nodeLister,
+			c.podLister,
+			c.volumeAttachmentHandler,
+			c.podSynced,
+		)
+
+		klog.V(3).Infof("(drainNode) Invoking RunDrain, forceDeletePods: %t, timeOutDuration: %s", forceDeletePods, timeOutDuration)
+		err = drainOptions.RunDrain(ctx)
+		if err == nil {
+			// Drain successful
+			klog.V(2).Infof("Drain successful for machine %q ,providerID %q, backing node %q. \nBuf:%v \nErrBuf:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf)
+
+			if forceDeletePods {
+				description = fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments)
+			} else { // regular drain already waits for vol detach and attach for another node.
+				description = fmt.Sprintf("Drain successful. %s", machineutils.NodeReadyForUpdate)
+			}
+			state = v1alpha1.MachineStateProcessing
+		} else {
+			klog.Warningf("Drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
+
+			description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
+			state = v1alpha1.MachineStateProcessing
+		}
+	}
+
+	updateRetryPeriod, updateErr := c.machineStatusUpdate(
+		ctx,
+		machine,
+		v1alpha1.LastOperation{
+			Description:    description,
+			State:          state,
+			Type:           v1alpha1.MachineOperationDrainNode,
+			LastUpdateTime: metav1.Now(),
+		},
+		// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
+		// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
+		// Ref - https://github.com/gardener/machine-controller-manager/blob/rel-v0.34.0/pkg/util/provider/machinecontroller/machine_util.go#L872
+		machine.Status.CurrentStatus,
+		machine.Status.LastKnownState,
+	)
+
+	if updateErr != nil {
+		return updateRetryPeriod, updateErr
+	}
+
+	if err == nil {
+		return c.updateMachineStatusAndNodeCondition(ctx, machine)
+	}
+
+	return machineutils.ShortRetry, err
 }
 
 // drainNode attempts to drain the node backed by the machine object

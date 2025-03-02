@@ -3136,4 +3136,435 @@ var _ = Describe("machine_util", func() {
 			}),
 		)
 	})
+
+	Describe("#inPlaceUpdate", func() {
+		type setup struct {
+			machine *machinev1.Machine
+			node    *corev1.Node
+		}
+
+		type expect struct {
+			retryPeriod machineutils.RetryPeriod
+			err         error
+			node        *corev1.Node
+		}
+
+		type data struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("##table",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				controlMachineObjects := []runtime.Object{}
+				targetCoreObjects := []runtime.Object{}
+
+				controlMachineObjects = append(controlMachineObjects, data.setup.machine)
+				targetCoreObjects = append(targetCoreObjects, data.setup.node)
+
+				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil)
+				defer trackers.Stop()
+
+				c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
+				defer c.permitGiver.Close()
+
+				waitForCacheSync(stop, c)
+
+				retryPeriod, err := c.inPlaceUpdate(context.TODO(), data.setup.machine)
+
+				Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
+				if data.expect.err == nil {
+					Expect(err).To(BeNil())
+				} else {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(data.expect.err.Error()))
+				}
+
+				if data.expect.node != nil {
+					updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), getNodeName(data.setup.machine), metav1.GetOptions{})
+					Expect(getErr).To(BeNil())
+					updatedNodeCondition := nodeops.GetCondition(updatedNode, machinev1.NodeInPlaceUpdate)
+					expectedNodeCondition := nodeops.GetCondition(data.expect.node, machinev1.NodeInPlaceUpdate)
+
+					Expect(updatedNodeCondition.Type).To(Equal(expectedNodeCondition.Type))
+					Expect(updatedNodeCondition.Status).To(Equal(expectedNodeCondition.Status))
+					Expect(updatedNodeCondition.Reason).To(Equal(expectedNodeCondition.Reason))
+					Expect(updatedNodeCondition.Message).To(Equal(expectedNodeCondition.Message))
+				}
+			},
+
+			Entry("when node is not present", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+						nil,
+						nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0-test", machinev1.LabelKeyNodeSelectedForUpdate: "true"}, true, metav1.Now()),
+					node: newNode(1, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{}),
+				},
+				expect: expect{
+					retryPeriod: machineutils.LongRetry,
+					err:         nil,
+					node:        nil,
+				},
+			}),
+			Entry("when node condition is nil", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+						nil,
+						nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0", machinev1.LabelKeyNodeSelectedForUpdate: "true"}, true, metav1.Now()),
+					node: newNode(1, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{}),
+				},
+				expect: expect{
+					retryPeriod: machineutils.LongRetry,
+					err:         nil,
+					node:        nil,
+				},
+			}),
+			Entry("when node condition reason is SelectedForUpdate", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+						nil,
+						nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0", machinev1.LabelKeyNodeSelectedForUpdate: "true"}, true, metav1.Now()),
+					node: newNode(1, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{
+						Conditions: []corev1.NodeCondition{
+							{
+								Type:               machinev1.NodeInPlaceUpdate,
+								Status:             corev1.ConditionTrue,
+								LastTransitionTime: metav1.Now(),
+								Reason:             machinev1.SelectedForUpdate,
+								Message:            "Node is selected for in-place update",
+							},
+						},
+					}),
+				},
+				expect: expect{
+					retryPeriod: machineutils.MediumRetry,
+					err:         fmt.Errorf("node %s is ready for in-place update", "node-0"),
+					node: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-0",
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               machinev1.NodeInPlaceUpdate,
+									Status:             corev1.ConditionTrue,
+									LastTransitionTime: metav1.Now(),
+									Reason:             machinev1.ReadyForUpdate,
+									Message:            "Node is ready for in-place update",
+								},
+							},
+						},
+					},
+				},
+			}),
+			Entry("when node condition reason is DrainSuccessful", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+						nil,
+						nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0", machinev1.LabelKeyNodeSelectedForUpdate: "true"}, true, metav1.Now()),
+					node: newNode(1, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{
+						Conditions: []corev1.NodeCondition{
+							{
+								Type:               machinev1.NodeInPlaceUpdate,
+								Status:             corev1.ConditionTrue,
+								LastTransitionTime: metav1.Now(),
+								Reason:             machinev1.DrainSuccessful,
+								Message:            "Node draining successful",
+							},
+						},
+					}),
+				},
+				expect: expect{
+					retryPeriod: machineutils.MediumRetry,
+					err:         fmt.Errorf("node %s is ready for in-place update", "node-0"),
+					node: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-0",
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               machinev1.NodeInPlaceUpdate,
+									Status:             corev1.ConditionTrue,
+									LastTransitionTime: metav1.Now(),
+									Reason:             machinev1.ReadyForUpdate,
+									Message:            "Node is ready for in-place update",
+								},
+							},
+						},
+					},
+				},
+			}),
+			Entry("when node condition reason is ReadyForUpdate", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+						nil,
+						nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0", machinev1.LabelKeyNodeSelectedForUpdate: "true"}, true, metav1.Now()),
+					node: newNode(1, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{
+						Conditions: []corev1.NodeCondition{
+							{
+								Type:               machinev1.NodeInPlaceUpdate,
+								Status:             corev1.ConditionTrue,
+								LastTransitionTime: metav1.Now(),
+								Reason:             machinev1.ReadyForUpdate,
+								Message:            "Node is ready for in-place update",
+							},
+						},
+					}),
+				},
+				expect: expect{
+					retryPeriod: machineutils.MediumRetry,
+					err:         fmt.Errorf("node %s is ready for in-place update", "node-0"),
+					node: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-0",
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               machinev1.NodeInPlaceUpdate,
+									Status:             corev1.ConditionTrue,
+									LastTransitionTime: metav1.Now(),
+									Reason:             machinev1.ReadyForUpdate,
+									Message:            "Node is ready for in-place update",
+								},
+							},
+						},
+					},
+				},
+			}),
+		)
+	})
+
+	Describe("#drainNodeForInPlace", func() {
+		type setup struct {
+			machine *machinev1.Machine
+			node    *corev1.Node
+		}
+
+		type expect struct {
+			retryPeriod machineutils.RetryPeriod
+			err         error
+			node        *corev1.Node
+		}
+
+		type data struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("##table",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				controlMachineObjects := []runtime.Object{}
+				targetCoreObjects := []runtime.Object{}
+
+				controlMachineObjects = append(controlMachineObjects, data.setup.machine)
+				if data.setup.node != nil {
+					targetCoreObjects = append(targetCoreObjects, data.setup.node)
+				}
+
+				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil)
+				defer trackers.Stop()
+
+				c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
+				defer c.permitGiver.Close()
+
+				waitForCacheSync(stop, c)
+
+				retryPeriod, err := c.drainNodeForInPlace(context.TODO(), data.setup.machine)
+
+				Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
+				if data.expect.err == nil {
+					Expect(err).To(BeNil())
+				} else {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(data.expect.err.Error()))
+				}
+
+				if data.expect.node != nil {
+					updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), getNodeName(data.setup.machine), metav1.GetOptions{})
+					Expect(getErr).To(BeNil())
+					updatedNodeCondition := nodeops.GetCondition(updatedNode, machinev1.NodeInPlaceUpdate)
+					expectedNodeCondition := nodeops.GetCondition(data.expect.node, machinev1.NodeInPlaceUpdate)
+
+					Expect(updatedNodeCondition.Type).To(Equal(expectedNodeCondition.Type))
+					Expect(updatedNodeCondition.Status).To(Equal(expectedNodeCondition.Status))
+					Expect(updatedNodeCondition.Reason).To(Equal(expectedNodeCondition.Reason))
+					Expect(updatedNodeCondition.Message).To(Equal(expectedNodeCondition.Message))
+				}
+			},
+
+			Entry("when nodeName is empty", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+						nil,
+						nil, nil, map[string]string{}, true, metav1.Now()),
+					node: newNode(1, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{}),
+				},
+				expect: expect{
+					retryPeriod: machineutils.ShortRetry,
+					err:         fmt.Errorf("Skipping drain as nodeName is not a valid one for machine."),
+					node:        nil,
+				},
+			}),
+			Entry("when node is not found", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+						nil,
+						nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0-0"}, true, metav1.Now()),
+					node: newNode(1, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{}),
+				},
+				expect: expect{
+					retryPeriod: machineutils.ShortRetry,
+					err:         fmt.Errorf("nodes \"node-0-0\" not found"),
+					node:        nil,
+				},
+			}),
+			Entry("when node is not ready for over 5 minutes", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+						&machinev1.MachineStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               corev1.NodeReady,
+									Status:             corev1.ConditionFalse,
+									LastTransitionTime: metav1.NewTime(time.Now().Add(-10 * time.Minute)),
+								},
+							},
+						},
+						nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					node: newNode(1, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{}),
+				},
+				expect: expect{
+					retryPeriod: machineutils.ShortRetry,
+					err:         nil,
+					node: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-0",
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               machinev1.NodeInPlaceUpdate,
+									Status:             corev1.ConditionTrue,
+									LastTransitionTime: metav1.Now(),
+									Reason:             machinev1.DrainSuccessful,
+									Message:            "Node draining successful",
+								},
+							},
+						},
+					},
+				},
+			}),
+			Entry("when node is in ReadonlyFilesystem for over 5 minutes", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+						&machinev1.MachineStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               "ReadonlyFilesystem",
+									Status:             corev1.ConditionTrue,
+									LastTransitionTime: metav1.NewTime(time.Now().Add(-10 * time.Minute)),
+								},
+							},
+						},
+						nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					node: newNode(1, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{}),
+				},
+				expect: expect{
+					retryPeriod: machineutils.ShortRetry,
+					err:         nil,
+					node: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-0",
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               machinev1.NodeInPlaceUpdate,
+									Status:             corev1.ConditionTrue,
+									LastTransitionTime: metav1.Now(),
+									Reason:             machinev1.DrainSuccessful,
+									Message:            "Node draining successful",
+								},
+							},
+						},
+					},
+				},
+			}),
+			Entry("when force drain is triggered", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+						nil,
+						nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0", "force-drain": "True"}, true, metav1.Now()),
+					node: newNode(1, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{}),
+				},
+				expect: expect{
+					retryPeriod: machineutils.ShortRetry,
+					err:         nil,
+					node: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-0",
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               machinev1.NodeInPlaceUpdate,
+									Status:             corev1.ConditionTrue,
+									LastTransitionTime: metav1.Now(),
+									Reason:             machinev1.DrainSuccessful,
+									Message:            "Node draining successful",
+								},
+							},
+						},
+					},
+				},
+			}),
+			Entry("when normal drain is triggered", &data{
+				setup: setup{
+					machine: newMachine(
+						&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+						nil,
+						nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					node: newNode(1, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{}),
+				},
+				expect: expect{
+					retryPeriod: machineutils.ShortRetry,
+					err:         nil,
+					node: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-0",
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               machinev1.NodeInPlaceUpdate,
+									Status:             corev1.ConditionTrue,
+									LastTransitionTime: metav1.Now(),
+									Reason:             machinev1.DrainSuccessful,
+									Message:            "Node draining successful",
+								},
+							},
+						},
+					},
+				},
+			}),
+		)
+	})
 })
