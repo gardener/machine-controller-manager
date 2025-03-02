@@ -13,6 +13,7 @@ import (
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/fakeclient"
+	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"github.com/gardener/machine-controller-manager/pkg/util/permits"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo/v2"
@@ -2707,6 +2708,430 @@ var _ = Describe("machine_util", func() {
 					retryPeriod:   machineutils.ShortRetry,
 					err:           fmt.Errorf("timedout waiting to acquire lock for machine %q", machineSet1Deploy1+"-"+"0"),
 					expectedPhase: machinev1.MachineUnknown,
+				},
+			}),
+		)
+	})
+
+	Describe("#updateNodeConditionBasedOnLabel", func() {
+		type setup struct {
+			machines []*machinev1.Machine
+			nodes    []*corev1.Node
+			// targetMachineName is name of machine for which `reconcileMachineHealth()` needs to be called
+			// Its must this machine in machine list
+			targetMachineName string
+		}
+
+		type expect struct {
+			retryPeriod machineutils.RetryPeriod
+			err         error
+			node        *corev1.Node
+		}
+		type data struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("##table",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				controlMachineObjects := []runtime.Object{}
+				targetCoreObjects := []runtime.Object{}
+
+				var targetMachine *machinev1.Machine
+
+				for _, o := range data.setup.machines {
+					controlMachineObjects = append(controlMachineObjects, o)
+					if o.Name == data.setup.targetMachineName {
+						targetMachine = o
+					}
+				}
+
+				for _, o := range data.setup.nodes {
+					targetCoreObjects = append(targetCoreObjects, o)
+				}
+
+				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil)
+				defer trackers.Stop()
+
+				c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
+				defer c.permitGiver.Close()
+
+				waitForCacheSync(stop, c)
+
+				retryPeriod, err := c.updateNodeConditionBasedOnLabel(context.TODO(), targetMachine)
+
+				Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
+				if data.expect.err == nil {
+					Expect(err).To(BeNil())
+				} else {
+					Expect(err).To(HaveOccurred())
+					Expect(err).To(Equal(data.expect.err))
+				}
+
+				if data.expect.node != nil {
+					updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), getNodeName(targetMachine), metav1.GetOptions{})
+					Expect(getErr).To(BeNil())
+					updatedNodeCondition := nodeops.GetCondition(updatedNode, machinev1.NodeInPlaceUpdate)
+					expectedNodeCondition := nodeops.GetCondition(data.expect.node, machinev1.NodeInPlaceUpdate)
+
+					Expect(updatedNodeCondition.Type).To(Equal(expectedNodeCondition.Type))
+					Expect(updatedNodeCondition.Status).To(Equal(expectedNodeCondition.Status))
+					Expect(updatedNodeCondition.Reason).To(Equal(expectedNodeCondition.Reason))
+					Expect(updatedNodeCondition.Message).To(Equal(expectedNodeCondition.Message))
+				}
+			},
+
+			Entry("when node is not found", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-25 * time.Minute))}},
+							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0-0"}, true, metav1.Now()),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod: machineutils.LongRetry,
+					err:         nil,
+					node:        nil,
+				},
+			}),
+			Entry("when node has LabelKeyNodeCandidateForUpdate", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							nil,
+							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					},
+					nodes: []*corev1.Node{
+						newNode(1, map[string]string{machinev1.LabelKeyNodeCandidateForUpdate: "true"},
+							nil, &corev1.NodeSpec{}, &corev1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(true, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod: machineutils.LongRetry,
+					err:         nil,
+					node: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-0",
+							Labels: map[string]string{
+								machinev1.LabelKeyNodeCandidateForUpdate: "true",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               machinev1.NodeInPlaceUpdate,
+									Status:             corev1.ConditionTrue,
+									LastTransitionTime: metav1.Now(),
+									Reason:             machinev1.UpdateCandidate,
+									Message:            "Node is a candidate for in-place update",
+								},
+							},
+						},
+					},
+				},
+			}),
+			Entry("when node has LabelKeyNodeCandidateForUpdate but still not selected for update", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							nil,
+							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					},
+					nodes: []*corev1.Node{
+						newNode(1, map[string]string{
+							machinev1.LabelKeyNodeCandidateForUpdate: "true",
+						},
+							nil, &corev1.NodeSpec{}, &corev1.NodeStatus{Phase: corev1.NodeRunning,
+								Conditions: append(nodeConditions(true, false, false, false, false),
+									corev1.NodeCondition{
+										Type:               machinev1.NodeInPlaceUpdate,
+										Status:             corev1.ConditionTrue,
+										LastTransitionTime: metav1.Now(),
+										Reason:             machinev1.UpdateCandidate,
+										Message:            "Node is a candidate for in-place update"})}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod: machineutils.LongRetry,
+					err:         nil,
+					node: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-0",
+							Labels: map[string]string{
+								machinev1.LabelKeyNodeCandidateForUpdate: "true",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               machinev1.NodeInPlaceUpdate,
+									Status:             corev1.ConditionTrue,
+									LastTransitionTime: metav1.Now(),
+									Reason:             machinev1.UpdateCandidate,
+									Message:            "Node is a candidate for in-place update",
+								},
+							},
+						},
+					},
+				},
+			}),
+			Entry("when node has LabelKeyNodeCandidateForUpdate also the in-place update reason is UpdateSuccessful", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							nil,
+							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					},
+					nodes: []*corev1.Node{
+						newNode(1, map[string]string{
+							machinev1.LabelKeyNodeCandidateForUpdate: "true",
+						},
+							nil, &corev1.NodeSpec{}, &corev1.NodeStatus{Phase: corev1.NodeRunning,
+								Conditions: append(nodeConditions(true, false, false, false, false),
+									corev1.NodeCondition{
+										Type:               machinev1.NodeInPlaceUpdate,
+										Status:             corev1.ConditionTrue,
+										LastTransitionTime: metav1.Now(),
+										Reason:             machinev1.UpdateSuccessful,
+										Message:            "Node in-place update successful"})}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod: machineutils.LongRetry,
+					err:         nil,
+					node: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-0",
+							Labels: map[string]string{
+								machinev1.LabelKeyNodeCandidateForUpdate: "true",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               machinev1.NodeInPlaceUpdate,
+									Status:             corev1.ConditionTrue,
+									LastTransitionTime: metav1.Now(),
+									Reason:             machinev1.UpdateCandidate,
+									Message:            "Node is a candidate for in-place update",
+								},
+							},
+						},
+					},
+				},
+			}),
+			Entry("when node has LabelKeyNodeSelectedForUpdate", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							nil,
+							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					},
+					nodes: []*corev1.Node{
+						newNode(1, map[string]string{
+							machinev1.LabelKeyNodeCandidateForUpdate: "true",
+							machinev1.LabelKeyNodeSelectedForUpdate:  "true",
+						},
+							nil, &corev1.NodeSpec{}, &corev1.NodeStatus{Phase: corev1.NodeRunning,
+								Conditions: append(nodeConditions(true, false, false, false, false),
+									corev1.NodeCondition{
+										Type:               machinev1.NodeInPlaceUpdate,
+										Status:             corev1.ConditionTrue,
+										LastTransitionTime: metav1.Now(),
+										Reason:             machinev1.UpdateCandidate,
+										Message:            "Node is a candidate for in-place update"})}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod: machineutils.LongRetry,
+					err:         nil,
+					node: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-0",
+							Labels: map[string]string{
+								machinev1.LabelKeyNodeCandidateForUpdate: "true",
+								machinev1.LabelKeyNodeSelectedForUpdate:  "true",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               machinev1.NodeInPlaceUpdate,
+									Status:             corev1.ConditionTrue,
+									LastTransitionTime: metav1.Now(),
+									Reason:             machinev1.SelectedForUpdate,
+									Message:            "Node is selected for in-place update",
+								},
+							},
+						},
+					},
+				},
+			}),
+			Entry("when node has LabelKeyNodeSelectedForUpdate but drain is not successful yet", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							nil,
+							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					},
+					nodes: []*corev1.Node{
+						newNode(1, map[string]string{
+							machinev1.LabelKeyNodeCandidateForUpdate: "true",
+							machinev1.LabelKeyNodeSelectedForUpdate:  "true",
+						},
+							nil, &corev1.NodeSpec{}, &corev1.NodeStatus{Phase: corev1.NodeRunning,
+								Conditions: append(nodeConditions(true, false, false, false, false),
+									corev1.NodeCondition{
+										Type:               machinev1.NodeInPlaceUpdate,
+										Status:             corev1.ConditionTrue,
+										LastTransitionTime: metav1.Now(),
+										Reason:             machinev1.SelectedForUpdate,
+										Message:            "Node is selected for in-place update"})}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod: machineutils.MediumRetry,
+					err:         nil,
+					node: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-0",
+							Labels: map[string]string{
+								machinev1.LabelKeyNodeCandidateForUpdate: "true",
+								machinev1.LabelKeyNodeSelectedForUpdate:  "true",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               machinev1.NodeInPlaceUpdate,
+									Status:             corev1.ConditionTrue,
+									LastTransitionTime: metav1.Now(),
+									Reason:             machinev1.SelectedForUpdate,
+									Message:            "Node is selected for in-place update",
+								},
+							},
+						},
+					},
+				},
+			}),
+			Entry("when node update is successful", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							nil,
+							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					},
+					nodes: []*corev1.Node{
+						newNode(1, map[string]string{
+							machinev1.LabelKeyNodeCandidateForUpdate: "true",
+							machinev1.LabelKeyNodeSelectedForUpdate:  "true",
+							machinev1.LabelKeyNodeUpdateResult:       "successful",
+						},
+							nil, &corev1.NodeSpec{}, &corev1.NodeStatus{Phase: corev1.NodeRunning,
+								Conditions: append(nodeConditions(true, false, false, false, false),
+									corev1.NodeCondition{
+										Type:               machinev1.NodeInPlaceUpdate,
+										Status:             corev1.ConditionTrue,
+										LastTransitionTime: metav1.Now(),
+										Reason:             machinev1.ReadyForUpdate,
+										Message:            "Node is ready for in-place update"})}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod: machineutils.LongRetry,
+					err:         nil,
+					node: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-0",
+							Labels: map[string]string{
+								machinev1.LabelKeyNodeCandidateForUpdate: "true",
+								machinev1.LabelKeyNodeSelectedForUpdate:  "true",
+								machinev1.LabelKeyNodeUpdateResult:       "successful",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               machinev1.NodeInPlaceUpdate,
+									Status:             corev1.ConditionTrue,
+									LastTransitionTime: metav1.Now(),
+									Reason:             machinev1.UpdateSuccessful,
+									Message:            "Node in-place update successful",
+								},
+							},
+						},
+					},
+				},
+			}),
+			Entry("when node update has failed", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							nil,
+							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					},
+					nodes: []*corev1.Node{
+						newNode(1,
+							map[string]string{
+								machinev1.LabelKeyNodeCandidateForUpdate: "true",
+								machinev1.LabelKeyNodeSelectedForUpdate:  "true",
+								machinev1.LabelKeyNodeUpdateResult:       "failed",
+							},
+							map[string]string{machinev1.AnnotationKeyMachineUpdateFailedReason: "OS image not found"},
+							&corev1.NodeSpec{}, &corev1.NodeStatus{Phase: corev1.NodeRunning,
+								Conditions: append(nodeConditions(true, false, false, false, false),
+									corev1.NodeCondition{
+										Type:               machinev1.NodeInPlaceUpdate,
+										Status:             corev1.ConditionTrue,
+										LastTransitionTime: metav1.Now(),
+										Reason:             machinev1.DrainSuccessful,
+										Message:            "Node draining successful"})}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod: machineutils.LongRetry,
+					err:         nil,
+					node: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-0",
+							Labels: map[string]string{
+								machinev1.LabelKeyNodeCandidateForUpdate: "true",
+								machinev1.LabelKeyNodeSelectedForUpdate:  "true",
+								machinev1.LabelKeyNodeUpdateResult:       "failed",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:               machinev1.NodeInPlaceUpdate,
+									Status:             corev1.ConditionTrue,
+									LastTransitionTime: metav1.Now(),
+									Reason:             machinev1.UpdateFailed,
+									Message:            fmt.Sprintf("Node in-place update failed: %s", "OS image not found"),
+								},
+							},
+						},
+					},
 				},
 			}),
 		)
