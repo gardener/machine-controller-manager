@@ -204,7 +204,7 @@ func nodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions [
 	// checking for any added/updated new condition
 	for _, c := range newConditions {
 		oldC, exists := oldConditionsByType[c.Type]
-		if !exists || (oldC.Status != c.Status) {
+		if !exists || (oldC.Status != c.Status) || (c.Type == v1alpha1.NodeInPlaceUpdate && oldC.Reason != c.Reason) {
 			addedOrUpdatedConditions = append(addedOrUpdatedConditions, c)
 		}
 	}
@@ -260,6 +260,101 @@ func (c *controller) syncMachineNameToNode(ctx context.Context, machine *v1alpha
 			return machineutils.ConflictRetry, err
 		}
 		return machineutils.ShortRetry, err
+	}
+
+	return machineutils.LongRetry, nil
+}
+
+func (c *controller) updateNodeConditionBasedOnLabel(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+	node, err := c.nodeLister.Get(getNodeName(machine))
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Don't return error so that other steps can be executed.
+			return machineutils.LongRetry, nil
+		}
+		klog.Errorf("Error occurred while trying to fetch node object - err: %s", err)
+		return machineutils.ShortRetry, err
+	}
+
+	nodeCopy := node.DeepCopy()
+
+	if nodeCopy.Labels == nil {
+		nodeCopy.Labels = make(map[string]string)
+	}
+
+	inPlaceCond := nodeops.GetCondition(nodeCopy, v1alpha1.NodeInPlaceUpdate)
+	updateCondition := false
+
+	if _, ok := nodeCopy.Labels[v1alpha1.LabelKeyNodeCandidateForUpdate]; ok {
+		_, ok := nodeCopy.Labels[v1alpha1.LabelKeyNodeUpdateResult]
+		// if the in-place condition is nil or the update was successful and no update result label is present
+		// add or update the in-place update condition to indicate the node is a candidate for update
+		if inPlaceCond == nil || (inPlaceCond.Reason == v1alpha1.UpdateSuccessful && !ok) {
+			nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, v1.NodeCondition{
+				Type:               v1alpha1.NodeInPlaceUpdate,
+				Status:             v1.ConditionTrue,
+				LastTransitionTime: metav1.Now(),
+				Reason:             v1alpha1.UpdateCandidate,
+				Message:            "Node is a candidate for in-place update",
+			})
+			updateCondition = true
+		}
+
+		if !updateCondition {
+			if _, ok := nodeCopy.Labels[v1alpha1.LabelKeyNodeSelectedForUpdate]; ok {
+				if inPlaceCond.Reason == v1alpha1.UpdateCandidate {
+					nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, v1.NodeCondition{
+						Type:               v1alpha1.NodeInPlaceUpdate,
+						Status:             v1.ConditionTrue,
+						LastTransitionTime: metav1.Now(),
+						Reason:             v1alpha1.SelectedForUpdate,
+						Message:            "Node is selected for in-place update",
+					})
+					updateCondition = true
+				} else if inPlaceCond.Reason == v1alpha1.SelectedForUpdate {
+					// node still not has been drained
+					return machineutils.MediumRetry, nil
+				}
+			}
+		}
+
+		if !updateCondition {
+			if nodeCopy.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateSuccessful {
+				if inPlaceCond != nil && inPlaceCond.Reason == v1alpha1.UpdateSuccessful {
+					return machineutils.LongRetry, nil
+				}
+				nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, v1.NodeCondition{
+					Type:               v1alpha1.NodeInPlaceUpdate,
+					Status:             v1.ConditionTrue,
+					LastTransitionTime: metav1.Now(),
+					Reason:             v1alpha1.UpdateSuccessful,
+					Message:            "Node in-place update successful",
+				})
+				updateCondition = true
+			} else if nodeCopy.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateFailed {
+				if inPlaceCond != nil && inPlaceCond.Reason == v1alpha1.UpdateFailed {
+					return machineutils.LongRetry, nil
+				}
+
+				nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, v1.NodeCondition{
+					Type:               v1alpha1.NodeInPlaceUpdate,
+					Status:             v1.ConditionTrue,
+					LastTransitionTime: metav1.Now(),
+					Reason:             v1alpha1.UpdateFailed,
+					Message:            fmt.Sprintf("Node in-place update failed: %v", nodeCopy.Annotations[v1alpha1.AnnotationKeyMachineUpdateFailedReason]),
+				})
+				updateCondition = true
+			}
+		}
+	}
+
+	if updateCondition {
+		if _, err := c.targetCoreClient.CoreV1().Nodes().UpdateStatus(ctx, nodeCopy, metav1.UpdateOptions{}); err != nil {
+			if apierrors.IsConflict(err) {
+				return machineutils.ConflictRetry, err
+			}
+			return machineutils.ShortRetry, err
+		}
 	}
 
 	return machineutils.LongRetry, nil
