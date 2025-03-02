@@ -56,6 +56,7 @@ import (
 	storageclient "k8s.io/client-go/kubernetes/typed/storage/v1"
 	storagelisters "k8s.io/client-go/listers/storage/v1"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 )
 
 // emptyMap is a dummy emptyMap to compare with
@@ -851,86 +852,129 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			cloneDirty = true
 		}
 
-		if c.isHealthy(clone) {
-			if clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning && !isPendingMachineWithCriticalComponentsNotReadyTaint(clone, node) {
-				if clone.Status.LastOperation.Type == v1alpha1.MachineOperationCreate &&
-					clone.Status.LastOperation.State != v1alpha1.MachineStateSuccessful {
-					// When machine creation went through
-					description = fmt.Sprintf("Machine %s successfully joined the cluster", clone.Name)
-					lastOperationType = v1alpha1.MachineOperationCreate
+		// During the period when the machine is undergoing an in-place update or has failed to update,
+		// we cannot definitively determine if the machine is healthy.
+		// Because if the machine failed to update in-place, the severity of the failure is uncertain.
+		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdating && machine.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdateFailed {
+			if c.isHealthy(clone) {
+				if clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning && !isPendingMachineWithCriticalComponentsNotReadyTaint(clone, node) {
+					if clone.Status.LastOperation.Type == v1alpha1.MachineOperationCreate &&
+						clone.Status.LastOperation.State != v1alpha1.MachineStateSuccessful {
+						// When machine creation went through
+						description = fmt.Sprintf("Machine %s successfully joined the cluster", clone.Name)
+						lastOperationType = v1alpha1.MachineOperationCreate
 
-					// Delete the bootstrap token
-					err = c.deleteBootstrapToken(ctx, clone.Name)
-					if err != nil {
-						klog.Warning(err)
+						// Delete the bootstrap token
+						err = c.deleteBootstrapToken(ctx, clone.Name)
+						if err != nil {
+							klog.Warning(err)
+						}
+					} else {
+						// Machine rejoined the cluster after a health-check
+						description = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
+						lastOperationType = v1alpha1.MachineOperationHealthCheck
 					}
-				} else {
-					// Machine rejoined the cluster after a health-check
-					description = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
-					lastOperationType = v1alpha1.MachineOperationHealthCheck
-				}
-				klog.V(2).Infof("%s with backing node %q and providerID %q", description, getNodeName(clone), getProviderID(clone))
+					klog.V(2).Infof("%s with backing node %q and providerID %q", description, getNodeName(clone), getProviderID(clone))
 
-				// Machine is ready and has joined/re-joined the cluster
-				clone.Status.LastOperation = v1alpha1.LastOperation{
-					Description:    description,
-					State:          v1alpha1.MachineStateSuccessful,
-					Type:           lastOperationType,
-					LastUpdateTime: metav1.Now(),
+					// Machine is ready and has joined/re-joined the cluster
+					clone.Status.LastOperation = v1alpha1.LastOperation{
+						Description:    description,
+						State:          v1alpha1.MachineStateSuccessful,
+						Type:           lastOperationType,
+						LastUpdateTime: metav1.Now(),
+					}
+					clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+						Phase: v1alpha1.MachineRunning,
+						// TimeoutActive:  false,
+						LastUpdateTime: metav1.Now(),
+					}
+					cloneDirty = true
 				}
-				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-					Phase: v1alpha1.MachineRunning,
-					// TimeoutActive:  false,
-					LastUpdateTime: metav1.Now(),
-				}
-				cloneDirty = true
-			}
-		} else {
-			if clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
-				// If machine is not healthy, and current phase is Running,
-				// change the machinePhase to Unknown and activate health check timeout
-				description = fmt.Sprintf("Machine %s is unhealthy - changing MachinePhase to Unknown. Node conditions: %+v", clone.Name, clone.Status.Conditions)
-				klog.Warning(description)
+			} else {
+				if clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+					// If machine is not healthy, and current phase is Running,
+					// change the machinePhase to Unknown and activate health check timeout
+					description = fmt.Sprintf("Machine %s is unhealthy - changing MachinePhase to Unknown. Node conditions: %+v", clone.Name, clone.Status.Conditions)
+					klog.Warning(description)
 
-				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-					Phase: v1alpha1.MachineUnknown,
-					// TimeoutActive:  true,
-					LastUpdateTime: metav1.Now(),
+					clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+						Phase: v1alpha1.MachineUnknown,
+						// TimeoutActive:  true,
+						LastUpdateTime: metav1.Now(),
+					}
+					clone.Status.LastOperation = v1alpha1.LastOperation{
+						Description:    description,
+						State:          v1alpha1.MachineStateProcessing,
+						Type:           v1alpha1.MachineOperationHealthCheck,
+						LastUpdateTime: metav1.Now(),
+					}
+					cloneDirty = true
 				}
-				clone.Status.LastOperation = v1alpha1.LastOperation{
-					Description:    description,
-					State:          v1alpha1.MachineStateProcessing,
-					Type:           v1alpha1.MachineOperationHealthCheck,
-					LastUpdateTime: metav1.Now(),
-				}
-				cloneDirty = true
 			}
 		}
 	}
 
 	if !cloneDirty &&
 		(machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending ||
-			machine.Status.CurrentStatus.Phase == v1alpha1.MachineUnknown) {
+			machine.Status.CurrentStatus.Phase == v1alpha1.MachineUnknown || machine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdating ||
+			machine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdateFailed) {
 		var (
 			description     string
 			timeOutDuration time.Duration
 		)
 
 		isMachinePending := machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending
+		isMachineInPlaceUpdating := machine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdating
+		disableHealthTimeout := machine.Spec.MachineConfiguration != nil && ptr.Deref(machine.Spec.DisableHealthTimeout, false)
 		sleepTime := 1 * time.Minute
 
 		if isMachinePending {
 			timeOutDuration = c.getEffectiveCreationTimeout(machine).Duration
+		} else if isMachineInPlaceUpdating {
+			timeOutDuration = c.getEffectiveInPlaceUpdateTimeout(machine).Duration
 		} else {
 			timeOutDuration = c.getEffectiveHealthTimeout(machine).Duration
 		}
 
+		// if the lable update successful or failed, then skip the timeout check
+		if node != nil && node.Labels != nil && (node.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateSuccessful || node.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateFailed) {
+			if node.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateSuccessful && clone.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdateSuccessful {
+				description = fmt.Sprintf("Machine %s successfully updated dependecies", machine.Name)
+				klog.V(2).Infof("%s with backing node %q and providerID %q sucessfully update the dependecies", description, getNodeName(machine), getProviderID(machine))
+				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+					Phase:          v1alpha1.MachineInPlaceUpdateSuccessful,
+					LastUpdateTime: metav1.Now(),
+				}
+				clone.Status.LastOperation = v1alpha1.LastOperation{
+					Description:    description,
+					State:          v1alpha1.MachineStateSuccessful,
+					Type:           v1alpha1.MachineOperationInPlaceUpdate,
+					LastUpdateTime: metav1.Now(),
+				}
+				cloneDirty = true
+			} else if node.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateFailed && clone.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdateFailed {
+				description = fmt.Sprintf("Machine %s failed to update dependecies: %s", machine.Name, node.Annotations[v1alpha1.AnnotationKeyMachineUpdateFailedReason])
+				klog.V(2).Infof("%s with backing node %q and providerID %q failed to update dependecies", description, getNodeName(machine), getProviderID(machine))
+				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+					Phase:          v1alpha1.MachineInPlaceUpdateFailed,
+					LastUpdateTime: metav1.Now(),
+				}
+				clone.Status.LastOperation = v1alpha1.LastOperation{
+					Description:    description,
+					State:          v1alpha1.MachineStateFailed,
+					Type:           v1alpha1.MachineOperationInPlaceUpdate,
+					LastUpdateTime: metav1.Now(),
+				}
+				cloneDirty = true
+			}
+		}
+
 		// Timeout value obtained by subtracting last operation with expected time out period
 		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
-		if timeOut > 0 {
+		if !cloneDirty && timeOut > 0 {
 			// Machine health timeout occurred while joining or rejoining of machine
 
-			if !isMachinePending {
+			if !isMachinePending && !isMachineInPlaceUpdating && !disableHealthTimeout {
 				// Timeout occurred due to machine being unhealthy for too long
 				description = fmt.Sprintf(
 					"Machine %s health checks failing since last %s minutes. Updating machine phase to Failed. Node Conditions: %+v",
@@ -944,27 +988,49 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				c.permitGiver.RegisterPermits(machineDeployName, 1)
 				return c.tryMarkingMachineFailed(ctx, machine, clone, machineDeployName, description, lockAcquireTimeout)
 			}
-			// Timeout occurred while machine creation
-			description = fmt.Sprintf(
-				"Machine %s failed to join the cluster in %s minutes.",
-				machine.Name,
-				timeOutDuration,
-			)
-			// Log the error message for machine failure
-			klog.Error(description)
 
-			clone.Status.LastOperation = v1alpha1.LastOperation{
-				Description:    description,
-				State:          v1alpha1.MachineStateFailed,
-				Type:           machine.Status.LastOperation.Type,
-				LastUpdateTime: metav1.Now(),
+			if isMachineInPlaceUpdating {
+				description = fmt.Sprintf(
+					"Machine %s failed to in-place update in %s minutes.",
+					machine.Name,
+					timeOutDuration,
+				)
+
+				klog.Error(description)
+
+				clone.Status.LastOperation = v1alpha1.LastOperation{
+					Description:    description,
+					State:          v1alpha1.MachineStateFailed,
+					Type:           v1alpha1.MachineOperationInPlaceUpdate,
+					LastUpdateTime: metav1.Now(),
+				}
+				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+					Phase:          v1alpha1.MachineInPlaceUpdateFailed,
+					LastUpdateTime: metav1.Now(),
+				}
+				cloneDirty = true
+			} else if isMachinePending {
+				// Timeout occurred while machine creation
+				description = fmt.Sprintf(
+					"Machine %s failed to join the cluster in %s minutes.",
+					machine.Name,
+					timeOutDuration,
+				)
+				// Log the error message for machine failure
+				klog.Error(description)
+
+				clone.Status.LastOperation = v1alpha1.LastOperation{
+					Description:    description,
+					State:          v1alpha1.MachineStateFailed,
+					Type:           machine.Status.LastOperation.Type,
+					LastUpdateTime: metav1.Now(),
+				}
+				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+					Phase:          v1alpha1.MachineFailed,
+					LastUpdateTime: metav1.Now(),
+				}
+				cloneDirty = true
 			}
-			clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-				Phase: v1alpha1.MachineFailed,
-				// TimeoutActive:  false,
-				LastUpdateTime: metav1.Now(),
-			}
-			cloneDirty = true
 		} else {
 			// If timeout has not occurred, re-enqueue the machine
 			// after a specified sleep time
@@ -1831,6 +1897,16 @@ func (c *controller) getEffectiveCreationTimeout(machine *v1alpha1.Machine) *met
 		effectiveCreationTimeout = &c.safetyOptions.MachineCreationTimeout
 	}
 	return effectiveCreationTimeout
+}
+
+func (c *controller) getEffectiveInPlaceUpdateTimeout(machine *v1alpha1.Machine) *metav1.Duration {
+	var effectiveDependenciesUpdateTimeout *metav1.Duration
+	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineConfiguration.MachineInPlaceUpdateTimeout != nil {
+		effectiveDependenciesUpdateTimeout = machine.Spec.MachineConfiguration.MachineInPlaceUpdateTimeout
+	} else {
+		effectiveDependenciesUpdateTimeout = &c.safetyOptions.MachineInPlaceUpdateTimeout
+	}
+	return effectiveDependenciesUpdateTimeout
 }
 
 // getEffectiveNodeConditions returns the nodeConditions set on the machine-object, otherwise returns the conditions set using the global-flag.

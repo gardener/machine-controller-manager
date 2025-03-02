@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -2294,6 +2295,120 @@ var _ = Describe("machine_util", func() {
 					retryPeriod:   machineutils.LongRetry,
 					err:           nil,
 					expectedPhase: machinev1.MachinePending,
+				},
+			}),
+			Entry("Machine in Unknown state WITHOUT backing node obj for over 10min(healthTimeout) should not be marked Failed if DisableHealthTimeout is set", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0), Spec: machinev1.MachineSpec{MachineConfiguration: &machinev1.MachineConfiguration{DisableHealthTimeout: ptr.To(true)}}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.LongRetry,
+					expectedPhase: machinev1.MachineUnknown,
+				},
+			}),
+			Entry("Machine in InPlaceUpdating state for over 10min(InPlaceUpdateTimeout) should be marked InPlaceUpdateFailed", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineInPlaceUpdating, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					},
+					nodes: []*corev1.Node{
+						newNode(1, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           errSuccessfulPhaseUpdate,
+					expectedPhase: machinev1.MachineInPlaceUpdateFailed,
+				},
+			}),
+			Entry("Machine in InPlaceUpdating state with node label node.machine.sapcloud.io/update-result=successful should be marked InPlaceUpdateSuccessful", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineInPlaceUpdating, LastUpdateTime: metav1.NewTime(time.Now())}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					},
+					nodes: []*corev1.Node{
+						newNode(1, map[string]string{machinev1.LabelKeyNodeUpdateResult: machinev1.LabelValueNodeUpdateSuccessful}, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           errSuccessfulPhaseUpdate,
+					expectedPhase: machinev1.MachineInPlaceUpdateSuccessful,
+				},
+			}),
+			Entry("Machine in InPlaceUpdating state with node label node.machine.sapcloud.io/update-result=failed should be marked InPlaceUpdateFailed", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineInPlaceUpdating, LastUpdateTime: metav1.NewTime(time.Now())}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					},
+					nodes: []*corev1.Node{
+						newNode(1, map[string]string{machinev1.LabelKeyNodeUpdateResult: machinev1.LabelValueNodeUpdateFailed}, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           errSuccessfulPhaseUpdate,
+					expectedPhase: machinev1.MachineInPlaceUpdateFailed,
+				},
+			}),
+			Entry("Machine in InPlaceUpdateFailed state for over 10min(healthTimeout) should be marked Failed", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineInPlaceUpdateFailed, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					},
+					nodes: []*corev1.Node{
+						newNode(1, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					expectedPhase: machinev1.MachineFailed,
+				},
+			}),
+			Entry("Machine in InPlaceUpdateFailed state for over 10min(healthTimeout) should not be marked Failed if DisableHealthTimeout is set", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0), Spec: machinev1.MachineSpec{MachineConfiguration: &machinev1.MachineConfiguration{DisableHealthTimeout: ptr.To(true)}}},
+							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineInPlaceUpdateFailed, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
+							&metav1.OwnerReference{Name: machineSet1Deploy1},
+							nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
+					},
+					nodes: []*corev1.Node{
+						newNode(1, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{Phase: corev1.NodeRunning, Conditions: nodeConditions(false, false, false, false, false)}),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.LongRetry,
+					expectedPhase: machinev1.MachineInPlaceUpdateFailed,
 				},
 			}),
 			Entry("pending machine is healthy, but node has `critical-components-not-ready` taint, shouldn't be marked Running", &data{
