@@ -6,6 +6,7 @@ package controller
 
 import (
 	"context"
+
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	. "github.com/onsi/ginkgo/v2"
@@ -120,6 +121,7 @@ var _ = Describe("deployment_rolling", func() {
 					),
 					nodes: newNodes(
 						1,
+						nil,
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
@@ -167,6 +169,7 @@ var _ = Describe("deployment_rolling", func() {
 					),
 					nodes: newNodes(
 						1,
+						nil,
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{
 								{
@@ -283,6 +286,7 @@ var _ = Describe("deployment_rolling", func() {
 					),
 					nodes: newNodes(
 						1,
+						nil,
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
@@ -335,6 +339,7 @@ var _ = Describe("deployment_rolling", func() {
 					),
 					nodes: newNodes(
 						1,
+						nil,
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
@@ -386,6 +391,7 @@ var _ = Describe("deployment_rolling", func() {
 					),
 					nodes: newNodes(
 						1,
+						nil,
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
@@ -437,6 +443,7 @@ var _ = Describe("deployment_rolling", func() {
 					),
 					nodes: newNodes(
 						0,
+						nil,
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
@@ -579,6 +586,7 @@ var _ = Describe("deployment_rolling", func() {
 					),
 					nodes: newNodes(
 						1,
+						nil,
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
@@ -633,6 +641,7 @@ var _ = Describe("deployment_rolling", func() {
 					),
 					nodes: newNodes(
 						1,
+						nil,
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
@@ -687,6 +696,7 @@ var _ = Describe("deployment_rolling", func() {
 					),
 					nodes: newNodes(
 						1,
+						nil,
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
