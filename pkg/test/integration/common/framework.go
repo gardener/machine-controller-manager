@@ -38,6 +38,8 @@ import (
 
 const (
 	dwdIgnoreScalingAnnotation = "dependency-watchdog.gardener.cloud/ignore-scaling"
+	testMachineDeploymentName  = "test-machine-deployment"
+	testMachineName            = "test-machine"
 )
 
 var (
@@ -100,7 +102,7 @@ var (
 	//values for gardener-node-agent-secret-name
 	gnaSecretNameLabelValue = os.Getenv("GNA_SECRET_NAME")
 
-	// Should the CR be preserved during cleanup at the end
+	// Specifies whether the CRDs should be preserved during cleanup at the end
 	preserveCRDuringCleanup = os.Getenv("PRESERVE_CRD_AT_END")
 
 	// Are the tests running for the virtual provider
@@ -388,7 +390,7 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 							Labels:      machineClasses.Items[0].ObjectMeta.Labels,
 							Annotations: machineClasses.Items[0].ObjectMeta.Annotations,
 						},
-						NodeTemplate:         machineClasses.Items[0].NodeTemplate,
+						NodeTemplate:         machineClasses.Items[0].NodeTemplate, // virtual
 						ProviderSpec:         machineClasses.Items[0].ProviderSpec,
 						SecretRef:            machineClasses.Items[0].SecretRef,
 						CredentialsSecretRef: machineClasses.Items[0].CredentialsSecretRef,
@@ -617,12 +619,10 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 // BeforeEachCheck checks if all the nodes are ready and the controllers are runnings
 func (c *IntegrationTestFramework) BeforeEachCheck() {
 	ginkgo.BeforeEach(func() {
-		if len(os.Getenv("MC_CONTAINER_IMAGE")) == 0 && len(os.Getenv("MCM_CONTAINER_IMAGE")) == 0 {
-			ginkgo.By("Checking machineController process is running")
-			gomega.Expect(mcsession.ExitCode()).Should(gomega.Equal(-1))
-			ginkgo.By("Checking machineControllerManager process is running")
-			gomega.Expect(mcmsession.ExitCode()).Should(gomega.Equal(-1))
-		}
+		ginkgo.By("Checking machineController process is running")
+		gomega.Expect(mcsession.ExitCode()).Should(gomega.Equal(-1))
+		ginkgo.By("Checking machineControllerManager process is running")
+		gomega.Expect(mcmsession.ExitCode()).Should(gomega.Equal(-1))
 		ginkgo.By("Checking nodes in target cluster are healthy")
 		gomega.Eventually(
 			c.TargetCluster.GetNumberOfReadyNodes,
@@ -682,7 +682,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 							c.ControlCluster.McmClient.
 								MachineV1alpha1().
 								Machines(controlClusterNamespace).
-								Delete(ctx, "test-machine", metav1.DeleteOptions{})).
+								Delete(ctx, testMachineName, metav1.DeleteOptions{})).
 							Should(gomega.BeNil(), "No Errors while deleting machine")
 
 						ginkgo.By("Waiting until test-machine machine object is deleted")
@@ -692,7 +692,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 							c.pollingInterval).
 							Should(gomega.BeTrue())
 
-						ginkgo.By("Waiting until number of ready nodes is equal to number of initial  nodes")
+						ginkgo.By("Waiting until number of ready nodes is equal to number of initial nodes")
 						gomega.Eventually(
 							c.TargetCluster.GetNumberOfNodes,
 							c.timeout,
@@ -754,7 +754,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDeployment, _ = c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
+						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
 					machineDeployment.Spec.Replicas = 1
 					_, updateErr := c.ControlCluster.McmClient.
 						MachineV1alpha1().
@@ -771,7 +771,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDeployment, err = c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
+						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
 					gomega.Expect(err).NotTo(gomega.HaveOccurred())
 					if len(machineDeployment.Status.Conditions) != 2 {
 						return false
@@ -811,7 +811,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDployment, _ := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
+						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
 					machineDployment.Spec.Replicas = 6
 					_, updateErr := c.ControlCluster.McmClient.
 						MachineV1alpha1().
@@ -841,7 +841,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDployment, _ := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
+						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
 					machineDployment.Spec.Replicas = 2
 					_, updateErr := c.ControlCluster.McmClient.
 						MachineV1alpha1().
@@ -868,7 +868,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 			ginkgo.It("should freeze and unfreeze machineset temporarily", func() {
 				gomega.Eventually(func() int {
 					return c.machineSetFreezeEventCount(ctx, controlClusterNamespace)
-				}).Should(gomega.Equal(initialEventCount + 2))
+				}, c.timeout, c.pollingInterval).Should(gomega.Equal(initialEventCount + 2))
 			})
 		})
 		ginkgo.Context("updation to v2 machine-class and replicas=4", func() {
@@ -879,7 +879,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDployment, _ := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
+						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
 					machineDployment.Spec.Template.Spec.Class.Name = testMachineClassResources[1]
 					machineDployment.Spec.Replicas = 4
 					_, updateErr := c.ControlCluster.McmClient.
@@ -895,7 +895,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDeployment, err := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
+						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
 					if err != nil {
 						log.Println("Failed to get machinedeployment object")
 					}
@@ -906,7 +906,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDeployment, err := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
+						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
 					if err != nil {
 						log.Println("Failed to get machinedeployment object")
 					}
@@ -932,7 +932,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					_, err := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, "test-machine-deployment", metav1.GetOptions{})
+						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
 					if err == nil {
 						ginkgo.By("Checking for errors")
 						gomega.Expect(
@@ -941,7 +941,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 								MachineDeployments(controlClusterNamespace).
 								Delete(
 									ctx,
-									"test-machine-deployment",
+									testMachineDeploymentName,
 									metav1.DeleteOptions{},
 								)).
 							Should(gomega.BeNil())
@@ -986,49 +986,47 @@ func (c *IntegrationTestFramework) Cleanup() {
 
 	ginkgo.By("Running Cleanup")
 	//running locally, means none of the image is specified
-	if len(os.Getenv("MC_CONTAINER_IMAGE")) == 0 && len(os.Getenv("MCM_CONTAINER_IMAGE")) == 0 {
-		for i := 0; i < 5; i++ {
-			if mcsession.ExitCode() != -1 {
-				ginkgo.By("Restarting Machine Controller ")
-				outputFile, err := rotateOrAppendLogFile(mcLogFile, false)
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				_, err = outputFile.WriteString("\n------------RESTARTED MC------------\n")
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				args := strings.Fields(
-					fmt.Sprintf(
-						"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false ",
-						"../../..",
-						c.ControlCluster.KubeConfigFilePath,
-						c.TargetCluster.KubeConfigFilePath,
-						controlClusterNamespace),
-				)
-				mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				break
-			}
-			time.Sleep(2 * time.Second)
+	for range 5 {
+		if mcsession.ExitCode() != -1 {
+			ginkgo.By("Restarting Machine Controller ")
+			outputFile, err := rotateOrAppendLogFile(mcLogFile, false)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			_, err = outputFile.WriteString("\n------------RESTARTED MC------------\n")
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			args := strings.Fields(
+				fmt.Sprintf(
+					"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false ",
+					"../../..",
+					c.ControlCluster.KubeConfigFilePath,
+					c.TargetCluster.KubeConfigFilePath,
+					controlClusterNamespace),
+			)
+			mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			break
 		}
-		for i := 0; i < 5; i++ {
-			if mcmsession.ExitCode() != -1 {
-				ginkgo.By("Restarting Machine Controller Manager")
-				outputFile, err := rotateOrAppendLogFile(mcmLogFile, false)
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				_, err = outputFile.WriteString("\n------------RESTARTED MCM------------\n")
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				args := strings.Fields(
-					fmt.Sprintf(
-						"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms",
-						mcmRepoPath,
-						c.ControlCluster.KubeConfigFilePath,
-						c.TargetCluster.KubeConfigFilePath,
-						controlClusterNamespace),
-				)
-				mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				break
-			}
-			time.Sleep(2 * time.Second)
+		time.Sleep(2 * time.Second)
+	}
+	for range 5 {
+		if mcmsession.ExitCode() != -1 {
+			ginkgo.By("Restarting Machine Controller Manager")
+			outputFile, err := rotateOrAppendLogFile(mcmLogFile, false)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			_, err = outputFile.WriteString("\n------------RESTARTED MCM------------\n")
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			args := strings.Fields(
+				fmt.Sprintf(
+					"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms",
+					mcmRepoPath,
+					c.ControlCluster.KubeConfigFilePath,
+					c.TargetCluster.KubeConfigFilePath,
+					controlClusterNamespace),
+			)
+			mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			break
 		}
+		time.Sleep(2 * time.Second)
 	}
 
 	if preserveCRDuringCleanup == "true" {
@@ -1037,10 +1035,13 @@ func (c *IntegrationTestFramework) Cleanup() {
 		timeout := int64(900)
 		c.cleanTestResources(ctx, timeout)
 	}
-	if isControlSeed == "true" {
-		// scale back up the MCM deployment to 1 in the Control Cluster
-		// This is needed when IT suite runs locally against a Control & Target cluster
 
+	ginkgo.By("Killing any existing processes")
+	stopMCM(ctx)
+
+	if isControlSeed == "true" {
+		// This is needed when IT suite runs locally against a Control & Target cluster
+		ginkgo.By("Scale back the existing machine controllers")
 		if err := c.scaleMcmDeployment(1); err != nil {
 			log.Println(err.Error())
 		}
@@ -1055,17 +1056,15 @@ func (c *IntegrationTestFramework) Cleanup() {
 		}
 	}
 
-	ginkgo.By("Killing any existing processes")
-	stopMCM(ctx)
 }
 
 func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeout int64) {
 	// Check and delete machinedeployment resource
-	if err := c.cleanMachineDeployment(ctx, "test-machine-deployment", timeout); err != nil {
+	if err := c.cleanMachineDeployment(ctx, testMachineDeploymentName, timeout); err != nil {
 		log.Println(err.Error())
 	}
 	// Check and delete machine resource
-	if err := c.cleanMachine(ctx, "test-machine", timeout); err != nil {
+	if err := c.cleanMachine(ctx, testMachineName, timeout); err != nil {
 		log.Println(err.Error())
 	}
 
@@ -1086,10 +1085,14 @@ func (c *IntegrationTestFramework) cleanMachineDeployment(ctx context.Context, n
 		return err
 	}
 	log.Printf("deleting %s\n", name)
+	selector := fmt.Sprintf("metadata.name=%s", name)
 	watchMachinesDepl, _ := c.ControlCluster.McmClient.
 		MachineV1alpha1().
 		MachineDeployments(controlClusterNamespace).
-		Watch(ctx, metav1.ListOptions{TimeoutSeconds: &timeout}) //ResourceVersion: machineDeploymentObj.ResourceVersion
+		Watch(ctx, metav1.ListOptions{
+			TimeoutSeconds: &timeout,
+			FieldSelector:  selector,
+		})
 	for event := range watchMachinesDepl.ResultChan() {
 		gomega.Expect(c.ControlCluster.McmClient.
 			MachineV1alpha1().
@@ -1112,10 +1115,14 @@ func (c *IntegrationTestFramework) cleanMachine(ctx context.Context, name string
 		return err
 	}
 	log.Printf("deleting %s\n", name)
+	selector := fmt.Sprintf("metadata.name=%s", name)
 	watchMachines, _ := c.ControlCluster.McmClient.
 		MachineV1alpha1().
 		Machines(controlClusterNamespace).
-		Watch(ctx, metav1.ListOptions{TimeoutSeconds: &timeout}) //ResourceVersion: machineObj.ResourceVersion
+		Watch(ctx, metav1.ListOptions{
+			TimeoutSeconds: &timeout,
+			FieldSelector:  selector,
+		}) //ResourceVersion: machineObj.ResourceVersion
 	for event := range watchMachines.ResultChan() {
 		gomega.Expect(c.ControlCluster.McmClient.
 			MachineV1alpha1().
@@ -1139,10 +1146,14 @@ func (c *IntegrationTestFramework) cleanMachineClass(ctx context.Context, machin
 	}
 
 	log.Printf("deleting %s machineclass", machineClassName)
+	selector := fmt.Sprintf("metadata.name=%s", machineClassName)
 	watchMachineClass, _ := c.ControlCluster.McmClient.
 		MachineV1alpha1().
 		MachineClasses(controlClusterNamespace).
-		Watch(ctx, metav1.ListOptions{TimeoutSeconds: &timeout})
+		Watch(ctx, metav1.ListOptions{
+			TimeoutSeconds: &timeout,
+			FieldSelector:  selector,
+		})
 	for event := range watchMachineClass.ResultChan() {
 		gomega.Expect(c.ControlCluster.McmClient.
 			MachineV1alpha1().
@@ -1158,8 +1169,8 @@ func (c *IntegrationTestFramework) cleanMachineClass(ctx context.Context, machin
 
 func stopMCM(ctx context.Context) {
 	processesToKill := []string{
-		"machine-controller-manager --control-kubeconfig", // virt
-		"machine-controller --control-kubeconfig",         // virt
+		"machine-controller-manager --control-kubeconfig", // virtual
+		"machine-controller --control-kubeconfig",         // virtual
 		"controller_manager --control-kubeconfig",
 		"main --control-kubeconfig",
 		"go run cmd/machine-controller/main.go",
@@ -1238,7 +1249,7 @@ func (c *IntegrationTestFramework) getTestMachineSets(ctx context.Context, names
 	testMachineSets := []string{}
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	for _, machineSet := range machineSets.Items {
-		if machineSet.OwnerReferences[0].Name == "test-machine-deployment" {
+		if machineSet.OwnerReferences[0].Name == testMachineDeploymentName {
 			testMachineSets = append(testMachineSets, machineSet.Name)
 		}
 	}
@@ -1251,13 +1262,13 @@ func (c *IntegrationTestFramework) machineSetFreezeEventCount(ctx context.Contex
 	for _, machineSet := range testMachineSets {
 		for _, reason := range []string{"reason=FrozeMachineSet", "reason=UnfrozeMachineSet"} {
 			event := fmt.Sprintf("%s,involvedObject.name=%s", reason, machineSet)
-			// TODO: handle error
-			frozenEvents, _ := c.ControlCluster.Clientset.
+			frozenEvents, err := c.ControlCluster.Clientset.
 				CoreV1().
 				Events(namespace).
 				List(ctx, metav1.ListOptions{
 					FieldSelector: event,
 				})
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 			eventCount += len(frozenEvents.Items)
 		}
 	}
