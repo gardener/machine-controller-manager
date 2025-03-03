@@ -125,6 +125,7 @@ var _ = Describe("deployment_rollback", func() {
 					),
 					nodes: newNodes(
 						1,
+						nil,
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{
 								{
@@ -178,6 +179,7 @@ var _ = Describe("deployment_rollback", func() {
 					),
 					nodes: newNodes(
 						1,
+						nil,
 						&corev1.NodeSpec{
 							Taints: []corev1.Taint{},
 						},
