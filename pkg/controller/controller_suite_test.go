@@ -270,6 +270,11 @@ func newMachines(
 
 	currentTime := metav1.Now()
 
+	namePrefix := ""
+	if owner != nil && owner.Name != "" {
+		namePrefix = owner.Name + "-"
+	}
+
 	for i := range machines {
 		m := &v1alpha1.Machine{
 			TypeMeta: metav1.TypeMeta{
@@ -277,7 +282,7 @@ func newMachines(
 				Kind:       "Machine",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:              fmt.Sprintf("machine-%d", i),
+				Name:              fmt.Sprintf("%smachine-%d", namePrefix, i),
 				Namespace:         testNamespace,
 				Labels:            labels,
 				Annotations:       annotations,
@@ -302,18 +307,19 @@ func newMachines(
 
 func newNode(
 	_ int,
+	labels map[string]string,
 	nodeSpec *corev1.NodeSpec,
 	nodeStatus *corev1.NodeStatus,
 ) *corev1.Node {
-	return newNodes(1, nodeSpec, nodeStatus)[0]
+	return newNodes(1, labels, nodeSpec, nodeStatus)[0]
 }
 
 func newNodes(
 	nodeCount int,
+	labels map[string]string,
 	nodeSpec *corev1.NodeSpec,
 	_ *corev1.NodeStatus,
 ) []*corev1.Node {
-
 	nodes := make([]*corev1.Node, nodeCount)
 	for i := range nodes {
 		node := &corev1.Node{
@@ -322,7 +328,8 @@ func newNodes(
 				Kind:       "Node",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("node-%d", i),
+				Name:   fmt.Sprintf("node-%d", i),
+				Labels: labels,
 			},
 			Spec: *nodeSpec.DeepCopy(),
 		}
@@ -447,7 +454,7 @@ func createController(
 		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
 		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
 		expectations:                   NewUIDTrackingContExpectations(NewContExpectations()),
-		recorder:                       record.NewBroadcaster().NewRecorder(nil, corev1.EventSource{Component: ""}),
+		recorder:                       record.NewBroadcaster().NewRecorder(internalExternalScheme, corev1.EventSource{Component: ""}),
 	}
 
 	// controller.internalExternalScheme = runtime.NewScheme()
