@@ -103,7 +103,7 @@ var (
 	gnaSecretNameLabelValue = os.Getenv("GNA_SECRET_NAME")
 
 	// Specifies whether the CRDs should be preserved during cleanup at the end
-	preserveCRDuringCleanup = os.Getenv("PRESERVE_CRD_AT_END")
+	preserveCRDDuringCleanup = os.Getenv("PRESERVE_CRD_AT_END")
 
 	// Are the tests running for the virtual provider
 	isVirtualProvider = os.Getenv("IS_VIRTUAL_PROVIDER")
@@ -1029,8 +1029,8 @@ func (c *IntegrationTestFramework) Cleanup() {
 		time.Sleep(2 * time.Second)
 	}
 
-	if preserveCRDuringCleanup == "true" {
-		log.Printf("Preserve CRD: %s\n", preserveCRDuringCleanup)
+	if preserveCRDDuringCleanup == "true" {
+		log.Printf("Preserve CRD: %s\n", preserveCRDDuringCleanup)
 	} else if c.ControlCluster.McmClient != nil {
 		timeout := int64(900)
 		c.cleanTestResources(ctx, timeout)
