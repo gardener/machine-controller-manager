@@ -339,7 +339,6 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	var activeMachines, staleMachines []*v1alpha1.Machine
 	for _, machine := range allMachines {
 		if IsMachineActive(machine) {
-			// klog.Info("Active machine: ", machine.Name)
 			activeMachines = append(activeMachines, machine)
 		} else if IsMachineFailed(machine) {
 			staleMachines = append(staleMachines, machine)

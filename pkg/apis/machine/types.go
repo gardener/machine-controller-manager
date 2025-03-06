@@ -94,6 +94,13 @@ type MachineConfiguration struct {
 	// MachineCreationTimeout is the timeout after which machinie creation is declared failed.
 	MachineCreationTimeout *metav1.Duration
 
+	// MachineInPlaceUpdateTimeout is the timeout after which in-place update is declared failed.
+	MachineInPlaceUpdateTimeout *metav1.Duration
+
+	// DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.
+	// This is intended to be used only for in-place updates.
+	DisableHealthTimeout *bool
+
 	// MaxEvictRetries is the number of retries that will be attempted while draining the node.
 	MaxEvictRetries *int32
 
