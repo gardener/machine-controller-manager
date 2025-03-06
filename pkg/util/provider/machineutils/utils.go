@@ -6,10 +6,11 @@
 package machineutils
 
 import (
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 )
 
 const (
@@ -69,6 +70,9 @@ const (
 
 	// MachineLabelKey defines the labels which contains the name of the machine of a node
 	MachineLabelKey = "node.gardener.cloud/machine-name"
+
+	// LabelKeyMachineSetScaleUpDisabled is the label key that indicates scaling up of the machine set is disabled.
+	LabelKeyMachineSetScaleUpDisabled = "node.machine.sapcloud.io/scale-up-disabled"
 )
 
 // RetryPeriod is an alias for specifying the retry period

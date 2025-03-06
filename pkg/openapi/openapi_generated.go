@@ -676,6 +676,19 @@ func schema_pkg_apis_machine_v1alpha1_MachineConfiguration(ref common.ReferenceC
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},
+					"inPlaceUpdateTimeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MachineInPlaceUpdateTimeout is the timeout after which in-place update is declared failed.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
+					"disableHealthTimeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"maxEvictRetries": {
 						SchemaProps: spec.SchemaProps{
 							Description: "MaxEvictRetries is the number of retries that will be attempted while draining the node.",
@@ -1441,6 +1454,19 @@ func schema_pkg_apis_machine_v1alpha1_MachineSpec(ref common.ReferenceCallback) 
 						SchemaProps: spec.SchemaProps{
 							Description: "MachineCreationTimeout is the timeout after which machinie creation is declared failed.",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
+					"inPlaceUpdateTimeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MachineInPlaceUpdateTimeout is the timeout after which in-place update is declared failed.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
+					"disableHealthTimeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 					"maxEvictRetries": {
