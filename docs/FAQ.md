@@ -1,6 +1,8 @@
 ---
-title: Machine Controller Manager FAQ
+title: FAQ
 description: Commonly asked questions about MCM
+weight: 5
+persona: Operators
 ---
 
 # Frequently Asked Questions
