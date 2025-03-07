@@ -498,7 +498,8 @@ func SyncMachineTaints(
 	return toBeUpdated
 }
 
-// machineCreateErrorHandler TODO
+// machineCreateErrorHandler updates the machine status based on
+// CreateMachineResponse and the error during the machine creation
 func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1alpha1.Machine, createMachineResponse *driver.CreateMachineResponse, err error) (machineutils.RetryPeriod, error) {
 	var (
 		retryRequired  = machineutils.MediumRetry
@@ -509,6 +510,7 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		switch machineErr.Code() {
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 			retryRequired = machineutils.ShortRetry
+			lastKnownState = machine.Status.LastKnownState
 		}
 	}
 
