@@ -380,6 +380,11 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 		return
 	}
 
+	if addedInPlaceUpdateLabels(oldNode, node) {
+		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. in-place update label added or updated for node %q", getNodeName(machine)))
+		return
+	}
+
 	c.addNodeToMachine(newObj)
 }
 
@@ -424,6 +429,28 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	}
 
 	return machines[0], nil
+}
+
+func addedInPlaceUpdateLabels(oldNode, node *corev1.Node) bool {
+	if oldNode == nil || node == nil {
+		return false
+	}
+
+	labelKeys := []string{
+		v1alpha1.LabelKeyNodeCandidateForUpdate,
+		v1alpha1.LabelKeyNodeSelectedForUpdate,
+		v1alpha1.LabelKeyNodeUpdateResult,
+	}
+
+	for _, key := range labelKeys {
+		oldVal, oldOk := oldNode.Labels[key]
+		newVal, newOk := node.Labels[key]
+		if (!oldOk && newOk) || (key == v1alpha1.LabelKeyNodeUpdateResult && oldVal != newVal) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func addedOrRemovedEssentialTaints(oldNode, node *corev1.Node, taintKeys []string) bool {

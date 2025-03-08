@@ -136,6 +136,66 @@ var _ = Describe("machine", func() {
 		)
 	})
 
+	Describe("addedInPlaceUpdateLabels", func() {
+		type testCase struct {
+			oldNode  *corev1.Node
+			node     *corev1.Node
+			expected bool
+		}
+
+		DescribeTable("##table",
+			func(tc testCase) {
+				result := addedInPlaceUpdateLabels(tc.oldNode, tc.node)
+				Expect(result).To(Equal(tc.expected))
+			},
+			Entry("both nodes are nil", testCase{
+				oldNode:  nil,
+				node:     nil,
+				expected: false,
+			}),
+			Entry("oldNode is nil", testCase{
+				oldNode:  nil,
+				node:     &corev1.Node{},
+				expected: false,
+			}),
+			Entry("node is nil", testCase{
+				oldNode:  &corev1.Node{},
+				node:     nil,
+				expected: false,
+			}),
+			Entry("no labels added or changed", testCase{
+				oldNode:  &corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"someLabel": "someValue"}}},
+				node:     &corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"someLabel": "someValue"}}},
+				expected: false,
+			}),
+			Entry("LabelKeyNodeCandidateForUpdate added", testCase{
+				oldNode:  &corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{}}},
+				node:     &corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha1.LabelKeyNodeCandidateForUpdate: "true"}}},
+				expected: true,
+			}),
+			Entry("LabelKeyNodeSelectedForUpdate added", testCase{
+				oldNode:  &corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{}}},
+				node:     &corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha1.LabelKeyNodeSelectedForUpdate: "true"}}},
+				expected: true,
+			}),
+			Entry("LabelKeyNodeUpdateResult added", testCase{
+				oldNode:  &corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{}}},
+				node:     &corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha1.LabelKeyNodeUpdateResult: "success"}}},
+				expected: true,
+			}),
+			Entry("LabelKeyNodeUpdateResult changed", testCase{
+				oldNode:  &corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha1.LabelKeyNodeUpdateResult: "failure"}}},
+				node:     &corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha1.LabelKeyNodeUpdateResult: "success"}}},
+				expected: true,
+			}),
+			Entry("LabelKeyNodeUpdateResult unchanged", testCase{
+				oldNode:  &corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha1.LabelKeyNodeUpdateResult: "success"}}},
+				node:     &corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha1.LabelKeyNodeUpdateResult: "success"}}},
+				expected: false,
+			}),
+		)
+	})
+
 	/*
 		Describe("##updateMachineConditions", func() {
 			Describe("Update conditions of a non-existing machine", func() {
