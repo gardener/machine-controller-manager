@@ -565,6 +565,10 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 
 	checkMcmRepoAvailable()
 
+	// When running the IT with virtual provider, there's no need to
+	// scale-down MC processes since none are running in the virtual cluster.
+	// Additionally, currently whenever running IT with the virtual provider,
+	// ControlCluster is assumed to be a seed since that simplifies the setup.
 	if isControlSeed == "true" && isVirtualProvider != "true" {
 		ginkgo.By("Scaledown existing machine controllers")
 		gomega.Expect(c.scaleMcmDeployment(0)).To(gomega.BeNil())
@@ -1259,8 +1263,10 @@ func (c *IntegrationTestFramework) getTestMachineSets(ctx context.Context, names
 func (c *IntegrationTestFramework) machineSetFreezeEventCount(ctx context.Context, namespace string) int {
 	eventCount := 0
 	testMachineSets := c.getTestMachineSets(ctx, namespace)
+	machineSetFreezeReason := fmt.Sprintf("reason=%s", controller.MachineSetFreezeEvent)
+	machineSetUnfreezeReason := fmt.Sprintf("reason=%s", controller.MachineSetUnfreezeEvent)
 	for _, machineSet := range testMachineSets {
-		for _, reason := range []string{"reason=FrozeMachineSet", "reason=UnfrozeMachineSet"} {
+		for _, reason := range []string{machineSetFreezeReason, machineSetUnfreezeReason} {
 			event := fmt.Sprintf("%s,involvedObject.name=%s", reason, machineSet)
 			frozenEvents, err := c.ControlCluster.Clientset.
 				CoreV1().
