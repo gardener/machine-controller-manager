@@ -1213,7 +1213,7 @@ func findAndKillProcess(ctx context.Context, prefix string) (pids []int, err err
 }
 
 func findPidsByPrefix(ctx context.Context, prefix string) (pids []int, err error) {
-	cmd := exec.CommandContext(ctx, "ps", "-e", "-o", "pid,command")
+	cmd := exec.CommandContext(ctx, "ps", "-e", "-o", "pid,args")
 	psOutput, err := cmd.Output()
 	if err != nil {
 		log.Printf("FindProcess could not run ps command: %v", err)
