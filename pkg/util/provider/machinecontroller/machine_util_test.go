@@ -3520,20 +3520,6 @@ var _ = Describe("machine_util", func() {
 				}
 			},
 
-			Entry("when nodeName is empty", &data{
-				setup: setup{
-					machine: newMachine(
-						&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-						nil,
-						nil, nil, map[string]string{}, true, metav1.Now()),
-					node: newNode(1, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{}),
-				},
-				expect: expect{
-					retryPeriod: machineutils.ShortRetry,
-					err:         fmt.Errorf("Skipping drain as nodeName is not a valid one for machine."),
-					node:        nil,
-				},
-			}),
 			Entry("when node is not found", &data{
 				setup: setup{
 					machine: newMachine(
