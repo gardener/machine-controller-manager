@@ -151,107 +151,120 @@ var _ = Describe("deployment_util", func() {
 			}, 0, 0),
 	)
 
-	DescribeTable("#NewISNewReplicas",
-		func(strategy machinev1.MachineDeploymentStrategy, replicas int, oldISReplicas int, newISReplicas int, expected int, shouldError bool) {
-			// Setup MachineDeployment and MachineSets
-			deployment := &machinev1.MachineDeployment{
-				Spec: machinev1.MachineDeploymentSpec{
-					Replicas: int32(replicas),
-					Strategy: strategy,
-				},
-			}
-			allISs := []*machinev1.MachineSet{
-				{Spec: machinev1.MachineSetSpec{Replicas: int32(oldISReplicas)}, Status: machinev1.MachineSetStatus{Replicas: int32(oldISReplicas)}},
-				{Spec: machinev1.MachineSetSpec{Replicas: int32(newISReplicas)}, Status: machinev1.MachineSetStatus{Replicas: int32(newISReplicas)}},
-			}
-			newIS := &machinev1.MachineSet{
-				Spec: machinev1.MachineSetSpec{Replicas: int32(newISReplicas)},
-			}
+	Describe("#NewISNewReplicas", func() {
+		type data struct {
+			replicas      int
+			oldISReplicas int
+			newISReplicas int
+			expected      int
+			shouldError   bool
+		}
 
-			result, err := NewISNewReplicas(deployment, allISs, newIS)
-
-			if shouldError {
-				Expect(err).To(HaveOccurred())
-			} else {
-				Expect(err).NotTo(HaveOccurred())
-				Expect(result).To(Equal(int32(expected)))
-			}
-		},
-
-		// Case: RollingUpdate strategy, scaling up within max surge
-		Entry("RollingUpdate, scale up within max surge",
-			machinev1.MachineDeploymentStrategy{
-				Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
-				RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
-					UpdateConfiguration: machinev1.UpdateConfiguration{
-						MaxSurge: ptr.To(intstr.FromInt(2)),
+		DescribeTable("#table",
+			func(strategy machinev1.MachineDeploymentStrategy, testData data) {
+				// Setup MachineDeployment and MachineSets
+				deployment := &machinev1.MachineDeployment{
+					Spec: machinev1.MachineDeploymentSpec{
+						Replicas: int32(testData.replicas),
+						Strategy: strategy,
 					},
-				},
-			}, 5, 4, 2, 3, false,
-		),
+				}
 
-		// Case: RollingUpdate strategy, max surge already reached
-		Entry("RollingUpdate, max surge reached",
-			machinev1.MachineDeploymentStrategy{
-				Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
-				RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
-					UpdateConfiguration: machinev1.UpdateConfiguration{
-						MaxSurge: ptr.To(intstr.FromInt(2)),
+				newIS := &machinev1.MachineSet{
+					Spec:   machinev1.MachineSetSpec{Replicas: int32(testData.newISReplicas)},
+					Status: machinev1.MachineSetStatus{Replicas: int32(testData.newISReplicas)},
+				}
+
+				allISs := []*machinev1.MachineSet{
+					newIS,
+					{Spec: machinev1.MachineSetSpec{Replicas: int32(testData.oldISReplicas)}, Status: machinev1.MachineSetStatus{Replicas: int32(testData.oldISReplicas)}},
+				}
+
+				result, err := NewISNewReplicas(deployment, allISs, newIS)
+
+				if testData.shouldError {
+					Expect(err).To(HaveOccurred())
+				} else {
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result).To(Equal(int32(testData.expected)))
+				}
+			},
+
+			// Case: RollingUpdate strategy, scaling up within max surge
+			Entry("RollingUpdate, scale up within max surge",
+				machinev1.MachineDeploymentStrategy{
+					Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
+					RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
+						UpdateConfiguration: machinev1.UpdateConfiguration{
+							MaxSurge: ptr.To(intstr.FromInt(2)),
+						},
 					},
-				},
-			}, 5, 4, 3, 3, false,
-		),
+				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 3, shouldError: false},
+			),
 
-		// Case: Recreate strategy
-		Entry("Recreate strategy",
-			machinev1.MachineDeploymentStrategy{
-				Type: machinev1.RecreateMachineDeploymentStrategyType,
-			}, 5, 4, 2, 5, false,
-		),
-
-		// Case: InPlaceUpdate strategy with ManualUpdate=true
-		Entry("InPlaceUpdate with ManualUpdate=true",
-			machinev1.MachineDeploymentStrategy{
-				Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
-				InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
-					OrchestrationType: machinev1.OrchestrationTypeManual,
-				},
-			}, 5, 4, 2, 0, false,
-		),
-
-		// Case: InPlaceUpdate strategy with ManualUpdate=false, scaling up within max surge
-		Entry("RollingUpdate, scale up within max surge",
-			machinev1.MachineDeploymentStrategy{
-				Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
-				InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
-					UpdateConfiguration: machinev1.UpdateConfiguration{
-						MaxSurge: ptr.To(intstr.FromInt(2)),
+			// Case: RollingUpdate strategy, max surge already reached
+			Entry("RollingUpdate, max surge reached",
+				machinev1.MachineDeploymentStrategy{
+					Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
+					RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
+						UpdateConfiguration: machinev1.UpdateConfiguration{
+							MaxSurge: ptr.To(intstr.FromInt(2)),
+						},
 					},
-					OrchestrationType: machinev1.OrchestrationTypeAuto,
-				},
-			}, 5, 4, 2, 3, false,
-		),
+				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 3, expected: 3, shouldError: false},
+			),
 
-		// Case: InPlaceUpdate strategy with ManualUpdate=false and max surge already reached
-		Entry("InPlaceUpdate with ManualUpdate=false, max surge already reached",
-			machinev1.MachineDeploymentStrategy{
-				Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
-				InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
-					UpdateConfiguration: machinev1.UpdateConfiguration{
-						MaxSurge: ptr.To(intstr.FromInt(1)),
+			// Case: Recreate strategy
+			Entry("Recreate strategy",
+				machinev1.MachineDeploymentStrategy{
+					Type: machinev1.RecreateMachineDeploymentStrategyType,
+				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 5, shouldError: false},
+			),
+
+			// Case: InPlaceUpdate strategy with ManualUpdate=true
+			Entry("InPlaceUpdate with ManualUpdate=true",
+				machinev1.MachineDeploymentStrategy{
+					Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
+					InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
+						OrchestrationType: machinev1.OrchestrationTypeManual,
 					},
-					OrchestrationType: machinev1.OrchestrationTypeAuto,
-				},
-			}, 5, 4, 2, 2, false,
-		),
+				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 0, shouldError: false},
+			),
 
-		// Case: Unsupported strategy type
-		Entry("Unsupported strategy type",
-			machinev1.MachineDeploymentStrategy{
-				Type: "UnsupportedType",
-			}, 5, 4, 2, 0, true,
-		),
-	)
+			// Case: InPlaceUpdate strategy with ManualUpdate=false, scaling up within max surge
+			Entry("RollingUpdate, scale up within max surge",
+				machinev1.MachineDeploymentStrategy{
+					Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
+					InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
+						UpdateConfiguration: machinev1.UpdateConfiguration{
+							MaxSurge: ptr.To(intstr.FromInt(2)),
+						},
+						OrchestrationType: machinev1.OrchestrationTypeAuto,
+					},
+				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 3, shouldError: false},
+			),
+
+			// Case: InPlaceUpdate strategy with ManualUpdate=false and max surge already reached
+			Entry("InPlaceUpdate with ManualUpdate=false, max surge already reached",
+				machinev1.MachineDeploymentStrategy{
+					Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
+					InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
+						UpdateConfiguration: machinev1.UpdateConfiguration{
+							MaxSurge: ptr.To(intstr.FromInt(1)),
+						},
+						OrchestrationType: machinev1.OrchestrationTypeAuto,
+					},
+				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 2, shouldError: false},
+			),
+
+			// Case: Unsupported strategy type
+			Entry("Unsupported strategy type",
+				machinev1.MachineDeploymentStrategy{
+					Type: "UnsupportedType",
+				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 0, shouldError: true},
+			),
+		)
+	})
 
 	Describe("#SetNewMachineSetNodeTemplate", func() {
 		It("when nodeTemplate is updated in MachineSet", func() {

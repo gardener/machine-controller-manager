@@ -131,33 +131,28 @@ func SelectorHasLabel(selector *metav1.LabelSelector, labelKey string) bool {
 	return len(selector.MatchLabels[labelKey]) > 0
 }
 
-// GetFormatedLabels retun labels in `json` format.
-func GetFormatedLabels(labels map[string]string) string {
-	if len(labels) == 0 {
-		return ""
+// GetFormattedLabels retun labels in `json` format.
+func GetFormattedLabels(labels map[string]string) ([]byte, error) {
+	patchBytes, err := json.Marshal(labels)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling patch data: %v", err)
 	}
 
-	labelString := ""
-	for key, value := range labels {
-		labelString += fmt.Sprintf(`"%s":"%s",`, key, value)
-	}
-
-	// remove the trailing comma
-	return labelString[:len(labelString)-1]
+	return patchBytes, nil
 }
 
 // RemoveLabels returns a JSON patch to remove the given labels from an object.
 func RemoveLabels(labelsToRemove []string) ([]byte, error) {
 	// Create a map to represent the patch
-	patchMap := map[string]interface{}{
-		"metadata": map[string]interface{}{
-			"labels": map[string]interface{}{},
+	patchMap := map[string]any{
+		"metadata": map[string]any{
+			"labels": map[string]any{},
 		},
 	}
 
 	// Set each label to null to remove it
 	for _, label := range labelsToRemove {
-		patchMap["metadata"].(map[string]interface{})["labels"].(map[string]interface{})[label] = nil
+		patchMap["metadata"].(map[string]any)["labels"].(map[string]any)[label] = nil
 	}
 
 	// Convert patchMap to JSON

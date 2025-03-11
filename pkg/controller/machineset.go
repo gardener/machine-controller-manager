@@ -337,7 +337,8 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 
 	var activeMachines, staleMachines, machinesWithUpdateSuccessfulLabel []*v1alpha1.Machine
 	for _, m := range allMachines {
-		if labelValue, ok := m.Labels[v1alpha1.LabelKeyNodeUpdateResult]; ok && labelValue == v1alpha1.LabelValueNodeUpdateSuccessful {
+		// Skip machines that are in the process of being updated.
+		if m.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateSuccessful {
 			klog.V(3).Infof("Ignoring machine %s moved to new machine set during inplace update", m.Name)
 			machinesWithUpdateSuccessfulLabel = append(machinesWithUpdateSuccessfulLabel, m)
 			continue
@@ -359,6 +360,17 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	}
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
+	// Removing the "update successful" label from a machine and scaling up the MachineSet are two separate operations.
+	// If the MachineSet is scaled up first and the "update successful" label is removed later, this controller might
+	// incorrectly assume that additional machines need to be created, as it ignores machines with the "update successful" label.
+	// Conversely, if the "update successful" label is removed first and the MachineSet is scaled up afterward, this controller
+	// might incorrectly assume that more machines need to be deleted, as machines without the label will be counted as active.
+	// To address this, we first check if the difference between the current active replicas and the desired replicas is negative.
+	// If it is, we then check if the difference plus the number of machines with the "update successful" label is greater than or equal to 0.
+	// In such cases, we set the difference to 0 because it is unclear whether the machine deployment controller still needs to increase
+	// the replicas of the MachineSet. Once the machine deployment controller removes the "update successful" label, the ambiguity will
+	// be resolved, and normal operations can proceed. This approach ensures that the controller does not create additional machines
+	// if the MachineSet is scaled up before the "update successful" label is removed.
 	if diff < 0 {
 		if diff+len(machinesWithUpdateSuccessfulLabel) >= 0 {
 			diff = 0

@@ -22,14 +22,14 @@ import (
 var _ = Describe("deployment_inplace", func() {
 	Describe("syncMachineSets", func() {
 		type setup struct {
-			oldISReplicas                          int32
-			oldISMachinesMoveToNewIS               int32
-			newISReplicas                          int32
-			newISMachinesWithUpdateSuccessfulLabel int32
+			oldMachineSetReplicas                  int32
+			oldMSMachinesMovedToNewMS              int32
+			newMachineSetReplicas                  int32
+			newMSMachinesWithUpdateSuccessfulLabel int32
 		}
 		type expect struct {
-			oldISReplicas int32
-			newISReplicas int32
+			oldMachineSetReplicas int32
+			newMachineSetReplicas int32
 		}
 		type data struct {
 			setup  setup
@@ -44,7 +44,7 @@ var _ = Describe("deployment_inplace", func() {
 				},
 				Spec: machinev1.MachineSpec{
 					Class: machinev1.ClassSpec{
-						Kind: "OpenStackMachineClass",
+						Kind: "MachineClass",
 						Name: "test-machine-class",
 					},
 				},
@@ -76,16 +76,16 @@ var _ = Describe("deployment_inplace", func() {
 				stop := make(chan struct{})
 				defer close(stop)
 
-				oldMachineSet.Spec.Replicas = data.setup.oldISReplicas
-				newMachineSet.Spec.Replicas = data.setup.newISReplicas
+				oldMachineSet.Spec.Replicas = data.setup.oldMachineSetReplicas
+				newMachineSet.Spec.Replicas = data.setup.newMachineSetReplicas
 
 				controlMachineObjects := []runtime.Object{}
 				controlMachineObjects = append(controlMachineObjects, oldMachineSet, newMachineSet)
 
 				machines := []*machinev1.Machine{}
-				machines = append(machines, newMachinesFromMachineSet(int(data.setup.oldISReplicas-data.setup.oldISMachinesMoveToNewIS), oldMachineSet, &machinev1.MachineStatus{}, nil, map[string]string{"machineset": "old"})...)
+				machines = append(machines, newMachinesFromMachineSet(int(data.setup.oldMachineSetReplicas-data.setup.oldMSMachinesMovedToNewMS), oldMachineSet, &machinev1.MachineStatus{}, nil, map[string]string{"machineset": "old"})...)
 
-				newMachines := newMachinesFromMachineSet(int(data.setup.newISReplicas+data.setup.newISMachinesWithUpdateSuccessfulLabel), newMachineSet, &machinev1.MachineStatus{}, nil, map[string]string{})
+				newMachines := newMachinesFromMachineSet(int(data.setup.newMachineSetReplicas+data.setup.newMSMachinesWithUpdateSuccessfulLabel), newMachineSet, &machinev1.MachineStatus{}, nil, map[string]string{})
 				machinesWithUpdateSuccessful := 0
 				for i := range newMachines {
 					newMachines[i].Labels = map[string]string{
@@ -93,7 +93,7 @@ var _ = Describe("deployment_inplace", func() {
 						machinev1.NodeLabelKey: fmt.Sprintf("node-%d", i),
 					}
 
-					if machinesWithUpdateSuccessful < int(data.setup.newISMachinesWithUpdateSuccessfulLabel) {
+					if machinesWithUpdateSuccessful < int(data.setup.newMSMachinesWithUpdateSuccessfulLabel) {
 						newMachines[i].Labels[machinev1.LabelKeyNodeUpdateResult] = machinev1.LabelValueNodeUpdateSuccessful
 
 						newMachines[i].Status.Conditions = []corev1.NodeCondition{
@@ -112,10 +112,10 @@ var _ = Describe("deployment_inplace", func() {
 					controlMachineObjects = append(controlMachineObjects, o)
 				}
 
-				nodes := newNodes(int(data.setup.newISReplicas+data.setup.newISMachinesWithUpdateSuccessfulLabel), map[string]string{}, &corev1.NodeSpec{}, nil)
+				nodes := newNodes(int(data.setup.newMachineSetReplicas+data.setup.newMSMachinesWithUpdateSuccessfulLabel), map[string]string{}, &corev1.NodeSpec{}, nil)
 				nodesWithUpdateSuccessful := 0
 				for i := range nodes {
-					if nodesWithUpdateSuccessful < int(data.setup.newISMachinesWithUpdateSuccessfulLabel) {
+					if nodesWithUpdateSuccessful < int(data.setup.newMSMachinesWithUpdateSuccessfulLabel) {
 						nodes[i].Labels = map[string]string{
 							machinev1.LabelKeyNodeCandidateForUpdate: "true",
 							machinev1.LabelKeyNodeSelectedForUpdate:  "true",
@@ -147,11 +147,11 @@ var _ = Describe("deployment_inplace", func() {
 
 				actualOldMachineSet, err := controller.controlMachineClient.MachineSets(testNamespace).Get(context.TODO(), oldMachineSet.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
-				Expect(actualOldMachineSet.Spec.Replicas).To(Equal(data.expect.oldISReplicas))
+				Expect(actualOldMachineSet.Spec.Replicas).To(Equal(data.expect.oldMachineSetReplicas))
 
 				actualNewMachineSet, err := controller.controlMachineClient.MachineSets(testNamespace).Get(context.TODO(), newMachineSet.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
-				Expect(actualNewMachineSet.Spec.Replicas).To(Equal(data.expect.newISReplicas))
+				Expect(actualNewMachineSet.Spec.Replicas).To(Equal(data.expect.newMachineSetReplicas))
 
 				for _, expectedMachine := range newMachines {
 					actualMachine, err := controller.controlMachineClient.Machines(testNamespace).Get(context.TODO(), expectedMachine.Name, metav1.GetOptions{})
@@ -170,40 +170,40 @@ var _ = Describe("deployment_inplace", func() {
 				}
 			},
 
-			Entry("no scaling required as there are no extra machines affiliated to new machine set with update successfule label", &data{
+			Entry("no scaling required as there are no extra machines affiliated to new machine set with update successful label", &data{
 				setup: setup{
-					oldISReplicas:                          2,
-					oldISMachinesMoveToNewIS:               0,
-					newISReplicas:                          3,
-					newISMachinesWithUpdateSuccessfulLabel: 0,
+					oldMachineSetReplicas:                  2,
+					oldMSMachinesMovedToNewMS:              0,
+					newMachineSetReplicas:                  3,
+					newMSMachinesWithUpdateSuccessfulLabel: 0,
 				},
 				expect: expect{
-					oldISReplicas: 2,
-					newISReplicas: 3,
+					oldMachineSetReplicas: 2,
+					newMachineSetReplicas: 3,
 				},
 			}),
 			Entry("scale up new machine set because there are machines with update successful condition", &data{
 				setup: setup{
-					oldISReplicas:                          2,
-					oldISMachinesMoveToNewIS:               0,
-					newISReplicas:                          2,
-					newISMachinesWithUpdateSuccessfulLabel: 1,
+					oldMachineSetReplicas:                  2,
+					oldMSMachinesMovedToNewMS:              0,
+					newMachineSetReplicas:                  2,
+					newMSMachinesWithUpdateSuccessfulLabel: 1,
 				},
 				expect: expect{
-					oldISReplicas: 2,
-					newISReplicas: 3,
+					oldMachineSetReplicas: 2,
+					newMachineSetReplicas: 3,
 				},
 			}),
 			Entry("scale down old machine set because there are less machines than the replicas count", &data{
 				setup: setup{
-					oldISReplicas:                          2,
-					oldISMachinesMoveToNewIS:               1,
-					newISReplicas:                          3,
-					newISMachinesWithUpdateSuccessfulLabel: 0,
+					oldMachineSetReplicas:                  2,
+					oldMSMachinesMovedToNewMS:              1,
+					newMachineSetReplicas:                  3,
+					newMSMachinesWithUpdateSuccessfulLabel: 0,
 				},
 				expect: expect{
-					oldISReplicas: 1,
-					newISReplicas: 3,
+					oldMachineSetReplicas: 1,
+					newMachineSetReplicas: 3,
 				},
 			}),
 		)
@@ -211,8 +211,8 @@ var _ = Describe("deployment_inplace", func() {
 
 	Describe("reconcileNewMachineSetInPlace", func() {
 		type setup struct {
-			oldISReplicas             int32
-			newISReplicas             int32
+			oldMachineSetReplicas     int32
+			newMachineSetReplicas     int32
 			nodesWithUpdateSuccessful int
 		}
 		type expect struct {
@@ -231,7 +231,7 @@ var _ = Describe("deployment_inplace", func() {
 				},
 				Spec: machinev1.MachineSpec{
 					Class: machinev1.ClassSpec{
-						Kind: "OpenStackMachineClass",
+						Kind: "MachineClass",
 						Name: "test-machine-class",
 					},
 				},
@@ -260,22 +260,21 @@ var _ = Describe("deployment_inplace", func() {
 				stop := make(chan struct{})
 				defer close(stop)
 
-				oldMachineSet.Spec.Replicas = data.setup.oldISReplicas
-				newMachineSet.Spec.Replicas = data.setup.newISReplicas
+				oldMachineSet.Spec.Replicas = data.setup.oldMachineSetReplicas
+				newMachineSet.Spec.Replicas = data.setup.newMachineSetReplicas
 
 				controlMachineObjects := []runtime.Object{}
 				controlMachineObjects = append(controlMachineObjects, oldMachineSet, newMachineSet)
 
 				machines := []*machinev1.Machine{}
-				machines = append(machines, newMachinesFromMachineSet(int(data.setup.oldISReplicas), oldMachineSet, &machinev1.MachineStatus{}, nil, map[string]string{"key": "value"})...)
-				machines = append(machines, newMachinesFromMachineSet(int(data.setup.newISReplicas), newMachineSet, &machinev1.MachineStatus{}, nil, nil)...)
+				machines = append(machines, newMachinesFromMachineSet(int(data.setup.oldMachineSetReplicas), oldMachineSet, &machinev1.MachineStatus{}, nil, map[string]string{"key": "value"})...)
+				machines = append(machines, newMachinesFromMachineSet(int(data.setup.newMachineSetReplicas), newMachineSet, &machinev1.MachineStatus{}, nil, nil)...)
 				machinesWithUpdateSuccessful := 0
 				for i := range machines {
 					machines[i].Labels = map[string]string{
 						machinev1.NodeLabelKey: fmt.Sprintf("node-%d", i),
 					}
 					if machinesWithUpdateSuccessful < data.setup.nodesWithUpdateSuccessful {
-						machines[i].Labels[machinev1.LabelKeyNodeUpdateResult] = machinev1.LabelValueNodeUpdateSuccessful
 						machines[i].Status.Conditions = []corev1.NodeCondition{
 							{
 								Type:   machinev1.NodeInPlaceUpdate,
@@ -290,7 +289,7 @@ var _ = Describe("deployment_inplace", func() {
 					controlMachineObjects = append(controlMachineObjects, o)
 				}
 
-				nodes := newNodes(int(data.setup.oldISReplicas), map[string]string{}, &corev1.NodeSpec{}, nil)
+				nodes := newNodes(int(data.setup.oldMachineSetReplicas), map[string]string{}, &corev1.NodeSpec{}, nil)
 				nodesWithUpdateSuccessful := 0
 				for i := range nodes {
 					if nodesWithUpdateSuccessful < data.setup.nodesWithUpdateSuccessful {
@@ -318,32 +317,41 @@ var _ = Describe("deployment_inplace", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(scaled).To(Equal(data.expect.scaled))
 
+				machinesWithUpdateSuccessful = 0
+				for i := range machines {
+					if machinesWithUpdateSuccessful < data.setup.nodesWithUpdateSuccessful {
+						actualMachine, err := controller.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machines[i].Name, metav1.GetOptions{})
+						Expect(err).ToNot(HaveOccurred())
+						Expect(actualMachine.Labels).To(HaveKey(machinev1.LabelKeyNodeUpdateResult))
+						machinesWithUpdateSuccessful++
+					}
+				}
 			},
 
-			Entry("no scaling required as newIS replicas match deployment replicas", &data{
+			Entry("no scaling required as newMachineSet replicas match deployment replicas", &data{
 				setup: setup{
-					oldISReplicas:             2,
-					newISReplicas:             3,
+					oldMachineSetReplicas:     2,
+					newMachineSetReplicas:     3,
 					nodesWithUpdateSuccessful: 0,
 				},
 				expect: expect{
 					scaled: false,
 				},
 			}),
-			Entry("scale down newIS as it has more replicas than deployment", &data{
+			Entry("scale down newMachineSet as it has more replicas than deployment", &data{
 				setup: setup{
-					oldISReplicas:             2,
-					newISReplicas:             4,
+					oldMachineSetReplicas:     2,
+					newMachineSetReplicas:     4,
 					nodesWithUpdateSuccessful: 0,
 				},
 				expect: expect{
 					scaled: true,
 				},
 			}),
-			Entry("scale up newIS by transferring machines from oldIS", &data{
+			Entry("scale up newMachineSet by transferring machines from oldMachineSet", &data{
 				setup: setup{
-					oldISReplicas:             2,
-					newISReplicas:             1,
+					oldMachineSetReplicas:     2,
+					newMachineSetReplicas:     1,
 					nodesWithUpdateSuccessful: 1,
 				},
 				expect: expect{
@@ -365,11 +373,11 @@ var _ = Describe("deployment_inplace", func() {
 
 	Describe("reconcileOldMachineSetsInPlace", func() {
 		type setup struct {
-			oldISReplicas                   int32
+			oldMachineSetReplicas           int32
 			oldISAvailableMachines          int32
 			oldISCandidateForUpdateMachines int
 			oldISSelectedForUpdateMachines  int
-			newISReplicas                   int32
+			newMachineSetReplicas           int32
 			newISAvailableMachines          int32
 		}
 		type expect struct {
@@ -388,7 +396,7 @@ var _ = Describe("deployment_inplace", func() {
 				},
 				Spec: machinev1.MachineSpec{
 					Class: machinev1.ClassSpec{
-						Kind: "OpenStackMachineClass",
+						Kind: "MachineClass",
 						Name: "test-machine-class",
 					},
 				},
@@ -418,17 +426,17 @@ var _ = Describe("deployment_inplace", func() {
 				stop := make(chan struct{})
 				defer close(stop)
 
-				oldMachineSet.Spec.Replicas = data.setup.oldISReplicas
+				oldMachineSet.Spec.Replicas = data.setup.oldMachineSetReplicas
 				oldMachineSet.Status.AvailableReplicas = data.setup.oldISAvailableMachines
-				newMachineSet.Spec.Replicas = data.setup.newISReplicas
+				newMachineSet.Spec.Replicas = data.setup.newMachineSetReplicas
 				newMachineSet.Status.AvailableReplicas = data.setup.newISAvailableMachines
 
 				controlMachineObjects := []runtime.Object{}
 				controlMachineObjects = append(controlMachineObjects, oldMachineSet, newMachineSet)
 
 				machines := []*machinev1.Machine{}
-				machines = append(machines, newMachinesFromMachineSet(int(data.setup.oldISReplicas), oldMachineSet, &machinev1.MachineStatus{}, nil, nil)...)
-				machines = append(machines, newMachinesFromMachineSet(int(data.setup.newISReplicas), newMachineSet, &machinev1.MachineStatus{}, nil, nil)...)
+				machines = append(machines, newMachinesFromMachineSet(int(data.setup.oldMachineSetReplicas), oldMachineSet, &machinev1.MachineStatus{}, nil, nil)...)
+				machines = append(machines, newMachinesFromMachineSet(int(data.setup.newMachineSetReplicas), newMachineSet, &machinev1.MachineStatus{}, nil, nil)...)
 				for i, machine := range machines {
 					machine.Labels[machinev1.NodeLabelKey] = fmt.Sprintf("node-%d", i)
 				}
@@ -467,11 +475,11 @@ var _ = Describe("deployment_inplace", func() {
 			},
 			Entry("no machines selected for update because there is no machines with candidate for update label", &data{
 				setup: setup{
-					oldISReplicas:                   2,
+					oldMachineSetReplicas:           2,
 					oldISAvailableMachines:          2,
 					oldISCandidateForUpdateMachines: 0,
 					oldISSelectedForUpdateMachines:  0,
-					newISReplicas:                   1,
+					newMachineSetReplicas:           1,
 					newISAvailableMachines:          1,
 				},
 				expect: expect{
@@ -480,11 +488,11 @@ var _ = Describe("deployment_inplace", func() {
 			}),
 			Entry("no machines selected for update because there is not enough available replicas because some of new machines are unavailable", &data{
 				setup: setup{
-					oldISReplicas:                   2,
+					oldMachineSetReplicas:           2,
 					oldISAvailableMachines:          2,
 					oldISCandidateForUpdateMachines: 1,
 					oldISSelectedForUpdateMachines:  0,
-					newISReplicas:                   1,
+					newMachineSetReplicas:           1,
 					newISAvailableMachines:          0,
 				},
 				expect: expect{
@@ -493,11 +501,11 @@ var _ = Describe("deployment_inplace", func() {
 			}),
 			Entry("no machines selected for update because there is still old replicas undergoing update respecting min avaialble", &data{
 				setup: setup{
-					oldISReplicas:                   2,
+					oldMachineSetReplicas:           2,
 					oldISAvailableMachines:          2,
 					oldISCandidateForUpdateMachines: 1,
 					oldISSelectedForUpdateMachines:  1,
-					newISReplicas:                   1,
+					newMachineSetReplicas:           1,
 					newISAvailableMachines:          1,
 				},
 				expect: expect{
@@ -506,11 +514,11 @@ var _ = Describe("deployment_inplace", func() {
 			}),
 			Entry("select one machine even though mutiple machines can be updated respecting min available", &data{
 				setup: setup{
-					oldISReplicas:                   2,
+					oldMachineSetReplicas:           2,
 					oldISAvailableMachines:          2,
 					oldISCandidateForUpdateMachines: 2,
 					oldISSelectedForUpdateMachines:  0,
-					newISReplicas:                   1,
+					newMachineSetReplicas:           1,
 					newISAvailableMachines:          1,
 				},
 				expect: expect{
@@ -519,11 +527,11 @@ var _ = Describe("deployment_inplace", func() {
 			}),
 			Entry("scale down all old machine sets if new machine set already has replicas equal to deployment replicas", &data{
 				setup: setup{
-					oldISReplicas:                   2,
+					oldMachineSetReplicas:           2,
 					oldISAvailableMachines:          2,
 					oldISCandidateForUpdateMachines: 2,
 					oldISSelectedForUpdateMachines:  0,
-					newISReplicas:                   3,
+					newMachineSetReplicas:           3,
 					newISAvailableMachines:          3,
 				},
 				expect: expect{
@@ -532,11 +540,11 @@ var _ = Describe("deployment_inplace", func() {
 			}),
 			Entry("no scale down because there is no old machine set with replicas > 0", &data{
 				setup: setup{
-					oldISReplicas:                   0,
+					oldMachineSetReplicas:           0,
 					oldISAvailableMachines:          0,
 					oldISCandidateForUpdateMachines: 0,
 					oldISSelectedForUpdateMachines:  0,
-					newISReplicas:                   3,
+					newMachineSetReplicas:           3,
 					newISAvailableMachines:          3,
 				},
 				expect: expect{
@@ -546,12 +554,12 @@ var _ = Describe("deployment_inplace", func() {
 		)
 	})
 
-	Describe("selectMachineForUpdate", func() {
+	Describe("selectNumOfMachineForUpdate", func() {
 		type setup struct {
-			oldISReplicas                   int32
+			oldMachineSetReplicas           int32
 			oldISAvailableMachines          int32
 			oldISCandidateForUpdateMachines int
-			newISReplicas                   int32
+			newMachineSetReplicas           int32
 			newISAvailableMachines          int32
 		}
 		type expect struct {
@@ -571,7 +579,7 @@ var _ = Describe("deployment_inplace", func() {
 				},
 				Spec: machinev1.MachineSpec{
 					Class: machinev1.ClassSpec{
-						Kind: "OpenStackMachineClass",
+						Kind: "MachineClass",
 						Name: "test-machine-class",
 					},
 				},
@@ -601,21 +609,21 @@ var _ = Describe("deployment_inplace", func() {
 				stop := make(chan struct{})
 				defer close(stop)
 
-				oldMachineSet.Spec.Replicas = data.setup.oldISReplicas
+				oldMachineSet.Spec.Replicas = data.setup.oldMachineSetReplicas
 				oldMachineSet.Status.AvailableReplicas = data.setup.oldISAvailableMachines
-				newMachineSet.Spec.Replicas = data.setup.newISReplicas
+				newMachineSet.Spec.Replicas = data.setup.newMachineSetReplicas
 				newMachineSet.Status.AvailableReplicas = data.setup.newISAvailableMachines
 
 				controlMachineObjects := []runtime.Object{}
 				controlMachineObjects = append(controlMachineObjects, oldMachineSet, newMachineSet)
 
 				machines := []*machinev1.Machine{}
-				machines = append(machines, newMachinesFromMachineSet(int(data.setup.oldISReplicas), oldMachineSet, &machinev1.MachineStatus{}, nil, nil)...)
+				machines = append(machines, newMachinesFromMachineSet(int(data.setup.oldMachineSetReplicas), oldMachineSet, &machinev1.MachineStatus{}, nil, nil)...)
 				for i := range data.setup.oldISCandidateForUpdateMachines {
 					machines[i].Labels[machinev1.LabelKeyNodeCandidateForUpdate] = "true"
 				}
 
-				machines = append(machines, newMachinesFromMachineSet(int(data.setup.newISReplicas), newMachineSet, &machinev1.MachineStatus{}, nil, nil)...)
+				machines = append(machines, newMachinesFromMachineSet(int(data.setup.newMachineSetReplicas), newMachineSet, &machinev1.MachineStatus{}, nil, nil)...)
 				for i, machine := range machines {
 					machine.Labels[machinev1.NodeLabelKey] = fmt.Sprintf("node-%d", i)
 				}
@@ -638,16 +646,16 @@ var _ = Describe("deployment_inplace", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, controller)
 
-				count, err := controller.selectMachineForUpdate(context.TODO(), []*machinev1.MachineSet{oldMachineSet, newMachineSet}, []*machinev1.MachineSet{oldMachineSet}, newMachineSet, deployment, data.action)
+				count, err := controller.selectNumOfMachineForUpdate(context.TODO(), []*machinev1.MachineSet{oldMachineSet, newMachineSet}, []*machinev1.MachineSet{oldMachineSet}, newMachineSet, deployment, data.action)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(count).To(Equal(data.expect.count))
 			},
 			Entry("no machines selected for update because there is no machines with candidate for update label", &data{
 				setup: setup{
-					oldISReplicas:                   2,
+					oldMachineSetReplicas:           2,
 					oldISAvailableMachines:          2,
 					oldISCandidateForUpdateMachines: 0,
-					newISReplicas:                   1,
+					newMachineSetReplicas:           1,
 					newISAvailableMachines:          1,
 				},
 				action: 0,
@@ -657,10 +665,10 @@ var _ = Describe("deployment_inplace", func() {
 			}),
 			Entry("no machines selected for update because there is not enough available replicas because some of new machines are unavailable", &data{
 				setup: setup{
-					oldISReplicas:                   2,
+					oldMachineSetReplicas:           2,
 					oldISAvailableMachines:          2,
 					oldISCandidateForUpdateMachines: 1,
-					newISReplicas:                   1,
+					newMachineSetReplicas:           1,
 					newISAvailableMachines:          0,
 				},
 				action: 0,
@@ -670,10 +678,10 @@ var _ = Describe("deployment_inplace", func() {
 			}),
 			Entry("no machines selected for update because there is still old replicas undergoing update respecting min avaialble", &data{
 				setup: setup{
-					oldISReplicas:                   2,
+					oldMachineSetReplicas:           2,
 					oldISAvailableMachines:          2,
 					oldISCandidateForUpdateMachines: 1,
-					newISReplicas:                   1,
+					newMachineSetReplicas:           1,
 					newISAvailableMachines:          1,
 				},
 				action: 1,
@@ -683,10 +691,10 @@ var _ = Describe("deployment_inplace", func() {
 			}),
 			Entry("select one machine even though multiple machines can be updated respecting min available", &data{
 				setup: setup{
-					oldISReplicas:                   2,
+					oldMachineSetReplicas:           2,
 					oldISAvailableMachines:          2,
 					oldISCandidateForUpdateMachines: 2,
-					newISReplicas:                   1,
+					newMachineSetReplicas:           1,
 					newISAvailableMachines:          1,
 				},
 				action: 0,
@@ -727,7 +735,7 @@ var _ = Describe("deployment_inplace", func() {
 				},
 				Spec: machinev1.MachineSpec{
 					Class: machinev1.ClassSpec{
-						Kind: "OpenStackMachineClass",
+						Kind: "MachineClass",
 						Name: "test-machine-class",
 					},
 				},
@@ -787,7 +795,7 @@ var _ = Describe("deployment_inplace", func() {
 						ObjectMeta: *newObjectMeta(objMeta, 0),
 						Spec: machinev1.MachineSpec{
 							Class: machinev1.ClassSpec{
-								Kind: "OpenStackMachineClass",
+								Kind: "MachineClass",
 								Name: "test-machine-class",
 							},
 						},
@@ -829,7 +837,7 @@ var _ = Describe("deployment_inplace", func() {
 				},
 				Spec: machinev1.MachineSpec{
 					Class: machinev1.ClassSpec{
-						Kind: "OpenStackMachineClass",
+						Kind: "MachineClass",
 						Name: "test-machine-class",
 					},
 				},
@@ -891,7 +899,7 @@ var _ = Describe("deployment_inplace", func() {
 						ObjectMeta: *newObjectMeta(objMeta, 0),
 						Spec: machinev1.MachineSpec{
 							Class: machinev1.ClassSpec{
-								Kind: "OpenStackMachineClass",
+								Kind: "MachineClass",
 								Name: "test-machine-class",
 							},
 						},
@@ -913,7 +921,7 @@ var _ = Describe("deployment_inplace", func() {
 						ObjectMeta: *newObjectMeta(objMeta, 0),
 						Spec: machinev1.MachineSpec{
 							Class: machinev1.ClassSpec{
-								Kind: "OpenStackMachineClass",
+								Kind: "MachineClass",
 								Name: "test-machine-class",
 							},
 						},
@@ -935,7 +943,7 @@ var _ = Describe("deployment_inplace", func() {
 						ObjectMeta: *newObjectMeta(objMeta, 0),
 						Spec: machinev1.MachineSpec{
 							Class: machinev1.ClassSpec{
-								Kind: "OpenStackMachineClass",
+								Kind: "MachineClass",
 								Name: "test-machine-class",
 							},
 						},
@@ -973,7 +981,7 @@ var _ = Describe("deployment_inplace", func() {
 						ObjectMeta: *newObjectMeta(objMeta, 0),
 						Spec: machinev1.MachineSpec{
 							Class: machinev1.ClassSpec{
-								Kind: "OpenStackMachineClass",
+								Kind: "MachineClass",
 								Name: "test-machine-class",
 							},
 						},
@@ -1021,7 +1029,7 @@ var _ = Describe("deployment_inplace", func() {
 				},
 				Spec: machinev1.MachineSpec{
 					Class: machinev1.ClassSpec{
-						Kind: "OpenStackMachineClass",
+						Kind: "MachineClass",
 						Name: "test-machine-class",
 					},
 				},
