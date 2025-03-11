@@ -861,7 +861,7 @@ var _ = Describe("machineset", func() {
 			err := c.manageReplicas(context.TODO(), beforeMachines, testMachineSet)
 			waitForCacheSync(stop, c)
 
-			staleMachine, err = c.controlMachineClient.Machines(testNamespace).Get(context.Background(), staleMachine.Name, metav1.GetOptions{})
+			_, err = c.controlMachineClient.Machines(testNamespace).Get(context.Background(), staleMachine.Name, metav1.GetOptions{})
 			// MachinePriority=1 staleMachine is no longer found
 			//Expect(staleMachine).Should(BeNil())
 			Expect(err).ShouldNot(BeNil())
