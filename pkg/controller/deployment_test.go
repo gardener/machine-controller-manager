@@ -7,6 +7,9 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"time"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -1400,8 +1403,9 @@ var _ = Describe("machineDeployment", func() {
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
-					UID:        "1234567",
-					Generation: 5,
+					Annotations: make(map[string]string),
+					UID:         "1234567",
+					Generation:  5,
 				},
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "MachineDeployment",
@@ -1506,7 +1510,8 @@ var _ = Describe("machineDeployment", func() {
 						"test-label":           "test-label",
 						machinev1.NodeLabelKey: "Node1-test",
 					},
-					UID: "1234567",
+					Annotations: map[string]string{},
+					UID:         "1234567",
 					OwnerReferences: []metav1.OwnerReference{
 						{
 							Kind:       "MachineSet",
@@ -1552,7 +1557,7 @@ var _ = Describe("machineDeployment", func() {
 
 		DescribeTable("This should",
 			func(preset func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet),
-				postCheck func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet []machinev1.MachineSet, testNode *corev1.Node) error) {
+				postCheck func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet []machinev1.MachineSet, testMachines []machinev1.Machine, testNode *corev1.Node) error) {
 
 				stop := make(chan struct{})
 				preset(testMachineDeployment, testMachineSet)
@@ -1575,13 +1580,15 @@ var _ = Describe("machineDeployment", func() {
 				waitForCacheSync(stop, c)
 				actualMachineDeployment, _ := c.controlMachineClient.MachineDeployments(testNamespace).Get(context.Background(), testMachineDeployment.Name, metav1.GetOptions{})
 				actualMachineSets, _ := c.controlMachineClient.MachineSets(testNamespace).List(context.Background(), metav1.ListOptions{})
+				waitForCacheSync(stop, c)
+				actualMachines, _ := c.controlMachineClient.Machines(testNamespace).List(context.Background(), metav1.ListOptions{})
 				testNode, _ := c.targetCoreClient.CoreV1().Nodes().Get(context.Background(), testNode.Name, metav1.GetOptions{})
 
-				Expect(postCheck(actualMachineDeployment, actualMachineSets.Items, testNode)).To(BeNil())
+				Expect(postCheck(actualMachineDeployment, actualMachineSets.Items, actualMachines.Items, testNode)).To(BeNil())
 			},
 			Entry("reconcile the machineDeployment and return nil",
 				func(_ *machinev1.MachineDeployment, _ *machinev1.MachineSet) {},
-				func(_ *machinev1.MachineDeployment, _ []machinev1.MachineSet, _ *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, _ []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 					return nil
 				},
 			),
@@ -1592,7 +1599,7 @@ var _ = Describe("machineDeployment", func() {
 					testMachineSet.Spec = machinev1.MachineSetSpec{}
 					testMachineSet.Status = machinev1.MachineSetStatus{}
 				},
-				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 					if len(testMachineSets) != 1 {
 						return errors.New("it should have created one machine set")
 					}
@@ -1603,10 +1610,11 @@ var _ = Describe("machineDeployment", func() {
 				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
 					testMachineDeployment.Spec.Selector = &metav1.LabelSelector{}
 				},
-				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 					if len(testMachineSets) > 1 {
 						return errors.New("it should not have created one machine set")
 					}
+
 					return nil
 				},
 			),
@@ -1614,7 +1622,7 @@ var _ = Describe("machineDeployment", func() {
 				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
 					testMachineDeployment.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 				},
-				func(testMachineDeployment *machinev1.MachineDeployment, _ []machinev1.MachineSet, _ *corev1.Node) error {
+				func(testMachineDeployment *machinev1.MachineDeployment, _ []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 					if len(testMachineDeployment.Finalizers) > 0 {
 						return errors.New("it should have removed the finalizers")
 					}
@@ -1631,7 +1639,7 @@ var _ = Describe("machineDeployment", func() {
 					testMachineSet.Spec = machinev1.MachineSetSpec{}
 					testMachineSet.Status = machinev1.MachineSetStatus{}
 				},
-				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 					if len(testMachineSets) != 0 {
 						return errors.New("it shouldn't have created machine set")
 					}
@@ -1648,7 +1656,7 @@ var _ = Describe("machineDeployment", func() {
 					testMachineSet.Spec = machinev1.MachineSetSpec{}
 					testMachineSet.Status = machinev1.MachineSetStatus{}
 				},
-				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 					if len(testMachineSets) < 1 {
 						return errors.New("it should have created one machine set")
 					}
@@ -1662,7 +1670,7 @@ var _ = Describe("machineDeployment", func() {
 					}
 					testMachineDeployment.Spec.Template.Spec.Class.Name = "MachineClass-test-new"
 				},
-				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 					// Old machine set should exist and should be scaled-down to zero.
 					if len(testMachineSets) == 0 || testMachineSets[0].Spec.Replicas != 0 {
 						return errors.New("it should have scaled-down old machineSet to zero")
@@ -1691,7 +1699,7 @@ var _ = Describe("machineDeployment", func() {
 					}
 					testMachine = &machinev1.Machine{}
 				},
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
+				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 					if len(testMachineSets) != 2 || testMachineSets[0].Spec.Replicas != testMachineDeployment.Spec.Replicas {
 						return errors.New("it should have fully scaled-up the new machineSet")
 					}
@@ -1704,7 +1712,7 @@ var _ = Describe("machineDeployment", func() {
 					// This should trigger rolling-update.
 					testMachineDeployment.Spec.Template.Spec.Class.Name = "MachineClass-test-new"
 				},
-				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 					if len(testMachineSets) != 2 {
 						return errors.New("it should have created a new machine set")
 					}
@@ -1716,7 +1724,7 @@ var _ = Describe("machineDeployment", func() {
 					// This should trigger rolling-update.
 					testMachineDeployment.Spec.Template.Spec.Class.Name = "MachineClass-test-new"
 				},
-				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
+				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 					/*TODO: when we create a new RS then we assign it the replica count and
 					then we again see if the replica count can be increased in the same reconciliation loop
 					So in our case we first assign it replica count of 1(note a new machine is not created)
@@ -1748,7 +1756,7 @@ var _ = Describe("machineDeployment", func() {
 					}
 
 				},
-				func(testMachineDeployment *machinev1.MachineDeployment, _ []machinev1.MachineSet, _ *corev1.Node) error {
+				func(testMachineDeployment *machinev1.MachineDeployment, _ []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 					// RollbackTo should be removed after rollback.
 					if testMachineDeployment.Spec.RollbackTo != nil {
 						return errors.New("RollbackTo field should have been removed from machine-deployment")
@@ -1768,7 +1776,7 @@ var _ = Describe("machineDeployment", func() {
 					testMachineDeployment.Spec.Template.Spec.Class.Name = "MachineClass-test-new"
 					testMachineDeployment.Spec.Paused = true
 				},
-				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 
 					if len(testMachineSets) != 1 {
 						return errors.New("there should be only one old machine-set")
@@ -1777,6 +1785,17 @@ var _ = Describe("machineDeployment", func() {
 
 					if oldMachineSet.Spec.Replicas != testMachineSet.Spec.Replicas {
 						return errors.New("old machineSet's replicas should not have changed")
+					}
+					return nil
+				},
+			),
+			Entry("should set MachinePriority=1 for the machines named in TriggerDeletionByMCM annotation in the MachineDeployment",
+				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
+					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = annotations.CreateMachinesTriggeredForDeletionAnnotValue([]string{testMachine.Name})
+				},
+				func(_ *machinev1.MachineDeployment, _ []machinev1.MachineSet, machines []machinev1.Machine, _ *corev1.Node) error {
+					if machines[0].Annotations[machineutils.MachinePriority] != "1" {
+						return fmt.Errorf("testMachine should have its %q annotation set to 1", machineutils.MachinePriority)
 					}
 					return nil
 				},
