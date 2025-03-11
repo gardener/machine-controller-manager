@@ -859,7 +859,7 @@ var _ = Describe("machineset", func() {
 
 			beforeMachines := []*machinev1.Machine{staleMachine, testActiveMachine2, testActiveMachine3}
 			err := c.manageReplicas(context.TODO(), beforeMachines, testMachineSet)
-			Expect(err).ShouldNot(BeNil())
+			Expect(err).Should(BeNil())
 			waitForCacheSync(stop, c)
 
 			_, err = c.controlMachineClient.Machines(testNamespace).Get(context.Background(), staleMachine.Name, metav1.GetOptions{})
