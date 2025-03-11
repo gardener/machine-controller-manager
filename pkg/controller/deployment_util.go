@@ -25,6 +25,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
 	"sort"
 	"strconv"
@@ -1154,27 +1155,27 @@ func NewISNewReplicas(deployment *v1alpha1.MachineDeployment, allISs []*v1alpha1
 		if deployment.Spec.Strategy.InPlaceUpdate != nil && deployment.Spec.Strategy.InPlaceUpdate.OrchestrationType == v1alpha1.OrchestrationTypeManual {
 			// when newIs is created, its replicas should be zero as it will have machines only after the old machines are updated and
 			// moved to the new machine set
-			return int32(0), nil // In case of inplace update with manual update, newIS should not have any replicas
+			return 0, nil // In case of inplace update with manual update, newIS should not have any replicas
 		}
 
 		// For inplace update without manual update, when new IS is created we will scale it up to the max surge.
 		// Check if we can scale up.
-		maxSurge, err := intstrutil.GetValueFromIntOrPercent(deployment.Spec.Strategy.InPlaceUpdate.MaxSurge, int((deployment.Spec.Replicas)), true)
+		maxSurge, err := intstrutil.GetValueFromIntOrPercent(deployment.Spec.Strategy.InPlaceUpdate.MaxSurge, int(deployment.Spec.Replicas), true)
 		if err != nil {
 			return 0, err
 		}
 		// Find the total number of machines
 		currentMachineCount := GetActualReplicaCountForMachineSets(allISs)
-		maxTotalMachines := (deployment.Spec.Replicas) + int32(maxSurge) // #nosec G115 (CWE-190) -- value already validated
+		maxTotalMachines := deployment.Spec.Replicas + int32(maxSurge) // #nosec G115 (CWE-190) -- value already validated
 		if currentMachineCount >= maxTotalMachines {
 			// Cannot scale up.
-			return (newIS.Spec.Replicas), nil
+			return newIS.Spec.Replicas, nil
 		}
 		// Scale up.
 		scaleUpCount := maxTotalMachines - currentMachineCount
 		// Do not exceed the number of desired replicas.
-		scaleUpCount = int32(integer.IntMin(int(scaleUpCount), int((deployment.Spec.Replicas)-(newIS.Spec.Replicas)))) // #nosec G115 (CWE-190) -- Obtained from replicas and maxSurge, both of which are validated.
-		return (newIS.Spec.Replicas) + scaleUpCount, nil
+		scaleUpCount = integer.Int32Min(scaleUpCount, deployment.Spec.Replicas-newIS.Spec.Replicas) // #nosec G115 (CWE-190) -- Obtained from replicas and maxSurge, both of which are validated.
+		return newIS.Spec.Replicas + scaleUpCount, nil
 	default:
 		return 0, fmt.Errorf("machine deployment type %v isn't supported", deployment.Spec.Strategy.Type)
 	}
@@ -1291,22 +1292,22 @@ func statusUpdateRequired(old v1alpha1.MachineDeploymentStatus, new v1alpha1.Mac
 	return true
 }
 
-// MergeWithOverwriteAndFilter returns a new map containing keys and values from the `current` map
-// that are not present in `oldIS`, combined with all keys and values from `newIS`.
-// If a key exists in both `current` and `newIS`, the value from `newIS` is used.
+// MergeWithOverwriteAndFilter returns a new map containing keys and values from the `currentMap` map
+// that are not present in `oldMap`, combined with all keys and values from `newMap`.
+// If a key exists in both `currentMap` and `newMap`, the value from `newMap` is used.
 // This effectively merges the maps while overwriting and filtering as described.
-func MergeWithOverwriteAndFilter[T any](current, oldIS, newIS map[string]T) map[string]T {
-	out := make(map[string]T, len(newIS))
+func MergeWithOverwriteAndFilter[T any](currentMap, oldMap, newMap map[string]T) map[string]T {
+	out := make(map[string]T, len(newMap))
 
 	// copy the keys and values from the current map that are not present in the oldIS.
-	for k := range current {
-		if _, ok := oldIS[k]; !ok {
-			out[k] = current[k]
+	for k := range currentMap {
+		if _, ok := oldMap[k]; !ok {
+			out[k] = currentMap[k]
 		}
 	}
 
-	for k := range newIS {
-		out[k] = newIS[k]
+	for k := range newMap {
+		out[k] = newMap[k]
 	}
 
 	return out
@@ -1320,18 +1321,14 @@ func MergeStringMaps[T any](oldMap map[string]T, newMaps ...map[string]T) map[st
 	if oldMap != nil {
 		out = make(map[string]T, len(oldMap))
 	}
-	for k, v := range oldMap {
-		out[k] = v
-	}
+	maps.Copy(out, oldMap)
 
 	for _, newMap := range newMaps {
 		if newMap != nil && out == nil {
 			out = make(map[string]T)
 		}
 
-		for k, v := range newMap {
-			out[k] = v
-		}
+		maps.Copy(out, newMap)
 	}
 
 	return out

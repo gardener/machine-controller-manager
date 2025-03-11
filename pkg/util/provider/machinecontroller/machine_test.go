@@ -145,7 +145,7 @@ var _ = Describe("machine", func() {
 
 		DescribeTable("##table",
 			func(tc testCase) {
-				result := addedInPlaceUpdateLabels(tc.oldNode, tc.node)
+				result := inPlaceUpdateLabelsChanged(tc.oldNode, tc.node)
 				Expect(result).To(Equal(tc.expected))
 			},
 			Entry("both nodes are nil", testCase{

@@ -550,7 +550,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 			return dc.rolloutAutoInPlace(ctx, d, machineSets, machineMap)
 		}
 
-		// TODO: Implement Manual InPlace strategy
+		// TODO(ary1992): Implement Manual InPlace strategy
 	}
 	return fmt.Errorf("unexpected deployment strategy type: %s", d.Spec.Strategy.Type)
 }

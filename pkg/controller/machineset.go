@@ -331,17 +331,24 @@ func (c *controller) enqueueMachineSetAfter(obj interface{}, after time.Duration
 // Does NOT modify <filteredMachines>.
 // It will requeue the machine set in case of an error while creating/deleting machines.
 func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
+	if _, ok := machineSet.Labels[machineutils.LabelKeyMachineSetScaleUpDisabled]; ok {
+		klog.V(2).Infof("MachineSet %s has label %s, and hence not creating new machines for it", machineSet.Name, machineutils.LabelKeyMachineSetScaleUpDisabled)
+		return nil
+	}
+
 	machineSetKey, err := KeyFunc(machineSet)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Couldn't get key for %v %#v: %v", machineSet.Kind, machineSet, err))
 		return nil
 	}
 
-	var activeMachines, staleMachines, machinesWithUpdateSuccessfulLabel []*v1alpha1.Machine
+	var activeMachines, staleMachines []*v1alpha1.Machine
 	for _, machine := range allMachines {
+		// Skip machines that are in the process of being updated.
+		// This will not cause any issues as the replica count of a machine is always increased after the machine is moved to a new machine set.
+		// Therefore, there will not be a situation where the replica count is higher due to in-place updated machines.
 		if labelValue, ok := machine.Labels[v1alpha1.LabelKeyNodeUpdateResult]; ok && labelValue == v1alpha1.LabelValueNodeUpdateSuccessful {
-			klog.V(3).Infof("Ignoring machine %s moved to new machine set during inplace update", machine.Name)
-			machinesWithUpdateSuccessfulLabel = append(machinesWithUpdateSuccessfulLabel, machine)
+			klog.V(3).Infof("Skipping machine %s, which was moved to new machine set during an in-place update", machine.Name)
 			continue
 		}
 
@@ -361,13 +368,6 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	}
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
-	if diff < 0 {
-		if diff+len(machinesWithUpdateSuccessfulLabel) >= 0 {
-			diff = 0
-		} else if diff+len(machinesWithUpdateSuccessfulLabel) < 0 {
-			diff += len(machinesWithUpdateSuccessfulLabel)
-		}
-	}
 
 	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
 
@@ -375,11 +375,6 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		// If MachineSet is frozen and no deletion timestamp, don't process it
 		if machineSet.Labels["freeze"] == "True" && machineSet.DeletionTimestamp == nil {
 			klog.V(2).Infof("MachineSet %q is frozen, and hence not processing", machineSet.Name)
-			return nil
-		}
-
-		if _, ok := machineSet.Labels[machineutils.LabelKeyMachineSetScaleUpDisabled]; ok {
-			klog.V(2).Infof("MachineSet %s has label %s, and hence not creating new machines for it", machineSet.Name, machineutils.LabelKeyMachineSetScaleUpDisabled)
 			return nil
 		}
 

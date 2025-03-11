@@ -284,7 +284,7 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 		return
 	}
 
-	if addedInPlaceUpdateLabels(oldNode, node) {
+	if inPlaceUpdateLabelsChanged(oldNode, node) {
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. in-place update label added or updated for node %q", getNodeName(machine)))
 		return
 	}
@@ -335,7 +335,7 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	return machines[0], nil
 }
 
-func addedInPlaceUpdateLabels(oldNode, node *corev1.Node) bool {
+func inPlaceUpdateLabelsChanged(oldNode, node *corev1.Node) bool {
 	if oldNode == nil || node == nil {
 		return false
 	}
