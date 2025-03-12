@@ -279,9 +279,14 @@ func (c *controller) reconcileClusterMachineTermination(key string) error {
 	if err != nil {
 		c.enqueueMachineTerminationAfter(machine, time.Duration(retryPeriod), err.Error())
 		return err
+	} else {
+		// If the informer loses connection to the API server it may need to resync.
+		// If a resource is deleted while the watch is down, the informer won’t get
+		// delete event because the object is already gone. To avoid this edge-case,
+		// a requeue is scheduled post machine deletion as well.
+		c.enqueueMachineTerminationAfter(machine, time.Duration(retryPeriod), "post-deletion reconcile")
+		return nil
 	}
-
-	return nil
 }
 
 /*
