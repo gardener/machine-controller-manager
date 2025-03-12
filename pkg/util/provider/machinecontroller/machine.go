@@ -41,6 +41,9 @@ func (c *controller) addMachine(obj interface{}) {
 		klog.Errorf("couldn't convert to machine resource from object")
 		return
 	}
+	// On restart of the controller process, a machine that was marked for
+	// deletion would be processed as part of an `add` event. This check
+	// ensures that its enqueued in the correct queue.
 	if machine.DeletionTimestamp != nil {
 		c.enqueueMachineTermination(machine, "handling terminating machine object ADD event")
 	} else {
@@ -149,7 +152,7 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 	}
 
 	if machine.DeletionTimestamp != nil {
-		klog.Errorf("should be in machine termination queue %s", machine.Name)
+		klog.Errorf("Machine %q should be in machine termination queue", machine.Name)
 		return nil
 	}
 
@@ -258,7 +261,7 @@ func (c *controller) reconcileClusterMachineTermination(key string) error {
 
 	machineClass, secretData, retry, err := c.ValidateMachineClass(ctx, &machine.Spec.Class)
 	if err != nil {
-		klog.Errorf("cannot reconcile machine %s: %s", machine.Name, err)
+		klog.Errorf("cannot reconcile machine %q: %s", machine.Name, err)
 		c.enqueueMachineTerminationAfter(machine, time.Duration(retry), err.Error())
 		return err
 	}
