@@ -546,12 +546,9 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	case v1alpha1.RollingUpdateMachineDeploymentStrategyType:
 		return dc.rolloutRolling(ctx, d, machineSets, machineMap)
 	case v1alpha1.InPlaceUpdateMachineDeploymentStrategyType:
-		if d.Spec.Strategy.InPlaceUpdate.OrchestrationType == v1alpha1.OrchestrationTypeAuto {
-			return dc.rolloutAutoInPlace(ctx, d, machineSets, machineMap)
-		}
-
-		// TODO(ary1992): Implement Manual InPlace strategy
+		return dc.rolloutInPlace(ctx, d, machineSets, machineMap)
 	}
+
 	return fmt.Errorf("unexpected deployment strategy type: %s", d.Spec.Strategy.Type)
 }
 

@@ -25,8 +25,8 @@ import (
 	"k8s.io/utils/integer"
 )
 
-// rolloutAutoInPlace implements the logic for rolling  a machine set without replacing it.
-func (dc *controller) rolloutAutoInPlace(ctx context.Context, d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
+// rolloutInPlace implements the logic for rolling a machine set without replacing it.
+func (dc *controller) rolloutInPlace(ctx context.Context, d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
 	clusterAutoscalerScaleDownAnnotations := make(map[string]string)
 	clusterAutoscalerScaleDownAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
 
@@ -270,6 +270,11 @@ func (dc *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allMac
 				return false, err
 			}
 		}
+		return true, nil
+	}
+
+	// Manual inplace update
+	if deployment.Spec.Strategy.InPlaceUpdate.OrchestrationType == v1alpha1.OrchestrationTypeManual {
 		return true, nil
 	}
 
