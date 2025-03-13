@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
@@ -26,6 +27,10 @@ const (
 	MachineDeploymentStateSync = "MachineDeploymentStateSync"
 	// UnfreezeAnnotation indicates the controllers to unfreeze this object
 	UnfreezeAnnotation = "safety.machine.sapcloud.io/unfreeze"
+	// MachineSetFreezeEvent is recorded when a machineset is frozen
+	MachineSetFreezeEvent = "FrozeMachineSet"
+	// MachineSetUnfreezeEvent is recorded when a machineset is unfrozen
+	MachineSetUnfreezeEvent = "UnfrozeMachineSet"
 )
 
 // reconcileClusterMachineSafetyOvershooting checks all machineSet/machineDeployment
@@ -330,6 +335,7 @@ func (c *controller) freezeMachineSetAndDeployment(ctx context.Context, machineS
 		}
 	}
 
+	c.recorder.Eventf(machineSet, corev1.EventTypeNormal, MachineSetFreezeEvent, "SafetyController: Froze MachineSet %s due to replica overshooting", machineSet.Name)
 	klog.V(2).Infof("SafetyController: Froze MachineSet %q due to overshooting of replicas", machineSet.Name)
 	return nil
 }
@@ -398,6 +404,7 @@ func (c *controller) unfreezeMachineSet(ctx context.Context, machineSet *v1alpha
 		return err
 	}
 
+	c.recorder.Eventf(machineSet, corev1.EventTypeNormal, MachineSetUnfreezeEvent, "SafetyController: Unfroze MachineSet %s", machineSet.Name)
 	klog.V(2).Infof("SafetyController: Unfroze MachineSet %q", machineSet.Name)
 	return nil
 }
