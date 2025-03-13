@@ -26,6 +26,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"reflect"
 	"sort"
 	"sync"
@@ -337,11 +338,11 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	}
 
 	var activeMachines, staleMachines []*v1alpha1.Machine
-	for _, machine := range allMachines {
-		if IsMachineActive(machine) {
-			activeMachines = append(activeMachines, machine)
-		} else if IsMachineFailed(machine) {
-			staleMachines = append(staleMachines, machine)
+	for _, m := range allMachines {
+		if machineutils.IsMachineFailed(m) || machineutils.IsMachineTriggeredForDeletion(m) {
+			staleMachines = append(staleMachines, m)
+		} else if machineutils.IsMachineActive(m) {
+			activeMachines = append(activeMachines, m)
 		}
 	}
 
@@ -685,7 +686,7 @@ func (c *controller) prepareMachineForDeletion(ctx context.Context, targetMachin
 	} else {
 		// successful delete of a Failed phase machine due to unhealthiness for too long, increments staleMachinesRemoved counter
 		// note: call is blocking and thread safe as other worker threads might be updating the counter as well
-		if IsMachineFailed(targetMachine) && targetMachine.Status.LastOperation.Type == v1alpha1.MachineOperationHealthCheck {
+		if machineutils.IsMachineFailed(targetMachine) && targetMachine.Status.LastOperation.Type == v1alpha1.MachineOperationHealthCheck {
 			staleMachinesRemoved.increment()
 		}
 	}

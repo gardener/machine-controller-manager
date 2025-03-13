@@ -786,22 +786,6 @@ func (s ActiveMachines) Less(i, j int) bool {
 	return false
 }
 
-// IsMachineActive checks if machine was active
-func IsMachineActive(p *v1alpha1.Machine) bool {
-	if p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
-		return false
-	} else if p.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating {
-		return false
-	}
-
-	return true
-}
-
-// IsMachineFailed checks if machine has failed
-func IsMachineFailed(p *v1alpha1.Machine) bool {
-	return p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed
-}
-
 // MachineKey is the function used to get the machine name from machine object
 // ToCheck : as machine-namespace does not matter
 func MachineKey(machine *v1alpha1.Machine) string {

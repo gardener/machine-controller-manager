@@ -25,6 +25,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"reflect"
 	"sort"
 	"strconv"
@@ -921,7 +922,7 @@ func WaitForMachinesHashPopulated(c v1alpha1listers.MachineSetLister, desiredGen
 func LabelMachinesWithHash(ctx context.Context, machineList *v1alpha1.MachineList, c v1alpha1client.MachineV1alpha1Interface, machineLister v1alpha1listers.MachineLister, namespace, name, hash string) error {
 	for _, machine := range machineList.Items {
 		// Ignore inactive Machines.
-		if !IsMachineActive(&machine) {
+		if !machineutils.IsMachineActive(&machine) {
 			continue
 		}
 		// Only label the machine that doesn't already have the new hash
