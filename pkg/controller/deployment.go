@@ -25,26 +25,25 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"reflect"
 	"sync"
 	"time"
 
-	"k8s.io/klog/v2"
-
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 // controllerKind contains the schema.GroupVersionKind for this controller type.
@@ -546,6 +545,12 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return dc.rolloutRecreate(ctx, d, machineSets, machineMap)
 	case v1alpha1.RollingUpdateMachineDeploymentStrategyType:
 		return dc.rolloutRolling(ctx, d, machineSets, machineMap)
+	case v1alpha1.InPlaceUpdateMachineDeploymentStrategyType:
+		if d.Spec.Strategy.InPlaceUpdate.OrchestrationType == v1alpha1.OrchestrationTypeAuto {
+			return dc.rolloutAutoInPlace(ctx, d, machineSets, machineMap)
+		}
+
+		// TODO: Implement Manual InPlace strategy
 	}
 	return fmt.Errorf("unexpected deployment strategy type: %s", d.Spec.Strategy.Type)
 }

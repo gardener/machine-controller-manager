@@ -33,6 +33,7 @@ import (
 
 	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
@@ -336,8 +337,14 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		return nil
 	}
 
-	var activeMachines, staleMachines []*v1alpha1.Machine
+	var activeMachines, staleMachines, machinesWithUpdateSuccessfulLabel []*v1alpha1.Machine
 	for _, machine := range allMachines {
+		if labelValue, ok := machine.Labels[v1alpha1.LabelKeyNodeUpdateResult]; ok && labelValue == v1alpha1.LabelValueNodeUpdateSuccessful {
+			klog.V(3).Infof("Ignoring machine %s moved to new machine set during inplace update", machine.Name)
+			machinesWithUpdateSuccessfulLabel = append(machinesWithUpdateSuccessfulLabel, machine)
+			continue
+		}
+
 		if IsMachineActive(machine) {
 			activeMachines = append(activeMachines, machine)
 		} else if IsMachineFailed(machine) {
@@ -354,12 +361,25 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	}
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
+	if diff < 0 {
+		if diff+len(machinesWithUpdateSuccessfulLabel) >= 0 {
+			diff = 0
+		} else if diff+len(machinesWithUpdateSuccessfulLabel) < 0 {
+			diff += len(machinesWithUpdateSuccessfulLabel)
+		}
+	}
+
 	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
 
 	if diff < 0 {
 		// If MachineSet is frozen and no deletion timestamp, don't process it
 		if machineSet.Labels["freeze"] == "True" && machineSet.DeletionTimestamp == nil {
 			klog.V(2).Infof("MachineSet %q is frozen, and hence not processing", machineSet.Name)
+			return nil
+		}
+
+		if _, ok := machineSet.Labels[machineutils.LabelKeyMachineSetScaleUpDisabled]; ok {
+			klog.V(2).Infof("MachineSet %s has label %s, and hence not creating new machines for it", machineSet.Name, machineutils.LabelKeyMachineSetScaleUpDisabled)
 			return nil
 		}
 

@@ -22,6 +22,9 @@ Modifications Copyright SAP SE or an SAP affiliate company and Gardener contribu
 package labels
 
 import (
+	"encoding/json"
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -126,4 +129,42 @@ func AddLabelToSelector(selector *metav1.LabelSelector, labelKey, labelValue str
 // SelectorHasLabel checks if the given selector contains the given label key in its MatchLabels
 func SelectorHasLabel(selector *metav1.LabelSelector, labelKey string) bool {
 	return len(selector.MatchLabels[labelKey]) > 0
+}
+
+// GetFormatedLabels retun labels in `json` format.
+func GetFormatedLabels(labels map[string]string) string {
+	if len(labels) == 0 {
+		return ""
+	}
+
+	labelString := ""
+	for key, value := range labels {
+		labelString += fmt.Sprintf(`"%s":"%s",`, key, value)
+	}
+
+	// remove the trailing comma
+	return labelString[:len(labelString)-1]
+}
+
+// RemoveLabels returns a JSON patch to remove the given labels from an object.
+func RemoveLabels(labelsToRemove []string) ([]byte, error) {
+	// Create a map to represent the patch
+	patchMap := map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"labels": map[string]interface{}{},
+		},
+	}
+
+	// Set each label to null to remove it
+	for _, label := range labelsToRemove {
+		patchMap["metadata"].(map[string]interface{})["labels"].(map[string]interface{})[label] = nil
+	}
+
+	// Convert patchMap to JSON
+	patchBytes, err := json.Marshal(patchMap)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling patch data: %v", err)
+	}
+
+	return patchBytes, nil
 }

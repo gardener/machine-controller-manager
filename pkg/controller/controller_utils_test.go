@@ -286,6 +286,7 @@ var _ = Describe("#controllerUtils", func() {
 				setup: setup{
 					node: newNode(
 						1,
+						nil,
 						&corev1.NodeSpec{},
 						nil,
 					),
@@ -311,6 +312,7 @@ var _ = Describe("#controllerUtils", func() {
 				setup: setup{
 					node: newNode(
 						1,
+						nil,
 						&corev1.NodeSpec{},
 						nil,
 					),
@@ -333,6 +335,7 @@ var _ = Describe("#controllerUtils", func() {
 				setup: setup{
 					node: newNode(
 						1,
+						nil,
 						&corev1.NodeSpec{},
 						nil,
 					),
@@ -357,6 +360,7 @@ var _ = Describe("#controllerUtils", func() {
 				setup: setup{
 					node: newNode(
 						1,
+						nil,
 						&corev1.NodeSpec{},
 						nil,
 					),
@@ -381,6 +385,7 @@ var _ = Describe("#controllerUtils", func() {
 				setup: setup{
 					node: newNode(
 						1,
+						nil,
 						&corev1.NodeSpec{},
 						nil,
 					),
@@ -461,6 +466,7 @@ var _ = Describe("#controllerUtils", func() {
 				setup: setup{
 					node: newNode(
 						1,
+						nil,
 						&corev1.NodeSpec{},
 						nil,
 					),
@@ -486,6 +492,7 @@ var _ = Describe("#controllerUtils", func() {
 				setup: setup{
 					node: newNode(
 						1,
+						nil,
 						&corev1.NodeSpec{},
 						nil,
 					),
@@ -506,6 +513,7 @@ var _ = Describe("#controllerUtils", func() {
 				setup: setup{
 					node: newNode(
 						1,
+						nil,
 						&corev1.NodeSpec{},
 						nil,
 					),
@@ -531,6 +539,7 @@ var _ = Describe("#controllerUtils", func() {
 				setup: setup{
 					node: newNode(
 						1,
+						nil,
 						&corev1.NodeSpec{},
 						nil,
 					),
