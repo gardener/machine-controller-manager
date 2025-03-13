@@ -36,7 +36,7 @@ function test_with_coverage() {
   local output_dir=test/output
   local coverprofile_file=coverprofile.out
   mkdir -p test/output
-  ginkgo $GINKGO_COMMON_FLAGS --coverprofile ${coverprofile_file} -covermode=set -outputdir ${output_dir} ${TEST_PACKAGES}
+  ginkgo $GINKGO_COMMON_FLAGS --coverprofile ${coverprofile_file} -covermode=set -output-dir ${output_dir} ${TEST_PACKAGES}
 
   sed -i -e '/mode: set/d' ${output_dir}/${coverprofile_file}
   {( echo "mode: set"; cat ${output_dir}/${coverprofile_file} )} > ${output_dir}/${coverprofile_file}.temp
@@ -51,7 +51,7 @@ if [[ "${SKIP_UNIT_TESTS}" != "" ]]; then
 else
   echo ">>>>> Invoking unit tests"
   TEST_PACKAGES="cmd pkg"
-  GINKGO_COMMON_FLAGS="-r -timeout=1h0m0s --randomizeAllSpecs --randomizeSuites --failOnPending  --progress"
+  GINKGO_COMMON_FLAGS="-r -timeout=1h0m0s --randomize-all --randomize-suites --fail-on-pending  --show-node-events"
   test_with_coverage
   echo ">>>>> Finished executing unit tests"
 fi
