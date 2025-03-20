@@ -228,6 +228,19 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldISs 
 
 	klog.V(3).Infof("reconcile new machine set %s", newIS.Name)
 
+	oldMachinesCount := GetReplicaCountForMachineSets(oldMachineSets)
+	if oldMachinesCount == 0 {
+		// if there are no machines in the old machine sets, then there is no need to transfer the ownership of the machines.
+		// scale up the new machine set to the required replicas.
+		scaleBy := deployment.Spec.Replicas - newMachineSet.Spec.Replicas // here scaleBy is always positive
+		scaled, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newMachineSet, newMachineSet.Spec.Replicas+scaleBy, deployment)
+		if err != nil {
+			return false, fmt.Errorf("failed to scale up machine set %s: %w", newMachineSet.Name, err)
+		}
+		klog.V(3).Infof("scaled up machine set %s to %d", newMachineSet.Name, newMachineSet.Spec.Replicas+scaleBy)
+		return scaled, err
+	}
+
 	addedNewReplicasCount := int32(0)
 
 	for _, is := range oldISs {

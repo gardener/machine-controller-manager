@@ -350,6 +350,16 @@ var _ = Describe("deployment_inplace", func() {
 					scaled: true,
 				},
 			}),
+			Entry("scale up newMachineSet by scaling up newMachineSet if there are zero machines in oldMachineSet", &data{
+				setup: setup{
+					oldMachineSetReplicas:     0,
+					newMachineSetReplicas:     1,
+					nodesWithUpdateSuccessful: 0,
+				},
+				expect: expect{
+					scaled: true,
+				},
+			}),
 		)
 	})
 
