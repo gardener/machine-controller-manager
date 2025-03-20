@@ -863,8 +863,6 @@ var _ = Describe("machineset", func() {
 			waitForCacheSync(stop, c)
 
 			_, err = c.controlMachineClient.Machines(testNamespace).Get(context.Background(), staleMachine.Name, metav1.GetOptions{})
-			// MachinePriority=1 staleMachine is no longer found
-			//Expect(staleMachine).Should(BeNil())
 			Expect(err).ShouldNot(BeNil())
 			Expect(err).To(Satisfy(func(e error) bool {
 				return k8sError.IsNotFound(e)
