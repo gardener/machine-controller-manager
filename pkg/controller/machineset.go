@@ -33,6 +33,7 @@ import (
 
 	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
@@ -330,6 +331,11 @@ func (c *controller) enqueueMachineSetAfter(obj interface{}, after time.Duration
 // Does NOT modify <filteredMachines>.
 // It will requeue the machine set in case of an error while creating/deleting machines.
 func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
+	if _, ok := machineSet.Labels[machineutils.LabelKeyMachineSetScaleUpDisabled]; ok {
+		klog.V(2).Infof("MachineSet %s has label %s, and hence not creating new machines for it", machineSet.Name, machineutils.LabelKeyMachineSetScaleUpDisabled)
+		return nil
+	}
+
 	machineSetKey, err := KeyFunc(machineSet)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Couldn't get key for %v %#v: %v", machineSet.Kind, machineSet, err))
@@ -338,6 +344,14 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 
 	var activeMachines, staleMachines []*v1alpha1.Machine
 	for _, machine := range allMachines {
+		// Skip machines that are in the process of being updated.
+		// This will not cause any issues as the replica count of a machine is always increased after the machine is moved to a new machine set.
+		// Therefore, there will not be a situation where the replica count is higher due to in-place updated machines.
+		if labelValue, ok := machine.Labels[v1alpha1.LabelKeyNodeUpdateResult]; ok && labelValue == v1alpha1.LabelValueNodeUpdateSuccessful {
+			klog.V(3).Infof("Skipping machine %s, which was moved to new machine set during an in-place update", machine.Name)
+			continue
+		}
+
 		if IsMachineActive(machine) {
 			activeMachines = append(activeMachines, machine)
 		} else if IsMachineFailed(machine) {
@@ -354,6 +368,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	}
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
+
 	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
 
 	if diff < 0 {
