@@ -50,9 +50,9 @@ const (
 	// NotManagedByMCM annotation helps in identifying the nodes which are not handled by MCM
 	NotManagedByMCM = "node.machine.sapcloud.io/not-managed-by-mcm"
 
-	// TriggerDeletionByMCM annotation on the node would trigger the deletion of the corresponding machine object in the control cluster
+	// TriggerDeletionByMCM annotation on the node or machine would trigger the deletion of the corresponding node and machine object in the control cluster
 	// This annotation can also be set on the MachineDeployment and contains the machine names for which deletion should be triggered.
-	// This feature is leveraged by the CA-MCM cloud provider.
+	// The latter feature is leveraged by the CA-MCM cloud provider.
 	TriggerDeletionByMCM = "node.machine.sapcloud.io/trigger-deletion-by-mcm"
 
 	// NodeUnhealthy is a node termination reason for failed machines
@@ -100,4 +100,19 @@ func IsMachineFailedOrTerminating(machine *v1alpha1.Machine) bool {
 		return true
 	}
 	return false
+}
+
+// IsMachineActive checks if machine was active
+func IsMachineActive(p *v1alpha1.Machine) bool {
+	return p.Status.CurrentStatus.Phase != v1alpha1.MachineFailed && p.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating
+}
+
+// IsMachineFailed checks if machine has failed
+func IsMachineFailed(p *v1alpha1.Machine) bool {
+	return p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed
+}
+
+// IsMachineTriggeredForDeletion checks if machine was triggered for deletion
+func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
+	return m.Annotations[MachinePriority] == "1" || m.Annotations[TriggerDeletionByMCM] == "true"
 }
