@@ -7,6 +7,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"sync"
 	"time"
 
@@ -608,6 +609,7 @@ var _ = Describe("machineset", func() {
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
+					Annotations: map[string]string{},
 				},
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Machine",
@@ -636,6 +638,46 @@ var _ = Describe("machineset", func() {
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
 						Phase: MachineRunning,
+					},
+				},
+			}
+
+			testActiveMachine3 = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-3",
+					Namespace: testNamespace,
+					UID:       "12345610",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Machine",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineRunning,
+					},
+				},
+			}
+
+			testActiveMachine4 = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-4",
+					Namespace: testNamespace,
+					UID:       "12345611",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Machine",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineFailed,
 					},
 				},
 			}
@@ -716,26 +758,6 @@ var _ = Describe("machineset", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
-			testActiveMachine3 = &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-3",
-					Namespace: testNamespace,
-					UID:       "12345610",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-				},
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Machine",
-					APIVersion: "machine.sapcloud.io/v1alpha1",
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineRunning,
-					},
-				},
-			}
-
 			objects := []runtime.Object{}
 			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2, testActiveMachine3)
 			c, trackers := createController(stop, testNamespace, objects, nil, nil)
@@ -779,26 +801,6 @@ var _ = Describe("machineset", func() {
 				},
 			}
 
-			testActiveMachine4 = &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-4",
-					Namespace: testNamespace,
-					UID:       "12345611",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-				},
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Machine",
-					APIVersion: "machine.sapcloud.io/v1alpha1",
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineFailed,
-					},
-				},
-			}
-
 			objects := []runtime.Object{}
 			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2, testActiveMachine3, testActiveMachine4)
 			c, trackers := createController(stop, testNamespace, objects, nil, nil)
@@ -822,46 +824,6 @@ var _ = Describe("machineset", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
-			testActiveMachine3 = &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-3",
-					Namespace: testNamespace,
-					UID:       "12345610",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-				},
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Machine",
-					APIVersion: "machine.sapcloud.io/v1alpha1",
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineRunning,
-					},
-				},
-			}
-
-			testActiveMachine4 = &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-4",
-					Namespace: testNamespace,
-					UID:       "12345611",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-				},
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Machine",
-					APIVersion: "machine.sapcloud.io/v1alpha1",
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineRunning,
-					},
-				},
-			}
-
 			objects := []runtime.Object{}
 			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2, testActiveMachine3, testActiveMachine4)
 			c, trackers := createController(stop, testNamespace, objects, nil, nil)
@@ -879,6 +841,38 @@ var _ = Describe("machineset", func() {
 			Expect(Err).Should(BeNil())
 		})
 
+		It("should delete MachinePriority=1 machines and spawn replacement machine", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+			objects := []runtime.Object{}
+
+			staleMachine := testActiveMachine1.DeepCopy()
+			staleMachine.Annotations[machineutils.MachinePriority] = "1"
+
+			objects = append(objects, testMachineSet, staleMachine, testActiveMachine2, testActiveMachine3)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			machines, _ := c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
+			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
+
+			beforeMachines := []*machinev1.Machine{staleMachine, testActiveMachine2, testActiveMachine3}
+			err := c.manageReplicas(context.TODO(), beforeMachines, testMachineSet)
+			Expect(err).Should(BeNil())
+			waitForCacheSync(stop, c)
+
+			_, err = c.controlMachineClient.Machines(testNamespace).Get(context.Background(), staleMachine.Name, metav1.GetOptions{})
+			Expect(err).ShouldNot(BeNil())
+			Expect(err).To(Satisfy(func(e error) bool {
+				return k8sError.IsNotFound(e)
+			}))
+			afterMachines, err := c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
+			// replica count is still maintained.
+			Expect(len(afterMachines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
+			Expect(err).Should(BeNil())
+
+		})
 	})
 
 	// TODO: This method has dependency on generic-machineclass. Implement later.
