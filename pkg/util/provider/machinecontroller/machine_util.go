@@ -1346,7 +1346,6 @@ func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.
 		err             error
 		forceDeletePods bool
 		timeOutOccurred bool
-		skipDrain       bool
 		description     string
 		state           v1alpha1.MachineState
 
@@ -1388,86 +1387,82 @@ func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.
 		printLogInitError(message, &err, &description, machine, true)
 	}
 
-	if skipDrain {
-		state = v1alpha1.MachineStateProcessing
+	if node != nil {
+		cond := nodeops.GetCondition(node, v1alpha1.NodeInPlaceUpdate)
+		if cond != nil && cond.Reason == v1alpha1.SelectedForUpdate {
+			timeOutOccurred = utiltime.HasTimeOutOccurred(cond.LastTransitionTime, timeOutDuration)
+		}
+	}
+
+	if forceDrainLabelPresent || timeOutOccurred {
+		forceDeletePods = true
+		timeOutDuration = 1 * time.Minute
+		maxEvictRetries = 1
+
+		klog.V(2).Infof(
+			"Force drain has been triggerred for machine %q with providerID %q and backing node %q due to Label:%t, timeout:%t",
+			machine.Name,
+			getProviderID(machine),
+			getNodeName(machine),
+			forceDrainLabelPresent,
+			timeOutOccurred,
+		)
 	} else {
-		if node != nil {
-			cond := nodeops.GetCondition(node, v1alpha1.NodeInPlaceUpdate)
-			if cond != nil && cond.Reason == v1alpha1.SelectedForUpdate {
-				timeOutOccurred = utiltime.HasTimeOutOccurred(cond.LastTransitionTime, timeOutDuration)
-			}
-		}
-
-		if forceDrainLabelPresent || timeOutOccurred {
-			forceDeletePods = true
-			timeOutDuration = 1 * time.Minute
-			maxEvictRetries = 1
-
-			klog.V(2).Infof(
-				"Force drain has been triggerred for machine %q with providerID %q and backing node %q due to Label:%t, timeout:%t",
-				machine.Name,
-				getProviderID(machine),
-				getNodeName(machine),
-				forceDrainLabelPresent,
-				timeOutOccurred,
-			)
-		} else {
-			klog.V(2).Infof(
-				"Normal drain has been triggerred for machine %q with providerID %q and backing node %q with drain-timeout:%v & maxEvictRetries:%d",
-				machine.Name,
-				getProviderID(machine),
-				getNodeName(machine),
-				timeOutDuration,
-				maxEvictRetries,
-			)
-		}
-
-		buf := bytes.NewBuffer([]byte{})
-		errBuf := bytes.NewBuffer([]byte{})
-
-		drainOptions := drain.NewDrainOptions(
-			c.targetCoreClient,
-			c.targetKubernetesVersion,
+		klog.V(2).Infof(
+			"Normal drain has been triggerred for machine %q with providerID %q and backing node %q with drain-timeout:%v & maxEvictRetries:%d",
+			machine.Name,
+			getProviderID(machine),
+			getNodeName(machine),
 			timeOutDuration,
 			maxEvictRetries,
-			pvDetachTimeOut,
-			pvReattachTimeOut,
-			nodeName,
-			-1,
-			forceDeletePods,
-			true,
-			true,
-			true,
-			buf,
-			errBuf,
-			c.driver,
-			c.pvcLister,
-			c.pvLister,
-			c.pdbLister,
-			c.nodeLister,
-			c.podLister,
-			c.volumeAttachmentHandler,
-			c.podSynced,
 		)
+	}
 
-		klog.V(3).Infof("(drainNode) Invoking RunDrain, forceDeletePods: %t, timeOutDuration: %s", forceDeletePods, timeOutDuration)
-		err = drainOptions.RunDrain(ctx)
-		if err == nil {
-			// Drain successful
-			klog.V(2).Infof("Drain successful for machine %q ,providerID %q, backing node %q. \nBuf:%v \nErrBuf:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf)
+	buf := bytes.NewBuffer([]byte{})
+	errBuf := bytes.NewBuffer([]byte{})
 
-			if forceDeletePods {
-				description = fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments)
-			} else { // regular drain already waits for vol detach and attach for another node.
-				description = fmt.Sprintf("Drain successful. %s", machineutils.NodeReadyForUpdate)
-			}
-			state = v1alpha1.MachineStateProcessing
-		} else {
-			klog.Warningf("Drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
+	drainOptions := drain.NewDrainOptions(
+		c.targetCoreClient,
+		c.targetKubernetesVersion,
+		timeOutDuration,
+		maxEvictRetries,
+		pvDetachTimeOut,
+		pvReattachTimeOut,
+		nodeName,
+		-1,
+		forceDeletePods,
+		true,
+		true,
+		true,
+		buf,
+		errBuf,
+		c.driver,
+		c.pvcLister,
+		c.pvLister,
+		c.pdbLister,
+		c.nodeLister,
+		c.podLister,
+		c.volumeAttachmentHandler,
+		c.podSynced,
+	)
 
-			description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
-			state = v1alpha1.MachineStateProcessing
+	klog.V(3).Infof("(drainNode) Invoking RunDrain, forceDeletePods: %t, timeOutDuration: %s", forceDeletePods, timeOutDuration)
+	err = drainOptions.RunDrain(ctx)
+	if err == nil {
+		// Drain successful
+		klog.V(2).Infof("Drain successful for machine %q ,providerID %q, backing node %q. \nBuf:%v \nErrBuf:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf)
+
+		if forceDeletePods {
+			description = fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments)
+		} else { // regular drain already waits for vol detach and attach for another node.
+			description = fmt.Sprintf("Drain successful. %s", machineutils.NodeReadyForUpdate)
 		}
+		state = v1alpha1.MachineStateProcessing
+	} else {
+		klog.Warningf("Drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
+
+		description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
+		state = v1alpha1.MachineStateProcessing
 	}
 
 	return c.updateMachineStatusAndNodeCondition(ctx, machine, description, state, err)

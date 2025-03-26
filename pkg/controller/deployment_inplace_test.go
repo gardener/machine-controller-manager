@@ -499,7 +499,7 @@ var _ = Describe("deployment_inplace", func() {
 					scaled: false,
 				},
 			}),
-			Entry("no machines selected for update because there is still old replicas undergoing update respecting min avaialble", &data{
+			Entry("no machines selected for update because there is still old replicas undergoing update respecting min available", &data{
 				setup: setup{
 					oldMachineSetReplicas:           2,
 					oldISAvailableMachines:          2,

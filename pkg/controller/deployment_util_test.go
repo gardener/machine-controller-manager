@@ -190,7 +190,6 @@ var _ = Describe("deployment_util", func() {
 				}
 			},
 
-			// Case: RollingUpdate strategy, scaling up within max surge
 			Entry("RollingUpdate, scale up within max surge",
 				machinev1.MachineDeploymentStrategy{
 					Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
@@ -202,7 +201,6 @@ var _ = Describe("deployment_util", func() {
 				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 3, shouldError: false},
 			),
 
-			// Case: RollingUpdate strategy, max surge already reached
 			Entry("RollingUpdate, max surge reached",
 				machinev1.MachineDeploymentStrategy{
 					Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
@@ -214,14 +212,12 @@ var _ = Describe("deployment_util", func() {
 				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 3, expected: 3, shouldError: false},
 			),
 
-			// Case: Recreate strategy
 			Entry("Recreate strategy",
 				machinev1.MachineDeploymentStrategy{
 					Type: machinev1.RecreateMachineDeploymentStrategyType,
 				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 5, shouldError: false},
 			),
 
-			// Case: InPlaceUpdate strategy with ManualUpdate=true
 			Entry("InPlaceUpdate with ManualUpdate=true",
 				machinev1.MachineDeploymentStrategy{
 					Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
@@ -231,8 +227,7 @@ var _ = Describe("deployment_util", func() {
 				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 0, shouldError: false},
 			),
 
-			// Case: InPlaceUpdate strategy with ManualUpdate=false, scaling up within max surge
-			Entry("RollingUpdate, scale up within max surge",
+			Entry("InPlaceUpdate, scale up within max surge",
 				machinev1.MachineDeploymentStrategy{
 					Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
 					InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
@@ -244,7 +239,6 @@ var _ = Describe("deployment_util", func() {
 				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 3, shouldError: false},
 			),
 
-			// Case: InPlaceUpdate strategy with ManualUpdate=false and max surge already reached
 			Entry("InPlaceUpdate with ManualUpdate=false, max surge already reached",
 				machinev1.MachineDeploymentStrategy{
 					Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
@@ -257,7 +251,6 @@ var _ = Describe("deployment_util", func() {
 				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 2, shouldError: false},
 			),
 
-			// Case: Unsupported strategy type
 			Entry("Unsupported strategy type",
 				machinev1.MachineDeploymentStrategy{
 					Type: "UnsupportedType",
