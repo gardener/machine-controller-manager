@@ -42,7 +42,7 @@ func (dc *controller) rolloutAutoInPlace(ctx context.Context, d *v1alpha1.Machin
 		// Label all the old machine sets to disable the scale up.
 		err := dc.labelMachineSets(ctx, oldMachineSets, map[string]string{machineutils.LabelKeyMachineSetScaleUpDisabled: "true"})
 		if err != nil {
-			klog.Errorf("Failed to add label %s on all machine sets. Error: %s", machineutils.LabelKeyMachineSetScaleUpDisabled, err)
+			klog.Errorf("failed to add label %s on all machine sets. Error: %v", machineutils.LabelKeyMachineSetScaleUpDisabled, err)
 			return err
 		}
 
@@ -53,7 +53,7 @@ func (dc *controller) rolloutAutoInPlace(ctx context.Context, d *v1alpha1.Machin
 			// Annotate all the nodes under this machine-deployment, as roll-out is on-going.
 			err := dc.annotateNodesBackingMachineSets(ctx, allMachineSets, clusterAutoscalerScaleDownAnnotations)
 			if err != nil {
-				klog.Errorf("Failed to add %s on all nodes. Error: %s", clusterAutoscalerScaleDownAnnotations, err)
+				klog.Errorf("failed to add annotations %s on all nodes. Error: %v", clusterAutoscalerScaleDownAnnotations, err)
 				return err
 			}
 		}
@@ -68,10 +68,10 @@ func (dc *controller) rolloutAutoInPlace(ctx context.Context, d *v1alpha1.Machin
 		},
 	)
 	if err != nil {
-		klog.Warningf("Failed to add %s on all nodes. Error: %s", PreferNoScheduleKey, err)
+		klog.Warningf("failed to add taint %s on all nodes. Error: %v", PreferNoScheduleKey, err)
 	}
 
-	// label all the machines and nodes backing the old machine sets as candidate for update
+	// label all nodes backing old machine sets as candidate for update
 	if err := dc.labelNodesBackingMachineSets(ctx, oldMachineSets, v1alpha1.LabelKeyNodeCandidateForUpdate, "true"); err != nil {
 		return fmt.Errorf("failed to label nodes backing old machine sets as candidate for update: %v", err)
 	}
@@ -86,7 +86,7 @@ func (dc *controller) rolloutAutoInPlace(ctx context.Context, d *v1alpha1.Machin
 	// and the old machine set is not scaled up to recreate the machine.
 	scaledUp, err := dc.reconcileNewMachineSetInPlace(ctx, oldMachineSets, newMachineSet, d)
 	if err != nil {
-		klog.V(3).Infof("failed to reconcile new machine set in place %s", err)
+		klog.Errorf("failed to reconcile new machine set in place %s", err)
 		return err
 	}
 	if scaledUp {
@@ -130,7 +130,7 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 	}
 
 	machinesWithUpdateSuccessfulLabel := filterMachinesWithUpdateSuccessfulLabel(newMachines)
-	klog.V(3).Infof("machine with label %q=%q in new machine set %d", v1alpha1.LabelKeyNodeUpdateResult, v1alpha1.LabelValueNodeUpdateSuccessful, len(machinesWithUpdateSuccessfulLabel))
+	klog.V(3).Infof("Found %d machine(s) with label %q=%q in new machine set", len(machinesWithUpdateSuccessfulLabel), v1alpha1.LabelKeyNodeUpdateResult, v1alpha1.LabelValueNodeUpdateSuccessful)
 
 	if len(newMachines) > int(newMachineSet.Spec.Replicas) && len(machinesWithUpdateSuccessfulLabel) > 0 {
 		// scale up the new machine set to the number of machines with the update successful label.
@@ -142,7 +142,7 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 		}
 	}
 
-	// remove all the label from the machines related to the inplace update.
+	// remove labels from the machines related to the inplace update.
 	for _, machine := range machinesWithUpdateSuccessfulLabel {
 		labelsToRemove := []string{
 			v1alpha1.LabelKeyNodeUpdateResult,
@@ -153,9 +153,9 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 			return err
 		}
 
-		klog.V(3).Infof("removing label from machine %s update-successful %v", machine.Name, labelsToRemove)
+		klog.V(3).Infof("removing label %v from machine %s", labelsToRemove, machine.Name)
 		if err := dc.machineControl.PatchMachine(ctx, machine.Namespace, machine.Name, patchBytes); err != nil {
-			klog.V(3).Infof("error while removing label update-successful %s", err)
+			klog.Errorf("error while removing label  %v : %v", labelsToRemove, err)
 			return err
 		}
 	}
@@ -178,20 +178,18 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 		}
 
 		// remove labels related to the inplace update.
-		nodeLabels := node.Labels
-		delete(nodeLabels, v1alpha1.LabelKeyNodeCandidateForUpdate)
-		delete(nodeLabels, v1alpha1.LabelKeyNodeSelectedForUpdate)
-		delete(nodeLabels, v1alpha1.LabelKeyNodeUpdateResult)
+		delete(node.Labels, v1alpha1.LabelKeyNodeCandidateForUpdate)
+		delete(node.Labels, v1alpha1.LabelKeyNodeSelectedForUpdate)
+		delete(node.Labels, v1alpha1.LabelKeyNodeUpdateResult)
 		// remove annotations related to the inplace update.
 		delete(node.Annotations, v1alpha1.AnnotationKeyMachineUpdateFailedReason)
 
-		node.ObjectMeta.Labels = nodeLabels
 		// uncordon the node since the inplace update is successful.
 		node.Spec.Unschedulable = false
 
 		_, err = dc.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to uncordon the node %s: %w", node.Name, err)
+			return fmt.Errorf("failed to remove inplace labels/annotations and uncordon node %s: %w", node.Name, err)
 		}
 	}
 
@@ -222,7 +220,7 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 
 	if newMachineSet.Spec.Replicas > deployment.Spec.Replicas {
 		// Scale down.
-		scaled, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newMachineSet, (deployment.Spec.Replicas), deployment)
+		scaled, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newMachineSet, deployment.Spec.Replicas, deployment)
 		return scaled, err
 	}
 
@@ -248,7 +246,7 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 			return false, err
 		}
 
-		klog.V(3).Infof("machine in old machine set %s: %d", machineSet.Name, len(oldMachines))
+		klog.V(3).Infof("Found %d machine(s) in old machine set %s", len(oldMachines), machineSet.Name)
 
 		for _, oldMachine := range oldMachines {
 			nodeName, ok := oldMachine.Labels[v1alpha1.NodeLabelKey]
@@ -270,7 +268,7 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 				continue
 			}
 
-			klog.V(3).Infof("transferring machine %s to new machine set %s", oldMachine.Name, newMachineSet.Name)
+			klog.V(3).Infof("Attempting to transfer machine %s to new machine set %s", oldMachine.Name, newMachineSet.Name)
 
 			// removes labels not present in newMachineSet so that the machine is not selected by the old machine set
 			machineNewLabels := MergeStringMaps(
@@ -289,7 +287,7 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 
 			err = dc.machineControl.PatchMachine(ctx, oldMachine.Namespace, oldMachine.Name, []byte(addControllerPatch))
 			if err != nil {
-				klog.V(3).Infof("failed to transfer the ownership of machine %s to new machine set. Err: %v", oldMachine.Name, err)
+				klog.Errorf("failed to transfer the ownership of machine %s to new machine set. Err: %v", oldMachine.Name, err)
 				return false, err
 			}
 
@@ -309,10 +307,10 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 			continue
 		}
 
-		klog.V(3).Infof("scale down machine set %s, transffered replicas to new machine set %d", machineSet.Name, transferredMachineCount)
+		klog.V(3).Infof("%d machine(s) transferred to new machine set. scaling down machine set %s", transferredMachineCount, machineSet.Name)
 		_, _, err = dc.scaleMachineSetAndRecordEvent(ctx, machineSet, machineSet.Spec.Replicas-transferredMachineCount, deployment)
 		if err != nil {
-			klog.V(3).Infof("scale down failed %s", err)
+			klog.Errorf("scale down failed %s", err)
 			return false, err
 		}
 	}
@@ -434,7 +432,7 @@ func (dc *controller) labelNodesBackingMachineSets(ctx context.Context, machineS
 			continue
 		}
 
-		klog.V(4).Infof("Trying to label nodes under the MachineSet object %q with %v", machineSet.Name, labelKey)
+		klog.V(4).Infof("Attempting to label nodes belonging to MachineSet object %q with %v", machineSet.Name, labelKey)
 		filteredMachines, err := dc.machineLister.List(labels.SelectorFromSet(machineSet.Spec.Selector.MatchLabels))
 		if err != nil {
 			return err
@@ -446,7 +444,7 @@ func (dc *controller) labelNodesBackingMachineSets(ctx context.Context, machineS
 			}
 		}
 
-		klog.V(3).Infof("Labeled the nodes backed by MachineSet %q with %v", machineSet.Name, labelKey)
+		klog.V(3).Infof("Labeled nodes belonging to MachineSet %q with %v", machineSet.Name, labelKey)
 	}
 
 	return nil
