@@ -387,6 +387,8 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 			return nil
 		}
 
+		// This case handles old MachineSets to prevent them from creating new machines when a machine is transferred to a new MachineSet,
+		// but the replica count has not been updated yet.
 		if _, ok := machineSet.Labels[machineutils.LabelKeyMachineSetScaleUpDisabled]; ok {
 			klog.V(2).Infof("MachineSet %s has label %s, and hence not creating new machines for it", machineSet.Name, machineutils.LabelKeyMachineSetScaleUpDisabled)
 			return nil
