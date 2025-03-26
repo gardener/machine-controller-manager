@@ -72,8 +72,7 @@ func (dc *controller) rolloutAutoInPlace(ctx context.Context, d *v1alpha1.Machin
 	}
 
 	// label all the machines and nodes backing the old machine sets as candidate for update
-	err = dc.labelNodesBackingMachineSets(ctx, oldMachineSets, v1alpha1.LabelKeyNodeCandidateForUpdate, "true")
-	if err != nil {
+	if err := dc.labelNodesBackingMachineSets(ctx, oldMachineSets, v1alpha1.LabelKeyNodeCandidateForUpdate, "true"); err != nil {
 		return fmt.Errorf("failed to label nodes backing old machine sets as candidate for update: %v", err)
 	}
 
@@ -367,7 +366,7 @@ func (dc *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allMac
 	// minus the number of machines in the new instance set that are currently unavailable (newISUnavailableMachineCount),
 	// minus the number of machines in the old instance sets that are undergoing updates (oldISsMachinesUndergoingUpdate).
 	// here unavailable machines of old machine sets are not considered as first we want to check if we can select machines for update from old machine sets
-	// after fullfiling all the constraints.
+	// after fulfilling all the constraints.
 	maxUpdatePossible := allMachinesCount - minAvailable - newISUnavailableMachineCount - oldISsMachinesUndergoingUpdate
 	if maxUpdatePossible <= 0 {
 		klog.V(3).Infof("no machines can be selected for update from old machine sets")

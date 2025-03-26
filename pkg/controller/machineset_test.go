@@ -875,7 +875,6 @@ var _ = Describe("machineset", func() {
 
 		Describe("machine with update-result label", func() {
 			// Testcase: ActiveMachines + MachinesWithUpdateSuccessfulLabel < DesiredMachines
-			// It should create new machines and should not return erros.
 			It("should create new machines and should not return errors.", func() {
 				stop := make(chan struct{})
 				defer close(stop)
@@ -919,7 +918,6 @@ var _ = Describe("machineset", func() {
 			})
 
 			// Testcase: ActiveMachines + MachinesWithUpdateSuccessfulLabel = DesiredMachines
-			// It should not return error.
 			It("should not create or delete machines and should not return error", func() {
 				stop := make(chan struct{})
 				defer close(stop)
@@ -963,8 +961,7 @@ var _ = Describe("machineset", func() {
 			})
 
 			// TestCase: ActiveMachines + MachinesWithUpdateSuccessfulLabel > DesiredMachines
-			// Testcase: It should not return error and delete extra running machine.
-			It("should not create or delete machines and should not return error", func() {
+			It("should not return error and delete extra running machine", func() {
 				stop := make(chan struct{})
 				defer close(stop)
 

@@ -215,7 +215,7 @@ func TestAddLabelToSelector(t *testing.T) {
 	}
 }
 
-func TestGetFormatedLabels(t *testing.T) {
+func TestGetFormattedLabels(t *testing.T) {
 	cases := []struct {
 		labels map[string]string
 		want   string
@@ -225,7 +225,7 @@ func TestGetFormatedLabels(t *testing.T) {
 				"foo1": "bar1",
 				"foo2": "bar2",
 			},
-			want: "{\"foo1\":\"bar1\",\"foo2\":\"bar2\"}",
+			want: `{"foo1":"bar1","foo2":"bar2"}`,
 		},
 		{
 			labels: map[string]string{},
@@ -236,7 +236,7 @@ func TestGetFormatedLabels(t *testing.T) {
 	for _, tc := range cases {
 		got, _ := GetFormattedLabels(tc.labels)
 		if string(got) != tc.want {
-			t.Errorf("GetFormatedLabels(%v) = %q, want %q", tc.labels, got, tc.want)
+			t.Errorf("GetFormattedLabels(%v) = %q, want %q", tc.labels, got, tc.want)
 		}
 	}
 }

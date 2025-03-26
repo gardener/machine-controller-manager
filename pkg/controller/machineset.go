@@ -373,10 +373,9 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	// if the MachineSet is scaled up before the "update successful" label is removed.
 	if diff < 0 {
 		if diff+len(machinesWithUpdateSuccessfulLabel) >= 0 {
-			diff = 0
-		} else if diff+len(machinesWithUpdateSuccessfulLabel) < 0 {
-			diff += len(machinesWithUpdateSuccessfulLabel)
+			return nil
 		}
+		diff += len(machinesWithUpdateSuccessfulLabel)
 	}
 
 	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
