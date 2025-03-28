@@ -289,6 +289,13 @@ func (dc *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allMac
 		return false, err
 	}
 
+	// Machines from old machine sets which are undergoing update will eventually move to new machine set.
+	// So once the current new machine set replcas + old machine set replicas undergoing update reaches the desired replicas,
+	// we can stop selecting machines from old machine sets for update.
+	if oldISsMachinesUndergoingUpdate+newMachineSet.Spec.Replicas >= deployment.Spec.Replicas {
+		return false, nil
+	}
+
 	klog.V(3).Infof("allMachinesCount:%d,  minAvailable:%d,  newISUnavailableMachineCount:%d,  oldISsMachineInUpdateProcess:%d", allMachinesCount, minAvailable, newISUnavailableMachineCount, oldISsMachinesUndergoingUpdate)
 
 	// maxUpdatePossible is calculated as the total number of machines (allMachinesCount)
