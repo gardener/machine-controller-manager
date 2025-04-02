@@ -161,10 +161,10 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 	}
 
 	// updates nodes associated with the machines to remove update-related labels and annotations, and uncordons them.
-	for _, machine := range newMachines {
-		nodeName, ok := machine.Labels[v1alpha1.NodeLabelKey]
+	for _, newMachine := range newMachines {
+		nodeName, ok := newMachine.Labels[v1alpha1.NodeLabelKey]
 		if !ok {
-			return fmt.Errorf("node label not found for machine %s: %w", machine.Name, err)
+			return fmt.Errorf("node label not found for machine %s: %w", newMachine.Name, err)
 		}
 
 		node, err := dc.nodeLister.Get(nodeName)
@@ -193,19 +193,19 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 		}
 	}
 
-	for _, machineSet := range oldMachineSets {
+	for _, oldMachineSet := range oldMachineSets {
 		// scale down the old machine set to the number of machines which is having the labelselector of the machine set.
-		oldMachines, err := dc.machineLister.List(labels.SelectorFromSet(machineSet.Spec.Selector.MatchLabels))
+		oldMachines, err := dc.machineLister.List(labels.SelectorFromSet(oldMachineSet.Spec.Selector.MatchLabels))
 		if err != nil {
-			return fmt.Errorf("failed to list machines for machine set %s: %w", machineSet.Name, err)
+			return fmt.Errorf("failed to list machines for machine set %s: %w", oldMachineSet.Name, err)
 		}
 
-		if len(oldMachines) < int(machineSet.Spec.Replicas) {
-			_, _, err := dc.scaleMachineSetAndRecordEvent(ctx, machineSet, int32(len(oldMachines)), deployment) // #nosec G115 (CWE-190) -- value already validated
+		if len(oldMachines) < int(oldMachineSet.Spec.Replicas) {
+			_, _, err := dc.scaleMachineSetAndRecordEvent(ctx, oldMachineSet, int32(len(oldMachines)), deployment) // #nosec G115 (CWE-190) -- value already validated
 			if err != nil {
-				return fmt.Errorf("failed to scale down machine set %s: %w", machineSet.Name, err)
+				return fmt.Errorf("failed to scale down machine set %s: %w", oldMachineSet.Name, err)
 			}
-			klog.V(3).Infof("scaled down machine set %s to %d", machineSet.Name, len(oldMachines))
+			klog.V(3).Infof("scaled down machine set %s to %d", oldMachineSet.Name, len(oldMachines))
 		}
 	}
 
@@ -236,17 +236,17 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 		return scaled, err
 	}
 
-	addedNewReplicasCount := int32(0)
+	var addedNewReplicasCount int32
 
-	for _, machineSet := range oldMachineSets {
+	for _, oldMachineSet := range oldMachineSets {
 		transferredMachineCount := int32(0)
 		// get the machines for the machine set
-		oldMachines, err := dc.machineLister.List(labels.SelectorFromSet(machineSet.Spec.Selector.MatchLabels))
+		oldMachines, err := dc.machineLister.List(labels.SelectorFromSet(oldMachineSet.Spec.Selector.MatchLabels))
 		if err != nil {
 			return false, err
 		}
 
-		klog.V(3).Infof("Found %d machine(s) in old machine set %s", len(oldMachines), machineSet.Name)
+		klog.V(3).Infof("Found %d machine(s) in old machine set %s", len(oldMachines), oldMachineSet.Name)
 
 		for _, oldMachine := range oldMachines {
 			nodeName, ok := oldMachine.Labels[v1alpha1.NodeLabelKey]
@@ -272,10 +272,10 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 
 			// removes labels not present in newMachineSet so that the machine is not selected by the old machine set
 			machineNewLabels := MergeStringMaps(
-				MergeWithOverwriteAndFilter(oldMachine.Labels, machineSet.Spec.Selector.MatchLabels, newMachineSet.Spec.Selector.MatchLabels),
+				MergeWithOverwriteAndFilter(oldMachine.Labels, oldMachineSet.Spec.Selector.MatchLabels, newMachineSet.Spec.Selector.MatchLabels),
 				map[string]string{v1alpha1.LabelKeyNodeUpdateResult: v1alpha1.LabelValueNodeUpdateSuccessful})
 
-			formattedLabels, err := labelsutil.GetFormattedLabels(machineNewLabels)
+			formattedLabels, err := labelsutil.GetLabelsAsJSONBytes(machineNewLabels)
 			if err != nil {
 				return false, err
 			}
@@ -303,12 +303,12 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 		}
 
 		if transferredMachineCount == 0 {
-			klog.V(3).Infof("no machines transferred from machine set %s", machineSet.Name)
+			klog.V(3).Infof("no machines transferred from machine set %s", oldMachineSet.Name)
 			continue
 		}
 
-		klog.V(3).Infof("%d machine(s) transferred to new machine set. scaling down machine set %s", transferredMachineCount, machineSet.Name)
-		_, _, err = dc.scaleMachineSetAndRecordEvent(ctx, machineSet, machineSet.Spec.Replicas-transferredMachineCount, deployment)
+		klog.V(3).Infof("%d machine(s) transferred to new machine set. scaling down machine set %s", transferredMachineCount, oldMachineSet.Name)
+		_, _, err = dc.scaleMachineSetAndRecordEvent(ctx, oldMachineSet, oldMachineSet.Spec.Replicas-transferredMachineCount, deployment)
 		if err != nil {
 			klog.Errorf("scale down failed %s", err)
 			return false, err
@@ -424,7 +424,7 @@ func (dc *controller) selectNumOfMachineForUpdate(ctx context.Context, allMachin
 	return totalSelectedForUpdate, nil
 }
 
-// labelNodesBackingMachineSets annotates all nodes backing the machineSets
+// labelNodesBackingMachineSets labels all nodes belonging to the machineSets
 func (dc *controller) labelNodesBackingMachineSets(ctx context.Context, machineSets []*v1alpha1.MachineSet, labelKey, labelValue string) error {
 	for _, machineSet := range machineSets {
 
@@ -564,7 +564,7 @@ func (dc *controller) labelMachineSets(ctx context.Context, MachineSets []*v1alp
 		}
 
 		labels := MergeStringMaps(machineSet.Labels, labels)
-		formattedLabels, err := labelsutil.GetFormattedLabels(labels)
+		formattedLabels, err := labelsutil.GetLabelsAsJSONBytes(labels)
 		if err != nil {
 			return err
 		}

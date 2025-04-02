@@ -749,7 +749,7 @@ func GetNewMachineSet(ctx context.Context, deployment *v1alpha1.MachineDeploymen
 }
 
 func filterMachinesWithUpdateSuccessfulLabel(machines []*v1alpha1.Machine) []*v1alpha1.Machine {
-	machinesWithUpdateSuccessfulLabel := make([]*v1alpha1.Machine, 0)
+	machinesWithUpdateSuccessfulLabel := make([]*v1alpha1.Machine, 0, len(machines))
 	for _, machine := range machines {
 		if labelValue, ok := machine.Labels[v1alpha1.LabelKeyNodeUpdateResult]; ok && labelValue == v1alpha1.LabelValueNodeUpdateSuccessful {
 			cond := getMachineCondition(machine, v1alpha1.NodeInPlaceUpdate)
