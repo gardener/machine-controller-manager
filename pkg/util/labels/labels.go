@@ -131,8 +131,8 @@ func SelectorHasLabel(selector *metav1.LabelSelector, labelKey string) bool {
 	return len(selector.MatchLabels[labelKey]) > 0
 }
 
-// GetFormattedLabels retun labels in `json` format.
-func GetFormattedLabels(labels map[string]string) ([]byte, error) {
+// GetLabelsAsJSONBytes retun labels in `json` format.
+func GetLabelsAsJSONBytes(labels map[string]string) ([]byte, error) {
 	patchBytes, err := json.Marshal(labels)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling patch data: %v", err)
