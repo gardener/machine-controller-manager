@@ -26,31 +26,29 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"reflect"
 	"sort"
 	"sync"
 	"time"
 
-	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
-	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	errorsutil "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/client-go/util/retry"
-
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/utils/integer"
-
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/integer"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 const (
@@ -337,8 +335,15 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		return nil
 	}
 
-	var activeMachines, staleMachines []*v1alpha1.Machine
+	var activeMachines, staleMachines, machinesWithUpdateSuccessfulLabel []*v1alpha1.Machine
 	for _, m := range allMachines {
+		// Skip machines that are in the process of being updated.
+		if m.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateSuccessful {
+			klog.V(3).Infof("Ignoring machine %s moved to new machine set during inplace update", m.Name)
+			machinesWithUpdateSuccessfulLabel = append(machinesWithUpdateSuccessfulLabel, m)
+			continue
+		}
+
 		if machineutils.IsMachineFailed(m) || machineutils.IsMachineTriggeredForDeletion(m) {
 			staleMachines = append(staleMachines, m)
 		} else if machineutils.IsMachineActive(m) {
@@ -355,12 +360,37 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	}
 
 	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
+	// Removing the "update successful" label from a machine and scaling up the MachineSet are two separate operations.
+	// If the MachineSet is scaled up first and the "update successful" label is removed later, this controller might
+	// incorrectly assume that additional machines need to be created, as it ignores machines with the "update successful" label.
+	// Conversely, if the "update successful" label is removed first and the MachineSet is scaled up afterward, this controller
+	// might incorrectly assume that more machines need to be deleted, as machines without the label will be counted as active.
+	// To address this, we first check if the difference between the current active replicas and the desired replicas is negative.
+	// If it is, we then check if the difference plus the number of machines with the "update successful" label is greater than or equal to 0.
+	// In such cases, we set the difference to 0 because it is unclear whether the machine deployment controller still needs to increase
+	// the replicas of the MachineSet. Once the machine deployment controller removes the "update successful" label, the ambiguity will
+	// be resolved, and normal operations can proceed. This approach ensures that the controller does not create additional machines
+	// if the MachineSet is scaled up before the "update successful" label is removed.
+	if diff < 0 {
+		if diff+len(machinesWithUpdateSuccessfulLabel) >= 0 {
+			return nil
+		}
+		diff += len(machinesWithUpdateSuccessfulLabel)
+	}
+
 	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
 
 	if diff < 0 {
 		// If MachineSet is frozen and no deletion timestamp, don't process it
 		if machineSet.Labels["freeze"] == "True" && machineSet.DeletionTimestamp == nil {
 			klog.V(2).Infof("MachineSet %q is frozen, and hence not processing", machineSet.Name)
+			return nil
+		}
+
+		// This case handles old MachineSets to prevent them from creating new machines when a machine is transferred to a new MachineSet,
+		// but the replica count has not been updated yet.
+		if _, ok := machineSet.Labels[machineutils.LabelKeyMachineSetScaleUpDisabled]; ok {
+			klog.V(2).Infof("MachineSet %s has label %s, and hence not creating new machines for it", machineSet.Name, machineutils.LabelKeyMachineSetScaleUpDisabled)
 			return nil
 		}
 

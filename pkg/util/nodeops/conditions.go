@@ -46,8 +46,8 @@ func AddOrUpdateCondition(node *v1.Node, condition v1.NodeCondition) *v1.Node {
 	return newNode
 }
 
-// getNodeCondition returns a condition matching the type from the node's status
-func getNodeCondition(node *v1.Node, conditionType v1.NodeConditionType) *v1.NodeCondition {
+// GetCondition returns a condition matching the type from the node's status
+func GetCondition(node *v1.Node, conditionType v1.NodeConditionType) *v1.NodeCondition {
 	for _, cond := range node.Status.Conditions {
 		if cond.Type == conditionType {
 			return &cond
@@ -62,7 +62,7 @@ func GetNodeCondition(ctx context.Context, c clientset.Interface, nodeName strin
 	if err != nil {
 		return nil, err
 	}
-	return getNodeCondition(node, conditionType), nil
+	return GetCondition(node, conditionType), nil
 }
 
 // AddOrUpdateConditionsOnNode adds a condition to the node's status
