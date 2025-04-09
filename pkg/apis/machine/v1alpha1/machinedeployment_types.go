@@ -249,8 +249,8 @@ const (
 	// or deleted.
 	MachineDeploymentReplicaFailure MachineDeploymentConditionType = "ReplicaFailure"
 
-	// MachineDeploymentFrozen is added in a MachineDeployment when one of its machines fails to be created
-	// or deleted.
+	// MachineDeploymentFrozen is added in a MachineDeployment when one of its
+	// machineSet has either the "freeze" label or the "Frozen" condition on it.
 	MachineDeploymentFrozen MachineDeploymentConditionType = "Frozen"
 )
 
