@@ -290,8 +290,8 @@ const (
 	// NodeInPlaceUpdate is a node condition type for in-place update
 	NodeInPlaceUpdate corev1.NodeConditionType = "InPlaceUpdate"
 
-	// UpdateCandidate is a constant for reason in condition that indicates node is candidate for update
-	UpdateCandidate string = "UpdateCandidate"
+	// CandidateForUpdate is a constant for reason in condition that indicates node is candidate for update
+	CandidateForUpdate string = "CandidateForUpdate"
 
 	// SelectedForUpdate is a constant for reason in condition that indicates node is selected for update
 	SelectedForUpdate string = "SelectedForUpdate"

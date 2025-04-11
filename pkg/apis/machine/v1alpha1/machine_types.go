@@ -220,17 +220,17 @@ const (
 	// NodeInPlaceUpdate is a node condition type for in-place update
 	NodeInPlaceUpdate corev1.NodeConditionType = "InPlaceUpdate"
 
-	// UpdateCandidate is a constant for reason in condition that indicates node is candidate for update
-	UpdateCandidate string = "UpdateCandidate"
+	// CandidateForUpdate is a constant for reason in condition that indicates node is candidate for update
+	CandidateForUpdate string = "CandidateForUpdate"
 
 	// SelectedForUpdate is a constant for reason in condition that indicates node is selected for update
 	SelectedForUpdate string = "SelectedForUpdate"
 
-	// DrainSuccessful is a constant for reason in condition that indicates node drain is successful
-	DrainSuccessful string = "DrainSuccessful"
-
 	// ReadyForUpdate is a constant for reason in condition that indicates node is ready for update
 	ReadyForUpdate string = "ReadyForUpdate"
+
+	// DrainSuccessful is a constant for reason in condition that indicates node drain is successful
+	DrainSuccessful string = "DrainSuccessful"
 
 	// UpdateSuccessful is a constant for reason in condition that indicates update succeeded
 	UpdateSuccessful string = "UpdateSuccessful"
