@@ -151,6 +151,15 @@ const (
 
 	// MachineCrashLoopBackOff means machine creation is failing. It means that machine object is present but there is no corresponding VM.
 	MachineCrashLoopBackOff MachinePhase = "CrashLoopBackOff"
+
+	// MachineInPlaceUpdating means machine is being updated in-place
+	MachineInPlaceUpdating MachinePhase = "InPlaceUpdating"
+
+	// MachineInPlaceUpdateSuccessful means machine in-place update was successful
+	MachineInPlaceUpdateSuccessful MachinePhase = "InPlaceUpdateSuccessful"
+
+	// MachineInPlaceUpdateFailed means machine in-place update failed
+	MachineInPlaceUpdateFailed MachinePhase = "InPlaceUpdateFailed"
 )
 
 // MachineState is a current state of the operation.
@@ -179,6 +188,12 @@ const (
 	// MachineOperationUpdate indicates that the operation was an update
 	MachineOperationUpdate MachineOperationType = "Update"
 
+	// MachineOperationInPlaceUpdate indicates that the operation was an in-place update
+	MachineOperationInPlaceUpdate MachineOperationType = "InPlaceUpdate"
+
+	// MachineOperationDrainNode indicates that the operation was a drain node
+	MachineOperationDrainNode MachineOperationType = "DrainNode"
+
 	// MachineOperationHealthCheck indicates that the operation was a health check of node object
 	MachineOperationHealthCheck MachineOperationType = "HealthCheck"
 
@@ -199,6 +214,29 @@ const (
 	ConditionTrue    ConditionStatus = "True"
 	ConditionFalse   ConditionStatus = "False"
 	ConditionUnknown ConditionStatus = "Unknown"
+)
+
+const (
+	// NodeInPlaceUpdate is a node condition type for in-place update
+	NodeInPlaceUpdate corev1.NodeConditionType = "InPlaceUpdate"
+
+	// CandidateForUpdate is a constant for reason in condition that indicates node is candidate for update
+	CandidateForUpdate string = "CandidateForUpdate"
+
+	// SelectedForUpdate is a constant for reason in condition that indicates node is selected for update
+	SelectedForUpdate string = "SelectedForUpdate"
+
+	// ReadyForUpdate is a constant for reason in condition that indicates node is ready for update
+	ReadyForUpdate string = "ReadyForUpdate"
+
+	// DrainSuccessful is a constant for reason in condition that indicates node drain is successful
+	DrainSuccessful string = "DrainSuccessful"
+
+	// UpdateSuccessful is a constant for reason in condition that indicates update succeeded
+	UpdateSuccessful string = "UpdateSuccessful"
+
+	// UpdateFailed is a constant for reason in condition that indicates update failed
+	UpdateFailed string = "UpdateFailed"
 )
 
 // CurrentStatus contains information about the current status of Machine.
