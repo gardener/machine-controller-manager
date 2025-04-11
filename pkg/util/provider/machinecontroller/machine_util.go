@@ -508,6 +508,9 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 	machineErr, ok := status.FromError(err)
 	if ok {
 		switch machineErr.Code() {
+		case codes.ResourceExhausted:
+			retryRequired = machineutils.LongRetry
+			lastKnownState = machine.Status.LastKnownState
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 			retryRequired = machineutils.ShortRetry
 			lastKnownState = machine.Status.LastKnownState
