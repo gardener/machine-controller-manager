@@ -6,8 +6,11 @@
 TOOLS_DIR := hack/tools
 include hack/tools.mk
 
+REPOSITORY         := $(shell go list -m)
 IMAGE_REPOSITORY   := europe-docker.pkg.dev/gardener-project/public/gardener/machine-controller-manager
-IMAGE_TAG          := $(shell cat VERSION)
+VERSION            := $(shell cat VERSION)
+IMAGE_TAG          := $(VERSION)
+GIT_SHA            := $(shell git rev-parse --short HEAD || echo "GitNotFound")
 COVERPROFILE       := test/output/coverprofile.out
 
 LEADER_ELECT 	   ?= "true" # If LEADER_ELECT is not set in the environment, use the default value "true"
@@ -89,6 +92,7 @@ non-gardener-restore:
 .PHONY: start
 start:
 	@GO111MODULE=on go run \
+			-ldflags "-w -X ${REPOSITORY}/pkg/version.Version=${VERSION} -X ${REPOSITORY}/pkg/version.GitSHA=${GIT_SHA}" \
 			cmd/machine-controller-manager/controller_manager.go \
 			--control-kubeconfig=${CONTROL_KUBECONFIG} \
 			--target-kubeconfig=${TARGET_KUBECONFIG} \

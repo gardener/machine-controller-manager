@@ -28,11 +28,22 @@ else
   export BINARY_PATH="$(${READLINK_BIN} -f "${BINARY_PATH}")/bin"
 fi
 
-cd "${SOURCE_PATH}"
+VCS="github.com"
+ORGANIZATION="gardener"
+PROJECT="machine-controller-manager"
+REPOSITORY=${VCS}/${ORGANIZATION}/${PROJECT}
+GIT_SHA="${GIT_SHA:-$(git rev-parse --short HEAD || echo "GitNotFound")}"
+
+cd "${SOURCE_PATH}" 
 
 ###############################################################################
+
+VERSION_FILE="$(${READLINK_BIN}  -f "${SOURCE_PATH}/VERSION")"
+VERSION="${VERSION:-"$(cat "${VERSION_FILE}")"}"
+GIT_SHA="${GIT_SHA:-$(git rev-parse --short HEAD || echo "GitNotFound")}"
 
 CGO_ENABLED=0 GO111MODULE=on go build \
   -v \
   -o "${BINARY_PATH}/machine-controller-manager" \
+	-ldflags "-w -X ${REPOSITORY}/pkg/version.Version=${VERSION} -X ${REPOSITORY}/pkg/version.GitSHA=${GIT_SHA}" \
   cmd/machine-controller-manager/controller_manager.go
