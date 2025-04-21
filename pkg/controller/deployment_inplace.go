@@ -7,6 +7,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sort"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -213,6 +214,8 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 }
 
 func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMachineSets []*v1alpha1.MachineSet, newMachineSet *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
+	klog.V(3).Infof("reconcile new machine set %q having replicas %d", newMachineSet.Name, newMachineSet.Spec.Replicas)
+
 	if newMachineSet.Spec.Replicas == deployment.Spec.Replicas {
 		// Scaling not required.
 		return false, nil
@@ -223,8 +226,6 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 		scaled, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newMachineSet, deployment.Spec.Replicas, deployment)
 		return scaled, err
 	}
-
-	klog.V(3).Infof("reconcile new machine set %s", newMachineSet.Name)
 
 	oldMachinesCount := GetReplicaCountForMachineSets(oldMachineSets)
 	if oldMachinesCount == 0 {
@@ -270,12 +271,11 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 
 			klog.V(3).Infof("Attempting to transfer machine %s to new machine set %s", oldMachine.Name, newMachineSet.Name)
 
-			// removes labels not present in newMachineSet so that the machine is not selected by the old machine set
-			machineNewLabels := MergeStringMaps(
-				MergeWithOverwriteAndFilter(oldMachine.Labels, oldMachineSet.Spec.Selector.MatchLabels, newMachineSet.Spec.Selector.MatchLabels),
-				map[string]string{v1alpha1.LabelKeyNodeUpdateResult: v1alpha1.LabelValueNodeUpdateSuccessful})
+			labelsUniqueToOldMachine := removeLabelsNotCommingFromMachineSet(oldMachine.Labels, oldMachineSet.Spec.Selector.MatchLabels)
+			maps.Copy(labelsUniqueToOldMachine, newMachineSet.Spec.Selector.MatchLabels)
+			machineNewLabels := MergeStringMaps(labelsUniqueToOldMachine, map[string]string{v1alpha1.LabelKeyNodeUpdateResult: v1alpha1.LabelValueNodeUpdateSuccessful})
 
-			formattedLabels, err := labelsutil.GetLabelsAsJSONBytes(machineNewLabels)
+			labelsJSONBytes, err := labelsutil.GetLabelsAsJSONBytes(machineNewLabels)
 			if err != nil {
 				return false, err
 			}
@@ -283,7 +283,7 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 			addControllerPatch := fmt.Sprintf(
 				`{"metadata":{"ownerReferences":[{"apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"labels":%s,"uid":"%s"}}`,
 				v1alpha1.SchemeGroupVersion.WithKind("MachineSet"),
-				newMachineSet.GetName(), newMachineSet.GetUID(), string(formattedLabels), oldMachine.UID)
+				newMachineSet.GetName(), newMachineSet.GetUID(), string(labelsJSONBytes), oldMachine.UID)
 
 			err = dc.machineControl.PatchMachine(ctx, oldMachine.Namespace, oldMachine.Name, []byte(addControllerPatch))
 			if err != nil {
@@ -397,23 +397,23 @@ func (dc *controller) selectNumOfMachineForUpdate(ctx context.Context, allMachin
 
 	totalSelectedForUpdate := int32(0)
 	maxSelectableForUpdate := min(availableMachineCount-minAvailable, max(deployment.Spec.Replicas-newMachineSet.Spec.Replicas, 0))
-	for _, targetIS := range oldMachineSets {
+	for _, targetMachineSet := range oldMachineSets {
 		if totalSelectedForUpdate >= maxSelectableForUpdate {
 			// No further updating required.
 			break
 		}
-		if (targetIS.Spec.Replicas) == 0 {
+		if (targetMachineSet.Spec.Replicas) == 0 {
 			// cannot pick this ReplicaSet.
 			continue
 		}
 		// prepare for update
-		readyForUpdateCount := integer.Int32Min(targetIS.Spec.Replicas, maxSelectableForUpdate-totalSelectedForUpdate) // #nosec G115 (CWE-190) -- value already validated
-		newReplicasCount := targetIS.Spec.Replicas - readyForUpdateCount
+		readyForUpdateCount := integer.Int32Min(targetMachineSet.Spec.Replicas, maxSelectableForUpdate-totalSelectedForUpdate) // #nosec G115 (CWE-190) -- value already validated
+		newReplicasCount := targetMachineSet.Spec.Replicas - readyForUpdateCount
 
-		if newReplicasCount > targetIS.Spec.Replicas {
-			return 0, fmt.Errorf("when selecting machine from old IS for update, got invalid request %s %d -> %d", targetIS.Name, targetIS.Spec.Replicas, newReplicasCount)
+		if newReplicasCount > targetMachineSet.Spec.Replicas {
+			return 0, fmt.Errorf("when selecting machine from old IS for update, got invalid request %s %d -> %d", targetMachineSet.Name, targetMachineSet.Spec.Replicas, newReplicasCount)
 		}
-		selectedFromCurrentMachineSet, err := dc.labelMachinesToSelectedForUpdate(ctx, targetIS, readyForUpdateCount)
+		selectedFromCurrentMachineSet, err := dc.labelMachinesToSelectedForUpdate(ctx, targetMachineSet, readyForUpdateCount)
 		if err != nil {
 			return totalSelectedForUpdate + selectedFromCurrentMachineSet, err
 		}
@@ -581,4 +581,16 @@ func (dc *controller) labelMachineSets(ctx context.Context, MachineSets []*v1alp
 
 func isUpdateNotSuccessful(condition *v1.NodeCondition, labels map[string]string) bool {
 	return condition == nil || condition.Reason != v1alpha1.UpdateSuccessful || labels[v1alpha1.LabelKeyNodeUpdateResult] != v1alpha1.LabelValueNodeUpdateSuccessful
+}
+
+func removeLabelsNotCommingFromMachineSet(map1, map2 map[string]string) map[string]string {
+	out := make(map[string]string, len(map1))
+
+	maps.Copy(out, map1)
+
+	for k := range map2 {
+		delete(out, k)
+	}
+
+	return out
 }

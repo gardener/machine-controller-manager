@@ -1292,27 +1292,6 @@ func statusUpdateRequired(old v1alpha1.MachineDeploymentStatus, new v1alpha1.Mac
 	return true
 }
 
-// MergeWithOverwriteAndFilter returns a new map containing keys and values from the `currentMap` map
-// that are not present in `oldMap`, combined with all keys and values from `newMap`.
-// If a key exists in both `currentMap` and `newMap`, the value from `newMap` is used.
-// This effectively merges the maps while overwriting and filtering as described.
-func MergeWithOverwriteAndFilter[T any](currentMap, oldMap, newMap map[string]T) map[string]T {
-	out := make(map[string]T, len(newMap))
-
-	// copy the keys and values from the current map that are not present in the oldIS.
-	for k := range currentMap {
-		if _, ok := oldMap[k]; !ok {
-			out[k] = currentMap[k]
-		}
-	}
-
-	for k := range newMap {
-		out[k] = newMap[k]
-	}
-
-	return out
-}
-
 // MergeStringMaps merges the content of the newMaps with the oldMap. If a key already exists then
 // it gets overwritten by the last value with the same key.
 func MergeStringMaps[T any](oldMap map[string]T, newMaps ...map[string]T) map[string]T {
