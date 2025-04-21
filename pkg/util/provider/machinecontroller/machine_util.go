@@ -300,7 +300,7 @@ func (c *controller) updateNodeConditionBasedOnLabel(ctx context.Context, machin
 			Type:               v1alpha1.NodeInPlaceUpdate,
 			Status:             v1.ConditionTrue,
 			LastTransitionTime: metav1.Now(),
-			Reason:             v1alpha1.UpdateCandidate,
+			Reason:             v1alpha1.CandidateForUpdate,
 			Message:            "Node is a candidate for in-place update",
 		})
 		updateCondition = true
@@ -308,7 +308,7 @@ func (c *controller) updateNodeConditionBasedOnLabel(ctx context.Context, machin
 
 	if !updateCondition {
 		if _, ok := nodeCopy.Labels[v1alpha1.LabelKeyNodeSelectedForUpdate]; ok {
-			if inPlaceCond.Reason == v1alpha1.UpdateCandidate {
+			if inPlaceCond.Reason == v1alpha1.CandidateForUpdate {
 				nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, v1.NodeCondition{
 					Type:               v1alpha1.NodeInPlaceUpdate,
 					Status:             v1.ConditionTrue,
