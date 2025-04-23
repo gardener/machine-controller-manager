@@ -56,6 +56,7 @@ import (
 	storageclient "k8s.io/client-go/kubernetes/typed/storage/v1"
 	storagelisters "k8s.io/client-go/listers/storage/v1"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 )
 
 // emptyMap is a dummy emptyMap to compare with
@@ -204,7 +205,7 @@ func nodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions [
 	// checking for any added/updated new condition
 	for _, c := range newConditions {
 		oldC, exists := oldConditionsByType[c.Type]
-		if !exists || (oldC.Status != c.Status) {
+		if !exists || (oldC.Status != c.Status) || (c.Type == v1alpha1.NodeInPlaceUpdate && oldC.Reason != c.Reason) {
 			addedOrUpdatedConditions = append(addedOrUpdatedConditions, c)
 		}
 	}
@@ -263,6 +264,225 @@ func (c *controller) syncMachineNameToNode(ctx context.Context, machine *v1alpha
 	}
 
 	return machineutils.LongRetry, nil
+}
+
+func (c *controller) updateNodeConditionBasedOnLabel(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+	node, err := c.nodeLister.Get(getNodeName(machine))
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Don't return error so that other steps can be executed.
+			return machineutils.LongRetry, nil
+		}
+		klog.Errorf("Error occurred while trying to fetch node object - err: %s", err)
+		return machineutils.ShortRetry, err
+	}
+
+	if !metav1.HasLabel(node.ObjectMeta, v1alpha1.LabelKeyNodeCandidateForUpdate) {
+		return machineutils.LongRetry, nil
+	}
+
+	nodeCopy := node.DeepCopy()
+
+	if nodeCopy.Labels == nil {
+		nodeCopy.Labels = make(map[string]string)
+	}
+
+	inPlaceCond := nodeops.GetCondition(nodeCopy, v1alpha1.NodeInPlaceUpdate)
+	updateCondition := false
+
+	// If the condition is not present, the in-place update is being initiated for the first time.
+	// In some cases, the node might already have the "selected for update" label, allowing the condition to be directly set to "selected for update."
+	// However, this approach could complicate handling, as it would require addressing scenarios where the node is marked as selected for update but has not yet been drained.
+	// If the condition is present and marked as update successful, we check if the node lacks the "update result" label.
+	// This ensures that the condition is not reverted from update successful to update candidate, as the node will already have the "update result" label from the same update process.
+	if inPlaceCond == nil || (inPlaceCond.Reason == v1alpha1.UpdateSuccessful && !metav1.HasLabel(nodeCopy.ObjectMeta, v1alpha1.LabelKeyNodeUpdateResult)) {
+		nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, v1.NodeCondition{
+			Type:               v1alpha1.NodeInPlaceUpdate,
+			Status:             v1.ConditionTrue,
+			LastTransitionTime: metav1.Now(),
+			Reason:             v1alpha1.CandidateForUpdate,
+			Message:            "Node is a candidate for in-place update",
+		})
+		updateCondition = true
+	}
+
+	if !updateCondition {
+		if _, ok := nodeCopy.Labels[v1alpha1.LabelKeyNodeSelectedForUpdate]; ok {
+			if inPlaceCond.Reason == v1alpha1.CandidateForUpdate {
+				nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, v1.NodeCondition{
+					Type:               v1alpha1.NodeInPlaceUpdate,
+					Status:             v1.ConditionTrue,
+					LastTransitionTime: metav1.Now(),
+					Reason:             v1alpha1.SelectedForUpdate,
+					Message:            "Node is selected for in-place update",
+				})
+				updateCondition = true
+			} else if inPlaceCond.Reason == v1alpha1.SelectedForUpdate {
+				// node still not has been drained
+				return machineutils.MediumRetry, nil
+			}
+		}
+	}
+
+	if !updateCondition {
+		if nodeCopy.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateSuccessful {
+			if inPlaceCond != nil && inPlaceCond.Reason == v1alpha1.UpdateSuccessful {
+				return machineutils.LongRetry, nil
+			}
+			nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, v1.NodeCondition{
+				Type:               v1alpha1.NodeInPlaceUpdate,
+				Status:             v1.ConditionTrue,
+				LastTransitionTime: metav1.Now(),
+				Reason:             v1alpha1.UpdateSuccessful,
+				Message:            "Node in-place update successful",
+			})
+			updateCondition = true
+		} else if nodeCopy.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateFailed {
+			if inPlaceCond != nil && inPlaceCond.Reason == v1alpha1.UpdateFailed {
+				return machineutils.LongRetry, nil
+			}
+
+			nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, v1.NodeCondition{
+				Type:               v1alpha1.NodeInPlaceUpdate,
+				Status:             v1.ConditionTrue,
+				LastTransitionTime: metav1.Now(),
+				Reason:             v1alpha1.UpdateFailed,
+				Message:            fmt.Sprintf("Node in-place update failed: %v", nodeCopy.Annotations[v1alpha1.AnnotationKeyMachineUpdateFailedReason]),
+			})
+			updateCondition = true
+		}
+	}
+
+	if updateCondition {
+		if _, err := c.targetCoreClient.CoreV1().Nodes().UpdateStatus(ctx, nodeCopy, metav1.UpdateOptions{}); err != nil {
+			if apierrors.IsConflict(err) {
+				return machineutils.ConflictRetry, err
+			}
+			return machineutils.ShortRetry, err
+		}
+	}
+
+	return machineutils.LongRetry, nil
+}
+
+func (c *controller) inPlaceUpdate(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+	cond, err := nodeops.GetNodeCondition(ctx, c.targetCoreClient, getNodeName(machine), v1alpha1.NodeInPlaceUpdate)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Don't return error so that other steps can be executed.
+			return machineutils.LongRetry, nil
+		}
+		return machineutils.ShortRetry, err
+	}
+
+	if cond == nil {
+		return machineutils.LongRetry, nil
+	}
+
+	// if the condition is present and the reason is selected for update then drain the node
+	if cond.Reason == v1alpha1.SelectedForUpdate {
+		retry, err := c.drainNodeForInPlace(ctx, machine)
+		if err != nil {
+			return retry, err
+		}
+
+		// if the node is drained successfully then fetch the node condition again
+		cond, err = nodeops.GetNodeCondition(ctx, c.targetCoreClient, getNodeName(machine), v1alpha1.NodeInPlaceUpdate)
+		if err != nil {
+			return machineutils.ShortRetry, err
+		}
+	}
+
+	if cond.Reason == v1alpha1.ReadyForUpdate {
+		// give machine time for update to get applied
+		return machineutils.MediumRetry, fmt.Errorf("node %s is ready for in-place update", getNodeName(machine))
+	}
+
+	// if the condition is present and the reason is drain successful then the node is ready for update
+	if cond.Reason == v1alpha1.DrainSuccessful {
+		cond.Reason = v1alpha1.ReadyForUpdate
+		cond.LastTransitionTime = metav1.Now()
+		cond.Message = "Node is ready for in-place update"
+		if err := nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, getNodeName(machine), *cond); err != nil {
+			return machineutils.ShortRetry, err
+		}
+		// give machine time for update to get applied
+		return machineutils.MediumRetry, fmt.Errorf("node %s is ready for in-place update", getNodeName(machine))
+	}
+
+	return machineutils.LongRetry, nil
+}
+
+func (c *controller) updateMachineStatusAndNodeCondition(ctx context.Context, machine *v1alpha1.Machine, description string, state v1alpha1.MachineState, drainError error) (machineutils.RetryPeriod, error) {
+	if drainError != nil {
+		updateRetryPeriod, updateErr := c.machineStatusUpdate(
+			ctx,
+			machine,
+			v1alpha1.LastOperation{
+				Description:    description,
+				State:          state,
+				Type:           v1alpha1.MachineOperationDrainNode,
+				LastUpdateTime: metav1.Now(),
+			},
+			// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
+			// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
+			// Ref - https://github.com/gardener/machine-controller-manager/blob/rel-v0.34.0/pkg/util/provider/machinecontroller/machine_util.go#L872
+			machine.Status.CurrentStatus,
+			machine.Status.LastKnownState,
+		)
+
+		if updateErr != nil {
+			return updateRetryPeriod, updateErr
+		}
+
+		return machineutils.ShortRetry, drainError
+	}
+
+	// update machine status to indicate that the machine will undergo an in-place update
+	description = fmt.Sprintf("Machine %s is undergoing an in-place update", machine.Name)
+	klog.V(2).Infof("%s with backing node %q is undergoing an in-place update", description, getNodeName(machine))
+
+	machine.Status.CurrentStatus = v1alpha1.CurrentStatus{
+		Phase:          v1alpha1.MachineInPlaceUpdating,
+		LastUpdateTime: metav1.Now(),
+	}
+	machine.Status.LastOperation = v1alpha1.LastOperation{
+		Description:    description,
+		State:          v1alpha1.MachineStateProcessing,
+		Type:           v1alpha1.MachineOperationInPlaceUpdate,
+		LastUpdateTime: metav1.Now(),
+	}
+
+	if _, err := c.controlMachineClient.Machines(machine.Namespace).UpdateStatus(ctx, machine, metav1.UpdateOptions{}); err != nil {
+		// Keep retrying across reconciles until update goes through
+		klog.Errorf("Update of Phase/Conditions failed for machine %q. Retrying, error: %q", machine.Name, err)
+		if apierrors.IsConflict(err) {
+			return machineutils.ConflictRetry, err
+		}
+	}
+
+	cond, err := nodeops.GetNodeCondition(ctx, c.targetCoreClient, getNodeName(machine), v1alpha1.NodeInPlaceUpdate)
+	if err != nil {
+		return machineutils.ShortRetry, err
+	}
+
+	if cond == nil {
+		// Add the condition to the node
+		cond = &v1.NodeCondition{
+			Type: v1alpha1.NodeInPlaceUpdate,
+		}
+	}
+
+	cond.Status = v1.ConditionTrue
+	cond.LastTransitionTime = metav1.Now()
+	cond.Reason = v1alpha1.DrainSuccessful
+	cond.Message = "Node draining successful"
+
+	if err := nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, getNodeName(machine), *cond); err != nil {
+		return machineutils.ShortRetry, err
+	}
+
+	return machineutils.ShortRetry, err
 }
 
 // syncMachineNodeTemplate syncs nodeTemplates between machine and corresponding node-object.
@@ -663,56 +883,97 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			cloneDirty = true
 		}
 
-		if c.isHealthy(clone) {
-			if clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning && !isPendingMachineWithCriticalComponentsNotReadyTaint(clone, node) {
-				if clone.Status.LastOperation.Type == v1alpha1.MachineOperationCreate &&
-					clone.Status.LastOperation.State != v1alpha1.MachineStateSuccessful {
-					// When machine creation went through
-					description = fmt.Sprintf("Machine %s successfully joined the cluster", clone.Name)
-					lastOperationType = v1alpha1.MachineOperationCreate
+		// During the period when the machine is undergoing an in-place update or has failed to update,
+		// we cannot definitively determine if the machine is healthy.
+		// Because if the machine failed to update in-place, the severity of the failure is uncertain.
+		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdating && machine.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdateFailed {
+			if c.isHealthy(clone) {
+				if clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning && !isPendingMachineWithCriticalComponentsNotReadyTaint(clone, node) {
+					if clone.Status.LastOperation.Type == v1alpha1.MachineOperationCreate &&
+						clone.Status.LastOperation.State != v1alpha1.MachineStateSuccessful {
+						// When machine creation went through
+						description = fmt.Sprintf("Machine %s successfully joined the cluster", clone.Name)
+						lastOperationType = v1alpha1.MachineOperationCreate
 
-					// Delete the bootstrap token
-					err = c.deleteBootstrapToken(ctx, clone.Name)
-					if err != nil {
-						klog.Warning(err)
+						// Delete the bootstrap token
+						err = c.deleteBootstrapToken(ctx, clone.Name)
+						if err != nil {
+							klog.Warning(err)
+						}
+					} else {
+						// Machine rejoined the cluster after a health-check
+						description = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
+						lastOperationType = v1alpha1.MachineOperationHealthCheck
 					}
-				} else {
-					// Machine rejoined the cluster after a health-check
-					description = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
-					lastOperationType = v1alpha1.MachineOperationHealthCheck
-				}
-				klog.V(2).Infof("%s with backing node %q and providerID %q", description, getNodeName(clone), getProviderID(clone))
+					klog.V(2).Infof("%s with backing node %q and providerID %q", description, getNodeName(clone), getProviderID(clone))
 
-				// Machine is ready and has joined/re-joined the cluster
+					// Machine is ready and has joined/re-joined the cluster
+					clone.Status.LastOperation = v1alpha1.LastOperation{
+						Description:    description,
+						State:          v1alpha1.MachineStateSuccessful,
+						Type:           lastOperationType,
+						LastUpdateTime: metav1.Now(),
+					}
+					clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+						Phase: v1alpha1.MachineRunning,
+						// TimeoutActive:  false,
+						LastUpdateTime: metav1.Now(),
+					}
+					cloneDirty = true
+				}
+			} else {
+				if clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+					// If machine is not healthy, and current phase is Running,
+					// change the machinePhase to Unknown and activate health check timeout
+					description = fmt.Sprintf("Machine %s is unhealthy - changing MachinePhase to Unknown. Node conditions: %+v", clone.Name, clone.Status.Conditions)
+					klog.Warning(description)
+
+					clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+						Phase: v1alpha1.MachineUnknown,
+						// TimeoutActive:  true,
+						LastUpdateTime: metav1.Now(),
+					}
+					clone.Status.LastOperation = v1alpha1.LastOperation{
+						Description:    description,
+						State:          v1alpha1.MachineStateProcessing,
+						Type:           v1alpha1.MachineOperationHealthCheck,
+						LastUpdateTime: metav1.Now(),
+					}
+					cloneDirty = true
+				}
+			}
+		}
+	}
+
+	if !cloneDirty && (machine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdating ||
+		machine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdateFailed) {
+		// if the label update successful or failed, then skip the timeout check
+		if node != nil && metav1.HasLabel(node.ObjectMeta, v1alpha1.LabelKeyNodeUpdateResult) {
+			if node.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateSuccessful && clone.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdateSuccessful {
+				description = fmt.Sprintf("Machine %s successfully updated dependecies", machine.Name)
+				klog.V(2).Infof("%s with backing node %q and providerID %q sucessfully update the dependecies", description, getNodeName(machine), getProviderID(machine))
+				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+					Phase:          v1alpha1.MachineInPlaceUpdateSuccessful,
+					LastUpdateTime: metav1.Now(),
+				}
 				clone.Status.LastOperation = v1alpha1.LastOperation{
 					Description:    description,
 					State:          v1alpha1.MachineStateSuccessful,
-					Type:           lastOperationType,
-					LastUpdateTime: metav1.Now(),
-				}
-				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-					Phase: v1alpha1.MachineRunning,
-					// TimeoutActive:  false,
+					Type:           v1alpha1.MachineOperationInPlaceUpdate,
 					LastUpdateTime: metav1.Now(),
 				}
 				cloneDirty = true
-			}
-		} else {
-			if clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
-				// If machine is not healthy, and current phase is Running,
-				// change the machinePhase to Unknown and activate health check timeout
-				description = fmt.Sprintf("Machine %s is unhealthy - changing MachinePhase to Unknown. Node conditions: %+v", clone.Name, clone.Status.Conditions)
-				klog.Warning(description)
-
+			} else if node.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateFailed && clone.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdateFailed {
+				description = fmt.Sprintf("Machine %s failed to update dependecies: %s", machine.Name, node.Annotations[v1alpha1.AnnotationKeyMachineUpdateFailedReason])
+				klog.V(2).Infof("%s with backing node %q and providerID %q failed to update dependecies", description, getNodeName(machine), getProviderID(machine))
 				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-					Phase: v1alpha1.MachineUnknown,
-					// TimeoutActive:  true,
+					Phase:          v1alpha1.MachineInPlaceUpdateFailed,
 					LastUpdateTime: metav1.Now(),
 				}
 				clone.Status.LastOperation = v1alpha1.LastOperation{
 					Description:    description,
-					State:          v1alpha1.MachineStateProcessing,
-					Type:           v1alpha1.MachineOperationHealthCheck,
+					State:          v1alpha1.MachineStateFailed,
+					Type:           v1alpha1.MachineOperationInPlaceUpdate,
 					LastUpdateTime: metav1.Now(),
 				}
 				cloneDirty = true
@@ -722,17 +983,22 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 
 	if !cloneDirty &&
 		(machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending ||
-			machine.Status.CurrentStatus.Phase == v1alpha1.MachineUnknown) {
+			machine.Status.CurrentStatus.Phase == v1alpha1.MachineUnknown || machine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdating ||
+			machine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdateFailed) {
 		var (
 			description     string
 			timeOutDuration time.Duration
 		)
 
 		isMachinePending := machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending
+		isMachineInPlaceUpdating := machine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdating
+		disableHealthTimeout := machine.Spec.MachineConfiguration != nil && ptr.Deref(machine.Spec.DisableHealthTimeout, false)
 		sleepTime := 1 * time.Minute
 
 		if isMachinePending {
 			timeOutDuration = c.getEffectiveCreationTimeout(machine).Duration
+		} else if isMachineInPlaceUpdating {
+			timeOutDuration = c.getEffectiveInPlaceUpdateTimeout(machine).Duration
 		} else {
 			timeOutDuration = c.getEffectiveHealthTimeout(machine).Duration
 		}
@@ -742,7 +1008,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		if timeOut > 0 {
 			// Machine health timeout occurred while joining or rejoining of machine
 
-			if !isMachinePending {
+			if !isMachinePending && !isMachineInPlaceUpdating && !disableHealthTimeout {
 				// Timeout occurred due to machine being unhealthy for too long
 				description = fmt.Sprintf(
 					"Machine %s health checks failing since last %s minutes. Updating machine phase to Failed. Node Conditions: %+v",
@@ -756,27 +1022,49 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				c.permitGiver.RegisterPermits(machineDeployName, 1)
 				return c.tryMarkingMachineFailed(ctx, machine, clone, machineDeployName, description, lockAcquireTimeout)
 			}
-			// Timeout occurred while machine creation
-			description = fmt.Sprintf(
-				"Machine %s failed to join the cluster in %s minutes.",
-				machine.Name,
-				timeOutDuration,
-			)
-			// Log the error message for machine failure
-			klog.Error(description)
 
-			clone.Status.LastOperation = v1alpha1.LastOperation{
-				Description:    description,
-				State:          v1alpha1.MachineStateFailed,
-				Type:           machine.Status.LastOperation.Type,
-				LastUpdateTime: metav1.Now(),
+			if isMachineInPlaceUpdating {
+				description = fmt.Sprintf(
+					"Machine %s failed to in-place update in %s minutes.",
+					machine.Name,
+					timeOutDuration,
+				)
+
+				klog.Error(description)
+
+				clone.Status.LastOperation = v1alpha1.LastOperation{
+					Description:    description,
+					State:          v1alpha1.MachineStateFailed,
+					Type:           v1alpha1.MachineOperationInPlaceUpdate,
+					LastUpdateTime: metav1.Now(),
+				}
+				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+					Phase:          v1alpha1.MachineInPlaceUpdateFailed,
+					LastUpdateTime: metav1.Now(),
+				}
+				cloneDirty = true
+			} else if isMachinePending {
+				// Timeout occurred while machine creation
+				description = fmt.Sprintf(
+					"Machine %s failed to join the cluster in %s minutes.",
+					machine.Name,
+					timeOutDuration,
+				)
+				// Log the error message for machine failure
+				klog.Error(description)
+
+				clone.Status.LastOperation = v1alpha1.LastOperation{
+					Description:    description,
+					State:          v1alpha1.MachineStateFailed,
+					Type:           machine.Status.LastOperation.Type,
+					LastUpdateTime: metav1.Now(),
+				}
+				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+					Phase:          v1alpha1.MachineFailed,
+					LastUpdateTime: metav1.Now(),
+				}
+				cloneDirty = true
 			}
-			clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-				Phase: v1alpha1.MachineFailed,
-				// TimeoutActive:  false,
-				LastUpdateTime: metav1.Now(),
-			}
-			cloneDirty = true
 		} else {
 			// If timeout has not occurred, re-enqueue the machine
 			// after a specified sleep time
@@ -1041,10 +1329,143 @@ func isConditionEmpty(condition v1.NodeCondition) bool {
 }
 
 // initializes err and description with the passed string message
-func printLogInitError(s string, err *error, description *string, machine *v1alpha1.Machine) {
+func printLogInitError(s string, err *error, description *string, machine *v1alpha1.Machine, isForInPlaceUpdate bool) {
 	klog.Warningf(s+" machine: %q ", machine.Name)
 	*err = fmt.Errorf(s+" %s", machineutils.InitiateVMDeletion)
 	*description = fmt.Sprintf(s+" %s", machineutils.InitiateVMDeletion)
+	if isForInPlaceUpdate {
+		*err = fmt.Errorf("%s", s)
+		*description = fmt.Sprint(s)
+	}
+}
+
+func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+	var (
+		// Declarations
+		node            *v1.Node
+		err             error
+		forceDeletePods bool
+		timeOutOccurred bool
+		description     string
+		state           v1alpha1.MachineState
+
+		readOnlyFileSystemCondition, nodeReadyCondition v1.NodeCondition
+
+		// Initialization
+		maxEvictRetries                             = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
+		pvDetachTimeOut                             = c.safetyOptions.PvDetachTimeout.Duration
+		pvReattachTimeOut                           = c.safetyOptions.PvReattachTimeout.Duration
+		timeOutDuration                             = c.getEffectiveDrainTimeout(machine).Duration
+		forceDrainLabelPresent                      = machine.Labels["force-drain"] == "True"
+		nodeName                                    = machine.Labels[v1alpha1.NodeLabelKey]
+		nodeNotReadyDuration                        = 5 * time.Minute
+		ReadonlyFilesystem     v1.NodeConditionType = "ReadonlyFilesystem"
+	)
+
+	for _, condition := range machine.Status.Conditions {
+		if condition.Type == v1.NodeReady {
+			nodeReadyCondition = condition
+		} else if condition.Type == ReadonlyFilesystem {
+			readOnlyFileSystemCondition = condition
+		}
+	}
+
+	// verify and log node object's existence
+	if node, err = c.nodeLister.Get(nodeName); err == nil {
+		klog.V(3).Infof("(drainNode) For node %q, machine %q, nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeName, machine.Name, nodeReadyCondition, readOnlyFileSystemCondition)
+	} else if apierrors.IsNotFound(err) {
+		klog.Warningf("(drainNode) Node %q for machine %q doesn't exist, so drain will finish instantly", nodeName, machine.Name)
+	}
+
+	if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != v1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+		message := "Setting forceDeletePods to true for drain as machine is NotReady for over 5min"
+		forceDeletePods = true
+		printLogInitError(message, &err, &description, machine, true)
+	} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != v1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+		message := "Setting forceDeletePods to true for drain as machine is in ReadonlyFilesystem for over 5min"
+		forceDeletePods = true
+		printLogInitError(message, &err, &description, machine, true)
+	}
+
+	if node != nil {
+		cond := nodeops.GetCondition(node, v1alpha1.NodeInPlaceUpdate)
+		if cond != nil && cond.Reason == v1alpha1.SelectedForUpdate {
+			timeOutOccurred = utiltime.HasTimeOutOccurred(cond.LastTransitionTime, timeOutDuration)
+		}
+	}
+
+	if forceDrainLabelPresent || timeOutOccurred {
+		forceDeletePods = true
+		timeOutDuration = 1 * time.Minute
+		maxEvictRetries = 1
+
+		klog.V(2).Infof(
+			"Force drain has been triggerred for machine %q with providerID %q and backing node %q due to Label:%t, timeout:%t",
+			machine.Name,
+			getProviderID(machine),
+			getNodeName(machine),
+			forceDrainLabelPresent,
+			timeOutOccurred,
+		)
+	} else {
+		klog.V(2).Infof(
+			"Normal drain has been triggerred for machine %q with providerID %q and backing node %q with drain-timeout:%v & maxEvictRetries:%d",
+			machine.Name,
+			getProviderID(machine),
+			getNodeName(machine),
+			timeOutDuration,
+			maxEvictRetries,
+		)
+	}
+
+	buf := bytes.NewBuffer([]byte{})
+	errBuf := bytes.NewBuffer([]byte{})
+
+	drainOptions := drain.NewDrainOptions(
+		c.targetCoreClient,
+		c.targetKubernetesVersion,
+		timeOutDuration,
+		maxEvictRetries,
+		pvDetachTimeOut,
+		pvReattachTimeOut,
+		nodeName,
+		-1,
+		forceDeletePods,
+		true,
+		true,
+		true,
+		buf,
+		errBuf,
+		c.driver,
+		c.pvcLister,
+		c.pvLister,
+		c.pdbLister,
+		c.nodeLister,
+		c.podLister,
+		c.volumeAttachmentHandler,
+		c.podSynced,
+	)
+
+	klog.V(3).Infof("(drainNode) Invoking RunDrain, forceDeletePods: %t, timeOutDuration: %s", forceDeletePods, timeOutDuration)
+	err = drainOptions.RunDrain(ctx)
+	if err == nil {
+		// Drain successful
+		klog.V(2).Infof("Drain successful for machine %q ,providerID %q, backing node %q. \nBuf:%v \nErrBuf:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf)
+
+		if forceDeletePods {
+			description = fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments)
+		} else { // regular drain already waits for vol detach and attach for another node.
+			description = fmt.Sprintf("Drain successful. %s", machineutils.NodeReadyForUpdate)
+		}
+		state = v1alpha1.MachineStateProcessing
+	} else {
+		klog.Warningf("Drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
+
+		description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
+		state = v1alpha1.MachineStateProcessing
+	}
+
+	return c.updateMachineStatusAndNodeCondition(ctx, machine, description, state, err)
 }
 
 // drainNode attempts to drain the node backed by the machine object
@@ -1074,7 +1495,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 
 	if nodeName == "" {
 		message := "Skipping drain as nodeName is not a valid one for machine."
-		printLogInitError(message, &err, &description, machine)
+		printLogInitError(message, &err, &description, machine, false)
 		skipDrain = true
 	} else {
 		for _, condition := range machine.Status.Conditions {
@@ -1096,12 +1517,12 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 			message := "Setting forceDeletePods & forceDeleteMachine to true for drain as machine is NotReady for over 5min"
 			forceDeleteMachine = true
 			forceDeletePods = true
-			printLogInitError(message, &err, &description, machine)
+			printLogInitError(message, &err, &description, machine, false)
 		} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != v1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
 			message := "Setting forceDeletePods & forceDeleteMachine to true for drain as machine is in ReadonlyFilesystem for over 5min"
 			forceDeleteMachine = true
 			forceDeletePods = true
-			printLogInitError(message, &err, &description, machine)
+			printLogInitError(message, &err, &description, machine, false)
 		}
 	}
 
@@ -1470,6 +1891,16 @@ func (c *controller) getEffectiveCreationTimeout(machine *v1alpha1.Machine) *met
 		effectiveCreationTimeout = &c.safetyOptions.MachineCreationTimeout
 	}
 	return effectiveCreationTimeout
+}
+
+func (c *controller) getEffectiveInPlaceUpdateTimeout(machine *v1alpha1.Machine) *metav1.Duration {
+	var effectiveDependenciesUpdateTimeout *metav1.Duration
+	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineConfiguration.MachineInPlaceUpdateTimeout != nil {
+		effectiveDependenciesUpdateTimeout = machine.Spec.MachineConfiguration.MachineInPlaceUpdateTimeout
+	} else {
+		effectiveDependenciesUpdateTimeout = &c.safetyOptions.MachineInPlaceUpdateTimeout
+	}
+	return effectiveDependenciesUpdateTimeout
 }
 
 // getEffectiveNodeConditions returns the nodeConditions set on the machine-object, otherwise returns the conditions set using the global-flag.
