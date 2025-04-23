@@ -323,7 +323,8 @@ func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context
 		for _, oldMachine := range oldMachines {
 			nodeName, ok := oldMachine.Labels[v1alpha1.NodeLabelKey]
 			if !ok {
-				return addedNewReplicasCount, fmt.Errorf("node label not found for machine %s", oldMachine.Name)
+				klog.Warningf("Node label not found for machine %s", oldMachine.Name)
+				continue
 			}
 
 			node, err := dc.nodeLister.Get(nodeName)
