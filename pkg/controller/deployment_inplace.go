@@ -237,82 +237,9 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 		return scaled, err
 	}
 
-	var addedNewReplicasCount int32
-
-	for _, oldMachineSet := range oldMachineSets {
-		transferredMachineCount := int32(0)
-		// get the machines for the machine set
-		oldMachines, err := dc.machineLister.List(labels.SelectorFromSet(oldMachineSet.Spec.Selector.MatchLabels))
-		if err != nil {
-			return false, err
-		}
-
-		klog.V(3).Infof("Found %d machine(s) in old machine set %s", len(oldMachines), oldMachineSet.Name)
-
-		for _, oldMachine := range oldMachines {
-			nodeName, ok := oldMachine.Labels[v1alpha1.NodeLabelKey]
-			if !ok {
-				return false, fmt.Errorf("node label not found for machine %s", oldMachine.Name)
-			}
-
-			node, err := dc.nodeLister.Get(nodeName)
-			if err != nil {
-				if apierrors.IsNotFound(err) {
-					klog.Warningf("Node %s not found for machine %s", nodeName, oldMachine.Name)
-					continue
-				}
-				return false, fmt.Errorf("failed to get node %s for machine %s: %w", nodeName, oldMachine.Name, err)
-			}
-
-			cond := getMachineCondition(oldMachine, v1alpha1.NodeInPlaceUpdate)
-			if isUpdateNotSuccessful(cond, node.Labels) {
-				continue
-			}
-
-			klog.V(3).Infof("Attempting to transfer machine %s to new machine set %s", oldMachine.Name, newMachineSet.Name)
-
-			labelsUniqueToOldMachine := removeLabelsNotCommingFromMachineSet(oldMachine.Labels, oldMachineSet.Spec.Selector.MatchLabels)
-			maps.Copy(labelsUniqueToOldMachine, newMachineSet.Spec.Selector.MatchLabels)
-			machineNewLabels := MergeStringMaps(labelsUniqueToOldMachine, map[string]string{v1alpha1.LabelKeyNodeUpdateResult: v1alpha1.LabelValueNodeUpdateSuccessful})
-
-			labelsJSONBytes, err := labelsutil.GetLabelsAsJSONBytes(machineNewLabels)
-			if err != nil {
-				return false, err
-			}
-			// update the owner reference of the machine to the new machine set and update the labels
-			addControllerPatch := fmt.Sprintf(
-				`{"metadata":{"ownerReferences":[{"apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"labels":%s,"uid":"%s"}}`,
-				v1alpha1.SchemeGroupVersion.WithKind("MachineSet"),
-				newMachineSet.GetName(), newMachineSet.GetUID(), string(labelsJSONBytes), oldMachine.UID)
-
-			err = dc.machineControl.PatchMachine(ctx, oldMachine.Namespace, oldMachine.Name, []byte(addControllerPatch))
-			if err != nil {
-				klog.Errorf("failed to transfer the ownership of machine %s to new machine set. Err: %v", oldMachine.Name, err)
-				return false, err
-			}
-
-			// uncordon the node since the ownership of the machine has been transferred to the new machine set.
-			node.Spec.Unschedulable = false
-			_, err = dc.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
-			if err != nil {
-				return false, fmt.Errorf("failed to uncordon the node %s: %w", node.Name, err)
-			}
-
-			transferredMachineCount++ // scale down the old machine set.
-			addedNewReplicasCount++   // scale up the new machine set.
-		}
-
-		if transferredMachineCount == 0 {
-			klog.V(3).Infof("no machines transferred from machine set %s", oldMachineSet.Name)
-			continue
-		}
-
-		klog.V(3).Infof("%d machine(s) transferred to new machine set. scaling down machine set %s", transferredMachineCount, oldMachineSet.Name)
-		_, _, err = dc.scaleMachineSetAndRecordEvent(ctx, oldMachineSet, oldMachineSet.Spec.Replicas-transferredMachineCount, deployment)
-		if err != nil {
-			klog.Errorf("scale down failed %s", err)
-			return false, err
-		}
+	addedNewReplicasCount, err := dc.transferMachinesFromOldToNewMachineSet(ctx, oldMachineSets, newMachineSet, deployment)
+	if err != nil {
+		return false, fmt.Errorf("error while transferring machines from old to new machine set: %w", err)
 	}
 
 	if addedNewReplicasCount == 0 {
@@ -378,6 +305,88 @@ func (dc *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allMac
 	}
 
 	return numOfMachinesSelectedForUpdate > 0, nil
+}
+
+func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context, oldMachineSets []*v1alpha1.MachineSet, newMachineSet *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (int32, error) {
+	var addedNewReplicasCount int32
+
+	for _, oldMachineSet := range oldMachineSets {
+		transferredMachineCount := int32(0)
+		// get the machines for the machine set
+		oldMachines, err := dc.machineLister.List(labels.SelectorFromSet(oldMachineSet.Spec.Selector.MatchLabels))
+		if err != nil {
+			return addedNewReplicasCount, err
+		}
+
+		klog.V(3).Infof("Found %d machine(s) in old machine set %s", len(oldMachines), oldMachineSet.Name)
+
+		for _, oldMachine := range oldMachines {
+			nodeName, ok := oldMachine.Labels[v1alpha1.NodeLabelKey]
+			if !ok {
+				return addedNewReplicasCount, fmt.Errorf("node label not found for machine %s", oldMachine.Name)
+			}
+
+			node, err := dc.nodeLister.Get(nodeName)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					klog.Warningf("Node %s not found for machine %s", nodeName, oldMachine.Name)
+					continue
+				}
+				return addedNewReplicasCount, fmt.Errorf("failed to get node %s for machine %s: %w", nodeName, oldMachine.Name, err)
+			}
+
+			cond := getMachineCondition(oldMachine, v1alpha1.NodeInPlaceUpdate)
+			if isUpdateNotSuccessful(cond, node.Labels) {
+				continue
+			}
+
+			klog.V(3).Infof("Attempting to transfer machine %s to new machine set %s", oldMachine.Name, newMachineSet.Name)
+
+			labelsUniqueToOldMachine := removeLabelsNotCommingFromMachineSet(oldMachine.Labels, oldMachineSet.Spec.Selector.MatchLabels)
+			maps.Copy(labelsUniqueToOldMachine, newMachineSet.Spec.Selector.MatchLabels)
+			machineNewLabels := MergeStringMaps(labelsUniqueToOldMachine, map[string]string{v1alpha1.LabelKeyNodeUpdateResult: v1alpha1.LabelValueNodeUpdateSuccessful})
+
+			labelsJSONBytes, err := labelsutil.GetLabelsAsJSONBytes(machineNewLabels)
+			if err != nil {
+				return addedNewReplicasCount, err
+			}
+			// update the owner reference of the machine to the new machine set and update the labels
+			addControllerPatch := fmt.Sprintf(
+				`{"metadata":{"ownerReferences":[{"apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"labels":%s,"uid":"%s"}}`,
+				v1alpha1.SchemeGroupVersion.WithKind("MachineSet"),
+				newMachineSet.GetName(), newMachineSet.GetUID(), string(labelsJSONBytes), oldMachine.UID)
+
+			err = dc.machineControl.PatchMachine(ctx, oldMachine.Namespace, oldMachine.Name, []byte(addControllerPatch))
+			if err != nil {
+				klog.Errorf("failed to transfer the ownership of machine %s to new machine set. Err: %v", oldMachine.Name, err)
+				return addedNewReplicasCount, err
+			}
+
+			// uncordon the node since the ownership of the machine has been transferred to the new machine set.
+			node.Spec.Unschedulable = false
+			_, err = dc.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
+			if err != nil {
+				return addedNewReplicasCount, fmt.Errorf("failed to uncordon the node %s: %w", node.Name, err)
+			}
+
+			transferredMachineCount++ // scale down the old machine set.
+			addedNewReplicasCount++   // scale up the new machine set.
+		}
+
+		if transferredMachineCount == 0 {
+			klog.V(3).Infof("no machines transferred from machine set %s", oldMachineSet.Name)
+			continue
+		}
+
+		klog.V(3).Infof("%d machine(s) transferred to new machine set. scaling down machine set %s", transferredMachineCount, oldMachineSet.Name)
+		_, _, err = dc.scaleMachineSetAndRecordEvent(ctx, oldMachineSet, oldMachineSet.Spec.Replicas-transferredMachineCount, deployment)
+		if err != nil {
+			klog.Errorf("scale down failed %s", err)
+			return addedNewReplicasCount, err
+		}
+	}
+
+	return addedNewReplicasCount, nil
 }
 
 func (dc *controller) selectNumOfMachineForUpdate(ctx context.Context, allMachineSets []*v1alpha1.MachineSet, oldMachineSets []*v1alpha1.MachineSet, newMachineSet *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment, oldISsMachinesUndergoingUpdate int32) (int32, error) {
