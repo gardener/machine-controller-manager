@@ -269,29 +269,29 @@ type controller struct {
 	podSynced               cache.InformerSynced
 }
 
-func (c *controller) Run(workers int, stopCh <-chan struct{}) {
+func (dc *controller) Run(workers int, stopCh <-chan struct{}) {
 
 	var (
 		waitGroup sync.WaitGroup
 	)
 
 	defer runtimeutil.HandleCrash()
-	defer c.permitGiver.Close()
-	defer c.nodeQueue.ShutDown()
-	defer c.secretQueue.ShutDown()
-	defer c.machineClassQueue.ShutDown()
-	defer c.machineQueue.ShutDown()
-	defer c.machineTerminationQueue.ShutDown()
-	defer c.machineSafetyOrphanVMsQueue.ShutDown()
-	defer c.machineSafetyAPIServerQueue.ShutDown()
+	defer dc.permitGiver.Close()
+	defer dc.nodeQueue.ShutDown()
+	defer dc.secretQueue.ShutDown()
+	defer dc.machineClassQueue.ShutDown()
+	defer dc.machineQueue.ShutDown()
+	defer dc.machineTerminationQueue.ShutDown()
+	defer dc.machineSafetyOrphanVMsQueue.ShutDown()
+	defer dc.machineSafetyAPIServerQueue.ShutDown()
 
-	if k8sutils.ConstraintK8sGreaterEqual121.Check(c.targetKubernetesVersion) {
-		if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.pvcSynced, c.pvSynced, c.pdbSynced, c.volumeAttachementSynced, c.nodeSynced, c.machineClassSynced, c.machineSynced) {
+	if k8sutils.ConstraintK8sGreaterEqual121.Check(dc.targetKubernetesVersion) {
+		if !cache.WaitForCacheSync(stopCh, dc.secretSynced, dc.pvcSynced, dc.pvSynced, dc.pdbSynced, dc.volumeAttachementSynced, dc.nodeSynced, dc.machineClassSynced, dc.machineSynced) {
 			runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 			return
 		}
 	} else {
-		if !cache.WaitForCacheSync(stopCh, c.secretSynced, c.pvcSynced, c.pvSynced, c.volumeAttachementSynced, c.nodeSynced, c.machineClassSynced, c.machineSynced) {
+		if !cache.WaitForCacheSync(stopCh, dc.secretSynced, dc.pvcSynced, dc.pvSynced, dc.volumeAttachementSynced, dc.nodeSynced, dc.machineClassSynced, dc.machineSynced) {
 			runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 			return
 		}
@@ -303,16 +303,16 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	// be passed to the metrics registry. Collectors which added to the registry
 	// will collect metrics to expose them via the metrics endpoint of the mcm
 	// every time when the endpoint is called.
-	prometheus.MustRegister(c)
+	prometheus.MustRegister(dc)
 
-	for i := 0; i < workers; i++ {
-		worker.Run(c.secretQueue, "ClusterSecret", worker.DefaultMaxRetries, true, c.reconcileClusterSecretKey, stopCh, &waitGroup)
-		worker.Run(c.machineClassQueue, "ClusterMachineClass", worker.DefaultMaxRetries, true, c.reconcileClusterMachineClassKey, stopCh, &waitGroup)
-		worker.Run(c.nodeQueue, "ClusterNode", worker.DefaultMaxRetries, true, c.reconcileClusterNodeKey, stopCh, &waitGroup)
-		worker.Run(c.machineQueue, "ClusterMachine", worker.DefaultMaxRetries, true, c.reconcileClusterMachineKey, stopCh, &waitGroup)
-		worker.Run(c.machineTerminationQueue, "ClusterMachineTermination", worker.DefaultMaxRetries, true, c.reconcileClusterMachineTermination, stopCh, &waitGroup)
-		worker.Run(c.machineSafetyOrphanVMsQueue, "ClusterMachineSafetyOrphanVMs", worker.DefaultMaxRetries, true, c.reconcileClusterMachineSafetyOrphanVMs, stopCh, &waitGroup)
-		worker.Run(c.machineSafetyAPIServerQueue, "ClusterMachineAPIServer", worker.DefaultMaxRetries, true, c.reconcileClusterMachineSafetyAPIServer, stopCh, &waitGroup)
+	for range workers {
+		worker.Run(dc.secretQueue, "ClusterSecret", worker.DefaultMaxRetries, true, dc.reconcileClusterSecretKey, stopCh, &waitGroup)
+		worker.Run(dc.machineClassQueue, "ClusterMachineClass", worker.DefaultMaxRetries, true, dc.reconcileClusterMachineClassKey, stopCh, &waitGroup)
+		worker.Run(dc.nodeQueue, "ClusterNode", worker.DefaultMaxRetries, true, dc.reconcileClusterNodeKey, stopCh, &waitGroup)
+		worker.Run(dc.machineQueue, "ClusterMachine", worker.DefaultMaxRetries, true, dc.reconcileClusterMachineKey, stopCh, &waitGroup)
+		worker.Run(dc.machineTerminationQueue, "ClusterMachineTermination", worker.DefaultMaxRetries, true, dc.reconcileClusterMachineTermination, stopCh, &waitGroup)
+		worker.Run(dc.machineSafetyOrphanVMsQueue, "ClusterMachineSafetyOrphanVMs", worker.DefaultMaxRetries, true, dc.reconcileClusterMachineSafetyOrphanVMs, stopCh, &waitGroup)
+		worker.Run(dc.machineSafetyAPIServerQueue, "ClusterMachineAPIServer", worker.DefaultMaxRetries, true, dc.reconcileClusterMachineSafetyAPIServer, stopCh, &waitGroup)
 	}
 
 	<-stopCh

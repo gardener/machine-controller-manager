@@ -12,6 +12,7 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("deployment_util", func() {
@@ -78,6 +79,184 @@ var _ = Describe("deployment_util", func() {
 				},
 			},
 		}
+	})
+
+	DescribeTable("#MaxUnavailable",
+		func(strategy machinev1.MachineDeploymentStrategy, replicas int, expected int) {
+			machineDeployment.Spec.Strategy = strategy
+			machineDeployment.Spec.Replicas = int32(replicas)
+			Expect(MaxUnavailable(*machineDeployment)).To(Equal(int32(expected)))
+		},
+
+		Entry("strategy is neither RollingUpdate nor InPlaceUpdate", machinev1.MachineDeploymentStrategy{Type: ""}, 2, 0),
+		Entry("strategy is RollingUpdate and replicas is zeros", machinev1.MachineDeploymentStrategy{Type: machinev1.RollingUpdateMachineDeploymentStrategyType}, 0, 0),
+
+		// Case: RollingUpdate strategy with valid maxUnavailable and replicas
+		Entry("strategy is RollingUpdate with maxUnavailable=1, replicas=5",
+			machinev1.MachineDeploymentStrategy{
+				Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
+				RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
+					UpdateConfiguration: machinev1.UpdateConfiguration{
+						MaxSurge:       ptr.To(intstr.FromInt(1)),
+						MaxUnavailable: ptr.To(intstr.FromInt(1)),
+					},
+				},
+			}, 5, 1),
+
+		// Case: RollingUpdate strategy with maxUnavailable greater than replicas
+		Entry("strategy is RollingUpdate with maxUnavailable=10, replicas=5",
+			machinev1.MachineDeploymentStrategy{
+				Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
+				RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
+					UpdateConfiguration: machinev1.UpdateConfiguration{
+						MaxSurge:       ptr.To(intstr.FromInt(2)),
+						MaxUnavailable: ptr.To(intstr.FromInt(10)),
+					},
+				},
+			}, 5, 5),
+
+		// Case: InPlaceUpdate strategy with ManualUpdate=true
+		Entry("strategy is InPlaceUpdate with ManualUpdate=true, maxUnavailable=2, replicas=5",
+			machinev1.MachineDeploymentStrategy{
+				Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
+				InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
+					UpdateConfiguration: machinev1.UpdateConfiguration{
+						MaxSurge:       ptr.To(intstr.FromInt(1)),
+						MaxUnavailable: ptr.To(intstr.FromInt(2)),
+					},
+					OrchestrationType: machinev1.OrchestrationTypeManual,
+				},
+			}, 5, 2),
+
+		// Case: InPlaceUpdate strategy with ManualUpdate=false and maxUnavailable > replicas
+		Entry("strategy is InPlaceUpdate with ManualUpdate=false, maxUnavailable=10, replicas=3",
+			machinev1.MachineDeploymentStrategy{
+				Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
+				InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
+					UpdateConfiguration: machinev1.UpdateConfiguration{
+						MaxSurge:       ptr.To(intstr.FromInt(1)),
+						MaxUnavailable: ptr.To(intstr.FromInt(10)),
+					},
+					OrchestrationType: machinev1.OrchestrationTypeAuto,
+				},
+			}, 3, 3),
+
+		// Case: InPlaceUpdate strategy with ManualUpdate=true and replicas=0
+		Entry("strategy is InPlaceUpdate with ManualUpdate=true, replicas=0",
+			machinev1.MachineDeploymentStrategy{
+				Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
+				InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
+					OrchestrationType: machinev1.OrchestrationTypeManual,
+				},
+			}, 0, 0),
+	)
+
+	Describe("#NewISNewReplicas", func() {
+		type data struct {
+			replicas      int
+			oldISReplicas int
+			newISReplicas int
+			expected      int
+			shouldError   bool
+		}
+
+		DescribeTable("#table",
+			func(strategy machinev1.MachineDeploymentStrategy, testData data) {
+				// Setup MachineDeployment and MachineSets
+				deployment := &machinev1.MachineDeployment{
+					Spec: machinev1.MachineDeploymentSpec{
+						Replicas: int32(testData.replicas),
+						Strategy: strategy,
+					},
+				}
+
+				newIS := &machinev1.MachineSet{
+					Spec:   machinev1.MachineSetSpec{Replicas: int32(testData.newISReplicas)},
+					Status: machinev1.MachineSetStatus{Replicas: int32(testData.newISReplicas)},
+				}
+
+				allISs := []*machinev1.MachineSet{
+					newIS,
+					{Spec: machinev1.MachineSetSpec{Replicas: int32(testData.oldISReplicas)}, Status: machinev1.MachineSetStatus{Replicas: int32(testData.oldISReplicas)}},
+				}
+
+				result, err := NewISNewReplicas(deployment, allISs, newIS)
+
+				if testData.shouldError {
+					Expect(err).To(HaveOccurred())
+				} else {
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result).To(Equal(int32(testData.expected)))
+				}
+			},
+
+			Entry("RollingUpdate, scale up within max surge",
+				machinev1.MachineDeploymentStrategy{
+					Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
+					RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
+						UpdateConfiguration: machinev1.UpdateConfiguration{
+							MaxSurge: ptr.To(intstr.FromInt(2)),
+						},
+					},
+				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 3, shouldError: false},
+			),
+
+			Entry("RollingUpdate, max surge reached",
+				machinev1.MachineDeploymentStrategy{
+					Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
+					RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
+						UpdateConfiguration: machinev1.UpdateConfiguration{
+							MaxSurge: ptr.To(intstr.FromInt(2)),
+						},
+					},
+				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 3, expected: 3, shouldError: false},
+			),
+
+			Entry("Recreate strategy",
+				machinev1.MachineDeploymentStrategy{
+					Type: machinev1.RecreateMachineDeploymentStrategyType,
+				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 5, shouldError: false},
+			),
+
+			Entry("InPlaceUpdate with ManualUpdate=true",
+				machinev1.MachineDeploymentStrategy{
+					Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
+					InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
+						OrchestrationType: machinev1.OrchestrationTypeManual,
+					},
+				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 0, shouldError: false},
+			),
+
+			Entry("InPlaceUpdate, scale up within max surge",
+				machinev1.MachineDeploymentStrategy{
+					Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
+					InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
+						UpdateConfiguration: machinev1.UpdateConfiguration{
+							MaxSurge: ptr.To(intstr.FromInt(2)),
+						},
+						OrchestrationType: machinev1.OrchestrationTypeAuto,
+					},
+				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 3, shouldError: false},
+			),
+
+			Entry("InPlaceUpdate with ManualUpdate=false, max surge already reached",
+				machinev1.MachineDeploymentStrategy{
+					Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
+					InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
+						UpdateConfiguration: machinev1.UpdateConfiguration{
+							MaxSurge: ptr.To(intstr.FromInt(1)),
+						},
+						OrchestrationType: machinev1.OrchestrationTypeAuto,
+					},
+				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 2, shouldError: false},
+			),
+
+			Entry("Unsupported strategy type",
+				machinev1.MachineDeploymentStrategy{
+					Type: "UnsupportedType",
+				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 0, shouldError: true},
+			),
+		)
 	})
 
 	Describe("#SetNewMachineSetNodeTemplate", func() {
@@ -323,5 +502,97 @@ var _ = Describe("deployment_util", func() {
 			Expect(apiequality.Semantic.DeepEqual(testMachineSet[0].Spec.Template.Spec.NodeTemplateSpec, machineDeployment.Spec.Template.Spec.NodeTemplateSpec)).To(BeTrue())
 		})
 
+	})
+
+	Describe("#MergeStringMaps", func() {
+		It("should merge maps correctly with no conflicts", func() {
+			oldMap := map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+			}
+			newMap1 := map[string]string{
+				"key3": "value3",
+			}
+			newMap2 := map[string]string{
+				"key4": "value4",
+			}
+
+			expected := map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+				"key3": "value3",
+				"key4": "value4",
+			}
+
+			result := MergeStringMaps(oldMap, newMap1, newMap2)
+			Expect(result).To(Equal(expected))
+		})
+
+		It("should overwrite values from oldMap with values from newMaps", func() {
+			oldMap := map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+			}
+			newMap1 := map[string]string{
+				"key2": "newValue2",
+			}
+			newMap2 := map[string]string{
+				"key1": "newValue1",
+			}
+
+			expected := map[string]string{
+				"key1": "newValue1",
+				"key2": "newValue2",
+			}
+
+			result := MergeStringMaps(oldMap, newMap1, newMap2)
+			Expect(result).To(Equal(expected))
+		})
+
+		It("should handle nil oldMap correctly", func() {
+			var oldMap map[string]string
+			newMap1 := map[string]string{
+				"key1": "value1",
+			}
+			newMap2 := map[string]string{
+				"key2": "value2",
+			}
+
+			expected := map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+			}
+
+			result := MergeStringMaps(oldMap, newMap1, newMap2)
+			Expect(result).To(Equal(expected))
+		})
+
+		It("should handle nil newMaps correctly", func() {
+			oldMap := map[string]string{
+				"key1": "value1",
+			}
+			var newMap1 map[string]string
+			newMap2 := map[string]string{
+				"key2": "value2",
+			}
+
+			expected := map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+			}
+
+			result := MergeStringMaps(oldMap, newMap1, newMap2)
+			Expect(result).To(Equal(expected))
+		})
+
+		It("should return an empty map if all inputs are nil", func() {
+			var oldMap map[string]string
+			var newMap1 map[string]string
+			var newMap2 map[string]string
+			var expected map[string]string
+
+			result := MergeStringMaps(oldMap, newMap1, newMap2)
+			Expect(result).To(Equal(expected))
+		})
 	})
 })

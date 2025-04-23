@@ -25,18 +25,13 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
+	"maps"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"k8s.io/klog/v2"
-
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
-	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
 	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -47,9 +42,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/integer"
+	"k8s.io/utils/ptr"
 
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
+	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 // MachineDeploymentListerExpansion allows custom methods to be added to MachineDeploymentLister.
@@ -619,15 +620,30 @@ func SetReplicasAnnotations(is *v1alpha1.MachineSet, desiredReplicas, maxReplica
 
 // MaxUnavailable returns the maximum unavailable machines a rolling deployment can take.
 func MaxUnavailable(deployment v1alpha1.MachineDeployment) int32 {
-	if !IsRollingUpdate(&deployment) || (deployment.Spec.Replicas) == 0 {
+	if !IsRollingUpdate(&deployment) && !IsInPlaceUpdate(&deployment) || (deployment.Spec.Replicas) == 0 {
 		return int32(0)
 	}
+
+	var maxSurge, maxUnavailable *intstrutil.IntOrString
+
+	if IsRollingUpdate(&deployment) {
+		maxSurge = deployment.Spec.Strategy.RollingUpdate.MaxSurge
+		maxUnavailable = deployment.Spec.Strategy.RollingUpdate.MaxUnavailable
+	} else {
+		maxSurge = deployment.Spec.Strategy.InPlaceUpdate.MaxSurge
+		maxUnavailable = deployment.Spec.Strategy.InPlaceUpdate.MaxUnavailable
+
+		if deployment.Spec.Strategy.InPlaceUpdate.OrchestrationType == v1alpha1.OrchestrationTypeManual {
+			maxSurge = ptr.To(intstrutil.FromInt(0))
+		}
+	}
+
 	// Error caught by validation
-	_, maxUnavailable, _ := ResolveFenceposts(deployment.Spec.Strategy.RollingUpdate.MaxSurge, deployment.Spec.Strategy.RollingUpdate.MaxUnavailable, (deployment.Spec.Replicas))
-	if maxUnavailable > deployment.Spec.Replicas {
+	_, maxUnavailableReplicas, _ := ResolveFenceposts(maxSurge, maxUnavailable, (deployment.Spec.Replicas))
+	if maxUnavailableReplicas > deployment.Spec.Replicas {
 		return deployment.Spec.Replicas
 	}
-	return maxUnavailable
+	return maxUnavailableReplicas
 }
 
 // MinAvailable returns the minimum available machines of a given deployment
@@ -730,6 +746,31 @@ func GetNewMachineSet(ctx context.Context, deployment *v1alpha1.MachineDeploymen
 		return nil, err
 	}
 	return FindNewMachineSet(deployment, rsList), nil
+}
+
+func filterMachinesWithUpdateSuccessfulLabel(machines []*v1alpha1.Machine) []*v1alpha1.Machine {
+	machinesWithUpdateSuccessfulLabel := make([]*v1alpha1.Machine, 0, len(machines))
+	for _, machine := range machines {
+		if labelValue, ok := machine.Labels[v1alpha1.LabelKeyNodeUpdateResult]; ok && labelValue == v1alpha1.LabelValueNodeUpdateSuccessful {
+			cond := getMachineCondition(machine, v1alpha1.NodeInPlaceUpdate)
+			// only consider machines with the update successful condition
+			if cond != nil && cond.Reason == v1alpha1.UpdateSuccessful {
+				machinesWithUpdateSuccessfulLabel = append(machinesWithUpdateSuccessfulLabel, machine)
+			}
+		}
+	}
+
+	return machinesWithUpdateSuccessfulLabel
+}
+
+// getMachineCondition returns a condition matching the type from the machines's status
+func getMachineCondition(machine *v1alpha1.Machine, conditionType v1.NodeConditionType) *v1.NodeCondition {
+	for _, cond := range machine.Status.Conditions {
+		if cond.Type == conditionType {
+			return &cond
+		}
+	}
+	return nil
 }
 
 // IsListFromClient returns an rsListFunc that wraps the given client.
@@ -1004,6 +1045,11 @@ func IsRollingUpdate(deployment *v1alpha1.MachineDeployment) bool {
 	return deployment.Spec.Strategy.Type == v1alpha1.RollingUpdateMachineDeploymentStrategyType
 }
 
+// IsInPlaceUpdate returns true if the strategy type is a inplace update.
+func IsInPlaceUpdate(deployment *v1alpha1.MachineDeployment) bool {
+	return deployment.Spec.Strategy.Type == v1alpha1.InPlaceUpdateMachineDeploymentStrategyType
+}
+
 // MachineDeploymentComplete considers a deployment to be complete once all of its desired replicas
 // are updated and available, and no old machines are running.
 func MachineDeploymentComplete(deployment *v1alpha1.MachineDeployment, newStatus *v1alpha1.MachineDeploymentStatus) bool {
@@ -1105,6 +1151,31 @@ func NewISNewReplicas(deployment *v1alpha1.MachineDeployment, allISs []*v1alpha1
 		return (newIS.Spec.Replicas) + scaleUpCount, nil
 	case v1alpha1.RecreateMachineDeploymentStrategyType:
 		return (deployment.Spec.Replicas), nil
+	case v1alpha1.InPlaceUpdateMachineDeploymentStrategyType:
+		if deployment.Spec.Strategy.InPlaceUpdate != nil && deployment.Spec.Strategy.InPlaceUpdate.OrchestrationType == v1alpha1.OrchestrationTypeManual {
+			// when newIs is created, its replicas should be zero as it will have machines only after the old machines are updated and
+			// moved to the new machine set
+			return 0, nil // In case of inplace update with manual update, newIS should not have any replicas
+		}
+
+		// For inplace update without manual update, when new IS is created we will scale it up to the max surge.
+		// Check if we can scale up.
+		maxSurge, err := intstrutil.GetValueFromIntOrPercent(deployment.Spec.Strategy.InPlaceUpdate.MaxSurge, int(deployment.Spec.Replicas), true)
+		if err != nil {
+			return 0, err
+		}
+		// Find the total number of machines
+		currentMachineCount := GetActualReplicaCountForMachineSets(allISs)
+		maxTotalMachines := deployment.Spec.Replicas + int32(maxSurge) // #nosec G115 (CWE-190) -- value already validated
+		if currentMachineCount >= maxTotalMachines {
+			// Cannot scale up.
+			return newIS.Spec.Replicas, nil
+		}
+		// Scale up.
+		scaleUpCount := maxTotalMachines - currentMachineCount
+		// Do not exceed the number of desired replicas.
+		scaleUpCount = integer.Int32Min(scaleUpCount, deployment.Spec.Replicas-newIS.Spec.Replicas) // #nosec G115 (CWE-190) -- Obtained from replicas and maxSurge, both of which are validated.
+		return newIS.Spec.Replicas + scaleUpCount, nil
 	default:
 		return 0, fmt.Errorf("machine deployment type %v isn't supported", deployment.Spec.Strategy.Type)
 	}
@@ -1219,4 +1290,25 @@ func statusUpdateRequired(old v1alpha1.MachineDeploymentStatus, new v1alpha1.Mac
 	}
 
 	return true
+}
+
+// MergeStringMaps merges the content of the newMaps with the oldMap. If a key already exists then
+// it gets overwritten by the last value with the same key.
+func MergeStringMaps[T any](oldMap map[string]T, newMaps ...map[string]T) map[string]T {
+	var out map[string]T
+
+	if oldMap != nil {
+		out = make(map[string]T, len(oldMap))
+	}
+	maps.Copy(out, oldMap)
+
+	for _, newMap := range newMaps {
+		if newMap != nil && out == nil {
+			out = make(map[string]T)
+		}
+
+		maps.Copy(out, newMap)
+	}
+
+	return out
 }
