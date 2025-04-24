@@ -222,6 +222,32 @@ func (dc *controller) deleteMachineSetToDeployment(obj interface{}) {
 	dc.enqueueMachineDeployment(d)
 }
 
+// updateMachineToMachineDeployment will enqueue the machine deployment if the machine InPlaceUpdate node condition changes to UpdateSuccessful.
+func (dc *controller) updateMachineToMachineDeployment(old, cur any) {
+	oldMachine, ok := old.(*v1alpha1.Machine)
+	if !ok {
+		return
+	}
+
+	curMachine, ok := cur.(*v1alpha1.Machine)
+	if !ok {
+		return
+	}
+
+	oldMachineCondition := getMachineCondition(oldMachine, v1alpha1.NodeInPlaceUpdate)
+	currMachineCondition := getMachineCondition(curMachine, v1alpha1.NodeInPlaceUpdate)
+
+	oldMachineConditionReasonUpdateSuccessful := oldMachineCondition != nil && oldMachineCondition.Reason == v1alpha1.UpdateSuccessful
+	currMachineConditionReasonUpdateSuccessful := currMachineCondition != nil && currMachineCondition.Reason == v1alpha1.UpdateSuccessful
+
+	if !oldMachineConditionReasonUpdateSuccessful && currMachineConditionReasonUpdateSuccessful {
+		d := dc.getMachineDeploymentForMachine(curMachine)
+		if d != nil {
+			dc.enqueueMachineDeployment(d)
+		}
+	}
+}
+
 // deleteMachine will enqueue a Recreate Deployment once all of its Machines have stopped running.
 func (dc *controller) deleteMachineToMachineDeployment(ctx context.Context, obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
