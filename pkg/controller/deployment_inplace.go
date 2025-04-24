@@ -275,7 +275,7 @@ func (dc *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allMac
 
 	// Manual inplace update
 	if deployment.Spec.Strategy.InPlaceUpdate.OrchestrationType == v1alpha1.OrchestrationTypeManual {
-		return true, nil
+		return false, nil
 	}
 
 	allMachinesCount := GetReplicaCountForMachineSets(allMachineSets)
