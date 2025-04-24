@@ -8,9 +8,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
-	"time"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -1039,7 +1040,7 @@ var _ = Describe("machineDeployment", func() {
 
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				actualMachineDeployment := c.getMachineDeploymentForMachine(context.Background(), testMachine)
+				actualMachineDeployment := c.getMachineDeploymentForMachine(testMachine)
 
 				waitForCacheSync(stop, c)
 				if expectedMachineDeploymentName != "" {

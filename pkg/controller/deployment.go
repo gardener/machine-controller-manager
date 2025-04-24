@@ -243,7 +243,7 @@ func (dc *controller) deleteMachineToMachineDeployment(ctx context.Context, obj 
 		}
 	}
 	klog.V(4).Infof("Machine %s deleted.", machine.Name)
-	if d := dc.getMachineDeploymentForMachine(ctx, machine); d != nil && d.Spec.Strategy.Type == v1alpha1.RecreateMachineDeploymentStrategyType {
+	if d := dc.getMachineDeploymentForMachine(machine); d != nil && d.Spec.Strategy.Type == v1alpha1.RecreateMachineDeploymentStrategyType {
 		// Sync if this Deployment now has no more Machines.
 		machineSets, err := ListMachineSets(d, IsListFromClient(ctx, dc.controlMachineClient))
 		if err != nil {
@@ -295,7 +295,7 @@ func (dc *controller) enqueueMachineDeploymentAfter(deployment *v1alpha1.Machine
 }
 
 // getDeploymentForMachine returns the deployment managing the given Machine.
-func (dc *controller) getMachineDeploymentForMachine(ctx context.Context, machine *v1alpha1.Machine) *v1alpha1.MachineDeployment {
+func (dc *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) *v1alpha1.MachineDeployment {
 	// Find the owning machine set
 	var is *v1alpha1.MachineSet
 	var err error
@@ -308,7 +308,8 @@ func (dc *controller) getMachineDeploymentForMachine(ctx context.Context, machin
 		// Not a Machine owned by a machine set.
 		return nil
 	}
-	is, err = dc.controlMachineClient.MachineSets(machine.Namespace).Get(ctx, controllerRef.Name, metav1.GetOptions{})
+
+	is, err = dc.machineSetLister.MachineSets(machine.Namespace).Get(controllerRef.Name)
 	if err != nil || is.UID != controllerRef.UID {
 		klog.V(4).Infof("Cannot get machineset %q for machine %q: %v", controllerRef.Name, machine.Name, err)
 		return nil
