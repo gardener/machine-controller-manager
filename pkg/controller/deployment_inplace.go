@@ -131,13 +131,14 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 	}
 
 	machinesWithUpdateSuccessfulLabel := filterMachinesWithUpdateSuccessfulLabel(newMachines)
-	klog.V(3).Infof("Found %d machine(s) with label %q=%q in new machine set", len(machinesWithUpdateSuccessfulLabel), v1alpha1.LabelKeyNodeUpdateResult, v1alpha1.LabelValueNodeUpdateSuccessful)
+	klog.V(3).Infof("Found %d machine(s) with label %q=%q in new machine set %q", len(machinesWithUpdateSuccessfulLabel), v1alpha1.LabelKeyNodeUpdateResult, v1alpha1.LabelValueNodeUpdateSuccessful, newMachineSet.Name)
 
 	if len(newMachines) > int(newMachineSet.Spec.Replicas) && len(machinesWithUpdateSuccessfulLabel) > 0 {
 		// scale up the new machine set to the number of machines with the update successful label.
 		// This is to ensure that the machines with moved to the new machine set when ownership is transferred is accounted.
 		scaleUpBy := min(len(machinesWithUpdateSuccessfulLabel), len(newMachines)-int(newMachineSet.Spec.Replicas))
-		_, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newMachineSet, newMachineSet.Spec.Replicas+int32(scaleUpBy), deployment) // #nosec G115 (CWE-190) -- value already validated
+		klog.V(3).Infof("scale up the new machine set %s by %d to %d replicas", newMachineSet.Name, scaleUpBy, newMachineSet.Spec.Replicas+int32(scaleUpBy)) // #nosec G115 (CWE-190) -- value already validated
+		_, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newMachineSet, newMachineSet.Spec.Replicas+int32(scaleUpBy), deployment)                          // #nosec G115 (CWE-190) -- value already validated
 		if err != nil {
 			return err
 		}
@@ -247,7 +248,7 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 		return false, nil
 	}
 
-	klog.V(3).Infof("scale up the new machine set %s by %d", newMachineSet.Name, addedNewReplicasCount)
+	klog.V(3).Infof("scale up the new machine set %s by %d to %d replicas", newMachineSet.Name, addedNewReplicasCount, newMachineSet.Spec.Replicas+addedNewReplicasCount)
 	scaled, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newMachineSet, newMachineSet.Spec.Replicas+addedNewReplicasCount, deployment)
 	return scaled, err
 }
@@ -391,7 +392,7 @@ func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context
 			continue
 		}
 
-		klog.V(3).Infof("%d machine(s) transferred to new machine set. scaling down machine set %s", transferredMachineCount, oldMachineSet.Name)
+		klog.V(3).Infof("%d machine(s) transferred to new machine set. scaling down machine set %s to %d replicas", transferredMachineCount, oldMachineSet.Name, oldMachineSet.Spec.Replicas-transferredMachineCount)
 		_, _, err = dc.scaleMachineSetAndRecordEvent(ctx, oldMachineSet, oldMachineSet.Spec.Replicas-transferredMachineCount, deployment)
 		if err != nil {
 			klog.Errorf("scale down failed %s", err)
