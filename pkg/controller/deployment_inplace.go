@@ -26,14 +26,14 @@ import (
 )
 
 // rolloutInPlace implements the logic for rolling a machine set without replacing its machines.
-func (dc *controller) rolloutInPlace(ctx context.Context, d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
+func (dc *controller) rolloutInPlace(ctx context.Context, d *v1alpha1.MachineDeployment, machineSetList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
 	clusterAutoscalerScaleDownAnnotations := make(map[string]string)
 	clusterAutoscalerScaleDownAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
 
 	// We do this to avoid accidentally deleting the user provided annotations.
 	clusterAutoscalerScaleDownAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
 
-	newMachineSet, oldMachineSets, err := dc.getAllMachineSetsAndSyncRevision(ctx, d, isList, machineMap, true)
+	newMachineSet, oldMachineSets, err := dc.getAllMachineSetsAndSyncRevision(ctx, d, machineSetList, machineMap, true)
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func (dc *controller) rolloutInPlace(ctx context.Context, d *v1alpha1.MachineDep
 		return dc.syncRolloutStatus(ctx, allMachineSets, newMachineSet, d)
 	}
 
-	// prepare old ISs for update
+	// prepare old machineSets for update
 	workDone, err := dc.reconcileOldMachineSetsInPlace(ctx, allMachineSets, FilterActiveMachineSets(oldMachineSets), newMachineSet, d)
 	if err != nil {
 		return err
@@ -284,8 +284,8 @@ func (dc *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allMac
 	maxUnavailable := MaxUnavailable(*deployment)
 
 	minAvailable := deployment.Spec.Replicas - maxUnavailable
-	newISUnavailableMachineCount := newMachineSet.Spec.Replicas - newMachineSet.Status.AvailableReplicas
-	oldISsMachinesUndergoingUpdate, err := dc.getMachinesUndergoingUpdate(oldMachineSets)
+	newMachineSetUnavailableMachineCount := newMachineSet.Spec.Replicas - newMachineSet.Status.AvailableReplicas
+	oldMachineSetsMachinesUndergoingUpdate, err := dc.getMachinesUndergoingUpdate(oldMachineSets)
 	if err != nil {
 		return false, err
 	}
@@ -293,26 +293,26 @@ func (dc *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allMac
 	// Machines from old machine sets which are undergoing update will eventually move to new machine set.
 	// So once the current new machine set replcas + old machine set replicas undergoing update reaches the desired replicas,
 	// we can stop selecting machines from old machine sets for update.
-	if oldISsMachinesUndergoingUpdate+newMachineSet.Spec.Replicas >= deployment.Spec.Replicas {
+	if oldMachineSetsMachinesUndergoingUpdate+newMachineSet.Spec.Replicas >= deployment.Spec.Replicas {
 		return false, nil
 	}
 
-	klog.V(3).Infof("allMachinesCount:%d,  minAvailable:%d,  newISUnavailableMachineCount:%d,  oldISsMachineInUpdateProcess:%d", allMachinesCount, minAvailable, newISUnavailableMachineCount, oldISsMachinesUndergoingUpdate)
+	klog.V(3).Infof("allMachinesCount:%d,  minAvailable:%d,  newMachineSetUnavailableMachineCount:%d,  oldISsMachineInUpdateProcess:%d", allMachinesCount, minAvailable, newMachineSetUnavailableMachineCount, oldMachineSetsMachinesUndergoingUpdate)
 
 	// maxUpdatePossible is calculated as the total number of machines (allMachinesCount)
 	// minus the minimum number of machines that must remain available (minAvailable),
-	// minus the number of machines in the new instance set that are currently unavailable (newISUnavailableMachineCount),
-	// minus the number of machines in the old instance sets that are undergoing updates (oldISsMachinesUndergoingUpdate).
+	// minus the number of machines in the new instance set that are currently unavailable (newMachineSetUnavailableMachineCount),
+	// minus the number of machines in the old instance sets that are undergoing updates (oldMachineSetsMachinesUndergoingUpdate).
 	// here unavailable machines of old machine sets are not considered as first we want to check if we can select machines for update from old machine sets
 	// after fulfilling all the constraints.
-	maxUpdatePossible := allMachinesCount - minAvailable - newISUnavailableMachineCount - oldISsMachinesUndergoingUpdate
+	maxUpdatePossible := allMachinesCount - minAvailable - newMachineSetUnavailableMachineCount - oldMachineSetsMachinesUndergoingUpdate
 	if maxUpdatePossible <= 0 {
 		klog.V(3).Infof("no machines can be selected for update from old machine sets")
 		return false, nil
 	}
 
 	// prepare machines from old machine sets for update, need to check maxUnavailable to ensure we can select machines for update.
-	numOfMachinesSelectedForUpdate, err := dc.selectNumOfMachineForUpdate(ctx, allMachineSets, oldMachineSets, newMachineSet, deployment, oldISsMachinesUndergoingUpdate)
+	numOfMachinesSelectedForUpdate, err := dc.selectNumOfMachineForUpdate(ctx, allMachineSets, oldMachineSets, newMachineSet, deployment, oldMachineSetsMachinesUndergoingUpdate)
 	if err != nil {
 		return false, err
 	}
@@ -367,7 +367,7 @@ func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context
 			// update the owner reference of the machine to the new machine set and update the labels
 			addControllerPatch := fmt.Sprintf(
 				`{"metadata":{"ownerReferences":[{"apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"labels":%s,"uid":"%s"}}`,
-				v1alpha1.SchemeGroupVersion.WithKind("MachineSet"),
+				v1alpha1.SchemeGroupVersion.WithKind("MachineSet").Kind,
 				newMachineSet.GetName(), newMachineSet.GetUID(), string(labelsJSONBytes), oldMachine.UID)
 
 			err = dc.machineControl.PatchMachine(ctx, oldMachine.Namespace, oldMachine.Name, []byte(addControllerPatch))
@@ -403,14 +403,14 @@ func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context
 	return addedNewReplicasCount, nil
 }
 
-func (dc *controller) selectNumOfMachineForUpdate(ctx context.Context, allMachineSets []*v1alpha1.MachineSet, oldMachineSets []*v1alpha1.MachineSet, newMachineSet *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment, oldISsMachinesUndergoingUpdate int32) (int32, error) {
+func (dc *controller) selectNumOfMachineForUpdate(ctx context.Context, allMachineSets []*v1alpha1.MachineSet, oldMachineSets []*v1alpha1.MachineSet, newMachineSet *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment, oldMachineSetsMachinesUndergoingUpdate int32) (int32, error) {
 	maxUnavailable := MaxUnavailable(*deployment)
 
 	// Check if we can pick machines from old ISes for updating to new IS.
 	minAvailable := deployment.Spec.Replicas - maxUnavailable
 
 	// Find the number of available machines.
-	availableMachineCount := GetAvailableReplicaCountForMachineSets(allMachineSets) - oldISsMachinesUndergoingUpdate
+	availableMachineCount := GetAvailableReplicaCountForMachineSets(allMachineSets) - oldMachineSetsMachinesUndergoingUpdate
 	if availableMachineCount <= minAvailable {
 		// Cannot pick for updating.
 		return 0, nil
