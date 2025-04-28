@@ -222,6 +222,32 @@ func (dc *controller) deleteMachineSetToDeployment(obj interface{}) {
 	dc.enqueueMachineDeployment(d)
 }
 
+// updateMachineToMachineDeployment will enqueue the machine deployment if the machine InPlaceUpdate node condition changes to UpdateSuccessful.
+func (dc *controller) updateMachineToMachineDeployment(old, cur any) {
+	oldMachine, ok := old.(*v1alpha1.Machine)
+	if !ok {
+		return
+	}
+
+	curMachine, ok := cur.(*v1alpha1.Machine)
+	if !ok {
+		return
+	}
+
+	oldMachineCondition := getMachineCondition(oldMachine, v1alpha1.NodeInPlaceUpdate)
+	currMachineCondition := getMachineCondition(curMachine, v1alpha1.NodeInPlaceUpdate)
+
+	oldMachineConditionReasonUpdateSuccessful := oldMachineCondition != nil && oldMachineCondition.Reason == v1alpha1.UpdateSuccessful
+	currMachineConditionReasonUpdateSuccessful := currMachineCondition != nil && currMachineCondition.Reason == v1alpha1.UpdateSuccessful
+
+	if !oldMachineConditionReasonUpdateSuccessful && currMachineConditionReasonUpdateSuccessful {
+		d := dc.getMachineDeploymentForMachine(curMachine)
+		if d != nil {
+			dc.enqueueMachineDeployment(d)
+		}
+	}
+}
+
 // deleteMachine will enqueue a Recreate Deployment once all of its Machines have stopped running.
 func (dc *controller) deleteMachineToMachineDeployment(ctx context.Context, obj interface{}) {
 	machine, ok := obj.(*v1alpha1.Machine)
@@ -243,7 +269,7 @@ func (dc *controller) deleteMachineToMachineDeployment(ctx context.Context, obj 
 		}
 	}
 	klog.V(4).Infof("Machine %s deleted.", machine.Name)
-	if d := dc.getMachineDeploymentForMachine(ctx, machine); d != nil && d.Spec.Strategy.Type == v1alpha1.RecreateMachineDeploymentStrategyType {
+	if d := dc.getMachineDeploymentForMachine(machine); d != nil && d.Spec.Strategy.Type == v1alpha1.RecreateMachineDeploymentStrategyType {
 		// Sync if this Deployment now has no more Machines.
 		machineSets, err := ListMachineSets(d, IsListFromClient(ctx, dc.controlMachineClient))
 		if err != nil {
@@ -295,7 +321,7 @@ func (dc *controller) enqueueMachineDeploymentAfter(deployment *v1alpha1.Machine
 }
 
 // getDeploymentForMachine returns the deployment managing the given Machine.
-func (dc *controller) getMachineDeploymentForMachine(ctx context.Context, machine *v1alpha1.Machine) *v1alpha1.MachineDeployment {
+func (dc *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) *v1alpha1.MachineDeployment {
 	// Find the owning machine set
 	var is *v1alpha1.MachineSet
 	var err error
@@ -308,7 +334,8 @@ func (dc *controller) getMachineDeploymentForMachine(ctx context.Context, machin
 		// Not a Machine owned by a machine set.
 		return nil
 	}
-	is, err = dc.controlMachineClient.MachineSets(machine.Namespace).Get(ctx, controllerRef.Name, metav1.GetOptions{})
+
+	is, err = dc.machineSetLister.MachineSets(machine.Namespace).Get(controllerRef.Name)
 	if err != nil || is.UID != controllerRef.UID {
 		klog.V(4).Infof("Cannot get machineset %q for machine %q: %v", controllerRef.Name, machine.Name, err)
 		return nil
@@ -546,12 +573,9 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	case v1alpha1.RollingUpdateMachineDeploymentStrategyType:
 		return dc.rolloutRolling(ctx, d, machineSets, machineMap)
 	case v1alpha1.InPlaceUpdateMachineDeploymentStrategyType:
-		if d.Spec.Strategy.InPlaceUpdate.OrchestrationType == v1alpha1.OrchestrationTypeAuto {
-			return dc.rolloutAutoInPlace(ctx, d, machineSets, machineMap)
-		}
-
-		// TODO(ary1992): Implement Manual InPlace strategy
+		return dc.rolloutInPlace(ctx, d, machineSets, machineMap)
 	}
+
 	return fmt.Errorf("unexpected deployment strategy type: %s", d.Spec.Strategy.Type)
 }
 

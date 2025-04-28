@@ -1166,6 +1166,7 @@ func NewISNewReplicas(deployment *v1alpha1.MachineDeployment, allISs []*v1alpha1
 		}
 		// Find the total number of machines
 		currentMachineCount := GetActualReplicaCountForMachineSets(allISs)
+		klog.V(3).Infof("current machine count accross all replicas %d", currentMachineCount)
 		maxTotalMachines := deployment.Spec.Replicas + int32(maxSurge) // #nosec G115 (CWE-190) -- value already validated
 		if currentMachineCount >= maxTotalMachines {
 			// Cannot scale up.
@@ -1174,6 +1175,7 @@ func NewISNewReplicas(deployment *v1alpha1.MachineDeployment, allISs []*v1alpha1
 		// Scale up.
 		scaleUpCount := maxTotalMachines - currentMachineCount
 		// Do not exceed the number of desired replicas.
+		klog.V(3).Infof("new machine set %q replicas=%d", newIS.Name, newIS.Spec.Replicas+scaleUpCount)
 		scaleUpCount = integer.Int32Min(scaleUpCount, deployment.Spec.Replicas-newIS.Spec.Replicas) // #nosec G115 (CWE-190) -- Obtained from replicas and maxSurge, both of which are validated.
 		return newIS.Spec.Replicas + scaleUpCount, nil
 	default:

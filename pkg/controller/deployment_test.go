@@ -8,9 +8,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
-	"time"
+	"k8s.io/utils/ptr"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -604,6 +606,177 @@ var _ = Describe("machineDeployment", func() {
 		)
 	})
 
+	Describe("#updateMachineToMachineDeployment", func() {
+		var (
+			testMachineDeployment *machinev1.MachineDeployment
+			testMachineSet        *machinev1.MachineSet
+			testMachine           *machinev1.Machine
+			updatedMachine        *machinev1.Machine
+		)
+
+		BeforeEach(func() {
+			testMachineSet = &machinev1.MachineSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "MachineSet-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					UID: "1234567",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "MachineDeployment",
+							Name:       "MachineDeployment-test",
+							UID:        "1234567",
+							Controller: ptr.To(true),
+						},
+					},
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MachineSet",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineSetSpec{
+					Replicas: 3,
+					Template: machinev1.MachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"test-label": "test-label",
+							},
+						},
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Name: "MachineClass-test",
+								Kind: "MachineClass",
+							},
+						},
+					},
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"test-label": "test-label",
+						},
+					},
+				},
+			}
+
+			testMachineDeployment = &machinev1.MachineDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "MachineDeployment-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					UID: "1234567",
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MachineDeployment",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineDeploymentSpec{
+					Replicas: testMachineSet.Spec.Replicas,
+					Template: testMachineSet.Spec.Template,
+					Selector: testMachineSet.Spec.Selector.DeepCopy(),
+				},
+			}
+
+			testMachine = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "Machine-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "MachineSet",
+							Name:       "MachineSet-test",
+							UID:        "1234567",
+							Controller: ptr.To(true),
+						},
+					},
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Machine",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+			}
+
+			updatedMachine = testMachine.DeepCopy()
+			updatedMachine.Status.Conditions = []corev1.NodeCondition{
+				{
+					Type:   machinev1.NodeInPlaceUpdate,
+					Status: corev1.ConditionTrue,
+					Reason: machinev1.UpdateSuccessful,
+				},
+			}
+		})
+
+		DescribeTable("Should enqueue the machineDeployment",
+			func(preset func(), queueLength int) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				preset()
+
+				objects := []runtime.Object{}
+				objects = append(objects, testMachineDeployment, testMachineSet)
+				c, trackers := createController(stop, testNamespace, objects, nil, nil)
+
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+				c.updateMachineToMachineDeployment(testMachine, updatedMachine)
+
+				waitForCacheSync(stop, c)
+				Expect(c.machineDeploymentQueue.Len()).To(Equal(queueLength))
+			},
+			Entry("not enqueue when no conditions are set",
+				func() {
+					updatedMachine.Status.Conditions = nil
+				}, 0,
+			),
+			Entry("not enqueue when condition reason is not UpdateSuccessful",
+				func() {
+					updatedMachine.Status.Conditions = []corev1.NodeCondition{
+						{
+							Type:   machinev1.NodeInPlaceUpdate,
+							Status: corev1.ConditionTrue,
+							Reason: machinev1.UpdateFailed,
+						},
+					}
+				}, 0,
+			),
+			Entry("enqueue when condition reason is UpdateSuccessful",
+				func() {
+					updatedMachine.Status.Conditions = []corev1.NodeCondition{
+						{
+							Type:   machinev1.NodeInPlaceUpdate,
+							Status: corev1.ConditionTrue,
+							Reason: machinev1.UpdateSuccessful,
+						},
+					}
+				}, 1,
+			),
+			Entry("should enqueue when condition reason is changed to UpdateSuccessful",
+				func() {
+					testMachine.Status.Conditions = []corev1.NodeCondition{
+						{
+							Type:   machinev1.NodeInPlaceUpdate,
+							Status: corev1.ConditionTrue,
+							Reason: machinev1.ReadyForUpdate,
+						},
+					}
+					updatedMachine.Status.Conditions = []corev1.NodeCondition{
+						{
+							Type:   machinev1.NodeInPlaceUpdate,
+							Status: corev1.ConditionTrue,
+							Reason: machinev1.UpdateSuccessful,
+						},
+					}
+				}, 1,
+			),
+		)
+	})
+
 	Describe("#deleteMachineToMachineDeployment", func() {
 		var (
 			testMachineDeployment *machinev1.MachineDeployment
@@ -1039,7 +1212,7 @@ var _ = Describe("machineDeployment", func() {
 
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				actualMachineDeployment := c.getMachineDeploymentForMachine(context.Background(), testMachine)
+				actualMachineDeployment := c.getMachineDeploymentForMachine(testMachine)
 
 				waitForCacheSync(stop, c)
 				if expectedMachineDeploymentName != "" {

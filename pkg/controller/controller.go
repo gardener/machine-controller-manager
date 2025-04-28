@@ -119,6 +119,7 @@ func NewController(
 
 	// MachineDeployment Controller Informers
 	_, _ = machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: controller.updateMachineToMachineDeployment,
 		DeleteFunc: controller.deleteMachineDeployment,
 	})
 
