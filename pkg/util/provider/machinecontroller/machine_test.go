@@ -909,7 +909,7 @@ var _ = Describe("machine", func() {
 						},
 					}, nil, nil, nil, true, metav1.Now()),
 					err:   status.Error(codes.ResourceExhausted, "Provider does not have capacity to create VM"),
-					retry: machineutils.MediumRetry,
+					retry: machineutils.LongRetry,
 				},
 			}),
 			Entry("Machine creation fails with Failure due to timeout", &data{
