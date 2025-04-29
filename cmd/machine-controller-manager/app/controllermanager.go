@@ -43,6 +43,7 @@ import (
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
 	"github.com/gardener/machine-controller-manager/pkg/handlers"
 	"github.com/gardener/machine-controller-manager/pkg/util/configz"
+	"github.com/gardener/machine-controller-manager/pkg/version"
 	prometheus "github.com/prometheus/client_golang/prometheus/promhttp"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -51,7 +52,6 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/pkg/version"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/leaderelection"
@@ -75,7 +75,7 @@ var (
 // Run runs the MCMServer.  This should never exit.
 func Run(s *options.MCMServer) error {
 	// To help debugging, immediately log version
-	klog.V(3).Infof("Version: %+v", version.Get())
+	version.LogVersionInfoWithLevel(3)
 	if err := s.Validate(); err != nil {
 		return err
 	}
