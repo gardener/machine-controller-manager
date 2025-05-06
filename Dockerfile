@@ -7,7 +7,7 @@ COPY . .
 RUN .ci/build
 
 #############      base                                     #############
-FROM gcr.io/distroless/static-debian11:nonroot as base
+FROM gcr.io/distroless/static-debian12:nonroot as base
 WORKDIR /
 
 #############      machine-controller-manager               #############
