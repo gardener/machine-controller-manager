@@ -100,7 +100,7 @@ See [here](docs/documents/apis.md) for CRD API Documentation
             <td>There is a Safety Controller responsible for handling the unidentified or unknown behaviours from the cloud providers. Safety Controller:
                 <ul>
                     <li>
-                        freezes the MachineDeployment controller and MachineSet controller if the number of <code>Machine</code> objects goes beyond a certain threshold on top of <code>Spec.replicas</code>. It can be configured by the flag <code>--safety-up</code> or <code>--safety-down</code> and also <code>--machine-safety-overshooting-period`</code>.
+                        freezes the MachineDeployment controller and MachineSet controller if the number of <code>Machine</code> objects goes beyond a certain threshold on top of <code>Spec.replicas</code>. It can be configured by the flag <code>--safety-up</code> or <code>--safety-down</code> and also <code>--machine-safety-overshooting-period</code>.
                     </li>
                     <li>
                         freezes the functionality of the MCM if either of the <code>target-apiserver</code> or the <code>control-apiserver</code> is not reachable.
