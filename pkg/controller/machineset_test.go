@@ -19,7 +19,6 @@ import (
 	"k8s.io/client-go/testing"
 	"k8s.io/utils/pointer"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
@@ -1617,9 +1616,9 @@ var _ = Describe("machineset", func() {
 			// Ref: https://estebangarcia.io/unit-testing-k8s-golang/
 			// Add a reactor that intercepts machine delete call and returns an error
 			// to simulate error when processing deletion request for a machine
-			machineDeletionError := fmt.Sprintf("forced machine deletion error")
-			c.controlMachineClient.(*faketyped.FakeMachineV1alpha1).Fake.PrependReactor("delete", "machines", func(action testing.Action) (handled bool, ret runtime.Object, err error) {
-				return true, &v1alpha1.Machine{}, errors.New(machineDeletionError)
+			machineDeletionError := "forced machine deletion error"
+			c.controlMachineClient.(*faketyped.FakeMachineV1alpha1).Fake.PrependReactor("delete", "machines", func(_ testing.Action) (handled bool, ret runtime.Object, err error) {
+				return true, &machinev1.Machine{}, errors.New(machineDeletionError)
 			})
 			targetMachines := []*machinev1.Machine{testRunningMachine}
 			err := c.terminateMachines(context.TODO(), targetMachines, testMachineSet)
@@ -1631,7 +1630,7 @@ var _ = Describe("machineset", func() {
 			Expect(err).To(Equal(fmt.Errorf("unable to delete machines: %s", machineDeletionError)))
 			Expect(Err1).Should(BeNil())
 			Expect(m.ObjectMeta.DeletionTimestamp).Should(BeNil())
-			Expect(m.Status.CurrentStatus.Phase).NotTo(Equal(v1alpha1.MachineTerminating))
+			Expect(m.Status.CurrentStatus.Phase).NotTo(Equal(machinev1.MachineTerminating))
 		})
 	})
 
