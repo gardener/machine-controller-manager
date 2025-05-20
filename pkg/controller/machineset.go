@@ -528,7 +528,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 			return err
 		}
 	}
-	klog.V(3).Infof("Processing the machineset %q with replicas %d associated with machine class: %q", machineSet.Name, machineSet.Spec.Replicas, machineSet.Spec.MachineClass.Name)
+	klog.V(3).Infof("Processing the machineset %q with replicas %d associated with machine class: %q", machineSet.Name, machineSet.Spec.Replicas, machineSet.Spec.Template.Spec.Class.Name)
 
 	selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
 	if err != nil {
