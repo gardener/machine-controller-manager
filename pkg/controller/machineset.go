@@ -713,6 +713,7 @@ func (c *controller) prepareMachineForDeletion(ctx context.Context, targetMachin
 		klog.V(2).Infof("Failed to delete %v, decrementing expectations for %v %s/%s", machineKey, machineSet.Kind, machineSet.Namespace, machineSet.Name)
 		c.expectations.DeletionObserved(machineSetKey, machineKey)
 		errCh <- err
+		return
 	} else {
 		// successful delete of a Failed phase machine due to unhealthiness for too long, increments staleMachinesRemoved counter
 		// note: call is blocking and thread safe as other worker threads might be updating the counter as well
@@ -733,7 +734,7 @@ func (c *controller) prepareMachineForDeletion(ctx context.Context, targetMachin
 		TimeoutActive:  false,
 		LastUpdateTime: metav1.Now(),
 	}
-	if _, err := c.updateMachineStatus(ctx, targetMachine, lastOperation, currentStatus); err != nil {
+	if _, err := c.updateMachineStatus(ctx, targetMachine, lastOperation, currentStatus); err != nil && !apierrors.IsNotFound(err) {
 		// TODO: proper error handling needs to happen here
 		klog.Errorf("failed to update machine status for machine %s: %v", targetMachine.Name, err)
 	}
