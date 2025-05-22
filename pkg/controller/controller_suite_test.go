@@ -465,6 +465,7 @@ func createController(
 
 	controller.machineControl = FakeMachineControl{
 		controlMachineClient: fakeTypedMachineClient,
+		Recorder:             controller.recorder,
 	}
 
 	return controller, fakeObjectTrackers

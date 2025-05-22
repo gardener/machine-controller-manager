@@ -7,6 +7,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -15,9 +16,11 @@ import (
 	k8sError "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/testing"
 	"k8s.io/utils/pointer"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
@@ -1497,6 +1500,7 @@ var _ = Describe("machineset", func() {
 			testMachineSet     *machinev1.MachineSet
 			testFailedMachine2 *machinev1.Machine
 			testFailedMachine1 *machinev1.Machine
+			testRunningMachine *machinev1.Machine
 		)
 
 		BeforeEach(func() {
@@ -1558,6 +1562,22 @@ var _ = Describe("machineset", func() {
 					},
 				},
 			}
+
+			testRunningMachine = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-t",
+					Namespace: testNamespace,
+					UID:       "1234560",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineRunning,
+					},
+				},
+			}
 		})
 
 		// Testcase: It should delete the inactive machines.
@@ -1581,6 +1601,40 @@ var _ = Describe("machineset", func() {
 			Expect(err).Should(BeNil())
 			Expect(Err1).Should(Not(BeNil()))
 			Expect(Err2).Should(Not(BeNil()))
+		})
+
+		It("It should not mark a machine as terminating when deletion fails.", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			objects := []runtime.Object{}
+			objects = append(objects, testMachineSet, testFailedMachine1, testRunningMachine)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			// Ref: https://estebangarcia.io/unit-testing-k8s-golang/
+			// Add a reactor that intercepts machine delete call and returns an error
+			// to simulate error when processing deletion request for a machine
+			machineDeletionError := "forced machine deletion error"
+			c.controlMachineClient.(*faketyped.FakeMachineV1alpha1).Fake.PrependReactor("delete", "machines", func(_ testing.Action) (handled bool, ret runtime.Object, err error) {
+				return true, &machinev1.Machine{}, errors.New(machineDeletionError)
+			})
+			targetMachines := []*machinev1.Machine{testFailedMachine1, testRunningMachine}
+			err := c.terminateMachines(context.TODO(), targetMachines, testMachineSet)
+
+			waitForCacheSync(stop, c)
+
+			mFailed, Err1 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), targetMachines[0].Name, metav1.GetOptions{})
+			mRunning, Err2 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), targetMachines[1].Name, metav1.GetOptions{})
+
+			Expect(err).To(Equal(fmt.Errorf("unable to delete machines: %s", machineDeletionError)))
+			Expect(Err1).Should(BeNil())
+			Expect(mFailed.ObjectMeta.DeletionTimestamp).Should(BeNil())
+			Expect(mFailed.Status.CurrentStatus.Phase).NotTo(Equal(machinev1.MachineTerminating))
+			Expect(Err2).Should(BeNil())
+			Expect(mRunning.ObjectMeta.DeletionTimestamp).Should(BeNil())
+			Expect(mRunning.Status.CurrentStatus.Phase).NotTo(Equal(machinev1.MachineTerminating))
 		})
 	})
 
