@@ -1603,12 +1603,12 @@ var _ = Describe("machineset", func() {
 			Expect(Err2).Should(Not(BeNil()))
 		})
 
-		It("It should not mark running machine as terminating when deletion fails.", func() {
+		It("It should not mark a machine as terminating when deletion fails.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
 			objects := []runtime.Object{}
-			objects = append(objects, testMachineSet, testRunningMachine)
+			objects = append(objects, testMachineSet, testFailedMachine1, testRunningMachine)
 			c, trackers := createController(stop, testNamespace, objects, nil, nil)
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
@@ -1620,17 +1620,21 @@ var _ = Describe("machineset", func() {
 			c.controlMachineClient.(*faketyped.FakeMachineV1alpha1).Fake.PrependReactor("delete", "machines", func(_ testing.Action) (handled bool, ret runtime.Object, err error) {
 				return true, &machinev1.Machine{}, errors.New(machineDeletionError)
 			})
-			targetMachines := []*machinev1.Machine{testRunningMachine}
+			targetMachines := []*machinev1.Machine{testFailedMachine1, testRunningMachine}
 			err := c.terminateMachines(context.TODO(), targetMachines, testMachineSet)
 
 			waitForCacheSync(stop, c)
 
-			m, Err1 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), targetMachines[0].Name, metav1.GetOptions{})
+			mFailed, Err1 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), targetMachines[0].Name, metav1.GetOptions{})
+			mRunning, Err2 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), targetMachines[1].Name, metav1.GetOptions{})
 
 			Expect(err).To(Equal(fmt.Errorf("unable to delete machines: %s", machineDeletionError)))
 			Expect(Err1).Should(BeNil())
-			Expect(m.ObjectMeta.DeletionTimestamp).Should(BeNil())
-			Expect(m.Status.CurrentStatus.Phase).NotTo(Equal(machinev1.MachineTerminating))
+			Expect(mFailed.ObjectMeta.DeletionTimestamp).Should(BeNil())
+			Expect(mFailed.Status.CurrentStatus.Phase).NotTo(Equal(machinev1.MachineTerminating))
+			Expect(Err2).Should(BeNil())
+			Expect(mRunning.ObjectMeta.DeletionTimestamp).Should(BeNil())
+			Expect(mRunning.Status.CurrentStatus.Phase).NotTo(Equal(machinev1.MachineTerminating))
 		})
 	})
 
