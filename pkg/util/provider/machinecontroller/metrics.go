@@ -120,5 +120,6 @@ func updateMachineInfoMetric(mMeta metav1.ObjectMeta, mSpec v1alpha1.MachineSpec
 		"spec_provider_id":     mSpec.ProviderID,
 		"spec_class_api_group": mSpec.Class.APIGroup,
 		"spec_class_kind":      mSpec.Class.Kind,
-		"spec_class_name":      mSpec.Class.Name}).Set(float64(1))
+		"spec_class_name":      mSpec.Class.Name,
+		"node_name":            mMeta.Labels[v1alpha1.NodeLabelKey]}).Set(float64(1))
 }
