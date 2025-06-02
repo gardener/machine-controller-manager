@@ -115,6 +115,19 @@ func (dc *controller) rolloutRolling(ctx context.Context, d *v1alpha1.MachineDep
 				return err
 			}
 		}
+		// This check is needed because sometimes we can backtrack on a deployment, and this taint can stick
+		// See https://github.com/gardener/machine-controller-manager/issues/989 for more details
+		if err = dc.removeTaintNodesBackingMachineSet(
+			ctx,
+			newIS,
+			&v1.Taint{
+				Key:    PreferNoScheduleKey,
+				Value:  "True",
+				Effect: "PreferNoSchedule",
+			},
+		); err != nil {
+			klog.Warningf("Failed to remove taint %s from all nodes. Error: %s", PreferNoScheduleKey, err)
+		}
 		if err := dc.cleanupMachineDeployment(ctx, oldISs, d); err != nil {
 			return err
 		}
