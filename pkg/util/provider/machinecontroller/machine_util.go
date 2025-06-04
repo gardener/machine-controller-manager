@@ -1497,7 +1497,10 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		ReadonlyFilesystem   v1.NodeConditionType = "ReadonlyFilesystem"
 	)
 
-	forceDeleteLabelPresent, _ = strconv.ParseBool(machine.Labels["force-deletion"])
+	forceDeleteLabelPresent, err = strconv.ParseBool(machine.Labels["force-deletion"])
+	if err != nil {
+		klog.Warningf("%q label for machine %q has invalid value: %s", "force-deletion", machine.Name, err)
+	}
 
 	if nodeName == "" {
 		message := "Skipping drain as nodeName is not a valid one for machine."
