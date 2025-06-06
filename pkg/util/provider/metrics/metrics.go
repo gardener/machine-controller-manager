@@ -38,7 +38,7 @@ var (
 		Name:      "info",
 		Help:      "Information of the Machines currently managed by the mcm.",
 	}, []string{"name", "namespace", "createdAt",
-		"spec_provider_id", "spec_class_api_group", "spec_class_kind", "spec_class_name"})
+		"spec_provider_id", "spec_class_api_group", "spec_class_kind", "spec_class_name", "node_name"})
 
 	// MachineStatusCondition Information of the mcm managed Machines' status conditions
 	MachineStatusCondition = prometheus.NewGaugeVec(prometheus.GaugeOpts{
