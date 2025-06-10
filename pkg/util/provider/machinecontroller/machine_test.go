@@ -362,7 +362,7 @@ var _ = Describe("machine", func() {
 					coreObjects = append(coreObjects, o)
 				}
 
-				controller, trackers := createController(stop, objMeta.Namespace, controlObjects, coreObjects, nil, nil)
+				controller, trackers := createController(stop, objMeta.Namespace, controlObjects, coreObjects, nil, nil, false)
 				defer trackers.Stop()
 
 				waitForCacheSync(stop, controller)
@@ -483,6 +483,7 @@ var _ = Describe("machine", func() {
 			secrets             []*corev1.Secret
 			nodes               []*corev1.Node
 			fakeResourceActions *customfake.ResourceActions
+			noTargetCluster     bool
 		}
 		type action struct {
 			machine    string
@@ -534,7 +535,7 @@ var _ = Describe("machine", func() {
 					nil,
 				)
 
-				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, controlCoreObjects, targetCoreObjects, fakedriver)
+				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, controlCoreObjects, targetCoreObjects, fakedriver, data.setup.noTargetCluster)
 
 				defer trackers.Stop()
 
@@ -1232,6 +1233,7 @@ var _ = Describe("machine", func() {
 			machines            []*v1alpha1.Machine
 			nodes               []*corev1.Node
 			fakeResourceActions *customfake.ResourceActions
+			noTargetCluster     bool
 		}
 		type action struct {
 			machine                 string
@@ -1288,7 +1290,7 @@ var _ = Describe("machine", func() {
 					nil,
 				)
 
-				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, controlCoreObjects, targetCoreObjects, fakeDriver)
+				controller, trackers := createController(stop, objMeta.Namespace, machineObjects, controlCoreObjects, targetCoreObjects, fakeDriver, data.setup.noTargetCluster)
 
 				defer trackers.Stop()
 				waitForCacheSync(stop, controller)

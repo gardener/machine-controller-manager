@@ -66,7 +66,7 @@ var _ = Describe("machine_util", func() {
 				coreObjects = append(coreObjects, nodeObject)
 				controlObjects = append(controlObjects, machineObject)
 
-				c, trackers := createController(stop, testNamespace, controlObjects, nil, coreObjects, nil)
+				c, trackers := createController(stop, testNamespace, controlObjects, nil, coreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
@@ -438,7 +438,7 @@ var _ = Describe("machine_util", func() {
 				stop := make(chan struct{})
 				defer close(stop)
 
-				c, trackers := createController(stop, testNamespace, nil, nil, nil, nil)
+				c, trackers := createController(stop, testNamespace, nil, nil, nil, nil, false)
 				defer trackers.Stop()
 
 				waitForCacheSync(stop, c)
@@ -870,7 +870,7 @@ var _ = Describe("machine_util", func() {
 				stop := make(chan struct{})
 				defer close(stop)
 
-				c, trackers := createController(stop, testNamespace, nil, nil, nil, nil)
+				c, trackers := createController(stop, testNamespace, nil, nil, nil, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
@@ -1286,7 +1286,7 @@ var _ = Describe("machine_util", func() {
 				stop := make(chan struct{})
 				defer close(stop)
 
-				c, trackers := createController(stop, testNamespace, nil, nil, nil, nil)
+				c, trackers := createController(stop, testNamespace, nil, nil, nil, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
@@ -2003,7 +2003,7 @@ var _ = Describe("machine_util", func() {
 
 				controlObjects = append(controlObjects, machineClassObject)
 
-				c, trackers := createController(stop, testNamespace, controlObjects, nil, nil, nil)
+				c, trackers := createController(stop, testNamespace, controlObjects, nil, nil, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
@@ -2129,7 +2129,7 @@ var _ = Describe("machine_util", func() {
 				targetCoreObjects = append(targetCoreObjects, o)
 			}
 
-			c, trackers = createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil)
+			c, trackers = createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 			defer trackers.Stop()
 
 			c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
@@ -2553,7 +2553,7 @@ var _ = Describe("machine_util", func() {
 				targetCoreObjects = append(targetCoreObjects, o)
 			}
 
-			c, trackers = createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil)
+			c, trackers = createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 			defer trackers.Stop()
 
 			c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
@@ -2868,7 +2868,7 @@ var _ = Describe("machine_util", func() {
 					targetCoreObjects = append(targetCoreObjects, o)
 				}
 
-				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil)
+				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 
 				c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
@@ -3280,7 +3280,7 @@ var _ = Describe("machine_util", func() {
 				controlMachineObjects = append(controlMachineObjects, data.setup.machine)
 				targetCoreObjects = append(targetCoreObjects, data.setup.node)
 
-				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil)
+				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 
 				c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
@@ -3489,7 +3489,7 @@ var _ = Describe("machine_util", func() {
 					targetCoreObjects = append(targetCoreObjects, data.setup.node)
 				}
 
-				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil)
+				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 
 				c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
