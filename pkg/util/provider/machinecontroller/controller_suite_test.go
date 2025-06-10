@@ -514,6 +514,7 @@ func createController(
 	namespace string,
 	controlMachineObjects, controlCoreObjects, targetCoreObjects []runtime.Object,
 	fakedriver driver.Driver,
+	noTargetCluster bool,
 ) (*controller, *customfake.FakeObjectTrackers) {
 
 	fakeControlMachineClient, controlMachineObjectTracker := customfake.NewMachineClientSet(controlMachineObjects...)
@@ -536,12 +537,6 @@ func createController(
 		nil,
 	)
 	defer coreTargetInformerFactory.Start(stop)
-
-	coreTargetSharedInformers := coreTargetInformerFactory.Core().V1()
-	nodes := coreTargetSharedInformers.Nodes()
-	pvcs := coreTargetSharedInformers.PersistentVolumeClaims()
-	pvs := coreTargetSharedInformers.PersistentVolumes()
-	pods := coreTargetSharedInformers.Pods()
 
 	coreControlInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
 		fakeControlCoreClient,
@@ -587,20 +582,13 @@ func createController(
 		safetyOptions:               safetyOptions,
 		machineClassLister:          machineClass.Lister(),
 		machineClassSynced:          machineClass.Informer().HasSynced,
-		targetCoreClient:            fakeTargetCoreClient,
 		controlCoreClient:           fakeControlCoreClient,
 		controlMachineClient:        fakeTypedMachineClient,
 		internalExternalScheme:      internalExternalScheme,
-		nodeLister:                  nodes.Lister(),
-		pvcLister:                   pvcs.Lister(),
 		secretLister:                secrets.Lister(),
-		pvLister:                    pvs.Lister(),
 		machineLister:               machines.Lister(),
-		podLister:                   pods.Lister(),
 		machineSynced:               machines.Informer().HasSynced,
-		nodeSynced:                  nodes.Informer().HasSynced,
 		secretSynced:                secrets.Informer().HasSynced,
-		podSynced:                   pods.Informer().HasSynced,
 		machineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineclass"),
 		secretQueue:                 workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
 		nodeQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
@@ -609,6 +597,18 @@ func createController(
 		machineSafetyOrphanVMsQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
 		machineSafetyAPIServerQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
 		recorder:                    record.NewBroadcaster().NewRecorder(nil, corev1.EventSource{Component: ""}),
+	}
+
+	if !noTargetCluster {
+		controller.targetCoreClient = fakeTargetCoreClient
+
+		coreTargetSharedInformers := coreTargetInformerFactory.Core().V1()
+		controller.nodeLister = coreTargetSharedInformers.Nodes().Lister()
+		controller.nodeSynced = coreTargetSharedInformers.Nodes().Informer().HasSynced
+		controller.pvcLister = coreTargetSharedInformers.PersistentVolumeClaims().Lister()
+		controller.pvLister = coreTargetSharedInformers.PersistentVolumes().Lister()
+		controller.podLister = coreTargetSharedInformers.Pods().Lister()
+		controller.podSynced = coreTargetSharedInformers.Pods().Informer().HasSynced
 	}
 
 	// controller.internalExternalScheme = runtime.NewScheme()
@@ -626,8 +626,11 @@ func waitForCacheSync(stop <-chan struct{}, controller *controller) {
 		controller.machineClassSynced,
 		controller.machineSynced,
 		controller.secretSynced,
-		controller.nodeSynced,
 	)).To(BeTrue())
+
+	if controller.nodeLister != nil {
+		Expect(cache.WaitForCacheSync(stop, controller.nodeSynced)).To(BeTrue())
+	}
 }
 
 var _ = Describe("#createController", func() {
@@ -644,7 +647,7 @@ var _ = Describe("#createController", func() {
 		stop := make(chan struct{})
 		defer close(stop)
 
-		c, trackers := createController(stop, objMeta.Namespace, nil, nil, nil, nil)
+		c, trackers := createController(stop, objMeta.Namespace, nil, nil, nil, nil, false)
 		defer trackers.Stop()
 
 		waitForCacheSync(stop, c)

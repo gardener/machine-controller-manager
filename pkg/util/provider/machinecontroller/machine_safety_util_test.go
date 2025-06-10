@@ -39,7 +39,7 @@ var _ = Describe("machine_safety_util", func() {
 				stop := make(chan struct{})
 				defer close(stop)
 
-				c, trackers := createController(stop, testNamespace, nil, nil, nil, nil)
+				c, trackers := createController(stop, testNamespace, nil, nil, nil, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 

@@ -7,6 +7,7 @@ package controller
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -29,9 +30,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	runtimeutil "k8s.io/apimachinery/pkg/util/runtime"
+	kubernetesinformers "k8s.io/client-go/informers"
 	coreinformers "k8s.io/client-go/informers/core/v1"
-	policyv1informers "k8s.io/client-go/informers/policy/v1"
-	storageinformers "k8s.io/client-go/informers/storage/v1"
 	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
@@ -61,13 +61,8 @@ func NewController(
 	controlCoreClient kubernetes.Interface,
 	targetCoreClient kubernetes.Interface,
 	driver driver.Driver,
-	pvcInformer coreinformers.PersistentVolumeClaimInformer,
-	pvInformer coreinformers.PersistentVolumeInformer,
+	targetCoreInformerFactory kubernetesinformers.SharedInformerFactory,
 	secretInformer coreinformers.SecretInformer,
-	nodeInformer coreinformers.NodeInformer,
-	podInformer coreinformers.PodInformer,
-	pdbInformer policyv1informers.PodDisruptionBudgetInformer,
-	volumeAttachmentInformer storageinformers.VolumeAttachmentInformer,
 	machineClassInformer machineinformers.MachineClassInformer,
 	machineInformer machineinformers.MachineInformer,
 	recorder record.EventRecorder,
@@ -119,27 +114,30 @@ func NewController(
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: typedcorev1.New(controlCoreClient.CoreV1().RESTClient()).Events(namespace)})
 
 	// Controller listers
-	controller.pvcLister = pvcInformer.Lister()
-	controller.pvLister = pvInformer.Lister()
+	if targetCoreInformerFactory != nil {
+		controller.pvcLister = targetCoreInformerFactory.Core().V1().PersistentVolumeClaims().Lister()
+		controller.pvLister = targetCoreInformerFactory.Core().V1().PersistentVolumes().Lister()
+		controller.volumeAttachementLister = targetCoreInformerFactory.Storage().V1().VolumeAttachments().Lister()
+		controller.nodeLister = targetCoreInformerFactory.Core().V1().Nodes().Lister()
+		controller.podLister = targetCoreInformerFactory.Core().V1().Pods().Lister()
+		controller.pdbLister = targetCoreInformerFactory.Policy().V1().PodDisruptionBudgets().Lister()
+	}
 	controller.secretLister = secretInformer.Lister()
-	controller.volumeAttachementLister = volumeAttachmentInformer.Lister()
 	controller.machineClassLister = machineClassInformer.Lister()
-	controller.nodeLister = nodeInformer.Lister()
 	controller.machineLister = machineInformer.Lister()
-	controller.podLister = podInformer.Lister()
 
 	// Controller syncs
-	controller.pvcSynced = pvcInformer.Informer().HasSynced
-	controller.pvSynced = pvInformer.Informer().HasSynced
+	if targetCoreInformerFactory != nil {
+		controller.pvcSynced = targetCoreInformerFactory.Core().V1().PersistentVolumeClaims().Informer().HasSynced
+		controller.pvSynced = targetCoreInformerFactory.Core().V1().PersistentVolumes().Informer().HasSynced
+		controller.volumeAttachementSynced = targetCoreInformerFactory.Storage().V1().VolumeAttachments().Informer().HasSynced
+		controller.nodeSynced = targetCoreInformerFactory.Core().V1().Nodes().Informer().HasSynced
+		controller.podSynced = targetCoreInformerFactory.Core().V1().Pods().Informer().HasSynced
+		controller.pdbSynced = targetCoreInformerFactory.Policy().V1().PodDisruptionBudgets().Informer().HasSynced
+	}
 	controller.secretSynced = secretInformer.Informer().HasSynced
-	controller.volumeAttachementSynced = volumeAttachmentInformer.Informer().HasSynced
 	controller.machineClassSynced = machineClassInformer.Informer().HasSynced
-	controller.nodeSynced = nodeInformer.Informer().HasSynced
 	controller.machineSynced = machineInformer.Informer().HasSynced
-	controller.podSynced = podInformer.Informer().HasSynced
-
-	controller.pdbLister = pdbInformer.Lister()
-	controller.pdbSynced = pdbInformer.Informer().HasSynced
 
 	// Secret Controller's Informers
 	_, _ = secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -166,11 +164,13 @@ func NewController(
 	})
 
 	// Machine Controller's Informers
-	_, _ = nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.addNodeToMachine,
-		UpdateFunc: controller.updateNodeToMachine,
-		DeleteFunc: controller.deleteNodeToMachine,
-	})
+	if targetCoreInformerFactory != nil {
+		_, _ = targetCoreInformerFactory.Core().V1().Nodes().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc:    controller.addNodeToMachine,
+			UpdateFunc: controller.updateNodeToMachine,
+			DeleteFunc: controller.deleteNodeToMachine,
+		})
+	}
 
 	_, _ = machineInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.addMachine,
@@ -192,7 +192,7 @@ func NewController(
 	})
 
 	// Drain Controller's Informers
-	if k8sutils.IsResourceSupported(
+	if targetCoreClient != nil && targetCoreInformerFactory != nil && k8sutils.IsResourceSupported(
 		targetCoreClient,
 		schema.GroupResource{
 			Group:    k8sutils.VolumeAttachmentGroupName,
@@ -200,7 +200,7 @@ func NewController(
 		},
 	) {
 		controller.volumeAttachmentHandler = drain.NewVolumeAttachmentHandler()
-		_, _ = volumeAttachmentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		_, _ = targetCoreInformerFactory.Storage().V1().VolumeAttachments().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc:    controller.volumeAttachmentHandler.AddVolumeAttachment,
 			UpdateFunc: controller.volumeAttachmentHandler.UpdateVolumeAttachment,
 		})
@@ -223,8 +223,10 @@ type controller struct {
 	nodeConditions                string
 	bootstrapTokenAuthExtraGroups string
 
-	controlMachineClient    machineapi.MachineV1alpha1Interface
-	controlCoreClient       kubernetes.Interface
+	// control clients
+	controlMachineClient machineapi.MachineV1alpha1Interface
+	controlCoreClient    kubernetes.Interface
+	// target clients – nil when running without a target cluster
 	targetCoreClient        kubernetes.Interface
 	targetKubernetesVersion *semver.Version
 
@@ -239,15 +241,16 @@ type controller struct {
 	// it is used to limit removal of `health timed out` machines
 	permitGiver permits.PermitGiver
 
-	// listers
+	// control listers
+	secretLister       corelisters.SecretLister
+	machineClassLister machinelisters.MachineClassLister
+	machineLister      machinelisters.MachineLister
+	// target listers – nil when running without a target cluster
 	pvcLister               corelisters.PersistentVolumeClaimLister
 	pvLister                corelisters.PersistentVolumeLister
-	secretLister            corelisters.SecretLister
 	nodeLister              corelisters.NodeLister
 	pdbLister               policyv1listers.PodDisruptionBudgetLister
 	volumeAttachementLister storagelisters.VolumeAttachmentLister
-	machineClassLister      machinelisters.MachineClassLister
-	machineLister           machinelisters.MachineLister
 	podLister               corelisters.PodLister
 	// queues
 	secretQueue                 workqueue.RateLimitingInterface
@@ -285,16 +288,24 @@ func (dc *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer dc.machineSafetyOrphanVMsQueue.ShutDown()
 	defer dc.machineSafetyAPIServerQueue.ShutDown()
 
-	if k8sutils.ConstraintK8sGreaterEqual121.Check(dc.targetKubernetesVersion) {
-		if !cache.WaitForCacheSync(stopCh, dc.secretSynced, dc.pvcSynced, dc.pvSynced, dc.pdbSynced, dc.volumeAttachementSynced, dc.nodeSynced, dc.machineClassSynced, dc.machineSynced) {
-			runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
-			return
-		}
-	} else {
-		if !cache.WaitForCacheSync(stopCh, dc.secretSynced, dc.pvcSynced, dc.pvSynced, dc.volumeAttachementSynced, dc.nodeSynced, dc.machineClassSynced, dc.machineSynced) {
-			runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
-			return
-		}
+	syncedFuncs := []cache.InformerSynced{
+		dc.secretSynced,
+		dc.pvcSynced,
+		dc.pvSynced,
+		dc.volumeAttachementSynced,
+		dc.nodeSynced,
+		dc.machineClassSynced,
+		dc.machineSynced,
+	}
+	if dc.targetKubernetesVersion != nil && k8sutils.ConstraintK8sGreaterEqual121.Check(dc.targetKubernetesVersion) {
+		syncedFuncs = append(syncedFuncs, dc.pdbSynced)
+	}
+	// filter out nil funcs (disabled target cluster)
+	syncedFuncs = slices.DeleteFunc(syncedFuncs, func(fn cache.InformerSynced) bool { return fn == nil })
+
+	if !cache.WaitForCacheSync(stopCh, syncedFuncs...) {
+		runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+		return
 	}
 
 	klog.V(1).Info("Starting machine-controller-manager")
