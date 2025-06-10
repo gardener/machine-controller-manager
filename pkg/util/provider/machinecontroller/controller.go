@@ -319,11 +319,15 @@ func (dc *controller) Run(workers int, stopCh <-chan struct{}) {
 	for range workers {
 		worker.Run(dc.secretQueue, "ClusterSecret", worker.DefaultMaxRetries, true, dc.reconcileClusterSecretKey, stopCh, &waitGroup)
 		worker.Run(dc.machineClassQueue, "ClusterMachineClass", worker.DefaultMaxRetries, true, dc.reconcileClusterMachineClassKey, stopCh, &waitGroup)
-		worker.Run(dc.nodeQueue, "ClusterNode", worker.DefaultMaxRetries, true, dc.reconcileClusterNodeKey, stopCh, &waitGroup)
 		worker.Run(dc.machineQueue, "ClusterMachine", worker.DefaultMaxRetries, true, dc.reconcileClusterMachineKey, stopCh, &waitGroup)
 		worker.Run(dc.machineTerminationQueue, "ClusterMachineTermination", worker.DefaultMaxRetries, true, dc.reconcileClusterMachineTermination, stopCh, &waitGroup)
 		worker.Run(dc.machineSafetyOrphanVMsQueue, "ClusterMachineSafetyOrphanVMs", worker.DefaultMaxRetries, true, dc.reconcileClusterMachineSafetyOrphanVMs, stopCh, &waitGroup)
-		worker.Run(dc.machineSafetyAPIServerQueue, "ClusterMachineAPIServer", worker.DefaultMaxRetries, true, dc.reconcileClusterMachineSafetyAPIServer, stopCh, &waitGroup)
+
+		// don't start these controllers if running without a target cluster
+		if dc.targetCoreClient != nil {
+			worker.Run(dc.nodeQueue, "ClusterNode", worker.DefaultMaxRetries, true, dc.reconcileClusterNodeKey, stopCh, &waitGroup)
+			worker.Run(dc.machineSafetyAPIServerQueue, "ClusterMachineAPIServer", worker.DefaultMaxRetries, true, dc.reconcileClusterMachineSafetyAPIServer, stopCh, &waitGroup)
+		}
 	}
 
 	<-stopCh

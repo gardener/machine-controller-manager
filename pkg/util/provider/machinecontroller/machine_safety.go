@@ -152,6 +152,11 @@ func (c *controller) isAPIServerUp(ctx context.Context) bool {
 
 // AnnotateNodesUnmanagedByMCM checks for nodes which are not handled by MCM and annotes them
 func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineutils.RetryPeriod, error) {
+	if c.nodeLister == nil {
+		// if running without a target cluster, we don't need to check for unmanaged nodes
+		return machineutils.LongRetry, nil
+	}
+
 	// list all the nodes on target cluster
 	nodes, err := c.nodeLister.List(labels.Everything())
 	if err != nil {
