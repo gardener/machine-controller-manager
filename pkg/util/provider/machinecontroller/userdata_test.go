@@ -91,6 +91,23 @@ chmod "0640" "/var/lib/gardener-node-agent/credentials/machine-name"
 			delete(userDataSecret.Data, "userData")
 			Expect(machineController.addBootstrapTokenToUserData(ctx, machine, userDataSecret)).To(MatchError(ContainSubstring("userdata field not found in secret for machine")))
 		})
+
+		When("running without target cluster", func() {
+			BeforeEach(func() {
+				machineController.targetCoreClient = nil
+			})
+
+			It("should not generate a bootstrap token and keep the magic string", func() {
+				Expect(machineController.addBootstrapTokenToUserData(ctx, machine, userDataSecret)).To(Succeed())
+				Expect(userDataSecret.Data["userData"]).To(Equal([]byte(fmt.Sprintf(userDataTemplate, "<<BOOTSTRAP_TOKEN>>", "<<MACHINE_NAME>>"))))
+			})
+
+			It("should do nothing if there is no magic string", func() {
+				userDataSecret.Data["userData"] = []byte("foobar")
+				Expect(machineController.addBootstrapTokenToUserData(ctx, machine, userDataSecret)).To(Succeed())
+				Expect(userDataSecret.Data["userData"]).To(Equal([]byte("foobar")))
+			})
+		})
 	})
 
 	Describe("#addMachineNameToUserData", func() {
