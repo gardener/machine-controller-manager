@@ -38,7 +38,7 @@ var _ = Describe("safety_logic", func() {
 
 			objects := []runtime.Object{}
 
-			c, trackers := createController(stop, testNamespace, objects, nil, nil, nil)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil, nil, false)
 
 			defer trackers.Stop()
 			//waitForCacheSync(stop, c)
@@ -63,7 +63,7 @@ var _ = Describe("safety_logic", func() {
 
 			objects := []runtime.Object{}
 
-			c, trackers := createController(stop, testNamespace, objects, nil, nil, nil)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil, nil, false)
 
 			defer trackers.Stop()
 			//waitForCacheSync(stop, c)
@@ -167,7 +167,7 @@ var _ = Describe("safety_logic", func() {
 				controlMachineObjects := []runtime.Object{}
 				controlMachineObjects = append(controlMachineObjects, testMachine)
 
-				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, nil, nil)
+				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, nil, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
@@ -307,7 +307,7 @@ var _ = Describe("safety_logic", func() {
 
 			fakeDriver := driver.NewFakeDriver(false, "", "", "", nil, nil)
 
-			c, trackers := createController(stop, testNamespace, controlMachineObjects, controlCoreObjects, nil, fakeDriver)
+			c, trackers := createController(stop, testNamespace, controlMachineObjects, controlCoreObjects, nil, fakeDriver, false)
 			defer trackers.Stop()
 
 			fd := fakeDriver.(*driver.FakeDriver)
@@ -534,7 +534,7 @@ var _ = Describe("safety_logic", func() {
 				}
 				targetCoreObjects = append(targetCoreObjects, nodeObject2)
 
-				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil)
+				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 

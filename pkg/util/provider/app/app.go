@@ -38,7 +38,7 @@ import (
 	coreclientbuilder "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/core"
 	machineclientbuilder "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/machine"
 	machinecontroller "github.com/gardener/machine-controller-manager/pkg/util/provider/machinecontroller"
-	coreinformers "k8s.io/client-go/informers"
+	kubernetesinformers "k8s.io/client-go/informers"
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/gardener/machine-controller-manager/pkg/handlers"
@@ -64,6 +64,8 @@ import (
 
 const (
 	controllerManagerAgentName = "machine-controller"
+
+	targetKubeconfigValueDisabled = "none"
 )
 
 var (
@@ -80,33 +82,42 @@ func Run(s *options.MCServer, driver driver.Driver) error {
 
 	var err error
 
-	// kubeconfig for the cluster for which machine-controller will create machines.
-	targetkubeconfig, err := clientcmd.BuildConfigFromFlags("", s.TargetKubeconfig)
-	if err != nil {
-		return err
-	}
-
-	controlkubeconfig := targetkubeconfig
-
-	if s.ControlKubeconfig != "" {
-		if s.ControlKubeconfig == "inClusterConfig" {
-			//use inClusterConfig when controller is running inside clus
-			controlkubeconfig, err = clientcmd.BuildConfigFromFlags("", "")
-		} else {
-			//kubeconfig for the seedcluster where MachineCRDs are supposed to be registered.
-			controlkubeconfig, err = clientcmd.BuildConfigFromFlags("", s.ControlKubeconfig)
-		}
+	// kubeconfig for the cluster for which machine-controller-manager will create machines.
+	var targetkubeconfig *rest.Config
+	if s.TargetKubeconfig != targetKubeconfigValueDisabled {
+		targetkubeconfig, err = clientcmd.BuildConfigFromFlags("", s.TargetKubeconfig)
 		if err != nil {
 			return err
 		}
 	}
 
+	var controlkubeconfig *rest.Config
+	if s.ControlKubeconfig != "" {
+		if s.ControlKubeconfig == "inClusterConfig" {
+			// use inClusterConfig when controller is running inside cluster
+			controlkubeconfig, err = clientcmd.BuildConfigFromFlags("", "")
+		} else {
+			// kubeconfig for the seed cluster where MachineCRDs are supposed to be registered.
+			controlkubeconfig, err = clientcmd.BuildConfigFromFlags("", s.ControlKubeconfig)
+		}
+		if err != nil {
+			return err
+		}
+	} else {
+		if s.TargetKubeconfig == targetKubeconfigValueDisabled {
+			return fmt.Errorf("--control-kubeconfig cannot be empty if --target-kubeconfig=%s is specified", targetKubeconfigValueDisabled)
+		}
+		controlkubeconfig = targetkubeconfig
+	}
+
 	// PROTOBUF WONT WORK
 	// kubeconfig.ContentConfig.ContentType = s.ContentType
 	// Override kubeconfig qps/burst settings from flags
-	targetkubeconfig.QPS = s.KubeAPIQPS
+	if targetkubeconfig != nil {
+		targetkubeconfig.QPS = s.KubeAPIQPS
+		targetkubeconfig.Burst = int(s.KubeAPIBurst)
+	}
 	controlkubeconfig.QPS = s.KubeAPIQPS
-	targetkubeconfig.Burst = int(s.KubeAPIBurst)
 	controlkubeconfig.Burst = int(s.KubeAPIBurst)
 
 	kubeClientControl, err := kubernetes.NewForConfig(
@@ -133,8 +144,11 @@ func Run(s *options.MCServer, driver driver.Driver) error {
 			ClientConfig: controlkubeconfig,
 		}
 		// Target plane client used to interact with core kubernetes objects
-		targetCoreClientBuilder := coreclientbuilder.SimpleControllerClientBuilder{
-			ClientConfig: targetkubeconfig,
+		var targetCoreClientBuilder coreclientbuilder.ClientBuilder
+		if targetkubeconfig != nil {
+			targetCoreClientBuilder = coreclientbuilder.SimpleControllerClientBuilder{
+				ClientConfig: targetkubeconfig,
+			}
 		}
 
 		err := StartControllers(
@@ -220,19 +234,25 @@ func StartControllers(s *options.MCServer,
 		klog.Fatal(err)
 	}
 
-	targetCoreKubeconfig = rest.AddUserAgent(targetCoreKubeconfig, controllerManagerAgentName)
-	targetCoreClient, err := kubernetes.NewForConfig(targetCoreKubeconfig)
-	if err != nil {
-		klog.Fatal(err)
-	}
+	var (
+		targetCoreClient        kubernetes.Interface
+		targetKubernetesVersion *semver.Version
+	)
+	if targetCoreKubeconfig != nil {
+		targetCoreKubeconfig = rest.AddUserAgent(targetCoreKubeconfig, controllerManagerAgentName)
+		targetCoreClient, err = kubernetes.NewForConfig(targetCoreKubeconfig)
+		if err != nil {
+			klog.Fatal(err)
+		}
 
-	targetServerVersion, err := targetCoreClient.Discovery().ServerVersion()
-	if err != nil {
-		return err
-	}
-	targetKubernetesVersion, err := semver.NewVersion(targetServerVersion.GitVersion)
-	if err != nil {
-		return err
+		targetServerVersion, err := targetCoreClient.Discovery().ServerVersion()
+		if err != nil {
+			return err
+		}
+		targetKubernetesVersion, err = semver.NewVersion(targetServerVersion.GitVersion)
+		if err != nil {
+			return err
+		}
 	}
 
 	if !availableResources[machineGVR] {
@@ -247,19 +267,20 @@ func StartControllers(s *options.MCServer,
 		nil,
 	)
 
-	controlCoreInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
+	controlCoreInformerFactory := kubernetesinformers.NewFilteredSharedInformerFactory(
 		controlCoreClientBuilder.ClientOrDie("control-core-shared-informers"),
 		s.MinResyncPeriod.Duration,
 		s.Namespace,
 		nil,
 	)
 
-	targetCoreInformerFactory := coreinformers.NewSharedInformerFactory(
-		targetCoreClientBuilder.ClientOrDie("target-core-shared-informers"),
-		s.MinResyncPeriod.Duration,
-	)
-
-	pdbInformer := targetCoreInformerFactory.Policy().V1().PodDisruptionBudgets()
+	var targetCoreInformerFactory kubernetesinformers.SharedInformerFactory
+	if targetCoreClientBuilder != nil {
+		targetCoreInformerFactory = kubernetesinformers.NewSharedInformerFactory(
+			targetCoreClientBuilder.ClientOrDie("target-core-shared-informers"),
+			s.MinResyncPeriod.Duration,
+		)
+	}
 
 	// All shared informers are v1alpha1 API level
 	machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
@@ -271,13 +292,8 @@ func StartControllers(s *options.MCServer,
 		controlCoreClient,
 		targetCoreClient,
 		driver,
-		targetCoreInformerFactory.Core().V1().PersistentVolumeClaims(),
-		targetCoreInformerFactory.Core().V1().PersistentVolumes(),
+		targetCoreInformerFactory,
 		controlCoreInformerFactory.Core().V1().Secrets(),
-		targetCoreInformerFactory.Core().V1().Nodes(),
-		targetCoreInformerFactory.Core().V1().Pods(),
-		pdbInformer,
-		targetCoreInformerFactory.Storage().V1().VolumeAttachments(),
 		machineSharedInformers.MachineClasses(),
 		machineSharedInformers.Machines(),
 		recorder,
@@ -293,7 +309,9 @@ func StartControllers(s *options.MCServer,
 
 	controlMachineInformerFactory.Start(stop)
 	controlCoreInformerFactory.Start(stop)
-	targetCoreInformerFactory.Start(stop)
+	if targetCoreInformerFactory != nil {
+		targetCoreInformerFactory.Start(stop)
+	}
 
 	klog.V(4).Info("Running controller")
 	go machineController.Run(int(s.ConcurrentNodeSyncs), stop)

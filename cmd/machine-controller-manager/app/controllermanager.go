@@ -37,7 +37,7 @@ import (
 	mcmcontroller "github.com/gardener/machine-controller-manager/pkg/controller"
 	corecontroller "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/core"
 	machinecontroller "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/machine"
-	coreinformers "k8s.io/client-go/informers"
+	kubernetesinformers "k8s.io/client-go/informers"
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
@@ -64,6 +64,8 @@ const (
 	controllerManagerAgentName = "machine-controller-manager"
 	targetkubeconfigTimeout    = 1 * time.Minute
 	controlkubeconfigTimeout   = 1 * time.Minute
+
+	targetKubeconfigValueDisabled = "none"
 )
 
 var (
@@ -82,35 +84,44 @@ func Run(s *options.MCMServer) error {
 
 	var err error
 
-	//kubeconfig for the cluster for which machine-controller-manager will create machines.
-	targetkubeconfig, err := clientcmd.BuildConfigFromFlags("", s.TargetKubeconfig)
-	if err != nil {
-		return err
-	}
-
-	controlkubeconfig := targetkubeconfig
-
-	if s.ControlKubeconfig != "" {
-		if s.ControlKubeconfig == "inClusterConfig" {
-			//use inClusterConfig when controller is running inside clus
-			controlkubeconfig, err = clientcmd.BuildConfigFromFlags("", "")
-		} else {
-			//kubeconfig for the seedcluster where MachineCRDs are supposed to be registered.
-			controlkubeconfig, err = clientcmd.BuildConfigFromFlags("", s.ControlKubeconfig)
-		}
+	// kubeconfig for the cluster for which machine-controller-manager will create machines.
+	var targetkubeconfig *rest.Config
+	if s.TargetKubeconfig != targetKubeconfigValueDisabled {
+		targetkubeconfig, err = clientcmd.BuildConfigFromFlags("", s.TargetKubeconfig)
 		if err != nil {
 			return err
 		}
 	}
 
+	var controlkubeconfig *rest.Config
+	if s.ControlKubeconfig != "" {
+		if s.ControlKubeconfig == "inClusterConfig" {
+			// use inClusterConfig when controller is running inside cluster
+			controlkubeconfig, err = clientcmd.BuildConfigFromFlags("", "")
+		} else {
+			// kubeconfig for the seed cluster where MachineCRDs are supposed to be registered.
+			controlkubeconfig, err = clientcmd.BuildConfigFromFlags("", s.ControlKubeconfig)
+		}
+		if err != nil {
+			return err
+		}
+	} else {
+		if s.TargetKubeconfig == targetKubeconfigValueDisabled {
+			return fmt.Errorf("--control-kubeconfig cannot be empty if --target-kubeconfig=%s is specified", targetKubeconfigValueDisabled)
+		}
+		controlkubeconfig = targetkubeconfig
+	}
+
 	// PROTOBUF WONT WORK
 	// kubeconfig.ContentConfig.ContentType = s.ContentType
 	// Override kubeconfig qps/burst settings from flags
-	targetkubeconfig.QPS = s.KubeAPIQPS
+	if targetkubeconfig != nil {
+		targetkubeconfig.QPS = s.KubeAPIQPS
+		targetkubeconfig.Burst = int(s.KubeAPIBurst)
+		targetkubeconfig.Timeout = targetkubeconfigTimeout
+	}
 	controlkubeconfig.QPS = s.KubeAPIQPS
-	targetkubeconfig.Burst = int(s.KubeAPIBurst)
 	controlkubeconfig.Burst = int(s.KubeAPIBurst)
-	targetkubeconfig.Timeout = targetkubeconfigTimeout
 	controlkubeconfig.Timeout = controlkubeconfigTimeout
 
 	kubeClientControl, err := kubernetes.NewForConfig(
@@ -137,8 +148,11 @@ func Run(s *options.MCMServer) error {
 			ClientConfig: controlkubeconfig,
 		}
 		// Target plane client used to interact with core kubernetes objects
-		targetCoreClientBuilder := corecontroller.SimpleControllerClientBuilder{
-			ClientConfig: targetkubeconfig,
+		var targetCoreClientBuilder corecontroller.ClientBuilder
+		if targetkubeconfig != nil {
+			targetCoreClientBuilder = corecontroller.SimpleControllerClientBuilder{
+				ClientConfig: targetkubeconfig,
+			}
 		}
 
 		err := StartControllers(
@@ -222,10 +236,13 @@ func StartControllers(s *options.MCMServer,
 		klog.Fatal(err)
 	}
 
-	targetCoreKubeconfig = rest.AddUserAgent(targetCoreKubeconfig, controllerManagerAgentName)
-	targetCoreClient, err := kubernetes.NewForConfig(targetCoreKubeconfig)
-	if err != nil {
-		klog.Fatal(err)
+	var targetCoreClient kubernetes.Interface
+	if targetCoreKubeconfig != nil {
+		targetCoreKubeconfig = rest.AddUserAgent(targetCoreKubeconfig, controllerManagerAgentName)
+		targetCoreClient, err = kubernetes.NewForConfig(targetCoreKubeconfig)
+		if err != nil {
+			klog.Fatal(err)
+		}
 	}
 
 	if !availableResources[machineGVR] && !availableResources[machineSetGVR] && !availableResources[machineDeploymentGVR] {
@@ -240,17 +257,20 @@ func StartControllers(s *options.MCMServer,
 		nil,
 	)
 
-	controlCoreInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
+	controlCoreInformerFactory := kubernetesinformers.NewFilteredSharedInformerFactory(
 		controlCoreClientBuilder.ClientOrDie("control-core-shared-informers"),
 		s.MinResyncPeriod.Duration,
 		s.Namespace,
 		nil,
 	)
 
-	targetCoreInformerFactory := coreinformers.NewSharedInformerFactory(
-		targetCoreClientBuilder.ClientOrDie("target-core-shared-informers"),
-		s.MinResyncPeriod.Duration,
-	)
+	var targetCoreInformerFactory kubernetesinformers.SharedInformerFactory
+	if targetCoreClientBuilder != nil {
+		targetCoreInformerFactory = kubernetesinformers.NewSharedInformerFactory(
+			targetCoreClientBuilder.ClientOrDie("target-core-shared-informers"),
+			s.MinResyncPeriod.Duration,
+		)
+	}
 
 	// All shared informers are v1alpha1 API level
 	machineSharedInformers := controlMachineInformerFactory.Machine().V1alpha1()
@@ -261,7 +281,7 @@ func StartControllers(s *options.MCMServer,
 		controlMachineClient,
 		controlCoreClient,
 		targetCoreClient,
-		targetCoreInformerFactory.Core().V1().Nodes(),
+		targetCoreInformerFactory,
 		machineSharedInformers.Machines(),
 		machineSharedInformers.MachineSets(),
 		machineSharedInformers.MachineDeployments(),
@@ -276,7 +296,9 @@ func StartControllers(s *options.MCMServer,
 
 	controlMachineInformerFactory.Start(stop)
 	controlCoreInformerFactory.Start(stop)
-	targetCoreInformerFactory.Start(stop)
+	if targetCoreInformerFactory != nil {
+		targetCoreInformerFactory.Start(stop)
+	}
 
 	klog.V(4).Info("Running controller")
 	go mcmController.Run(int(s.ConcurrentNodeSyncs), stop)

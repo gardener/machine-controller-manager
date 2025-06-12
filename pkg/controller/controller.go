@@ -7,6 +7,7 @@ package controller
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 
 	machineinternal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -23,7 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	runtimeutil "k8s.io/apimachinery/pkg/util/runtime"
-	coreinformers "k8s.io/client-go/informers/core/v1"
+	kubernetesinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
@@ -44,7 +45,7 @@ func NewController(
 	controlMachineClient machineapi.MachineV1alpha1Interface,
 	controlCoreClient kubernetes.Interface,
 	targetCoreClient kubernetes.Interface,
-	nodeInformer coreinformers.NodeInformer,
+	targetCoreInformerFactory kubernetesinformers.SharedInformerFactory,
 	machineInformer machineinformers.MachineInformer,
 	machineSetInformer machineinformers.MachineSetInformer,
 	machineDeploymentInformer machineinformers.MachineDeploymentInformer,
@@ -93,13 +94,17 @@ func NewController(
 	}
 
 	// Controller listers
-	controller.nodeLister = nodeInformer.Lister()
+	if targetCoreInformerFactory != nil {
+		controller.nodeLister = targetCoreInformerFactory.Core().V1().Nodes().Lister()
+	}
 	controller.machineLister = machineInformer.Lister()
 	controller.machineSetLister = machineSetInformer.Lister()
 	controller.machineDeploymentLister = machineDeploymentInformer.Lister()
 
 	// Controller syncs
-	controller.nodeSynced = nodeInformer.Informer().HasSynced
+	if targetCoreInformerFactory != nil {
+		controller.nodeSynced = targetCoreInformerFactory.Core().V1().Nodes().Informer().HasSynced
+	}
 	controller.machineSynced = machineInformer.Informer().HasSynced
 	controller.machineSetSynced = machineSetInformer.Informer().HasSynced
 	controller.machineDeploymentSynced = machineDeploymentInformer.Informer().HasSynced
@@ -163,9 +168,11 @@ type controller struct {
 	namespace                                  string
 	autoscalerScaleDownAnnotationDuringRollout bool
 
+	// control clients
 	controlMachineClient machineapi.MachineV1alpha1Interface
 	controlCoreClient    kubernetes.Interface
-	targetCoreClient     kubernetes.Interface
+	// target clients – nil when running without a target cluster
+	targetCoreClient kubernetes.Interface
 
 	recorder          record.EventRecorder
 	machineControl    MachineControlInterface
@@ -174,11 +181,12 @@ type controller struct {
 	expectations      *UIDTrackingContExpectations
 
 	internalExternalScheme *runtime.Scheme
-	// listers
-	nodeLister              corelisters.NodeLister
+	// control listers
 	machineLister           machinelisters.MachineLister
 	machineSetLister        machinelisters.MachineSetLister
 	machineDeploymentLister machinelisters.MachineDeploymentLister
+	// target listers – nil when running without a target cluster
+	nodeLister corelisters.NodeLister
 	// queues
 	nodeQueue                      workqueue.RateLimitingInterface
 	machineQueue                   workqueue.RateLimitingInterface
@@ -205,7 +213,16 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	defer c.machineDeploymentQueue.ShutDown()
 	defer c.machineSafetyOvershootingQueue.ShutDown()
 
-	if !cache.WaitForCacheSync(stopCh, c.nodeSynced, c.machineSynced, c.machineSetSynced, c.machineDeploymentSynced) {
+	syncedFuncs := []cache.InformerSynced{
+		c.nodeSynced,
+		c.machineSynced,
+		c.machineSetSynced,
+		c.machineDeploymentSynced,
+	}
+	// filter out nil funcs (disabled target cluster)
+	syncedFuncs = slices.DeleteFunc(syncedFuncs, func(fn cache.InformerSynced) bool { return fn == nil })
+
+	if !cache.WaitForCacheSync(stopCh, syncedFuncs...) {
 		runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
