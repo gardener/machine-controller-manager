@@ -119,9 +119,10 @@ build:
 release: build docker-image docker-login docker-push
 
 PLATFORM ?= linux/amd64
+PUSH ?= false
 .PHONY: docker-image
 docker-image:
-	@docker buildx build --platform $(PLATFORM)  -t $(IMAGE_REPOSITORY):$(IMAGE_TAG) --rm .
+	@docker buildx build --platform $(PLATFORM) --push=$(PUSH) -t $(IMAGE_REPOSITORY):$(IMAGE_TAG) .
 
 .PHONY: docker-login
 docker-login:
