@@ -41,6 +41,7 @@ import (
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/gardener/machine-controller-manager/cmd/machine-controller-manager/app/options"
+	"github.com/gardener/machine-controller-manager/pkg/apis/constants"
 	"github.com/gardener/machine-controller-manager/pkg/handlers"
 	"github.com/gardener/machine-controller-manager/pkg/util/configz"
 	"github.com/gardener/machine-controller-manager/pkg/version"
@@ -64,8 +65,6 @@ const (
 	controllerManagerAgentName = "machine-controller-manager"
 	targetkubeconfigTimeout    = 1 * time.Minute
 	controlkubeconfigTimeout   = 1 * time.Minute
-
-	targetKubeconfigValueDisabled = "none"
 )
 
 var (
@@ -86,7 +85,7 @@ func Run(s *options.MCMServer) error {
 
 	// kubeconfig for the cluster for which machine-controller-manager will create machines.
 	var targetkubeconfig *rest.Config
-	if s.TargetKubeconfig != targetKubeconfigValueDisabled {
+	if s.TargetKubeconfig != constants.TargetKubeconfigDisabledValue {
 		targetkubeconfig, err = clientcmd.BuildConfigFromFlags("", s.TargetKubeconfig)
 		if err != nil {
 			return err
@@ -106,8 +105,8 @@ func Run(s *options.MCMServer) error {
 			return err
 		}
 	} else {
-		if s.TargetKubeconfig == targetKubeconfigValueDisabled {
-			return fmt.Errorf("--control-kubeconfig cannot be empty if --target-kubeconfig=%s is specified", targetKubeconfigValueDisabled)
+		if s.TargetKubeconfig == constants.TargetKubeconfigDisabledValue {
+			return fmt.Errorf("--control-kubeconfig cannot be empty if --target-kubeconfig=%s is specified", constants.TargetKubeconfigDisabledValue)
 		}
 		controlkubeconfig = targetkubeconfig
 	}
