@@ -416,7 +416,7 @@ func (o *Options) evictPod(ctx context.Context, pod *corev1.Pod, policyGroupVers
 		DeleteOptions: deleteOptions,
 	}
 	klog.V(3).Infof("Attempting to evict the pod:%q from node %q", pod.Name, o.nodeName)
-	// TODO: Remember to change the URL manipulation func when Evction's version change
+	// TODO: Remember to change the URL manipulation func when Eviction's version change
 	return o.client.PolicyV1beta1().Evictions(eviction.Namespace).Evict(ctx, eviction)
 }
 
@@ -682,7 +682,7 @@ func (o *Options) evictPodsWithPv(ctx context.Context, attemptEvict bool, pods [
 }
 
 // checkAndDeleteWorker is a helper method that check if volumeAttachmentHandler
-// is supported and delete's the worker from the list of event handlers
+// is supported and deletes the worker from the list of event handlers
 func (o *Options) checkAndDeleteWorker(volumeAttachmentEventCh chan *storagev1.VolumeAttachment) {
 	if o.volumeAttachmentHandler != nil {
 		o.volumeAttachmentHandler.DeleteWorker(volumeAttachmentEventCh)
@@ -695,11 +695,11 @@ func (o *Options) evictPodsWithPVInternal(
 	pods []*corev1.Pod,
 	podVolumeInfoMap map[string]PodVolumeInfo,
 	policyGroupVersion string,
-	_ func(namespace, name string) (*corev1.Pod, error),
+	getPodFn func(namespace, name string) (*corev1.Pod, error),
 	returnCh chan error,
 ) (remainingPods []*corev1.Pod, fastTrack bool) {
 	var (
-		retryPods []*corev1.Pod
+		retryPods, pendingPods []*corev1.Pod
 	)
 
 	for i, pod := range pods {
@@ -817,7 +817,18 @@ func (o *Options) evictPodsWithPVInternal(
 		returnCh <- nil
 	}
 
-	return retryPods, false
+	for _, pod := range retryPods {
+		p, err := getPodFn(pod.Namespace, pod.Name)
+		if apierrors.IsNotFound(err) || (p != nil && p.ObjectMeta.UID != pod.ObjectMeta.UID) {
+			returnCh <- nil
+			continue
+		} else if err != nil {
+			klog.Errorf("error fetching pod %s status. Retrying. Err: %v", pod.Name, err)
+		}
+		pendingPods = append(pendingPods, pod)
+	}
+
+	return pendingPods, false
 }
 
 func (o *Options) getPersistentVolumeNamesForPod(pod *corev1.Pod) []string {

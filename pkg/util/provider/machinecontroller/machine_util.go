@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"math"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1476,6 +1477,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 	var (
 		// Declarations
 		err                                             error
+		forceDeleteLabelPresent                         bool
 		forceDeletePods                                 bool
 		forceDeleteMachine                              bool
 		timeOutOccurred                                 bool
@@ -1485,16 +1487,20 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		readOnlyFileSystemCondition, nodeReadyCondition v1.NodeCondition
 
 		// Initialization
-		machine                                      = deleteMachineRequest.Machine
-		maxEvictRetries                              = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
-		pvDetachTimeOut                              = c.safetyOptions.PvDetachTimeout.Duration
-		pvReattachTimeOut                            = c.safetyOptions.PvReattachTimeout.Duration
-		timeOutDuration                              = c.getEffectiveDrainTimeout(deleteMachineRequest.Machine).Duration
-		forceDeleteLabelPresent                      = machine.Labels["force-deletion"] == "True"
-		nodeName                                     = machine.Labels[v1alpha1.NodeLabelKey]
-		nodeNotReadyDuration                         = 5 * time.Minute
-		ReadonlyFilesystem      v1.NodeConditionType = "ReadonlyFilesystem"
+		machine                                   = deleteMachineRequest.Machine
+		maxEvictRetries                           = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
+		pvDetachTimeOut                           = c.safetyOptions.PvDetachTimeout.Duration
+		pvReattachTimeOut                         = c.safetyOptions.PvReattachTimeout.Duration
+		timeOutDuration                           = c.getEffectiveDrainTimeout(deleteMachineRequest.Machine).Duration
+		nodeName                                  = machine.Labels[v1alpha1.NodeLabelKey]
+		nodeNotReadyDuration                      = 5 * time.Minute
+		ReadonlyFilesystem   v1.NodeConditionType = "ReadonlyFilesystem"
 	)
+
+	forceDeleteLabelPresent, err = strconv.ParseBool(machine.Labels["force-deletion"])
+	if err != nil {
+		klog.Warningf("%q label for machine %q has invalid value: %s", "force-deletion", machine.Name, err)
+	}
 
 	if nodeName == "" {
 		message := "Skipping drain as nodeName is not a valid one for machine."
