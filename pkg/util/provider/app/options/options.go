@@ -22,6 +22,9 @@ Modifications Copyright SAP SE or an SAP affiliate company and Gardener contribu
 package options
 
 import (
+	"fmt"
+	"mime"
+	"net"
 	"time"
 
 	drain "github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
@@ -122,6 +125,67 @@ func (s *MCServer) AddFlags(fs *pflag.FlagSet) {
 // Validate is used to validate the options and config before launching the controller manager
 func (s *MCServer) Validate() error {
 	var errs []error
-	// TODO add validation
+
+	if s.Port < 1 || s.Port > 65535 {
+		errs = append(errs, fmt.Errorf("invalid port number provided: got %d", s.Port))
+	}
+	if ip := net.ParseIP(s.Address); ip == nil {
+		errs = append(errs, fmt.Errorf("invalid IP address provided: got %v", ip))
+	}
+	if s.ConcurrentNodeSyncs <= 0 {
+		errs = append(errs, fmt.Errorf("concurrent syncs should be greater than zero: got %d", s.ConcurrentNodeSyncs))
+	}
+	if s.MinResyncPeriod.Duration < 0 {
+		errs = append(errs, fmt.Errorf("min resync period should be a non-negative value: got %v", s.MinResyncPeriod.Duration))
+	}
+	if !s.EnableProfiling && s.EnableContentionProfiling {
+		errs = append(errs, fmt.Errorf("contention-profiling cannot be enabled without enabling profiling"))
+	}
+	if _, _, err := mime.ParseMediaType(s.ContentType); err != nil {
+		errs = append(errs, fmt.Errorf("kube api content type cannot be parsed: %w", err))
+	}
+	if s.KubeAPIQPS <= 0 {
+		errs = append(errs, fmt.Errorf("kube api qps should be greater than zero: got %f", s.KubeAPIQPS))
+	}
+	if s.KubeAPIBurst < 0 {
+		errs = append(errs, fmt.Errorf("kube api burst should not be a negative value: got %d", s.KubeAPIBurst))
+	}
+	if s.ControllerStartInterval.Duration < 0 {
+		errs = append(errs, fmt.Errorf("controller start interval should be a non-negative value: got %v", s.ControllerStartInterval.Duration))
+	}
+	if s.SafetyOptions.MachineCreationTimeout.Duration < 0 {
+		errs = append(errs, fmt.Errorf("machine creation timeout should be a non-negative number: got %v", s.SafetyOptions.MachineCreationTimeout.Duration))
+	}
+	if s.SafetyOptions.MachineHealthTimeout.Duration < 0 {
+		errs = append(errs, fmt.Errorf("machine health timeout should be a non-negative number: got %v", s.SafetyOptions.MachineHealthTimeout.Duration))
+	}
+	if s.SafetyOptions.MachineDrainTimeout.Duration < 0 {
+		errs = append(errs, fmt.Errorf("machine drain timeout should be a non-negative number: got %v", s.SafetyOptions.MachineDrainTimeout.Duration))
+	}
+	if s.SafetyOptions.MachineInPlaceUpdateTimeout.Duration < 0 {
+		errs = append(errs, fmt.Errorf("machine in-place update timeout should be a non-negative number: got %v", s.SafetyOptions.MachineInPlaceUpdateTimeout.Duration))
+	}
+	if s.SafetyOptions.MaxEvictRetries < 0 {
+		errs = append(errs, fmt.Errorf("max evict retries should not be a negative value: got %d", s.SafetyOptions.MaxEvictRetries))
+	}
+	if s.SafetyOptions.PvDetachTimeout.Duration < 0 {
+		errs = append(errs, fmt.Errorf("machine PV detach timeout should be a non-negative number: got %v", s.SafetyOptions.PvDetachTimeout.Duration))
+	}
+	if s.SafetyOptions.PvReattachTimeout.Duration < 0 {
+		errs = append(errs, fmt.Errorf("machine PV reattach timeout should be a non-negative number: got %v", s.SafetyOptions.PvReattachTimeout.Duration))
+	}
+	if s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration < 0 {
+		errs = append(errs, fmt.Errorf("machine safety APIServer status check timeout should be a non-negative number: got %v", s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration))
+	}
+	if s.SafetyOptions.MachineDrainTimeout.Duration < 0 {
+		errs = append(errs, fmt.Errorf("machine drain timeout should be a non-negative number: got %v", s.SafetyOptions.MachineDrainTimeout.Duration))
+	}
+	if s.SafetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration < 0 {
+		errs = append(errs, fmt.Errorf("machine safety APIServer status check period should be a non-negative number: got %v", s.SafetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration))
+	}
+	if s.SafetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration < s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration {
+		errs = append(errs, fmt.Errorf("machine safety APIServer status check period should not be less than APIServer status check timeout"))
+	}
+
 	return utilerrors.NewAggregate(errs)
 }
