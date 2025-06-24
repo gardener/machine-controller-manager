@@ -22,6 +22,9 @@ Modifications Copyright SAP SE or an SAP affiliate company and Gardener contribu
 package options
 
 import (
+	"fmt"
+	"mime"
+	"net"
 	"time"
 
 	machineconfig "github.com/gardener/machine-controller-manager/pkg/options"
@@ -95,7 +98,7 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration, "machine-safety-overshooting-period", s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration, "Time period (in duration) used to poll for overshooting of machine objects backing a machineSet by safety controller.")
 
-	fs.BoolVar(&s.AutoscalerScaleDownAnnotationDuringRollout, "autoscaler-scaldown-annotation-during-rollout", true, "Add cluster autoscaler scale-down disabled annotation during roll-out.")
+	fs.BoolVar(&s.AutoscalerScaleDownAnnotationDuringRollout, "autoscaler-scaledown-annotation-during-rollout", true, "Add cluster autoscaler scale-down disabled annotation during roll-out.")
 
 	logs.AddFlags(fs) // Here `logs` is `k8s.io/component-base/logs`.
 
@@ -107,6 +110,42 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 // Validate is used to validate the options and config before launching the controller manager
 func (s *MCMServer) Validate() error {
 	var errs []error
-	// TODO add validation
+	if s.Port < 1 || s.Port > 65535 {
+		errs = append(errs, fmt.Errorf("invalid port number provided: got %d", s.Port))
+	}
+	if ip := net.ParseIP(s.Address); ip == nil {
+		errs = append(errs, fmt.Errorf("invalid IP address provided: got: %v", ip))
+	}
+	if s.ConcurrentNodeSyncs <= 0 {
+		errs = append(errs, fmt.Errorf("concurrent syncs should be greater than zero: got: %d", s.ConcurrentNodeSyncs))
+	}
+	if s.MinResyncPeriod.Duration < 0 {
+		errs = append(errs, fmt.Errorf("min resync period should be a non negative value: got: %v", s.MinResyncPeriod.Duration))
+	}
+	if !s.EnableProfiling && s.EnableContentionProfiling {
+		errs = append(errs, fmt.Errorf("contention-profiling cannot be enabled without enabling profiling"))
+	}
+	if _, _, err := mime.ParseMediaType(s.ContentType); err != nil {
+		errs = append(errs, fmt.Errorf("kube api content type cannot be parsed: %w", err))
+	}
+	if s.KubeAPIQPS <= 0 {
+		errs = append(errs, fmt.Errorf("kube api qps should be greater than zero: got: %f", s.KubeAPIQPS))
+	}
+	if s.KubeAPIBurst < 0 {
+		errs = append(errs, fmt.Errorf("kube api burst should not be a negative value: got: %d", s.KubeAPIBurst))
+	}
+	if s.ControllerStartInterval.Duration < 0 {
+		errs = append(errs, fmt.Errorf("controller start interval should be a non negative value: got: %v", s.ControllerStartInterval.Duration))
+	}
+	if s.SafetyOptions.SafetyUp < 0 {
+		errs = append(errs, fmt.Errorf("safety up should be a non negative value: got: %d", s.SafetyOptions.SafetyUp))
+	}
+	if s.SafetyOptions.SafetyDown < 0 {
+		errs = append(errs, fmt.Errorf("safety down should be a non negative value: got: %d", s.SafetyOptions.SafetyDown))
+	}
+	if s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration < 0 {
+		errs = append(errs, fmt.Errorf("machine safety overshooting period should be a non negative number: got: %v", s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration))
+	}
+
 	return utilerrors.NewAggregate(errs)
 }
