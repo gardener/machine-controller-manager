@@ -51,24 +51,27 @@ func (c *controller) addBootstrapTokenToUserData(ctx context.Context, machine *v
 	}
 	userDataS = string(userDataB)
 
-	klog.V(4).Infof("Creating bootstrap token!")
-	bootstrapTokenSecret, err := c.getBootstrapTokenOrCreateIfNotExist(ctx, machine)
-	if err != nil {
-		return err
-	}
-	token := bootstraptokenutil.TokenFromIDAndSecret(
-		string(bootstrapTokenSecret.Data[bootstraptokenapi.BootstrapTokenIDKey]),
-		string(bootstrapTokenSecret.Data[bootstraptokenapi.BootstrapTokenSecretKey]),
-	)
+	// create bootstrap token if running with target cluster
+	if c.targetCoreClient != nil {
+		klog.V(4).Infof("Creating bootstrap token!")
+		bootstrapTokenSecret, err := c.getBootstrapTokenOrCreateIfNotExist(ctx, machine)
+		if err != nil {
+			return err
+		}
+		token := bootstraptokenutil.TokenFromIDAndSecret(
+			string(bootstrapTokenSecret.Data[bootstraptokenapi.BootstrapTokenIDKey]),
+			string(bootstrapTokenSecret.Data[bootstraptokenapi.BootstrapTokenSecretKey]),
+		)
 
-	if strings.Contains(userDataS, BootstrapTokenPlaceholder) {
-		klog.V(4).Infof("replacing placeholder %s with %s in user-data!", BootstrapTokenPlaceholder, token)
-		userDataS = strings.ReplaceAll(userDataS, BootstrapTokenPlaceholder, token)
-	} else if strings.Contains(userDataS, urlEncodedBootstrapTokenPlaceholder) {
-		klog.V(4).Infof("replacing url encoded placeholder %s with %s in user-data!", urlEncodedBootstrapTokenPlaceholder, url.QueryEscape(token))
-		userDataS = strings.ReplaceAll(userDataS, urlEncodedBootstrapTokenPlaceholder, url.QueryEscape(token))
-	} else {
-		klog.Warningf("no bootstrap token placeholder found in user-data, nothing to replace! Without bootstrap token , node won't join.")
+		if strings.Contains(userDataS, BootstrapTokenPlaceholder) {
+			klog.V(4).Infof("replacing placeholder %s with %s in user-data!", BootstrapTokenPlaceholder, token)
+			userDataS = strings.ReplaceAll(userDataS, BootstrapTokenPlaceholder, token)
+		} else if strings.Contains(userDataS, urlEncodedBootstrapTokenPlaceholder) {
+			klog.V(4).Infof("replacing url encoded placeholder %s with %s in user-data!", urlEncodedBootstrapTokenPlaceholder, url.QueryEscape(token))
+			userDataS = strings.ReplaceAll(userDataS, urlEncodedBootstrapTokenPlaceholder, url.QueryEscape(token))
+		} else {
+			klog.Warningf("no bootstrap token placeholder found in user-data, nothing to replace! Without bootstrap token , node won't join.")
+		}
 	}
 
 	secret.Data["userData"] = []byte(userDataS)

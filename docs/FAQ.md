@@ -22,6 +22,7 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
     - [What is Safety Controller in MCM?](#what-is-safety-controller-in-mcm)
 - [How to?](#how-to)
     - [How to install MCM in a Kubernetes cluster?](#how-to-install-mcm-in-a-kubernetes-cluster)
+    - [How to run MCM in different cluster setups?](#how-to-run-mcm-in-different-cluster-setups)
     - [How to better control the rollout process of the worker nodes?](#how-to-better-control-the-rollout-process-of-the-worker-nodes)
     - [How to scale down MachineDeployment by selective deletion of machines?](#how-to-scale-down-machinedeployment-by-selective-deletion-of-machines)
     - [How to force delete a machine?](#how-to-force-delete-a-machine)
@@ -103,6 +104,22 @@ MCM can be installed in a cluster with following steps:
 - Apply all the CRDs from [here](https://github.com/gardener/machine-controller-manager/tree/master/kubernetes/crds)
 - Apply all the deployment, role-related objects from [here](https://github.com/gardener/machine-controller-manager/tree/master/kubernetes/deployment/out-of-tree).
   - Control cluster is the one where the `machine-*` objects are stored. Target cluster is where all the node objects are registered.
+
+### How to run MCM in different cluster setups?
+
+In the standard setup, MCM connects to the target cluster, i.e., the cluster that the machines should join. This is configured via the `--target-kubeconfig` flag.
+If the flag is omitted or empty, it uses the in-cluster credentials (i.e., the pod's `ServiceAccount`).
+
+By default, MCM works with the `Machine*` resources in the target cluster, unless a different "control cluster" is configured via the `--control-kubeconfig` flag.
+In standard [Gardener](https://github.com/gardener/gardener) `Shoot` clusters, MCM uses the `Seed` cluster as the control cluster for managing machines of the `Shoot` cluster (target cluster).
+
+MCM can also be configured to run without a target cluster by specifying `--target-kubeconfig=none`.
+This requires explicitly configuring a control cluster via `--control-kubeconfig`.
+In this mode, MCM only provisions/deletes machines on the configured infrastructure without considering the target cluster's `Node` objects.
+As a consequence, MCM doesn't create bootstrap tokens, doesn't wait for `Nodes` to be registered/drained, and does not perform health checks for `Machines`.
+Once the machine has been successfully created in the infrastructure, `Machine.status.currentStatus.phase` transitions to `Available` as a target state (see [this section](#what-are-the-different-phases-of-a-machine)) – in contrast to the standard `Pending` and `Running` phases.
+Accordingly, the owning `MachineSet` and `MachineDeployment` objects will have "available" replicas but no "ready" replicas as indicated in the corresponding status fields.
+This mode is used for provisioning control plane machines of [autonomous shoot clusters](https://github.com/gardener/gardener/blob/master/docs/deployment/getting_started_locally_with_gardenadm.md) (`gardenadm bootstrap` command, medium-touch scenario).
 
 ### How to better control the rollout process of the worker nodes?
 
@@ -222,6 +239,7 @@ It is recommended to only set `MachineDrainTimeout`. It satisfies the related re
 A phase of a `machine` can be identified with `Machine.Status.CurrentStatus.Phase`. Following are the possible phases of a `machine` object:
 
 - `Pending`: Machine creation call has succeeded. MCM is waiting for machine to join the cluster.
+- `Available`: Machine creation call has succeeded. MCM is running without a target cluster and does not wait for the machine to join the cluster.
 - `CrashLoopBackOff`: Machine creation call has failed. MCM will retry the operation after a minor delay.
 - `Running`: Machine creation call has succeeded. Machine has joined the cluster successfully and corresponding node doesn't have `node.gardener.cloud/critical-components-not-ready` taint.
 - `Unknown`: Machine [health checks](#what-health-checks-are-performed-on-a-machine) are failing, e.g., `kubelet` has stopped posting the status.

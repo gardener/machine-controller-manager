@@ -72,7 +72,7 @@ var _ = Describe("machineclass", func() {
 					nil,
 				)
 
-				controller, trackers := createController(stop, TestNamespace, machineObjects, nil, nil, fakeDriver)
+				controller, trackers := createController(stop, TestNamespace, machineObjects, nil, nil, fakeDriver, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, controller)
 
