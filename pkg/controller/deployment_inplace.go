@@ -27,6 +27,10 @@ import (
 
 // rolloutInPlace implements the logic for rolling a machine set without replacing its machines.
 func (dc *controller) rolloutInPlace(ctx context.Context, d *v1alpha1.MachineDeployment, machineSetList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
+	if dc.targetCoreClient == nil {
+		return fmt.Errorf("in-place updates are not supported if running without a target cluster")
+	}
+
 	clusterAutoscalerScaleDownAnnotations := make(map[string]string)
 	clusterAutoscalerScaleDownAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
 

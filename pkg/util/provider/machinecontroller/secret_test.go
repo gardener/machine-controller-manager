@@ -41,7 +41,7 @@ var _ = Describe("secret", func() {
 
 			objects := []runtime.Object{}
 			objects = append(objects, testSecret)
-			c, trackers := createController(stop, testNamespace, nil, objects, nil, nil)
+			c, trackers := createController(stop, testNamespace, nil, objects, nil, nil, false)
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
@@ -80,7 +80,7 @@ var _ = Describe("secret", func() {
 
 			objects := []runtime.Object{}
 			objects = append(objects, rightFinalizers)
-			c, trackers := createController(stop, testNamespace, nil, objects, nil, nil)
+			c, trackers := createController(stop, testNamespace, nil, objects, nil, nil, false)
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
@@ -100,7 +100,7 @@ var _ = Describe("secret", func() {
 
 			objects := []runtime.Object{}
 			objects = append(objects, wrongFinalizers)
-			c, trackers := createController(stop, testNamespace, nil, objects, nil, nil)
+			c, trackers := createController(stop, testNamespace, nil, objects, nil, nil, false)
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
@@ -140,7 +140,7 @@ var _ = Describe("secret", func() {
 
 			objects := []runtime.Object{}
 			objects = append(objects, testSecret)
-			c, trackers := createController(stop, testNamespace, nil, objects, nil, nil)
+			c, trackers := createController(stop, testNamespace, nil, objects, nil, nil, false)
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 

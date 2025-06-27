@@ -1251,7 +1251,11 @@ func (c *controller) updateMachineStatusAndNodeLabel(ctx context.Context, getMac
 	isNodeLabelUpdated := false
 	//check if node name label is already present in machine object
 	nodeName = getMachineStatusRequest.Machine.Labels[v1alpha1.NodeLabelKey]
-	if nodeName != "" {
+	if c.targetCoreClient == nil {
+		description = "Running without target cluster, skipping node drain and volume attachment deletion. " + machineutils.InitiateVMDeletion
+		state = v1alpha1.MachineStateProcessing
+		retry = machineutils.ShortRetry
+	} else if nodeName != "" {
 		isNodeLabelUpdated = true
 	} else {
 		// Figure out node label either by checking all nodes for label matching machine name or retrieving it using GetMachineStatus
