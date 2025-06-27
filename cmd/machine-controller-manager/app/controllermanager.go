@@ -105,9 +105,6 @@ func Run(s *options.MCMServer) error {
 			return err
 		}
 	} else {
-		if s.TargetKubeconfig == constants.TargetKubeconfigDisabledValue {
-			return fmt.Errorf("--control-kubeconfig cannot be empty if --target-kubeconfig=%s is specified", constants.TargetKubeconfigDisabledValue)
-		}
 		controlkubeconfig = targetkubeconfig
 	}
 

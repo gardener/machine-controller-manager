@@ -37,7 +37,6 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/client/leaderelectionconfig"
 
 	// add the machine feature gates
-	"fmt"
 	"github.com/gardener/machine-controller-manager/pkg/apis/constants"
 	_ "github.com/gardener/machine-controller-manager/pkg/features"
 )
@@ -187,6 +186,9 @@ func (s *MCServer) Validate() error {
 	}
 	if s.SafetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration < s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration {
 		errs = append(errs, fmt.Errorf("machine safety APIServer status check period should not be less than APIServer status check timeout"))
+	}
+	if s.ControlKubeconfig == "" && s.TargetKubeconfig == constants.TargetKubeconfigDisabledValue {
+		errs = append(errs, fmt.Errorf("--control-kubeconfig cannot be empty if --target-kubeconfig=%s is specified", constants.TargetKubeconfigDisabledValue))
 	}
 
 	return utilerrors.NewAggregate(errs)
