@@ -1080,7 +1080,8 @@ Kubernetes meta/v1.Duration
 </td>
 <td>
 <em>(Optional)</em>
-<p>DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.</p>
+<p>DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.
+This is intended to be used only for in-place updates.</p>
 </td>
 </tr>
 <tr>
@@ -2413,6 +2414,22 @@ Kubernetes core/v1.ResourceList
 </td>
 <td>
 <p>Capacity contains subfields to track all node resources required to scale nodegroup from zero</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>virtualCapacity</code>
+</td>
+<td>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#resourcelist-v1-core">
+Kubernetes core/v1.ResourceList
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>VirtualCapacity represents the expected Node &lsquo;virtual&rsquo; capacity ie comprising virtual extended resources.</p>
 </td>
 </tr>
 <tr>
