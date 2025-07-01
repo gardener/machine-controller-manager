@@ -739,6 +739,10 @@ type NodeTemplate struct {
 	// Capacity contains subfields to track all node resources required to scale nodegroup from zero
 	Capacity corev1.ResourceList
 
+	// VirtualCapacity represents the expected Node 'virtual' capacity ie comprising virtual extended resources.
+	// +optional
+	VirtualCapacity corev1.ResourceList
+
 	// Instance type of the node belonging to nodeGroup
 	InstanceType string
 
