@@ -684,7 +684,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineConfiguration(ref common.ReferenceC
 					},
 					"disableHealthTimeout": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.",
+							Description: "DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed. This is intended to be used only for in-place updates.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -1464,7 +1464,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineSpec(ref common.ReferenceCallback) 
 					},
 					"disableHealthTimeout": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.",
+							Description: "DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed. This is intended to be used only for in-place updates.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -1623,6 +1623,20 @@ func schema_pkg_apis_machine_v1alpha1_NodeTemplate(ref common.ReferenceCallback)
 					"capacity": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Capacity contains subfields to track all node resources required to scale nodegroup from zero",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/apimachinery/pkg/api/resource.Quantity"),
+									},
+								},
+							},
+						},
+					},
+					"virtualCapacity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "VirtualCapacity represents the expected Node 'virtual' capacity ie comprising virtual extended resources.",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,
