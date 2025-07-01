@@ -41,6 +41,9 @@ const (
 	// LastAppliedALTAnnotation contains the last configuration of annotations, labels & taints applied on the node object
 	LastAppliedALTAnnotation = "node.machine.sapcloud.io/last-applied-anno-labels-taints"
 
+	// LastAppliedVirtualCapacityAnnotation contains the last configuration of MachineClass.NodeTemplate.VirtualCapacity applied on the node object
+	LastAppliedVirtualCapacityAnnotation = "node.machine.sapcloud.io/last-applied-virtual-capacity"
+
 	// MachinePriority is the annotation used to specify priority
 	// associated with a machine while deleting it. The less its
 	// priority the more likely it is to be deleted first
