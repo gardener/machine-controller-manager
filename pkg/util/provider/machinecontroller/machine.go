@@ -540,58 +540,61 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				providerID = createMachineResponse.ProviderID
 				// Creation was successful
 				klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q", machine.Name, providerID, nodeName)
-				// If a node obj already exists by the same nodeName, treat it as a stale node and trigger machine deletion.
-				// TODO: there is a case with Azure where the VM may join the cluster before the CreateMachine call is completed,
-				// and that would make an otherwise healthy node, be marked as stale.
-				// To avoid this scenario, check if the name of the node is equal to the machine name before marking them as stale.
-				// Ideally, the check should compare that the providerID of the machine and the node are matching, but since this is
-				// not enforced  for MCM extensions the current best option is to compare the names.
-				if _, err := c.nodeLister.Get(nodeName); err == nil && nodeName != machineName {
-					// mark the machine obj as `Failed`
-					klog.Errorf("Stale node obj with name %q for machine %q has been found. Hence marking the created VM for deletion to trigger a new machine creation.", nodeName, machine.Name)
 
-					deleteMachineRequest := &driver.DeleteMachineRequest{
-						Machine: &v1alpha1.Machine{
-							ObjectMeta: machine.ObjectMeta,
-							Spec: v1alpha1.MachineSpec{
-								ProviderID: providerID,
+				if c.nodeLister != nil {
+					// If a node obj already exists by the same nodeName, treat it as a stale node and trigger machine deletion.
+					// TODO: there is a case with Azure where the VM may join the cluster before the CreateMachine call is completed,
+					// and that would make an otherwise healthy node, be marked as stale.
+					// To avoid this scenario, check if the name of the node is equal to the machine name before marking them as stale.
+					// Ideally, the check should compare that the providerID of the machine and the node are matching, but since this is
+					// not enforced  for MCM extensions the current best option is to compare the names.
+					if _, err := c.nodeLister.Get(nodeName); err == nil && nodeName != machineName {
+						// mark the machine obj as `Failed`
+						klog.Errorf("Stale node obj with name %q for machine %q has been found. Hence marking the created VM for deletion to trigger a new machine creation.", nodeName, machine.Name)
+
+						deleteMachineRequest := &driver.DeleteMachineRequest{
+							Machine: &v1alpha1.Machine{
+								ObjectMeta: machine.ObjectMeta,
+								Spec: v1alpha1.MachineSpec{
+									ProviderID: providerID,
+								},
 							},
-						},
-						MachineClass: createMachineRequest.MachineClass,
-						Secret:       secretCopy,
+							MachineClass: createMachineRequest.MachineClass,
+							Secret:       secretCopy,
+						}
+
+						_, err := c.driver.DeleteMachine(ctx, deleteMachineRequest)
+
+						if err != nil {
+							klog.V(2).Infof("VM deletion in context of stale node obj failed for machine %q, will be retried. err=%q", machine.Name, err.Error())
+						} else {
+							klog.V(2).Infof("VM successfully deleted in context of stale node obj for machine %q", machine.Name)
+						}
+
+						// machine obj marked Failed for double security
+						updateRetryPeriod, updateErr := c.machineStatusUpdate(
+							ctx,
+							machine,
+							v1alpha1.LastOperation{
+								Description:    "VM using old node obj",
+								State:          v1alpha1.MachineStateFailed,
+								Type:           v1alpha1.MachineOperationCreate,
+								LastUpdateTime: metav1.Now(),
+							},
+							v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineFailed,
+								LastUpdateTime: metav1.Now(),
+							},
+							machine.Status.LastKnownState,
+						)
+
+						if updateErr != nil {
+							return updateRetryPeriod, updateErr
+						}
+
+						klog.V(2).Infof("Machine %q marked Failed as VM was referring to a stale node object", machine.Name)
+						return machineutils.ShortRetry, err
 					}
-
-					_, err := c.driver.DeleteMachine(ctx, deleteMachineRequest)
-
-					if err != nil {
-						klog.V(2).Infof("VM deletion in context of stale node obj failed for machine %q, will be retried. err=%q", machine.Name, err.Error())
-					} else {
-						klog.V(2).Infof("VM successfully deleted in context of stale node obj for machine %q", machine.Name)
-					}
-
-					// machine obj marked Failed for double security
-					updateRetryPeriod, updateErr := c.machineStatusUpdate(
-						ctx,
-						machine,
-						v1alpha1.LastOperation{
-							Description:    "VM using old node obj",
-							State:          v1alpha1.MachineStateFailed,
-							Type:           v1alpha1.MachineOperationCreate,
-							LastUpdateTime: metav1.Now(),
-						},
-						v1alpha1.CurrentStatus{
-							Phase:          v1alpha1.MachineFailed,
-							LastUpdateTime: metav1.Now(),
-						},
-						machine.Status.LastKnownState,
-					)
-
-					if updateErr != nil {
-						return updateRetryPeriod, updateErr
-					}
-
-					klog.V(2).Infof("Machine %q marked Failed as VM was referring to a stale node object", machine.Name)
-					return machineutils.ShortRetry, err
 				}
 				uninitializedMachine = true
 			} else {
@@ -647,6 +650,16 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			TimeoutActive:  true,
 			LastUpdateTime: metav1.Now(),
 		}
+
+		// If running without a target cluster, set the Machine to Available immediately after a successful VM creation.
+		// Skip waiting for the Node object to get registered.
+		if c.targetCoreClient == nil {
+			clone.Status.LastOperation.Description = "Created machine on cloud provider"
+			clone.Status.LastOperation.State = v1alpha1.MachineStateSuccessful
+			clone.Status.CurrentStatus.Phase = v1alpha1.MachineAvailable
+			clone.Status.CurrentStatus.TimeoutActive = false
+		}
+
 		_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Warningf("Machine/status UPDATE failed for %q. Retrying, error: %s", machine.Name, err)
@@ -661,14 +674,15 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 }
 
 func (c *controller) updateLabels(ctx context.Context, machine *v1alpha1.Machine, nodeName, providerID string) (clone *v1alpha1.Machine, err error) {
-	machineNodeLabelPresent := metav1.HasLabel(machine.ObjectMeta, v1alpha1.NodeLabelKey)
+	machineNodeLabelMissing := c.targetCoreClient != nil && !metav1.HasLabel(machine.ObjectMeta, v1alpha1.NodeLabelKey)
 	machinePriorityAnnotationPresent := metav1.HasAnnotation(machine.ObjectMeta, machineutils.MachinePriority)
 	clone = machine.DeepCopy()
-	if !machineNodeLabelPresent || !machinePriorityAnnotationPresent || machine.Spec.ProviderID == "" {
-		if clone.Labels == nil {
-			clone.Labels = make(map[string]string)
+	if machineNodeLabelMissing || !machinePriorityAnnotationPresent || machine.Spec.ProviderID == "" {
+		if c.targetCoreClient != nil {
+			// If running without a target cluster, don't add the node label. This disables all interaction with the
+			// Node object and related objects in the target cluster.
+			metav1.SetMetaDataLabel(&clone.ObjectMeta, v1alpha1.NodeLabelKey, nodeName)
 		}
-		clone.Labels[v1alpha1.NodeLabelKey] = nodeName
 		if clone.Annotations == nil {
 			clone.Annotations = make(map[string]string)
 		}
