@@ -176,6 +176,10 @@ generate: $(VGOPATH) $(DEEPCOPY_GEN) $(DEFAULTER_GEN) $(CONVERSION_GEN) $(OPENAP
 	@./hack/generate-code
 	@./hack/api-reference/generate-spec-doc.sh
 
+.PHONY: check-generate
+check-generate:
+	@./hack/check-generate.sh
+
 .PHONY: add-license-headers
 add-license-headers: $(GO_ADD_LICENSE)
 	@./hack/add_license_headers.sh
