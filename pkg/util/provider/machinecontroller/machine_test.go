@@ -531,6 +531,7 @@ var _ = Describe("machine", func() {
 					data.action.fakeDriver.ProviderID,
 					data.action.fakeDriver.NodeName,
 					data.action.fakeDriver.LastKnownState,
+					data.action.fakeDriver.Addresses,
 					data.action.fakeDriver.Err,
 					nil,
 				)
@@ -571,6 +572,8 @@ var _ = Describe("machine", func() {
 				Expect(actual.Finalizers).To(Equal(data.expect.machine.Finalizers))
 				Expect(retry).To(Equal(data.expect.retry))
 				Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
+				Expect(actual.Status.Addresses).To(Equal(data.expect.machine.Status.Addresses))
+
 				if data.expect.machine.Labels == nil {
 					Expect(actual.Labels).To(BeNil())
 				} else {
@@ -1254,20 +1257,39 @@ var _ = Describe("machine", func() {
 						VMExists:   false,
 						ProviderID: "fakeID-0",
 						NodeName:   "fakeNode-0",
-						Err:        nil,
+						Addresses: []corev1.NodeAddress{{
+							Type:    corev1.NodeInternalIP,
+							Address: "10.0.0.1",
+						}},
+						Err: nil,
 					},
 				},
 				expect: expect{
-					machine: newMachine(&v1alpha1.MachineTemplateSpec{
-						ObjectMeta: *newObjectMeta(objMeta, 0),
-						Spec: v1alpha1.MachineSpec{
-							Class: v1alpha1.ClassSpec{
-								Kind: "MachineClass",
-								Name: "machineClass",
+					machine: newMachine(
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machineClass",
+								},
+								ProviderID: "fakeID",
 							},
-							ProviderID: "fakeID",
 						},
-					}, nil, nil, nil, map[string]string{}, true, metav1.Now()),
+						&v1alpha1.MachineStatus{
+							Addresses: []corev1.NodeAddress{
+								{
+									Type:    corev1.NodeHostName,
+									Address: "fakeNode-0",
+								},
+								{
+									Type:    corev1.NodeInternalIP,
+									Address: "10.0.0.1",
+								},
+							},
+						},
+						nil, nil, map[string]string{}, true, metav1.Now(),
+					),
 					err:   fmt.Errorf("machine creation in process. Machine initialization (if required) is successful"),
 					retry: machineutils.ShortRetry,
 				},
@@ -1338,6 +1360,10 @@ var _ = Describe("machine", func() {
 								State:       v1alpha1.MachineStateSuccessful,
 								Description: "Created machine on cloud provider",
 							},
+							Addresses: []corev1.NodeAddress{{
+								Type:    corev1.NodeHostName,
+								Address: "fakeNode-0",
+							}},
 						},
 						nil,
 						map[string]string{
@@ -1389,6 +1415,10 @@ var _ = Describe("machine", func() {
 								Type:           v1alpha1.MachineOperationCreate,
 								LastUpdateTime: metav1.Now(),
 							},
+							Addresses: []corev1.NodeAddress{{
+								Type:    corev1.NodeHostName,
+								Address: "fakeNode-0",
+							}},
 						},
 						nil,
 						map[string]string{
@@ -1432,6 +1462,10 @@ var _ = Describe("machine", func() {
 								Type:           v1alpha1.MachineOperationCreate,
 								LastUpdateTime: metav1.Now(),
 							},
+							Addresses: []corev1.NodeAddress{{
+								Type:    corev1.NodeHostName,
+								Address: "fakeNode-0",
+							}},
 						},
 						nil,
 						map[string]string{
@@ -1508,6 +1542,7 @@ var _ = Describe("machine", func() {
 					data.action.fakeDriver.ProviderID,
 					data.action.fakeDriver.NodeName,
 					data.action.fakeDriver.LastKnownState,
+					data.action.fakeDriver.Addresses,
 					data.action.fakeDriver.Err,
 					nil,
 				)
