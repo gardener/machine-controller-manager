@@ -1080,7 +1080,8 @@ Kubernetes meta/v1.Duration
 </td>
 <td>
 <em>(Optional)</em>
-<p>DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.</p>
+<p>DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.
+This is intended to be used only for in-place updates.</p>
 </td>
 </tr>
 <tr>

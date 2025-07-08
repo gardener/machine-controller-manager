@@ -684,7 +684,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineConfiguration(ref common.ReferenceC
 					},
 					"disableHealthTimeout": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.",
+							Description: "DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed. This is intended to be used only for in-place updates.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -1464,7 +1464,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineSpec(ref common.ReferenceCallback) 
 					},
 					"disableHealthTimeout": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.",
+							Description: "DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed. This is intended to be used only for in-place updates.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
