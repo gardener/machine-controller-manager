@@ -84,6 +84,7 @@ if which git &>/dev/null; then
   if [[ "$old_status" != "$new_status" ]]; then
     echo "make generate needs to be run:"
     echo "$new_status"
+    git --no-pager diff
     exit 1
   fi
 
