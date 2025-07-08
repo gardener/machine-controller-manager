@@ -68,7 +68,7 @@ if which git &>/dev/null; then
 
   old_status="$(git status -s)"
 
-  if ! out=$(rm -rf hack/tools/bin/ 2>&1); then
+  if ! out=$(rm -rf hack/tools/bin/* 2>&1); then
     echo "Error while cleaning hack/tools/bin/: $out"
     exit 1
   fi
