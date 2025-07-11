@@ -634,7 +634,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 	var clone *v1alpha1.Machine
 	clone, err = c.updateLabels(ctx, createMachineRequest.Machine, nodeName, providerID)
 	if err != nil {
-		klog.V(2).Infof("failed to update labels and providerID for machine %q. err=%q", machine.Name, err.Error())
+		klog.Errorf("failed to update labels and providerID for machine %q. err=%q", machine.Name, err.Error())
 	}
 	//initialize VM if not initialized
 	if uninitializedMachine {
@@ -651,7 +651,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			addresses = append(addresses, initAddresses...)
 			clone.Status.Addresses = buildAddressStatus(addresses, nodeName)
 			if _, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{}); err != nil {
-				return 0, fmt.Errorf("failed to persist status addresses after initialization was successful: %w", err)
+				return machineutils.ShortRetry, fmt.Errorf("failed to persist status addresses after initialization was successful: %w", err)
 			}
 		}
 
