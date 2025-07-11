@@ -1,6 +1,7 @@
 API rule violation: list_type_missing,github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1,MachineDeploymentStatus,Conditions
 API rule violation: list_type_missing,github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1,MachineDeploymentStatus,FailedMachines
 API rule violation: list_type_missing,github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1,MachineSetStatus,Conditions
+API rule violation: list_type_missing,github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1,MachineStatus,Addresses
 API rule violation: list_type_missing,github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1,MachineStatus,Conditions
 API rule violation: names_match,github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1,MachineConfiguration,MachineCreationTimeout
 API rule violation: names_match,github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1,MachineConfiguration,MachineDrainTimeout

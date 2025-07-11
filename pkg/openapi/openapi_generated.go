@@ -1498,6 +1498,20 @@ func schema_pkg_apis_machine_v1alpha1_MachineStatus(ref common.ReferenceCallback
 				Description: "MachineStatus holds the most recently observed status of Machine.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"addresses": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Addresses of this machines. This field is only present if the MCM provider runs without a target cluster and may be used by clients to determine how to connect to the machine, instead of the `Node.status.addresses` field.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.NodeAddress"),
+									},
+								},
+							},
+						},
+					},
 					"conditions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Conditions of this machine, same as node",
@@ -1537,7 +1551,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineStatus(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.CurrentStatus", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.LastOperation", "k8s.io/api/core/v1.NodeCondition"},
+			"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.CurrentStatus", "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.LastOperation", "k8s.io/api/core/v1.NodeAddress", "k8s.io/api/core/v1.NodeCondition"},
 	}
 }
 
