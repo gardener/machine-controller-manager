@@ -2159,8 +2159,8 @@ var _ = Describe("machine_util", func() {
 					machines: []*machinev1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-25 * time.Minute))}},
-							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0-0"}, true, metav1.Now()),
+							&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachinePending}},
+							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0-0"}, true, metav1.NewTime(time.Now().Add(-25*time.Minute))),
 					},
 					targetMachineName: machineSet1Deploy1 + "-" + "0",
 				},
