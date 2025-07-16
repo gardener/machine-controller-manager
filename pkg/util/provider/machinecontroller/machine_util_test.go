@@ -2154,12 +2154,44 @@ var _ = Describe("machine_util", func() {
 			Expect(getErr).To(BeNil())
 			Expect(data.expect.expectedPhase).To(Equal(updatedTargetMachine.Status.CurrentStatus.Phase))
 		},
-			Entry("simple machine with creation Timeout(20 min)", &data{
+			Entry("Machine in Pending phase moves to Failed phase when creation Timeout duration (20min) has elapsed", &data{
 				setup: setup{
 					machines: []*machinev1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
 							&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachinePending}},
+							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0-0"}, true, metav1.NewTime(time.Now().Add(-25*time.Minute))),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.ShortRetry,
+					err:           errSuccessfulPhaseUpdate,
+					expectedPhase: machinev1.MachineFailed,
+				},
+			}),
+			Entry("Machine in Pending phase stays in Pending phase if duration less than creation Timeout duration (20min) has elapsed", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachinePending}},
+							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0-0"}, true, metav1.NewTime(time.Now().Add(-15*time.Minute))),
+					},
+					targetMachineName: machineSet1Deploy1 + "-" + "0",
+				},
+				expect: expect{
+					retryPeriod:   machineutils.LongRetry,
+					err:           nil,
+					expectedPhase: machinev1.MachinePending,
+				},
+			}),
+			Entry("Machine in Pending phase but with LastUpdate time less than creation Timeout duration (20min), but creationTimestamp greater than creation Timeout duration earlier moves to Failed phase", &data{
+				setup: setup{
+					machines: []*machinev1.Machine{
+						newMachine(
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+							&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0-0"}, true, metav1.NewTime(time.Now().Add(-25*time.Minute))),
 					},
 					targetMachineName: machineSet1Deploy1 + "-" + "0",
