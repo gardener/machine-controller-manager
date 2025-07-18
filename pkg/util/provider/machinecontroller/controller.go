@@ -44,7 +44,7 @@ import (
 )
 
 const (
-	// MCMFinalizerName is the finalizer used to tag dependecies before deletion
+	// MCMFinalizerName is the finalizer used to tag dependencies before deletion
 	// of the object. This finalizer is carried over from the MCM
 	MCMFinalizerName = "machine.sapcloud.io/machine-controller-manager"
 	// MCFinalizerName is the finalizer created for the external
