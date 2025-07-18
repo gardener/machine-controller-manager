@@ -199,8 +199,8 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 			return t.Key == PreferNoScheduleKey && t.Value == "True" && t.Effect == v1.TaintEffectPreferNoSchedule
 		})
 
-		// add the critical components not ready taint to the node this is to ensure that
-		// the pods are not scheduled on the node until the critical components pods are ready.
+		// add the critical components not ready taint to the node. This is to ensure that
+		// workload pods are not scheduled on the node until the critical components pods are ready.
 		node.Spec.Taints = append(node.Spec.Taints, v1.Taint{
 			Key:    machineutils.TaintNodeCriticalComponentsNotReady,
 			Effect: v1.TaintEffectNoSchedule,
