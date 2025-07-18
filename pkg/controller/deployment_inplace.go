@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"sort"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -69,7 +70,7 @@ func (dc *controller) rolloutInPlace(ctx context.Context, d *v1alpha1.MachineDep
 		oldMachineSets, &v1.Taint{
 			Key:    PreferNoScheduleKey,
 			Value:  "True",
-			Effect: "PreferNoSchedule",
+			Effect: v1.TaintEffectPreferNoSchedule,
 		},
 	)
 	if err != nil {
@@ -192,6 +193,18 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 
 		// uncordon the node since the inplace update is successful.
 		node.Spec.Unschedulable = false
+
+		// remove the PreferNoSchedule taint if it exists which was added during the inplace update.
+		node.Spec.Taints = slices.DeleteFunc(node.Spec.Taints, func(t v1.Taint) bool {
+			return t.Key == PreferNoScheduleKey && t.Value == "True" && t.Effect == v1.TaintEffectPreferNoSchedule
+		})
+
+		// add the critical components not ready taint to the node. This is to ensure that
+		// workload pods are not scheduled on the node until the critical components pods are ready.
+		node.Spec.Taints = append(node.Spec.Taints, v1.Taint{
+			Key:    machineutils.TaintNodeCriticalComponentsNotReady,
+			Effect: v1.TaintEffectNoSchedule,
+		})
 
 		_, err = dc.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 		if err != nil {
