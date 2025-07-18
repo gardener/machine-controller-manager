@@ -702,7 +702,7 @@ func (c *controller) prepareMachineForDeletion(ctx context.Context, targetMachin
 
 	machineSetKey, err := KeyFunc(machineSet)
 	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("Couldn't get key for %v %#v: %v", machineSet.Kind, machineSet, err))
+		utilruntime.HandleError(fmt.Errorf("couldn't get key for %v %#v: %v", machineSet.Kind, machineSet, err))
 		return
 	}
 
