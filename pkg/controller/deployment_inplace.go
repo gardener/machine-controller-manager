@@ -193,6 +193,13 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 		// uncordon the node since the inplace update is successful.
 		node.Spec.Unschedulable = false
 
+		// add the critical components not ready taint to the node this is to ensure that
+		// the pods are not scheduled on the node until the critical components pods are ready.
+		node.Spec.Taints = append(node.Spec.Taints, v1.Taint{
+			Key:    machineutils.TaintNodeCriticalComponentsNotReady,
+			Effect: v1.TaintEffectNoSchedule,
+		})
+
 		_, err = dc.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to remove inplace labels/annotations and uncordon node %s: %w", node.Name, err)
