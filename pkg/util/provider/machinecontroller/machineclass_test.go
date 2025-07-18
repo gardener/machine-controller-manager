@@ -68,6 +68,7 @@ var _ = Describe("machineclass", func() {
 					data.action.fakeDriver.ProviderID,
 					data.action.fakeDriver.NodeName,
 					data.action.fakeDriver.LastKnownState,
+					data.action.fakeDriver.Addresses,
 					data.action.fakeDriver.Err,
 					nil,
 				)
