@@ -36,6 +36,16 @@ machine-controller-manager:
                 confidentiality_requirement: 'high'
                 integrity_requirement: 'high'
                 availability_requirement: 'low'
+            - name: 'cloud.gardener.cnudie/responsibles'
+              value:
+              - type: 'githubUser'
+                username: 'aaronfern'
+              - type: 'githubUser'
+                username: 'unmarshall'
+              - type: 'githubUser'
+                username: 'elankath'
+              - type: 'githubUser'
+                username: 'thiyyakat'
     steps:
       check:
         image: 'golang:1.23.3'
