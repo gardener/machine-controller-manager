@@ -992,24 +992,24 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		var (
 			description     string
 			timeOutDuration time.Duration
+			timeElapsed     time.Duration
 		)
 
 		isMachinePending := machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending
 		isMachineInPlaceUpdating := machine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdating
 		disableHealthTimeout := machine.Spec.MachineConfiguration != nil && ptr.Deref(machine.Spec.DisableHealthTimeout, false)
 		sleepTime := 1 * time.Minute
-
 		if isMachinePending {
 			timeOutDuration = c.getEffectiveCreationTimeout(machine).Duration
+			timeElapsed = metav1.Now().Sub(machine.CreationTimestamp.Time)
 		} else if isMachineInPlaceUpdating {
 			timeOutDuration = c.getEffectiveInPlaceUpdateTimeout(machine).Duration
+			timeElapsed = metav1.Now().Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 		} else {
 			timeOutDuration = c.getEffectiveHealthTimeout(machine).Duration
+			timeElapsed = metav1.Now().Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 		}
-
-		// Timeout value obtained by subtracting last operation with expected time out period
-		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
-		if timeOut > 0 {
+		if timeElapsed > timeOutDuration {
 			// Machine health timeout occurred while joining or rejoining of machine
 
 			if !isMachinePending && !isMachineInPlaceUpdating && !disableHealthTimeout {
