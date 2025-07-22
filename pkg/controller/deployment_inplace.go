@@ -10,6 +10,7 @@ import (
 	"maps"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
@@ -206,6 +207,7 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 			Effect: v1.TaintEffectNoSchedule,
 		})
 
+		klog.V(3).Infof("removing inplace labels/annotations and uncordoning node %s", node.Name)
 		_, err = dc.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to remove inplace labels/annotations and uncordon node %s: %w", node.Name, err)
@@ -525,7 +527,12 @@ func (dc *controller) labelMachinesToSelectedForUpdate(ctx context.Context, mach
 		return numOfMachinesSelectedForUpdate, err
 	}
 
-	klog.V(3).Infof("machines selected for drain %v", machines)
+	machinesName := make([]string, 0, len(machines))
+	for _, machine := range machines {
+		machinesName = append(machinesName, machine.Name)
+	}
+
+	klog.V(3).Infof("machines selected for drain %v", strings.Join(machinesName, ", "))
 
 	for _, machine := range machines {
 		// labels on the node are added cumulatively and we can find both candidate-for-update and selected-for-update labels on the node.
