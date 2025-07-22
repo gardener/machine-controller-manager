@@ -369,7 +369,7 @@ func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context
 			}
 
 			cond := getMachineCondition(oldMachine, v1alpha1.NodeInPlaceUpdate)
-			if isUpdateNotSuccessful(cond, node.Labels) {
+			if isUpdateNotSuccessful(cond, node.Labels) || oldMachine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdating {
 				continue
 			}
 
