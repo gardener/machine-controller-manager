@@ -303,7 +303,7 @@ func (dc *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allMac
 	maxUnavailable := MaxUnavailable(*deployment)
 
 	minAvailable := deployment.Spec.Replicas - maxUnavailable
-	newMachineSetUnavailableMachineCount := newMachineSet.Spec.Replicas - newMachineSet.Status.AvailableReplicas
+	newMachineSetUnavailableMachineCount := max(0, newMachineSet.Spec.Replicas-newMachineSet.Status.AvailableReplicas)
 	oldMachineSetsMachinesUndergoingUpdate, err := dc.getMachinesUndergoingUpdate(oldMachineSets)
 	if err != nil {
 		return false, err
