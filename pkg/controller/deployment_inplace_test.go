@@ -267,7 +267,7 @@ var _ = Describe("deployment_inplace", func() {
 				controlMachineObjects = append(controlMachineObjects, oldMachineSet, newMachineSet)
 
 				machines := []*machinev1.Machine{}
-				machines = append(machines, newMachinesFromMachineSet(int(data.setup.oldMachineSetReplicas), oldMachineSet, &machinev1.MachineStatus{}, nil, map[string]string{"key": "value"})...)
+				machines = append(machines, newMachinesFromMachineSet(int(data.setup.oldMachineSetReplicas), oldMachineSet, &machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineInPlaceUpdateSuccessful}}, nil, map[string]string{"key": "value"})...)
 				machines = append(machines, newMachinesFromMachineSet(int(data.setup.newMachineSetReplicas), newMachineSet, &machinev1.MachineStatus{}, nil, nil)...)
 				machinesWithUpdateSuccessful := 0
 				for i := range machines {
