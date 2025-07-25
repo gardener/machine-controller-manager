@@ -2186,7 +2186,7 @@ var _ = Describe("machine_util", func() {
 					expectedPhase: machinev1.MachinePending,
 				},
 			}),
-			Entry("Machine in Pending phase but with LastUpdate time less than creation Timeout duration (20min), but creationTimestamp greater than creation Timeout duration earlier moves to Failed phase", &data{
+			Entry("Pending machine is marked as Failed when creation timeout (20min) has elapsed, even if lastUpdate time is recent", &data{
 				setup: setup{
 					machines: []*machinev1.Machine{
 						newMachine(
