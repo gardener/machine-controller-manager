@@ -35,9 +35,10 @@ const (
 )
 
 var _ = Describe("machine_util", func() {
-	Describe("#syncMachineNodeTemplates", func() {
+	Describe("#syncNodeTemplates", func() {
 		type setup struct {
-			machine *machinev1.Machine
+			machine      *machinev1.Machine
+			machineClass *machinev1.MachineClass
 		}
 		type action struct {
 			node *corev1.Node
@@ -61,6 +62,7 @@ var _ = Describe("machine_util", func() {
 				coreObjects := []runtime.Object{}
 
 				machineObject := data.setup.machine
+				machineClass := data.setup.machineClass
 
 				nodeObject := data.action.node
 				coreObjects = append(coreObjects, nodeObject)
@@ -70,7 +72,7 @@ var _ = Describe("machine_util", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
-				_, err := c.syncMachineNodeTemplates(context.TODO(), machineObject)
+				_, err := c.syncNodeTemplates(context.TODO(), machineObject, machineClass)
 
 				waitForCacheSync(stop, c)
 
@@ -87,6 +89,7 @@ var _ = Describe("machine_util", func() {
 				if data.expect.node != nil {
 					Expect(updatedNodeObject.Spec.Taints).Should(ConsistOf(data.expect.node.Spec.Taints))
 					Expect(updatedNodeObject.Labels).Should(Equal(data.expect.node.Labels))
+					Expect(updatedNodeObject.Status.Capacity).Should(Equal(data.expect.node.Status.Capacity))
 
 					// ignore LastAppliedALTAnnotataion
 					delete(updatedNodeObject.Annotations, machineutils.LastAppliedALTAnnotation)
@@ -132,6 +135,17 @@ var _ = Describe("machine_util", func() {
 						},
 						&machinev1.MachineStatus{},
 						nil, nil, map[string]string{machinev1.NodeLabelKey: "test-node-0"}, true, metav1.Now()),
+					machineClass: &machinev1.MachineClass{
+						TypeMeta: metav1.TypeMeta{},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-machine-class",
+						},
+						NodeTemplate: &machinev1.NodeTemplate{
+							VirtualCapacity: corev1.ResourceList{
+								"virtual.com/dongle": resource.MustParse("2"),
+							},
+						},
+					},
 				},
 				action: action{
 					node: &corev1.Node{
@@ -170,6 +184,7 @@ var _ = Describe("machine_util", func() {
 							Namespace: testNamespace,
 							Annotations: map[string]string{
 								"anno1": "anno1",
+								machineutils.LastAppliedVirtualCapacityAnnotation: "{\"virtual.com/dongle\":\"2\"}",
 							},
 							Labels: map[string]string{
 								"key1": "value1",
@@ -182,6 +197,11 @@ var _ = Describe("machine_util", func() {
 									Value:  "value1",
 									Effect: "NoSchedule",
 								},
+							},
+						},
+						Status: corev1.NodeStatus{
+							Capacity: corev1.ResourceList{
+								"virtual.com/dongle": resource.MustParse("2"),
 							},
 						},
 					},
