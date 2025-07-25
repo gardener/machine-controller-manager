@@ -2170,7 +2170,7 @@ var _ = Describe("machine_util", func() {
 					expectedPhase: machinev1.MachineFailed,
 				},
 			}),
-			Entry("Machine in Pending phase stays in Pending phase if duration less than creation Timeout duration (20min) has elapsed", &data{
+			Entry("Pending machine stays in the Pending phase if creation timeout (20min) has not elapsed", &data{
 				setup: setup{
 					machines: []*machinev1.Machine{
 						newMachine(
