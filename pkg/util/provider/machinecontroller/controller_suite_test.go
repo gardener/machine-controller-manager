@@ -8,7 +8,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 	"testing"
@@ -37,22 +36,27 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 func TestMachineControllerSuite(t *testing.T) {
 	//to enable goroutine leak check , currently not using as it fails tests for less important leaks
 	//defer goleak.VerifyNone(t)
 
-	//for filtering out warning logs. Reflector short watch warning logs won't print now
-	klog.SetOutput(io.Discard)
-	flags := &flag.FlagSet{}
-	klog.InitFlags(flags)
-	_ = flags.Set("logtostderr", "false")
-
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Machine Controller Suite")
 }
+
+var _ = BeforeSuite(func() {
+	klog.SetOutput(GinkgoWriter)
+	//for filtering out warning logs. Reflector short watch warning logs won't print now
+	klog.LogToStderr(false)
+	flags := &flag.FlagSet{}
+	klog.InitFlags(flags)
+	Expect(flags.Set("v", "10")).To(Succeed())
+
+	DeferCleanup(klog.Flush)
+})
 
 var (
 	controllerKindMachine = v1alpha1.SchemeGroupVersion.WithKind("Machine")
@@ -171,8 +175,8 @@ func newMachineSetsFromMachineDeployment(
 			Kind:               t.Kind,
 			Name:               machineDeployment.Name,
 			UID:                machineDeployment.UID,
-			BlockOwnerDeletion: pointer.BoolPtr(true),
-			Controller:         pointer.BoolPtr(true),
+			BlockOwnerDeletion: ptr.To(true),
+			Controller:         ptr.To(true),
 		},
 		annotations,
 		finalLabels,
