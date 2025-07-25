@@ -2154,7 +2154,7 @@ var _ = Describe("machine_util", func() {
 			Expect(getErr).To(BeNil())
 			Expect(data.expect.expectedPhase).To(Equal(updatedTargetMachine.Status.CurrentStatus.Phase))
 		},
-			Entry("Machine in Pending phase moves to Failed phase when creation Timeout duration (20min) has elapsed", &data{
+			Entry("Pending machine is marked as Failed when creation timeout (20min) has elapsed", &data{
 				setup: setup{
 					machines: []*machinev1.Machine{
 						newMachine(
