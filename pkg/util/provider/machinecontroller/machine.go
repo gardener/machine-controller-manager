@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -486,18 +487,18 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 	var (
 		// Declarations
 		nodeName, providerID string
-		addresses            []corev1.NodeAddress
 
 		// Initializations
 		machine              = createMachineRequest.Machine
 		machineName          = createMachineRequest.Machine.Name
 		uninitializedMachine = false
+		addresses            = map[corev1.NodeAddress]struct{}{}
 	)
 
 	// This field is only modified during the creation flow. We have to assume that every Address that was added to the
 	// status in the past remains valid, otherwise we have no way of keeping the addresses that might be only returned
 	// by the `CreateMachine` or `InitializeMachine` calls. Before persisting, the addresses are deduplicated.
-	addresses = append(addresses, createMachineRequest.Machine.Status.Addresses...)
+	appendAddresses(addresses, createMachineRequest.Machine.Status.Addresses)
 
 	// we should avoid mutating Secret, since it goes all the way into the Informer's store
 	secretCopy := createMachineRequest.Secret.DeepCopy()
@@ -545,7 +546,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				}
 				nodeName = createMachineResponse.NodeName
 				providerID = createMachineResponse.ProviderID
-				addresses = append(addresses, createMachineResponse.Addresses...)
+				appendAddresses(addresses, createMachineResponse.Addresses)
 				// Creation was successful
 				klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q", machine.Name, providerID, nodeName)
 
@@ -627,7 +628,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		}
 		nodeName = getMachineStatusResponse.NodeName
 		providerID = getMachineStatusResponse.ProviderID
-		addresses = append(addresses, getMachineStatusResponse.Addresses...)
+		appendAddresses(addresses, getMachineStatusResponse.Addresses)
 	}
 
 	//Update labels, providerID
@@ -648,7 +649,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		if c.targetCoreClient == nil {
 			// persist addresses from the InitializeMachine and CreateMachine responses
 			clone := clone.DeepCopy()
-			addresses = append(addresses, initAddresses...)
+			appendAddresses(addresses, initAddresses)
 			clone.Status.Addresses = buildAddressStatus(addresses, nodeName)
 			if _, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{}); err != nil {
 				return machineutils.ShortRetry, fmt.Errorf("failed to persist status addresses after initialization was successful: %w", err)
@@ -839,17 +840,24 @@ func (c *controller) triggerDeletionFlow(ctx context.Context, deleteMachineReque
 	return machineutils.LongRetry, nil
 }
 
+func appendAddresses(addresses map[corev1.NodeAddress]struct{}, newAddresses []corev1.NodeAddress) {
+	for _, address := range newAddresses {
+		addresses[address] = struct{}{}
+	}
+}
+
 // buildAddressStatus adds the nodeName as a HostName address, if it is not empty, and returns a sorted and deduplicated
 // slice.
-func buildAddressStatus(addresses []corev1.NodeAddress, nodeName string) []corev1.NodeAddress {
+func buildAddressStatus(addresses map[corev1.NodeAddress]struct{}, nodeName string) []corev1.NodeAddress {
 	if nodeName != "" {
-		addresses = append(addresses, corev1.NodeAddress{
+		addresses[corev1.NodeAddress{
 			Type:    corev1.NodeHostName,
 			Address: nodeName,
-		})
+		}] = struct{}{}
 	}
-	slices.SortStableFunc(addresses, func(a, b corev1.NodeAddress) int {
+	res := slices.Collect(maps.Keys(addresses))
+	slices.SortStableFunc(res, func(a, b corev1.NodeAddress) int {
 		return strings.Compare(string(a.Type)+a.Address, string(b.Type)+b.Address)
 	})
-	return slices.Compact(addresses)
+	return res
 }
