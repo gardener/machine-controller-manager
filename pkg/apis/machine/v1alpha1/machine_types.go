@@ -92,6 +92,11 @@ type NodeTemplateSpec struct {
 
 // MachineStatus holds the most recently observed status of Machine.
 type MachineStatus struct {
+	// Addresses of this machines. This field is only present if the MCM provider runs without a target cluster and may
+	// be used by clients to determine how to connect to the machine, instead of the `Node.status.addresses` field.
+	// +optional
+	Addresses []corev1.NodeAddress `json:"addresses,omitempty"`
+
 	// Conditions of this machine, same as node
 	Conditions []corev1.NodeCondition `json:"conditions,omitempty"`
 

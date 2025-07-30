@@ -7,8 +7,10 @@ package driver
 
 import (
 	"context"
+
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // VMs is the map to hold the VM data
@@ -20,17 +22,19 @@ type FakeDriver struct {
 	ProviderID     string
 	NodeName       string
 	LastKnownState string
+	Addresses      []corev1.NodeAddress
 	Err            error
 	fakeVMs        VMs
 }
 
 // NewFakeDriver returns a new fakedriver object
-func NewFakeDriver(vmExists bool, providerID, nodeName, lastKnownState string, err error, fakeVMs VMs) Driver {
+func NewFakeDriver(vmExists bool, providerID, nodeName, lastKnownState string, addresses []corev1.NodeAddress, err error, fakeVMs VMs) Driver {
 	fakeDriver := &FakeDriver{
 		VMExists:       vmExists,
 		ProviderID:     providerID,
 		NodeName:       nodeName,
 		LastKnownState: lastKnownState,
+		Addresses:      addresses,
 		Err:            err,
 		fakeVMs:        make(VMs),
 	}
@@ -54,6 +58,7 @@ func (d *FakeDriver) CreateMachine(_ context.Context, _ *CreateMachineRequest) (
 			ProviderID:     d.ProviderID,
 			NodeName:       d.NodeName,
 			LastKnownState: d.LastKnownState,
+			Addresses:      d.Addresses,
 		}, nil
 	}
 
@@ -78,6 +83,7 @@ func (d *FakeDriver) InitializeMachine(_ context.Context, _ *InitializeMachineRe
 	return &InitializeMachineResponse{
 		ProviderID: d.ProviderID,
 		NodeName:   d.NodeName,
+		Addresses:  d.Addresses,
 	}, d.Err
 }
 
@@ -99,6 +105,7 @@ func (d *FakeDriver) GetMachineStatus(_ context.Context, _ *GetMachineStatusRequ
 	return &GetMachineStatusResponse{
 		ProviderID: d.ProviderID,
 		NodeName:   d.NodeName,
+		Addresses:  d.Addresses,
 	}, d.Err
 }
 
