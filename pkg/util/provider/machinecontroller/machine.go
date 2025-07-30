@@ -640,8 +640,8 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 	//initialize VM if not initialized
 	if uninitializedMachine {
 		var retryPeriod machineutils.RetryPeriod
-		var initAddresses []corev1.NodeAddress
-		retryPeriod, initAddresses, err = c.initializeMachine(ctx, clone, createMachineRequest.MachineClass, createMachineRequest.Secret)
+		var initResponse *driver.InitializeMachineResponse
+		initResponse, retryPeriod, err = c.initializeMachine(ctx, clone, createMachineRequest.MachineClass, createMachineRequest.Secret)
 		if err != nil {
 			return retryPeriod, err
 		}
@@ -649,7 +649,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		if c.targetCoreClient == nil {
 			// persist addresses from the InitializeMachine and CreateMachine responses
 			clone := clone.DeepCopy()
-			appendAddresses(addresses, initAddresses)
+			appendAddresses(addresses, initResponse.Addresses)
 			clone.Status.Addresses = buildAddressStatus(addresses, nodeName)
 			if _, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{}); err != nil {
 				return machineutils.ShortRetry, fmt.Errorf("failed to persist status addresses after initialization was successful: %w", err)
@@ -732,23 +732,23 @@ func (c *controller) updateLabels(ctx context.Context, machine *v1alpha1.Machine
 	return clone, err
 }
 
-func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass, secret *corev1.Secret) (retry machineutils.RetryPeriod, addresses []corev1.NodeAddress, err error) {
+func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass, secret *corev1.Secret) (resp *driver.InitializeMachineResponse, retry machineutils.RetryPeriod, err error) {
 	req := &driver.InitializeMachineRequest{
 		Machine:      machine,
 		MachineClass: machineClass,
 		Secret:       secret,
 	}
 	klog.V(3).Infof("Initializing VM instance for Machine %q", machine.Name)
-	resp, err := c.driver.InitializeMachine(ctx, req)
+	resp, err = c.driver.InitializeMachine(ctx, req)
 	if err != nil {
 		errStatus, ok := status.FromError(err)
 		if !ok {
 			klog.Errorf("Cannot decode Driver error for machine %q: %s. Unexpected behaviour as Driver errors are expected to be of type status.Status", machine.Name, err)
-			return machineutils.LongRetry, nil, err
+			return nil, machineutils.LongRetry, err
 		}
 		if errStatus.Code() == codes.Unimplemented {
 			klog.V(3).Infof("Provider does not support Driver.InitializeMachine - skipping VM instance initialization for %q.", machine.Name)
-			return 0, nil, nil
+			return nil, 0, nil
 		}
 		klog.Errorf("Error occurred while initializing VM instance for machine %q: %s", machine.Name, err)
 		updateRetryPeriod, updateErr := c.machineStatusUpdate(
@@ -768,12 +768,12 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 			machine.Status.LastKnownState,
 		)
 		if updateErr != nil {
-			return updateRetryPeriod, nil, updateErr
+			return nil, updateRetryPeriod, updateErr
 		}
-		return machineutils.ShortRetry, nil, err
+		return nil, machineutils.ShortRetry, err
 	}
 	klog.V(3).Infof("VM instance %q for machine %q was initialized", resp.ProviderID, machine.Name)
-	return 0, resp.Addresses, nil
+	return resp, 0, nil
 }
 
 func (c *controller) triggerDeletionFlow(ctx context.Context, deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.RetryPeriod, error) {
