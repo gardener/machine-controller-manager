@@ -1634,6 +1634,20 @@ func schema_pkg_apis_machine_v1alpha1_NodeTemplate(ref common.ReferenceCallback)
 							},
 						},
 					},
+					"virtualCapacity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "VirtualCapacity represents the expected Node 'virtual' capacity ie comprising virtual extended resources.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/apimachinery/pkg/api/resource.Quantity"),
+									},
+								},
+							},
+						},
+					},
 					"instanceType": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Instance type of the node belonging to nodeGroup",
