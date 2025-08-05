@@ -487,7 +487,7 @@ func (c *controller) updateMachineStatusAndNodeCondition(ctx context.Context, ma
 }
 
 // syncNodeTemplates syncs nodeTemplates between machine, machineClass and corresponding node-object.
-// It ensures, that any nodeTemplate element available on Machine should be available on node-object.
+// It ensures that any nodeTemplate element available on Machine should be available on node-object.
 // It ensures that MachineClass.NodeTemplate.VirtualCapacity is synced to the Node's Capacity.
 // Although there could be more elements already available on node-object which will not be touched.
 func (c *controller) syncNodeTemplates(ctx context.Context, machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass) (machineutils.RetryPeriod, error) {
@@ -545,7 +545,7 @@ func (c *controller) syncNodeTemplates(ctx context.Context, machine *v1alpha1.Ma
 		virtualCapacityChanged = SyncVirtualCapacity(machineClass.NodeTemplate.VirtualCapacity, nodeCopy, lastAppliedVirtualCapacity)
 	}
 
-	if !annotationsChanged && !labelsChanged && !taintsChanged && !virtualCapacityChanged {
+	if !initializedNodeAnnotation && !annotationsChanged && !labelsChanged && !taintsChanged && !virtualCapacityChanged {
 		return machineutils.LongRetry, nil
 	}
 
@@ -572,7 +572,7 @@ func (c *controller) syncNodeTemplates(ctx context.Context, machine *v1alpha1.Ma
 	}
 
 	if virtualCapacityChanged {
-		klog.V(2).Infof("virtualCapacityChanged, update Node.Status.Capacity of node %q to %v", getNodeName(machine), node.Status.Capacity)
+		klog.V(2).Infof("virtualCapacity changed, update Node.Status.Capacity of node %q to %v", getNodeName(machine), node.Status.Capacity)
 		lastAppliedVirtualCapacity = machineClass.NodeTemplate.VirtualCapacity
 		currentlyAppliedVirtualCapacityJSONByte, err = json.Marshal(lastAppliedVirtualCapacity)
 		if err != nil {
