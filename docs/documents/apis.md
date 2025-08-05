@@ -2418,6 +2418,22 @@ Kubernetes core/v1.ResourceList
 </tr>
 <tr>
 <td>
+<code>virtualCapacity</code>
+</td>
+<td>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#resourcelist-v1-core">
+Kubernetes core/v1.ResourceList
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>VirtualCapacity represents the expected Node &lsquo;virtual&rsquo; capacity ie comprising virtual extended resources.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>instanceType</code>
 </td>
 <td>

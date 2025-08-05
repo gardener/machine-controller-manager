@@ -35,9 +35,10 @@ const (
 )
 
 var _ = Describe("machine_util", func() {
-	Describe("#syncMachineNodeTemplates", func() {
+	Describe("#syncNodeTemplates", func() {
 		type setup struct {
-			machine *machinev1.Machine
+			machine      *machinev1.Machine
+			machineClass *machinev1.MachineClass
 		}
 		type action struct {
 			node *corev1.Node
@@ -61,6 +62,7 @@ var _ = Describe("machine_util", func() {
 				coreObjects := []runtime.Object{}
 
 				machineObject := data.setup.machine
+				machineClass := data.setup.machineClass
 
 				nodeObject := data.action.node
 				coreObjects = append(coreObjects, nodeObject)
@@ -70,7 +72,7 @@ var _ = Describe("machine_util", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
-				_, err := c.syncMachineNodeTemplates(context.TODO(), machineObject)
+				_, err := c.syncNodeTemplates(context.TODO(), machineObject, machineClass)
 
 				waitForCacheSync(stop, c)
 
@@ -87,6 +89,7 @@ var _ = Describe("machine_util", func() {
 				if data.expect.node != nil {
 					Expect(updatedNodeObject.Spec.Taints).Should(ConsistOf(data.expect.node.Spec.Taints))
 					Expect(updatedNodeObject.Labels).Should(Equal(data.expect.node.Labels))
+					Expect(updatedNodeObject.Status.Capacity).Should(Equal(data.expect.node.Status.Capacity))
 
 					// ignore LastAppliedALTAnnotataion
 					delete(updatedNodeObject.Annotations, machineutils.LastAppliedALTAnnotation)
@@ -132,6 +135,17 @@ var _ = Describe("machine_util", func() {
 						},
 						&machinev1.MachineStatus{},
 						nil, nil, map[string]string{machinev1.NodeLabelKey: "test-node-0"}, true, metav1.Now()),
+					machineClass: &machinev1.MachineClass{
+						TypeMeta: metav1.TypeMeta{},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-machine-class",
+						},
+						NodeTemplate: &machinev1.NodeTemplate{
+							VirtualCapacity: corev1.ResourceList{
+								"virtual.com/dongle": resource.MustParse("2"),
+							},
+						},
+					},
 				},
 				action: action{
 					node: &corev1.Node{
@@ -170,6 +184,7 @@ var _ = Describe("machine_util", func() {
 							Namespace: testNamespace,
 							Annotations: map[string]string{
 								"anno1": "anno1",
+								machineutils.LastAppliedVirtualCapacityAnnotation: "{\"virtual.com/dongle\":\"2\"}",
 							},
 							Labels: map[string]string{
 								"key1": "value1",
@@ -182,6 +197,11 @@ var _ = Describe("machine_util", func() {
 									Value:  "value1",
 									Effect: "NoSchedule",
 								},
+							},
+						},
+						Status: corev1.NodeStatus{
+							Capacity: corev1.ResourceList{
+								"virtual.com/dongle": resource.MustParse("2"),
 							},
 						},
 					},
@@ -2154,45 +2174,13 @@ var _ = Describe("machine_util", func() {
 			Expect(getErr).To(BeNil())
 			Expect(data.expect.expectedPhase).To(Equal(updatedTargetMachine.Status.CurrentStatus.Phase))
 		},
-			Entry("Pending machine is marked as Failed when creation timeout (20min) has elapsed", &data{
+			Entry("simple machine with creation Timeout(20 min)", &data{
 				setup: setup{
 					machines: []*machinev1.Machine{
 						newMachine(
 							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachinePending}},
-							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0-0"}, true, metav1.NewTime(time.Now().Add(-25*time.Minute))),
-					},
-					targetMachineName: machineSet1Deploy1 + "-" + "0",
-				},
-				expect: expect{
-					retryPeriod:   machineutils.ShortRetry,
-					err:           errSuccessfulPhaseUpdate,
-					expectedPhase: machinev1.MachineFailed,
-				},
-			}),
-			Entry("Pending machine stays in the Pending phase if creation timeout (20min) has not elapsed", &data{
-				setup: setup{
-					machines: []*machinev1.Machine{
-						newMachine(
-							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachinePending}},
-							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0-0"}, true, metav1.NewTime(time.Now().Add(-15*time.Minute))),
-					},
-					targetMachineName: machineSet1Deploy1 + "-" + "0",
-				},
-				expect: expect{
-					retryPeriod:   machineutils.LongRetry,
-					err:           nil,
-					expectedPhase: machinev1.MachinePending,
-				},
-			}),
-			Entry("Pending machine is marked as Failed when creation timeout (20min) has elapsed, even if lastUpdate time is recent", &data{
-				setup: setup{
-					machines: []*machinev1.Machine{
-						newMachine(
-							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
-							&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
-							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0-0"}, true, metav1.NewTime(time.Now().Add(-25*time.Minute))),
+							&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachinePending, LastUpdateTime: metav1.NewTime(time.Now().Add(-25 * time.Minute))}},
+							nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0-0"}, true, metav1.Now()),
 					},
 					targetMachineName: machineSet1Deploy1 + "-" + "0",
 				},

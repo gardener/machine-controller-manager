@@ -1050,6 +1050,7 @@ func Convert_machine_MachineTemplateSpec_To_v1alpha1_MachineTemplateSpec(in *mac
 
 func autoConvert_v1alpha1_NodeTemplate_To_machine_NodeTemplate(in *NodeTemplate, out *machine.NodeTemplate, s conversion.Scope) error {
 	out.Capacity = *(*v1.ResourceList)(unsafe.Pointer(&in.Capacity))
+	out.VirtualCapacity = *(*v1.ResourceList)(unsafe.Pointer(&in.VirtualCapacity))
 	out.InstanceType = in.InstanceType
 	out.Region = in.Region
 	out.Zone = in.Zone
@@ -1064,6 +1065,7 @@ func Convert_v1alpha1_NodeTemplate_To_machine_NodeTemplate(in *NodeTemplate, out
 
 func autoConvert_machine_NodeTemplate_To_v1alpha1_NodeTemplate(in *machine.NodeTemplate, out *NodeTemplate, s conversion.Scope) error {
 	out.Capacity = *(*v1.ResourceList)(unsafe.Pointer(&in.Capacity))
+	out.VirtualCapacity = *(*v1.ResourceList)(unsafe.Pointer(&in.VirtualCapacity))
 	out.InstanceType = in.InstanceType
 	out.Region = in.Region
 	out.Zone = in.Zone
