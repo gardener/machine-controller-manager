@@ -572,7 +572,7 @@ func (c *controller) syncNodeTemplates(ctx context.Context, machine *v1alpha1.Ma
 	}
 
 	if virtualCapacityChanged {
-		klog.V(2).Infof("virtualCapacityChanged, update Node.Status.Capacity of node %q to %v", getNodeName(machine), node.Status.Capacity)
+		klog.V(2).Infof("virtualCapacity changed, update Node.Status.Capacity of node %q to %v", getNodeName(machine), node.Status.Capacity)
 		lastAppliedVirtualCapacity = machineClass.NodeTemplate.VirtualCapacity
 		currentlyAppliedVirtualCapacityJSONByte, err = json.Marshal(lastAppliedVirtualCapacity)
 		if err != nil {
