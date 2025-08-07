@@ -218,7 +218,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 			return retry, err
 		}
 
-		retry, err = c.syncMachineNodeTemplates(ctx, machine)
+		retry, err = c.syncNodeTemplates(ctx, machine, machineClass)
 		if err != nil {
 			return retry, err
 		}

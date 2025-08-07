@@ -486,14 +486,17 @@ func (c *controller) updateMachineStatusAndNodeCondition(ctx context.Context, ma
 	return machineutils.ShortRetry, err
 }
 
-// syncMachineNodeTemplate syncs nodeTemplates between machine and corresponding node-object.
-// It ensures, that any nodeTemplate element available on Machine should be available on node-object.
+// syncNodeTemplates syncs nodeTemplates between machine, machineClass and corresponding node-object.
+// It ensures that any nodeTemplate element available on Machine should be available on node-object.
+// It ensures that MachineClass.NodeTemplate.VirtualCapacity is synced to the Node's Capacity.
 // Although there could be more elements already available on node-object which will not be touched.
-func (c *controller) syncMachineNodeTemplates(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+func (c *controller) syncNodeTemplates(ctx context.Context, machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass) (machineutils.RetryPeriod, error) {
 	var (
-		initializedNodeAnnotation   bool
-		currentlyAppliedALTJSONByte []byte
-		lastAppliedALT              v1alpha1.NodeTemplateSpec
+		initializedNodeAnnotation               bool
+		currentlyAppliedALTJSONByte             []byte
+		lastAppliedALT                          v1alpha1.NodeTemplateSpec
+		currentlyAppliedVirtualCapacityJSONByte []byte
+		lastAppliedVirtualCapacity              v1.ResourceList
 	)
 
 	node, err := c.nodeLister.Get(getNodeName(machine))
@@ -524,9 +527,27 @@ func (c *controller) syncMachineNodeTemplates(ctx context.Context, machine *v1al
 		}
 	}
 
+	lastAppliedVirtualCapacityJSONString, exists := node.Annotations[machineutils.LastAppliedVirtualCapacityAnnotation]
+	if exists {
+		err = json.Unmarshal([]byte(lastAppliedVirtualCapacityJSONString), &lastAppliedVirtualCapacity)
+		if err != nil {
+			klog.Errorf("Error occurred while syncing node virtual capacity: %s", err)
+			return machineutils.ShortRetry, err
+		}
+	}
+
 	annotationsChanged := SyncMachineAnnotations(machine, nodeCopy, lastAppliedALT.Annotations)
 	labelsChanged := SyncMachineLabels(machine, nodeCopy, lastAppliedALT.Labels)
 	taintsChanged := SyncMachineTaints(machine, nodeCopy, lastAppliedALT.Spec.Taints)
+
+	var virtualCapacityChanged bool
+	if machineClass != nil && machineClass.NodeTemplate != nil {
+		virtualCapacityChanged = SyncVirtualCapacity(machineClass.NodeTemplate.VirtualCapacity, nodeCopy, lastAppliedVirtualCapacity)
+	}
+
+	if !initializedNodeAnnotation && !annotationsChanged && !labelsChanged && !taintsChanged && !virtualCapacityChanged {
+		return machineutils.LongRetry, nil
+	}
 
 	// Update node-object with latest nodeTemplate elements if elements have changed.
 	if initializedNodeAnnotation || labelsChanged || annotationsChanged || taintsChanged {
@@ -548,23 +569,33 @@ func (c *controller) syncMachineNodeTemplates(ctx context.Context, machine *v1al
 			return machineutils.ShortRetry, err
 		}
 		nodeCopy.Annotations[machineutils.LastAppliedALTAnnotation] = string(currentlyAppliedALTJSONByte)
-
-		_, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
-		if err != nil {
-			// Keep retrying until update goes through
-			klog.Errorf("Updated failed for node object of machine %q. Retrying, error: %q", machine.Name, err)
-		} else {
-			// Return error to continue in next reconcile
-			err = errSuccessfulALTsync
-		}
-
-		if apierrors.IsConflict(err) {
-			return machineutils.ConflictRetry, err
-		}
-		return machineutils.ShortRetry, err
 	}
 
-	return machineutils.LongRetry, nil
+	if virtualCapacityChanged {
+		klog.V(2).Infof("virtualCapacity changed, update Node.Status.Capacity of node %q to %v", getNodeName(machine), node.Status.Capacity)
+		lastAppliedVirtualCapacity = machineClass.NodeTemplate.VirtualCapacity
+		currentlyAppliedVirtualCapacityJSONByte, err = json.Marshal(lastAppliedVirtualCapacity)
+		if err != nil {
+			klog.Errorf("Error occurred while syncing node virtual capacity: %v", err)
+			return machineutils.ShortRetry, err
+		}
+		nodeCopy.Annotations[machineutils.LastAppliedVirtualCapacityAnnotation] = string(currentlyAppliedVirtualCapacityJSONByte)
+	}
+
+	_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
+	if err != nil {
+		// Keep retrying until update goes through
+		klog.Errorf("Updated failed for node object of machine %q. Retrying, error: %q", machine.Name, err)
+	} else {
+		// Return error to continue in next reconcile
+		err = errSuccessfulALTsync
+	}
+
+	if apierrors.IsConflict(err) {
+		return machineutils.ConflictRetry, err
+	}
+	return machineutils.ShortRetry, err
+
 }
 
 // SyncMachineAnnotations syncs the annotations of the machine with node-objects.
@@ -714,6 +745,37 @@ func SyncMachineTaints(
 			i++
 		}
 		node.Spec.Taints = nTaints
+	}
+
+	return toBeUpdated
+}
+
+// SyncVirtualCapacity syncs the MachineClass.NodeTemplate.VirtualCapacity with the Node.Status.Capacity
+// It returns true if update is needed else false.
+func SyncVirtualCapacity(targetVirtualCapacity v1.ResourceList, node *v1.Node, lastAppliedVirtualCapacity v1.ResourceList) bool {
+	toBeUpdated := false
+
+	if node.Status.Capacity == nil {
+		node.Status.Capacity = v1.ResourceList{}
+	}
+	if targetVirtualCapacity == nil {
+		targetVirtualCapacity = v1.ResourceList{}
+	}
+
+	// Delete any keys that existed in the past but has been deleted now
+	for prevKey := range lastAppliedVirtualCapacity {
+		if _, exists := targetVirtualCapacity[prevKey]; !exists {
+			delete(node.Status.Capacity, prevKey)
+			toBeUpdated = true
+		}
+	}
+
+	// Add/Update any key that doesn't exist or whose value as changed
+	for targKey, targQuant := range targetVirtualCapacity {
+		if nodeQuant, exists := node.Status.Capacity[targKey]; !exists || !nodeQuant.Equal(targQuant) {
+			node.Status.Capacity[targKey] = targQuant
+			toBeUpdated = true
+		}
 	}
 
 	return toBeUpdated
@@ -954,8 +1016,8 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		// if the label update successful or failed, then skip the timeout check
 		if node != nil && metav1.HasLabel(node.ObjectMeta, v1alpha1.LabelKeyNodeUpdateResult) {
 			if node.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateSuccessful && clone.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdateSuccessful {
-				description = fmt.Sprintf("Machine %s successfully updated dependencies", machine.Name)
-				klog.V(2).Infof("%s with backing node %q and providerID %q sucessfully update the dependencies", description, getNodeName(machine), getProviderID(machine))
+				description = fmt.Sprintf("Machine %s successfully updated dependecies", machine.Name)
+				klog.V(2).Infof("%s with backing node %q and providerID %q sucessfully update the dependecies", description, getNodeName(machine), getProviderID(machine))
 				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 					Phase:          v1alpha1.MachineInPlaceUpdateSuccessful,
 					LastUpdateTime: metav1.Now(),
@@ -968,8 +1030,8 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				}
 				cloneDirty = true
 			} else if node.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateFailed && clone.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdateFailed {
-				description = fmt.Sprintf("Machine %s failed to update dependencies: %s", machine.Name, node.Annotations[v1alpha1.AnnotationKeyMachineUpdateFailedReason])
-				klog.V(2).Infof("%s with backing node %q and providerID %q failed to update dependencies", description, getNodeName(machine), getProviderID(machine))
+				description = fmt.Sprintf("Machine %s failed to update dependecies: %s", machine.Name, node.Annotations[v1alpha1.AnnotationKeyMachineUpdateFailedReason])
+				klog.V(2).Infof("%s with backing node %q and providerID %q failed to update dependecies", description, getNodeName(machine), getProviderID(machine))
 				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 					Phase:          v1alpha1.MachineInPlaceUpdateFailed,
 					LastUpdateTime: metav1.Now(),
@@ -992,24 +1054,24 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		var (
 			description     string
 			timeOutDuration time.Duration
-			timeElapsed     time.Duration
 		)
 
 		isMachinePending := machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending
 		isMachineInPlaceUpdating := machine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdating
 		disableHealthTimeout := machine.Spec.MachineConfiguration != nil && ptr.Deref(machine.Spec.DisableHealthTimeout, false)
 		sleepTime := 1 * time.Minute
+
 		if isMachinePending {
 			timeOutDuration = c.getEffectiveCreationTimeout(machine).Duration
-			timeElapsed = metav1.Now().Sub(machine.CreationTimestamp.Time)
 		} else if isMachineInPlaceUpdating {
 			timeOutDuration = c.getEffectiveInPlaceUpdateTimeout(machine).Duration
-			timeElapsed = metav1.Now().Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 		} else {
 			timeOutDuration = c.getEffectiveHealthTimeout(machine).Duration
-			timeElapsed = metav1.Now().Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 		}
-		if timeElapsed > timeOutDuration {
+
+		// Timeout value obtained by subtracting last operation with expected time out period
+		timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
+		if timeOut > 0 {
 			// Machine health timeout occurred while joining or rejoining of machine
 
 			if !isMachinePending && !isMachineInPlaceUpdating && !disableHealthTimeout {
