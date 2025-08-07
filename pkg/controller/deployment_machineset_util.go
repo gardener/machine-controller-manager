@@ -126,13 +126,11 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 		}
 	}
 
-	// Update the FailedMachines field only if we see new failures
-	// Clear FailedMachines if ready replicas equals total replicas,
-	// which means the machineset doesn't have any machine objects which are in any failed state
-	// #nosec G115 -- number of machines will not exceed MaxInt32
+	// Update the FailedMachines field when we see new failures
+	// Set the FailedMachines field to nil if there are no failed machines.
 	if len(failedMachines) > 0 {
 		newStatus.FailedMachines = &failedMachines
-	} else if int32(readyReplicasCount) == is.Status.Replicas {
+	} else {
 		newStatus.FailedMachines = nil
 	}
 

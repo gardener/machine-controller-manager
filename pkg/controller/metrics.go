@@ -119,6 +119,11 @@ func updateMachineSetStatusRelatedMetric(machineSet *v1alpha1.MachineSet, msMeta
 }
 
 func updateMachineSetStatusFailedMachinesMetric(machineSet *v1alpha1.MachineSet, msMeta metav1.ObjectMeta) {
+	metrics.MachineSetStatusFailedMachines.DeletePartialMatch(prometheus.Labels{
+		"name":      msMeta.Name,
+		"namespace": msMeta.Namespace,
+	})
+
 	if machineSet.Status.FailedMachines != nil {
 		for _, failedMachine := range *machineSet.Status.FailedMachines {
 			metrics.MachineSetStatusFailedMachines.With(prometheus.Labels{
