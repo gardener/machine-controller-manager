@@ -9,6 +9,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -490,7 +492,13 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		machine              = createMachineRequest.Machine
 		machineName          = createMachineRequest.Machine.Name
 		uninitializedMachine = false
+		addresses            = sets.New[corev1.NodeAddress]()
 	)
+
+	// This field is only modified during the creation flow. We have to assume that every Address that was added to the
+	// status in the past remains valid, otherwise we have no way of keeping the addresses that might be only returned
+	// by the `CreateMachine` or `InitializeMachine` calls. Before persisting, the addresses are deduplicated.
+	addresses.Insert(createMachineRequest.Machine.Status.Addresses...)
 
 	// we should avoid mutating Secret, since it goes all the way into the Informer's store
 	secretCopy := createMachineRequest.Secret.DeepCopy()
@@ -538,6 +546,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				}
 				nodeName = createMachineResponse.NodeName
 				providerID = createMachineResponse.ProviderID
+				addresses.Insert(createMachineResponse.Addresses...)
 				// Creation was successful
 				klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q", machine.Name, providerID, nodeName)
 
@@ -619,17 +628,34 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		}
 		nodeName = getMachineStatusResponse.NodeName
 		providerID = getMachineStatusResponse.ProviderID
+		addresses.Insert(getMachineStatusResponse.Addresses...)
 	}
+
 	//Update labels, providerID
 	var clone *v1alpha1.Machine
 	clone, err = c.updateLabels(ctx, createMachineRequest.Machine, nodeName, providerID)
+	if err != nil {
+		klog.Errorf("failed to update labels and providerID for machine %q. err=%q", machine.Name, err.Error())
+	}
 	//initialize VM if not initialized
 	if uninitializedMachine {
 		var retryPeriod machineutils.RetryPeriod
-		retryPeriod, err = c.initializeMachine(ctx, clone, createMachineRequest.MachineClass, createMachineRequest.Secret)
+		var initResponse *driver.InitializeMachineResponse
+		initResponse, retryPeriod, err = c.initializeMachine(ctx, clone, createMachineRequest.MachineClass, createMachineRequest.Secret)
 		if err != nil {
 			return retryPeriod, err
 		}
+
+		if c.targetCoreClient == nil {
+			// persist addresses from the InitializeMachine and CreateMachine responses
+			clone := clone.DeepCopy()
+			addresses.Insert(initResponse.Addresses...)
+			clone.Status.Addresses = buildAddressStatus(addresses, nodeName)
+			if _, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{}); err != nil {
+				return machineutils.ShortRetry, fmt.Errorf("failed to persist status addresses after initialization was successful: %w", err)
+			}
+		}
+
 		// Return error even when machine object is updated
 		err = fmt.Errorf("machine creation in process. Machine initialization (if required) is successful")
 		return machineutils.ShortRetry, err
@@ -637,8 +663,9 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 	if err != nil {
 		return machineutils.ShortRetry, err
 	}
+
 	if machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
-		clone := machine.DeepCopy()
+		clone := clone.DeepCopy()
 		clone.Status.LastOperation = v1alpha1.LastOperation{
 			Description:    "Creating machine on cloud provider",
 			State:          v1alpha1.MachineStateProcessing,
@@ -651,13 +678,14 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			LastUpdateTime: metav1.Now(),
 		}
 
-		// If running without a target cluster, set the Machine to Available immediately after a successful VM creation.
+		// If running without a target cluster, set the Machine to Available immediately after a successful VM creation and report its addresses.
 		// Skip waiting for the Node object to get registered.
 		if c.targetCoreClient == nil {
 			clone.Status.LastOperation.Description = "Created machine on cloud provider"
 			clone.Status.LastOperation.State = v1alpha1.MachineStateSuccessful
 			clone.Status.CurrentStatus.Phase = v1alpha1.MachineAvailable
 			clone.Status.CurrentStatus.TimeoutActive = false
+			clone.Status.Addresses = buildAddressStatus(addresses, nodeName)
 		}
 
 		_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
@@ -704,23 +732,23 @@ func (c *controller) updateLabels(ctx context.Context, machine *v1alpha1.Machine
 	return clone, err
 }
 
-func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass, secret *corev1.Secret) (machineutils.RetryPeriod, error) {
+func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass, secret *corev1.Secret) (resp *driver.InitializeMachineResponse, retry machineutils.RetryPeriod, err error) {
 	req := &driver.InitializeMachineRequest{
 		Machine:      machine,
 		MachineClass: machineClass,
 		Secret:       secret,
 	}
 	klog.V(3).Infof("Initializing VM instance for Machine %q", machine.Name)
-	resp, err := c.driver.InitializeMachine(ctx, req)
+	resp, err = c.driver.InitializeMachine(ctx, req)
 	if err != nil {
 		errStatus, ok := status.FromError(err)
 		if !ok {
 			klog.Errorf("Cannot decode Driver error for machine %q: %s. Unexpected behaviour as Driver errors are expected to be of type status.Status", machine.Name, err)
-			return machineutils.LongRetry, err
+			return nil, machineutils.LongRetry, err
 		}
 		if errStatus.Code() == codes.Unimplemented {
 			klog.V(3).Infof("Provider does not support Driver.InitializeMachine - skipping VM instance initialization for %q.", machine.Name)
-			return 0, nil
+			return nil, 0, nil
 		}
 		klog.Errorf("Error occurred while initializing VM instance for machine %q: %s", machine.Name, err)
 		updateRetryPeriod, updateErr := c.machineStatusUpdate(
@@ -740,12 +768,12 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 			machine.Status.LastKnownState,
 		)
 		if updateErr != nil {
-			return updateRetryPeriod, updateErr
+			return nil, updateRetryPeriod, updateErr
 		}
-		return machineutils.ShortRetry, err
+		return nil, machineutils.ShortRetry, err
 	}
 	klog.V(3).Infof("VM instance %q for machine %q was initialized", resp.ProviderID, machine.Name)
-	return 0, nil
+	return resp, 0, nil
 }
 
 func (c *controller) triggerDeletionFlow(ctx context.Context, deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.RetryPeriod, error) {
@@ -810,4 +838,20 @@ func (c *controller) triggerDeletionFlow(ctx context.Context, deleteMachineReque
 
 	klog.V(2).Infof("Machine %q with providerID %q and nodeName %q deleted successfully", machine.Name, getProviderID(machine), getNodeName(machine))
 	return machineutils.LongRetry, nil
+}
+
+// buildAddressStatus adds the nodeName as a HostName address, if it is not empty, and returns a sorted and deduplicated
+// slice.
+func buildAddressStatus(addresses sets.Set[corev1.NodeAddress], nodeName string) []corev1.NodeAddress {
+	if nodeName != "" {
+		addresses.Insert(corev1.NodeAddress{
+			Type:    corev1.NodeHostName,
+			Address: nodeName,
+		})
+	}
+	res := slices.Collect(maps.Keys(addresses))
+	slices.SortStableFunc(res, func(a, b corev1.NodeAddress) int {
+		return strings.Compare(string(a.Type)+a.Address, string(b.Type)+b.Address)
+	})
+	return res
 }

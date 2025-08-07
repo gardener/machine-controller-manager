@@ -305,7 +305,7 @@ var _ = Describe("safety_logic", func() {
 				controlMachineObjects = append(controlMachineObjects, obj)
 			}
 
-			fakeDriver := driver.NewFakeDriver(false, "", "", "", nil, nil)
+			fakeDriver := driver.NewFakeDriver(false, "", "", "", nil, nil, nil)
 
 			c, trackers := createController(stop, testNamespace, controlMachineObjects, controlCoreObjects, nil, fakeDriver, false)
 			defer trackers.Stop()

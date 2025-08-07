@@ -7,7 +7,7 @@ COPY . .
 RUN --mount=type=cache,target="/root/.cache/go-build" .ci/build
 
 #############      base                                     #############
-FROM gcr.io/distroless/static-debian12:nonroot as base
+FROM gcr.io/distroless/static-debian12:nonroot AS base
 WORKDIR /
 
 #############      machine-controller-manager               #############

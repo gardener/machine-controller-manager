@@ -1543,8 +1543,8 @@ newest MachineSet.</p>
 </td>
 <td>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.*github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary">
-[]*github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary
+<a href="#machine.sapcloud.io/v1alpha1.*../../pkg/apis/machine/v1alpha1.MachineSummary">
+[]*../../pkg/apis/machine/v1alpha1.MachineSummary
 </a>
 </em>
 </td>
@@ -1988,8 +1988,8 @@ LastOperation
 </td>
 <td>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.[]github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary">
-[]github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary
+<a href="#machine.sapcloud.io/v1alpha1.[]../../pkg/apis/machine/v1alpha1.MachineSummary">
+[]../../pkg/apis/machine/v1alpha1.MachineSummary
 </a>
 </em>
 </td>
@@ -2119,6 +2119,23 @@ MachineConfiguration
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<code>addresses</code>
+</td>
+<td>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#nodeaddress-v1-core">
+[]Kubernetes core/v1.NodeAddress
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Addresses of this machines. This field is only present if the MCM provider runs without a target cluster and may
+be used by clients to determine how to connect to the machine, instead of the <code>Node.status.addresses</code> field.</p>
+</td>
+</tr>
 <tr>
 <td>
 <code>conditions</code>
