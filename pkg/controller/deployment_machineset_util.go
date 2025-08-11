@@ -127,7 +127,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	}
 
 	// Update the FailedMachines field when we see new failures
-	// Set the FailedMachines field to nil if there are no failed machines.
+	// Clear FailedMachines if there are no failed machines.
 	if len(failedMachines) > 0 {
 		newStatus.FailedMachines = &failedMachines
 	} else {
