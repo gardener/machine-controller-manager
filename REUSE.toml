@@ -1,0 +1,28 @@
+version = 1
+SPDX-PackageName = "Gardener machine-controller-manager"
+SPDX-PackageSupplier = "The Gardener project <gardener@googlegroups.com>"
+SPDX-PackageDownloadLocation = "https://github.com/gardener/machine-controller-manager"
+
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2017-2024 SAP SE or an SAP affiliate company and Gardener contributors"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "**.md"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2017-2024 SAP SE or an SAP affiliate company and Gardener contributors"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+[[annotations]]
+path = ["cmd/machine-controller-manager/controller_manager.go", "cmd/machine-controller-manager/app/controllermanager.go", "cmd/machine-controller-manager/app/options/options.go", "pkg/options/helpers.go", "pkg/util/reflector/prometheus/prometheus.go", "pkg/util/workqueue/prometheus/prometheus.go", "pkg/util/hash/hash_test.go", "pkg/util/hash/hash.go", "pkg/util/labels/labels.go", "pkg/util/labels/labels_test.go", "pkg/util/provider/options/helpers.go", "pkg/util/provider/machinecontroller/machine_util.go", "pkg/util/provider/app/app.go", "pkg/util/provider/app/options/options.go", "pkg/util/provider/drain/drain.go", "pkg/util/clientbuilder/core/client_builder.go", "pkg/util/configz/configz.go", "pkg/util/configz/configz_test.go", "pkg/util/taints/taints_test.go", "pkg/util/taints/taints.go", "pkg/util/client/metrics/prometheus/prometheus.go", "pkg/util/client/leaderelectionconfig/config.go", "pkg/controller/deployment.go", "pkg/controller/deployment_machineset_util.go", "pkg/controller/deployment_progress.go", "pkg/controller/controller_ref_manager.go", "pkg/controller/machineset_util.go", "pkg/controller/deployment_recreate.go", "pkg/controller/machineset.go", "pkg/controller/deployment_sync.go", "pkg/controller/deployment_rollback.go", "pkg/controller/controller_utils.go", "pkg/controller/deployment_rolling.go", "pkg/controller/deployment_util.go"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "The Kubernetes Authors"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = ["pkg/util/provider/machinecodes/status/status.go", "pkg/util/provider/machinecodes/codes/codes.go", "pkg/util/provider/machinecodes/codes/code_string.go"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "gRPC authors"
+SPDX-License-Identifier = "Apache-2.0"
