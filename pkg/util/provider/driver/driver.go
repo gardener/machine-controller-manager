@@ -59,6 +59,10 @@ type CreateMachineResponse struct {
 
 	// LastKnownState represents the last state of the VM during an creation/deletion error
 	LastKnownState string
+
+	// Addresses to reach the VM. Returning this field is optional, and only used if the MCM provider runs without a
+	// target cluster.
+	Addresses []corev1.NodeAddress
 }
 
 // InitializeMachineRequest encapsulates params for the VM Initialization operation (Driver.InitializeMachine).
@@ -82,6 +86,10 @@ type InitializeMachineResponse struct {
 
 	// NodeName is the name of the node-object registered to kubernetes.
 	NodeName string
+
+	// Addresses to reach the VM. Returning this field is optional, and only used if the MCM provider runs without a
+	// target cluster.
+	Addresses []corev1.NodeAddress
 }
 
 // DeleteMachineRequest is the delete request for VM deletion
@@ -123,6 +131,10 @@ type GetMachineStatusResponse struct {
 
 	// NodeName is the name of the node-object registered to kubernetes.
 	NodeName string
+
+	// Addresses to reach the VM. Returning this field is optional, and only used if the MCM provider runs without a
+	// target cluster.
+	Addresses []corev1.NodeAddress
 }
 
 // ListMachinesRequest is the request object to get a list of VMs belonging to a machineClass
