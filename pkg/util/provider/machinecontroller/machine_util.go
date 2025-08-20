@@ -541,8 +541,10 @@ func (c *controller) syncNodeTemplates(ctx context.Context, machine *v1alpha1.Ma
 	taintsChanged := SyncMachineTaints(machine, nodeCopy, lastAppliedALT.Spec.Taints)
 
 	var virtualCapacityChanged bool
+	var desiredVirtualCapacity v1.ResourceList
 	if machineClass != nil && machineClass.NodeTemplate != nil {
-		virtualCapacityChanged = SyncVirtualCapacity(machineClass.NodeTemplate.VirtualCapacity, nodeCopy, lastAppliedVirtualCapacity)
+		desiredVirtualCapacity = machineClass.NodeTemplate.VirtualCapacity
+		virtualCapacityChanged = SyncVirtualCapacity(desiredVirtualCapacity, nodeCopy, lastAppliedVirtualCapacity)
 	}
 
 	if !initializedNodeAnnotation && !annotationsChanged && !labelsChanged && !taintsChanged && !virtualCapacityChanged {
@@ -573,8 +575,7 @@ func (c *controller) syncNodeTemplates(ctx context.Context, machine *v1alpha1.Ma
 
 	if virtualCapacityChanged {
 		klog.V(2).Infof("virtualCapacity changed, update Node.Status.Capacity of node %q to %v", getNodeName(machine), node.Status.Capacity)
-		lastAppliedVirtualCapacity = machineClass.NodeTemplate.VirtualCapacity
-		currentlyAppliedVirtualCapacityJSONByte, err = json.Marshal(lastAppliedVirtualCapacity)
+		currentlyAppliedVirtualCapacityJSONByte, err = json.Marshal(desiredVirtualCapacity)
 		if err != nil {
 			klog.Errorf("Error occurred while syncing node virtual capacity: %v", err)
 			return machineutils.ShortRetry, err
@@ -752,26 +753,26 @@ func SyncMachineTaints(
 
 // SyncVirtualCapacity syncs the MachineClass.NodeTemplate.VirtualCapacity with the Node.Status.Capacity
 // It returns true if update is needed else false.
-func SyncVirtualCapacity(targetVirtualCapacity v1.ResourceList, node *v1.Node, lastAppliedVirtualCapacity v1.ResourceList) bool {
+func SyncVirtualCapacity(desiredVirtualCapacity v1.ResourceList, node *v1.Node, lastAppliedVirtualCapacity v1.ResourceList) bool {
 	toBeUpdated := false
 
 	if node.Status.Capacity == nil {
 		node.Status.Capacity = v1.ResourceList{}
 	}
-	if targetVirtualCapacity == nil {
-		targetVirtualCapacity = v1.ResourceList{}
+	if desiredVirtualCapacity == nil {
+		desiredVirtualCapacity = v1.ResourceList{}
 	}
 
 	// Delete any keys that existed in the past but has been deleted now
 	for prevKey := range lastAppliedVirtualCapacity {
-		if _, exists := targetVirtualCapacity[prevKey]; !exists {
+		if _, exists := desiredVirtualCapacity[prevKey]; !exists {
 			delete(node.Status.Capacity, prevKey)
 			toBeUpdated = true
 		}
 	}
 
 	// Add/Update any key that doesn't exist or whose value as changed
-	for targKey, targQuant := range targetVirtualCapacity {
+	for targKey, targQuant := range desiredVirtualCapacity {
 		if nodeQuant, exists := node.Status.Capacity[targKey]; !exists || !nodeQuant.Equal(targQuant) {
 			node.Status.Capacity[targKey] = targQuant
 			toBeUpdated = true

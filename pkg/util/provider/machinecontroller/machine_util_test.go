@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"k8s.io/klog/v2"
 	"time"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -22,7 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
 
@@ -1857,6 +1857,249 @@ var _ = Describe("machine_util", func() {
 						},
 					},
 					taintsChanged: true,
+				},
+			}),
+		)
+	})
+
+	Describe("#SyncVirtualCapacity", func() {
+		type setup struct{}
+		type action struct {
+			node                   *corev1.Node
+			desiredVirtualCapacity corev1.ResourceList
+		}
+		type expect struct {
+			node                   *corev1.Node
+			virtualCapacityChanged bool
+		}
+		type data struct {
+			setup  setup
+			action action
+			expect expect
+		}
+
+		DescribeTable("##table",
+			func(data *data) error {
+				testNode := data.action.node.DeepCopy()
+				desiredVirtualCapacity := data.action.desiredVirtualCapacity
+				expectedNode := data.expect.node
+
+				var lastAppliedVirtualCapacity corev1.ResourceList
+				lastAppliedVirtualCapacityJSONString, exists := testNode.Annotations[machineutils.LastAppliedVirtualCapacityAnnotation]
+				if exists {
+					err := json.Unmarshal([]byte(lastAppliedVirtualCapacityJSONString), &lastAppliedVirtualCapacity)
+					if err != nil {
+						return fmt.Errorf("cannot unmarshall %q annotation: %w", machineutils.LastAppliedVirtualCapacityAnnotation, err)
+					}
+				}
+
+				virtualCapacityChanged := SyncVirtualCapacity(desiredVirtualCapacity, testNode, lastAppliedVirtualCapacity)
+
+				Expect(virtualCapacityChanged).To(Equal(data.expect.virtualCapacityChanged))
+				Expect(testNode.Status.Capacity).Should(Equal(expectedNode.Status.Capacity))
+
+				lastAppliedVirtualCapacityJSONString = expectedNode.Annotations[machineutils.LastAppliedVirtualCapacityAnnotation]
+				lastAppliedVirtualCapacity = corev1.ResourceList{}
+				err := json.Unmarshal([]byte(lastAppliedVirtualCapacityJSONString), &lastAppliedVirtualCapacity)
+				if err != nil {
+					return fmt.Errorf("cannot unmarshall %q annotation with value %q: %w", machineutils.LastAppliedVirtualCapacityAnnotation, lastAppliedVirtualCapacityJSONString, err)
+				}
+				Expect(lastAppliedVirtualCapacity).To(Equal(desiredVirtualCapacity))
+				return nil
+			},
+
+			Entry("when node.status.capacity has not been changed", &data{
+				setup: setup{},
+				action: action{
+					desiredVirtualCapacity: corev1.ResourceList{
+						"hc.hana.com/memory": resource.MustParse("1234567"),
+					},
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								machineutils.LastAppliedVirtualCapacityAnnotation: "{\"hc.hana.com/memory\":\"1234567\"}",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Capacity: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("1234567"),
+								"hc.hana.com/memory":  resource.MustParse("1234567"),
+							},
+						},
+					},
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								machineutils.LastAppliedVirtualCapacityAnnotation: "{\"hc.hana.com/memory\":\"1234567\"}",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Capacity: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("1234567"),
+								"hc.hana.com/memory":  resource.MustParse("1234567"),
+							},
+						},
+					},
+					virtualCapacityChanged: false,
+				},
+			}),
+
+			Entry("when virtual resource value is changed in virtualCapacity", &data{
+				setup: setup{},
+				action: action{
+					desiredVirtualCapacity: corev1.ResourceList{
+						"hc.hana.com/memory": resource.MustParse("2234567"),
+					},
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								machineutils.LastAppliedVirtualCapacityAnnotation: "{\"hc.hana.com/memory\":\"1234567\"}",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Capacity: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("1234567"),
+								"hc.hana.com/memory":  resource.MustParse("1234567"),
+							},
+						},
+					},
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								machineutils.LastAppliedVirtualCapacityAnnotation: "{\"hc.hana.com/memory\":\"2234567\"}",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Capacity: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("1234567"),
+								"hc.hana.com/memory":  resource.MustParse("2234567"),
+							},
+						},
+					},
+					virtualCapacityChanged: true,
+				},
+			}),
+
+			Entry("when virtual resources are added in virtualCapacity", &data{
+				setup: setup{},
+				action: action{
+					desiredVirtualCapacity: corev1.ResourceList{
+						"hc.hana.com/memory": resource.MustParse("1111111"),
+						"hc.hana.com/cpu":    resource.MustParse("2"),
+					},
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								machineutils.LastAppliedVirtualCapacityAnnotation: "{\"hc.hana.com/memory\":\"1111111\"}",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Capacity: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("1234567"),
+								"hc.hana.com/memory":  resource.MustParse("1111111"),
+							},
+						},
+					},
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								machineutils.LastAppliedVirtualCapacityAnnotation: "{\"hc.hana.com/cpu\":\"2\",\"hc.hana.com/memory\":\"1111111\"}",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Capacity: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("1234567"),
+								"hc.hana.com/memory":  resource.MustParse("1111111"),
+								"hc.hana.com/cpu":     resource.MustParse("2"),
+							},
+						},
+					},
+					virtualCapacityChanged: true,
+				},
+			}),
+
+			Entry("when virtual resources are deleted in virtualCapacity", &data{
+				setup: setup{},
+				action: action{
+					desiredVirtualCapacity: corev1.ResourceList{
+						"hc.hana.com/cpu": resource.MustParse("2"),
+					},
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								machineutils.LastAppliedVirtualCapacityAnnotation: "{\"hc.hana.com/cpu\":\"2\",\"hc.hana.com/memory\":\"1111111\"}",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Capacity: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("1234567"),
+								"hc.hana.com/cpu":     resource.MustParse("2"),
+								"hc.hana.com/memory":  resource.MustParse("1111111"),
+							},
+						},
+					},
+				},
+				expect: expect{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								machineutils.LastAppliedVirtualCapacityAnnotation: "{\"hc.hana.com/cpu\":\"2\"}",
+							},
+						},
+						Status: corev1.NodeStatus{
+							Capacity: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("1234567"),
+								"hc.hana.com/cpu":     resource.MustParse("2"),
+							},
+						},
+					},
+					virtualCapacityChanged: true,
 				},
 			}),
 		)
