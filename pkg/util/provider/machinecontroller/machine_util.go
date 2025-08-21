@@ -1026,7 +1026,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		if node != nil && metav1.HasLabel(node.ObjectMeta, v1alpha1.LabelKeyNodeUpdateResult) {
 			if node.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateSuccessful && clone.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdateSuccessful {
 				description = fmt.Sprintf("Machine %s successfully updated dependencies", machine.Name)
-				klog.V(2).Infof("%s with backing node %q and providerID %q sucessfully update the dependecies", description, getNodeName(machine), getProviderID(machine))
+				klog.V(2).Infof("%s with backing node %q and providerID %q sucessfully update the dependencies", description, getNodeName(machine), getProviderID(machine))
 				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 					Phase:          v1alpha1.MachineInPlaceUpdateSuccessful,
 					LastUpdateTime: metav1.Now(),
@@ -1039,8 +1039,8 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				}
 				cloneDirty = true
 			} else if node.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateFailed && clone.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdateFailed {
-				description = fmt.Sprintf("Machine %s failed to update dependecies: %s", machine.Name, node.Annotations[v1alpha1.AnnotationKeyMachineUpdateFailedReason])
-				klog.V(2).Infof("%s with backing node %q and providerID %q failed to update dependecies", description, getNodeName(machine), getProviderID(machine))
+				description = fmt.Sprintf("Machine %s failed to update dependencies: %s", machine.Name, node.Annotations[v1alpha1.AnnotationKeyMachineUpdateFailedReason])
+				klog.V(2).Infof("%s with backing node %q and providerID %q failed to update dependencies", description, getNodeName(machine), getProviderID(machine))
 				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 					Phase:          v1alpha1.MachineInPlaceUpdateFailed,
 					LastUpdateTime: metav1.Now(),
