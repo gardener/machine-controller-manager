@@ -588,7 +588,11 @@ func (c *controller) syncNodeTemplates(ctx context.Context, machine *v1alpha1.Ma
 			return machineutils.ShortRetry, err
 		}
 		nodeCopy = nodeUpdated.DeepCopy()
-		nodeCopy.Annotations[machineutils.LastAppliedVirtualCapacityAnnotation] = string(currentlyAppliedVirtualCapacityJSONByte)
+		if len(desiredVirtualCapacity) == 0 {
+			delete(nodeCopy.Annotations, machineutils.LastAppliedVirtualCapacityAnnotation)
+		} else {
+			nodeCopy.Annotations[machineutils.LastAppliedVirtualCapacityAnnotation] = string(currentlyAppliedVirtualCapacityJSONByte)
+		}
 	}
 
 	_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
