@@ -1863,7 +1863,6 @@ var _ = Describe("machine_util", func() {
 	})
 
 	Describe("#SyncVirtualCapacity", func() {
-		type setup struct{}
 		type action struct {
 			node                   *corev1.Node
 			desiredVirtualCapacity corev1.ResourceList
@@ -1873,7 +1872,6 @@ var _ = Describe("machine_util", func() {
 			virtualCapacityChanged bool
 		}
 		type data struct {
-			setup  setup
 			action action
 			expect expect
 		}
@@ -1909,7 +1907,6 @@ var _ = Describe("machine_util", func() {
 			},
 
 			Entry("when node.status.capacity has not been changed", &data{
-				setup: setup{},
 				action: action{
 					desiredVirtualCapacity: corev1.ResourceList{
 						"hc.hana.com/memory": resource.MustParse("1234567"),
@@ -1957,7 +1954,6 @@ var _ = Describe("machine_util", func() {
 			}),
 
 			Entry("when virtual resource value is changed in virtualCapacity", &data{
-				setup: setup{},
 				action: action{
 					desiredVirtualCapacity: corev1.ResourceList{
 						"hc.hana.com/memory": resource.MustParse("2234567"),
@@ -2005,7 +2001,6 @@ var _ = Describe("machine_util", func() {
 			}),
 
 			Entry("when virtual resources are added in virtualCapacity", &data{
-				setup: setup{},
 				action: action{
 					desiredVirtualCapacity: corev1.ResourceList{
 						"hc.hana.com/memory": resource.MustParse("1111111"),
@@ -2055,7 +2050,6 @@ var _ = Describe("machine_util", func() {
 			}),
 
 			Entry("when virtual resources are deleted in virtualCapacity", &data{
-				setup: setup{},
 				action: action{
 					desiredVirtualCapacity: corev1.ResourceList{
 						"hc.hana.com/cpu": resource.MustParse("2"),
