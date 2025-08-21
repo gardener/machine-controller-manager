@@ -1025,7 +1025,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		// if the label update successful or failed, then skip the timeout check
 		if node != nil && metav1.HasLabel(node.ObjectMeta, v1alpha1.LabelKeyNodeUpdateResult) {
 			if node.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateSuccessful && clone.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdateSuccessful {
-				description = fmt.Sprintf("Machine %s successfully updated dependecies", machine.Name)
+				description = fmt.Sprintf("Machine %s successfully updated dependencies", machine.Name)
 				klog.V(2).Infof("%s with backing node %q and providerID %q sucessfully update the dependecies", description, getNodeName(machine), getProviderID(machine))
 				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 					Phase:          v1alpha1.MachineInPlaceUpdateSuccessful,
