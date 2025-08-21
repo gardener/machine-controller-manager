@@ -574,12 +574,20 @@ func (c *controller) syncNodeTemplates(ctx context.Context, machine *v1alpha1.Ma
 	}
 
 	if virtualCapacityChanged {
-		klog.V(2).Infof("virtualCapacity changed, update Node.Status.Capacity of node %q to %v", getNodeName(machine), node.Status.Capacity)
-		currentlyAppliedVirtualCapacityJSONByte, err = json.Marshal(desiredVirtualCapacity)
+		klog.V(3).Infof("virtualCapacity changed, attempting UpdateStatus for node.Status.Capacity of node %q to %v", nodeCopy.Name, nodeCopy.Status.Capacity)
+		// must patch the Node’s status subresource, because capacity lives under status
+		nodeUpdated, err := c.targetCoreClient.CoreV1().Nodes().UpdateStatus(ctx, nodeCopy, metav1.UpdateOptions{})
 		if err != nil {
-			klog.Errorf("Error occurred while syncing node virtual capacity: %v", err)
+			klog.Errorf("UpdateStatus failed for node %q of machine %q. error: %q", node.Name, machine.Name, err)
 			return machineutils.ShortRetry, err
 		}
+		klog.V(3).Infof("node.Status.Capacity of node %q updated to: %v", node.Name, nodeUpdated.Status.Capacity)
+		currentlyAppliedVirtualCapacityJSONByte, err = json.Marshal(desiredVirtualCapacity)
+		if err != nil {
+			klog.Errorf("Error occurred while syncing node virtual capacity of node %q: %v", node.Name, err)
+			return machineutils.ShortRetry, err
+		}
+		nodeCopy = nodeUpdated.DeepCopy()
 		nodeCopy.Annotations[machineutils.LastAppliedVirtualCapacityAnnotation] = string(currentlyAppliedVirtualCapacityJSONByte)
 	}
 
