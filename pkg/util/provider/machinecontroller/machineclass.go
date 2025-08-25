@@ -115,6 +115,7 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 	if class.DeletionTimestamp == nil && len(machines) > 0 {
 		// If deletionTimestamp is not set and at least one machine is referring this machineClass
 
+		var reason string
 		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(MCMFinalizerName) {
 			// Add machineClassFinalizer as if doesn't exist
 			err = c.addMCMFinalizerToMachineClass(ctx, class)
@@ -124,11 +125,14 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 
 			// Enqueue all machines once finalizer is added to machineClass
 			// This is to allow processing of such machines
-			for _, machine := range machines {
-				c.enqueueMachine(machine, "finalizer placed on machineClass")
-			}
+			reason = "finalizer placed on machineClass"
+		} else {
+			reason = fmt.Sprintf("machine class %q was updated", class.Name)
 		}
 
+		for _, m := range machines {
+			c.enqueueMachine(m, reason)
+		}
 		return nil
 	}
 
