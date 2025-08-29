@@ -58,6 +58,7 @@ func (dc *controller) rolloutInPlace(ctx context.Context, d *v1alpha1.MachineDep
 		// status-rollout steps.
 		if dc.autoscalerScaleDownAnnotationDuringRollout {
 			// Annotate all the nodes under this machine-deployment, as roll-out is on-going.
+			klog.V(3).Infof("RolloutInPlace ongoing for MachineDeployment %q, annotating all nodes under it with %s", d.Name, clusterAutoscalerScaleDownAnnotations)
 			err := dc.annotateNodesBackingMachineSets(ctx, allMachineSets, clusterAutoscalerScaleDownAnnotations)
 			if err != nil {
 				klog.Errorf("failed to add annotations %s on all nodes. Error: %v", clusterAutoscalerScaleDownAnnotations, err)

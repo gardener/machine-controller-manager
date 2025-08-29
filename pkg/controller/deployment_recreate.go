@@ -53,6 +53,7 @@ func (dc *controller) rolloutRecreate(ctx context.Context, d *v1alpha1.MachineDe
 		// status-rollout steps.
 		if len(oldISs) > 0 && !dc.machineSetsScaledToZero(oldISs) {
 			// Annotate all the nodes under this machine-deployment, as roll-out is on-going.
+			klog.V(3).Infof("RolloutRecreate ongoing for MachineDeployment %q, annotating all nodes under it with %s", d.Name, clusterAutoscalerScaleDownAnnotations)
 			err := dc.annotateNodesBackingMachineSets(ctx, allISs, clusterAutoscalerScaleDownAnnotations)
 			if err != nil {
 				klog.Errorf("Failed to add %s on all nodes. Error: %s", clusterAutoscalerScaleDownAnnotations, err)
