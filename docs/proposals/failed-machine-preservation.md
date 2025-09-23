@@ -42,6 +42,7 @@ When such an annotated machine transitions from `Unknown` to `Failed`, it is pre
 3. If an un-annotated machine moves to `Failed` phase, and the `failedMachinePreserveMax` has not been reached, MCM will auto-preserve this machine.
 4. MCM will be modified to introduce a new stage in the `Failed` phase: `machineutils.PreserveFailed`, and a failed machine that is preserved by MCM will be transitioned to this stage after moving to `Failed`. 
    * In this new stage, pods can be evicted and scheduled on other healthy machines, and the user/operator can wait for the corresponding VM to potentially recover. If the machine moves to `Running` phase on recovery, new pods can be scheduled on it. It is yet to be determined whether this feature will be required.
+5. Machines of a MachineDeployment in `PreserveFailed` stage will also be counted towards the replica count and the enforcement of maximum machines allowed for the MachineDeployment.
 
 
 ## State Machine
@@ -101,3 +102,9 @@ The transition of moving a machine from `PreserveFailed` to `Running` has not be
 2. Operator adds: `node.machine.sapcloud.io/preserve-when-failed=false` to node.
 3. MCM transitions M1 to `Terminating`
 4. Capacity becomes available for preserving future `Failed` machines.
+
+## Limitations
+
+1. During rolling updates we will NOT honor preserving Machines. The Machine will be replaced with a healthy one if it moves to Failed phase.
+2. Since gardener worker pool can correspond to 1..N MachineDeployments depending on number of zones, we will need to distribute the `failedMachinePreserveMax` across N machine deployments.
+So, even if there are no failed machines preserved in other zones, the max per zone would still be enforced. Hence, the value of `failedMachinePreserveMax` should be chosen appropriately. 
