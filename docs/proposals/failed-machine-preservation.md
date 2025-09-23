@@ -4,16 +4,15 @@
 
 - [Preservation of Failed Machines](#preservation-of-failed-machines)
     - [Objective](#objective)
-    - [Solution Design](#solution-design)
+    - [Proposal](#proposal)
     - [State Machine](#state-machine)
     - [Use Cases](#use-cases)
-        
 
 <!-- /TOC -->
 
 ## Objective
 
-Currently, the Machine Controller Manager(MCM) moves Machines with errors to the `Unknown` phase, and after the configured `machineHealthTimeout` seconds, to the `Failed` phase.
+Currently, the Machine Controller Manager(MCM) moves Machines with errors to the `Unknown` phase, and after the configured `machineHealthTimeout`, to the `Failed` phase.
 `Failed` machines are swiftly moved to the `Terminating` phase during which the node is drained and the `Machine` object is deleted. This rapid cleanup prevents SRE/operators/support from conducting an analysis on the VM and makes finding root cause of failure more difficult.
 
 This document proposes enhancing MCM, such that:
@@ -21,9 +20,9 @@ This document proposes enhancing MCM, such that:
 * There is a configurable limit to the number of `Failed` machines that can be preserved
 * There is a configurable limit to the duration for which such machines are preserved
 * Users can specify which healthy machines they would like to preserve in case of failure 
-* Users can request MCM to delete a preserved `Failed` machine, even before the timeout expires
+* Users can request MCM to release a preserved `Failed` machine, even before the timeout expires, so that MCM can transition the machine to `Terminating` phase and trigger its deletion.
 
-## Solution Design
+## Proposal
 
 In order to achieve the objectives mentioned, the following are proposed:
 1. Enhance `machineControllerManager` configuration in the `ShootSpec`, to specify the max number of failed machines to be preserved,
@@ -35,64 +34,70 @@ and the time duration for which these machines will be preserved.
     ```
     * Since gardener worker pool can correspond to `1..N` MachineDeployments depending on number of zones, `failedMachinePreserveMax` will be distributed across N machine deployments.
     * `failedMachinePreserveMax` must be chosen such that it can be appropriately distributed across the MachineDeployments.
-2. Allow user/operator to explicitly request for preservation of a machine if it moves to `Failed` phase with the use of an annotation : `node.machine.sapcloud.io/preserve-when-failed=true`.
-When such an annotated machine transitions from `Unknown` to `Failed`, it is prevented from moving to `Terminating` phase until  `failedMachinePreserveTimeout` expires. 
-   * A user/operator can request MCM to stop preserving a preserved `Failed` machine by adding/modifying the annotation: `node.machine.sapcloud.io/preserve-when-failed=false`. 
+2. Allow user/operator to explicitly request for preservation of a specific machine with the use of an annotation : `node.machine.sapcloud.io/preserve-when-failed=true`, such that, if it moves to `Failed` phase, the machine is preserved by MCM, provided there is capacity.
+3. MCM will be modified to introduce a new stage in the `Failed` phase: `machineutils.PreserveFailed`, and a failed machine that is preserved by MCM will be transitioned to this stage after moving to `Failed`.
+4. A machine in `PreserveFailed` stage automatically moves to `Terminating` phase once `failedMachinePreserveTimeout` expires. 
+   * A user/operator can request MCM to stop preserving a machine in `PreservedFailed` stage using the annotation: `node.machine.sapcloud.io/preserve-when-failed=false`. 
    * For a machine thus annotated, MCM will move it to `Terminating` phase even if `failedMachinePreserveTimeout` has not expired.
-3. If an un-annotated machine moves to `Failed` phase, and the `failedMachinePreserveMax` has not been reached, MCM will auto-preserve this machine.
-4. MCM will be modified to introduce a new stage in the `Failed` phase: `machineutils.PreserveFailed`, and a failed machine that is preserved by MCM will be transitioned to this stage after moving to `Failed`. 
-   * In this new stage, pods can be evicted and scheduled on other healthy machines, and the user/operator can wait for the corresponding VM to potentially recover. If the machine moves to `Running` phase on recovery, new pods can be scheduled on it. It is yet to be determined whether this feature will be required.
-5. Machines of a MachineDeployment in `PreserveFailed` stage will also be counted towards the replica count and the enforcement of maximum machines allowed for the MachineDeployment.
+5. If an un-annotated machine moves to `Failed` phase, and the `failedMachinePreserveMax` has not been reached, MCM will auto-preserve this machine.
+6. Machines of a MachineDeployment in `PreserveFailed` stage will also be counted towards the replica count and the enforcement of maximum machines allowed for the MachineDeployment.
+7. At any point in time `machines requested for preservation + machines in PreservedFailed <= failedMachinePreserveMax`. If  `machines requested for preservation + machines in PreservedFailed` is at or exceeds `failedMachinePreserveMax` on annotating a machine, the annotation will be deleted by MCM. 
 
 
 ## State Machine
 
 The behaviour described above can be summarised using the state machine below:
+```mermaid
+---
+config:
+  layout: elk
+---
+stateDiagram
+  direction TBP
+  state "PreserveFailed 
+  (node drained)" as PreserveFailed
+  state "Requested 
+  (node & machine annotated)" 
+   as Requested
+  [*] --> Running
+  Running --> Requested:annotated with value=true && max not breached
+  Running --> Running:annotated, but max breached
+  Requested --> PreserveFailed:on failure
+  Running --> PreserveFailed:on failure && max not breached
+  PreserveFailed --> Terminating:after timeout
+  PreserveFailed --> Terminating:annotated with value=false
+  Running --> Failed : on failure && max breached
+  PreserveFailed --> Running : VM recovers
+  Failed --> Terminating
+  Terminating --> [*]
 
 ```
-(Running Machine)
-├── [User adds `node.machine.sapcloud.io/preserve-when-failed=true`] → (Running + Requested)
-└── [Machine fails + capacity available] → (PreserveFailed)
 
-(Running + Requested)
-├── [Machine fails + capacity available] → (PreserveFailed)
-├── [Machine fails + no capacity] → Failed → Terminating 
-└── [User removes `node.machine.sapcloud.io/preserve-when-failed=true`] → (Running)
-
-(PreserveFailed)
-├── [User adds `node.machine.sapcloud.io/preserve-when-failed=false`] → Terminating
-└── [failedMachinePreserveTimeout expires] → Terminating
-
-```
 In the above state machine, the phase `Running` also includes machines that are in the process of creation for which no errors have been encountered yet.
-The transition of moving a machine from `PreserveFailed` to `Running` has not been shown since we haven't determined whether it is in scope for the current iteration of this feature.
 
 ## Use Cases:
 
 ### Use Case 1: Proactive Preservation Request
 **Scenario:** Operator suspects a machine might fail and wants to ensure preservation for analysis.
 #### Steps:
-1. Operator annotates node with `node.machine.sapcloud.io/preserve-when-failed=true`
+1. Operator annotates node with `node.machine.sapcloud.io/preserve-when-failed=true`, provided `failedMachinePreserveMax` is not violated
 2. Machine fails later
-3. MCM preserves the machine (if capacity allows)
+3. MCM preserves the machine
 4. Operator analyzes the failed VM
-5. Operator releases the failed machine by setting `node.machine.sapcloud.io/preserve-when-failed=false` on the node object
 
 ### Use Case 2: Automatic Preservation
 **Scenario:** Machine fails unexpectedly, no prior annotation.
 #### Steps:
-1. Machine transitions to Failed state
-2. MCM checks preservation capacity
-3. If capacity available, machine moved to `PreserveFailed` phase by MCM
-4. After timeout, machine is terminated by MCM
+1. Machine transitions to `Failed` phase
+2. If `failedMachinePreserveMax` is not breached, machine moved to `PreserveFailed` phase by MCM
+3. After `failedMachinePreserveTimeout`, machine is terminated by MCM
 
 ### Use Case 3: Capacity Management
 **Scenario:** Multiple machines fail when preservation capacity is full.
 #### Steps:
-1. Machines M1, M2 already preserved (capacity = 2)
-2. Machine M3 fails with annotation `node.machine.sapcloud.io/preserve-when-failed=true` set
-3. MCM cannot preserve M3 due to capacity limits
-4. M3 moved from `Failed` to `Terminating` by MCM, following which it is deleted
+1. Machines M1, M2 already preserved (failedMachinePreserveMax = 2)
+2. Operator wishes to preserve M3 in case of failure. He increases `failedMachinePreserveMax` to 3, and annotates M3 with `node.machine.sapcloud.io/preserve-when-failed=true`.
+3. If M3 fails, machine moved to `PreserveFailed` phase by MCM.
 
 ### Use Case 4: Early Release
 **Scenario:** Operator has performed his analysis and no longer requires machine to be preserved
@@ -100,8 +105,12 @@ The transition of moving a machine from `PreserveFailed` to `Running` has not be
 #### Steps:
 1. Machine M1 is in `PreserveFailed` phase
 2. Operator adds: `node.machine.sapcloud.io/preserve-when-failed=false` to node.
-3. MCM transitions M1 to `Terminating`
+3. MCM transitions M1 to `Terminating` even though `failedMachinePreserveTimeout` has not expired
 4. Capacity becomes available for preserving future `Failed` machines.
+
+## Open Point
+
+How will MCM provide the user with the option to drain a node when it is in `PreserveFailed` stage?
 
 ## Limitations
 
