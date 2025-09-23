@@ -48,10 +48,6 @@ and the time duration for which these machines will be preserved.
 
 The behaviour described above can be summarised using the state machine below:
 ```mermaid
----
-config:
-  layout: elk
----
 stateDiagram
   direction TBP
   state "PreserveFailed 
