@@ -649,7 +649,9 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		if c.targetCoreClient == nil {
 			// persist addresses from the InitializeMachine and CreateMachine responses
 			clone := clone.DeepCopy()
-			addresses.Insert(initResponse.Addresses...)
+			if initResponse != nil {
+				addresses.Insert(initResponse.Addresses...)
+			}
 			clone.Status.Addresses = buildAddressStatus(addresses, nodeName)
 			if _, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{}); err != nil {
 				return machineutils.ShortRetry, fmt.Errorf("failed to persist status addresses after initialization was successful: %w", err)
