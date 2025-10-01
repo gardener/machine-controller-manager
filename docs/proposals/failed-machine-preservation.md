@@ -34,13 +34,13 @@ and the time duration for which these machines will be preserved.
     ```
     * Since gardener worker pool can correspond to `1..N` MachineDeployments depending on number of zones, `failedMachinePreserveMax` will be distributed across N machine deployments.
     * `failedMachinePreserveMax` must be chosen such that it can be appropriately distributed across the MachineDeployments.
-2. Allow user/operator to explicitly request for preservation of a specific machine with the use of an annotation : `node.machine.sapcloud.io/preserve-when-failed=true`, such that, if it moves to `Failed` phase, the machine is preserved by MCM, provided there is capacity.
+2. Allow user/operator to request for preservation of a specific machine with the use of an annotation : `node.machine.sapcloud.io/preserve-when-failed=true`, such that, if the machine moves to `Failed` phase, it is preserved by MCM, provided there is capacity.
 3. MCM will be modified to introduce a new stage in the `Failed` phase: `machineutils.PreserveFailed`, and a failed machine that is preserved by MCM will be transitioned to this stage after moving to `Failed`.
 4. A machine in `PreserveFailed` stage automatically moves to `Terminating` phase once `failedMachinePreserveTimeout` expires. 
    * A user/operator can request MCM to stop preserving a machine in `PreservedFailed` stage using the annotation: `node.machine.sapcloud.io/preserve-when-failed=false`. 
    * For a machine thus annotated, MCM will move it to `Terminating` phase even if `failedMachinePreserveTimeout` has not expired.
-5. If an un-annotated machine moves to `Failed` phase, and the `failedMachinePreserveMax` has not been reached, MCM will auto-preserve this machine.
-6. Machines of a MachineDeployment in `PreserveFailed` stage will also be counted towards the replica count and the enforcement of maximum machines allowed for the MachineDeployment.
+5. If an un-annotated machine moves to `Failed` phase, and the number of preserved failed machines is less than `failedMachinePreserveMax`, MCM will auto-preserve this machine.
+6. Machines of a MachineDeployment in `PreserveFailed` stage will also be counted towards the replica count and in the enforcement of maximum machines allowed for the MachineDeployment.
 7. At any point in time `machines requested for preservation + machines in PreservedFailed <= failedMachinePreserveMax`. If  `machines requested for preservation + machines in PreservedFailed` is at or exceeds `failedMachinePreserveMax` on annotating a machine, the annotation will be deleted by MCM. 
 
 
