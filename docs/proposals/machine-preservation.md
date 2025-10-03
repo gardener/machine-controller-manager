@@ -1,8 +1,8 @@
-# Preservation of Failed Machines
+# Preservation of Machines
 
 <!-- TOC -->
 
-- [Preservation of Failed Machines](#preservation-of-failed-machines)
+- [Preservation of Machines](#preservation-of-machines)
     - [Objective](#objective)
     - [Proposal](#proposal)
     - [State Diagrams](#state-diagrams)
