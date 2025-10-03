@@ -1,0 +1,6 @@
+# See the OWNERS docs at https://go.k8s.io/owners
+
+reviewers:
+- machine-controller-manager-reviewers
+approvers:
+- machine-controller-manager-approvers

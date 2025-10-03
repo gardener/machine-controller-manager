@@ -1,0 +1,21 @@
+# See the OWNERS docs at https://go.k8s.io/owners
+
+aliases:
+  machine-controller-manager-reviewers:
+  - aaronfern
+  - ashwani2k
+  - elankath
+  - gagan16k
+  - kon-angelo
+  - takoverflow
+  - thiyyakat
+  - unmarshall
+  machine-controller-manager-approvers:
+  - aaronfern
+  - ashwani2k
+  - elankath
+  - gagan16k
+  - kon-angelo
+  - takoverflow
+  - thiyyakat
+  - unmarshall
