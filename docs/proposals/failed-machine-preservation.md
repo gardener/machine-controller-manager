@@ -101,4 +101,4 @@ and the time duration for which these machines will be preserved.
 
 1. During rolling updates we will NOT honor preserving Machines. The Machine will be replaced with a healthy one if it moves to Failed phase.
 2. Since gardener worker pool can correspond to 1..N MachineDeployments depending on number of zones, we will need to distribute the `machinePreserveMax` across N machine deployments.
-So, even if there are no failed machines preserved in other zones, the max per zone would still be enforced. Hence, the value of `failedMachinePreserveMax` should be chosen appropriately. 
+So, even if there are no failed machines preserved in other zones, the max per zone would still be enforced. Hence, the value of `machinePreserveMax` should be chosen appropriately. 
