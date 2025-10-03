@@ -5,6 +5,7 @@
 - [Preservation of Failed Machines](#preservation-of-failed-machines)
     - [Objective](#objective)
     - [Proposal](#proposal)
+    - [State Diagrams](#state-diagrams)
     - [Use Cases](#use-cases)
 
 <!-- /TOC -->
@@ -63,6 +64,55 @@ and the time duration for which these machines will be preserved.
    * For a machine thus annotated, MCM will move it either to `Running` phase or `Terminating` depending on the phase of the machine before it was moved to `Preserved`.
 9. Machines of a MachineDeployment in `Preserved` stage will also be counted towards the replica count and in the enforcement of maximum machines allowed for the MachineDeployment.
 10. At any point in time $count(machinesAnnotatedForPreservation)+count(PreservedMachines)<=machinePreserveMax$. 
+
+## State Diagrams:
+
+1. State Diagram for when a `Running` machine or its node is annotated with `node.machine.sapcloud.io/preserve=now`:
+```mermaid
+stateDiagram-v2
+direction TBP
+    state "Running" as R
+    state "Preserved" as P
+    [*]-->R
+    R --> P: annotated with value=now && max not breached
+    P --> R: annotated with value=false or timeout occurs
+```
+
+2. State Diagram for when a `Running` machine or its node is annotated with `node.machine.sapcloud.io/preserve=when-failed`:
+```mermaid
+stateDiagram-v2
+    state "Running" as R
+    state "Running + Requested" as RR
+    state "Failed" as F
+    state "Preserved 
+    (node drained)" as P
+    state "Terminating" as T
+    [*]-->R
+    R --> RR: annotated with value=when-failed && max not breached
+    RR --> F: on failure
+    F --> P
+    P --> T: on timeout or value=false
+    P --> R: if node Healthy before timeout
+    T --> [*]
+```
+
+3. State Diagram for when an un-annotated `Running` machine fails:
+```mermaid
+stateDiagram-v2
+direction TBP
+    state "Running" as R
+    state "Failed" as F
+    state "Preserved" as P
+    state "Terminating" as T
+    [*] --> R
+    R-->F: on failure
+    F --> P: if max not breached
+    F --> T: if max breached
+    P --> T: on timeout or value=false
+    P --> R : if node Healthy before timeout
+    T --> [*]
+```
+
 
 ## Use Cases:
 
