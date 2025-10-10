@@ -445,7 +445,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		// retry the slow start process.
 		if skippedMachines := diff - successfulCreations; skippedMachines > 0 {
 			klog.V(2).Infof("Slow-start failure. Skipping creation of %d machines, decrementing expectations for %v %v/%v", skippedMachines, machineSet.Kind, machineSet.Namespace, machineSet.Name)
-			for i := 0; i < skippedMachines; i++ {
+			for range skippedMachines {
 				// Decrement the expected number of creates because the informer won't observe this machine
 				c.expectations.CreationObserved(machineSetKey)
 			}
@@ -801,7 +801,7 @@ func (c *controller) updateMachineSetFinalizers(ctx context.Context, machineSet 
 	var err error
 
 	// Stop retrying if we exceed finalizerUpdateRetries - the machineSet will be requeued with rate limit
-	for i := 0; i < finalizerUpdateRetries; i++ {
+	for range finalizerUpdateRetries {
 		// Get the latest version of the machineSet so that we can avoid conflicts
 		machineSet, err = c.controlMachineClient.MachineSets(machineSet.Namespace).Get(ctx, machineSet.Name, metav1.GetOptions{})
 		if err != nil {

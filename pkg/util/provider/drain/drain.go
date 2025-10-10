@@ -641,7 +641,7 @@ func (o *Options) evictPodsWithPv(ctx context.Context, attemptEvict bool, pods [
 	)
 
 	if attemptEvict {
-		for i := 0; i < nretries; i++ {
+		for range nretries {
 			remainingPods, fastTrack = o.evictPodsWithPVInternal(ctx, attemptEvict, pods, podVolumeInfoMap, policyGroupVersion, getPodFn, returnCh)
 			if fastTrack || len(remainingPods) == 0 {
 				// Either all pods got evicted or we need to fast track the return (node deletion detected)

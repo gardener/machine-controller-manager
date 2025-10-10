@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
 	"testing"
 	"time"
 
@@ -24,7 +25,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	machine_internal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -217,12 +218,8 @@ func newMachinesFromMachineSet(
 	t := &machineSet.TypeMeta
 
 	finalLabels := make(map[string]string, 0)
-	for k, v := range labels {
-		finalLabels[k] = v
-	}
-	for k, v := range machineSet.Spec.Template.Labels {
-		finalLabels[k] = v
-	}
+	maps.Copy(finalLabels, labels)
+	maps.Copy(finalLabels, machineSet.Spec.Template.Labels)
 
 	return newMachines(
 		machineCount,
@@ -233,8 +230,8 @@ func newMachinesFromMachineSet(
 			Kind:               t.Kind,
 			Name:               machineSet.Name,
 			UID:                machineSet.UID,
-			BlockOwnerDeletion: pointer.BoolPtr(true),
-			Controller:         pointer.BoolPtr(true),
+			BlockOwnerDeletion: ptr.To(true),
+			Controller:         ptr.To(true),
 		},
 		annotations,
 		finalLabels,

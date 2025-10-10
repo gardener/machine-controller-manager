@@ -76,7 +76,7 @@ func TestDeepHashObject(t *testing.T) {
 		if hash1 != hash2 {
 			t.Fatalf("hash of the same object (%q) produced different results: %d vs %d", toString(tc()), hash1, hash2)
 		}
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			hasher2 := adler32.New()
 
 			DeepHashObject(hasher1, tc())
@@ -122,7 +122,7 @@ func TestDeepObjectPointer(t *testing.T) {
 	myUni3 := unicycle{licencePlateID: "blah", primaryWheel: &wheel3, tags: map[string]string{"color": "blue", "name": "john"}}
 
 	// Run it more than once to verify determinism of hasher.
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		hasher1 := adler32.New()
 		hasher2 := adler32.New()
 		hasher3 := adler32.New()

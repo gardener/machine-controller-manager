@@ -27,6 +27,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -494,9 +495,7 @@ type MachineControlInterface interface {
 
 func getMachinesLabelSet(template *v1alpha1.MachineTemplateSpec) labels.Set {
 	desiredLabels := make(labels.Set)
-	for k, v := range template.Labels {
-		desiredLabels[k] = v
-	}
+	maps.Copy(desiredLabels, template.Labels)
 	return desiredLabels
 }
 
@@ -508,9 +507,7 @@ func getMachinesFinalizers(template *v1alpha1.MachineTemplateSpec) []string {
 
 func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, _ runtime.Object) labels.Set {
 	desiredAnnotations := make(labels.Set)
-	for k, v := range template.Annotations {
-		desiredAnnotations[k] = v
-	}
+	maps.Copy(desiredAnnotations, template.Annotations)
 	return desiredAnnotations
 }
 

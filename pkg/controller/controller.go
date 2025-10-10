@@ -250,7 +250,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	// every time when the endpoint is called.
 	prometheus.MustRegister(c)
 
-	for i := 0; i < workers; i++ {
+	for range workers {
 		worker.Run(c.machineSetQueue, "ClusterMachineSet", worker.DefaultMaxRetries, true, c.reconcileClusterMachineSet, stopCh, &waitGroup)
 		worker.Run(c.machineDeploymentQueue, "ClusterMachineDeployment", worker.DefaultMaxRetries, true, c.reconcileClusterMachineDeployment, stopCh, &waitGroup)
 		worker.Run(c.machineSafetyOvershootingQueue, "ClusterMachineSafetyOvershooting", worker.DefaultMaxRetries, true, c.reconcileClusterMachineSafetyOvershooting, stopCh, &waitGroup)

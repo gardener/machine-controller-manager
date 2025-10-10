@@ -6,6 +6,7 @@ package controller
 
 import (
 	"context"
+	"maps"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,9 +21,7 @@ func (c *controller) updateNodeWithAnnotations(ctx context.Context, node *v1.Nod
 	}
 
 	//append annotations
-	for k, v := range annotations {
-		node.Annotations[k] = v
-	}
+	maps.Copy(node.Annotations, annotations)
 
 	_, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 
