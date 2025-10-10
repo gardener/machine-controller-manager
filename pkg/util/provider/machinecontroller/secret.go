@@ -147,7 +147,7 @@ func (c *controller) enqueueSecretAfter(obj interface{}, after time.Duration) {
 	c.secretQueue.AddAfter(key, after)
 }
 
-func enqueueSecretForReferences(queue workqueue.RateLimitingInterface, secretRefs ...*corev1.SecretReference) {
+func enqueueSecretForReferences(queue workqueue.TypedRateLimitingInterface[string], secretRefs ...*corev1.SecretReference) {
 	for _, secretRef := range secretRefs {
 		if secretRef != nil {
 			queue.Add(secretRef.Namespace + "/" + secretRef.Name)
@@ -155,7 +155,7 @@ func enqueueSecretForReferences(queue workqueue.RateLimitingInterface, secretRef
 	}
 }
 
-func enqueueSecretForReferenceIfChanged(queue workqueue.RateLimitingInterface, oldSecretRef, newSecretRef *corev1.SecretReference) {
+func enqueueSecretForReferenceIfChanged(queue workqueue.TypedRateLimitingInterface[string], oldSecretRef, newSecretRef *corev1.SecretReference) {
 	if !apiequality.Semantic.DeepEqual(oldSecretRef, newSecretRef) {
 		if oldSecretRef != nil {
 			queue.Add(oldSecretRef.Namespace + "/" + oldSecretRef.Name)

@@ -54,18 +54,33 @@ func NewController(
 	autoscalerScaleDownAnnotationDuringRollout bool,
 ) (Controller, error) {
 	controller := &controller{
-		namespace:                      namespace,
-		controlMachineClient:           controlMachineClient,
-		controlCoreClient:              controlCoreClient,
-		targetCoreClient:               targetCoreClient,
-		recorder:                       recorder,
-		expectations:                   NewUIDTrackingContExpectations(NewContExpectations()),
-		nodeQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
-		machineQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
-		machineSetQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
-		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
-		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
-		safetyOptions:                  safetyOptions,
+		namespace:            namespace,
+		controlMachineClient: controlMachineClient,
+		controlCoreClient:    controlCoreClient,
+		targetCoreClient:     targetCoreClient,
+		recorder:             recorder,
+		expectations:         NewUIDTrackingContExpectations(NewContExpectations()),
+		nodeQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "node"},
+		),
+		machineQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machine"},
+		),
+		machineSetQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinetermination"},
+		),
+		machineDeploymentQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinedeployment"},
+		),
+		machineSafetyOvershootingQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinesafetyovershooting"},
+		),
+		safetyOptions: safetyOptions,
 		autoscalerScaleDownAnnotationDuringRollout: autoscalerScaleDownAnnotationDuringRollout,
 	}
 
@@ -188,11 +203,11 @@ type controller struct {
 	// target listers – nil when running without a target cluster
 	nodeLister corelisters.NodeLister
 	// queues
-	nodeQueue                      workqueue.RateLimitingInterface
-	machineQueue                   workqueue.RateLimitingInterface
-	machineSetQueue                workqueue.RateLimitingInterface
-	machineDeploymentQueue         workqueue.RateLimitingInterface
-	machineSafetyOvershootingQueue workqueue.RateLimitingInterface
+	nodeQueue                      workqueue.TypedRateLimitingInterface[string]
+	machineQueue                   workqueue.TypedRateLimitingInterface[string]
+	machineSetQueue                workqueue.TypedRateLimitingInterface[string]
+	machineDeploymentQueue         workqueue.TypedRateLimitingInterface[string]
+	machineSafetyOvershootingQueue workqueue.TypedRateLimitingInterface[string]
 	// syncs
 	nodeSynced              cache.InformerSynced
 	machineSynced           cache.InformerSynced

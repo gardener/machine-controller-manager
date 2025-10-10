@@ -580,27 +580,48 @@ func createController(
 	}
 
 	controller := &controller{
-		namespace:                   namespace,
-		nodeConditions:              "KernelDeadlock,ReadonlyFilesystem,DiskPressure,NetworkUnavailable",
-		driver:                      fakedriver,
-		safetyOptions:               safetyOptions,
-		machineClassLister:          machineClass.Lister(),
-		machineClassSynced:          machineClass.Informer().HasSynced,
-		controlCoreClient:           fakeControlCoreClient,
-		controlMachineClient:        fakeTypedMachineClient,
-		internalExternalScheme:      internalExternalScheme,
-		secretLister:                secrets.Lister(),
-		machineLister:               machines.Lister(),
-		machineSynced:               machines.Informer().HasSynced,
-		secretSynced:                secrets.Informer().HasSynced,
-		machineClassQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineclass"),
-		secretQueue:                 workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
-		nodeQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
-		machineQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
-		machineTerminationQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinetermination"),
-		machineSafetyOrphanVMsQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
-		machineSafetyAPIServerQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
-		recorder:                    record.NewBroadcaster().NewRecorder(nil, corev1.EventSource{Component: ""}),
+		namespace:              namespace,
+		nodeConditions:         "KernelDeadlock,ReadonlyFilesystem,DiskPressure,NetworkUnavailable",
+		driver:                 fakedriver,
+		safetyOptions:          safetyOptions,
+		machineClassLister:     machineClass.Lister(),
+		machineClassSynced:     machineClass.Informer().HasSynced,
+		controlCoreClient:      fakeControlCoreClient,
+		controlMachineClient:   fakeTypedMachineClient,
+		internalExternalScheme: internalExternalScheme,
+		secretLister:           secrets.Lister(),
+		machineLister:          machines.Lister(),
+		machineSynced:          machines.Informer().HasSynced,
+		secretSynced:           secrets.Informer().HasSynced,
+		machineClassQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machineclass"},
+		),
+		secretQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "secret"},
+		),
+		nodeQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "node"},
+		),
+		machineQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machine"},
+		),
+		machineTerminationQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinetermination"},
+		),
+		machineSafetyOrphanVMsQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinesafetyorphanvms"},
+		),
+		machineSafetyAPIServerQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinesafetyapiserver"},
+		),
+		recorder: record.NewBroadcaster().NewRecorder(nil, corev1.EventSource{Component: ""}),
 	}
 
 	if !noTargetCluster {

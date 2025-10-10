@@ -434,27 +434,42 @@ func createController(
 	}
 
 	controller := &controller{
-		namespace:                      namespace,
-		safetyOptions:                  safetyOptions,
-		targetCoreClient:               fakeTargetCoreClient,
-		controlCoreClient:              fakeControlCoreClient,
-		controlMachineClient:           fakeTypedMachineClient,
-		internalExternalScheme:         internalExternalScheme,
-		nodeLister:                     nodes.Lister(),
-		machineLister:                  machines.Lister(),
-		machineSetLister:               machineSets.Lister(),
-		machineDeploymentLister:        machineDeployments.Lister(),
-		machineSynced:                  machines.Informer().HasSynced,
-		machineSetSynced:               machineSets.Informer().HasSynced,
-		machineDeploymentSynced:        machineDeployments.Informer().HasSynced,
-		nodeSynced:                     nodes.Informer().HasSynced,
-		nodeQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
-		machineQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
-		machineSetQueue:                workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineset"),
-		machineDeploymentQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinedeployment"),
-		machineSafetyOvershootingQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyovershooting"),
-		expectations:                   NewUIDTrackingContExpectations(NewContExpectations()),
-		recorder:                       record.NewBroadcaster().NewRecorder(internalExternalScheme, corev1.EventSource{Component: ""}),
+		namespace:               namespace,
+		safetyOptions:           safetyOptions,
+		targetCoreClient:        fakeTargetCoreClient,
+		controlCoreClient:       fakeControlCoreClient,
+		controlMachineClient:    fakeTypedMachineClient,
+		internalExternalScheme:  internalExternalScheme,
+		nodeLister:              nodes.Lister(),
+		machineLister:           machines.Lister(),
+		machineSetLister:        machineSets.Lister(),
+		machineDeploymentLister: machineDeployments.Lister(),
+		machineSynced:           machines.Informer().HasSynced,
+		machineSetSynced:        machineSets.Informer().HasSynced,
+		machineDeploymentSynced: machineDeployments.Informer().HasSynced,
+		nodeSynced:              nodes.Informer().HasSynced,
+		nodeQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "node"},
+		),
+		machineQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machine"},
+		),
+		machineSetQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinetermination"},
+		),
+		machineDeploymentQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinedeployment"},
+		),
+		machineSafetyOvershootingQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinesafetyovershooting"},
+		),
+		expectations: NewUIDTrackingContExpectations(NewContExpectations()),
+		recorder:     record.NewBroadcaster().NewRecorder(internalExternalScheme, corev1.EventSource{Component: ""}),
 	}
 
 	// controller.internalExternalScheme = runtime.NewScheme()
