@@ -37,7 +37,7 @@ import (
 SECTION
 Machine controller - Machine add, update, delete watches
 */
-func (c *controller) addMachine(obj interface{}) {
+func (c *controller) addMachine(obj any) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if !ok {
 		klog.Errorf("couldn't convert to machine resource from object")
@@ -53,7 +53,7 @@ func (c *controller) addMachine(obj interface{}) {
 	}
 }
 
-func (c *controller) updateMachine(oldObj, newObj interface{}) {
+func (c *controller) updateMachine(oldObj, newObj any) {
 	oldMachine := oldObj.(*v1alpha1.Machine)
 	newMachine := newObj.(*v1alpha1.Machine)
 
@@ -74,7 +74,7 @@ func (c *controller) updateMachine(oldObj, newObj interface{}) {
 	}
 }
 
-func (c *controller) deleteMachine(obj interface{}) {
+func (c *controller) deleteMachine(obj any) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
@@ -91,7 +91,7 @@ func (c *controller) deleteMachine(obj interface{}) {
 }
 
 // getKeyForObj returns key for object, else returns false
-func (c *controller) getKeyForObj(obj interface{}) (string, bool) {
+func (c *controller) getKeyForObj(obj any) (string, bool) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
 		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
@@ -100,14 +100,14 @@ func (c *controller) getKeyForObj(obj interface{}) (string, bool) {
 	return key, true
 }
 
-func (c *controller) enqueueMachine(obj interface{}, reason string) {
+func (c *controller) enqueueMachine(obj any, reason string) {
 	if key, ok := c.getKeyForObj(obj); ok {
 		klog.V(3).Infof("Adding machine object to queue %q, reason: %s", key, reason)
 		c.machineQueue.Add(key)
 	}
 }
 
-func (c *controller) enqueueMachineAfter(obj interface{}, after time.Duration, reason string) {
+func (c *controller) enqueueMachineAfter(obj any, after time.Duration, reason string) {
 	if key, ok := c.getKeyForObj(obj); ok {
 		klog.V(3).Infof("Adding machine object to queue %q after %s, reason: %s", key, after, reason)
 		c.machineQueue.AddAfter(key, after)
@@ -311,7 +311,7 @@ var (
 	errNoMachineMatch       = errors.New("no machines matching node found")
 )
 
-func (c *controller) addNodeToMachine(obj interface{}) {
+func (c *controller) addNodeToMachine(obj any) {
 	node := obj.(*corev1.Node)
 	if node == nil {
 		klog.Errorf("Couldn't convert to node from object")
@@ -349,7 +349,7 @@ func (c *controller) addNodeToMachine(obj interface{}) {
 	}
 }
 
-func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
+func (c *controller) updateNodeToMachine(oldObj, newObj any) {
 	oldNode := oldObj.(*corev1.Node)
 	node := newObj.(*corev1.Node)
 	if node == nil {
@@ -390,7 +390,7 @@ func (c *controller) updateNodeToMachine(oldObj, newObj interface{}) {
 	c.addNodeToMachine(newObj)
 }
 
-func (c *controller) deleteNodeToMachine(obj interface{}) {
+func (c *controller) deleteNodeToMachine(obj any) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)

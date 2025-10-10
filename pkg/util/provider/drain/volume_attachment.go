@@ -27,7 +27,7 @@ func NewVolumeAttachmentHandler() *VolumeAttachmentHandler {
 	}
 }
 
-func (v *VolumeAttachmentHandler) dispatch(obj interface{}) {
+func (v *VolumeAttachmentHandler) dispatch(obj any) {
 	if len(v.workers) == 0 {
 		// As no workers are registered, nothing to do here.
 		return
@@ -57,13 +57,13 @@ func (v *VolumeAttachmentHandler) dispatch(obj interface{}) {
 }
 
 // AddVolumeAttachment is the event handler for VolumeAttachment add
-func (v *VolumeAttachmentHandler) AddVolumeAttachment(obj interface{}) {
+func (v *VolumeAttachmentHandler) AddVolumeAttachment(obj any) {
 	klog.V(4).Infof("Adding volume attachment object")
 	v.dispatch(obj)
 }
 
 // UpdateVolumeAttachment is the event handler for VolumeAttachment update
-func (v *VolumeAttachmentHandler) UpdateVolumeAttachment(_, newObj interface{}) {
+func (v *VolumeAttachmentHandler) UpdateVolumeAttachment(_, newObj any) {
 	klog.V(4).Info("Updating volume attachment object")
 	v.dispatch(newObj)
 }

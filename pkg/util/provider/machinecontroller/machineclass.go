@@ -22,7 +22,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
-func (c *controller) machineToMachineClassAdd(obj interface{}) {
+func (c *controller) machineToMachineClassAdd(obj any) {
 	machine, ok := obj.(*v1alpha1.Machine)
 	if machine == nil || !ok {
 		klog.Warningf("Couldn't get machine from object: %+v", obj)
@@ -33,11 +33,11 @@ func (c *controller) machineToMachineClassAdd(obj interface{}) {
 	}
 }
 
-func (c *controller) machineToMachineClassDelete(obj interface{}) {
+func (c *controller) machineToMachineClassDelete(obj any) {
 	c.machineToMachineClassAdd(obj)
 }
 
-func (c *controller) machineClassAdd(obj interface{}) {
+func (c *controller) machineClassAdd(obj any) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
@@ -46,7 +46,7 @@ func (c *controller) machineClassAdd(obj interface{}) {
 	c.machineClassQueue.Add(key)
 }
 
-func (c *controller) machineClassUpdate(oldObj, newObj interface{}) {
+func (c *controller) machineClassUpdate(oldObj, newObj any) {
 	old, ok := oldObj.(*v1alpha1.MachineClass)
 	if old == nil || !ok {
 		return
@@ -59,7 +59,7 @@ func (c *controller) machineClassUpdate(oldObj, newObj interface{}) {
 	c.machineClassAdd(newObj)
 }
 
-func (c *controller) machineClassDelete(obj interface{}) {
+func (c *controller) machineClassDelete(obj any) {
 	c.machineClassAdd(obj)
 }
 
@@ -194,7 +194,7 @@ func (c *controller) updateMachineClassFinalizers(ctx context.Context, class *v1
 	return err
 }
 
-func (c *controller) enqueueMachineClassAfter(obj interface{}, after time.Duration) {
+func (c *controller) enqueueMachineClassAfter(obj any, after time.Duration) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
 		return

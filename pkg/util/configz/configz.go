@@ -36,7 +36,7 @@ var (
 
 // Config is the utility used to configure
 type Config struct {
-	val interface{}
+	val any
 }
 
 // InstallHandler used to handle /configz endpoint
@@ -68,7 +68,7 @@ func Delete(name string) {
 }
 
 // Set set's up the config
-func (v *Config) Set(val interface{}) {
+func (v *Config) Set(val any) {
 	configsGuard.Lock()
 	defer configsGuard.Unlock()
 	v.val = val

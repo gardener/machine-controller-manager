@@ -49,22 +49,22 @@ func (c C) String() string {
 }
 
 func TestDeepHashObject(t *testing.T) {
-	successCases := []func() interface{}{
-		func() interface{} { return 8675309 },
-		func() interface{} { return "Jenny, I got your number" },
-		func() interface{} { return []string{"eight", "six", "seven"} },
-		func() interface{} { return [...]int{5, 3, 0, 9} },
-		func() interface{} { return map[int]string{8: "8", 6: "6", 7: "7"} },
-		func() interface{} { return map[string]int{"5": 5, "3": 3, "0": 0, "9": 9} },
-		func() interface{} { return A{867, "5309"} },
-		func() interface{} { return &A{867, "5309"} },
-		func() interface{} {
+	successCases := []func() any{
+		func() any { return 8675309 },
+		func() any { return "Jenny, I got your number" },
+		func() any { return []string{"eight", "six", "seven"} },
+		func() any { return [...]int{5, 3, 0, 9} },
+		func() any { return map[int]string{8: "8", 6: "6", 7: "7"} },
+		func() any { return map[string]int{"5": 5, "3": 3, "0": 0, "9": 9} },
+		func() any { return A{867, "5309"} },
+		func() any { return &A{867, "5309"} },
+		func() any {
 			return B{[]int{8, 6, 7}, map[string]bool{"5": true, "3": true, "0": true, "9": true}}
 		},
-		func() interface{} { return map[A]bool{{8675309, "Jenny"}: true, {9765683, "!Jenny"}: false} },
-		func() interface{} { return map[C]bool{{8675309, "Jenny"}: true, {9765683, "!Jenny"}: false} },
-		func() interface{} { return map[*A]bool{{8675309, "Jenny"}: true, {9765683, "!Jenny"}: false} },
-		func() interface{} { return map[*C]bool{{8675309, "Jenny"}: true, {9765683, "!Jenny"}: false} },
+		func() any { return map[A]bool{{8675309, "Jenny"}: true, {9765683, "!Jenny"}: false} },
+		func() any { return map[C]bool{{8675309, "Jenny"}: true, {9765683, "!Jenny"}: false} },
+		func() any { return map[*A]bool{{8675309, "Jenny"}: true, {9765683, "!Jenny"}: false} },
+		func() any { return map[*C]bool{{8675309, "Jenny"}: true, {9765683, "!Jenny"}: false} },
 	}
 
 	for _, tc := range successCases {
@@ -97,7 +97,7 @@ func TestDeepHashObject(t *testing.T) {
 	}
 }
 
-func toString(obj interface{}) string {
+func toString(obj any) string {
 	return spew.Sprintf("%#v", obj)
 }
 

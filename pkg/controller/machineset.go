@@ -134,7 +134,7 @@ func (c *controller) resolveMachineSetControllerRef(namespace string, controller
 }
 
 // callback when MachineSet is updated
-func (c *controller) machineSetUpdate(old, cur interface{}) {
+func (c *controller) machineSetUpdate(old, cur any) {
 	oldMachineSet := old.(*v1alpha1.MachineSet)
 	currentMachineSet := cur.(*v1alpha1.MachineSet)
 
@@ -157,7 +157,7 @@ func (c *controller) machineSetUpdate(old, cur interface{}) {
 }
 
 // When a machine is created, enqueue the machine set that manages it and update its expectations.
-func (c *controller) addMachineToMachineSet(obj interface{}) {
+func (c *controller) addMachineToMachineSet(obj any) {
 	machine := obj.(*v1alpha1.Machine)
 
 	if machine.DeletionTimestamp != nil {
@@ -203,7 +203,7 @@ func (c *controller) addMachineToMachineSet(obj interface{}) {
 // When a machine is updated, figure out what machine set/s manage it and wake them
 // up. If the labels of the machine have changed we need to awaken both the old
 // and new machine set. old and cur must be *v1alpha1.Machine types.
-func (c *controller) updateMachineToMachineSet(old, cur interface{}) {
+func (c *controller) updateMachineToMachineSet(old, cur any) {
 	curMachine := cur.(*v1alpha1.Machine)
 	oldMachine := old.(*v1alpha1.Machine)
 	if curMachine.ResourceVersion == oldMachine.ResourceVersion {
@@ -267,7 +267,7 @@ func (c *controller) updateMachineToMachineSet(old, cur interface{}) {
 
 // When a machine is deleted, enqueue the machine set that manages the machine and update its expectations.
 // obj could be an *v1alpha1.Machine, or a DeletionFinalStateUnknown marker item.
-func (c *controller) deleteMachineToMachineSet(obj interface{}) {
+func (c *controller) deleteMachineToMachineSet(obj any) {
 	machine, ok := obj.(*v1alpha1.Machine)
 
 	// When a delete is dropped, the relist will notice a machine in the store not
@@ -306,7 +306,7 @@ func (c *controller) deleteMachineToMachineSet(obj interface{}) {
 }
 
 // obj could be an *extensions.MachineSet, or a DeletionFinalStateUnknown marker item.
-func (c *controller) enqueueMachineSet(obj interface{}) {
+func (c *controller) enqueueMachineSet(obj any) {
 	key, err := KeyFunc(obj)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %+v: %v", obj, err))
@@ -316,7 +316,7 @@ func (c *controller) enqueueMachineSet(obj interface{}) {
 }
 
 // obj could be an *extensions.MachineSet, or a DeletionFinalStateUnknown marker item.
-func (c *controller) enqueueMachineSetAfter(obj interface{}, after time.Duration) {
+func (c *controller) enqueueMachineSetAfter(obj any, after time.Duration) {
 	key, err := KeyFunc(obj)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %+v: %v", obj, err))

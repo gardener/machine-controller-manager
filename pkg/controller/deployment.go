@@ -52,20 +52,20 @@ var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("MachineDeployment")
 // GroupVersionKind is the version kind used to identify objects managed by machine-controller-manager
 var GroupVersionKind = "machine.sapcloud.io/v1alpha1"
 
-func (dc *controller) addMachineDeployment(obj interface{}) {
+func (dc *controller) addMachineDeployment(obj any) {
 	d := obj.(*v1alpha1.MachineDeployment)
 	klog.V(4).Infof("Adding machine deployment %s", d.Name)
 	dc.enqueueMachineDeployment(d)
 }
 
-func (dc *controller) updateMachineDeployment(old, cur interface{}) {
+func (dc *controller) updateMachineDeployment(old, cur any) {
 	oldD := old.(*v1alpha1.MachineDeployment)
 	curD := cur.(*v1alpha1.MachineDeployment)
 	klog.V(4).Infof("Updating machine deployment %s", oldD.Name)
 	dc.enqueueMachineDeployment(curD)
 }
 
-func (dc *controller) deleteMachineDeployment(obj interface{}) {
+func (dc *controller) deleteMachineDeployment(obj any) {
 	d, ok := obj.(*v1alpha1.MachineDeployment)
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
@@ -84,7 +84,7 @@ func (dc *controller) deleteMachineDeployment(obj interface{}) {
 }
 
 // addMachineSet enqueues the deployment that manages a MachineSet when the MachineSet is created.
-func (dc *controller) addMachineSetToDeployment(obj interface{}) {
+func (dc *controller) addMachineSetToDeployment(obj any) {
 	is := obj.(*v1alpha1.MachineSet)
 
 	if is.DeletionTimestamp != nil {
@@ -141,7 +141,7 @@ func (dc *controller) getMachineDeploymentsForMachineSet(machineSet *v1alpha1.Ma
 // is updated and wake them up. If the anything of the MachineSets have changed, we need to
 // awaken both the old and new deployments. old and cur must be *extensions.MachineSet
 // types.
-func (dc *controller) updateMachineSetToDeployment(old, cur interface{}) {
+func (dc *controller) updateMachineSetToDeployment(old, cur any) {
 	curMachineSet := cur.(*v1alpha1.MachineSet)
 	oldMachineSet := old.(*v1alpha1.MachineSet)
 	if curMachineSet.ResourceVersion == oldMachineSet.ResourceVersion {
@@ -189,7 +189,7 @@ func (dc *controller) updateMachineSetToDeployment(old, cur interface{}) {
 // deleteMachineSet enqueues the deployment that manages a MachineSet when
 // the MachineSet is deleted. obj could be an *v1alpha1.MachineSet, or
 // a DeletionFinalStateUnknown marker item.
-func (dc *controller) deleteMachineSetToDeployment(obj interface{}) {
+func (dc *controller) deleteMachineSetToDeployment(obj any) {
 	machineSet, ok := obj.(*v1alpha1.MachineSet)
 
 	// When a delete is dropped, the relist will notice a Machine in the store not
@@ -249,7 +249,7 @@ func (dc *controller) updateMachineToMachineDeployment(old, cur any) {
 }
 
 // deleteMachine will enqueue a Recreate Deployment once all of its Machines have stopped running.
-func (dc *controller) deleteMachineToMachineDeployment(ctx context.Context, obj interface{}) {
+func (dc *controller) deleteMachineToMachineDeployment(ctx context.Context, obj any) {
 	machine, ok := obj.(*v1alpha1.Machine)
 
 	// When a delete is dropped, the relist will notice a Machine in the store not

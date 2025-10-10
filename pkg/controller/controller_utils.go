@@ -132,7 +132,7 @@ func NoResyncPeriodFunc() time.Duration {
 // * Controllers that don't set expectations will get woken up for every matching controllee
 
 // ExpKeyFunc to parse out the key from a ControlleeExpectation
-var ExpKeyFunc = func(obj interface{}) (string, error) {
+var ExpKeyFunc = func(obj any) (string, error) {
 	if e, ok := obj.(*ControlleeExpectations); ok {
 		return e.key, nil
 	}
@@ -300,7 +300,7 @@ func NewContExpectations() *ContExpectations {
 }
 
 // UIDSetKeyFunc to parse out the key from a UIDSet.
-var UIDSetKeyFunc = func(obj interface{}) (string, error) {
+var UIDSetKeyFunc = func(obj any) (string, error) {
 	if u, ok := obj.(*UIDSet); ok {
 		return u.key, nil
 	}
