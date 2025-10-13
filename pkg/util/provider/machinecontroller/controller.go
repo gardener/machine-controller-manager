@@ -242,7 +242,7 @@ type controller struct {
 	permitGiver permits.PermitGiver
 	// pendingMachineCreationMap keeps track of machines that are currently in
 	// creation flow, this is used to determine whether or not a machine should
-	//be processed by the termination queue
+	// be processed by the termination queue.
 	pendingMachineCreationMap sync.Map
 
 	// control listers

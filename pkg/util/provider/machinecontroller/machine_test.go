@@ -3614,6 +3614,362 @@ var _ = Describe("machine", func() {
 		)
 	})
 
+	Describe("#pendingMachineCreationMap tests", func() {
+		type setup struct {
+			secrets             []*corev1.Secret
+			machineClasses      []*v1alpha1.MachineClass
+			machines            []*v1alpha1.Machine
+			nodes               []*corev1.Node
+			fakeResourceActions *customfake.ResourceActions
+			controller          *controller
+			noTargetCluster     bool
+		}
+		type machineActionRequest struct {
+			machine      *v1alpha1.Machine
+			machineClass *v1alpha1.MachineClass
+			secret       *corev1.Secret
+		}
+		type action struct {
+			machine                 string
+			forceDeleteLabelPresent bool
+			fakeMachineStatus       *v1alpha1.MachineStatus
+			fakeDriver              *driver.FakeDriver
+			// These fields are used to change the test scenario (add to pending map, call creation/deletion flow)
+			isCreation bool
+			testFunc   func(setup, machineActionRequest) (machineutils.RetryPeriod, error)
+		}
+		type expect struct {
+			machine                       *v1alpha1.Machine
+			err                           error
+			nodeTerminationConditionIsSet bool
+			nodeDeleted                   bool
+			retry                         machineutils.RetryPeriod
+		}
+		type data struct {
+			setup  setup
+			action action
+			expect expect
+		}
+		objMeta := &metav1.ObjectMeta{
+			GenerateName:      "machine",
+			Namespace:         "test",
+			CreationTimestamp: metav1.Now(),
+		}
+		commonSetup := setup{
+			secrets: []*corev1.Secret{
+				{
+					ObjectMeta: *newObjectMeta(objMeta, 0),
+				},
+			},
+			machineClasses: []*v1alpha1.MachineClass{
+				{
+					ObjectMeta: *newObjectMeta(objMeta, 0),
+					SecretRef:  newSecretReference(objMeta, 0),
+				},
+			},
+			machines: newMachines(
+				1,
+				&v1alpha1.MachineTemplateSpec{
+					ObjectMeta: *newObjectMeta(objMeta, 0),
+					Spec: v1alpha1.MachineSpec{
+						Class: v1alpha1.ClassSpec{
+							Kind: "MachineClass",
+							Name: "machine-0",
+						},
+						ProviderID: "fakeID",
+					},
+				},
+				&v1alpha1.MachineStatus{
+					CurrentStatus: v1alpha1.CurrentStatus{
+						Phase:          v1alpha1.MachineRunning,
+						LastUpdateTime: metav1.Now(),
+					},
+					LastOperation: v1alpha1.LastOperation{
+						Description:    "Machine machine-0 successfully joined the cluster",
+						State:          v1alpha1.MachineStateSuccessful,
+						Type:           v1alpha1.MachineOperationCreate,
+						LastUpdateTime: metav1.Now(),
+					},
+				},
+				nil,
+				map[string]string{
+					machineutils.MachinePriority: "3",
+				},
+				map[string]string{
+					v1alpha1.NodeLabelKey: "fakeID-0",
+				},
+				true,
+				metav1.Now(),
+			),
+		}
+		DescribeTable("##table",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				machineObjects := []runtime.Object{}
+				for _, o := range data.setup.machineClasses {
+					machineObjects = append(machineObjects, o)
+				}
+				for _, o := range data.setup.machines {
+					machineObjects = append(machineObjects, o)
+				}
+
+				controlCoreObjects := []runtime.Object{}
+				targetCoreObjects := []runtime.Object{}
+
+				for _, o := range data.setup.secrets {
+					controlCoreObjects = append(controlCoreObjects, o)
+				}
+				for _, o := range data.setup.nodes {
+					targetCoreObjects = append(targetCoreObjects, o)
+				}
+
+				fakeDriver := driver.NewFakeDriver(
+					data.action.fakeDriver.VMExists,
+					data.action.fakeDriver.ProviderID,
+					data.action.fakeDriver.NodeName,
+					data.action.fakeDriver.LastKnownState,
+					data.action.fakeDriver.Addresses,
+					data.action.fakeDriver.Err,
+					nil,
+				)
+
+				var trackers *customfake.FakeObjectTrackers
+				data.setup.controller, trackers = createController(stop, objMeta.Namespace, machineObjects, controlCoreObjects, targetCoreObjects, fakeDriver, data.setup.noTargetCluster)
+
+				defer trackers.Stop()
+				waitForCacheSync(stop, data.setup.controller)
+
+				action := data.action
+				machine, err := data.setup.controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+
+				machineClass, err := data.setup.controller.controlMachineClient.MachineClasses(objMeta.Namespace).Get(context.TODO(), machine.Spec.Class.Name, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+
+				secret, err := data.setup.controller.controlCoreClient.CoreV1().Secrets(objMeta.Namespace).Get(context.TODO(), machineClass.SecretRef.Name, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+
+				if data.setup.fakeResourceActions != nil {
+					_ = trackers.TargetCore.SetFakeResourceActions(data.setup.fakeResourceActions, math.MaxInt32)
+				}
+
+				// ******************************************************
+				// This is changing the setup in accordance with the test
+				retry, err := data.action.testFunc(data.setup, machineActionRequest{
+					machine:      machine,
+					machineClass: machineClass,
+					secret:       secret,
+				})
+				// ******************************************************
+
+				if err != nil || data.expect.err != nil {
+					Expect(err).To(Equal(data.expect.err))
+				}
+				Expect(retry).To(Equal(data.expect.retry))
+
+				if data.action.isCreation {
+					_, found := data.setup.controller.pendingMachineCreationMap.Load(data.expect.machine.Name)
+					Expect(found).To(Equal(false))
+				}
+
+				machine, err = data.setup.controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(machine.Spec).To(Equal(data.expect.machine.Spec))
+				Expect(machine.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
+				Expect(machine.Status.LastOperation.State).To(Equal(data.expect.machine.Status.LastOperation.State))
+				Expect(machine.Status.LastOperation.Type).To(Equal(data.expect.machine.Status.LastOperation.Type))
+				Expect(machine.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
+				Expect(machine.Finalizers).To(Equal(data.expect.machine.Finalizers))
+
+				if data.expect.nodeDeleted {
+					_, nodeErr := data.setup.controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Labels[v1alpha1.NodeLabelKey], metav1.GetOptions{})
+					Expect(nodeErr).To(HaveOccurred())
+				}
+				if data.expect.nodeTerminationConditionIsSet {
+					node, nodeErr := data.setup.controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Labels[v1alpha1.NodeLabelKey], metav1.GetOptions{})
+					Expect(nodeErr).To(Not(HaveOccurred()))
+					Expect(len(node.Status.Conditions)).To(Equal(1))
+					Expect(node.Status.Conditions[0].Type).To(Equal(machineutils.NodeTerminationCondition))
+					Expect(node.Status.Conditions[0].Status).To(Equal(corev1.ConditionTrue))
+				}
+			},
+			Entry("Remove machine from pendingMachineCreationMap after it exits creation flow", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
+						},
+					},
+					machineClasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil, true, metav1.Now()),
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   true,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        nil,
+					},
+					isCreation: true,
+					testFunc: func(setUp setup, req machineActionRequest) (machineutils.RetryPeriod, error) {
+						setUp.controller.pendingMachineCreationMap.Store("machine-0", "")
+						return setUp.controller.triggerCreationFlow(context.TODO(), &driver.CreateMachineRequest{
+							Machine:      req.machine,
+							MachineClass: req.machineClass,
+							Secret:       req.secret,
+						})
+					},
+				},
+				expect: expect{
+					machine: newMachine(&v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machine-0",
+							},
+							ProviderID: "fakeID",
+						},
+					}, nil, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "fakeNode-0"}, true, metav1.Now()),
+					err:   fmt.Errorf("machine creation in process. Machine labels/annotations update is successful"),
+					retry: machineutils.ShortRetry,
+				},
+			}),
+			Entry("Do not process machine deletion for machine present in pendingMachineCreationMap", &data{
+				setup: commonSetup,
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   true,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        nil,
+					},
+					isCreation: false,
+					testFunc: func(setUp setup, req machineActionRequest) (machineutils.RetryPeriod, error) {
+						setUp.controller.pendingMachineCreationMap.Store("machine-0", "")
+						return setUp.controller.triggerDeletionFlow(context.TODO(), &driver.DeleteMachineRequest{
+							Machine:      req.machine,
+							MachineClass: req.machineClass,
+							Secret:       req.secret,
+						})
+					},
+				},
+				expect: expect{
+					err:   fmt.Errorf("Machine \"machine-0\" is in creation flow. Deletion cannot proceed"),
+					retry: machineutils.MediumRetry,
+					machine: newMachine(
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineRunning,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    "Machine machine-0 successfully joined the cluster",
+								State:          v1alpha1.MachineStateSuccessful,
+								Type:           v1alpha1.MachineOperationCreate,
+								LastUpdateTime: metav1.Now(),
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{
+							v1alpha1.NodeLabelKey: "fakeID-0",
+						},
+						true,
+						metav1.Now(),
+					),
+				},
+			}),
+			Entry("Proceed with machine deletion for machine not present in pendingMachineCreationMap", &data{
+				setup: commonSetup,
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   true,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        nil,
+					},
+					isCreation: false,
+					testFunc: func(setUp setup, req machineActionRequest) (machineutils.RetryPeriod, error) {
+						setUp.controller.pendingMachineCreationMap.Store("machine-xyz", "")
+						return setUp.controller.triggerDeletionFlow(context.TODO(), &driver.DeleteMachineRequest{
+							Machine:      req.machine,
+							MachineClass: req.machineClass,
+							Secret:       req.secret,
+						})
+					},
+				},
+				expect: expect{
+					err:   fmt.Errorf("Machine deletion in process. Phase set to termination"),
+					retry: machineutils.ShortRetry,
+					machine: newMachine(
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    machineutils.GetVMStatus,
+								State:          v1alpha1.MachineStateProcessing,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.Now(),
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{
+							v1alpha1.NodeLabelKey: "fakeID-0",
+						},
+						true,
+						metav1.Now(),
+					),
+				},
+			}),
+		)
+	})
 	/*
 		Describe("#checkMachineTimeout", func() {
 			type setup struct {
