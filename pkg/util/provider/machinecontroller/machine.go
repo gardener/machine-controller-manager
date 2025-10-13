@@ -83,7 +83,7 @@ func (c *controller) deleteMachine(obj interface{}) {
 		}
 		machine, ok = tombstone.Obj.(*v1alpha1.Machine)
 		if !ok {
-			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a Machine %#v", obj))
+			utilruntime.HandleError(fmt.Errorf("tombstone contained object that is not a Machine %#v", obj))
 			return
 		}
 	}
@@ -794,7 +794,7 @@ func (c *controller) triggerDeletionFlow(ctx context.Context, deleteMachineReque
 
 	switch {
 	case isMachineInCreationFlow:
-		err := fmt.Errorf("Machine %q is in creation flow. Deletion cannot proceed", machine.Name)
+		err := fmt.Errorf("machine %q is in creation flow. Deletion cannot proceed", machine.Name)
 		return machineutils.MediumRetry, err
 
 	case !finalizers.Has(MCMFinalizerName):
@@ -874,7 +874,7 @@ func (c *controller) shouldMachineBeMovedToTerminatingQueue(machine *v1alpha1.Ma
 	_, isMachineInCreationFlow := c.pendingMachineCreationMap.Load(machine.Name)
 
 	if machine.DeletionTimestamp != nil && isMachineInCreationFlow {
-		klog.Infof("Cannot delete machine %q, its deletionTimestamp is set but it is currently being processed by the creation flow\n", machine.Name)
+		klog.Warningf("Cannot delete machine %q, its deletionTimestamp is set but it is currently being processed by the creation flow\n", machine.Name)
 	}
 
 	return !isMachineInCreationFlow && machine.DeletionTimestamp != nil

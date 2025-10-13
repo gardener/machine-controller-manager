@@ -3873,7 +3873,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("Machine \"machine-0\" is in creation flow. Deletion cannot proceed"),
+					err:   fmt.Errorf("machine \"machine-0\" is in creation flow. Deletion cannot proceed"),
 					retry: machineutils.MediumRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
