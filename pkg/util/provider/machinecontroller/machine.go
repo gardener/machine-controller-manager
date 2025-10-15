@@ -495,10 +495,9 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		uninitializedMachine = false
 		addresses            = sets.New[corev1.NodeAddress]()
 	)
-	machineNamespacedName := getMachineKey(machine)
-	c.pendingMachineCreationMap.Store(machineNamespacedName, "")
+	c.markCreationProcessing(machine)
 	defer func() {
-		c.pendingMachineCreationMap.Delete(machineNamespacedName)
+		c.unmarkCreationProcessing(machine)
 	}()
 
 	// This field is only modified during the creation flow. We have to assume that every Address that was added to the
@@ -786,13 +785,12 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 
 func (c *controller) triggerDeletionFlow(ctx context.Context, deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.RetryPeriod, error) {
 	var (
-		machine                    = deleteMachineRequest.Machine
-		finalizers                 = sets.NewString(machine.Finalizers...)
-		_, isMachineInCreationFlow = c.pendingMachineCreationMap.Load(getMachineKey(machine))
+		machine    = deleteMachineRequest.Machine
+		finalizers = sets.NewString(machine.Finalizers...)
 	)
 
 	switch {
-	case isMachineInCreationFlow:
+	case c.isCreationProcessing(machine):
 		err := fmt.Errorf("machine %q is in creation flow. Deletion cannot proceed", machine.Name)
 		return machineutils.MediumRetry, err
 
@@ -879,11 +877,20 @@ func getMachineKey(machine *v1alpha1.Machine) string {
 }
 
 func (c *controller) shouldMachineBeMovedToTerminatingQueue(machine *v1alpha1.Machine) bool {
-	_, isMachineInCreationFlow := c.pendingMachineCreationMap.Load(getMachineKey(machine))
-
-	if machine.DeletionTimestamp != nil && isMachineInCreationFlow {
-		klog.Warningf("Cannot delete machine %q, its deletionTimestamp is set but it is currently being processed by the creation flow\n", machine.Name)
+	if machine.DeletionTimestamp != nil && c.isCreationProcessing(machine) {
+		klog.Warningf("Cannot delete machine %q, its deletionTimestamp is set but it is currently being processed by the creation flow\n", getMachineKey(machine))
 	}
 
-	return !isMachineInCreationFlow && machine.DeletionTimestamp != nil
+	return !c.isCreationProcessing(machine) && machine.DeletionTimestamp != nil
+}
+
+func (c *controller) markCreationProcessing(machine *v1alpha1.Machine) {
+	c.pendingMachineCreationMap.Store(getMachineKey(machine), "")
+}
+func (c *controller) unmarkCreationProcessing(machine *v1alpha1.Machine) {
+	c.pendingMachineCreationMap.Delete(getMachineKey(machine))
+}
+func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
+	_, isMachineInCreationFlow := c.pendingMachineCreationMap.Load(getMachineKey(machine))
+	return isMachineInCreationFlow
 }
