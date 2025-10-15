@@ -3829,7 +3829,6 @@ var _ = Describe("machine", func() {
 					},
 					isCreation: true,
 					testFunc: func(setUp setup, req machineActionRequest) (machineutils.RetryPeriod, error) {
-						setUp.controller.pendingMachineCreationMap.Store("machine-0", "")
 						return setUp.controller.triggerCreationFlow(context.TODO(), &driver.CreateMachineRequest{
 							Machine:      req.machine,
 							MachineClass: req.machineClass,
@@ -3864,7 +3863,7 @@ var _ = Describe("machine", func() {
 					},
 					isCreation: false,
 					testFunc: func(setUp setup, req machineActionRequest) (machineutils.RetryPeriod, error) {
-						setUp.controller.pendingMachineCreationMap.Store("machine-0", "")
+						setUp.controller.pendingMachineCreationMap.Store("test/machine-0", "")
 						return setUp.controller.triggerDeletionFlow(context.TODO(), &driver.DeleteMachineRequest{
 							Machine:      req.machine,
 							MachineClass: req.machineClass,
