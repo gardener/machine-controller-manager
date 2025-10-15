@@ -46,7 +46,7 @@ func (c *controller) addMachine(obj interface{}) {
 	// On restart of the controller process, a machine that was marked for
 	// deletion would be processed as part of an `add` event. This check
 	// ensures that its enqueued in the correct queue.
-	if machine.DeletionTimestamp != nil {
+	if c.shouldMachineBeMovedToTerminatingQueue(machine) {
 		c.enqueueMachineTermination(machine, "handling terminating machine object ADD event")
 	} else {
 		c.enqueueMachine(obj, "handling machine obj ADD event")
@@ -67,7 +67,7 @@ func (c *controller) updateMachine(oldObj, newObj interface{}) {
 		return
 	}
 
-	if newMachine.DeletionTimestamp != nil {
+	if c.shouldMachineBeMovedToTerminatingQueue(newMachine) {
 		c.enqueueMachineTermination(newMachine, "handling terminating machine object UPDATE event")
 	} else {
 		c.enqueueMachine(newObj, "handling machine object UPDATE event")
@@ -83,7 +83,7 @@ func (c *controller) deleteMachine(obj interface{}) {
 		}
 		machine, ok = tombstone.Obj.(*v1alpha1.Machine)
 		if !ok {
-			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a Machine Deployment %#v", obj))
+			utilruntime.HandleError(fmt.Errorf("tombstone contained object that is not a Machine %#v", obj))
 			return
 		}
 	}
@@ -153,8 +153,15 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 		return err
 	}
 
-	if machine.DeletionTimestamp != nil {
+	// Add finalizers if not present on machine object
+	_, err = c.addMachineFinalizers(ctx, machine)
+	if err != nil {
+		return err
+	}
+
+	if c.shouldMachineBeMovedToTerminatingQueue(machine) {
 		klog.Errorf("Machine %q should be in machine termination queue", machine.Name)
+		c.enqueueMachineTermination(machine, "handling terminating machine object")
 		return nil
 	}
 
@@ -202,12 +209,6 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		return retry, err
 	}
 
-	// Add finalizers if not present on machine object
-	retry, err = c.addMachineFinalizers(ctx, machine)
-	if err != nil {
-		return retry, err
-	}
-
 	if machine.Labels[v1alpha1.NodeLabelKey] != "" && machine.Status.CurrentStatus.Phase != "" {
 		// If reference to node object exists execute the below
 		retry, err := c.reconcileMachineHealth(ctx, machine)
@@ -237,6 +238,8 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 	}
 
 	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
+		c.pendingMachineCreationMap.Store(machine.Name, "")
+
 		return c.triggerCreationFlow(
 			ctx,
 			&driver.CreateMachineRequest{
@@ -484,6 +487,10 @@ func addedOrRemovedEssentialTaints(oldNode, node *corev1.Node, taintKeys []strin
 */
 
 func (c *controller) triggerCreationFlow(ctx context.Context, createMachineRequest *driver.CreateMachineRequest) (machineutils.RetryPeriod, error) {
+	defer func() {
+		c.pendingMachineCreationMap.Delete(createMachineRequest.Machine.Name)
+	}()
+
 	var (
 		// Declarations
 		nodeName, providerID string
@@ -780,11 +787,16 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 
 func (c *controller) triggerDeletionFlow(ctx context.Context, deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.RetryPeriod, error) {
 	var (
-		machine    = deleteMachineRequest.Machine
-		finalizers = sets.NewString(machine.Finalizers...)
+		machine                    = deleteMachineRequest.Machine
+		finalizers                 = sets.NewString(machine.Finalizers...)
+		_, isMachineInCreationFlow = c.pendingMachineCreationMap.Load(machine.Name)
 	)
 
 	switch {
+	case isMachineInCreationFlow:
+		err := fmt.Errorf("machine %q is in creation flow. Deletion cannot proceed", machine.Name)
+		return machineutils.MediumRetry, err
+
 	case !finalizers.Has(MCMFinalizerName):
 		// If Finalizers are not present on machine
 		err := fmt.Errorf("Machine %q is missing finalizers. Deletion cannot proceed", machine.Name)
@@ -856,4 +868,14 @@ func buildAddressStatus(addresses sets.Set[corev1.NodeAddress], nodeName string)
 		return strings.Compare(string(a.Type)+a.Address, string(b.Type)+b.Address)
 	})
 	return res
+}
+
+func (c *controller) shouldMachineBeMovedToTerminatingQueue(machine *v1alpha1.Machine) bool {
+	_, isMachineInCreationFlow := c.pendingMachineCreationMap.Load(machine.Name)
+
+	if machine.DeletionTimestamp != nil && isMachineInCreationFlow {
+		klog.Warningf("Cannot delete machine %q, its deletionTimestamp is set but it is currently being processed by the creation flow\n", machine.Name)
+	}
+
+	return !isMachineInCreationFlow && machine.DeletionTimestamp != nil
 }
