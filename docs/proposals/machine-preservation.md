@@ -61,7 +61,8 @@ and the time duration for which these machines will be preserved.
    - `machine.CurrentStatus.PreserveExpiryTime` is updated by MCM as $machine.CurrentStatus.PreserveExpiryTime = currentTime+machinePreserveTimeout$.
    - After timeout, the annotation `cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"` is deleted. `machine.CurrentStatus.PreserveExpiryTime` is set to `nil`. The phase is changed to `Terminating`.
    - Number of machines in `Failed:Preserved` phase count towards enforcing `autoPreserveFailedMax`.
-7. If a failed machine is currently in `Failed:Preserved` and before timeout its VM/node is found to be Healthy, the machine will be moved to `Running:Preserved`. After the timeout, it will be moved to `Running`.
+7. If a failed machine is currently in `Failed:Preserved` and before timeout its VM/node is found to be Healthy, the machine will be moved to `Running:Preserved`. After the timeout, it will be moved to `Running`. 
+The rationale behind moving the machine to `Running:Preserved` rather than `Running`, is to allow pods to get scheduled on to the healthy node again without the autoscaler scaling it down due to under-utilization. 
 8. A user/operator can request MCM to stop preserving a machine/node in `Running:Preserved` or `Failed:Preserved` phase using the annotation: `node.machine.sapcloud.io/preserve=false`. 
    * MCM will move a machine thus annotated either to `Running` phase or `Terminating` depending on the phase of the machine before it was preserved.
 9. Machines of a MachineDeployment in `Preserved` sub-phase will also be counted towards the replica count and in the enforcement of maximum machines allowed for the MachineDeployment.
