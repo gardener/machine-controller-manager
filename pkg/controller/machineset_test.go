@@ -17,7 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
@@ -181,7 +181,7 @@ var _ = Describe("machineset", func() {
 							Kind:       "MachineSet",
 							Name:       "MachineSet-test",
 							UID:        "1234567",
-							Controller: pointer.Bool(true),
+							Controller: ptr.To(true),
 						},
 					},
 				},
@@ -318,7 +318,7 @@ var _ = Describe("machineset", func() {
 							Kind:       "MachineSet",
 							Name:       "MachineSet-test",
 							UID:        "1234567",
-							Controller: pointer.Bool(true),
+							Controller: ptr.To(true),
 						},
 					},
 				},
@@ -397,7 +397,7 @@ var _ = Describe("machineset", func() {
 								Kind:       "MachineSet",
 								Name:       "MachineSet-test",
 								UID:        "1234567",
-								Controller: pointer.Bool(true),
+								Controller: ptr.To(true),
 							},
 						},
 					},
@@ -450,7 +450,7 @@ var _ = Describe("machineset", func() {
 							Kind:       "MachineSet",
 							Name:       "MachineSet-test-dummy",
 							UID:        "1234567",
-							Controller: pointer.Bool(true),
+							Controller: ptr.To(true),
 						},
 					}
 				},

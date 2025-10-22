@@ -21,7 +21,7 @@ const (
 // Run creates and runs a worker routine that just processes items in the
 // specified queue. The worker will run until stopCh is closed. The worker will be
 // added to the wait group when started and marked done when finished.
-func Run(queue workqueue.RateLimitingInterface, resourceType string, maxRetries int, forgetAfterSuccess bool, reconciler func(key string) error, stopCh <-chan struct{}, waitGroup *sync.WaitGroup) {
+func Run(queue workqueue.TypedRateLimitingInterface[string], resourceType string, maxRetries int, forgetAfterSuccess bool, reconciler func(key string) error, stopCh <-chan struct{}, waitGroup *sync.WaitGroup) {
 	waitGroup.Add(1)
 	go func() {
 		wait.Until(worker(queue, resourceType, maxRetries, forgetAfterSuccess, reconciler), time.Second, stopCh)
@@ -34,7 +34,7 @@ func Run(queue workqueue.RateLimitingInterface, resourceType string, maxRetries 
 // It enforces that the reconciler is never invoked concurrently with the same key.
 // If forgetAfterSuccess is true, it will cause the queue to forget the item should reconciliation
 // have no error.
-func worker(queue workqueue.RateLimitingInterface, resourceType string, maxRetries int, forgetAfterSuccess bool, reconciler func(key string) error) func() {
+func worker(queue workqueue.TypedRateLimitingInterface[string], resourceType string, maxRetries int, forgetAfterSuccess bool, reconciler func(key string) error) func() {
 	return func() {
 		exit := false
 		for !exit {
@@ -45,7 +45,7 @@ func worker(queue workqueue.RateLimitingInterface, resourceType string, maxRetri
 				}
 				defer queue.Done(key)
 
-				err := reconciler(key.(string))
+				err := reconciler(key)
 				if err == nil {
 					if forgetAfterSuccess {
 						queue.Forget(key)

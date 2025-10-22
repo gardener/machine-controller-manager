@@ -27,6 +27,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -131,7 +132,7 @@ func NoResyncPeriodFunc() time.Duration {
 // * Controllers that don't set expectations will get woken up for every matching controllee
 
 // ExpKeyFunc to parse out the key from a ControlleeExpectation
-var ExpKeyFunc = func(obj interface{}) (string, error) {
+var ExpKeyFunc = func(obj any) (string, error) {
 	if e, ok := obj.(*ControlleeExpectations); ok {
 		return e.key, nil
 	}
@@ -299,7 +300,7 @@ func NewContExpectations() *ContExpectations {
 }
 
 // UIDSetKeyFunc to parse out the key from a UIDSet.
-var UIDSetKeyFunc = func(obj interface{}) (string, error) {
+var UIDSetKeyFunc = func(obj any) (string, error) {
 	if u, ok := obj.(*UIDSet); ok {
 		return u.key, nil
 	}
@@ -494,9 +495,7 @@ type MachineControlInterface interface {
 
 func getMachinesLabelSet(template *v1alpha1.MachineTemplateSpec) labels.Set {
 	desiredLabels := make(labels.Set)
-	for k, v := range template.Labels {
-		desiredLabels[k] = v
-	}
+	maps.Copy(desiredLabels, template.Labels)
 	return desiredLabels
 }
 
@@ -508,9 +507,7 @@ func getMachinesFinalizers(template *v1alpha1.MachineTemplateSpec) []string {
 
 func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, _ runtime.Object) labels.Set {
 	desiredAnnotations := make(labels.Set)
-	for k, v := range template.Annotations {
-		desiredAnnotations[k] = v
-	}
+	maps.Copy(desiredAnnotations, template.Annotations)
 	return desiredAnnotations
 }
 

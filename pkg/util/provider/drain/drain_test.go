@@ -1033,7 +1033,7 @@ func getPodWithPV(ns, name, exclusivePV, sharedPV, nodeName string, terminationG
 	}
 
 	if exclusivePV != "" {
-		for i := 0; i < numberOfExclusivePVs; i++ {
+		for i := range numberOfExclusivePVs {
 			appendVolume(pod, exclusivePV+"-"+strconv.Itoa(i))
 		}
 	}

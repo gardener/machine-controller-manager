@@ -641,7 +641,7 @@ func (o *Options) evictPodsWithPv(ctx context.Context, attemptEvict bool, pods [
 	)
 
 	if attemptEvict {
-		for i := 0; i < nretries; i++ {
+		for range nretries {
 			remainingPods, fastTrack = o.evictPodsWithPVInternal(ctx, attemptEvict, pods, podVolumeInfoMap, policyGroupVersion, getPodFn, returnCh)
 			if fastTrack || len(remainingPods) == 0 {
 				// Either all pods got evicted or we need to fast track the return (node deletion detected)
@@ -1095,7 +1095,7 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 	}
 
 	bufferPeriod := 30 * time.Second
-	podArray, err = o.waitForDelete(podArray, Interval, timeout+bufferPeriod, getPodFn)
+	podArray, err = o.waitForDelete(ctx, podArray, Interval, timeout+bufferPeriod, getPodFn)
 	if err == nil {
 		if len(podArray) > 0 {
 			returnCh <- fmt.Errorf("timeout expired while waiting for pod %q terminating scheduled on node %v", pod.Name, pod.Spec.NodeName)
@@ -1107,8 +1107,9 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 	}
 }
 
-func (o *Options) waitForDelete(pods []*corev1.Pod, interval, timeout time.Duration, getPodFn func(string, string) (*corev1.Pod, error)) ([]*corev1.Pod, error) {
-	err := wait.PollImmediate(interval, timeout, func() (bool, error) {
+func (o *Options) waitForDelete(ctx context.Context, pods []*corev1.Pod, interval, timeout time.Duration, getPodFn func(string, string) (*corev1.Pod, error)) ([]*corev1.Pod, error) {
+	immediatePoll := true
+	err := wait.PollUntilContextTimeout(ctx, interval, timeout, immediatePoll, func(context.Context) (bool, error) {
 		pendingPods := []*corev1.Pod{}
 		for i, pod := range pods {
 			p, err := getPodFn(pod.Namespace, pod.Name)

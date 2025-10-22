@@ -28,6 +28,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"runtime"
 	"strconv"
@@ -221,13 +222,11 @@ func nodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions [
 	return addedOrUpdatedConditions, removedConditions, len(addedOrUpdatedConditions) != 0 || len(removedConditions) != 0
 }
 
-func mergeDataMaps(in map[string][]byte, maps ...map[string][]byte) map[string][]byte {
+func mergeDataMaps(in map[string][]byte, dataMaps ...map[string][]byte) map[string][]byte {
 	out := make(map[string][]byte)
 
-	for _, m := range append([]map[string][]byte{in}, maps...) {
-		for k, v := range m {
-			out[k] = v
-		}
+	for _, m := range append([]map[string][]byte{in}, dataMaps...) {
+		maps.Copy(out, m)
 	}
 
 	return out
@@ -2120,8 +2119,8 @@ func (c *controller) canMarkMachineFailed(machineDeployName, machineName, namesp
 	return false, nil
 }
 
-func (c *controller) waitForFailedMachineCacheUpdate(machine *v1alpha1.Machine, syncedPollPeriod, timeout time.Duration) bool {
-	pollErr := wait.Poll(syncedPollPeriod, timeout, func() (bool, error) {
+func (c *controller) waitForFailedMachineCacheUpdate(ctx context.Context, machine *v1alpha1.Machine, syncedPollPeriod, timeout time.Duration) bool {
+	pollErr := wait.PollUntilContextTimeout(ctx, syncedPollPeriod, timeout, false, func(context.Context) (bool, error) {
 		cachedMachine, err := c.machineLister.Machines(machine.Namespace).Get(machine.Name)
 		if apierrors.IsNotFound(err) {
 			return true, nil
@@ -2167,7 +2166,7 @@ func (c *controller) tryMarkingMachineFailed(ctx context.Context, machine, clone
 				var updated bool
 				updated, err = c.updateMachineToFailedState(ctx, description, machine, clone)
 				// wait for cache sync
-				if updated && !c.waitForFailedMachineCacheUpdate(machine, pollInterval, cacheUpdateTimeout) {
+				if updated && !c.waitForFailedMachineCacheUpdate(ctx, machine, pollInterval, cacheUpdateTimeout) {
 					// waiting 10 sec since nothing else can be done if cache update is failing
 					klog.Infof("cache sync returned false, waiting 10 sec , machineName=%q", machine.Name)
 					// TODO: This needs to be enhanced as cache update is not guaranteed.

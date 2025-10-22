@@ -14,7 +14,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-func (c *controller) nodeAdd(obj interface{}) {
+func (c *controller) nodeAdd(obj any) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
@@ -23,11 +23,11 @@ func (c *controller) nodeAdd(obj interface{}) {
 	c.nodeQueue.Add(key)
 }
 
-func (c *controller) nodeUpdate(newObj interface{}) {
+func (c *controller) nodeUpdate(newObj any) {
 	c.nodeAdd(newObj)
 }
 
-func (c *controller) nodeDelete(obj interface{}) {
+func (c *controller) nodeDelete(obj any) {
 	node, _ := obj.(*v1.Node)
 	if node == nil {
 		return

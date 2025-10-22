@@ -126,7 +126,7 @@ func (c *controller) updateSecretFinalizers(ctx context.Context, secret *corev1.
 	Event handlers
 */
 
-func (c *controller) secretAdd(obj interface{}) {
+func (c *controller) secretAdd(obj any) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
@@ -135,11 +135,11 @@ func (c *controller) secretAdd(obj interface{}) {
 	c.secretQueue.Add(key)
 }
 
-func (c *controller) secretDelete(obj interface{}) {
+func (c *controller) secretDelete(obj any) {
 	c.secretAdd(obj)
 }
 
-func (c *controller) enqueueSecretAfter(obj interface{}, after time.Duration) {
+func (c *controller) enqueueSecretAfter(obj any, after time.Duration) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
 		return
@@ -147,7 +147,7 @@ func (c *controller) enqueueSecretAfter(obj interface{}, after time.Duration) {
 	c.secretQueue.AddAfter(key, after)
 }
 
-func enqueueSecretForReferences(queue workqueue.RateLimitingInterface, secretRefs ...*corev1.SecretReference) {
+func enqueueSecretForReferences(queue workqueue.TypedRateLimitingInterface[string], secretRefs ...*corev1.SecretReference) {
 	for _, secretRef := range secretRefs {
 		if secretRef != nil {
 			queue.Add(secretRef.Namespace + "/" + secretRef.Name)
@@ -155,7 +155,7 @@ func enqueueSecretForReferences(queue workqueue.RateLimitingInterface, secretRef
 	}
 }
 
-func enqueueSecretForReferenceIfChanged(queue workqueue.RateLimitingInterface, oldSecretRef, newSecretRef *corev1.SecretReference) {
+func enqueueSecretForReferenceIfChanged(queue workqueue.TypedRateLimitingInterface[string], oldSecretRef, newSecretRef *corev1.SecretReference) {
 	if !apiequality.Semantic.DeepEqual(oldSecretRef, newSecretRef) {
 		if oldSecretRef != nil {
 			queue.Add(oldSecretRef.Namespace + "/" + oldSecretRef.Name)
@@ -166,7 +166,7 @@ func enqueueSecretForReferenceIfChanged(queue workqueue.RateLimitingInterface, o
 	}
 }
 
-func (c *controller) machineClassToSecretAdd(obj interface{}) {
+func (c *controller) machineClassToSecretAdd(obj any) {
 	machineClass, ok := obj.(*v1alpha1.MachineClass)
 	if !ok || machineClass == nil || machineClass.SecretRef == nil {
 		return
@@ -175,7 +175,7 @@ func (c *controller) machineClassToSecretAdd(obj interface{}) {
 	enqueueSecretForReferences(c.secretQueue, machineClass.SecretRef, machineClass.CredentialsSecretRef)
 }
 
-func (c *controller) machineClassToSecretUpdate(oldObj interface{}, newObj interface{}) {
+func (c *controller) machineClassToSecretUpdate(oldObj any, newObj any) {
 	oldMachineClass, ok := oldObj.(*v1alpha1.MachineClass)
 	if !ok || oldMachineClass == nil || oldMachineClass.SecretRef == nil {
 		return
@@ -189,6 +189,6 @@ func (c *controller) machineClassToSecretUpdate(oldObj interface{}, newObj inter
 	enqueueSecretForReferenceIfChanged(c.secretQueue, oldMachineClass.CredentialsSecretRef, newMachineClass.CredentialsSecretRef)
 }
 
-func (c *controller) machineClassToSecretDelete(obj interface{}) {
+func (c *controller) machineClassToSecretDelete(obj any) {
 	c.machineClassToSecretAdd(obj)
 }

@@ -36,7 +36,7 @@ func NewMachineSetLister(indexer cache.Indexer) MachineSetLister {
 
 // List lists all MachineSets in the indexer.
 func (s *machineSetLister) List(selector labels.Selector) (ret []*v1alpha1.MachineSet, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
+	err = cache.ListAll(s.indexer, selector, func(m any) {
 		ret = append(ret, m.(*v1alpha1.MachineSet))
 	})
 	return ret, err
@@ -68,7 +68,7 @@ type machineSetNamespaceLister struct {
 
 // List lists all MachineSets in the indexer for a given namespace.
 func (s machineSetNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.MachineSet, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
+	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m any) {
 		ret = append(ret, m.(*v1alpha1.MachineSet))
 	})
 	return ret, err

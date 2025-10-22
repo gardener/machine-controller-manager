@@ -24,6 +24,7 @@ package labels
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -37,9 +38,7 @@ func CloneAndAddLabel(labels map[string]string, labelKey, labelValue string) map
 	}
 	// Clone.
 	newLabels := map[string]string{}
-	for key, value := range labels {
-		newLabels[key] = value
-	}
+	maps.Copy(newLabels, labels)
 	newLabels[labelKey] = labelValue
 	return newLabels
 }
@@ -53,9 +52,7 @@ func CloneAndRemoveLabel(labels map[string]string, labelKey string) map[string]s
 	}
 	// Clone.
 	newLabels := map[string]string{}
-	for key, value := range labels {
-		newLabels[key] = value
-	}
+	maps.Copy(newLabels, labels)
 	delete(newLabels, labelKey)
 	return newLabels
 }
@@ -87,9 +84,7 @@ func CloneSelectorAndAddLabel(selector *metav1.LabelSelector, labelKey, labelVal
 	// TODO(madhusudancs): Check if you can use deepCopy_extensions_LabelSelector here.
 	newSelector.MatchLabels = make(map[string]string)
 	if selector.MatchLabels != nil {
-		for key, val := range selector.MatchLabels {
-			newSelector.MatchLabels[key] = val
-		}
+		maps.Copy(newSelector.MatchLabels, selector.MatchLabels)
 	}
 	newSelector.MatchLabels[labelKey] = labelValue
 

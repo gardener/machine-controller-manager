@@ -59,7 +59,7 @@ type MachineDeploymentListerExpansion interface {
 }
 
 // MachineDeploymentNamespaceListerExpansion allows custom methods to be added to MachineDeploymentNamespaceLister.
-type MachineDeploymentNamespaceListerExpansion interface{}
+type MachineDeploymentNamespaceListerExpansion any
 
 // GetMachineDeploymentsForMachineSet returns a list of Deployments that potentially
 // match a MachineSet. Only the one specified in the MachineSet's ControllerRef

@@ -78,18 +78,39 @@ func NewController(
 	)
 
 	controller := &controller{
-		namespace:                     namespace,
-		controlMachineClient:          controlMachineClient,
-		controlCoreClient:             controlCoreClient,
-		targetCoreClient:              targetCoreClient,
-		recorder:                      recorder,
-		secretQueue:                   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secret"),
-		nodeQueue:                     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "node"),
-		machineClassQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machineclass"),
-		machineQueue:                  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machine"),
-		machineTerminationQueue:       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinetermination"),
-		machineSafetyOrphanVMsQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyorphanvms"),
-		machineSafetyAPIServerQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "machinesafetyapiserver"),
+		namespace:            namespace,
+		controlMachineClient: controlMachineClient,
+		controlCoreClient:    controlCoreClient,
+		targetCoreClient:     targetCoreClient,
+		recorder:             recorder,
+		secretQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "secret"},
+		),
+		nodeQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "node"},
+		),
+		machineClassQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machineclass"},
+		),
+		machineQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machine"},
+		),
+		machineTerminationQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinetermination"},
+		),
+		machineSafetyOrphanVMsQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinesafetyorphanvms"},
+		),
+		machineSafetyAPIServerQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
+			workqueue.DefaultTypedControllerRateLimiter[string](),
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinesafetyapiserver"},
+		),
 		safetyOptions:                 safetyOptions,
 		nodeConditions:                nodeConditions,
 		driver:                        driver,
@@ -257,13 +278,13 @@ type controller struct {
 	volumeAttachementLister storagelisters.VolumeAttachmentLister
 	podLister               corelisters.PodLister
 	// queues
-	secretQueue                 workqueue.RateLimitingInterface
-	nodeQueue                   workqueue.RateLimitingInterface
-	machineClassQueue           workqueue.RateLimitingInterface
-	machineQueue                workqueue.RateLimitingInterface
-	machineTerminationQueue     workqueue.RateLimitingInterface
-	machineSafetyOrphanVMsQueue workqueue.RateLimitingInterface
-	machineSafetyAPIServerQueue workqueue.RateLimitingInterface
+	secretQueue                 workqueue.TypedRateLimitingInterface[string]
+	nodeQueue                   workqueue.TypedRateLimitingInterface[string]
+	machineClassQueue           workqueue.TypedRateLimitingInterface[string]
+	machineQueue                workqueue.TypedRateLimitingInterface[string]
+	machineTerminationQueue     workqueue.TypedRateLimitingInterface[string]
+	machineSafetyOrphanVMsQueue workqueue.TypedRateLimitingInterface[string]
+	machineSafetyAPIServerQueue workqueue.TypedRateLimitingInterface[string]
 	// syncs
 	pvcSynced               cache.InformerSynced
 	pvSynced                cache.InformerSynced

@@ -326,7 +326,7 @@ var _ = Describe("machine", func() {
 			secrets      []*corev1.Secret
 		}
 		type expect struct {
-			machineClass interface{}
+			machineClass any
 			secretData   map[string][]byte
 			err          bool
 		}

@@ -36,7 +36,7 @@ func NewMachineDeploymentLister(indexer cache.Indexer) MachineDeploymentLister {
 
 // List lists all MachineDeployments in the indexer.
 func (s *machineDeploymentLister) List(selector labels.Selector) (ret []*v1alpha1.MachineDeployment, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
+	err = cache.ListAll(s.indexer, selector, func(m any) {
 		ret = append(ret, m.(*v1alpha1.MachineDeployment))
 	})
 	return ret, err
@@ -68,7 +68,7 @@ type machineDeploymentNamespaceLister struct {
 
 // List lists all MachineDeployments in the indexer for a given namespace.
 func (s machineDeploymentNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.MachineDeployment, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
+	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m any) {
 		ret = append(ret, m.(*v1alpha1.MachineDeployment))
 	})
 	return ret, err

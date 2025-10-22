@@ -7,6 +7,7 @@ package helpers
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	mcmClientset "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned"
 	v1 "k8s.io/api/core/v1"
@@ -89,13 +90,11 @@ func (c *Cluster) GetSecretData(machineClassName string, secretRefs ...*v1.Secre
 	return secretData, nil
 }
 
-func mergeDataMaps(in map[string][]byte, maps ...map[string][]byte) map[string][]byte {
+func mergeDataMaps(in map[string][]byte, dataMaps ...map[string][]byte) map[string][]byte {
 	out := make(map[string][]byte)
 
-	for _, m := range append([]map[string][]byte{in}, maps...) {
-		for k, v := range m {
-			out[k] = v
-		}
+	for _, m := range append([]map[string][]byte{in}, dataMaps...) {
+		maps.Copy(out, m)
 	}
 
 	return out
