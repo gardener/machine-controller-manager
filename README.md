@@ -122,7 +122,7 @@ Along with the above Custom Controllers and Resources, MCM requires the `Machine
 To start using or developing the Machine Controller Manager, see the documentation in the `/docs` repository.
 
 ## FAQ
-An FAQ is available [here](docs/FAQ.md).
+An FAQ is available [here](docs/faq.md).
 
 ## cluster-api Implementation
 - `cluster-api` branch of machine-controller-manager implements the machine-api aspect of the [cluster-api project](https://github.com/kubernetes-sigs/cluster-api).
