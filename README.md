@@ -17,7 +17,7 @@ Machine Controller Manager aka MCM is a group of cooperative controllers that ma
 - transport the immutability design principle to machine/nodes
 - implement e.g. rolling upgrades of machines/nodes
 
-MCM supports following providers. These provider code is maintained externally (out-of-tree), and the links for the same are linked below: 
+MCM supports the following providers. This provider code is maintained externally (out-of-tree), and the links for the same are linked below: 
 * [Alicloud](https://github.com/gardener/machine-controller-manager-provider-alicloud)
 * [AWS](https://github.com/gardener/machine-controller-manager-provider-aws)
 * [Azure](https://github.com/gardener/machine-controller-manager-provider-azure)
@@ -31,7 +31,7 @@ MCM supports following providers. These provider code is maintained externally (
 
 It can easily be extended to support other cloud providers as well.
 
-Example of managing machine:
+Example of managing a machine:
 ```
 kubectl create/get/delete machine vm1
 ```
@@ -46,7 +46,7 @@ Nodes/Machines/VMs are different terminologies used to represent similar things.
 
 # Design of Machine Controller Manager
 
-The design of the Machine Controller Manager is influenced by the Kube Controller Manager, where-in multiple sub-controllers are used to manage the Kubernetes clients.
+The design of the Machine Controller Manager is influenced by the Kube Controller Manager, wherein multiple sub-controllers are used to manage the Kubernetes clients.
 
 ## Design Principles
 
@@ -66,7 +66,7 @@ Machine Controller Manager reconciles a set of Custom Resources namely `MachineD
 
 Machine Controller Manager makes use of 4 CRD objects and 1 Kubernetes secret object to manage machines. They are as follows:
 
-| Custom ResourceObject | Description |
+| Custom Resource Object | Description |
 | --- | --- |
 | `MachineClass`| A `MachineClass` represents a template that contains cloud provider specific details used to create machines.|
 | `Machine`| A `Machine` represents a VM which is backed by the cloud provider.|
@@ -114,7 +114,7 @@ See [here](docs/documents/apis.md) for CRD API Documentation
     </tbody>
 </table>
 
-Along with the above Custom Controllers and Resources, MCM requires the `MachineClass` to use K8s `Secret` that stores cloudconfig (initialization scripts used to create VMs) and cloud specific credentials. All these controllers work in an co-operative manner. They form a parent-child relationship with `MachineDeployment` Controller being the grandparent, `MachineSet` Controller being the parent, and `Machine` Controller being the child.
+Along with the above Custom Controllers and Resources, MCM requires the `MachineClass` to use K8s `Secret` that stores cloudconfig (initialization scripts used to create VMs) and cloud specific credentials. All these controllers work in a co-operative manner. They form a parent-child relationship with `MachineDeployment` Controller being the grandparent, `MachineSet` Controller being the parent, and `Machine` Controller being the child.
 
 
 ## Development
@@ -127,4 +127,4 @@ An FAQ is available [here](docs/faq.md).
 ## cluster-api Implementation
 - `cluster-api` branch of machine-controller-manager implements the machine-api aspect of the [cluster-api project](https://github.com/kubernetes-sigs/cluster-api).
 - Link: https://github.com/gardener/machine-controller-manager/tree/cluster-api
-- Once cluster-api project gets stable, we may make `master` branch of MCM as well cluster-api compliant, with well-defined migration notes.
+- Once the cluster-api project becomes stable, we may make `master` branch of MCM as well cluster-api compliant, with well-defined migration notes.
