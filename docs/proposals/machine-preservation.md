@@ -37,9 +37,9 @@ and the time duration for which these machines will be preserved.
        machinePreserveTimeout: 72h
     ```
     * This configuration will be set per worker pool.
-    * Since gardener worker pool can correspond to `1..N` MachineDeployments depending on number of zones, `machinePreserveMax` will be distributed across N machine deployments.
-    * `machinePreserveMax` must be chosen such that it can be appropriately distributed across the MachineDeployments.
-    * Example: if `machinePreserveMax` is set to 2, and the worker pool has 2 zones, then the maximum number of machines that will be preserved per zone is 1.
+    * Since gardener worker pool can correspond to `1..N` MachineDeployments depending on number of zones, `autoPreserveFailedMax` will be distributed across N machine deployments.
+    * `autoPreserveFailedMax` must be chosen such that it can be appropriately distributed across the MachineDeployments.
+    * Example: if `autoPreserveFailedMax` is set to 2, and the worker pool has 2 zones, then the maximum number of machines that will be preserved per zone is 1.
 2. MCM will be modified to include a new sub-phase `Preserved` to indicate that the machine has been preserved by MCM.
 3. Allow user/operator to request for preservation of a specific machine/node with the use of annotations : `node.machine.sapcloud.io/preserve=now` and `node.machine.sapcloud.io/preserve=when-failed`.
 4. When annotation `node.machine.sapcloud.io/preserve=now` is added to a `Running` machine, the following will take place:
