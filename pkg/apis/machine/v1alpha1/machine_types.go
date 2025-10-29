@@ -204,6 +204,9 @@ const (
 
 	// MachineOperationDelete indicates that the operation was a delete
 	MachineOperationDelete MachineOperationType = "Delete"
+
+	// MachineOperationPreserve indicates that the operation was a preserve
+	MachineOperationPreserve MachineOperationType = "Preserve"
 )
 
 // The below types are used by kube_client and api_server.
@@ -252,6 +255,9 @@ type CurrentStatus struct {
 
 	// Last update time of current status
 	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
+
+	// PreserveExpiryTime is the time at which MCM will stop preserving the machine
+	PreserveExpiryTime metav1.Time `json:"preserveExpiryTime,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

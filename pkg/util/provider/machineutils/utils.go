@@ -82,6 +82,21 @@ const (
 
 	// LabelKeyMachineSetScaleUpDisabled is the label key that indicates scaling up of the machine set is disabled.
 	LabelKeyMachineSetScaleUpDisabled = "node.machine.sapcloud.io/scale-up-disabled"
+
+	// PreserveMachineAnnotationKey is the annotation used to explicitly request that a Machine be preserved
+	PreserveMachineAnnotationKey = "node.machine.sapcloud.io/preserve"
+
+	// PreserveMachineAnnotationValueNow is the annotation value used to explicitly request that
+	// a Machine be preserved immediately in its current phase
+	PreserveMachineAnnotationValueNow = "now"
+
+	// PreserveMachineAnnotationValueWhenFailed is the annotation value used to explicitly request that
+	// a Machine be preserved if and when in it enters Failed phase
+	PreserveMachineAnnotationValueWhenFailed = "when-failed"
+
+	//PreserveMachineAnnotationValueFalse is the annotation value used to explicitly request that
+	// a Machine should not be preserved any longer, even if the expiry timeout has not been reached
+	PreserveMachineAnnotationValueFalse = "false"
 )
 
 // RetryPeriod is an alias for specifying the retry period
@@ -124,4 +139,12 @@ func IsMachineFailed(p *v1alpha1.Machine) bool {
 // IsMachineTriggeredForDeletion checks if machine was triggered for deletion
 func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
 	return m.Annotations[MachinePriority] == "1"
+}
+
+// IsMachinePreserved checks if machine is preserved by MCM
+func IsMachinePreserved(m *v1alpha1.Machine) bool {
+	if !m.Status.CurrentStatus.PreserveExpiryTime.IsZero() {
+		return true
+	}
+	return false
 }

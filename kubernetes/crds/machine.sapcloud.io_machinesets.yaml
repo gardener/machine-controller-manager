@@ -301,6 +301,10 @@ spec:
                                 type: boolean
                             type: object
                         type: object
+                      preserveTimeout:
+                        description: MachinePreserveTimeout is the timeout after the
+                          machine preservation is stopped
+                        type: string
                       providerID:
                         description: ProviderID represents the provider's unique ID
                           given to a machine
@@ -312,6 +316,11 @@ spec:
             description: MachineSetStatus holds the most recently observed status
               of MachineSet.
             properties:
+              autoPreserveFailedMachineCount:
+                description: AutoPreserveFailedMachineCount is the number of machines
+                  in the machine set that have been auto-preserved upon failure
+                format: int32
+                type: integer
               availableReplicas:
                 description: The number of available replicas (ready for at least
                   minReadySeconds) for this replica set.

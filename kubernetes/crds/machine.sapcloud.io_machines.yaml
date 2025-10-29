@@ -216,6 +216,10 @@ spec:
                         type: boolean
                     type: object
                 type: object
+              preserveTimeout:
+                description: MachinePreserveTimeout is the timeout after the machine
+                  preservation is stopped
+                type: string
               providerID:
                 description: ProviderID represents the provider's unique ID given
                   to a machine
@@ -286,6 +290,11 @@ spec:
                   phase:
                     description: MachinePhase is a label for the condition of a machine
                       at the current time.
+                    type: string
+                  preserveExpiryTime:
+                    description: PreserveExpiryTime is the time at which MCM will
+                      stop preserving the machine
+                    format: date-time
                     type: string
                   timeoutActive:
                     type: boolean
