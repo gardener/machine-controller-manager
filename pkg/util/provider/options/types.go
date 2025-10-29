@@ -97,6 +97,9 @@ type SafetyOptions struct {
 	PvDetachTimeout metav1.Duration
 	// Timeout (in duration) used while waiting for PV to reattach on new node
 	PvReattachTimeout metav1.Duration
+	// Timeout (in duration) used while preserving a machine,
+	// beyond which preservation is stopped
+	MachinePreserveTimeout metav1.Duration
 
 	// Timeout (in duration) for which the APIServer can be down before
 	// declare the machine controller frozen by safety controller
