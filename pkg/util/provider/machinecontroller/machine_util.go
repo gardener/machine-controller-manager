@@ -29,6 +29,8 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
+	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
 	"math"
 	"runtime"
 	"strconv"
@@ -1293,7 +1295,8 @@ func (c *controller) setMachineTerminationStatus(ctx context.Context, deleteMach
 	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 		Phase: v1alpha1.MachineTerminating,
 		// TimeoutActive:  false,
-		LastUpdateTime: metav1.Now(),
+		LastUpdateTime:     metav1.Now(),
+		PreserveExpiryTime: metav1.Time{},
 	}
 
 	_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
@@ -2034,7 +2037,7 @@ func (c *controller) getEffectiveHealthTimeout(machine *v1alpha1.Machine) *metav
 	return effectiveHealthTimeout
 }
 
-// getEffectiveHealthTimeout returns the creationTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
+// getEffectiveCreationTimeout returns the creationTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
 func (c *controller) getEffectiveCreationTimeout(machine *v1alpha1.Machine) *metav1.Duration {
 	var effectiveCreationTimeout *metav1.Duration
 	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineConfiguration.MachineCreationTimeout != nil {
@@ -2332,4 +2335,108 @@ func (c *controller) fetchMatchingNodeName(machineName string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("machine %q not found in node lister for machine %q", machineName, machineName)
+}
+
+func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+	clone := machine.DeepCopy()
+	klog.V(2).Infof("Preserving machine %q", machine.Name)
+	clone.Status.LastOperation = v1alpha1.LastOperation{
+		Description:    "Preserving machine",
+		State:          v1alpha1.MachineStateSuccessful,
+		Type:           v1alpha1.MachineOperationPreserve,
+		LastUpdateTime: metav1.Now(),
+	}
+	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+		Phase:              clone.Status.CurrentStatus.Phase,
+		LastUpdateTime:     metav1.Now(),
+		PreserveExpiryTime: metav1.NewTime(metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)),
+	}
+	// if backing node exists, add annotations to prevent scale down by autoscaler
+	if machine.Labels[v1alpha1.NodeLabelKey] != "" {
+		clusterAutoscalerScaleDownAnnotations := make(map[string]string)
+		clusterAutoscalerScaleDownAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
+		// We do this to avoid accidentally deleting the user provided annotations.
+		clusterAutoscalerScaleDownAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
+		nodeName := machine.Labels[v1alpha1.NodeLabelKey]
+		node, err := c.nodeLister.Get(nodeName)
+		if err != nil {
+			klog.Errorf("Error trying to get node %q: %v", nodeName, err)
+			return machineutils.ShortRetry, err
+		}
+		updatedNode, _, err := annotations.AddOrUpdateAnnotation(node, clusterAutoscalerScaleDownAnnotations)
+		if err != nil {
+			klog.Warningf("Adding annotation failed for node: %s, %s", machine.Labels[v1alpha1.NodeLabelKey], err)
+		}
+		_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, updatedNode, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("Error trying to update node %q: %v", nodeName, err)
+			return machineutils.ShortRetry, err
+		}
+	}
+	_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
+	if err != nil {
+		// Keep retrying until update goes through
+		klog.Errorf("Machine/status UPDATE failed for machine %q. Retrying, error: %s", machine.Name, err)
+	} else {
+		klog.V(2).Infof("Machine %q status updated to preserved ", machine.Name)
+		// Return error even when machine object is updated to ensure reconcilation is restarted
+		err = fmt.Errorf("machine preservation in process")
+	}
+	if apierrors.IsConflict(err) {
+		return machineutils.ConflictRetry, err
+	}
+	return machineutils.ShortRetry, err
+}
+
+func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+	clone := machine.DeepCopy()
+	delete(clone.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey)
+	delete(clone.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey)
+	delete(clone.Annotations, machineutils.PreserveMachineAnnotationKey)
+	// if backing node exists, remove annotations that would prevent scale down by autoscaler
+	if machine.Labels[v1alpha1.NodeLabelKey] != "" {
+		nodeName := machine.Labels[v1alpha1.NodeLabelKey]
+		node, err := c.nodeLister.Get(nodeName)
+		if err != nil {
+			klog.Errorf("Error trying to get node %q: %v", nodeName, err)
+			return machineutils.ShortRetry, err
+		}
+		//remove annotations from node, values do not matter here
+		preservationAnnotations := make(map[string]string)
+		preservationAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = ""
+		preservationAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = ""
+		preservationAnnotations[machineutils.PreserveMachineAnnotationKey] = ""
+		updatedNode, _, err := annotations.RemoveAnnotation(node, preservationAnnotations)
+		if err != nil {
+			klog.Warningf("Removing annotation failed for node: %s, %s", machine.Labels[v1alpha1.NodeLabelKey], err)
+		}
+		_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, updatedNode, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("Error trying to update node %q: %v", nodeName, err)
+			return machineutils.ShortRetry, err
+		}
+	}
+	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+		Phase:              clone.Status.CurrentStatus.Phase,
+		LastUpdateTime:     metav1.Now(),
+		PreserveExpiryTime: metav1.Time{},
+	}
+	_, err := c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
+	if err != nil {
+		// Keep retrying until update goes through
+		klog.Errorf("Machine UPDATE failed for machine %q. Retrying, error: %s", machine.Name, err)
+		return machineutils.ShortRetry, err
+	} else {
+		klog.V(2).Infof("Machine %q updated to stop preservation ", machine.Name)
+		// Return error even when machine object is updated to ensure reconcilation is restarted
+	}
+	// if machine is in failed state transition to Terminating
+	if clone.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
+		err = c.controlMachineClient.Machines(c.namespace).Delete(ctx, machine.Name, metav1.DeleteOptions{})
+		if err != nil {
+			klog.Errorf("Error trying to delete machine %q: %v", machine.Name, err)
+			return machineutils.ShortRetry, err
+		}
+	}
+	return machineutils.LongRetry, nil
 }

@@ -724,3 +724,63 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 	_, isMachineInCreationFlow := c.pendingMachineCreationMap.Load(getMachineKey(machine))
 	return isMachineInCreationFlow
 }
+
+// TODO@thiyyakat: check case where, preserved and annotated but times out. Not handled currently
+// possible cases:
+// 1. Annotated
+//  - already preserved, check for timeout
+//  - already preserved, check for explicit stop preservation
+//  - needs to be preserved on failure
+//  - needs to be preserved now
+// 2. Unannotated
+//  - failed machine, autoPreserveMax not breached, must be preserved
+//  - failed machine, already preserved, check for timeout
+// Auto-preserve case will have to be handled where machine moved from Unknown to Failed
+
+func (c *controller) machinePreservation(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+	// check if rolling update is ongoing, if yes, do nothing
+	machineDeployment, err := c.getMachineDeploymentForMachine(machine)
+	if err != nil {
+		klog.Errorf("Error getting machine deployment for machine %q: %s", machine.Name, err)
+		return machineutils.ShortRetry, err
+	}
+	for _, c := range machineDeployment.Status.Conditions {
+		if c.Type == v1alpha1.MachineDeploymentProgressing {
+			if c.Status == v1alpha1.ConditionTrue {
+				return machineutils.LongRetry, nil
+			}
+			break
+		}
+	}
+	// check if machine needs to be preserved due to annotation
+	isPreserved := machineutils.IsMachinePreserved(machine)
+	value, exists := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
+	if !isPreserved && exists {
+		switch value {
+		case machineutils.PreserveMachineAnnotationValueNow:
+			return c.preserveMachine(ctx, machine)
+		case machineutils.PreserveMachineAnnotationValueWhenFailed:
+			// check if machine is in Failed state
+			if machineutils.IsMachineFailed(machine) {
+				return c.preserveMachine(ctx, machine)
+			}
+		}
+	} else if isPreserved {
+		if value == machineutils.PreserveMachineAnnotationValueFalse || metav1.Now().After(machine.Status.CurrentStatus.PreserveExpiryTime.Time) {
+			return c.stopMachinePreservation(ctx, machine)
+		}
+	}
+	// if the machine is neither preserved nor annotated, need not handle it here. Auto-preservation
+	// handled on failure
+	return machineutils.LongRetry, nil
+}
+
+// getMachineDeploymentForMachine returns the machine deployment for a given machine
+func (c *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) (*v1alpha1.MachineDeployment, error) {
+	machineDeploymentName := getMachineDeploymentName(machine)
+	machineDeployment, err := c.controlMachineClient.MachineDeployments(c.namespace).Get(context.TODO(), machineDeploymentName, metav1.GetOptions{
+		TypeMeta:        metav1.TypeMeta{},
+		ResourceVersion: "",
+	})
+	return machineDeployment, err
+}
