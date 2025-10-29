@@ -658,6 +658,7 @@ func slowStartBatch(count int, initialBatchSize int, fn func() error) (int, erro
 	return successes, nil
 }
 
+// TODO@thiyyakat: ensure preserved machines are the last to be deleted
 func getMachinesToDelete(filteredMachines []*v1alpha1.Machine, diff int) []*v1alpha1.Machine {
 	// No need to sort machines if we are about to delete all of them.
 	// diff will always be <= len(filteredMachines), so not need to handle > case.
