@@ -172,7 +172,7 @@ func (c *Cluster) applyFile(filePath string, namespace string) error {
 
 // checkEstablished uses the specified name to check if it is established
 func (c *Cluster) checkEstablished(crdName string) error {
-	err := wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 60*time.Second, false, func(ctx context.Context) (bool, error) {
+	err := wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 60*time.Second, false, func(_ context.Context) (bool, error) {
 		crd, err := c.apiextensionsClient.
 			ApiextensionsV1().
 			CustomResourceDefinitions().

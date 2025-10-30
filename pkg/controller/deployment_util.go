@@ -938,7 +938,7 @@ func FindOldMachineSets(deployment *v1alpha1.MachineDeployment, isList []*v1alph
 
 // WaitForMachineSetUpdated polls the machine set until it is updated.
 func WaitForMachineSetUpdated(ctx context.Context, c v1alpha1listers.MachineSetLister, desiredGeneration int64, namespace, name string) error {
-	return wait.PollUntilContextTimeout(ctx, 1*time.Second, 1*time.Minute, true, func(ctx context.Context) (bool, error) {
+	return wait.PollUntilContextTimeout(ctx, 1*time.Second, 1*time.Minute, true, func(_ context.Context) (bool, error) {
 		is, err := c.MachineSets(namespace).Get(name)
 		if err != nil {
 			return false, err
@@ -949,7 +949,7 @@ func WaitForMachineSetUpdated(ctx context.Context, c v1alpha1listers.MachineSetL
 
 // WaitForMachinesHashPopulated polls the machine set until updated and fully labeled.
 func WaitForMachinesHashPopulated(ctx context.Context, c v1alpha1listers.MachineSetLister, desiredGeneration int64, namespace, name string) error {
-	return wait.PollUntilContextTimeout(ctx, 1*time.Second, 1*time.Minute, true, func(ctx context.Context) (bool, error) {
+	return wait.PollUntilContextTimeout(ctx, 1*time.Second, 1*time.Minute, true, func(_ context.Context) (bool, error) {
 		is, err := c.MachineSets(namespace).Get(name)
 		if err != nil {
 			return false, err
@@ -1206,7 +1206,7 @@ func IsSaturated(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet
 // Returns error if polling timesout.
 func WaitForObservedMachineDeployment(getDeploymentFunc func() (*v1alpha1.MachineDeployment, error), desiredGeneration int64, interval, timeout time.Duration) error {
 	// TODO: This should take clientset.Interface when all code is updated to use clientset. Keeping it this way allows the function to be used by callers who have client.Interface.
-	return wait.PollUntilContextTimeout(context.Background(), interval, timeout, true, func(ctx context.Context) (bool, error) {
+	return wait.PollUntilContextTimeout(context.Background(), interval, timeout, true, func(_ context.Context) (bool, error) {
 		deployment, err := getDeploymentFunc()
 		if err != nil {
 			return false, err
@@ -1219,7 +1219,7 @@ func WaitForObservedMachineDeployment(getDeploymentFunc func() (*v1alpha1.Machin
 // Returns error if polling timesout.
 // TODO: remove the duplicate
 func WaitForObservedDeploymentInternal(getDeploymentFunc func() (*v1alpha1.MachineDeployment, error), desiredGeneration int64, interval, timeout time.Duration) error {
-	return wait.PollUntilContextTimeout(context.Background(), interval, timeout, false, func(ctx context.Context) (bool, error) {
+	return wait.PollUntilContextTimeout(context.Background(), interval, timeout, false, func(_ context.Context) (bool, error) {
 		deployment, err := getDeploymentFunc()
 		if err != nil {
 			return false, err
