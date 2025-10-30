@@ -455,7 +455,7 @@ func createController(
 		),
 		machineSetQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
 			workqueue.DefaultTypedControllerRateLimiter[string](),
-			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinetermination"},
+			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machineset"},
 		),
 		machineDeploymentQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
 			workqueue.DefaultTypedControllerRateLimiter[string](),

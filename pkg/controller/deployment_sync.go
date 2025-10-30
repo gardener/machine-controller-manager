@@ -184,7 +184,7 @@ func (dc *controller) addHashKeyToISAndMachines(ctx context.Context, is *v1alpha
 	if updatedIS.Generation > updatedIS.Status.ObservedGeneration {
 		// TODO: Revisit if we really need to wait here as opposed to returning and
 		// potentially unblocking this worker (can wait up to 1min before timing out).
-		if err = WaitForMachineSetUpdated(dc.machineSetLister, updatedIS.Generation, updatedIS.Namespace, updatedIS.Name); err != nil {
+		if err = WaitForMachineSetUpdated(ctx, dc.machineSetLister, updatedIS.Generation, updatedIS.Namespace, updatedIS.Name); err != nil {
 			return nil, fmt.Errorf("error waiting for machine set %s to be observed by controller: %v", updatedIS.Name, err)
 		}
 		klog.V(4).Infof("Observed the update of machine set %s's machine template with hash %s.", is.Name, hash)
@@ -202,7 +202,7 @@ func (dc *controller) addHashKeyToISAndMachines(ctx context.Context, is *v1alpha
 	// back to the number of replicas in the spec.
 	// TODO: Revisit if we really need to wait here as opposed to returning and
 	// potentially unblocking this worker (can wait up to 1min before timing out).
-	if err := WaitForMachinesHashPopulated(dc.machineSetLister, updatedIS.Generation, updatedIS.Namespace, updatedIS.Name); err != nil {
+	if err := WaitForMachinesHashPopulated(ctx, dc.machineSetLister, updatedIS.Generation, updatedIS.Namespace, updatedIS.Name); err != nil {
 		return nil, fmt.Errorf("Machine set %s: error waiting for machineset controller to observe machines being labeled with template hash: %v", updatedIS.Name, err)
 	}
 

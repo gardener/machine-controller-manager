@@ -22,7 +22,7 @@ Modifications Copyright SAP SE or an SAP affiliate company and Gardener contribu
 package configz
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -44,7 +44,7 @@ func TestConfigz(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestConfigz(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	body, err = ioutil.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestConfigz(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	body, err = ioutil.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

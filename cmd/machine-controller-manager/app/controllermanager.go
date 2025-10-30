@@ -313,7 +313,7 @@ func getAvailableResources(clientBuilder corecontroller.ClientBuilder) (map[sche
 	var healthzContent string
 	// If apiserver is not running we should wait for some time and fail only then. This is particularly
 	// important when we start apiserver and controller manager at the same time.
-	err := wait.PollImmediate(time.Second, 10*time.Second, func() (bool, error) {
+	err := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(ctx context.Context) (bool, error) {
 		client, err := clientBuilder.Client("controller-discovery")
 		if err != nil {
 			klog.Errorf("Failed to get api versions from server: %v", err)
