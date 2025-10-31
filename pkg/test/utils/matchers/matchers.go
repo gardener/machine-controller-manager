@@ -24,14 +24,14 @@ func init() {
 
 // DeepEqual returns a Gomega matcher which checks whether the expected object is deeply equal with the object it is
 // being compared against.
-func DeepEqual(expected interface{}) types.GomegaMatcher {
+func DeepEqual(expected any) types.GomegaMatcher {
 	return newDeepEqualMatcher(expected)
 }
 
 // DeepDerivativeEqual is similar to DeepEqual except that unset fields in actual are
 // ignored (not compared). This allows us to focus on the fields that matter to
 // the semantic comparison.
-func DeepDerivativeEqual(expected interface{}) types.GomegaMatcher {
+func DeepDerivativeEqual(expected any) types.GomegaMatcher {
 	return newDeepDerivativeMatcher(expected)
 }
 

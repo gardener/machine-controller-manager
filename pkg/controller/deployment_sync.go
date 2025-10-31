@@ -184,7 +184,7 @@ func (dc *controller) addHashKeyToISAndMachines(ctx context.Context, is *v1alpha
 	if updatedIS.Generation > updatedIS.Status.ObservedGeneration {
 		// TODO: Revisit if we really need to wait here as opposed to returning and
 		// potentially unblocking this worker (can wait up to 1min before timing out).
-		if err = WaitForMachineSetUpdated(dc.machineSetLister, updatedIS.Generation, updatedIS.Namespace, updatedIS.Name); err != nil {
+		if err = WaitForMachineSetUpdated(ctx, dc.machineSetLister, updatedIS.Generation, updatedIS.Namespace, updatedIS.Name); err != nil {
 			return nil, fmt.Errorf("error waiting for machine set %s to be observed by controller: %v", updatedIS.Name, err)
 		}
 		klog.V(4).Infof("Observed the update of machine set %s's machine template with hash %s.", is.Name, hash)
@@ -202,7 +202,7 @@ func (dc *controller) addHashKeyToISAndMachines(ctx context.Context, is *v1alpha
 	// back to the number of replicas in the spec.
 	// TODO: Revisit if we really need to wait here as opposed to returning and
 	// potentially unblocking this worker (can wait up to 1min before timing out).
-	if err := WaitForMachinesHashPopulated(dc.machineSetLister, updatedIS.Generation, updatedIS.Namespace, updatedIS.Name); err != nil {
+	if err := WaitForMachinesHashPopulated(ctx, dc.machineSetLister, updatedIS.Generation, updatedIS.Namespace, updatedIS.Name); err != nil {
 		return nil, fmt.Errorf("Machine set %s: error waiting for machineset controller to observe machines being labeled with template hash: %v", updatedIS.Name, err)
 	}
 
@@ -470,10 +470,7 @@ func (dc *controller) scale(ctx context.Context, deployment *v1alpha1.MachineDep
 			// Incorporate any leftovers to the largest machine set.
 			if i == 0 && deploymentReplicasToAdd != 0 {
 				leftover := deploymentReplicasToAdd - deploymentReplicasAdded
-				nameToSize[is.Name] = nameToSize[is.Name] + leftover
-				if nameToSize[is.Name] < 0 {
-					nameToSize[is.Name] = 0
-				}
+				nameToSize[is.Name] = max(nameToSize[is.Name]+leftover, 0)
 				klog.V(3).Infof("leftover proportion increase of %d done in largest machineSet %s", leftover, is.Name)
 			}
 
@@ -586,7 +583,7 @@ func (dc *controller) cleanupMachineDeployment(ctx context.Context, oldISs []*v1
 	sort.Sort(MachineSetsByCreationTimestamp(cleanableISes))
 	klog.V(4).Infof("Looking to cleanup old machine sets for deployment %q", deployment.Name)
 
-	for i := int32(0); i < diff; i++ {
+	for i := range diff {
 		is := cleanableISes[i]
 		// Avoid delete machine set with non-zero replica counts
 		if is.Status.Replicas != 0 || (is.Spec.Replicas) != 0 || is.Generation > is.Status.ObservedGeneration || is.DeletionTimestamp != nil {
@@ -621,12 +618,9 @@ func (dc *controller) syncMachineDeploymentStatus(ctx context.Context, allISs []
 func calculateDeploymentStatus(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) v1alpha1.MachineDeploymentStatus {
 	availableReplicas := GetAvailableReplicaCountForMachineSets(allISs)
 	totalReplicas := GetReplicaCountForMachineSets(allISs)
-	unavailableReplicas := totalReplicas - availableReplicas
 	// If unavailableReplicas is negative, then that means the Deployment has more available replicas running than
 	// desired, e.g. whenever it scales down. In such a case we should simply default unavailableReplicas to zero.
-	if unavailableReplicas < 0 {
-		unavailableReplicas = 0
-	}
+	unavailableReplicas := max(totalReplicas-availableReplicas, 0)
 
 	status := v1alpha1.MachineDeploymentStatus{
 		// TODO: Ensure that if we start retrying status updates, we won't pick up a new Generation value.

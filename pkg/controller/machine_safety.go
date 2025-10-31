@@ -285,13 +285,13 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(ctx context.Context) er
 }
 
 // addMachineToSafetyOvershooting enqueues into machineSafetyOvershootingQueue when a new machine is added
-func (c *controller) addMachineToSafetyOvershooting(obj interface{}) {
+func (c *controller) addMachineToSafetyOvershooting(obj any) {
 	machine := obj.(*v1alpha1.Machine)
 	c.enqueueMachineSafetyOvershootingKey(machine)
 }
 
 // enqueueMachineSafetyOvershootingKey enqueues into machineSafetyOvershootingQueue
-func (c *controller) enqueueMachineSafetyOvershootingKey(_ interface{}) {
+func (c *controller) enqueueMachineSafetyOvershootingKey(_ any) {
 	c.machineSafetyOvershootingQueue.Add("")
 }
 

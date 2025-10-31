@@ -8,7 +8,7 @@ package validation
 import (
 	"fmt"
 	"math"
-	"sort"
+	"slices"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -44,7 +44,7 @@ func validateUpdateStrategy(spec *machine.MachineDeploymentSpec, fldPath *field.
 	supportedStrategies := sets.New(machine.RecreateMachineDeploymentStrategyType, machine.RollingUpdateMachineDeploymentStrategyType, machine.InPlaceUpdateMachineDeploymentStrategyType)
 	if !supportedStrategies.Has(spec.Strategy.Type) {
 		strategies := supportedStrategies.UnsortedList()
-		sort.Slice(strategies, func(i, j int) bool { return strategies[i] < strategies[j] })
+		slices.Sort(strategies)
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("strategy.type"), spec.Strategy.Type, fmt.Sprintf("strategy type must be one of %v", strategies)))
 	}
 

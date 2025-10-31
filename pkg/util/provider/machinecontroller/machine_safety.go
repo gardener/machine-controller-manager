@@ -305,7 +305,7 @@ func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alph
 }
 
 // updateMachineToSafety enqueues into machineSafetyQueue when a machine is updated to particular status
-func (c *controller) updateMachineToSafety(oldObj, newObj interface{}) {
+func (c *controller) updateMachineToSafety(oldObj, newObj any) {
 	oldMachine := oldObj.(*v1alpha1.Machine)
 	newMachine := newObj.(*v1alpha1.Machine)
 
@@ -321,7 +321,7 @@ func (c *controller) updateMachineToSafety(oldObj, newObj interface{}) {
 }
 
 // deleteMachineToSafety enqueues into machineSafetyQueue when a new machine is deleted
-func (c *controller) deleteMachineToSafety(obj interface{}) {
+func (c *controller) deleteMachineToSafety(obj any) {
 	machine := obj.(*v1alpha1.Machine)
 	if machine == nil {
 		klog.Errorf("Couldn't convert to machine resource from object")
@@ -331,6 +331,6 @@ func (c *controller) deleteMachineToSafety(obj interface{}) {
 }
 
 // enqueueMachineSafetyOrphanVMsKey enqueues into machineSafetyOrphanVMsQueue
-func (c *controller) enqueueMachineSafetyOrphanVMsKey(_ interface{}) {
+func (c *controller) enqueueMachineSafetyOrphanVMsKey(_ any) {
 	c.machineSafetyOrphanVMsQueue.Add("")
 }

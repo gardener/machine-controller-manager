@@ -70,7 +70,7 @@ chmod "0640" "/var/lib/gardener-node-agent/credentials/machine-name"
 		_, tokenSecretName = getTokenIDAndSecretName(machine.Name)
 		userDataSecret = &corev1.Secret{
 			Data: map[string][]byte{
-				"userData": []byte(fmt.Sprintf(userDataTemplate, "<<BOOTSTRAP_TOKEN>>", "<<MACHINE_NAME>>")),
+				"userData": fmt.Appendf(nil, userDataTemplate, "<<BOOTSTRAP_TOKEN>>", "<<MACHINE_NAME>>"),
 			},
 		}
 	})
@@ -78,7 +78,7 @@ chmod "0640" "/var/lib/gardener-node-agent/credentials/machine-name"
 	Describe("#addBootstrapTokenToUserData", func() {
 		It("should generate a bootstrap token replace the magic string with it", func() {
 			Expect(machineController.addBootstrapTokenToUserData(ctx, machine, userDataSecret)).To(Succeed())
-			Expect(userDataSecret.Data["userData"]).To(Equal([]byte(fmt.Sprintf(userDataTemplate, getBootstrapToken(), "<<MACHINE_NAME>>"))))
+			Expect(userDataSecret.Data["userData"]).To(Equal(fmt.Appendf(nil, userDataTemplate, getBootstrapToken(), "<<MACHINE_NAME>>")))
 		})
 
 		It("should do nothing if there is no magic string", func() {
@@ -99,7 +99,7 @@ chmod "0640" "/var/lib/gardener-node-agent/credentials/machine-name"
 
 			It("should not generate a bootstrap token and keep the magic string", func() {
 				Expect(machineController.addBootstrapTokenToUserData(ctx, machine, userDataSecret)).To(Succeed())
-				Expect(userDataSecret.Data["userData"]).To(Equal([]byte(fmt.Sprintf(userDataTemplate, "<<BOOTSTRAP_TOKEN>>", "<<MACHINE_NAME>>"))))
+				Expect(userDataSecret.Data["userData"]).To(Equal(fmt.Appendf(nil, userDataTemplate, "<<BOOTSTRAP_TOKEN>>", "<<MACHINE_NAME>>")))
 			})
 
 			It("should do nothing if there is no magic string", func() {
@@ -113,7 +113,7 @@ chmod "0640" "/var/lib/gardener-node-agent/credentials/machine-name"
 	Describe("#addMachineNameToUserData", func() {
 		It("should replace the magic string with the machine name", func() {
 			Expect(machineController.addMachineNameToUserData(machine, userDataSecret)).To(Succeed())
-			Expect(userDataSecret.Data["userData"]).To(Equal([]byte(fmt.Sprintf(userDataTemplate, "<<BOOTSTRAP_TOKEN>>", machine.Name))))
+			Expect(userDataSecret.Data["userData"]).To(Equal(fmt.Appendf(nil, userDataTemplate, "<<BOOTSTRAP_TOKEN>>", machine.Name)))
 		})
 
 		It("should do nothing if there is no magic string", func() {

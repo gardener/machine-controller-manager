@@ -451,7 +451,7 @@ to be supplied as the `ProviderSpecificMachineClass`. The provider is responsibl
 type GenerateMachineClassForMigrationRequest struct {
 	// ProviderSpecificMachineClass is provider specfic machine class object.
 	// E.g. AWSMachineClass
-	ProviderSpecificMachineClass interface{}
+	ProviderSpecificMachineClass any
 	// MachineClass is the machine class object generated that is to be filled up
 	MachineClass *v1alpha1.MachineClass
 	// ClassSpec contains the class spec object to determine the machineClass kind

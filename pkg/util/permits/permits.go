@@ -156,7 +156,7 @@ func (pg *permitGiver) isPermitAcquired(key string) bool {
 }
 
 func (pg *permitGiver) cleanupStalePermitEntries(stalePermitKeyTimeout time.Duration) {
-	pg.keyPermitsMap.Range(func(key, value interface{}) bool {
+	pg.keyPermitsMap.Range(func(key, value any) bool {
 		p := value.(permit)
 		timeout := time.Now().Add(-stalePermitKeyTimeout).Sub(p.lastAcquiredPermitTime)
 		if timeout > 0 && len(p.c) == 0 {
@@ -169,7 +169,7 @@ func (pg *permitGiver) cleanupStalePermitEntries(stalePermitKeyTimeout time.Dura
 func (pg *permitGiver) Close() {
 	close(pg.stopC)
 	// close all permit channels
-	pg.keyPermitsMap.Range(func(_, value interface{}) bool {
+	pg.keyPermitsMap.Range(func(_, value any) bool {
 		p := value.(permit)
 		close(p.c)
 		return true
