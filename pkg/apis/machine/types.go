@@ -161,6 +161,9 @@ type CurrentStatus struct {
 
 	// Last update time of current status
 	LastUpdateTime metav1.Time
+
+	// PreserveExpiryTime is the time at which MCM will stop preserving the machine
+	PreserveExpiryTime metav1.Time
 }
 
 // MachineStatus holds the most recently observed status of Machine.
