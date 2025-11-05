@@ -61,9 +61,12 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 		klog.Errorf("couldn't convert to machine resource from object")
 		return
 	}
+	if preserveAnnotationsChanged(oldMachine.Annotations, newMachine.Annotations) {
+		c.enqueueMachine(newObj, "handling preserving machine object UPDATE event")
+	}
 
 	if oldMachine.Generation == newMachine.Generation {
-		klog.V(3).Infof("Skipping non-spec updates for machine %s", oldMachine.Name)
+		klog.V(3).Infof("Skipping other non-spec updates for machine %s", oldMachine.Name)
 		return
 	}
 
@@ -206,6 +209,16 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 	machineClass, secretData, retry, err := c.ValidateMachineClass(ctx, &machine.Spec.Class)
 	if err != nil {
 		klog.Errorf("cannot reconcile machine %s: %s", machine.Name, err)
+		return retry, err
+	}
+
+	// Add finalizers if not present on machine object
+	retry, err = c.addMachineFinalizers(ctx, machine)
+	if err != nil {
+		return retry, err
+	}
+	retry, err = c.machinePreservation(ctx, machine)
+	if err != nil {
 		return retry, err
 	}
 
@@ -387,7 +400,20 @@ func (c *controller) updateNodeToMachine(oldObj, newObj any) {
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. in-place update label added or updated for node %q", getNodeName(machine)))
 		return
 	}
-
+	// to reconcile on change in annotations related to preservation
+	if preserveAnnotationsChanged(oldNode.Annotations, node.Annotations) {
+		if machine.Annotations == nil {
+			machine.Annotations = make(map[string]string)
+		}
+		machine.Annotations[machineutils.PreserveMachineAnnotationKey] = node.Annotations[machineutils.PreserveMachineAnnotationKey]
+		klog.Infof("Node %s for machine %s is annotated for preservation.", node.Name, machine.Name)
+		updatedMachine, err := c.controlMachineClient.Machines(c.namespace).Update(context.Background(), machine, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("Machine object %s backing node %s could not be updated with preservation annotations.", machine.Name, node.Name)
+		}
+		c.enqueueMachine(updatedMachine, fmt.Sprintf("handling node UPDATE event. preserve annotations added or updated for node %q", getNodeName(machine)))
+		return
+	}
 	c.addNodeToMachine(newObj)
 }
 
@@ -477,6 +503,11 @@ func addedOrRemovedEssentialTaints(oldNode, node *corev1.Node, taintKeys []strin
 		}
 	}
 	return false
+}
+func preserveAnnotationsChanged(oldAnnotations, newAnnotations map[string]string) bool {
+	valueNew, existsInNew := newAnnotations[machineutils.PreserveMachineAnnotationKey]
+	valueOld, existsInOld := oldAnnotations[machineutils.PreserveMachineAnnotationKey]
+	return existsInOld != existsInNew || valueOld != valueNew
 }
 
 /*
@@ -909,26 +940,13 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 // Auto-preserve case will have to be handled where machine moved from Unknown to Failed
 
 func (c *controller) machinePreservation(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
-	// check if rolling update is ongoing, if yes, do nothing
-	machineDeployment, err := c.getMachineDeploymentForMachine(machine)
-	if err != nil {
-		klog.Errorf("Error getting machine deployment for machine %q: %s", machine.Name, err)
-		return machineutils.ShortRetry, err
-	}
-	for _, c := range machineDeployment.Status.Conditions {
-		if c.Type == v1alpha1.MachineDeploymentProgressing {
-			if c.Status == v1alpha1.ConditionTrue {
-				return machineutils.LongRetry, nil
-			}
-			break
-		}
-	}
 	// check if machine needs to be preserved due to annotation
 	isPreserved := machineutils.IsMachinePreserved(machine)
 	value, exists := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
 	if !isPreserved && exists {
 		switch value {
 		case machineutils.PreserveMachineAnnotationValueNow:
+			klog.V(2).Infof("Machine %s has annotation %s", machine.Name, machineutils.PreserveMachineAnnotationKey)
 			return c.preserveMachine(ctx, machine)
 		case machineutils.PreserveMachineAnnotationValueWhenFailed:
 			// check if machine is in Failed state
