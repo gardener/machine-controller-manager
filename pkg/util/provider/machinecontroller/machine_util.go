@@ -2348,6 +2348,8 @@ func (c *controller) fetchMatchingNodeName(machineName string) (string, error) {
 	return "", fmt.Errorf("machine %q not found in node lister for machine %q", machineName, machineName)
 }
 
+// TODO:@thiyyakat - when-failed annotation should be added to the node as well.
+// preserveMachine contains logic to start the preservation of a node
 func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
 	clone := machine.DeepCopy()
 	//klog.V(2).Infof("Preserving machine %q", machine.Name)
@@ -2357,8 +2359,9 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 		// if preserve annotation not updated on node, we add it
 		preservationAnnotations[machineutils.PreserveMachineAnnotationKey] = machine.Annotations[machineutils.PreserveMachineAnnotationKey]
 		preservationAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
-		// We do this to avoid accidentally deleting the user provided annotations.
-		preservationAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
+		// TODO@thiyyakat: understand why ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey is added
+		//// We do this to avoid accidentally deleting the user provided annotations.
+		//preservationAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
 		nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 		node, err := c.nodeLister.Get(nodeName)
 		if err != nil {
@@ -2406,7 +2409,8 @@ func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alp
 		//remove annotations from node, values do not matter here
 		preservationAnnotations := make(map[string]string)
 		preservationAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = ""
-		preservationAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = ""
+		// TODO@thiyyakat: understand why ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey is added
+		//preservationAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = ""
 		preservationAnnotations[machineutils.PreserveMachineAnnotationKey] = ""
 		updatedNode, _, err := annotations.RemoveAnnotation(node, preservationAnnotations)
 		if err != nil {
@@ -2424,7 +2428,8 @@ func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alp
 	}
 	clone := machine.DeepCopy()
 	delete(clone.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey)
-	delete(clone.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey)
+	// TODO@thiyyakat: understand why ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey is added
+	//delete(clone.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey)
 	delete(clone.Annotations, machineutils.PreserveMachineAnnotationKey)
 	updatedMachine, err := c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
 	if err != nil {
@@ -2451,7 +2456,6 @@ func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alp
 		return machineutils.ShortRetry, err
 	}
 	klog.V(2).Infof("Machine %q status updated to stop preservation ", updatedMachine.Name)
-
 	// if machine is in failed state transition to Terminating
 	if updatedMachine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
 		err = c.controlMachineClient.Machines(c.namespace).Delete(ctx, updatedMachine.Name, metav1.DeleteOptions{})
