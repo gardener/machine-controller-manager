@@ -348,6 +348,7 @@ func autoConvert_v1alpha1_CurrentStatus_To_machine_CurrentStatus(in *CurrentStat
 	out.Phase = machine.MachinePhase(in.Phase)
 	out.TimeoutActive = in.TimeoutActive
 	out.LastUpdateTime = in.LastUpdateTime
+	out.PreserveExpiryTime = in.PreserveExpiryTime
 	return nil
 }
 
@@ -360,6 +361,7 @@ func autoConvert_machine_CurrentStatus_To_v1alpha1_CurrentStatus(in *machine.Cur
 	out.Phase = MachinePhase(in.Phase)
 	out.TimeoutActive = in.TimeoutActive
 	out.LastUpdateTime = in.LastUpdateTime
+	out.PreserveExpiryTime = in.PreserveExpiryTime
 	return nil
 }
 
@@ -531,6 +533,7 @@ func autoConvert_v1alpha1_MachineConfiguration_To_machine_MachineConfiguration(i
 	out.MachineHealthTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachineHealthTimeout))
 	out.MachineCreationTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachineCreationTimeout))
 	out.MachineInPlaceUpdateTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachineInPlaceUpdateTimeout))
+	out.MachinePreserveTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachinePreserveTimeout))
 	out.DisableHealthTimeout = (*bool)(unsafe.Pointer(in.DisableHealthTimeout))
 	out.MaxEvictRetries = (*int32)(unsafe.Pointer(in.MaxEvictRetries))
 	out.NodeConditions = (*string)(unsafe.Pointer(in.NodeConditions))
@@ -547,6 +550,7 @@ func autoConvert_machine_MachineConfiguration_To_v1alpha1_MachineConfiguration(i
 	out.MachineHealthTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachineHealthTimeout))
 	out.MachineCreationTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachineCreationTimeout))
 	out.MachineInPlaceUpdateTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachineInPlaceUpdateTimeout))
+	out.MachinePreserveTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachinePreserveTimeout))
 	out.DisableHealthTimeout = (*bool)(unsafe.Pointer(in.DisableHealthTimeout))
 	out.MaxEvictRetries = (*int32)(unsafe.Pointer(in.MaxEvictRetries))
 	out.NodeConditions = (*string)(unsafe.Pointer(in.NodeConditions))
