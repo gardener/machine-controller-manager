@@ -36,6 +36,7 @@ func (in *ClassSpec) DeepCopy() *ClassSpec {
 func (in *CurrentStatus) DeepCopyInto(out *CurrentStatus) {
 	*out = *in
 	in.LastUpdateTime.DeepCopyInto(&out.LastUpdateTime)
+	in.PreserveExpiryTime.DeepCopyInto(&out.PreserveExpiryTime)
 	return
 }
 
@@ -206,6 +207,11 @@ func (in *MachineConfiguration) DeepCopyInto(out *MachineConfiguration) {
 	}
 	if in.MachineInPlaceUpdateTimeout != nil {
 		in, out := &in.MachineInPlaceUpdateTimeout, &out.MachineInPlaceUpdateTimeout
+		*out = new(metav1.Duration)
+		**out = **in
+	}
+	if in.MachinePreserveTimeout != nil {
+		in, out := &in.MachinePreserveTimeout, &out.MachinePreserveTimeout
 		*out = new(metav1.Duration)
 		**out = **in
 	}

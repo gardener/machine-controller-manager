@@ -833,6 +833,21 @@ Kubernetes meta/v1.Time
 <p>Last update time of current status</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>preserveExpiryTime</code>
+</td>
+<td>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<p>PreserveExpiryTime is the time at which MCM will stop preserving the machine</p>
+</td>
+</tr>
 </tbody>
 </table>
 <br>
@@ -1067,6 +1082,22 @@ Kubernetes meta/v1.Duration
 <td>
 <em>(Optional)</em>
 <p>MachineInPlaceUpdateTimeout is the timeout after which in-place update is declared failed.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>preserveTimeout</code>
+</td>
+<td>
+<em>
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MachinePreserveTimeout is the timeout after the machine preservation is stopped</p>
 </td>
 </tr>
 <tr>
@@ -1543,8 +1574,8 @@ newest MachineSet.</p>
 </td>
 <td>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.*../../pkg/apis/machine/v1alpha1.MachineSummary">
-[]*../../pkg/apis/machine/v1alpha1.MachineSummary
+<a href="#machine.sapcloud.io/v1alpha1.*github.com/thiyyakat/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary">
+[]*github.com/thiyyakat/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary
 </a>
 </em>
 </td>
@@ -1988,8 +2019,8 @@ LastOperation
 </td>
 <td>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.[]../../pkg/apis/machine/v1alpha1.MachineSummary">
-[]../../pkg/apis/machine/v1alpha1.MachineSummary
+<a href="#machine.sapcloud.io/v1alpha1.[]github.com/thiyyakat/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary">
+[]github.com/thiyyakat/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary
 </a>
 </em>
 </td>

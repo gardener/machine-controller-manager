@@ -394,6 +394,12 @@ func schema_pkg_apis_machine_v1alpha1_CurrentStatus(ref common.ReferenceCallback
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
+					"preserveExpiryTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreserveExpiryTime is the time at which MCM will stop preserving the machine",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
 				},
 			},
 		},
@@ -679,6 +685,12 @@ func schema_pkg_apis_machine_v1alpha1_MachineConfiguration(ref common.ReferenceC
 					"inPlaceUpdateTimeout": {
 						SchemaProps: spec.SchemaProps{
 							Description: "MachineInPlaceUpdateTimeout is the timeout after which in-place update is declared failed.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
+					"preserveTimeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MachinePreserveTimeout is the timeout after the machine preservation is stopped",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},
@@ -1459,6 +1471,12 @@ func schema_pkg_apis_machine_v1alpha1_MachineSpec(ref common.ReferenceCallback) 
 					"inPlaceUpdateTimeout": {
 						SchemaProps: spec.SchemaProps{
 							Description: "MachineInPlaceUpdateTimeout is the timeout after which in-place update is declared failed.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
+					"preserveTimeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MachinePreserveTimeout is the timeout after the machine preservation is stopped",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},
