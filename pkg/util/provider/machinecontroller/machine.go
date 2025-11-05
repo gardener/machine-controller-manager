@@ -7,6 +7,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -16,6 +17,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
@@ -58,9 +61,12 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 		klog.Errorf("couldn't convert to machine resource from object")
 		return
 	}
+	if preserveAnnotationsChanged(oldMachine.Annotations, newMachine.Annotations) {
+		c.enqueueMachine(newObj, "handling preserving machine object UPDATE event")
+	}
 
 	if oldMachine.Generation == newMachine.Generation {
-		klog.V(3).Infof("Skipping non-spec updates for machine %s", oldMachine.Name)
+		klog.V(3).Infof("Skipping other non-spec updates for machine %s", oldMachine.Name)
 		return
 	}
 
@@ -297,6 +303,11 @@ func (c *controller) reconcileClusterMachineTermination(key string) error {
 		c.enqueueMachineTerminationAfter(machine, time.Duration(retryPeriod), "post-deletion reconcile")
 	}
 	return nil
+}
+func preserveAnnotationsChanged(oldAnnotations, newAnnotations map[string]string) bool {
+	valueNew, existsInNew := newAnnotations[machineutils.PreserveMachineAnnotationKey]
+	valueOld, existsInOld := oldAnnotations[machineutils.PreserveMachineAnnotationKey]
+	return existsInOld != existsInNew || valueOld != valueNew
 }
 
 /*
@@ -738,26 +749,13 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 // Auto-preserve case will have to be handled where machine moved from Unknown to Failed
 
 func (c *controller) machinePreservation(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
-	// check if rolling update is ongoing, if yes, do nothing
-	machineDeployment, err := c.getMachineDeploymentForMachine(machine)
-	if err != nil {
-		klog.Errorf("Error getting machine deployment for machine %q: %s", machine.Name, err)
-		return machineutils.ShortRetry, err
-	}
-	for _, c := range machineDeployment.Status.Conditions {
-		if c.Type == v1alpha1.MachineDeploymentProgressing {
-			if c.Status == v1alpha1.ConditionTrue {
-				return machineutils.LongRetry, nil
-			}
-			break
-		}
-	}
 	// check if machine needs to be preserved due to annotation
 	isPreserved := machineutils.IsMachinePreserved(machine)
 	value, exists := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
 	if !isPreserved && exists {
 		switch value {
 		case machineutils.PreserveMachineAnnotationValueNow:
+			klog.V(2).Infof("Machine %s has annotation %s", machine.Name, machineutils.PreserveMachineAnnotationKey)
 			return c.preserveMachine(ctx, machine)
 		case machineutils.PreserveMachineAnnotationValueWhenFailed:
 			// check if machine is in Failed state
