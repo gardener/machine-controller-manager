@@ -143,8 +143,5 @@ func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
 
 // IsMachinePreserved checks if machine is preserved by MCM
 func IsMachinePreserved(m *v1alpha1.Machine) bool {
-	if !m.Status.CurrentStatus.PreserveExpiryTime.IsZero() {
-		return true
-	}
-	return false
+	return !m.Status.CurrentStatus.PreserveExpiryTime.IsZero()
 }
