@@ -135,8 +135,4 @@ type MachineSetStatus struct {
 	// FailedMachines has summary of machines on which lastOperation Failed
 	// +optional
 	FailedMachines *[]MachineSummary `json:"failedMachines,omitempty"`
-
-	// AutoPreserveFailedMachineCount is the number of machines in the machine set that have been auto-preserved upon failure
-	// +optional
-	AutoPreserveFailedMachineCount int32 `json:"autoPreserveFailedMachineCount,omitempty"`
 }
