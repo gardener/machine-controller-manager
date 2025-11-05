@@ -316,11 +316,6 @@ spec:
             description: MachineSetStatus holds the most recently observed status
               of MachineSet.
             properties:
-              autoPreserveFailedMachineCount:
-                description: AutoPreserveFailedMachineCount is the number of machines
-                  in the machine set that have been auto-preserved upon failure
-                format: int32
-                type: integer
               availableReplicas:
                 description: The number of available replicas (ready for at least
                   minReadySeconds) for this replica set.
