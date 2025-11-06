@@ -324,7 +324,7 @@ var _ = Describe("safety_logic", func() {
 			waitForCacheSync(stop, c)
 
 			// call checkMachineClass to delete the orphan VMs
-			_, _ = c.checkMachineClass(context.TODO(), testMachineClass)
+			_ = c.checkMachineClass(context.TODO(), testMachineClass)
 
 			// after this, the testmachine in crashloopbackoff phase
 			// should remain and the other one should
@@ -538,11 +538,11 @@ var _ = Describe("safety_logic", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
-				retry, err := c.AnnotateNodesUnmanagedByMCM(context.TODO())
+				err := c.AnnotateNodesUnmanagedByMCM(context.TODO())
 
 				waitForCacheSync(stop, c)
 
-				Expect(retry).To(Equal(data.expect.retry))
+				// Expect(retry).To(Equal(data.expect.retry))
 
 				if data.expect.err == nil {
 					Expect(err).ShouldNot(HaveOccurred())

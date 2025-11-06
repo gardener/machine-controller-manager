@@ -85,7 +85,7 @@ func (c *controller) reconcileClusterMachineClassKey(key string) error {
 	err = c.reconcileClusterMachineClass(ctx, class)
 	if err != nil {
 		// Re-enqueue after a ShortRetry window
-		c.enqueueMachineClassAfter(class, time.Duration(machineutils.ShortRetry))
+		c.enqueueMachineClassAfterRateLimiting(class)
 	} else {
 		// Re-enqueue periodically to avoid missing of events
 		// TODO: Get ride of this logic
@@ -200,4 +200,12 @@ func (c *controller) enqueueMachineClassAfter(obj any, after time.Duration) {
 		return
 	}
 	c.machineClassQueue.AddAfter(key, after)
+}
+
+func (c *controller) enqueueMachineClassAfterRateLimiting(obj any) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		return
+	}
+	c.machineClassQueue.AddRateLimited(key)
 }

@@ -366,7 +366,7 @@ var _ = Describe("machine", func() {
 				defer trackers.Stop()
 
 				waitForCacheSync(stop, controller)
-				machineClass, secretData, _, err := controller.ValidateMachineClass(context.TODO(), data.action)
+				machineClass, secretData, err := controller.ValidateMachineClass(context.TODO(), data.action)
 
 				if data.expect.machineClass == nil {
 					Expect(machineClass).To(BeNil())
@@ -552,7 +552,7 @@ var _ = Describe("machine", func() {
 				secret, err := controller.controlCoreClient.CoreV1().Secrets(objMeta.Namespace).Get(context.TODO(), machineClass.SecretRef.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
-				retry, err := controller.triggerCreationFlow(
+				err = controller.triggerCreationFlow(
 					context.TODO(),
 					&driver.CreateMachineRequest{
 						Machine:      machine,
@@ -570,7 +570,7 @@ var _ = Describe("machine", func() {
 				Expect(err).To(BeNil())
 				Expect(actual.Spec.ProviderID).To(Equal(data.expect.machine.Spec.ProviderID))
 				Expect(actual.Finalizers).To(Equal(data.expect.machine.Finalizers))
-				Expect(retry).To(Equal(data.expect.retry))
+				// Expect(retry).To(Equal(data.expect.retry))
 				Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
 				Expect(actual.Status.Addresses).To(Equal(data.expect.machine.Status.Addresses))
 
@@ -1567,7 +1567,7 @@ var _ = Describe("machine", func() {
 				}
 
 				// Deletion of machine is triggered
-				retry, err := controller.triggerDeletionFlow(context.TODO(), &driver.DeleteMachineRequest{
+				err = controller.triggerDeletionFlow(context.TODO(), &driver.DeleteMachineRequest{
 					Machine:      machine,
 					MachineClass: machineClass,
 					Secret:       secret,
@@ -1575,7 +1575,7 @@ var _ = Describe("machine", func() {
 				if err != nil || data.expect.err != nil {
 					Expect(err).To(Equal(data.expect.err))
 				}
-				Expect(retry).To(Equal(data.expect.retry))
+				// Expect(retry).To(Equal(data.expect.retry))
 
 				machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
