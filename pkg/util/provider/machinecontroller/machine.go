@@ -171,7 +171,7 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 	}
 
 	// Add finalizers if not present on machine object
-	_, err = c.addMachineFinalizers(ctx, machine)
+	err = c.addMachineFinalizers(ctx, machine)
 	if err != nil {
 		return err
 	}
@@ -805,7 +805,7 @@ func (c *controller) triggerDeletionFlow(ctx context.Context, deleteMachineReque
 	switch {
 	case c.isCreationProcessing(machine):
 		err := fmt.Errorf("machine %q is in creation flow. Deletion cannot proceed", machine.Name)
-		return machineutils.MediumRetry, err
+		return err
 
 	case !finalizers.Has(MCMFinalizerName):
 		// If Finalizers are not present on machine
