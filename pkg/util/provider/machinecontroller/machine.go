@@ -62,7 +62,8 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 		return
 	}
 	if preserveAnnotationsChanged(oldMachine.Annotations, newMachine.Annotations) {
-		c.enqueueMachine(newObj, "handling preserving machine object UPDATE event")
+		c.enqueueMachine(newObj, "handling machine object preservation related UPDATE event")
+		return
 	}
 
 	if oldMachine.Generation == newMachine.Generation {
@@ -739,34 +740,39 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 // TODO@thiyyakat: check case where, preserved and annotated but times out. Not handled currently
 // possible cases:
 // 1. Annotated
-//  - already preserved, check for timeout
-//  - already preserved, check for explicit stop preservation
-//  - needs to be preserved on failure
-//  - needs to be preserved now
+//   - already preserved, check for timeout
+//   - already preserved, check for explicit stop preservation
+//   - needs to be preserved on failure
+//   - needs to be preserved now
+//
 // 2. Unannotated
-//  - failed machine, autoPreserveMax not breached, must be preserved
-//  - failed machine, already preserved, check for timeout
+//   - failed machine, autoPreserveMax not breached, must be preserved
+//   - failed machine, already preserved, check for timeout
+//
 // Auto-preserve case will have to be handled where machine moved from Unknown to Failed
 
 func (c *controller) machinePreservation(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
 	// check if machine needs to be preserved due to annotation
-	isPreserved := machineutils.IsMachinePreserved(machine)
 	value, exists := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
-	if !isPreserved && exists {
+	klog.V(3).Infof("TEST: machine:%s annotation value: %s", machine.Name, value)
+	isPreserved := machineutils.IsMachinePreserved(machine)
+	if exists {
 		switch value {
-		case machineutils.PreserveMachineAnnotationValueNow:
-			klog.V(2).Infof("Machine %s has annotation %s", machine.Name, machineutils.PreserveMachineAnnotationKey)
-			return c.preserveMachine(ctx, machine)
-		case machineutils.PreserveMachineAnnotationValueWhenFailed:
-			// check if machine is in Failed state
-			if machineutils.IsMachineFailed(machine) {
-				return c.preserveMachine(ctx, machine)
+		case machineutils.PreserveMachineAnnotationValueNow, machineutils.PreserveMachineAnnotationValueWhenFailed:
+			if !isPreserved {
+				return c.preserveMachine(ctx, machine, value)
 			}
+		case machineutils.PreserveMachineAnnotationValueFalse:
+			klog.V(2).Infof("TEST: false annotation value set.")
+			if isPreserved {
+				return c.stopMachinePreservation(ctx, machine)
+			}
+		default:
+			klog.V(3).Infof("Annotation value %s not part of accepted values for preserve", value)
+			return machineutils.LongRetry, nil
 		}
-	} else if isPreserved {
-		if value == machineutils.PreserveMachineAnnotationValueFalse || metav1.Now().After(machine.Status.CurrentStatus.PreserveExpiryTime.Time) {
-			return c.stopMachinePreservation(ctx, machine)
-		}
+	} else if isPreserved && metav1.Now().After(machine.Status.CurrentStatus.PreserveExpiryTime.Time) {
+		return c.stopMachinePreservation(ctx, machine)
 	}
 	// if the machine is neither preserved nor annotated, need not handle it here. Auto-preservation
 	// handled on failure

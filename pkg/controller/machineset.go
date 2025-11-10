@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -665,8 +666,28 @@ func getMachinesToDelete(filteredMachines []*v1alpha1.Machine, diff int) []*v1al
 		// < scheduled, and pending < running. This ensures that we delete machines
 		// in the earlier stages whenever possible.
 		sort.Sort(ActiveMachines(filteredMachines))
+		// machines in Preserved stage will be the last ones to be deleted
+		// at all times, replica count will be upheld, even if it means deletion of a pending machine
+		// TODO@thiyyakat: write unit test for this scenario
+		filteredMachines = prioritisePreservedMachines(filteredMachines)
+
+		fmt.Printf("len(filteredMachines)=%d, diff=%d\n", len(filteredMachines), diff)
+
 	}
 	return filteredMachines[:diff]
+}
+
+func prioritisePreservedMachines(machines []*v1alpha1.Machine) []*v1alpha1.Machine {
+	pendingMachines := make([]*v1alpha1.Machine, 0, len(machines))
+	otherMachines := make([]*v1alpha1.Machine, 0, len(machines))
+	for _, mc := range machines {
+		if machineutils.IsMachinePreserved(mc) {
+			pendingMachines = append(pendingMachines, mc)
+		} else {
+			otherMachines = append(otherMachines, mc)
+		}
+	}
+	return slices.Concat(otherMachines, pendingMachines)
 }
 
 func getMachineKeys(machines []*v1alpha1.Machine) []string {
