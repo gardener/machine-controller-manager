@@ -1096,11 +1096,18 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					timeOutDuration,
 					machine.Status.Conditions,
 				)
-
 				machineDeployName := getMachineDeploymentName(machine)
 				// creating lock for machineDeployment, if not allocated
 				c.permitGiver.RegisterPermits(machineDeployName, 1)
-				return c.tryMarkingMachineFailed(ctx, machine, clone, machineDeployName, description, lockAcquireTimeout)
+				retry, err := c.tryMarkingMachineFailed(ctx, machine, clone, machineDeployName, description, lockAcquireTimeout)
+				if err != nil {
+					return retry, err
+				}
+				if value, exists := machine.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && value == machineutils.PreserveMachineAnnotationValueWhenFailed {
+					klog.V(3).Infof("TEST:Preserving machine on failure due to annotation")
+					return c.preserveMachine(ctx, machine, machineutils.PreserveMachineAnnotationValueWhenFailed)
+				}
+				return retry, err
 			}
 
 			if isMachineInPlaceUpdating {
@@ -1154,7 +1161,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 	}
 
 	if cloneDirty {
-		_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
+		updatedMachine, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
 			// Keep retrying across reconciles until update goes through
 			klog.Errorf("Update of Phase/Conditions failed for machine %q. Retrying, error: %q", machine.Name, err)
@@ -1163,6 +1170,10 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			}
 		} else {
 			klog.V(2).Infof("Machine Phase/Conditions have been updated for %q with providerID %q and are in sync with backing node %q", machine.Name, getProviderID(machine), getNodeName(machine))
+			if updatedMachine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed && updatedMachine.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueWhenFailed {
+				klog.V(3).Infof("TEST:Preserving machine on failure due to annotation")
+				return c.preserveMachine(ctx, updatedMachine, machineutils.PreserveMachineAnnotationValueWhenFailed)
+			}
 			// Return error to end the reconcile
 			err = errSuccessfulPhaseUpdate
 		}
@@ -2348,26 +2359,30 @@ func (c *controller) fetchMatchingNodeName(machineName string) (string, error) {
 	return "", fmt.Errorf("machine %q not found in node lister for machine %q", machineName, machineName)
 }
 
-// TODO:@thiyyakat - when-failed annotation should be added to the node as well.
-// preserveMachine contains logic to start the preservation of a node
-func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
-	clone := machine.DeepCopy()
-	//klog.V(2).Infof("Preserving machine %q", machine.Name)
-	// if backing node exists, add annotations to prevent scale down by autoscaler
+// TODO@thiyyakat: check if node needs to be updated at all.
+// TODO@thiyyakat: handle when annotation changed from when-failed to now and vice versa
+// preserveMachine contains logic to start the preservation of a machine and node
+func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine, preserveValue string) (machineutils.RetryPeriod, error) {
+	klog.V(3).Infof("TEST:Entering preserve machine flow")
+	isFailed := machineutils.IsMachineFailed(machine)
+	// machine needs to be preserved now if annotated with preserve=now or if annotated with preserve=when-failed and machine has failed
+	toBePreservedNow := preserveValue == machineutils.PreserveMachineAnnotationValueNow || preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed && isFailed
+	klog.V(3).Infof("TEST:machine: %s, tobepreservednow: %s", machine.Name, toBePreservedNow)
+	// TODO@thiyyakat: may need to change this check to machine.Spec.ProviderID
 	if machine.Labels[v1alpha1.NodeLabelKey] != "" {
 		preservationAnnotations := make(map[string]string)
-		// if preserve annotation not updated on node, we add it
 		preservationAnnotations[machineutils.PreserveMachineAnnotationKey] = machine.Annotations[machineutils.PreserveMachineAnnotationKey]
-		preservationAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
-		// TODO@thiyyakat: understand why ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey is added
-		//// We do this to avoid accidentally deleting the user provided annotations.
-		//preservationAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
+		if toBePreservedNow {
+			preservationAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
+		}
 		nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 		node, err := c.nodeLister.Get(nodeName)
 		if err != nil {
 			klog.Errorf("error trying to get node %q: %v", nodeName, err)
 			return machineutils.ShortRetry, err
 		}
+		klog.V(3).Infof("TEST:preservationAnnotations on node : %s: %v, and machine: %s", node.Name, node.Annotations[machineutils.PreserveMachineAnnotationKey], machine.Annotations[machineutils.PreserveMachineAnnotationKey])
+		// if preserve annotation not updated on node, we add it
 		// function never returns error, can be ignored
 		updatedNode, _, _ := annotations.AddOrUpdateAnnotation(node, preservationAnnotations)
 		_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, updatedNode, metav1.UpdateOptions{})
@@ -2378,8 +2393,12 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 			klog.Errorf("node UPDATE failed for machine %s with node %s. Retrying, error: %s", machine.Name, nodeName, err)
 			return machineutils.ShortRetry, err
 		}
-		klog.V(2).Infof("Updated node %s for machine %q successfully", node.Name, machine.Name)
+		klog.V(2).Infof("Updated preservation annotations for node %s, for machine %q, successfully", node.Name, machine.Name)
+		if !toBePreservedNow {
+			return machineutils.LongRetry, nil
+		}
 	}
+	clone := machine.DeepCopy()
 	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 		Phase:              clone.Status.CurrentStatus.Phase,
 		LastUpdateTime:     metav1.Now(),
@@ -2398,7 +2417,9 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 }
 
 func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+	klog.V(3).Infof("TEST:Entering stopMachinePreservation on machine %q", machine.Name)
 	// if backing node exists, remove annotations that would prevent scale down by autoscaler
+	// TODO@thiyyakat: may need to change this check to machine.Spec.ProviderID
 	if machine.Labels[v1alpha1.NodeLabelKey] != "" {
 		nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 		node, err := c.nodeLister.Get(nodeName)
@@ -2406,16 +2427,15 @@ func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alp
 			klog.Errorf("error trying to get node %q: %v", nodeName, err)
 			return machineutils.ShortRetry, err
 		}
-		//remove annotations from node, values do not matter here
-		preservationAnnotations := make(map[string]string)
-		preservationAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = ""
-		// TODO@thiyyakat: understand why ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey is added
-		//preservationAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = ""
-		preservationAnnotations[machineutils.PreserveMachineAnnotationKey] = ""
-		updatedNode, _, err := annotations.RemoveAnnotation(node, preservationAnnotations)
-		if err != nil {
-			klog.Errorf("removing annotation failed for node: %s, %s", machine.Labels[v1alpha1.NodeLabelKey], err)
-			return machineutils.ShortRetry, err
+		// remove CA annotation from node, values do not matter here
+		CAAnnotations := make(map[string]string)
+		CAAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = ""
+		updatedNode, _, _ := annotations.RemoveAnnotation(node, CAAnnotations) // error can be ignored, always returns nil
+		// set preserve=false on node if it is set on machine
+		if machine.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueFalse {
+			preserveAnnotations := make(map[string]string)
+			preserveAnnotations[machineutils.PreserveMachineAnnotationKey] = machineutils.PreserveMachineAnnotationValueFalse
+			updatedNode, _, _ = annotations.AddOrUpdateAnnotation(updatedNode, preserveAnnotations) // error can be ignored, always returns nil
 		}
 		_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, updatedNode, metav1.UpdateOptions{})
 		if err != nil {
@@ -2442,31 +2462,33 @@ func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alp
 		klog.V(2).Infof("Machine %q updated to remove annotations ", machine.Name)
 		// Return error even when machine object is updated to ensure reconcilation is restarted
 	}
-	updatedMachine.Status.CurrentStatus = v1alpha1.CurrentStatus{
-		Phase:              updatedMachine.Status.CurrentStatus.Phase,
-		LastUpdateTime:     metav1.Now(),
-		PreserveExpiryTime: metav1.Time{},
-	}
-	_, err = c.controlMachineClient.Machines(updatedMachine.Namespace).UpdateStatus(ctx, updatedMachine, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("Machine/status UPDATE failed for machine %q. Retrying, error: %s", updatedMachine.Name, err)
-		if apierrors.IsConflict(err) {
-			return machineutils.ConflictRetry, err
+	if machineutils.IsMachinePreserved(machine) {
+		updatedMachine.Status.CurrentStatus = v1alpha1.CurrentStatus{
+			Phase:              updatedMachine.Status.CurrentStatus.Phase,
+			LastUpdateTime:     metav1.Now(),
+			PreserveExpiryTime: metav1.Time{},
 		}
-		return machineutils.ShortRetry, err
-	}
-	klog.V(2).Infof("Machine %q status updated to stop preservation ", updatedMachine.Name)
-	// if machine is in failed state transition to Terminating
-	if updatedMachine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
-		err = c.controlMachineClient.Machines(c.namespace).Delete(ctx, updatedMachine.Name, metav1.DeleteOptions{})
+		_, err = c.controlMachineClient.Machines(updatedMachine.Namespace).UpdateStatus(ctx, updatedMachine, metav1.UpdateOptions{})
 		if err != nil {
-			klog.Errorf("error trying to delete machine %q: %v", updatedMachine.Name, err)
+			klog.Errorf("Machine/status UPDATE failed for machine %q. Retrying, error: %s", updatedMachine.Name, err)
 			if apierrors.IsConflict(err) {
 				return machineutils.ConflictRetry, err
 			}
 			return machineutils.ShortRetry, err
 		}
-		klog.V(2).Infof("Machine %q marked for deletion", updatedMachine.Name)
+		klog.V(2).Infof("Machine %q status updated to stop preservation ", updatedMachine.Name)
+		// if machine is in failed state transition to Terminating
+		if updatedMachine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
+			err = c.controlMachineClient.Machines(c.namespace).Delete(ctx, updatedMachine.Name, metav1.DeleteOptions{})
+			if err != nil {
+				klog.Errorf("error trying to delete machine %q: %v", updatedMachine.Name, err)
+				if apierrors.IsConflict(err) {
+					return machineutils.ConflictRetry, err
+				}
+				return machineutils.ShortRetry, err
+			}
+			klog.V(2).Infof("Machine %q marked for deletion", updatedMachine.Name)
+		}
 	}
 	return machineutils.LongRetry, nil
 }
