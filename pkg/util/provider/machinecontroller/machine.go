@@ -539,8 +539,8 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			// Either VM is not found
 			// or GetMachineStatus() call is not implemented
 			// In this case, invoke a CreateMachine() call
-			if _, present := machine.Labels[v1alpha1.NodeLabelKey]; !present {
-				// If node label is not present
+			if machine.Spec.ProviderID == "" {
+				// If no providerID is present
 				klog.V(2).Infof("Creating a VM for machine %q, please wait!", machine.Name)
 				klog.V(2).Infof("The machine creation is triggered with timeout of %s", c.getEffectiveCreationTimeout(createMachineRequest.Machine).Duration)
 				createMachineResponse, err := c.driver.CreateMachine(ctx, createMachineRequest)
@@ -614,6 +614,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			} else {
 				// if node label present that means there must be a backing VM ,without need of GetMachineStatus() call
 				nodeName = machine.Labels[v1alpha1.NodeLabelKey]
+				providerID = machine.Spec.ProviderID
 			}
 
 		case codes.Uninitialized:
