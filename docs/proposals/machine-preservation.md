@@ -148,12 +148,15 @@ The rationale behind moving the machine to `Running:Preserved` rather than `Runn
 
 1. During rolling updates MCM will NOT honor preserving Machines. The Machine will be replaced with a healthy one if it moves to Failed phase.
 2. Hibernation policy will override machine preservation. 
-3. If Machine and Node annotation values differ for a particular annotation key, the Node annotation value will override the Machine annotation value.
-4. If `autoPreserveFailedMax` is reduced in the Shoot Spec, older machines are moved to `Terminating` phase before newer ones.
-5. In case of a scale down of an MCD's replica count, `Preserved` machines will be the last to be scaled down. Replica count will always be honoured.
-6. If the value for annotation key `cluster-autoscaler.kubernetes.io/scale-down-disabled` for a machine in `Running:Preserved` is changed to `false` by a user, the value will be overwritten to `true` by MCM.
-7. On increase/decrease of timeout, the new value will only apply to machines that go into `Preserved` phase after the change. Operators can always edit `machine.CurrentStatus.PreserveExpiryTime` to prolong the expiry time of existing `Preserved` machines.
-8. [Modify CA FAQ](https://github.com/gardener/autoscaler/blob/master/cluster-autoscaler/FAQ.md#how-can-i-prevent-cluster-autoscaler-from-scaling-down-a-particular-node) once feature is developed to use `node.machine.sapcloud.io/preserve=now` instead of the `cluster-autoscaler.kubernetes.io/scale-down-disabled=true` currently suggested. This would:
+3. Consumers (with access to shoot cluster) can annotate Nodes they would like to preserve.
+4. Operators (with access to control plane) can additionally annotate Machines that they would like to preserve. This feature can be used when a Machine does not have a backing Node and the operator wishes to preserve the backing VM.
+5. If the backing Node object exists but does not have the preservation annotation, preservation annotations added on the Machine will be honoured.
+6. However, if a backing Node exists for a Machine and has the preservation annotation, the Node's annotation value will override the Machine annotation value, and be synced to the Machine object.
+7. If `autoPreserveFailedMax` is reduced in the Shoot Spec, older machines are moved to `Terminating` phase before newer ones.
+8. In case of a scale down of an MCD's replica count, `Preserved` machines will be the last to be scaled down. Replica count will always be honoured.
+9. If the value for annotation key `cluster-autoscaler.kubernetes.io/scale-down-disabled` for a machine in `Running:Preserved` is changed to `false` by a user, the value will be overwritten to `true` by MCM.
+10. On increase/decrease of timeout, the new value will only apply to machines that go into `Preserved` phase after the change. Operators can always edit `machine.CurrentStatus.PreserveExpiryTime` to prolong the expiry time of existing `Preserved` machines.
+11. [Modify CA FAQ](https://github.com/gardener/autoscaler/blob/master/cluster-autoscaler/FAQ.md#how-can-i-prevent-cluster-autoscaler-from-scaling-down-a-particular-node) once feature is developed to use `node.machine.sapcloud.io/preserve=now` instead of the `cluster-autoscaler.kubernetes.io/scale-down-disabled=true` currently suggested. This would:
    - harmonise machine flow
    - shield from CA's internals
    - make it generic and no longer CA specific
