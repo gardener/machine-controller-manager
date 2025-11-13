@@ -752,31 +752,76 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 // Auto-preserve case will have to be handled where machine moved from Unknown to Failed
 
 func (c *controller) machinePreservation(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
-	// check if machine needs to be preserved due to annotation
-	value, exists := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
-	klog.V(3).Infof("TEST: machine:%s annotation value: %s", machine.Name, value)
-	isPreserved := machineutils.IsMachinePreserved(machine)
-	if exists {
-		switch value {
-		case machineutils.PreserveMachineAnnotationValueNow, machineutils.PreserveMachineAnnotationValueWhenFailed:
-			if !isPreserved {
-				return c.preserveMachine(ctx, machine, value)
-			}
-		case machineutils.PreserveMachineAnnotationValueFalse:
-			klog.V(2).Infof("TEST: false annotation value set.")
-			if isPreserved {
-				return c.stopMachinePreservation(ctx, machine)
-			}
-		default:
-			klog.V(3).Infof("Annotation value %s not part of accepted values for preserve", value)
-			return machineutils.LongRetry, nil
-		}
-	} else if isPreserved && metav1.Now().After(machine.Status.CurrentStatus.PreserveExpiryTime.Time) {
-		return c.stopMachinePreservation(ctx, machine)
+	// check effective preservation value based on node's and machine's annotations.
+	updatedMachine, preserveValue, err := c.syncEffectivePreserveAnnotationValue(ctx, machine)
+	if err != nil {
+		klog.Errorf("Error getting preserve annotation value for machine %q: %s", machine.Name, err)
+		return machineutils.ShortRetry, err
 	}
-	// if the machine is neither preserved nor annotated, need not handle it here. Auto-preservation
-	// handled on failure
+	klog.V(3).Infof("TEST effective preservation value for machine %q: %s", updatedMachine.Name, preserveValue)
+	isPreserved := machineutils.IsMachinePreserved(updatedMachine)
+	switch preserveValue {
+	case machineutils.PreserveMachineAnnotationValueNow, machineutils.PreserveMachineAnnotationValueWhenFailed:
+		if !isPreserved {
+			return c.preserveMachine(ctx, machine, preserveValue)
+		} else if metav1.Now().After(machine.Status.CurrentStatus.PreserveExpiryTime.Time) {
+			return c.stopMachinePreservation(ctx, machine)
+		}
+	case machineutils.PreserveMachineAnnotationValueFalse:
+		if isPreserved {
+			return c.stopMachinePreservation(ctx, machine)
+		}
+	case "":
+		return machineutils.LongRetry, nil
+	default:
+		klog.V(3).Infof("Annotation value %s not part of accepted values for preserve", preserveValue)
+		return machineutils.LongRetry, nil
+	}
 	return machineutils.LongRetry, nil
+}
+
+func (c *controller) syncEffectivePreserveAnnotationValue(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, string, error) {
+	var effectivePreserveAnnotationValue string
+	mAnnotationValue, mExists := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
+	// node annotation value, if exists, will always override and overwrite machine annotation value for preserve
+	if machine.Labels[v1alpha1.NodeLabelKey] != "" {
+		nodeName := machine.Labels[v1alpha1.NodeLabelKey]
+		node, err := c.nodeLister.Get(nodeName)
+		if err != nil {
+			klog.Errorf("error trying to get node %q: %v", nodeName, err)
+			return machine, "", err
+		}
+		nAnnotationValue, nExists := node.Annotations[machineutils.PreserveMachineAnnotationKey]
+		switch {
+		case nExists && mExists:
+			if nAnnotationValue == mAnnotationValue {
+				return machine, nAnnotationValue, nil
+			}
+			effectivePreserveAnnotationValue = nAnnotationValue
+		case nExists && !mExists:
+			effectivePreserveAnnotationValue = nAnnotationValue
+		case mExists && !nExists:
+			return machine, mAnnotationValue, nil
+		case !nExists && !mExists:
+			return machine, "", nil
+		}
+		clone := machine.DeepCopy()
+		if clone.Annotations == nil {
+			clone.Annotations = make(map[string]string)
+		}
+		clone.Annotations[machineutils.PreserveMachineAnnotationKey] = effectivePreserveAnnotationValue
+		updatedMachine, err := c.controlMachineClient.Machines(c.namespace).Update(ctx, clone, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("error updating machine with preserve annotations %q: %v", machine.Name, err)
+			return machine, "", err
+		}
+		return updatedMachine, effectivePreserveAnnotationValue, nil
+	}
+	//if no backing node
+	if mExists {
+		return machine, mAnnotationValue, nil
+	}
+	return machine, "", nil
 }
 
 // getMachineDeploymentForMachine returns the machine deployment for a given machine
