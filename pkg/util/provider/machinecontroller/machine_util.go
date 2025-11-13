@@ -2359,15 +2359,12 @@ func (c *controller) fetchMatchingNodeName(machineName string) (string, error) {
 	return "", fmt.Errorf("machine %q not found in node lister for machine %q", machineName, machineName)
 }
 
-// TODO@thiyyakat: check if node needs to be updated at all.
 // TODO@thiyyakat: handle when annotation changed from when-failed to now and vice versa
 // preserveMachine contains logic to start the preservation of a machine and node
 func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine, preserveValue string) (machineutils.RetryPeriod, error) {
 	klog.V(3).Infof("TEST:Entering preserve machine flow")
-	isFailed := machineutils.IsMachineFailed(machine)
-	// machine needs to be preserved now if annotated with preserve=now or if annotated with preserve=when-failed and machine has failed
-	toBePreservedNow := preserveValue == machineutils.PreserveMachineAnnotationValueNow || preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed && isFailed
-	klog.V(3).Infof("TEST:machine: %s, tobepreservednow: %s", machine.Name, toBePreservedNow)
+	toBePreservedNow := shouldMachineBePreservedNow(machine, preserveValue)
+	klog.V(3).Infof("TEST:machine: %s, tobepreservednow: %v", machine.Name, toBePreservedNow)
 	// TODO@thiyyakat: may need to change this check to machine.Spec.ProviderID
 	if machine.Labels[v1alpha1.NodeLabelKey] != "" {
 		preservationAnnotations := make(map[string]string)
@@ -2414,6 +2411,11 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 	}
 	klog.V(2).Infof("Machine %q preserved.", machine.Name)
 	return machineutils.LongRetry, nil
+}
+
+func shouldMachineBePreservedNow(machine *v1alpha1.Machine, preserveValue string) bool {
+	isFailed := machineutils.IsMachineFailed(machine)
+	return preserveValue == machineutils.PreserveMachineAnnotationValueNow || preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed && isFailed
 }
 
 func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
