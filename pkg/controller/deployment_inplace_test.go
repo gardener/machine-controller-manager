@@ -368,6 +368,16 @@ var _ = Describe("deployment_inplace", func() {
 					scaled: true,
 				},
 			}),
+			Entry("scale up newMachineSet to max possible replicas when oldMachinesCount+newMachineSet.Spec.Replicas < deployment.Spec.Replicas", &data{
+				setup: setup{
+					oldMachineSetReplicas:     1,
+					newMachineSetReplicas:     1,
+					nodesWithUpdateSuccessful: 0,
+				},
+				expect: expect{
+					scaled: true,
+				},
+			}),
 		)
 	})
 
