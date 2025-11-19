@@ -1170,17 +1170,20 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				return machineutils.ConflictRetry, err
 			}
 			return machineutils.ShortRetry, err
+		} else {
+			klog.V(2).Infof("Machine Phase/Conditions have been updated for %q with providerID %q and are in sync with backing node %q", updatedMachine.Name, getProviderID(updatedMachine), getNodeName(updatedMachine))
+			if val, exists := updatedMachine.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && val == machineutils.PreserveMachineAnnotationValueWhenFailed && (updatedMachine.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdating) {
+				retry, err := c.preserveMachine(ctx, updatedMachine, machineutils.PreserveMachineAnnotationValueWhenFailed)
+				if err != nil {
+					return retry, err
+				}
+			}
+			err = errSuccessfulPhaseUpdate
 		}
-
-		klog.V(2).Infof("Machine Phase/Conditions have been updated for %q with providerID %q and are in sync with backing node %q", updatedMachine.Name, getProviderID(updatedMachine), getNodeName(updatedMachine))
-		if val, exists := updatedMachine.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && val == machineutils.PreserveMachineAnnotationValueWhenFailed && (updatedMachine.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdating) {
-			return c.preserveMachine(ctx, updatedMachine, machineutils.PreserveMachineAnnotationValueWhenFailed)
-		}
+		return machineutils.ShortRetry, err
 		// TODO@thiyyakat: fix this. check earlier code.
 		// Return error to end the reconcile
-		err = errSuccessfulPhaseUpdate
 	}
-
 	return machineutils.LongRetry, nil
 }
 
