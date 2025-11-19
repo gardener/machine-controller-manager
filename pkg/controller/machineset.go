@@ -344,8 +344,13 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 			machinesWithUpdateSuccessfulLabel = append(machinesWithUpdateSuccessfulLabel, m)
 			continue
 		}
-
 		if machineutils.IsMachineFailed(m) || machineutils.IsMachineTriggeredForDeletion(m) {
+			klog.V(3).Infof("TEST: machine:%s, annot:%s, expirytimeset:%v, has timeout: %v", m.Name, m.Annotations[machineutils.PreserveMachineAnnotationKey], m.Status.CurrentStatus.PreserveExpiryTime, machineutils.HasPreservationTimedOut(m))
+			if machineutils.IsPreserveExpiryTimeSet(m) && !machineutils.HasPreservationTimedOut(m) {
+				klog.V(2).Infof("Machine %s currently preserved, not adding to stale machines", m.Name)
+				activeMachines = append(activeMachines, m)
+				continue
+			}
 			staleMachines = append(staleMachines, m)
 		} else if machineutils.IsMachineActive(m) {
 			activeMachines = append(activeMachines, m)
@@ -463,12 +468,12 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		logMachinesToDelete(machinesToDelete)
 		//if machines are preserved, stop preservation
 		//for _, mc := range machinesToDelete {
-		//	if machineutils.IsMachinePreserved(mc) {
+		//	if machineutils.IsPreserveExpiryTimeSet(mc) {
 		//
 		//	}
 		//
 		//}for _, mc := range machinesToDelete {
-		//	if machineutils.IsMachinePreserved(mc) {
+		//	if machineutils.IsPreserveExpiryTimeSet(mc) {
 		//
 		//	}
 		//
@@ -709,7 +714,7 @@ func prioritisePreservedMachines(machines []*v1alpha1.Machine) []*v1alpha1.Machi
 	pendingMachines := make([]*v1alpha1.Machine, 0, len(machines))
 	otherMachines := make([]*v1alpha1.Machine, 0, len(machines))
 	for _, mc := range machines {
-		if machineutils.IsMachinePreserved(mc) {
+		if machineutils.IsPreserveExpiryTimeSet(mc) {
 			pendingMachines = append(pendingMachines, mc)
 		} else {
 			otherMachines = append(otherMachines, mc)
@@ -784,8 +789,8 @@ func (c *controller) terminateMachines(ctx context.Context, inactiveMachines []*
 	defer close(errCh)
 
 	wg.Add(numOfInactiveMachines)
-	for _, machine := range inactiveMachines {
-		go c.prepareMachineForDeletion(ctx, machine, machineSet, &wg, errCh)
+	for _, m := range inactiveMachines {
+		go c.prepareMachineForDeletion(ctx, m, machineSet, &wg, errCh)
 	}
 	wg.Wait()
 
