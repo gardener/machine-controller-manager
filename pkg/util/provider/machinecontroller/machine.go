@@ -758,7 +758,6 @@ func (c *controller) machinePreservation(ctx context.Context, machine *v1alpha1.
 		klog.Errorf("Error getting preserve annotation value for machine %q: %s", machine.Name, err)
 		return machineutils.ShortRetry, err
 	}
-	klog.V(3).Infof("TEST effective preservation value for machine %q: %s", updatedMachine.Name, preserveValue)
 	preserveExpiryTimeSet := machineutils.IsPreserveExpiryTimeSet(updatedMachine)
 	switch preserveValue {
 	case machineutils.PreserveMachineAnnotationValueNow, machineutils.PreserveMachineAnnotationValueWhenFailed:
