@@ -217,8 +217,8 @@ spec:
                     type: object
                 type: object
               preserveTimeout:
-                description: MachinePreserveTimeout is the timeout after the machine
-                  preservation is stopped
+                description: MachinePreserveTimeout is the timeout after which the
+                  machine preservation is stopped
                 type: string
               providerID:
                 description: ProviderID represents the provider's unique ID given
