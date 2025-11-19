@@ -141,7 +141,35 @@ func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
 	return m.Annotations[MachinePriority] == "1"
 }
 
-// IsMachinePreserved checks if machine is preserved by MCM
-func IsMachinePreserved(m *v1alpha1.Machine) bool {
+// IsPreserveExpiryTimeSet checks if machine is preserved by MCM
+func IsPreserveExpiryTimeSet(m *v1alpha1.Machine) bool {
 	return !m.Status.CurrentStatus.PreserveExpiryTime.IsZero()
 }
+
+// HasPreservationTimedOut checks if the Status.CurrentStatus.PreserveExpiryTime has not yet passed
+func HasPreservationTimedOut(m *v1alpha1.Machine) bool {
+	if m.Status.CurrentStatus.PreserveExpiryTime.IsZero() {
+		return true
+	} else if m.Status.CurrentStatus.PreserveExpiryTime.After(time.Now()) {
+		return false
+	}
+	return true
+}
+
+func ShouldMachineBePreservedNow(machine *v1alpha1.Machine, preserveValue string) bool {
+	isFailed := IsMachineFailed(machine)
+	return preserveValue == PreserveMachineAnnotationValueNow || preserveValue == PreserveMachineAnnotationValueWhenFailed && isFailed
+}
+
+//func IsMachinePreserved(machine *v1alpha1.Machine) bool {
+//	val, exists := machine.Annotations[PreserveMachineAnnotationKey]
+//	if !exists {
+//		return false
+//	} else {
+//		if val == PreserveMachineAnnotationValueNow && machine.Status.CurrentStatus.PreserveExpiryTime.After(time.Now()) {
+//			return true
+//		} else if val == PreserveMachineAnnotationValueWhenFailed && IsMachineFailed(machine) {
+//			return true
+//		}
+//	}
+//}
