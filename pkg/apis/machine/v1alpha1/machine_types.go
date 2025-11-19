@@ -204,9 +204,6 @@ const (
 
 	// MachineOperationDelete indicates that the operation was a delete
 	MachineOperationDelete MachineOperationType = "Delete"
-
-	// MachineOperationPreserve indicates that the operation was a preserve
-	MachineOperationPreserve MachineOperationType = "Preserve"
 )
 
 // The below types are used by kube_client and api_server.
