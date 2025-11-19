@@ -759,17 +759,17 @@ func (c *controller) machinePreservation(ctx context.Context, machine *v1alpha1.
 		return machineutils.ShortRetry, err
 	}
 	klog.V(3).Infof("TEST effective preservation value for machine %q: %s", updatedMachine.Name, preserveValue)
-	isPreserved := machineutils.IsMachinePreserved(updatedMachine)
+	preserveExpiryTimeSet := machineutils.IsPreserveExpiryTimeSet(updatedMachine)
 	switch preserveValue {
 	case machineutils.PreserveMachineAnnotationValueNow, machineutils.PreserveMachineAnnotationValueWhenFailed:
-		if !isPreserved {
-			return c.preserveMachine(ctx, machine, preserveValue)
-		} else if metav1.Now().After(machine.Status.CurrentStatus.PreserveExpiryTime.Time) {
-			return c.stopMachinePreservation(ctx, machine)
+		if !preserveExpiryTimeSet {
+			return c.preserveMachine(ctx, updatedMachine, preserveValue)
+		} else if metav1.Now().After(updatedMachine.Status.CurrentStatus.PreserveExpiryTime.Time) {
+			return c.stopMachinePreservation(ctx, updatedMachine)
 		}
 	case machineutils.PreserveMachineAnnotationValueFalse:
-		if isPreserved {
-			return c.stopMachinePreservation(ctx, machine)
+		if preserveExpiryTimeSet {
+			return c.stopMachinePreservation(ctx, updatedMachine)
 		}
 	case "":
 		return machineutils.LongRetry, nil
