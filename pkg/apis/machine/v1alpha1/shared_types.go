@@ -44,7 +44,7 @@ type MachineConfiguration struct {
 	// +optional
 	MachineInPlaceUpdateTimeout *metav1.Duration `json:"inPlaceUpdateTimeout,omitempty"`
 
-	// MachinePreserveTimeout is the timeout after the machine preservation is stopped
+	// MachinePreserveTimeout is the timeout after which the machine preservation is stopped
 	// +optional
 	MachinePreserveTimeout *metav1.Duration `json:"preserveTimeout,omitempty"`
 
