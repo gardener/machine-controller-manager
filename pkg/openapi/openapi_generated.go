@@ -690,7 +690,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineConfiguration(ref common.ReferenceC
 					},
 					"preserveTimeout": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MachinePreserveTimeout is the timeout after the machine preservation is stopped",
+							Description: "MachinePreserveTimeout is the timeout after which the machine preservation is stopped",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},
@@ -1476,7 +1476,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineSpec(ref common.ReferenceCallback) 
 					},
 					"preserveTimeout": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MachinePreserveTimeout is the timeout after the machine preservation is stopped",
+							Description: "MachinePreserveTimeout is the timeout after which the machine preservation is stopped",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},

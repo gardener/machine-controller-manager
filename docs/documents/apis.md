@@ -1097,7 +1097,7 @@ Kubernetes meta/v1.Duration
 </td>
 <td>
 <em>(Optional)</em>
-<p>MachinePreserveTimeout is the timeout after the machine preservation is stopped</p>
+<p>MachinePreserveTimeout is the timeout after which the machine preservation is stopped</p>
 </td>
 </tr>
 <tr>
