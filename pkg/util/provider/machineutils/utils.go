@@ -143,6 +143,11 @@ func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
 
 // IsPreserveExpiryTimeSet checks if machine is preserved by MCM
 func IsPreserveExpiryTimeSet(m *v1alpha1.Machine) bool {
+	//klog.V(3).Infof("DEBUG: machine:%s, time=%v, IsZero=%v, Unix=%d",
+	//	m.Name,
+	//	m.Status.CurrentStatus.PreserveExpiryTime,
+	//	m.Status.CurrentStatus.PreserveExpiryTime.IsZero(),
+	//	m.Status.CurrentStatus.PreserveExpiryTime.Unix())
 	return !m.Status.CurrentStatus.PreserveExpiryTime.IsZero()
 }
 

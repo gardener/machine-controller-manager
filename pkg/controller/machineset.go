@@ -345,13 +345,25 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 			continue
 		}
 		if machineutils.IsMachineFailed(m) || machineutils.IsMachineTriggeredForDeletion(m) {
-			klog.V(3).Infof("TEST: machine:%s, annot:%s, expirytimeset:%v, has timeout: %v", m.Name, m.Annotations[machineutils.PreserveMachineAnnotationKey], m.Status.CurrentStatus.PreserveExpiryTime, machineutils.HasPreservationTimedOut(m))
+			//klog.V(3).Infof("TEST: machine:%s, annot:%s, expirytimeset:%v, val: %v, has timeout: %v", m.Name, m.Annotations[machineutils.PreserveMachineAnnotationKey], m.Status.CurrentStatus.PreserveExpiryTime, machineutils.HasPreservationTimedOut(m), machineutils.HasPreservationTimedOut(m))
+			//klog.V(3).Infof("TEST: machine:%s, annot:%s, expirytimeset:%v (IsSet=%v), has timed out: %v",
+			//	m.Name,
+			//	m.Annotations[machineutils.PreserveMachineAnnotationKey],
+			//	m.Status.CurrentStatus.PreserveExpiryTime,
+			//	machineutils.IsPreserveExpiryTimeSet(m), // ← Actually call the function!
+			//	machineutils.HasPreservationTimedOut(m))
 			if machineutils.IsPreserveExpiryTimeSet(m) && !machineutils.HasPreservationTimedOut(m) {
 				klog.V(2).Infof("Machine %s currently preserved, not adding to stale machines", m.Name)
 				activeMachines = append(activeMachines, m)
 				continue
+			} else if val, exists := m.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && val == machineutils.PreserveMachineAnnotationValueWhenFailed { // this is the case where the machine controller has not had a chance to update the preserve expiry time on failure of machine causing a race condition
+				klog.V(2).Infof("Machine %s currently preserved, not adding to stale machines", m.Name)
+				activeMachines = append(activeMachines, m)
+
+			} else {
+				staleMachines = append(staleMachines, m)
 			}
-			staleMachines = append(staleMachines, m)
+
 		} else if machineutils.IsMachineActive(m) {
 			activeMachines = append(activeMachines, m)
 		}
