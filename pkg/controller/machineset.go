@@ -345,13 +345,6 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 			continue
 		}
 		if machineutils.IsMachineFailed(m) || machineutils.IsMachineTriggeredForDeletion(m) {
-			//klog.V(3).Infof("TEST: machine:%s, annot:%s, expirytimeset:%v, val: %v, has timeout: %v", m.Name, m.Annotations[machineutils.PreserveMachineAnnotationKey], m.Status.CurrentStatus.PreserveExpiryTime, machineutils.HasPreservationTimedOut(m), machineutils.HasPreservationTimedOut(m))
-			//klog.V(3).Infof("TEST: machine:%s, annot:%s, expirytimeset:%v (IsSet=%v), has timed out: %v",
-			//	m.Name,
-			//	m.Annotations[machineutils.PreserveMachineAnnotationKey],
-			//	m.Status.CurrentStatus.PreserveExpiryTime,
-			//	machineutils.IsPreserveExpiryTimeSet(m), // ← Actually call the function!
-			//	machineutils.HasPreservationTimedOut(m))
 			if machineutils.IsPreserveExpiryTimeSet(m) && !machineutils.HasPreservationTimedOut(m) {
 				klog.V(2).Infof("Machine %s currently preserved, not adding to stale machines", m.Name)
 				activeMachines = append(activeMachines, m)
@@ -478,18 +471,6 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		logMachinesWithPriority1(activeMachines)
 		machinesToDelete := getMachinesToDelete(activeMachines, diff)
 		logMachinesToDelete(machinesToDelete)
-		//if machines are preserved, stop preservation
-		//for _, mc := range machinesToDelete {
-		//	if machineutils.IsPreserveExpiryTimeSet(mc) {
-		//
-		//	}
-		//
-		//}for _, mc := range machinesToDelete {
-		//	if machineutils.IsPreserveExpiryTimeSet(mc) {
-		//
-		//	}
-		//
-		//}
 
 		// Snapshot the UIDs (ns/name) of the machines we're expecting to see
 		// deleted, so we know to record their expectations exactly once either
@@ -702,7 +683,6 @@ func slowStartBatch(count int, initialBatchSize int, fn func() error) (int, erro
 	return successes, nil
 }
 
-// TODO@thiyyakat: ensure preserved machines are the last to be deleted
 func getMachinesToDelete(filteredMachines []*v1alpha1.Machine, diff int) []*v1alpha1.Machine {
 	// No need to sort machines if we are about to delete all of them.
 	// diff will always be <= len(filteredMachines), so not need to handle > case.
