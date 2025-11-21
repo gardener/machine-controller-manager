@@ -1,3 +1,5 @@
+<!-- Please ensure that you do not include company internal information. -->
+
 **What this PR does / why we need it**:
 
 **Which issue(s) this PR fixes**:
