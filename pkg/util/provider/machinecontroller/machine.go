@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"maps"
 	"slices"
 	"strings"
@@ -750,7 +751,6 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 //   - failed machine, already preserved, check for timeout
 //
 // Auto-preserve case will have to be handled where machine moved from Unknown to Failed
-
 func (c *controller) machinePreservation(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
 	// check effective preservation value based on node's and machine's annotations.
 	updatedMachine, preserveValue, err := c.syncEffectivePreserveAnnotationValue(ctx, machine)
@@ -758,23 +758,27 @@ func (c *controller) machinePreservation(ctx context.Context, machine *v1alpha1.
 		klog.Errorf("Error getting preserve annotation value for machine %q: %s", machine.Name, err)
 		return machineutils.ShortRetry, err
 	}
-	preserveExpiryTimeSet := machineutils.IsPreserveExpiryTimeSet(updatedMachine)
 	switch preserveValue {
 	case machineutils.PreserveMachineAnnotationValueNow, machineutils.PreserveMachineAnnotationValueWhenFailed:
-		if !preserveExpiryTimeSet {
-			return c.preserveMachine(ctx, updatedMachine, preserveValue)
-		} else if metav1.Now().After(updatedMachine.Status.CurrentStatus.PreserveExpiryTime.Time) {
+		if preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed && !machineutils.IsMachineFailed(updatedMachine) {
+			return machineutils.LongRetry, nil
+		}
+		isComplete, err := c.isMachinePreservationComplete(ctx, machine)
+		if err != nil {
+			return machineutils.ShortRetry, err
+		}
+		if !isComplete {
+			return c.preserveMachine(ctx, machine)
+		}
+		if hasMachinePreservationTimedOut(machine) {
 			return c.stopMachinePreservation(ctx, updatedMachine)
 		}
 	case machineutils.PreserveMachineAnnotationValueFalse:
-		if preserveExpiryTimeSet {
-			return c.stopMachinePreservation(ctx, updatedMachine)
-		}
+		return c.stopMachinePreservation(ctx, updatedMachine)
 	case "":
 		return machineutils.LongRetry, nil
 	default:
-		klog.V(3).Infof("Annotation value %s not part of accepted values for preserve", preserveValue)
-		return machineutils.LongRetry, nil
+		klog.Warningf("Preserve annotation value %s on machine %s is invalid", preserveValue, machine.Name)
 	}
 	return machineutils.LongRetry, nil
 }
@@ -821,6 +825,28 @@ func (c *controller) syncEffectivePreserveAnnotationValue(ctx context.Context, m
 		return machine, mAnnotationValue, nil
 	}
 	return machine, "", nil
+}
+
+func (c *controller) isMachinePreservationComplete(ctx context.Context, machine *v1alpha1.Machine) (bool, error) {
+	// if preservetime is set and machine is not failed, then yes,
+	// if preservetime is set and machine is failed, the node condition must be there saying drain successful
+	// if preserve time is not set, then no
+	if !machineutils.IsPreserveExpiryTimeSet(machine) {
+		return false, nil
+	} else if machineutils.IsMachineFailed(machine) {
+		node, err := c.nodeLister.Get(getNodeName(machine))
+		if err != nil {
+			klog.Errorf("error trying to get node %q: %v", getNodeName(machine), err)
+			return false, err
+		}
+		if cond := nodeops.GetCondition(node, v1alpha1.NodePreserved); cond != nil {
+			if cond.Reason == v1alpha1.DrainSuccessful {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+	return true, nil
 }
 
 // getMachineDeploymentForMachine returns the machine deployment for a given machine

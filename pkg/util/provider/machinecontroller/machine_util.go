@@ -212,6 +212,7 @@ func nodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions [
 		if !exists || (oldC.Status != c.Status) || (c.Type == v1alpha1.NodeInPlaceUpdate && oldC.Reason != c.Reason) {
 			addedOrUpdatedConditions = append(addedOrUpdatedConditions, c)
 		}
+
 	}
 
 	// checking for any deleted condition
@@ -1104,9 +1105,9 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				if err != nil {
 					return retry, err
 				}
-				if val, exists := machine.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
-					return c.preserveMachine(ctx, machine, val)
-				}
+				//if attemptMachinePreservation(machine) && !machineutils.IsPreserveExpiryTimeSet(machine) {
+				//	return c.preserveMachine(ctx, machine)
+				//}
 				return retry, err
 			}
 
@@ -1172,12 +1173,6 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			return machineutils.ShortRetry, err
 		} else {
 			klog.V(2).Infof("Machine Phase/Conditions have been updated for %q with providerID %q and are in sync with backing node %q", updatedMachine.Name, getProviderID(updatedMachine), getNodeName(updatedMachine))
-			if val, exists := updatedMachine.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && val == machineutils.PreserveMachineAnnotationValueWhenFailed && (updatedMachine.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdating) {
-				retry, err := c.preserveMachine(ctx, updatedMachine, machineutils.PreserveMachineAnnotationValueWhenFailed)
-				if err != nil {
-					return retry, err
-				}
-			}
 			err = errSuccessfulPhaseUpdate
 		}
 		return machineutils.ShortRetry, err
@@ -1635,15 +1630,8 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 	if skipDrain {
 		state = v1alpha1.MachineStateProcessing
 	} else {
-		if machineutils.IsPreserveExpiryTimeSet(machine) {
-			preserveStartTime := machine.Status.CurrentStatus.PreserveExpiryTime.Time.Add(-c.getEffectiveMachinePreserveTimeout(machine).Duration)
-			timeOutOccurred = utiltime.HasTimeOutOccurred(
-				metav1.Time{Time: preserveStartTime},
-				timeOutDuration,
-			)
-		} else {
-			timeOutOccurred = utiltime.HasTimeOutOccurred(*machine.DeletionTimestamp, timeOutDuration)
-		}
+		timeOutOccurred = utiltime.HasTimeOutOccurred(*machine.DeletionTimestamp, timeOutDuration)
+
 		if forceDeleteLabelPresent || timeOutOccurred {
 			// To perform forceful machine drain/delete either one of the below conditions must be satified
 			// 1. force-deletion: "True" label must be present
@@ -1724,12 +1712,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				if forceDeletePods {
 					description = fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments)
 				} else { // regular drain already waits for vol detach and attach for another node.
-					if machineutils.IsPreserveExpiryTimeSet(machine) {
-						description = fmt.Sprintf("Drain successful. Machine preserved.")
-					} else {
-						description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
-					}
-
+					description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
 				}
 				err = fmt.Errorf("%s", description)
 				state = v1alpha1.MachineStateProcessing
@@ -2377,45 +2360,22 @@ func (c *controller) fetchMatchingNodeName(machineName string) (string, error) {
 // preserveMachine contains logic to start the preservation of a machine and node. It syncs node annotations to the machine if the backing node exists,
 // or has an annotation related to preservation.
 // it does not sync preserve annotation values from machine to node to prevent bi-directional syncing issues.
-func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine, preserveValue string) (machineutils.RetryPeriod, error) {
-	if !machineutils.ShouldMachineBePreservedNow(machine, preserveValue) {
-		return machineutils.LongRetry, nil
-	}
-	clone := machine.DeepCopy()
-	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-		Phase:              clone.Status.CurrentStatus.Phase,
-		LastUpdateTime:     metav1.Now(),
-		PreserveExpiryTime: metav1.NewTime(metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)),
-	}
-	updatedMachine, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("machine status UPDATE failed for machine %q. Retrying, error: %s", machine.Name, err)
-		if apierrors.IsConflict(err) {
-			return machineutils.ConflictRetry, err
+func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+	klog.V(3).Infof("Entering preserve machine")
+	if !machineutils.IsPreserveExpiryTimeSet(machine) {
+		preservedCurrentStatus := v1alpha1.CurrentStatus{
+			Phase:              machine.Status.CurrentStatus.Phase,
+			LastUpdateTime:     metav1.Now(),
+			PreserveExpiryTime: metav1.NewTime(metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)),
 		}
-		return machineutils.ShortRetry, err
-	}
-	klog.V(2).Infof("Machine %q preserved till %v.", machine.Name, updatedMachine.Status.CurrentStatus.PreserveExpiryTime)
-	if updatedMachine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
-		// Validate MachineClass
-		machineClass, secretData, retry, err := c.ValidateMachineClass(ctx, &machine.Spec.Class)
+		retry, err := c.machineStatusUpdate(ctx, machine, machine.Status.LastOperation, preservedCurrentStatus, machine.Status.LastKnownState)
 		if err != nil {
-			klog.Errorf("cannot reconcile machine %s: %s", machine.Name, err)
+			klog.Errorf("machine PreserveExpiryTime UPDATE failed for machine %q. Retrying, error: %s", machine.Name, err)
 			return retry, err
 		}
+		klog.V(2).Infof("Machine %q preserved till %v.", machine.Name, preservedCurrentStatus.PreserveExpiryTime)
+	}
 
-		deleteMachineRequest := &driver.DeleteMachineRequest{
-			Machine:      updatedMachine,
-			MachineClass: machineClass,
-			Secret:       &v1.Secret{Data: secretData},
-		}
-		retry, err = c.drainNode(ctx, deleteMachineRequest)
-		if err != nil {
-			klog.Errorf("error draining node backing machine: %s, error:%s", updatedMachine.Name, err)
-			return retry, err
-		}
-	}
-	// TODO@thiyyakat: may need to change this check to machine.Spec.ProviderID
 	if machine.Labels[v1alpha1.NodeLabelKey] != "" {
 		nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 		node, err := c.nodeLister.Get(nodeName)
@@ -2423,57 +2383,73 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 			klog.Errorf("error trying to get node %q: %v", nodeName, err)
 			return machineutils.ShortRetry, err
 		}
-
-		preservedCondition := v1.NodeCondition{
+		nodeCopy := node.DeepCopy()
+		// not updating node's preserve annotations here in case operator is manipulating machine annotations only
+		// if node annotation is updated, machine annotation will be overwritten with this value even if operator wants it to change
+		// function never returns error, can be ignored
+		if nodeCopy.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] != autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue {
+			CAScaleDownAnnotation := make(map[string]string)
+			CAScaleDownAnnotation[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
+			updatedNode, _, _ := annotations.AddOrUpdateAnnotation(nodeCopy, CAScaleDownAnnotation)
+			updatedNode, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, updatedNode, metav1.UpdateOptions{})
+			if err != nil {
+				if apierrors.IsConflict(err) {
+					return machineutils.ConflictRetry, err
+				}
+				klog.Errorf("node UPDATE failed for machine %s with node %s. Retrying, error: %s", machine.Name, nodeName, err)
+				return machineutils.ShortRetry, err
+			}
+			klog.V(2).Infof("Updated CA annotations for node %s, for machine %q, successfully", nodeCopy.Name, machine.Name)
+		}
+		newNodePreservedCondition := v1.NodeCondition{
 			Type:               v1alpha1.NodePreserved,
 			Status:             v1.ConditionTrue,
 			LastTransitionTime: metav1.Now(),
 		}
-		updatedNode := nodeops.AddOrUpdateCondition(node, preservedCondition)
-		_, err = c.targetCoreClient.CoreV1().Nodes().UpdateStatus(ctx, updatedNode, metav1.UpdateOptions{})
-		if err != nil {
-			if apierrors.IsConflict(err) {
-				return machineutils.ConflictRetry, err
+		// drain node only if machine has failed
+		if machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
+			existingNodePreservedCondition, err := nodeops.GetNodeCondition(ctx, c.targetCoreClient, getNodeName(machine), v1alpha1.NodePreserved)
+			if err != nil {
+				klog.V(3).Infof("Error trying to get node preserved condition for machine %s: %v", machine.Name, err)
+				return machineutils.ShortRetry, err
 			}
-			klog.Errorf("Node Status UPDATE failed for machine %s with node %s. Retrying, error: %s", machine.Name, nodeName, err)
-			return machineutils.ShortRetry, err
-		}
-		klog.V(2).Infof("Updated Node Condition NodePreserved for node %s, for machine %q, successfully", node.Name, machine.Name)
-		// not updating node's preserve annotations here in case operator is manipulating machine annotations only
-		// if node annotation is updated, machine annotation will be overwritten with this value even if operator wants it to change
-		// function never returns error, can be ignored
-		CAScaleDownAnnotation := make(map[string]string)
-		CAScaleDownAnnotation[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
-		updatedNode, _, _ = annotations.AddOrUpdateAnnotation(node, CAScaleDownAnnotation)
-		updatedNode, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, updatedNode, metav1.UpdateOptions{})
-		if err != nil {
-			if apierrors.IsConflict(err) {
-				return machineutils.ConflictRetry, err
-			}
-			klog.Errorf("node UPDATE failed for machine %s with node %s. Retrying, error: %s", machine.Name, nodeName, err)
-			return machineutils.ShortRetry, err
-		}
-		klog.V(2).Infof("Updated CA annotations for node %s, for machine %q, successfully", node.Name, machine.Name)
+			if existingNodePreservedCondition == nil || existingNodePreservedCondition.Reason != v1alpha1.DrainSuccessful {
 
+				err = c.drainPreservedNode(ctx, machine)
+				if err != nil {
+					klog.V(3).Infof("TEST: drain failed with error:%s", err)
+					// drain not successful, retry
+					// if node condition of NodePreserved is not set, set it:
+					newNodePreservedCondition.Status = v1.ConditionUnknown
+					if existingNodePreservedCondition == nil {
+						if err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, getNodeName(machine), newNodePreservedCondition); err != nil {
+							klog.V(3).Infof("TEST: updating node with preserved condition failed: %s", err)
+							return machineutils.ShortRetry, err
+						}
+					}
+					return machineutils.ShortRetry, err
+				}
+				newNodePreservedCondition.Reason = v1alpha1.DrainSuccessful
+			} else {
+				klog.V(3).Infof("TEST: unnecessary entry into preserved machine %s", machine.Name)
+				return machineutils.LongRetry, nil
+			}
+		}
+		klog.V(2).Infof("TEST: drainPreservedNode Successful %s", machine.Name)
+		if err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, getNodeName(machine), newNodePreservedCondition); err != nil {
+			klog.V(3).Infof("TEST: updating node with preserved condition failed: %s", err)
+			return machineutils.ShortRetry, err
+		}
+		klog.V(2).Infof("TEST: update drain condition %s, Successful %s", newNodePreservedCondition.Reason, machine.Name)
 	}
 	return machineutils.LongRetry, nil
 }
+
 func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
-	clone := machine.DeepCopy()
-	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
-		Phase:              machine.Status.CurrentStatus.Phase,
-		LastUpdateTime:     metav1.Now(),
-		PreserveExpiryTime: metav1.Time{},
+	// check if preserveExpiryTime is set, if not, no need to do anything
+	if !machineutils.IsPreserveExpiryTimeSet(machine) {
+		return machineutils.LongRetry, nil
 	}
-	updatedMachine, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("Machine/status UPDATE failed for machine %q. Retrying, error: %s", clone.Name, err)
-		if apierrors.IsConflict(err) {
-			return machineutils.ConflictRetry, err
-		}
-		return machineutils.ShortRetry, err
-	}
-	klog.V(2).Infof("Machine %q status updated to stop preservation ", updatedMachine.Name)
 	// if backing node exists, remove annotations that would prevent scale down by autoscaler
 	if machine.Labels[v1alpha1.NodeLabelKey] != "" { // TODO@thiyyakat: may need to change this check to machine.Spec.ProviderID
 		nodeName := machine.Labels[v1alpha1.NodeLabelKey]
@@ -2510,5 +2486,111 @@ func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alp
 			return machineutils.ShortRetry, err
 		}
 	}
+	clone := machine.DeepCopy()
+	clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+		Phase:              machine.Status.CurrentStatus.Phase,
+		LastUpdateTime:     metav1.Now(),
+		PreserveExpiryTime: metav1.Time{},
+	}
+	updatedMachine, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("Machine/status UPDATE failed for machine %q. Retrying, error: %s", clone.Name, err)
+		if apierrors.IsConflict(err) {
+			return machineutils.ConflictRetry, err
+		}
+		return machineutils.ShortRetry, err
+	}
+	klog.V(2).Infof("Machine %q status updated to stop preservation ", updatedMachine.Name)
 	return machineutils.LongRetry, nil
+}
+
+// drainPreservedNode attempts to drain the node backing a preserved machine
+func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.Machine) error {
+	var (
+		// Declarations
+		err             error
+		timeOutOccurred bool
+		forceDeletePods bool
+		// Initialization
+		maxEvictRetries   = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
+		pvDetachTimeOut   = c.safetyOptions.PvDetachTimeout.Duration
+		pvReattachTimeOut = c.safetyOptions.PvReattachTimeout.Duration
+		timeOutDuration   = c.getEffectiveDrainTimeout(machine).Duration
+		nodeName          = machine.Labels[v1alpha1.NodeLabelKey]
+	)
+
+	// verify and log node object's existence
+	if _, err := c.nodeLister.Get(nodeName); err == nil {
+		klog.V(3).Infof("(drainNode) For node %q, machine %q", nodeName, machine.Name)
+	} else if apierrors.IsNotFound(err) {
+		klog.Warningf("(drainNode) Node %q for machine %q doesn't exist, so drain will finish instantly", nodeName, machine.Name)
+	}
+	// TODO@thiyyakat: how to calculate timeout? In the case of preserve=now, preserveexpirytime will not coincide with time of failure in which case pods will et force
+	// drained.
+	timeOutOccurred = utiltime.HasTimeOutOccurred(machine.Status.CurrentStatus.PreserveExpiryTime, timeOutDuration)
+	if timeOutOccurred {
+		forceDeletePods = true
+		timeOutDuration = 1 * time.Minute
+		maxEvictRetries = 1
+		klog.V(2).Infof(
+			"Force delete/drain has been triggerred for machine %q with providerID %q and backing node %q due to timeout:%t",
+			machine.Name,
+			getProviderID(machine),
+			getNodeName(machine),
+			timeOutOccurred,
+		)
+	} else {
+		klog.V(2).Infof(
+			"Drain has been triggerred for preserved machine %q with providerID %q and backing node %q with drain-timeout:%v & maxEvictRetries:%d",
+			machine.Name,
+			getProviderID(machine),
+			getNodeName(machine),
+			timeOutDuration,
+			maxEvictRetries,
+		)
+	}
+
+	buf := bytes.NewBuffer([]byte{})
+	errBuf := bytes.NewBuffer([]byte{})
+
+	drainOptions := drain.NewDrainOptions(
+		c.targetCoreClient,
+		c.targetKubernetesVersion,
+		timeOutDuration,
+		maxEvictRetries,
+		pvDetachTimeOut,
+		pvReattachTimeOut,
+		nodeName,
+		-1,
+		forceDeletePods,
+		true,
+		true,
+		true,
+		buf,
+		errBuf,
+		c.driver,
+		c.pvcLister,
+		c.pvLister,
+		c.pdbLister,
+		c.nodeLister,
+		c.podLister,
+		c.volumeAttachmentHandler,
+		c.podSynced,
+	)
+	klog.V(3).Infof("(drainNode) Invoking RunDrain, timeOutDuration: %s", timeOutDuration)
+	err = drainOptions.RunDrain(ctx)
+	if err != nil {
+		klog.Warningf("Drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
+		return err
+	}
+	if forceDeletePods {
+		klog.V(3).Infof("Force drain successful for machine %q , providerID %q ,backing node %q.", machine.Name, getProviderID(machine), getNodeName(machine))
+	} else {
+		klog.V(3).Infof("Drain successful for machine %q , providerID %q ,backing node %q.", machine.Name, getProviderID(machine), getNodeName(machine))
+	}
+	return nil
+}
+
+func hasMachinePreservationTimedOut(machine *v1alpha1.Machine) bool {
+	return machineutils.IsPreserveExpiryTimeSet(machine) && metav1.Now().After(machine.Status.CurrentStatus.PreserveExpiryTime.Time)
 }
