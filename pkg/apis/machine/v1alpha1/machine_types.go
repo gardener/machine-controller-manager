@@ -247,6 +247,8 @@ const (
 const (
 	// NodePreserved is a node condition type for preservation of machines to allow end-user to know that a node is preserved
 	NodePreserved corev1.NodeConditionType = "NodePreserved"
+
+	//
 )
 
 // CurrentStatus contains information about the current status of Machine.
