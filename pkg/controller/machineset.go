@@ -352,7 +352,6 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 			} else if val, exists := m.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && val == machineutils.PreserveMachineAnnotationValueWhenFailed { // this is the case where the machine controller has not had a chance to update the preserve expiry time on failure of machine causing a race condition
 				klog.V(2).Infof("Machine %s currently preserved, not adding to stale machines", m.Name)
 				activeMachines = append(activeMachines, m)
-
 			} else {
 				staleMachines = append(staleMachines, m)
 			}
