@@ -2,4 +2,4 @@ release-branch-template: rel-v$major.$minor # e.g. rel-v1.0
 branch-policy:
   significant-part: minor # major, minor, patch
   supported-versions-count: 2
-  release-cadence: 6w # d (days), w (weeks), y | yr (years)
+  release-cadence: null # d (days), w (weeks), y | yr (years)
