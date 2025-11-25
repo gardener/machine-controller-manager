@@ -612,7 +612,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				}
 				uninitializedMachine = true
 			} else {
-				// if node label present that means there must be a backing VM ,without need of GetMachineStatus() call
+				// if .spec.ProviderID is present that means there must be a backing VM, without need of GetMachineStatus() call
 				nodeName = machine.Labels[v1alpha1.NodeLabelKey]
 				providerID = machine.Spec.ProviderID
 			}
