@@ -183,14 +183,14 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 	}
 
 	err = c.reconcileClusterMachine(ctx, machine)
-	if err == nil {
-		c.enqueueMachineAfter(machine, time.Duration(machineutils.LongRetry), "periodic reconcile")
-	} else {
+	if err != nil {
 		if apierrors.IsConflict(err) {
 			c.enqueueMachineAfter(machine, time.Duration(machineutils.ConflictRetry), err.Error())
 		} else {
 			c.enqueueMachineAfterRateLimiting(machine, err.Error())
 		}
+	} else {
+		c.enqueueMachineAfter(machine, time.Duration(machineutils.LongRetry), "periodic reconcile")
 	}
 
 	return nil
@@ -230,28 +230,23 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 
 	if machine.Labels[v1alpha1.NodeLabelKey] != "" && machine.Status.CurrentStatus.Phase != "" {
 		// If reference to node object exists execute the below
-		err := c.reconcileMachineHealth(ctx, machine)
-		if err != nil {
+		if err := c.reconcileMachineHealth(ctx, machine); err != nil {
 			return err
 		}
 
-		err = c.syncMachineNameToNode(ctx, machine)
-		if err != nil {
+		if err := c.syncMachineNameToNode(ctx, machine); err != nil {
 			return err
 		}
 
-		err = c.syncNodeTemplates(ctx, machine, machineClass)
-		if err != nil {
+		if err := c.syncNodeTemplates(ctx, machine, machineClass); err != nil {
 			return err
 		}
 
-		err = c.updateNodeConditionBasedOnLabel(ctx, machine)
-		if err != nil {
+		if err := c.updateNodeConditionBasedOnLabel(ctx, machine); err != nil {
 			return err
 		}
 
-		err = c.inPlaceUpdate(ctx, machine)
-		if err != nil {
+		if err := c.inPlaceUpdate(ctx, machine); err != nil {
 			return err
 		}
 	}
@@ -310,17 +305,17 @@ func (c *controller) reconcileClusterMachineTermination(key string) error {
 	)
 
 	if err != nil {
-		c.enqueueMachineTerminationAfterRateLimiting(machine, err.Error())
+		if apierrors.IsConflict(err) {
+			c.enqueueMachineTerminationAfter(machine, time.Duration(machineutils.ConflictRetry), err.Error())
+		} else {
+			c.enqueueMachineTerminationAfterRateLimiting(machine, err.Error())
+		}
 	} else {
 		// If the informer loses connection to the API server it may need to resync.
 		// If a resource is deleted while the watch is down, the informer won’t get
 		// delete event because the object is already gone. To avoid this edge-case,
 		// a requeue is scheduled post machine deletion as well.
-		if apierrors.IsConflict(err) {
-			c.enqueueMachineTerminationAfter(machine, time.Duration(machineutils.ConflictRetry), err.Error())
-		} else {
-			c.enqueueMachineTerminationAfter(machine, time.Duration(machineutils.LongRetry), "post-deletion reconcile")
-		}
+		c.enqueueMachineTerminationAfter(machine, time.Duration(machineutils.LongRetry), "post-deletion reconcile")
 	}
 	return err
 }
