@@ -23,6 +23,9 @@ const (
 	// InitiateDrain specifies next step as initiate node drain
 	InitiateDrain = "Initiate node drain"
 
+	// SetDeletionTaint specifies next step as set deletion taint
+	SetDeletionTaint = "Set deletion taint"
+
 	// NodeReadyForUpdate specifies next step as node ready for update.
 	NodeReadyForUpdate = "Node drain successful. Node is ready for update"
 
@@ -73,6 +76,10 @@ const (
 	// TaintNodeCriticalComponentsNotReady is the name of a gardener taint
 	// indicating that a node is not yet ready to have user workload scheduled
 	TaintNodeCriticalComponentsNotReady = "node.gardener.cloud/critical-components-not-ready"
+
+	// TaintToBeDeleted is the taint of the cluster autoscaler which is used in cloud-provider and
+	// kube-proxy to check if a node is getting deleted soon.
+	TaintToBeDeleted = "ToBeDeletedByClusterAutoscaler"
 
 	// MachineLabelKey defines the labels which contains the name of the machine of a node
 	MachineLabelKey = "node.gardener.cloud/machine-name"
