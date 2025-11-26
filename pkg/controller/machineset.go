@@ -345,11 +345,11 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 			continue
 		}
 		if machineutils.IsMachineFailed(m) || machineutils.IsMachineTriggeredForDeletion(m) {
+			klog.V(2).Infof("TEST: machineutils.IsPreserveExpiryTimeSet(m): %v,machineutils.HasPreservationTimedOut(m):%v", machineutils.IsPreserveExpiryTimeSet(m), machineutils.HasPreservationTimedOut(m))
 			if machineutils.IsPreserveExpiryTimeSet(m) && !machineutils.HasPreservationTimedOut(m) {
 				klog.V(2).Infof("Machine %s currently preserved, not adding to stale machines", m.Name)
 				activeMachines = append(activeMachines, m)
-				continue
-			} else if val, exists := m.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && val == machineutils.PreserveMachineAnnotationValueWhenFailed { // this is the case where the machine controller has not had a chance to update the preserve expiry time on failure of machine causing a race condition
+			} else if val, exists := m.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && val == machineutils.PreserveMachineAnnotationValueWhenFailed { // this is in case preservation process is not complete yet
 				klog.V(2).Infof("Machine %s currently preserved, not adding to stale machines", m.Name)
 				activeMachines = append(activeMachines, m)
 			} else {

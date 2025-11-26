@@ -6,6 +6,7 @@
 package machineutils
 
 import (
+	"k8s.io/klog/v2"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -143,6 +144,7 @@ func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
 
 // IsPreserveExpiryTimeSet checks if machine is preserved by MCM
 func IsPreserveExpiryTimeSet(m *v1alpha1.Machine) bool {
+	klog.V(3).Infof("Preserve Expiry Time: %v, machine: %s", m.Status.CurrentStatus.PreserveExpiryTime, m.Name)
 	return !m.Status.CurrentStatus.PreserveExpiryTime.IsZero()
 }
 
