@@ -351,9 +351,6 @@ func (c *controller) updateNodeConditionBasedOnLabel(ctx context.Context, machin
 
 	if updateCondition {
 		if _, err := c.targetCoreClient.CoreV1().Nodes().UpdateStatus(ctx, nodeCopy, metav1.UpdateOptions{}); err != nil {
-			if apierrors.IsConflict(err) {
-				return err
-			}
 			return err
 		}
 	}

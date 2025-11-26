@@ -186,7 +186,11 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 	if err == nil {
 		c.enqueueMachineAfter(machine, time.Duration(machineutils.LongRetry), "periodic reconcile")
 	} else {
-		c.enqueueMachineAfterRateLimiting(machine, err.Error())
+		if apierrors.IsConflict(err) {
+			c.enqueueMachineAfter(machine, time.Duration(machineutils.ConflictRetry), err.Error())
+		} else {
+			c.enqueueMachineAfterRateLimiting(machine, err.Error())
+		}
 	}
 
 	return nil
@@ -312,7 +316,11 @@ func (c *controller) reconcileClusterMachineTermination(key string) error {
 		// If a resource is deleted while the watch is down, the informer won’t get
 		// delete event because the object is already gone. To avoid this edge-case,
 		// a requeue is scheduled post machine deletion as well.
-		c.enqueueMachineTerminationAfter(machine, time.Duration(machineutils.LongRetry), "post-deletion reconcile")
+		if apierrors.IsConflict(err) {
+			c.enqueueMachineTerminationAfter(machine, time.Duration(machineutils.ConflictRetry), err.Error())
+		} else {
+			c.enqueueMachineTerminationAfter(machine, time.Duration(machineutils.LongRetry), "post-deletion reconcile")
+		}
 	}
 	return err
 }
