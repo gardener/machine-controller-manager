@@ -9,8 +9,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"k8s.io/klog/v2"
 	"time"
+
+	"k8s.io/klog/v2"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/fakeclient"
@@ -72,7 +73,7 @@ var _ = Describe("machine_util", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
-				_, err := c.syncNodeTemplates(context.TODO(), machineObject, machineClass)
+				err := c.syncNodeTemplates(context.TODO(), machineObject, machineClass)
 
 				waitForCacheSync(stop, c)
 
@@ -2396,9 +2397,9 @@ var _ = Describe("machine_util", func() {
 
 			Expect(targetMachine).ToNot(BeNil())
 
-			retryPeriod, err := c.reconcileMachineHealth(context.TODO(), targetMachine)
+			err := c.reconcileMachineHealth(context.TODO(), targetMachine)
 
-			Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
+			// Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
 
 			if data.expect.err == nil {
 				Expect(err).To(BeNil())
@@ -2857,13 +2858,13 @@ var _ = Describe("machine_util", func() {
 				c.permitGiver.TryPermit(machineDeploy1, 1*time.Second)
 			}
 
-			retryPeriod, err := c.reconcileMachineHealth(context.TODO(), targetMachine)
+			err := c.reconcileMachineHealth(context.TODO(), targetMachine)
 
 			if data.setup.lockAlreadyAcquired {
 				c.permitGiver.DeletePermits(machineDeploy1)
 			}
 
-			Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
+			// Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
 
 			if data.expect.err == nil {
 				Expect(err).To(BeNil())
@@ -3165,9 +3166,9 @@ var _ = Describe("machine_util", func() {
 
 				waitForCacheSync(stop, c)
 
-				retryPeriod, err := c.updateNodeConditionBasedOnLabel(context.TODO(), targetMachine)
+				err := c.updateNodeConditionBasedOnLabel(context.TODO(), targetMachine)
 
-				Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
+				// Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
 				if data.expect.err == nil {
 					Expect(err).To(BeNil())
 				} else {
@@ -3577,9 +3578,9 @@ var _ = Describe("machine_util", func() {
 
 				waitForCacheSync(stop, c)
 
-				retryPeriod, err := c.inPlaceUpdate(context.TODO(), data.setup.machine)
+				err := c.inPlaceUpdate(context.TODO(), data.setup.machine)
 
-				Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
+				// Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
 				if data.expect.err == nil {
 					Expect(err).To(BeNil())
 				} else {
@@ -3786,9 +3787,9 @@ var _ = Describe("machine_util", func() {
 
 				waitForCacheSync(stop, c)
 
-				retryPeriod, err := c.drainNodeForInPlace(context.TODO(), data.setup.machine)
+				err := c.drainNodeForInPlace(context.TODO(), data.setup.machine)
 
-				Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
+				// Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
 				if data.expect.err == nil {
 					Expect(err).To(BeNil())
 				} else {

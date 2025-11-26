@@ -18,6 +18,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/options"
 	"github.com/gardener/machine-controller-manager/pkg/util/worker"
+	"golang.org/x/time/rate"
 
 	machineinternal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	machinev1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -84,31 +85,31 @@ func NewController(
 		targetCoreClient:     targetCoreClient,
 		recorder:             recorder,
 		secretQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
-			workqueue.DefaultTypedControllerRateLimiter[string](),
+			CustomTypedControllerRateLimiter[string](safetyOptions.MachineHealthTimeout.Duration),
 			workqueue.TypedRateLimitingQueueConfig[string]{Name: "secret"},
 		),
 		nodeQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
-			workqueue.DefaultTypedControllerRateLimiter[string](),
+			CustomTypedControllerRateLimiter[string](safetyOptions.MachineHealthTimeout.Duration),
 			workqueue.TypedRateLimitingQueueConfig[string]{Name: "node"},
 		),
 		machineClassQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
-			workqueue.DefaultTypedControllerRateLimiter[string](),
+			CustomTypedControllerRateLimiter[string](safetyOptions.MachineHealthTimeout.Duration),
 			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machineclass"},
 		),
 		machineQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
-			workqueue.DefaultTypedControllerRateLimiter[string](),
+			CustomTypedControllerRateLimiter[string](safetyOptions.MachineHealthTimeout.Duration),
 			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machine"},
 		),
 		machineTerminationQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
-			workqueue.DefaultTypedControllerRateLimiter[string](),
+			CustomTypedControllerRateLimiter[string](safetyOptions.MachineHealthTimeout.Duration),
 			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinetermination"},
 		),
 		machineSafetyOrphanVMsQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
-			workqueue.DefaultTypedControllerRateLimiter[string](),
+			CustomTypedControllerRateLimiter[string](safetyOptions.MachineHealthTimeout.Duration),
 			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinesafetyorphanvms"},
 		),
 		machineSafetyAPIServerQueue: workqueue.NewTypedRateLimitingQueueWithConfig(
-			workqueue.DefaultTypedControllerRateLimiter[string](),
+			CustomTypedControllerRateLimiter[string](safetyOptions.MachineHealthTimeout.Duration),
 			workqueue.TypedRateLimitingQueueConfig[string]{Name: "machinesafetyapiserver"},
 		),
 		safetyOptions:                 safetyOptions,
@@ -360,4 +361,15 @@ func (dc *controller) Run(workers int, stopCh <-chan struct{}) {
 	handlers.UpdateHealth(false)
 
 	waitGroup.Wait()
+}
+
+// CustomTypedControllerRateLimiter is a constructor for a custom rate limiter for a workqueue.  It has
+// both overall and per-item rate limiting.  The overall is a token bucket and the per-item is exponential.
+// It is more configurable than DefaultTypedControllerRateLimiter and takes in machineHealthTimeout to be used as limit for item rate-limiter
+func CustomTypedControllerRateLimiter[T comparable](maxDelay time.Duration) workqueue.TypedRateLimiter[T] {
+	return workqueue.NewTypedMaxOfRateLimiter(
+		workqueue.NewTypedItemExponentialFailureRateLimiter[T](5*time.Second, maxDelay),
+		// 10 qps, 100 bucket size.  This is only for retry speed and its only the overall factor (not per item)
+		&workqueue.TypedBucketRateLimiter[T]{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+	)
 }

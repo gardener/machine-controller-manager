@@ -27,23 +27,23 @@ import (
 func (c *controller) reconcileClusterMachineSafetyOrphanVMs(_ string) error {
 	ctx := context.Background()
 	reSyncAfter := c.safetyOptions.MachineSafetyOrphanVMsPeriod.Duration
-	defer c.machineSafetyOrphanVMsQueue.AddAfter("", reSyncAfter)
 
 	klog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: Start")
-	defer klog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: End, reSync-Period: %v", reSyncAfter)
 
-	retryPeriod, err := c.checkMachineClasses(ctx)
-	if err != nil {
+	if err := c.checkMachineClasses(ctx); err != nil {
 		klog.Errorf("reconcileClusterMachineSafetyOrphanVMs: Error occurred while checking for orphan VMs: %s", err)
-		c.machineSafetyOrphanVMsQueue.AddAfter("", time.Duration(retryPeriod))
+		c.machineSafetyOrphanVMsQueue.AddRateLimited("")
+		return nil
 	}
 
-	retryPeriod, err = c.AnnotateNodesUnmanagedByMCM(ctx)
-	if err != nil {
+	if err := c.AnnotateNodesUnmanagedByMCM(ctx); err != nil {
 		klog.Errorf("reconcileClusterMachineSafetyOrphanVMs: Error occurred while checking for nodes not handled by MCM: %s", err)
-		c.machineSafetyOrphanVMsQueue.AddAfter("", time.Duration(retryPeriod))
+		c.machineSafetyOrphanVMsQueue.AddRateLimited("")
+		return nil
 	}
 
+	klog.V(3).Infof("reconcileClusterMachineSafetyOrphanVMs: End, reSync-Period: %v", reSyncAfter)
+	c.machineSafetyOrphanVMsQueue.AddAfter("", reSyncAfter)
 	return nil
 }
 
@@ -151,17 +151,17 @@ func (c *controller) isAPIServerUp(ctx context.Context) bool {
 }
 
 // AnnotateNodesUnmanagedByMCM checks for nodes which are not handled by MCM and annotes them
-func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineutils.RetryPeriod, error) {
+func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) error {
 	if c.nodeLister == nil {
 		// if running without a target cluster, we don't need to check for unmanaged nodes
-		return machineutils.LongRetry, nil
+		return nil
 	}
 
 	// list all the nodes on target cluster
 	nodes, err := c.nodeLister.List(labels.Everything())
 	if err != nil {
 		klog.Errorf("Safety-Net: Error getting nodes")
-		return machineutils.LongRetry, err
+		return err
 	}
 	for _, node := range nodes {
 		machine, err := c.getMachineFromNode(node.Name)
@@ -190,7 +190,7 @@ func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineut
 				klog.V(3).Infof("Adding NotManagedByMCM annotation to Node %q", node.Name)
 				// err is returned only when node update fails
 				if err := c.updateNodeWithAnnotations(ctx, nodeCopy, annotations); err != nil {
-					return machineutils.MediumRetry, err
+					return err
 				}
 			}
 		} else {
@@ -202,40 +202,40 @@ func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineut
 			nodeCopy := node.DeepCopy()
 			delete(nodeCopy.Annotations, machineutils.NotManagedByMCM)
 			if err := c.updateNodeWithAnnotations(ctx, nodeCopy, nil); err != nil {
-				return machineutils.MediumRetry, err
+				return err
 			}
 		}
 	}
 
-	return machineutils.LongRetry, nil
+	return nil
 }
 
 // checkCommonMachineClass checks for orphan VMs in MachinesClasses
-func (c *controller) checkMachineClasses(ctx context.Context) (machineutils.RetryPeriod, error) {
+func (c *controller) checkMachineClasses(ctx context.Context) error {
 	machineClasses, err := c.machineClassLister.List(labels.Everything())
 	if err != nil {
 		klog.Error("Safety-Net: Error getting machineClasses")
-		return machineutils.LongRetry, err
+		return err
 	}
 
 	for _, machineClass := range machineClasses {
-		retry, err := c.checkMachineClass(ctx, machineClass)
+		err = c.checkMachineClass(ctx, machineClass)
 		if err != nil {
-			return retry, err
+			return err
 		}
 	}
 
-	return machineutils.LongRetry, nil
+	return nil
 }
 
 // checkMachineClass checks a particular machineClass for orphan instances
-func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alpha1.MachineClass) (machineutils.RetryPeriod, error) {
+func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alpha1.MachineClass) error {
 
 	// Get secret data
 	secretData, err := c.getSecretData(machineClass.Name, machineClass.SecretRef, machineClass.CredentialsSecretRef)
 	if err != nil {
 		klog.Errorf("SafetyController: Secret Data could not be computed for MachineClass: %q", machineClass.Name)
-		return machineutils.LongRetry, err
+		return err
 	}
 
 	listMachineResponse, err := c.driver.ListMachines(ctx, &driver.ListMachinesRequest{
@@ -244,7 +244,7 @@ func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alph
 	})
 	if err != nil {
 		klog.Errorf("SafetyController: Failed to LIST VMs at provider. Error: %s", err)
-		return machineutils.LongRetry, err
+		return err
 	}
 
 	// making sure cache is updated .This is for cases where a new machine object is at etcd, but cache is unaware
@@ -255,7 +255,7 @@ func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alph
 
 		if !cache.WaitForCacheSync(stopCh, c.machineSynced) {
 			klog.Errorf("SafetyController: Timed out waiting for caches to sync. Error: %s", err)
-			return machineutils.ShortRetry, err
+			return err
 		}
 	}
 
@@ -301,7 +301,7 @@ func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alph
 		}
 	}
 
-	return machineutils.LongRetry, nil
+	return nil
 }
 
 // updateMachineToSafety enqueues into machineSafetyQueue when a machine is updated to particular status

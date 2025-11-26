@@ -366,7 +366,7 @@ var _ = Describe("machine", func() {
 				defer trackers.Stop()
 
 				waitForCacheSync(stop, controller)
-				machineClass, secretData, _, err := controller.ValidateMachineClass(context.TODO(), data.action)
+				machineClass, secretData, err := controller.ValidateMachineClass(context.TODO(), data.action)
 
 				if data.expect.machineClass == nil {
 					Expect(machineClass).To(BeNil())
@@ -552,7 +552,7 @@ var _ = Describe("machine", func() {
 				secret, err := controller.controlCoreClient.CoreV1().Secrets(objMeta.Namespace).Get(context.TODO(), machineClass.SecretRef.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
-				retry, err := controller.triggerCreationFlow(
+				err = controller.triggerCreationFlow(
 					context.TODO(),
 					&driver.CreateMachineRequest{
 						Machine:      machine,
@@ -570,7 +570,7 @@ var _ = Describe("machine", func() {
 				Expect(err).To(BeNil())
 				Expect(actual.Spec.ProviderID).To(Equal(data.expect.machine.Spec.ProviderID))
 				Expect(actual.Finalizers).To(Equal(data.expect.machine.Finalizers))
-				Expect(retry).To(Equal(data.expect.retry))
+				// Expect(retry).To(Equal(data.expect.retry))
 				Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
 				Expect(actual.Status.Addresses).To(Equal(data.expect.machine.Status.Addresses))
 
@@ -1567,7 +1567,7 @@ var _ = Describe("machine", func() {
 				}
 
 				// Deletion of machine is triggered
-				retry, err := controller.triggerDeletionFlow(context.TODO(), &driver.DeleteMachineRequest{
+				err = controller.triggerDeletionFlow(context.TODO(), &driver.DeleteMachineRequest{
 					Machine:      machine,
 					MachineClass: machineClass,
 					Secret:       secret,
@@ -1575,7 +1575,7 @@ var _ = Describe("machine", func() {
 				if err != nil || data.expect.err != nil {
 					Expect(err).To(Equal(data.expect.err))
 				}
-				Expect(retry).To(Equal(data.expect.retry))
+				// Expect(retry).To(Equal(data.expect.retry))
 
 				machine, err = controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
@@ -3636,7 +3636,7 @@ var _ = Describe("machine", func() {
 			fakeDriver              *driver.FakeDriver
 			// These fields are used to change the test scenario (add to pending map, call creation/deletion flow)
 			isCreation bool
-			testFunc   func(setup, machineActionRequest) (machineutils.RetryPeriod, error)
+			testFunc   func(setup, machineActionRequest) error
 		}
 		type expect struct {
 			machine                       *v1alpha1.Machine
@@ -3757,7 +3757,7 @@ var _ = Describe("machine", func() {
 
 				// ******************************************************
 				// This is changing the setup in accordance with the test
-				retry, err := data.action.testFunc(data.setup, machineActionRequest{
+				err = data.action.testFunc(data.setup, machineActionRequest{
 					machine:      machine,
 					machineClass: machineClass,
 					secret:       secret,
@@ -3767,7 +3767,7 @@ var _ = Describe("machine", func() {
 				if err != nil || data.expect.err != nil {
 					Expect(err).To(Equal(data.expect.err))
 				}
-				Expect(retry).To(Equal(data.expect.retry))
+				// Expect(retry).To(Equal(data.expect.retry))
 
 				if data.action.isCreation {
 					_, found := data.setup.controller.pendingMachineCreationMap.Load(data.expect.machine.Name)
@@ -3828,7 +3828,7 @@ var _ = Describe("machine", func() {
 						Err:        nil,
 					},
 					isCreation: true,
-					testFunc: func(setUp setup, req machineActionRequest) (machineutils.RetryPeriod, error) {
+					testFunc: func(setUp setup, req machineActionRequest) error {
 						return setUp.controller.triggerCreationFlow(context.TODO(), &driver.CreateMachineRequest{
 							Machine:      req.machine,
 							MachineClass: req.machineClass,
@@ -3862,7 +3862,7 @@ var _ = Describe("machine", func() {
 						Err:        nil,
 					},
 					isCreation: false,
-					testFunc: func(setUp setup, req machineActionRequest) (machineutils.RetryPeriod, error) {
+					testFunc: func(setUp setup, req machineActionRequest) error {
 						setUp.controller.pendingMachineCreationMap.Store("test/machine-0", "")
 						return setUp.controller.triggerDeletionFlow(context.TODO(), &driver.DeleteMachineRequest{
 							Machine:      req.machine,
@@ -3920,7 +3920,7 @@ var _ = Describe("machine", func() {
 						Err:        nil,
 					},
 					isCreation: false,
-					testFunc: func(setUp setup, req machineActionRequest) (machineutils.RetryPeriod, error) {
+					testFunc: func(setUp setup, req machineActionRequest) error {
 						setUp.controller.pendingMachineCreationMap.Store("machine-xyz", "")
 						return setUp.controller.triggerDeletionFlow(context.TODO(), &driver.DeleteMachineRequest{
 							Machine:      req.machine,
