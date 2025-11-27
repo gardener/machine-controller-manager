@@ -797,7 +797,11 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	klog.V(3).Infof("TEST: preserve:%s", preserveValue)
 	switch preserveValue {
 	case machineutils.PreserveMachineAnnotationValueNow, machineutils.PreserveMachineAnnotationValueWhenFailed:
+		// if preserve annotation value has switched from now to when-failed, then stop preservation
 		if preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed && !machineutils.IsMachineFailed(updatedMachine) {
+			if machineutils.IsPreserveExpiryTimeSet(updatedMachine) {
+				return c.stopMachinePreservation(ctx, updatedMachine)
+			}
 			return machineutils.LongRetry, nil
 		}
 		isComplete, err := c.isMachinePreservationComplete(ctx, machine)
