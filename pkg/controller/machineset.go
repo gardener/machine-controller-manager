@@ -344,7 +344,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 			machinesWithUpdateSuccessfulLabel = append(machinesWithUpdateSuccessfulLabel, m)
 			continue
 		}
-		if machineutils.IsMachineFailed(m) || machineutils.IsMachineTriggeredForDeletion(m) {
+		if machineutils.IsMachineFailed(m) {
 			klog.V(2).Infof("TEST: machineutils.IsPreserveExpiryTimeSet(m): %v,machineutils.HasPreservationTimedOut(m):%v", machineutils.IsPreserveExpiryTimeSet(m), machineutils.HasPreservationTimedOut(m))
 			if machineutils.IsPreserveExpiryTimeSet(m) && !machineutils.HasPreservationTimedOut(m) {
 				klog.V(2).Infof("Machine %s currently preserved, not adding to stale machines", m.Name)
@@ -355,7 +355,8 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 			} else {
 				staleMachines = append(staleMachines, m)
 			}
-
+		} else if machineutils.IsMachineTriggeredForDeletion(m) {
+			staleMachines = append(staleMachines, m)
 		} else if machineutils.IsMachineActive(m) {
 			activeMachines = append(activeMachines, m)
 		}
