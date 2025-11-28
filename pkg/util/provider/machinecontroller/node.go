@@ -15,7 +15,6 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 
 	"k8s.io/client-go/tools/cache"
@@ -204,7 +203,7 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	return machines[0], nil
 }
 
-func (c *controller) addNodeFinalizers(ctx context.Context, node *v1.Node) (machineutils.RetryPeriod, error) {
+func (c *controller) addNodeFinalizers(ctx context.Context, node *corev1.Node) (machineutils.RetryPeriod, error) {
 	if finalizers := sets.NewString(node.Finalizers...); !finalizers.Has(NodeFinalizer) {
 		finalizers.Insert(NodeFinalizer)
 		if err := c.updateNodeFinalizers(ctx, node, finalizers.List()); err != nil {
@@ -217,7 +216,7 @@ func (c *controller) addNodeFinalizers(ctx context.Context, node *v1.Node) (mach
 	return machineutils.LongRetry, nil
 }
 
-func (c *controller) removeNodeFinalizers(ctx context.Context, node *v1.Node) (machineutils.RetryPeriod, error) {
+func (c *controller) removeNodeFinalizers(ctx context.Context, node *corev1.Node) (machineutils.RetryPeriod, error) {
 	if finalizers := sets.NewString(node.Finalizers...); finalizers.Has(NodeFinalizer) {
 		finalizers.Delete(NodeFinalizer)
 		if err := c.updateNodeFinalizers(ctx, node, finalizers.List()); err != nil {
@@ -230,7 +229,7 @@ func (c *controller) removeNodeFinalizers(ctx context.Context, node *v1.Node) (m
 }
 
 // updateNodeFinalizers updates the node finalizers using strategic merge patch
-func (c *controller) updateNodeFinalizers(ctx context.Context, node *v1.Node, finalizers []string) error {
+func (c *controller) updateNodeFinalizers(ctx context.Context, node *corev1.Node, finalizers []string) error {
 	oldData, err := json.Marshal(node)
 	if err != nil {
 		return fmt.Errorf("failed to marshal old node %#v for node %q: %v", node, node.Name, err)
@@ -244,7 +243,7 @@ func (c *controller) updateNodeFinalizers(ctx context.Context, node *v1.Node, fi
 	}
 
 	// Create the strategic merge patch
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, v1.Node{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, corev1.Node{})
 	if err != nil {
 		return fmt.Errorf("failed to create patch for node %q: %v", node.Name, err)
 	}
