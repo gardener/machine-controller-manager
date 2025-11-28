@@ -734,6 +734,70 @@ var _ = Describe("safety_logic", func() {
 					err:   nil,
 				},
 			}),
+			Entry("Annotate orphan node and remove its MCM finalizer", &data{
+				setup: setup{
+					node: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1": "value1",
+							},
+							Finalizers: []string{
+								NodeFinalizer,
+							},
+							CreationTimestamp: metav1.NewTime(metav1.Now().Add(-21 * time.Minute)),
+						},
+					},
+				},
+				action: action{},
+				expect: expect{
+					node0: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-0",
+							Annotations: map[string]string{
+								"anno1":                      "value1",
+								machineutils.NotManagedByMCM: "1",
+							},
+							// Finalizer should be removed to allow deletion
+							Finalizers: []string{},
+						},
+					},
+					node1: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-1",
+							Annotations: map[string]string{
+								"anno1": "value1",
+							},
+						},
+					},
+					node2: &corev1.Node{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Node",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-node-2",
+							Annotations: map[string]string{
+								"anno1": "value1",
+							},
+						},
+					},
+					retry: machineutils.LongRetry,
+					err:   nil,
+				},
+			}),
 			Entry("Node incorrectly assigned NotManagedByMCM annotation", &data{
 				setup: setup{
 					node: &corev1.Node{

@@ -7,6 +7,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -192,6 +193,12 @@ func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineut
 				if err := c.updateNodeWithAnnotations(ctx, nodeCopy, annotations); err != nil {
 					return machineutils.MediumRetry, err
 				}
+				// Remove MCM finalizer from orphan nodes to allow deletion
+				if _, err := c.removeNodeFinalizers(ctx, node); err != nil {
+					klog.V(3).Infof("Failed to remove finalizer from orphan node %q (may not have finalizer): %v", node.Name, err)
+				} else {
+					klog.V(3).Infof("Removed MCM finalizer from orphan node %q to allow deletion", node.Name)
+				}
 			}
 		} else {
 			_, hasAnnot := node.Annotations[machineutils.NotManagedByMCM]
@@ -204,6 +211,8 @@ func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineut
 			if err := c.updateNodeWithAnnotations(ctx, nodeCopy, nil); err != nil {
 				return machineutils.MediumRetry, err
 			}
+			// Queue node for reconciliation to add finalizer back
+			c.enqueueNodeAfter(node, time.Duration(machineutils.ShortRetry), fmt.Sprintf("Node %q is managed by MCM, reconciling", node.Name))
 		}
 	}
 
