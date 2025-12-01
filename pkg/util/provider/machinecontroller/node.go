@@ -49,6 +49,14 @@ func (c *controller) addNode(obj any) {
 		return
 	}
 
+	if node.DeletionTimestamp != nil {
+		delRetry, err := c.triggerMachineDeletion(context.Background(), node.Name)
+		if err != nil {
+			c.enqueueNodeAfter(node, time.Duration(delRetry), fmt.Sprintf("handling node UPDATE event. node %q marked for deletion", node.Name))
+		}
+		return
+	}
+
 	c.enqueueNode(node, "handling ADD event for node")
 }
 
@@ -73,16 +81,9 @@ func (c *controller) updateNode(oldObj, newObj any) {
 
 	// delete the machine if the node is deleted
 	if node.DeletionTimestamp != nil {
-		if machine.DeletionTimestamp == nil {
-			klog.Infof("Node %s for machine %s has been deleted. Triggering machine deletion flow.", node.Name, machine.Name)
-			if err := c.controlMachineClient.Machines(c.namespace).Delete(context.Background(), machine.Name, metav1.DeleteOptions{}); err != nil {
-				klog.Errorf("Machine object %s backing the deleted node %s could not be marked for deletion. Error: %s", machine.Name, node.Name, err)
-				return
-			}
-			klog.Infof("Machine object %s backing the deleted node %s marked for deletion.", machine.Name, node.Name)
-		} else {
-			// Enqueue for termination if already marked for deletion
-			c.enqueueMachineTermination(machine, fmt.Sprintf("backing node obj %q got deleted", node.Name))
+		delRetry, err := c.triggerMachineDeletion(context.Background(), node.Name)
+		if err != nil {
+			c.enqueueNodeAfter(node, time.Duration(delRetry), fmt.Sprintf("handling node UPDATE event. backing node %q marked for deletion", node.Name))
 		}
 		return
 	}
@@ -119,6 +120,11 @@ func (c *controller) deleteNode(obj any) {
 			klog.Errorf("Tombstone contained object that is not a Node %+v", obj)
 			return
 		}
+	}
+
+	// If NotManagedByMCM annotation is present on node, don't process this node object
+	if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
+		return
 	}
 
 	machine, err := c.getMachineFromNode(node.Name)
@@ -163,6 +169,28 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 	c.enqueueNodeAfter(node, time.Duration(retryPeriod), reEnqueReason)
 
 	return nil
+}
+
+// triggerMachineDeletion triggers deletion for the machine associated with the given node name.
+func (c *controller) triggerMachineDeletion(ctx context.Context, nodeName string) (machineutils.RetryPeriod, error) {
+	machine, err := c.getMachineFromNode(nodeName)
+	if err != nil {
+		klog.Infof("Couldn't fetch associated machine for node %s: %v", nodeName, err)
+		return machineutils.LongRetry, nil
+	}
+
+	if machine.DeletionTimestamp == nil {
+		klog.Infof("Node %s for machine %s has been deleted. Triggering machine deletion flow.", nodeName, machine.Name)
+		if err := c.controlMachineClient.Machines(c.namespace).Delete(ctx, machine.Name, metav1.DeleteOptions{}); err != nil {
+			klog.Errorf("Machine object %s backing the deleted node %s could not be marked for deletion. Error: %s", machine.Name, nodeName, err)
+			return machineutils.ShortRetry, err
+		}
+		klog.Infof("Machine object %s backing the deleted node %s marked for deletion.", machine.Name, nodeName)
+	} else {
+		// Enqueue for termination if already marked for deletion
+		c.enqueueMachineTermination(machine, fmt.Sprintf("backing node obj %q got deleted", nodeName))
+	}
+	return machineutils.LongRetry, nil
 }
 
 /*
