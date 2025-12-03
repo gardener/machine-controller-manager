@@ -88,7 +88,7 @@ func (c *controller) reconcileClusterMachineClassKey(key string) error {
 		c.enqueueMachineClassAfter(class, time.Duration(machineutils.ShortRetry))
 	} else {
 		// Re-enqueue periodically to avoid missing of events
-		// TODO: Get ride of this logic
+		// TODO: Get rid of this logic
 		c.enqueueMachineClassAfter(class, time.Duration(machineutils.LongRetry))
 	}
 
@@ -131,7 +131,11 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 		}
 
 		for _, m := range machines {
-			c.enqueueMachine(m, reason)
+			// Enqueue only the non-terminating machines to support changes to virtual capacity to nodes.
+			// Changes to virtual capacity need not be reflected on terminating machines as they are being deleted.
+			if m.DeletionTimestamp == nil {
+				c.enqueueMachine(m, reason)
+			}
 		}
 		return nil
 	}
@@ -139,11 +143,6 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 	if len(machines) > 0 {
 		// Machines are still referring the machine class, please wait before deletion
 		klog.V(3).Infof("Cannot remove finalizer on %s because still (%d) machines are referencing it", class.Name, len(machines))
-
-		for _, machine := range machines {
-			c.addMachine(machine)
-		}
-
 		return fmt.Errorf("Retry as machine objects are still referring the machineclass")
 	}
 
