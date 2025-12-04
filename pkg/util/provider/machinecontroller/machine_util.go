@@ -2358,7 +2358,7 @@ func (c *controller) fetchMatchingNodeName(machineName string) (string, error) {
 // preserveMachine contains logic to start the preservation of a machine and node. It syncs node annotations to the machine if the backing node exists,
 // or has an annotation related to preservation.
 // it does not sync preserve annotation values from machine to node to prevent bi-directional syncing issues.
-func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine, preserveValue string) (machineutils.RetryPeriod, error) {
 	klog.V(3).Infof("TEST: Entering preserve machine flow")
 	if !machineutils.IsPreserveExpiryTimeSet(machine) {
 		preservedCurrentStatus := v1alpha1.CurrentStatus{
@@ -2406,6 +2406,11 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 			Status:             v1.ConditionTrue,
 			LastTransitionTime: metav1.Now(),
 		}
+		if preserveValue != machineutils.PreserveMachineAnnotationValuePreservedByMCM {
+			newNodePreservedCondition.Reason = v1alpha1.NodePreservedByUser
+		} else {
+			newNodePreservedCondition.Reason = v1alpha1.NodePreservedByMCM
+		}
 		// drain node only if machine has failed
 		if machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
 			existingNodePreservedCondition, err := nodeops.GetNodeCondition(ctx, c.targetCoreClient, getNodeName(machine), v1alpha1.NodePreserved)
@@ -2413,7 +2418,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 				klog.V(3).Infof("Error trying to get node preserved condition for machine %s: %v", machine.Name, err)
 				return machineutils.ShortRetry, err
 			}
-			if existingNodePreservedCondition == nil || existingNodePreservedCondition.Reason != v1alpha1.DrainSuccessful {
+			if existingNodePreservedCondition == nil || existingNodePreservedCondition.Message != v1alpha1.PreservedNodeDrainSuccessful {
 				err = c.drainPreservedNode(ctx, machine)
 				if err != nil {
 					klog.V(3).Infof("TEST: drain failed with error:%s", err)
@@ -2428,7 +2433,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 					return machineutils.ShortRetry, err
 				}
 				klog.V(2).Infof("TEST: drainPreservedNode Successful %s", machine.Name)
-				newNodePreservedCondition.Reason = v1alpha1.DrainSuccessful
+				newNodePreservedCondition.Message = v1alpha1.PreservedNodeDrainSuccessful
 			} else {
 				klog.V(3).Infof("TEST: unnecessary entry into preserved machine %s", machine.Name)
 				return machineutils.LongRetry, nil
