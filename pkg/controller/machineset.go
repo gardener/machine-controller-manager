@@ -344,19 +344,26 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 			machinesWithUpdateSuccessfulLabel = append(machinesWithUpdateSuccessfulLabel, m)
 			continue
 		}
-		if machineutils.IsMachineFailed(m) {
+		if machineutils.IsMachineTriggeredForDeletion(m) {
+			staleMachines = append(staleMachines, m)
+		} else if machineutils.IsMachineFailed(m) {
 			klog.V(2).Infof("TEST: machineutils.IsPreserveExpiryTimeSet(m): %v,machineutils.HasPreservationTimedOut(m):%v", machineutils.IsPreserveExpiryTimeSet(m), machineutils.HasPreservationTimedOut(m))
 			if machineutils.IsPreserveExpiryTimeSet(m) && !machineutils.HasPreservationTimedOut(m) {
-				klog.V(2).Infof("Machine %s currently preserved, not adding to stale machines", m.Name)
+				klog.V(3).Infof("Machine %s is preserved until %v, not adding to stale machines", m.Name, m.Status.CurrentStatus.PreserveExpiryTime)
 				activeMachines = append(activeMachines, m)
 			} else if val, exists := m.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && val == machineutils.PreserveMachineAnnotationValueWhenFailed { // this is in case preservation process is not complete yet
-				klog.V(2).Infof("Machine %s currently preserved, not adding to stale machines", m.Name)
+				klog.V(3).Infof("Machine %s is preserved until %v, not adding to stale machines", m.Name, m.Status.CurrentStatus.PreserveExpiryTime)
 				activeMachines = append(activeMachines, m)
+			} else if machineSet.Status.AutoPreservedFailedMachineCount < machineSet.Spec.AutoPreserveFailedMachineMax {
+				klog.V(2).Infof("TEST:marking machine %s for autopreservation", m.Name)
+				updatedMachine, err := c.annotateMachineForAutoPreservation(ctx, m)
+				if err != nil {
+					return err
+				}
+				activeMachines = append(activeMachines, updatedMachine)
 			} else {
 				staleMachines = append(staleMachines, m)
 			}
-		} else if machineutils.IsMachineTriggeredForDeletion(m) {
-			staleMachines = append(staleMachines, m)
 		} else if machineutils.IsMachineActive(m) {
 			activeMachines = append(activeMachines, m)
 		}
@@ -933,4 +940,20 @@ func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.
 	}
 
 	return machine, retryErr
+}
+
+func (dc *controller) annotateMachineForAutoPreservation(ctx context.Context, m *v1alpha1.Machine) (*v1alpha1.Machine, error) {
+	updatedMachine, err := UpdateMachineWithRetries(ctx, dc.controlMachineClient.Machines(m.Namespace), dc.machineLister, m.Namespace, m.Name, func(clone *v1alpha1.Machine) error {
+		if clone.Annotations == nil {
+			clone.Annotations = make(map[string]string)
+		}
+		clone.Annotations[machineutils.PreserveMachineAnnotationKey] = machineutils.PreserveMachineAnnotationValuePreservedByMCM
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error in annotating machine %s for auto-preservation, error:%v", m.Name, err)
+	}
+	klog.V(2).Infof("Updated Machine %s/%s with auto-preserve annotation.", m.Namespace, m.Name)
+	return updatedMachine, nil
+
 }

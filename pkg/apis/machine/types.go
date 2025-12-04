@@ -357,6 +357,8 @@ type MachineSetSpec struct {
 	Template MachineTemplateSpec
 
 	MinReadySeconds int32
+
+	AutoPreserveFailedMachineMax int32
 }
 
 // MachineSetConditionType is the condition on machineset object
@@ -415,6 +417,9 @@ type MachineSetStatus struct {
 
 	// FailedMachines has summary of machines on which lastOperation Failed
 	FailedMachines *[]MachineSummary
+
+	// AutoPreservedFailedMachineCount has a count of the number of failed machines in the machineset that have been auto-preserved
+	AutoPreservedFailedMachineCount int32
 }
 
 // MachineSummary store the summary of machine.
@@ -493,6 +498,10 @@ type MachineDeploymentSpec struct {
 	// not be estimated during the time a MachineDeployment is paused. This is not set
 	// by default.
 	ProgressDeadlineSeconds *int32
+
+	// The maximum number of machines in the machine deployment that will be auto-preserved.
+	// In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker's machine deployments
+	AutoPreserveFailedMachineMax int32
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
