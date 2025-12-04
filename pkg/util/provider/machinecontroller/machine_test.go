@@ -3196,7 +3196,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("Machine deletion in process. Removal of finalizers from Node Object \"fakeID-0\" is successful. " + machineutils.InitiateNodeDeletion),
+					err:   fmt.Errorf("machine deletion in process. Removal of finalizers from Node Object \"fakeID-0\" is successful. " + machineutils.InitiateNodeDeletion),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
