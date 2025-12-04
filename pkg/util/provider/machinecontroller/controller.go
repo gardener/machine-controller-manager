@@ -47,7 +47,7 @@ const (
 	// MCMFinalizerName is the finalizer used to tag dependencies before deletion
 	// of the object. This finalizer is carried over from the MCM
 	MCMFinalizerName = "machine.sapcloud.io/machine-controller-manager"
-	// NodeFinalizer is the finalizer used to tag node dependencies before deletion
+	// NodeFinalizerName is the finalizer used to tag node dependencies before deletion
 	// Added to resolve https://github.com/gardener/machine-controller-manager/issues/1051
 	NodeFinalizerName = "node.machine.sapcloud.io/machine-controller"
 	// MCFinalizerName is the finalizer created for the external

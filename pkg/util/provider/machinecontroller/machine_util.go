@@ -1880,10 +1880,10 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 // deleteNodeFinalizers attempts to remove finalizers from the node object backed by the machine object
 func (c *controller) deleteNodeFinalizers(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
 	var (
-		err           error
-		description   string
-		retryRequired = machineutils.ShortRetry
-		state         v1alpha1.MachineState
+		err         error
+		description string
+		retryPeriod = machineutils.ShortRetry
+		state       v1alpha1.MachineState
 	)
 
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
@@ -1903,17 +1903,17 @@ func (c *controller) deleteNodeFinalizers(ctx context.Context, machine *v1alpha1
 				err = nodeErr
 			}
 		} else {
-			retryPeriod, removeErr := c.removeNodeFinalizers(ctx, node)
+			retryResponse, removeErr := c.removeNodeFinalizers(ctx, node)
 			if removeErr != nil {
 				description = fmt.Sprintf("Removal of finalizers from Node Object %q failed due to error: %s, Retrying node finalizer removal. %s", nodeName, removeErr, machineutils.RemoveNodeFinalizers)
 				klog.Errorf(description)
 				state = v1alpha1.MachineStateFailed
-				retryRequired = retryPeriod
+				retryPeriod = retryResponse
 				err = removeErr
 			} else {
 				description = fmt.Sprintf("Removal of finalizers from Node Object %q is successful. %s", nodeName, machineutils.InitiateNodeDeletion)
 				state = v1alpha1.MachineStateProcessing
-				err = fmt.Errorf("Machine deletion in process. %s", description)
+				err = fmt.Errorf("machine deletion in process. %s", description)
 			}
 		}
 	} else {
@@ -1940,7 +1940,7 @@ func (c *controller) deleteNodeFinalizers(ctx context.Context, machine *v1alpha1
 	if updateErr != nil {
 		return updateRetryPeriod, updateErr
 	}
-	return retryRequired, err
+	return retryPeriod, err
 }
 
 // deleteNodeObject attempts to delete the node object backed by the machine object

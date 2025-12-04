@@ -28,19 +28,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
-/*
-SECTION
-Machine controller - nodeToMachine
-*/
 var (
 	errMultipleMachineMatch = errors.New("multiple machines matching node")
 	errNoMachineMatch       = errors.New("no machines matching node found")
 )
 
 func (c *controller) addNode(obj any) {
-	node := obj.(*corev1.Node)
-	if node == nil {
-		klog.Errorf("Couldn't convert to node from object")
+	node, ok := obj.(*corev1.Node)
+	if !ok {
+		klog.Errorf("couldn't convert to node from object")
 		return
 	}
 

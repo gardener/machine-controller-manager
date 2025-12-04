@@ -21,6 +21,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 )
 
@@ -194,10 +195,12 @@ func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineut
 					return machineutils.MediumRetry, err
 				}
 				// Remove MCM finalizer from orphan nodes to allow deletion
-				if _, err := c.removeNodeFinalizers(ctx, node); err != nil {
-					klog.V(3).Infof("Failed to remove finalizer from orphan node %q (may not have finalizer): %v", node.Name, err)
-				} else {
-					klog.V(3).Infof("Removed MCM finalizer from orphan node %q to allow deletion", node.Name)
+				if sets.NewString(node.Finalizers...).Has(NodeFinalizerName) {
+					if _, err := c.removeNodeFinalizers(ctx, node); err != nil {
+						klog.Errorf("Failed to remove finalizer from orphan node %q: %v", node.Name, err)
+					} else {
+						klog.Infof("Removed MCM finalizer from orphan node %q to allow deletion", node.Name)
+					}
 				}
 			}
 		} else {
