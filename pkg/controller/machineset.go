@@ -923,3 +923,19 @@ func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.
 
 	return machine, retryErr
 }
+
+func (dc *controller) annotateMachineForAutoPreservation(ctx context.Context, m *v1alpha1.Machine) (*v1alpha1.Machine, error) {
+	updatedMachine, err := UpdateMachineWithRetries(ctx, dc.controlMachineClient.Machines(m.Namespace), dc.machineLister, m.Namespace, m.Name, func(clone *v1alpha1.Machine) error {
+		if clone.Annotations == nil {
+			clone.Annotations = make(map[string]string)
+		}
+		clone.Annotations[machineutils.PreserveMachineAnnotationKey] = machineutils.PreserveMachineAnnotationValuePreservedByMCM
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error in annotating machine %s for auto-preservation, error:%v", m.Name, err)
+	}
+	klog.V(2).Infof("Updated Machine %s/%s with auto-preserve annotation.", m.Namespace, m.Name)
+	return updatedMachine, nil
+
+}
