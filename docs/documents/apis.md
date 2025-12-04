@@ -513,6 +513,21 @@ not be estimated during the time a MachineDeployment is paused. This is not set
 by default, which is treated as infinite deadline.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>autoPreserveFailedMachineMax</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The maximum number of machines in the machine deployment that will be auto-preserved.
+In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker&rsquo;s machine deployments</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -668,6 +683,19 @@ MachineTemplateSpec
 <tr>
 <td>
 <code>minReadySeconds</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>autoPreserveFailedMachineMax</code>
 </td>
 <td>
 <em>
@@ -1429,6 +1457,21 @@ not be estimated during the time a MachineDeployment is paused. This is not set
 by default, which is treated as infinite deadline.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>autoPreserveFailedMachineMax</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The maximum number of machines in the machine deployment that will be auto-preserved.
+In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker&rsquo;s machine deployments</p>
+</td>
+</tr>
 </tbody>
 </table>
 <br>
@@ -1891,6 +1934,19 @@ int32
 <em>(Optional)</em>
 </td>
 </tr>
+<tr>
+<td>
+<code>autoPreserveFailedMachineMax</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </tbody>
 </table>
 <br>
@@ -2027,6 +2083,20 @@ LastOperation
 <td>
 <em>(Optional)</em>
 <p>FailedMachines has summary of machines on which lastOperation Failed</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>autoPreservedFailedMachineCount</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>AutoPreservedFailedMachineCount has a count of the number of failed machines in the machineset that have been auto-preserved</p>
 </td>
 </tr>
 </tbody>

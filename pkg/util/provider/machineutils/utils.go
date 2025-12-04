@@ -95,6 +95,10 @@ const (
 	// a Machine be preserved if and when in it enters Failed phase
 	PreserveMachineAnnotationValueWhenFailed = "when-failed"
 
+	// PreserveMachineAnnotationValuePreservedByMCM is the annotation value used to explicitly request that
+	// a Machine be preserved if and when in it enters Failed phase
+	PreserveMachineAnnotationValuePreservedByMCM = "auto-preserved"
+
 	//PreserveMachineAnnotationValueFalse is the annotation value used to explicitly request that
 	// a Machine should not be preserved any longer, even if the expiry timeout has not been reached
 	PreserveMachineAnnotationValueFalse = "false"

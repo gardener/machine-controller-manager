@@ -311,10 +311,11 @@ func (dc *controller) getNewMachineSet(ctx context.Context, d *v1alpha1.MachineD
 			Labels:          newISTemplate.Labels,
 		},
 		Spec: v1alpha1.MachineSetSpec{
-			Replicas:        0,
-			MinReadySeconds: d.Spec.MinReadySeconds,
-			Selector:        newISSelector,
-			Template:        newISTemplate,
+			Replicas:                     0,
+			MinReadySeconds:              d.Spec.MinReadySeconds,
+			Selector:                     newISSelector,
+			Template:                     newISTemplate,
+			AutoPreserveFailedMachineMax: d.Spec.AutoPreserveFailedMachineMax,
 		},
 	}
 	allISs := append(oldISs, &newIS)

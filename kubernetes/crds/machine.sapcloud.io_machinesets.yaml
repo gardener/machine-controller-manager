@@ -60,6 +60,9 @@ spec:
           spec:
             description: MachineSetSpec is the specification of a MachineSet.
             properties:
+              autoPreserveFailedMachineMax:
+                format: int32
+                type: integer
               machineClass:
                 description: ClassSpec is the class specification of machine
                 properties:
@@ -316,6 +319,11 @@ spec:
             description: MachineSetStatus holds the most recently observed status
               of MachineSet.
             properties:
+              autoPreservedFailedMachineCount:
+                description: AutoPreservedFailedMachineCount has a count of the number
+                  of failed machines in the machineset that have been auto-preserved
+                format: int32
+                type: integer
               availableReplicas:
                 description: The number of available replicas (ready for at least
                   minReadySeconds) for this replica set.

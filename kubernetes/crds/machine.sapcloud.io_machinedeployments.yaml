@@ -67,6 +67,12 @@ spec:
           spec:
             description: Specification of the desired behavior of the MachineDeployment.
             properties:
+              autoPreserveFailedMachineMax:
+                description: |-
+                  The maximum number of machines in the machine deployment that will be auto-preserved.
+                  In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker's machine deployments
+                format: int32
+                type: integer
               minReadySeconds:
                 description: |-
                   Minimum number of seconds for which a newly created machine should be ready

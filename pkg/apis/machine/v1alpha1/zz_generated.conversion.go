@@ -660,6 +660,7 @@ func autoConvert_v1alpha1_MachineDeploymentSpec_To_machine_MachineDeploymentSpec
 	out.Paused = in.Paused
 	out.RollbackTo = (*machine.RollbackConfig)(unsafe.Pointer(in.RollbackTo))
 	out.ProgressDeadlineSeconds = (*int32)(unsafe.Pointer(in.ProgressDeadlineSeconds))
+	out.AutoPreserveFailedMachineMax = in.AutoPreserveFailedMachineMax
 	return nil
 }
 
@@ -682,6 +683,7 @@ func autoConvert_machine_MachineDeploymentSpec_To_v1alpha1_MachineDeploymentSpec
 	out.Paused = in.Paused
 	out.RollbackTo = (*RollbackConfig)(unsafe.Pointer(in.RollbackTo))
 	out.ProgressDeadlineSeconds = (*int32)(unsafe.Pointer(in.ProgressDeadlineSeconds))
+	out.AutoPreserveFailedMachineMax = in.AutoPreserveFailedMachineMax
 	return nil
 }
 
@@ -864,6 +866,7 @@ func autoConvert_v1alpha1_MachineSetSpec_To_machine_MachineSetSpec(in *MachineSe
 		return err
 	}
 	out.MinReadySeconds = in.MinReadySeconds
+	out.AutoPreserveFailedMachineMax = in.AutoPreserveFailedMachineMax
 	return nil
 }
 
@@ -882,6 +885,7 @@ func autoConvert_machine_MachineSetSpec_To_v1alpha1_MachineSetSpec(in *machine.M
 		return err
 	}
 	out.MinReadySeconds = in.MinReadySeconds
+	out.AutoPreserveFailedMachineMax = in.AutoPreserveFailedMachineMax
 	return nil
 }
 
@@ -901,6 +905,7 @@ func autoConvert_v1alpha1_MachineSetStatus_To_machine_MachineSetStatus(in *Machi
 		return err
 	}
 	out.FailedMachines = (*[]machine.MachineSummary)(unsafe.Pointer(in.FailedMachines))
+	out.AutoPreservedFailedMachineCount = in.AutoPreservedFailedMachineCount
 	return nil
 }
 
@@ -920,6 +925,7 @@ func autoConvert_machine_MachineSetStatus_To_v1alpha1_MachineSetStatus(in *machi
 		return err
 	}
 	out.FailedMachines = (*[]MachineSummary)(unsafe.Pointer(in.FailedMachines))
+	out.AutoPreservedFailedMachineCount = in.AutoPreservedFailedMachineCount
 	return nil
 }
 

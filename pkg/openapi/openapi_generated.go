@@ -955,6 +955,13 @@ func schema_pkg_apis_machine_v1alpha1_MachineDeploymentSpec(ref common.Reference
 							Format:      "int32",
 						},
 					},
+					"autoPreserveFailedMachineMax": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The maximum number of machines in the machine deployment that will be auto-preserved. In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker's machine deployments",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 				Required: []string{"template"},
 			},
@@ -1329,6 +1336,12 @@ func schema_pkg_apis_machine_v1alpha1_MachineSetSpec(ref common.ReferenceCallbac
 							Format: "int32",
 						},
 					},
+					"autoPreserveFailedMachineMax": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
 				},
 			},
 		},
@@ -1412,6 +1425,13 @@ func schema_pkg_apis_machine_v1alpha1_MachineSetStatus(ref common.ReferenceCallb
 									},
 								},
 							},
+						},
+					},
+					"autoPreservedFailedMachineCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AutoPreservedFailedMachineCount has a count of the number of failed machines in the machineset that have been auto-preserved",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 				},
