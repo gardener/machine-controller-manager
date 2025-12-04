@@ -99,6 +99,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	fullyLabeledReplicasCount := 0
 	readyReplicasCount := 0
 	availableReplicasCount := 0
+	autoPreservedFailedMachineCount := 0
 
 	failedMachines := []v1alpha1.MachineSummary{}
 	var machineSummary v1alpha1.MachineSummary
@@ -124,6 +125,11 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 			}
 			failedMachines = append(failedMachines, machineSummary)
 		}
+		if cond := getMachineCondition(machine, v1alpha1.NodePreserved); cond != nil {
+			if cond.Reason == v1alpha1.NodePreservedByMCM {
+				autoPreservedFailedMachineCount++
+			}
+		}
 	}
 
 	// Update the FailedMachines field when we see new failures
@@ -146,6 +152,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 		SetCondition(&newStatus, cond)
 	} else if manageReplicasErr == nil && failureCond != nil {
 		RemoveCondition(&newStatus, v1alpha1.MachineSetReplicaFailure)
+	} else if manageReplicasErr != nil {
 	}
 
 	newStatus.Replicas = int32(len(filteredMachines))                 // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
@@ -153,6 +160,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	newStatus.ReadyReplicas = int32(readyReplicasCount)               // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	newStatus.AvailableReplicas = int32(availableReplicasCount)       // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	newStatus.LastOperation.LastUpdateTime = metav1.Now()
+	newStatus.AutoPreservedFailedMachineCount = int32(autoPreservedFailedMachineCount) // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	return newStatus
 }
 
