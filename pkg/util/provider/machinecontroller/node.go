@@ -112,7 +112,7 @@ func (c *controller) deleteNode(obj any) {
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
-			klog.Errorf("Couldn't get object from tombstone %+v", obj)
+			klog.Errorf("couldn't get object from tombstone %+v", obj)
 			return
 		}
 		node, ok = tombstone.Obj.(*corev1.Node)
@@ -129,7 +129,7 @@ func (c *controller) deleteNode(obj any) {
 
 	machine, err := c.getMachineFromNode(node.Name)
 	if err != nil {
-		klog.V(4).Infof("Couldn't fetch associated machine for deleted node %s: %v", node.Name, err)
+		klog.V(4).Infof("couldn't fetch associated machine for deleted node %s: %v", node.Name, err)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (c *controller) deleteNode(obj any) {
 	if machine.DeletionTimestamp == nil {
 		klog.Infof("Node %s deleted, triggering deletion of machine %s", node.Name, machine.Name)
 		if err := c.controlMachineClient.Machines(c.namespace).Delete(context.Background(), machine.Name, metav1.DeleteOptions{}); err != nil {
-			klog.Errorf("Failed to delete machine %s for deleted node %s: %v", machine.Name, node.Name, err)
+			klog.Errorf("failed to delete machine %s for deleted node %s: %v", machine.Name, node.Name, err)
 		}
 	}
 }
@@ -232,8 +232,8 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 }
 
 func (c *controller) addNodeFinalizers(ctx context.Context, node *corev1.Node) (machineutils.RetryPeriod, error) {
-	if finalizers := sets.NewString(node.Finalizers...); !finalizers.Has(NodeFinalizer) {
-		finalizers.Insert(NodeFinalizer)
+	if finalizers := sets.NewString(node.Finalizers...); !finalizers.Has(NodeFinalizerName) {
+		finalizers.Insert(NodeFinalizerName)
 		if err := c.updateNodeFinalizers(ctx, node, finalizers.List()); err != nil {
 			return machineutils.ShortRetry, err
 		}
@@ -245,8 +245,8 @@ func (c *controller) addNodeFinalizers(ctx context.Context, node *corev1.Node) (
 }
 
 func (c *controller) removeNodeFinalizers(ctx context.Context, node *corev1.Node) (machineutils.RetryPeriod, error) {
-	if finalizers := sets.NewString(node.Finalizers...); finalizers.Has(NodeFinalizer) {
-		finalizers.Delete(NodeFinalizer)
+	if finalizers := sets.NewString(node.Finalizers...); finalizers.Has(NodeFinalizerName) {
+		finalizers.Delete(NodeFinalizerName)
 		if err := c.updateNodeFinalizers(ctx, node, finalizers.List()); err != nil {
 			return machineutils.ShortRetry, err
 		}
@@ -277,7 +277,7 @@ func (c *controller) updateNodeFinalizers(ctx context.Context, node *corev1.Node
 	}
 	_, err = c.targetCoreClient.CoreV1().Nodes().Patch(ctx, node.Name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
-		klog.Errorf("Failed to patch finalizers for node %q: %s", node.Name, err)
+		klog.Errorf("failed to patch finalizers for node %q: %s", node.Name, err)
 		return err
 	}
 

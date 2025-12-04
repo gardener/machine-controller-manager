@@ -747,7 +747,7 @@ var _ = Describe("safety_logic", func() {
 								"anno1": "value1",
 							},
 							Finalizers: []string{
-								NodeFinalizer,
+								NodeFinalizerName,
 							},
 							CreationTimestamp: metav1.NewTime(metav1.Now().Add(-21 * time.Minute)),
 						},

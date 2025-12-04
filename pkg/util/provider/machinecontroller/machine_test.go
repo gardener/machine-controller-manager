@@ -3180,7 +3180,7 @@ var _ = Describe("machine", func() {
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "fakeID-0",
 								Finalizers: []string{
-									NodeFinalizer,
+									NodeFinalizerName,
 								},
 							},
 						},

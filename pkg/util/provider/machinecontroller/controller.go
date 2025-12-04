@@ -49,7 +49,7 @@ const (
 	MCMFinalizerName = "machine.sapcloud.io/machine-controller-manager"
 	// NodeFinalizer is the finalizer used to tag node dependencies before deletion
 	// Added to resolve https://github.com/gardener/machine-controller-manager/issues/1051
-	NodeFinalizer = "node.machine.sapcloud.io/machine-controller"
+	NodeFinalizerName = "node.machine.sapcloud.io/machine-controller"
 	// MCFinalizerName is the finalizer created for the external
 	// machine controller to differentiate it from the MCMFinalizerName
 	// This finalizer is added only on secret-objects to avoid race between in-tree and out-of-tree controllers.
