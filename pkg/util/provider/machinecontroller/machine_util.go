@@ -1889,31 +1889,29 @@ func (c *controller) deleteNodeFinalizers(ctx context.Context, machine *v1alpha1
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 
 	if nodeName != "" {
-		node, nodeErr := c.nodeLister.Get(nodeName)
-		if nodeErr != nil {
+		var node *v1.Node
+		node, err = c.nodeLister.Get(nodeName)
+		if err != nil {
 			switch {
-			case apierrors.IsNotFound(nodeErr):
+			case apierrors.IsNotFound(err):
 				description = fmt.Sprintf("No node object found for %q, skipping node finalizer removal. %s", nodeName, machineutils.InitiateNodeDeletion)
 				klog.Warning(description)
 				state = v1alpha1.MachineStateProcessing
 			default:
-				description = fmt.Sprintf("Retrieval of Node Object %q failed due to error: %s, Retrying node finalizer removal. %s", nodeName, nodeErr, machineutils.RemoveNodeFinalizers)
+				description = fmt.Sprintf("Retrieval of Node Object %q failed due to error: %s, Retrying node finalizer removal. %s", nodeName, err, machineutils.RemoveNodeFinalizers)
 				klog.Errorf(description)
 				state = v1alpha1.MachineStateFailed
-				err = nodeErr
 			}
 		} else {
-			retryResponse, removeErr := c.removeNodeFinalizers(ctx, node)
-			if removeErr != nil {
-				description = fmt.Sprintf("Removal of finalizers from Node Object %q failed due to error: %s, Retrying node finalizer removal. %s", nodeName, removeErr, machineutils.RemoveNodeFinalizers)
+			retryPeriod, err = c.removeNodeFinalizers(ctx, node)
+			if err != nil {
+				description = fmt.Sprintf("Removal of finalizers from Node Object %q failed due to error: %s, Retrying node finalizer removal. %s", nodeName, err, machineutils.RemoveNodeFinalizers)
 				klog.Errorf(description)
 				state = v1alpha1.MachineStateFailed
-				retryPeriod = retryResponse
-				err = removeErr
 			} else {
 				description = fmt.Sprintf("Removal of finalizers from Node Object %q is successful. %s", nodeName, machineutils.InitiateNodeDeletion)
 				state = v1alpha1.MachineStateProcessing
-				err = fmt.Errorf("machine deletion in process. %s", description)
+				err = fmt.Errorf("node deletion in process. %s", description)
 			}
 		}
 	} else {
