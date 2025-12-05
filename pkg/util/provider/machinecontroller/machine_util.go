@@ -1911,7 +1911,7 @@ func (c *controller) deleteNodeFinalizers(ctx context.Context, machine *v1alpha1
 			} else {
 				description = fmt.Sprintf("Removal of finalizers from Node Object %q is successful. %s", nodeName, machineutils.InitiateNodeDeletion)
 				state = v1alpha1.MachineStateProcessing
-				err = fmt.Errorf("node deletion in process. %s", description)
+				err = fmt.Errorf("machine deletion in process. %s", description)
 			}
 		}
 	} else {
