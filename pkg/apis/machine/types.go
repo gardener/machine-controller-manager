@@ -418,8 +418,8 @@ type MachineSetStatus struct {
 	// FailedMachines has summary of machines on which lastOperation Failed
 	FailedMachines *[]MachineSummary
 
-	// AutoPreservedFailedMachineCount has a count of the number of failed machines in the machineset that have been auto-preserved
-	AutoPreservedFailedMachineCount int32
+	// AutoPreserveFailedMachineCount has a count of the number of failed machines in the machineset that have been auto-preserved
+	AutoPreserveFailedMachineCount int32
 }
 
 // MachineSummary store the summary of machine.
