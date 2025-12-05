@@ -1427,9 +1427,9 @@ func schema_pkg_apis_machine_v1alpha1_MachineSetStatus(ref common.ReferenceCallb
 							},
 						},
 					},
-					"autoPreservedFailedMachineCount": {
+					"autoPreserveFailedMachineCount": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AutoPreservedFailedMachineCount has a count of the number of failed machines in the machineset that have been auto-preserved",
+							Description: "AutoPreserveFailedMachineCount has a count of the number of failed machines in the machineset that have been auto-preserved",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

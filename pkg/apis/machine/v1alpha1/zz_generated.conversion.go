@@ -905,7 +905,7 @@ func autoConvert_v1alpha1_MachineSetStatus_To_machine_MachineSetStatus(in *Machi
 		return err
 	}
 	out.FailedMachines = (*[]machine.MachineSummary)(unsafe.Pointer(in.FailedMachines))
-	out.AutoPreservedFailedMachineCount = in.AutoPreservedFailedMachineCount
+	out.AutoPreserveFailedMachineCount = in.AutoPreserveFailedMachineCount
 	return nil
 }
 
@@ -925,7 +925,7 @@ func autoConvert_machine_MachineSetStatus_To_v1alpha1_MachineSetStatus(in *machi
 		return err
 	}
 	out.FailedMachines = (*[]MachineSummary)(unsafe.Pointer(in.FailedMachines))
-	out.AutoPreservedFailedMachineCount = in.AutoPreservedFailedMachineCount
+	out.AutoPreserveFailedMachineCount = in.AutoPreserveFailedMachineCount
 	return nil
 }
 

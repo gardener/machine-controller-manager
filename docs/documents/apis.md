@@ -2087,7 +2087,7 @@ LastOperation
 </tr>
 <tr>
 <td>
-<code>autoPreservedFailedMachineCount</code>
+<code>autoPreserveFailedMachineCount</code>
 </td>
 <td>
 <em>
@@ -2096,7 +2096,7 @@ int32
 </td>
 <td>
 <em>(Optional)</em>
-<p>AutoPreservedFailedMachineCount has a count of the number of failed machines in the machineset that have been auto-preserved</p>
+<p>AutoPreserveFailedMachineCount has a count of the number of failed machines in the machineset that have been auto-preserved</p>
 </td>
 </tr>
 </tbody>
