@@ -2176,7 +2176,11 @@ func (c *controller) canMarkMachineFailed(machineDeployName, machineName, namesp
 
 	for _, machine := range machineList {
 		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineUnknown && machine.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
-			inProgress++
+			// since Preserved Failed machines are not replaced immediately,
+			// they need not be considered towards inProgress
+			if !machineutils.IsPreserveExpiryTimeSet(machine) {
+				inProgress++
+			}
 			switch machine.Status.CurrentStatus.Phase {
 			case v1alpha1.MachineTerminating:
 				terminating++
@@ -2391,7 +2395,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 			CAScaleDownAnnotation := make(map[string]string)
 			CAScaleDownAnnotation[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
 			updatedNode, _, _ := annotations.AddOrUpdateAnnotation(nodeCopy, CAScaleDownAnnotation)
-			updatedNode, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, updatedNode, metav1.UpdateOptions{})
+			_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, updatedNode, metav1.UpdateOptions{})
 			if err != nil {
 				if apierrors.IsConflict(err) {
 					return machineutils.ConflictRetry, err
@@ -2418,7 +2422,10 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 				klog.V(3).Infof("Error trying to get node preserved condition for machine %s: %v", machine.Name, err)
 				return machineutils.ShortRetry, err
 			}
-			if existingNodePreservedCondition == nil || existingNodePreservedCondition.Message != v1alpha1.PreservedNodeDrainSuccessful {
+			if existingNodePreservedCondition != nil && existingNodePreservedCondition.Message != v1alpha1.PreservedNodeDrainSuccessful {
+				klog.V(2).Infof("TEST: drainPreservedNode Successful %s", machine.Name)
+				newNodePreservedCondition.Message = v1alpha1.PreservedNodeDrainSuccessful
+			} else {
 				err = c.drainPreservedNode(ctx, machine)
 				if err != nil {
 					klog.V(3).Infof("TEST: drain failed with error:%s", err)
@@ -2432,11 +2439,6 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 					}
 					return machineutils.ShortRetry, err
 				}
-				klog.V(2).Infof("TEST: drainPreservedNode Successful %s", machine.Name)
-				newNodePreservedCondition.Message = v1alpha1.PreservedNodeDrainSuccessful
-			} else {
-				klog.V(3).Infof("TEST: unnecessary entry into preserved machine %s", machine.Name)
-				return machineutils.LongRetry, nil
 			}
 		}
 		if err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, getNodeName(machine), newNodePreservedCondition); err != nil {

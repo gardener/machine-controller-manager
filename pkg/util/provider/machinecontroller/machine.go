@@ -274,6 +274,11 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		}
 	}
 
+	retry, err = c.manageMachinePreservation(ctx, machine)
+	if err != nil {
+		return retry, err
+	}
+
 	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
 		return c.triggerCreationFlow(
 			ctx,
@@ -796,7 +801,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	}
 	klog.V(3).Infof("TEST: preserve:%s", preserveValue)
 	switch preserveValue {
-	case machineutils.PreserveMachineAnnotationValueNow, machineutils.PreserveMachineAnnotationValueWhenFailed:
+	case machineutils.PreserveMachineAnnotationValueNow, machineutils.PreserveMachineAnnotationValueWhenFailed, machineutils.PreserveMachineAnnotationValuePreservedByMCM:
 		// if preserve annotation value has switched from now to when-failed, then stop preservation
 		if preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed && !machineutils.IsMachineFailed(updatedMachine) {
 			if machineutils.IsPreserveExpiryTimeSet(updatedMachine) {
@@ -804,12 +809,12 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			}
 			return machineutils.LongRetry, nil
 		}
-		isComplete, err := c.isMachinePreservationComplete(ctx, machine)
+		isComplete, err := c.isMachinePreservationComplete(machine)
 		if err != nil {
 			return machineutils.ShortRetry, err
 		}
 		if !isComplete {
-			return c.preserveMachine(ctx, machine)
+			return c.preserveMachine(ctx, machine, preserveValue)
 		}
 		if hasMachinePreservationTimedOut(machine) {
 			return c.stopMachinePreservation(ctx, updatedMachine)
@@ -865,7 +870,7 @@ func (c *controller) syncEffectivePreserveAnnotationValue(ctx context.Context, m
 	return machine, mAnnotationValue, mExists, nil
 }
 
-func (c *controller) isMachinePreservationComplete(ctx context.Context, machine *v1alpha1.Machine) (bool, error) {
+func (c *controller) isMachinePreservationComplete(machine *v1alpha1.Machine) (bool, error) {
 	// if PreserveExpiryTime is set and machine has not failed, then yes,
 	// if PreserveExpiryTime is set and machine has failed, the node condition must be there saying drain successful
 	// if PreserveExpiryTime is not set, then no
@@ -878,7 +883,7 @@ func (c *controller) isMachinePreservationComplete(ctx context.Context, machine 
 			return false, err
 		}
 		if cond := nodeops.GetCondition(node, v1alpha1.NodePreserved); cond != nil {
-			if cond.Reason == v1alpha1.DrainSuccessful {
+			if cond.Message == v1alpha1.PreservedNodeDrainSuccessful {
 				return true, nil
 			}
 		}
