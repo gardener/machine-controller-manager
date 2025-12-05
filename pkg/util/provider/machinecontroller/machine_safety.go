@@ -7,6 +7,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 )
 
@@ -192,6 +194,14 @@ func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineut
 				if err := c.updateNodeWithAnnotations(ctx, nodeCopy, annotations); err != nil {
 					return machineutils.MediumRetry, err
 				}
+				// Remove MCM finalizer from orphan nodes to allow deletion
+				if sets.NewString(node.Finalizers...).Has(NodeFinalizerName) {
+					if _, err := c.removeNodeFinalizers(ctx, node); err != nil {
+						klog.Errorf("Failed to remove finalizer from orphan node %q: %v", node.Name, err)
+					} else {
+						klog.Infof("Removed MCM finalizer from orphan node %q to allow deletion", node.Name)
+					}
+				}
 			}
 		} else {
 			_, hasAnnot := node.Annotations[machineutils.NotManagedByMCM]
@@ -204,6 +214,8 @@ func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineut
 			if err := c.updateNodeWithAnnotations(ctx, nodeCopy, nil); err != nil {
 				return machineutils.MediumRetry, err
 			}
+			// Queue node for reconciliation to add finalizer back
+			c.enqueueNodeAfter(node, time.Duration(machineutils.ShortRetry), fmt.Sprintf("Node %q is managed by MCM, reconciling", node.Name))
 		}
 	}
 

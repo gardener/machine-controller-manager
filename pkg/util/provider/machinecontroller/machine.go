@@ -7,7 +7,6 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -17,8 +16,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
@@ -304,135 +301,9 @@ func (c *controller) reconcileClusterMachineTermination(key string) error {
 }
 
 /*
-SECTION
-Machine controller - nodeToMachine
-*/
-var (
-	errMultipleMachineMatch = errors.New("multiple machines matching node")
-	errNoMachineMatch       = errors.New("no machines matching node found")
-)
-
-func (c *controller) addNodeToMachine(obj any) {
-	node := obj.(*corev1.Node)
-	if node == nil {
-		klog.Errorf("Couldn't convert to node from object")
-		return
-	}
-
-	// If NotManagedByMCM annotation is present on node, don't process this node object
-	if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
-		return
-	}
-
-	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-	if err != nil {
-		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
-		return
-	}
-
-	machine, err := c.getMachineFromNode(key)
-	if err != nil {
-		if err == errNoMachineMatch {
-			// errNoMachineMatch could mean that VM is still in creation hence ignoring it
-			return
-		}
-
-		klog.Errorf("Couldn't fetch machine %s, Error: %s", key, err)
-		return
-	}
-
-	isMachineCrashLooping := machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff
-	isMachineTerminating := machine.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating
-	_, _, nodeConditionsHaveChanged := nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions)
-
-	if !isMachineCrashLooping && !isMachineTerminating && nodeConditionsHaveChanged {
-		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. conditions of backing node %q have changed", getNodeName(machine)))
-	}
-}
-
-func (c *controller) updateNodeToMachine(oldObj, newObj any) {
-	oldNode := oldObj.(*corev1.Node)
-	node := newObj.(*corev1.Node)
-	if node == nil {
-		klog.Errorf("Couldn't convert to node from object")
-		return
-	}
-
-	machine, err := c.getMachineFromNode(node.Name)
-	if err != nil {
-		klog.Errorf("Unable to handle update event for node %s, couldn't fetch associated machine. Error: %s", node.Name, err)
-		return
-	}
-
-	// check for the TriggerDeletionByMCM annotation on the node object
-	// if it is present then mark the machine object for deletion
-	if value, ok := node.Annotations[machineutils.TriggerDeletionByMCM]; ok && value == "true" {
-		if machine.DeletionTimestamp == nil {
-			klog.Infof("Node %s for machine %s is annotated to trigger deletion by MCM.", node.Name, machine.Name)
-			if err := c.controlMachineClient.Machines(c.namespace).Delete(context.Background(), machine.Name, metav1.DeleteOptions{}); err != nil {
-				klog.Errorf("Machine object %s backing the node %s could not be marked for deletion.", machine.Name, node.Name)
-				return
-			}
-			klog.Infof("Machine object %s backing the node %s marked for deletion.", machine.Name, node.Name)
-		}
-	}
-
-	// to reconcile on addition/removal of essential taints in machine lifecycle, example - critical component taint
-	if addedOrRemovedEssentialTaints(oldNode, node, machineutils.EssentialTaints) {
-		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. atleast one of essential taints on backing node %q has changed", getNodeName(machine)))
-		return
-	}
-
-	if inPlaceUpdateLabelsChanged(oldNode, node) {
-		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. in-place update label added or updated for node %q", getNodeName(machine)))
-		return
-	}
-
-	c.addNodeToMachine(newObj)
-}
-
-func (c *controller) deleteNodeToMachine(obj any) {
-	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-	if err != nil {
-		klog.Errorf("Couldn't get key for object %+v: %v", obj, err)
-		return
-	}
-
-	machine, err := c.getMachineFromNode(key)
-	if err != nil {
-		klog.Errorf("Couldn't fetch machine %s, Error: %s", key, err)
-		return
-	}
-
-	// donot respond if machine obj is already in termination flow
-	if machine.DeletionTimestamp == nil {
-		c.enqueueMachine(machine, fmt.Sprintf("backing node obj %q got deleted", key))
-	}
-}
-
-/*
 	SECTION
 	NodeToMachine operations
 */
-
-func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, error) {
-	var (
-		list     = []string{nodeName}
-		selector = labels.NewSelector()
-		req, _   = labels.NewRequirement("node", selection.Equals, list)
-	)
-
-	selector = selector.Add(*req)
-	machines, _ := c.machineLister.List(selector)
-
-	if len(machines) > 1 {
-		return nil, errMultipleMachineMatch
-	} else if len(machines) < 1 {
-		return nil, errNoMachineMatch
-	}
-
-	return machines[0], nil
-}
 
 func inPlaceUpdateLabelsChanged(oldNode, node *corev1.Node) bool {
 	if oldNode == nil || node == nil {
@@ -820,6 +691,9 @@ func (c *controller) triggerDeletionFlow(ctx context.Context, deleteMachineReque
 
 	case strings.Contains(machine.Status.LastOperation.Description, machineutils.InitiateVMDeletion):
 		return c.deleteVM(ctx, deleteMachineRequest)
+
+	case strings.Contains(machine.Status.LastOperation.Description, machineutils.RemoveNodeFinalizers):
+		return c.deleteNodeFinalizers(ctx, machine)
 
 	case strings.Contains(machine.Status.LastOperation.Description, machineutils.InitiateNodeDeletion):
 		return c.deleteNodeObject(ctx, machine)
