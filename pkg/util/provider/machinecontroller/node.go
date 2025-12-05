@@ -44,15 +44,6 @@ func (c *controller) addNode(obj any) {
 	if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
 		return
 	}
-
-	if node.DeletionTimestamp != nil {
-		delRetry, err := c.triggerMachineDeletion(context.Background(), node.Name)
-		if err != nil {
-			c.enqueueNodeAfter(node, time.Duration(delRetry), fmt.Sprintf("handling node UPDATE event. node %q marked for deletion", node.Name))
-		}
-		return
-	}
-
 	c.enqueueNode(node, "handling ADD event for node")
 }
 
@@ -60,7 +51,7 @@ func (c *controller) updateNode(oldObj, newObj any) {
 	oldNode := oldObj.(*corev1.Node)
 	node := newObj.(*corev1.Node)
 	if oldNode == nil || node == nil {
-		klog.Errorf("Couldn't convert to node from object")
+		klog.Errorf("couldn't convert to node from object")
 		return
 	}
 
@@ -69,24 +60,29 @@ func (c *controller) updateNode(oldObj, newObj any) {
 		return
 	}
 
-	machine, err := c.getMachineFromNode(node.Name)
-	if err != nil {
-		klog.Errorf("Unable to handle update event for node %s, couldn't fetch associated machine. Error: %s", node.Name, err)
+	// delete the machine if the node is deleted
+	if node.DeletionTimestamp != nil {
+		err := c.triggerMachineDeletion(context.Background(), node.Name)
+		if err != nil {
+			c.enqueueNodeAfter(node, time.Duration(machineutils.ShortRetry), fmt.Sprintf("handling node UPDATE event. Node %q marked for deletion", node.Name))
+		}
+		return
+	}
+	// Check if finalizer was removed - re-add it
+	if c.hasNodeFinalizerBeenRemoved(oldNode, node, NodeFinalizerName) {
+		c.enqueueNodeAfter(node, time.Duration(machineutils.MediumRetry), fmt.Sprintf("MCM finalizer removed from node %q", node.Name))
 		return
 	}
 
-	// delete the machine if the node is deleted
-	if node.DeletionTimestamp != nil {
-		delRetry, err := c.triggerMachineDeletion(context.Background(), node.Name)
-		if err != nil {
-			c.enqueueNodeAfter(node, time.Duration(delRetry), fmt.Sprintf("handling node UPDATE event. backing node %q marked for deletion", node.Name))
-		}
+	machine, err := c.getMachineFromNode(node.Name)
+	if err != nil {
+		klog.Errorf("unable to handle update event for node %s, couldn't fetch associated machine. Error: %s", node.Name, err)
 		return
 	}
 
 	// to reconcile on addition/removal of essential taints in machine lifecycle, example - critical component taint
 	if addedOrRemovedEssentialTaints(oldNode, node, machineutils.EssentialTaints) {
-		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. atleast one of essential taints on backing node %q has changed", getNodeName(machine)))
+		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Atleast one of essential taints on node %q has changed", getNodeName(machine)))
 		return
 	}
 	if inPlaceUpdateLabelsChanged(oldNode, node) {
@@ -99,7 +95,7 @@ func (c *controller) updateNode(oldObj, newObj any) {
 
 	// Enqueue machine if node conditions have changed and machine is not in crashloop or terminating state
 	if nodeConditionsHaveChanged && !(isMachineCrashLooping || isMachineTerminating) {
-		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. conditions of backing node %q differ from machine status", node.Name))
+		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Conditions of node %q differ from machine status", node.Name))
 	}
 }
 
@@ -113,7 +109,7 @@ func (c *controller) deleteNode(obj any) {
 		}
 		node, ok = tombstone.Obj.(*corev1.Node)
 		if !ok {
-			klog.Errorf("Tombstone contained object that is not a Node %+v", obj)
+			klog.Errorf("tombstone contained object that is not a node %+v", obj)
 			return
 		}
 	}
@@ -123,18 +119,9 @@ func (c *controller) deleteNode(obj any) {
 		return
 	}
 
-	machine, err := c.getMachineFromNode(node.Name)
+	err := c.triggerMachineDeletion(context.Background(), node.Name)
 	if err != nil {
-		klog.V(4).Infof("couldn't fetch associated machine for deleted node %s: %v", node.Name, err)
-		return
-	}
-
-	// Trigger machine deletion if not already marked for deletion
-	if machine.DeletionTimestamp == nil {
-		klog.Infof("Node %s deleted, triggering deletion of machine %s", node.Name, machine.Name)
-		if err := c.controlMachineClient.Machines(c.namespace).Delete(context.Background(), machine.Name, metav1.DeleteOptions{}); err != nil {
-			klog.Errorf("failed to delete machine %s for deleted node %s: %v", machine.Name, node.Name, err)
-		}
+		klog.Errorf("ClusterNode %q: error triggering machine deletion for deleted node: %v", node.Name, err)
 	}
 }
 
@@ -143,7 +130,7 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 	node, err := c.nodeLister.Get(key)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("ClusterNode %q: Node object not found in store, might have been deleted", key)
+			klog.Errorf("ClusterNode %q: Node object not found in store, might have been deleted", key)
 			return nil
 		}
 		klog.Errorf("ClusterNode %q: Unable to retrieve object from store: %v", key, err)
@@ -155,38 +142,44 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 		return nil
 	}
 
-	//Add finalizers to node object if not present
-	retryPeriod, err := c.addNodeFinalizers(ctx, node)
-
-	var reEnqueReason = "periodic reconcile"
-	if err != nil {
-		reEnqueReason = err.Error()
+	if node.DeletionTimestamp != nil {
+		err := c.triggerMachineDeletion(context.Background(), node.Name)
+		if err != nil {
+			klog.Errorf("ClusterNode %q: error triggering machine deletion for deleted node: %v", key, err)
+			// Rate-limited requeue prevents tight looping when machine object
+			// was manually deleted (finalizer removed) before creationTimeout,
+			// as orphan VM collector will not take any action.
+			return err
+		}
+		return nil
 	}
-	c.enqueueNodeAfter(node, time.Duration(retryPeriod), reEnqueReason)
+
+	//Add finalizers to node object if not present
+	_, err = c.addNodeFinalizers(ctx, node)
+	if err != nil {
+		klog.Errorf("ClusterNode %q: error adding finalizers to node: %v", key, err)
+		c.enqueueNodeAfter(node, time.Duration(machineutils.ShortRetry), err.Error())
+	}
 
 	return nil
 }
 
 // triggerMachineDeletion triggers deletion for the machine associated with the given node name.
-func (c *controller) triggerMachineDeletion(ctx context.Context, nodeName string) (machineutils.RetryPeriod, error) {
+func (c *controller) triggerMachineDeletion(ctx context.Context, nodeName string) error {
 	machine, err := c.getMachineFromNode(nodeName)
 	if err != nil {
-		klog.Infof("Couldn't fetch associated machine for node %s: %v", nodeName, err)
-		return machineutils.LongRetry, nil
+		klog.Errorf("couldn't fetch associated machine for node %s: %v", nodeName, err)
+		return err
 	}
 
 	if machine.DeletionTimestamp == nil {
 		klog.Infof("Node %s for machine %s has been deleted. Triggering machine deletion flow.", nodeName, machine.Name)
 		if err := c.controlMachineClient.Machines(c.namespace).Delete(ctx, machine.Name, metav1.DeleteOptions{}); err != nil {
-			klog.Errorf("Machine object %s backing the deleted node %s could not be marked for deletion. Error: %s", machine.Name, nodeName, err)
-			return machineutils.ShortRetry, err
+			klog.Errorf("machine object %s backing the deleted node %s could not be marked for deletion. Error: %s", machine.Name, nodeName, err)
+			return err
 		}
-		klog.Infof("Machine object %s backing the deleted node %s marked for deletion.", machine.Name, nodeName)
-	} else {
-		// Enqueue for termination if already marked for deletion
-		c.enqueueMachineTermination(machine, fmt.Sprintf("backing node obj %q got deleted", nodeName))
 	}
-	return machineutils.LongRetry, nil
+	return nil
 }
 
 /*
@@ -278,4 +271,10 @@ func (c *controller) updateNodeFinalizers(ctx context.Context, node *corev1.Node
 	}
 
 	return nil
+}
+
+func (c *controller) hasNodeFinalizerBeenRemoved(oldNode, newNode *corev1.Node, finalizerName string) bool {
+	oldFinalizers := sets.NewString(oldNode.Finalizers...)
+	newFinalizers := sets.NewString(newNode.Finalizers...)
+	return oldFinalizers.Has(finalizerName) && !newFinalizers.Has(finalizerName)
 }
