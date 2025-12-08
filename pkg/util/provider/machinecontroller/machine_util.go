@@ -983,6 +983,19 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 							klog.Warning(err)
 						}
 					} else {
+						// if machine was auto-preserved (which means it is in Failed phase), stop preservation
+						if cond := nodeops.GetCondition(node, v1alpha1.NodePreserved); cond != nil && machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
+							if cond.Reason == v1alpha1.NodePreservedByMCM {
+								// need to uncordon node
+								nodeCopy := node.DeepCopy()
+								nodeCopy.Spec.Unschedulable = false
+								_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
+								if err != nil {
+									return machineutils.ShortRetry, err
+								}
+								klog.V(3).Infof("TEST: preserved node uncordoned successfully %s", machine.Name)
+							}
+						}
 						// Machine rejoined the cluster after a health-check
 						description = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
 						lastOperationType = v1alpha1.MachineOperationHealthCheck
@@ -1027,6 +1040,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				}
 			}
 		}
+
 	}
 
 	if !cloneDirty && (machine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdating ||
@@ -2455,6 +2469,7 @@ func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alp
 	if !machineutils.IsPreserveExpiryTimeSet(machine) {
 		return machineutils.LongRetry, nil
 	}
+	klog.V(3).Infof("TEST: stopping preservation machine %q", machine.Name)
 	// if backing node exists, remove annotations that would prevent scale down by autoscaler
 	if machine.Labels[v1alpha1.NodeLabelKey] != "" {
 		nodeName := machine.Labels[v1alpha1.NodeLabelKey]
