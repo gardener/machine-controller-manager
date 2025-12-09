@@ -886,7 +886,7 @@ var _ = Describe("machineDeployment", func() {
 
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				c.deleteMachineToMachineDeployment(context.Background(), testMachine)
+				c.deleteMachineToMachineDeployment(testMachine)
 
 				waitForCacheSync(stop, c)
 				Expect(c.machineDeploymentQueue.Len()).To(Equal(queueLength))
@@ -1359,7 +1359,7 @@ var _ = Describe("machineDeployment", func() {
 
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				actualMachineSets, err := c.getMachineSetsForMachineDeployment(context.Background(), testMachineDeployment)
+				actualMachineSets, err := c.getMachineSetsForMachineDeployment(context.TODO(), testMachineDeployment)
 
 				waitForCacheSync(stop, c)
 				if expectedErr != nil {
@@ -2088,7 +2088,7 @@ var _ = Describe("machineDeployment", func() {
 
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				c.terminateMachineSets(context.Background(), testMachineSets, testMachineDeployment)
+				c.terminateMachineSets(context.TODO(), testMachineSets, testMachineDeployment)
 
 				waitForCacheSync(stop, c)
 				actualMachineSets, _ := c.controlMachineClient.MachineSets(testNamespace).List(context.Background(), metav1.ListOptions{})
@@ -2158,7 +2158,7 @@ var _ = Describe("machineDeployment", func() {
 
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				c.deleteMachineDeploymentFinalizers(context.Background(), testMachineDeployment)
+				c.deleteMachineDeploymentFinalizers(context.TODO(), testMachineDeployment)
 
 				waitForCacheSync(stop, c)
 				actualMachineDeployment, _ := c.controlMachineClient.MachineDeployments(testNamespace).Get(context.Background(), testMachineDeployment.Name, metav1.GetOptions{})

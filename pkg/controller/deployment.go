@@ -75,7 +75,7 @@ func (dc *controller) deleteMachineDeployment(obj any) {
 		}
 		d, ok = tombstone.Obj.(*v1alpha1.MachineDeployment)
 		if !ok {
-			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a Machine Deployment %#v", obj))
+			utilruntime.HandleError(fmt.Errorf("tombstone contained object that is not a MachineDeployment %#v", obj))
 			return
 		}
 	}
@@ -199,12 +199,12 @@ func (dc *controller) deleteMachineSetToDeployment(obj any) {
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
-			utilruntime.HandleError(fmt.Errorf("Couldn't get object from tombstone %#v", obj))
+			utilruntime.HandleError(fmt.Errorf("couldn't get object from tombstone %#v", obj))
 			return
 		}
 		machineSet, ok = tombstone.Obj.(*v1alpha1.MachineSet)
 		if !ok {
-			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a MachineSet %#v", obj))
+			utilruntime.HandleError(fmt.Errorf("tombstone contained object that is not a MachineSet %#v", obj))
 			return
 		}
 	}
@@ -249,7 +249,8 @@ func (dc *controller) updateMachineToMachineDeployment(old, cur any) {
 }
 
 // deleteMachine will enqueue a Recreate Deployment once all of its Machines have stopped running.
-func (dc *controller) deleteMachineToMachineDeployment(ctx context.Context, obj any) {
+func (dc *controller) deleteMachineToMachineDeployment(obj any) {
+	ctx := context.Background()
 	machine, ok := obj.(*v1alpha1.Machine)
 
 	// When a delete is dropped, the relist will notice a Machine in the store not
@@ -259,12 +260,12 @@ func (dc *controller) deleteMachineToMachineDeployment(ctx context.Context, obj 
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
-			utilruntime.HandleError(fmt.Errorf("Couldn't get object from tombstone %#v", obj))
+			utilruntime.HandleError(fmt.Errorf("couldn't get object from tombstone %#v", obj))
 			return
 		}
 		machine, ok = tombstone.Obj.(*v1alpha1.Machine)
 		if !ok {
-			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a machine %#v", obj))
+			utilruntime.HandleError(fmt.Errorf("tombstone contained object that is not a machine %#v", obj))
 			return
 		}
 	}
@@ -292,7 +293,7 @@ func (dc *controller) deleteMachineToMachineDeployment(ctx context.Context, obj 
 func (dc *controller) enqueueMachineDeployment(deployment *v1alpha1.MachineDeployment) {
 	key, err := KeyFunc(deployment)
 	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %#v: %v", deployment, err))
+		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %#v: %v", deployment, err))
 		return
 	}
 
@@ -302,7 +303,7 @@ func (dc *controller) enqueueMachineDeployment(deployment *v1alpha1.MachineDeplo
 func (dc *controller) enqueueRateLimited(deployment *v1alpha1.MachineDeployment) {
 	key, err := KeyFunc(deployment)
 	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %#v: %v", deployment, err))
+		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %#v: %v", deployment, err))
 		return
 	}
 
@@ -313,7 +314,7 @@ func (dc *controller) enqueueRateLimited(deployment *v1alpha1.MachineDeployment)
 func (dc *controller) enqueueMachineDeploymentAfter(deployment *v1alpha1.MachineDeployment, after time.Duration) {
 	key, err := KeyFunc(deployment)
 	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %#v: %v", deployment, err))
+		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %#v: %v", deployment, err))
 		return
 	}
 

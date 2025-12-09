@@ -727,7 +727,7 @@ var _ = Describe("machineset", func() {
 			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2}
 
 			testMachineSet.TypeMeta = metav1.TypeMeta{}
-			Err := c.manageReplicas(context.Background(), activeMachines, testMachineSet)
+			Err := c.manageReplicas(context.TODO(), activeMachines, testMachineSet)
 			waitForCacheSync(stop, c)
 
 			Expect(Err).Should(BeNil())
@@ -747,7 +747,7 @@ var _ = Describe("machineset", func() {
 			waitForCacheSync(stop, c)
 
 			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2}
-			Expect(c.manageReplicas(context.Background(), activeMachines, testMachineSet)).NotTo(HaveOccurred())
+			Expect(c.manageReplicas(context.TODO(), activeMachines, testMachineSet)).NotTo(HaveOccurred())
 			waitForCacheSync(stop, c)
 			// TODO: Could not use Listers here, need to check more.
 			machines, err := c.controlMachineClient.Machines(testNamespace).List(context.Background(), metav1.ListOptions{})
@@ -837,7 +837,7 @@ var _ = Describe("machineset", func() {
 			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas + 1)))
 
 			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2, testActiveMachine3, testActiveMachine4}
-			Err := c.manageReplicas(context.Background(), activeMachines, testMachineSet)
+			Err := c.manageReplicas(context.TODO(), activeMachines, testMachineSet)
 			waitForCacheSync(stop, c)
 			machines, _ = c.controlMachineClient.Machines(testNamespace).List(context.Background(), metav1.ListOptions{})
 			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
