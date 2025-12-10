@@ -302,56 +302,6 @@ func (c *controller) reconcileClusterMachineTermination(key string) error {
 
 /*
 	SECTION
-	NodeToMachine operations
-*/
-
-func inPlaceUpdateLabelsChanged(oldNode, node *corev1.Node) bool {
-	if oldNode == nil || node == nil {
-		return false
-	}
-
-	labelKeys := []string{
-		v1alpha1.LabelKeyNodeCandidateForUpdate,
-		v1alpha1.LabelKeyNodeSelectedForUpdate,
-		v1alpha1.LabelKeyNodeUpdateResult,
-	}
-
-	for _, key := range labelKeys {
-		oldVal, oldOk := oldNode.Labels[key]
-		newVal, newOk := node.Labels[key]
-		if (!oldOk && newOk) || (key == v1alpha1.LabelKeyNodeUpdateResult && oldVal != newVal) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func addedOrRemovedEssentialTaints(oldNode, node *corev1.Node, taintKeys []string) bool {
-	mapOldNodeTaintKeys := make(map[string]bool)
-	mapNodeTaintKeys := make(map[string]bool)
-
-	for _, t := range oldNode.Spec.Taints {
-		mapOldNodeTaintKeys[t.Key] = true
-	}
-
-	for _, t := range node.Spec.Taints {
-		mapNodeTaintKeys[t.Key] = true
-	}
-
-	for _, tk := range taintKeys {
-		_, oldNodeHasTaint := mapOldNodeTaintKeys[tk]
-		_, newNodeHasTaint := mapNodeTaintKeys[tk]
-		if oldNodeHasTaint != newNodeHasTaint {
-			klog.V(2).Infof("Taint with key %q has been added/removed from the node %q", tk, node.Name)
-			return true
-		}
-	}
-	return false
-}
-
-/*
-	SECTION
 	Machine operations - Create, Delete
 */
 

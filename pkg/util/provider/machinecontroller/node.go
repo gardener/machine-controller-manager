@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
 var (
@@ -42,6 +41,7 @@ func (c *controller) addNode(obj any) {
 
 	// If NotManagedByMCM annotation is present on node, don't process this node object
 	if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
+		klog.Infof("NotManagedByMCM annotation present on node %q, skipping ADD event processing", node.Name)
 		return
 	}
 	c.enqueueNode(node, "handling ADD event for node")
@@ -57,6 +57,7 @@ func (c *controller) updateNode(oldObj, newObj any) {
 
 	// If NotManagedByMCM annotation is present on node, don't process this node object
 	if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
+		klog.Infof("NotManagedByMCM annotation present on node %q, skipping UPDATE event processing", node.Name)
 		return
 	}
 
@@ -76,7 +77,7 @@ func (c *controller) updateNode(oldObj, newObj any) {
 
 	machine, err := c.getMachineFromNode(node.Name)
 	if err != nil {
-		klog.Errorf("unable to handle update event for node %s, couldn't fetch associated machine. Error: %s", node.Name, err)
+		klog.Errorf("unable to handle update event for node %q, couldn't fetch associated machine. Error: %v", node.Name, err)
 		return
 	}
 
@@ -116,6 +117,7 @@ func (c *controller) deleteNode(obj any) {
 
 	// If NotManagedByMCM annotation is present on node, don't process this node object
 	if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
+		klog.Infof("NotManagedByMCM annotation present on node %q, skipping DELETE event processing", node.Name)
 		return
 	}
 
@@ -139,6 +141,7 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 
 	// If NotManagedByMCM annotation is present on node, don't process this node object
 	if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
+		klog.Infof("ClusterNode %q: NotManagedByMCM annotation present, skipping reconciliation", key)
 		return nil
 	}
 
@@ -155,7 +158,7 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 	}
 
 	//Add finalizers to node object if not present
-	_, err = c.addNodeFinalizers(ctx, node)
+	err = c.addNodeFinalizers(ctx, node)
 	if err != nil {
 		klog.Errorf("ClusterNode %q: error adding finalizers to node: %v", key, err)
 		c.enqueueNodeAfter(node, time.Duration(machineutils.ShortRetry), err.Error())
@@ -173,9 +176,9 @@ func (c *controller) triggerMachineDeletion(ctx context.Context, nodeName string
 	}
 
 	if machine.DeletionTimestamp == nil {
-		klog.Infof("Node %s for machine %s has been deleted. Triggering machine deletion flow.", nodeName, machine.Name)
+		klog.Infof("Node %q for machine %q has been deleted. Triggering machine deletion flow.", nodeName, machine.Name)
 		if err := c.controlMachineClient.Machines(c.namespace).Delete(ctx, machine.Name, metav1.DeleteOptions{}); err != nil {
-			klog.Errorf("machine object %s backing the deleted node %s could not be marked for deletion. Error: %s", machine.Name, nodeName, err)
+			klog.Errorf("machine object %q backing the deleted node %q could not be marked for deletion. Error: %s", machine.Name, nodeName, err)
 			return err
 		}
 	}
@@ -220,51 +223,44 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	return machines[0], nil
 }
 
-func (c *controller) addNodeFinalizers(ctx context.Context, node *corev1.Node) (machineutils.RetryPeriod, error) {
+func (c *controller) addNodeFinalizers(ctx context.Context, node *corev1.Node) error {
 	if finalizers := sets.NewString(node.Finalizers...); !finalizers.Has(NodeFinalizerName) {
 		finalizers.Insert(NodeFinalizerName)
 		if err := c.updateNodeFinalizers(ctx, node, finalizers.List()); err != nil {
-			return machineutils.ShortRetry, err
+			return err
 		}
 		klog.Infof("Added finalizer to node %q", node.Name)
-		return machineutils.LongRetry, nil
+		return nil
 	}
 	// Do not treat case where finalizer is already present as an error
-	return machineutils.LongRetry, nil
+	return nil
 }
 
-func (c *controller) removeNodeFinalizers(ctx context.Context, node *corev1.Node) (machineutils.RetryPeriod, error) {
+func (c *controller) removeNodeFinalizers(ctx context.Context, node *corev1.Node) (bool, error) {
 	if finalizers := sets.NewString(node.Finalizers...); finalizers.Has(NodeFinalizerName) {
 		finalizers.Delete(NodeFinalizerName)
 		if err := c.updateNodeFinalizers(ctx, node, finalizers.List()); err != nil {
-			return machineutils.ShortRetry, err
+			return true, err
 		}
 		klog.Infof("Removed finalizer from node %q", node.Name)
-		return machineutils.ShortRetry, nil
+		return true, nil
 	}
-	return machineutils.ShortRetry, fmt.Errorf("node finalizer not found on node %q", node.Name)
+	return false, nil
 }
 
-// updateNodeFinalizers updates the node finalizers using strategic merge patch
+// updateNodeFinalizers updates the node finalizers using merge patch
 func (c *controller) updateNodeFinalizers(ctx context.Context, node *corev1.Node, finalizers []string) error {
-	oldData, err := json.Marshal(node)
+	patch := map[string]any{
+		"metadata": map[string]any{
+			"finalizers": finalizers,
+		},
+	}
+	patchBytes, err := json.Marshal(patch)
 	if err != nil {
-		return fmt.Errorf("failed to marshal old node %#v for node %q: %v", node, node.Name, err)
+		return fmt.Errorf("failed to marshal patch for node %q: %v", node.Name, err)
 	}
 
-	newNode := node.DeepCopy()
-	newNode.Finalizers = finalizers
-	newData, err := json.Marshal(newNode)
-	if err != nil {
-		return fmt.Errorf("failed to marshal new node %#v for node %q: %v", newNode, node.Name, err)
-	}
-
-	// Create the strategic merge patch
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, corev1.Node{})
-	if err != nil {
-		return fmt.Errorf("failed to create patch for node %q: %v", node.Name, err)
-	}
-	_, err = c.targetCoreClient.CoreV1().Nodes().Patch(ctx, node.Name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	_, err = c.targetCoreClient.CoreV1().Nodes().Patch(ctx, node.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		klog.Errorf("failed to patch finalizers for node %q: %s", node.Name, err)
 		return err
@@ -277,4 +273,49 @@ func (c *controller) hasNodeFinalizerBeenRemoved(oldNode, newNode *corev1.Node, 
 	oldFinalizers := sets.NewString(oldNode.Finalizers...)
 	newFinalizers := sets.NewString(newNode.Finalizers...)
 	return oldFinalizers.Has(finalizerName) && !newFinalizers.Has(finalizerName)
+}
+
+func inPlaceUpdateLabelsChanged(oldNode, node *corev1.Node) bool {
+	if oldNode == nil || node == nil {
+		return false
+	}
+
+	labelKeys := []string{
+		v1alpha1.LabelKeyNodeCandidateForUpdate,
+		v1alpha1.LabelKeyNodeSelectedForUpdate,
+		v1alpha1.LabelKeyNodeUpdateResult,
+	}
+
+	for _, key := range labelKeys {
+		oldVal, oldOk := oldNode.Labels[key]
+		newVal, newOk := node.Labels[key]
+		if (!oldOk && newOk) || (key == v1alpha1.LabelKeyNodeUpdateResult && oldVal != newVal) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func addedOrRemovedEssentialTaints(oldNode, node *corev1.Node, taintKeys []string) bool {
+	mapOldNodeTaintKeys := make(map[string]bool)
+	mapNodeTaintKeys := make(map[string]bool)
+
+	for _, t := range oldNode.Spec.Taints {
+		mapOldNodeTaintKeys[t.Key] = true
+	}
+
+	for _, t := range node.Spec.Taints {
+		mapNodeTaintKeys[t.Key] = true
+	}
+
+	for _, tk := range taintKeys {
+		_, oldNodeHasTaint := mapOldNodeTaintKeys[tk]
+		_, newNodeHasTaint := mapNodeTaintKeys[tk]
+		if oldNodeHasTaint != newNodeHasTaint {
+			klog.V(2).Infof("Taint with key %q has been added/removed from the node %q", tk, node.Name)
+			return true
+		}
+	}
+	return false
 }

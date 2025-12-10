@@ -7,7 +7,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -21,7 +20,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 )
 
@@ -172,34 +170,30 @@ func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineut
 				klog.Errorf("Couldn't fetch machine, Error: %s", err)
 			} else if err == errNoMachineMatch {
 
-				if !node.CreationTimestamp.Time.Before(time.Now().Add(c.safetyOptions.MachineCreationTimeout.Duration * -1)) {
+				if time.Since(node.CreationTimestamp.Time) < c.safetyOptions.MachineCreationTimeout.Duration {
 					// node creationTimestamp is NOT before now() - machineCreationTime
 					// meaning creationTimeout has not occurred since node creation
 					// hence don't tag such nodes
 					klog.V(3).Infof("Node %q is still too young to be tagged with NotManagedByMCM", node.Name)
 					continue
-				} else if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
-					// annotation already exists, ignore this node
-					continue
-				}
-
-				// if no backing machine object for a node, annotate it
-				nodeCopy := node.DeepCopy()
-				annotations := map[string]string{
-					machineutils.NotManagedByMCM: "1",
-				}
-
-				klog.V(3).Infof("Adding NotManagedByMCM annotation to Node %q", node.Name)
-				// err is returned only when node update fails
-				if err := c.updateNodeWithAnnotations(ctx, nodeCopy, annotations); err != nil {
-					return machineutils.MediumRetry, err
 				}
 				// Remove MCM finalizer from orphan nodes to allow deletion
-				if sets.NewString(node.Finalizers...).Has(NodeFinalizerName) {
-					if _, err := c.removeNodeFinalizers(ctx, node); err != nil {
-						klog.Errorf("Failed to remove finalizer from orphan node %q: %v", node.Name, err)
-					} else {
-						klog.Infof("Removed MCM finalizer from orphan node %q to allow deletion", node.Name)
+				if finalizerPresent, err := c.removeNodeFinalizers(ctx, node); err != nil {
+					klog.Errorf("Failed to remove finalizer from orphan node %q: %v", node.Name, err)
+					return machineutils.MediumRetry, err
+				} else if finalizerPresent {
+					klog.Infof("Removed MCM finalizer from orphan node %q to allow deletion", node.Name)
+				}
+				if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; !annotationPresent {
+					// if no backing machine object for a node, annotate it
+					nodeCopy := node.DeepCopy()
+					annotations := map[string]string{
+						machineutils.NotManagedByMCM: "1",
+					}
+					klog.V(3).Infof("Adding NotManagedByMCM annotation to Node %q", node.Name)
+					// err is returned only when node update fails
+					if err := c.updateNodeWithAnnotations(ctx, nodeCopy, annotations); err != nil {
+						return machineutils.MediumRetry, err
 					}
 				}
 			}
@@ -214,8 +208,6 @@ func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineut
 			if err := c.updateNodeWithAnnotations(ctx, nodeCopy, nil); err != nil {
 				return machineutils.MediumRetry, err
 			}
-			// Queue node for reconciliation to add finalizer back
-			c.enqueueNodeAfter(node, time.Duration(machineutils.ShortRetry), fmt.Sprintf("Node %q is managed by MCM, reconciling", node.Name))
 		}
 	}
 
