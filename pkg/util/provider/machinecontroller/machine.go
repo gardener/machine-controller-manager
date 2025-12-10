@@ -446,7 +446,7 @@ func (c *controller) updateNodeToMachine(oldObj, newObj any) {
 	}
 	// to reconcile on change in annotations related to preservation
 	if preserveAnnotationsChanged(oldNode.Annotations, node.Annotations) {
-		klog.Infof("Node %s for machine %s is annotated for preservation with value %s.", node.Name, machine.Name, node.Annotations[machineutils.PreserveMachineAnnotationKey])
+		klog.V(3).Infof("Node %s for machine %s is annotated for preservation with value %s.", node.Name, machine.Name, node.Annotations[machineutils.PreserveMachineAnnotationKey])
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. preserve annotations added or updated for node %q", getNodeName(machine)))
 		return
 	}
