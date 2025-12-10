@@ -172,9 +172,9 @@ test-clean:
 
 .PHONY: generate
 generate: $(VGOPATH) $(DEEPCOPY_GEN) $(DEFAULTER_GEN) $(CONVERSION_GEN) $(OPENAPI_GEN) $(CONTROLLER_GEN) $(GEN_CRD_API_REFERENCE_DOCS)
-	GOFLAGS="-buildvcs=false" $(CONTROLLER_GEN) crd paths=./pkg/apis/machine/v1alpha1/... output:crd:dir=kubernetes/crds output:stdout
-	@GOFLAGS="-buildvcs=false" ./hack/generate-code
-	@GOFLAGS="-buildvcs=false" ./hack/api-reference/generate-spec-doc.sh
+	$(CONTROLLER_GEN) crd paths=./pkg/apis/machine/v1alpha1/... output:crd:dir=kubernetes/crds output:stdout
+	@./hack/generate-code
+	@./hack/api-reference/generate-spec-doc.sh
 
 .PHONY: add-license-headers
 add-license-headers: $(GO_ADD_LICENSE)

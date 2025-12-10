@@ -212,7 +212,6 @@ func nodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions [
 		if !exists || (oldC.Status != c.Status) || (c.Type == v1alpha1.NodeInPlaceUpdate && oldC.Reason != c.Reason) {
 			addedOrUpdatedConditions = append(addedOrUpdatedConditions, c)
 		}
-
 	}
 
 	// checking for any deleted condition
@@ -991,7 +990,6 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 							if err != nil {
 								return machineutils.ShortRetry, err
 							}
-
 						}
 						// Machine rejoined the cluster after a health-check
 						description = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
@@ -1037,7 +1035,6 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				}
 			}
 		}
-
 	}
 
 	if !cloneDirty && (machine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdating ||
@@ -1172,7 +1169,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 	}
 
 	if cloneDirty {
-		updatedMachine, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
+		_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
 			// Keep retrying across reconciles until update goes through
 			klog.Errorf("Update of Phase/Conditions failed for machine %q. Retrying, error: %q", machine.Name, err)
@@ -1181,7 +1178,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			}
 			return machineutils.ShortRetry, err
 		} else {
-			klog.V(2).Infof("Machine Phase/Conditions have been updated for %q with providerID %q and are in sync with backing node %q", updatedMachine.Name, getProviderID(updatedMachine), getNodeName(updatedMachine))
+			klog.V(2).Infof("Machine Phase/Conditions have been updated for %q with providerID %q and are in sync with backing node %q", machine.Name, getProviderID(machine), getNodeName(machine))
 			err = errSuccessfulPhaseUpdate
 		}
 		return machineutils.ShortRetry, err
