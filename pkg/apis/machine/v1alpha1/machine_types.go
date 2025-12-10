@@ -255,7 +255,10 @@ const (
 	NodePreservedByUser string = "PreservedByUser"
 
 	//PreservedNodeDrainSuccessful is a constant for the message in condition that indicates that the preserved node's drain is successful
-	PreservedNodeDrainSuccessful string = "Preserved Node Drained Successfully"
+	PreservedNodeDrainSuccessful string = "Preserved Node drained successfully"
+
+	//PreservedNodeDrainUnsuccessful is a constant for the message in condition that indicates that the preserved node's drain was not successful
+	PreservedNodeDrainUnsuccessful string = "Preserved Node could not be drained"
 )
 
 // CurrentStatus contains information about the current status of Machine.

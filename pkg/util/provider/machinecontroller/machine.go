@@ -802,19 +802,16 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 //   - failed machine, autoPreserveMax not breached, must be preserved
 //   - failed machine, already preserved, check for timeout
 //
-// Auto-preserve case will have to be handled where machine moved from Unknown to Failed
+// manageMachinePreservation checks if any preservation-related operations need to be performed on the machine and node objects
 func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
-	klog.V(3).Infof("TEST: entering manageMachinePreservation ")
-	// check effective preservation value based on node's and machine's annotations.
+	// get effective preservation value based on node's and machine's annotations.
 	updatedMachine, preserveValue, exists, err := c.syncEffectivePreserveAnnotationValue(ctx, machine)
 	if err != nil {
-		klog.Errorf("Error getting preserve annotation value for machine %q: %s", machine.Name, err)
 		return machineutils.ShortRetry, err
 	}
 	if !exists {
 		return machineutils.LongRetry, nil
 	}
-	klog.V(3).Infof("TEST: preserve:%s", preserveValue)
 	switch preserveValue {
 	case machineutils.PreserveMachineAnnotationValueNow, machineutils.PreserveMachineAnnotationValueWhenFailed, machineutils.PreserveMachineAnnotationValuePreservedByMCM:
 		// if preserve annotation value has switched from now to when-failed, then stop preservation
@@ -845,44 +842,45 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	return machineutils.LongRetry, nil
 }
 
+// syncEffectivePreserveAnnotationValue finds the preservation annotation value by considering both node and machine objects
+// if the backing node is annotated with preserve annotation, the preserve value will be synced to the machine
+// if there is no backing node, or the node has no preserve annotation, then the machine's preserve value is honoured
+// if both machine and node objects have conflicting preserve annotation values, the node's value will be honoured
 func (c *controller) syncEffectivePreserveAnnotationValue(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, string, bool, error) {
-	var effectivePreserveAnnotationValue string
 	mAnnotationValue, mExists := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
-	// node annotation value, if exists, will always override and overwrite machine annotation value for preserve
-	if machine.Labels[v1alpha1.NodeLabelKey] != "" {
-		nodeName := machine.Labels[v1alpha1.NodeLabelKey]
-		node, err := c.nodeLister.Get(nodeName)
-		if err != nil {
-			klog.Errorf("error trying to get node %q: %v", nodeName, err)
-			return machine, "", false, err
-		}
-		nAnnotationValue, nExists := node.Annotations[machineutils.PreserveMachineAnnotationKey]
-		switch {
-		case nExists && mExists:
-			if nAnnotationValue == mAnnotationValue {
-				return machine, nAnnotationValue, true, nil
-			}
-			effectivePreserveAnnotationValue = nAnnotationValue
-		case nExists && !mExists:
-			effectivePreserveAnnotationValue = nAnnotationValue
-		case mExists && !nExists:
-			return machine, mAnnotationValue, true, nil
-		case !nExists && !mExists:
-			return machine, "", false, nil
-		}
-		clone := machine.DeepCopy()
-		if clone.Annotations == nil {
-			clone.Annotations = make(map[string]string)
-		}
-		clone.Annotations[machineutils.PreserveMachineAnnotationKey] = effectivePreserveAnnotationValue
-		updatedMachine, err := c.controlMachineClient.Machines(c.namespace).Update(ctx, clone, metav1.UpdateOptions{})
-		if err != nil {
-			klog.Errorf("error updating machine with preserve annotations %q: %v", machine.Name, err)
-			return machine, "", true, err
-		}
-		return updatedMachine, effectivePreserveAnnotationValue, true, nil
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
+	if nodeName == "" {
+		return machine, mAnnotationValue, mExists, nil
 	}
-	return machine, mAnnotationValue, mExists, nil
+	node, err := c.nodeLister.Get(nodeName)
+	if err != nil {
+		klog.Errorf("error trying to get node %q: %v", nodeName, err)
+		return machine, "", false, err
+	}
+	nAnnotationValue, nExists := node.Annotations[machineutils.PreserveMachineAnnotationKey]
+	switch {
+	case nExists && mExists:
+		if nAnnotationValue == mAnnotationValue {
+			return machine, nAnnotationValue, nExists, nil
+		} // else falls through to update machine with node's value
+	case nExists && !mExists:
+		// falls through to update machine with node's value
+	case mExists && !nExists:
+		return machine, mAnnotationValue, mExists, nil
+	case !nExists && !mExists:
+		return machine, "", false, nil
+	}
+	clone := machine.DeepCopy()
+	if clone.Annotations == nil {
+		clone.Annotations = make(map[string]string)
+	}
+	clone.Annotations[machineutils.PreserveMachineAnnotationKey] = nAnnotationValue
+	updatedMachine, err := c.controlMachineClient.Machines(c.namespace).Update(ctx, clone, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("error updating machine %q with preserve annotation %q: %v", machine.Name, nAnnotationValue, err)
+		return machine, "", true, err
+	}
+	return updatedMachine, nAnnotationValue, nExists, nil
 }
 
 func (c *controller) isMachinePreservationComplete(machine *v1alpha1.Machine) (bool, error) {
@@ -892,6 +890,9 @@ func (c *controller) isMachinePreservationComplete(machine *v1alpha1.Machine) (b
 	if !machineutils.IsPreserveExpiryTimeSet(machine) {
 		return false, nil
 	} else if machineutils.IsMachineFailed(machine) {
+		if machine.Labels[v1alpha1.NodeLabelKey] == "" {
+			return true, nil
+		}
 		node, err := c.nodeLister.Get(getNodeName(machine))
 		if err != nil {
 			klog.Errorf("error trying to get node %q: %v", getNodeName(machine), err)
@@ -905,14 +906,4 @@ func (c *controller) isMachinePreservationComplete(machine *v1alpha1.Machine) (b
 		return false, nil
 	}
 	return true, nil
-}
-
-// getMachineDeploymentForMachine returns the machine deployment for a given machine
-func (c *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) (*v1alpha1.MachineDeployment, error) {
-	machineDeploymentName := getMachineDeploymentName(machine)
-	machineDeployment, err := c.controlMachineClient.MachineDeployments(c.namespace).Get(context.TODO(), machineDeploymentName, metav1.GetOptions{
-		TypeMeta:        metav1.TypeMeta{},
-		ResourceVersion: "",
-	})
-	return machineDeployment, err
 }
