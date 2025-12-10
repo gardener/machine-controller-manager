@@ -485,7 +485,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 // TODO@thiyyakat: find more suitable name for function
 func (c *controller) isMachineCandidateForPreservation(ctx context.Context, machineSet *v1alpha1.MachineSet, machine *v1alpha1.Machine) (bool, error) {
 	if machineutils.IsPreserveExpiryTimeSet(machine) && !machineutils.HasPreservationTimedOut(machine) {
-		klog.V(3).Infof("Machine %s is preserved until %v, not adding to stale machines", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
+		klog.V(3).Infof("Machine %q is preserved until %v, not adding to stale machines", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
 		return true, nil
 	}
 	val, exists := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
@@ -969,7 +969,7 @@ func (dc *controller) annotateMachineForAutoPreservation(ctx context.Context, m 
 	if err != nil {
 		return nil, err
 	}
-	klog.V(2).Infof("Updated machine %s  with auto-preserve annotation.", m.Name)
+	klog.V(2).Infof("Updated machine %q with auto-preserved annotation.", m.Name)
 	return updatedMachine, nil
 
 }
