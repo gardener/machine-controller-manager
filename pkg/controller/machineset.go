@@ -711,9 +711,6 @@ func getMachinesToDelete(filteredMachines []*v1alpha1.Machine, diff int) []*v1al
 		// at all times, replica count will be upheld, even if it means deletion of a pending machine
 		// TODO@thiyyakat: write unit test for this scenario
 		filteredMachines = prioritisePreservedMachines(filteredMachines)
-
-		fmt.Printf("len(filteredMachines)=%d, diff=%d\n", len(filteredMachines), diff)
-
 	}
 	return filteredMachines[:diff]
 }
