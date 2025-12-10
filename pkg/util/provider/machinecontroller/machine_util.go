@@ -28,9 +28,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
+	"maps"
 	"math"
 	"runtime"
 	"strconv"
@@ -982,7 +982,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 							klog.Warning(err)
 						}
 					} else {
-						// if machine was preserved (which means it is in Failed phase), uncordon node so that pods can be scheduled on it again
+						// if machine was preserved and in Failed phase, uncordon node so that pods can be scheduled on it again
 						if cond := nodeops.GetCondition(node, v1alpha1.NodePreserved); cond != nil && machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
 							nodeCopy := node.DeepCopy()
 							nodeCopy.Spec.Unschedulable = false
@@ -1110,11 +1110,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				machineDeployName := getMachineDeploymentName(machine)
 				// creating lock for machineDeployment, if not allocated
 				c.permitGiver.RegisterPermits(machineDeployName, 1)
-				retry, err := c.tryMarkingMachineFailed(ctx, machine, clone, machineDeployName, description, lockAcquireTimeout)
-				if err != nil {
-					return retry, err
-				}
-				return retry, err
+				return c.tryMarkingMachineFailed(ctx, machine, clone, machineDeployName, description, lockAcquireTimeout)
 			}
 
 			if isMachineInPlaceUpdating {
@@ -1169,20 +1165,19 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 	}
 
 	if cloneDirty {
-		_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
+		_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
 			// Keep retrying across reconciles until update goes through
 			klog.Errorf("Update of Phase/Conditions failed for machine %q. Retrying, error: %q", machine.Name, err)
 			if apierrors.IsConflict(err) {
 				return machineutils.ConflictRetry, err
 			}
-			return machineutils.ShortRetry, err
 		} else {
 			klog.V(2).Infof("Machine Phase/Conditions have been updated for %q with providerID %q and are in sync with backing node %q", machine.Name, getProviderID(machine), getNodeName(machine))
+			// Return error to end the reconcile
 			err = errSuccessfulPhaseUpdate
 		}
 		return machineutils.ShortRetry, err
-		// Return error to end the reconcile
 	}
 	return machineutils.LongRetry, nil
 }
