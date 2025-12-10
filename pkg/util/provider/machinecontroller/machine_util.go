@@ -983,17 +983,15 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 							klog.Warning(err)
 						}
 					} else {
-						// if machine was auto-preserved (which means it is in Failed phase), stop preservation
+						// if machine was preserved (which means it is in Failed phase), uncordon node so that pods can be scheduled on it again
 						if cond := nodeops.GetCondition(node, v1alpha1.NodePreserved); cond != nil && machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
-							if cond.Reason == v1alpha1.NodePreservedByMCM {
-								// need to uncordon node
-								nodeCopy := node.DeepCopy()
-								nodeCopy.Spec.Unschedulable = false
-								_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
-								if err != nil {
-									return machineutils.ShortRetry, err
-								}
+							nodeCopy := node.DeepCopy()
+							nodeCopy.Spec.Unschedulable = false
+							_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
+							if err != nil {
+								return machineutils.ShortRetry, err
 							}
+
 						}
 						// Machine rejoined the cluster after a health-check
 						description = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
