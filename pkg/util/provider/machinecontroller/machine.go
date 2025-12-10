@@ -77,7 +77,7 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 	}
 
 	if oldMachine.Generation == newMachine.Generation {
-		klog.V(3).Infof("Skipping other non-spec updates for machine %s", oldMachine.Name)
+		klog.V(3).Infof("Skipping other non-spec updates for machine %q", oldMachine.Name)
 		return
 	}
 
