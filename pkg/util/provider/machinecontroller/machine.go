@@ -77,7 +77,7 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 	}
 
 	if oldMachine.Generation == newMachine.Generation {
-		klog.V(3).Infof("Skipping other non-spec updates for machine %s", oldMachine.Name)
+		klog.V(3).Infof("Skipping other non-spec updates for machine %q", oldMachine.Name)
 		return
 	}
 
@@ -446,8 +446,8 @@ func (c *controller) updateNodeToMachine(oldObj, newObj any) {
 	}
 	// to reconcile on change in annotations related to preservation
 	if preserveAnnotationsChanged(oldNode.Annotations, node.Annotations) {
-		klog.V(3).Infof("Node %s for machine %s is annotated for preservation with value %s.", node.Name, machine.Name, node.Annotations[machineutils.PreserveMachineAnnotationKey])
-		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. preserve annotations added or updated for node %q", getNodeName(machine)))
+		klog.V(3).Infof("Node %q for machine %q is annotated for preservation with value %q.", node.Name, machine.Name, node.Annotations[machineutils.PreserveMachineAnnotationKey])
+		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Preserve annotations added or updated for node %q", getNodeName(machine)))
 		return
 	}
 	c.addNodeToMachine(newObj)
