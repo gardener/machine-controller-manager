@@ -130,7 +130,6 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 		if cond := getMachineCondition(machine, v1alpha1.NodePreserved); cond != nil {
 			if cond.Reason == v1alpha1.NodePreservedByMCM {
 				autoPreserveFailedMachineCount++
-				klog.V(3).Infof("TEST: incrementing autoPreserveFailedMachineCount to %v", autoPreserveFailedMachineCount)
 			}
 		}
 	}
