@@ -222,11 +222,6 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		return retry, err
 	}
 
-	// Add finalizers if not present on machine object
-	retry, err = c.addMachineFinalizers(ctx, machine)
-	if err != nil {
-		return retry, err
-	}
 	{ //TODO@thiyyakat: remove after testing
 		if machine.Labels["test-failed"] == "true" {
 			node, err := c.nodeLister.Get(getNodeName(machine))
@@ -933,33 +928,6 @@ func buildAddressStatus(addresses sets.Set[corev1.NodeAddress], nodeName string)
 		return strings.Compare(string(a.Type)+a.Address, string(b.Type)+b.Address)
 	})
 	return res
-}
-func getMachineKey(machine *v1alpha1.Machine) string {
-	machineNamespacedName, err := cache.MetaNamespaceKeyFunc(machine)
-	if err != nil {
-		machineNamespacedName = fmt.Sprintf("%s/%s", machine.Namespace, machine.Name)
-		klog.Errorf("couldn't get key for machine %q, using %q instead: %v", machine.Name, machineNamespacedName, err)
-	}
-	return machineNamespacedName
-}
-
-func (c *controller) shouldMachineBeMovedToTerminatingQueue(machine *v1alpha1.Machine) bool {
-	if machine.DeletionTimestamp != nil && c.isCreationProcessing(machine) {
-		klog.Warningf("Cannot delete machine %q, its deletionTimestamp is set but it is currently being processed by the creation flow\n", getMachineKey(machine))
-	}
-
-	return !c.isCreationProcessing(machine) && machine.DeletionTimestamp != nil
-}
-
-func (c *controller) markCreationProcessing(machine *v1alpha1.Machine) {
-	c.pendingMachineCreationMap.Store(getMachineKey(machine), "")
-}
-func (c *controller) unmarkCreationProcessing(machine *v1alpha1.Machine) {
-	c.pendingMachineCreationMap.Delete(getMachineKey(machine))
-}
-func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
-	_, isMachineInCreationFlow := c.pendingMachineCreationMap.Load(getMachineKey(machine))
-	return isMachineInCreationFlow
 }
 
 func getMachineKey(machine *v1alpha1.Machine) string {
