@@ -973,7 +973,13 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		// if preserve annotation value has switched from now to when-failed, then stop preservation
 		if preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed && !machineutils.IsMachineFailed(updatedMachine) {
 			if machineutils.IsPreserveExpiryTimeSet(updatedMachine) {
-				return c.stopMachinePreservation(ctx, updatedMachine)
+				err = c.stopMachinePreservation(ctx, updatedMachine)
+				if err != nil {
+					if apierrors.IsConflict(err) {
+						return machineutils.ConflictRetry, nil
+					}
+					return machineutils.ShortRetry, err
+				}
 			}
 			return machineutils.LongRetry, nil
 		}
@@ -982,13 +988,31 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			return machineutils.ShortRetry, err
 		}
 		if !isComplete {
-			return c.preserveMachine(ctx, machine, preserveValue)
+			err = c.preserveMachine(ctx, machine, preserveValue)
+			if err != nil {
+				if apierrors.IsConflict(err) {
+					return machineutils.ConflictRetry, nil
+				}
+				return machineutils.ShortRetry, err
+			}
 		}
 		if hasMachinePreservationTimedOut(machine) {
-			return c.stopMachinePreservation(ctx, updatedMachine)
+			err = c.stopMachinePreservation(ctx, updatedMachine)
+			if err != nil {
+				if apierrors.IsConflict(err) {
+					return machineutils.ConflictRetry, nil
+				}
+				return machineutils.ShortRetry, err
+			}
 		}
 	case machineutils.PreserveMachineAnnotationValueFalse:
-		return c.stopMachinePreservation(ctx, updatedMachine)
+		err = c.stopMachinePreservation(ctx, updatedMachine)
+		if err != nil {
+			if apierrors.IsConflict(err) {
+				return machineutils.ConflictRetry, nil
+			}
+			return machineutils.ShortRetry, err
+		}
 	case "":
 		return machineutils.LongRetry, nil
 	default:
