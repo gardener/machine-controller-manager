@@ -631,7 +631,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		// Multiple things could lead to this update failing. Requeuing the machine set ensures
 		// Returning an error causes a requeue without forcing a hotloop
 		if !apierrors.IsNotFound(err) {
-			klog.Errorf("Update machineSet %s failed with: %s", machineSet.Name, err)
+			klog.Errorf("update machineSet %s failed with: %s", machineSet.Name, err)
 		}
 		return err
 	}
