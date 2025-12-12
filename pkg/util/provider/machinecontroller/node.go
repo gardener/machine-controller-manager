@@ -224,7 +224,8 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 }
 
 func (c *controller) addNodeFinalizers(ctx context.Context, node *corev1.Node) error {
-	if finalizers := sets.NewString(node.Finalizers...); !finalizers.Has(NodeFinalizerName) {
+	if !HasFinalizer(node, NodeFinalizerName) {
+		finalizers := sets.NewString(node.Finalizers...)
 		finalizers.Insert(NodeFinalizerName)
 		if err := c.updateNodeFinalizers(ctx, node, finalizers.List()); err != nil {
 			return err
@@ -236,16 +237,17 @@ func (c *controller) addNodeFinalizers(ctx context.Context, node *corev1.Node) e
 	return nil
 }
 
-func (c *controller) removeNodeFinalizers(ctx context.Context, node *corev1.Node) (bool, error) {
-	if finalizers := sets.NewString(node.Finalizers...); finalizers.Has(NodeFinalizerName) {
+func (c *controller) removeNodeFinalizers(ctx context.Context, node *corev1.Node) error {
+	if HasFinalizer(node, NodeFinalizerName) {
+		finalizers := sets.NewString(node.Finalizers...)
 		finalizers.Delete(NodeFinalizerName)
 		if err := c.updateNodeFinalizers(ctx, node, finalizers.List()); err != nil {
-			return true, err
+			return err
 		}
 		klog.Infof("Removed finalizer from node %q", node.Name)
-		return true, nil
+		return nil
 	}
-	return false, nil
+	return nil
 }
 
 // updateNodeFinalizers updates the node finalizers using merge patch
@@ -270,9 +272,12 @@ func (c *controller) updateNodeFinalizers(ctx context.Context, node *corev1.Node
 }
 
 func (c *controller) hasNodeFinalizerBeenRemoved(oldNode, newNode *corev1.Node, finalizerName string) bool {
-	oldFinalizers := sets.NewString(oldNode.Finalizers...)
-	newFinalizers := sets.NewString(newNode.Finalizers...)
-	return oldFinalizers.Has(finalizerName) && !newFinalizers.Has(finalizerName)
+	return HasFinalizer(oldNode, finalizerName) && !HasFinalizer(newNode, finalizerName)
+}
+
+// HasFinalizer checks if the given object has the specified finalizer.
+func HasFinalizer(o metav1.Object, finalizer string) bool {
+	return sets.NewString(o.GetFinalizers()...).Has(finalizer)
 }
 
 func inPlaceUpdateLabelsChanged(oldNode, node *corev1.Node) bool {

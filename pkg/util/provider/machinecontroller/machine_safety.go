@@ -171,18 +171,16 @@ func (c *controller) AnnotateNodesUnmanagedByMCM(ctx context.Context) (machineut
 			} else if err == errNoMachineMatch {
 
 				if time.Since(node.CreationTimestamp.Time) < c.safetyOptions.MachineCreationTimeout.Duration {
-					// node creationTimestamp is NOT before now() - machineCreationTime
+					// node creationTimestamp is NOT before now() - machineCreationTimeout
 					// meaning creationTimeout has not occurred since node creation
 					// hence don't tag such nodes
 					klog.V(3).Infof("Node %q is still too young to be tagged with NotManagedByMCM", node.Name)
 					continue
 				}
 				// Remove MCM finalizer from orphan nodes to allow deletion
-				if finalizerPresent, err := c.removeNodeFinalizers(ctx, node); err != nil {
+				if err := c.removeNodeFinalizers(ctx, node); err != nil {
 					klog.Errorf("Failed to remove finalizer from orphan node %q: %v", node.Name, err)
 					return machineutils.MediumRetry, err
-				} else if finalizerPresent {
-					klog.Infof("Removed MCM finalizer from orphan node %q to allow deletion", node.Name)
 				}
 				if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; !annotationPresent {
 					// if no backing machine object for a node, annotate it
