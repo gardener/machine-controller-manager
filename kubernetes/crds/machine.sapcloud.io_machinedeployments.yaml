@@ -67,6 +67,12 @@ spec:
           spec:
             description: Specification of the desired behavior of the MachineDeployment.
             properties:
+              autoPreserveFailedMachineMax:
+                description: |-
+                  The maximum number of machines in the machine deployment that will be auto-preserved.
+                  In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker's machine deployments
+                format: int32
+                type: integer
               minReadySeconds:
                 description: |-
                   Minimum number of seconds for which a newly created machine should be ready
@@ -419,6 +425,10 @@ spec:
                                 type: boolean
                             type: object
                         type: object
+                      preserveTimeout:
+                        description: MachinePreserveTimeout is the timeout after which
+                          the machine preservation is stopped
+                        type: string
                       providerID:
                         description: ProviderID represents the provider's unique ID
                           given to a machine

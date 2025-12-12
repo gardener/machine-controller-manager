@@ -2782,7 +2782,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("failed to create update conditions for node \"fakeID-0\": Failed to update node"),
+					err:   fmt.Errorf("failed to create/update conditions on node \"fakeID-0\": Failed to update node"),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -2801,7 +2801,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", "failed to create update conditions for node \"fakeID-0\": Failed to update node", machineutils.InitiateDrain),
+								Description:    fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", "failed to create/update conditions on node \"fakeID-0\": Failed to update node", machineutils.InitiateDrain),
 								State:          v1alpha1.MachineStateFailed,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -2996,7 +2996,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("failed to create update conditions for node \"fakeNode-0\": Failed to update node"),
+					err:   fmt.Errorf("failed to create/update conditions on node \"fakeNode-0\": Failed to update node"),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -3015,7 +3015,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", "failed to create update conditions for node \"fakeNode-0\": Failed to update node", machineutils.InitiateDrain),
+								Description:    fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", "failed to create/update conditions on node \"fakeNode-0\": Failed to update node", machineutils.InitiateDrain),
 								State:          v1alpha1.MachineStateFailed,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
