@@ -19,6 +19,7 @@ import (
 // Describe is method required to implement the prometheus.Collect interface.
 func (c *controller) Describe(ch chan<- *prometheus.Desc) {
 	ch <- metrics.MachineCountDesc
+	ch <- metrics.MachineCSPhase
 }
 
 // Collect is method required to implement the prometheus.Collect interface.
@@ -41,7 +42,7 @@ func (c *controller) CollectMachineMetrics(ch chan<- prometheus.Metric) {
 		mSpec := machine.Spec
 		updateMachineInfoMetric(mMeta, mSpec)
 		updateMachineStatusConditionMetric(machine, mMeta)
-		updateMachineCSPhaseMetric(machine, mMeta)
+		updateMachineCSPhaseMetric(machine, mMeta, ch)
 	}
 
 	updateMachineCountMetric(ch, machineList)
@@ -70,7 +71,7 @@ func updateMachineCountMetric(ch chan<- prometheus.Metric, machineList []*v1alph
 	ch <- metric
 }
 
-func updateMachineCSPhaseMetric(machine *v1alpha1.Machine, mMeta metav1.ObjectMeta) {
+func updateMachineCSPhaseMetric(machine *v1alpha1.Machine, mMeta metav1.ObjectMeta, ch chan<- prometheus.Metric) {
 	var phase float64
 	switch machine.Status.CurrentStatus.Phase {
 	case v1alpha1.MachineTerminating:
@@ -86,10 +87,14 @@ func updateMachineCSPhaseMetric(machine *v1alpha1.Machine, mMeta metav1.ObjectMe
 	case v1alpha1.MachineRunning:
 		phase = 1
 	}
-	metrics.MachineCSPhase.With(prometheus.Labels{
-		"name":      mMeta.Name,
-		"namespace": mMeta.Namespace,
-	}).Set(phase)
+
+	ch <- prometheus.MustNewConstMetric(
+		metrics.MachineCSPhase,
+		prometheus.GaugeValue,
+		phase,
+		mMeta.Name,
+		mMeta.Namespace,
+	)
 }
 
 func updateMachineStatusConditionMetric(machine *v1alpha1.Machine, mMeta metav1.ObjectMeta) {

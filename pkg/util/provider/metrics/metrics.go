@@ -24,12 +24,11 @@ var (
 	MachineCountDesc = prometheus.NewDesc("mcm_machine_items_total", "Count of machines currently managed by the mcm.", nil, nil)
 
 	// MachineCSPhase Current status phase of the Machines currently managed by the mcm.
-	MachineCSPhase = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Subsystem: machineSubsystem,
-		Name:      "current_status_phase",
-		Help:      "Current status phase of the Machines currently managed by the mcm.",
-	}, []string{"name", "namespace"})
+	MachineCSPhase = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, machineSubsystem, "current_status_phase"),
+		"Current status phase of the Machines currently managed by the mcm.",
+		[]string{"name", "namespace"},
+		nil)
 
 	// MachineInfo Information of the Machines currently managed by the mcm.
 	MachineInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -112,7 +111,6 @@ var (
 func registerMachineSubsystemMetrics() {
 	prometheus.MustRegister(MachineInfo)
 	prometheus.MustRegister(MachineStatusCondition)
-	prometheus.MustRegister(MachineCSPhase)
 }
 
 func registerCloudAPISubsystemMetrics() {
