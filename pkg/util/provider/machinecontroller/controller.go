@@ -47,6 +47,9 @@ const (
 	// MCMFinalizerName is the finalizer used to tag dependencies before deletion
 	// of the object. This finalizer is carried over from the MCM
 	MCMFinalizerName = "machine.sapcloud.io/machine-controller-manager"
+	// NodeFinalizerName is the finalizer used to tag node dependencies before deletion
+	// Added to resolve https://github.com/gardener/machine-controller-manager/issues/1051
+	NodeFinalizerName = "node.machine.sapcloud.io/machine-controller"
 	// MCFinalizerName is the finalizer created for the external
 	// machine controller to differentiate it from the MCMFinalizerName
 	// This finalizer is added only on secret-objects to avoid race between in-tree and out-of-tree controllers.
@@ -187,9 +190,9 @@ func NewController(
 	// Machine Controller's Informers
 	if targetCoreInformerFactory != nil {
 		_, _ = targetCoreInformerFactory.Core().V1().Nodes().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc:    controller.addNodeToMachine,
-			UpdateFunc: controller.updateNodeToMachine,
-			DeleteFunc: controller.deleteNodeToMachine,
+			AddFunc:    controller.addNode,
+			UpdateFunc: controller.updateNode,
+			DeleteFunc: controller.deleteNode,
 		})
 	}
 
