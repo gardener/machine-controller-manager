@@ -64,17 +64,16 @@ func (dc *controller) rollback(ctx context.Context, d *v1alpha1.MachineDeploymen
 			klog.V(4).Infof("Found machine set %q with desired revision %d", is.Name, v)
 
 			// Remove PreferNoSchedule taints from nodes which were backing the machineSet
-			err = dc.removeTaintNodesBackingMachineSet(
-				ctx,
-				is,
-				&v1.Taint{
+			if _, exists := is.Annotations[PreferNoScheduleKey]; exists {
+				taint := &v1.Taint{
 					Key:    PreferNoScheduleKey,
 					Value:  "True",
 					Effect: "PreferNoSchedule",
-				},
-			)
-			if err != nil {
-				klog.Warningf("Failed to remove taints %s off nodes. Error: %s", PreferNoScheduleKey, err)
+				}
+
+				if err := dc.removeTaintNodesBackingMachineSet(ctx, is, taint); err != nil {
+					klog.Warningf("Failed to remove taints %s from all nodes. Error: %v", PreferNoScheduleKey, err)
+				}
 			}
 
 			// rollback by copying podTemplate.Spec from the machine set
@@ -142,13 +141,6 @@ func (dc *controller) updateMachineDeploymentAndClearRollbackTo(ctx context.Cont
 
 // removeTaintNodesBackingMachineSet removes taints from all nodes backing the machineSets
 func (dc *controller) removeTaintNodesBackingMachineSet(ctx context.Context, machineSet *v1alpha1.MachineSet, taint *v1.Taint) error {
-
-	if _, exists := machineSet.Annotations[taint.Key]; !exists {
-		// No taint exists
-		klog.Warningf("No taint exists on machineSet: %s. Hence not removing.", machineSet.Name)
-		return nil
-	}
-
 	klog.V(2).Infof("Trying to untaint MachineSet object %q with %s to enable scheduling of pods", machineSet.Name, taint.Key)
 	selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
 	if err != nil {
