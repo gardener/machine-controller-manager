@@ -25,6 +25,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"maps"
 	"reflect"
 	"sort"
@@ -1200,6 +1201,96 @@ func IsSaturated(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet
 	return (is.Spec.Replicas) == (deployment.Spec.Replicas) &&
 		int32(desired) == (deployment.Spec.Replicas) &&
 		is.Status.AvailableReplicas == (deployment.Spec.Replicas)
+}
+
+// removeTaintNodesBackingMachineSet removes taints from all nodes backing the machineSets
+func (dc *controller) removeTaintNodesBackingMachineSet(ctx context.Context, machineSet *v1alpha1.MachineSet, taint *v1.Taint) error {
+
+	if _, exists := machineSet.Annotations[taint.Key]; !exists {
+		// No taint exists
+		klog.Warningf("No taint exists on machineSet: %s. Hence not removing.", machineSet.Name)
+		return nil
+	}
+
+	klog.V(2).Infof("Trying to untaint MachineSet object %q with %s to enable scheduling of pods", machineSet.Name, taint.Key)
+	selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
+	if err != nil {
+		return err
+	}
+
+	// list all machines to include the machines that don't match the ms`s selector
+	// anymore but has the stale controller ref.
+	// TODO: Do the List and Filter in a single pass, or use an index.
+	filteredMachines, err := dc.machineLister.List(labels.Everything())
+	if err != nil {
+		return err
+	}
+	// NOTE: filteredMachines are pointing to objects from cache - if you need to
+	// modify them, you need to copy it first.
+	filteredMachines, err = dc.claimMachines(ctx, machineSet, selector, filteredMachines)
+	if err != nil {
+		return err
+	}
+
+	// Iterate through all machines and remove the PreferNoSchedule taint
+	// to avoid scheduling on older machines
+	for _, machine := range filteredMachines {
+		if machine.Labels[v1alpha1.NodeLabelKey] != "" {
+			node, err := dc.targetCoreClient.CoreV1().Nodes().Get(ctx, machine.Labels[v1alpha1.NodeLabelKey], metav1.GetOptions{})
+			if err != nil {
+				klog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Labels[v1alpha1.NodeLabelKey], err)
+				continue
+			}
+			if err := nodeops.RemoveTaintOffNode(
+				ctx,
+				dc.targetCoreClient,
+				machine.Labels[v1alpha1.NodeLabelKey],
+				node,
+				taint,
+			); err != nil {
+				klog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Labels[v1alpha1.NodeLabelKey], err)
+			}
+		}
+	}
+
+	retryDeadline := time.Now().Add(maxRetryDeadline)
+	for {
+		machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(ctx, machineSet.Name, metav1.GetOptions{})
+		if err != nil {
+			if time.Now().Before(retryDeadline) {
+				klog.Warningf("Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
+				time.Sleep(conflictRetryInterval)
+				continue
+			} else {
+				// Timeout occurred
+				klog.Errorf("Timeout occurred: Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
+				return err
+			}
+		}
+
+		msCopy := machineSet.DeepCopy()
+		delete(msCopy.Annotations, taint.Key)
+
+		machineSet, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(ctx, msCopy, metav1.UpdateOptions{})
+
+		if err != nil {
+			if time.Now().Before(retryDeadline) {
+				klog.Warningf("Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
+				time.Sleep(conflictRetryInterval)
+				continue
+			} else {
+				// Timeout occurred
+				klog.Errorf("Timeout occurred: Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
+				return err
+			}
+		}
+
+		// Break out of loop when update succeeds
+		break
+	}
+	klog.V(2).Infof("Removed taint %s from MachineSet object %q", taint.Key, machineSet.Name)
+
+	return nil
 }
 
 // WaitForObservedMachineDeployment polls for deployment to be updated so that deployment.Status.ObservedGeneration >= desiredGeneration.
