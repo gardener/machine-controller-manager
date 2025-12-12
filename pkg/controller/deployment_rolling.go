@@ -125,7 +125,8 @@ func (dc *controller) rolloutRolling(ctx context.Context, d *v1alpha1.MachineDep
 			}
 
 			if err := dc.removeTaintNodesBackingMachineSet(ctx, newIS, taint); err != nil {
-				klog.Warningf("Failed to remove taints %s from nodes. Error: %v", PreferNoScheduleKey, err)
+				klog.Errorf("Failed to remove taints %s from nodes. Error: %v", PreferNoScheduleKey, err)
+				return err
 			}
 		}
 		if err := dc.cleanupMachineDeployment(ctx, oldISs, d); err != nil {

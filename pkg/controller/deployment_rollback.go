@@ -68,7 +68,8 @@ func (dc *controller) rollback(ctx context.Context, d *v1alpha1.MachineDeploymen
 				}
 
 				if err := dc.removeTaintNodesBackingMachineSet(ctx, is, taint); err != nil {
-					klog.Warningf("Failed to remove taints %s from all nodes. Error: %v", PreferNoScheduleKey, err)
+					klog.Errorf("Failed to remove taints %s from all nodes. Error: %v", PreferNoScheduleKey, err)
+					return err
 				}
 			}
 
