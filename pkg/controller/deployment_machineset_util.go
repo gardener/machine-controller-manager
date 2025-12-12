@@ -127,7 +127,8 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 			}
 			failedMachines = append(failedMachines, machineSummary)
 		}
-		if cond := getMachineCondition(machine, v1alpha1.NodePreserved); cond != nil {
+		cond := getMachineCondition(machine, v1alpha1.NodePreserved)
+		if cond != nil {
 			if cond.Reason == v1alpha1.NodePreservedByMCM {
 				autoPreserveFailedMachineCount++
 			}

@@ -332,7 +332,7 @@ func (c *controller) enqueueMachineSetAfter(obj any, after time.Duration) {
 func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
 	machineSetKey, err := KeyFunc(machineSet)
 	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("Couldn't get key for %v %#v: %v", machineSet.Kind, machineSet, err))
+		utilruntime.HandleError(fmt.Errorf("couldn't get key for %v %#v: %v", machineSet.Kind, machineSet, err))
 		return nil
 	}
 
@@ -347,7 +347,9 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		if machineutils.IsMachineTriggeredForDeletion(m) {
 			staleMachines = append(staleMachines, m)
 		} else if machineutils.IsMachineFailed(m) {
-			if preserve, err := c.isMachineCandidateForPreservation(ctx, machineSet, m); err != nil {
+			// if machine is preserved or in the process of being preserved, the machine should be considered an active machine and not be added to stale machines
+			preserve, err := c.isMachineCandidateForPreservation(ctx, machineSet, m)
+			if err != nil {
 				return err
 			} else if preserve {
 				activeMachines = append(activeMachines, m)
