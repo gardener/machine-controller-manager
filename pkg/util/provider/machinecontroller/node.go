@@ -65,13 +65,13 @@ func (c *controller) updateNode(oldObj, newObj any) {
 	if node.DeletionTimestamp != nil {
 		err := c.triggerMachineDeletion(context.Background(), node.Name)
 		if err != nil {
-			c.enqueueNodeAfter(node, time.Duration(machineutils.ShortRetry), fmt.Sprintf("handling node UPDATE event. Node %q marked for deletion", node.Name))
+			c.enqueueNodeAfter(node, time.Duration(machineutils.ShortRetry), fmt.Sprintf("handling node UPDATE event. Failed to trigger machine deletion for node %q, re-queuing", node.Name))
 		}
 		return
 	}
 	// Check if finalizer was removed - re-add it
 	if c.hasNodeFinalizerBeenRemoved(oldNode, node, NodeFinalizerName) {
-		c.enqueueNodeAfter(node, time.Duration(machineutils.MediumRetry), fmt.Sprintf("MCM finalizer removed from node %q", node.Name))
+		c.enqueueNodeAfter(node, time.Duration(machineutils.MediumRetry), fmt.Sprintf("MCM finalizer was removed from node %q, re-queuing", node.Name))
 		return
 	}
 
@@ -230,7 +230,7 @@ func (c *controller) addNodeFinalizers(ctx context.Context, node *corev1.Node) e
 		if err := c.updateNodeFinalizers(ctx, node, finalizers.List()); err != nil {
 			return err
 		}
-		klog.Infof("Added finalizer to node %q", node.Name)
+		klog.Infof("Added finalizer %q to node %q", NodeFinalizerName, node.Name)
 		return nil
 	}
 	// Do not treat case where finalizer is already present as an error
@@ -244,7 +244,7 @@ func (c *controller) removeNodeFinalizers(ctx context.Context, node *corev1.Node
 		if err := c.updateNodeFinalizers(ctx, node, finalizers.List()); err != nil {
 			return err
 		}
-		klog.Infof("Removed finalizer from node %q", node.Name)
+		klog.Infof("Removed finalizer %q from node %q", NodeFinalizerName, node.Name)
 		return nil
 	}
 	return nil
