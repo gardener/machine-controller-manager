@@ -181,7 +181,7 @@ To do so they should remove/not-use tags on their VMs containing the following s
 
 Rolling update can be triggered for a machineDeployment by updating one of the following:
 
-- `.spec.template.annotations`
+- `.spec.template.metadata.annotations`
 - `.spec.template.spec.class.name`
 
 # Internals
