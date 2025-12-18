@@ -98,8 +98,7 @@ type MachineConfiguration struct {
 	MachineInPlaceUpdateTimeout *metav1.Duration
 
 	// MachinePreserveTimeout is the timeout after which the machine preservation is stopped
-	// +optional
-	MachinePreserveTimeout *metav1.Duration `json:"preserveTimeout,omitempty"`
+	MachinePreserveTimeout *metav1.Duration
 	// DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.
 	// This is intended to be used only for in-place updates.
 	DisableHealthTimeout *bool

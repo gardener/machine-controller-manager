@@ -181,6 +181,10 @@ spec:
                         description: MachineInPlaceUpdateTimeout is the timeout after
                           which in-place update is declared failed.
                         type: string
+                      machinePreserveTimeout:
+                        description: MachinePreserveTimeout is the timeout after which
+                          the machine preservation is stopped
+                        type: string
                       maxEvictRetries:
                         description: MaxEvictRetries is the number of retries that
                           will be attempted while draining the node.
@@ -304,10 +308,6 @@ spec:
                                 type: boolean
                             type: object
                         type: object
-                      preserveTimeout:
-                        description: MachinePreserveTimeout is the timeout after which
-                          the machine preservation is stopped
-                        type: string
                       providerID:
                         description: ProviderID represents the provider's unique ID
                           given to a machine
