@@ -244,6 +244,23 @@ const (
 	UpdateFailed string = "UpdateFailed"
 )
 
+const (
+	// NodePreserved is a node condition type for preservation of machines to allow end-user to know that a node is preserved
+	NodePreserved corev1.NodeConditionType = "NodePreserved"
+
+	// NodePreservedByMCM is a node condition reason for preservation of machines to indicate that the node is auto-preserved by MCM
+	NodePreservedByMCM string = "PreservedByMCM"
+
+	//NodePreservedByUser is a node condition reason to indicate that a machine/node has been preserved due to explicit annotation by user
+	NodePreservedByUser string = "PreservedByUser"
+
+	//PreservedNodeDrainSuccessful is a constant for the message in condition that indicates that the preserved node's drain is successful
+	PreservedNodeDrainSuccessful string = "Preserved Node drained successfully"
+
+	//PreservedNodeDrainUnsuccessful is a constant for the message in condition that indicates that the preserved node's drain was not successful
+	PreservedNodeDrainUnsuccessful string = "Preserved Node could not be drained"
+)
+
 // CurrentStatus contains information about the current status of Machine.
 type CurrentStatus struct {
 	Phase MachinePhase `json:"phase,omitempty"`
@@ -252,6 +269,9 @@ type CurrentStatus struct {
 
 	// Last update time of current status
 	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
+
+	// PreserveExpiryTime is the time at which MCM will stop preserving the machine
+	PreserveExpiryTime metav1.Time `json:"preserveExpiryTime,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
