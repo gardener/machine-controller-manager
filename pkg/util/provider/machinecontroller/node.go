@@ -41,7 +41,7 @@ func (c *controller) addNode(obj any) {
 
 	// If NotManagedByMCM annotation is present on node, don't process this node object
 	if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
-		klog.Infof("NotManagedByMCM annotation present on node %q, skipping ADD event processing", node.Name)
+		klog.V(4).Infof("NotManagedByMCM annotation present on node %q, skipping ADD event", node.Name)
 		return
 	}
 	c.enqueueNode(node, "handling ADD event for node")
@@ -57,7 +57,7 @@ func (c *controller) updateNode(oldObj, newObj any) {
 
 	// If NotManagedByMCM annotation is present on node, don't process this node object
 	if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
-		klog.Infof("NotManagedByMCM annotation present on node %q, skipping UPDATE event processing", node.Name)
+		klog.V(4).Infof("NotManagedByMCM annotation present on node %q, skipping UPDATE event", node.Name)
 		return
 	}
 
@@ -117,7 +117,7 @@ func (c *controller) deleteNode(obj any) {
 
 	// If NotManagedByMCM annotation is present on node, don't process this node object
 	if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
-		klog.Infof("NotManagedByMCM annotation present on node %q, skipping DELETE event processing", node.Name)
+		klog.V(4).Infof("NotManagedByMCM annotation present on node %q, skipping DELETE event", node.Name)
 		return
 	}
 
