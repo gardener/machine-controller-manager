@@ -254,6 +254,9 @@ const (
 	// NodePreservedByUser is a node condition reason to indicate that a machine/node has been preserved due to explicit annotation by user
 	NodePreservedByUser string = "PreservedByUser"
 
+	// NodePreservationStopped is a node condition reason to indicate that a machine/node preservation has been stopped due to annotation update or timeout
+	NodePreservationStopped string = "PreservationStopped"
+
 	// PreservedNodeDrainSuccessful is a constant for the message in condition that indicates that the preserved node's drain is successful
 	PreservedNodeDrainSuccessful string = "Preserved Node drained successfully"
 

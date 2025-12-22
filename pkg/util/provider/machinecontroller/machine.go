@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
+	clientretry "k8s.io/client-go/util/retry"
 	"maps"
 	"slices"
 	"strings"
@@ -67,7 +68,7 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 			c.enqueueMachine(newObj, "TEST: handling machine failure simulation UPDATE event")
 		}
 	}
-	if preserveAnnotationsChanged(oldMachine.Annotations, newMachine.Annotations) {
+	if c.handlePreserveAnnotationsChange(oldMachine.Annotations, newMachine.Annotations, newMachine) {
 		c.enqueueMachine(newObj, "handling machine object preservation related UPDATE event")
 		return
 	}
@@ -222,8 +223,8 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		klog.Errorf("cannot reconcile machine %s: %s", machine.Name, err)
 		return retry, err
 	}
-	{ //TODO@thiyyakat: remove after drain
-		//insert condition changing code here
+
+	{ //TODO@thiyyakat: remove after testing
 		if machine.Labels["test-failed"] == "true" {
 			node, err := c.nodeLister.Get(getNodeName(machine))
 			if err != nil {
@@ -358,10 +359,30 @@ func (c *controller) reconcileClusterMachineTermination(key string) error {
 	}
 	return nil
 }
-func preserveAnnotationsChanged(oldAnnotations, newAnnotations map[string]string) bool {
+
+// handlePreserveAnnotationsChange returns true if there is a change in preserve annotations
+// it also handles the special case where the annotation is changed from 'now' to 'when-failed'
+// in which case it stops the preservation if expiry time is already set
+func (c *controller) handlePreserveAnnotationsChange(oldAnnotations, newAnnotations map[string]string, machine *v1alpha1.Machine) bool {
 	valueNew, existsInNew := newAnnotations[machineutils.PreserveMachineAnnotationKey]
 	valueOld, existsInOld := oldAnnotations[machineutils.PreserveMachineAnnotationKey]
-	return existsInOld != existsInNew || valueOld != valueNew
+	if valueNew != machineutils.PreserveMachineAnnotationValueWhenFailed || valueOld != machineutils.PreserveMachineAnnotationValueNow {
+		return existsInOld != existsInNew || valueOld != valueNew
+	}
+	// Special case: annotation changed from 'now' to 'when-failed'
+	isPreserved := machineutils.IsPreserveExpiryTimeSet(machine)
+	if !isPreserved {
+		return true
+	}
+	ctx := context.Background()
+	err := clientretry.RetryOnConflict(nodeops.Backoff, func() error {
+		klog.V(3).Infof("Stopping preservation for machine %q as preserve annotation changed from 'now' to 'when-failed'.", machine.Name)
+		return c.stopMachinePreservation(ctx, machine)
+	})
+	if err != nil {
+		klog.Errorf("error while stopping preservation for machine %q: %v. Use preserve=false to stop preservation.", machine.Name, err)
+	}
+	return true
 }
 
 /*
@@ -790,18 +811,6 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 	return isMachineInCreationFlow
 }
 
-// TODO@thiyyakat: check case where, preserved and annotated but times out. Not handled currently
-// possible cases:
-// 1. Annotated
-//   - already preserved, check for timeout
-//   - already preserved, check for explicit stop preservation
-//   - needs to be preserved on failure
-//   - needs to be preserved now
-//
-// 2. Unannotated
-//   - failed machine, autoPreserveMax not breached, must be preserved
-//   - failed machine, already preserved, check for timeout
-//
 // manageMachinePreservation checks if any preservation-related operations need to be performed on the machine and node objects
 func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (retry machineutils.RetryPeriod, err error) {
 	defer func() {
@@ -815,7 +824,6 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	}()
 
 	preserveValue, exists, err := c.computeEffectivePreserveAnnotationValue(machine)
-
 	if err != nil {
 		return
 	}
@@ -830,26 +838,23 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			return
 		}
 	}
-	if !c.isPreserveAnnotationValueValid(preserveValue) {
-		klog.Warningf("Preserve annotation value %s on machine %s is invalid", preserveValue, machine.Name)
+	if !isPreserveAnnotationValueValid(preserveValue) {
+		klog.Warningf("Preserve annotation value %q on machine %s is invalid", preserveValue, machine.Name)
 		return
 	} else if preserveValue == machineutils.PreserveMachineAnnotationValueFalse || hasMachinePreservationTimedOut(clone) {
 		err = c.stopMachinePreservation(ctx, clone)
 		return
 	} else if preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed {
-		// if machine is preserved, stop preservation. Else, do nothing.
-		// this check is done in case the annotation value has changed from preserve=now to preserve=when-failed, in which case preservation needs to be stopped
-		preserveExpirySet := machineutils.IsPreserveExpiryTimeSet(clone)
 		machineFailed := machineutils.IsMachineFailed(clone)
-		if !preserveExpirySet && !machineFailed {
-			return
-		} else if !preserveExpirySet {
+		if machineFailed {
 			err = c.preserveMachine(ctx, clone, preserveValue)
-			return
 		}
-		// Here, we do not stop preservation even when preserve expiry time is set but the machine is in Running.
-		// This is to accommodate the case where the annotation is when-failed and the machine has recovered from Failed to Running.
-		// In this case, we want the preservation to continue so that CA does not scale down the node before pods are assigned to it
+		// Here, if the preserve value is when-failed, but the machine is in running, there could be 2 possibilities:
+		// 1. The machine was initially annotated with preserve=now and has been preserved, but later the annotation was changed to when-failed. In this case,
+		//    we want to stop preservation. This case is already being handled in updateMachine and updateNodeToMachine functions.
+		// 2. The machine was initially annotated with preserve=when-failed and has recovered from Failed to Running. In this case,
+		//    we want to continue preservation until the annotation is changed to false or the preservation times out, so that CA does not
+		//    scale down the node before pods are assigned to it.
 		return
 	} else if preserveValue == machineutils.PreserveMachineAnnotationValueNow || preserveValue == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
 		err = c.preserveMachine(ctx, clone, preserveValue)
@@ -911,34 +916,20 @@ func (c *controller) writePreserveAnnotationValueOnMachine(ctx context.Context, 
 }
 
 // isPreserveAnnotationValueValid checks if the preserve annotation value is valid
-func (c *controller) isPreserveAnnotationValueValid(preserveValue string) bool {
-	allowedValues := map[string]bool{
-		machineutils.PreserveMachineAnnotationValueNow:            true,
-		machineutils.PreserveMachineAnnotationValueWhenFailed:     true,
-		machineutils.PreserveMachineAnnotationValuePreservedByMCM: true,
-		machineutils.PreserveMachineAnnotationValueFalse:          true,
-	}
-	_, exists := allowedValues[preserveValue]
+func isPreserveAnnotationValueValid(preserveValue string) bool {
+	_, exists := machineutils.AllowedPreserveAnnotationValues[preserveValue]
 	return exists
 }
 
-// isMachinePreservationComplete check if all the steps in the preservation logic have been completed for the machine
-func (c *controller) isMachinePreservationComplete(machine *v1alpha1.Machine, isExpirySet bool) (bool, error) {
-	nodeName := getNodeName(machine)
-	if nodeName == "" && isExpirySet {
-		return true, nil
-	}
-	node, err := c.nodeLister.Get(nodeName)
-	if err != nil {
-		klog.Errorf("error trying to get node %q: %v", nodeName, err)
-		return false, err
-	}
-	cond := nodeops.GetCondition(node, v1alpha1.NodePreserved)
+// isPreservedNodeConditionStatusTrue check if all the steps in the preservation logic have been completed for the machine
+// if the machine has no backing node, only PreserveExpiryTime needs to be set
+// if the machine has a backing node, the NodePreserved condition on the node needs to be true
+func (c *controller) isPreservedNodeConditionStatusTrue(cond *corev1.NodeCondition) bool {
 	if cond == nil {
-		return false, nil
+		return false
 	}
 	if cond.Status == corev1.ConditionTrue {
-		return true, nil
+		return true
 	}
-	return false, nil
+	return false
 }

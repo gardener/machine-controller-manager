@@ -101,7 +101,17 @@ const (
 	//PreserveMachineAnnotationValueFalse is the annotation value used to explicitly request that
 	// a Machine should not be preserved any longer, even if the expiry timeout has not been reached
 	PreserveMachineAnnotationValueFalse = "false"
+
+	PreserveMac
 )
+
+// AllowedPreserveAnnotationValues contains the allowed values for the preserve annotation
+var AllowedPreserveAnnotationValues = map[string]bool{
+	PreserveMachineAnnotationValueNow:            true,
+	PreserveMachineAnnotationValueWhenFailed:     true,
+	PreserveMachineAnnotationValuePreservedByMCM: true,
+	PreserveMachineAnnotationValueFalse:          true,
+}
 
 // RetryPeriod is an alias for specifying the retry period
 type RetryPeriod time.Duration
