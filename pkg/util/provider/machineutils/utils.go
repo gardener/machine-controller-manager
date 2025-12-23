@@ -160,5 +160,5 @@ func IsPreserveExpiryTimeSet(m *v1alpha1.Machine) bool {
 
 // HasPreservationTimedOut checks if the Status.CurrentStatus.PreserveExpiryTime has not yet passed
 func HasPreservationTimedOut(m *v1alpha1.Machine) bool {
-	return IsPreserveExpiryTimeSet(m) && m.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())
+	return !m.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())
 }
