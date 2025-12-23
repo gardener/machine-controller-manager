@@ -841,7 +841,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	if !isPreserveAnnotationValueValid(preserveValue) {
 		klog.Warningf("Preserve annotation value %q on machine %s is invalid", preserveValue, machine.Name)
 		return
-	} else if preserveValue == machineutils.PreserveMachineAnnotationValueFalse || hasMachinePreservationTimedOut(clone) {
+	} else if preserveValue == machineutils.PreserveMachineAnnotationValueFalse || machineutils.HasPreservationTimedOut(clone) {
 		err = c.stopMachinePreservation(ctx, clone)
 		return
 	} else if preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed {

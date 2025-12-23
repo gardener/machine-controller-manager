@@ -498,7 +498,7 @@ func (c *controller) isMachineCandidateForPreservation(ctx context.Context, mach
 		}
 	}
 	if machineSet.Status.AutoPreserveFailedMachineCount < machineSet.Spec.AutoPreserveFailedMachineMax {
-		_, err := c.annotateMachineForAutoPreservation(ctx, machine)
+		err := c.annotateMachineForAutoPreservation(ctx, machine)
 		if err != nil {
 			return true, err
 		}
@@ -716,16 +716,16 @@ func getMachinesToDelete(filteredMachines []*v1alpha1.Machine, diff int) []*v1al
 }
 
 func prioritisePreservedMachines(machines []*v1alpha1.Machine) []*v1alpha1.Machine {
-	pendingMachines := make([]*v1alpha1.Machine, 0, len(machines))
+	preservedMachines := make([]*v1alpha1.Machine, 0, len(machines))
 	otherMachines := make([]*v1alpha1.Machine, 0, len(machines))
 	for _, mc := range machines {
 		if machineutils.IsPreserveExpiryTimeSet(mc) {
-			pendingMachines = append(pendingMachines, mc)
+			preservedMachines = append(preservedMachines, mc)
 		} else {
 			otherMachines = append(otherMachines, mc)
 		}
 	}
-	return slices.Concat(otherMachines, pendingMachines)
+	return slices.Concat(otherMachines, preservedMachines)
 }
 
 func getMachineKeys(machines []*v1alpha1.Machine) []string {
@@ -948,18 +948,18 @@ func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.
 	return machine, retryErr
 }
 
-func (dc *controller) annotateMachineForAutoPreservation(ctx context.Context, m *v1alpha1.Machine) (*v1alpha1.Machine, error) {
+func (dc *controller) annotateMachineForAutoPreservation(ctx context.Context, m *v1alpha1.Machine) error {
 	if m.Labels[v1alpha1.NodeLabelKey] != "" {
 		// check if backing node has preserve=false annotation, if yes, do not auto-preserve
 		node, err := dc.nodeLister.Get(m.Labels[v1alpha1.NodeLabelKey])
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if val, exists := node.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && val == machineutils.PreserveMachineAnnotationValueFalse {
-			return nil, nil
+			return nil
 		}
 	}
-	updatedMachine, err := UpdateMachineWithRetries(ctx, dc.controlMachineClient.Machines(m.Namespace), dc.machineLister, m.Namespace, m.Name, func(clone *v1alpha1.Machine) error {
+	_, err := UpdateMachineWithRetries(ctx, dc.controlMachineClient.Machines(m.Namespace), dc.machineLister, m.Namespace, m.Name, func(clone *v1alpha1.Machine) error {
 		if clone.Annotations == nil {
 			clone.Annotations = make(map[string]string)
 		}
@@ -967,9 +967,9 @@ func (dc *controller) annotateMachineForAutoPreservation(ctx context.Context, m 
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
 	klog.V(2).Infof("Updated machine %q with auto-preserved annotation.", m.Name)
-	return updatedMachine, nil
+	return nil
 
 }

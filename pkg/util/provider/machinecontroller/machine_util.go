@@ -2541,7 +2541,7 @@ func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alp
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	if nodeName != "" {
 		// Machine has a backing node
-		preservedCondition := v1.NodeCondition{
+		preservedConditionFalse := v1.NodeCondition{
 			Type:               v1alpha1.NodePreserved,
 			Status:             v1.ConditionFalse,
 			LastTransitionTime: metav1.Now(),
@@ -2549,7 +2549,7 @@ func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alp
 		}
 
 		// Step 1: if backing node exists, change node condition to reflect that preservation has stopped
-		err := nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, nodeName, preservedCondition)
+		err := nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, nodeName, preservedConditionFalse)
 		if err != nil {
 			return err
 		}
@@ -2700,9 +2700,4 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		klog.V(3).Infof("Drain successful for machine %q , providerID %q ,backing node %q.", machine.Name, getProviderID(machine), getNodeName(machine))
 	}
 	return nil
-}
-
-// hasMachinePreservationTimedOut returns true if preserve expiry time has lapsed
-func hasMachinePreservationTimedOut(machine *v1alpha1.Machine) bool {
-	return machineutils.IsPreserveExpiryTimeSet(machine) && metav1.Now().After(machine.Status.CurrentStatus.PreserveExpiryTime.Time)
 }
