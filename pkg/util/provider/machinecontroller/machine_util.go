@@ -2541,37 +2541,33 @@ func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alp
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	if nodeName != "" {
 		// Machine has a backing node
+		node, err := c.nodeLister.Get(nodeName)
+		if err != nil {
+			klog.Errorf("error trying to get node %q of machine %q: %v. Retrying.", nodeName, machine.Name, err)
+			return err
+		}
+		// prepare NodeCondition to set preservation as stopped
 		preservedConditionFalse := v1.NodeCondition{
 			Type:               v1alpha1.NodePreserved,
 			Status:             v1.ConditionFalse,
 			LastTransitionTime: metav1.Now(),
 			Reason:             v1alpha1.NodePreservationStopped,
 		}
-
-		// Step 1: if backing node exists, change node condition to reflect that preservation has stopped
-		err := nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, nodeName, preservedConditionFalse)
+		// Step 1: change node condition to reflect that preservation has stopped
+		updatedNode := nodeops.AddOrUpdateCondition(node, preservedConditionFalse)
+		updatedNode, err = c.targetCoreClient.CoreV1().Nodes().UpdateStatus(ctx, updatedNode, metav1.UpdateOptions{})
 		if err != nil {
+			klog.Errorf("error trying to update node preserved condition for node %q of machine %q : %s", nodeName, machine.Name, err)
 			return err
 		}
 		// Step 2: remove CA's scale-down disabled annotations to allow CA to scale down node if needed
 		// fetch latest node object since cache may be not be up-to-date with node updated earlier
-		latestNode, err := c.targetCoreClient.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
-		if err != nil {
-			klog.Errorf("error trying to get backing node %q for machine %q. Retrying, error: %s", nodeName, machine.Name, err)
-			return err
-		}
-		if latestNode.Annotations != nil && latestNode.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] != "" {
-			annotationsToRemove := make(map[string]string)
-			annotationsToRemove[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = ""
-			nodeCopy := latestNode.DeepCopy()
-			nodeCopy, _, err = annotations.RemoveAnnotation(nodeCopy, annotationsToRemove)
-			if err != nil {
-				klog.Errorf("error trying to remove CA annotation from node %q of machine %q : %s", nodeName, machine.Name, err)
-				return err
-			}
+		if updatedNode.Annotations != nil && updatedNode.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] != "" {
+			nodeCopy := updatedNode.DeepCopy()
+			delete(nodeCopy.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey)
 			_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
 			if err != nil {
-				klog.Errorf("Node UPDATE failed for node %q of machine %q. Retrying, error: %s", nodeName, machine.Name, err)
+				klog.Errorf("node UPDATE failed for node %q of machine %q. Retrying, error: %s", nodeName, machine.Name, err)
 				return err
 			}
 		}
