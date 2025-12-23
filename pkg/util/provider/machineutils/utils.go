@@ -101,8 +101,6 @@ const (
 	//PreserveMachineAnnotationValueFalse is the annotation value used to explicitly request that
 	// a Machine should not be preserved any longer, even if the expiry timeout has not been reached
 	PreserveMachineAnnotationValueFalse = "false"
-
-	PreserveMac
 )
 
 // AllowedPreserveAnnotationValues contains the allowed values for the preserve annotation
@@ -162,10 +160,5 @@ func IsPreserveExpiryTimeSet(m *v1alpha1.Machine) bool {
 
 // HasPreservationTimedOut checks if the Status.CurrentStatus.PreserveExpiryTime has not yet passed
 func HasPreservationTimedOut(m *v1alpha1.Machine) bool {
-	if m.Status.CurrentStatus.PreserveExpiryTime.IsZero() {
-		return true
-	} else if m.Status.CurrentStatus.PreserveExpiryTime.After(time.Now()) {
-		return false
-	}
-	return true
+	return IsPreserveExpiryTimeSet(m) && m.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())
 }
