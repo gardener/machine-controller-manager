@@ -360,31 +360,6 @@ func (c *controller) reconcileClusterMachineTermination(key string) error {
 	return nil
 }
 
-// handlePreserveAnnotationsChange returns true if there is a change in preserve annotations
-// it also handles the special case where the annotation is changed from 'now' to 'when-failed'
-// in which case it stops the preservation if expiry time is already set
-func (c *controller) handlePreserveAnnotationsChange(oldAnnotations, newAnnotations map[string]string, machine *v1alpha1.Machine) bool {
-	valueNew, existsInNew := newAnnotations[machineutils.PreserveMachineAnnotationKey]
-	valueOld, existsInOld := oldAnnotations[machineutils.PreserveMachineAnnotationKey]
-	if valueNew != machineutils.PreserveMachineAnnotationValueWhenFailed || valueOld != machineutils.PreserveMachineAnnotationValueNow {
-		return existsInOld != existsInNew || valueOld != valueNew
-	}
-	// Special case: annotation changed from 'now' to 'when-failed'
-	isPreserved := machineutils.IsPreserveExpiryTimeSet(machine)
-	if !isPreserved {
-		return true
-	}
-	ctx := context.Background()
-	err := clientretry.RetryOnConflict(nodeops.Backoff, func() error {
-		klog.V(3).Infof("Stopping preservation for machine %q as preserve annotation changed from 'now' to 'when-failed'.", machine.Name)
-		return c.stopMachinePreservation(ctx, machine)
-	})
-	if err != nil {
-		klog.Errorf("error while stopping preservation for machine %q: %v. Use preserve=false to stop preservation.", machine.Name, err)
-	}
-	return true
-}
-
 /*
 	SECTION
 	Machine operations - Create, Delete
@@ -811,6 +786,36 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 	return isMachineInCreationFlow
 }
 
+/*
+	SECTION
+	Machine Preservation operations
+*/
+
+// handlePreserveAnnotationsChange returns true if there is a change in preserve annotations
+// it also handles the special case where the annotation is changed from 'now' to 'when-failed'
+// in which case it stops the preservation if expiry time is already set
+func (c *controller) handlePreserveAnnotationsChange(oldAnnotations, newAnnotations map[string]string, machine *v1alpha1.Machine) bool {
+	valueNew, existsInNew := newAnnotations[machineutils.PreserveMachineAnnotationKey]
+	valueOld, existsInOld := oldAnnotations[machineutils.PreserveMachineAnnotationKey]
+	if valueNew != machineutils.PreserveMachineAnnotationValueWhenFailed || valueOld != machineutils.PreserveMachineAnnotationValueNow {
+		return existsInOld != existsInNew || valueOld != valueNew
+	}
+	// Special case: annotation changed from 'now' to 'when-failed'
+	isPreserved := machineutils.IsPreserveExpiryTimeSet(machine)
+	if !isPreserved {
+		return true
+	}
+	ctx := context.Background()
+	err := clientretry.RetryOnConflict(nodeops.Backoff, func() error {
+		klog.V(3).Infof("Stopping preservation for machine %q as preserve annotation changed from 'now' to 'when-failed'.", machine.Name)
+		return c.stopMachinePreservation(ctx, machine)
+	})
+	if err != nil {
+		klog.Errorf("error while stopping preservation for machine %q: %v. Use preserve=false to stop preservation.", machine.Name, err)
+	}
+	return true
+}
+
 // manageMachinePreservation checks if any preservation-related operations need to be performed on the machine and node objects
 func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (retry machineutils.RetryPeriod, err error) {
 	defer func() {
@@ -819,8 +824,9 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 				retry = machineutils.ConflictRetry
 			}
 			retry = machineutils.ShortRetry
+		} else {
+			retry = machineutils.LongRetry
 		}
-		retry = machineutils.LongRetry
 	}()
 
 	preserveValue, exists, err := c.computeEffectivePreserveAnnotationValue(machine)
