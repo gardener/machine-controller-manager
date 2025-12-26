@@ -805,6 +805,10 @@ func (c *controller) handlePreserveAnnotationsChange(oldAnnotations, newAnnotati
 	if !isPreserved {
 		return true
 	}
+	if machineutils.IsMachineFailed(machine) {
+		// If machine is already in failed state, no need to stop preservation
+		return true
+	}
 	ctx := context.Background()
 	err := clientretry.RetryOnConflict(nodeops.Backoff, func() error {
 		klog.V(3).Infof("Stopping preservation for machine %q as preserve annotation changed from 'now' to 'when-failed'.", machine.Name)
