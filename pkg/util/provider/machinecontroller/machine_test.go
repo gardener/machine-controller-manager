@@ -196,82 +196,6 @@ var _ = Describe("machine", func() {
 		)
 	})
 
-	/*
-		Describe("##updateMachineConditions", func() {
-			Describe("Update conditions of a non-existing machine", func() {
-				It("should return error", func() {
-					stop := make(chan struct{})
-					defer close(stop)
-
-					objects := []runtime.Object{}
-					c, trackers := createController(stop, testNamespace, objects, nil, nil)
-					defer trackers.Stop()
-
-					testMachine := &v1alpha1.Machine{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "testmachine",
-							Namespace: testNamespace,
-						},
-						Status: v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase: v1alpha1.MachineTerminating,
-							},
-						},
-					}
-					conditions := []corev1.NodeCondition{}
-					var _, err = c.updateMachineConditions(testMachine, conditions)
-					Expect(err).Should(Not(BeNil()))
-				})
-			})
-			DescribeTable("Update conditions of an existing machine",
-				func(phase v1alpha1.MachinePhase, conditions []corev1.NodeCondition, expectedPhase v1alpha1.MachinePhase) {
-					stop := make(chan struct{})
-					defer close(stop)
-
-					testMachine := &v1alpha1.Machine{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "testmachine",
-							Namespace: testNamespace,
-						},
-						Status: v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase: phase,
-							},
-						},
-					}
-					objects := []runtime.Object{}
-					objects = append(objects, testMachine)
-
-					c, trackers := createController(stop, testNamespace, objects, nil, nil)
-					defer trackers.Stop()
-
-					var updatedMachine, err = c.updateMachineConditions(testMachine, conditions)
-					Expect(updatedMachine.Status.Conditions).Should(BeEquivalentTo(conditions))
-					Expect(updatedMachine.Status.CurrentStatus.Phase).Should(BeIdenticalTo(expectedPhase))
-					Expect(err).Should(BeNil())
-				},
-				Entry("healthy status but machine terminating", v1alpha1.MachineTerminating, []corev1.NodeCondition{
-					{
-						Type:   corev1.NodeReady,
-						Status: corev1.ConditionTrue,
-					},
-				}, v1alpha1.MachineTerminating),
-				Entry("unhealthy status but machine running", v1alpha1.MachineRunning, []corev1.NodeCondition{
-					{
-						Type:   corev1.NodeReady,
-						Status: corev1.ConditionFalse,
-					},
-				}, v1alpha1.MachineUnknown),
-				Entry("healthy status but machine not running", v1alpha1.MachineAvailable, []corev1.NodeCondition{
-					{
-						Type:   corev1.NodeReady,
-						Status: corev1.ConditionTrue,
-					},
-				}, v1alpha1.MachineRunning),
-			)
-		})
-	*/
-
 	Describe("#ValidateMachine", func() {
 		type data struct {
 			action machineapi.Machine
@@ -4410,7 +4334,6 @@ var _ = Describe("machine", func() {
 				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-
 				retry, err := c.manageMachinePreservation(context.TODO(), machine)
 
 				Expect(retry).To(Equal(tc.expect.retry))
