@@ -513,6 +513,21 @@ not be estimated during the time a MachineDeployment is paused. This is not set
 by default, which is treated as infinite deadline.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>autoPreserveFailedMachineMax</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The maximum number of machines in the machine deployment that will be auto-preserved.
+In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker&rsquo;s machine deployments</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -678,6 +693,19 @@ int32
 <em>(Optional)</em>
 </td>
 </tr>
+<tr>
+<td>
+<code>autoPreserveFailedMachineMax</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -831,6 +859,21 @@ Kubernetes meta/v1.Time
 </td>
 <td>
 <p>Last update time of current status</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>preserveExpiryTime</code>
+</td>
+<td>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<p>PreserveExpiryTime is the time at which MCM will stop preserving the machine</p>
 </td>
 </tr>
 </tbody>
@@ -1067,6 +1110,22 @@ Kubernetes meta/v1.Duration
 <td>
 <em>(Optional)</em>
 <p>MachineInPlaceUpdateTimeout is the timeout after which in-place update is declared failed.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>preserveTimeout</code>
+</td>
+<td>
+<em>
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MachinePreserveTimeout is the timeout after which the machine preservation is stopped</p>
 </td>
 </tr>
 <tr>
@@ -1398,6 +1457,21 @@ not be estimated during the time a MachineDeployment is paused. This is not set
 by default, which is treated as infinite deadline.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>autoPreserveFailedMachineMax</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The maximum number of machines in the machine deployment that will be auto-preserved.
+In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker&rsquo;s machine deployments</p>
+</td>
+</tr>
 </tbody>
 </table>
 <br>
@@ -1543,8 +1617,8 @@ newest MachineSet.</p>
 </td>
 <td>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.*../../pkg/apis/machine/v1alpha1.MachineSummary">
-[]*../../pkg/apis/machine/v1alpha1.MachineSummary
+<a href="#machine.sapcloud.io/v1alpha1.*github.com/thiyyakat/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary">
+[]*github.com/thiyyakat/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary
 </a>
 </em>
 </td>
@@ -1860,6 +1934,19 @@ int32
 <em>(Optional)</em>
 </td>
 </tr>
+<tr>
+<td>
+<code>autoPreserveFailedMachineMax</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </tbody>
 </table>
 <br>
@@ -1988,14 +2075,28 @@ LastOperation
 </td>
 <td>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.[]../../pkg/apis/machine/v1alpha1.MachineSummary">
-[]../../pkg/apis/machine/v1alpha1.MachineSummary
+<a href="#machine.sapcloud.io/v1alpha1.[]github.com/thiyyakat/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary">
+[]github.com/thiyyakat/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
 <p>FailedMachines has summary of machines on which lastOperation Failed</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>autoPreserveFailedMachineCount</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>AutoPreserveFailedMachineCount has a count of the number of failed machines in the machineset that have been auto-preserved</p>
 </td>
 </tr>
 </tbody>
