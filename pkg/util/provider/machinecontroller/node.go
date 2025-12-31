@@ -100,6 +100,14 @@ func (c *controller) updateNode(oldObj, newObj any) {
 	if nodeConditionsHaveChanged && !(isMachineCrashLooping || isMachineTerminating) {
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Conditions of node %q differ from machine status", node.Name))
 	}
+
+	// to reconcile on change in annotations related to preservation
+	if c.handlePreserveAnnotationsChange(oldNode.Annotations, node.Annotations, machine) {
+		klog.V(3).Infof("Node %q for machine %q is annotated for preservation with value %q.", node.Name, machine.Name, node.Annotations[machineutils.PreserveMachineAnnotationKey])
+		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Preserve annotations added or updated for node %q", getNodeName(machine)))
+		return
+	}
+
 }
 
 func (c *controller) deleteNode(obj any) {
