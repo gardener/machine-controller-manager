@@ -60,11 +60,6 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 		klog.Errorf("couldn't convert to machine resource from object")
 		return
 	}
-	{ // TODO@thiyyakat: remove after testing
-		if newMachine.Labels["test-failed"] != oldMachine.Labels["test-failed"] {
-			c.enqueueMachine(newObj, "TEST: handling machine failure simulation UPDATE event")
-		}
-	}
 	if c.handlePreserveAnnotationsChange(oldMachine.Annotations, newMachine.Annotations, newMachine) {
 		c.enqueueMachine(newObj, "handling machine object preservation related UPDATE event")
 		return
@@ -219,40 +214,6 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 	if err != nil {
 		klog.Errorf("cannot reconcile machine %s: %s", machine.Name, err)
 		return retry, err
-	}
-
-	{ //TODO@thiyyakat: remove after testing
-		if machine.Labels["test-failed"] == "true" {
-			node, err := c.nodeLister.Get(getNodeName(machine))
-			if err != nil {
-				klog.V(3).Infof("TEST:Machine %q: Failed to get node %q: %v", machine.Name, machine.Name, err)
-				return machineutils.ShortRetry, err
-			}
-			if cond := nodeops.GetCondition(node, corev1.NodeNetworkUnavailable); cond.Status != corev1.ConditionTrue {
-				newCond := corev1.NodeCondition{Type: corev1.NodeNetworkUnavailable, Status: corev1.ConditionTrue}
-				err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, getNodeName(machine), newCond)
-				if err != nil {
-					klog.V(2).Infof("TEST:Machine %q: Failed to change node condition %q: %v", machine.Name, machine.Name, err)
-					return machineutils.ShortRetry, err
-				}
-				klog.V(2).Infof("TEST: marked nodenetwork as unavailable for machine %s", machine.Name)
-			}
-		} else if machine.Labels["test-failed"] == "false" {
-			node, err := c.nodeLister.Get(getNodeName(machine))
-			if err != nil {
-				klog.V(3).Infof("TEST:Machine %q: Failed to get node %q: %v", machine.Name, machine.Name, err)
-				return machineutils.ShortRetry, err
-			}
-			if cond := nodeops.GetCondition(node, corev1.NodeNetworkUnavailable); cond.Status != corev1.ConditionFalse {
-				newCond := corev1.NodeCondition{Type: corev1.NodeNetworkUnavailable, Status: corev1.ConditionFalse}
-				err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, getNodeName(machine), newCond)
-				if err != nil {
-					klog.V(2).Infof("TEST:Machine %q: Failed to change node condition %q: %v", machine.Name, machine.Name, err)
-					return machineutils.ShortRetry, err
-				}
-				klog.V(2).Infof("TEST: marked nodenetwork as available %s", machine.Name)
-			}
-		}
 	}
 
 	retry, err = c.manageMachinePreservation(ctx, machine)
