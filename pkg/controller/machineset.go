@@ -484,7 +484,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 // or if it is a candidate for auto-preservation
 // TODO@thiyyakat: find more suitable name for function
 func (c *controller) isMachineCandidateForPreservation(ctx context.Context, machineSet *v1alpha1.MachineSet, machine *v1alpha1.Machine) (bool, error) {
-	if machineutils.IsPreserveExpiryTimeSet(machine) && !machineutils.HasPreservationTimedOut(machine) {
+	if machine.Status.CurrentStatus.PreserveExpiryTime != nil && !machineutils.HasPreservationTimedOut(machine) {
 		klog.V(3).Infof("Machine %q is preserved until %v, not adding to stale machines", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
 		return true, nil
 	}
@@ -497,7 +497,7 @@ func (c *controller) isMachineCandidateForPreservation(ctx context.Context, mach
 			return false, nil
 		}
 	}
-	if *machineSet.Status.AutoPreserveFailedMachineCount < *machineSet.Spec.AutoPreserveFailedMachineMax {
+	if machineSet.Status.AutoPreserveFailedMachineCount != nil && machineSet.Spec.AutoPreserveFailedMachineMax != nil && *machineSet.Status.AutoPreserveFailedMachineCount < *machineSet.Spec.AutoPreserveFailedMachineMax {
 		err := c.annotateMachineForAutoPreservation(ctx, machine)
 		if err != nil {
 			return true, err
@@ -719,7 +719,7 @@ func prioritisePreservedMachines(machines []*v1alpha1.Machine) []*v1alpha1.Machi
 	preservedMachines := make([]*v1alpha1.Machine, 0, len(machines))
 	otherMachines := make([]*v1alpha1.Machine, 0, len(machines))
 	for _, mc := range machines {
-		if machineutils.IsPreserveExpiryTimeSet(mc) {
+		if mc.Status.CurrentStatus.PreserveExpiryTime != nil {
 			preservedMachines = append(preservedMachines, mc)
 		} else {
 			otherMachines = append(otherMachines, mc)

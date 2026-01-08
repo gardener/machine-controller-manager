@@ -759,8 +759,7 @@ func (c *controller) handlePreserveAnnotationsChange(oldAnnotations, newAnnotati
 		return existsInOld != existsInNew || valueOld != valueNew
 	}
 	// Special case: annotation changed from 'now' to 'when-failed'
-	isPreserved := machineutils.IsPreserveExpiryTimeSet(machine)
-	if !isPreserved {
+	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
 		return true
 	}
 	if machineutils.IsMachineFailed(machine) {
@@ -809,7 +808,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	if !isPreserveAnnotationValueValid(preserveValue) {
 		klog.Warningf("Preserve annotation value %q on machine %s is invalid", preserveValue, machine.Name)
 		return
-	} else if preserveValue == machineutils.PreserveMachineAnnotationValueFalse || (machineutils.IsPreserveExpiryTimeSet(clone) && machineutils.HasPreservationTimedOut(clone)) {
+	} else if preserveValue == machineutils.PreserveMachineAnnotationValueFalse || (clone.Status.CurrentStatus.PreserveExpiryTime != nil && machineutils.HasPreservationTimedOut(clone)) {
 		err = c.stopMachinePreservation(ctx, clone)
 		return
 	} else if preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed {
