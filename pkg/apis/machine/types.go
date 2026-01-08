@@ -162,7 +162,7 @@ type CurrentStatus struct {
 	LastUpdateTime metav1.Time
 
 	// PreserveExpiryTime is the time at which MCM will stop preserving the machine
-	PreserveExpiryTime metav1.Time
+	PreserveExpiryTime *metav1.Time
 }
 
 // MachineStatus holds the most recently observed status of Machine.
@@ -357,7 +357,7 @@ type MachineSetSpec struct {
 
 	MinReadySeconds int32
 
-	AutoPreserveFailedMachineMax int32
+	AutoPreserveFailedMachineMax *int32
 }
 
 // MachineSetConditionType is the condition on machineset object
@@ -418,7 +418,7 @@ type MachineSetStatus struct {
 	FailedMachines *[]MachineSummary
 
 	// AutoPreserveFailedMachineCount has a count of the number of failed machines in the machineset that have been auto-preserved
-	AutoPreserveFailedMachineCount int32
+	AutoPreserveFailedMachineCount *int32
 }
 
 // MachineSummary store the summary of machine.
@@ -500,7 +500,7 @@ type MachineDeploymentSpec struct {
 
 	// The maximum number of machines in the machine deployment that will be auto-preserved.
 	// In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker's machine deployments
-	AutoPreserveFailedMachineMax int32
+	AutoPreserveFailedMachineMax *int32
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

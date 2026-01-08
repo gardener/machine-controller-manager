@@ -3961,7 +3961,6 @@ var _ = Describe("machine_util", func() {
 	Describe("#preserveMachine", func() {
 		type setup struct {
 			machinePhase           machinev1.MachinePhase
-			preserveExpiryTime     metav1.Time
 			nodeName               string
 			preserveValue          string
 			isCAAnnotationPresent  bool
@@ -3998,7 +3997,7 @@ var _ = Describe("machine_util", func() {
 						CurrentStatus: machinev1.CurrentStatus{
 							Phase:              tc.setup.machinePhase,
 							LastUpdateTime:     metav1.Now(),
-							PreserveExpiryTime: tc.setup.preserveExpiryTime,
+							PreserveExpiryTime: nil,
 						},
 					},
 				}
@@ -4244,7 +4243,7 @@ var _ = Describe("machine_util", func() {
 						CurrentStatus: machinev1.CurrentStatus{
 							Phase:              machinev1.MachineFailed,
 							LastUpdateTime:     metav1.Now(),
-							PreserveExpiryTime: metav1.NewTime(time.Now().Add(10 * time.Minute)),
+							PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(10 * time.Minute)},
 						},
 					},
 				}
