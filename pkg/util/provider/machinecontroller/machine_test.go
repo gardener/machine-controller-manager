@@ -4036,9 +4036,9 @@ var _ = Describe("machine", func() {
 				machine.Status.CurrentStatus.Phase = tc.setup.phase
 			}
 			if tc.setup.oldPreserveValue == machineutils.PreserveMachineAnnotationValueNow || tc.setup.oldPreserveValue == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
-				machine.Status.CurrentStatus.PreserveExpiryTime = metav1.NewTime(metav1.Now().Add(1 * time.Hour))
+				machine.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)}
 			} else if tc.setup.oldPreserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed && machineutils.IsMachineFailed(machine) {
-				machine.Status.CurrentStatus.PreserveExpiryTime = metav1.NewTime(metav1.Now().Add(1 * time.Hour))
+				machine.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)}
 			}
 
 			controlMachineObjects := []runtime.Object{machine}
@@ -4273,7 +4273,7 @@ var _ = Describe("machine", func() {
 			nodeAnnotationValue    string
 			nodeName               string
 			machinePhase           v1alpha1.MachinePhase
-			preserveExpiryTime     metav1.Time
+			preserveExpiryTime     *metav1.Time
 		}
 		type expect struct {
 			retry                   machineutils.RetryPeriod
@@ -4450,7 +4450,7 @@ var _ = Describe("machine", func() {
 					nodeAnnotationValue: "false",
 					nodeName:            "node-1",
 					machinePhase:        v1alpha1.MachineRunning,
-					preserveExpiryTime:  metav1.NewTime(metav1.Now().Add(1 * time.Hour)),
+					preserveExpiryTime:  &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)},
 				},
 				expect: expect{
 					preserveExpiryTimeIsSet: false,
@@ -4479,7 +4479,7 @@ var _ = Describe("machine", func() {
 					nodeAnnotationValue:    machineutils.PreserveMachineAnnotationValueNow,
 					nodeName:               "node-1",
 					machinePhase:           v1alpha1.MachineRunning,
-					preserveExpiryTime:     metav1.NewTime(metav1.Now().Add(-1 * time.Minute)),
+					preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(-1 * time.Minute)},
 				},
 				expect: expect{
 					preserveExpiryTimeIsSet: false,

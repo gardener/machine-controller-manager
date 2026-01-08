@@ -95,7 +95,7 @@ type MachineDeploymentSpec struct {
 	// The maximum number of machines in the machine deployment that will be auto-preserved.
 	// In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker's machine deployments
 	// +optional
-	AutoPreserveFailedMachineMax int32 `json:"autoPreserveFailedMachineMax,omitempty"`
+	AutoPreserveFailedMachineMax *int32 `json:"autoPreserveFailedMachineMax,omitempty"`
 }
 
 const (
