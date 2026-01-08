@@ -153,11 +153,6 @@ func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
 	return m.Annotations[MachinePriority] == "1"
 }
 
-// IsPreserveExpiryTimeSet checks if machine is preserved by MCM
-func IsPreserveExpiryTimeSet(m *v1alpha1.Machine) bool {
-	return !m.Status.CurrentStatus.PreserveExpiryTime.IsZero()
-}
-
 // HasPreservationTimedOut checks if the Status.CurrentStatus.PreserveExpiryTime has not yet passed
 func HasPreservationTimedOut(m *v1alpha1.Machine) bool {
 	return !m.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())
