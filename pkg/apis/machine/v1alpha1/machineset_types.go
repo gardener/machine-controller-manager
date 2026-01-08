@@ -70,7 +70,7 @@ type MachineSetSpec struct {
 	MinReadySeconds int32 `json:"minReadySeconds,omitempty"`
 
 	// +optional
-	AutoPreserveFailedMachineMax int32 `json:"autoPreserveFailedMachineMax,omitempty"`
+	AutoPreserveFailedMachineMax *int32 `json:"autoPreserveFailedMachineMax,omitempty"`
 }
 
 // MachineSetConditionType is the condition on machineset object
@@ -141,5 +141,5 @@ type MachineSetStatus struct {
 
 	// AutoPreserveFailedMachineCount has a count of the number of failed machines in the machineset that have been auto-preserved
 	// +optional
-	AutoPreserveFailedMachineCount int32 `json:"autoPreserveFailedMachineCount,omitempty"`
+	AutoPreserveFailedMachineCount *int32 `json:"autoPreserveFailedMachineCount,omitempty"`
 }
