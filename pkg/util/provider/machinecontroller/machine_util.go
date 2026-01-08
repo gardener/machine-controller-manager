@@ -2181,7 +2181,7 @@ func (c *controller) canMarkMachineFailed(machineDeployName, machineName, namesp
 		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineUnknown && machine.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 			// since Preserved Failed machines are not replaced immediately,
 			// they need not be considered towards inProgress
-			if !machineutils.IsPreserveExpiryTimeSet(machine) {
+			if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
 				inProgress++
 			}
 			switch machine.Status.CurrentStatus.Phase {
@@ -2370,9 +2370,8 @@ Utility Functions for Machine Preservation
 // preserveMachine contains logic to start the preservation of a machine and node.
 func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine, preserveValue string) error {
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
-	isExpirySet := machineutils.IsPreserveExpiryTimeSet(machine)
 	updatedMachine := machine.DeepCopy()
-	if !isExpirySet {
+	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
 		klog.V(4).Infof("Starting preservation flow for machine %q.", machine.Name)
 		// Step 1: Add preserveExpiryTime to machine status
 		updatedMachine, err := c.setPreserveExpiryTimeOnMachine(ctx, updatedMachine)
@@ -2526,7 +2525,7 @@ func (c *controller) shouldNodeBeDrained(machine *v1alpha1.Machine, existingCond
 func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) error {
 	// removal of preserveExpiryTime is the last step of stopping preservation
 	// if preserveExpiryTime is not set, preservation is already stopped
-	if !machineutils.IsPreserveExpiryTimeSet(machine) {
+	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
 		return nil
 	}
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
