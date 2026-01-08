@@ -258,6 +258,14 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 		return scaled, err
 	}
 
+	totalReplicas := oldMachinesCount + newMachineSet.Spec.Replicas
+	if totalReplicas < deployment.Spec.Replicas {
+		// Scale up the new machine set to reach the desired replica count, considering old machines.
+		klog.V(3).Infof("scale up the new machine set %s from %d to %d replicas (delta: %d)", newMachineSet.Name, newMachineSet.Spec.Replicas, deployment.Spec.Replicas-oldMachinesCount, deployment.Spec.Replicas-totalReplicas)
+		scaled, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newMachineSet, deployment.Spec.Replicas-oldMachinesCount, deployment)
+		return scaled, err
+	}
+
 	addedNewReplicasCount, err := dc.transferMachinesFromOldToNewMachineSet(ctx, oldMachineSets, newMachineSet, deployment)
 	if err != nil {
 		return false, fmt.Errorf("error while transferring machines from old to new machine set: %w", err)
