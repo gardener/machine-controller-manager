@@ -519,7 +519,7 @@ by default, which is treated as infinite deadline.</p>
 </td>
 <td>
 <em>
-int32
+*int32
 </em>
 </td>
 <td>
@@ -699,7 +699,7 @@ int32
 </td>
 <td>
 <em>
-int32
+*int32
 </em>
 </td>
 <td>
@@ -1114,7 +1114,7 @@ Kubernetes meta/v1.Duration
 </tr>
 <tr>
 <td>
-<code>preserveTimeout</code>
+<code>machinePreserveTimeout</code>
 </td>
 <td>
 <em>
@@ -1463,7 +1463,7 @@ by default, which is treated as infinite deadline.</p>
 </td>
 <td>
 <em>
-int32
+*int32
 </em>
 </td>
 <td>
@@ -1940,7 +1940,7 @@ int32
 </td>
 <td>
 <em>
-int32
+*int32
 </em>
 </td>
 <td>
@@ -2091,7 +2091,7 @@ LastOperation
 </td>
 <td>
 <em>
-int32
+*int32
 </em>
 </td>
 <td>

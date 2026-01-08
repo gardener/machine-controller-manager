@@ -1305,7 +1305,7 @@ func (c *controller) setMachineTerminationStatus(ctx context.Context, deleteMach
 		Phase: v1alpha1.MachineTerminating,
 		// TimeoutActive:  false,
 		LastUpdateTime:     metav1.Now(),
-		PreserveExpiryTime: metav1.Time{},
+		PreserveExpiryTime: nil,
 	}
 
 	_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
@@ -2439,7 +2439,7 @@ func (c *controller) setPreserveExpiryTimeOnMachine(ctx context.Context, machine
 		Phase:              machine.Status.CurrentStatus.Phase,
 		TimeoutActive:      machine.Status.CurrentStatus.TimeoutActive,
 		LastUpdateTime:     metav1.Now(),
-		PreserveExpiryTime: metav1.NewTime(metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)),
+		PreserveExpiryTime: &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)},
 	}
 
 	machine.Status.CurrentStatus = preservedCurrentStatus
@@ -2565,7 +2565,7 @@ func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alp
 	}
 	// Step 3: update machine status to set preserve expiry time to metav1.Time{}
 	clone := machine.DeepCopy()
-	clone.Status.CurrentStatus.PreserveExpiryTime = metav1.Time{}
+	clone.Status.CurrentStatus.PreserveExpiryTime = nil
 	clone.Status.CurrentStatus.LastUpdateTime = metav1.Now()
 	_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 	if err != nil {

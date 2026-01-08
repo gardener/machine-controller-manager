@@ -497,7 +497,7 @@ func (c *controller) isMachineCandidateForPreservation(ctx context.Context, mach
 			return false, nil
 		}
 	}
-	if machineSet.Status.AutoPreserveFailedMachineCount < machineSet.Spec.AutoPreserveFailedMachineMax {
+	if *machineSet.Status.AutoPreserveFailedMachineCount < *machineSet.Spec.AutoPreserveFailedMachineMax {
 		err := c.annotateMachineForAutoPreservation(ctx, machine)
 		if err != nil {
 			return true, err
