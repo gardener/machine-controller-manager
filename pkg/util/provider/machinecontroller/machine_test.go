@@ -7,6 +7,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	k8stesting "k8s.io/client-go/testing"
 	"math"
 	"time"
 
@@ -16,7 +17,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	k8stesting "k8s.io/client-go/testing"
 
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -195,82 +195,6 @@ var _ = Describe("machine", func() {
 			}),
 		)
 	})
-
-	/*
-		Describe("##updateMachineConditions", func() {
-			Describe("Update conditions of a non-existing machine", func() {
-				It("should return error", func() {
-					stop := make(chan struct{})
-					defer close(stop)
-
-					objects := []runtime.Object{}
-					c, trackers := createController(stop, testNamespace, objects, nil, nil)
-					defer trackers.Stop()
-
-					testMachine := &v1alpha1.Machine{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "testmachine",
-							Namespace: testNamespace,
-						},
-						Status: v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase: v1alpha1.MachineTerminating,
-							},
-						},
-					}
-					conditions := []corev1.NodeCondition{}
-					var _, err = c.updateMachineConditions(testMachine, conditions)
-					Expect(err).Should(Not(BeNil()))
-				})
-			})
-			DescribeTable("Update conditions of an existing machine",
-				func(phase v1alpha1.MachinePhase, conditions []corev1.NodeCondition, expectedPhase v1alpha1.MachinePhase) {
-					stop := make(chan struct{})
-					defer close(stop)
-
-					testMachine := &v1alpha1.Machine{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "testmachine",
-							Namespace: testNamespace,
-						},
-						Status: v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase: phase,
-							},
-						},
-					}
-					objects := []runtime.Object{}
-					objects = append(objects, testMachine)
-
-					c, trackers := createController(stop, testNamespace, objects, nil, nil)
-					defer trackers.Stop()
-
-					var updatedMachine, err = c.updateMachineConditions(testMachine, conditions)
-					Expect(updatedMachine.Status.Conditions).Should(BeEquivalentTo(conditions))
-					Expect(updatedMachine.Status.CurrentStatus.Phase).Should(BeIdenticalTo(expectedPhase))
-					Expect(err).Should(BeNil())
-				},
-				Entry("healthy status but machine terminating", v1alpha1.MachineTerminating, []corev1.NodeCondition{
-					{
-						Type:   corev1.NodeReady,
-						Status: corev1.ConditionTrue,
-					},
-				}, v1alpha1.MachineTerminating),
-				Entry("unhealthy status but machine running", v1alpha1.MachineRunning, []corev1.NodeCondition{
-					{
-						Type:   corev1.NodeReady,
-						Status: corev1.ConditionFalse,
-					},
-				}, v1alpha1.MachineUnknown),
-				Entry("healthy status but machine not running", v1alpha1.MachineAvailable, []corev1.NodeCondition{
-					{
-						Type:   corev1.NodeReady,
-						Status: corev1.ConditionTrue,
-					},
-				}, v1alpha1.MachineRunning),
-			)
-		})
-	*/
 
 	Describe("#ValidateMachine", func() {
 		type data struct {
@@ -2782,7 +2706,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("failed to create update conditions for node \"fakeID-0\": Failed to update node"),
+					err:   fmt.Errorf("failed to create/update conditions on node \"fakeID-0\": Failed to update node"),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -2801,7 +2725,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", "failed to create update conditions for node \"fakeID-0\": Failed to update node", machineutils.InitiateDrain),
+								Description:    fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", "failed to create/update conditions on node \"fakeID-0\": Failed to update node", machineutils.InitiateDrain),
 								State:          v1alpha1.MachineStateFailed,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -2996,7 +2920,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("failed to create update conditions for node \"fakeNode-0\": Failed to update node"),
+					err:   fmt.Errorf("failed to create/update conditions on node \"fakeNode-0\": Failed to update node"),
 					retry: machineutils.ShortRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
@@ -3015,7 +2939,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", "failed to create update conditions for node \"fakeNode-0\": Failed to update node", machineutils.InitiateDrain),
+								Description:    fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", "failed to create/update conditions on node \"fakeNode-0\": Failed to update node", machineutils.InitiateDrain),
 								State:          v1alpha1.MachineStateFailed,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),
@@ -4074,470 +3998,537 @@ var _ = Describe("machine", func() {
 			}),
 		)
 	})
-	/*
-		Describe("#checkMachineTimeout", func() {
-			type setup struct {
-				machines []*v1alpha1.Machine
-			}
-			type action struct {
-				machine string
-			}
-			type expect struct {
-				machine *v1alpha1.Machine
-				err     bool
-			}
-			type data struct {
-				setup  setup
-				action action
-				expect expect
-			}
-			objMeta := &metav1.ObjectMeta{
-				GenerateName: "machine",
-				Namespace:    "test",
-			}
-			machineName := "machine-0"
-			timeOutOccurred := -21 * time.Minute
-			timeOutNotOccurred := -5 * time.Minute
-			creationTimeOut := 20 * time.Minute
-			healthTimeOut := 10 * time.Minute
-			DescribeTable("##Machine Timeout Scenarios",
-				func(data *data) {
-					stop := make(chan struct{})
-					defer close(stop)
-					machineObjects := []runtime.Object{}
-					for _, o := range data.setup.machines {
-						machineObjects = append(machineObjects, o)
-					}
-					coreObjects := []runtime.Object{}
-					controller, trackers := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
-					defer trackers.Stop()
-					waitForCacheSync(stop, controller)
-					action := data.action
-					machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
-					//Expect(err).ToNot(HaveOccurred())
-					controller.checkMachineTimeout(machine)
-					actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(machine.Name, metav1.GetOptions{})
-					Expect(err).To(BeNil())
-					Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
-					Expect(actual.Status.CurrentStatus.//TimeoutActive).To(Equal(data.expect.machine.Status.CurrentStatus.//TimeoutActive))
-					Expect(actual.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
-					Expect(actual.Status.LastOperation.State).To(Equal(data.expect.machine.Status.LastOperation.State))
-					Expect(actual.Status.LastOperation.Type).To(Equal(data.expect.machine.Status.LastOperation.Type))
+
+	Describe("#handlePreserveAnnotationsChange", func() {
+		type setup struct {
+			oldPreserveValue string
+			newPreserveValue string
+			phase            v1alpha1.MachinePhase
+		}
+
+		type expect struct {
+			change bool
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+		DescribeTable("##handlePreserveAnnotationsChange scenarios", func(tc testCase) {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			// Build machine object
+			machine := &v1alpha1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "m1",
+					Labels: map[string]string{
+						v1alpha1.NodeLabelKey: "node-1",
+					},
+				}, Status: v1alpha1.MachineStatus{
+					CurrentStatus: v1alpha1.CurrentStatus{
+						Phase:          v1alpha1.MachineRunning,
+						LastUpdateTime: metav1.Now(),
+					},
 				},
-				Entry("Machine is still running", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachineRunning,
-								//TimeoutActive:  false,
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Machine % successfully joined the cluster", machineName),
-								State:          v1alpha1.MachineStateSuccessful,
-								Type:           v1alpha1.MachineOperationCreate,
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
-							},
-						}, nil, nil, nil),
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:         v1alpha1.MachineRunning,
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description: fmt.Sprintf("Machine % successfully joined the cluster", machineName),
-								State:       v1alpha1.MachineStateSuccessful,
-								Type:        v1alpha1.MachineOperationCreate,
-							},
-						}, nil, nil, nil),
-					},
-				}),
-				Entry("Machine creation has still not timed out", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachineUnknown,
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown", machineName),
-								State:          v1alpha1.MachineStateProcessing,
-								Type:           v1alpha1.MachineOperationCreate,
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutNotOccurred)),
-							},
-						}, nil, nil, nil),
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:         v1alpha1.MachineUnknown,
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description: fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown", machineName),
-								State:       v1alpha1.MachineStateProcessing,
-								Type:        v1alpha1.MachineOperationCreate,
-							},
-						}, nil, nil, nil),
-					},
-				}),
-				Entry("Machine creation has timed out", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachinePending,
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description:    "Creating machine on cloud provider",
-								State:          v1alpha1.MachineStateProcessing,
-								Type:           v1alpha1.MachineOperationCreate,
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
-							},
-						}, nil, nil, nil),
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:         v1alpha1.MachineFailed,
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description: fmt.Sprintf(
-									"Machine %s failed to join the cluster in %s minutes.",
-									machineName,
-									creationTimeOut,
-								),
-								State: v1alpha1.MachineStateFailed,
-								Type:  v1alpha1.MachineOperationCreate,
-							},
-						}, nil, nil, nil),
-					},
-				}),
-				Entry("Machine health has timed out", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachineUnknown,
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Machine %s is unhealthy - changing MachineState to Unknown", machineName),
-								State:          v1alpha1.MachineStateProcessing,
-								Type:           v1alpha1.MachineOperationHealthCheck,
-								LastUpdateTime: metav1.NewTime(time.Now().Add(timeOutOccurred)),
-							},
-						}, nil, nil, nil),
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:         v1alpha1.MachineFailed,
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description: fmt.Sprintf(
-									"Machine %s is not healthy since %s minutes. Changing status to failed. Node Conditions: %+v",
-									machineName,
-									healthTimeOut,
-									[]corev1.NodeCondition{},
-								),
-								State: v1alpha1.MachineStateFailed,
-								Type:  v1alpha1.MachineOperationHealthCheck,
-							},
-						}, nil, nil, nil),
-					},
-				}),
-			)
-		})
-		Describe("#updateMachineState", func() {
-			type setup struct {
-				machines []*v1alpha1.Machine
-				nodes    []*corev1.Node
 			}
-			type action struct {
-				machine string
+			if tc.setup.phase != "" {
+				machine.Status.CurrentStatus.Phase = tc.setup.phase
 			}
-			type expect struct {
-				machine *v1alpha1.Machine
-				err     bool
+			if tc.setup.oldPreserveValue == machineutils.PreserveMachineAnnotationValueNow || tc.setup.oldPreserveValue == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
+				machine.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)}
+			} else if tc.setup.oldPreserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed && machineutils.IsMachineFailed(machine) {
+				machine.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)}
 			}
-			type data struct {
-				setup  setup
-				action action
-				expect expect
+
+			controlMachineObjects := []runtime.Object{machine}
+
+			// Build node object
+			node := &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "node-1",
+				},
 			}
-			objMeta := &metav1.ObjectMeta{
-				GenerateName: "machine",
-				// using default namespace for non-namespaced objects
-				// as our current fake client is with the assumption
-				// that all objects are namespaced
-				Namespace: "",
+			targetCoreObjects := []runtime.Object{node}
+
+			c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
+			defer trackers.Stop()
+
+			waitForCacheSync(stop, c)
+			result := c.handlePreserveAnnotationsChange(map[string]string{machineutils.PreserveMachineAnnotationKey: tc.setup.oldPreserveValue}, map[string]string{machineutils.PreserveMachineAnnotationKey: tc.setup.newPreserveValue}, machine)
+			Expect(result).To(Equal(tc.expect.change))
+			if tc.setup.newPreserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed && tc.setup.oldPreserveValue == machineutils.PreserveMachineAnnotationValueNow {
+				updatedMachine, err := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+				if tc.setup.phase == v1alpha1.MachineFailed {
+					Expect(updatedMachine.Status.CurrentStatus.PreserveExpiryTime.IsZero()).To(BeFalse()) // machine preservation should be active
+				} else {
+					Expect(updatedMachine.Status.CurrentStatus.PreserveExpiryTime.IsZero()).To(BeTrue()) // machine preservation should have been stopped
+				}
 			}
-			machineName := "machine-0"
-			DescribeTable("##Different machine state update scenrios",
-				func(data *data) {
-					stop := make(chan struct{})
-					defer close(stop)
-					machineObjects := []runtime.Object{}
-					for _, o := range data.setup.machines {
-						machineObjects = append(machineObjects, o)
+		},
+			Entry("no change in preserve annotations", testCase{
+				setup: setup{
+					oldPreserveValue: "someValue",
+					newPreserveValue: "someValue",
+				},
+				expect: expect{
+					change: false,
+				},
+			}),
+			Entry("preserve annotation newly added on machine", testCase{
+				setup: setup{
+					newPreserveValue: "newValue",
+				},
+				expect: expect{
+					change: true,
+				},
+			}),
+			Entry("preserve annotation removed", testCase{
+				setup: setup{
+					oldPreserveValue: "someValue",
+					newPreserveValue: "",
+				},
+				expect: expect{
+					change: true,
+				},
+			}),
+			Entry("preserve annotation value changed", testCase{
+				setup: setup{
+					oldPreserveValue: "oldValue",
+					newPreserveValue: "newValue"},
+				expect: expect{
+					change: true,
+				},
+			}),
+			Entry("both annotations are nil", testCase{
+				setup: setup{},
+				expect: expect{
+					change: false,
+				},
+			}),
+			Entry("preserve annotation changed from now to when-failed on Running machine", testCase{
+				setup: setup{
+					oldPreserveValue: machineutils.PreserveMachineAnnotationValueNow,
+					newPreserveValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
+				},
+				expect: expect{
+					change: true,
+				},
+			}),
+			Entry("preserve annotation changed from now to when-failed on Failed machine", testCase{
+				setup: setup{
+					oldPreserveValue: machineutils.PreserveMachineAnnotationValueNow,
+					newPreserveValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
+					phase:            v1alpha1.MachineFailed,
+				},
+				expect: expect{
+					change: true,
+				},
+			}),
+		)
+	})
+
+	Describe("#computeEffectivePreserveAnnotationValue", func() {
+		type setup struct {
+			machinePreserveAnnotation string
+			nodePreserveAnnotation    string
+			nodeName                  string
+		}
+		type expect struct {
+			preserveValue string
+			exists        bool
+			err           error
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("computeEffectivePreserveAnnotationValue behavior",
+			func(tc testCase) {
+
+				stop := make(chan struct{})
+				defer close(stop)
+
+				var controlMachineObjects []runtime.Object
+				var targetCoreObjects []runtime.Object
+
+				// Build machine
+				machine := &v1alpha1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "m1",
+						Labels: map[string]string{
+							v1alpha1.NodeLabelKey: tc.setup.nodeName,
+						},
+						Annotations: map[string]string{},
+					},
+				}
+				if tc.setup.machinePreserveAnnotation != "" {
+					machine.Annotations[machineutils.PreserveMachineAnnotationKey] = tc.setup.machinePreserveAnnotation
+				}
+
+				controlMachineObjects = append(controlMachineObjects, machine)
+				// Build node
+				if tc.setup.nodeName != "" && tc.setup.nodeName != "invalid" {
+					node := &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        tc.setup.nodeName,
+							Annotations: map[string]string{},
+						},
 					}
-					coreObjects := []runtime.Object{}
-					for _, o := range data.setup.nodes {
-						coreObjects = append(coreObjects, o)
+					if tc.setup.nodePreserveAnnotation != "" {
+						node.Annotations[machineutils.PreserveMachineAnnotationKey] = tc.setup.nodePreserveAnnotation
 					}
-					controller, trackers := createController(stop, objMeta.Namespace, machineObjects, nil, coreObjects)
-					defer trackers.Stop()
-					waitForCacheSync(stop, controller)
-					action := data.action
-					machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
+					targetCoreObjects = append(targetCoreObjects, node)
+				}
+
+				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
+				defer trackers.Stop()
+
+				waitForCacheSync(stop, c)
+				value, exists, err := c.computeEffectivePreserveAnnotationValue(machine)
+
+				if tc.expect.err != nil {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
+					return
+				}
+				Expect(err).ToNot(HaveOccurred())
+				Expect(exists).To(Equal(tc.expect.exists))
+				Expect(value).To(Equal(tc.expect.preserveValue))
+			},
+			Entry("neither machine nor node has preserve annotation", testCase{
+				setup: setup{
+					nodeName: "node-1",
+				},
+				expect: expect{
+					preserveValue: "",
+					exists:        false,
+					err:           nil,
+				},
+			}),
+			Entry("only machine has preserve annotation", testCase{
+				setup: setup{
+					machinePreserveAnnotation: "machineValue",
+					nodeName:                  "node-1",
+				},
+				expect: expect{
+					preserveValue: "machineValue",
+					exists:        true,
+					err:           nil,
+				},
+			}),
+			Entry("only node has preserve annotation", testCase{
+				setup: setup{
+					nodePreserveAnnotation: "nodeValue",
+					nodeName:               "node-1",
+				},
+				expect: expect{
+					preserveValue: "nodeValue",
+					exists:        true,
+					err:           nil,
+				},
+			}),
+			Entry("both machine and node have preserve annotation - node takes precedence", testCase{
+				setup: setup{
+					machinePreserveAnnotation: "machineValue",
+					nodePreserveAnnotation:    "nodeValue",
+					nodeName:                  "node-1",
+				},
+				expect: expect{
+					preserveValue: "nodeValue",
+					exists:        true,
+					err:           nil,
+				},
+			}),
+			Entry("machine has node label but node object is not found", testCase{
+				setup: setup{
+					machinePreserveAnnotation: "machineValue",
+					nodeName:                  "invalid",
+				},
+				expect: expect{
+					preserveValue: "",
+					exists:        false,
+					err:           fmt.Errorf("node %q not found", "invalid"),
+				},
+			}),
+			Entry("machine does not have node label", testCase{
+				setup: setup{
+					machinePreserveAnnotation: "machineValue",
+				},
+				expect: expect{
+					preserveValue: "machineValue",
+					exists:        true,
+					err:           nil,
+				},
+			}),
+		)
+	})
+
+	Describe("#manageMachinePreservation", func() {
+		type setup struct {
+			machineAnnotationValue string
+			nodeAnnotationValue    string
+			nodeName               string
+			machinePhase           v1alpha1.MachinePhase
+			preserveExpiryTime     *metav1.Time
+		}
+		type expect struct {
+			retry                   machineutils.RetryPeriod
+			preserveExpiryTimeIsSet bool
+			err                     error
+			nodeCondition           *corev1.NodeCondition
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("manageMachinePreservation behavior",
+			func(tc testCase) {
+
+				stop := make(chan struct{})
+				defer close(stop)
+
+				var controlMachineObjects []runtime.Object
+				var targetCoreObjects []runtime.Object
+
+				// Build machine
+				machine := &v1alpha1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "m1",
+						Labels: map[string]string{
+							v1alpha1.NodeLabelKey: tc.setup.nodeName,
+						},
+						Annotations: map[string]string{},
+					}, Status: v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
+							Phase:              tc.setup.machinePhase,
+							LastUpdateTime:     metav1.Now(),
+							PreserveExpiryTime: tc.setup.preserveExpiryTime,
+						},
+					},
+				}
+				if tc.setup.machineAnnotationValue != "" {
+					machine.Annotations[machineutils.PreserveMachineAnnotationKey] = tc.setup.machineAnnotationValue
+				}
+				controlMachineObjects = append(controlMachineObjects, machine)
+				if tc.setup.nodeName != "" && tc.setup.nodeName != "invalid" {
+					node := &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        tc.setup.nodeName,
+							Annotations: map[string]string{},
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{},
+						},
+					}
+					if tc.setup.nodeAnnotationValue != "" {
+						node.Annotations[machineutils.PreserveMachineAnnotationKey] = tc.setup.nodeAnnotationValue
+					}
+					targetCoreObjects = append(targetCoreObjects, node)
+				}
+				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+				retry, err := c.manageMachinePreservation(context.TODO(), machine)
+
+				Expect(retry).To(Equal(tc.expect.retry))
+				if tc.expect.err != nil {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
+					return
+				}
+				Expect(err).ToNot(HaveOccurred())
+				updatedMachine, err := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+				if tc.expect.preserveExpiryTimeIsSet {
+					Expect(updatedMachine.Status.CurrentStatus.PreserveExpiryTime.IsZero()).To(BeFalse())
+				} else {
+					Expect(updatedMachine.Status.CurrentStatus.PreserveExpiryTime.IsZero()).To(BeTrue())
+				}
+				if tc.setup.nodeName != "" {
+					updatedNode, err := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), tc.setup.nodeName, metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
-					controller.updateMachineState(machine)
-					actual, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(action.machine, metav1.GetOptions{})
-					Expect(err).To(BeNil())
-					Expect(actual.Name).To(Equal(data.expect.machine.Name))
-					Expect(actual.Status.Node).To(Equal(data.expect.machine.Status.Node))
-					Expect(actual.Status.CurrentStatus.Phase).To(Equal(data.expect.machine.Status.CurrentStatus.Phase))
-					Expect(actual.Status.CurrentStatus.//TimeoutActive).To(Equal(data.expect.machine.Status.CurrentStatus.//TimeoutActive))
-					Expect(actual.Status.LastOperation.State).To(Equal(data.expect.machine.Status.LastOperation.State))
-					Expect(actual.Status.LastOperation.Type).To(Equal(data.expect.machine.Status.LastOperation.Type))
-					Expect(actual.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
-					if data.expect.machine.Labels != nil {
-						if _, ok := data.expect.machine.Labels["node"]; ok {
-							Expect(actual.Labels["node"]).To(Equal(data.expect.machine.Labels["node"]))
+					found := false
+					if tc.expect.nodeCondition != nil {
+						for _, cond := range updatedNode.Status.Conditions {
+							if cond.Type == tc.expect.nodeCondition.Type {
+								found = true
+								Expect(cond.Status).To(Equal(tc.expect.nodeCondition.Status))
+								break
+							}
 						}
 					}
-					for i := range actual.Status.Conditions {
-						Expect(actual.Status.Conditions[i].Type).To(Equal(data.expect.machine.Status.Conditions[i].Type))
-						Expect(actual.Status.Conditions[i].Status).To(Equal(data.expect.machine.Status.Conditions[i].Status))
-						Expect(actual.Status.Conditions[i].Reason).To(Equal(data.expect.machine.Status.Conditions[i].Reason))
-						Expect(actual.Status.Conditions[i].Message).To(Equal(data.expect.machine.Status.Conditions[i].Message))
+					if tc.expect.nodeCondition != nil {
+						Expect(found).To(BeTrue())
+					} else {
+						Expect(found).To(BeFalse())
 					}
+				}
+			},
+			Entry("no preserve annotation on machine and node", testCase{
+				setup: setup{
+					nodeName: "node-1",
 				},
-				Entry("Machine does not have a node backing", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{}, nil, nil, nil),
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{}, nil, nil, nil),
-					},
-				}),
-				Entry("Node object backing machine not found and machine conditions are empty", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							Node: "dummy-node",
-						}, nil, nil, nil),
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							Node: "dummy-node",
-						}, nil, nil, nil),
-					},
-				}),
-				Entry("Machine is running but node object is lost", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							Node: "dummy-node",
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachineRunning,
-								//TimeoutActive:  false,
-								LastUpdateTime: metav1.Now(),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Machine % successfully joined the cluster", machineName),
-								State:          v1alpha1.MachineStateSuccessful,
-								Type:           v1alpha1.MachineOperationCreate,
-								LastUpdateTime: metav1.Now(),
-							},
-							Conditions: []corev1.NodeCondition{
-								{
-									Message: "kubelet is posting ready status",
-									Reason:  "KubeletReady",
-									Status:  "True",
-									Type:    "Ready",
-								},
-							},
-						}, nil, nil, nil),
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							Node: "dummy-node",
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachineUnknown,
-								LastUpdateTime: metav1.Now(),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description: fmt.Sprintf(
-									"Node object went missing. Machine %s is unhealthy - changing MachineState to Unknown",
-									machineName,
-								),
-								State:          v1alpha1.MachineStateProcessing,
-								Type:           v1alpha1.MachineOperationHealthCheck,
-								LastUpdateTime: metav1.Now(),
-							},
-							Conditions: []corev1.NodeCondition{
-								{
-									Message: "kubelet is posting ready status",
-									Reason:  "KubeletReady",
-									Status:  "True",
-									Type:    "Ready",
-								},
-							},
-						}, nil, nil, nil),
-					},
-				}),
-				Entry("Machine and node both are present and kubelet ready status is updated", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							Node: "machine",
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachinePending,
-								LastUpdateTime: metav1.Now(),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description:    "Creating machine on cloud provider",
-								State:          v1alpha1.MachineStateProcessing,
-								Type:           v1alpha1.MachineOperationCreate,
-								LastUpdateTime: metav1.Now(),
-							},
-							Conditions: []corev1.NodeCondition{
-								{
-									Message: "kubelet is not ready",
-									Reason:  "KubeletReady",
-									Status:  "False",
-									Type:    "Ready",
-								},
-							},
-						}, nil, nil, nil),
-						nodes: []*corev1.Node{
-							{
-								ObjectMeta: *newObjectMeta(objMeta, 0),
-								Status: corev1.NodeStatus{
-									Conditions: []corev1.NodeCondition{
-										{
-											Message: "kubelet is posting ready status",
-											Reason:  "KubeletReady",
-											Status:  "True",
-											Type:    "Ready",
-										},
-									},
-								},
-							},
-						},
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							Node: "machine",
-							CurrentStatus: v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachineRunning,
-								//TimeoutActive:  false,
-								LastUpdateTime: metav1.Now(),
-							},
-							LastOperation: v1alpha1.LastOperation{
-								Description:    "Machine machine-0 successfully joined the cluster",
-								State:          v1alpha1.MachineStateSuccessful,
-								Type:           v1alpha1.MachineOperationCreate,
-								LastUpdateTime: metav1.Now(),
-							},
-							Conditions: []corev1.NodeCondition{
-								{
-									Message: "kubelet is posting ready status",
-									Reason:  "KubeletReady",
-									Status:  "True",
-									Type:    "Ready",
-								},
-							},
-						}, nil, nil, nil),
-					},
-				}),
-				Entry("Machine object does not have node-label and node exists", &data{
-					setup: setup{
-						machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
-							ObjectMeta: *newObjectMeta(objMeta, 0),
-						}, &v1alpha1.MachineStatus{
-							Node: "node",
-						}, nil, nil, nil),
-						nodes: []*corev1.Node{
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "node-0",
-								},
-							},
-						},
-					},
-					action: action{
-						machine: machineName,
-					},
-					expect: expect{
-						machine: newMachine(&v1alpha1.MachineTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "machine-0",
-							},
-						}, &v1alpha1.MachineStatus{
-							Node: "node",
-						}, nil, nil,
-							map[string]string{
-								"node": "node-0",
-							},
-						),
-					},
-				}),
-			)
-		})
-	*/
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           nil,
+					retry:                   machineutils.LongRetry,
+				},
+			}),
+			Entry("preserve annotation 'now' added on Running machine", testCase{
+				setup: setup{
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
+					nodeName:               "node-1",
+					machinePhase:           v1alpha1.MachineRunning,
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: true,
+					nodeCondition: &corev1.NodeCondition{
+						Type:   v1alpha1.NodePreserved,
+						Status: corev1.ConditionTrue},
+					retry: machineutils.LongRetry,
+				},
+			}),
+			Entry("preserve annotation 'when-failed' added on Running machine", testCase{
+				setup: setup{
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
+					nodeName:               "node-1",
+					machinePhase:           v1alpha1.MachineRunning,
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           nil,
+					retry:                   machineutils.LongRetry,
+				},
+			}),
+			Entry("Failed machine annotated with when-failed", testCase{
+				setup: setup{
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
+					nodeName:               "node-1",
+					machinePhase:           v1alpha1.MachineFailed,
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: true,
+					nodeCondition: &corev1.NodeCondition{
+						Type:   v1alpha1.NodePreserved,
+						Status: corev1.ConditionTrue},
+					retry: machineutils.LongRetry,
+				},
+			}),
+			Entry("preserve annotation 'now' added on Healthy node ", testCase{
+				setup: setup{
+					nodeAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
+					nodeName:            "node-1",
+					machinePhase:        v1alpha1.MachineRunning,
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: true,
+					nodeCondition: &corev1.NodeCondition{
+						Type:   v1alpha1.NodePreserved,
+						Status: corev1.ConditionTrue},
+					retry: machineutils.LongRetry,
+				},
+			}),
+			Entry("preserve annotation 'when-failed' added on Healthy node ", testCase{
+				setup: setup{
+					nodeAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
+					nodeName:            "node-1",
+					machinePhase:        v1alpha1.MachineRunning,
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           nil,
+					retry:                   machineutils.LongRetry,
+				}}),
+			Entry("preserve annotation 'false' added on backing node of preserved machine", testCase{
+				setup: setup{
+					nodeAnnotationValue: "false",
+					nodeName:            "node-1",
+					machinePhase:        v1alpha1.MachineRunning,
+					preserveExpiryTime:  &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)},
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           nil,
+					retry:                   machineutils.LongRetry,
+				},
+			}),
+			Entry("machine auto-preserved by MCM", testCase{
+				setup: setup{
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValuePreservedByMCM,
+					nodeAnnotationValue:    "",
+					nodeName:               "node-1",
+					machinePhase:           v1alpha1.MachineRunning,
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: true,
+					nodeCondition: &corev1.NodeCondition{
+						Type:   v1alpha1.NodePreserved,
+						Status: corev1.ConditionTrue},
+					retry: machineutils.LongRetry,
+				},
+			}),
+			Entry("preservation timed out", testCase{
+				setup: setup{
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
+					nodeAnnotationValue:    machineutils.PreserveMachineAnnotationValueNow,
+					nodeName:               "node-1",
+					machinePhase:           v1alpha1.MachineRunning,
+					preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(-1 * time.Minute)},
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+					retry:                   machineutils.LongRetry,
+				},
+			}),
+			Entry("invalid preserve annotation on node of unpreserved machine", testCase{
+				setup: setup{
+					machineAnnotationValue: "",
+					nodeAnnotationValue:    "invalidValue",
+					nodeName:               "node-1",
+					machinePhase:           v1alpha1.MachineRunning,
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           nil,
+					retry:                   machineutils.LongRetry,
+					err:                     nil,
+				},
+			}),
+			Entry("machine annotated with preserve=now, but has no backing node", testCase{
+				setup: setup{
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
+					nodeAnnotationValue:    "",
+					nodeName:               "",
+					machinePhase:           v1alpha1.MachineUnknown,
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: true,
+					nodeCondition:           nil,
+					retry:                   machineutils.LongRetry,
+					err:                     nil,
+				},
+			}),
+			Entry("machine with backing node, but node retrieval fails", testCase{
+				setup: setup{
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
+					nodeAnnotationValue:    "",
+					nodeName:               "invalid",
+					machinePhase:           v1alpha1.MachineUnknown,
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           nil,
+					retry:                   machineutils.ShortRetry,
+					err:                     fmt.Errorf("node %q not found", "invalid"),
+				},
+			}),
+		)
+	})
 })

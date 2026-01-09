@@ -36,6 +36,10 @@ func (in *ClassSpec) DeepCopy() *ClassSpec {
 func (in *CurrentStatus) DeepCopyInto(out *CurrentStatus) {
 	*out = *in
 	in.LastUpdateTime.DeepCopyInto(&out.LastUpdateTime)
+	if in.PreserveExpiryTime != nil {
+		in, out := &in.PreserveExpiryTime, &out.PreserveExpiryTime
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 
@@ -209,6 +213,11 @@ func (in *MachineConfiguration) DeepCopyInto(out *MachineConfiguration) {
 		*out = new(metav1.Duration)
 		**out = **in
 	}
+	if in.MachinePreserveTimeout != nil {
+		in, out := &in.MachinePreserveTimeout, &out.MachinePreserveTimeout
+		*out = new(metav1.Duration)
+		**out = **in
+	}
 	if in.DisableHealthTimeout != nil {
 		in, out := &in.DisableHealthTimeout, &out.DisableHealthTimeout
 		*out = new(bool)
@@ -371,6 +380,11 @@ func (in *MachineDeploymentSpec) DeepCopyInto(out *MachineDeploymentSpec) {
 	}
 	if in.ProgressDeadlineSeconds != nil {
 		in, out := &in.ProgressDeadlineSeconds, &out.ProgressDeadlineSeconds
+		*out = new(int32)
+		**out = **in
+	}
+	if in.AutoPreserveFailedMachineMax != nil {
+		in, out := &in.AutoPreserveFailedMachineMax, &out.AutoPreserveFailedMachineMax
 		*out = new(int32)
 		**out = **in
 	}
@@ -573,6 +587,11 @@ func (in *MachineSetSpec) DeepCopyInto(out *MachineSetSpec) {
 	}
 	out.MachineClass = in.MachineClass
 	in.Template.DeepCopyInto(&out.Template)
+	if in.AutoPreserveFailedMachineMax != nil {
+		in, out := &in.AutoPreserveFailedMachineMax, &out.AutoPreserveFailedMachineMax
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 
@@ -607,6 +626,11 @@ func (in *MachineSetStatus) DeepCopyInto(out *MachineSetStatus) {
 				(*in)[i].DeepCopyInto(&(*out)[i])
 			}
 		}
+	}
+	if in.AutoPreserveFailedMachineCount != nil {
+		in, out := &in.AutoPreserveFailedMachineCount, &out.AutoPreserveFailedMachineCount
+		*out = new(int32)
+		**out = **in
 	}
 	return
 }

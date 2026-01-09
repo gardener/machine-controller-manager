@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -331,7 +332,7 @@ func (c *controller) enqueueMachineSetAfter(obj any, after time.Duration) {
 func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
 	machineSetKey, err := KeyFunc(machineSet)
 	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("Couldn't get key for %v %#v: %v", machineSet.Kind, machineSet, err))
+		utilruntime.HandleError(fmt.Errorf("couldn't get key for %v %#v: %v", machineSet.Kind, machineSet, err))
 		return nil
 	}
 
@@ -343,9 +344,18 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 			machinesWithUpdateSuccessfulLabel = append(machinesWithUpdateSuccessfulLabel, m)
 			continue
 		}
-
-		if machineutils.IsMachineFailed(m) || machineutils.IsMachineTriggeredForDeletion(m) {
+		if machineutils.IsMachineTriggeredForDeletion(m) {
 			staleMachines = append(staleMachines, m)
+		} else if machineutils.IsMachineFailed(m) {
+			// if machine is preserved or in the process of being preserved, the machine should be considered an active machine and not be added to stale machines
+			preserve, err := c.isMachineCandidateForPreservation(ctx, machineSet, m)
+			if err != nil {
+				return err
+			} else if preserve {
+				activeMachines = append(activeMachines, m)
+			} else {
+				staleMachines = append(staleMachines, m)
+			}
 		} else if machineutils.IsMachineActive(m) {
 			activeMachines = append(activeMachines, m)
 		}
@@ -481,6 +491,33 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	return nil
 }
 
+// isMachineCandidateForPreservation checks if the machine is already preserved, in the process of being preserved
+// or if it is a candidate for auto-preservation
+// TODO@thiyyakat: find more suitable name for function
+func (c *controller) isMachineCandidateForPreservation(ctx context.Context, machineSet *v1alpha1.MachineSet, machine *v1alpha1.Machine) (bool, error) {
+	if machineutils.IsPreserveExpiryTimeSet(machine) && !machineutils.HasPreservationTimedOut(machine) {
+		klog.V(3).Infof("Machine %q is preserved until %v, not adding to stale machines", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
+		return true, nil
+	}
+	val, exists := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
+	if exists {
+		switch val {
+		case machineutils.PreserveMachineAnnotationValueWhenFailed, machineutils.PreserveMachineAnnotationValueNow: // this is in case preservation process is not complete yet
+			return true, nil
+		case machineutils.PreserveMachineAnnotationValueFalse:
+			return false, nil
+		}
+	}
+	if machineSet.Status.AutoPreserveFailedMachineCount != nil && machineSet.Spec.AutoPreserveFailedMachineMax != nil && *machineSet.Status.AutoPreserveFailedMachineCount < *machineSet.Spec.AutoPreserveFailedMachineMax {
+		err := c.annotateMachineForAutoPreservation(ctx, machine)
+		if err != nil {
+			return true, err
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
 // syncMachineSet will sync the MachineSet with the given key if it has had its expectations fulfilled,
 // meaning it did not expect to see any more of its machines created or deleted. This function is not meant to be
 // invoked concurrently with the same key.
@@ -605,7 +642,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		// Multiple things could lead to this update failing. Requeuing the machine set ensures
 		// Returning an error causes a requeue without forcing a hotloop
 		if !apierrors.IsNotFound(err) {
-			klog.Errorf("Update machineSet %s failed with: %s", machineSet.Name, err)
+			klog.Errorf("update machineSet %s failed with: %s", machineSet.Name, err)
 		}
 		return err
 	}
@@ -680,14 +717,31 @@ func getMachinesToDelete(filteredMachines []*v1alpha1.Machine, diff int) []*v1al
 		// < scheduled, and pending < running. This ensures that we delete machines
 		// in the earlier stages whenever possible.
 		sort.Sort(ActiveMachines(filteredMachines))
+		// machines in Preserved stage will be the last ones to be deleted
+		// at all times, replica count will be upheld, even if it means deletion of a pending machine
+		// TODO@thiyyakat: write unit test for this scenario
+		filteredMachines = prioritisePreservedMachines(filteredMachines)
 	}
 	return filteredMachines[:diff]
 }
 
+func prioritisePreservedMachines(machines []*v1alpha1.Machine) []*v1alpha1.Machine {
+	preservedMachines := make([]*v1alpha1.Machine, 0, len(machines))
+	otherMachines := make([]*v1alpha1.Machine, 0, len(machines))
+	for _, mc := range machines {
+		if machineutils.IsPreserveExpiryTimeSet(mc) {
+			preservedMachines = append(preservedMachines, mc)
+		} else {
+			otherMachines = append(otherMachines, mc)
+		}
+	}
+	return slices.Concat(otherMachines, preservedMachines)
+}
+
 func getMachineKeys(machines []*v1alpha1.Machine) []string {
 	machineKeys := make([]string, 0, len(machines))
-	for _, machine := range machines {
-		machineKeys = append(machineKeys, MachineKey(machine))
+	for _, mc := range machines {
+		machineKeys = append(machineKeys, MachineKey(mc))
 	}
 	return machineKeys
 }
@@ -750,8 +804,8 @@ func (c *controller) terminateMachines(ctx context.Context, inactiveMachines []*
 	defer close(errCh)
 
 	wg.Add(numOfInactiveMachines)
-	for _, machine := range inactiveMachines {
-		go c.prepareMachineForDeletion(ctx, machine, machineSet, &wg, errCh)
+	for _, m := range inactiveMachines {
+		go c.prepareMachineForDeletion(ctx, m, machineSet, &wg, errCh)
 	}
 	wg.Wait()
 
@@ -902,4 +956,30 @@ func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.
 	}
 
 	return machine, retryErr
+}
+
+func (dc *controller) annotateMachineForAutoPreservation(ctx context.Context, m *v1alpha1.Machine) error {
+	if m.Labels[v1alpha1.NodeLabelKey] != "" {
+		// check if backing node has preserve=false annotation, if yes, do not auto-preserve
+		node, err := dc.nodeLister.Get(m.Labels[v1alpha1.NodeLabelKey])
+		if err != nil {
+			return err
+		}
+		if val, exists := node.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && val == machineutils.PreserveMachineAnnotationValueFalse {
+			return nil
+		}
+	}
+	_, err := UpdateMachineWithRetries(ctx, dc.controlMachineClient.Machines(m.Namespace), dc.machineLister, m.Namespace, m.Name, func(clone *v1alpha1.Machine) error {
+		if clone.Annotations == nil {
+			clone.Annotations = make(map[string]string)
+		}
+		clone.Annotations[machineutils.PreserveMachineAnnotationKey] = machineutils.PreserveMachineAnnotationValuePreservedByMCM
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	klog.V(2).Infof("Updated machine %q with auto-preserved annotation.", m.Name)
+	return nil
+
 }

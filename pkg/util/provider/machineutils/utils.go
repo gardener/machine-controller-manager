@@ -82,7 +82,34 @@ const (
 
 	// LabelKeyMachineSetScaleUpDisabled is the label key that indicates scaling up of the machine set is disabled.
 	LabelKeyMachineSetScaleUpDisabled = "node.machine.sapcloud.io/scale-up-disabled"
+
+	// PreserveMachineAnnotationKey is the annotation used to explicitly request that a Machine be preserved
+	PreserveMachineAnnotationKey = "node.machine.sapcloud.io/preserve"
+
+	// PreserveMachineAnnotationValueNow is the annotation value used to explicitly request that
+	// a Machine be preserved immediately in its current phase
+	PreserveMachineAnnotationValueNow = "now"
+
+	// PreserveMachineAnnotationValueWhenFailed is the annotation value used to explicitly request that
+	// a Machine be preserved if and when in it enters Failed phase
+	PreserveMachineAnnotationValueWhenFailed = "when-failed"
+
+	// PreserveMachineAnnotationValuePreservedByMCM is the annotation value used to explicitly request that
+	// a Machine be preserved if and when in it enters Failed phase
+	PreserveMachineAnnotationValuePreservedByMCM = "auto-preserved"
+
+	//PreserveMachineAnnotationValueFalse is the annotation value used to explicitly request that
+	// a Machine should not be preserved any longer, even if the expiry timeout has not been reached
+	PreserveMachineAnnotationValueFalse = "false"
 )
+
+// AllowedPreserveAnnotationValues contains the allowed values for the preserve annotation
+var AllowedPreserveAnnotationValues = map[string]bool{
+	PreserveMachineAnnotationValueNow:            true,
+	PreserveMachineAnnotationValueWhenFailed:     true,
+	PreserveMachineAnnotationValuePreservedByMCM: true,
+	PreserveMachineAnnotationValueFalse:          true,
+}
 
 // RetryPeriod is an alias for specifying the retry period
 type RetryPeriod time.Duration
@@ -124,4 +151,14 @@ func IsMachineFailed(p *v1alpha1.Machine) bool {
 // IsMachineTriggeredForDeletion checks if machine was triggered for deletion
 func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
 	return m.Annotations[MachinePriority] == "1" || m.Annotations[TriggerDeletionByMCM] == "true"
+}
+
+// IsPreserveExpiryTimeSet checks if machine is preserved by MCM
+func IsPreserveExpiryTimeSet(m *v1alpha1.Machine) bool {
+	return !m.Status.CurrentStatus.PreserveExpiryTime.IsZero()
+}
+
+// HasPreservationTimedOut checks if the Status.CurrentStatus.PreserveExpiryTime has not yet passed
+func HasPreservationTimedOut(m *v1alpha1.Machine) bool {
+	return !m.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())
 }
