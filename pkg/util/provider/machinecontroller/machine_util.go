@@ -1766,7 +1766,7 @@ func (c *controller) taintNode(ctx context.Context, deleteMachineRequest *driver
 
 	if node != nil {
 		for _, taint := range node.Spec.Taints {
-			if taint.MatchTaint(&toBeDeletedTaint) {
+			if taint.Key == toBeDeletedTaint.Key {
 				taintAlreadySet = true
 				description = fmt.Sprintf("Node tainted. %s", machineutils.InitiateVMDeletion)
 			}
