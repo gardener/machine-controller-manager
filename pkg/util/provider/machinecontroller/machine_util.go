@@ -426,7 +426,7 @@ func (c *controller) updateMachineStatusAndNodeCondition(ctx context.Context, ma
 			},
 			// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
 			// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
-			// Ref - https://github.com/gardener/machine-controller-manager/blob/rel-v0.34.0/pkg/util/provider/machinecontroller/machine_util.go#L872
+			// Ref - https://github.com/gardener/machine-controller-manager/blob/97ca0de6df297c1b53ac2b66ec28120840b6906a/pkg/util/provider/machinecontroller/machine_util.go#L1621
 			machine.Status.CurrentStatus,
 			machine.Status.LastKnownState,
 		)
@@ -1395,7 +1395,7 @@ func (c *controller) updateMachineStatusAndNodeLabel(ctx context.Context, getMac
 		},
 		// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
 		// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
-		// Ref - https://github.com/gardener/machine-controller-manager/blob/rel-v0.34.0/pkg/util/provider/machinecontroller/machine_util.go#L872
+		// Ref - https://github.com/gardener/machine-controller-manager/blob/97ca0de6df297c1b53ac2b66ec28120840b6906a/pkg/util/provider/machinecontroller/machine_util.go#L1621
 		getMachineStatusRequest.Machine.Status.CurrentStatus,
 		getMachineStatusRequest.Machine.Status.LastKnownState,
 	)
@@ -1730,7 +1730,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		},
 		// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
 		// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
-		// Ref - https://github.com/gardener/machine-controller-manager/blob/rel-v0.34.0/pkg/util/provider/machinecontroller/machine_util.go#L872
+		// Ref - https://github.com/gardener/machine-controller-manager/blob/97ca0de6df297c1b53ac2b66ec28120840b6906a/pkg/util/provider/machinecontroller/machine_util.go#L1621
 		machine.Status.CurrentStatus,
 		machine.Status.LastKnownState,
 	)
@@ -1757,7 +1757,7 @@ func (c *controller) taintNode(ctx context.Context, deleteMachineRequest *driver
 	node, err := c.nodeLister.Get(getNodeName(machine))
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
-			klog.Errorf("Error occurred while trying to fetch node object - err: %s", err)
+			klog.Errorf("error occurred while trying to fetch node object - err: %v", err)
 			return machineutils.ShortRetry, err
 		}
 		skipStep = true
@@ -1785,7 +1785,7 @@ func (c *controller) taintNode(ctx context.Context, deleteMachineRequest *driver
 			},
 			// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
 			// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
-			// Ref - https://github.com/gardener/machine-controller-manager/blob/rel-v0.34.0/pkg/util/provider/machinecontroller/machine_util.go#L872
+			// Ref - https://github.com/gardener/machine-controller-manager/blob/97ca0de6df297c1b53ac2b66ec28120840b6906a/pkg/util/provider/machinecontroller/machine_util.go#L1621
 			machine.Status.CurrentStatus,
 			machine.Status.LastKnownState,
 		)
@@ -1926,7 +1926,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		},
 		// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
 		// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
-		// Ref - https://github.com/gardener/machine-controller-manager/blob/rel-v0.34.0/pkg/util/provider/machinecontroller/machine_util.go#L872
+		// Ref - https://github.com/gardener/machine-controller-manager/blob/97ca0de6df297c1b53ac2b66ec28120840b6906a/pkg/util/provider/machinecontroller/machine_util.go#L1621
 		machine.Status.CurrentStatus,
 		lastKnownState,
 	)
@@ -1985,7 +1985,7 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 		},
 		// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
 		// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
-		// Ref - https://github.com/gardener/machine-controller-manager/blob/rel-v0.34.0/pkg/util/provider/machinecontroller/machine_util.go#L872
+		// Ref - https://github.com/gardener/machine-controller-manager/blob/97ca0de6df297c1b53ac2b66ec28120840b6906a/pkg/util/provider/machinecontroller/machine_util.go#L1621
 		machine.Status.CurrentStatus,
 		machine.Status.LastKnownState,
 	)
