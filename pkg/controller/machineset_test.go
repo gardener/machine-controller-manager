@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
 	"sync"
 	"time"
 
@@ -1049,6 +1050,221 @@ var _ = Describe("machineset", func() {
 		})
 	})
 
+	Describe("#isFailedMachineCandidateForPreservation", func() {
+
+		type setup struct {
+			autoPreserveFailedMachineMax   int32
+			machineIsPreserved             bool
+			machinePreserveAnnotationValue string
+			backingNode                    *corev1.Node
+		}
+		type expect struct {
+			result bool
+			err    error
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("isFailedMachineCandidateForPreservation test cases", func(tc testCase) {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			objects := []runtime.Object{}
+
+			testMachineSet := &machinev1.MachineSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "MachineSet-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					UID: "1234567",
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MachineSet",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineSetSpec{
+					Replicas: 2,
+					Template: machinev1.MachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"test-label": "test-label",
+							},
+						},
+					},
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"test-label": "test-label",
+						},
+					},
+					AutoPreserveFailedMachineMax: ptr.To(tc.setup.autoPreserveFailedMachineMax),
+				},
+				Status: machinev1.MachineSetStatus{
+					AutoPreserveFailedMachineCount: ptr.To(int32(0)),
+				},
+			}
+
+			testMachine := &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-1",
+					Namespace: testNamespace,
+					UID:       "1234568",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						machineutils.PreserveMachineAnnotationKey: tc.setup.machinePreserveAnnotationValue,
+					},
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Machine",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineFailed,
+					},
+				},
+			}
+			if tc.setup.backingNode != nil {
+				testMachine.Labels[machinev1.NodeLabelKey] = "node-1"
+			}
+			if tc.setup.machineIsPreserved {
+				testMachine.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{
+					Time: time.Now().Add(1 * time.Hour),
+				}
+			}
+
+			objects = append(objects, testMachineSet, testMachine)
+			var targetCoreObjects []runtime.Object
+			if tc.setup.backingNode != nil {
+				targetCoreObjects = append(targetCoreObjects, tc.setup.backingNode)
+			}
+			c, trackers := createController(stop, testNamespace, objects, nil, targetCoreObjects)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+			result, err := c.isFailedMachineCandidateForPreservation(context.TODO(), testMachineSet, testMachine)
+			Expect(result).To(Equal(tc.expect.result))
+			if tc.expect.err != nil {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal(tc.expect.err.Error()))
+				return
+			}
+			Expect(err).ToNot(HaveOccurred())
+		},
+			Entry("should return false for un-preserved machine, when autoPreserveFailedMachineMax is 0", testCase{
+				setup: setup{
+					autoPreserveFailedMachineMax: 0,
+					machineIsPreserved:           false,
+					backingNode:                  nil,
+				},
+				expect: expect{
+					result: false,
+					err:    nil,
+				},
+			}),
+			Entry("should return true for un-preserved machine, when autoPreserveFailedMachineMax is 1", testCase{
+				setup: setup{
+					autoPreserveFailedMachineMax: 1,
+					machineIsPreserved:           false,
+					backingNode:                  nil,
+				},
+				expect: expect{
+					result: true,
+					err:    nil,
+				},
+			}),
+			Entry("should return true for machine annotated with preserve=now", testCase{
+				setup: setup{
+					autoPreserveFailedMachineMax:   1,
+					machineIsPreserved:             true,
+					machinePreserveAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
+					backingNode:                    nil,
+				},
+				expect: expect{
+					result: true,
+					err:    nil,
+				},
+			}),
+			Entry("should return true for machine annotated with preserve=when-failed, but not yet preserved", testCase{
+				setup: setup{
+					autoPreserveFailedMachineMax:   1,
+					machineIsPreserved:             false,
+					machinePreserveAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
+					backingNode:                    nil,
+				},
+				expect: expect{
+					result: true,
+					err:    nil,
+				},
+			}),
+			Entry("should return false for machine annotated with preserve=false", testCase{
+				setup: setup{
+					autoPreserveFailedMachineMax:   1,
+					machineIsPreserved:             false,
+					machinePreserveAnnotationValue: machineutils.PreserveMachineAnnotationValueFalse,
+					backingNode:                    nil,
+				},
+				expect: expect{
+					result: false,
+					err:    nil,
+				},
+			}),
+			Entry("should return false when backing node is annotated with preserve=false", testCase{
+				setup: setup{
+					autoPreserveFailedMachineMax: 1,
+					machineIsPreserved:           false,
+					backingNode: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-1",
+							Annotations: map[string]string{
+								machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueFalse,
+							},
+						},
+					},
+				},
+				expect: expect{
+					result: false,
+					err:    nil,
+				},
+			}),
+			Entry("should return true when backing node has no preserve-annotation, and autoPreserveFailedMachineMax is 1", testCase{
+				setup: setup{
+					autoPreserveFailedMachineMax: 1,
+					machineIsPreserved:           false,
+					backingNode: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        "node-1",
+							Annotations: map[string]string{},
+						},
+					},
+				},
+				expect: expect{
+					result: true,
+					err:    nil,
+				},
+			}),
+			Entry("should return error when backing node is not found", testCase{
+				setup: setup{
+					autoPreserveFailedMachineMax: 1,
+					machineIsPreserved:           false,
+					backingNode: &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        "invalid",
+							Annotations: map[string]string{},
+						},
+					},
+				},
+				expect: expect{
+					result: false,
+					err:    errors.New("node \"node-1\" not found"),
+				},
+			}),
+		)
+	})
 	// TODO: This method has dependency on generic-machineclass. Implement later.
 	Describe("#reconcileClusterMachineSet", func() {
 		var (
