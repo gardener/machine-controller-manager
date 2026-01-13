@@ -50,7 +50,7 @@ func updateMachineSetStatus(ctx context.Context, machineClient machineapi.Machin
 		is.Generation == is.Status.ObservedGeneration &&
 		reflect.DeepEqual(is.Status.Conditions, newStatus.Conditions) &&
 		reflect.DeepEqual(is.Status.FailedMachines, newStatus.FailedMachines) &&
-		is.Status.AutoPreserveFailedMachineCount == newStatus.AutoPreserveFailedMachineCount {
+		*is.Status.AutoPreserveFailedMachineCount == *newStatus.AutoPreserveFailedMachineCount {
 		return is, nil
 	}
 
@@ -68,7 +68,7 @@ func updateMachineSetStatus(ctx context.Context, machineClient machineapi.Machin
 			fmt.Sprintf("fullyLabeledReplicas %d->%d, ", is.Status.FullyLabeledReplicas, newStatus.FullyLabeledReplicas)+
 			fmt.Sprintf("readyReplicas %d->%d, ", is.Status.ReadyReplicas, newStatus.ReadyReplicas)+
 			fmt.Sprintf("availableReplicas %d->%d, ", is.Status.AvailableReplicas, newStatus.AvailableReplicas)+
-			fmt.Sprintf("sequence No: %v->%v", is.Status.ObservedGeneration, newStatus.ObservedGeneration)+
+			fmt.Sprintf("sequence No: %v->%v,", is.Status.ObservedGeneration, newStatus.ObservedGeneration)+
 			fmt.Sprintf("autoPreserveFailedMachineCount %v->%v", is.Status.AutoPreserveFailedMachineCount, newStatus.AutoPreserveFailedMachineCount))
 
 		is.Status = newStatus

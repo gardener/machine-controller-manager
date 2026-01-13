@@ -4286,7 +4286,7 @@ var _ = Describe("machine", func() {
 			expect expect
 		}
 
-		DescribeTable("manageMachinePreservation behavior",
+		DescribeTable("manageMachinePreservation behavior scenarios",
 			func(tc testCase) {
 
 				stop := make(chan struct{})

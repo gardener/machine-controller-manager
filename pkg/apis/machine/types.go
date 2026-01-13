@@ -417,7 +417,7 @@ type MachineSetStatus struct {
 	// FailedMachines has summary of machines on which lastOperation Failed
 	FailedMachines *[]MachineSummary
 
-	// AutoPreserveFailedMachineCount has a count of the number of failed machines in the machineset that have been auto-preserved
+	// AutoPreserveFailedMachineCount has a count of the number of failed machines in the machineset that are currently auto-preserved
 	AutoPreserveFailedMachineCount *int32
 }
 
@@ -498,7 +498,7 @@ type MachineDeploymentSpec struct {
 	// by default.
 	ProgressDeadlineSeconds *int32
 
-	// The maximum number of machines in the machine deployment that will be auto-preserved.
+	// The maximum number of machines in the machine deployment that can be auto-preserved.
 	// In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker's machine deployments
 	AutoPreserveFailedMachineMax *int32
 }

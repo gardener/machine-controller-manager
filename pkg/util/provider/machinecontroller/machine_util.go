@@ -2451,6 +2451,19 @@ func (c *controller) setPreserveExpiryTimeOnMachine(ctx context.Context, machine
 	return updatedMachine, nil
 }
 
+// isPreservedNodeConditionStatusTrue check if all the steps in the preservation logic have been completed for the machine
+// if the machine has no backing node, only PreserveExpiryTime needs to be set
+// if the machine has a backing node, the NodePreserved condition on the node needs to be true
+func (c *controller) isPreservedNodeConditionStatusTrue(cond *v1.NodeCondition) bool {
+	if cond == nil {
+		return false
+	}
+	if cond.Status == v1.ConditionTrue {
+		return true
+	}
+	return false
+}
+
 // addCAScaleDownDisabledAnnotationOnNode adds the cluster-autoscaler annotation to disable scale down of preserved node
 func (c *controller) addCAScaleDownDisabledAnnotationOnNode(ctx context.Context, node *v1.Node) (*v1.Node, error) {
 	// Check if annotation already exists with correct value
@@ -2562,7 +2575,7 @@ func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alp
 			}
 		}
 	}
-	// Step 3: update machine status to set preserve expiry time to metav1.Time{}
+	// Step 3: update machine status to set preserve expiry time to nil
 	clone := machine.DeepCopy()
 	clone.Status.CurrentStatus.PreserveExpiryTime = nil
 	clone.Status.CurrentStatus.LastUpdateTime = metav1.Now()
