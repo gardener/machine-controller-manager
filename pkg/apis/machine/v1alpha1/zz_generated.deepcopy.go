@@ -350,11 +350,6 @@ func (in *MachineDeploymentSpec) DeepCopyInto(out *MachineDeploymentSpec) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.AutoPreserveFailedMachineMax != nil {
-		in, out := &in.AutoPreserveFailedMachineMax, &out.AutoPreserveFailedMachineMax
-		*out = new(int32)
-		**out = **in
-	}
 	return
 }
 
@@ -554,11 +549,6 @@ func (in *MachineSetSpec) DeepCopyInto(out *MachineSetSpec) {
 	}
 	out.MachineClass = in.MachineClass
 	in.Template.DeepCopyInto(&out.Template)
-	if in.AutoPreserveFailedMachineMax != nil {
-		in, out := &in.AutoPreserveFailedMachineMax, &out.AutoPreserveFailedMachineMax
-		*out = new(int32)
-		**out = **in
-	}
 	return
 }
 
@@ -593,11 +583,6 @@ func (in *MachineSetStatus) DeepCopyInto(out *MachineSetStatus) {
 				(*in)[i].DeepCopyInto(&(*out)[i])
 			}
 		}
-	}
-	if in.AutoPreserveFailedMachineCount != nil {
-		in, out := &in.AutoPreserveFailedMachineCount, &out.AutoPreserveFailedMachineCount
-		*out = new(int32)
-		**out = **in
 	}
 	return
 }
