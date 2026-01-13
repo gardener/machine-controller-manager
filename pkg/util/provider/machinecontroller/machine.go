@@ -783,8 +783,9 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		if err != nil {
 			if apierrors.IsConflict(err) {
 				retry = machineutils.ConflictRetry
+			} else {
+				retry = machineutils.ShortRetry
 			}
-			retry = machineutils.ShortRetry
 		} else {
 			retry = machineutils.LongRetry
 		}
@@ -812,8 +813,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		err = c.stopMachinePreservation(ctx, clone)
 		return
 	} else if preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed {
-		machineFailed := machineutils.IsMachineFailed(clone)
-		if machineFailed {
+		if machineutils.IsMachineFailed(clone) {
 			err = c.preserveMachine(ctx, clone, preserveValue)
 		}
 		// Here, if the preserve value is when-failed, but the machine is in running, there could be 2 possibilities:
@@ -886,17 +886,4 @@ func (c *controller) writePreserveAnnotationValueOnMachine(ctx context.Context, 
 func isPreserveAnnotationValueValid(preserveValue string) bool {
 	_, exists := machineutils.AllowedPreserveAnnotationValues[preserveValue]
 	return exists
-}
-
-// isPreservedNodeConditionStatusTrue check if all the steps in the preservation logic have been completed for the machine
-// if the machine has no backing node, only PreserveExpiryTime needs to be set
-// if the machine has a backing node, the NodePreserved condition on the node needs to be true
-func (c *controller) isPreservedNodeConditionStatusTrue(cond *corev1.NodeCondition) bool {
-	if cond == nil {
-		return false
-	}
-	if cond.Status == corev1.ConditionTrue {
-		return true
-	}
-	return false
 }
