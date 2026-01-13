@@ -1099,10 +1099,10 @@ var _ = Describe("machineset", func() {
 							"test-label": "test-label",
 						},
 					},
-					AutoPreserveFailedMachineMax: ptr.To(tc.setup.autoPreserveFailedMachineMax),
+					AutoPreserveFailedMachineMax: tc.setup.autoPreserveFailedMachineMax,
 				},
 				Status: machinev1.MachineSetStatus{
-					AutoPreserveFailedMachineCount: ptr.To(int32(0)),
+					AutoPreserveFailedMachineCount: int32(0),
 				},
 			}
 

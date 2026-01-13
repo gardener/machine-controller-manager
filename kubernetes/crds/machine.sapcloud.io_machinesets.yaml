@@ -321,7 +321,7 @@ spec:
             properties:
               autoPreserveFailedMachineCount:
                 description: AutoPreserveFailedMachineCount has a count of the number
-                  of failed machines in the machineset that have been auto-preserved
+                  of failed machines in the machineset that are currently auto-preserved
                 format: int32
                 type: integer
               availableReplicas:

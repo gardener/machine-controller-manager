@@ -25,7 +25,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"k8s.io/utils/ptr"
 	"reflect"
 
 	"k8s.io/klog/v2"
@@ -50,7 +49,7 @@ func updateMachineSetStatus(ctx context.Context, machineClient machineapi.Machin
 		is.Generation == is.Status.ObservedGeneration &&
 		reflect.DeepEqual(is.Status.Conditions, newStatus.Conditions) &&
 		reflect.DeepEqual(is.Status.FailedMachines, newStatus.FailedMachines) &&
-		*is.Status.AutoPreserveFailedMachineCount == *newStatus.AutoPreserveFailedMachineCount {
+		is.Status.AutoPreserveFailedMachineCount == newStatus.AutoPreserveFailedMachineCount {
 		return is, nil
 	}
 
@@ -161,7 +160,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	newStatus.ReadyReplicas = int32(readyReplicasCount)               // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	newStatus.AvailableReplicas = int32(availableReplicasCount)       // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	newStatus.LastOperation.LastUpdateTime = metav1.Now()
-	newStatus.AutoPreserveFailedMachineCount = ptr.To(int32(autoPreserveFailedMachineCount)) // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
+	newStatus.AutoPreserveFailedMachineCount = int32(autoPreserveFailedMachineCount) // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	return newStatus
 }
 
