@@ -484,8 +484,8 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 // or if it is a candidate for auto-preservation
 // TODO@thiyyakat: find more suitable name for function
 func (c *controller) isFailedMachineCandidateForPreservation(ctx context.Context, machineSet *v1alpha1.MachineSet, machine *v1alpha1.Machine) (bool, error) {
-	if machine.Status.CurrentStatus.PreserveExpiryTime != nil && !machineutils.HasPreservationTimedOut(machine) {
-		klog.V(3).Infof("Machine %q is preserved until %v, not adding to stale machines", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
+	if machine.Status.CurrentStatus.PreserveExpiryTime != nil && machine.Status.CurrentStatus.PreserveExpiryTime.After(time.Now()) {
+		klog.V(3).Infof("Failed machine %q is preserved until %v", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
 		return true, nil
 	}
 	val, exists := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
@@ -508,7 +508,7 @@ func (c *controller) isFailedMachineCandidateForPreservation(ctx context.Context
 			return false, nil
 		}
 	}
-	if machineSet.Status.AutoPreserveFailedMachineCount != nil && machineSet.Spec.AutoPreserveFailedMachineMax != nil && *machineSet.Status.AutoPreserveFailedMachineCount < *machineSet.Spec.AutoPreserveFailedMachineMax {
+	if machineSet.Status.AutoPreserveFailedMachineCount < machineSet.Spec.AutoPreserveFailedMachineMax {
 		err := c.annotateMachineForAutoPreservation(ctx, machine)
 		if err != nil {
 			return true, err
@@ -970,7 +970,7 @@ func (dc *controller) annotateMachineForAutoPreservation(ctx context.Context, m 
 	if err != nil {
 		return err
 	}
-	klog.V(2).Infof("Updated machine %q with auto-preserved annotation.", m.Name)
+	klog.V(2).Infof("Updated machine %q with %q=%q.", m.Name, machineutils.PreserveMachineAnnotationKey, machineutils.PreserveMachineAnnotationValuePreservedByMCM)
 	return nil
 
 }

@@ -752,11 +752,17 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 // handlePreserveAnnotationsChange returns true if there is a change in preserve annotations
 // it also handles the special case where the annotation is changed from 'now' to 'when-failed'
 // in which case it stops the preservation if expiry time is already set
+// when a machine is annotated with "now", the machine is preserved even when Running
+// if the annotation has been changed to 'when-failed', we need to stop preservation if the machine is not in Failed Phase
 func (c *controller) handlePreserveAnnotationsChange(oldAnnotations, newAnnotations map[string]string, machine *v1alpha1.Machine) bool {
 	valueNew, existsInNew := newAnnotations[machineutils.PreserveMachineAnnotationKey]
 	valueOld, existsInOld := oldAnnotations[machineutils.PreserveMachineAnnotationKey]
+	if existsInNew != existsInOld {
+		return true
+	}
 	if valueNew != machineutils.PreserveMachineAnnotationValueWhenFailed || valueOld != machineutils.PreserveMachineAnnotationValueNow {
-		return existsInOld != existsInNew || valueOld != valueNew
+		changed := valueOld != valueNew
+		return changed
 	}
 	// Special case: annotation changed from 'now' to 'when-failed'
 	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
@@ -809,7 +815,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	if !isPreserveAnnotationValueValid(preserveValue) {
 		klog.Warningf("Preserve annotation value %q on machine %s is invalid", preserveValue, machine.Name)
 		return
-	} else if preserveValue == machineutils.PreserveMachineAnnotationValueFalse || (clone.Status.CurrentStatus.PreserveExpiryTime != nil && machineutils.HasPreservationTimedOut(clone)) {
+	} else if preserveValue == machineutils.PreserveMachineAnnotationValueFalse || (clone.Status.CurrentStatus.PreserveExpiryTime != nil && !clone.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())) {
 		err = c.stopMachinePreservation(ctx, clone)
 		return
 	} else if preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed {
