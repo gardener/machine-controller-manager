@@ -46,11 +46,15 @@ string
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
 </em>
 </td>
 <td>
 <p>ObjectMeta for machine object</p>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
 </td>
 </tr>
 <tr>
@@ -201,11 +205,15 @@ string
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
 </td>
 </tr>
 <tr>
@@ -230,7 +238,9 @@ NodeTemplate
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#secretreference-v1-core">
+Kubernetes core/v1.SecretReference
+</a>
 </em>
 </td>
 <td>
@@ -244,7 +254,9 @@ This might be useful if multiple machine classes with the same credentials but d
 </td>
 <td>
 <em>
-invalid type
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/runtime#RawExtension">
+k8s.io/apimachinery/pkg/runtime.RawExtension
+</a>
 </em>
 </td>
 <td>
@@ -270,7 +282,9 @@ string
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#secretreference-v1-core">
+Kubernetes core/v1.SecretReference
+</a>
 </em>
 </td>
 <td>
@@ -325,12 +339,16 @@ string
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
 <p>Standard object metadata.</p>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
 </td>
 </tr>
 <tr>
@@ -371,7 +389,9 @@ zero and not specified. Defaults to 0.</p>
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#labelselector-v1-meta">
+Kubernetes meta/v1.LabelSelector
+</a>
 </em>
 </td>
 <td>
@@ -504,7 +524,7 @@ int32
 </td>
 <td>
 <em>(Optional)</em>
-<p>The maximum number of machines in the machine deployment that can be auto-preserved.
+<p>The maximum number of failed machines in the machine deployment that can be auto-preserved.
 In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker&rsquo;s machine deployments</p>
 </td>
 </tr>
@@ -575,11 +595,15 @@ string
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
 </td>
 </tr>
 <tr>
@@ -617,7 +641,9 @@ int32
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#labelselector-v1-meta">
+Kubernetes meta/v1.LabelSelector
+</a>
 </em>
 </td>
 <td>
@@ -826,7 +852,9 @@ bool
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
 </em>
 </td>
 <td>
@@ -839,7 +867,9 @@ invalid type
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
 </em>
 </td>
 <td>
@@ -957,7 +987,9 @@ string
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
 </em>
 </td>
 <td>
@@ -1022,7 +1054,9 @@ MachineOperationType
 </td>
 <td>
 <em>
-invalid type
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
 </em>
 </td>
 <td>
@@ -1036,7 +1070,9 @@ invalid type
 </td>
 <td>
 <em>
-invalid type
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
 </em>
 </td>
 <td>
@@ -1050,7 +1086,9 @@ invalid type
 </td>
 <td>
 <em>
-invalid type
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
 </em>
 </td>
 <td>
@@ -1064,7 +1102,9 @@ invalid type
 </td>
 <td>
 <em>
-invalid type
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
 </em>
 </td>
 <td>
@@ -1078,7 +1118,9 @@ invalid type
 </td>
 <td>
 <em>
-invalid type
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
 </em>
 </td>
 <td>
@@ -1187,7 +1229,9 @@ ConditionStatus
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
 </em>
 </td>
 <td>
@@ -1200,7 +1244,9 @@ invalid type
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
 </em>
 </td>
 <td>
@@ -1287,7 +1333,9 @@ zero and not specified. Defaults to 0.</p>
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#labelselector-v1-meta">
+Kubernetes meta/v1.LabelSelector
+</a>
 </em>
 </td>
 <td>
@@ -1420,7 +1468,7 @@ int32
 </td>
 <td>
 <em>(Optional)</em>
-<p>The maximum number of machines in the machine deployment that can be auto-preserved.
+<p>The maximum number of failed machines in the machine deployment that can be auto-preserved.
 In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker&rsquo;s machine deployments</p>
 </td>
 </tr>
@@ -1744,7 +1792,9 @@ ConditionStatus
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
 </em>
 </td>
 <td>
@@ -1832,7 +1882,9 @@ int32
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#labelselector-v1-meta">
+Kubernetes meta/v1.LabelSelector
+</a>
 </em>
 </td>
 <td>
@@ -2174,7 +2226,9 @@ MachineConfiguration
 </td>
 <td>
 <em>
-[]invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#nodeaddress-v1-core">
+[]Kubernetes core/v1.NodeAddress
+</a>
 </em>
 </td>
 <td>
@@ -2189,7 +2243,9 @@ be used by clients to determine how to connect to the machine, instead of the <c
 </td>
 <td>
 <em>
-[]invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#nodecondition-v1-core">
+[]Kubernetes core/v1.NodeCondition
+</a>
 </em>
 </td>
 <td>
@@ -2342,13 +2398,17 @@ string
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
 <p>Standard object&rsquo;s metadata.
 More info: <a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata</a></p>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
 </td>
 </tr>
 <tr>
@@ -2465,7 +2525,9 @@ MachineConfiguration
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#resourcelist-v1-core">
+Kubernetes core/v1.ResourceList
+</a>
 </em>
 </td>
 <td>
@@ -2478,7 +2540,9 @@ invalid type
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#resourcelist-v1-core">
+Kubernetes core/v1.ResourceList
+</a>
 </em>
 </td>
 <td>
@@ -2567,11 +2631,15 @@ string
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
 </td>
 </tr>
 <tr>
@@ -2580,7 +2648,9 @@ invalid type
 </td>
 <td>
 <em>
-invalid type
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#nodespec-v1-core">
+Kubernetes core/v1.NodeSpec
+</a>
 </em>
 </td>
 <td>
@@ -2589,6 +2659,112 @@ invalid type
 <br/>
 <br/>
 <table>
+<tr>
+<td>
+<code>podCIDR</code>
+</td>
+<td>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PodCIDR represents the pod IP range assigned to the node.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>podCIDRs</code>
+</td>
+<td>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>podCIDRs represents the IP ranges assigned to the node for usage by Pods on that node. If this
+field is specified, the 0th entry must match the podCIDR field. It may contain at most 1 value for
+each of IPv4 and IPv6.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>providerID</code>
+</td>
+<td>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ID of the node assigned by the cloud provider in the format: <ProviderName>://<ProviderSpecificNodeID></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>unschedulable</code>
+</td>
+<td>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Unschedulable controls node schedulability of new pods. By default, node is schedulable.
+More info: <a href="https://kubernetes.io/docs/concepts/nodes/node/#manual-node-administration">https://kubernetes.io/docs/concepts/nodes/node/#manual-node-administration</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>taints</code>
+</td>
+<td>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#taint-v1-core">
+[]Kubernetes core/v1.Taint
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>If specified, the node&rsquo;s taints.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>configSource</code>
+</td>
+<td>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#nodeconfigsource-v1-core">
+Kubernetes core/v1.NodeConfigSource
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Deprecated: Previously used to specify the source of the node&rsquo;s configuration for the DynamicKubeletConfig feature. This feature is removed.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>externalID</code>
+</td>
+<td>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Deprecated. Not all kubelets will set this field. Remove field after 1.13.
+see: <a href="https://issues.k8s.io/61966">https://issues.k8s.io/61966</a></p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -2707,7 +2883,9 @@ UpdateConfiguration
 </td>
 <td>
 <em>
-invalid type
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/util/intstr#IntOrString">
+k8s.io/apimachinery/pkg/util/intstr.IntOrString
+</a>
 </em>
 </td>
 <td>
@@ -2729,7 +2907,9 @@ least 70% of desired machines.</p>
 </td>
 <td>
 <em>
-invalid type
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/util/intstr#IntOrString">
+k8s.io/apimachinery/pkg/util/intstr.IntOrString
+</a>
 </em>
 </td>
 <td>
