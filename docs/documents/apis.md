@@ -1617,8 +1617,8 @@ newest MachineSet.</p>
 </td>
 <td>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.*github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary">
-[]*github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary
+<a href="#machine.sapcloud.io/v1alpha1.*../../pkg/apis/machine/v1alpha1.MachineSummary">
+[]*../../pkg/apis/machine/v1alpha1.MachineSummary
 </a>
 </em>
 </td>
@@ -2075,8 +2075,8 @@ LastOperation
 </td>
 <td>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.[]github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary">
-[]github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary
+<a href="#machine.sapcloud.io/v1alpha1.[]../../pkg/apis/machine/v1alpha1.MachineSummary">
+[]../../pkg/apis/machine/v1alpha1.MachineSummary
 </a>
 </em>
 </td>

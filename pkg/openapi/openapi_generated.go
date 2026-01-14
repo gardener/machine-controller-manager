@@ -957,7 +957,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineDeploymentSpec(ref common.Reference
 					},
 					"autoPreserveFailedMachineMax": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The maximum number of machines in the machine deployment that can be auto-preserved. In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker's machine deployments",
+							Description: "The maximum number of failed machines in the machine deployment that can be auto-preserved. In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker's machine deployments",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

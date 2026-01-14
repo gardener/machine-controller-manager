@@ -460,7 +460,6 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			uninitializedMachine = true
 			klog.Infof("VM instance associated with machine %s was created but not initialized.", machine.Name)
 			//clean me up. I'm dirty.
-			//TODO@thiyyakat add a pointer to a boolean variable indicating whether initialization has happened successfully.
 			nodeName = getMachineStatusResponse.NodeName
 			providerID = getMachineStatusResponse.ProviderID
 
