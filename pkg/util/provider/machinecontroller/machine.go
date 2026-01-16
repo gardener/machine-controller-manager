@@ -777,30 +777,51 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			return
 		}
 	}
-	if !isPreserveAnnotationValueValid(preserveValue) {
-		klog.Warningf("Preserve annotation value %q on machine %s is invalid", preserveValue, machine.Name)
+	if !machineutils.AllowedPreserveAnnotationValues.Has(preserveValue) {
+		klog.Warningf("Preserve annotation value %q on machine %q is invalid", preserveValue, machine.Name)
 		return
-	} else if preserveValue == machineutils.PreserveMachineAnnotationValueFalse || (clone.Status.CurrentStatus.PreserveExpiryTime != nil && !clone.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())) {
-		err = c.stopMachinePreservation(ctx, clone, true)
+	}
+	// if preserve=false or if preservation has expired, stop preservation
+	if preserveValue == machineutils.PreserveMachineAnnotationValueFalse || (clone.Status.CurrentStatus.PreserveExpiryTime != nil && !clone.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())) {
+		err = c.stopMachinePreservationIfPreserved(ctx, clone, true)
 		return
-	} else if preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed || preserveValue == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
+	}
+	if preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed || preserveValue == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
 		if machineutils.IsMachineFailed(clone) {
 			err = c.preserveMachine(ctx, clone, preserveValue)
 		} else {
-			// Here, if the preserve value is when-failed, the preserveExpiry is set, but the machine is not Failed, there are 2 scenarios that need to be handled:
+			// Here, if the preserve value is when-failed, the preserveExpiry is set, but the machine is not in Failed Phase, there are 2 scenarios that need to be handled:
 			// 1. The machine was initially annotated with preserve=now and has been preserved, but later the annotation was changed to when-failed.
 			// 2. The machine was initially annotated with preserve=when-failed, was preserved on failure and has recovered from Failed to Running.
 			// In both cases, we need to clear preserveExpiryTime and update Node condition if applicable. However, the CA annotation needs to be retained.
 
-			// If the preserve value is auto-preserved, and the machine is Running, it would mean the machine has recovered from Failure to Running.
+			// If the preserve value is auto-preserved, and the machine is Running, it would mean the machine has recovered from Failed phase to Running phase.
 			// In this case, we need to clear preserveExpiryTime and update Node condition if applicable. However, the CA annotation needs to be retained.
 			// If the machine fails again, since preserve annotation is present, it will be preserved again.
-			err = c.stopMachinePreservation(ctx, clone, false)
+
+			// CA scale down disabled annotation is retained on a machine on recovery from Failed to Running, so that
+			// CA does not scale down the node due to under-utilization immediately after recovery.
+			// This allows pods to get scheduled onto the recovered node
+
+			if machine.Labels[v1alpha1.NodeLabelKey] != "" {
+				var node *corev1.Node
+				node, err = c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+				if err != nil {
+					klog.Errorf("error getting node %q for machine %q: %v", machine.Labels[v1alpha1.NodeLabelKey], machine.Name, err)
+					return
+				}
+				_, err = c.addCAScaleDownDisabledAnnotationOnNode(ctx, node)
+				if err != nil {
+					return
+				}
+			}
+			err = c.stopMachinePreservationIfPreserved(ctx, clone, false)
 			if err != nil {
 				return
 			}
 			// If the machine is running and has a backing node, uncordon the node if cordoned
 			// this is to handle the scenario where a preserved machine recovers from Failed to Running
+			// in which case, pods should be allowed to be scheduled onto the node
 			if machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && machine.Labels[v1alpha1.NodeLabelKey] != "" {
 				err = c.uncordonNodeIfCordoned(ctx, machine.Labels[v1alpha1.NodeLabelKey])
 			}
