@@ -6,12 +6,11 @@
 package machineutils
 
 import (
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 	"time"
-
-	v1 "k8s.io/api/core/v1"
-
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 )
 
 const (
@@ -106,12 +105,7 @@ const (
 )
 
 // AllowedPreserveAnnotationValues contains the allowed values for the preserve annotation
-var AllowedPreserveAnnotationValues = map[string]bool{
-	PreserveMachineAnnotationValueNow:            true,
-	PreserveMachineAnnotationValueWhenFailed:     true,
-	PreserveMachineAnnotationValuePreservedByMCM: true,
-	PreserveMachineAnnotationValueFalse:          true,
-}
+var AllowedPreserveAnnotationValues = sets.New[string](PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValuePreservedByMCM, PreserveMachineAnnotationValueFalse)
 
 // RetryPeriod is an alias for specifying the retry period
 type RetryPeriod time.Duration
@@ -172,9 +166,13 @@ func PreserveAnnotationsChanged(oldAnnotations, newAnnotations map[string]string
 // or if it is a candidate for auto-preservation
 func IsFailedMachineCandidateForPreservation(machine *v1alpha1.Machine) bool {
 	// if preserve expiry time is set and is in the future, machine is already preserved
-	if machine.Status.CurrentStatus.PreserveExpiryTime != nil && machine.Status.CurrentStatus.PreserveExpiryTime.After(time.Now()) {
-		klog.V(3).Infof("Failed machine %q is preserved until %v", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
-		return true
+	if machine.Status.CurrentStatus.PreserveExpiryTime != nil {
+		if machine.Status.CurrentStatus.PreserveExpiryTime.After(time.Now()) {
+			klog.V(3).Infof("Failed machine %q is preserved until %v", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
+			return true
+		}
+		klog.V(3).Infof("Preservation of failed machine %q has timed out at %v", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
+		return false
 	}
 	val, exists := machine.Annotations[PreserveMachineAnnotationKey]
 	// if the machine preservation is not complete yet even though the machine is annotated, consider it as a candidate for preservation

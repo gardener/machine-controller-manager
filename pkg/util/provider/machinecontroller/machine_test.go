@@ -7,6 +7,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	k8stesting "k8s.io/client-go/testing"
 	"math"
 	"time"
@@ -4146,10 +4147,11 @@ var _ = Describe("machine", func() {
 			preserveExpiryTime     *metav1.Time
 		}
 		type expect struct {
-			retry                   machineutils.RetryPeriod
-			preserveExpiryTimeIsSet bool
-			err                     error
-			nodeCondition           *corev1.NodeCondition
+			retry                                machineutils.RetryPeriod
+			preserveExpiryTimeIsSet              bool
+			nodeCondition                        *corev1.NodeCondition
+			CAScaleDownDisabledAnnotationPresent bool
+			err                                  error
 		}
 		type testCase struct {
 			setup  setup
@@ -4238,6 +4240,14 @@ var _ = Describe("machine", func() {
 					} else {
 						Expect(found).To(BeFalse())
 					}
+					if tc.expect.CAScaleDownDisabledAnnotationPresent {
+						val, ok := updatedNode.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey]
+						Expect(ok).To(BeTrue())
+						Expect(val).To(Equal(autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue))
+					} else {
+						_, ok := updatedNode.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey]
+						Expect(ok).To(BeFalse())
+					}
 				}
 			},
 			Entry("no preserve annotation on machine and node", testCase{
@@ -4245,9 +4255,10 @@ var _ = Describe("machine", func() {
 					nodeName: "node-1",
 				},
 				expect: expect{
-					preserveExpiryTimeIsSet: false,
-					nodeCondition:           nil,
-					retry:                   machineutils.LongRetry,
+					preserveExpiryTimeIsSet:              false,
+					nodeCondition:                        nil,
+					retry:                                machineutils.LongRetry,
+					CAScaleDownDisabledAnnotationPresent: false,
 				},
 			}),
 			Entry("preserve annotation 'now' added on Running machine", testCase{
@@ -4261,7 +4272,8 @@ var _ = Describe("machine", func() {
 					nodeCondition: &corev1.NodeCondition{
 						Type:   v1alpha1.NodePreserved,
 						Status: corev1.ConditionTrue},
-					retry: machineutils.LongRetry,
+					retry:                                machineutils.LongRetry,
+					CAScaleDownDisabledAnnotationPresent: true,
 				},
 			}),
 			Entry("preserve annotation 'when-failed' added on Running machine", testCase{
@@ -4271,9 +4283,10 @@ var _ = Describe("machine", func() {
 					machinePhase:           v1alpha1.MachineRunning,
 				},
 				expect: expect{
-					preserveExpiryTimeIsSet: false,
-					nodeCondition:           nil,
-					retry:                   machineutils.LongRetry,
+					preserveExpiryTimeIsSet:              false,
+					nodeCondition:                        nil,
+					retry:                                machineutils.LongRetry,
+					CAScaleDownDisabledAnnotationPresent: true,
 				},
 			}),
 			Entry("Failed machine annotated with when-failed", testCase{
@@ -4287,7 +4300,8 @@ var _ = Describe("machine", func() {
 					nodeCondition: &corev1.NodeCondition{
 						Type:   v1alpha1.NodePreserved,
 						Status: corev1.ConditionTrue},
-					retry: machineutils.LongRetry,
+					retry:                                machineutils.LongRetry,
+					CAScaleDownDisabledAnnotationPresent: true,
 				},
 			}),
 			Entry("preserve annotation 'now' added on Healthy node ", testCase{
@@ -4301,7 +4315,8 @@ var _ = Describe("machine", func() {
 					nodeCondition: &corev1.NodeCondition{
 						Type:   v1alpha1.NodePreserved,
 						Status: corev1.ConditionTrue},
-					retry: machineutils.LongRetry,
+					retry:                                machineutils.LongRetry,
+					CAScaleDownDisabledAnnotationPresent: true,
 				},
 			}),
 			Entry("preserve annotation 'when-failed' added on Healthy node ", testCase{
@@ -4311,9 +4326,10 @@ var _ = Describe("machine", func() {
 					machinePhase:        v1alpha1.MachineRunning,
 				},
 				expect: expect{
-					preserveExpiryTimeIsSet: false,
-					nodeCondition:           nil,
-					retry:                   machineutils.LongRetry,
+					preserveExpiryTimeIsSet:              false,
+					nodeCondition:                        nil,
+					retry:                                machineutils.LongRetry,
+					CAScaleDownDisabledAnnotationPresent: true,
 				}}),
 			Entry("preserve annotation 'false' added on backing node of preserved machine", testCase{
 				setup: setup{
@@ -4323,9 +4339,10 @@ var _ = Describe("machine", func() {
 					preserveExpiryTime:  &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)},
 				},
 				expect: expect{
-					preserveExpiryTimeIsSet: false,
-					nodeCondition:           nil,
-					retry:                   machineutils.LongRetry,
+					preserveExpiryTimeIsSet:              false,
+					nodeCondition:                        nil,
+					retry:                                machineutils.LongRetry,
+					CAScaleDownDisabledAnnotationPresent: false,
 				},
 			}),
 			Entry("machine auto-preserved by MCM", testCase{
@@ -4340,7 +4357,8 @@ var _ = Describe("machine", func() {
 					nodeCondition: &corev1.NodeCondition{
 						Type:   v1alpha1.NodePreserved,
 						Status: corev1.ConditionTrue},
-					retry: machineutils.LongRetry,
+					retry:                                machineutils.LongRetry,
+					CAScaleDownDisabledAnnotationPresent: true,
 				},
 			}),
 			Entry("preservation timed out", testCase{
@@ -4352,12 +4370,13 @@ var _ = Describe("machine", func() {
 					preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(-1 * time.Minute)},
 				},
 				expect: expect{
-					preserveExpiryTimeIsSet: false,
-					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
-					retry:                   machineutils.LongRetry,
+					preserveExpiryTimeIsSet:              false,
+					nodeCondition:                        &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+					retry:                                machineutils.LongRetry,
+					CAScaleDownDisabledAnnotationPresent: false,
 				},
 			}),
-			Entry("invalid preserve annotation on node of unpreserved machine", testCase{
+			Entry("invalid preserve annotation on node of un-preserved machine", testCase{
 				setup: setup{
 					machineAnnotationValue: "",
 					nodeAnnotationValue:    "invalidValue",
@@ -4365,10 +4384,11 @@ var _ = Describe("machine", func() {
 					machinePhase:           v1alpha1.MachineRunning,
 				},
 				expect: expect{
-					preserveExpiryTimeIsSet: false,
-					nodeCondition:           nil,
-					retry:                   machineutils.LongRetry,
-					err:                     nil,
+					preserveExpiryTimeIsSet:              false,
+					nodeCondition:                        nil,
+					retry:                                machineutils.LongRetry,
+					err:                                  nil,
+					CAScaleDownDisabledAnnotationPresent: false,
 				},
 			}),
 			Entry("machine annotated with preserve=now, but has no backing node", testCase{
@@ -4391,6 +4411,20 @@ var _ = Describe("machine", func() {
 					nodeAnnotationValue:    "",
 					nodeName:               "invalid",
 					machinePhase:           v1alpha1.MachineUnknown,
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           nil,
+					retry:                   machineutils.ShortRetry,
+					err:                     fmt.Errorf("node %q not found", "invalid"),
+				},
+			}),
+			Entry("machine annotated with auto-preserved and in Running phase after recovery from failure", testCase{
+				setup: setup{
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValuePreservedByMCM,
+					nodeAnnotationValue:    "",
+					nodeName:               "invalid",
+					machinePhase:           v1alpha1.MachineRunning,
 				},
 				expect: expect{
 					preserveExpiryTimeIsSet: false,
