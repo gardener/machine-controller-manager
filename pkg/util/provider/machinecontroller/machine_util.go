@@ -405,7 +405,7 @@ func (c *controller) inPlaceUpdate(ctx context.Context, machine *v1alpha1.Machin
 		cond.Reason = v1alpha1.ReadyForUpdate
 		cond.LastTransitionTime = metav1.Now()
 		cond.Message = "Node is ready for in-place update"
-		if err := nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, getNodeName(machine), *cond); err != nil {
+		if _, err := nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, getNodeName(machine), *cond); err != nil {
 			return machineutils.ShortRetry, err
 		}
 		// give machine time for update to get applied
@@ -480,7 +480,7 @@ func (c *controller) updateMachineStatusAndNodeCondition(ctx context.Context, ma
 	cond.Reason = v1alpha1.DrainSuccessful
 	cond.Message = "Node draining successful"
 
-	if err := nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, getNodeName(machine), *cond); err != nil {
+	if _, err := nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, getNodeName(machine), *cond); err != nil {
 		return machineutils.ShortRetry, err
 	}
 
@@ -982,15 +982,6 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 							klog.Warning(err)
 						}
 					} else {
-						// if machine was preserved and in Failed phase, uncordon node so that pods can be scheduled on it again
-						if cond := nodeops.GetCondition(node, v1alpha1.NodePreserved); cond != nil && machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
-							nodeCopy := node.DeepCopy()
-							nodeCopy.Spec.Unschedulable = false
-							_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
-							if err != nil {
-								return machineutils.ShortRetry, err
-							}
-						}
 						// Machine rejoined the cluster after a health-check
 						description = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
 						lastOperationType = v1alpha1.MachineOperationHealthCheck
@@ -2121,7 +2112,7 @@ func (c *controller) UpdateNodeTerminationCondition(ctx context.Context, machine
 		setTerminationReasonByPhase(machine.Status.CurrentStatus.Phase, &terminationCondition)
 	}
 
-	err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, nodeName, terminationCondition)
+	_, err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, nodeName, terminationCondition)
 	if apierrors.IsNotFound(err) {
 		return nil
 	}
@@ -2369,12 +2360,13 @@ Utility Functions for Machine Preservation
 
 // preserveMachine contains logic to start the preservation of a machine and node.
 func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine, preserveValue string) error {
+	var err error
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	updatedMachine := machine.DeepCopy()
 	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
 		klog.V(4).Infof("Starting preservation flow for machine %q.", machine.Name)
 		// Step 1: Add preserveExpiryTime to machine status
-		updatedMachine, err := c.setPreserveExpiryTimeOnMachine(ctx, updatedMachine)
+		updatedMachine, err = c.setPreserveExpiryTimeOnMachine(ctx, updatedMachine)
 		if err != nil {
 			return err
 		}
@@ -2398,20 +2390,19 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 	// Preservation incomplete - either the flow is just starting or in progress
 
 	// Step 2: Add annotations to prevent scale down of node by CA
-	_, err = c.addCAScaleDownDisabledAnnotationOnNode(ctx, node)
+	updatedNode, err := c.addCAScaleDownDisabledAnnotationOnNode(ctx, node)
 	if err != nil {
 		return err
 	}
-
 	drainSuccessful := false
-	if c.shouldNodeBeDrained(updatedMachine, existingNodePreservedCondition) {
+	if c.shouldPreservedNodeBeDrained(updatedMachine, existingNodePreservedCondition) {
 		// Step 3: If machine is in Failed Phase, drain the backing node
 		err = c.drainPreservedNode(ctx, machine)
 		if err != nil {
 			newCond, needsUpdate := c.computeNewNodePreservedCondition(machine.Status.CurrentStatus.Phase, preserveValue, drainSuccessful, existingNodePreservedCondition)
 			if needsUpdate {
 				// Step 4a: Update NodePreserved Condition on Node, with drain unsuccessful status
-				_ = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, nodeName, *newCond)
+				_, _ = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, updatedNode.Name, *newCond)
 				return err
 			}
 			return err
@@ -2421,7 +2412,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 	// Step 4b: Update NodePreserved Condition on Node with drain successful status
 	newCond, needsUpdate := c.computeNewNodePreservedCondition(machine.Status.CurrentStatus.Phase, preserveValue, drainSuccessful, existingNodePreservedCondition)
 	if needsUpdate {
-		err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, nodeName, *newCond)
+		_, err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, updatedNode.Name, *newCond)
 		if err != nil {
 			klog.Errorf("error trying to update node preserved condition for node %q of machine %q : %v", nodeName, machine.Name, err)
 			return err
@@ -2429,6 +2420,47 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 	}
 	klog.V(2).Infof("Machine %s preserved successfully till %v.", machine.Name, updatedMachine.Status.CurrentStatus.PreserveExpiryTime)
 	return nil
+}
+
+// stopMachinePreservation stops the preservation of the machine and node
+func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alpha1.Machine, removeCAScaleDownDisabledAnnotation bool) error {
+	// removal of preserveExpiryTime is the last step of stopping preservation
+	// if preserveExpiryTime is not set, preservation is already stopped
+	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
+		return nil
+	}
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
+	if nodeName != "" {
+		// Machine has a backing node
+		node, err := c.nodeLister.Get(nodeName)
+		if err != nil {
+			klog.Errorf("error trying to get node %q of machine %q: %v. Retrying.", nodeName, machine.Name, err)
+			return err
+		}
+		// prepare NodeCondition to set preservation as stopped
+		preservedConditionFalse := v1.NodeCondition{
+			Type:               v1alpha1.NodePreserved,
+			Status:             v1.ConditionFalse,
+			LastTransitionTime: metav1.Now(),
+			Reason:             v1alpha1.PreservationStopped,
+		}
+		// Step 1: change node condition to reflect that preservation has stopped
+		updatedNode, err := nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, node.Name, preservedConditionFalse)
+		if err != nil {
+			return err
+		}
+		// Step 2: remove CA scale down disabled annotation from node
+		// only remove if removeCAScaleDownDisabledAnnotation is not "when-failed" since in that case,
+		// scale down should remain disabled even after preservation is stopped
+		if removeCAScaleDownDisabledAnnotation {
+			err = c.removeCAScaleDownDisabledAnnotationOnNode(ctx, updatedNode)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	// Step 3: update machine status to set preserve expiry time to nil
+	return c.clearMachinePreserveExpiryTime(ctx, machine)
 }
 
 // setPreserveExpiryTimeOnMachine sets the PreserveExpiryTime on the machine object's Status.CurrentStatus to now + preserve timeout
@@ -2485,7 +2517,38 @@ func (c *controller) addCAScaleDownDisabledAnnotationOnNode(ctx context.Context,
 	return updatedNode, nil
 }
 
-// getNewNodePreservedCondition returns the NodeCondition with the values set according to the preserveValue and the stage of Preservation
+// removeCAScaleDownDisabledAnnotationOnNode removes the cluster-autoscaler annotation that disables scale down of preserved node
+func (c *controller) removeCAScaleDownDisabledAnnotationOnNode(ctx context.Context, node *v1.Node) error {
+	// Check if annotation already absent
+	if node.Annotations == nil ||
+		node.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] == "" {
+		return nil
+	}
+	nodeCopy := node.DeepCopy()
+	delete(nodeCopy.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey)
+	_, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("node UPDATE failed for node %q. Retrying, error: %s", node.Name, err)
+		return err
+	}
+	return nil
+}
+
+func (c *controller) uncordonNodeIfCordoned(ctx context.Context, nodeName string) error {
+	node, err := c.nodeLister.Get(nodeName)
+	if err != nil {
+		return err
+	}
+	if !node.Spec.Unschedulable {
+		return nil
+	}
+	clonedNode := node.DeepCopy()
+	clonedNode.Spec.Unschedulable = false
+	_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, clonedNode, metav1.UpdateOptions{})
+	return err
+}
+
+// computeNewNodePreservedCondition returns the NodeCondition with the values set according to the preserveValue and the stage of Preservation
 func (c *controller) computeNewNodePreservedCondition(machinePhase v1alpha1.MachinePhase, preserveValue string, drainSuccessful bool, existingNodeCondition *v1.NodeCondition) (*v1.NodeCondition, bool) {
 	var newNodePreservedCondition *v1.NodeCondition
 	var needsUpdate bool
@@ -2516,15 +2579,15 @@ func (c *controller) computeNewNodePreservedCondition(machinePhase v1alpha1.Mach
 		needsUpdate = true
 	}
 	if preserveValue == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
-		newNodePreservedCondition.Reason = v1alpha1.NodePreservedByMCM
+		newNodePreservedCondition.Reason = v1alpha1.PreservedByMCM
 	} else {
-		newNodePreservedCondition.Reason = v1alpha1.NodePreservedByUser
+		newNodePreservedCondition.Reason = v1alpha1.PreservedByUser
 	}
 	return newNodePreservedCondition, needsUpdate
 }
 
-// shouldNodeBeDrained returns true if the machine's backing node must be drained, else false
-func (c *controller) shouldNodeBeDrained(machine *v1alpha1.Machine, existingCondition *v1.NodeCondition) bool {
+// shouldPreservedNodeBeDrained returns true if the machine's backing node must be drained, else false
+func (c *controller) shouldPreservedNodeBeDrained(machine *v1alpha1.Machine, existingCondition *v1.NodeCondition) bool {
 	if machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
 		if existingCondition == nil {
 			return true
@@ -2534,48 +2597,11 @@ func (c *controller) shouldNodeBeDrained(machine *v1alpha1.Machine, existingCond
 	return false
 }
 
-// stopMachinePreservation stops the preservation of the machine and node
-func (c *controller) stopMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) error {
-	// removal of preserveExpiryTime is the last step of stopping preservation
-	// if preserveExpiryTime is not set, preservation is already stopped
+// clearMachinePreserveExpiryTime clears the PreserveExpiryTime on the machine object's Status.CurrentStatus
+func (c *controller) clearMachinePreserveExpiryTime(ctx context.Context, machine *v1alpha1.Machine) error {
 	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
 		return nil
 	}
-	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
-	if nodeName != "" {
-		// Machine has a backing node
-		node, err := c.nodeLister.Get(nodeName)
-		if err != nil {
-			klog.Errorf("error trying to get node %q of machine %q: %v. Retrying.", nodeName, machine.Name, err)
-			return err
-		}
-		// prepare NodeCondition to set preservation as stopped
-		preservedConditionFalse := v1.NodeCondition{
-			Type:               v1alpha1.NodePreserved,
-			Status:             v1.ConditionFalse,
-			LastTransitionTime: metav1.Now(),
-			Reason:             v1alpha1.NodePreservationStopped,
-		}
-		// Step 1: change node condition to reflect that preservation has stopped
-		updatedNode := nodeops.AddOrUpdateCondition(node, preservedConditionFalse)
-		updatedNode, err = c.targetCoreClient.CoreV1().Nodes().UpdateStatus(ctx, updatedNode, metav1.UpdateOptions{})
-		if err != nil {
-			klog.Errorf("error trying to update node preserved condition for node %q of machine %q : %s", nodeName, machine.Name, err)
-			return err
-		}
-		// Step 2: remove CA's scale-down disabled annotations to allow CA to scale down node if needed
-		// fetch latest node object since cache may be not be up-to-date with node updated earlier
-		if updatedNode.Annotations != nil && updatedNode.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] != "" {
-			nodeCopy := updatedNode.DeepCopy()
-			delete(nodeCopy.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey)
-			_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
-			if err != nil {
-				klog.Errorf("node UPDATE failed for node %q of machine %q. Retrying, error: %s", nodeName, machine.Name, err)
-				return err
-			}
-		}
-	}
-	// Step 3: update machine status to set preserve expiry time to nil
 	clone := machine.DeepCopy()
 	clone.Status.CurrentStatus.PreserveExpiryTime = nil
 	clone.Status.CurrentStatus.LastUpdateTime = metav1.Now()

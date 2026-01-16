@@ -8,8 +8,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
-	clientretry "k8s.io/client-go/util/retry"
 	"maps"
 	"slices"
 	"strings"
@@ -60,11 +58,13 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 		klog.Errorf("couldn't convert to machine resource from object")
 		return
 	}
-	if c.handlePreserveAnnotationsChange(oldMachine.Annotations, newMachine.Annotations, newMachine) {
+	// to reconcile on change in annotations related to preservation
+	if machineutils.PreserveAnnotationsChanged(oldMachine.Annotations, newMachine.Annotations) {
 		c.enqueueMachine(newObj, "handling machine object preservation related UPDATE event")
 		return
 	}
 
+	// this check is required to enqueue a previously failed preserved machine, when the phase changes to Running
 	if _, exists := newMachine.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && newMachine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed && oldMachine.Status.CurrentStatus.Phase != newMachine.Status.CurrentStatus.Phase {
 		c.enqueueMachine(newObj, "handling preserved machine phase update")
 	}
@@ -748,40 +748,6 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 	Machine Preservation operations
 */
 
-// handlePreserveAnnotationsChange returns true if there is a change in preserve annotations
-// it also handles the special case where the annotation is changed from 'now' to 'when-failed'
-// in which case it stops the preservation if expiry time is already set
-// when a machine is annotated with "now", the machine is preserved even when Running
-// if the annotation has been changed to 'when-failed', we need to stop preservation if the machine is not in Failed Phase
-func (c *controller) handlePreserveAnnotationsChange(oldAnnotations, newAnnotations map[string]string, machine *v1alpha1.Machine) bool {
-	valueNew, existsInNew := newAnnotations[machineutils.PreserveMachineAnnotationKey]
-	valueOld, existsInOld := oldAnnotations[machineutils.PreserveMachineAnnotationKey]
-	if existsInNew != existsInOld {
-		return true
-	}
-	if valueNew != machineutils.PreserveMachineAnnotationValueWhenFailed || valueOld != machineutils.PreserveMachineAnnotationValueNow {
-		changed := valueOld != valueNew
-		return changed
-	}
-	// Special case: annotation changed from 'now' to 'when-failed'
-	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
-		return true
-	}
-	if machineutils.IsMachineFailed(machine) {
-		// If machine is already in failed state, no need to stop preservation
-		return true
-	}
-	ctx := context.Background()
-	err := clientretry.RetryOnConflict(nodeops.Backoff, func() error {
-		klog.V(3).Infof("Stopping preservation for machine %q as preserve annotation changed from 'now' to 'when-failed'.", machine.Name)
-		return c.stopMachinePreservation(ctx, machine)
-	})
-	if err != nil {
-		klog.Errorf("error while stopping preservation for machine %q: %v. Use preserve=false to stop preservation.", machine.Name, err)
-	}
-	return true
-}
-
 // manageMachinePreservation checks if any preservation-related operations need to be performed on the machine and node objects
 func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (retry machineutils.RetryPeriod, err error) {
 	defer func() {
@@ -815,21 +781,36 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		klog.Warningf("Preserve annotation value %q on machine %s is invalid", preserveValue, machine.Name)
 		return
 	} else if preserveValue == machineutils.PreserveMachineAnnotationValueFalse || (clone.Status.CurrentStatus.PreserveExpiryTime != nil && !clone.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())) {
-		err = c.stopMachinePreservation(ctx, clone)
+		err = c.stopMachinePreservation(ctx, clone, true)
 		return
 	} else if preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed {
 		if machineutils.IsMachineFailed(clone) {
 			err = c.preserveMachine(ctx, clone, preserveValue)
+		} else {
+			// Here, if the preserve value is when-failed, the preserveExpiry is set, but the machine is not Failed, there are 2 scenarios that need to be handled:
+			// 1. The machine was initially annotated with preserve=now and has been preserved, but later the annotation was changed to when-failed.
+			// 2. The machine was initially annotated with preserve=when-failed, was preserved on failure and has recovered from Failed to Running.
+			// In both cases, we need to clear preserveExpiryTime and update Node condition if applicable. However, the CA annotation needs to be retained.
+			err = c.stopMachinePreservation(ctx, clone, false)
+			if err != nil {
+				return
+			}
+			// If the machine is running and has a backing node, uncordon the node if cordoned
+			// this is to handle the scenario where a preserved machine recovers from Failed to Running
+			if machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && machine.Labels[v1alpha1.NodeLabelKey] != "" {
+				err = c.uncordonNodeIfCordoned(ctx, machine.Labels[v1alpha1.NodeLabelKey])
+			}
 		}
-		// Here, if the preserve value is when-failed, but the machine is in running, there could be 2 possibilities:
-		// 1. The machine was initially annotated with preserve=now and has been preserved, but later the annotation was changed to when-failed. In this case,
-		//    we want to stop preservation. This case is already being handled in updateMachine and updateNodeToMachine functions.
-		// 2. The machine was initially annotated with preserve=when-failed and has recovered from Failed to Running. In this case,
-		//    we want to continue preservation until the annotation is changed to false or the preservation times out, so that CA does not
-		//    scale down the node before pods are assigned to it.
-		return
 	} else if preserveValue == machineutils.PreserveMachineAnnotationValueNow || preserveValue == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
 		err = c.preserveMachine(ctx, clone, preserveValue)
+		if err != nil {
+			return
+		}
+		// If the machine is running and has a backing node, uncordon the node if cordoned
+		// this is to handle the scenario where a preserved machine recovers from Failed to Running
+		if machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && machine.Labels[v1alpha1.NodeLabelKey] != "" {
+			err = c.uncordonNodeIfCordoned(ctx, machine.Labels[v1alpha1.NodeLabelKey])
+		}
 		return
 	}
 	return

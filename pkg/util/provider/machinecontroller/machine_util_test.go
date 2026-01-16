@@ -4077,7 +4077,7 @@ var _ = Describe("machine_util", func() {
 					preserveNodeCondition: corev1.NodeCondition{
 						Type:   machinev1.NodePreserved,
 						Status: corev1.ConditionTrue,
-						Reason: machinev1.NodePreservedByUser,
+						Reason: machinev1.PreservedByUser,
 					},
 				},
 			}),
@@ -4094,7 +4094,7 @@ var _ = Describe("machine_util", func() {
 					preserveNodeCondition: corev1.NodeCondition{
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
-						Reason:  machinev1.NodePreservedByUser,
+						Reason:  machinev1.PreservedByUser,
 						Message: machinev1.PreservedNodeDrainSuccessful,
 					},
 				},
@@ -4112,7 +4112,7 @@ var _ = Describe("machine_util", func() {
 					preserveNodeCondition: corev1.NodeCondition{
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
-						Reason:  machinev1.NodePreservedByUser,
+						Reason:  machinev1.PreservedByUser,
 						Message: machinev1.PreservedNodeDrainSuccessful,
 					},
 				},
@@ -4131,7 +4131,7 @@ var _ = Describe("machine_util", func() {
 					preserveNodeCondition: corev1.NodeCondition{
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
-						Reason:  machinev1.NodePreservedByUser,
+						Reason:  machinev1.PreservedByUser,
 						Message: machinev1.PreservedNodeDrainSuccessful,
 					},
 				},
@@ -4145,7 +4145,7 @@ var _ = Describe("machine_util", func() {
 					preservedNodeCondition: corev1.NodeCondition{
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionFalse,
-						Reason:  machinev1.NodePreservedByUser,
+						Reason:  machinev1.PreservedByUser,
 						Message: machinev1.PreservedNodeDrainUnsuccessful,
 					},
 				},
@@ -4156,7 +4156,7 @@ var _ = Describe("machine_util", func() {
 					preserveNodeCondition: corev1.NodeCondition{
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
-						Reason:  machinev1.NodePreservedByUser,
+						Reason:  machinev1.PreservedByUser,
 						Message: machinev1.PreservedNodeDrainSuccessful,
 					},
 				},
@@ -4174,7 +4174,7 @@ var _ = Describe("machine_util", func() {
 					preserveNodeCondition: corev1.NodeCondition{
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
-						Reason:  machinev1.NodePreservedByUser,
+						Reason:  machinev1.PreservedByUser,
 						Message: machinev1.PreservedNodeDrainSuccessful,
 					},
 				},
@@ -4192,7 +4192,7 @@ var _ = Describe("machine_util", func() {
 					preserveNodeCondition: corev1.NodeCondition{
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
-						Reason:  machinev1.NodePreservedByMCM,
+						Reason:  machinev1.PreservedByMCM,
 						Message: machinev1.PreservedNodeDrainSuccessful,
 					},
 				},
@@ -4214,7 +4214,8 @@ var _ = Describe("machine_util", func() {
 	})
 	Describe("#stopMachinePreservation", func() {
 		type setup struct {
-			nodeName string
+			nodeName           string
+			removeCAAnnotation bool
 		}
 
 		type expect struct {
@@ -4261,7 +4262,7 @@ var _ = Describe("machine_util", func() {
 								{
 									Type:   machinev1.NodePreserved,
 									Status: corev1.ConditionTrue,
-									Reason: machinev1.NodePreservedByUser,
+									Reason: machinev1.PreservedByUser,
 								},
 							},
 						},
@@ -4277,7 +4278,7 @@ var _ = Describe("machine_util", func() {
 				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				err := c.stopMachinePreservation(context.TODO(), machine)
+				err := c.stopMachinePreservation(context.TODO(), machine, tc.setup.removeCAAnnotation)
 				if tc.expect.err != nil {
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
@@ -4293,15 +4294,21 @@ var _ = Describe("machine_util", func() {
 				}
 				updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), tc.setup.nodeName, metav1.GetOptions{})
 				Expect(getErr).To(BeNil())
-				Expect(updatedNode.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey]).To(Equal(""))
+				if tc.setup.removeCAAnnotation {
+					Expect(updatedNode.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey]).To(Equal(""))
+				} else {
+					Expect(updatedNode.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey]).To(Equal("true"))
+				}
+
 				updatedNodeCondition := nodeops.GetCondition(updatedNode, machinev1.NodePreserved)
 				Expect(updatedNodeCondition).ToNot(BeNil())
 				Expect(updatedNodeCondition.Status).To(Equal(corev1.ConditionFalse))
-				Expect(updatedNodeCondition.Reason).To(Equal(machinev1.NodePreservationStopped))
+				Expect(updatedNodeCondition.Reason).To(Equal(machinev1.PreservationStopped))
 			},
 			Entry("when stopping preservation on a preserved machine with backing node", &testCase{
 				setup: setup{
-					nodeName: "node-1",
+					nodeName:           "node-1",
+					removeCAAnnotation: true,
 				},
 				expect: expect{
 					err: nil,
@@ -4309,7 +4316,8 @@ var _ = Describe("machine_util", func() {
 			}),
 			Entry("when stopping preservation on a preserved machine with no backing node", &testCase{
 				setup: setup{
-					nodeName: "",
+					nodeName:           "",
+					removeCAAnnotation: true,
 				},
 				expect: expect{
 					err: nil,
@@ -4321,6 +4329,15 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					err: fmt.Errorf("node \"no-backing-node\" not found"),
+				},
+			}),
+			Entry("when stopping preservation on a preserved machine, but retaining CA annotation", &testCase{
+				setup: setup{
+					nodeName:           "node-1",
+					removeCAAnnotation: false,
+				},
+				expect: expect{
+					err: nil,
 				},
 			}),
 		)

@@ -341,6 +341,19 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		if m.Labels[v1alpha1.LabelKeyNodeUpdateResult] != v1alpha1.LabelValueNodeUpdateSuccessful {
 			machinesWithoutUpdateSuccessfulLabel = append(machinesWithoutUpdateSuccessfulLabel, m)
 		}
+		if machineutils.IsMachineTriggeredForDeletion(m) {
+			staleMachines = append(staleMachines, m)
+		} else if machineutils.IsMachineFailed(m) {
+			// if machine is preserved or in the process of being preserved, the machine should be considered an active machine and not be added to stale machines
+			preserve := machineutils.IsFailedMachineCandidateForPreservation(m)
+			if preserve {
+				activeMachines = append(activeMachines, m)
+			} else {
+				staleMachines = append(staleMachines, m)
+			}
+		} else if machineutils.IsMachineActive(m) {
+			activeMachines = append(activeMachines, m)
+		}
 	}
 	allMachinesDiff := len(allMachines) - int(machineSet.Spec.Replicas)
 	machinesWithoutUpdateSuccessfulLabelDiff := len(machinesWithoutUpdateSuccessfulLabel) - int(machineSet.Spec.Replicas)
@@ -480,44 +493,6 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	return nil
 }
 
-// isFailedMachineCandidateForPreservation checks if the machine is already preserved, in the process of being preserved
-// or if it is a candidate for auto-preservation
-// TODO@thiyyakat: find more suitable name for function
-func (c *controller) isFailedMachineCandidateForPreservation(ctx context.Context, machineSet *v1alpha1.MachineSet, machine *v1alpha1.Machine) (bool, error) {
-	if machine.Status.CurrentStatus.PreserveExpiryTime != nil && machine.Status.CurrentStatus.PreserveExpiryTime.After(time.Now()) {
-		klog.V(3).Infof("Failed machine %q is preserved until %v", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
-		return true, nil
-	}
-	val, exists := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
-	if exists {
-		switch val {
-		case machineutils.PreserveMachineAnnotationValueWhenFailed, machineutils.PreserveMachineAnnotationValueNow: // this is in case preservation process is not complete yet
-			return true, nil
-		case machineutils.PreserveMachineAnnotationValueFalse:
-			return false, nil
-		}
-	}
-	// check if backing node is annotated with preserve=false, if yes, do not consider for preservation
-	if machine.Labels[v1alpha1.NodeLabelKey] != "" {
-		// check if backing node has preserve=false annotation, if yes, do not auto-preserve
-		node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
-		if err != nil {
-			return false, err // we return true here to avoid losing the machine in case of any error fetching the node
-		}
-		if val, exists = node.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && val == machineutils.PreserveMachineAnnotationValueFalse {
-			return false, nil
-		}
-	}
-	if machineSet.Status.AutoPreserveFailedMachineCount < machineSet.Spec.AutoPreserveFailedMachineMax {
-		err := c.annotateMachineForAutoPreservation(ctx, machine)
-		if err != nil {
-			return true, err
-		}
-		return true, nil
-	}
-	return false, nil
-}
-
 // syncMachineSet will sync the MachineSet with the given key if it has had its expectations fulfilled,
 // meaning it did not expect to see any more of its machines created or deleted. This function is not meant to be
 // invoked concurrently with the same key.
@@ -604,6 +579,12 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	if err != nil {
 		return err
 	}
+
+	// triggerAutoPreservation adds the PreserveMachineAnnotationValuePreservedByMCM annotation
+	// to Failed machines to trigger auto-preservation, if applicable.
+	// We do not update machineSet.Status.AutoPreserveFailedMachineCount in the function, as it will be calculated
+	// and updated in the succeeding calls to calculateMachineSetStatus() and updateMachineSetStatus()
+	c.triggerAutoPreservationOfFailedMachines(ctx, filteredMachines, machineSet)
 
 	// TODO: Fix working of expectations to reflect correct behaviour
 	// machineSetNeedsSync := c.expectations.SatisfiedExpectations(key)
@@ -719,8 +700,7 @@ func getMachinesToDelete(filteredMachines []*v1alpha1.Machine, diff int) []*v1al
 		// in the earlier stages whenever possible.
 		sort.Sort(ActiveMachines(filteredMachines))
 		// machines in Preserved stage will be the last ones to be deleted
-		// at all times, replica count will be upheld, even if it means deletion of a pending machine
-		// TODO@thiyyakat: write unit test for this scenario
+		// At all times, replica count will be upheld, even if it requires the deletion of a preserved machine
 		filteredMachines = prioritisePreservedMachines(filteredMachines)
 	}
 	return filteredMachines[:diff]
@@ -957,20 +937,4 @@ func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.
 	}
 
 	return machine, retryErr
-}
-
-func (dc *controller) annotateMachineForAutoPreservation(ctx context.Context, m *v1alpha1.Machine) error {
-	_, err := UpdateMachineWithRetries(ctx, dc.controlMachineClient.Machines(m.Namespace), dc.machineLister, m.Namespace, m.Name, func(clone *v1alpha1.Machine) error {
-		if clone.Annotations == nil {
-			clone.Annotations = make(map[string]string)
-		}
-		clone.Annotations[machineutils.PreserveMachineAnnotationKey] = machineutils.PreserveMachineAnnotationValuePreservedByMCM
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	klog.V(2).Infof("Updated machine %q with %q=%q.", m.Name, machineutils.PreserveMachineAnnotationKey, machineutils.PreserveMachineAnnotationValuePreservedByMCM)
-	return nil
-
 }

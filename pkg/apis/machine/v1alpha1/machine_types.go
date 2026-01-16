@@ -248,14 +248,14 @@ const (
 	// NodePreserved is a node condition type for preservation of machines to allow end-user to know that a node is preserved
 	NodePreserved corev1.NodeConditionType = "NodePreserved"
 
-	// NodePreservedByMCM is a node condition reason for preservation of machines to indicate that the node is auto-preserved by MCM
-	NodePreservedByMCM string = "PreservedByMCM"
+	// PreservedByMCM is a node condition reason for preservation of machines to indicate that the node is auto-preserved by MCM
+	PreservedByMCM string = "PreservedByMCM"
 
-	// NodePreservedByUser is a node condition reason to indicate that a machine/node has been preserved due to explicit annotation by user
-	NodePreservedByUser string = "PreservedByUser"
+	// PreservedByUser is a node condition reason to indicate that a machine/node has been preserved due to explicit annotation by user
+	PreservedByUser string = "PreservedByUser"
 
-	// NodePreservationStopped is a node condition reason to indicate that a machine/node preservation has been stopped due to annotation update or timeout
-	NodePreservationStopped string = "PreservationStopped"
+	// PreservationStopped is a node condition reason to indicate that a machine/node preservation has been stopped due to annotation update or timeout
+	PreservationStopped string = "PreservationStopped"
 
 	// PreservedNodeDrainSuccessful is a constant for the message in condition that indicates that the preserved node's drain is successful
 	PreservedNodeDrainSuccessful string = "Preserved Node drained successfully"

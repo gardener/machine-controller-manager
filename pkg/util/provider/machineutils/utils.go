@@ -6,6 +6,7 @@
 package machineutils
 
 import (
+	"k8s.io/klog/v2"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -95,7 +96,8 @@ const (
 	PreserveMachineAnnotationValueWhenFailed = "when-failed"
 
 	// PreserveMachineAnnotationValuePreservedByMCM is the annotation value used to explicitly request that
-	// a Machine be preserved if and when in it enters Failed phase
+	// a Machine be preserved if and when in it enters Failed phase.
+	// The AutoPreserveFailedMachineMax, set on the MCD, is enforced based on the number of machines annotated with this value.
 	PreserveMachineAnnotationValuePreservedByMCM = "auto-preserved"
 
 	//PreserveMachineAnnotationValueFalse is the annotation value used to explicitly request that
@@ -153,7 +155,36 @@ func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
 	return m.Annotations[MachinePriority] == "1"
 }
 
-// HasPreservationTimedOut checks if the Status.CurrentStatus.PreserveExpiryTime has not yet passed
-func HasPreservationTimedOut(m *v1alpha1.Machine) bool {
-	return !m.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())
+// PreserveAnnotationsChanged returns true if there is a change in preserve annotations
+func PreserveAnnotationsChanged(oldAnnotations, newAnnotations map[string]string) bool {
+	valueNew, existsInNew := newAnnotations[PreserveMachineAnnotationKey]
+	valueOld, existsInOld := oldAnnotations[PreserveMachineAnnotationKey]
+	if existsInNew != existsInOld {
+		return true
+	}
+	if valueNew != valueOld {
+		return true
+	}
+	return false
+}
+
+// IsFailedMachineCandidateForPreservation checks if the failed machine is already preserved, in the process of being preserved
+// or if it is a candidate for auto-preservation
+func IsFailedMachineCandidateForPreservation(machine *v1alpha1.Machine) bool {
+	// if preserve expiry time is set and is in the future, machine is already preserved
+	if machine.Status.CurrentStatus.PreserveExpiryTime != nil && machine.Status.CurrentStatus.PreserveExpiryTime.After(time.Now()) {
+		klog.V(3).Infof("Failed machine %q is preserved until %v", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
+		return true
+	}
+	val, exists := machine.Annotations[PreserveMachineAnnotationKey]
+	// if the machine preservation is not complete yet even though the machine is annotated, consider it as a candidate for preservation
+	if exists {
+		switch val {
+		case PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValuePreservedByMCM: // this is in case preservation process is not complete yet
+			return true
+		case PreserveMachineAnnotationValueFalse:
+			return false
+		}
+	}
+	return false
 }
