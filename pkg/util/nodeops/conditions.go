@@ -66,9 +66,10 @@ func GetNodeCondition(ctx context.Context, c clientset.Interface, nodeName strin
 }
 
 // AddOrUpdateConditionsOnNode adds a condition to the node's status
-func AddOrUpdateConditionsOnNode(ctx context.Context, c clientset.Interface, nodeName string, condition v1.NodeCondition) error {
+func AddOrUpdateConditionsOnNode(ctx context.Context, c clientset.Interface, nodeName string, condition v1.NodeCondition) (*v1.Node, error) {
 	firstTry := true
-	return clientretry.RetryOnConflict(Backoff, func() error {
+	var updatedNode *v1.Node
+	err := clientretry.RetryOnConflict(Backoff, func() error {
 		var err error
 		var oldNode *v1.Node
 		// First we try getting node from the API server cache, as it's cheaper. If it fails
@@ -87,18 +88,20 @@ func AddOrUpdateConditionsOnNode(ctx context.Context, c clientset.Interface, nod
 		var newNode *v1.Node
 		oldNodeCopy := oldNode
 		newNode = AddOrUpdateCondition(oldNodeCopy, condition)
-		return UpdateNodeConditions(ctx, c, nodeName, oldNode, newNode)
+		updatedNode, err = UpdateNodeConditions(ctx, c, nodeName, oldNode, newNode)
+		return err
 	})
+	return updatedNode, err
 }
 
 // UpdateNodeConditions is for updating the node conditions from oldNode to the newNode
 // using the node's UpdateStatus() method
-func UpdateNodeConditions(ctx context.Context, c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
+func UpdateNodeConditions(ctx context.Context, c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) (*v1.Node, error) {
 	newNodeClone := oldNode.DeepCopy()
 	newNodeClone.Status.Conditions = newNode.Status.Conditions
-	_, err := c.CoreV1().Nodes().UpdateStatus(ctx, newNodeClone, metav1.UpdateOptions{})
+	updatedNode, err := c.CoreV1().Nodes().UpdateStatus(ctx, newNodeClone, metav1.UpdateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create/update conditions on node %q: %v", nodeName, err)
+		return nil, fmt.Errorf("failed to create/update conditions on node %q: %v", nodeName, err)
 	}
-	return nil
+	return updatedNode, nil
 }
