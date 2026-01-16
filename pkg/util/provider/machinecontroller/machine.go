@@ -783,7 +783,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	} else if preserveValue == machineutils.PreserveMachineAnnotationValueFalse || (clone.Status.CurrentStatus.PreserveExpiryTime != nil && !clone.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())) {
 		err = c.stopMachinePreservation(ctx, clone, true)
 		return
-	} else if preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed {
+	} else if preserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed || preserveValue == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
 		if machineutils.IsMachineFailed(clone) {
 			err = c.preserveMachine(ctx, clone, preserveValue)
 		} else {
@@ -791,6 +791,10 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			// 1. The machine was initially annotated with preserve=now and has been preserved, but later the annotation was changed to when-failed.
 			// 2. The machine was initially annotated with preserve=when-failed, was preserved on failure and has recovered from Failed to Running.
 			// In both cases, we need to clear preserveExpiryTime and update Node condition if applicable. However, the CA annotation needs to be retained.
+
+			// If the preserve value is auto-preserved, and the machine is Running, it would mean the machine has recovered from Failure to Running.
+			// In this case, we need to clear preserveExpiryTime and update Node condition if applicable. However, the CA annotation needs to be retained.
+			// If the machine fails again, since preserve annotation is present, it will be preserved again.
 			err = c.stopMachinePreservation(ctx, clone, false)
 			if err != nil {
 				return
@@ -801,7 +805,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 				err = c.uncordonNodeIfCordoned(ctx, machine.Labels[v1alpha1.NodeLabelKey])
 			}
 		}
-	} else if preserveValue == machineutils.PreserveMachineAnnotationValueNow || preserveValue == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
+	} else if preserveValue == machineutils.PreserveMachineAnnotationValueNow {
 		err = c.preserveMachine(ctx, clone, preserveValue)
 		if err != nil {
 			return
@@ -811,6 +815,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		if machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && machine.Labels[v1alpha1.NodeLabelKey] != "" {
 			err = c.uncordonNodeIfCordoned(ctx, machine.Labels[v1alpha1.NodeLabelKey])
 		}
+		// since the preserve value is 'now', machine preservation need not be stopped.
 		return
 	}
 	return
