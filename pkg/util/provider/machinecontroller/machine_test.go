@@ -4333,7 +4333,7 @@ var _ = Describe("machine", func() {
 					machineAnnotationValue: machineutils.PreserveMachineAnnotationValuePreservedByMCM,
 					nodeAnnotationValue:    "",
 					nodeName:               "node-1",
-					machinePhase:           v1alpha1.MachineRunning,
+					machinePhase:           v1alpha1.MachineFailed,
 				},
 				expect: expect{
 					preserveExpiryTimeIsSet: true,
