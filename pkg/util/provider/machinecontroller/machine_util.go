@@ -2375,6 +2375,10 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 			klog.V(2).Infof("Machine %s preserved successfully till %v.", machine.Name, updatedMachine.Status.CurrentStatus.PreserveExpiryTime)
 			return nil
 		}
+	} else if nodeName == "" {
+		// Machine has no backing node, preservation is complete
+		klog.V(2).Infof("Machine %s preserved successfully till %v.", machine.Name, updatedMachine.Status.CurrentStatus.PreserveExpiryTime)
+		return nil
 	}
 	// Machine has a backing node
 	node, err := c.nodeLister.Get(nodeName)
