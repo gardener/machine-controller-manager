@@ -182,6 +182,8 @@ func IsFailedMachineCandidateForPreservation(machine *v1alpha1.Machine) bool {
 			return true
 		case PreserveMachineAnnotationValueFalse:
 			return false
+		default:
+			return false
 		}
 	}
 	return false
