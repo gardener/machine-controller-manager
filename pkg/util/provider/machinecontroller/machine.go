@@ -63,8 +63,7 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 		c.enqueueMachine(newObj, "handling machine object preservation related UPDATE event")
 		return
 	}
-
-	// this check is required to enqueue a previously failed preserved machine, when the phase changes to Running
+	// this check is required to enqueue a previously failed preserved machine when its phase changes to Running on recovery
 	if _, exists := newMachine.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && newMachine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed && oldMachine.Status.CurrentStatus.Phase != newMachine.Status.CurrentStatus.Phase {
 		c.enqueueMachine(newObj, "handling preserved machine phase update")
 	}
@@ -216,10 +215,6 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		return retry, err
 	}
 
-	retry, err = c.manageMachinePreservation(ctx, machine)
-	if err != nil {
-		return retry, err
-	}
 	if machine.Labels[v1alpha1.NodeLabelKey] != "" && machine.Status.CurrentStatus.Phase != "" {
 		// If reference to node object exists execute the below
 		retry, err := c.reconcileMachineHealth(ctx, machine)
@@ -747,8 +742,7 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 	SECTION
 	Machine Preservation operations
 */
-
-// manageMachinePreservation checks if any preservation-related operations need to be performed on the machine and node objects
+// manageMachinePreservation manages machine preservation based on the preserve annotation value.
 func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (retry machineutils.RetryPeriod, err error) {
 	defer func() {
 		if err != nil {
@@ -842,7 +836,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	return
 }
 
-func (c *controller) getNodePreserveAnnotationValue(machine *v1alpha1.Machine) (nAnnotationValue string, nExists bool, err error) {
+func (c *controller) getNodePreserveAnnotationValue(machine *v1alpha1.Machine) (nodeAnnotationValue string, existsOnNode bool, err error) {
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	if nodeName == "" {
 		return
@@ -853,7 +847,7 @@ func (c *controller) getNodePreserveAnnotationValue(machine *v1alpha1.Machine) (
 		return
 	}
 	if node.Annotations != nil {
-		nAnnotationValue, nExists = node.Annotations[machineutils.PreserveMachineAnnotationKey]
+		nodeAnnotationValue, existsOnNode = node.Annotations[machineutils.PreserveMachineAnnotationKey]
 	}
 	return
 }
@@ -863,19 +857,19 @@ func (c *controller) getNodePreserveAnnotationValue(machine *v1alpha1.Machine) (
 // if there is no backing node, or the node has no preserve annotation, then the machine's preserve value is honoured
 // if both machine and node objects have conflicting preserve annotation values, the node's value will be honoured
 func (c *controller) computeEffectivePreserveAnnotationValue(machine *v1alpha1.Machine) (preserveValue string, exists bool, err error) {
-	mAnnotationValue, mExists := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
-	nAnnotationValue, nExists, err := c.getNodePreserveAnnotationValue(machine)
+	machineAnnotationValue, existsOnMachine := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
+	nodeAnnotationValue, existsOnNode, err := c.getNodePreserveAnnotationValue(machine)
 	if err != nil {
 		return
 	}
-	exists = mExists || nExists
+	exists = existsOnMachine || existsOnNode
 	if !exists {
 		return
 	}
-	if nExists {
-		preserveValue = nAnnotationValue
+	if existsOnNode {
+		preserveValue = nodeAnnotationValue
 	} else {
-		preserveValue = mAnnotationValue
+		preserveValue = machineAnnotationValue
 	}
 	return
 }
@@ -892,10 +886,4 @@ func (c *controller) writePreserveAnnotationValueOnMachine(ctx context.Context, 
 		return machine, err
 	}
 	return updatedMachine, nil
-}
-
-// isPreserveAnnotationValueValid checks if the preserve annotation value is valid
-func isPreserveAnnotationValueValid(preserveValue string) bool {
-	_, exists := machineutils.AllowedPreserveAnnotationValues[preserveValue]
-	return exists
 }

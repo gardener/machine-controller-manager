@@ -1498,9 +1498,7 @@ var _ = Describe("machineset", func() {
 			Expect(machinesToDelete[2].Name).To(Equal(testMachine3.Name))
 			Expect(machinesToDelete[3].Name).To(Equal(testMachine4.Name))
 		})
-
-		// Testcase: It should return non-preserved machines first.
-		It("should return non-preserved machines first.", func() {
+		It("should prioritise non-preserved machines for deletion.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 			diff = 2
@@ -1512,9 +1510,7 @@ var _ = Describe("machineset", func() {
 			// expect machinesToDelete to not contain testPreservedFailedMachine
 			Expect(machinesToDelete).ToNot(ContainElement(testPreservedFailedMachine))
 		})
-
-		// Testcase: It should return preserved machine if no other option. Replica count must be maintained.
-		It("should return preserved machine if needed to maintain replica count", func() {
+		It("should include preserved machine when needed to maintain replica count", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 			diff = 2
@@ -1523,7 +1519,7 @@ var _ = Describe("machineset", func() {
 			filteredMachines := []*machinev1.Machine{testActiveMachine1, testPreservedFailedMachine}
 			machinesToDelete := getMachinesToDelete(filteredMachines, diff)
 			Expect(len(machinesToDelete)).To(Equal(diff))
-			// expect machinesToDelete to not contain testPreservedFailedMachine
+			// expect machinesToDelete to contain testPreservedFailedMachine
 			Expect(machinesToDelete).To(ContainElement(testPreservedFailedMachine))
 		})
 	})
