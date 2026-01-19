@@ -2387,7 +2387,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 		return err
 	}
 	existingNodePreservedCondition := nodeops.GetCondition(node, v1alpha1.NodePreserved)
-	// check if preservation is already complete
+	// checks if preservation is already complete
 	if c.isPreservedNodeConditionStatusTrue(existingNodePreservedCondition) {
 		return nil
 	}
@@ -2494,10 +2494,7 @@ func (c *controller) setPreserveExpiryTimeOnMachine(ctx context.Context, machine
 // if the machine has no backing node, only PreserveExpiryTime needs to be set
 // if the machine has a backing node, the NodePreserved condition on the node needs to be true
 func (c *controller) isPreservedNodeConditionStatusTrue(cond *v1.NodeCondition) bool {
-	if cond == nil {
-		return false
-	}
-	if cond.Status == v1.ConditionTrue {
+	if cond != nil && cond.Status == v1.ConditionTrue {
 		return true
 	}
 	return false
@@ -2514,8 +2511,12 @@ func (c *controller) addCAScaleDownDisabledAnnotationOnNode(ctx context.Context,
 		autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey: autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue,
 	}
 	nodeCopy := node.DeepCopy()
-	updatedNode, _, _ := annotations.AddOrUpdateAnnotation(nodeCopy, CAScaleDownAnnotation)
-	updatedNode, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, updatedNode, metav1.UpdateOptions{})
+	updatedNode, _, err := annotations.AddOrUpdateAnnotation(nodeCopy, CAScaleDownAnnotation)
+	if err != nil {
+		klog.Errorf("error trying to add CA annotation on node %q: %v", node.Name, err)
+		return nil, err
+	}
+	updatedNode, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, updatedNode, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("error trying to update CA annotation on node %q: %v", node.Name, err)
 		return nil, err

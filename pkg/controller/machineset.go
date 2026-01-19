@@ -580,7 +580,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		return err
 	}
 
-	// triggerAutoPreservation adds the PreserveMachineAnnotationValuePreservedByMCM annotation
+	// triggerAutoPreservation adds the preserve=PreserveMachineAnnotationValuePreservedByMCM annotation
 	// to Failed machines to trigger auto-preservation, if applicable.
 	// We do not update machineSet.Status.AutoPreserveFailedMachineCount in the function, as it will be calculated
 	// and updated in the succeeding calls to calculateMachineSetStatus() and updateMachineSetStatus()
@@ -699,13 +699,14 @@ func getMachinesToDelete(filteredMachines []*v1alpha1.Machine, diff int) []*v1al
 		// < scheduled, and pending < running. This ensures that we delete machines
 		// in the earlier stages whenever possible.
 		sort.Sort(ActiveMachines(filteredMachines))
-		// machines in Preserved stage will be the last ones to be deleted
+		// preserved machines are de-prioritised for deletion
 		// At all times, replica count will be upheld, even if it requires the deletion of a preserved machine
 		filteredMachines = prioritisePreservedMachines(filteredMachines)
 	}
 	return filteredMachines[:diff]
 }
 
+// prioritisePreservedMachines moves preserved machines to the end of the slice
 func prioritisePreservedMachines(machines []*v1alpha1.Machine) []*v1alpha1.Machine {
 	preservedMachines := make([]*v1alpha1.Machine, 0, len(machines))
 	otherMachines := make([]*v1alpha1.Machine, 0, len(machines))
@@ -939,8 +940,8 @@ func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.
 	return machine, retryErr
 }
 
-// triggerAutoPreservationOfFailedMachines annotates failed machines with the auto-preservation annotation
-// to trigger preservation of the machines by the machine controller, up to the limit defined in the
+// triggerAutoPreservationOfFailedMachines annotates failed machines with preserve=auto-preserved annotation
+// to trigger preservation of the machines, by the machine controller, up to the limit defined in the
 // MachineSet's AutoPreserveFailedMachineMax field.
 func (c *controller) triggerAutoPreservationOfFailedMachines(ctx context.Context, machines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) {
 	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - machineSet.Status.AutoPreserveFailedMachineCount
@@ -970,8 +971,8 @@ func (c *controller) triggerAutoPreservationOfFailedMachines(ctx context.Context
 
 // annotateMachineForAutoPreservation annotates the given machine with the auto-preservation annotation to trigger
 // preservation of the machine by the machine controller.
-func (dc *controller) annotateMachineForAutoPreservation(ctx context.Context, m *v1alpha1.Machine) error {
-	_, err := UpdateMachineWithRetries(ctx, dc.controlMachineClient.Machines(m.Namespace), dc.machineLister, m.Namespace, m.Name, func(clone *v1alpha1.Machine) error {
+func (c *controller) annotateMachineForAutoPreservation(ctx context.Context, m *v1alpha1.Machine) error {
+	_, err := UpdateMachineWithRetries(ctx, c.controlMachineClient.Machines(m.Namespace), c.machineLister, m.Namespace, m.Name, func(clone *v1alpha1.Machine) error {
 		if clone.Annotations == nil {
 			clone.Annotations = make(map[string]string)
 		}
