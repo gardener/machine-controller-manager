@@ -4224,7 +4224,7 @@ var _ = Describe("machine_util", func() {
 			setup  setup
 			expect expect
 		}
-		DescribeTable("##preserveMachine behaviour scenarios",
+		DescribeTable("##stopMachinePreservationIfPreserved behaviour scenarios",
 			func(tc *testCase) {
 				stop := make(chan struct{})
 				defer close(stop)
