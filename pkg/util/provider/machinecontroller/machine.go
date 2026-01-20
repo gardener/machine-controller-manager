@@ -64,7 +64,8 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 		return
 	}
 	// this check is required to enqueue a previously failed preserved machine when its phase changes to Running on recovery
-	if _, exists := newMachine.Annotations[machineutils.PreserveMachineAnnotationKey]; exists && newMachine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed && oldMachine.Status.CurrentStatus.Phase != newMachine.Status.CurrentStatus.Phase {
+	_, exists := newMachine.Annotations[machineutils.PreserveMachineAnnotationKey]
+	if exists && oldMachine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed && newMachine.Status.CurrentStatus.Phase != v1alpha1.MachineFailed {
 		c.enqueueMachine(newObj, "handling preserved machine phase update")
 	}
 
@@ -742,6 +743,7 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 	SECTION
 	Machine Preservation operations
 */
+
 // manageMachinePreservation manages machine preservation based on the preserve annotation value.
 func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (retry machineutils.RetryPeriod, err error) {
 	defer func() {
@@ -756,16 +758,19 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		}
 	}()
 
-	preserveValue, exists, err := c.computeEffectivePreserveAnnotationValue(machine)
+	preserveValue, err := c.computeEffectivePreserveAnnotationValue(machine)
 	if err != nil {
 		return
 	}
-	if !exists {
+	// either annotation has been deleted, set to empty or no preserve annotation exists.
+	// in all these cases, machine preservation should not be done. If machine is preserved, stop preservation.
+	if preserveValue == "" {
+		err = c.stopMachinePreservationIfPreserved(ctx, machine, true)
 		return
 	}
 	// if preserve value differs from machine's preserve value, overwrite the value in the machine
 	clone := machine.DeepCopy()
-	if machine.Annotations == nil || machine.Annotations[machineutils.PreserveMachineAnnotationKey] != preserveValue {
+	if machine.Annotations[machineutils.PreserveMachineAnnotationKey] != preserveValue {
 		clone, err = c.writePreserveAnnotationValueOnMachine(ctx, clone, preserveValue)
 		if err != nil {
 			return
@@ -846,9 +851,7 @@ func (c *controller) getNodePreserveAnnotationValue(machine *v1alpha1.Machine) (
 		klog.Errorf("error trying to get node %q: %v", nodeName, err)
 		return
 	}
-	if node.Annotations != nil {
-		nodeAnnotationValue, existsOnNode = node.Annotations[machineutils.PreserveMachineAnnotationKey]
-	}
+	nodeAnnotationValue, existsOnNode = node.Annotations[machineutils.PreserveMachineAnnotationKey]
 	return
 }
 
@@ -856,22 +859,18 @@ func (c *controller) getNodePreserveAnnotationValue(machine *v1alpha1.Machine) (
 // if the backing node is annotated with preserve annotation, the node's preserve value will be honoured
 // if there is no backing node, or the node has no preserve annotation, then the machine's preserve value is honoured
 // if both machine and node objects have conflicting preserve annotation values, the node's value will be honoured
-func (c *controller) computeEffectivePreserveAnnotationValue(machine *v1alpha1.Machine) (preserveValue string, exists bool, err error) {
+func (c *controller) computeEffectivePreserveAnnotationValue(machine *v1alpha1.Machine) (string, error) {
 	machineAnnotationValue, existsOnMachine := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
 	nodeAnnotationValue, existsOnNode, err := c.getNodePreserveAnnotationValue(machine)
 	if err != nil {
-		return
-	}
-	exists = existsOnMachine || existsOnNode
-	if !exists {
-		return
+		return "", err
 	}
 	if existsOnNode {
-		preserveValue = nodeAnnotationValue
-	} else {
-		preserveValue = machineAnnotationValue
+		return nodeAnnotationValue, nil
+	} else if existsOnMachine {
+		return machineAnnotationValue, nil
 	}
-	return
+	return "", nil
 }
 
 // writePreserveAnnotationValueOnMachine syncs the effective preserve value on the machine objects
