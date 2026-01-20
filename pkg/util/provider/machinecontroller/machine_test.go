@@ -4008,7 +4008,6 @@ var _ = Describe("machine", func() {
 		}
 		type expect struct {
 			preserveValue string
-			exists        bool
 			err           error
 		}
 		type testCase struct {
@@ -4059,7 +4058,7 @@ var _ = Describe("machine", func() {
 				defer trackers.Stop()
 
 				waitForCacheSync(stop, c)
-				value, exists, err := c.computeEffectivePreserveAnnotationValue(machine)
+				value, err := c.computeEffectivePreserveAnnotationValue(machine)
 
 				if tc.expect.err != nil {
 					Expect(err).To(HaveOccurred())
@@ -4067,7 +4066,6 @@ var _ = Describe("machine", func() {
 					return
 				}
 				Expect(err).ToNot(HaveOccurred())
-				Expect(exists).To(Equal(tc.expect.exists))
 				Expect(value).To(Equal(tc.expect.preserveValue))
 			},
 			Entry("neither machine nor node has preserve annotation", testCase{
@@ -4076,7 +4074,6 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					preserveValue: "",
-					exists:        false,
 					err:           nil,
 				},
 			}),
@@ -4087,7 +4084,6 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					preserveValue: "machineValue",
-					exists:        true,
 					err:           nil,
 				},
 			}),
@@ -4098,7 +4094,6 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					preserveValue: "nodeValue",
-					exists:        true,
 					err:           nil,
 				},
 			}),
@@ -4110,7 +4105,6 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					preserveValue: "nodeValue",
-					exists:        true,
 					err:           nil,
 				},
 			}),
@@ -4121,7 +4115,6 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					preserveValue: "",
-					exists:        false,
 					err:           fmt.Errorf("node %q not found", "invalid"),
 				},
 			}),
@@ -4131,7 +4124,6 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					preserveValue: "machineValue",
-					exists:        true,
 					err:           nil,
 				},
 			}),

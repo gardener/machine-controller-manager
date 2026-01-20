@@ -4345,7 +4345,7 @@ var _ = Describe("machine_util", func() {
 		type setup struct {
 			machinePhase          machinev1.MachinePhase
 			preserveValue         string
-			drainSuccess          bool
+			drainErr              error
 			existingNodeCondition *corev1.NodeCondition
 		}
 		type expect struct {
@@ -4361,7 +4361,7 @@ var _ = Describe("machine_util", func() {
 				newNodeCondition, needsUpdate := computeNewNodePreservedCondition(
 					tc.setup.machinePhase,
 					tc.setup.preserveValue,
-					tc.setup.drainSuccess,
+					tc.setup.drainErr,
 					tc.setup.existingNodeCondition,
 				)
 				if tc.expect.newNodeCondition == nil {
@@ -4393,7 +4393,7 @@ var _ = Describe("machine_util", func() {
 				setup: setup{
 					machinePhase:          machinev1.MachineFailed,
 					preserveValue:         machineutils.PreserveMachineAnnotationValueNow,
-					drainSuccess:          true,
+					drainErr:              nil,
 					existingNodeCondition: nil,
 				},
 				expect: expect{
@@ -4410,7 +4410,7 @@ var _ = Describe("machine_util", func() {
 				setup: setup{
 					machinePhase:          machinev1.MachineFailed,
 					preserveValue:         machineutils.PreserveMachineAnnotationValueNow,
-					drainSuccess:          false,
+					drainErr:              fmt.Errorf("test drain error"),
 					existingNodeCondition: nil,
 				},
 				expect: expect{
@@ -4427,7 +4427,7 @@ var _ = Describe("machine_util", func() {
 				setup: setup{
 					machinePhase:          machinev1.MachineFailed,
 					preserveValue:         machineutils.PreserveMachineAnnotationValuePreservedByMCM,
-					drainSuccess:          true,
+					drainErr:              nil,
 					existingNodeCondition: nil,
 				},
 				expect: expect{
@@ -4444,7 +4444,7 @@ var _ = Describe("machine_util", func() {
 				setup: setup{
 					machinePhase:  machinev1.MachineFailed,
 					preserveValue: machineutils.PreserveMachineAnnotationValueNow,
-					drainSuccess:  false,
+					drainErr:      fmt.Errorf("test drain error"),
 					existingNodeCondition: &corev1.NodeCondition{
 						Type:   machinev1.NodePreserved,
 						Status: corev1.ConditionFalse,
@@ -4465,7 +4465,7 @@ var _ = Describe("machine_util", func() {
 				setup: setup{
 					machinePhase:  machinev1.MachineFailed,
 					preserveValue: machineutils.PreserveMachineAnnotationValueNow,
-					drainSuccess:  false,
+					drainErr:      fmt.Errorf("test drain error"),
 					existingNodeCondition: &corev1.NodeCondition{
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionFalse,
@@ -4487,7 +4487,7 @@ var _ = Describe("machine_util", func() {
 				setup: setup{
 					machinePhase:  machinev1.MachineFailed,
 					preserveValue: machineutils.PreserveMachineAnnotationValueNow,
-					drainSuccess:  true,
+					drainErr:      nil,
 					existingNodeCondition: &corev1.NodeCondition{
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
