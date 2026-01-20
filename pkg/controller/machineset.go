@@ -952,7 +952,7 @@ func (c *controller) triggerAutoPreservationOfFailedMachines(ctx context.Context
 	for _, m := range machines {
 		if machineutils.IsMachineFailed(m) {
 			// check if machine is annotated with preserve=false, if yes, do not consider for preservation
-			if m.Annotations != nil && m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueFalse {
+			if m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueFalse {
 				continue
 			}
 			if autoPreservationCapacityRemaining > 0 {
