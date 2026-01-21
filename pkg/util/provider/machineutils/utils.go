@@ -151,15 +151,7 @@ func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
 
 // PreserveAnnotationsChanged returns true if there is a change in preserve annotations
 func PreserveAnnotationsChanged(oldAnnotations, newAnnotations map[string]string) bool {
-	valueNew, existsInNew := newAnnotations[PreserveMachineAnnotationKey]
-	valueOld, existsInOld := oldAnnotations[PreserveMachineAnnotationKey]
-	if existsInNew != existsInOld {
-		return true
-	}
-	if valueNew != valueOld {
-		return true
-	}
-	return false
+	return newAnnotations[PreserveMachineAnnotationKey] != oldAnnotations[PreserveMachineAnnotationKey]
 }
 
 // IsFailedMachineCandidateForPreservation checks if the failed machine is already preserved, in the process of being preserved
@@ -174,17 +166,13 @@ func IsFailedMachineCandidateForPreservation(machine *v1alpha1.Machine) bool {
 		klog.V(3).Infof("Preservation of failed machine %q has timed out at %v", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
 		return false
 	}
-	val, exists := machine.Annotations[PreserveMachineAnnotationKey]
 	// if the machine preservation is not complete yet even though the machine is annotated, consider it as a candidate for preservation
-	if exists {
-		switch val {
-		case PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValuePreservedByMCM: // this is in case preservation process is not complete yet
-			return true
-		case PreserveMachineAnnotationValueFalse:
-			return false
-		default:
-			return false
-		}
+	switch machine.Annotations[PreserveMachineAnnotationKey] {
+	case PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValuePreservedByMCM: // this is in case preservation process is not complete yet
+		return true
+	case PreserveMachineAnnotationValueFalse:
+		return false
+	default:
+		return false
 	}
-	return false
 }
