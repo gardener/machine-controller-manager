@@ -147,10 +147,11 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 		return nil
 	}
 
-	// Avoid handling nodes not managed by MCM.
+	// Skip handling nodes not managed by MCM. Retry immediately only if the error is not errNoMachineMatch.
+	// Valid matches that fail due to transient errors will be eventually requeued by the update handler.
 	if _, err := c.getMachineFromNode(node.Name); err != nil {
 		if errors.Is(err, errNoMachineMatch) {
-			klog.V(4).Infof("ClusterNode %q: No machine found matching node, skipping adding finalizers", key)
+			klog.Errorf("ClusterNode %q: No machine found matching node, skipping adding finalizers", key)
 			return nil
 		}
 		klog.Errorf("ClusterNode %q: error fetching machine for node: %v", key, err)
