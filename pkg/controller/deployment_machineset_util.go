@@ -25,6 +25,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"reflect"
 
 	"k8s.io/klog/v2"
@@ -127,8 +128,11 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 			}
 			failedMachines = append(failedMachines, machineSummary)
 		}
-		cond := getMachineCondition(machine, v1alpha1.NodePreserved)
-		if cond != nil && cond.Reason == v1alpha1.PreservedByMCM {
+		// Count machines which are auto-preserved by MCM
+		// we count based on number of machines annotated with PreserveMachineAnnotationValuePreservedByMCM
+		// this is because, the actual preservation of the machine may not have completed yet
+		// if triggered very recently, and hence we cannot rely on the Preserved Condition Reason
+		if machine.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
 			autoPreserveFailedMachineCount++
 		}
 	}
