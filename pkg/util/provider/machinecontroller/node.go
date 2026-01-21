@@ -61,6 +61,15 @@ func (c *controller) updateNode(oldObj, newObj any) {
 		return
 	}
 
+	// Do not process node updates if there is no associated machine
+	// In case of transient errors while fetching machine, do not retry
+	// as the update handler will be triggered again due to a health check.
+	machine, err := c.getMachineFromNode(node.Name)
+	if err != nil {
+		klog.Errorf("unable to handle update event for node %q, couldn't fetch associated machine. Error: %v", node.Name, err)
+		return
+	}
+
 	// delete the machine if the node is deleted
 	if node.DeletionTimestamp != nil {
 		err := c.triggerMachineDeletion(context.Background(), node.Name)
@@ -69,18 +78,11 @@ func (c *controller) updateNode(oldObj, newObj any) {
 		}
 		return
 	}
-	// Check if finalizer was removed - re-add it
-	if c.hasNodeFinalizerBeenRemoved(oldNode, node, NodeFinalizerName) {
-		c.enqueueNodeAfter(node, time.Duration(machineutils.MediumRetry), fmt.Sprintf("MCM finalizer was removed from node %q, re-queuing", node.Name))
+
+	if !HasFinalizer(node, NodeFinalizerName) {
+		c.enqueueNodeAfter(node, time.Duration(machineutils.MediumRetry), fmt.Sprintf("MCM finalizer missing from node %q, re-queuing", node.Name))
 		return
 	}
-
-	machine, err := c.getMachineFromNode(node.Name)
-	if err != nil {
-		klog.Errorf("unable to handle update event for node %q, couldn't fetch associated machine. Error: %v", node.Name, err)
-		return
-	}
-
 	// to reconcile on addition/removal of essential taints in machine lifecycle, example - critical component taint
 	if addedOrRemovedEssentialTaints(oldNode, node, machineutils.EssentialTaints) {
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Atleast one of essential taints on node %q has changed", getNodeName(machine)))
@@ -143,6 +145,16 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 	if _, annotationPresent := node.ObjectMeta.Annotations[machineutils.NotManagedByMCM]; annotationPresent {
 		klog.Infof("ClusterNode %q: NotManagedByMCM annotation present, skipping reconciliation", key)
 		return nil
+	}
+
+	// Avoid handling nodes not managed by MCM.
+	if _, err := c.getMachineFromNode(node.Name); err != nil {
+		if errors.Is(err, errNoMachineMatch) {
+			klog.V(4).Infof("ClusterNode %q: No machine found matching node, skipping adding finalizers", key)
+			return nil
+		}
+		klog.Errorf("ClusterNode %q: error fetching machine for node: %v", key, err)
+		return err
 	}
 
 	if node.DeletionTimestamp != nil {
@@ -269,10 +281,6 @@ func (c *controller) updateNodeFinalizers(ctx context.Context, node *corev1.Node
 	}
 
 	return nil
-}
-
-func (c *controller) hasNodeFinalizerBeenRemoved(oldNode, newNode *corev1.Node, finalizerName string) bool {
-	return HasFinalizer(oldNode, finalizerName) && !HasFinalizer(newNode, finalizerName)
 }
 
 // HasFinalizer checks if the given object has the specified finalizer.
