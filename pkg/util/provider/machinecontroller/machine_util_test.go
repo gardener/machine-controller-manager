@@ -4288,7 +4288,7 @@ var _ = Describe("machine_util", func() {
 				Expect(getErr).To(BeNil())
 				Expect(updatedMachine.Status.CurrentStatus.PreserveExpiryTime.IsZero()).To(BeTrue())
 
-				if machine.Labels[machinev1.NodeLabelKey] == "" || machine.Labels[machinev1.NodeLabelKey] == "err-backing-node" {
+				if machine.Labels[machinev1.NodeLabelKey] == "" || machine.Labels[machinev1.NodeLabelKey] == "no-backing-node" {
 					return
 				}
 				updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), tc.setup.nodeName, metav1.GetOptions{})
@@ -4298,7 +4298,6 @@ var _ = Describe("machine_util", func() {
 				} else {
 					Expect(updatedNode.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey]).To(Equal("true"))
 				}
-
 				updatedNodeCondition := nodeops.GetCondition(updatedNode, machinev1.NodePreserved)
 				Expect(updatedNodeCondition).ToNot(BeNil())
 				Expect(updatedNodeCondition.Status).To(Equal(corev1.ConditionFalse))
@@ -4327,7 +4326,7 @@ var _ = Describe("machine_util", func() {
 					nodeName: "no-backing-node",
 				},
 				expect: expect{
-					err: fmt.Errorf("node \"no-backing-node\" not found"),
+					err: nil,
 				},
 			}),
 			Entry("when stopping preservation on a preserved machine, but retaining CA annotation", &testCase{
@@ -4503,6 +4502,56 @@ var _ = Describe("machine_util", func() {
 						Message: machinev1.PreservedNodeDrainSuccessful,
 					},
 					needsUpdate: false,
+				},
+			}),
+		)
+	})
+	Describe("#shouldPreservedNodeBeDrained", func() {
+		type setup struct {
+			machinePhase      machinev1.MachinePhase
+			existingCondition *corev1.NodeCondition
+		}
+		type expect struct {
+			shouldDrain bool
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("##shouldPreservedNodeBeDrained behaviour scenarios",
+			func(tc *testCase) {
+				shouldDrain := shouldPreservedNodeBeDrained(tc.setup.existingCondition, tc.setup.machinePhase)
+				Expect(shouldDrain).To(Equal(tc.expect.shouldDrain))
+			},
+			Entry("should return false when machine is Running", &testCase{
+				setup: setup{
+					machinePhase: machinev1.MachineRunning,
+				},
+				expect: expect{
+					shouldDrain: false,
+				},
+			}),
+			Entry("should return true when machine is Failed and no existing condition", &testCase{
+				setup: setup{
+					machinePhase: machinev1.MachineFailed,
+				},
+				expect: expect{
+					shouldDrain: true,
+				},
+			}),
+			Entry("should return true when machine is Failed and existing condition message is PreservedNodeDrainUnsuccessful", &testCase{
+				setup: setup{
+					machinePhase: machinev1.MachineFailed,
+					existingCondition: &corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionFalse,
+						Reason:  machinev1.PreservedByUser,
+						Message: machinev1.PreservedNodeDrainUnsuccessful,
+					},
+				},
+				expect: expect{
+					shouldDrain: true,
 				},
 			}),
 		)

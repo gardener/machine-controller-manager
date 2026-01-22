@@ -762,12 +762,6 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	if err != nil {
 		return
 	}
-	// either annotation has been deleted, set to empty or no preserve annotation exists.
-	// in all these cases, machine preservation should not be done. If machine is preserved, stop preservation.
-	if preserveValue == "" {
-		err = c.stopMachinePreservationIfPreserved(ctx, machine, true)
-		return
-	}
 	// if preserve value differs from machine's preserve value, overwrite the value in the machine
 	clone := machine.DeepCopy()
 	if machine.Annotations[machineutils.PreserveMachineAnnotationKey] != preserveValue {
@@ -775,6 +769,12 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		if err != nil {
 			return
 		}
+	}
+	// either annotation has been deleted, set to empty or no preserve annotation exists.
+	// in all these cases, machine preservation should not be done. If machine is preserved, stop preservation.
+	if preserveValue == "" {
+		err = c.stopMachinePreservationIfPreserved(ctx, machine, true)
+		return
 	}
 	if !machineutils.AllowedPreserveAnnotationValues.Has(preserveValue) {
 		klog.Warningf("Preserve annotation value %q on machine %q is invalid", preserveValue, machine.Name)
@@ -798,10 +798,6 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			// In this case, we need to clear preserveExpiryTime and update Node condition if applicable. However, the CA annotation needs to be retained.
 			// If the machine fails again, since preserve annotation is present, it will be preserved again.
 
-			// CA scale down disabled annotation is retained on a machine on recovery from Failed to Running, so that
-			// CA does not scale down the node due to under-utilization immediately after recovery.
-			// This allows pods to get scheduled onto the recovered node
-
 			if machine.Labels[v1alpha1.NodeLabelKey] != "" {
 				var node *corev1.Node
 				node, err = c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
@@ -809,6 +805,9 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 					klog.Errorf("error getting node %q for machine %q: %v", machine.Labels[v1alpha1.NodeLabelKey], machine.Name, err)
 					return
 				}
+				// CA scale down disabled annotation is retained on a machine on recovery from Failed to Running, so that
+				// CA does not scale down the node due to under-utilization immediately after recovery.
+				// This allows pods to get scheduled onto the recovered node
 				_, err = c.addCAScaleDownDisabledAnnotationOnNode(ctx, node)
 				if err != nil {
 					return
@@ -818,25 +817,21 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			if err != nil {
 				return
 			}
-			// If the machine is running and has a backing node, uncordon the node if cordoned
-			// this is to handle the scenario where a preserved machine recovers from Failed to Running
-			// in which case, pods should be allowed to be scheduled onto the node
-			if machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && machine.Labels[v1alpha1.NodeLabelKey] != "" {
-				err = c.uncordonNodeIfCordoned(ctx, machine.Labels[v1alpha1.NodeLabelKey])
-			}
+
 		}
 	} else if preserveValue == machineutils.PreserveMachineAnnotationValueNow {
 		err = c.preserveMachine(ctx, clone, preserveValue)
 		if err != nil {
 			return
 		}
-		// If the machine is running and has a backing node, uncordon the node if cordoned
-		// this is to handle the scenario where a preserved machine recovers from Failed to Running
-		if machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && machine.Labels[v1alpha1.NodeLabelKey] != "" {
-			err = c.uncordonNodeIfCordoned(ctx, machine.Labels[v1alpha1.NodeLabelKey])
-		}
-		// since the preserve value is 'now', machine preservation need not be stopped.
-		return
+	}
+	// At this point, the machine is annotated either with preserve=now or preserve=when-failed or preserve=auto-preserved,
+	// and machine preservation has been stopped if applicable.
+	// If the machine is running and has a backing node, uncordon the node if cordoned.
+	// This is to handle the scenario where a preserved machine recovers from Failed to Running
+	// in which case, pods should be allowed to be scheduled onto the node
+	if machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && machine.Labels[v1alpha1.NodeLabelKey] != "" {
+		err = c.uncordonNodeIfCordoned(ctx, machine.Labels[v1alpha1.NodeLabelKey])
 	}
 	return
 }

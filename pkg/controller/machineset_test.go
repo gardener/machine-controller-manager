@@ -2002,4 +2002,80 @@ var _ = Describe("machineset", func() {
 			}),
 		)
 	})
+	Describe("#shouldFailedMachineBeTerminated", func() {
+
+		type setup struct {
+			preserveExpiryTime *metav1.Time
+			annotationValue    string
+		}
+		type expect struct {
+			result bool
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+		DescribeTable("shouldFailedMachineBeTerminated test cases", func(tc testCase) {
+			machine := machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-machine",
+					Namespace: "default",
+					Annotations: map[string]string{
+						machineutils.PreserveMachineAnnotationKey: tc.setup.annotationValue,
+					},
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase:              machinev1.MachineFailed,
+						PreserveExpiryTime: tc.setup.preserveExpiryTime,
+					},
+				},
+			}
+			result := shouldFailedMachineBeTerminated(&machine)
+			Expect(result).To(Equal(tc.expect.result))
+		},
+			Entry("should return false if preserve expiry time is in the future", testCase{
+				setup: setup{
+					preserveExpiryTime: &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)},
+					annotationValue:    machineutils.PreserveMachineAnnotationValueNow,
+				},
+				expect: expect{
+					result: false,
+				},
+			}),
+			Entry("should return true if machine is annotated with preserve=false", testCase{
+				setup: setup{
+					annotationValue: machineutils.PreserveMachineAnnotationValueFalse,
+				},
+				expect: expect{
+					result: true,
+				},
+			}),
+			Entry("should return false if machine is annotated with preserve=now", testCase{
+				setup: setup{
+					annotationValue: machineutils.PreserveMachineAnnotationValueNow,
+				},
+				expect: expect{
+					result: false,
+				},
+			}),
+			Entry("should return false if machine is annotated with preserve=when-failed", testCase{
+				setup: setup{
+					annotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
+				},
+				expect: expect{
+					result: false,
+				},
+			}),
+			Entry("should return true if preservation has timed out", testCase{
+				setup: setup{
+					preserveExpiryTime: &metav1.Time{Time: metav1.Now().Add(-1 * time.Second)},
+					annotationValue:    machineutils.PreserveMachineAnnotationValueNow,
+				},
+				expect: expect{
+					result: true,
+				},
+			}),
+		)
+	})
 })
