@@ -148,7 +148,7 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 	}
 
 	// Ignore node updates without an associated machine. Retry only for errors other than errNoMachineMatch;
-	// transient fetch errors will be eventually requeued by the update handler.
+	// transient fetch errors will be eventually requeued by the update handler due to kubelet updates.
 	if _, err := c.getMachineFromNode(node.Name); err != nil {
 		if errors.Is(err, errNoMachineMatch) {
 			klog.Errorf("ClusterNode %q: No machine found matching node, skipping adding finalizers", key)
