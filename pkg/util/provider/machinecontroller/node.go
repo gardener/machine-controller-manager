@@ -63,7 +63,7 @@ func (c *controller) updateNode(oldObj, newObj any) {
 
 	// Do not process node updates if there is no associated machine
 	// In case of transient errors while fetching machine, do not retry
-	// as the update handler will be triggered again due to a health check.
+	// as the update handler will be triggered again due to kubelet updates.
 	machine, err := c.getMachineFromNode(node.Name)
 	if err != nil {
 		klog.Errorf("unable to handle update event for node %q, couldn't fetch associated machine. Error: %v", node.Name, err)
