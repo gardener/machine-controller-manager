@@ -732,6 +732,20 @@ func (s ActiveMachines) Len() int      { return len(s) }
 func (s ActiveMachines) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func (s ActiveMachines) Less(i, j int) bool {
+	// Preserved machines have higher priority than other machines and will be deleted last.
+	// So, we check if either of the machines is preserved first.
+	// If one is preserved and the other is not, the preserved one is "greater"
+	// If both are preserved or both are not preserved, we move to the next criteria.
+	now := metav1.Now()
+	isPreserved := func(m *v1alpha1.Machine) bool {
+		return m.Status.CurrentStatus.PreserveExpiryTime != nil && m.Status.CurrentStatus.PreserveExpiryTime.Time.After(now.Time)
+	}
+	isPreservedI := isPreserved(s[i])
+	isPreservedJ := isPreserved(s[j])
+	if isPreservedI != isPreservedJ {
+		return !isPreservedI // if s[i] preserved, it is "greater" and should not be deleted first, therefore, "less" is false, and vice versa
+	}
+
 	// Default priority for machine objects
 	machineIPriority := 3
 	machineJPriority := 3
