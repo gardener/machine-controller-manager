@@ -2373,7 +2373,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 	}
 	if nodeName == "" {
 		// Machine has no backing node, preservation is complete
-		klog.V(2).Infof("Machine %s preserved successfully till %v.", machine.Name, updatedMachine.Status.CurrentStatus.PreserveExpiryTime)
+		klog.V(2).Infof("Machine %q without backing node is preserved successfully till %v.", machine.Name, updatedMachine.Status.CurrentStatus.PreserveExpiryTime)
 		return nil
 	}
 	// Machine has a backing node
@@ -2395,7 +2395,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 		return err
 	}
 	var drainErr error
-	if c.shouldPreservedNodeBeDrained(updatedMachine, existingNodePreservedCondition) {
+	if shouldPreservedNodeBeDrained(existingNodePreservedCondition, updatedMachine.Status.CurrentStatus.Phase) {
 		// Step 3: If machine is in Failed Phase, drain the backing node
 		drainErr = c.drainPreservedNode(ctx, machine)
 	}
@@ -2411,7 +2411,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 			return err
 		}
 	}
-	klog.V(2).Infof("Machine %s preserved successfully till %v.", machine.Name, updatedMachine.Status.CurrentStatus.PreserveExpiryTime)
+	klog.V(2).Infof("Machine %q and backing node preserved successfully till %v.", machine.Name, updatedMachine.Status.CurrentStatus.PreserveExpiryTime)
 	return nil
 }
 
@@ -2427,6 +2427,18 @@ func (c *controller) stopMachinePreservationIfPreserved(ctx context.Context, mac
 		// Machine has a backing node
 		node, err := c.nodeLister.Get(nodeName)
 		if err != nil {
+			// if node is not found and error is simply returned, then preservation will never be stopped on machine
+			// therefore, this error is handled specifically
+			if apierrors.IsNotFound(err) {
+				// Node not found, proceed to clear preserveExpiryTime on machine
+				klog.Warningf("Node %q of machine %q not found. Proceeding to clear preserve expiry time on machine.", nodeName, machine.Name)
+				err := c.clearMachinePreserveExpiryTime(ctx, machine)
+				if err != nil {
+					return err
+				}
+				klog.V(2).Infof("Preservation of machine %q has stopped.", machine.Name)
+				return nil
+			}
 			klog.Errorf("error trying to get node %q of machine %q: %v. Retrying.", nodeName, machine.Name, err)
 			return err
 		}
@@ -2572,8 +2584,8 @@ func computeNewNodePreservedCondition(machinePhase v1alpha1.MachinePhase, preser
 }
 
 // shouldPreservedNodeBeDrained returns true if the machine's backing node must be drained, else false
-func (c *controller) shouldPreservedNodeBeDrained(machine *v1alpha1.Machine, existingCondition *v1.NodeCondition) bool {
-	if machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
+func shouldPreservedNodeBeDrained(existingCondition *v1.NodeCondition, machinePhase v1alpha1.MachinePhase) bool {
+	if machinePhase == v1alpha1.MachineFailed {
 		if existingCondition == nil {
 			return true
 		}
