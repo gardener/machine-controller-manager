@@ -2419,10 +2419,29 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 func (c *controller) stopMachinePreservationIfPreserved(ctx context.Context, machine *v1alpha1.Machine, removeCAScaleDownDisabledAnnotation bool) error {
 	// removal of preserveExpiryTime is the last step of stopping preservation
 	// therefore, if preserveExpiryTime is not set, machine is not preserved
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
+		if !removeCAScaleDownDisabledAnnotation || nodeName == "" {
+			return nil
+		}
+		// if preserveExpiryTime is nil, but removeCAScaleDownDisabledAnnotation is true,
+		// then we need to remove the annotation from node
+		node, err := c.nodeLister.Get(nodeName)
+		if err != nil {
+			// if node is not found, nothing to remove annotation from
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			klog.Errorf("error trying to get node %q of machine %q: %v.", nodeName, machine.Name, err)
+			return err
+		}
+		// remove CA scale down disabled annotation from node
+		err = c.removeCAScaleDownDisabledAnnotationOnNode(ctx, node)
+		if err != nil {
+			return err
+		}
 		return nil
 	}
-	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	if nodeName == "" {
 		err := c.clearMachinePreserveExpiryTime(ctx, machine)
 		if err != nil {
