@@ -774,7 +774,11 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			return
 		}
 	}
-	// either annotation has been deleted, set to empty or no preserve annotation exists.
+	if preserveValue == machineutils.PreserveMachineAnnotationValuePreserveStoppedByMCM {
+		// since preservation is stopped before adding the annotation, nothing more to be done here
+		return
+	}
+	// The annotation has either been deleted, set to empty or no preserve annotation exists.
 	// in all these cases, machine preservation should not be done. If machine is preserved, stop preservation.
 	if preserveValue == "" {
 		err = c.stopMachinePreservationIfPreserved(ctx, clone, true)
@@ -793,14 +797,10 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		if machineutils.IsMachineFailed(clone) {
 			err = c.preserveMachine(ctx, clone, preserveValue)
 		} else {
-			// Here, if the preserve value is when-failed, the preserveExpiry is set, but the machine is not in Failed Phase, there are 2 scenarios that need to be handled:
-			// 1. The machine was initially annotated with preserve=now and has been preserved, but later the annotation was changed to when-failed.
-			// 2. The machine was initially annotated with preserve=when-failed, was preserved on failure and has recovered from Failed to Running.
-			// In both cases, we need to clear preserveExpiryTime and update Node condition if applicable. However, the CA annotation needs to be retained.
-
-			// If the preserve value is auto-preserved, and the machine is Running, it would mean the machine has recovered from Failed phase to Running phase.
-			// In this case, we need to clear preserveExpiryTime and update Node condition if applicable. However, the CA annotation needs to be retained.
-			// If the machine fails again, since preserve annotation is present, it will be preserved again.
+			// Here, if the preserve value is when-failed or auto-preserved, but the machine is not in Failed Phase,
+			// we need to stop preservation if preserved, but retain the CA scale-down disabled annotation.
+			// This is done so that CA does not scale down the node due to under-utilization immediately after recovery,
+			// thus allowing pods to get scheduled onto the recovered node.
 
 			if clone.Labels[v1alpha1.NodeLabelKey] != "" {
 				var node *corev1.Node
@@ -809,9 +809,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 					klog.Errorf("error getting node %q for machine %q: %v", clone.Labels[v1alpha1.NodeLabelKey], clone.Name, err)
 					return
 				}
-				// CA scale down disabled annotation is retained on a machine on recovery from Failed to Running, so that
-				// CA does not scale down the node due to under-utilization immediately after recovery.
-				// This allows pods to get scheduled onto the recovered node
+				// CA scale down disabled annotation is retained on a machine on recovery from Failed to Running,
 				_, err = c.addCAScaleDownDisabledAnnotationOnNode(ctx, node)
 				if err != nil {
 					return
@@ -821,7 +819,17 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			if err != nil {
 				return
 			}
-
+			// To prevent erroneous re-preservation of a recovered, previously auto-preserved machine on future failures
+			// (since the autoPreserveFailedMachineCount maintained by the machineSetController, may have changed),
+			// in addition to stopping preservation we also change annotation to auto-preserve-stopped.
+			// If the machine fails again, it may be preserved again based on the autoPreserveFailedMachineCount value at that time.
+			if preserveValue == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
+				clone, err = machineutils.AnnotateMachineWithPreserveValueWithRetries(ctx, c.controlMachineClient.Machines(clone.Namespace), c.machineLister, clone, machineutils.PreserveMachineAnnotationValuePreserveStoppedByMCM)
+				if err != nil {
+					klog.Errorf("error annotating machine %q with preserve annotation value %q: %v", clone.Name, machineutils.PreserveMachineAnnotationValuePreserveStoppedByMCM, err)
+					return
+				}
+			}
 		}
 	} else if preserveValue == machineutils.PreserveMachineAnnotationValueNow {
 		err = c.preserveMachine(ctx, clone, preserveValue)
@@ -870,18 +878,4 @@ func (c *controller) computeEffectivePreserveAnnotationValue(machine *v1alpha1.M
 		return machineAnnotationValue, nil
 	}
 	return "", nil
-}
-
-// writePreserveAnnotationValueOnMachine syncs the effective preserve value on the machine objects
-func (c *controller) writePreserveAnnotationValueOnMachine(ctx context.Context, machine *v1alpha1.Machine, preserveValue string) (*v1alpha1.Machine, error) {
-	if machine.Annotations == nil {
-		machine.Annotations = make(map[string]string)
-	}
-	machine.Annotations[machineutils.PreserveMachineAnnotationKey] = preserveValue
-	updatedMachine, err := c.controlMachineClient.Machines(c.namespace).Update(ctx, machine, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("error updating machine %q with preserve annotation %q: %v", machine.Name, preserveValue, err)
-		return machine, err
-	}
-	return updatedMachine, nil
 }

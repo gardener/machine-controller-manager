@@ -858,7 +858,7 @@ func (c *controller) updateMachineStatus(
 	clone, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 	if err != nil {
 		// Keep retrying until update goes through
-		klog.V(3).Infof("Warning: Updated failed, retrying, error: %q", err)
+		klog.V(3).Infof("Warning: Update failed, retrying, error: %q", err)
 		return c.updateMachineStatus(ctx, machine, lastOperation, currentStatus)
 	}
 	return clone, nil
@@ -951,7 +951,7 @@ func (c *controller) triggerAutoPreservationOfFailedMachines(ctx context.Context
 		// no capacity remaining, nothing to do
 		return
 	}
-	for _, m := range machines {
+	for index, m := range machines {
 		if machineutils.IsMachineFailed(m) {
 			// check if machine is already annotated for preservation, if yes, skip. Machine controller will take care of the rest.
 			if machineutils.AllowedPreserveAnnotationValues.Has(m.Annotations[machineutils.PreserveMachineAnnotationKey]) {
@@ -961,12 +961,13 @@ func (c *controller) triggerAutoPreservationOfFailedMachines(ctx context.Context
 				return
 			}
 			klog.V(2).Infof("Annotating failed machine %q for auto-preservation as part of machine set %q", m.Name, machineSet.Name)
-			_, err := machineutils.AnnotateMachineWithPreserveValueWithRetries(ctx, c.controlMachineClient.Machines(m.Namespace), c.machineLister, m, machineutils.PreserveMachineAnnotationValuePreservedByMCM)
+			updatedMachine, err := machineutils.AnnotateMachineWithPreserveValueWithRetries(ctx, c.controlMachineClient.Machines(m.Namespace), c.machineLister, m, machineutils.PreserveMachineAnnotationValuePreservedByMCM)
 			if err != nil {
 				klog.V(2).Infof("Error annotating machine %q for auto-preservation: %v", m.Name, err)
 				// since AnnotateMachineWithPreserveValueWithRetries uses retries internally, we can continue with other machines
 				continue
 			}
+			machines[index] = updatedMachine
 			autoPreservationCapacityRemaining--
 		}
 	}
