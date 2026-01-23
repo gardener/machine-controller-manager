@@ -738,7 +738,7 @@ func (s ActiveMachines) Less(i, j int) bool {
 	// If both are preserved or both are not preserved, we move to the next criteria.
 	now := metav1.Now()
 	isPreserved := func(m *v1alpha1.Machine) bool {
-		return m.Status.CurrentStatus.PreserveExpiryTime != nil && m.Status.CurrentStatus.PreserveExpiryTime.Time.After(now.Time)
+		return m.Status.CurrentStatus.PreserveExpiryTime != nil && m.Status.CurrentStatus.PreserveExpiryTime.After(now.Time)
 	}
 	isPreservedI := isPreserved(s[i])
 	isPreservedJ := isPreserved(s[j])
