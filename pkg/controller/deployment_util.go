@@ -969,7 +969,7 @@ func LabelMachinesWithHash(ctx context.Context, machineList *v1alpha1.MachineLis
 		}
 		// Only label the machine that doesn't already have the new hash
 		if machine.Labels[v1alpha1.DefaultMachineDeploymentUniqueLabelKey] != hash {
-			_, err := UpdateMachineWithRetries(ctx, c.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
+			_, err := machineutils.UpdateMachineWithRetries(ctx, c.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
 				func(machineToUpdate *v1alpha1.Machine) error {
 					// Precondition: the machine doesn't contain the new hash in its label.
 					if machineToUpdate.Labels[v1alpha1.DefaultMachineDeploymentUniqueLabelKey] == hash {

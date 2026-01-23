@@ -6,9 +6,16 @@
 package machineutils
 
 import (
+	"context"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/util/retry"
+	"k8s.io/klog/v2"
 	"time"
 )
 
@@ -151,4 +158,53 @@ func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
 // PreserveAnnotationsChanged returns true if there is a change in preserve annotations
 func PreserveAnnotationsChanged(oldAnnotations, newAnnotations map[string]string) bool {
 	return newAnnotations[PreserveMachineAnnotationKey] != oldAnnotations[PreserveMachineAnnotationKey]
+}
+
+// AnnotateMachineWithPreserveValueWithRetries annotates the given machine with the preservation annotation value
+func AnnotateMachineWithPreserveValueWithRetries(ctx context.Context, machineClient v1alpha1client.MachineInterface, machineLister v1alpha1listers.MachineLister, m *v1alpha1.Machine, preserveValue string) (*v1alpha1.Machine, error) {
+	updatedMachine, err := UpdateMachineWithRetries(ctx, machineClient, machineLister, m.Namespace, m.Name, func(clone *v1alpha1.Machine) error {
+		if clone.Annotations == nil {
+			clone.Annotations = make(map[string]string)
+		}
+		clone.Annotations[PreserveMachineAnnotationKey] = preserveValue
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	klog.V(2).Infof("Updated machine %q with %q=%q.", m.Name, PreserveMachineAnnotationKey, preserveValue)
+	return updatedMachine, nil
+}
+
+// see https://github.com/kubernetes/kubernetes/issues/21479
+type updateMachineFunc func(machine *v1alpha1.Machine) error
+
+// UpdateMachineWithRetries updates a machine with given applyUpdate function. Note that machine not found error is ignored.
+// The returned bool value can be used to tell if the machine is actually updated.
+func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.MachineInterface, machineLister v1alpha1listers.MachineLister, namespace, name string, applyUpdate updateMachineFunc) (*v1alpha1.Machine, error) {
+	var machine *v1alpha1.Machine
+
+	retryErr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		var err error
+		machine, err = machineLister.Machines(namespace).Get(name)
+		if err != nil {
+			return err
+		}
+		machine = machine.DeepCopy()
+		// Apply the update, then attempt to push it to the apiserver.
+		if applyErr := applyUpdate(machine); applyErr != nil {
+			return applyErr
+		}
+		machine, err = machineClient.Update(ctx, machine, metav1.UpdateOptions{})
+		return err
+	})
+
+	// Ignore the precondition violated error, this machine is already updated
+	// with the desired label.
+	if retryErr == errorsutil.ErrPreconditionViolated {
+		klog.V(4).Infof("Machine %s precondition doesn't hold, skip updating it.", name)
+		retryErr = nil
+	}
+
+	return machine, retryErr
 }

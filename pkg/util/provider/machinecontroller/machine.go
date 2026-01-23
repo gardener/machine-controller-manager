@@ -63,9 +63,12 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 		c.enqueueMachine(newObj, "handling machine object preservation related UPDATE event")
 		return
 	}
-	// this check is required to enqueue a previously failed preserved machine when its phase changes to Running on recovery
+	// this check is required to enqueue a machine, annotated with the preservation key, whose phase has changed.
+	// if annotated with "when-failed", the machine should be preserved on Failure
+	// if annotated with "now", the machine should be drained on Failure
+	// if machine phase changes from Failed to Running, machine preservation should be stopped
 	_, exists := newMachine.Annotations[machineutils.PreserveMachineAnnotationKey]
-	if exists && oldMachine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed && newMachine.Status.CurrentStatus.Phase != v1alpha1.MachineFailed {
+	if exists && oldMachine.Status.CurrentStatus.Phase != newMachine.Status.CurrentStatus.Phase {
 		c.enqueueMachine(newObj, "handling preserved machine phase update")
 	}
 
@@ -764,20 +767,21 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	}
 	// if preserve value differs from machine's preserve value, overwrite the value in the machine
 	clone := machine.DeepCopy()
-	if machine.Annotations[machineutils.PreserveMachineAnnotationKey] != preserveValue {
-		clone, err = c.writePreserveAnnotationValueOnMachine(ctx, clone, preserveValue)
+	if clone.Annotations[machineutils.PreserveMachineAnnotationKey] != preserveValue {
+		clone, err = machineutils.AnnotateMachineWithPreserveValueWithRetries(ctx, c.controlMachineClient.Machines(clone.Namespace), c.machineLister, clone, preserveValue)
 		if err != nil {
+			klog.Errorf("error annotating machine %q with preserve annotation value %q: %v", clone.Name, preserveValue, err)
 			return
 		}
 	}
 	// either annotation has been deleted, set to empty or no preserve annotation exists.
 	// in all these cases, machine preservation should not be done. If machine is preserved, stop preservation.
 	if preserveValue == "" {
-		err = c.stopMachinePreservationIfPreserved(ctx, machine, true)
+		err = c.stopMachinePreservationIfPreserved(ctx, clone, true)
 		return
 	}
 	if !machineutils.AllowedPreserveAnnotationValues.Has(preserveValue) {
-		klog.Warningf("Preserve annotation value %q on machine %q is invalid", preserveValue, machine.Name)
+		klog.Warningf("Preserve annotation value %q on machine %q is invalid", preserveValue, clone.Name)
 		return
 	}
 	// if preserve=false or if preservation has expired, stop preservation
@@ -798,11 +802,11 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			// In this case, we need to clear preserveExpiryTime and update Node condition if applicable. However, the CA annotation needs to be retained.
 			// If the machine fails again, since preserve annotation is present, it will be preserved again.
 
-			if machine.Labels[v1alpha1.NodeLabelKey] != "" {
+			if clone.Labels[v1alpha1.NodeLabelKey] != "" {
 				var node *corev1.Node
-				node, err = c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+				node, err = c.nodeLister.Get(clone.Labels[v1alpha1.NodeLabelKey])
 				if err != nil {
-					klog.Errorf("error getting node %q for machine %q: %v", machine.Labels[v1alpha1.NodeLabelKey], machine.Name, err)
+					klog.Errorf("error getting node %q for machine %q: %v", clone.Labels[v1alpha1.NodeLabelKey], clone.Name, err)
 					return
 				}
 				// CA scale down disabled annotation is retained on a machine on recovery from Failed to Running, so that
@@ -830,8 +834,8 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	// If the machine is running and has a backing node, uncordon the node if cordoned.
 	// This is to handle the scenario where a preserved machine recovers from Failed to Running
 	// in which case, pods should be allowed to be scheduled onto the node
-	if machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && machine.Labels[v1alpha1.NodeLabelKey] != "" {
-		err = c.uncordonNodeIfCordoned(ctx, machine.Labels[v1alpha1.NodeLabelKey])
+	if clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && clone.Labels[v1alpha1.NodeLabelKey] != "" {
+		err = c.uncordonNodeIfCordoned(ctx, clone.Labels[v1alpha1.NodeLabelKey])
 	}
 	return
 }
