@@ -35,19 +35,15 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/integer"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
-	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
-	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
@@ -331,7 +327,7 @@ func (c *controller) enqueueMachineSetAfter(obj any, after time.Duration) {
 func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
 	machineSetKey, err := KeyFunc(machineSet)
 	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("Couldn't get key for %v %#v: %v", machineSet.Kind, machineSet, err))
+		utilruntime.HandleError(fmt.Errorf("couldn't get key for %v %#v: %v", machineSet.Kind, machineSet, err))
 		return nil
 	}
 
@@ -343,9 +339,14 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 			machinesWithUpdateSuccessfulLabel = append(machinesWithUpdateSuccessfulLabel, m)
 			continue
 		}
-
-		if machineutils.IsMachineFailed(m) || machineutils.IsMachineTriggeredForDeletion(m) {
+		if machineutils.IsMachineTriggeredForDeletion(m) {
 			staleMachines = append(staleMachines, m)
+		} else if machineutils.IsMachineFailed(m) {
+			if shouldFailedMachineBeTerminated(m) {
+				staleMachines = append(staleMachines, m)
+			} else {
+				activeMachines = append(activeMachines, m)
+			}
 		} else if machineutils.IsMachineActive(m) {
 			activeMachines = append(activeMachines, m)
 		}
@@ -568,6 +569,12 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		return err
 	}
 
+	// triggerAutoPreservation adds the preserve=PreserveMachineAnnotationValuePreservedByMCM annotation
+	// to Failed machines to trigger auto-preservation, if applicable.
+	// We do not update machineSet.Status.AutoPreserveFailedMachineCount in the function, as it will be calculated
+	// and updated in the succeeding calls to calculateMachineSetStatus() and updateMachineSetStatus()
+	c.triggerAutoPreservationOfFailedMachines(ctx, filteredMachines, machineSet)
+
 	// TODO: Fix working of expectations to reflect correct behaviour
 	// machineSetNeedsSync := c.expectations.SatisfiedExpectations(key)
 	var manageReplicasErr error
@@ -605,7 +612,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		// Multiple things could lead to this update failing. Requeuing the machine set ensures
 		// Returning an error causes a requeue without forcing a hotloop
 		if !apierrors.IsNotFound(err) {
-			klog.Errorf("Update machineSet %s failed with: %s", machineSet.Name, err)
+			klog.Errorf("update machineSet %s failed with: %s", machineSet.Name, err)
 		}
 		return err
 	}
@@ -686,8 +693,8 @@ func getMachinesToDelete(filteredMachines []*v1alpha1.Machine, diff int) []*v1al
 
 func getMachineKeys(machines []*v1alpha1.Machine) []string {
 	machineKeys := make([]string, 0, len(machines))
-	for _, machine := range machines {
-		machineKeys = append(machineKeys, MachineKey(machine))
+	for _, mc := range machines {
+		machineKeys = append(machineKeys, MachineKey(mc))
 	}
 	return machineKeys
 }
@@ -750,8 +757,8 @@ func (c *controller) terminateMachines(ctx context.Context, inactiveMachines []*
 	defer close(errCh)
 
 	wg.Add(numOfInactiveMachines)
-	for _, machine := range inactiveMachines {
-		go c.prepareMachineForDeletion(ctx, machine, machineSet, &wg, errCh)
+	for _, m := range inactiveMachines {
+		go c.prepareMachineForDeletion(ctx, m, machineSet, &wg, errCh)
 	}
 	wg.Wait()
 
@@ -846,7 +853,7 @@ func (c *controller) updateMachineStatus(
 	clone, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 	if err != nil {
 		// Keep retrying until update goes through
-		klog.V(3).Infof("Warning: Updated failed, retrying, error: %q", err)
+		klog.V(3).Infof("Warning: Update failed, retrying, error: %q", err)
 		return c.updateMachineStatus(ctx, machine, lastOperation, currentStatus)
 	}
 	return clone, nil
@@ -871,35 +878,109 @@ func isMachineStatusEqual(s1, s2 v1alpha1.MachineStatus) bool {
 	return apiequality.Semantic.DeepEqual(s1Copy.LastOperation, s2Copy.LastOperation) && apiequality.Semantic.DeepEqual(s1Copy.CurrentStatus, s2Copy.CurrentStatus)
 }
 
-// see https://github.com/kubernetes/kubernetes/issues/21479
-type updateMachineFunc func(machine *v1alpha1.Machine) error
+//
+//// see https://github.com/kubernetes/kubernetes/issues/21479
+//type updateMachineFunc func(machine *v1alpha1.Machine) error
+//
+//// UpdateMachineWithRetries updates a machine with given applyUpdate function. Note that machine not found error is ignored.
+//// The returned bool value can be used to tell if the machine is actually updated.
+//func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.MachineInterface, machineLister v1alpha1listers.MachineLister, namespace, name string, applyUpdate updateMachineFunc) (*v1alpha1.Machine, error) {
+//	var machine *v1alpha1.Machine
+//
+//	retryErr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+//		var err error
+//		machine, err = machineLister.Machines(namespace).Get(name)
+//		if err != nil {
+//			return err
+//		}
+//		machine = machine.DeepCopy()
+//		// Apply the update, then attempt to push it to the apiserver.
+//		if applyErr := applyUpdate(machine); applyErr != nil {
+//			return applyErr
+//		}
+//		machine, err = machineClient.Update(ctx, machine, metav1.UpdateOptions{})
+//		return err
+//	})
+//
+//	// Ignore the precondition violated error, this machine is already updated
+//	// with the desired label.
+//	if retryErr == errorsutil.ErrPreconditionViolated {
+//		klog.V(4).Infof("Machine %s precondition doesn't hold, skip updating it.", name)
+//		retryErr = nil
+//	}
+//
+//	return machine, retryErr
+//}
 
-// UpdateMachineWithRetries updates a machine with given applyUpdate function. Note that machine not found error is ignored.
-// The returned bool value can be used to tell if the machine is actually updated.
-func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.MachineInterface, machineLister v1alpha1listers.MachineLister, namespace, name string, applyUpdate updateMachineFunc) (*v1alpha1.Machine, error) {
-	var machine *v1alpha1.Machine
-
-	retryErr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		var err error
-		machine, err = machineLister.Machines(namespace).Get(name)
-		if err != nil {
-			return err
+// shouldFailedMachineBeTerminated checks if the failed machine is already preserved, in the process of being preserved
+// or if it is a candidate for auto-preservation. If none of these conditions are met, it returns true indicating
+// that the failed machine should be terminated.
+func shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) bool {
+	// if preserve expiry time is set and is in the future, machine is already preserved
+	if machine.Status.CurrentStatus.PreserveExpiryTime != nil {
+		if machine.Status.CurrentStatus.PreserveExpiryTime.After(time.Now()) {
+			klog.V(3).Infof("Failed machine %q is preserved until %v", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
+			return false
 		}
-		machine = machine.DeepCopy()
-		// Apply the update, then attempt to push it to the apiserver.
-		if applyErr := applyUpdate(machine); applyErr != nil {
-			return applyErr
-		}
-		machine, err = machineClient.Update(ctx, machine, metav1.UpdateOptions{})
-		return err
-	})
-
-	// Ignore the precondition violated error, this machine is already updated
-	// with the desired label.
-	if retryErr == errorsutil.ErrPreconditionViolated {
-		klog.V(4).Infof("Machine %s precondition doesn't hold, skip updating it.", name)
-		retryErr = nil
+		klog.V(3).Infof("Preservation of failed machine %q has timed out at %v", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
+		return true
 	}
-
-	return machine, retryErr
+	// if the machine preservation is not complete yet even though the machine is annotated, prevent termination
+	// so that preservation can complete
+	switch machine.Annotations[machineutils.PreserveMachineAnnotationKey] {
+	case machineutils.PreserveMachineAnnotationValueWhenFailed, machineutils.PreserveMachineAnnotationValueNow, machineutils.PreserveMachineAnnotationValuePreservedByMCM: // this is in case preservation process is not complete yet
+		return false
+	case machineutils.PreserveMachineAnnotationValueFalse:
+		return true
+	default:
+		return true
+	}
 }
+
+// triggerAutoPreservationOfFailedMachines annotates failed machines with preserve=auto-preserved annotation
+// to trigger preservation of the machines, by the machine controller, up to the limit defined in the
+// MachineSet's AutoPreserveFailedMachineMax field.
+func (c *controller) triggerAutoPreservationOfFailedMachines(ctx context.Context, machines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) {
+	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - machineSet.Status.AutoPreserveFailedMachineCount
+	if autoPreservationCapacityRemaining <= 0 {
+		// no capacity remaining, nothing to do
+		return
+	}
+	for index, m := range machines {
+		if machineutils.IsMachineFailed(m) {
+			// check if machine is already annotated for preservation, if yes, skip. Machine controller will take care of the rest.
+			if machineutils.AllowedPreserveAnnotationValues.Has(m.Annotations[machineutils.PreserveMachineAnnotationKey]) {
+				continue
+			}
+			if autoPreservationCapacityRemaining == 0 {
+				return
+			}
+			klog.V(2).Infof("Annotating failed machine %q for auto-preservation as part of machine set %q", m.Name, machineSet.Name)
+			updatedMachine, err := machineutils.AnnotateMachineWithPreserveValueWithRetries(ctx, c.controlMachineClient.Machines(m.Namespace), c.machineLister, m, machineutils.PreserveMachineAnnotationValuePreservedByMCM)
+			if err != nil {
+				klog.V(2).Infof("Error annotating machine %q for auto-preservation: %v", m.Name, err)
+				// since AnnotateMachineWithPreserveValueWithRetries uses retries internally, we can continue with other machines
+				continue
+			}
+			machines[index] = updatedMachine
+			autoPreservationCapacityRemaining--
+		}
+	}
+}
+
+//// annotateMachineForAutoPreservation annotates the given machine with the auto-preservation annotation to trigger
+//// preservation of the machine by the machine controller.
+//func (c *controller) annotateMachineForAutoPreservation(ctx context.Context, m *v1alpha1.Machine) error {
+//	_, err := UpdateMachineWithRetries(ctx, c.controlMachineClient.Machines(m.Namespace), c.machineLister, m.Namespace, m.Name, func(clone *v1alpha1.Machine) error {
+//		if clone.Annotations == nil {
+//			clone.Annotations = make(map[string]string)
+//		}
+//		clone.Annotations[machineutils.PreserveMachineAnnotationKey] = machineutils.PreserveMachineAnnotationValuePreservedByMCM
+//		return nil
+//	})
+//	if err != nil {
+//		return err
+//	}
+//	klog.V(2).Infof("Updated machine %q with %q=%q.", m.Name, machineutils.PreserveMachineAnnotationKey, machineutils.PreserveMachineAnnotationValuePreservedByMCM)
+//	return nil
+//}

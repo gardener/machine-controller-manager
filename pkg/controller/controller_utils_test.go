@@ -8,6 +8,7 @@ import (
 	"context"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 
@@ -206,6 +207,78 @@ var _ = Describe("#controllerUtils", func() {
 			sortedMachinesInOrderOfCreationTimeStamp[2].DeepCopy(),
 		}
 
+		sortedPreservedAndUnpreservedMachines := []*machinev1.Machine{
+			newMachine(
+				&machinev1.MachineTemplateSpec{
+					ObjectMeta: *newObjectMeta(objMeta, 0),
+					Spec: machinev1.MachineSpec{
+						Class: machinev1.ClassSpec{
+							Kind: AWSMachineClass,
+							Name: TestMachineClass,
+						},
+					},
+				},
+				&machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: machinev1.MachineFailed,
+					},
+				},
+				nil,
+				nil,
+				nil,
+			),
+			newMachine(
+				&machinev1.MachineTemplateSpec{
+					ObjectMeta: *newObjectMeta(objMeta, 0),
+					Spec: machinev1.MachineSpec{
+						Class: machinev1.ClassSpec{
+							Kind: AWSMachineClass,
+							Name: TestMachineClass,
+						},
+					},
+				},
+				&machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: machinev1.MachineFailed,
+						PreserveExpiryTime: &metav1.Time{
+							Time: time.Now().Add(10 * time.Minute),
+						},
+					},
+				},
+				nil,
+				nil,
+				nil,
+			),
+			newMachine(
+				&machinev1.MachineTemplateSpec{
+					ObjectMeta: *newObjectMeta(objMeta, 0),
+					Spec: machinev1.MachineSpec{
+						Class: machinev1.ClassSpec{
+							Kind: AWSMachineClass,
+							Name: TestMachineClass,
+						},
+					},
+				},
+				&machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: machinev1.MachineRunning,
+						PreserveExpiryTime: &metav1.Time{
+							Time: time.Now().Add(10 * time.Minute),
+						},
+					},
+				},
+				nil,
+				nil,
+				nil,
+			),
+		}
+
+		unsortedPreservedAndUnpreservedMachines := []*machinev1.Machine{
+			sortedPreservedAndUnpreservedMachines[2].DeepCopy(),
+			sortedPreservedAndUnpreservedMachines[0].DeepCopy(),
+			sortedPreservedAndUnpreservedMachines[1].DeepCopy(),
+		}
+
 		DescribeTable("###sort",
 			func(data *data) {
 				sort.Sort(ActiveMachines(data.inputMachines))
@@ -223,6 +296,10 @@ var _ = Describe("#controllerUtils", func() {
 			Entry("sort on creation timestamp", &data{
 				inputMachines:  unsortedMachinesInOrderOfCreationTimeStamp,
 				outputMachines: sortedMachinesInOrderOfCreationTimeStamp,
+			}),
+			Entry("sort on preserved and unpreserved", &data{
+				inputMachines:  unsortedPreservedAndUnpreservedMachines,
+				outputMachines: sortedPreservedAndUnpreservedMachines,
 			}),
 		)
 	})
