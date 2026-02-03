@@ -97,6 +97,8 @@ type MachineConfiguration struct {
 	// MachineInPlaceUpdateTimeout is the timeout after which in-place update is declared failed.
 	MachineInPlaceUpdateTimeout *metav1.Duration
 
+	// MachinePreserveTimeout is the timeout after which the machine preservation is stopped
+	MachinePreserveTimeout *metav1.Duration
 	// DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.
 	// This is intended to be used only for in-place updates.
 	DisableHealthTimeout *bool
@@ -158,6 +160,9 @@ type CurrentStatus struct {
 
 	// Last update time of current status
 	LastUpdateTime metav1.Time
+
+	// PreserveExpiryTime is the time at which MCM will stop preserving the machine
+	PreserveExpiryTime *metav1.Time
 }
 
 // MachineStatus holds the most recently observed status of Machine.
@@ -351,6 +356,8 @@ type MachineSetSpec struct {
 	Template MachineTemplateSpec
 
 	MinReadySeconds int32
+
+	AutoPreserveFailedMachineMax int32
 }
 
 // MachineSetConditionType is the condition on machineset object
@@ -409,6 +416,9 @@ type MachineSetStatus struct {
 
 	// FailedMachines has summary of machines on which lastOperation Failed
 	FailedMachines *[]MachineSummary
+
+	// AutoPreserveFailedMachineCount has a count of the number of failed machines in the machineset that are currently auto-preserved
+	AutoPreserveFailedMachineCount int32
 }
 
 // MachineSummary store the summary of machine.
@@ -487,6 +497,10 @@ type MachineDeploymentSpec struct {
 	// not be estimated during the time a MachineDeployment is paused. This is not set
 	// by default.
 	ProgressDeadlineSeconds *int32
+
+	// The maximum number of failed machines in the machine deployment that can be auto-preserved.
+	// In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker's machine deployments
+	AutoPreserveFailedMachineMax int32
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
