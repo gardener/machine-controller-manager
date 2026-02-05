@@ -155,16 +155,14 @@ It can be unpaused again by removing the `Paused` field from the machine-deploym
 
 ### How to delete machine object immedietly if I don't have access to it?
 
-If the user doesn't have access to the machine objects (like in case of Gardener clusters) and they would like to replace a node immedietly then they can place the annotation `node.machine.sapcloud.io/trigger-deletion-by-mcm: "true"` on their node. This will start the replacement of the machine with a new node.
-
-On the other hand if the user deletes the node object immedietly then replacement will start only after `MachineHealthTimeout`.
-
-This annotation can also be used if the user wants to expedite the [replacement of unhealthy nodes](#how-does-rate-limiting-replacement-of-machine-work-in-mcm-how-is-it-related-to-meltdown-protection)
+If the user deletes the node object, the corresponding machine object is marked for deletion immediately, triggering a replacement. The replacement machine is created to maintain the `desired replicas` specified for the machineDeployment/machineSet.
+This can also be used if the user wants to expedite the [replacement of unhealthy nodes](#how-does-rate-limiting-replacement-of-machine-work-in-mcm-how-is-it-related-to-meltdown-protection)
 
 `NOTE`:
 
-- `node.machine.sapcloud.io/trigger-deletion-by-mcm: "false"` annotation is NOT acted upon by MCM , neither does it mean that MCM will not replace this machine.
-- this annotation would delete the desired machine but another machine would be created to maintain `desired replicas` specified for the machineDeployment/machineSet. Currently if the user doesn't have access to machineDeployment/machineSet then they cannot remove a machine without replacement.
+- The `node.machine.sapcloud.io/trigger-deletion-by-mcm` annotation is no longer supported on node objects. It is however, still supported on machine and machineDeployment objects (used by the CA-MCM cloud provider integration).
+- Setting the annotation to `"false"` has never been acted upon by MCM and does not prevent machine replacement.
+- Deleting a node will trigger machine deletion and replacement. A new machine will be created to maintain the `desired replicas` specified for the machineDeployment/machineSet. Currently if the user doesn't have access to machineDeployment/machineSet then they cannot remove a machine without replacement.
 
 ### How to avoid garbage collection of your node?
 
