@@ -14,6 +14,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
+	v2 "k8s.io/client-go/kubernetes/typed/core/v1"
+	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"time"
@@ -164,19 +166,46 @@ func PreserveAnnotationsChanged(oldAnnotations, newAnnotations map[string]string
 	return newAnnotations[PreserveMachineAnnotationKey] != oldAnnotations[PreserveMachineAnnotationKey]
 }
 
-// AnnotateMachineWithPreserveValueWithRetries annotates the given machine with the preservation annotation value
-func AnnotateMachineWithPreserveValueWithRetries(ctx context.Context, machineClient v1alpha1client.MachineInterface, machineLister v1alpha1listers.MachineLister, m *v1alpha1.Machine, preserveValue string) (*v1alpha1.Machine, error) {
+// AnnotateNodeForAutoPreservationWithRetries annotates the given node with the preservation annotation value
+func AnnotateNodeForAutoPreservationWithRetries(ctx context.Context, nodeClient v2.NodeInterface, nodeLister corelisters.NodeLister, nodeName string) error {
+	retryErr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		node, err := nodeLister.Get(nodeName)
+		if err != nil {
+			klog.Errorf("error getting node %q: %v", nodeName, err)
+			return err
+		}
+		nodeCopy := node.DeepCopy()
+		if nodeCopy.Annotations == nil {
+			nodeCopy.Annotations = make(map[string]string)
+		}
+		nodeCopy.Annotations[PreserveMachineAnnotationKey] = PreserveMachineAnnotationValuePreservedByMCM
+		_, err = nodeClient.Update(ctx, nodeCopy, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+		klog.V(2).Infof("Annotated node %q with %q=%q.", nodeName, PreserveMachineAnnotationKey, PreserveMachineAnnotationValuePreservedByMCM)
+		return nil
+	})
+	if retryErr != nil {
+		klog.Errorf("error annotating node %q for auto-preservation: %v", nodeName, retryErr)
+	}
+	return retryErr
+}
+
+// AnnotateMachineForAutoPreservationWithRetries annotates the given machine with the preservation annotation value
+func AnnotateMachineForAutoPreservationWithRetries(ctx context.Context, machineClient v1alpha1client.MachineInterface, machineLister v1alpha1listers.MachineLister, m *v1alpha1.Machine) (*v1alpha1.Machine, error) {
 	updatedMachine, err := UpdateMachineWithRetries(ctx, machineClient, machineLister, m.Namespace, m.Name, func(clone *v1alpha1.Machine) error {
 		if clone.Annotations == nil {
 			clone.Annotations = make(map[string]string)
 		}
-		clone.Annotations[PreserveMachineAnnotationKey] = preserveValue
+		clone.Annotations[PreserveMachineAnnotationKey] = PreserveMachineAnnotationValuePreservedByMCM
 		return nil
 	})
 	if err != nil {
+		klog.Errorf("error annotating machine %q for auto-preservation: %v", m.Name, err)
 		return nil, err
 	}
-	klog.V(2).Infof("Updated machine %q with %q=%q.", m.Name, PreserveMachineAnnotationKey, preserveValue)
+	klog.V(2).Infof("Annotated machine %q with %q=%q.", m.Name, PreserveMachineAnnotationKey, PreserveMachineAnnotationValuePreservedByMCM)
 	return updatedMachine, nil
 }
 
