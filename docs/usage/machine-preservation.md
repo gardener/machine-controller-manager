@@ -7,10 +7,12 @@ This document explains how to **use machine preservation** to retain machines an
 A machine and its backing node can be preserved by an end-user/SRE/operator to retain machines and their backing VMs for debugging, analysis, or operational safety. 
 
 A preserved machine/node has the following properties:
-- In case Node is `Unhealthy` for duration longer than `machineHealthTimeout` and the machine moves to `Failed` state, the machine stays in `Failed` state until `machinePreserveTimeout` runs out, without getting terminated.
+- In case Node is `Unhealthy` for duration longer than `machineHealthTimeout` and the machine moves to `Failed` state, the machine stays in `Failed` state until `machinePreserveTimeout` runs out, without getting terminated.This allows end-users and SREs to debug the machine and backing node, and take necessary actions to recover the machine if needed.
+- If a machine is in its `Failed` phase and is preserved, on recovering from failure, the machine can be moved to `Running` phase and the backing node can be uncordoned to allow scheduling of pods again.
 - When the machineset is scaled down, machines in the machineset marked for preservation are de-prioritized for deletion.
 - If a machine is preserved in its `Running` phase, the MCM adds the CA scale-down-disabled annotation to prevent the CA from scaling down the machine in case of underutilization.
 - If a machine is preserved and is in its `Failed` phase, MCM drains the backing node of all pods, but the daemonset pods remain on the node.
+ 
 
 > Note: If a user sets a deletion timestamp (by using tools such as kubectl), the machine and backing node will be deleted. Preservation will not prevent this.
 
@@ -65,16 +67,17 @@ spec:
   - cri:      
 	  name: containerd    
     name: worker1
+    autoPreserveFailedMachineMax: 1
     machineControllerManager:      
 	  machinePreserveTimeout: 72h    
-	  autoPreserveFailedMachineMax: 1  
+    
 ```
 
 #### Configuration Semantics
 - `AutoPreserveFailedMachineMax` : Maximum number of failed machines that can be auto-preserved concurrently in a worker pool. This value is distributed across machineDeployments (zones) in the worker pool. If the limit is reached, additional failed machines will not be preserved and will proceed to termination as usual.
 - `machinePreserveTimeout` : Duration after which preserved machines are automatically released
 
-> Note: ⚠️ Changes to `machinePreserveTimeout` apply only to machine preservations after the change.
+> Note: ⚠️ Changes to `machinePreserveTimeout` apply only to preservation done after the change.
 
 ### Preservation annotations
 
@@ -82,31 +85,34 @@ annotation key: `node.machine.sapcloud.io/preserve`
 
 **Manual Annotation values:**
 
-| Annotation value | purpose                                                                     |
-| ---------------- | --------------------------------------------------------------------------- |
+| Annotation value | Purpose                                                                     |
+| ---------------- |-----------------------------------------------------------------------------|
 | when-failed      | To be added when the machine/node needs to be preserved **only on failure** |
 | now              | To be added when the machine/node needs to be preserved **now**             |
-| false            | To be added if a machine should not be auto-preserved by mcm on failure     |
+| false            | To be added if a machine should not be auto-preserved by MCM on failure     |
 
 **Auto-preservation Annotation values added by MCM:**
 
-| Annotation value | purpose                                                                                                                                               |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Annotation value | Purpose                                                                                                                                               |
+| ---------------- |-------------------------------------------------------------------------------------------------------------------------------------------------------|
 | auto-preserve    | Added by MCM to indicate that a machine has been **auto-preserved** on failure. This machine will be counted towards **AutoPreserveFailedMachineMax** |
 
+### ⚠️ Preservation Annotation semantics:
+Both node and machine objects can be annotated for preservation. 
+However, if both machine and node have the preservation annotation, the node's annotation value (even if set to "") is honoured and the machine's annotation is deleted. 
+To prevent confusion and unintended behaviour, it is advised to use the feature by annotating only the node or the machine, and not both.
 ---
 ### How to manually stop preservation before PreserveExpiryTime:
 
-To manually stop preservation, the preservation annotation must be deleted from the node object if the backing node exists. If it does not, the preservation annotation must be deleted from the machine object.
+To manually stop preservation, the preservation annotation must be deleted from whichever object (node/machine) is annotated for preservation. 
 
 ---
 
 ### How to prevent a machine from being auto-preserved by MCM:
 
-To prevent a machine from being auto-preserved on moving to `Failed` phase, the node must be annotated with the value `false`. If the backing node does not exist, the machine must be annotated with the value `false`. If a currently preserved machine is annotated with `false`, the preservation will be stopped.
+To prevent a machine from being auto-preserved on moving to `Failed` phase, the node/machine object must be annotated with the value `false`. If a currently preserved machine is annotated with `false`, the preservation will be stopped.
+Here too, the preservation annotation semantics from above applies - if both machine and node are annotated, the node's annotation value is honoured and the machine's annotation is deleted.
 
-
-> Note: if a machine's backing node exists, the *node*'s annotation value is honoured. Therefore, if a backing node exists, but has no annotation value, the machine's annotation value is cleared even if explicitly annotated, and preservation is stopped.
 
 ---
 ### What happens when a machine recovers from failure and moves to `Running` during preservation?
