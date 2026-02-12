@@ -577,7 +577,7 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 	// to Failed machines to trigger auto-preservation, if applicable.
 	// We do not update machineSet.Status.AutoPreserveFailedMachineCount in the function, as it will be calculated
 	// and updated in the succeeding calls to calculateMachineSetStatus() and updateMachineSetStatus()
-	c.triggerAutoPreservationOfFailedMachines(ctx, filteredMachines, machineSet)
+	filteredMachines = c.reconcileAutoPreservationOfFailedMachines(ctx, filteredMachines, machineSet)
 
 	// TODO: Fix working of expectations to reflect correct behaviour
 	// machineSetNeedsSync := c.expectations.SatisfiedExpectations(key)
@@ -908,14 +908,20 @@ func shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) bool {
 	}
 }
 
-// triggerAutoPreservationOfFailedMachines annotates failed machines with preserve=auto-preserved annotation
+// reconcileAutoPreservationOfFailedMachines annotates failed machines with preserve=auto-preserved annotation
 // to trigger preservation of the machines, by the machine controller, up to the limit defined in the
 // MachineSet's AutoPreserveFailedMachineMax field.
-func (c *controller) triggerAutoPreservationOfFailedMachines(ctx context.Context, machines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) {
+func (c *controller) reconcileAutoPreservationOfFailedMachines(ctx context.Context, machines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) []*v1alpha1.Machine {
 	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - machineSet.Status.AutoPreserveFailedMachineCount
-	if autoPreservationCapacityRemaining <= 0 {
+	if autoPreservationCapacityRemaining == 0 {
 		// no capacity remaining, nothing to do
-		return
+		return machines
+	} else if autoPreservationCapacityRemaining < 0 { // when autoPreserveFailedMachineMax is decreased, it can be negative.
+		numExceeding := c.stopAutoPreservationForMachines(ctx, machines, int(-autoPreservationCapacityRemaining))
+		if numExceeding > 0 {
+			klog.V(2).Infof("Attempted to decrease count of auto-preserved machines, but there are still %d violations of AutoPreserveFailedMachineMax.", numExceeding)
+		}
+		return machines
 	}
 	for index, m := range machines {
 		if machineutils.IsMachineFailed(m) {
@@ -924,10 +930,10 @@ func (c *controller) triggerAutoPreservationOfFailedMachines(ctx context.Context
 				continue
 			}
 			if autoPreservationCapacityRemaining == 0 {
-				return
+				break
 			}
 			klog.V(2).Infof("Annotating failed machine %q for auto-preservation as part of machine set %q", m.Name, machineSet.Name)
-			updatedMachine, err := c.addAutoPreserveAnnotation(ctx, m)
+			updatedMachine, err := machineutils.UpdateMachineWithRetries(ctx, c.controlMachineClient.Machines(m.Namespace), c.machineLister, m.Namespace, m.Name, addAutoPreserveAnnotationOnMachine)
 			if err != nil {
 				klog.V(2).Infof("Error annotating machine %q for auto-preservation: %v", m.Name, err)
 				// since addAutoPreserveAnnotation uses retries internally, on error we can continue with other machines
@@ -937,14 +943,50 @@ func (c *controller) triggerAutoPreservationOfFailedMachines(ctx context.Context
 			autoPreservationCapacityRemaining--
 		}
 	}
+	return machines
 }
 
-func (c *controller) addAutoPreserveAnnotation(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
-	// if machine has a backing node, the node must be annotated
-	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
-	if nodeName != "" {
-		return machine, machineutils.AnnotateNodeForAutoPreservationWithRetries(ctx, c.targetCoreClient.CoreV1().Nodes(), c.nodeLister, nodeName)
+func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machines []*v1alpha1.Machine, numToStop int) int {
+	var autoPreservedMachines []*v1alpha1.Machine
+	var otherMachines []*v1alpha1.Machine
+	for _, m := range machines {
+		if m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
+			autoPreservedMachines = append(autoPreservedMachines, m)
+		} else {
+			otherMachines = append(otherMachines, m)
+		}
 	}
-	// else, the machine must be annotated to trigger preservation
-	return machineutils.AnnotateMachineForAutoPreservationWithRetries(ctx, c.controlMachineClient.Machines(machine.Namespace), c.machineLister, machine)
+	numOfAutoPreservedMachines := len(autoPreservedMachines)
+	if numOfAutoPreservedMachines == 0 {
+		return numToStop
+	}
+	if numOfAutoPreservedMachines > numToStop {
+		sort.Sort(AutoPreservedMachines(autoPreservedMachines))
+	}
+	for index, m := range autoPreservedMachines {
+		if numToStop == 0 {
+			break
+		}
+		klog.V(2).Infof("Removing auto-preservation annotation from machine %q as AutoPreserveFailedMachineMax is breached", m.Name)
+		updatedMachine, err := machineutils.UpdateMachineWithRetries(ctx, c.controlMachineClient.Machines(m.Namespace), c.machineLister, m.Namespace, m.Name, removeAutoPreserveAnnotationFromMachine)
+		if err != nil {
+			continue
+		}
+		autoPreservedMachines[index] = updatedMachine
+		numToStop--
+	}
+	return numToStop
+}
+
+func addAutoPreserveAnnotationOnMachine(machineToUpdate *v1alpha1.Machine) error {
+	if machineToUpdate.Annotations == nil {
+		machineToUpdate.Annotations = make(map[string]string)
+	}
+	machineToUpdate.Annotations[machineutils.PreserveMachineAnnotationKey] = machineutils.PreserveMachineAnnotationValuePreservedByMCM
+	return nil
+}
+
+func removeAutoPreserveAnnotationFromMachine(machineToUpdate *v1alpha1.Machine) error {
+	delete(machineToUpdate.Annotations, machineutils.PreserveMachineAnnotationKey)
+	return nil
 }
