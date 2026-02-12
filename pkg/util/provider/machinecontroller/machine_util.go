@@ -2403,6 +2403,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 		// Step 4: Update NodePreserved Condition on Node, with drain status
 		_, err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, updatedNode.Name, *newCond)
 		if drainErr != nil {
+			klog.Errorf("error draining preserved node %q for machine %q : %v", nodeName, machine.Name, drainErr)
 			return drainErr
 		}
 		if err != nil {
@@ -2487,7 +2488,7 @@ func (c *controller) setPreserveExpiryTimeOnMachine(ctx context.Context, machine
 	machine.Status.CurrentStatus = preservedCurrentStatus
 	updatedMachine, err := c.controlMachineClient.Machines(machine.Namespace).UpdateStatus(ctx, machine, metav1.UpdateOptions{})
 	if err != nil {
-		klog.Errorf("machine/status UPDATE failed for machine %q. Retrying, error: %s", machine.Name, err)
+		klog.Errorf("error updating preserveExpiryTime on machine %q: %v", machine.Name, err)
 		return nil, err
 	}
 	klog.V(2).Infof("Machine %q preserved till %v.", machine.Name, preservedCurrentStatus.PreserveExpiryTime)
@@ -2553,6 +2554,9 @@ func (c *controller) uncordonNodeIfCordoned(ctx context.Context, nodeName string
 	nodeClone := node.DeepCopy()
 	nodeClone.Spec.Unschedulable = false
 	_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeClone, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("error uncordoning node %q: %v", nodeName, err)
+	}
 	return err
 }
 
