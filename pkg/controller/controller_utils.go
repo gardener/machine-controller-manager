@@ -797,6 +797,19 @@ func (s ActiveMachines) Less(i, j int) bool {
 	return false
 }
 
+// AutoPreservedMachines type allows custom sorting of machines so a controller can pick the best ones to delete.
+type AutoPreservedMachines []*v1alpha1.Machine
+
+func (s AutoPreservedMachines) Len() int      { return len(s) }
+func (s AutoPreservedMachines) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+func (s AutoPreservedMachines) Less(i, j int) bool {
+	if s[i].CreationTimestamp != s[j].CreationTimestamp {
+		return s[i].CreationTimestamp.Before(&s[j].CreationTimestamp)
+	}
+	return false
+}
+
 // MachineKey is the function used to get the machine name from machine object
 // ToCheck : as machine-namespace does not matter
 func MachineKey(machine *v1alpha1.Machine) string {

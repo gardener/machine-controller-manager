@@ -1836,7 +1836,7 @@ var _ = Describe("machineset", func() {
 		})
 	})
 
-	Describe("#triggerAutoPreservationOfFailedMachines", func() {
+	Describe("#reconcileAutoPreservationOfFailedMachines", func() {
 		type setup struct {
 			autoPreserveFailedMachineCount int32
 			autoPreserveFailedMachineMax   int32
@@ -1849,7 +1849,7 @@ var _ = Describe("machineset", func() {
 			expect expect
 		}
 
-		DescribeTable("#triggerAutoPreservationOfFailedMachines scenarios", func(tc testCase) {
+		DescribeTable("#reconcileAutoPreservationOfFailedMachines scenarios", func(tc testCase) {
 			stop := make(chan struct{})
 			defer close(stop)
 			testMachineSet := &machinev1.MachineSet{
@@ -1935,7 +1935,7 @@ var _ = Describe("machineset", func() {
 			waitForCacheSync(stop, c)
 			machinesList := []*machinev1.Machine{testMachine1, testMachine2}
 
-			c.triggerAutoPreservationOfFailedMachines(context.TODO(), machinesList, testMachineSet)
+			c.reconcileAutoPreservationOfFailedMachines(context.TODO(), machinesList, testMachineSet)
 			waitForCacheSync(stop, c)
 			updatedMachine1, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testMachine1.Name, metav1.GetOptions{})
 			updatedMachine2, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testMachine2.Name, metav1.GetOptions{})
