@@ -59,7 +59,7 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 		return
 	}
 	// to reconcile on change in annotations related to preservation
-	if machineutils.PreserveAnnotationsChanged(oldMachine.Annotations, newMachine.Annotations) {
+	if oldMachine.Annotations[machineutils.PreserveMachineAnnotationKey] != newMachine.Annotations[machineutils.PreserveMachineAnnotationKey] {
 		c.enqueueMachine(newObj, "handling machine object preservation related UPDATE event")
 		return
 	}

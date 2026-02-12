@@ -129,8 +129,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 			failedMachines = append(failedMachines, machineSummary)
 		}
 		// Count number of failed machines annotated with PreserveMachineAnnotationValuePreservedByMCM
-		// Previously auto-preserved failed machines that have recovered to `Running` should count towards this
-		if machineutils.IsMachineFailed(machine) && machine.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
+		if machine.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
 			autoPreserveFailedMachineCount++
 		}
 	}
