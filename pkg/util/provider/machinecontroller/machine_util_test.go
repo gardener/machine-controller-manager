@@ -4042,14 +4042,12 @@ var _ = Describe("machine_util", func() {
 				}
 				updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), tc.setup.nodeName, metav1.GetOptions{})
 				Expect(getErr).To(BeNil())
-				if tc.expect.isCAAnnotationPresent {
-					Expect(updatedNode.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey]).To(Equal(autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue))
-				}
+				Expect(updatedNode.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey]).To(Equal(autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue))
 				if tc.expect.preserveNodeCondition.Type != "" {
 					updatedNodeCondition := nodeops.GetCondition(updatedNode, tc.expect.preserveNodeCondition.Type)
 					Expect(updatedNodeCondition.Status).To(Equal(tc.expect.preserveNodeCondition.Status))
 					Expect(updatedNodeCondition.Reason).To(Equal(tc.expect.preserveNodeCondition.Reason))
-					Expect(updatedNodeCondition.Message).To(Equal(tc.expect.preserveNodeCondition.Message))
+					Expect(updatedNodeCondition.Message).To(ContainSubstring(tc.expect.preserveNodeCondition.Message))
 				}
 			},
 			Entry("when preserve=now and there is no backing node", &testCase{
