@@ -92,6 +92,9 @@ const (
 	// PreserveMachineAnnotationKey is the annotation used to explicitly request that a Machine be preserved
 	PreserveMachineAnnotationKey = "node.machine.sapcloud.io/preserve"
 
+	// LastAppliedNodePreserveValueAnnotationKey is the annotation used to store the last preserve value applied by MCM
+	LastAppliedNodePreserveValueAnnotationKey = "node.machine.sapcloud.io/last-applied-node-preserve-value"
+
 	// PreserveMachineAnnotationValueNow is the annotation value used to explicitly request that
 	// a Machine be preserved immediately in its current phase
 	PreserveMachineAnnotationValueNow = "now"
