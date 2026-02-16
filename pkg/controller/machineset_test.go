@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -1836,10 +1837,12 @@ var _ = Describe("machineset", func() {
 		})
 	})
 
-	Describe("#reconcileAutoPreservationOfFailedMachines", func() {
+	Describe("#manageAutoPreservationOfFailedMachines", func() {
 		type setup struct {
 			autoPreserveFailedMachineCount int32
 			autoPreserveFailedMachineMax   int32
+			additionalMachines             []*machinev1.Machine
+			replicas                       int32
 		}
 		type expect struct {
 			preservedMachineCount int
@@ -1849,7 +1852,7 @@ var _ = Describe("machineset", func() {
 			expect expect
 		}
 
-		DescribeTable("#reconcileAutoPreservationOfFailedMachines scenarios", func(tc testCase) {
+		DescribeTable("#manageAutoPreservationOfFailedMachines scenarios", func(tc testCase) {
 			stop := make(chan struct{})
 			defer close(stop)
 			testMachineSet := &machinev1.MachineSet{
@@ -1862,7 +1865,7 @@ var _ = Describe("machineset", func() {
 					UID: "1234567",
 				},
 				Spec: machinev1.MachineSetSpec{
-					Replicas: 4,
+					Replicas: tc.setup.replicas,
 					Template: machinev1.MachineTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
@@ -1930,12 +1933,15 @@ var _ = Describe("machineset", func() {
 			}
 			objects := []runtime.Object{}
 			objects = append(objects, testMachineSet, testMachine1, testMachine2, testMachine3, testMachine4)
+			for _, m := range tc.setup.additionalMachines {
+				objects = append(objects, m)
+			}
 			c, trackers := createController(stop, testNamespace, objects, nil, nil)
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
-			machinesList := []*machinev1.Machine{testMachine1, testMachine2}
-
-			c.reconcileAutoPreservationOfFailedMachines(context.TODO(), machinesList, testMachineSet)
+			machinesList := []*machinev1.Machine{testMachine1, testMachine2, testMachine3, testMachine4}
+			machinesList = append(machinesList, tc.setup.additionalMachines...)
+			c.manageAutoPreservationOfFailedMachines(context.TODO(), machinesList, testMachineSet)
 			waitForCacheSync(stop, c)
 			updatedMachine1, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testMachine1.Name, metav1.GetOptions{})
 			updatedMachine2, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testMachine2.Name, metav1.GetOptions{})
@@ -1948,12 +1954,18 @@ var _ = Describe("machineset", func() {
 			if updatedMachine2.Annotations != nil && updatedMachine2.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
 				preservedCount++
 			}
-			Expect(preservedCount).To(Equal(tc.expect.preservedMachineCount))
 			// Running machine should not be auto-preserved in any of the cases
 			Expect(updatedMachine3.Annotations[machineutils.PreserveMachineAnnotationKey]).To(BeEmpty())
 			// Machine with explicit preserve annotation set to false should not be auto-preserved
 			Expect(updatedMachine4.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(machineutils.PreserveMachineAnnotationValueFalse))
 
+			for _, m := range tc.setup.additionalMachines {
+				updatedMachine, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), m.Name, metav1.GetOptions{})
+				if updatedMachine.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
+					preservedCount++
+				}
+			}
+			Expect(preservedCount).To(Equal(tc.expect.preservedMachineCount))
 		},
 			Entry("should trigger auto preservation of 1 failed machine if AutoPreserveFailedMachineMax is 1 and AutoPreserveFailedMachineCount is 0", testCase{
 				setup: setup{
@@ -2000,8 +2012,82 @@ var _ = Describe("machineset", func() {
 					preservedMachineCount: 2,
 				},
 			}),
+			Entry("should not trigger auto preservation of failed machine annotated with preserve=false even if AutoPreserveFailedMachineCount < AutoPreserveFailedMachineMax", testCase{
+				setup: setup{
+					autoPreserveFailedMachineCount: 0,
+					autoPreserveFailedMachineMax:   3,
+				},
+				expect: expect{
+					preservedMachineCount: 2,
+				},
+			}),
+			Entry("should stop auto preservation of machines annotated with preserve=auto-preserve if AutoPreserveFailedMachineCount > AutoPreserveFailedMachineMax", testCase{
+				setup: setup{
+					autoPreserveFailedMachineCount: 1,
+					autoPreserveFailedMachineMax:   0,
+					additionalMachines: []*machinev1.Machine{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "machine-5",
+								Namespace: testNamespace,
+								Annotations: map[string]string{
+									machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValuePreservedByMCM,
+								},
+							},
+							Status: machinev1.MachineStatus{
+								CurrentStatus: machinev1.CurrentStatus{
+									Phase:              MachineFailed,
+									PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+								},
+							},
+						},
+					},
+				},
+				expect: expect{
+					preservedMachineCount: 0,
+				},
+			}),
 		)
 	})
+	Describe("#AutoPreservedMachinesSorting ", func() {
+		It("should sort auto-preserved failed machines in the order of increasing creation timestamp", func() {
+			machines := []*machinev1.Machine{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "machine-1",
+						Namespace:         testNamespace,
+						CreationTimestamp: metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "machine-2",
+						Namespace:         testNamespace,
+						CreationTimestamp: metav1.Time{Time: time.Now().Add(-4 * time.Hour)},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "machine-3",
+						Namespace:         testNamespace,
+						CreationTimestamp: metav1.Time{Time: time.Now().Add(-3 * time.Hour)},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "machine-4",
+						Namespace:         testNamespace,
+						CreationTimestamp: metav1.Time{Time: time.Now().Add(-5 * time.Hour)},
+					},
+				},
+			}
+			sort.Sort(AutoPreservedMachines(machines))
+			for index := range machines[:len(machines)-1] {
+				Expect(machines[index].CreationTimestamp.Time.Before(machines[index+1].CreationTimestamp.Time)).To(BeTrue())
+			}
+		})
+	})
+
 	Describe("#shouldFailedMachineBeTerminated", func() {
 
 		type setup struct {
