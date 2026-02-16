@@ -4023,7 +4023,7 @@ var _ = Describe("machine_util", func() {
 				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				err := c.preserveMachine(context.TODO(), machine, tc.setup.preserveValue)
+				_, err := c.preserveMachine(context.TODO(), machine, tc.setup.preserveValue)
 				if tc.expect.err == nil {
 					Expect(err).To(BeNil())
 				} else {
@@ -4211,7 +4211,8 @@ var _ = Describe("machine_util", func() {
 	})
 	Describe("#stopMachinePreservationIfPreserved", func() {
 		type setup struct {
-			nodeName string
+			nodeName                 string
+			removePreserveAnnotation bool
 		}
 		type expect struct {
 			err error
@@ -4249,6 +4250,7 @@ var _ = Describe("machine_util", func() {
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "node-1",
 							Annotations: map[string]string{
+								machineutils.PreserveMachineAnnotationKey:                  machineutils.PreserveMachineAnnotationValueNow,
 								autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey: autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue,
 							},
 						},
@@ -4273,7 +4275,7 @@ var _ = Describe("machine_util", func() {
 				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				err := c.stopMachinePreservationIfPreserved(context.TODO(), machine)
+				_, err := c.stopMachinePreservationIfPreserved(context.TODO(), machine, tc.setup.removePreserveAnnotation)
 				if tc.expect.err != nil {
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
@@ -4293,10 +4295,26 @@ var _ = Describe("machine_util", func() {
 				Expect(updatedNodeCondition).ToNot(BeNil())
 				Expect(updatedNodeCondition.Status).To(Equal(corev1.ConditionFalse))
 				Expect(updatedNodeCondition.Reason).To(Equal(machinev1.PreservationStopped))
+				if tc.setup.removePreserveAnnotation {
+					Expect(updatedNode.Annotations).NotTo(HaveKey(machineutils.PreserveMachineAnnotationKey))
+				} else {
+					Expect(updatedNode.Annotations).To(HaveKey(machineutils.PreserveMachineAnnotationKey))
+				}
+
 			},
-			Entry("when stopping preservation on a preserved machine with backing node", &testCase{
+			Entry("when stopping preservation on a preserved machine with backing node and preserve annotation needs to be removed", &testCase{
 				setup: setup{
-					nodeName: "node-1",
+					nodeName:                 "node-1",
+					removePreserveAnnotation: true,
+				},
+				expect: expect{
+					err: nil,
+				},
+			}),
+			Entry("when stopping preservation on a preserved machine with backing node and preserve annotation shouldn't be removed", &testCase{
+				setup: setup{
+					nodeName:                 "node-1",
+					removePreserveAnnotation: false,
 				},
 				expect: expect{
 					err: nil,
@@ -4313,14 +4331,6 @@ var _ = Describe("machine_util", func() {
 			Entry("when stopping preservation on a preserved machine, and the backing node is not found", &testCase{
 				setup: setup{
 					nodeName: "no-backing-node",
-				},
-				expect: expect{
-					err: nil,
-				},
-			}),
-			Entry("when stopping preservation on a preserved machine, but retaining CA annotation", &testCase{
-				setup: setup{
-					nodeName: "node-1",
 				},
 				expect: expect{
 					err: nil,
@@ -4551,7 +4561,7 @@ var _ = Describe("machine_util", func() {
 					shouldDrain: false,
 				},
 			}),
-			Entry("should return true when machine is Failed and no existing condition", &testCase{
+			Entry("should return true when machine is Failed and there is no existing node condition", &testCase{
 				setup: setup{
 					machinePhase: machinev1.MachineFailed,
 				},
@@ -4559,7 +4569,7 @@ var _ = Describe("machine_util", func() {
 					shouldDrain: true,
 				},
 			}),
-			Entry("should return true when machine is Failed and existing condition message is PreservedNodeDrainUnsuccessful", &testCase{
+			Entry("should return true when machine is Failed and existing node condition message is PreservedNodeDrainUnsuccessful", &testCase{
 				setup: setup{
 					machinePhase: machinev1.MachineFailed,
 					existingCondition: &corev1.NodeCondition{
@@ -4571,6 +4581,126 @@ var _ = Describe("machine_util", func() {
 				},
 				expect: expect{
 					shouldDrain: true,
+				},
+			}),
+		)
+	})
+	Describe("#removePreservationRelatedAnnotationsOnNode", func() {
+		type setup struct {
+			removePreserveAnnotation bool
+			CAAnnotationPresent      bool
+			CAMCMAnnotationPresent   bool
+		}
+		type expect struct {
+			err                   error
+			hasAnnotationKeys     []string
+			deletedAnnotationKeys []string
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+		DescribeTable("##removePreservationRelatedAnnotationsOnNode behaviour scenarios",
+			func(tc *testCase) {
+				stop := make(chan struct{})
+				defer close(stop)
+				var targetCoreObjects []runtime.Object
+				node := &corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-1",
+						Annotations: map[string]string{
+							machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueNow,
+						},
+					},
+				}
+				if tc.setup.CAAnnotationPresent {
+					node.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
+				}
+				if tc.setup.CAMCMAnnotationPresent {
+					node.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
+				}
+				targetCoreObjects = append(targetCoreObjects, node)
+				c, trackers := createController(stop, testNamespace, nil, nil, targetCoreObjects, nil, false)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+				err := c.removePreservationRelatedAnnotationsOnNode(context.TODO(), node, tc.setup.removePreserveAnnotation)
+				waitForCacheSync(stop, c)
+				updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+				Expect(getErr).To(BeNil())
+				if tc.expect.err != nil {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
+				} else {
+					Expect(err).To(BeNil())
+				}
+				for _, key := range tc.expect.hasAnnotationKeys {
+					Expect(updatedNode.Annotations).To(HaveKey(key))
+				}
+				for key := range tc.expect.deletedAnnotationKeys {
+					Expect(updatedNode.Annotations).NotTo(HaveKey(key))
+				}
+			},
+			Entry("when removePreserveAnnotation is true and ClusterAutoscalerScaleDownDisabledAnnotationByMCM annotation is present, should delete all preservation related annotations", &testCase{
+				setup: setup{
+					removePreserveAnnotation: true,
+					CAAnnotationPresent:      true,
+					CAMCMAnnotationPresent:   true,
+				},
+				expect: expect{
+					err:               nil,
+					hasAnnotationKeys: []string{},
+					deletedAnnotationKeys: []string{
+						machineutils.PreserveMachineAnnotationKey,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey,
+					},
+				},
+			}),
+			Entry("when removePreserveAnnotation is false and ClusterAutoscalerScaleDownDisabledAnnotationByMCM annotation is present, should delete only CA annotations ", &testCase{
+				setup: setup{
+					removePreserveAnnotation: false,
+					CAAnnotationPresent:      true,
+					CAMCMAnnotationPresent:   false,
+				},
+				expect: expect{
+					err: nil,
+					hasAnnotationKeys: []string{
+						machineutils.PreserveMachineAnnotationKey,
+					},
+					deletedAnnotationKeys: []string{
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey,
+					},
+				},
+			}),
+			Entry("when removePreserveAnnotation is true and ClusterAutoscalerScaleDownDisabledAnnotationByMCM is not present, should delete only preserve annotation", &testCase{
+				setup: setup{
+					removePreserveAnnotation: true,
+					CAAnnotationPresent:      true,
+					CAMCMAnnotationPresent:   false,
+				},
+				expect: expect{
+					err: nil,
+					hasAnnotationKeys: []string{
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey,
+					},
+					deletedAnnotationKeys: []string{
+						machineutils.PreserveMachineAnnotationKey,
+					},
+				},
+			}),
+			Entry("when removePreserveAnnotation is false and ClusterAutoscalerScaleDownDisabledAnnotationByMCM is not present, should not delete any annotations", &testCase{
+				setup: setup{
+					removePreserveAnnotation: false,
+					CAAnnotationPresent:      true,
+					CAMCMAnnotationPresent:   false,
+				},
+				expect: expect{
+					err: nil,
+					hasAnnotationKeys: []string{
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey,
+						machineutils.PreserveMachineAnnotationKey,
+					},
 				},
 			}),
 		)
