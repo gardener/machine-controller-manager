@@ -123,5 +123,5 @@ func IsMachineFailed(p *v1alpha1.Machine) bool {
 
 // IsMachineTriggeredForDeletion checks if machine was triggered for deletion
 func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
-	return m.Annotations[MachinePriority] == "1" || m.Annotations[TriggerDeletionByMCM] == "true"
+	return m.Annotations[MachinePriority] == "1"
 }
