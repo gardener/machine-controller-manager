@@ -460,7 +460,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 	if (c.targetCoreClient != nil && nodeName == "") || providerID == "" {
 		err := status.Error(codes.Internal, fmt.Sprintf("machine %q: nodeName (%q) or providerID (%q) is empty after creation flow", machine.Name, nodeName, providerID))
 		klog.Error(err)
-		return machineutils.ShortRetry, err
+		return machineutils.MediumRetry, err
 	}
 
 	//Update labels, providerID
