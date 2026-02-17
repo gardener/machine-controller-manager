@@ -345,7 +345,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	machinesWithoutUpdateSuccessfulLabelDiff := len(machinesWithoutUpdateSuccessfulLabel) - int(machineSet.Spec.Replicas)
 
 	// During in-place updates, ScaleUps are disabled in the oldMachineSet and
-	// in newMachineSet, its ReplicaCount would never increase before a machine from oldMahineSet is moved.
+	// in newMachineSet, its ReplicaCount would never increase before a machine from oldMachineSet is moved.
 	// So no need for any special case during in-place updates.
 	if allMachinesDiff < 0 {
 		// If MachineSet is frozen and no deletion timestamp, don't process it
@@ -451,11 +451,6 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 
 	var staleMachines []*v1alpha1.Machine
 	for _, m := range machinesWithoutUpdateSuccessfulLabel {
-		// Skip machines that are in the process of being updated.
-		if m.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateSuccessful {
-			continue
-		}
-
 		if machineutils.IsMachineFailed(m) {
 			staleMachines = append(staleMachines, m)
 		}
