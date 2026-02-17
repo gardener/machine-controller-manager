@@ -844,23 +844,24 @@ var _ = Describe("machineset", func() {
 			Expect(Err).Should(BeNil())
 		})
 
-		It("should delete MachinePriority=1 machines and spawn replacement machine", func() {
+		It("should delete MachinePriority=1 machines", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 			objects := []runtime.Object{}
 
 			staleMachine := testActiveMachine1.DeepCopy()
 			staleMachine.Annotations[machineutils.MachinePriority] = "1"
+			testActiveMachine4.Status.CurrentStatus.Phase = MachineRunning
 
-			objects = append(objects, testMachineSet, staleMachine, testActiveMachine2, testActiveMachine3)
+			objects = append(objects, testMachineSet, staleMachine, testActiveMachine2, testActiveMachine3, testActiveMachine4)
 			c, trackers := createController(stop, testNamespace, objects, nil, nil)
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
 			machines, _ := c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
-			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
+			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas + 1)))
 
-			beforeMachines := []*machinev1.Machine{staleMachine, testActiveMachine2, testActiveMachine3}
+			beforeMachines := []*machinev1.Machine{staleMachine, testActiveMachine2, testActiveMachine3, testActiveMachine4}
 			err := c.manageReplicas(context.TODO(), beforeMachines, testMachineSet)
 			Expect(err).Should(BeNil())
 			waitForCacheSync(stop, c)
