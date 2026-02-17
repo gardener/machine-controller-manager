@@ -335,13 +335,13 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		return nil
 	}
 
-	allMachinesDiff := len(allMachines) - int(machineSet.Spec.Replicas)
 	var machinesWithoutUpdateSuccessfulLabel []*v1alpha1.Machine
 	for _, m := range allMachines {
 		if m.Labels[v1alpha1.LabelKeyNodeUpdateResult] != v1alpha1.LabelValueNodeUpdateSuccessful {
 			machinesWithoutUpdateSuccessfulLabel = append(machinesWithoutUpdateSuccessfulLabel, m)
 		}
 	}
+	allMachinesDiff := len(allMachines) - int(machineSet.Spec.Replicas)
 	machinesWithoutUpdateSuccessfulLabelDiff := len(machinesWithoutUpdateSuccessfulLabel) - int(machineSet.Spec.Replicas)
 
 	// During in-place updates, ScaleUps are disabled in the oldMachineSet and
