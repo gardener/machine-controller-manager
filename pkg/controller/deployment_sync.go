@@ -250,12 +250,14 @@ func (dc *controller) getNewMachineSet(ctx context.Context, d *v1alpha1.MachineD
 		// Set existing new machine set's annotation
 		annotationsUpdated := SetNewMachineSetAnnotations(d, isCopy, newRevision, true)
 		minReadySecondsNeedsUpdate := isCopy.Spec.MinReadySeconds != d.Spec.MinReadySeconds
+		autoPreserveFailedMachineMaxNeedsUpdate := isCopy.Spec.AutoPreserveFailedMachineMax != d.Spec.AutoPreserveFailedMachineMax
 		nodeTemplateUpdated := SetNewMachineSetNodeTemplate(d, isCopy, newRevision, true)
 		machineConfigUpdated := SetNewMachineSetConfig(d, isCopy, newRevision, true)
 		updateMachineSetClassKind := UpdateMachineSetClassKind(d, isCopy, newRevision, true)
 
-		if annotationsUpdated || minReadySecondsNeedsUpdate || nodeTemplateUpdated || machineConfigUpdated || updateMachineSetClassKind {
+		if annotationsUpdated || minReadySecondsNeedsUpdate || nodeTemplateUpdated || machineConfigUpdated || updateMachineSetClassKind || autoPreserveFailedMachineMaxNeedsUpdate {
 			isCopy.Spec.MinReadySeconds = d.Spec.MinReadySeconds
+			isCopy.Spec.AutoPreserveFailedMachineMax = d.Spec.AutoPreserveFailedMachineMax
 			return dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(ctx, isCopy, metav1.UpdateOptions{})
 		}
 
