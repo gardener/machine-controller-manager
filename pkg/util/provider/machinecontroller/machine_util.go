@@ -2417,15 +2417,23 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 }
 
 // stopMachinePreservationIfPreserved stops the preservation of the machine and node, if preserved, and returns true if machine object has been updated
-func (c *controller) stopMachinePreservationIfPreserved(ctx context.Context, machine *v1alpha1.Machine, removePreservationAnnotations bool) (bool, error) {
+func (c *controller) stopMachinePreservationIfPreserved(ctx context.Context, machine *v1alpha1.Machine, deletePreservationAnnotations bool) (bool, error) {
 	// removal of preserveExpiryTime is the last step of stopping preservation
 	// therefore, if preserveExpiryTime is not set, machine is not preserved
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
 		return false, nil
 	}
-	// if there is no backing node, then preservation can be stopped by just removing preserveExpiryTime from machine status
+	// if there is no backing node
 	if nodeName == "" {
+		// remove annotation from machine if needed
+		if deletePreservationAnnotations {
+			var err error
+			machine, err = c.deletePreserveAnnotationOnMachine(ctx, machine)
+			if err != nil {
+				return false, err
+			}
+		}
 		err := c.clearMachinePreserveExpiryTime(ctx, machine)
 		if err != nil {
 			return false, err
@@ -2465,11 +2473,18 @@ func (c *controller) stopMachinePreservationIfPreserved(ctx context.Context, mac
 		return false, err
 	}
 	// Step 2: remove annotations from node
-	err = c.removePreservationRelatedAnnotationsOnNode(ctx, updatedNode, removePreservationAnnotations)
+	err = c.deletePreservationRelatedAnnotationsOnNode(ctx, updatedNode, deletePreservationAnnotations)
 	if err != nil {
 		return false, err
 	}
-	// Step 3: update machine status to set preserve expiry time to nil
+	// Step 3: remove annotation from machine if needed
+	if deletePreservationAnnotations {
+		machine, err = c.deletePreserveAnnotationOnMachine(ctx, machine)
+		if err != nil {
+			return false, err
+		}
+	}
+	// Step 4: update machine status to set preserve expiry time to nil
 	err = c.clearMachinePreserveExpiryTime(ctx, machine)
 	if err != nil {
 		return false, err
@@ -2516,7 +2531,7 @@ func (c *controller) addCAScaleDownDisabledAnnotationOnNode(ctx context.Context,
 }
 
 // removePreserveAnnotationsOnNode removes the cluster-autoscaler annotation that disables scale down of preserved node
-func (c *controller) removePreservationRelatedAnnotationsOnNode(ctx context.Context, node *v1.Node, removePreserveAnnotation bool) error {
+func (c *controller) deletePreservationRelatedAnnotationsOnNode(ctx context.Context, node *v1.Node, removePreserveAnnotation bool) error {
 	// Check if annotation already absent
 	if node.Annotations == nil {
 		return nil
@@ -2564,7 +2579,7 @@ func (c *controller) uncordonNodeIfCordoned(ctx context.Context, nodeName string
 
 // computeNewNodePreservedCondition returns the NodeCondition with the values set according to the preserveValue and the stage of Preservation
 func computeNewNodePreservedCondition(currentStatus v1alpha1.CurrentStatus, preserveValue string, drainErr error, existingNodeCondition *v1.NodeCondition) (*v1.NodeCondition, bool) {
-	const preserveExpiryMessageSuffix = "Machine preserved until "
+	const preserveExpiryMessageSuffix = "Machine preserved until"
 	var newNodePreservedCondition *v1.NodeCondition
 	var needsUpdate bool
 	if existingNodeCondition == nil {
@@ -2582,18 +2597,21 @@ func computeNewNodePreservedCondition(currentStatus v1alpha1.CurrentStatus, pres
 		if drainErr == nil {
 
 			if !strings.Contains(newNodePreservedCondition.Message, v1alpha1.PreservedNodeDrainSuccessful) {
-				newNodePreservedCondition.Message = v1alpha1.PreservedNodeDrainSuccessful + ". " + preserveExpiryMessageSuffix + currentStatus.PreserveExpiryTime.String()
+				newNodePreservedCondition.Message = fmt.Sprintf("%s %s %v.", v1alpha1.PreservedNodeDrainSuccessful, preserveExpiryMessageSuffix, currentStatus.PreserveExpiryTime)
+				//newNodePreservedCondition.Message = v1alpha1.PreservedNodeDrainSuccessful + ". " + preserveExpiryMessageSuffix + currentStatus.PreserveExpiryTime.String()
 				newNodePreservedCondition.Status = v1.ConditionTrue
 				needsUpdate = true
 			}
 		} else if !strings.Contains(newNodePreservedCondition.Message, v1alpha1.PreservedNodeDrainUnsuccessful) {
-			newNodePreservedCondition.Message = v1alpha1.PreservedNodeDrainUnsuccessful + ". " + preserveExpiryMessageSuffix + currentStatus.PreserveExpiryTime.String()
+			newNodePreservedCondition.Message = fmt.Sprintf("%s %s %v.", v1alpha1.PreservedNodeDrainUnsuccessful, preserveExpiryMessageSuffix, currentStatus.PreserveExpiryTime)
+			//newNodePreservedCondition.Message = v1alpha1.PreservedNodeDrainUnsuccessful + ". " + preserveExpiryMessageSuffix + currentStatus.PreserveExpiryTime.String()
 			newNodePreservedCondition.Status = v1.ConditionFalse
 			needsUpdate = true
 		}
 	} else if newNodePreservedCondition.Status != v1.ConditionTrue {
 		newNodePreservedCondition.Status = v1.ConditionTrue
-		newNodePreservedCondition.Message = preserveExpiryMessageSuffix + currentStatus.PreserveExpiryTime.String()
+		newNodePreservedCondition.Message = fmt.Sprintf("%s %v.", preserveExpiryMessageSuffix, currentStatus.PreserveExpiryTime)
+		//newNodePreservedCondition.Message = preserveExpiryMessageSuffix + currentStatus.PreserveExpiryTime.String()
 		needsUpdate = true
 	}
 	if preserveValue == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
@@ -2630,50 +2648,20 @@ func (c *controller) clearMachinePreserveExpiryTime(ctx context.Context, machine
 	return nil
 }
 
-func (c *controller) deletePreserveAnnotation(ctx context.Context, machine *v1alpha1.Machine) error {
-	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
-	if nodeName == "" {
-		_, err := c.deletePreserveAnnotationValueOnMachine(ctx, machine)
-		return err
-	}
-	node, err := c.nodeLister.Get(nodeName)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		klog.Errorf("error trying to get node %q of machine %q: %v. Retrying.", nodeName, machine.Name, err)
-		return err
-	}
-	return c.deletePreserveAnnotationValueOnNode(ctx, node)
-}
+func (c *controller) deletePreserveAnnotationOnMachine(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
 
-func (c *controller) deletePreserveAnnotationValueOnMachine(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
-
-	if machine.Annotations == nil || machine.Annotations[machineutils.PreserveMachineAnnotationKey] == "" {
+	if machine.Annotations == nil || (machine.Annotations[machineutils.PreserveMachineAnnotationKey] == "" && machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] == "") {
 		return machine, nil
 	}
 	clone := machine.DeepCopy()
 	delete(clone.Annotations, machineutils.PreserveMachineAnnotationKey)
+	delete(clone.Annotations, machineutils.LastAppliedNodePreserveValueAnnotationKey)
 	updatedClone, err := c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("failed to delete preserve annotation on machine %q. error: %v", machine.Name, err)
 		return nil, err
 	}
 	return updatedClone, nil
-}
-
-func (c *controller) deletePreserveAnnotationValueOnNode(ctx context.Context, node *v1.Node) error {
-	nodeClone := node.DeepCopy()
-	if nodeClone.Annotations == nil || nodeClone.Annotations[machineutils.PreserveMachineAnnotationKey] == "" {
-		return nil
-	}
-	delete(nodeClone.Annotations, machineutils.PreserveMachineAnnotationKey)
-	_, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeClone, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("failed to delete preserve annotation on node %q. error : %v", node.Name, err)
-		return err
-	}
-	return nil
 }
 
 // drainPreservedNode attempts to drain the node backing a preserved machine
