@@ -480,10 +480,13 @@ func (dc *controller) removeAutoscalerAnnotationsIfRequired(ctx context.Context,
 					klog.Warningf("Get annotations failed for node: %s, %s", machine.Labels[v1alpha1.NodeLabelKey], err)
 					return err
 				}
-
 				// Remove the autoscaler-related annotation only if the by-mcm annotation is already set. If
 				// by-mcm annotation is not set, the original annotation is likely be put by the end-user for their usecases.
 				if _, exists := nodeAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey]; exists {
+					// do not remove the autoscaler related annotation if it is added due to ongoing machine preservation.
+					if !machine.Status.CurrentStatus.PreserveExpiryTime.IsZero() {
+						return nil
+					}
 					err = RemoveAnnotationsOffNode(
 						ctx,
 						dc.targetCoreClient,

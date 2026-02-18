@@ -4387,7 +4387,7 @@ var _ = Describe("machine_util", func() {
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
 						Reason:  machinev1.PreservedByUser,
-						Message: "Machine preserved until " + preserveExpiryTime.String(),
+						Message: fmt.Sprintf("Machine preserved until %v.", preserveExpiryTime),
 					},
 					needsUpdate: true,
 				},
@@ -4408,7 +4408,7 @@ var _ = Describe("machine_util", func() {
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
 						Reason:  machinev1.PreservedByUser,
-						Message: machinev1.PreservedNodeDrainSuccessful + ". Machine preserved until " + preserveExpiryTime.String(),
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainSuccessful, preserveExpiryTime),
 					},
 					needsUpdate: true,
 				},
@@ -4429,7 +4429,7 @@ var _ = Describe("machine_util", func() {
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionFalse,
 						Reason:  machinev1.PreservedByUser,
-						Message: machinev1.PreservedNodeDrainUnsuccessful + ". Machine preserved until " + preserveExpiryTime.String(),
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainUnsuccessful, preserveExpiryTime),
 					},
 					needsUpdate: true,
 				},
@@ -4450,7 +4450,7 @@ var _ = Describe("machine_util", func() {
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
 						Reason:  machinev1.PreservedByMCM,
-						Message: machinev1.PreservedNodeDrainSuccessful + ". Machine preserved until " + preserveExpiryTime.String(),
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainSuccessful, preserveExpiryTime),
 					},
 					needsUpdate: true,
 				},
@@ -4476,7 +4476,7 @@ var _ = Describe("machine_util", func() {
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionFalse,
 						Reason:  machinev1.PreservedByUser,
-						Message: machinev1.PreservedNodeDrainUnsuccessful + ". Machine preserved until " + preserveExpiryTime.String(),
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainUnsuccessful, preserveExpiryTime),
 					},
 					needsUpdate: true,
 				},
@@ -4494,7 +4494,7 @@ var _ = Describe("machine_util", func() {
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionFalse,
 						Reason:  machinev1.PreservedByUser,
-						Message: machinev1.PreservedNodeDrainUnsuccessful + ". Machine preserved until " + preserveExpiryTime.String(),
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainUnsuccessful, preserveExpiryTime),
 					},
 				},
 				expect: expect{
@@ -4502,7 +4502,7 @@ var _ = Describe("machine_util", func() {
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionFalse,
 						Reason:  machinev1.PreservedByUser,
-						Message: machinev1.PreservedNodeDrainUnsuccessful + ". Machine preserved until " + preserveExpiryTime.String(),
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainUnsuccessful, preserveExpiryTime),
 					},
 					needsUpdate: false,
 				},
@@ -4520,7 +4520,7 @@ var _ = Describe("machine_util", func() {
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
 						Reason:  machinev1.PreservedByUser,
-						Message: machinev1.PreservedNodeDrainSuccessful + ". Machine preserved until " + preserveExpiryTime.String(),
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainSuccessful, preserveExpiryTime),
 					},
 				},
 				expect: expect{
@@ -4528,7 +4528,7 @@ var _ = Describe("machine_util", func() {
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
 						Reason:  machinev1.PreservedByUser,
-						Message: machinev1.PreservedNodeDrainSuccessful + ". Machine preserved until " + preserveExpiryTime.String(),
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainSuccessful, preserveExpiryTime),
 					},
 					needsUpdate: false,
 				},
@@ -4548,7 +4548,7 @@ var _ = Describe("machine_util", func() {
 			expect expect
 		}
 
-		DescribeTable("##shouldPreservedNodeBeDrained behaviour scenarios",
+		DescribeTable("#shouldPreservedNodeBeDrained behaviour scenarios",
 			func(tc *testCase) {
 				shouldDrain := shouldPreservedNodeBeDrained(tc.setup.existingCondition, tc.setup.machinePhase)
 				Expect(shouldDrain).To(Equal(tc.expect.shouldDrain))
@@ -4585,7 +4585,7 @@ var _ = Describe("machine_util", func() {
 			}),
 		)
 	})
-	Describe("#removePreservationRelatedAnnotationsOnNode", func() {
+	Describe("#deletePreservationRelatedAnnotationsOnNode", func() {
 		type setup struct {
 			removePreserveAnnotation bool
 			CAAnnotationPresent      bool
@@ -4600,7 +4600,7 @@ var _ = Describe("machine_util", func() {
 			setup  setup
 			expect expect
 		}
-		DescribeTable("##removePreservationRelatedAnnotationsOnNode behaviour scenarios",
+		DescribeTable("##deletePreservationRelatedAnnotationsOnNode behaviour scenarios",
 			func(tc *testCase) {
 				stop := make(chan struct{})
 				defer close(stop)
@@ -4623,7 +4623,7 @@ var _ = Describe("machine_util", func() {
 				c, trackers := createController(stop, testNamespace, nil, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				err := c.removePreservationRelatedAnnotationsOnNode(context.TODO(), node, tc.setup.removePreserveAnnotation)
+				err := c.deletePreservationRelatedAnnotationsOnNode(context.TODO(), node, tc.setup.removePreserveAnnotation)
 				waitForCacheSync(stop, c)
 				updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 				Expect(getErr).To(BeNil())

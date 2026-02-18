@@ -339,7 +339,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		if machineutils.IsMachineTriggeredForDeletion(m) {
 			staleMachines = append(staleMachines, m)
 		} else if machineutils.IsMachineFailed(m) {
-			if shouldFailedMachineBeTerminated(m) {
+			if c.shouldFailedMachineBeTerminated(m) {
 				staleMachines = append(staleMachines, m)
 			} else {
 				activeMachines = append(activeMachines, m)
@@ -886,7 +886,7 @@ func isMachineStatusEqual(s1, s2 v1alpha1.MachineStatus) bool {
 // shouldFailedMachineBeTerminated checks if the failed machine is already preserved, in the process of being preserved
 // or if it is a candidate for auto-preservation. If none of these conditions are met, it returns true indicating
 // that the failed machine should be terminated.
-func shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) bool {
+func (c *controller) shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) bool {
 	// if preserve expiry time is set and is in the future, machine is already preserved
 	if machine.Status.CurrentStatus.PreserveExpiryTime != nil {
 		if machine.Status.CurrentStatus.PreserveExpiryTime.After(time.Now()) {
@@ -896,9 +896,13 @@ func shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) bool {
 		klog.V(3).Infof("Preservation of failed machine %q has timed out at %v", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
 		return true
 	}
-	// if the machine preservation is not complete yet even though the machine is annotated, prevent termination
-	// so that preservation can complete
-	switch machine.Annotations[machineutils.PreserveMachineAnnotationKey] {
+	preserveValue, err := c.findEffectivePreserveValue(machine)
+	if err != nil {
+		// in case of error fetching node or annotations, we don't want to block deletion of failed machines, so we return true
+		klog.V(2).Infof("Error finding effective preserve value for machine %q: %v. Proceeding with termination of the machine.", machine.Name, err)
+		return true
+	}
+	switch preserveValue {
 	case machineutils.PreserveMachineAnnotationValueWhenFailed, machineutils.PreserveMachineAnnotationValueNow, machineutils.PreserveMachineAnnotationValuePreservedByMCM: // this is in case preservation process is not complete yet
 		return false
 	case machineutils.PreserveMachineAnnotationValueFalse:
@@ -986,4 +990,24 @@ func addAutoPreserveAnnotationOnMachine(machineToUpdate *v1alpha1.Machine) error
 func removeAutoPreserveAnnotationFromMachine(machineToUpdate *v1alpha1.Machine) error {
 	delete(machineToUpdate.Annotations, machineutils.PreserveMachineAnnotationKey)
 	return nil
+}
+
+func (c *controller) findEffectivePreserveValue(machine *v1alpha1.Machine) (string, error) {
+	var nodeAnnotationValue, machineAnnotationValue, lANodeAnnotationValue string
+	machineAnnotationValue = machine.Annotations[machineutils.PreserveMachineAnnotationKey]
+	lANodeAnnotationValue = machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
+	if nodeName != "" {
+		node, err := c.nodeLister.Get(nodeName)
+		if err != nil {
+			klog.Errorf("Error fetching node %q for machine %q: %v", nodeName, machine.Name, err)
+			return "", err
+		}
+		nodeAnnotationValue = node.Annotations[machineutils.PreserveMachineAnnotationKey]
+	}
+	if nodeAnnotationValue == "" && lANodeAnnotationValue == "" {
+		return machineAnnotationValue, nil
+	} else {
+		return nodeAnnotationValue, nil
+	}
 }
