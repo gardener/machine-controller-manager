@@ -153,15 +153,15 @@ spec:
 
 It can be unpaused again by removing the `Paused` field from the machine-deployment.
 
-### How to delete machine object immedietly if I don't have access to it?
+### How to delete machine object immediately if I don't have access to it?
 
-If the user deletes the node object, the corresponding machine object is marked for deletion immediately, triggering a replacement. The replacement machine is created to maintain the `desired replicas` specified for the machineDeployment/machineSet.
+If access to the machine object is available, it can be deleted directly. Alternatively, when the machine object is not accessible, the corresponding node object may be deleted directly. This action immediately marks the associated machine object for deletion and triggers the creation of a replacement machine to maintain the desired replica count specified in the machineDeployment or machineSet.
 This can also be used if the user wants to expedite the [replacement of unhealthy nodes](#how-does-rate-limiting-replacement-of-machine-work-in-mcm-how-is-it-related-to-meltdown-protection)
 
 `NOTE`:
 
-- The `node.machine.sapcloud.io/trigger-deletion-by-mcm` annotation is no longer supported on node objects. It is however, still supported on machine and machineDeployment objects (used by the CA-MCM cloud provider integration).
-- Setting the annotation to `"false"` has never been acted upon by MCM and does not prevent machine replacement.
+- The `node.machine.sapcloud.io/trigger-deletion-by-mcm` annotation is no longer supported on node objects. It is however, still used on the machineDeployment objects (used by the CA-MCM cloud provider integration).
+- Setting the annotation to `"false"` is NOT acted upon by MCM and does not prevent machine replacement.
 - Deleting a node will trigger machine deletion and replacement. A new machine will be created to maintain the `desired replicas` specified for the machineDeployment/machineSet. Currently if the user doesn't have access to machineDeployment/machineSet then they cannot remove a machine without replacement.
 
 ### How to avoid garbage collection of your node?

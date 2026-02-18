@@ -59,9 +59,8 @@ const (
 	// NotManagedByMCM annotation helps in identifying the nodes which are not handled by MCM
 	NotManagedByMCM = "node.machine.sapcloud.io/not-managed-by-mcm"
 
-	// TriggerDeletionByMCM annotation on the machine would trigger the deletion of the corresponding node and machine object in the control cluster
-	// This annotation can also be set on the MachineDeployment and contains the machine names for which deletion should be triggered.
-	// The latter feature is leveraged by the CA-MCM cloud provider.
+	// TriggerDeletionByMCM can be set on the MachineDeployment and contains the machine names for which deletion should be triggered.
+	// This feature is leveraged by the CA-MCM cloud provider.
 	TriggerDeletionByMCM = "node.machine.sapcloud.io/trigger-deletion-by-mcm"
 
 	// NodeUnhealthy is a node termination reason for failed machines
