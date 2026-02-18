@@ -335,52 +335,19 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		return nil
 	}
 
-	var activeMachines, staleMachines, machinesWithUpdateSuccessfulLabel []*v1alpha1.Machine
+	var machinesWithoutUpdateSuccessfulLabel []*v1alpha1.Machine
 	for _, m := range allMachines {
-		// Skip machines that are in the process of being updated.
-		if m.Labels[v1alpha1.LabelKeyNodeUpdateResult] == v1alpha1.LabelValueNodeUpdateSuccessful {
-			klog.V(3).Infof("Ignoring machine %s moved to new machine set during inplace update", m.Name)
-			machinesWithUpdateSuccessfulLabel = append(machinesWithUpdateSuccessfulLabel, m)
-			continue
-		}
-
-		if machineutils.IsMachineFailed(m) || machineutils.IsMachineTriggeredForDeletion(m) {
-			staleMachines = append(staleMachines, m)
-		} else if machineutils.IsMachineActive(m) {
-			activeMachines = append(activeMachines, m)
+		if m.Labels[v1alpha1.LabelKeyNodeUpdateResult] != v1alpha1.LabelValueNodeUpdateSuccessful {
+			machinesWithoutUpdateSuccessfulLabel = append(machinesWithoutUpdateSuccessfulLabel, m)
 		}
 	}
+	allMachinesDiff := len(allMachines) - int(machineSet.Spec.Replicas)
+	machinesWithoutUpdateSuccessfulLabelDiff := len(machinesWithoutUpdateSuccessfulLabel) - int(machineSet.Spec.Replicas)
 
-	if len(staleMachines) >= 1 {
-		klog.V(3).Infof("Deleting stale machines %s", getMachineKeys(staleMachines))
-	}
-	if err := c.terminateMachines(ctx, staleMachines, machineSet); err != nil {
-		// TODO: proper error handling needs to happen here
-		klog.Errorf("failed to terminate stale machines for machineset %s: %v", machineSet.Name, err)
-	}
-
-	diff := len(activeMachines) - int(machineSet.Spec.Replicas)
-	// Removing the "update successful" label from a machine and scaling up the MachineSet are two separate operations.
-	// If the MachineSet is scaled up first and the "update successful" label is removed later, this controller might
-	// incorrectly assume that additional machines need to be created, as it ignores machines with the "update successful" label.
-	// Conversely, if the "update successful" label is removed first and the MachineSet is scaled up afterward, this controller
-	// might incorrectly assume that more machines need to be deleted, as machines without the label will be counted as active.
-	// To address this, we first check if the difference between the current active replicas and the desired replicas is negative.
-	// If it is, we then check if the difference plus the number of machines with the "update successful" label is greater than or equal to 0.
-	// In such cases, we set the difference to 0 because it is unclear whether the machine deployment controller still needs to increase
-	// the replicas of the MachineSet. Once the machine deployment controller removes the "update successful" label, the ambiguity will
-	// be resolved, and normal operations can proceed. This approach ensures that the controller does not create additional machines
-	// if the MachineSet is scaled up before the "update successful" label is removed.
-	if diff < 0 {
-		if diff+len(machinesWithUpdateSuccessfulLabel) >= 0 {
-			return nil
-		}
-		diff += len(machinesWithUpdateSuccessfulLabel)
-	}
-
-	klog.V(4).Infof("Difference between current active replicas and desired replicas - %d", diff)
-
-	if diff < 0 {
+	// During in-place updates, ScaleUps are disabled in the oldMachineSet and
+	// in newMachineSet, its ReplicaCount would never increase before a machine from oldMachineSet is moved.
+	// So no need for any special case during in-place updates.
+	if allMachinesDiff < 0 {
 		// If MachineSet is frozen and no deletion timestamp, don't process it
 		if machineSet.Labels["freeze"] == "True" && machineSet.DeletionTimestamp == nil {
 			klog.V(2).Infof("MachineSet %q is frozen, and hence not processing", machineSet.Name)
@@ -394,20 +361,20 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 			return nil
 		}
 
-		diff *= -1
-		if diff > BurstReplicas {
-			diff = BurstReplicas
+		allMachinesDiff *= -1
+		if allMachinesDiff > BurstReplicas {
+			allMachinesDiff = BurstReplicas
 		}
 		// TODO: Track UIDs of creates just like deletes. The problem currently
 		// is we'd need to wait on the result of a create to record the machine's
 		// UID, which would require locking *across* the create, which will turn
 		// into a performance bottleneck. We should generate a UID for the machine
 		// beforehand and store it via ExpectCreations.
-		if err := c.expectations.ExpectCreations(machineSetKey, diff); err != nil {
+		if err := c.expectations.ExpectCreations(machineSetKey, allMachinesDiff); err != nil {
 			// TODO: proper error handling needs to happen here
 			klog.Errorf("failed expect creations for machineset %s: %v", machineSet.Name, err)
 		}
-		klog.V(2).Infof("Too few replicas for MachineSet %s, need %d, creating %d", machineSet.Name, (machineSet.Spec.Replicas), diff)
+		klog.V(2).Infof("Too few replicas for MachineSet %s, need %d, creating %d", machineSet.Name, (machineSet.Spec.Replicas), allMachinesDiff)
 		// Batch the machine creates. Batch sizes start at SlowStartInitialBatchSize
 		// and double with each successful iteration in a kind of "slow start".
 		// This handles attempts to start large numbers of machines that would
@@ -416,7 +383,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		// prevented from spamming the API service with the machine create requests
 		// after one of its machines fails.  Conveniently, this also prevents the
 		// event spam that those failures would generate.
-		successfulCreations, err := slowStartBatch(diff, SlowStartInitialBatchSize, func() error {
+		successfulCreations, err := slowStartBatch(allMachinesDiff, SlowStartInitialBatchSize, func() error {
 			boolPtr := func(b bool) *bool { return &b }
 			controllerRef := &metav1.OwnerReference{
 				APIVersion:         controllerKindMachineSet.GroupVersion().String(), // #ToCheck
@@ -443,7 +410,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		// Any skipped machines that we never attempted to start shouldn't be expected.
 		// The skipped machines will be retried later. The next controller resync will
 		// retry the slow start process.
-		if skippedMachines := diff - successfulCreations; skippedMachines > 0 {
+		if skippedMachines := allMachinesDiff - successfulCreations; skippedMachines > 0 {
 			klog.V(2).Infof("Slow-start failure. Skipping creation of %d machines, decrementing expectations for %v %v/%v", skippedMachines, machineSet.Kind, machineSet.Namespace, machineSet.Name)
 			for i := 0; i < skippedMachines; i++ {
 				// Decrement the expected number of creates because the informer won't observe this machine
@@ -451,14 +418,18 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 			}
 		}
 		return err
-	} else if diff > 0 {
-		if diff > BurstReplicas {
-			diff = BurstReplicas
+	} else if machinesWithoutUpdateSuccessfulLabelDiff > 0 {
+		// During in-place updates, in the newMachineSet, it can happen that a machine has come from the oldMachineSet
+		// but the ReplicaCount of newMachineSet has not increased yet.
+		// In such cases, we should not delete the machine immediately,
+		// otherwise it can cause unnecessary machine deletion and creation during in-place updates.
+		if machinesWithoutUpdateSuccessfulLabelDiff > BurstReplicas {
+			machinesWithoutUpdateSuccessfulLabelDiff = BurstReplicas
 		}
-		klog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (machineSet.Spec.Replicas), diff)
+		klog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (machineSet.Spec.Replicas), machinesWithoutUpdateSuccessfulLabelDiff)
 
-		logMachinesWithPriority1(activeMachines)
-		machinesToDelete := getMachinesToDelete(activeMachines, diff)
+		logMachinesWithPriority1(machinesWithoutUpdateSuccessfulLabel)
+		machinesToDelete := getMachinesToDelete(machinesWithoutUpdateSuccessfulLabel, machinesWithoutUpdateSuccessfulLabelDiff)
 		logMachinesToDelete(machinesToDelete)
 
 		// Snapshot the UIDs (ns/name) of the machines we're expecting to see
@@ -475,6 +446,21 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		if err := c.terminateMachines(ctx, machinesToDelete, machineSet); err != nil {
 			// TODO: proper error handling needs to happen here
 			klog.Errorf("failed to terminate machines for machineset %s: %v", machineSet.Name, err)
+		}
+	}
+
+	var staleMachines []*v1alpha1.Machine
+	for _, m := range machinesWithoutUpdateSuccessfulLabel {
+		if machineutils.IsMachineFailed(m) {
+			staleMachines = append(staleMachines, m)
+		}
+	}
+
+	if len(staleMachines) >= 1 {
+		klog.V(3).Infof("Deleting stale machines %s", getMachineKeys(staleMachines))
+		if err := c.terminateMachines(ctx, staleMachines, machineSet); err != nil {
+			// TODO: proper error handling needs to happen here
+			klog.Errorf("failed to terminate stale machines for machineset %s: %v", machineSet.Name, err)
 		}
 	}
 
