@@ -18,7 +18,7 @@ jobs:
       mode: ${{ inputs.mode }}
       version-commit-callback-action-path:
     permissions:
-      contents: read
+      id-token: write
 
   oci-images:
     name: Build OCI-Images
