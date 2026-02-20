@@ -336,17 +336,6 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		if m.Labels[v1alpha1.LabelKeyNodeUpdateResult] != v1alpha1.LabelValueNodeUpdateSuccessful {
 			machinesWithoutUpdateSuccessfulLabel = append(machinesWithoutUpdateSuccessfulLabel, m)
 		}
-		if machineutils.IsMachineTriggeredForDeletion(m) {
-			staleMachines = append(staleMachines, m)
-		} else if machineutils.IsMachineFailed(m) {
-			if c.shouldFailedMachineBeTerminated(m) {
-				staleMachines = append(staleMachines, m)
-			} else {
-				activeMachines = append(activeMachines, m)
-			}
-		} else if machineutils.IsMachineActive(m) {
-			activeMachines = append(activeMachines, m)
-		}
 	}
 	allMachinesDiff := len(allMachines) - int(machineSet.Spec.Replicas)
 	machinesWithoutUpdateSuccessfulLabelDiff := len(machinesWithoutUpdateSuccessfulLabel) - int(machineSet.Spec.Replicas)
@@ -438,18 +427,6 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		logMachinesWithPriority1(machinesWithoutUpdateSuccessfulLabel)
 		machinesToDelete := getMachinesToDelete(machinesWithoutUpdateSuccessfulLabel, machinesWithoutUpdateSuccessfulLabelDiff)
 		logMachinesToDelete(machinesToDelete)
-		//if machines are preserved, stop preservation
-		//for _, mc := range machinesToDelete {
-		//	if machineutils.IsMachinePreserved(mc) {
-		//
-		//	}
-		//
-		//}for _, mc := range machinesToDelete {
-		//	if machineutils.IsMachinePreserved(mc) {
-		//
-		//	}
-		//
-		//}
 
 		// Snapshot the UIDs (ns/name) of the machines we're expecting to see
 		// deleted, so we know to record their expectations exactly once either
@@ -471,7 +448,9 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	var staleMachines []*v1alpha1.Machine
 	for _, m := range machinesWithoutUpdateSuccessfulLabel {
 		if machineutils.IsMachineFailed(m) {
-			staleMachines = append(staleMachines, m)
+			if c.shouldFailedMachineBeTerminated(m) {
+				staleMachines = append(staleMachines, m)
+			}
 		}
 	}
 
@@ -683,7 +662,6 @@ func slowStartBatch(count int, initialBatchSize int, fn func() error) (int, erro
 	return successes, nil
 }
 
-// TODO@thiyyakat: ensure preserved machines are the last to be deleted
 func getMachinesToDelete(filteredMachines []*v1alpha1.Machine, diff int) []*v1alpha1.Machine {
 	// No need to sort machines if we are about to delete all of them.
 	// diff will always be <= len(filteredMachines), so not need to handle > case.
