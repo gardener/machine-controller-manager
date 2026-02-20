@@ -16,7 +16,6 @@ jobs:
     uses: gardener/cc-utils/.github/workflows/prepare.yaml@master
     with:
       mode: ${{ inputs.mode }}
-      version-commit-callback-action-path:
     permissions:
       id-token: write
 
@@ -53,7 +52,6 @@ jobs:
       oci-repository: ${{ matrix.args.oci-repository }}
       oci-platforms: linux/amd64,linux/arm64
       ocm-labels: ${{ toJSON(matrix.args.ocm-labels) }}
-      extra-tags:
 
   sast-lint:
     uses: gardener/cc-utils/.github/workflows/sastlint-ocm.yaml@master
