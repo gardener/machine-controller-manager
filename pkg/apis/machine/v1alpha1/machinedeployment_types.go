@@ -91,6 +91,11 @@ type MachineDeploymentSpec struct {
 	// by default, which is treated as infinite deadline.
 	// +optional
 	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty"`
+
+	// The maximum number of failed machines in the machine deployment that can be auto-preserved.
+	// In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker's machine deployments
+	// +optional
+	AutoPreserveFailedMachineMax int32 `json:"autoPreserveFailedMachineMax,omitempty"`
 }
 
 const (

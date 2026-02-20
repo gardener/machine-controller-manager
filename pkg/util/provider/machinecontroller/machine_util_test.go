@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	"k8s.io/klog/v2"
 	"time"
 
@@ -3952,6 +3953,753 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
+					},
+				},
+			}),
+		)
+	})
+	Describe("#preserveMachine", func() {
+		type setup struct {
+			machinePhase           machinev1.MachinePhase
+			nodeName               string
+			preserveValue          string
+			isCAAnnotationPresent  bool
+			preservedNodeCondition corev1.NodeCondition
+		}
+		type expect struct {
+			preserveNodeCondition   corev1.NodeCondition
+			isPreserveExpiryTimeSet bool
+			isCAAnnotationPresent   bool
+			err                     error
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+		DescribeTable("##preserveMachine behaviour scenarios",
+			func(tc *testCase) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				var controlMachineObjects []runtime.Object
+				var targetCoreObjects []runtime.Object
+
+				machine := &machinev1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "machine-1",
+						Namespace: testNamespace,
+						Labels: map[string]string{
+							machinev1.NodeLabelKey: tc.setup.nodeName,
+						},
+					},
+					Spec: machinev1.MachineSpec{},
+					Status: machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase:              tc.setup.machinePhase,
+							LastUpdateTime:     metav1.Now(),
+							PreserveExpiryTime: nil,
+						},
+					},
+				}
+				if tc.setup.nodeName != "" && tc.setup.nodeName != "err-backing-node" {
+
+					node := corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        tc.setup.nodeName,
+							Labels:      map[string]string{},
+							Annotations: map[string]string{},
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{},
+						},
+					}
+					if tc.setup.isCAAnnotationPresent {
+						node.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = "true"
+					}
+					targetCoreObjects = append(targetCoreObjects, &node)
+				}
+				controlMachineObjects = append(controlMachineObjects, machine)
+
+				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+				_, err := c.preserveMachine(context.TODO(), machine, tc.setup.preserveValue)
+				if tc.expect.err == nil {
+					Expect(err).To(BeNil())
+				} else {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
+				}
+				updatedMachine, getErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+				Expect(getErr).To(BeNil())
+				if tc.expect.isPreserveExpiryTimeSet {
+					Expect(updatedMachine.Status.CurrentStatus.PreserveExpiryTime.IsZero()).To(BeFalse())
+				} else {
+					Expect(updatedMachine.Status.CurrentStatus.PreserveExpiryTime.IsZero()).To(BeTrue())
+				}
+				if tc.setup.nodeName == "" || tc.setup.nodeName == "err-backing-node" {
+					return
+				}
+				updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), tc.setup.nodeName, metav1.GetOptions{})
+				Expect(getErr).To(BeNil())
+				Expect(updatedNode.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey]).To(Equal(autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue))
+				if tc.expect.preserveNodeCondition.Type != "" {
+					updatedNodeCondition := nodeops.GetCondition(updatedNode, tc.expect.preserveNodeCondition.Type)
+					Expect(updatedNodeCondition.Status).To(Equal(tc.expect.preserveNodeCondition.Status))
+					Expect(updatedNodeCondition.Reason).To(Equal(tc.expect.preserveNodeCondition.Reason))
+					Expect(updatedNodeCondition.Message).To(ContainSubstring(tc.expect.preserveNodeCondition.Message))
+				}
+			},
+			Entry("when preserve=now and there is no backing node", &testCase{
+				setup: setup{
+					machinePhase:  machinev1.MachineUnknown,
+					nodeName:      "",
+					preserveValue: machineutils.PreserveMachineAnnotationValueNow,
+				},
+				expect: expect{
+					err:                     nil,
+					isPreserveExpiryTimeSet: true,
+				},
+			}),
+			Entry("when preserve=now, the machine is Running, and there is a backing node", &testCase{
+				setup: setup{
+					machinePhase:  machinev1.MachineRunning,
+					nodeName:      "node-1",
+					preserveValue: machineutils.PreserveMachineAnnotationValueNow,
+				},
+				expect: expect{
+					err:                     nil,
+					isPreserveExpiryTimeSet: true,
+					isCAAnnotationPresent:   true,
+					preserveNodeCondition: corev1.NodeCondition{
+						Type:   machinev1.NodePreserved,
+						Status: corev1.ConditionTrue,
+						Reason: machinev1.PreservedByUser,
+					},
+				},
+			}),
+			Entry("when preserve=now, the machine has Failed, and there is a backing node", &testCase{
+				setup: setup{
+					machinePhase:  machinev1.MachineFailed,
+					nodeName:      "node-1",
+					preserveValue: machineutils.PreserveMachineAnnotationValueNow,
+				},
+				expect: expect{
+					err:                     nil,
+					isPreserveExpiryTimeSet: true,
+					isCAAnnotationPresent:   true,
+					preserveNodeCondition: corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionTrue,
+						Reason:  machinev1.PreservedByUser,
+						Message: machinev1.PreservedNodeDrainSuccessful,
+					},
+				},
+			}),
+			Entry("when preserve=now, the machine has Failed, and the preservation is incomplete after step 1 - adding preserveExpiryTime", &testCase{
+				setup: setup{
+					machinePhase:  machinev1.MachineFailed,
+					nodeName:      "node-1",
+					preserveValue: machineutils.PreserveMachineAnnotationValueNow,
+				},
+				expect: expect{
+					err:                     nil,
+					isPreserveExpiryTimeSet: true,
+					isCAAnnotationPresent:   true,
+					preserveNodeCondition: corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionTrue,
+						Reason:  machinev1.PreservedByUser,
+						Message: machinev1.PreservedNodeDrainSuccessful,
+					},
+				},
+			}),
+			Entry("when preserve=now, the machine has Failed, and the preservation is incomplete at step 2 - adding CA annotations", &testCase{
+				setup: setup{
+					machinePhase:          machinev1.MachineFailed,
+					nodeName:              "node-1",
+					preserveValue:         machineutils.PreserveMachineAnnotationValueNow,
+					isCAAnnotationPresent: true,
+				},
+				expect: expect{
+					err:                     nil,
+					isPreserveExpiryTimeSet: true,
+					isCAAnnotationPresent:   true,
+					preserveNodeCondition: corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionTrue,
+						Reason:  machinev1.PreservedByUser,
+						Message: machinev1.PreservedNodeDrainSuccessful,
+					},
+				},
+			}),
+			Entry("when preserve=now, the machine has Failed, and the preservation is incomplete because of drain failure", &testCase{
+				setup: setup{
+					machinePhase:          machinev1.MachineFailed,
+					nodeName:              "node-1",
+					preserveValue:         machineutils.PreserveMachineAnnotationValueNow,
+					isCAAnnotationPresent: true,
+					preservedNodeCondition: corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionFalse,
+						Reason:  machinev1.PreservedByUser,
+						Message: machinev1.PreservedNodeDrainUnsuccessful,
+					},
+				},
+				expect: expect{
+					err:                     nil,
+					isPreserveExpiryTimeSet: true,
+					isCAAnnotationPresent:   true,
+					preserveNodeCondition: corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionTrue,
+						Reason:  machinev1.PreservedByUser,
+						Message: machinev1.PreservedNodeDrainSuccessful,
+					},
+				},
+			}),
+			Entry("when preserve=when-failed, the machine has Failed, and there is a backing node", &testCase{
+				setup: setup{
+					machinePhase:  machinev1.MachineFailed,
+					nodeName:      "node-1",
+					preserveValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
+				},
+				expect: expect{
+					err:                     nil,
+					isPreserveExpiryTimeSet: true,
+					isCAAnnotationPresent:   true,
+					preserveNodeCondition: corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionTrue,
+						Reason:  machinev1.PreservedByUser,
+						Message: machinev1.PreservedNodeDrainSuccessful,
+					},
+				},
+			}),
+			Entry("when preserve=auto-preserved, the machine has Failed, and there is a backing node", &testCase{
+				setup: setup{
+					machinePhase:  machinev1.MachineFailed,
+					nodeName:      "node-1",
+					preserveValue: machineutils.PreserveMachineAnnotationValuePreservedByMCM,
+				},
+				expect: expect{
+					err:                     nil,
+					isPreserveExpiryTimeSet: true,
+					isCAAnnotationPresent:   true,
+					preserveNodeCondition: corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionTrue,
+						Reason:  machinev1.PreservedByMCM,
+						Message: machinev1.PreservedNodeDrainSuccessful,
+					},
+				},
+			}),
+			Entry("when preserve=now, the machine has Failed, and there is an error fetching backing node", &testCase{
+				setup: setup{
+					machinePhase:  machinev1.MachineFailed,
+					nodeName:      "err-backing-node",
+					preserveValue: machineutils.PreserveMachineAnnotationValueNow,
+				},
+				expect: expect{
+					err:                     fmt.Errorf("node \"err-backing-node\" not found"),
+					isPreserveExpiryTimeSet: true,
+					isCAAnnotationPresent:   false,
+				},
+			},
+			),
+		)
+	})
+	Describe("#stopMachinePreservationIfPreserved", func() {
+		type setup struct {
+			nodeName                 string
+			removePreserveAnnotation bool
+		}
+		type expect struct {
+			err error
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+		DescribeTable("##stopMachinePreservationIfPreserved behaviour scenarios",
+			func(tc *testCase) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				var controlMachineObjects []runtime.Object
+				var targetCoreObjects []runtime.Object
+
+				machine := &machinev1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "machine-1",
+						Namespace: testNamespace,
+						Labels:    map[string]string{},
+					},
+					Spec: machinev1.MachineSpec{},
+					Status: machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase:              machinev1.MachineFailed,
+							LastUpdateTime:     metav1.Now(),
+							PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(10 * time.Minute)},
+						},
+					},
+				}
+				if tc.setup.nodeName != "" && tc.setup.nodeName != "err-backing-node" {
+					machine.Labels[machinev1.NodeLabelKey] = tc.setup.nodeName
+					node := &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node-1",
+							Annotations: map[string]string{
+								machineutils.PreserveMachineAnnotationKey:                  machineutils.PreserveMachineAnnotationValueNow,
+								autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey: autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue,
+							},
+						},
+						Status: corev1.NodeStatus{
+							Conditions: []corev1.NodeCondition{
+								{
+									Type:   machinev1.NodePreserved,
+									Status: corev1.ConditionTrue,
+									Reason: machinev1.PreservedByUser,
+								},
+							},
+						},
+					}
+					targetCoreObjects = append(targetCoreObjects, node)
+
+				} else {
+					machine.Labels[machinev1.NodeLabelKey] = ""
+				}
+
+				controlMachineObjects = append(controlMachineObjects, machine)
+
+				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+				_, err := c.stopMachinePreservationIfPreserved(context.TODO(), machine, tc.setup.removePreserveAnnotation)
+				if tc.expect.err != nil {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
+					return
+				}
+				Expect(err).To(BeNil())
+				updatedMachine, getErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+				Expect(getErr).To(BeNil())
+				Expect(updatedMachine.Status.CurrentStatus.PreserveExpiryTime.IsZero()).To(BeTrue())
+
+				if machine.Labels[machinev1.NodeLabelKey] == "" || machine.Labels[machinev1.NodeLabelKey] == "no-backing-node" {
+					return
+				}
+				updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), tc.setup.nodeName, metav1.GetOptions{})
+				Expect(getErr).To(BeNil())
+				updatedNodeCondition := nodeops.GetCondition(updatedNode, machinev1.NodePreserved)
+				Expect(updatedNodeCondition).ToNot(BeNil())
+				Expect(updatedNodeCondition.Status).To(Equal(corev1.ConditionFalse))
+				Expect(updatedNodeCondition.Reason).To(Equal(machinev1.PreservationStopped))
+				if tc.setup.removePreserveAnnotation {
+					Expect(updatedNode.Annotations).NotTo(HaveKey(machineutils.PreserveMachineAnnotationKey))
+				} else {
+					Expect(updatedNode.Annotations).To(HaveKey(machineutils.PreserveMachineAnnotationKey))
+				}
+
+			},
+			Entry("when stopping preservation on a preserved machine with backing node and preserve annotation needs to be removed", &testCase{
+				setup: setup{
+					nodeName:                 "node-1",
+					removePreserveAnnotation: true,
+				},
+				expect: expect{
+					err: nil,
+				},
+			}),
+			Entry("when stopping preservation on a preserved machine with backing node and preserve annotation shouldn't be removed", &testCase{
+				setup: setup{
+					nodeName:                 "node-1",
+					removePreserveAnnotation: false,
+				},
+				expect: expect{
+					err: nil,
+				},
+			}),
+			Entry("when stopping preservation on a preserved machine with no backing node", &testCase{
+				setup: setup{
+					nodeName: "",
+				},
+				expect: expect{
+					err: nil,
+				},
+			}),
+			Entry("when stopping preservation on a preserved machine, and the backing node is not found", &testCase{
+				setup: setup{
+					nodeName: "no-backing-node",
+				},
+				expect: expect{
+					err: nil,
+				},
+			}),
+		)
+	})
+	Describe("#computeNewNodePreservedCondition", func() {
+		preserveExpiryTime := &metav1.Time{Time: time.Now().Add(2 * time.Hour)}
+		type setup struct {
+			currentStatus         machinev1.CurrentStatus
+			preserveValue         string
+			drainErr              error
+			existingNodeCondition *corev1.NodeCondition
+		}
+		type expect struct {
+			newNodeCondition *corev1.NodeCondition
+			needsUpdate      bool
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+		DescribeTable("##computeNewNodePreservedCondition behaviour scenarios",
+			func(tc *testCase) {
+				newNodeCondition, needsUpdate := computeNewNodePreservedCondition(
+					tc.setup.currentStatus,
+					tc.setup.preserveValue,
+					tc.setup.drainErr,
+					tc.setup.existingNodeCondition,
+				)
+				if tc.expect.newNodeCondition == nil {
+					Expect(newNodeCondition).To(BeNil())
+				} else {
+					Expect(newNodeCondition.Type).To(Equal(tc.expect.newNodeCondition.Type))
+					Expect(newNodeCondition.Status).To(Equal(tc.expect.newNodeCondition.Status))
+					Expect(newNodeCondition.Reason).To(Equal(tc.expect.newNodeCondition.Reason))
+					Expect(newNodeCondition.Message).To(Equal(tc.expect.newNodeCondition.Message))
+				}
+				Expect(needsUpdate).To(Equal(tc.expect.needsUpdate))
+			},
+			Entry("when preserve=now, machine is Running, no existing condition", &testCase{
+				setup: setup{
+					currentStatus: machinev1.CurrentStatus{
+						Phase:              machinev1.MachineRunning,
+						LastUpdateTime:     metav1.Now(),
+						PreserveExpiryTime: preserveExpiryTime,
+					},
+					preserveValue:         machineutils.PreserveMachineAnnotationValueNow,
+					existingNodeCondition: nil,
+				},
+				expect: expect{
+					newNodeCondition: &corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionTrue,
+						Reason:  machinev1.PreservedByUser,
+						Message: fmt.Sprintf("Machine preserved until %v.", preserveExpiryTime),
+					},
+					needsUpdate: true,
+				},
+			}),
+			Entry("when preserve=now, machine is Failed, drain successful, no existing condition", &testCase{
+				setup: setup{
+					currentStatus: machinev1.CurrentStatus{
+						Phase:              machinev1.MachineFailed,
+						LastUpdateTime:     metav1.Now(),
+						PreserveExpiryTime: preserveExpiryTime,
+					},
+					preserveValue:         machineutils.PreserveMachineAnnotationValueNow,
+					drainErr:              nil,
+					existingNodeCondition: nil,
+				},
+				expect: expect{
+					newNodeCondition: &corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionTrue,
+						Reason:  machinev1.PreservedByUser,
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainSuccessful, preserveExpiryTime),
+					},
+					needsUpdate: true,
+				},
+			}),
+			Entry("when preserve=now, machine is Failed, drain is unsuccessful, no existing condition", &testCase{
+				setup: setup{
+					currentStatus: machinev1.CurrentStatus{
+						Phase:              machinev1.MachineFailed,
+						LastUpdateTime:     metav1.Now(),
+						PreserveExpiryTime: preserveExpiryTime,
+					},
+					preserveValue:         machineutils.PreserveMachineAnnotationValueNow,
+					drainErr:              fmt.Errorf("test drain error"),
+					existingNodeCondition: nil,
+				},
+				expect: expect{
+					newNodeCondition: &corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionFalse,
+						Reason:  machinev1.PreservedByUser,
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainUnsuccessful, preserveExpiryTime),
+					},
+					needsUpdate: true,
+				},
+			}),
+			Entry("when machine auto-preserved by MCM, machine is Failed, drain is successful, no existing condition", &testCase{
+				setup: setup{
+					currentStatus: machinev1.CurrentStatus{
+						Phase:              machinev1.MachineFailed,
+						LastUpdateTime:     metav1.Now(),
+						PreserveExpiryTime: preserveExpiryTime,
+					},
+					preserveValue:         machineutils.PreserveMachineAnnotationValuePreservedByMCM,
+					drainErr:              nil,
+					existingNodeCondition: nil,
+				},
+				expect: expect{
+					newNodeCondition: &corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionTrue,
+						Reason:  machinev1.PreservedByMCM,
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainSuccessful, preserveExpiryTime),
+					},
+					needsUpdate: true,
+				},
+			}),
+			Entry("when preserve=now, machine is Failed, drain is unsuccessful, existing condition present", &testCase{
+				setup: setup{
+					currentStatus: machinev1.CurrentStatus{
+						Phase:              machinev1.MachineFailed,
+						LastUpdateTime:     metav1.Now(),
+						PreserveExpiryTime: preserveExpiryTime,
+					},
+					preserveValue: machineutils.PreserveMachineAnnotationValueNow,
+					drainErr:      fmt.Errorf("test drain error"),
+					existingNodeCondition: &corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionFalse,
+						Reason:  machinev1.PreservedByUser,
+						Message: "Machine preserved until " + preserveExpiryTime.String(),
+					},
+				},
+				expect: expect{
+					newNodeCondition: &corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionFalse,
+						Reason:  machinev1.PreservedByUser,
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainUnsuccessful, preserveExpiryTime),
+					},
+					needsUpdate: true,
+				},
+			}),
+			Entry("when preserve=now, machine is Failed, drain is unsuccessful for the second time, existing condition present", &testCase{
+				setup: setup{
+					currentStatus: machinev1.CurrentStatus{
+						Phase:              machinev1.MachineFailed,
+						LastUpdateTime:     metav1.Now(),
+						PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(2 * time.Hour)},
+					},
+					preserveValue: machineutils.PreserveMachineAnnotationValueNow,
+					drainErr:      fmt.Errorf("test drain error"),
+					existingNodeCondition: &corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionFalse,
+						Reason:  machinev1.PreservedByUser,
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainUnsuccessful, preserveExpiryTime),
+					},
+				},
+				expect: expect{
+					newNodeCondition: &corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionFalse,
+						Reason:  machinev1.PreservedByUser,
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainUnsuccessful, preserveExpiryTime),
+					},
+					needsUpdate: false,
+				},
+			}),
+			Entry("when preserve=now, machine is Failed, drain is successful, existing condition present and status is true", &testCase{
+				setup: setup{
+					currentStatus: machinev1.CurrentStatus{
+						Phase:              machinev1.MachineFailed,
+						LastUpdateTime:     metav1.Now(),
+						PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(2 * time.Hour)},
+					},
+					preserveValue: machineutils.PreserveMachineAnnotationValueNow,
+					drainErr:      nil,
+					existingNodeCondition: &corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionTrue,
+						Reason:  machinev1.PreservedByUser,
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainSuccessful, preserveExpiryTime),
+					},
+				},
+				expect: expect{
+					newNodeCondition: &corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionTrue,
+						Reason:  machinev1.PreservedByUser,
+						Message: fmt.Sprintf("%s Machine preserved until %v.", machinev1.PreservedNodeDrainSuccessful, preserveExpiryTime),
+					},
+					needsUpdate: false,
+				},
+			}),
+		)
+	})
+	Describe("#shouldPreservedNodeBeDrained", func() {
+		type setup struct {
+			machinePhase      machinev1.MachinePhase
+			existingCondition *corev1.NodeCondition
+		}
+		type expect struct {
+			shouldDrain bool
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("#shouldPreservedNodeBeDrained behaviour scenarios",
+			func(tc *testCase) {
+				shouldDrain := shouldPreservedNodeBeDrained(tc.setup.existingCondition, tc.setup.machinePhase)
+				Expect(shouldDrain).To(Equal(tc.expect.shouldDrain))
+			},
+			Entry("should return false when machine is Running", &testCase{
+				setup: setup{
+					machinePhase: machinev1.MachineRunning,
+				},
+				expect: expect{
+					shouldDrain: false,
+				},
+			}),
+			Entry("should return true when machine is Failed and there is no existing node condition", &testCase{
+				setup: setup{
+					machinePhase: machinev1.MachineFailed,
+				},
+				expect: expect{
+					shouldDrain: true,
+				},
+			}),
+			Entry("should return true when machine is Failed and existing node condition message is PreservedNodeDrainUnsuccessful", &testCase{
+				setup: setup{
+					machinePhase: machinev1.MachineFailed,
+					existingCondition: &corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionFalse,
+						Reason:  machinev1.PreservedByUser,
+						Message: machinev1.PreservedNodeDrainUnsuccessful,
+					},
+				},
+				expect: expect{
+					shouldDrain: true,
+				},
+			}),
+		)
+	})
+	Describe("#deletePreservationRelatedAnnotationsOnNode", func() {
+		type setup struct {
+			removePreserveAnnotation bool
+			CAAnnotationPresent      bool
+			CAMCMAnnotationPresent   bool
+		}
+		type expect struct {
+			err                   error
+			hasAnnotationKeys     []string
+			deletedAnnotationKeys []string
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+		DescribeTable("##deletePreservationRelatedAnnotationsOnNode behaviour scenarios",
+			func(tc *testCase) {
+				stop := make(chan struct{})
+				defer close(stop)
+				var targetCoreObjects []runtime.Object
+				node := &corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-1",
+						Annotations: map[string]string{
+							machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueNow,
+						},
+					},
+				}
+				if tc.setup.CAAnnotationPresent {
+					node.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
+				}
+				if tc.setup.CAMCMAnnotationPresent {
+					node.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
+				}
+				targetCoreObjects = append(targetCoreObjects, node)
+				c, trackers := createController(stop, testNamespace, nil, nil, targetCoreObjects, nil, false)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+				err := c.deletePreservationRelatedAnnotationsOnNode(context.TODO(), node, tc.setup.removePreserveAnnotation)
+				waitForCacheSync(stop, c)
+				updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+				Expect(getErr).To(BeNil())
+				if tc.expect.err != nil {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
+				} else {
+					Expect(err).To(BeNil())
+				}
+				for _, key := range tc.expect.hasAnnotationKeys {
+					Expect(updatedNode.Annotations).To(HaveKey(key))
+				}
+				for key := range tc.expect.deletedAnnotationKeys {
+					Expect(updatedNode.Annotations).NotTo(HaveKey(key))
+				}
+			},
+			Entry("when removePreserveAnnotation is true and ClusterAutoscalerScaleDownDisabledAnnotationByMCM annotation is present, should delete all preservation related annotations", &testCase{
+				setup: setup{
+					removePreserveAnnotation: true,
+					CAAnnotationPresent:      true,
+					CAMCMAnnotationPresent:   true,
+				},
+				expect: expect{
+					err:               nil,
+					hasAnnotationKeys: []string{},
+					deletedAnnotationKeys: []string{
+						machineutils.PreserveMachineAnnotationKey,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey,
+					},
+				},
+			}),
+			Entry("when removePreserveAnnotation is false and ClusterAutoscalerScaleDownDisabledAnnotationByMCM annotation is present, should delete only CA annotations ", &testCase{
+				setup: setup{
+					removePreserveAnnotation: false,
+					CAAnnotationPresent:      true,
+					CAMCMAnnotationPresent:   false,
+				},
+				expect: expect{
+					err: nil,
+					hasAnnotationKeys: []string{
+						machineutils.PreserveMachineAnnotationKey,
+					},
+					deletedAnnotationKeys: []string{
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey,
+					},
+				},
+			}),
+			Entry("when removePreserveAnnotation is true and ClusterAutoscalerScaleDownDisabledAnnotationByMCM is not present, should delete only preserve annotation", &testCase{
+				setup: setup{
+					removePreserveAnnotation: true,
+					CAAnnotationPresent:      true,
+					CAMCMAnnotationPresent:   false,
+				},
+				expect: expect{
+					err: nil,
+					hasAnnotationKeys: []string{
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey,
+					},
+					deletedAnnotationKeys: []string{
+						machineutils.PreserveMachineAnnotationKey,
+					},
+				},
+			}),
+			Entry("when removePreserveAnnotation is false and ClusterAutoscalerScaleDownDisabledAnnotationByMCM is not present, should not delete any annotations", &testCase{
+				setup: setup{
+					removePreserveAnnotation: false,
+					CAAnnotationPresent:      true,
+					CAMCMAnnotationPresent:   false,
+				},
+				expect: expect{
+					err: nil,
+					hasAnnotationKeys: []string{
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey,
+						machineutils.PreserveMachineAnnotationKey,
 					},
 				},
 			}),

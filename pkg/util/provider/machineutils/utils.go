@@ -6,11 +6,17 @@
 package machineutils
 
 import (
-	"time"
-
-	v1 "k8s.io/api/core/v1"
-
+	"context"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	errorsutil "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/util/retry"
+	"k8s.io/klog/v2"
+	"time"
 )
 
 const (
@@ -82,7 +88,37 @@ const (
 
 	// LabelKeyMachineSetScaleUpDisabled is the label key that indicates scaling up of the machine set is disabled.
 	LabelKeyMachineSetScaleUpDisabled = "node.machine.sapcloud.io/scale-up-disabled"
+
+	// PreserveMachineAnnotationKey is the annotation used to explicitly request that a Machine be preserved
+	PreserveMachineAnnotationKey = "node.machine.sapcloud.io/preserve"
+
+	// LastAppliedNodePreserveValueAnnotationKey is the annotation used to store the last preserve value applied by MCM
+	LastAppliedNodePreserveValueAnnotationKey = "node.machine.sapcloud.io/last-applied-node-preserve-value"
+
+	// PreserveMachineAnnotationValueNow is the annotation value used to explicitly request that
+	// a Machine be preserved immediately in its current phase
+	PreserveMachineAnnotationValueNow = "now"
+
+	// PreserveMachineAnnotationValueWhenFailed is the annotation value used to explicitly request that
+	// a Machine be preserved if and when in it enters Failed phase
+	PreserveMachineAnnotationValueWhenFailed = "when-failed"
+
+	// PreserveMachineAnnotationValuePreservedByMCM is the annotation value used to explicitly request that
+	// a Machine be preserved if and when in it enters Failed phase.
+	// The AutoPreserveFailedMachineMax, set on the MCD, is enforced based on the number of machines annotated with this value.
+	PreserveMachineAnnotationValuePreservedByMCM = "auto-preserved"
+
+	//// PreserveMachineAnnotationValuePreserveStoppedByMCM is the annotation value used to indicate that
+	//// the auto-preservation of a Machine was stopped.
+	//PreserveMachineAnnotationValuePreserveStoppedByMCM = "auto-preserve-stopped"
+
+	//PreserveMachineAnnotationValueFalse is the annotation value used to explicitly request that
+	// a Machine should not be preserved any longer, even if the expiry timeout has not been reached
+	PreserveMachineAnnotationValueFalse = "false"
 )
+
+// AllowedPreserveAnnotationValues contains the allowed values for the preserve annotation
+var AllowedPreserveAnnotationValues = sets.New(PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValuePreservedByMCM, PreserveMachineAnnotationValueFalse)
 
 // RetryPeriod is an alias for specifying the retry period
 type RetryPeriod time.Duration
@@ -124,4 +160,37 @@ func IsMachineFailed(p *v1alpha1.Machine) bool {
 // IsMachineTriggeredForDeletion checks if machine was triggered for deletion
 func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
 	return m.Annotations[MachinePriority] == "1"
+}
+
+// see https://github.com/kubernetes/kubernetes/issues/21479
+type updateMachineFunc func(machine *v1alpha1.Machine) error
+
+// UpdateMachineWithRetries updates a machine with given applyUpdate function. Note that machine not found error is ignored.
+// The returned bool value can be used to tell if the machine is actually updated.
+func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.MachineInterface, machineLister v1alpha1listers.MachineLister, namespace, name string, applyUpdate updateMachineFunc) (*v1alpha1.Machine, error) {
+	var machine *v1alpha1.Machine
+
+	retryErr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		var err error
+		machine, err = machineLister.Machines(namespace).Get(name)
+		if err != nil {
+			return err
+		}
+		machine = machine.DeepCopy()
+		// Apply the update, then attempt to push it to the apiserver.
+		if applyErr := applyUpdate(machine); applyErr != nil {
+			return applyErr
+		}
+		machine, err = machineClient.Update(ctx, machine, metav1.UpdateOptions{})
+		return err
+	})
+
+	// Ignore the precondition violated error, this machine is already updated
+	// with the desired label.
+	if retryErr == errorsutil.ErrPreconditionViolated {
+		klog.V(4).Infof("Machine %s precondition doesn't hold, skip updating it.", name)
+		retryErr = nil
+	}
+
+	return machine, retryErr
 }
