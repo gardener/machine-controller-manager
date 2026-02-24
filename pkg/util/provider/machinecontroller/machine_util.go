@@ -2598,20 +2598,17 @@ func computeNewNodePreservedCondition(currentStatus v1alpha1.CurrentStatus, pres
 
 			if !strings.Contains(newNodePreservedCondition.Message, v1alpha1.PreservedNodeDrainSuccessful) {
 				newNodePreservedCondition.Message = fmt.Sprintf("%s %s %v.", v1alpha1.PreservedNodeDrainSuccessful, preserveExpiryMessageSuffix, currentStatus.PreserveExpiryTime)
-				//newNodePreservedCondition.Message = v1alpha1.PreservedNodeDrainSuccessful + ". " + preserveExpiryMessageSuffix + currentStatus.PreserveExpiryTime.String()
 				newNodePreservedCondition.Status = v1.ConditionTrue
 				needsUpdate = true
 			}
 		} else if !strings.Contains(newNodePreservedCondition.Message, v1alpha1.PreservedNodeDrainUnsuccessful) {
 			newNodePreservedCondition.Message = fmt.Sprintf("%s %s %v.", v1alpha1.PreservedNodeDrainUnsuccessful, preserveExpiryMessageSuffix, currentStatus.PreserveExpiryTime)
-			//newNodePreservedCondition.Message = v1alpha1.PreservedNodeDrainUnsuccessful + ". " + preserveExpiryMessageSuffix + currentStatus.PreserveExpiryTime.String()
 			newNodePreservedCondition.Status = v1.ConditionFalse
 			needsUpdate = true
 		}
 	} else if newNodePreservedCondition.Status != v1.ConditionTrue {
 		newNodePreservedCondition.Status = v1.ConditionTrue
 		newNodePreservedCondition.Message = fmt.Sprintf("%s %v.", preserveExpiryMessageSuffix, currentStatus.PreserveExpiryTime)
-		//newNodePreservedCondition.Message = preserveExpiryMessageSuffix + currentStatus.PreserveExpiryTime.String()
 		needsUpdate = true
 	}
 	if preserveValue == machineutils.PreserveMachineAnnotationValuePreservedByMCM {

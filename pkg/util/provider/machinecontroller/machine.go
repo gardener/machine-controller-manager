@@ -779,7 +779,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	}
 	effectivePreserveValue := reconcilePreservationAnnotations(nodeAnnotationValue, clone.Annotations)
 	// The annotation has either been deleted, set to empty or no preserve annotation exists.
-	// in all these cases, machine preservation should not be done. If machine is preserved, stop preservation.
+	// in all these cases, the machine should not be preserved. If machine is preserved, stop preservation.
 	if effectivePreserveValue == "" {
 		machineObjectUpdated, err = c.stopMachinePreservationIfPreserved(ctx, clone, false)
 		return
@@ -790,8 +790,6 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		} else {
 			klog.Warningf("Preserve annotation value %q on machine %q is invalid", effectivePreserveValue, clone.Name)
 		}
-		// invalid annotation value will be synced to lastAppliedNodePreserveValue in the defer() call.
-		// This is to prevent MCM from missing updates on the node object in case of crashes
 		return
 	}
 	if effectivePreserveValue == machineutils.PreserveMachineAnnotationValueFalse {
@@ -801,8 +799,6 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	if effectivePreserveValue == machineutils.PreserveMachineAnnotationValueWhenFailed {
 		if !machineutils.IsMachineFailed(clone) || (clone.Status.CurrentStatus.PreserveExpiryTime != nil && !clone.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())) {
 			machineObjectUpdated, err = c.stopMachinePreservationIfPreserved(ctx, clone, false)
-			// if not preserved, and lastAppliedNodePreserveValue is different from current preserve annotation value on node,
-			// the defer() call will update the lastAppliedNodePreserveValue
 		} else {
 			machineObjectUpdated, err = c.preserveMachine(ctx, clone, effectivePreserveValue)
 		}
