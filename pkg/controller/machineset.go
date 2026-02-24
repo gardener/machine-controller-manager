@@ -552,10 +552,6 @@ func (c *controller) reconcileClusterMachineSet(key string) error {
 		return err
 	}
 
-	// triggerAutoPreservation adds the preserve=PreserveMachineAnnotationValuePreservedByMCM annotation
-	// to Failed machines to trigger auto-preservation, if applicable.
-	// We do not update machineSet.Status.AutoPreserveFailedMachineCount in the function, as it will be calculated
-	// and updated in the succeeding calls to calculateMachineSetStatus() and updateMachineSetStatus()
 	filteredMachines = c.manageAutoPreservationOfFailedMachines(ctx, filteredMachines, machineSet)
 
 	// TODO: Fix working of expectations to reflect correct behaviour
@@ -892,7 +888,7 @@ func (c *controller) shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) 
 
 // manageAutoPreservationOfFailedMachines annotates failed machines with preserve=auto-preserved annotation
 // to trigger preservation of the machines, by the machine controller, up to the limit defined in the
-// MachineSet's AutoPreserveFailedMachineMax field.
+// MachineSet's AutoPreserveFailedMachineMax field. If the AutoPreserveFailedMachineMax limit is breached, it removes the preserve=auto-preserved annotation from the oldest annotated machines.
 func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context, machines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) []*v1alpha1.Machine {
 	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - machineSet.Status.AutoPreserveFailedMachineCount
 	if autoPreservationCapacityRemaining == 0 {
