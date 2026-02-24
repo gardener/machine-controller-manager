@@ -108,12 +108,8 @@ const (
 	// The AutoPreserveFailedMachineMax, set on the MCD, is enforced based on the number of machines annotated with this value.
 	PreserveMachineAnnotationValuePreservedByMCM = "auto-preserved"
 
-	//// PreserveMachineAnnotationValuePreserveStoppedByMCM is the annotation value used to indicate that
-	//// the auto-preservation of a Machine was stopped.
-	//PreserveMachineAnnotationValuePreserveStoppedByMCM = "auto-preserve-stopped"
-
-	//PreserveMachineAnnotationValueFalse is the annotation value used to explicitly request that
-	// a Machine should not be preserved any longer, even if the expiry timeout has not been reached
+	// PreserveMachineAnnotationValueFalse is the annotation value used to indicate to MCM that a machine must not be auto-preserved
+	// on failure.
 	PreserveMachineAnnotationValueFalse = "false"
 )
 
