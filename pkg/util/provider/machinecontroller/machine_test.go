@@ -3998,7 +3998,7 @@ var _ = Describe("machine", func() {
 			}),
 		)
 	})
-	Describe("#reconcilePreservationAnnotations", func() {
+	Describe("#getEffectivePreservationAnnotations", func() {
 		type setup struct {
 			nodeAnnotationValue string
 			machineAnnotations  map[string]string
@@ -4013,12 +4013,13 @@ var _ = Describe("machine", func() {
 			expect expect
 		}
 
-		DescribeTable("reconcilePreservationAnnotations scenarios",
+		DescribeTable("getEffectivePreservationAnnotations scenarios",
 			func(tc testCase) {
-				preserveValue := reconcilePreservationAnnotations(tc.setup.nodeAnnotationValue, tc.setup.machineAnnotations)
+
+				preserveValue, updatedMachineAnnotations := getEffectivePreservationAnnotations(tc.setup.nodeAnnotationValue, tc.setup.machineAnnotations)
 				Expect(preserveValue).To(Equal(tc.expect.effectivePreserveValue))
-				Expect(tc.setup.machineAnnotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(tc.expect.machineAnnotations[machineutils.PreserveMachineAnnotationKey]))
-				Expect(tc.setup.machineAnnotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]).To(Equal(tc.expect.machineAnnotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]))
+				Expect(updatedMachineAnnotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(tc.expect.machineAnnotations[machineutils.PreserveMachineAnnotationKey]))
+				Expect(updatedMachineAnnotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]).To(Equal(tc.expect.machineAnnotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]))
 			},
 			Entry("when node is not annotated and laNodeAnnotationValue is empty, should return machine's annotation value and empty string", testCase{
 				setup: setup{
