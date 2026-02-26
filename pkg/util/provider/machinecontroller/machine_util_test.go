@@ -4209,7 +4209,7 @@ var _ = Describe("machine_util", func() {
 			),
 		)
 	})
-	Describe("#stopMachinePreservationIfPreserved", func() {
+	Describe("#stopPreservationIfActive", func() {
 		type setup struct {
 			nodeName                 string
 			removePreserveAnnotation bool
@@ -4221,7 +4221,7 @@ var _ = Describe("machine_util", func() {
 			setup  setup
 			expect expect
 		}
-		DescribeTable("##stopMachinePreservationIfPreserved behaviour scenarios",
+		DescribeTable("##stopPreservationIfActive behaviour scenarios",
 			func(tc *testCase) {
 				stop := make(chan struct{})
 				defer close(stop)
@@ -4275,7 +4275,7 @@ var _ = Describe("machine_util", func() {
 				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				_, err := c.stopMachinePreservationIfPreserved(context.TODO(), machine, tc.setup.removePreserveAnnotation)
+				_, err := c.stopPreservationIfActive(context.TODO(), machine, tc.setup.removePreserveAnnotation)
 				if tc.expect.err != nil {
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
@@ -4585,7 +4585,7 @@ var _ = Describe("machine_util", func() {
 			}),
 		)
 	})
-	Describe("#deletePreservationRelatedAnnotationsOnNode", func() {
+	Describe("#removePreservationRelatedAnnotationsOnNode", func() {
 		type setup struct {
 			removePreserveAnnotation bool
 			CAAnnotationPresent      bool
@@ -4600,7 +4600,7 @@ var _ = Describe("machine_util", func() {
 			setup  setup
 			expect expect
 		}
-		DescribeTable("##deletePreservationRelatedAnnotationsOnNode behaviour scenarios",
+		DescribeTable("##removePreservationRelatedAnnotationsOnNode behaviour scenarios",
 			func(tc *testCase) {
 				stop := make(chan struct{})
 				defer close(stop)
@@ -4623,7 +4623,7 @@ var _ = Describe("machine_util", func() {
 				c, trackers := createController(stop, testNamespace, nil, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				err := c.deletePreservationRelatedAnnotationsOnNode(context.TODO(), node, tc.setup.removePreserveAnnotation)
+				err := c.removePreservationRelatedAnnotationsOnNode(context.TODO(), node, tc.setup.removePreserveAnnotation)
 				waitForCacheSync(stop, c)
 				updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 				Expect(getErr).To(BeNil())
