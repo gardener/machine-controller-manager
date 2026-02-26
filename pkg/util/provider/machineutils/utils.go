@@ -113,7 +113,10 @@ const (
 )
 
 // AllowedPreserveAnnotationValues contains the allowed values for the preserve annotation
-var AllowedPreserveAnnotationValues = sets.New(PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValuePreservedByMCM, PreserveMachineAnnotationValueFalse)
+var AllowedPreserveAnnotationValues = sets.New(PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValuePreservedByMCM, PreserveMachineAnnotationValueFalse, "")
+
+// PreventAutoPreserveAnnotationValues contains the values for which a machine will not be auto-preserved on failure
+var PreventAutoPreserveAnnotationValues = sets.New(PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValuePreservedByMCM, PreserveMachineAnnotationValueFalse)
 
 // RetryPeriod is an alias for specifying the retry period
 type RetryPeriod time.Duration
@@ -155,6 +158,12 @@ func IsMachineFailed(p *v1alpha1.Machine) bool {
 // IsMachineTriggeredForDeletion checks if machine was triggered for deletion
 func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
 	return m.Annotations[MachinePriority] == "1"
+}
+
+// IsMachinePreservationExpired checks if the preserve expiry time has passed for a machine
+func IsMachinePreservationExpired(m *v1alpha1.Machine) bool {
+	t := m.Status.CurrentStatus.PreserveExpiryTime
+	return t != nil && !t.After(time.Now())
 }
 
 // see https://github.com/kubernetes/kubernetes/issues/21479
