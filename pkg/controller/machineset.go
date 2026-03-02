@@ -873,7 +873,7 @@ func (c *controller) shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) 
 	preserveValue, err := c.findEffectivePreserveValue(machine)
 	if err != nil {
 		// in case of error fetching node or annotations, we don't want to block deletion of failed machines, so we return true
-		klog.V(2).Infof("Error finding effective preserve value for machine %q: %v. Proceeding with termination of the machine.", machine.Name, err)
+		klog.Errorf("error finding effective preserve value for machine %q: %v. Proceeding with termination of the machine.", machine.Name, err)
 		return true
 	}
 	switch preserveValue {
@@ -974,7 +974,7 @@ func (c *controller) findEffectivePreserveValue(machine *v1alpha1.Machine) (stri
 	if nodeName != "" {
 		node, err := c.nodeLister.Get(nodeName)
 		if err != nil {
-			klog.Errorf("Error fetching node %q for machine %q: %v", nodeName, machine.Name, err)
+			klog.Errorf("error fetching node %q for machine %q: %v", nodeName, machine.Name, err)
 			return "", err
 		}
 		nodeAnnotationValue = node.Annotations[machineutils.PreserveMachineAnnotationKey]

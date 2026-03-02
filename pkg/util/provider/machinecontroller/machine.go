@@ -70,6 +70,7 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 	_, exists := newMachine.Annotations[machineutils.PreserveMachineAnnotationKey]
 	if exists && oldMachine.Status.CurrentStatus.Phase != newMachine.Status.CurrentStatus.Phase {
 		c.enqueueMachine(newObj, "handling preserved machine phase update")
+		return
 	}
 
 	if oldMachine.Generation == newMachine.Generation {
@@ -841,13 +842,4 @@ func getEffectivePreservationAnnotations(nodeAnnotationValue string, machineAnno
 	delete(clonedMachineAnnotations, machineutils.PreserveMachineAnnotationKey)
 	clonedMachineAnnotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] = nodeAnnotationValue
 	return nodeAnnotationValue, clonedMachineAnnotations
-}
-
-func (c *controller) getNodePreserveAnnotationValue(nodeName string) (string, error) {
-	node, err := c.nodeLister.Get(nodeName)
-	if err != nil {
-		klog.Errorf("error fetching node %q: %v", nodeName, err)
-		return "", err
-	}
-	return node.Annotations[machineutils.PreserveMachineAnnotationKey], nil
 }

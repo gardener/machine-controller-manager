@@ -338,3 +338,45 @@ func addedOrRemovedEssentialTaints(oldNode, node *corev1.Node, taintKeys []strin
 	}
 	return false
 }
+
+func (c *controller) getNodePreserveAnnotationValue(nodeName string) (string, error) {
+	node, err := c.nodeLister.Get(nodeName)
+	if err != nil {
+		klog.Errorf("error fetching node %q: %v", nodeName, err)
+		return "", err
+	}
+	return node.Annotations[machineutils.PreserveMachineAnnotationKey], nil
+}
+
+func (c *controller) uncordonNodeIfCordoned(ctx context.Context, nodeName string) error {
+	node, err := c.nodeLister.Get(nodeName)
+	if err != nil {
+		return err
+	}
+	if !node.Spec.Unschedulable {
+		return nil
+	}
+	nodeClone := node.DeepCopy()
+	nodeClone.Spec.Unschedulable = false
+	_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeClone, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("error uncordoning node %q: %v", nodeName, err)
+	}
+	return err
+}
+
+func (c *controller) removePreserveAnnotationOnMachine(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
+
+	if machine.Annotations == nil || (machine.Annotations[machineutils.PreserveMachineAnnotationKey] == "" && machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] == "") {
+		return machine, nil
+	}
+	clone := machine.DeepCopy()
+	delete(clone.Annotations, machineutils.PreserveMachineAnnotationKey)
+	delete(clone.Annotations, machineutils.LastAppliedNodePreserveValueAnnotationKey)
+	updatedClone, err := c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("failed to delete preserve annotation on machine %q. error: %v", machine.Name, err)
+		return nil, err
+	}
+	return updatedClone, nil
+}
