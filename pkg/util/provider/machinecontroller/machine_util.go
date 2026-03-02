@@ -1656,7 +1656,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 			if forceDeleteMachine {
 				klog.Warningf("Failed to update node conditions: %v. However, since it's a force deletion shall continue deletion of VM.", err)
 			} else {
-				klog.Errorf("Drain failed due to failure in update of node conditions: %v", err)
+				klog.Errorf("drain failed due to failure in update of node conditions: %v", err)
 
 				description = fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
 				state = v1alpha1.MachineStateFailed
@@ -1715,7 +1715,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				description = fmt.Sprintf("Drain failed due to - %s. However, since it's a force deletion shall continue deletion of VM. %s", err.Error(), machineutils.DelVolumesAttachments)
 				state = v1alpha1.MachineStateProcessing
 			} else {
-				klog.Warningf("Drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
+				klog.Errorf("drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
 
 				description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
 				state = v1alpha1.MachineStateFailed
@@ -2489,7 +2489,7 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 	if err != nil {
 		return false, err
 	}
-	klog.V(2).Infof("Preservation of machine %q has stopped.", machine.Name)
+	klog.V(2).Infof("Preservation of machine %q and backing node %q has stopped.", machine.Name, nodeName)
 	return true, nil
 }
 
@@ -2545,7 +2545,7 @@ func (c *controller) removePreservationRelatedAnnotationsOnNode(ctx context.Cont
 		delete(nodeCopy.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey)
 		updateRequired = true
 	}
-	if removePreserveAnnotation {
+	if removePreserveAnnotation && nodeCopy.Annotations[machineutils.PreserveMachineAnnotationKey] != "" {
 		delete(nodeCopy.Annotations, machineutils.PreserveMachineAnnotationKey)
 		updateRequired = true
 	}
@@ -2558,23 +2558,6 @@ func (c *controller) removePreservationRelatedAnnotationsOnNode(ctx context.Cont
 		return err
 	}
 	return nil
-}
-
-func (c *controller) uncordonNodeIfCordoned(ctx context.Context, nodeName string) error {
-	node, err := c.nodeLister.Get(nodeName)
-	if err != nil {
-		return err
-	}
-	if !node.Spec.Unschedulable {
-		return nil
-	}
-	nodeClone := node.DeepCopy()
-	nodeClone.Spec.Unschedulable = false
-	_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeClone, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("error uncordoning node %q: %v", nodeName, err)
-	}
-	return err
 }
 
 // computeNewNodePreservedCondition returns the NodeCondition with the values set according to the preserveValue and the stage of Preservation
@@ -2645,22 +2628,6 @@ func (c *controller) clearMachinePreserveExpiryTime(ctx context.Context, machine
 	return nil
 }
 
-func (c *controller) removePreserveAnnotationOnMachine(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
-
-	if machine.Annotations == nil || (machine.Annotations[machineutils.PreserveMachineAnnotationKey] == "" && machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] == "") {
-		return machine, nil
-	}
-	clone := machine.DeepCopy()
-	delete(clone.Annotations, machineutils.PreserveMachineAnnotationKey)
-	delete(clone.Annotations, machineutils.LastAppliedNodePreserveValueAnnotationKey)
-	updatedClone, err := c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("failed to delete preserve annotation on machine %q. error: %v", machine.Name, err)
-		return nil, err
-	}
-	return updatedClone, nil
-}
-
 // drainPreservedNode attempts to drain the node backing a preserved machine
 func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.Machine) error {
 	var (
@@ -2692,7 +2659,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	// verify and log node object's existence
 	_, err = c.nodeLister.Get(nodeName)
 	if err == nil {
-		klog.V(3).Infof("(drainNode) For node %q, machine %q", nodeName, machine.Name)
+		klog.V(3).Infof("(drainNode) For node %q, machine %q, nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeName, machine.Name, nodeReadyCondition, readOnlyFileSystemCondition)
 	} else if apierrors.IsNotFound(err) {
 		klog.Warningf("(drainNode) Node %q for machine %q doesn't exist, so drain will finish instantly", nodeName, machine.Name)
 	}
@@ -2716,7 +2683,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		timeOutDuration = 1 * time.Minute
 		maxEvictRetries = 1
 		klog.V(2).Infof(
-			"Force delete/drain has been triggerred for machine %q with providerID %q and backing node %q due to timeout:%t",
+			"Force delete/drain has been triggerred for machine %q with providerID %q and backing node %q. Timeout Occurred:%t",
 			machine.Name,
 			getProviderID(machine),
 			getNodeName(machine),
@@ -2763,7 +2730,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	klog.V(3).Infof("(drainNode) Invoking RunDrain, timeOutDuration: %s", timeOutDuration)
 	err = drainOptions.RunDrain(ctx)
 	if err != nil {
-		klog.Warningf("Drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
+		klog.Errorf("drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
 		return err
 	}
 	if forceDeletePods {

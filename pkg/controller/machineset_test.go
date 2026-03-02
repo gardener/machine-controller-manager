@@ -1379,8 +1379,6 @@ var _ = Describe("machineset", func() {
 			}
 		})
 		It("should return the Failed machines first.", func() {
-			stop := make(chan struct{})
-			defer close(stop)
 			diff = 1
 			filteredMachines := []*machinev1.Machine{testActiveMachine1, testFailedMachine1}
 			machinesToDelete := getMachinesToDelete(filteredMachines, diff)
@@ -1389,8 +1387,6 @@ var _ = Describe("machineset", func() {
 			Expect(machinesToDelete[0].Name).To(Equal(testFailedMachine1.Name))
 		})
 		It("should prioritise non-preserved machines for deletion.", func() {
-			stop := make(chan struct{})
-			defer close(stop)
 			diff = 2
 			testPreservedFailedMachine := testFailedMachine1.DeepCopy()
 			testPreservedFailedMachine.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: time.Now().Add(1 * time.Hour)}
@@ -1401,8 +1397,6 @@ var _ = Describe("machineset", func() {
 			Expect(machinesToDelete).ToNot(ContainElement(testPreservedFailedMachine))
 		})
 		It("should include preserved machine when needed to maintain replica count", func() {
-			stop := make(chan struct{})
-			defer close(stop)
 			diff = 2
 			testPreservedFailedMachine := testFailedMachine1.DeepCopy()
 			testPreservedFailedMachine.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: time.Now().Add(1 * time.Hour)}
@@ -1932,8 +1926,7 @@ var _ = Describe("machineset", func() {
 					},
 				},
 			}
-			objects := []runtime.Object{}
-			objects = append(objects, testMachineSet, testMachine1, testMachine2, testMachine3, testMachine4)
+			objects := []runtime.Object{testMachineSet, testMachine1, testMachine2, testMachine3, testMachine4}
 			for _, m := range tc.setup.additionalMachines {
 				objects = append(objects, m)
 			}
