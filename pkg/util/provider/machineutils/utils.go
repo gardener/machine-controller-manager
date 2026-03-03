@@ -95,8 +95,10 @@ const (
 	// MediumRetry tells the controller to retry after a medium duration - 3 minutes
 	MediumRetry RetryPeriod = RetryPeriod(3 * time.Minute)
 	// LongRetry tells the controller to retry after a long duration - 10 minutes
-	LongRetry RetryPeriod = RetryPeriod(10 * time.Minute)
+	DefaultLongRetry RetryPeriod = RetryPeriod(10 * time.Minute)
 )
+
+var LongRetry RetryPeriod = DefaultLongRetry
 
 // EssentialTaints are taints on node object which if added/removed, require an immediate reconcile by machine controller
 // TODO: update this when taints for ALT updation and PostCreate operations is introduced.

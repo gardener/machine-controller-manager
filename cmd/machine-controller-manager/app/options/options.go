@@ -46,6 +46,7 @@ type MCMServer struct {
 
 	ControlKubeconfig string
 	TargetKubeconfig  string
+	LongRetryOverride string
 }
 
 // NewMCMServer creates a new MCMServer with a default config.
@@ -100,6 +101,8 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration, "machine-safety-overshooting-period", s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration, "Time period (in duration) used to poll for overshooting of machine objects backing a machineSet by safety controller.")
 
 	fs.BoolVar(&s.AutoscalerScaleDownAnnotationDuringRollout, "autoscaler-scaledown-annotation-during-rollout", true, "Add cluster autoscaler scale-down disabled annotation during roll-out.")
+
+	fs.StringVar(&s.LongRetryOverride, "long-retry", "", "Override machineutils.LongRetry.")
 
 	logs.AddFlags(fs) // Here `logs` is `k8s.io/component-base/logs`.
 
