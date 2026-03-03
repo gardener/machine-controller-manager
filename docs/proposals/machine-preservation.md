@@ -65,8 +65,8 @@ In order to achieve the objectives mentioned, the following are proposed:
 . 
 7. A user/operator can request MCM to stop preserving a machine/node in `Running:Preserved` or `Failed:Preserved` phase by deleting the annotation: `node.machine.sapcloud.io/preserve`. 
    * MCM will move a machine thus annotated either to `Running` phase or `Terminating` depending on the phase of the machine before it was preserved.
-9. Machines of a MachineDeployment in `Preserved` sub-phase will also be counted towards the replica count and in the enforcement of maximum machines allowed for the MachineDeployment.
-10. MCM will be modified to perform drain in `Failed` phase for preserved machines.
+8. Machines of a MachineDeployment in `Preserved` sub-phase will also be counted towards the replica count and in the enforcement of maximum machines allowed for the MachineDeployment. 
+9. MCM will be modified to perform drain in `Failed` phase for preserved machines.
 
 ## State Diagrams:
 
@@ -153,9 +153,9 @@ In order to achieve the objectives mentioned, the following are proposed:
 5. If the backing Node object exists but does not have the preservation annotation, preservation annotations added on the Machine will be honoured.
 6. However, if a backing Node exists for a Machine and has the preservation annotation, the Node's annotation value will override the Machine annotation value.
 7. If `autoPreserveFailedMachineMax` is reduced in the Shoot Spec, older machines are moved to `Terminating` phase before newer ones.
-8. In case of a scale down of an MCD's replica count, `Preserved` machines will be the last to be scaled down. Replica count will always be honoured. 9
+8. In case of a scale down of an MCD's replica count, `Preserved` machines will be the last to be scaled down. Replica count will always be honoured.
 9. On increase/decrease of `machinePreserveTimeout`, the new value will only apply to machines that go into `Preserved` phase after the change. Operators can always edit `machine.CurrentStatus.PreserveExpiryTime` to prolong the expiry time of existing `Preserved` machines.
-11. [Modify CA FAQ](https://github.com/gardener/autoscaler/blob/master/cluster-autoscaler/FAQ.md#how-can-i-prevent-cluster-autoscaler-from-scaling-down-a-particular-node) once feature is developed to use `node.machine.sapcloud.io/preserve=now` instead of the `cluster-autoscaler.kubernetes.io/scale-down-disabled=true` currently suggested. This would:
+10. [Modify CA FAQ](https://github.com/gardener/autoscaler/blob/master/cluster-autoscaler/FAQ.md#how-can-i-prevent-cluster-autoscaler-from-scaling-down-a-particular-node) once feature is developed to use `node.machine.sapcloud.io/preserve=now` instead of the `cluster-autoscaler.kubernetes.io/scale-down-disabled=true` currently suggested. This would:
     - harmonise machine flow
     - shield from CA's internals
     - make it generic and no longer CA specific

@@ -2520,6 +2520,9 @@ func (c *controller) addCAScaleDownDisabledAnnotationOnNode(ctx context.Context,
 	// Add annotation to disable CA scale down.
 	// Also add annotation expressing that MCM is the one who added this annotation, so that it can be removed safely when preservation is stopped.
 	nodeCopy := node.DeepCopy()
+	if node.Annotations == nil {
+		nodeCopy.Annotations = make(map[string]string)
+	}
 	nodeCopy.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
 	nodeCopy.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
 	updatedNode, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
@@ -2530,7 +2533,7 @@ func (c *controller) addCAScaleDownDisabledAnnotationOnNode(ctx context.Context,
 	return updatedNode, nil
 }
 
-// removePreserveAnnotationsOnNode removes the cluster-autoscaler annotation that disables scale down of preserved node
+// removePreservationRelatedAnnotationsOnNode removes the cluster-autoscaler annotation that disables scale down of preserved node
 func (c *controller) removePreservationRelatedAnnotationsOnNode(ctx context.Context, node *v1.Node, removePreserveAnnotation bool) error {
 	// Check if annotation already absent
 	if node.Annotations == nil {
