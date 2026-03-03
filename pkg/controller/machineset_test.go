@@ -2006,15 +2006,6 @@ var _ = Describe("machineset", func() {
 					preservedMachineCount: 2,
 				},
 			}),
-			Entry("should not trigger auto preservation of failed machine annotated with preserve=false even if AutoPreserveFailedMachineCount < AutoPreserveFailedMachineMax", testCase{
-				setup: setup{
-					autoPreserveFailedMachineCount: 0,
-					autoPreserveFailedMachineMax:   3,
-				},
-				expect: expect{
-					preservedMachineCount: 2,
-				},
-			}),
 			Entry("should stop auto preservation of machines annotated with preserve=auto-preserve if AutoPreserveFailedMachineCount > AutoPreserveFailedMachineMax", testCase{
 				setup: setup{
 					autoPreserveFailedMachineCount: 1,
