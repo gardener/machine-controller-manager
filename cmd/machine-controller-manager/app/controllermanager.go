@@ -37,6 +37,7 @@ import (
 	mcmcontroller "github.com/gardener/machine-controller-manager/pkg/controller"
 	corecontroller "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/core"
 	machinecontroller "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/machine"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	kubernetesinformers "k8s.io/client-go/informers"
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 
@@ -218,6 +219,14 @@ func StartControllers(s *options.MCMServer,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) error {
 
+	if s.LongRetryOverride != "" {
+		d, err := time.ParseDuration(s.LongRetryOverride)
+		if err != nil {
+			return fmt.Errorf("invalid --long-retry %q: %w", s.LongRetryOverride, err)
+		}
+		machineutils.LongRetry = machineutils.RetryPeriod(d)
+	}
+	klog.V(4).Infof("Configured LongRetry=%s", time.Duration(machineutils.LongRetry))
 	klog.V(4).Info("Getting available resources")
 	availableResources, err := getAvailableResources(controlCoreClientBuilder)
 	if err != nil {
