@@ -10,6 +10,7 @@ aliases:
   - takoverflow
   - thiyyakat
   - unmarshall
+  - r4mek
   machine-controller-manager-approvers:
   - aaronfern
   - ashwani2k
@@ -19,3 +20,4 @@ aliases:
   - takoverflow
   - thiyyakat
   - unmarshall
+  - r4mek
