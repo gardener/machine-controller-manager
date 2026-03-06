@@ -38,6 +38,7 @@ import (
 	coreclientbuilder "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/core"
 	machineclientbuilder "github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/machine"
 	machinecontroller "github.com/gardener/machine-controller-manager/pkg/util/provider/machinecontroller"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	kubernetesinformers "k8s.io/client-go/informers"
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 
@@ -216,6 +217,16 @@ func StartControllers(s *options.MCServer,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) error {
 
+	ResourceExhaustedRetryPeriod := machineutils.LongRetry
+	if s.ResourceExhaustedRetry != "" {
+		d, err := time.ParseDuration(s.ResourceExhaustedRetry)
+		if err != nil {
+			return fmt.Errorf("invalid --resource-exhausted-retry %q: %w", s.ResourceExhaustedRetry, err)
+		}
+		ResourceExhaustedRetryPeriod = machineutils.RetryPeriod(d)
+	}
+	klog.V(4).Infof("Configured ResourceExhaustedRetryPeriod=%s", time.Duration(ResourceExhaustedRetryPeriod))
+
 	klog.V(4).Info("Getting available resources")
 	availableResources, err := getAvailableResources(controlCoreClientBuilder)
 	if err != nil {
@@ -297,6 +308,7 @@ func StartControllers(s *options.MCServer,
 		s.NodeConditions,
 		s.BootstrapTokenAuthExtraGroups,
 		targetKubernetesVersion,
+		ResourceExhaustedRetryPeriod,
 	)
 	if err != nil {
 		return err
