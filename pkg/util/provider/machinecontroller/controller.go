@@ -16,6 +16,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/permits"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/options"
 	"github.com/gardener/machine-controller-manager/pkg/util/worker"
 
@@ -73,6 +74,7 @@ func NewController(
 	nodeConditions string,
 	bootstrapTokenAuthExtraGroups string,
 	targetKubernetesVersion *semver.Version,
+	resourceExhaustedRetryPeriod machineutils.RetryPeriod,
 ) (Controller, error) {
 	const (
 		permitGiverStaleEntryTimeout = 1 * time.Hour
@@ -121,6 +123,7 @@ func NewController(
 		volumeAttachmentHandler:       nil,
 		permitGiver:                   permits.NewPermitGiver(permitGiverStaleEntryTimeout, janitorFreq),
 		targetKubernetesVersion:       targetKubernetesVersion,
+		resourceExhaustedRetryPeriod:  resourceExhaustedRetryPeriod,
 	}
 
 	controller.internalExternalScheme = runtime.NewScheme()
@@ -298,6 +301,8 @@ type controller struct {
 	machineClassSynced      cache.InformerSynced
 	machineSynced           cache.InformerSynced
 	podSynced               cache.InformerSynced
+
+	resourceExhaustedRetryPeriod machineutils.RetryPeriod
 }
 
 func (dc *controller) Run(workers int, stopCh <-chan struct{}) {
