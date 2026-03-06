@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -379,4 +380,34 @@ func (c *controller) removePreserveAnnotationOnMachine(ctx context.Context, mach
 		return nil, err
 	}
 	return updatedClone, nil
+}
+
+// removePreservationRelatedAnnotationsOnNode removes the cluster-autoscaler annotation that disables scale down of preserved node
+func (c *controller) removePreservationRelatedAnnotationsOnNode(ctx context.Context, node *corev1.Node, removePreserveAnnotation bool) error {
+	// Check if annotation already absent
+	if node.Annotations == nil {
+		return nil
+	}
+	updateRequired := false
+	nodeCopy := node.DeepCopy()
+	// If CA scale-down disabled annotation was added by MCM, it can be safely removed.
+	// If the annotation was added by some other entity, then it should not be removed.
+	if nodeCopy.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] == autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue {
+		delete(nodeCopy.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey)
+		delete(nodeCopy.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey)
+		updateRequired = true
+	}
+	if removePreserveAnnotation && nodeCopy.Annotations[machineutils.PreserveMachineAnnotationKey] != "" {
+		delete(nodeCopy.Annotations, machineutils.PreserveMachineAnnotationKey)
+		updateRequired = true
+	}
+	if !updateRequired {
+		return nil
+	}
+	_, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("node UPDATE failed for node %q. Retrying, error: %s", node.Name, err)
+		return err
+	}
+	return nil
 }

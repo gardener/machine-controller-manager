@@ -2489,7 +2489,7 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 	if err != nil {
 		return false, err
 	}
-	klog.V(2).Infof("Preservation of machine %q and backing node %q has stopped.", machine.Name, nodeName)
+	klog.V(2).Infof("Preservation of machine %q with backing node %q has stopped.", machine.Name, nodeName)
 	return true, nil
 }
 
@@ -2531,36 +2531,6 @@ func (c *controller) addCAScaleDownDisabledAnnotationOnNode(ctx context.Context,
 		return nil, err
 	}
 	return updatedNode, nil
-}
-
-// removePreservationRelatedAnnotationsOnNode removes the cluster-autoscaler annotation that disables scale down of preserved node
-func (c *controller) removePreservationRelatedAnnotationsOnNode(ctx context.Context, node *v1.Node, removePreserveAnnotation bool) error {
-	// Check if annotation already absent
-	if node.Annotations == nil {
-		return nil
-	}
-	updateRequired := false
-	nodeCopy := node.DeepCopy()
-	// If CA scale-down disabled annotation was added by MCM, it can be safely removed.
-	// If the annotation was added by some other entity, then it should not be removed.
-	if nodeCopy.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] == autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue {
-		delete(nodeCopy.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey)
-		delete(nodeCopy.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey)
-		updateRequired = true
-	}
-	if removePreserveAnnotation && nodeCopy.Annotations[machineutils.PreserveMachineAnnotationKey] != "" {
-		delete(nodeCopy.Annotations, machineutils.PreserveMachineAnnotationKey)
-		updateRequired = true
-	}
-	if !updateRequired {
-		return nil
-	}
-	_, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("node UPDATE failed for node %q. Retrying, error: %s", node.Name, err)
-		return err
-	}
-	return nil
 }
 
 // computeNewNodePreservedCondition returns the NodeCondition with the values set according to the preserveValue and the stage of Preservation
@@ -2686,11 +2656,12 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		timeOutDuration = 1 * time.Minute
 		maxEvictRetries = 1
 		klog.V(2).Infof(
-			"Force delete/drain has been triggerred for machine %q with providerID %q and backing node %q. Timeout Occurred:%t",
+			"Force delete/drain has been triggerred for machine %q with providerID %q and backing node %q. Timeout Occurred:%t, force-drain label present:%t",
 			machine.Name,
 			getProviderID(machine),
 			getNodeName(machine),
 			timeOutOccurred,
+			forceDrainLabelPresent,
 		)
 	} else {
 		klog.V(2).Infof(
