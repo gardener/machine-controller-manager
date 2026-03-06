@@ -58,9 +58,23 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 		klog.Errorf("couldn't convert to machine resource from object")
 		return
 	}
+	// to reconcile on change in annotations related to preservation
+	if oldMachine.Annotations[machineutils.PreserveMachineAnnotationKey] != newMachine.Annotations[machineutils.PreserveMachineAnnotationKey] {
+		c.enqueueMachine(newObj, "handling machine object preservation related UPDATE event")
+		return
+	}
+	// this check is required to enqueue a machine, annotated with the preservation key, whose phase has changed.
+	// if annotated with "when-failed", the machine should be preserved on Failure
+	// if annotated with "now", the machine should be drained on Failure
+	// if machine phase changes from Failed to Running, machine preservation should be stopped
+	_, exists := newMachine.Annotations[machineutils.PreserveMachineAnnotationKey]
+	if exists && oldMachine.Status.CurrentStatus.Phase != newMachine.Status.CurrentStatus.Phase {
+		c.enqueueMachine(newObj, "handling preserved machine phase update")
+		return
+	}
 
 	if oldMachine.Generation == newMachine.Generation {
-		klog.V(3).Infof("Skipping non-spec updates for machine %s", oldMachine.Name)
+		klog.V(3).Infof("Skipping other non-spec updates for machine %q", oldMachine.Name)
 		return
 	}
 
@@ -232,6 +246,11 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		if err != nil {
 			return retry, err
 		}
+	}
+
+	retry, err = c.manageMachinePreservation(ctx, machine)
+	if err != nil {
+		return retry, err
 	}
 
 	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
@@ -441,7 +460,6 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			uninitializedMachine = true
 			klog.Infof("VM instance associated with machine %s was created but not initialized.", machine.Name)
 			//clean me up. I'm dirty.
-			//TODO@thiyyakat add a pointer to a boolean variable indicating whether initialization has happened successfully.
 			nodeName = getMachineStatusResponse.NodeName
 			providerID = getMachineStatusResponse.ProviderID
 
@@ -710,7 +728,6 @@ func (c *controller) shouldMachineBeMovedToTerminatingQueue(machine *v1alpha1.Ma
 	if machine.DeletionTimestamp != nil && c.isCreationProcessing(machine) {
 		klog.Warningf("Cannot delete machine %q, its deletionTimestamp is set but it is currently being processed by the creation flow\n", getMachineKey(machine))
 	}
-
 	return !c.isCreationProcessing(machine) && machine.DeletionTimestamp != nil
 }
 
@@ -723,4 +740,106 @@ func (c *controller) unmarkCreationProcessing(machine *v1alpha1.Machine) {
 func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 	_, isMachineInCreationFlow := c.pendingMachineCreationMap.Load(getMachineKey(machine))
 	return isMachineInCreationFlow
+}
+
+/*
+	SECTION
+	Machine Preservation operations
+*/
+
+// manageMachinePreservation manages machine preservation based on the preserve annotation values on the node and machine objects.
+func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (retry machineutils.RetryPeriod, err error) {
+	machineAnnotationsUpdated := false
+	clone := machine.DeepCopy()
+	defer func() {
+		// This needs to be done for cases when machine is neither preserved nor un-preserved (e.g. when preserve changes from now to when-failed on a Failed machine),
+		// but the LastAppliedNodePreserveValueAnnotation needs to be updated.
+		// We compare annotation value in the clone with the original machine object to see if an update is required
+		if err == nil && !machineAnnotationsUpdated && clone.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] != machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] {
+			_, err = c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
+			if err != nil {
+				klog.Errorf("error updating LastAppliedNodePreserveValueAnnotation value on machine %q: %v", machine.Name, err)
+			}
+		}
+		if err != nil {
+			if apierrors.IsConflict(err) {
+				retry = machineutils.ConflictRetry
+			} else {
+				retry = machineutils.ShortRetry
+			}
+		} else {
+			retry = machineutils.LongRetry
+		}
+	}()
+
+	nodeName := clone.Labels[v1alpha1.NodeLabelKey]
+	nodeAnnotationValue := ""
+	if nodeName != "" {
+		nodeAnnotationValue, err = c.getNodePreserveAnnotationValue(nodeName)
+		if err != nil {
+			return
+		}
+	}
+	var effectivePreserveValue string
+	effectivePreserveValue, clone.Annotations = getEffectivePreservationAnnotations(nodeAnnotationValue, clone.Annotations)
+	if !machineutils.AllowedPreserveAnnotationValues.Has(effectivePreserveValue) {
+		if effectivePreserveValue == nodeAnnotationValue {
+			klog.Warningf("Preserve annotation value %q on node %q is invalid", effectivePreserveValue, nodeName)
+		} else {
+			klog.Warningf("Preserve annotation value %q on machine %q is invalid", effectivePreserveValue, clone.Name)
+		}
+		return
+	}
+	switch effectivePreserveValue {
+	case "", machineutils.PreserveMachineAnnotationValueFalse:
+		machineAnnotationsUpdated, err = c.stopPreservationIfActive(ctx, clone, false)
+	case machineutils.PreserveMachineAnnotationValueWhenFailed:
+		if !machineutils.IsMachineFailed(clone) || machineutils.IsMachinePreservationExpired(clone) {
+			machineAnnotationsUpdated, err = c.stopPreservationIfActive(ctx, clone, false)
+		} else {
+			machineAnnotationsUpdated, err = c.preserveMachine(ctx, clone, effectivePreserveValue)
+		}
+	case machineutils.PreserveMachineAnnotationValueNow:
+		if machineutils.IsMachinePreservationExpired(clone) {
+			// on timing out, remove preserve annotation to prevent incorrect re-preservation
+			machineAnnotationsUpdated, err = c.stopPreservationIfActive(ctx, clone, true)
+		} else {
+			machineAnnotationsUpdated, err = c.preserveMachine(ctx, clone, effectivePreserveValue)
+		}
+	case machineutils.PreserveMachineAnnotationValuePreservedByMCM:
+		if !machineutils.IsMachineFailed(clone) || machineutils.IsMachinePreservationExpired(clone) {
+			// To prevent incorrect re-preservation of a recovered, previously auto-preserved machine on future failures
+			// (since the autoPreserveFailedMachineCount maintained by the machineSetController, may have changed),
+			// in addition to stopping preservation, we also remove the preservation annotation on the machine.
+			machineAnnotationsUpdated, err = c.stopPreservationIfActive(ctx, clone, true)
+		} else {
+			machineAnnotationsUpdated, err = c.preserveMachine(ctx, clone, effectivePreserveValue)
+		}
+	}
+	if err != nil {
+		return
+	}
+	// This is to handle the case where a preserved machine recovers from Failed to Running
+	// in which case, pods should be allowed to be scheduled onto the node
+	if machineutils.IsMachineActive(clone) && nodeName != "" {
+		err = c.uncordonNodeIfCordoned(ctx, nodeName)
+	}
+	return
+}
+
+// getEffectivePreservationAnnotations returns the effective preservation value, and updates the machine Annotations related to preservation
+func getEffectivePreservationAnnotations(nodeAnnotationValue string, machineAnnotations map[string]string) (string, map[string]string) {
+	// If there is no active node annotation AND no previously-applied node annotation,
+	// enforce machine's preserve annotation.
+	// Otherwise, the node annotation takes precedence (even if now empty/removed).
+	if nodeAnnotationValue == "" && machineAnnotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] == "" {
+		return machineAnnotations[machineutils.PreserveMachineAnnotationKey], machineAnnotations
+	}
+	clonedMachineAnnotations := make(map[string]string)
+	for k, v := range machineAnnotations {
+		clonedMachineAnnotations[k] = v
+	}
+	delete(clonedMachineAnnotations, machineutils.PreserveMachineAnnotationKey)
+	clonedMachineAnnotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] = nodeAnnotationValue
+	return nodeAnnotationValue, clonedMachineAnnotations
 }

@@ -13,8 +13,8 @@ import (
 	unsafe "unsafe"
 
 	machine "github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
@@ -348,6 +348,7 @@ func autoConvert_v1alpha1_CurrentStatus_To_machine_CurrentStatus(in *CurrentStat
 	out.Phase = machine.MachinePhase(in.Phase)
 	out.TimeoutActive = in.TimeoutActive
 	out.LastUpdateTime = in.LastUpdateTime
+	out.PreserveExpiryTime = (*v1.Time)(unsafe.Pointer(in.PreserveExpiryTime))
 	return nil
 }
 
@@ -360,6 +361,7 @@ func autoConvert_machine_CurrentStatus_To_v1alpha1_CurrentStatus(in *machine.Cur
 	out.Phase = MachinePhase(in.Phase)
 	out.TimeoutActive = in.TimeoutActive
 	out.LastUpdateTime = in.LastUpdateTime
+	out.PreserveExpiryTime = (*v1.Time)(unsafe.Pointer(in.PreserveExpiryTime))
 	return nil
 }
 
@@ -457,10 +459,10 @@ func Convert_machine_Machine_To_v1alpha1_Machine(in *machine.Machine, out *Machi
 func autoConvert_v1alpha1_MachineClass_To_machine_MachineClass(in *MachineClass, out *machine.MachineClass, s conversion.Scope) error {
 	out.ObjectMeta = in.ObjectMeta
 	out.NodeTemplate = (*machine.NodeTemplate)(unsafe.Pointer(in.NodeTemplate))
-	out.CredentialsSecretRef = (*v1.SecretReference)(unsafe.Pointer(in.CredentialsSecretRef))
+	out.CredentialsSecretRef = (*corev1.SecretReference)(unsafe.Pointer(in.CredentialsSecretRef))
 	out.ProviderSpec = in.ProviderSpec
 	out.Provider = in.Provider
-	out.SecretRef = (*v1.SecretReference)(unsafe.Pointer(in.SecretRef))
+	out.SecretRef = (*corev1.SecretReference)(unsafe.Pointer(in.SecretRef))
 	return nil
 }
 
@@ -472,10 +474,10 @@ func Convert_v1alpha1_MachineClass_To_machine_MachineClass(in *MachineClass, out
 func autoConvert_machine_MachineClass_To_v1alpha1_MachineClass(in *machine.MachineClass, out *MachineClass, s conversion.Scope) error {
 	out.ObjectMeta = in.ObjectMeta
 	out.NodeTemplate = (*NodeTemplate)(unsafe.Pointer(in.NodeTemplate))
-	out.CredentialsSecretRef = (*v1.SecretReference)(unsafe.Pointer(in.CredentialsSecretRef))
+	out.CredentialsSecretRef = (*corev1.SecretReference)(unsafe.Pointer(in.CredentialsSecretRef))
 	out.Provider = in.Provider
 	out.ProviderSpec = in.ProviderSpec
-	out.SecretRef = (*v1.SecretReference)(unsafe.Pointer(in.SecretRef))
+	out.SecretRef = (*corev1.SecretReference)(unsafe.Pointer(in.SecretRef))
 	return nil
 }
 
@@ -527,10 +529,11 @@ func Convert_machine_MachineClassList_To_v1alpha1_MachineClassList(in *machine.M
 }
 
 func autoConvert_v1alpha1_MachineConfiguration_To_machine_MachineConfiguration(in *MachineConfiguration, out *machine.MachineConfiguration, s conversion.Scope) error {
-	out.MachineDrainTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachineDrainTimeout))
-	out.MachineHealthTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachineHealthTimeout))
-	out.MachineCreationTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachineCreationTimeout))
-	out.MachineInPlaceUpdateTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachineInPlaceUpdateTimeout))
+	out.MachineDrainTimeout = (*v1.Duration)(unsafe.Pointer(in.MachineDrainTimeout))
+	out.MachineHealthTimeout = (*v1.Duration)(unsafe.Pointer(in.MachineHealthTimeout))
+	out.MachineCreationTimeout = (*v1.Duration)(unsafe.Pointer(in.MachineCreationTimeout))
+	out.MachineInPlaceUpdateTimeout = (*v1.Duration)(unsafe.Pointer(in.MachineInPlaceUpdateTimeout))
+	out.MachinePreserveTimeout = (*v1.Duration)(unsafe.Pointer(in.MachinePreserveTimeout))
 	out.DisableHealthTimeout = (*bool)(unsafe.Pointer(in.DisableHealthTimeout))
 	out.MaxEvictRetries = (*int32)(unsafe.Pointer(in.MaxEvictRetries))
 	out.NodeConditions = (*string)(unsafe.Pointer(in.NodeConditions))
@@ -543,10 +546,11 @@ func Convert_v1alpha1_MachineConfiguration_To_machine_MachineConfiguration(in *M
 }
 
 func autoConvert_machine_MachineConfiguration_To_v1alpha1_MachineConfiguration(in *machine.MachineConfiguration, out *MachineConfiguration, s conversion.Scope) error {
-	out.MachineDrainTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachineDrainTimeout))
-	out.MachineHealthTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachineHealthTimeout))
-	out.MachineCreationTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachineCreationTimeout))
-	out.MachineInPlaceUpdateTimeout = (*metav1.Duration)(unsafe.Pointer(in.MachineInPlaceUpdateTimeout))
+	out.MachineDrainTimeout = (*v1.Duration)(unsafe.Pointer(in.MachineDrainTimeout))
+	out.MachineHealthTimeout = (*v1.Duration)(unsafe.Pointer(in.MachineHealthTimeout))
+	out.MachineCreationTimeout = (*v1.Duration)(unsafe.Pointer(in.MachineCreationTimeout))
+	out.MachineInPlaceUpdateTimeout = (*v1.Duration)(unsafe.Pointer(in.MachineInPlaceUpdateTimeout))
+	out.MachinePreserveTimeout = (*v1.Duration)(unsafe.Pointer(in.MachinePreserveTimeout))
 	out.DisableHealthTimeout = (*bool)(unsafe.Pointer(in.DisableHealthTimeout))
 	out.MaxEvictRetries = (*int32)(unsafe.Pointer(in.MaxEvictRetries))
 	out.NodeConditions = (*string)(unsafe.Pointer(in.NodeConditions))
@@ -644,7 +648,7 @@ func Convert_machine_MachineDeploymentList_To_v1alpha1_MachineDeploymentList(in 
 
 func autoConvert_v1alpha1_MachineDeploymentSpec_To_machine_MachineDeploymentSpec(in *MachineDeploymentSpec, out *machine.MachineDeploymentSpec, s conversion.Scope) error {
 	out.Replicas = in.Replicas
-	out.Selector = (*metav1.LabelSelector)(unsafe.Pointer(in.Selector))
+	out.Selector = (*v1.LabelSelector)(unsafe.Pointer(in.Selector))
 	if err := Convert_v1alpha1_MachineTemplateSpec_To_machine_MachineTemplateSpec(&in.Template, &out.Template, s); err != nil {
 		return err
 	}
@@ -656,6 +660,7 @@ func autoConvert_v1alpha1_MachineDeploymentSpec_To_machine_MachineDeploymentSpec
 	out.Paused = in.Paused
 	out.RollbackTo = (*machine.RollbackConfig)(unsafe.Pointer(in.RollbackTo))
 	out.ProgressDeadlineSeconds = (*int32)(unsafe.Pointer(in.ProgressDeadlineSeconds))
+	out.AutoPreserveFailedMachineMax = in.AutoPreserveFailedMachineMax
 	return nil
 }
 
@@ -666,7 +671,7 @@ func Convert_v1alpha1_MachineDeploymentSpec_To_machine_MachineDeploymentSpec(in 
 
 func autoConvert_machine_MachineDeploymentSpec_To_v1alpha1_MachineDeploymentSpec(in *machine.MachineDeploymentSpec, out *MachineDeploymentSpec, s conversion.Scope) error {
 	out.Replicas = in.Replicas
-	out.Selector = (*metav1.LabelSelector)(unsafe.Pointer(in.Selector))
+	out.Selector = (*v1.LabelSelector)(unsafe.Pointer(in.Selector))
 	if err := Convert_machine_MachineTemplateSpec_To_v1alpha1_MachineTemplateSpec(&in.Template, &out.Template, s); err != nil {
 		return err
 	}
@@ -678,6 +683,7 @@ func autoConvert_machine_MachineDeploymentSpec_To_v1alpha1_MachineDeploymentSpec
 	out.Paused = in.Paused
 	out.RollbackTo = (*RollbackConfig)(unsafe.Pointer(in.RollbackTo))
 	out.ProgressDeadlineSeconds = (*int32)(unsafe.Pointer(in.ProgressDeadlineSeconds))
+	out.AutoPreserveFailedMachineMax = in.AutoPreserveFailedMachineMax
 	return nil
 }
 
@@ -852,7 +858,7 @@ func Convert_machine_MachineSetList_To_v1alpha1_MachineSetList(in *machine.Machi
 
 func autoConvert_v1alpha1_MachineSetSpec_To_machine_MachineSetSpec(in *MachineSetSpec, out *machine.MachineSetSpec, s conversion.Scope) error {
 	out.Replicas = in.Replicas
-	out.Selector = (*metav1.LabelSelector)(unsafe.Pointer(in.Selector))
+	out.Selector = (*v1.LabelSelector)(unsafe.Pointer(in.Selector))
 	if err := Convert_v1alpha1_ClassSpec_To_machine_ClassSpec(&in.MachineClass, &out.MachineClass, s); err != nil {
 		return err
 	}
@@ -860,6 +866,7 @@ func autoConvert_v1alpha1_MachineSetSpec_To_machine_MachineSetSpec(in *MachineSe
 		return err
 	}
 	out.MinReadySeconds = in.MinReadySeconds
+	out.AutoPreserveFailedMachineMax = in.AutoPreserveFailedMachineMax
 	return nil
 }
 
@@ -870,7 +877,7 @@ func Convert_v1alpha1_MachineSetSpec_To_machine_MachineSetSpec(in *MachineSetSpe
 
 func autoConvert_machine_MachineSetSpec_To_v1alpha1_MachineSetSpec(in *machine.MachineSetSpec, out *MachineSetSpec, s conversion.Scope) error {
 	out.Replicas = in.Replicas
-	out.Selector = (*metav1.LabelSelector)(unsafe.Pointer(in.Selector))
+	out.Selector = (*v1.LabelSelector)(unsafe.Pointer(in.Selector))
 	if err := Convert_machine_ClassSpec_To_v1alpha1_ClassSpec(&in.MachineClass, &out.MachineClass, s); err != nil {
 		return err
 	}
@@ -878,6 +885,7 @@ func autoConvert_machine_MachineSetSpec_To_v1alpha1_MachineSetSpec(in *machine.M
 		return err
 	}
 	out.MinReadySeconds = in.MinReadySeconds
+	out.AutoPreserveFailedMachineMax = in.AutoPreserveFailedMachineMax
 	return nil
 }
 
@@ -897,6 +905,7 @@ func autoConvert_v1alpha1_MachineSetStatus_To_machine_MachineSetStatus(in *Machi
 		return err
 	}
 	out.FailedMachines = (*[]machine.MachineSummary)(unsafe.Pointer(in.FailedMachines))
+	out.AutoPreserveFailedMachineCount = in.AutoPreserveFailedMachineCount
 	return nil
 }
 
@@ -916,6 +925,7 @@ func autoConvert_machine_MachineSetStatus_To_v1alpha1_MachineSetStatus(in *machi
 		return err
 	}
 	out.FailedMachines = (*[]MachineSummary)(unsafe.Pointer(in.FailedMachines))
+	out.AutoPreserveFailedMachineCount = in.AutoPreserveFailedMachineCount
 	return nil
 }
 
@@ -959,8 +969,8 @@ func Convert_machine_MachineSpec_To_v1alpha1_MachineSpec(in *machine.MachineSpec
 }
 
 func autoConvert_v1alpha1_MachineStatus_To_machine_MachineStatus(in *MachineStatus, out *machine.MachineStatus, s conversion.Scope) error {
-	out.Addresses = *(*[]v1.NodeAddress)(unsafe.Pointer(&in.Addresses))
-	out.Conditions = *(*[]v1.NodeCondition)(unsafe.Pointer(&in.Conditions))
+	out.Addresses = *(*[]corev1.NodeAddress)(unsafe.Pointer(&in.Addresses))
+	out.Conditions = *(*[]corev1.NodeCondition)(unsafe.Pointer(&in.Conditions))
 	if err := Convert_v1alpha1_LastOperation_To_machine_LastOperation(&in.LastOperation, &out.LastOperation, s); err != nil {
 		return err
 	}
@@ -977,8 +987,8 @@ func Convert_v1alpha1_MachineStatus_To_machine_MachineStatus(in *MachineStatus, 
 }
 
 func autoConvert_machine_MachineStatus_To_v1alpha1_MachineStatus(in *machine.MachineStatus, out *MachineStatus, s conversion.Scope) error {
-	out.Addresses = *(*[]v1.NodeAddress)(unsafe.Pointer(&in.Addresses))
-	out.Conditions = *(*[]v1.NodeCondition)(unsafe.Pointer(&in.Conditions))
+	out.Addresses = *(*[]corev1.NodeAddress)(unsafe.Pointer(&in.Addresses))
+	out.Conditions = *(*[]corev1.NodeCondition)(unsafe.Pointer(&in.Conditions))
 	if err := Convert_machine_LastOperation_To_v1alpha1_LastOperation(&in.LastOperation, &out.LastOperation, s); err != nil {
 		return err
 	}
@@ -1051,8 +1061,8 @@ func Convert_machine_MachineTemplateSpec_To_v1alpha1_MachineTemplateSpec(in *mac
 }
 
 func autoConvert_v1alpha1_NodeTemplate_To_machine_NodeTemplate(in *NodeTemplate, out *machine.NodeTemplate, s conversion.Scope) error {
-	out.Capacity = *(*v1.ResourceList)(unsafe.Pointer(&in.Capacity))
-	out.VirtualCapacity = *(*v1.ResourceList)(unsafe.Pointer(&in.VirtualCapacity))
+	out.Capacity = *(*corev1.ResourceList)(unsafe.Pointer(&in.Capacity))
+	out.VirtualCapacity = *(*corev1.ResourceList)(unsafe.Pointer(&in.VirtualCapacity))
 	out.InstanceType = in.InstanceType
 	out.Region = in.Region
 	out.Zone = in.Zone
@@ -1066,8 +1076,8 @@ func Convert_v1alpha1_NodeTemplate_To_machine_NodeTemplate(in *NodeTemplate, out
 }
 
 func autoConvert_machine_NodeTemplate_To_v1alpha1_NodeTemplate(in *machine.NodeTemplate, out *NodeTemplate, s conversion.Scope) error {
-	out.Capacity = *(*v1.ResourceList)(unsafe.Pointer(&in.Capacity))
-	out.VirtualCapacity = *(*v1.ResourceList)(unsafe.Pointer(&in.VirtualCapacity))
+	out.Capacity = *(*corev1.ResourceList)(unsafe.Pointer(&in.Capacity))
+	out.VirtualCapacity = *(*corev1.ResourceList)(unsafe.Pointer(&in.VirtualCapacity))
 	out.InstanceType = in.InstanceType
 	out.Region = in.Region
 	out.Zone = in.Zone
