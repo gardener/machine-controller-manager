@@ -217,15 +217,15 @@ func StartControllers(s *options.MCServer,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) error {
 
-	ResourceExhaustedRetryPeriod := machineutils.LongRetry
+	resourceExhaustedRetryPeriod := machineutils.LongRetry
 	if s.ResourceExhaustedRetry != "" {
 		d, err := time.ParseDuration(s.ResourceExhaustedRetry)
 		if err != nil {
 			return fmt.Errorf("invalid --resource-exhausted-retry %q: %w", s.ResourceExhaustedRetry, err)
 		}
-		ResourceExhaustedRetryPeriod = machineutils.RetryPeriod(d)
+		resourceExhaustedRetryPeriod = machineutils.RetryPeriod(d)
 	}
-	klog.V(4).Infof("Configured ResourceExhaustedRetryPeriod=%s", time.Duration(ResourceExhaustedRetryPeriod))
+	klog.V(4).Infof("Configured ResourceExhaustedRetryPeriod=%s", time.Duration(resourceExhaustedRetryPeriod))
 
 	klog.V(4).Info("Getting available resources")
 	availableResources, err := getAvailableResources(controlCoreClientBuilder)
@@ -308,7 +308,7 @@ func StartControllers(s *options.MCServer,
 		s.NodeConditions,
 		s.BootstrapTokenAuthExtraGroups,
 		targetKubernetesVersion,
-		ResourceExhaustedRetryPeriod,
+		resourceExhaustedRetryPeriod,
 	)
 	if err != nil {
 		return err

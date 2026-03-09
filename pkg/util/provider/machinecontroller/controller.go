@@ -74,7 +74,7 @@ func NewController(
 	nodeConditions string,
 	bootstrapTokenAuthExtraGroups string,
 	targetKubernetesVersion *semver.Version,
-	resourceExhaustedRetryPeriod machineutils.RetryPeriod,
+	resourceExhaustedRetry machineutils.RetryPeriod,
 ) (Controller, error) {
 	const (
 		permitGiverStaleEntryTimeout = 1 * time.Hour
@@ -123,7 +123,7 @@ func NewController(
 		volumeAttachmentHandler:       nil,
 		permitGiver:                   permits.NewPermitGiver(permitGiverStaleEntryTimeout, janitorFreq),
 		targetKubernetesVersion:       targetKubernetesVersion,
-		resourceExhaustedRetryPeriod:  resourceExhaustedRetryPeriod,
+		resourceExhaustedRetry:        resourceExhaustedRetry,
 	}
 
 	controller.internalExternalScheme = runtime.NewScheme()
@@ -302,7 +302,7 @@ type controller struct {
 	machineSynced           cache.InformerSynced
 	podSynced               cache.InformerSynced
 
-	resourceExhaustedRetryPeriod machineutils.RetryPeriod
+	resourceExhaustedRetry machineutils.RetryPeriod
 }
 
 func (dc *controller) Run(workers int, stopCh <-chan struct{}) {
