@@ -1994,8 +1994,9 @@ var _ = Describe("machineset", func() {
 			}
 			testMachine1 := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
+					Name:              "machine-1",
+					Namespace:         testNamespace,
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
 				},
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
@@ -2005,8 +2006,9 @@ var _ = Describe("machineset", func() {
 			}
 			testMachine2 := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-2",
-					Namespace: testNamespace,
+					Name:              "machine-2",
+					Namespace:         testNamespace,
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
 				},
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
@@ -2016,8 +2018,9 @@ var _ = Describe("machineset", func() {
 			}
 			testMachine3 := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-3",
-					Namespace: testNamespace,
+					Name:              "machine-3",
+					Namespace:         testNamespace,
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
 				},
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
@@ -2027,8 +2030,9 @@ var _ = Describe("machineset", func() {
 			}
 			testMachine4 := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-4",
-					Namespace: testNamespace,
+					Name:              "machine-4",
+					Namespace:         testNamespace,
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
 					Annotations: map[string]string{
 						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueFalse,
 					},
