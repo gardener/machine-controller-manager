@@ -366,22 +366,6 @@ func (c *controller) uncordonNodeIfCordoned(ctx context.Context, nodeName string
 	return err
 }
 
-func (c *controller) removePreserveAnnotationOnMachine(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
-
-	if machine.Annotations == nil || (machine.Annotations[machineutils.PreserveMachineAnnotationKey] == "" && machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] == "") {
-		return machine, nil
-	}
-	clone := machine.DeepCopy()
-	delete(clone.Annotations, machineutils.PreserveMachineAnnotationKey)
-	delete(clone.Annotations, machineutils.LastAppliedNodePreserveValueAnnotationKey)
-	updatedClone, err := c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("failed to delete preserve annotation on machine %q. error: %v", machine.Name, err)
-		return nil, err
-	}
-	return updatedClone, nil
-}
-
 // removePreservationRelatedAnnotationsOnNode removes the cluster-autoscaler annotation that disables scale down of preserved node
 func (c *controller) removePreservationRelatedAnnotationsOnNode(ctx context.Context, node *corev1.Node, removePreserveAnnotation bool) error {
 	// Check if annotation already absent
@@ -410,4 +394,26 @@ func (c *controller) removePreservationRelatedAnnotationsOnNode(ctx context.Cont
 		return err
 	}
 	return nil
+}
+
+// addCAScaleDownDisabledAnnotationOnNode adds the cluster-autoscaler annotation to disable scale down of preserved node
+func (c *controller) addCAScaleDownDisabledAnnotationOnNode(ctx context.Context, node *corev1.Node) (*corev1.Node, error) {
+	// Check if annotation already exists with correct value
+	if node.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] == autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue {
+		return node, nil
+	}
+	// Add annotation to disable CA scale down.
+	// Also add annotation expressing that MCM is the one who added this annotation, so that it can be removed safely when preservation is stopped.
+	nodeCopy := node.DeepCopy()
+	if node.Annotations == nil {
+		nodeCopy.Annotations = make(map[string]string)
+	}
+	nodeCopy.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
+	nodeCopy.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
+	updatedNode, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("error trying to update CA annotation on node %q: %v", node.Name, err)
+		return nil, err
+	}
+	return updatedNode, nil
 }

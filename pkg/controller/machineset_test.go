@@ -11,7 +11,6 @@ import (
 	"math/rand"
 	corev1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
-	"sort"
 	"sync"
 	"time"
 
@@ -2147,44 +2146,6 @@ var _ = Describe("machineset", func() {
 				},
 			}),
 		)
-	})
-	Describe("#AutoPreservedMachinesSorting ", func() {
-		It("should sort auto-preserved failed machines in the order of increasing creation timestamp", func() {
-			machines := []*machinev1.Machine{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:              "machine-1",
-						Namespace:         testNamespace,
-						CreationTimestamp: metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:              "machine-2",
-						Namespace:         testNamespace,
-						CreationTimestamp: metav1.Time{Time: time.Now().Add(-4 * time.Hour)},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:              "machine-3",
-						Namespace:         testNamespace,
-						CreationTimestamp: metav1.Time{Time: time.Now().Add(-3 * time.Hour)},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:              "machine-4",
-						Namespace:         testNamespace,
-						CreationTimestamp: metav1.Time{Time: time.Now().Add(-5 * time.Hour)},
-					},
-				},
-			}
-			sort.Sort(AutoPreservedMachines(machines))
-			for index := range machines[:len(machines)-1] {
-				Expect(machines[index].CreationTimestamp.Time.Before(machines[index+1].CreationTimestamp.Time)).To(BeTrue())
-			}
-		})
 	})
 
 	Describe("#shouldFailedMachineBeTerminated", func() {

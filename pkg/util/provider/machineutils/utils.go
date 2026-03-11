@@ -103,27 +103,30 @@ const (
 	LastAppliedNodePreserveValueAnnotationKey = "node.machine.sapcloud.io/last-applied-node-preserve-value"
 
 	// PreserveMachineAnnotationValueNow is the annotation value used to explicitly request that
-	// a Machine be preserved immediately in its current phase
+	// a Machine be preserved immediately, irrespective of its current phase, and its phase is not changed
+	// on preservation
 	PreserveMachineAnnotationValueNow = "now"
 
 	// PreserveMachineAnnotationValueWhenFailed is the annotation value used to explicitly request that
-	// a Machine be preserved if and when in it enters Failed phase
+	// a Machine be preserved if and when it enters Failed phase
 	PreserveMachineAnnotationValueWhenFailed = "when-failed"
 
-	// PreserveMachineAnnotationValuePreservedByMCM is the annotation value used to explicitly request that
-	// a Machine be preserved if and when in it enters Failed phase.
+	// PreserveMachineAnnotationValuePreservedByMCM is the annotation value used by the machineset controller to
+	// indicate to the machine controller that the machine must be auto-preserved.
 	// The AutoPreserveFailedMachineMax, set on the MCD, is enforced based on the number of machines annotated with this value.
 	PreserveMachineAnnotationValuePreservedByMCM = "auto-preserved"
 
-	// PreserveMachineAnnotationValueFalse is the annotation value used to indicate to MCM that a machine must not be auto-preserved
-	// on failure.
+	// PreserveMachineAnnotationValueFalse is the annotation value used to
+	// 1) indicate to MCM that a machine must not be auto-preserved on failure
+	// and, 2) to stop auto-preservation of a machine that is already auto-preserved by MCM.
 	PreserveMachineAnnotationValueFalse = "false"
 )
 
 // AllowedPreserveAnnotationValues contains the allowed values for the preserve annotation
 var AllowedPreserveAnnotationValues = sets.New(PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValuePreservedByMCM, PreserveMachineAnnotationValueFalse, "")
 
-// PreventAutoPreserveAnnotationValues contains the values for which a machine will not be auto-preserved on failure
+// PreventAutoPreserveAnnotationValues contains the values to check if a machine is already annotated for preservation,
+// in which case it should not be auto-preserved.
 var PreventAutoPreserveAnnotationValues = sets.New(PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValuePreservedByMCM, PreserveMachineAnnotationValueFalse)
 
 // RetryPeriod is an alias for specifying the retry period
