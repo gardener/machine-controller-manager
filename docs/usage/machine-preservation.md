@@ -27,7 +27,8 @@ A preserved machine/node has the following properties:
     - If a machine has no backing node, only `PreserveExpiryTime` is set.
 - If the machine is preserved and in `Failed` phase:
     - The `PreserveExpiryTime` is set in the machine's status to indicate when preservation will end.
-    - The CA scale-down-disabled annotation is added.
+    - The CA scale-down-disabled annotation is added on the backing node,
+    - The backing node is cordoned to prevent scheduling of new pods on it.
     - The backing node is drained of all pods but the daemonset pods remain.
     - The `NodeCondition` of `Type=Preserved` is updated to show that the preservation was successful.
     - If a machine has no backing node, only `PreserveExpiryTime` is set.
@@ -65,12 +66,11 @@ kind: Shoot
 spec:  
   workers:  
   - cri:      
-	  name: containerd    
+      name: containerd    
     name: worker1
     autoPreserveFailedMachineMax: 1
     machineControllerManager:      
-	  machinePreserveTimeout: 72h    
-    
+      machinePreserveTimeout: 72h
 ```
 
 #### Configuration Semantics
@@ -100,9 +100,8 @@ annotation key: `node.machine.sapcloud.io/preserve`
 ### ⚠️ Preservation Annotation semantics:
 
 Both node and machine objects can be annotated for preservation. 
-However, if both machine and node have the preservation annotation, the node's annotation value (even if set to "") is honoured and the machine's annotation is deleted. 
-To prevent confusion and unintended behaviour, it is advised to use the feature by annotating only the node or the machine, and not both.
-
+However, if both machine and node have the preservation annotation, the node's annotation value (even if set to "") is honoured and the machine's annotation is deleted.
+To prevent confusion and unintended behaviour, it is recommended to use preservation by annotating the node object, if it exists and can be accessed.
 When the `PreserveExpiryTime` of a preserved machine is reached, the preservation will be stopped. Additionally, the preservation annotation is removed to prevent undesired re-preservation of the same machine. This is applicable for both manual and auto-preservation.
 
 When a machine is annotated with value `false`, the annotation and value is not removed by MCM. This is to explicitly indicate that the machine should not be auto-preserved by MCM. If the annotation value is set to empty or the annotation is deleted, MCM will again auto-preserve the machine if it is in `Failed` phase and the `AutoPreserveFailedMachineMax` limit is not reached.
@@ -147,3 +146,6 @@ In all the cases, when the machine moves to `Running` during preservation, the b
 - Scale-down preference: Preserved machines are the last to be scaled down.
 - Preservation status is visible via Node Conditions and Machine Status fields.
 - machinePreserveTimeout changes do not affect existing preserved machines. Operators may edit PreserveExpiryTime directly if required to extend preservation.
+
+
+> NOTE: To prevent confusion and unintended behaviour, it is recommended to use preservation by annotating the node object, if it exists and can be accessed.

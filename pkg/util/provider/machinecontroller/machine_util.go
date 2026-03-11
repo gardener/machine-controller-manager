@@ -28,7 +28,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	"maps"
 	"math"
 	"runtime"
@@ -2387,8 +2386,6 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 	if existingNodePreservedCondition != nil && existingNodePreservedCondition.Status == v1.ConditionTrue {
 		return machineObjectUpdated, nil
 	}
-	// Preservation incomplete - either the flow is being run for the first time, or previous attempt failed midway
-
 	// Step 2: Add annotations to prevent scale down of node by CA
 	updatedNode, err := c.addCAScaleDownDisabledAnnotationOnNode(ctx, node)
 	if err != nil {
@@ -2511,28 +2508,6 @@ func (c *controller) setPreserveExpiryTimeOnMachine(ctx context.Context, machine
 	return updatedMachine, nil
 }
 
-// addCAScaleDownDisabledAnnotationOnNode adds the cluster-autoscaler annotation to disable scale down of preserved node
-func (c *controller) addCAScaleDownDisabledAnnotationOnNode(ctx context.Context, node *v1.Node) (*v1.Node, error) {
-	// Check if annotation already exists with correct value
-	if node.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] == autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue {
-		return node, nil
-	}
-	// Add annotation to disable CA scale down.
-	// Also add annotation expressing that MCM is the one who added this annotation, so that it can be removed safely when preservation is stopped.
-	nodeCopy := node.DeepCopy()
-	if node.Annotations == nil {
-		nodeCopy.Annotations = make(map[string]string)
-	}
-	nodeCopy.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
-	nodeCopy.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
-	updatedNode, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("error trying to update CA annotation on node %q: %v", node.Name, err)
-		return nil, err
-	}
-	return updatedNode, nil
-}
-
 // computeNewNodePreservedCondition returns the NodeCondition with the values set according to the preserveValue and the stage of Preservation
 func computeNewNodePreservedCondition(currentStatus v1alpha1.CurrentStatus, preserveValue string, drainErr error, existingNodeCondition *v1.NodeCondition) (*v1.NodeCondition, bool) {
 	const preserveExpiryMessageSuffix = "Machine preserved until"
@@ -2551,7 +2526,6 @@ func computeNewNodePreservedCondition(currentStatus v1alpha1.CurrentStatus, pres
 	machinePhase := currentStatus.Phase
 	if machinePhase == v1alpha1.MachineFailed {
 		if drainErr == nil {
-
 			if !strings.Contains(newNodePreservedCondition.Message, v1alpha1.PreservedNodeDrainSuccessful) {
 				newNodePreservedCondition.Message = fmt.Sprintf("%s %s %v.", v1alpha1.PreservedNodeDrainSuccessful, preserveExpiryMessageSuffix, currentStatus.PreserveExpiryTime)
 				newNodePreservedCondition.Status = v1.ConditionTrue
@@ -2599,6 +2573,21 @@ func (c *controller) clearMachinePreserveExpiryTime(ctx context.Context, machine
 		return err
 	}
 	return nil
+}
+
+func (c *controller) removePreserveAnnotationOnMachine(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
+	if machine.Annotations == nil || (machine.Annotations[machineutils.PreserveMachineAnnotationKey] == "" && machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] == "") {
+		return machine, nil
+	}
+	clone := machine.DeepCopy()
+	delete(clone.Annotations, machineutils.PreserveMachineAnnotationKey)
+	delete(clone.Annotations, machineutils.LastAppliedNodePreserveValueAnnotationKey)
+	updatedClone, err := c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("failed to delete preserve annotation on machine %q. error: %v", machine.Name, err)
+		return nil, err
+	}
+	return updatedClone, nil
 }
 
 // drainPreservedNode attempts to drain the node backing a preserved machine
