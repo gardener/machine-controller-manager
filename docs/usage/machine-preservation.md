@@ -78,6 +78,8 @@ spec:
 - `machinePreserveTimeout` : Duration after which preserved machines are automatically released
 
 > Note: ⚠️ Changes to `machinePreserveTimeout` apply only to preservation done after the change.
+> If `AutoPreserveFailedMachineMax` is decreased, preservation is stopped for older auto-preserved machines(earlier creationTimestamp) until the number of preserved machines is within the new limit.
+> If the number of failed machines exceeds the `AutoPreserveFailedMachineMax` limit at any given time, machines with more recent creationTimestamp are auto-preserved first.
 
 ### Preservation annotations
 
@@ -148,4 +150,4 @@ In all the cases, when the machine moves to `Running` during preservation, the b
 - machinePreserveTimeout changes do not affect existing preserved machines. Operators may edit PreserveExpiryTime directly if required to extend preservation.
 
 
-> NOTE: To prevent confusion and unintended behaviour, it is recommended to use preservation by annotating the node object, if it exists and can be accessed.
+> NOTE: To prevent confusion and unintended behaviour, it is recommended to use preservation by annotating the node object if it exists and can be accessed.

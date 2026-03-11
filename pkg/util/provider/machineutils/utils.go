@@ -173,7 +173,6 @@ func IsMachinePreservationExpired(m *v1alpha1.Machine) bool {
 type updateMachineFunc func(machine *v1alpha1.Machine) error
 
 // UpdateMachineWithRetries updates a machine with given applyUpdate function. Note that machine not found error is ignored.
-// The returned bool value can be used to tell if the machine is actually updated.
 func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.MachineInterface, machineLister v1alpha1listers.MachineLister, namespace, name string, applyUpdate updateMachineFunc) (*v1alpha1.Machine, error) {
 	var machine *v1alpha1.Machine
 
