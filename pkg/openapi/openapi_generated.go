@@ -394,6 +394,12 @@ func schema_pkg_apis_machine_v1alpha1_CurrentStatus(ref common.ReferenceCallback
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
+					"preserveExpiryTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreserveExpiryTime is the time at which MCM will stop preserving the machine",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
 				},
 			},
 		},
@@ -682,6 +688,12 @@ func schema_pkg_apis_machine_v1alpha1_MachineConfiguration(ref common.ReferenceC
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},
+					"machinePreserveTimeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MachinePreserveTimeout is the timeout after which the machine preservation is stopped",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
 					"disableHealthTimeout": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed. This is intended to be used only for in-place updates.",
@@ -939,6 +951,13 @@ func schema_pkg_apis_machine_v1alpha1_MachineDeploymentSpec(ref common.Reference
 					"progressDeadlineSeconds": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The maximum time in seconds for a MachineDeployment to make progress before it is considered to be failed. The MachineDeployment controller will continue to process failed MachineDeployments and a condition with a ProgressDeadlineExceeded reason will be surfaced in the MachineDeployment status. Note that progress will not be estimated during the time a MachineDeployment is paused. This is not set by default, which is treated as infinite deadline.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"autoPreserveFailedMachineMax": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The maximum number of failed machines in the machine deployment that can be auto-preserved. In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker's machine deployments",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1317,6 +1336,12 @@ func schema_pkg_apis_machine_v1alpha1_MachineSetSpec(ref common.ReferenceCallbac
 							Format: "int32",
 						},
 					},
+					"autoPreserveFailedMachineMax": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
 				},
 			},
 		},
@@ -1402,6 +1427,13 @@ func schema_pkg_apis_machine_v1alpha1_MachineSetStatus(ref common.ReferenceCallb
 							},
 						},
 					},
+					"autoPreserveFailedMachineCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AutoPreserveFailedMachineCount has a count of the number of failed machines in the machineset that are currently auto-preserved",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 			},
 		},
@@ -1459,6 +1491,12 @@ func schema_pkg_apis_machine_v1alpha1_MachineSpec(ref common.ReferenceCallback) 
 					"inPlaceUpdateTimeout": {
 						SchemaProps: spec.SchemaProps{
 							Description: "MachineInPlaceUpdateTimeout is the timeout after which in-place update is declared failed.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
+					"machinePreserveTimeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MachinePreserveTimeout is the timeout after which the machine preservation is stopped",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},

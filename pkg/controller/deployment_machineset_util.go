@@ -25,6 +25,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"reflect"
 
 	"k8s.io/klog/v2"
@@ -48,7 +49,8 @@ func updateMachineSetStatus(ctx context.Context, machineClient machineapi.Machin
 		is.Status.AvailableReplicas == newStatus.AvailableReplicas &&
 		is.Generation == is.Status.ObservedGeneration &&
 		reflect.DeepEqual(is.Status.Conditions, newStatus.Conditions) &&
-		reflect.DeepEqual(is.Status.FailedMachines, newStatus.FailedMachines) {
+		reflect.DeepEqual(is.Status.FailedMachines, newStatus.FailedMachines) &&
+		is.Status.AutoPreserveFailedMachineCount == newStatus.AutoPreserveFailedMachineCount {
 		return is, nil
 	}
 
@@ -66,7 +68,8 @@ func updateMachineSetStatus(ctx context.Context, machineClient machineapi.Machin
 			fmt.Sprintf("fullyLabeledReplicas %d->%d, ", is.Status.FullyLabeledReplicas, newStatus.FullyLabeledReplicas)+
 			fmt.Sprintf("readyReplicas %d->%d, ", is.Status.ReadyReplicas, newStatus.ReadyReplicas)+
 			fmt.Sprintf("availableReplicas %d->%d, ", is.Status.AvailableReplicas, newStatus.AvailableReplicas)+
-			fmt.Sprintf("sequence No: %v->%v", is.Status.ObservedGeneration, newStatus.ObservedGeneration))
+			fmt.Sprintf("sequence No: %v->%v,", is.Status.ObservedGeneration, newStatus.ObservedGeneration)+
+			fmt.Sprintf("autoPreserveFailedMachineCount %v->%v", is.Status.AutoPreserveFailedMachineCount, newStatus.AutoPreserveFailedMachineCount))
 
 		is.Status = newStatus
 		updatedIS, updateErr = c.UpdateStatus(ctx, is, metav1.UpdateOptions{})
@@ -78,7 +81,7 @@ func updateMachineSetStatus(ctx context.Context, machineClient machineapi.Machin
 		if i >= statusUpdateRetries {
 			break
 		}
-		// Update the MachineSet with the latest resource veision for the next poll
+		// Update the MachineSet with the latest resource version for the next poll
 		if is, getErr = c.Get(ctx, is.Name, metav1.GetOptions{}); getErr != nil {
 			// If the GET fails we can't trust status.Replicas anymore. This error
 			// is bound to be more interesting than the update failure.
@@ -99,6 +102,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	fullyLabeledReplicasCount := 0
 	readyReplicasCount := 0
 	availableReplicasCount := 0
+	autoPreserveFailedMachineCount := 0
 
 	failedMachines := []v1alpha1.MachineSummary{}
 	var machineSummary v1alpha1.MachineSummary
@@ -123,6 +127,10 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 				machineSummary.OwnerRef = controller.Name
 			}
 			failedMachines = append(failedMachines, machineSummary)
+		}
+		// Count number of failed machines annotated with PreserveMachineAnnotationValuePreservedByMCM
+		if machine.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
+			autoPreserveFailedMachineCount++
 		}
 	}
 
@@ -153,6 +161,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	newStatus.ReadyReplicas = int32(readyReplicasCount)               // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	newStatus.AvailableReplicas = int32(availableReplicasCount)       // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	newStatus.LastOperation.LastUpdateTime = metav1.Now()
+	newStatus.AutoPreserveFailedMachineCount = int32(autoPreserveFailedMachineCount) // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	return newStatus
 }
 
