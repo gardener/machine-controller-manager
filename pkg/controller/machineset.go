@@ -333,21 +333,18 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 
 	var (
 		staleMachines                        []*v1alpha1.Machine
-		nonTerminatingMachines               []*v1alpha1.Machine
+		numNonTerminatingMachines            int
 		machinesWithoutUpdateSuccessfulLabel []*v1alpha1.Machine
 	)
 	for _, m := range allMachines {
 		if m.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating {
-			nonTerminatingMachines = append(nonTerminatingMachines, m)
+			numNonTerminatingMachines++
+			if m.Labels[v1alpha1.LabelKeyNodeUpdateResult] != v1alpha1.LabelValueNodeUpdateSuccessful {
+				machinesWithoutUpdateSuccessfulLabel = append(machinesWithoutUpdateSuccessfulLabel, m)
+			}
 		}
 	}
-
-	for _, m := range nonTerminatingMachines {
-		if m.Labels[v1alpha1.LabelKeyNodeUpdateResult] != v1alpha1.LabelValueNodeUpdateSuccessful {
-			machinesWithoutUpdateSuccessfulLabel = append(machinesWithoutUpdateSuccessfulLabel, m)
-		}
-	}
-	nonTerminatingMachinesDiff := len(nonTerminatingMachines) - int(machineSet.Spec.Replicas)
+	nonTerminatingMachinesDiff := numNonTerminatingMachines - int(machineSet.Spec.Replicas)
 	// During in-place updates, in the newMachineSet, it can happen that a machine has come from the oldMachineSet
 	// but the ReplicaCount of newMachineSet has not increased yet.
 	// In such cases, we should not delete the machine immediately,
