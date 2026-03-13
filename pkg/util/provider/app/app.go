@@ -217,14 +217,7 @@ func StartControllers(s *options.MCServer,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) error {
 
-	resourceExhaustedRetryPeriod := machineutils.LongRetry
-	if s.ResourceExhaustedRetry != "" {
-		d, err := time.ParseDuration(s.ResourceExhaustedRetry)
-		if err != nil {
-			return fmt.Errorf("invalid --resource-exhausted-retry %q: %w", s.ResourceExhaustedRetry, err)
-		}
-		resourceExhaustedRetryPeriod = machineutils.RetryPeriod(d)
-	}
+	resourceExhaustedRetryPeriod := machineutils.RetryPeriod(s.ResourceExhaustedRetry.Duration)
 	klog.V(4).Infof("Configured ResourceExhaustedRetryPeriod=%s", time.Duration(resourceExhaustedRetryPeriod))
 
 	klog.V(4).Info("Getting available resources")

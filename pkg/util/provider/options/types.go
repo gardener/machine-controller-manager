@@ -73,6 +73,8 @@ type MachineControllerConfiguration struct {
 
 	//BootstrapTokenAuthExtraGroups is a comma-separated string of groups to set bootstrap token's "auth-extra-groups" field to.
 	BootstrapTokenAuthExtraGroups string
+
+	ResourceExhaustedRetry metav1.Duration
 }
 
 // SafetyOptions are used to configure the upper-limit and lower-limit
