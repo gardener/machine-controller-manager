@@ -340,6 +340,13 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		machinesWithoutUpdateSuccessfulLabel []*v1alpha1.Machine
 	)
 	for _, m := range allMachines {
+		// Machines that are terminating are skipped when computing the diff for the required
+		// machineSet replicas since either:
+		//   1. There was a scale-down event that led to the machine being marked for removal,
+		//      in which case there's no need  to process it for further iterations; or
+		//   2. This was a `failed` machine that was terminated in which case the machineSet
+		//      replicas won't change and hence there's a new machine that should be spawned
+		//      in place of the failed one.
 		if m.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating {
 			numNonTerminatingMachines++
 			if m.Labels[v1alpha1.LabelKeyNodeUpdateResult] != v1alpha1.LabelValueNodeUpdateSuccessful {
