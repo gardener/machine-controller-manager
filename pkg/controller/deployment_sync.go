@@ -31,6 +31,7 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -552,6 +553,7 @@ func (dc *controller) scaleMachineSet(ctx context.Context, is *v1alpha1.MachineS
 	var err error
 	if sizeNeedsUpdate || annotationsNeedUpdate {
 		isCopy.Spec.Replicas = newScale
+		isCopy.Annotations[machineutils.LastReplicaChangeAnnotation] = deployment.Annotations[machineutils.LastReplicaChangeAnnotation]
 		is, err = dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(ctx, isCopy, metav1.UpdateOptions{})
 		if err == nil && sizeNeedsUpdate {
 			scaled = true

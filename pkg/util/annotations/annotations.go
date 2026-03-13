@@ -6,11 +6,12 @@
 package annotations
 
 import (
+	"slices"
+	"strings"
+
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	v1 "k8s.io/api/core/v1"
-	"slices"
-	"strings"
 )
 
 // AddOrUpdateAnnotation tries to add an annotation. Returns a new copy of updated Node and true if something was updated
