@@ -16,7 +16,6 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	k8sError "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -1910,9 +1909,9 @@ var _ = Describe("machineset", func() {
 			_, Err2 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testRunningMachine2.Name, metav1.GetOptions{})
 
 			Expect(Err1).Should(Not(BeNil()))
-			Expect(apierrors.IsNotFound(Err1)).Should(BeTrue())
+			Expect(k8sError.IsNotFound(Err1)).Should(BeTrue())
 			Expect(Err2).Should(Not(BeNil()))
-			Expect(apierrors.IsNotFound(Err2)).Should(BeTrue())
+			Expect(k8sError.IsNotFound(Err2)).Should(BeTrue())
 		})
 
 		It("It should delete the marked machines after reducing change in machineSet replicas", func() {
