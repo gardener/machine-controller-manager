@@ -1903,7 +1903,8 @@ var _ = Describe("machineset", func() {
 			waitForCacheSync(stop, c)
 
 			allMachines := []*machinev1.Machine{testRunningMachine1, testRunningMachine2}
-			c.manageReplicas(context.TODO(), allMachines, testMachineSet)
+			err := c.manageReplicas(context.TODO(), allMachines, testMachineSet)
+			Expect(err).To(BeNil())
 			waitForCacheSync(stop, c)
 			_, Err1 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testRunningMachine1.Name, metav1.GetOptions{})
 			_, Err2 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testRunningMachine2.Name, metav1.GetOptions{})
@@ -1929,15 +1930,16 @@ var _ = Describe("machineset", func() {
 			waitForCacheSync(stop, c)
 
 			allMachines := []*machinev1.Machine{testRunningMachine1, testRunningMachine2}
-			c.manageReplicas(context.TODO(), allMachines, testMachineSet)
+			err := c.manageReplicas(context.TODO(), allMachines, testMachineSet)
+			Expect(err).To(BeNil())
 			waitForCacheSync(stop, c)
 			_, Err1 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testRunningMachine1.Name, metav1.GetOptions{})
 			_, Err2 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testRunningMachine2.Name, metav1.GetOptions{})
 
 			Expect(Err1).Should(Not(BeNil()))
-			Expect(apierrors.IsNotFound(Err1)).Should(BeTrue())
+			Expect(k8sError.IsNotFound(Err1)).Should(BeTrue())
 			Expect(Err2).Should(Not(BeNil()))
-			Expect(apierrors.IsNotFound(Err2)).Should(BeTrue())
+			Expect(k8sError.IsNotFound(Err2)).Should(BeTrue())
 		})
 	})
 })

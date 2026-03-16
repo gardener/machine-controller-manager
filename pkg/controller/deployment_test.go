@@ -2345,7 +2345,8 @@ var _ = Describe("machineDeployment", func() {
 
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				c.setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(context.TODO(), testMachineDeployment)
+				err := c.setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(context.TODO(), testMachineDeployment)
+				Expect(err).To(BeNil())
 
 				waitForCacheSync(stop, c)
 				machine1, _ := c.controlMachineClient.Machines(testNamespace).Get(context.Background(), testMachine1.Name, metav1.GetOptions{})
