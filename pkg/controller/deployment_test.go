@@ -1964,7 +1964,7 @@ var _ = Describe("machineDeployment", func() {
 			),
 			Entry("should set MachinePriority=1 for the machines named in TriggerDeletionByMCM annotation in the MachineDeployment",
 				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
-					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = annotations.CreateMachinesTriggeredForDeletionAnnotValue([]string{testMachine.Name})
+					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = annotations.CreateMachinesTriggeredForDeletionAnnotValue([]string{fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))})
 				},
 				func(_ *machinev1.MachineDeployment, _ []machinev1.MachineSet, machines []machinev1.Machine, _ *corev1.Node) error {
 					if machines[0].Annotations[machineutils.MachinePriority] != "1" {
