@@ -337,31 +337,27 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 
 	scaleDownMachines := []*v1alpha1.Machine{}
 	if machineSet.Annotations[machineutils.LastReplicaChangeAnnotation] != "" {
-		for _, machines := range allMachines {
-			if machines.Annotations[machineutils.LastReplicaChangeAnnotation] == "" {
-				continue
+		machineSetLRCA, err := time.Parse(time.RFC3339, machineSet.Annotations[machineutils.LastReplicaChangeAnnotation])
+		if err == nil {
+			for _, machines := range allMachines {
+				if machines.Annotations[machineutils.LastReplicaChangeAnnotation] == "" {
+					continue
+				}
+				machineLRCA, err := time.Parse(time.RFC3339, machines.Annotations[machineutils.LastReplicaChangeAnnotation])
+				if err != nil {
+					utilruntime.HandleError(fmt.Errorf("Error parsing LastReplicaChangeAnnotation for machine %s: %v", machines.Name, err))
+					continue
+				}
+				if machines.Annotations[machineutils.MachinePriority] == "1" && machineLRCA.Before(machineSetLRCA) {
+					scaleDownMachines = append(scaleDownMachines, machines)
+				}
 			}
-			machineSetLRCA, err := time.Parse(time.RFC3339, machineSet.Annotations[machineutils.LastReplicaChangeAnnotation])
-			if err != nil {
-				utilruntime.HandleError(fmt.Errorf("Error parsing LastReplicaChangeAnnotation for machine set %s: %v", machineSet.Name, err))
-				continue
+			if len(scaleDownMachines) >= 1 {
+				klog.V(3).Infof("Deleting stale machines %s", getMachineKeys(scaleDownMachines))
+				if err := c.terminateMachines(ctx, scaleDownMachines, machineSet); err != nil {
+					klog.Errorf("failed to terminate stale machines for machineset %s: %v", machineSet.Name, err)
+				}
 			}
-			machineLRCA, err := time.Parse(time.RFC3339, machines.Annotations[machineutils.LastReplicaChangeAnnotation])
-			if err != nil {
-				utilruntime.HandleError(fmt.Errorf("Error parsing LastReplicaChangeAnnotation for machine %s: %v", machines.Name, err))
-				continue
-			}
-			if machines.Annotations[machineutils.MachinePriority] == "1" && machineSetLRCA.Before(machineLRCA) {
-				scaleDownMachines = append(scaleDownMachines, machines)
-			}
-		}
-	}
-
-	if len(scaleDownMachines) >= 1 {
-		klog.V(3).Infof("Deleting stale machines %s", getMachineKeys(scaleDownMachines))
-		if err := c.terminateMachines(ctx, scaleDownMachines, machineSet); err != nil {
-			// TODO: proper error handling needs to happen here
-			klog.Errorf("failed to terminate stale machines for machineset %s: %v", machineSet.Name, err)
 		}
 	}
 
