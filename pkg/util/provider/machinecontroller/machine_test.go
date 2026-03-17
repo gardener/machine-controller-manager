@@ -868,7 +868,7 @@ var _ = Describe("machine", func() {
 							},
 						},
 					}, nil, nil, nil, nil, true, metav1.Now()),
-					resourceExhaustedRetry: machineutils.RetryPeriod(30 * time.Minute),
+					resourceExhaustedRetry: machineutils.RetryPeriod(9 * time.Minute),
 				},
 				action: action{
 					machine: "machine-0",
@@ -895,7 +895,7 @@ var _ = Describe("machine", func() {
 						},
 					}, nil, nil, nil, true, metav1.Now()),
 					err:   status.Error(codes.ResourceExhausted, "Provider does not have capacity to create VM"),
-					retry: machineutils.RetryPeriod(30 * time.Minute),
+					retry: machineutils.RetryPeriod(9 * time.Minute),
 				},
 			}),
 			Entry("Machine creation fails with Failure due to timeout", &data{
