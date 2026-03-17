@@ -28,6 +28,7 @@ import (
 	"time"
 
 	drain "github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	machineconfig "github.com/gardener/machine-controller-manager/pkg/util/provider/options"
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -116,6 +117,7 @@ func (s *MCServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&s.NodeConditions, "node-conditions", s.NodeConditions, "List of comma-separated/case-sensitive node-conditions which when set to True will change machine to a failed state after MachineHealthTimeout duration. It may further be replaced with a new machine if the machine is backed by a machine-set object.")
 	fs.StringVar(&s.BootstrapTokenAuthExtraGroups, "bootstrap-token-auth-extra-groups", s.BootstrapTokenAuthExtraGroups, "Comma-separated list of groups to set bootstrap token's \"auth-extra-groups\" field to")
 
+	fs.DurationVar(&s.ResourceExhaustedRetry.Duration, "resource-exhausted-retry", time.Duration(machineutils.LongRetry), "Retry duration used when machine creation fails with ResourceExhausted. Defaults to LongRetry.")
 	logs.AddFlags(fs) // adds --v flag for log level.
 
 	leaderelectionconfig.BindFlags(&s.LeaderElection, fs)
@@ -189,6 +191,9 @@ func (s *MCServer) Validate() error {
 	}
 	if s.ControlKubeconfig == "" && s.TargetKubeconfig == constants.TargetKubeconfigDisabledValue {
 		errs = append(errs, fmt.Errorf("--control-kubeconfig cannot be empty if --target-kubeconfig=%s is specified", constants.TargetKubeconfigDisabledValue))
+	}
+	if s.ResourceExhaustedRetry.Duration < 0 {
+		errs = append(errs, fmt.Errorf("resource exhausted retry duration should be a non negative value: got: %v", s.ResourceExhaustedRetry.Duration))
 	}
 
 	return utilerrors.NewAggregate(errs)
