@@ -339,17 +339,16 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	if machineSet.Annotations[machineutils.LastReplicaChangeAnnotation] != "" {
 		machineSetLRCA, err := time.Parse(time.RFC3339, machineSet.Annotations[machineutils.LastReplicaChangeAnnotation])
 		if err == nil {
-			for _, machines := range allMachines {
-				if machines.Annotations[machineutils.LastReplicaChangeAnnotation] == "" {
+			for _, machine := range allMachines {
+				if machine.Annotations[machineutils.LastReplicaChangeAnnotation] == "" || machine.Annotations[machineutils.MachinePriority] != "1" {
 					continue
 				}
-				machineLRCA, err := time.Parse(time.RFC3339, machines.Annotations[machineutils.LastReplicaChangeAnnotation])
+				machineLRCA, err := time.Parse(time.RFC3339, machine.Annotations[machineutils.LastReplicaChangeAnnotation])
 				if err != nil {
-					utilruntime.HandleError(fmt.Errorf("Error parsing LastReplicaChangeAnnotation for machine %s: %v", machines.Name, err))
 					continue
 				}
-				if machines.Annotations[machineutils.MachinePriority] == "1" && machineLRCA.Before(machineSetLRCA) {
-					scaleDownMachines = append(scaleDownMachines, machines)
+				if machineLRCA.Before(machineSetLRCA) || machineLRCA.Equal(machineSetLRCA) {
+					scaleDownMachines = append(scaleDownMachines, machine)
 				}
 			}
 			if len(scaleDownMachines) >= 1 {
