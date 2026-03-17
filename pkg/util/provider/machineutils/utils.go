@@ -63,6 +63,10 @@ const (
 	// This feature is leveraged by the CA-MCM cloud provider.
 	TriggerDeletionByMCM = "node.machine.sapcloud.io/trigger-deletion-by-mcm"
 
+	// LastReplicaChangeAnnotation contains the timestamp of last replica change in the machine deployment.
+	// This annotation is used so that MCS only deletes the machines for which it has observed change in replicas.:w
+	LastReplicaChangeAnnotation = "machine.sapcloud.io/last-replica-change"
+
 	// NodeUnhealthy is a node termination reason for failed machines
 	NodeUnhealthy = "Unhealthy"
 

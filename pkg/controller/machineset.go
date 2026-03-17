@@ -335,6 +335,31 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		return nil
 	}
 
+	scaleDownMachines := []*v1alpha1.Machine{}
+	if machineSet.Annotations[machineutils.LastReplicaChangeAnnotation] != "" {
+		machineSetLRCA, err := time.Parse(time.RFC3339, machineSet.Annotations[machineutils.LastReplicaChangeAnnotation])
+		if err == nil {
+			for _, machine := range allMachines {
+				if machine.Annotations[machineutils.LastReplicaChangeAnnotation] == "" || machine.Annotations[machineutils.MachinePriority] != "1" {
+					continue
+				}
+				machineLRCA, err := time.Parse(time.RFC3339, machine.Annotations[machineutils.LastReplicaChangeAnnotation])
+				if err != nil {
+					continue
+				}
+				if machineLRCA.Before(machineSetLRCA) || machineLRCA.Equal(machineSetLRCA) {
+					scaleDownMachines = append(scaleDownMachines, machine)
+				}
+			}
+			if len(scaleDownMachines) >= 1 {
+				klog.V(3).Infof("Deleting stale machines %s", getMachineKeys(scaleDownMachines))
+				if err := c.terminateMachines(ctx, scaleDownMachines, machineSet); err != nil {
+					klog.Errorf("failed to terminate stale machines for machineset %s: %v", machineSet.Name, err)
+				}
+			}
+		}
+	}
+
 	var machinesWithoutUpdateSuccessfulLabel []*v1alpha1.Machine
 	for _, m := range allMachines {
 		if m.Labels[v1alpha1.LabelKeyNodeUpdateResult] != v1alpha1.LabelValueNodeUpdateSuccessful {
