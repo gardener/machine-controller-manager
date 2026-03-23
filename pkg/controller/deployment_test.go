@@ -2551,10 +2551,10 @@ var _ = Describe("machineDeployment", func() {
 			),
 			Entry("should remove Machine-test2 from annotation",
 				func() {
-					testMachine2.DeletionTimestamp = &metav1.Time{time.Now()}
+					testMachine2.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 					testMachine2.Status.CurrentStatus = machinev1.CurrentStatus{
 						Phase:          machinev1.MachineTerminating,
-						LastUpdateTime: metav1.Time{time.Now()},
+						LastUpdateTime: metav1.Time{Time: time.Now()},
 					}
 					testMachineDeployment.Annotations = map[string]string{
 						machineutils.TriggerDeletionByMCM:                    annotations.CreateMachinesTriggeredForDeletionAnnotValue([]string{fmt.Sprintf("Machine-test1~%s", ts), fmt.Sprintf("Machine-test2~%s", ts)}),
