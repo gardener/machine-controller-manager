@@ -2534,7 +2534,7 @@ var _ = Describe("machineDeployment", func() {
 
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				tgd := c.computeMachineTriggerDeletionData(context.TODO(), testMachineDeployment)
+				tgd := c.computeMachineTriggerDeletionData(testMachineDeployment)
 
 				postcheck(tgd)
 			},

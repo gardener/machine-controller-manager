@@ -653,7 +653,7 @@ func (dc *controller) updateMachineDeploymentFinalizers(ctx context.Context, mac
 // If that's not the case, we might run into issues where the machineDeployment replica was reduced but MCM rejects the deletion of the machine due to invalid time format in the annotation.
 // TODO: We should think of a way to make this more robust in case of invalid time format in the annotation.
 func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (err error) {
-	tgd := dc.computeMachineTriggerDeletionData(ctx, mcd)
+	tgd := dc.computeMachineTriggerDeletionData(mcd)
 	if tgd == nil {
 		return nil
 	}
@@ -701,7 +701,7 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 }
 
 // computeMachineTriggerDeletionData computes the data related to machines that are triggered for deletion based on the annotation on the MachineDeployment.
-func (dc *controller) computeMachineTriggerDeletionData(ctx context.Context, mcd *v1alpha1.MachineDeployment) *triggerDeletionData {
+func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDeployment) *triggerDeletionData {
 	oldTriggerDeletionAnnotationList := annotations.GetMachineNamesTriggeredForDeletion(mcd)
 	newTriggerDeletionAnnotationList := make([]string, 0)
 	machineMarkedDeletionTimes := make(map[*v1alpha1.Machine]string)
