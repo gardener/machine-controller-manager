@@ -141,7 +141,7 @@ var _ = Describe("machineset", func() {
 			}
 		})
 
-		It("Should enqueue the machineset", func() {
+		It("should enqueue the machineset", func() {
 			stop := make(chan struct{})
 			machineSetObj := testMachineSet
 
@@ -223,7 +223,7 @@ var _ = Describe("machineset", func() {
 			}
 		})
 
-		It("Should enqueue the machineset as controllerRef matches", func() {
+		It("should enqueue the machineset as controllerRef matches", func() {
 			stop := make(chan struct{})
 
 			defer close(stop)
@@ -241,7 +241,7 @@ var _ = Describe("machineset", func() {
 			Expect(c.machineSetQueue.Len()).To(Equal(1))
 		})
 
-		It("Should enqueue the machineset though controllerRef is not set but orphan is created", func() {
+		It("should enqueue the machineset though controllerRef is not set but orphan is created", func() {
 			stop := make(chan struct{})
 
 			defer close(stop)
@@ -259,7 +259,7 @@ var _ = Describe("machineset", func() {
 			Expect(c.machineSetQueue.Len()).To(Equal(1))
 		})
 
-		It("Should enqueue the machineset while machine is being deleted", func() {
+		It("should enqueue the machineset while machine is being deleted", func() {
 			stop := make(chan struct{})
 
 			defer close(stop)
@@ -278,7 +278,7 @@ var _ = Describe("machineset", func() {
 			Expect(c.machineSetQueue.Len()).To(Equal(1))
 		})
 
-		It("Shouldn't enqueue the machineset if machineset is not found via cotrollerRef", func() {
+		It("shouldn't enqueue the machineset if machineset is not found via cotrollerRef", func() {
 			stop := make(chan struct{})
 
 			defer close(stop)
@@ -359,8 +359,8 @@ var _ = Describe("machineset", func() {
 				},
 			}
 		})
-		Describe("Shouldn't enqueue the machineset", func() {
-			It("Shouldn't enqueue the machineset if resource version matches", func() {
+		Describe("shouldn't enqueue the machineset", func() {
+			It("shouldn't enqueue the machineset if resource version matches", func() {
 				stop := make(chan struct{})
 				testMachineUpdated := testMachine.DeepCopy()
 
@@ -381,7 +381,7 @@ var _ = Describe("machineset", func() {
 			})
 		})
 
-		DescribeTable("Should enqueue the machineset",
+		DescribeTable("should enqueue the machineset",
 			func(preset func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine)) {
 				machine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1093,7 +1093,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// Testcase: It should create new machines.
-		It("It should create new machines.", func() {
+		It("should create new machines.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -1116,7 +1116,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// Testcase: Should return nil if the machineset doesnt exist, to avoid constant reconciliations.
-		It("It should return nil if machineset doesnt exist.", func() {
+		It("should return nil if machineset doesnt exist.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -1136,7 +1136,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// Testcase: It should return nil if the machineset validation fails.
-		It("It should return nil if machineset validation fails", func() {
+		It("should return nil if machineset validation fails", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -1158,7 +1158,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// Testcase: It should delete all the machines as DeletionTimestamp is set.
-		It("It should delete all the machines as DeletionTimestamp is set on MachineSet", func() {
+		It("should delete all the machines as DeletionTimestamp is set on MachineSet", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -1581,7 +1581,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// Testcase: It should delete the inactive machines.
-		It("It should delete the inactive machines.", func() {
+		It("should delete the inactive machines.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -1603,7 +1603,7 @@ var _ = Describe("machineset", func() {
 			Expect(Err2).Should(Not(BeNil()))
 		})
 
-		It("It should not mark a machine as terminating when deletion fails.", func() {
+		It("should not mark a machine as terminating when deletion fails.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -1856,8 +1856,8 @@ var _ = Describe("machineset", func() {
 						"test-label": "test-label",
 					},
 					Annotations: map[string]string{
-						machineutils.MachinePriority:             "1",
-						machineutils.LastReplicaChangeAnnotation: time.Now().Format(time.RFC3339),
+						machineutils.MachinePriority:                         "1",
+						machineutils.LastDeploymentReplicaChangeByScalerTime: time.Now().Format(time.RFC3339),
 					},
 				},
 				Status: machinev1.MachineStatus{
@@ -1876,8 +1876,8 @@ var _ = Describe("machineset", func() {
 						"test-label": "test-label",
 					},
 					Annotations: map[string]string{
-						machineutils.MachinePriority:             "1",
-						machineutils.LastReplicaChangeAnnotation: time.Now().Format(time.RFC3339),
+						machineutils.MachinePriority:                         "1",
+						machineutils.LastDeploymentReplicaChangeByScalerTime: time.Now().Format(time.RFC3339),
 					},
 				},
 				Status: machinev1.MachineStatus{
@@ -1888,13 +1888,13 @@ var _ = Describe("machineset", func() {
 			}
 		})
 
-		It("It should delete the marked machines with no change in machineSet replicas", func() {
+		It("should delete the marked machines with no change in machineSet replicas", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
 			objects := []runtime.Object{}
 			testMachineSet.Annotations = map[string]string{
-				machineutils.LastReplicaChangeAnnotation: time.Now().Add(1 * time.Minute).Format(time.RFC3339),
+				machineutils.LastDeploymentReplicaChangeByScalerTime: time.Now().Add(1 * time.Minute).Format(time.RFC3339),
 			}
 			objects = append(objects, testMachineSet, testRunningMachine1, testRunningMachine2)
 			c, trackers := createController(stop, testNamespace, objects, nil, nil)
@@ -1914,13 +1914,13 @@ var _ = Describe("machineset", func() {
 			Expect(k8sError.IsNotFound(Err2)).Should(BeTrue())
 		})
 
-		It("It should delete the marked machines after reducing change in machineSet replicas", func() {
+		It("should delete the marked machines after reducing change in machineSet replicas", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
 			objects := []runtime.Object{}
 			testMachineSet.Annotations = map[string]string{
-				machineutils.LastReplicaChangeAnnotation: time.Now().Add(1 * time.Minute).Format(time.RFC3339),
+				machineutils.LastDeploymentReplicaChangeByScalerTime: time.Now().Add(1 * time.Minute).Format(time.RFC3339),
 			}
 			testMachineSet.Spec.Replicas = 1
 			objects = append(objects, testMachineSet, testRunningMachine1, testRunningMachine2)

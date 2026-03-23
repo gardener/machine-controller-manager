@@ -767,13 +767,22 @@ func (s ActiveMachines) Less(i, j int) bool {
 		v1alpha1.MachineRunning:          6,
 	}
 
-	// Case-1: Initially we try to prioritize machine deletion based on
-	// machinePriority annotation.
-	// Case-2: If both priorities are equal, then we look at their machinePhase
+	// Case-1: Initially we try to prioritize machine deletion based on machinePriority annotation.
+	// Case-2: If both priorities are equal, then we at their MarkedForDeletionTime annotation
+	// Case-3: If both don't have the MarkedForDeletionTime annotation, then we look at their machinePhase
 	// and prioritize as mentioned in the above map
-	// Case-3: If both Case-1 & Case-2 is false, we prioritize based on creation time
+	// Case-3: If both Case-1, Case-2 & Case-3 is false, we prioritize based on creation time
 	if machineIPriority != machineJPriority {
 		return machineIPriority < machineJPriority
+	} else if s[i].Annotations[machineutils.MarkedForDeletionTime] != "" && s[j].Annotations[machineutils.MarkedForDeletionTime] == "" {
+		return true
+	} else if s[i].Annotations[machineutils.MarkedForDeletionTime] == "" && s[j].Annotations[machineutils.MarkedForDeletionTime] != "" {
+		return false
+	} else if s[i].Annotations[machineutils.MarkedForDeletionTime] != "" && s[j].Annotations[machineutils.MarkedForDeletionTime] != "" {
+		timeI, _ := time.Parse(time.RFC3339, s[i].Annotations[machineutils.MarkedForDeletionTime])
+		timeJ, _ := time.Parse(time.RFC3339, s[j].Annotations[machineutils.MarkedForDeletionTime])
+		// to have stable-sort where timeI <= timeJ
+		return !timeI.After(timeJ)
 	} else if m[s[i].Status.CurrentStatus.Phase] != m[s[j].Status.CurrentStatus.Phase] {
 		return m[s[i].Status.CurrentStatus.Phase] < m[s[j].Status.CurrentStatus.Phase]
 	} else if s[i].CreationTimestamp != s[j].CreationTimestamp {
