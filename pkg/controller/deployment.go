@@ -701,8 +701,6 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 }
 
 // computeMachineTriggerDeletionData computes the data related to machines that are triggered for deletion based on the annotation on the MachineDeployment.
-// It returns a struct containing the list of machine names with deletion timestamp, the list of machine names with invalid deletion timestamp or in failed/terminating state to be skipped,
-// and a map of machines that are marked for deletion with their corresponding deletion timestamp.
 func (dc *controller) computeMachineTriggerDeletionData(ctx context.Context, mcd *v1alpha1.MachineDeployment) *triggerDeletionData {
 	oldTriggerDeletionAnnotationList := annotations.GetMachineNamesTriggeredForDeletion(mcd)
 	newTriggerDeletionAnnotationList := make([]string, 0)
