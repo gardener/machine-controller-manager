@@ -706,7 +706,7 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 	if len(oldTriggerDeletionAnnotationList) == 0 {
 		return nil
 	}
-	klog.V(3).Infof("MachineDeployment %q has #%d machine(s) marked for deletion, triggerForDeletionMachineNames=%v", mcd.Name, len(oldTriggerDeletionAnnotationList), oldTriggerDeletionAnnotationList)
+	klog.Warningf("MachineDeployment %q has #%d machine(s) marked for deletion, triggerForDeletionMachineNames=%v", mcd.Name, len(oldTriggerDeletionAnnotationList), oldTriggerDeletionAnnotationList)
 
 	for _, machineNameWithTime := range oldTriggerDeletionAnnotationList {
 		parts := strings.Split(machineNameWithTime, "~")
@@ -720,7 +720,7 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 		// We don't add the machine name with time that has invalid format into newTriggerDeletionAnnotationList to make sure that it is removed from the annotation
 		// and expect scaler to put the correct format in the annotation in the next retry.
 		if _, perr := time.Parse(time.RFC3339, machineDeletionTime); perr != nil {
-			klog.Infof("Invalid deletion time format %q for machine %q in MachineDeployment %q annotation", machineDeletionTime, machineName, mcd.Name)
+			klog.Warningf("Invalid deletion time format %q for machine %q in MachineDeployment %q annotation", machineDeletionTime, machineName, mcd.Name)
 			continue
 		}
 		machine, gerr := dc.machineLister.Machines(dc.namespace).Get(machineName)
