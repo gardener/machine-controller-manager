@@ -553,8 +553,8 @@ func (dc *controller) scaleMachineSet(ctx context.Context, is *v1alpha1.MachineS
 	var err error
 	if sizeNeedsUpdate || annotationsNeedUpdate {
 		isCopy.Spec.Replicas = newScale
-		if _, exists := deployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]; exists {
-			isCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = deployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]
+		if val, exists := deployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]; exists {
+			isCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = val
 		}
 		is, err = dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(ctx, isCopy, metav1.UpdateOptions{})
 		if err == nil && sizeNeedsUpdate {

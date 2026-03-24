@@ -1856,8 +1856,8 @@ var _ = Describe("machineset", func() {
 						"test-label": "test-label",
 					},
 					Annotations: map[string]string{
-						machineutils.MachinePriority:                         "1",
-						machineutils.LastDeploymentReplicaChangeByScalerTime: time.Now().Format(time.RFC3339),
+						machineutils.MachinePriority:       "1",
+						machineutils.MarkedForDeletionTime: time.Now().Format(time.RFC3339),
 					},
 				},
 				Status: machinev1.MachineStatus{
@@ -1876,8 +1876,8 @@ var _ = Describe("machineset", func() {
 						"test-label": "test-label",
 					},
 					Annotations: map[string]string{
-						machineutils.MachinePriority:                         "1",
-						machineutils.LastDeploymentReplicaChangeByScalerTime: time.Now().Format(time.RFC3339),
+						machineutils.MachinePriority:       "1",
+						machineutils.MarkedForDeletionTime: time.Now().Format(time.RFC3339),
 					},
 				},
 				Status: machinev1.MachineStatus{
@@ -1914,7 +1914,7 @@ var _ = Describe("machineset", func() {
 			Expect(k8sError.IsNotFound(Err2)).Should(BeTrue())
 		})
 
-		It("should delete the marked machines after reducing change in machineSet replicas", func() {
+		It("should delete the marked machines after reducing machineSet replicas", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
