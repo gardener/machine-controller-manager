@@ -649,9 +649,6 @@ func (dc *controller) updateMachineDeploymentFinalizers(ctx context.Context, mac
 	}
 }
 
-// Disclaimer: The logic in this function is based on the assumption that the scaler will put the correct time format in the annotation.
-// If that's not the case, we might run into issues where the machineDeployment replica was reduced but MCM rejects the deletion of the machine due to invalid time format in the annotation.
-// TODO: We should think of a way to make this more robust in case of invalid time format in the annotation.
 func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (err error) {
 	tgd := dc.computeMachineTriggerDeletionData(mcd)
 	if tgd == nil {
@@ -713,14 +710,14 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 
 	for _, machineNameWithTime := range oldTriggerDeletionAnnotationList {
 		parts := strings.Split(machineNameWithTime, "~")
-		// We add the machine name with time that has invalid format into skipMachineNamesWithTime to make sure that it is removed from the annotation
+		// We don't add the machine name with time that has invalid format into newTriggerDeletionAnnotationList to make sure that it is removed from the annotation
 		// and expect scaler to put the correct format in the annotation in the next retry.
 		if len(parts) != 2 {
 			klog.Infof("Invalid machine name with time format %q in MachineDeployment %q annotation, expected format is <machineName1>~<deletionTime1>,<machineName2>~<deletionTime2>... skip setting MachinePriority=1 annotation", machineNameWithTime, mcd.Name)
 			continue
 		}
 		machineName, machineDeletionTime := parts[0], parts[1]
-		// We add the machine name with time that has invalid format into skipMachineNamesWithTime to make sure that it is removed from the annotation
+		// We don't add the machine name with time that has invalid format into newTriggerDeletionAnnotationList to make sure that it is removed from the annotation
 		// and expect scaler to put the correct format in the annotation in the next retry.
 		if _, perr := time.Parse(time.RFC3339, machineDeletionTime); perr != nil {
 			klog.Infof("Invalid deletion time format %q for machine %q in MachineDeployment %q annotation", machineDeletionTime, machineName, mcd.Name)
@@ -729,12 +726,12 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 		machine, gerr := dc.machineLister.Machines(dc.namespace).Get(machineName)
 		// The machine is deleted and hence we can remove it from the annotation.
 		if apierrors.IsNotFound(gerr) {
-			klog.V(4).Infof("Machine %q is not found in MachineDeployment %q - skip setting MachinePriority=1 annotation", machineName, mcd.Name)
+			klog.V(4).Infof("Machine %q is not found in MachineDeployment %q - skip adding to newTriggerDeletionAnnotationList", machineName, mcd.Name)
 			continue
 		}
 		// The machine is in the process of being deleted hence we can remove it from the annotation and expect it to be deleted in the next retry.
 		if machineutils.IsMachineFailedOrTerminating(machine) {
-			klog.V(4).Infof("Machine %q of MachineDeployment %q is in Failed/Terminating state - skip setting MachinePriority=1 annotation", machineName, mcd.Name)
+			klog.V(4).Infof("Machine %q of MachineDeployment %q is in Failed/Terminating state - skip adding to newTriggerDeletionAnnotationList", machineName, mcd.Name)
 			continue
 		}
 		newTriggerDeletionAnnotationList = append(newTriggerDeletionAnnotationList, machineNameWithTime)

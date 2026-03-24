@@ -426,29 +426,30 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		if machinesWithoutUpdateSuccessfulLabelDiff > BurstReplicas {
 			machinesWithoutUpdateSuccessfulLabelDiff = BurstReplicas
 		}
-		logMachinesWithPriority1(machinesWithoutUpdateSuccessfulLabel)
+		logMachinesPriorityAndMarkedDeletionTime(machinesWithoutUpdateSuccessfulLabel)
 		staleMachines = append(staleMachines, getMachinesToDelete(machinesWithoutUpdateSuccessfulLabel, machinesWithoutUpdateSuccessfulLabelDiff)...)
 		logMachinesToDelete(staleMachines)
 	}
 
 	staleMachines = append(staleMachines, getMachinesMarkedForDeletion(machinesWithoutUpdateSuccessfulLabel, machineSet)...)
 	staleMachines = uniqueMachines(staleMachines)
-	// We delete max BurstReplicas machines at a time
-	if len(staleMachines) > BurstReplicas {
-		staleMachines = staleMachines[:BurstReplicas]
-	}
-	klog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (machineSet.Spec.Replicas), len(staleMachines))
-	// Snapshot the UIDs (ns/name) of the machines we're expecting to see
-	// deleted, so we know to record their expectations exactly once either
-	// when we see it as an update of the deletion timestamp, or as a delete.
-	// Note that if the labels on a machine/rs change in a way that the machine gets
-	// orphaned, the rs will only wake up after the expectations have
-	// expired even if other machines are deleted.
-	if err := c.expectations.ExpectDeletions(machineSetKey, getMachineKeys(staleMachines)); err != nil {
-		// TODO: proper error handling needs to happen here
-		klog.Errorf("failed expect deletions for machineset %s: %v", machineSet.Name, err)
-	}
+
 	if len(staleMachines) >= 1 {
+		// We delete max BurstReplicas machines at a time
+		if len(staleMachines) > BurstReplicas {
+			staleMachines = staleMachines[:BurstReplicas]
+		}
+		klog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (machineSet.Spec.Replicas), len(staleMachines))
+		// Snapshot the UIDs (ns/name) of the machines we're expecting to see
+		// deleted, so we know to record their expectations exactly once either
+		// when we see it as an update of the deletion timestamp, or as a delete.
+		// Note that if the labels on a machine/rs change in a way that the machine gets
+		// orphaned, the rs will only wake up after the expectations have
+		// expired even if other machines are deleted.
+		if err := c.expectations.ExpectDeletions(machineSetKey, getMachineKeys(staleMachines)); err != nil {
+			// TODO: proper error handling needs to happen here
+			klog.Errorf("failed expect deletions for machineset %s: %v", machineSet.Name, err)
+		}
 		klog.V(3).Infof("Deleting stale machines %s", getMachineKeys(staleMachines))
 		if err := c.terminateMachines(ctx, staleMachines, machineSet); err != nil {
 			// TODO: proper error handling needs to happen here
@@ -882,7 +883,7 @@ func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.
 	return machine, retryErr
 }
 
-// getMachinesMarkedForDeletion iterates through the machines and if a machine has MarkedForDeletionTime before LastDeploymentReplicaChangeByScalerTime of the machineSet,
+// getMachinesMarkedForDeletion iterates through the machines and if a machine is failed or has MarkedForDeletionTime before LastDeploymentReplicaChangeByScalerTime of the machineSet,
 // that machine is added to the staleMachine list to be deleted.
 // This is done to have consistency between machineDeployment replica change and the machines marked for deletion.
 func getMachinesMarkedForDeletion(machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) []*v1alpha1.Machine {
@@ -894,12 +895,12 @@ func getMachinesMarkedForDeletion(machineList []*v1alpha1.Machine, machineSet *v
 			continue
 		}
 		if perr == nil {
-			if machine.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] == "" || machine.Annotations[machineutils.MachinePriority] != "1" {
+			if machine.Annotations[machineutils.MarkedForDeletionTime] == "" || machine.Annotations[machineutils.MachinePriority] != "1" {
 				continue
 			}
-			machineLRCA, err := time.Parse(time.RFC3339, machine.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime])
+			machineLRCA, err := time.Parse(time.RFC3339, machine.Annotations[machineutils.MarkedForDeletionTime])
 			if err != nil {
-				klog.Infof("Error parsing time from %q with value %q of machine %q: %v", machineutils.MarkedForDeletionTime, machine.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime], machine.Name, err)
+				klog.Infof("Error parsing time from %q with value %q of machine %q: %v", machineutils.MarkedForDeletionTime, machine.Annotations[machineutils.MarkedForDeletionTime], machine.Name, err)
 				continue
 			}
 			if machineLRCA.Before(machineSetLRCA) || machineLRCA.Equal(machineSetLRCA) {

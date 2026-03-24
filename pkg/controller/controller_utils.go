@@ -768,10 +768,10 @@ func (s ActiveMachines) Less(i, j int) bool {
 	}
 
 	// Case-1: Initially we try to prioritize machine deletion based on machinePriority annotation.
-	// Case-2: If both priorities are equal, then we at their MarkedForDeletionTime annotation
+	// Case-2: If both priorities are equal, then we pick the one with older MarkedForDeletionTime annotation
 	// Case-3: If both don't have the MarkedForDeletionTime annotation, then we look at their machinePhase
 	// and prioritize as mentioned in the above map
-	// Case-3: If both Case-1, Case-2 & Case-3 is false, we prioritize based on creation time
+	// Case-4: If both Case-1, Case-2 & Case-3 is false, we prioritize based on creation time
 	if machineIPriority != machineJPriority {
 		return machineIPriority < machineJPriority
 	} else if s[i].Annotations[machineutils.MarkedForDeletionTime] != "" && s[j].Annotations[machineutils.MarkedForDeletionTime] == "" {
