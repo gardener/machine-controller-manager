@@ -47,6 +47,8 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
+// triggerDeletionData contains the annotation to be put on machineDeployment, a boolean to indicate whether annotation is changed and
+// map of machine and its markedDeletionTime
 type triggerDeletionData struct {
 	machineMarkedDeletionTimes            map[*v1alpha1.Machine]string
 	triggerDeletionAnnotationValue        string
@@ -548,6 +550,12 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return err
 	}
 
+	// Temporary code for backward compatibility, can be removed in later release
+	d, err = dc.adjustingMachineDeploymentAnnotations(ctx, d)
+	if err != nil {
+		return err
+	}
+
 	err = dc.updateMachineAndMachineDeploymentDeletionAnnotations(ctx, d)
 	if err != nil {
 		return err
@@ -655,6 +663,23 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 		return nil
 	}
 
+	if tgd.triggerDeletionAnnotationValueChanged {
+		mcdDeepCopy := mcd.DeepCopy()
+		if mcdDeepCopy.Annotations == nil {
+			mcdDeepCopy.Annotations = make(map[string]string)
+		}
+		mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] = tgd.triggerDeletionAnnotationValue
+		if mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] == "" {
+			delete(mcdDeepCopy.Annotations, machineutils.TriggerDeletionByMCM)
+		}
+		_, err = dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("failed to update MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(tgd.machineMarkedDeletionTimes), mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
+			return
+		}
+		klog.V(3).Infof("Updated MachineDeployment %q with #%d machines still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(tgd.machineMarkedDeletionTimes), mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
+	}
+
 	for machine, machineDeletionTime := range tgd.machineMarkedDeletionTimes {
 		if machine.Annotations[machineutils.MachinePriority] == "1" && machine.Annotations[machineutils.MarkedForDeletionTime] != "" {
 			klog.V(4).Infof("Machine %q of MachineDeployment %q already has MachinePriority=1 and MarkedForDeletionTime annotation", machine.Name, mcd.Name)
@@ -676,24 +701,6 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 		klog.V(3).Infof("Machine %q of MachineDeployment %q marked with MachinePriority=1 annotation successfully", machine.Name, mcd.Name)
 	}
 
-	if !tgd.triggerDeletionAnnotationValueChanged {
-		return
-	}
-
-	mcdDeepCopy := mcd.DeepCopy()
-	if mcdDeepCopy.Annotations == nil {
-		mcdDeepCopy.Annotations = make(map[string]string)
-	}
-	mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] = tgd.triggerDeletionAnnotationValue
-	if mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] == "" {
-		delete(mcdDeepCopy.Annotations, machineutils.TriggerDeletionByMCM)
-	}
-	_, err = dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("failed to update MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(tgd.machineMarkedDeletionTimes), mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
-		return
-	}
-	klog.V(3).Infof("Updated MachineDeployment %q with #%d machines still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(tgd.machineMarkedDeletionTimes), mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
 	return
 }
 
@@ -744,4 +751,33 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 		triggerDeletionAnnotationValue:        newTriggerDeletionAnnotationValue,
 		machineMarkedDeletionTimes:            machineMarkedDeletionTimes,
 	}
+}
+
+func (dc *controller) adjustingMachineDeploymentAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (newMcd *v1alpha1.MachineDeployment, err error) {
+	mcdDeepCopy := mcd.DeepCopy()
+	if mcdDeepCopy.Annotations == nil {
+		mcdDeepCopy.Annotations = make(map[string]string)
+	}
+	if _, ok := mcdDeepCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]; !ok {
+		timestamp := time.Now().Format(time.RFC3339)
+		mcdDeepCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = timestamp
+		oldTriggerDeletionAnnot := mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM]
+		machineNames := strings.Split(oldTriggerDeletionAnnot, ",")
+		newTriggerDeletionAnnot := make([]string, 0)
+		for _, machineName := range machineNames {
+			parts := strings.Split(machineName, "~")
+			if len(parts) == 1 {
+				newTriggerDeletionAnnot = append(newTriggerDeletionAnnot, fmt.Sprintf("%s~%s", parts[0], timestamp))
+			} else if len(parts) == 2 {
+				newTriggerDeletionAnnot = append(newTriggerDeletionAnnot, machineName)
+			}
+		}
+		mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] = strings.Join(newTriggerDeletionAnnot, ",")
+		newMcd, err = dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("failed to update MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", newMcd.Name, len(newTriggerDeletionAnnot), newMcd.Annotations[machineutils.TriggerDeletionByMCM])
+			return nil, err
+		}
+	}
+	return newMcd, nil
 }

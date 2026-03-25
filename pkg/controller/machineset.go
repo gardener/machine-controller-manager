@@ -342,6 +342,10 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		}
 	}
 	allMachinesDiff := len(allMachines) - int(machineSet.Spec.Replicas)
+	// During in-place updates, in the newMachineSet, it can happen that a machine has come from the oldMachineSet
+	// but the ReplicaCount of newMachineSet has not increased yet.
+	// In such cases, we should not delete the machine immediately,
+	// otherwise it can cause unnecessary machine deletion and creation during in-place updates.
 	machinesWithoutUpdateSuccessfulLabelDiff := len(machinesWithoutUpdateSuccessfulLabel) - int(machineSet.Spec.Replicas)
 
 	// During in-place updates, ScaleUps are disabled in the oldMachineSet and
@@ -418,10 +422,6 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 			}
 		}
 		return err
-		// During in-place updates, in the newMachineSet, it can happen that a machine has come from the oldMachineSet
-		// but the ReplicaCount of newMachineSet has not increased yet.
-		// In such cases, we should not delete the machine immediately,
-		// otherwise it can cause unnecessary machine deletion and creation during in-place updates.
 	} else if machinesWithoutUpdateSuccessfulLabelDiff > 0 {
 		if machinesWithoutUpdateSuccessfulLabelDiff > BurstReplicas {
 			machinesWithoutUpdateSuccessfulLabelDiff = BurstReplicas
@@ -432,6 +432,14 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	}
 
 	staleMachines = append(staleMachines, getMachinesMarkedForDeletion(machinesWithoutUpdateSuccessfulLabel, machineSet)...)
+
+	for _, machine := range machinesWithoutUpdateSuccessfulLabel {
+		if machineutils.IsMachineFailed(machine) {
+			staleMachines = append(staleMachines, machine)
+			continue
+		}
+	}
+
 	staleMachines = uniqueMachines(staleMachines)
 
 	if len(staleMachines) >= 1 {
@@ -886,29 +894,28 @@ func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.
 // getMachinesMarkedForDeletion iterates through the machines and if a machine is failed or has MarkedForDeletionTime before LastDeploymentReplicaChangeByScalerTime of the machineSet,
 // that machine is added to the staleMachine list to be deleted.
 // This is done to have consistency between machineDeployment replica change and the machines marked for deletion.
-func getMachinesMarkedForDeletion(machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) []*v1alpha1.Machine {
-	staleMachines := []*v1alpha1.Machine{}
+func getMachinesMarkedForDeletion(machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) (staleMachines []*v1alpha1.Machine) {
 	machineSetLRCA, perr := time.Parse(time.RFC3339, machineSet.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime])
+	if perr != nil {
+		klog.Warningf("Unable to parse %q of machineset %q: %v", machineutils.LastDeploymentReplicaChangeByScalerTime, machineSet.Name, machineSet)
+		return
+	}
+
 	for _, machine := range machineList {
-		if machineutils.IsMachineFailed(machine) {
-			staleMachines = append(staleMachines, machine)
+		if machine.Annotations[machineutils.MarkedForDeletionTime] == "" || machine.Annotations[machineutils.MachinePriority] != "1" {
 			continue
 		}
-		if perr == nil {
-			if machine.Annotations[machineutils.MarkedForDeletionTime] == "" || machine.Annotations[machineutils.MachinePriority] != "1" {
-				continue
-			}
-			machineLRCA, err := time.Parse(time.RFC3339, machine.Annotations[machineutils.MarkedForDeletionTime])
-			if err != nil {
-				klog.Infof("Error parsing time from %q with value %q of machine %q: %v", machineutils.MarkedForDeletionTime, machine.Annotations[machineutils.MarkedForDeletionTime], machine.Name, err)
-				continue
-			}
-			if machineLRCA.Before(machineSetLRCA) || machineLRCA.Equal(machineSetLRCA) {
-				staleMachines = append(staleMachines, machine)
-			}
+		machineLRCA, err := time.Parse(time.RFC3339, machine.Annotations[machineutils.MarkedForDeletionTime])
+		if err != nil {
+			klog.Infof("Error parsing time from %q with value %q of machine %q: %v", machineutils.MarkedForDeletionTime, machine.Annotations[machineutils.MarkedForDeletionTime], machine.Name, err)
+			continue
+		}
+		if machineLRCA.Before(machineSetLRCA) || machineLRCA.Equal(machineSetLRCA) {
+			staleMachines = append(staleMachines, machine)
 		}
 	}
-	return staleMachines
+
+	return
 }
 
 // uniqueMachines returns the input slice with duplicates removed (by MachineKey),
