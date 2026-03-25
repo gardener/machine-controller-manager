@@ -59,8 +59,9 @@ const (
 	// NotManagedByMCM annotation helps in identifying the nodes which are not handled by MCM
 	NotManagedByMCM = "node.machine.sapcloud.io/not-managed-by-mcm"
 
-	// TriggerDeletionByMCM can be set on the MachineDeployment and contains the machine names for which deletion should be triggered.
-	// This feature is leveraged by the CA-MCM cloud provider. eg: M1~T1,M2~T2,M3~T3,...
+	// TriggerDeletionByMCM when set on the MachineDeployment by the CA-MCM cloud provider contains the machine names
+	// for which deletion should be triggered alongwith the time when CA decided to scale-down those machines.
+	// Expected format for this annotation value is [M1~T1,M2~T2,...]
 	TriggerDeletionByMCM = "node.machine.sapcloud.io/trigger-deletion-by-mcm"
 
 	// MarkedForDeletionTime is the annotation used to specify the time when machine was marked for deletion.

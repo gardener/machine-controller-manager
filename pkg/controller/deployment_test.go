@@ -1754,7 +1754,6 @@ var _ = Describe("machineDeployment", func() {
 				waitForCacheSync(stop, c)
 				actualMachineDeployment, _ := c.controlMachineClient.MachineDeployments(testNamespace).Get(context.Background(), testMachineDeployment.Name, metav1.GetOptions{})
 				actualMachineSets, _ := c.controlMachineClient.MachineSets(testNamespace).List(context.Background(), metav1.ListOptions{})
-				waitForCacheSync(stop, c)
 				actualMachines, _ := c.controlMachineClient.Machines(testNamespace).List(context.Background(), metav1.ListOptions{})
 				testNode, _ := c.targetCoreClient.CoreV1().Nodes().Get(context.Background(), testNode.Name, metav1.GetOptions{})
 
@@ -1965,7 +1964,7 @@ var _ = Describe("machineDeployment", func() {
 			),
 			Entry("should set MachinePriority=1 for the machines named in TriggerDeletionByMCM annotation in the MachineDeployment",
 				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
-					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = annotations.CreateMachinesTriggeredForDeletionAnnotValue([]string{fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))})
+					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))
 				},
 				func(_ *machinev1.MachineDeployment, _ []machinev1.MachineSet, machines []machinev1.Machine, _ *corev1.Node) error {
 					if machines[0].Annotations[machineutils.MachinePriority] != "1" {

@@ -891,7 +891,7 @@ func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.
 	return machine, retryErr
 }
 
-// getMachinesMarkedForDeletion iterates through the machines and if a machine is failed or has MarkedForDeletionTime before LastDeploymentReplicaChangeByScalerTime of the machineSet,
+// getMachinesMarkedForDeletion iterates through the machines and if a machine has MarkedForDeletionTime before LastDeploymentReplicaChangeByScalerTime of the machineSet,
 // that machine is added to the staleMachine list to be deleted.
 // This is done to have consistency between machineDeployment replica change and the machines marked for deletion.
 func getMachinesMarkedForDeletion(machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) (staleMachines []*v1alpha1.Machine) {
