@@ -428,26 +428,23 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		}
 		logMachinesPriorityAndMarkedDeletionTime(machinesWithoutUpdateSuccessfulLabel)
 		staleMachines = append(staleMachines, getMachinesToDelete(machinesWithoutUpdateSuccessfulLabel, machinesWithoutUpdateSuccessfulLabelDiff)...)
-		logMachinesToDelete(staleMachines)
 	}
 
 	staleMachines = append(staleMachines, getMachinesMarkedForDeletion(machinesWithoutUpdateSuccessfulLabel, machineSet)...)
-
 	for _, machine := range machinesWithoutUpdateSuccessfulLabel {
 		if machineutils.IsMachineFailed(machine) {
 			staleMachines = append(staleMachines, machine)
-			continue
 		}
 	}
 
 	staleMachines = uniqueMachines(staleMachines)
-
 	if len(staleMachines) >= 1 {
 		// We delete max BurstReplicas machines at a time
 		if len(staleMachines) > BurstReplicas {
 			staleMachines = staleMachines[:BurstReplicas]
 		}
 		klog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (machineSet.Spec.Replicas), len(staleMachines))
+		logMachinesToDelete(staleMachines)
 		// Snapshot the UIDs (ns/name) of the machines we're expecting to see
 		// deleted, so we know to record their expectations exactly once either
 		// when we see it as an update of the deletion timestamp, or as a delete.
@@ -897,7 +894,7 @@ func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.
 func getMachinesMarkedForDeletion(machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) (staleMachines []*v1alpha1.Machine) {
 	machineSetLRCA, perr := time.Parse(time.RFC3339, machineSet.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime])
 	if perr != nil {
-		klog.Warningf("Unable to parse %q of machineset %q: %v", machineutils.LastDeploymentReplicaChangeByScalerTime, machineSet.Name, machineSet)
+		klog.Warningf("Unable to parse %q of machineset %q: %v", machineutils.LastDeploymentReplicaChangeByScalerTime, machineSet.Name, perr)
 		return
 	}
 

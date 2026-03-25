@@ -843,37 +843,74 @@ var _ = Describe("machineset", func() {
 			Expect(Err).Should(BeNil())
 		})
 
-		It("should delete MachinePriority=1 machines", func() {
+		It("should delete the marked machines with no change in machineSet replicas", func() {
 			stop := make(chan struct{})
 			defer close(stop)
+
 			objects := []runtime.Object{}
-
-			staleMachine := testActiveMachine1.DeepCopy()
-			staleMachine.Annotations[machineutils.MachinePriority] = "1"
-			testActiveMachine4.Status.CurrentStatus.Phase = MachineRunning
-
-			objects = append(objects, testMachineSet, staleMachine, testActiveMachine2, testActiveMachine3, testActiveMachine4)
+			testMachineSet.Annotations = map[string]string{
+				machineutils.LastDeploymentReplicaChangeByScalerTime: time.Now().Add(1 * time.Minute).Format(time.RFC3339),
+			}
+			testMachineSet.Spec.Replicas = 2
+			testActiveMachine1.Annotations = map[string]string{
+				machineutils.MachinePriority:       "1",
+				machineutils.MarkedForDeletionTime: time.Now().Format(time.RFC3339),
+			}
+			testActiveMachine2.Annotations = map[string]string{
+				machineutils.MachinePriority:       "1",
+				machineutils.MarkedForDeletionTime: time.Now().Format(time.RFC3339),
+			}
+			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2)
 			c, trackers := createController(stop, testNamespace, objects, nil, nil)
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			machines, _ := c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
-			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas + 1)))
+			allMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2}
+			err := c.manageReplicas(context.TODO(), allMachines, testMachineSet)
+			Expect(err).To(BeNil())
+			waitForCacheSync(stop, c)
+			_, Err1 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testActiveMachine1.Name, metav1.GetOptions{})
+			_, Err2 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testActiveMachine2.Name, metav1.GetOptions{})
 
-			beforeMachines := []*machinev1.Machine{staleMachine, testActiveMachine2, testActiveMachine3, testActiveMachine4}
-			err := c.manageReplicas(context.TODO(), beforeMachines, testMachineSet)
-			Expect(err).Should(BeNil())
+			Expect(Err1).Should(Not(BeNil()))
+			Expect(k8sError.IsNotFound(Err1)).Should(BeTrue())
+			Expect(Err2).Should(Not(BeNil()))
+			Expect(k8sError.IsNotFound(Err2)).Should(BeTrue())
+		})
+
+		It("should delete the marked machines after reducing machineSet replicas", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			objects := []runtime.Object{}
+			testMachineSet.Annotations = map[string]string{
+				machineutils.LastDeploymentReplicaChangeByScalerTime: time.Now().Add(1 * time.Minute).Format(time.RFC3339),
+			}
+			testMachineSet.Spec.Replicas = 1
+			testActiveMachine1.Annotations = map[string]string{
+				machineutils.MachinePriority:       "1",
+				machineutils.MarkedForDeletionTime: time.Now().Format(time.RFC3339),
+			}
+			testActiveMachine2.Annotations = map[string]string{
+				machineutils.MachinePriority:       "1",
+				machineutils.MarkedForDeletionTime: time.Now().Format(time.RFC3339),
+			}
+			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			_, err = c.controlMachineClient.Machines(testNamespace).Get(context.Background(), staleMachine.Name, metav1.GetOptions{})
-			Expect(err).ShouldNot(BeNil())
-			Expect(err).To(Satisfy(func(e error) bool {
-				return k8sError.IsNotFound(e)
-			}))
-			afterMachines, err := c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
-			// replica count is still maintained.
-			Expect(len(afterMachines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
-			Expect(err).Should(BeNil())
+			allMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2}
+			err := c.manageReplicas(context.TODO(), allMachines, testMachineSet)
+			Expect(err).To(BeNil())
+			waitForCacheSync(stop, c)
+			_, Err1 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testActiveMachine1.Name, metav1.GetOptions{})
+			_, Err2 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testActiveMachine2.Name, metav1.GetOptions{})
+
+			Expect(Err1).Should(Not(BeNil()))
+			Expect(k8sError.IsNotFound(Err1)).Should(BeTrue())
+			Expect(Err2).Should(Not(BeNil()))
+			Expect(k8sError.IsNotFound(Err2)).Should(BeTrue())
 		})
 
 		Describe("machine with update-result label", func() {
@@ -1810,135 +1847,6 @@ var _ = Describe("machineset", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(testMachineSet.Finalizers).To(Equal(finalizers))
-		})
-	})
-
-	Describe("#terminateMarkedMachines", func() {
-		var (
-			testMachineSet      *machinev1.MachineSet
-			testRunningMachine1 *machinev1.Machine
-			testRunningMachine2 *machinev1.Machine
-		)
-
-		BeforeEach(func() {
-			testMachineSet = &machinev1.MachineSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "MachineSet-test",
-					Namespace: testNamespace,
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-					UID: "1234567",
-				},
-				Spec: machinev1.MachineSetSpec{
-					Replicas: 2,
-					Template: machinev1.MachineTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"test-label": "test-label",
-							},
-						},
-					},
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"test-label": "test-label",
-						},
-					},
-				},
-			}
-
-			testRunningMachine1 = &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-test1",
-					Namespace: testNamespace,
-					UID:       "1234560",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-					Annotations: map[string]string{
-						machineutils.MachinePriority:       "1",
-						machineutils.MarkedForDeletionTime: time.Now().Format(time.RFC3339),
-					},
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineRunning,
-					},
-				},
-			}
-
-			testRunningMachine2 = &machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-test2",
-					Namespace: testNamespace,
-					UID:       "1234560",
-					Labels: map[string]string{
-						"test-label": "test-label",
-					},
-					Annotations: map[string]string{
-						machineutils.MachinePriority:       "1",
-						machineutils.MarkedForDeletionTime: time.Now().Format(time.RFC3339),
-					},
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineRunning,
-					},
-				},
-			}
-		})
-
-		It("should delete the marked machines with no change in machineSet replicas", func() {
-			stop := make(chan struct{})
-			defer close(stop)
-
-			objects := []runtime.Object{}
-			testMachineSet.Annotations = map[string]string{
-				machineutils.LastDeploymentReplicaChangeByScalerTime: time.Now().Add(1 * time.Minute).Format(time.RFC3339),
-			}
-			objects = append(objects, testMachineSet, testRunningMachine1, testRunningMachine2)
-			c, trackers := createController(stop, testNamespace, objects, nil, nil)
-			defer trackers.Stop()
-			waitForCacheSync(stop, c)
-
-			allMachines := []*machinev1.Machine{testRunningMachine1, testRunningMachine2}
-			err := c.manageReplicas(context.TODO(), allMachines, testMachineSet)
-			Expect(err).To(BeNil())
-			waitForCacheSync(stop, c)
-			_, Err1 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testRunningMachine1.Name, metav1.GetOptions{})
-			_, Err2 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testRunningMachine2.Name, metav1.GetOptions{})
-
-			Expect(Err1).Should(Not(BeNil()))
-			Expect(k8sError.IsNotFound(Err1)).Should(BeTrue())
-			Expect(Err2).Should(Not(BeNil()))
-			Expect(k8sError.IsNotFound(Err2)).Should(BeTrue())
-		})
-
-		It("should delete the marked machines after reducing machineSet replicas", func() {
-			stop := make(chan struct{})
-			defer close(stop)
-
-			objects := []runtime.Object{}
-			testMachineSet.Annotations = map[string]string{
-				machineutils.LastDeploymentReplicaChangeByScalerTime: time.Now().Add(1 * time.Minute).Format(time.RFC3339),
-			}
-			testMachineSet.Spec.Replicas = 1
-			objects = append(objects, testMachineSet, testRunningMachine1, testRunningMachine2)
-			c, trackers := createController(stop, testNamespace, objects, nil, nil)
-			defer trackers.Stop()
-			waitForCacheSync(stop, c)
-
-			allMachines := []*machinev1.Machine{testRunningMachine1, testRunningMachine2}
-			err := c.manageReplicas(context.TODO(), allMachines, testMachineSet)
-			Expect(err).To(BeNil())
-			waitForCacheSync(stop, c)
-			_, Err1 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testRunningMachine1.Name, metav1.GetOptions{})
-			_, Err2 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testRunningMachine2.Name, metav1.GetOptions{})
-
-			Expect(Err1).Should(Not(BeNil()))
-			Expect(k8sError.IsNotFound(Err1)).Should(BeTrue())
-			Expect(Err2).Should(Not(BeNil()))
-			Expect(k8sError.IsNotFound(Err2)).Should(BeTrue())
 		})
 	})
 })

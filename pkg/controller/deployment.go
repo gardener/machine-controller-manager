@@ -551,7 +551,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	}
 
 	// Temporary code for backward compatibility, can be removed in later release
-	d, err = dc.adjustingMachineDeploymentAnnotations(ctx, d)
+	d, err = dc.adjustingMachineDeploymentDeletionAnnotations(ctx, d)
 	if err != nil {
 		return err
 	}
@@ -713,7 +713,7 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 	if len(oldTriggerDeletionAnnotationList) == 0 {
 		return nil
 	}
-	klog.Warningf("MachineDeployment %q has #%d machine(s) marked for deletion, triggerForDeletionMachineNames=%v", mcd.Name, len(oldTriggerDeletionAnnotationList), oldTriggerDeletionAnnotationList)
+	klog.Infof("MachineDeployment %q has #%d machine(s) marked for deletion, triggerForDeletionMachineNames=%v", mcd.Name, len(oldTriggerDeletionAnnotationList), oldTriggerDeletionAnnotationList)
 
 	for _, machineNameWithTime := range oldTriggerDeletionAnnotationList {
 		parts := strings.Split(machineNameWithTime, "~")
@@ -724,8 +724,6 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 			continue
 		}
 		machineName, machineDeletionTime := parts[0], parts[1]
-		// We don't add the machine name with time that has invalid format into newTriggerDeletionAnnotationList to make sure that it is removed from the annotation
-		// and expect scaler to put the correct format in the annotation in the next retry.
 		if _, perr := time.Parse(time.RFC3339, machineDeletionTime); perr != nil {
 			klog.Warningf("Invalid deletion time format %q for machine %q in MachineDeployment %q annotation", machineDeletionTime, machineName, mcd.Name)
 			continue
@@ -753,7 +751,7 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 	}
 }
 
-func (dc *controller) adjustingMachineDeploymentAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (newMcd *v1alpha1.MachineDeployment, err error) {
+func (dc *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (newMcd *v1alpha1.MachineDeployment, err error) {
 	mcdDeepCopy := mcd.DeepCopy()
 	if mcdDeepCopy.Annotations == nil {
 		mcdDeepCopy.Annotations = make(map[string]string)
@@ -762,22 +760,24 @@ func (dc *controller) adjustingMachineDeploymentAnnotations(ctx context.Context,
 		timestamp := time.Now().Format(time.RFC3339)
 		mcdDeepCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = timestamp
 		oldTriggerDeletionAnnot := mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM]
-		machineNames := strings.Split(oldTriggerDeletionAnnot, ",")
-		newTriggerDeletionAnnot := make([]string, 0)
-		for _, machineName := range machineNames {
-			parts := strings.Split(machineName, "~")
-			if len(parts) == 1 {
-				newTriggerDeletionAnnot = append(newTriggerDeletionAnnot, fmt.Sprintf("%s~%s", parts[0], timestamp))
-			} else if len(parts) == 2 {
-				newTriggerDeletionAnnot = append(newTriggerDeletionAnnot, machineName)
+		if oldTriggerDeletionAnnot != "" {
+			machineNames := strings.Split(oldTriggerDeletionAnnot, ",")
+			newTriggerDeletionAnnotList := make([]string, 0)
+			for _, machineName := range machineNames {
+				parts := strings.Split(machineName, "~")
+				if len(parts) == 1 {
+					newTriggerDeletionAnnotList = append(newTriggerDeletionAnnotList, fmt.Sprintf("%s~%s", parts[0], timestamp))
+				} else if len(parts) == 2 {
+					newTriggerDeletionAnnotList = append(newTriggerDeletionAnnotList, machineName)
+				}
 			}
+			mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] = strings.Join(newTriggerDeletionAnnotList, ",")
 		}
-		mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] = strings.Join(newTriggerDeletionAnnot, ",")
-		newMcd, err = dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
+		_, err = dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
 		if err != nil {
-			klog.Errorf("failed to update MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", newMcd.Name, len(newTriggerDeletionAnnot), newMcd.Annotations[machineutils.TriggerDeletionByMCM])
+			klog.Errorf("failed to update MachineDeployment %q, triggerDeletionAnnotValue=%q", mcdDeepCopy.Name, mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
 			return nil, err
 		}
 	}
-	return newMcd, nil
+	return mcdDeepCopy, nil
 }
