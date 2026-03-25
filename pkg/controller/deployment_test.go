@@ -2710,7 +2710,7 @@ var _ = Describe("machineDeployment", func() {
 			Entry("modify TriggerDeletionByMCM annotation of MachineDeployment from old format [M1,M2,...] to [M1~T1,M2~T2,...]",
 				func() {
 					testMachineDeployment.Annotations = map[string]string{
-						machineutils.TriggerDeletionByMCM: fmt.Sprintf("Machine-test"),
+						machineutils.TriggerDeletionByMCM: "Machine-test",
 					}
 				},
 				func(mcd *machinev1.MachineDeployment) {
