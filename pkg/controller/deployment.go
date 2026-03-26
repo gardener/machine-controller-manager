@@ -751,33 +751,28 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 	}
 }
 
-func (dc *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (newMcd *v1alpha1.MachineDeployment, err error) {
-	mcdDeepCopy := mcd.DeepCopy()
-	if mcdDeepCopy.Annotations == nil {
-		mcdDeepCopy.Annotations = make(map[string]string)
-	}
-	if _, ok := mcdDeepCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]; !ok {
+func (dc *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (mcdDeepCopy *v1alpha1.MachineDeployment, err error) {
+	mcdDeepCopy = mcd.DeepCopy()
+	if mcdDeepCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] == "" && mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] != "" {
 		timestamp := time.Now().Format(time.RFC3339)
 		mcdDeepCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = timestamp
 		oldTriggerDeletionAnnot := mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM]
-		if oldTriggerDeletionAnnot != "" {
-			machineNames := strings.Split(oldTriggerDeletionAnnot, ",")
-			newTriggerDeletionAnnotList := make([]string, 0)
-			for _, machineName := range machineNames {
-				parts := strings.Split(machineName, "~")
-				if len(parts) == 1 {
-					newTriggerDeletionAnnotList = append(newTriggerDeletionAnnotList, fmt.Sprintf("%s~%s", parts[0], timestamp))
-				} else if len(parts) == 2 {
-					newTriggerDeletionAnnotList = append(newTriggerDeletionAnnotList, machineName)
-				}
+		machineNames := strings.Split(oldTriggerDeletionAnnot, ",")
+		newTriggerDeletionAnnotList := make([]string, 0)
+		for _, machineName := range machineNames {
+			parts := strings.Split(machineName, "~")
+			if len(parts) == 1 {
+				newTriggerDeletionAnnotList = append(newTriggerDeletionAnnotList, fmt.Sprintf("%s~%s", parts[0], timestamp))
+			} else if len(parts) == 2 {
+				newTriggerDeletionAnnotList = append(newTriggerDeletionAnnotList, machineName)
 			}
-			mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] = strings.Join(newTriggerDeletionAnnotList, ",")
 		}
+		mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] = strings.Join(newTriggerDeletionAnnotList, ",")
 		_, err = dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf("failed to update MachineDeployment %q, triggerDeletionAnnotValue=%q", mcdDeepCopy.Name, mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
-			return nil, err
+			return
 		}
 	}
-	return mcdDeepCopy, nil
+	return
 }
