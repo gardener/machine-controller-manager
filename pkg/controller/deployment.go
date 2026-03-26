@@ -682,7 +682,7 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 
 	for machine, machineDeletionTime := range tgd.machineMarkedDeletionTimes {
 		if machine.Annotations[machineutils.MachinePriority] == "1" && machine.Annotations[machineutils.MarkedForDeletionTime] != "" {
-			klog.V(4).Infof("Machine %q of MachineDeployment %q already has MachinePriority=1 and MarkedForDeletionTime=%q annotation", machine.Name, mcd.Name, mcd.Annotations[machineutils.MarkedForDeletionTime])
+			klog.V(4).Infof("Machine %q of MachineDeployment %q already has MachinePriority=1 and MarkedForDeletionTime=%q annotation", machine.Name, mcd.Name, machine.Annotations[machineutils.MarkedForDeletionTime])
 			continue
 		}
 		machineDeepCopy := machine.DeepCopy()
