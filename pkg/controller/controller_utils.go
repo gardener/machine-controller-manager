@@ -774,15 +774,16 @@ func (s ActiveMachines) Less(i, j int) bool {
 	// Case-4: If all above cases are false, we prioritize based on creation time
 	if machineIPriority != machineJPriority {
 		return machineIPriority < machineJPriority
-	} else if s[i].Annotations[machineutils.MarkedForDeletionTime] != "" && s[j].Annotations[machineutils.MarkedForDeletionTime] == "" {
-		return true
-	} else if s[i].Annotations[machineutils.MarkedForDeletionTime] == "" && s[j].Annotations[machineutils.MarkedForDeletionTime] != "" {
-		return false
-	} else if s[i].Annotations[machineutils.MarkedForDeletionTime] != "" && s[j].Annotations[machineutils.MarkedForDeletionTime] != "" {
-		timeI, _ := time.Parse(time.RFC3339, s[i].Annotations[machineutils.MarkedForDeletionTime])
-		timeJ, _ := time.Parse(time.RFC3339, s[j].Annotations[machineutils.MarkedForDeletionTime])
-		// to have stable-sort where timeI <= timeJ
-		return !timeI.After(timeJ)
+	} else if s[i].Annotations[machineutils.MarkedForDeletionTime] != s[j].Annotations[machineutils.MarkedForDeletionTime] {
+		if s[i].Annotations[machineutils.MarkedForDeletionTime] != "" && s[j].Annotations[machineutils.MarkedForDeletionTime] == "" {
+			return true
+		} else if s[i].Annotations[machineutils.MarkedForDeletionTime] == "" && s[j].Annotations[machineutils.MarkedForDeletionTime] != "" {
+			return false
+		} else {
+			timeI, _ := time.Parse(time.RFC3339, s[i].Annotations[machineutils.MarkedForDeletionTime])
+			timeJ, _ := time.Parse(time.RFC3339, s[j].Annotations[machineutils.MarkedForDeletionTime])
+			return timeI.Before(timeJ)
+		}
 	} else if m[s[i].Status.CurrentStatus.Phase] != m[s[j].Status.CurrentStatus.Phase] {
 		return m[s[i].Status.CurrentStatus.Phase] < m[s[j].Status.CurrentStatus.Phase]
 	} else if s[i].CreationTimestamp != s[j].CreationTimestamp {
