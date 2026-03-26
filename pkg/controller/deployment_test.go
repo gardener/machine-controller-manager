@@ -1962,6 +1962,7 @@ var _ = Describe("machineDeployment", func() {
 					return nil
 				},
 			),
+			// flaky test because of reusing same testMachine for mutilple tests.
 			Entry("should set MachinePriority=1 for the machines named in TriggerDeletionByMCM annotation in the MachineDeployment",
 				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
 					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))

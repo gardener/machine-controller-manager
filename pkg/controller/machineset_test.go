@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -1377,6 +1378,7 @@ var _ = Describe("machineset", func() {
 			testMachine2 *machinev1.Machine
 			testMachine3 *machinev1.Machine
 			testMachine4 *machinev1.Machine
+			testMachine5 *machinev1.Machine
 			diff         int
 		)
 
@@ -1435,7 +1437,7 @@ var _ = Describe("machineset", func() {
 				},
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineRunning,
+						Phase: MachineFailed,
 					},
 				},
 			}
@@ -1455,7 +1457,26 @@ var _ = Describe("machineset", func() {
 				},
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
-						Phase: MachineFailed,
+						Phase: MachineRunning,
+					},
+				},
+			}
+
+			testMachine5 = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-5",
+					Namespace: testNamespace,
+					UID:       "1234561",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						machineutils.MachinePriority: "3",
+					},
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineRunning,
 					},
 				},
 			}
@@ -1465,7 +1486,10 @@ var _ = Describe("machineset", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 			diff = 4
-			filteredMachines := []*machinev1.Machine{testMachine1, testMachine2, testMachine3, testMachine4}
+			filteredMachines := []*machinev1.Machine{testMachine1, testMachine2, testMachine3, testMachine4, testMachine5}
+			rand.Shuffle(len(filteredMachines), func(i, j int) {
+				filteredMachines[i], filteredMachines[j] = filteredMachines[j], filteredMachines[i]
+			})
 			machinesToDelete := getMachinesToDelete(filteredMachines, diff)
 
 			Expect(machinesToDelete[0].Name).To(Equal(testMachine1.Name))
