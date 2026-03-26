@@ -548,14 +548,14 @@ func (dc *controller) scaleMachineSet(ctx context.Context, is *v1alpha1.MachineS
 	// call SetReplicasAnnotations inside the following if clause. Then we can also move the deep-copy from
 	// above inside the if too.
 	annotationsNeedUpdate := SetReplicasAnnotations(isCopy, (deployment.Spec.Replicas), (deployment.Spec.Replicas)+MaxSurge(*deployment))
+	// We keep the LDRCBST annotation of MCS always in sync with MCD, regardless of whether any replica change was observed.
+	LDRCBSTchanged := deployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] != is.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]
 
 	scaled := false
 	var err error
-	if sizeNeedsUpdate || annotationsNeedUpdate {
+	if sizeNeedsUpdate || annotationsNeedUpdate || LDRCBSTchanged {
 		isCopy.Spec.Replicas = newScale
-		if val, exists := deployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]; exists {
-			isCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = val
-		}
+		isCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = deployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]
 		is, err = dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(ctx, isCopy, metav1.UpdateOptions{})
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
