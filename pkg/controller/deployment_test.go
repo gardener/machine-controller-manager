@@ -1967,9 +1967,7 @@ var _ = Describe("machineDeployment", func() {
 					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))
 				},
 				func(_ *machinev1.MachineDeployment, _ []machinev1.MachineSet, machines []machinev1.Machine, _ *corev1.Node) error {
-					if machines[0].Annotations[machineutils.MachinePriority] != "1" {
-						return fmt.Errorf("testMachine should have its %q annotation set to 1", machineutils.MachinePriority)
-					}
+					Expect(machines[0].Annotations[machineutils.MachinePriority]).To(Equal("1"))
 					return nil
 				},
 			),
