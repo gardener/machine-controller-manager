@@ -752,13 +752,15 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 }
 
 func (dc *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (*v1alpha1.MachineDeployment, error) {
-	if mcd.Annotations[machineutils.TriggerDeletionByMCM] == "" || mcd.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] != "" {
+	if mcd.Annotations[machineutils.TriggerDeletionByMCM] == "" {
 		return mcd, nil
 	}
 
 	mcdDeepCopy := mcd.DeepCopy()
-	timestamp := time.Now().Format(time.RFC3339)
-	mcdDeepCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = timestamp
+	if mcdDeepCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] == "" {
+		mcdDeepCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = time.Now().Format(time.RFC3339)
+	}
+	timestamp := mcd.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]
 	oldTriggerDeletionAnnot := mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM]
 	machineNames := strings.Split(oldTriggerDeletionAnnot, ",")
 	newTriggerDeletionAnnotList := make([]string, 0)
