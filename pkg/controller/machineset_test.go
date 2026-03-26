@@ -1373,20 +1373,24 @@ var _ = Describe("machineset", func() {
 
 	Describe("#getMachinesToDelete", func() {
 		var (
-			testActiveMachine1 *machinev1.Machine
-			testFailedMachine1 *machinev1.Machine
-			diff               int
+			testMachine1 *machinev1.Machine
+			testMachine2 *machinev1.Machine
+			testMachine3 *machinev1.Machine
+			testMachine4 *machinev1.Machine
+			diff         int
 		)
 
 		BeforeEach(func() {
-
-			testActiveMachine1 = &machinev1.Machine{
+			testMachine1 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "machine-1",
 					Namespace: testNamespace,
-					UID:       "1234568",
+					UID:       "1234561",
 					Labels: map[string]string{
 						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						machineutils.MachinePriority: "1",
 					},
 				},
 				Status: machinev1.MachineStatus{
@@ -1396,13 +1400,57 @@ var _ = Describe("machineset", func() {
 				},
 			}
 
-			testFailedMachine1 = &machinev1.Machine{
+			testMachine2 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "machine-2",
 					Namespace: testNamespace,
-					UID:       "1234569",
+					UID:       "1234562",
 					Labels: map[string]string{
 						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						machineutils.MachinePriority:       "3",
+						machineutils.MarkedForDeletionTime: time.Now().Format(time.RFC3339),
+					},
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineRunning,
+					},
+				},
+			}
+
+			testMachine3 = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-3",
+					Namespace: testNamespace,
+					UID:       "1234563",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						machineutils.MachinePriority:       "3",
+						machineutils.MarkedForDeletionTime: time.Now().Add(1 * time.Minute).Format(time.RFC3339),
+					},
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineRunning,
+					},
+				},
+			}
+
+			testMachine4 = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-4",
+					Namespace: testNamespace,
+					UID:       "1234564",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						machineutils.MachinePriority:       "3",
+						machineutils.MarkedForDeletionTime: testMachine3.Annotations[machineutils.MarkedForDeletionTime],
 					},
 				},
 				Status: machinev1.MachineStatus{
@@ -1413,16 +1461,17 @@ var _ = Describe("machineset", func() {
 			}
 		})
 
-		// Testcase: It should return the Failed machines first.
-		It("should return the Failed machines first.", func() {
+		It("should sort the machines in the correct order", func() {
 			stop := make(chan struct{})
 			defer close(stop)
-			diff = 1
-			filteredMachines := []*machinev1.Machine{testActiveMachine1, testFailedMachine1}
+			diff = 4
+			filteredMachines := []*machinev1.Machine{testMachine1, testMachine2, testMachine3, testMachine4}
 			machinesToDelete := getMachinesToDelete(filteredMachines, diff)
 
-			Expect(len(machinesToDelete)).To(Equal(len(filteredMachines) - diff))
-			Expect(machinesToDelete[0].Name).To(Equal(testFailedMachine1.Name))
+			Expect(machinesToDelete[0].Name).To(Equal(testMachine1.Name))
+			Expect(machinesToDelete[1].Name).To(Equal(testMachine2.Name))
+			Expect(machinesToDelete[2].Name).To(Equal(testMachine3.Name))
+			Expect(machinesToDelete[3].Name).To(Equal(testMachine4.Name))
 		})
 	})
 
