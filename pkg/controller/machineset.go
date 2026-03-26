@@ -904,7 +904,7 @@ func getMachinesMarkedForDeletion(machineList []*v1alpha1.Machine, machineSet *v
 		}
 		machineLRCA, err := time.Parse(time.RFC3339, machine.Annotations[machineutils.MarkedForDeletionTime])
 		if err != nil {
-			klog.Infof("Error parsing time from %q with value %q of machine %q: %v", machineutils.MarkedForDeletionTime, machine.Annotations[machineutils.MarkedForDeletionTime], machine.Name, err)
+			klog.Infof("Error parsing time from annotation %q=%q on machine %q: %v", machineutils.MarkedForDeletionTime, machine.Annotations[machineutils.MarkedForDeletionTime], machine.Name, err)
 			continue
 		}
 		if machineLRCA.Before(machineSetLRCA) || machineLRCA.Equal(machineSetLRCA) {
@@ -913,20 +913,4 @@ func getMachinesMarkedForDeletion(machineList []*v1alpha1.Machine, machineSet *v
 	}
 
 	return
-}
-
-// uniqueMachines returns the input slice with duplicates removed (by MachineKey),
-// preserving the first occurrence order.
-func uniqueMachines(machines []*v1alpha1.Machine) []*v1alpha1.Machine {
-	seen := sets.NewString()
-	out := make([]*v1alpha1.Machine, 0, len(machines))
-	for _, m := range machines {
-		k := MachineKey(m)
-		if seen.Has(k) {
-			continue
-		}
-		seen.Insert(k)
-		out = append(out, m)
-	}
-	return out
 }

@@ -29,6 +29,7 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
@@ -216,4 +217,20 @@ func logMachinesToDelete(machines []*v1alpha1.Machine) {
 	for _, m := range machines {
 		klog.V(3).Infof("Machine %q needs to be deleted", m.Name)
 	}
+}
+
+// uniqueMachines returns the input slice with duplicates removed (by MachineKey),
+// preserving the first occurrence order.
+func uniqueMachines(machines []*v1alpha1.Machine) []*v1alpha1.Machine {
+	seen := sets.NewString()
+	out := make([]*v1alpha1.Machine, 0, len(machines))
+	for _, m := range machines {
+		k := MachineKey(m)
+		if seen.Has(k) {
+			continue
+		}
+		seen.Insert(k)
+		out = append(out, m)
+	}
+	return out
 }

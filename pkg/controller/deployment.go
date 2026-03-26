@@ -682,7 +682,7 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 
 	for machine, machineDeletionTime := range tgd.machineMarkedDeletionTimes {
 		if machine.Annotations[machineutils.MachinePriority] == "1" && machine.Annotations[machineutils.MarkedForDeletionTime] != "" {
-			klog.V(4).Infof("Machine %q of MachineDeployment %q already has MachinePriority=1 and MarkedForDeletionTime annotation", machine.Name, mcd.Name)
+			klog.V(4).Infof("Machine %q of MachineDeployment %q already has MachinePriority=1 and MarkedForDeletionTime=%q annotation", machine.Name, mcd.Name, mcd.Annotations[machineutils.MarkedForDeletionTime])
 			continue
 		}
 		machineDeepCopy := machine.DeepCopy()
@@ -720,12 +720,12 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 		// We don't add the machine name with time that has invalid format into newTriggerDeletionAnnotationList to make sure that it is removed from the annotation
 		// and expect scaler to put the correct format in the annotation in the next retry.
 		if len(parts) != 2 {
-			klog.Infof("Invalid machine name with time format %q in MachineDeployment %q annotation, expected format is <machineName1>~<deletionTime1>,<machineName2>~<deletionTime2>... skip setting MachinePriority=1 annotation", machineNameWithTime, mcd.Name)
+			klog.Infof("Invalid formatting in entry %q in MachineDeployment %q annotation value. Expected format is <machineName1>~<deletionTime1>,<machineName2>~<deletionTime2>; skipping setting MachinePriority=1 annotation", machineNameWithTime, mcd.Name)
 			continue
 		}
 		machineName, machineDeletionTime := parts[0], parts[1]
 		if _, perr := time.Parse(time.RFC3339, machineDeletionTime); perr != nil {
-			klog.Warningf("Invalid deletion time format %q for machine %q in MachineDeployment %q annotation", machineDeletionTime, machineName, mcd.Name)
+			klog.Warningf("Invalid formatting of deletion time %q for machine %q in MachineDeployment %q annotation", machineDeletionTime, machineName, mcd.Name)
 			continue
 		}
 		machine, gerr := dc.machineLister.Machines(dc.namespace).Get(machineName)
@@ -736,7 +736,7 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 		}
 		// The machine is in the process of being deleted hence we can remove it from the annotation and expect it to be deleted in the next retry.
 		if machineutils.IsMachineFailedOrTerminating(machine) {
-			klog.V(4).Infof("Machine %q of MachineDeployment %q is in Failed/Terminating state - skip adding to newTriggerDeletionAnnotationList", machineName, mcd.Name)
+			klog.V(4).Infof("Machine %q of MachineDeployment %q is in Failed/Terminating state; skipping adding to newTriggerDeletionAnnotationList", machineName, mcd.Name)
 			continue
 		}
 		newTriggerDeletionAnnotationList = append(newTriggerDeletionAnnotationList, machineNameWithTime)
@@ -770,7 +770,7 @@ func (dc *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.
 		mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] = strings.Join(newTriggerDeletionAnnotList, ",")
 		_, err = dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
 		if err != nil {
-			klog.Errorf("failed to update MachineDeployment %q, triggerDeletionAnnotValue=%q", mcdDeepCopy.Name, mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
+			klog.Errorf("failed to update MachineDeployment %q with annotation %q=%q", mcdDeepCopy.Name, machineutils.TriggerDeletionByMCM, mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
 			return
 		}
 	}
