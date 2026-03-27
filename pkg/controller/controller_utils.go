@@ -775,13 +775,14 @@ func (s ActiveMachines) Less(i, j int) bool {
 	if machineIPriority != machineJPriority {
 		return machineIPriority < machineJPriority
 	} else if s[i].Annotations[machineutils.MarkedForDeletionTime] != s[j].Annotations[machineutils.MarkedForDeletionTime] {
-		if s[i].Annotations[machineutils.MarkedForDeletionTime] != "" && s[j].Annotations[machineutils.MarkedForDeletionTime] == "" {
+		machineIDeletionTime, machineJDeletionTime := s[i].Annotations[machineutils.MarkedForDeletionTime], s[j].Annotations[machineutils.MarkedForDeletionTime]
+		if machineIDeletionTime != "" && machineJDeletionTime == "" {
 			return true
-		} else if s[i].Annotations[machineutils.MarkedForDeletionTime] == "" && s[j].Annotations[machineutils.MarkedForDeletionTime] != "" {
+		} else if machineIDeletionTime == "" && machineJDeletionTime != "" {
 			return false
 		} else {
-			timeI, _ := time.Parse(time.RFC3339, s[i].Annotations[machineutils.MarkedForDeletionTime])
-			timeJ, _ := time.Parse(time.RFC3339, s[j].Annotations[machineutils.MarkedForDeletionTime])
+			timeI, _ := time.Parse(time.RFC3339, machineIDeletionTime)
+			timeJ, _ := time.Parse(time.RFC3339, machineJDeletionTime)
 			return timeI.Before(timeJ)
 		}
 	} else if m[s[i].Status.CurrentStatus.Phase] != m[s[j].Status.CurrentStatus.Phase] {

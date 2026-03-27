@@ -2561,7 +2561,7 @@ var _ = Describe("machineDeployment", func() {
 				},
 				func(tgd *triggerDeletionData) {
 					Expect(tgd.triggerDeletionAnnotationValueChanged).To(BeTrue())
-					Expect(len(tgd.machineMarkedDeletionTimes)).To(BeNumerically("==", 1))
+					Expect(len(tgd.markedMachines)).To(BeNumerically("==", 1))
 					Expect(tgd.triggerDeletionAnnotationValue).To(Equal(strings.Split(testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM], ",")[0]))
 				},
 			),

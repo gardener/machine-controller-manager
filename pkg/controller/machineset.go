@@ -899,12 +899,13 @@ func getMachinesMarkedForDeletion(machineList []*v1alpha1.Machine, machineSet *v
 	}
 
 	for _, machine := range machineList {
-		if machine.Annotations[machineutils.MarkedForDeletionTime] == "" || machine.Annotations[machineutils.MachinePriority] != "1" {
+		markedMachineDeletionTime := machine.Annotations[machineutils.MarkedForDeletionTime]
+		if markedMachineDeletionTime == "" || machine.Annotations[machineutils.MachinePriority] != "1" {
 			continue
 		}
-		machineLRCA, err := time.Parse(time.RFC3339, machine.Annotations[machineutils.MarkedForDeletionTime])
+		machineLRCA, err := time.Parse(time.RFC3339, markedMachineDeletionTime)
 		if err != nil {
-			klog.Infof("Error parsing time from annotation %q=%q on machine %q: %v", machineutils.MarkedForDeletionTime, machine.Annotations[machineutils.MarkedForDeletionTime], machine.Name, err)
+			klog.Infof("Error parsing time from annotation %q=%q on machine %q: %v", machineutils.MarkedForDeletionTime, markedMachineDeletionTime, machine.Name, err)
 			continue
 		}
 		if machineLRCA.Before(machineSetLRCA) || machineLRCA.Equal(machineSetLRCA) {
