@@ -781,6 +781,7 @@ func (s ActiveMachines) Less(i, j int) bool {
 		} else if machineIDeletionTime == "" && machineJDeletionTime != "" {
 			return false
 		} else {
+			// TODO: have error handling for parsing time
 			timeI, _ := time.Parse(time.RFC3339, machineIDeletionTime)
 			timeJ, _ := time.Parse(time.RFC3339, machineJDeletionTime)
 			return timeI.Before(timeJ)
