@@ -760,7 +760,7 @@ func (dc *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.
 	if mcdDeepCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] == "" {
 		mcdDeepCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = time.Now().Format(time.RFC3339)
 	}
-	timestamp := mcd.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]
+	timestamp := mcdDeepCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]
 	oldTriggerDeletionAnnot := mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM]
 	machineNames := strings.Split(oldTriggerDeletionAnnot, ",")
 	newTriggerDeletionAnnotList := make([]string, 0)
@@ -774,11 +774,14 @@ func (dc *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.
 		}
 	}
 
-	mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] = strings.Join(newTriggerDeletionAnnotList, ",")
-	_, err := dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("failed to update MachineDeployment %q with annotation %q=%q", mcdDeepCopy.Name, machineutils.TriggerDeletionByMCM, mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
-		return nil, err
+	newTriggerDeletionAnnot := strings.Join(newTriggerDeletionAnnotList, ",")
+	if oldTriggerDeletionAnnot != newTriggerDeletionAnnot {
+		mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] = newTriggerDeletionAnnot
+		_, err := dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("failed to update MachineDeployment %q with annotation %q=%q", mcdDeepCopy.Name, machineutils.TriggerDeletionByMCM, mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
+			return nil, err
+		}
 	}
 
 	return mcdDeepCopy, nil
