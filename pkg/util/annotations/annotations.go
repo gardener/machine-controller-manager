@@ -6,11 +6,12 @@
 package annotations
 
 import (
+	"slices"
+	"strings"
+
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	v1 "k8s.io/api/core/v1"
-	"slices"
-	"strings"
 )
 
 // AddOrUpdateAnnotation tries to add an annotation. Returns a new copy of updated Node and true if something was updated
@@ -74,6 +75,7 @@ func DeleteAnnotation(nodeAnnotations map[string]string, annotations map[string]
 }
 
 // GetMachineNamesTriggeredForDeletion returns the set of machine names contained within the machineutils.TriggerDeletionByMCM annotation on the given MachineDeployment
+// TODO: function name is not accurate. Have another look at any scope of improvements
 func GetMachineNamesTriggeredForDeletion(mcd *v1alpha1.MachineDeployment) []string {
 	if mcd.Annotations == nil || mcd.Annotations[machineutils.TriggerDeletionByMCM] == "" {
 		return nil

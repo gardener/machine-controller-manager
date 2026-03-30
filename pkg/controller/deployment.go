@@ -26,6 +26,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -45,6 +46,15 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
+
+// triggerDeletionData contains the annotation to be put on machineDeployment, a boolean to indicate whether annotation is changed and
+// map of machine and its markedDeletionTime
+type triggerDeletionData struct {
+	markedMachines                        []*v1alpha1.Machine
+	markedMachineDeletionTimes            []string
+	triggerDeletionAnnotationValue        string
+	triggerDeletionAnnotationValueChanged bool
+}
 
 // controllerKind contains the schema.GroupVersionKind for this controller type.
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("MachineDeployment")
@@ -541,7 +551,13 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return err
 	}
 
-	err = dc.setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(ctx, d)
+	// Temporary code for backward compatibility, can be removed in later release
+	d, err = dc.adjustingMachineDeploymentDeletionAnnotations(ctx, d)
+	if err != nil {
+		return err
+	}
+
+	err = dc.updateMachineAndMachineDeploymentDeletionAnnotations(ctx, d)
 	if err != nil {
 		return err
 	}
@@ -642,60 +658,136 @@ func (dc *controller) updateMachineDeploymentFinalizers(ctx context.Context, mac
 	}
 }
 
-func (dc *controller) setMachinePriorityAnnotationAndUpdateTriggeredForDeletion(ctx context.Context, mcd *v1alpha1.MachineDeployment) error {
-	var triggerForDeletionMachineNames, skipTriggerForDeletionMachineNames []string
-	triggerForDeletionMachineNames = annotations.GetMachineNamesTriggeredForDeletion(mcd)
-	if len(triggerForDeletionMachineNames) == 0 {
+func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (err error) {
+	tgd := dc.computeMachineTriggerDeletionData(mcd)
+	if tgd == nil {
 		return nil
 	}
-	klog.V(3).Infof("MachineDeployment %q has #%d machine(s) marked for deletion, triggerForDeletionMachineNames=%v", mcd.Name, len(triggerForDeletionMachineNames), triggerForDeletionMachineNames)
-	for _, machineName := range triggerForDeletionMachineNames {
-		mc, err := dc.machineLister.Machines(dc.namespace).Get(machineName)
-		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("Machine %q is not found in MachineDeployment %q - skip setting MachinePriority=1 annotation", machineName, mcd.Name)
-			skipTriggerForDeletionMachineNames = append(skipTriggerForDeletionMachineNames, machineName)
-			continue
+
+	if tgd.triggerDeletionAnnotationValueChanged {
+		mcdDeepCopy := mcd.DeepCopy()
+		if mcdDeepCopy.Annotations == nil {
+			mcdDeepCopy.Annotations = make(map[string]string)
 		}
-		if machineutils.IsMachineFailedOrTerminating(mc) {
-			klog.V(4).Infof("Machine %q of MachineDeployment %q is in Failed/Terminating state - skip setting MachinePriority=1 annotation", machineName, mcd.Name)
-			skipTriggerForDeletionMachineNames = append(skipTriggerForDeletionMachineNames, machineName)
-			continue
+		mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] = tgd.triggerDeletionAnnotationValue
+		if mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] == "" {
+			delete(mcdDeepCopy.Annotations, machineutils.TriggerDeletionByMCM)
 		}
-		if mc.Annotations[machineutils.MachinePriority] == "1" {
-			klog.V(4).Infof("Machine %q of MachineDeployment %q already marked with MachinePriority=1 annotation", machineName, mcd.Name)
-			continue
-		}
-		mcAdjust := mc.DeepCopy()
-		if mcAdjust.Annotations == nil {
-			mcAdjust.Annotations = make(map[string]string)
-		}
-		mcAdjust.Annotations[machineutils.MachinePriority] = "1"
-		_, err = dc.controlMachineClient.Machines(mcAdjust.Namespace).Update(ctx, mcAdjust, metav1.UpdateOptions{})
+		_, err = dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
 		if err != nil {
-			klog.Errorf("Failed to set MachinePriority=1 annotation on Machine %q of MachineDeployment %q: %v", machineName, mcd.Name, err)
-			return err
+			klog.Errorf("failed to update MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(tgd.markedMachines), mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
+			return
 		}
-		klog.V(3).Infof("Machine %q of MachineDeployment %q marked with MachinePriority=1 annotation successfully", machineName, mcd.Name)
+		klog.V(3).Infof("Updated MachineDeployment %q with #%d machines still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(tgd.markedMachines), mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
 	}
 
-	if len(skipTriggerForDeletionMachineNames) == 0 {
+	for i, machine := range tgd.markedMachines {
+		if machine.Annotations[machineutils.MachinePriority] == "1" && machine.Annotations[machineutils.MarkedForDeletionTime] != "" {
+			klog.V(4).Infof("Machine %q of MachineDeployment %q already has MachinePriority=1 and MarkedForDeletionTime=%q annotation", machine.Name, mcd.Name, machine.Annotations[machineutils.MarkedForDeletionTime])
+			continue
+		}
+		machineDeepCopy := machine.DeepCopy()
+		if machineDeepCopy.Annotations == nil {
+			machineDeepCopy.Annotations = make(map[string]string)
+		}
+		machineDeepCopy.Annotations[machineutils.MachinePriority] = "1"
+		if machineDeepCopy.Annotations[machineutils.MarkedForDeletionTime] == "" {
+			machineDeepCopy.Annotations[machineutils.MarkedForDeletionTime] = tgd.markedMachineDeletionTimes[i]
+		}
+		_, err = dc.controlMachineClient.Machines(machine.Namespace).Update(ctx, machineDeepCopy, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("failed to set MachinePriority=1 annotation on Machine %q of MachineDeployment %q: %v", machine.Name, mcd.Name, err)
+			return
+		}
+		klog.V(3).Infof("Machine %q of MachineDeployment %q marked with MachinePriority=1 annotation successfully", machine.Name, mcd.Name)
+	}
+
+	return
+}
+
+// computeMachineTriggerDeletionData computes the data related to machines that are triggered for deletion based on the annotation on the MachineDeployment.
+func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDeployment) *triggerDeletionData {
+	oldTriggerDeletionAnnotationList := annotations.GetMachineNamesTriggeredForDeletion(mcd)
+	newTriggerDeletionAnnotationList := make([]string, 0)
+	markedMachines := make([]*v1alpha1.Machine, 0)
+	markedMachineDeletionTimes := make([]string, 0)
+
+	if len(oldTriggerDeletionAnnotationList) == 0 {
 		return nil
 	}
+	klog.Infof("MachineDeployment %q has #%d machine(s) marked for deletion, triggerForDeletionMachineNames=%v", mcd.Name, len(oldTriggerDeletionAnnotationList), oldTriggerDeletionAnnotationList)
 
-	triggerForDeletionMachineNames = sets.NewString(triggerForDeletionMachineNames...).Delete(skipTriggerForDeletionMachineNames...).List()
-	triggerDeletionAnnotValue := annotations.CreateMachinesTriggeredForDeletionAnnotValue(triggerForDeletionMachineNames)
+	for _, machineNameWithTime := range oldTriggerDeletionAnnotationList {
+		parts := strings.Split(machineNameWithTime, "~")
+		// We don't add the machine name with time that has invalid format into newTriggerDeletionAnnotationList to make sure that it is removed from the annotation
+		// and expect scaler to put the correct format in the annotation in the next retry.
+		if len(parts) != 2 {
+			klog.Infof("Invalid formatting in entry %q in MachineDeployment %q annotation value. Expected format is <machineName1>~<deletionTime1>,<machineName2>~<deletionTime2>; skipping setting MachinePriority=1 annotation", machineNameWithTime, mcd.Name)
+			continue
+		}
+		machineName, machineDeletionTime := parts[0], parts[1]
+		if _, perr := time.Parse(time.RFC3339, machineDeletionTime); perr != nil {
+			klog.Warningf("Invalid formatting of deletion time %q for machine %q in MachineDeployment %q annotation", machineDeletionTime, machineName, mcd.Name)
+			continue
+		}
+		machine, gerr := dc.machineLister.Machines(dc.namespace).Get(machineName)
+		// The machine is deleted and hence we can remove it from the annotation.
+		if apierrors.IsNotFound(gerr) {
+			klog.V(4).Infof("Machine %q is not found in MachineDeployment %q - skip adding to newTriggerDeletionAnnotationList", machineName, mcd.Name)
+			continue
+		}
+		// The machine is in the process of being deleted hence we can remove it from the annotation and expect it to be deleted in the next retry.
+		if machineutils.IsMachineFailedOrTerminating(machine) {
+			klog.V(4).Infof("Machine %q of MachineDeployment %q is in Failed/Terminating state; skipping adding to newTriggerDeletionAnnotationList", machineName, mcd.Name)
+			continue
+		}
+		newTriggerDeletionAnnotationList = append(newTriggerDeletionAnnotationList, machineNameWithTime)
+		markedMachines = append(markedMachines, machine)
+		markedMachineDeletionTimes = append(markedMachineDeletionTimes, machineDeletionTime)
+	}
 
-	mcdAdjust := mcd.DeepCopy()
-	if triggerDeletionAnnotValue != "" {
-		mcdAdjust.Annotations[machineutils.TriggerDeletionByMCM] = triggerDeletionAnnotValue
-	} else {
-		delete(mcdAdjust.Annotations, machineutils.TriggerDeletionByMCM)
+	newTriggerDeletionAnnotationValue := strings.Join(newTriggerDeletionAnnotationList, ",")
+	return &triggerDeletionData{
+		triggerDeletionAnnotationValueChanged: newTriggerDeletionAnnotationValue != mcd.Annotations[machineutils.TriggerDeletionByMCM],
+		triggerDeletionAnnotationValue:        newTriggerDeletionAnnotationValue,
+		markedMachines:                        markedMachines,
+		markedMachineDeletionTimes:            markedMachineDeletionTimes,
 	}
-	_, err := dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdAdjust, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("Failed to update MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(triggerForDeletionMachineNames), triggerDeletionAnnotValue)
-		return err
+}
+
+func (dc *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (*v1alpha1.MachineDeployment, error) {
+	if mcd.Annotations[machineutils.TriggerDeletionByMCM] == "" {
+		return mcd, nil
 	}
-	klog.V(3).Infof("Updated MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(triggerForDeletionMachineNames), triggerDeletionAnnotValue)
-	return nil
+
+	mcdDeepCopy := mcd.DeepCopy()
+	if mcdDeepCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] == "" {
+		mcdDeepCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = time.Now().Format(time.RFC3339)
+	}
+	timestamp := mcdDeepCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]
+	oldTriggerDeletionAnnot := mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM]
+	machineNames := strings.Split(oldTriggerDeletionAnnot, ",")
+	newTriggerDeletionAnnotList := make([]string, 0)
+
+	for _, machineName := range machineNames {
+		parts := strings.Split(machineName, "~")
+		if len(parts) == 1 {
+			newTriggerDeletionAnnotList = append(newTriggerDeletionAnnotList, fmt.Sprintf("%s~%s", parts[0], timestamp))
+		} else if len(parts) == 2 {
+			newTriggerDeletionAnnotList = append(newTriggerDeletionAnnotList, machineName)
+		}
+	}
+
+	newTriggerDeletionAnnot := strings.Join(newTriggerDeletionAnnotList, ",")
+	if oldTriggerDeletionAnnot != newTriggerDeletionAnnot {
+		mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] = newTriggerDeletionAnnot
+		newMCD, err := dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("failed to update MachineDeployment %q with annotation %q=%q", mcdDeepCopy.Name, machineutils.TriggerDeletionByMCM, mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
+			return nil, err
+		}
+		return newMCD, nil
+	}
+
+	return mcdDeepCopy, nil
 }

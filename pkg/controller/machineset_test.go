@@ -8,9 +8,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
+	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	k8sError "k8s.io/apimachinery/pkg/api/errors"
@@ -18,10 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
-
-	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 const (
@@ -142,7 +142,7 @@ var _ = Describe("machineset", func() {
 			}
 		})
 
-		It("Should enqueue the machineset", func() {
+		It("should enqueue the machineset", func() {
 			stop := make(chan struct{})
 			machineSetObj := testMachineSet
 
@@ -224,7 +224,7 @@ var _ = Describe("machineset", func() {
 			}
 		})
 
-		It("Should enqueue the machineset as controllerRef matches", func() {
+		It("should enqueue the machineset as controllerRef matches", func() {
 			stop := make(chan struct{})
 
 			defer close(stop)
@@ -242,7 +242,7 @@ var _ = Describe("machineset", func() {
 			Expect(c.machineSetQueue.Len()).To(Equal(1))
 		})
 
-		It("Should enqueue the machineset though controllerRef is not set but orphan is created", func() {
+		It("should enqueue the machineset though controllerRef is not set but orphan is created", func() {
 			stop := make(chan struct{})
 
 			defer close(stop)
@@ -260,7 +260,7 @@ var _ = Describe("machineset", func() {
 			Expect(c.machineSetQueue.Len()).To(Equal(1))
 		})
 
-		It("Should enqueue the machineset while machine is being deleted", func() {
+		It("should enqueue the machineset while machine is being deleted", func() {
 			stop := make(chan struct{})
 
 			defer close(stop)
@@ -279,7 +279,7 @@ var _ = Describe("machineset", func() {
 			Expect(c.machineSetQueue.Len()).To(Equal(1))
 		})
 
-		It("Shouldn't enqueue the machineset if machineset is not found via cotrollerRef", func() {
+		It("shouldn't enqueue the machineset if machineset is not found via cotrollerRef", func() {
 			stop := make(chan struct{})
 
 			defer close(stop)
@@ -360,8 +360,8 @@ var _ = Describe("machineset", func() {
 				},
 			}
 		})
-		Describe("Shouldn't enqueue the machineset", func() {
-			It("Shouldn't enqueue the machineset if resource version matches", func() {
+		Describe("shouldn't enqueue the machineset", func() {
+			It("shouldn't enqueue the machineset if resource version matches", func() {
 				stop := make(chan struct{})
 				testMachineUpdated := testMachine.DeepCopy()
 
@@ -382,7 +382,7 @@ var _ = Describe("machineset", func() {
 			})
 		})
 
-		DescribeTable("Should enqueue the machineset",
+		DescribeTable("should enqueue the machineset",
 			func(preset func(oldMachine *machinev1.Machine, newMachine *machinev1.Machine)) {
 				machine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
@@ -844,37 +844,74 @@ var _ = Describe("machineset", func() {
 			Expect(Err).Should(BeNil())
 		})
 
-		It("should delete MachinePriority=1 machines", func() {
+		It("should delete the marked machines with no change in machineSet replicas", func() {
 			stop := make(chan struct{})
 			defer close(stop)
+
 			objects := []runtime.Object{}
-
-			staleMachine := testActiveMachine1.DeepCopy()
-			staleMachine.Annotations[machineutils.MachinePriority] = "1"
-			testActiveMachine4.Status.CurrentStatus.Phase = MachineRunning
-
-			objects = append(objects, testMachineSet, staleMachine, testActiveMachine2, testActiveMachine3, testActiveMachine4)
+			testMachineSet.Annotations = map[string]string{
+				machineutils.LastDeploymentReplicaChangeByScalerTime: time.Now().Add(1 * time.Minute).Format(time.RFC3339),
+			}
+			testMachineSet.Spec.Replicas = 2
+			testActiveMachine1.Annotations = map[string]string{
+				machineutils.MachinePriority:       "1",
+				machineutils.MarkedForDeletionTime: time.Now().Format(time.RFC3339),
+			}
+			testActiveMachine2.Annotations = map[string]string{
+				machineutils.MachinePriority:       "1",
+				machineutils.MarkedForDeletionTime: time.Now().Format(time.RFC3339),
+			}
+			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2)
 			c, trackers := createController(stop, testNamespace, objects, nil, nil)
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			machines, _ := c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
-			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas + 1)))
+			allMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2}
+			err := c.manageReplicas(context.TODO(), allMachines, testMachineSet)
+			Expect(err).To(BeNil())
+			waitForCacheSync(stop, c)
+			_, Err1 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testActiveMachine1.Name, metav1.GetOptions{})
+			_, Err2 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testActiveMachine2.Name, metav1.GetOptions{})
 
-			beforeMachines := []*machinev1.Machine{staleMachine, testActiveMachine2, testActiveMachine3, testActiveMachine4}
-			err := c.manageReplicas(context.TODO(), beforeMachines, testMachineSet)
-			Expect(err).Should(BeNil())
+			Expect(Err1).Should(Not(BeNil()))
+			Expect(k8sError.IsNotFound(Err1)).Should(BeTrue())
+			Expect(Err2).Should(Not(BeNil()))
+			Expect(k8sError.IsNotFound(Err2)).Should(BeTrue())
+		})
+
+		It("should delete the marked machines after reducing machineSet replicas", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			objects := []runtime.Object{}
+			testMachineSet.Annotations = map[string]string{
+				machineutils.LastDeploymentReplicaChangeByScalerTime: time.Now().Add(1 * time.Minute).Format(time.RFC3339),
+			}
+			testMachineSet.Spec.Replicas = 1
+			testActiveMachine1.Annotations = map[string]string{
+				machineutils.MachinePriority:       "1",
+				machineutils.MarkedForDeletionTime: time.Now().Format(time.RFC3339),
+			}
+			testActiveMachine2.Annotations = map[string]string{
+				machineutils.MachinePriority:       "1",
+				machineutils.MarkedForDeletionTime: time.Now().Format(time.RFC3339),
+			}
+			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			_, err = c.controlMachineClient.Machines(testNamespace).Get(context.Background(), staleMachine.Name, metav1.GetOptions{})
-			Expect(err).ShouldNot(BeNil())
-			Expect(err).To(Satisfy(func(e error) bool {
-				return k8sError.IsNotFound(e)
-			}))
-			afterMachines, err := c.controlMachineClient.Machines(testNamespace).List(context.TODO(), metav1.ListOptions{})
-			// replica count is still maintained.
-			Expect(len(afterMachines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
-			Expect(err).Should(BeNil())
+			allMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2}
+			err := c.manageReplicas(context.TODO(), allMachines, testMachineSet)
+			Expect(err).To(BeNil())
+			waitForCacheSync(stop, c)
+			_, Err1 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testActiveMachine1.Name, metav1.GetOptions{})
+			_, Err2 := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testActiveMachine2.Name, metav1.GetOptions{})
+
+			Expect(Err1).Should(Not(BeNil()))
+			Expect(k8sError.IsNotFound(Err1)).Should(BeTrue())
+			Expect(Err2).Should(Not(BeNil()))
+			Expect(k8sError.IsNotFound(Err2)).Should(BeTrue())
 		})
 
 		Describe("machine with update-result label", func() {
@@ -1094,7 +1131,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// Testcase: It should create new machines.
-		It("It should create new machines.", func() {
+		It("should create new machines.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -1117,7 +1154,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// Testcase: Should return nil if the machineset doesnt exist, to avoid constant reconciliations.
-		It("It should return nil if machineset doesnt exist.", func() {
+		It("should return nil if machineset doesnt exist.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -1137,7 +1174,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// Testcase: It should return nil if the machineset validation fails.
-		It("It should return nil if machineset validation fails", func() {
+		It("should return nil if machineset validation fails", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -1159,7 +1196,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// Testcase: It should delete all the machines as DeletionTimestamp is set.
-		It("It should delete all the machines as DeletionTimestamp is set on MachineSet", func() {
+		It("should delete all the machines as DeletionTimestamp is set on MachineSet", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -1337,20 +1374,25 @@ var _ = Describe("machineset", func() {
 
 	Describe("#getMachinesToDelete", func() {
 		var (
-			testActiveMachine1 *machinev1.Machine
-			testFailedMachine1 *machinev1.Machine
-			diff               int
+			testMachine1 *machinev1.Machine
+			testMachine2 *machinev1.Machine
+			testMachine3 *machinev1.Machine
+			testMachine4 *machinev1.Machine
+			testMachine5 *machinev1.Machine
+			diff         int
 		)
 
 		BeforeEach(func() {
-
-			testActiveMachine1 = &machinev1.Machine{
+			testMachine1 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "machine-1",
 					Namespace: testNamespace,
-					UID:       "1234568",
+					UID:       "1234561",
 					Labels: map[string]string{
 						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						machineutils.MachinePriority: "1",
 					},
 				},
 				Status: machinev1.MachineStatus{
@@ -1360,13 +1402,37 @@ var _ = Describe("machineset", func() {
 				},
 			}
 
-			testFailedMachine1 = &machinev1.Machine{
+			testMachine2 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "machine-2",
 					Namespace: testNamespace,
-					UID:       "1234569",
+					UID:       "1234562",
 					Labels: map[string]string{
 						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						machineutils.MachinePriority:       "3",
+						machineutils.MarkedForDeletionTime: time.Now().Format(time.RFC3339),
+					},
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineRunning,
+					},
+				},
+			}
+
+			testMachine3 = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-3",
+					Namespace: testNamespace,
+					UID:       "1234563",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						machineutils.MachinePriority:       "3",
+						machineutils.MarkedForDeletionTime: time.Now().Add(1 * time.Minute).Format(time.RFC3339),
 					},
 				},
 				Status: machinev1.MachineStatus{
@@ -1375,18 +1441,61 @@ var _ = Describe("machineset", func() {
 					},
 				},
 			}
+
+			testMachine4 = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-4",
+					Namespace: testNamespace,
+					UID:       "1234564",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						machineutils.MachinePriority:       "3",
+						machineutils.MarkedForDeletionTime: testMachine3.Annotations[machineutils.MarkedForDeletionTime],
+					},
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineRunning,
+					},
+				},
+			}
+
+			testMachine5 = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-5",
+					Namespace: testNamespace,
+					UID:       "1234561",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						machineutils.MachinePriority: "3",
+					},
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineRunning,
+					},
+				},
+			}
 		})
 
-		// Testcase: It should return the Failed machines first.
-		It("should return the Failed machines first.", func() {
+		It("should sort the machines in the correct order", func() {
 			stop := make(chan struct{})
 			defer close(stop)
-			diff = 1
-			filteredMachines := []*machinev1.Machine{testActiveMachine1, testFailedMachine1}
+			diff = 4
+			filteredMachines := []*machinev1.Machine{testMachine1, testMachine2, testMachine3, testMachine4, testMachine5}
+			rand.Shuffle(len(filteredMachines), func(i, j int) {
+				filteredMachines[i], filteredMachines[j] = filteredMachines[j], filteredMachines[i]
+			})
 			machinesToDelete := getMachinesToDelete(filteredMachines, diff)
 
-			Expect(len(machinesToDelete)).To(Equal(len(filteredMachines) - diff))
-			Expect(machinesToDelete[0].Name).To(Equal(testFailedMachine1.Name))
+			Expect(machinesToDelete[0].Name).To(Equal(testMachine1.Name))
+			Expect(machinesToDelete[1].Name).To(Equal(testMachine2.Name))
+			Expect(machinesToDelete[2].Name).To(Equal(testMachine3.Name))
+			Expect(machinesToDelete[3].Name).To(Equal(testMachine4.Name))
 		})
 	})
 
@@ -1582,7 +1691,7 @@ var _ = Describe("machineset", func() {
 		})
 
 		// Testcase: It should delete the inactive machines.
-		It("It should delete the inactive machines.", func() {
+		It("should delete the inactive machines.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -1604,7 +1713,7 @@ var _ = Describe("machineset", func() {
 			Expect(Err2).Should(Not(BeNil()))
 		})
 
-		It("It should not mark a machine as terminating when deletion fails.", func() {
+		It("should not mark a machine as terminating when deletion fails.", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 

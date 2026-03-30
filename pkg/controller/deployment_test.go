@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
@@ -1753,7 +1754,6 @@ var _ = Describe("machineDeployment", func() {
 				waitForCacheSync(stop, c)
 				actualMachineDeployment, _ := c.controlMachineClient.MachineDeployments(testNamespace).Get(context.Background(), testMachineDeployment.Name, metav1.GetOptions{})
 				actualMachineSets, _ := c.controlMachineClient.MachineSets(testNamespace).List(context.Background(), metav1.ListOptions{})
-				waitForCacheSync(stop, c)
 				actualMachines, _ := c.controlMachineClient.Machines(testNamespace).List(context.Background(), metav1.ListOptions{})
 				testNode, _ := c.targetCoreClient.CoreV1().Nodes().Get(context.Background(), testNode.Name, metav1.GetOptions{})
 
@@ -1962,14 +1962,13 @@ var _ = Describe("machineDeployment", func() {
 					return nil
 				},
 			),
+			// flaky test because of reusing same testMachine for mutilple tests.
 			Entry("should set MachinePriority=1 for the machines named in TriggerDeletionByMCM annotation in the MachineDeployment",
 				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
-					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = annotations.CreateMachinesTriggeredForDeletionAnnotValue([]string{testMachine.Name})
+					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))
 				},
 				func(_ *machinev1.MachineDeployment, _ []machinev1.MachineSet, machines []machinev1.Machine, _ *corev1.Node) error {
-					if machines[0].Annotations[machineutils.MachinePriority] != "1" {
-						return fmt.Errorf("testMachine should have its %q annotation set to 1", machineutils.MachinePriority)
-					}
+					Expect(machines[0].Annotations[machineutils.MachinePriority]).To(Equal("1"))
 					return nil
 				},
 			),
@@ -2167,6 +2166,554 @@ var _ = Describe("machineDeployment", func() {
 			Entry("remove the finalizer from the machine-deployment",
 				func() {
 					testMachineDeployment.Finalizers = []string{DeleteFinalizerName}
+				},
+			),
+		)
+	})
+
+	Describe("#updateMachineAndMachineDeploymentDeletionAnnotations", func() {
+		var (
+			testMachineDeployment *machinev1.MachineDeployment
+			testMachineSet        *machinev1.MachineSet
+			testMachine1          *machinev1.Machine
+			testMachine2          *machinev1.Machine
+			ptrBool               bool
+			ts                    string
+		)
+		BeforeEach(func() {
+			ptrBool = true
+			ts = time.Now().Format(time.RFC3339)
+			testMachineDeployment = &machinev1.MachineDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "MachineDeployment-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					UID:        "1234567",
+					Generation: 5,
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MachineDeployment",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineDeploymentSpec{
+					Replicas: 2,
+					Template: machinev1.MachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"test-label": "test-label",
+							},
+						},
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Name: "MachineClass-test",
+								Kind: "MachineClass",
+							},
+						},
+					},
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"test-label": "test-label",
+						},
+					},
+				},
+			}
+
+			testMachineSet = &machinev1.MachineSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "MachineSet-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						"deployment.kubernetes.io/revision": "1",
+					},
+					UID: "1234567",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "MachineDeployment",
+							Name:       "MachineDeployment-test",
+							UID:        "1234567",
+							Controller: &ptrBool,
+						},
+					},
+					Generation: 5,
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MachineSet",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineSetSpec{
+					Replicas: testMachineDeployment.Spec.Replicas,
+					Template: testMachineDeployment.Spec.Template,
+					Selector: testMachineDeployment.Spec.Selector,
+				},
+			}
+
+			testMachine1 = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "Machine-test1",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label":           "test-label",
+						machinev1.NodeLabelKey: "Node1-test",
+					},
+					Annotations: map[string]string{},
+					UID:         "1234567",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "MachineSet",
+							Name:       "MachineSet-test",
+							UID:        "1234567",
+							Controller: &ptrBool,
+						},
+					},
+					Generation: 5,
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Machine",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineSpec{
+					Class: machinev1.ClassSpec{
+						Name: "MachineClass-test",
+						Kind: "MachineClass",
+					},
+				},
+				Status: machinev1.MachineStatus{
+					LastOperation: machinev1.LastOperation{
+						LastUpdateTime: metav1.Now(),
+					},
+				},
+			}
+
+			testMachine2 = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "Machine-test2",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label":           "test-label",
+						machinev1.NodeLabelKey: "Node1-test",
+					},
+					Annotations: map[string]string{},
+					UID:         "1234567",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "MachineSet",
+							Name:       "MachineSet-test",
+							UID:        "1234567",
+							Controller: &ptrBool,
+						},
+					},
+					Generation: 5,
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Machine",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineSpec{
+					Class: machinev1.ClassSpec{
+						Name: "MachineClass-test",
+						Kind: "MachineClass",
+					},
+				},
+				Status: machinev1.MachineStatus{
+					LastOperation: machinev1.LastOperation{
+						LastUpdateTime: metav1.Now(),
+					},
+				},
+			}
+		})
+
+		DescribeTable("this should",
+			func(preset func()) {
+				stop := make(chan struct{})
+				preset()
+				defer close(stop)
+
+				objects := []runtime.Object{}
+				Expect(ts).NotTo(Equal(testMachineDeployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]))
+				objects = append(objects, testMachineDeployment, testMachineSet, testMachine1, testMachine2)
+				c, trackers := createController(stop, testNamespace, objects, nil, nil)
+
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+				err := c.updateMachineAndMachineDeploymentDeletionAnnotations(context.TODO(), testMachineDeployment)
+				Expect(err).To(BeNil())
+
+				waitForCacheSync(stop, c)
+				machine1, _ := c.controlMachineClient.Machines(testNamespace).Get(context.Background(), testMachine1.Name, metav1.GetOptions{})
+				machine2, _ := c.controlMachineClient.Machines(testNamespace).Get(context.Background(), testMachine2.Name, metav1.GetOptions{})
+
+				Expect(machine1.Annotations[machineutils.MachinePriority]).To(Equal("1"))
+				Expect(machine1.Annotations[machineutils.MarkedForDeletionTime]).To(Equal(ts))
+				Expect(machine2.Annotations[machineutils.MachinePriority]).To(Equal("1"))
+				Expect(machine2.Annotations[machineutils.MarkedForDeletionTime]).To(Equal(ts))
+			},
+			Entry("marks the machines named in TriggerDeletionByMCM annotation for deletion by setting their MachinePriority annotation to 1 and also set their MarkedForDeletionTime to the same value passed with the annotation",
+				func() {
+					testMachineDeployment.Annotations = map[string]string{
+						machineutils.TriggerDeletionByMCM:                    annotations.CreateMachinesTriggeredForDeletionAnnotValue([]string{fmt.Sprintf("Machine-test1~%s", ts), fmt.Sprintf("Machine-test2~%s", ts)}),
+						machineutils.LastDeploymentReplicaChangeByScalerTime: time.Now().Add(time.Hour).Format(time.RFC3339),
+					}
+				},
+			),
+		)
+	})
+
+	Describe("#computeMachineTriggerDeletionData", func() {
+		var (
+			testMachineDeployment *machinev1.MachineDeployment
+			testMachineSet        *machinev1.MachineSet
+			testMachine1          *machinev1.Machine
+			testMachine2          *machinev1.Machine
+			ptrBool               bool
+			ts                    string
+		)
+		BeforeEach(func() {
+			ptrBool = true
+			ts = time.Now().Format(time.RFC3339)
+			testMachineDeployment = &machinev1.MachineDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "MachineDeployment-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					UID:        "1234567",
+					Generation: 5,
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MachineDeployment",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineDeploymentSpec{
+					Replicas: 2,
+					Template: machinev1.MachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"test-label": "test-label",
+							},
+						},
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Name: "MachineClass-test",
+								Kind: "MachineClass",
+							},
+						},
+					},
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"test-label": "test-label",
+						},
+					},
+				},
+			}
+
+			testMachineSet = &machinev1.MachineSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "MachineSet-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						"deployment.kubernetes.io/revision": "1",
+					},
+					UID: "1234567",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "MachineDeployment",
+							Name:       "MachineDeployment-test",
+							UID:        "1234567",
+							Controller: &ptrBool,
+						},
+					},
+					Generation: 5,
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MachineSet",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineSetSpec{
+					Replicas: testMachineDeployment.Spec.Replicas,
+					Template: testMachineDeployment.Spec.Template,
+					Selector: testMachineDeployment.Spec.Selector,
+				},
+			}
+
+			testMachine1 = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "Machine-test1",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label":           "test-label",
+						machinev1.NodeLabelKey: "Node1-test",
+					},
+					Annotations: map[string]string{},
+					UID:         "1234567",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "MachineSet",
+							Name:       "MachineSet-test",
+							UID:        "1234567",
+							Controller: &ptrBool,
+						},
+					},
+					Generation: 5,
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Machine",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineSpec{
+					Class: machinev1.ClassSpec{
+						Name: "MachineClass-test",
+						Kind: "MachineClass",
+					},
+				},
+				Status: machinev1.MachineStatus{
+					LastOperation: machinev1.LastOperation{
+						LastUpdateTime: metav1.Now(),
+					},
+				},
+			}
+
+			testMachine2 = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "Machine-test2",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label":           "test-label",
+						machinev1.NodeLabelKey: "Node1-test",
+					},
+					Annotations: map[string]string{},
+					UID:         "1234567",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "MachineSet",
+							Name:       "MachineSet-test",
+							UID:        "1234567",
+							Controller: &ptrBool,
+						},
+					},
+					Generation: 5,
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Machine",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineSpec{
+					Class: machinev1.ClassSpec{
+						Name: "MachineClass-test",
+						Kind: "MachineClass",
+					},
+				},
+				Status: machinev1.MachineStatus{
+					LastOperation: machinev1.LastOperation{
+						LastUpdateTime: metav1.Now(),
+					},
+				},
+			}
+		})
+
+		DescribeTable("this should",
+			func(preset func(), postcheck func(*triggerDeletionData)) {
+				stop := make(chan struct{})
+				preset()
+				defer close(stop)
+
+				objects := []runtime.Object{}
+				Expect(ts).NotTo(Equal(testMachineDeployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]))
+				objects = append(objects, testMachineDeployment, testMachineSet, testMachine1, testMachine2)
+				c, trackers := createController(stop, testNamespace, objects, nil, nil)
+
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+				tgd := c.computeMachineTriggerDeletionData(testMachineDeployment)
+
+				postcheck(tgd)
+			},
+			Entry("should return tgd.triggerDeletionAnnotationValueChanged = false for no change in triggerDeletionData",
+				func() {
+					testMachineDeployment.Annotations = map[string]string{
+						machineutils.TriggerDeletionByMCM:                    annotations.CreateMachinesTriggeredForDeletionAnnotValue([]string{fmt.Sprintf("Machine-test1~%s", ts), fmt.Sprintf("Machine-test2~%s", ts)}),
+						machineutils.LastDeploymentReplicaChangeByScalerTime: time.Now().Add(time.Hour).Format(time.RFC3339),
+					}
+				},
+				func(tgd *triggerDeletionData) {
+					Expect(tgd.triggerDeletionAnnotationValueChanged).To(BeFalse())
+				},
+			),
+			Entry("should remove Machine-test2 from annotation",
+				func() {
+					testMachine2.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+					testMachine2.Status.CurrentStatus = machinev1.CurrentStatus{
+						Phase:          machinev1.MachineTerminating,
+						LastUpdateTime: metav1.Time{Time: time.Now()},
+					}
+					testMachineDeployment.Annotations = map[string]string{
+						machineutils.TriggerDeletionByMCM:                    annotations.CreateMachinesTriggeredForDeletionAnnotValue([]string{fmt.Sprintf("Machine-test1~%s", ts), fmt.Sprintf("Machine-test2~%s", ts)}),
+						machineutils.LastDeploymentReplicaChangeByScalerTime: time.Now().Add(time.Hour).Format(time.RFC3339),
+					}
+				},
+				func(tgd *triggerDeletionData) {
+					Expect(tgd.triggerDeletionAnnotationValueChanged).To(BeTrue())
+					Expect(len(tgd.markedMachines)).To(BeNumerically("==", 1))
+					Expect(tgd.triggerDeletionAnnotationValue).To(Equal(strings.Split(testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM], ",")[0]))
+				},
+			),
+		)
+	})
+	Describe("#adjustingMachineDeploymentDeletionAnnotations", func() {
+		var (
+			testMachineDeployment *machinev1.MachineDeployment
+			testMachineSet        *machinev1.MachineSet
+			testMachine           *machinev1.Machine
+			ptrBool               bool
+		)
+		BeforeEach(func() {
+			ptrBool = true
+			testMachineDeployment = &machinev1.MachineDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "MachineDeployment-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					UID:        "1234567",
+					Generation: 5,
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MachineDeployment",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineDeploymentSpec{
+					Replicas: 2,
+					Template: machinev1.MachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"test-label": "test-label",
+							},
+						},
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Name: "MachineClass-test",
+								Kind: "MachineClass",
+							},
+						},
+					},
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"test-label": "test-label",
+						},
+					},
+				},
+			}
+
+			testMachineSet = &machinev1.MachineSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "MachineSet-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						"deployment.kubernetes.io/revision": "1",
+					},
+					UID: "1234567",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "MachineDeployment",
+							Name:       "MachineDeployment-test",
+							UID:        "1234567",
+							Controller: &ptrBool,
+						},
+					},
+					Generation: 5,
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MachineSet",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineSetSpec{
+					Replicas: testMachineDeployment.Spec.Replicas,
+					Template: testMachineDeployment.Spec.Template,
+					Selector: testMachineDeployment.Spec.Selector,
+				},
+			}
+
+			testMachine = &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "Machine-test",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"test-label":           "test-label",
+						machinev1.NodeLabelKey: "Node1-test",
+					},
+					Annotations: map[string]string{},
+					UID:         "1234567",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "MachineSet",
+							Name:       "MachineSet-test",
+							UID:        "1234567",
+							Controller: &ptrBool,
+						},
+					},
+					Generation: 5,
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Machine",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineSpec{
+					Class: machinev1.ClassSpec{
+						Name: "MachineClass-test",
+						Kind: "MachineClass",
+					},
+				},
+				Status: machinev1.MachineStatus{
+					LastOperation: machinev1.LastOperation{
+						LastUpdateTime: metav1.Now(),
+					},
+				},
+			}
+		})
+
+		DescribeTable("this should",
+			func(preset func(), postcheck func(*machinev1.MachineDeployment)) {
+				stop := make(chan struct{})
+				preset()
+				defer close(stop)
+
+				objects := []runtime.Object{}
+				objects = append(objects, testMachineDeployment, testMachineSet, testMachine)
+				c, trackers := createController(stop, testNamespace, objects, nil, nil)
+
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+				newMcd, err := c.adjustingMachineDeploymentDeletionAnnotations(context.TODO(), testMachineDeployment)
+				Expect(err).To(BeNil())
+
+				postcheck(newMcd)
+			},
+			Entry("do nothing when TriggerDeletionByMCM annotation does not exist on the MachineDeployment",
+				func() {},
+				func(mcd *machinev1.MachineDeployment) {
+					Expect(mcd.Annotations[machineutils.TriggerDeletionByMCM]).To(Equal(testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM]))
+				},
+			),
+			Entry("modify TriggerDeletionByMCM annotation of MachineDeployment from old format [M1,M2,...] to [M1~T1,M2~T2,...]",
+				func() {
+					testMachineDeployment.Annotations = map[string]string{
+						machineutils.TriggerDeletionByMCM: "Machine-test",
+					}
+				},
+				func(mcd *machinev1.MachineDeployment) {
+					Expect(mcd.Annotations[machineutils.TriggerDeletionByMCM]).NotTo(Equal(testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM]))
 				},
 			),
 		)
