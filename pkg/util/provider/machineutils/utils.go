@@ -59,9 +59,17 @@ const (
 	// NotManagedByMCM annotation helps in identifying the nodes which are not handled by MCM
 	NotManagedByMCM = "node.machine.sapcloud.io/not-managed-by-mcm"
 
-	// TriggerDeletionByMCM can be set on the MachineDeployment and contains the machine names for which deletion should be triggered.
-	// This feature is leveraged by the CA-MCM cloud provider.
+	// TriggerDeletionByMCM is the annotation set on the MachineDeployment by the CA-MCM cloud provider. It contains the machine names
+	// for which deletion should be triggered along with the time when CA decided to scale-down those machines.
+	// Expected format for this annotation value is [M1~T1,M2~T2,...]
 	TriggerDeletionByMCM = "node.machine.sapcloud.io/trigger-deletion-by-mcm"
+
+	// MarkedForDeletionTime is the annotation used to specify the time when machine was marked for deletion.
+	// This is used by MCS to delete the machines which were marked for deletion before the MCS saw the replica change.
+	MarkedForDeletionTime = "machine.sapcloud.io/marked-for-deletion-time"
+
+	// LastDeploymentReplicaChangeByScalerTime is the annotation used to specify the time when machineDeployment replica change was triggered by a scaler.
+	LastDeploymentReplicaChangeByScalerTime = "machine.sapcloud.io/last-deployment-replica-change-by-scaler-time"
 
 	// NodeUnhealthy is a node termination reason for failed machines
 	NodeUnhealthy = "Unhealthy"
