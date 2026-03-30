@@ -335,13 +335,17 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		return nil
 	}
 
-	var machinesWithoutUpdateSuccessfulLabel []*v1alpha1.Machine
+	var staleMachines, machinesWithoutUpdateSuccessfulLabel []*v1alpha1.Machine
 	for _, m := range allMachines {
 		if m.Labels[v1alpha1.LabelKeyNodeUpdateResult] != v1alpha1.LabelValueNodeUpdateSuccessful {
 			machinesWithoutUpdateSuccessfulLabel = append(machinesWithoutUpdateSuccessfulLabel, m)
 		}
 	}
 	allMachinesDiff := len(allMachines) - int(machineSet.Spec.Replicas)
+	// During in-place updates, in the newMachineSet, it can happen that a machine has come from the oldMachineSet
+	// but the ReplicaCount of newMachineSet has not increased yet.
+	// In such cases, we should not delete the machine immediately,
+	// otherwise it can cause unnecessary machine deletion and creation during in-place updates.
 	machinesWithoutUpdateSuccessfulLabelDiff := len(machinesWithoutUpdateSuccessfulLabel) - int(machineSet.Spec.Replicas)
 
 	// During in-place updates, ScaleUps are disabled in the oldMachineSet and
@@ -419,44 +423,38 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		}
 		return err
 	} else if machinesWithoutUpdateSuccessfulLabelDiff > 0 {
-		// During in-place updates, in the newMachineSet, it can happen that a machine has come from the oldMachineSet
-		// but the ReplicaCount of newMachineSet has not increased yet.
-		// In such cases, we should not delete the machine immediately,
-		// otherwise it can cause unnecessary machine deletion and creation during in-place updates.
 		if machinesWithoutUpdateSuccessfulLabelDiff > BurstReplicas {
 			machinesWithoutUpdateSuccessfulLabelDiff = BurstReplicas
 		}
-		klog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (machineSet.Spec.Replicas), machinesWithoutUpdateSuccessfulLabelDiff)
+		logMachinesPriorityAndMarkedDeletionTime(machinesWithoutUpdateSuccessfulLabel)
+		staleMachines = append(staleMachines, getMachinesToDelete(machinesWithoutUpdateSuccessfulLabel, machinesWithoutUpdateSuccessfulLabelDiff)...)
+	}
 
-		logMachinesWithPriority1(machinesWithoutUpdateSuccessfulLabel)
-		machinesToDelete := getMachinesToDelete(machinesWithoutUpdateSuccessfulLabel, machinesWithoutUpdateSuccessfulLabelDiff)
-		logMachinesToDelete(machinesToDelete)
+	staleMachines = append(staleMachines, getMachinesMarkedForDeletion(machinesWithoutUpdateSuccessfulLabel, machineSet)...)
+	for _, machine := range machinesWithoutUpdateSuccessfulLabel {
+		if machineutils.IsMachineFailed(machine) {
+			staleMachines = append(staleMachines, machine)
+		}
+	}
 
+	staleMachines = uniqueMachines(staleMachines)
+	if len(staleMachines) >= 1 {
+		// We delete max BurstReplicas machines at a time
+		if len(staleMachines) > BurstReplicas {
+			staleMachines = staleMachines[:BurstReplicas]
+		}
+		klog.V(2).Infof("Too many replicas for %v %s/%s, need %d, deleting %d", machineSet.Kind, machineSet.Namespace, machineSet.Name, (machineSet.Spec.Replicas), len(staleMachines))
+		logMachinesToDelete(staleMachines)
 		// Snapshot the UIDs (ns/name) of the machines we're expecting to see
 		// deleted, so we know to record their expectations exactly once either
 		// when we see it as an update of the deletion timestamp, or as a delete.
 		// Note that if the labels on a machine/rs change in a way that the machine gets
 		// orphaned, the rs will only wake up after the expectations have
 		// expired even if other machines are deleted.
-		if err := c.expectations.ExpectDeletions(machineSetKey, getMachineKeys(machinesToDelete)); err != nil {
+		if err := c.expectations.ExpectDeletions(machineSetKey, getMachineKeys(staleMachines)); err != nil {
 			// TODO: proper error handling needs to happen here
 			klog.Errorf("failed expect deletions for machineset %s: %v", machineSet.Name, err)
 		}
-
-		if err := c.terminateMachines(ctx, machinesToDelete, machineSet); err != nil {
-			// TODO: proper error handling needs to happen here
-			klog.Errorf("failed to terminate machines for machineset %s: %v", machineSet.Name, err)
-		}
-	}
-
-	var staleMachines []*v1alpha1.Machine
-	for _, m := range machinesWithoutUpdateSuccessfulLabel {
-		if machineutils.IsMachineFailed(m) {
-			staleMachines = append(staleMachines, m)
-		}
-	}
-
-	if len(staleMachines) >= 1 {
 		klog.V(3).Infof("Deleting stale machines %s", getMachineKeys(staleMachines))
 		if err := c.terminateMachines(ctx, staleMachines, machineSet); err != nil {
 			// TODO: proper error handling needs to happen here
@@ -888,4 +886,32 @@ func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.
 	}
 
 	return machine, retryErr
+}
+
+// getMachinesMarkedForDeletion iterates through the machines and if a machine has MarkedForDeletionTime before LastDeploymentReplicaChangeByScalerTime of the machineSet,
+// that machine is added to the staleMachine list to be deleted.
+// This is done to have consistency between machineDeployment replica change and the machines marked for deletion.
+func getMachinesMarkedForDeletion(machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) (staleMachines []*v1alpha1.Machine) {
+	machineSetLRCA, perr := time.Parse(time.RFC3339, machineSet.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime])
+	if perr != nil {
+		klog.Warningf("Unable to parse %q of machineset %q: %v", machineutils.LastDeploymentReplicaChangeByScalerTime, machineSet.Name, perr)
+		return
+	}
+
+	for _, machine := range machineList {
+		markedMachineDeletionTime := machine.Annotations[machineutils.MarkedForDeletionTime]
+		if markedMachineDeletionTime == "" || machine.Annotations[machineutils.MachinePriority] != "1" {
+			continue
+		}
+		machineLRCA, err := time.Parse(time.RFC3339, markedMachineDeletionTime)
+		if err != nil {
+			klog.Infof("Error parsing time from annotation %q=%q on machine %q: %v", machineutils.MarkedForDeletionTime, markedMachineDeletionTime, machine.Name, err)
+			continue
+		}
+		if machineLRCA.Before(machineSetLRCA) || machineLRCA.Equal(machineSetLRCA) {
+			staleMachines = append(staleMachines, machine)
+		}
+	}
+
+	return
 }
