@@ -124,6 +124,9 @@ type MachineSetStatus struct {
 	// +optional
 	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
 
+	// PreservedFailedReplicas is the number of preserved replicas in Failed phase for this replica set
+	PreservedFailedReplicas int32 `json:"preservedFailedReplicas,omitempty"`
+
 	// ObservedGeneration is the most recent generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
