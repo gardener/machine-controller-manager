@@ -25,8 +25,9 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"reflect"
+
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 
 	"k8s.io/klog/v2"
 
@@ -50,7 +51,8 @@ func updateMachineSetStatus(ctx context.Context, machineClient machineapi.Machin
 		is.Generation == is.Status.ObservedGeneration &&
 		reflect.DeepEqual(is.Status.Conditions, newStatus.Conditions) &&
 		reflect.DeepEqual(is.Status.FailedMachines, newStatus.FailedMachines) &&
-		is.Status.AutoPreserveFailedMachineCount == newStatus.AutoPreserveFailedMachineCount {
+		is.Status.AutoPreserveFailedMachineCount == newStatus.AutoPreserveFailedMachineCount &&
+		is.Status.PreservedFailedReplicas == newStatus.PreservedFailedReplicas {
 		return is, nil
 	}
 
@@ -68,8 +70,9 @@ func updateMachineSetStatus(ctx context.Context, machineClient machineapi.Machin
 			fmt.Sprintf("fullyLabeledReplicas %d->%d, ", is.Status.FullyLabeledReplicas, newStatus.FullyLabeledReplicas)+
 			fmt.Sprintf("readyReplicas %d->%d, ", is.Status.ReadyReplicas, newStatus.ReadyReplicas)+
 			fmt.Sprintf("availableReplicas %d->%d, ", is.Status.AvailableReplicas, newStatus.AvailableReplicas)+
-			fmt.Sprintf("sequence No: %v->%v,", is.Status.ObservedGeneration, newStatus.ObservedGeneration)+
-			fmt.Sprintf("autoPreserveFailedMachineCount %v->%v", is.Status.AutoPreserveFailedMachineCount, newStatus.AutoPreserveFailedMachineCount))
+			fmt.Sprintf("sequence No: %v->%v, ", is.Status.ObservedGeneration, newStatus.ObservedGeneration)+
+			fmt.Sprintf("autoPreserveFailedMachineCount %v->%v, ", is.Status.AutoPreserveFailedMachineCount, newStatus.AutoPreserveFailedMachineCount)+
+			fmt.Sprintf("preservedFailedReplicas %v->%v", is.Status.PreservedFailedReplicas, newStatus.PreservedFailedReplicas))
 
 		is.Status = newStatus
 		updatedIS, updateErr = c.UpdateStatus(ctx, is, metav1.UpdateOptions{})
@@ -102,6 +105,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	fullyLabeledReplicasCount := 0
 	readyReplicasCount := 0
 	availableReplicasCount := 0
+	preservedFailedReplicasCount := 0
 	autoPreserveFailedMachineCount := 0
 
 	failedMachines := []v1alpha1.MachineSummary{}
@@ -128,7 +132,11 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 			}
 			failedMachines = append(failedMachines, machineSummary)
 		}
+		if isMachinePreservedAndFailed(machine) {
+			preservedFailedReplicasCount++
+		}
 		// Count number of failed machines annotated with PreserveMachineAnnotationValuePreservedByMCM
+		// Cannot combine with above if block in case auto-preservation is not complete yet
 		if machine.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
 			autoPreserveFailedMachineCount++
 		}
@@ -162,6 +170,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	newStatus.AvailableReplicas = int32(availableReplicasCount)       // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	newStatus.LastOperation.LastUpdateTime = metav1.Now()
 	newStatus.AutoPreserveFailedMachineCount = int32(autoPreserveFailedMachineCount) // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
+	newStatus.PreservedFailedReplicas = int32(preservedFailedReplicasCount)          // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	return newStatus
 }
 
@@ -222,6 +231,10 @@ func isMachineAvailable(machine *v1alpha1.Machine) bool {
 	}
 
 	return false
+}
+
+func isMachinePreservedAndFailed(machine *v1alpha1.Machine) bool {
+	return machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed && !machine.Status.CurrentStatus.PreserveExpiryTime.IsZero()
 }
 
 func isMachineReady(machine *v1alpha1.Machine) bool {

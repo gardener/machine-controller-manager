@@ -428,6 +428,11 @@ spec:
                   by the controller.
                 format: int64
                 type: integer
+              preservedFailedReplicas:
+                description: PreservedFailedReplicas is the number of preserved replicas
+                  in Failed phase for this replica set
+                format: int32
+                type: integer
               readyReplicas:
                 description: The number of ready replicas for this replica set.
                 format: int32
