@@ -3448,7 +3448,7 @@ var _ = Describe("machine", func() {
 					),
 				},
 			}),
-			Entry("Skip ToBedeletedByClusterAutoscaler Taint if node dose not exist", &data{
+			Entry("Skip ToBedeletedByClusterAutoscaler Taint if node does not exist", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
 						{
@@ -3527,7 +3527,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    fmt.Sprintf("Node dose not exist. %s", machineutils.InitiateVMDeletion),
+								Description:    fmt.Sprintf("Node does not exist. %s", machineutils.InitiateVMDeletion),
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationDelete,
 								LastUpdateTime: metav1.Now(),

@@ -1763,7 +1763,7 @@ func (c *controller) taintNode(ctx context.Context, deleteMachineRequest *driver
 			return machineutils.ShortRetry, err
 		}
 		skipStep = true
-		description = fmt.Sprintf("Node dose not exist. %s", machineutils.InitiateVMDeletion)
+		description = fmt.Sprintf("Node does not exist. %s", machineutils.InitiateVMDeletion)
 	}
 
 	if node != nil {
@@ -1805,7 +1805,7 @@ func (c *controller) taintNode(ctx context.Context, deleteMachineRequest *driver
 	return machineutils.ShortRetry, nil
 }
 
-// deleteNodeVolAttachments deletes VolumeAttachment(s) for a node before moving to VM deletion stage.
+// deleteNodeVolAttachments deletes VolumeAttachment(s) for a node before moving to taint Node stage.
 func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.RetryPeriod, error) {
 	var (
 		description string
@@ -1821,11 +1821,11 @@ func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachine
 			return retryPeriod, err
 		}
 		// node not found move to vm deletion
-		description = fmt.Sprintf("Skipping deleteNodeVolAttachments due to - %s. Moving to VM Deletion. %s", err.Error(), machineutils.SetDeletionTaint)
+		description = fmt.Sprintf("Skipping deleteNodeVolAttachments due to - %s. Moving to taint Node. %s", err.Error(), machineutils.SetDeletionTaint)
 		state = v1alpha1.MachineStateProcessing
 		retryPeriod = 0
 	} else if len(node.Status.VolumesAttached) == 0 {
-		description = fmt.Sprintf("Node Volumes for node: %s are already detached. Moving to VM Deletion. %s", nodeName, machineutils.SetDeletionTaint)
+		description = fmt.Sprintf("Node Volumes for node: %s are already detached. Moving to taint Node. %s", nodeName, machineutils.SetDeletionTaint)
 		state = v1alpha1.MachineStateProcessing
 		retryPeriod = 0
 	} else {
@@ -1844,7 +1844,7 @@ func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachine
 			}
 			return retryPeriod, nil
 		}
-		description = fmt.Sprintf("No Live VolumeAttachments for node: %s. Moving to VM Deletion. %s", nodeName, machineutils.SetDeletionTaint)
+		description = fmt.Sprintf("No Live VolumeAttachments for node: %s. Moving to taint Node. %s", nodeName, machineutils.SetDeletionTaint)
 		state = v1alpha1.MachineStateProcessing
 	}
 	now := metav1.Now()
