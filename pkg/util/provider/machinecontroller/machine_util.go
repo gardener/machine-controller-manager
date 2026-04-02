@@ -44,6 +44,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	utilstrings "github.com/gardener/machine-controller-manager/pkg/util/strings"
+	taintutils "github.com/gardener/machine-controller-manager/pkg/util/taints"
 	utiltime "github.com/gardener/machine-controller-manager/pkg/util/time"
 
 	v1 "k8s.io/api/core/v1"
@@ -1752,9 +1753,9 @@ func (c *controller) taintNode(ctx context.Context, deleteMachineRequest *driver
 			Value:  "gardener-machine-controller-manager",
 			Effect: v1.TaintEffectPreferNoSchedule,
 		}
-		description     = ""
-		taintAlreadySet = false
-		skipStep        = false
+		description  = ""
+		taintUpdated = false
+		skipStep     = false
 	)
 	node, err := c.nodeLister.Get(getNodeName(machine))
 	if err != nil {
@@ -1765,17 +1766,15 @@ func (c *controller) taintNode(ctx context.Context, deleteMachineRequest *driver
 		skipStep = true
 		description = fmt.Sprintf("Node does not exist. %s", machineutils.InitiateVMDeletion)
 	}
-
+	var updatedNode *v1.Node
 	if node != nil {
-		for _, taint := range node.Spec.Taints {
-			if taint.Key == toBeDeletedTaint.Key {
-				taintAlreadySet = true
-				description = fmt.Sprintf("Node tainted. %s", machineutils.InitiateVMDeletion)
-			}
+		updatedNode, taintUpdated, _ = taintutils.AddOrUpdateTaint(node, &toBeDeletedTaint)
+		if !taintUpdated {
+			description = fmt.Sprintf("Node tainted. %s", machineutils.InitiateVMDeletion)
 		}
 	}
 
-	if taintAlreadySet || skipStep {
+	if !taintUpdated || skipStep {
 		return c.machineStatusUpdate(
 			ctx,
 			machine,
@@ -1793,9 +1792,7 @@ func (c *controller) taintNode(ctx context.Context, deleteMachineRequest *driver
 		)
 	}
 
-	node.Spec.Taints = append(node.Spec.Taints, toBeDeletedTaint)
-
-	if _, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{}); err != nil {
+	if _, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, updatedNode, metav1.UpdateOptions{}); err != nil {
 		if apierrors.IsConflict(err) {
 			return machineutils.ConflictRetry, err
 		}
