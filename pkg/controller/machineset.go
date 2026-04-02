@@ -359,6 +359,9 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	// are machines that require removal.
 	machinesWithoutUpdateSuccessfulLabelDiff := len(machinesWithoutUpdateSuccessfulLabel) - int(machineSet.Spec.Replicas)
 
+	// During in-place updates, ScaleUps are disabled in the oldMachineSet and the newMachineSet's
+	// ReplicaCount would never increase before a machine from oldMachineSet is moved.
+	// So no need for any special case during in-place updates when checking if machines need to be created.
 	if nonTerminatingMachinesDiff < 0 {
 		// If MachineSet is frozen and no deletion timestamp, don't process it
 		if machineSet.Labels["freeze"] == "True" && machineSet.DeletionTimestamp == nil {
