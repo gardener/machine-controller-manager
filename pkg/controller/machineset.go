@@ -428,12 +428,8 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 
 	staleMachines = append(staleMachines, getMachinesMarkedForDeletion(machinesWithoutUpdateSuccessfulLabel, machineSet)...)
 	for _, machine := range machinesWithoutUpdateSuccessfulLabel {
-		// if machine is preserved or in the process of being preserved, the machine should be considered an active machine and not be added to stale machines
-		preserve := c.shouldFailedMachineBeTerminated(machine)
-		if !preserve {
-			staleMachines = append(staleMachines, machine)
-		}
-		if machineutils.IsMachineFailed(machine) {
+		// if a failed machine is preserved, it must not be terminated
+		if machineutils.IsMachineFailed(machine) && c.shouldFailedMachineBeTerminated(machine) {
 			staleMachines = append(staleMachines, machine)
 		}
 	}
