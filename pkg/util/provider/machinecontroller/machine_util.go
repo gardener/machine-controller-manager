@@ -1745,63 +1745,6 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 	return machineutils.ShortRetry, err
 }
 
-func (c *controller) taintNode(ctx context.Context, deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.RetryPeriod, error) {
-	var (
-		machine          = deleteMachineRequest.Machine
-		toBeDeletedTaint = v1.Taint{
-			Key:    machineutils.TaintToBeDeleted,
-			Value:  "gardener-machine-controller-manager",
-			Effect: v1.TaintEffectPreferNoSchedule,
-		}
-		description  = ""
-		taintUpdated = false
-		skipStep     = false
-	)
-	node, err := c.nodeLister.Get(getNodeName(machine))
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			klog.Errorf("error occurred while trying to fetch node object - err: %v", err)
-			return machineutils.ShortRetry, err
-		}
-		skipStep = true
-		description = fmt.Sprintf("Node does not exist. %s", machineutils.InitiateVMDeletion)
-	}
-	var updatedNode *v1.Node
-	if node != nil {
-		updatedNode, taintUpdated, _ = taintutils.AddOrUpdateTaint(node, &toBeDeletedTaint)
-		if !taintUpdated {
-			description = fmt.Sprintf("Node tainted. %s", machineutils.InitiateVMDeletion)
-		}
-	}
-
-	if !taintUpdated || skipStep {
-		return c.machineStatusUpdate(
-			ctx,
-			machine,
-			v1alpha1.LastOperation{
-				Description:    description,
-				State:          v1alpha1.MachineStateProcessing,
-				Type:           v1alpha1.MachineOperationDelete,
-				LastUpdateTime: metav1.Now(),
-			},
-			// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
-			// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
-			// Ref - https://github.com/gardener/machine-controller-manager/blob/97ca0de6df297c1b53ac2b66ec28120840b6906a/pkg/util/provider/machinecontroller/machine_util.go#L1621
-			machine.Status.CurrentStatus,
-			machine.Status.LastKnownState,
-		)
-	}
-
-	if _, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, updatedNode, metav1.UpdateOptions{}); err != nil {
-		if apierrors.IsConflict(err) {
-			return machineutils.ConflictRetry, err
-		}
-		return machineutils.ShortRetry, err
-	}
-
-	return machineutils.ShortRetry, nil
-}
-
 // deleteNodeVolAttachments deletes VolumeAttachment(s) for a node before moving to taint Node stage.
 func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.RetryPeriod, error) {
 	var (
@@ -1864,6 +1807,63 @@ func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachine
 	}
 
 	return retryPeriod, err
+}
+
+func (c *controller) taintNode(ctx context.Context, deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.RetryPeriod, error) {
+	var (
+		machine          = deleteMachineRequest.Machine
+		toBeDeletedTaint = v1.Taint{
+			Key:    machineutils.TaintToBeDeleted,
+			Value:  "gardener-machine-controller-manager",
+			Effect: v1.TaintEffectPreferNoSchedule,
+		}
+		description  = ""
+		taintUpdated = false
+		skipStep     = false
+	)
+	node, err := c.nodeLister.Get(getNodeName(machine))
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			klog.Errorf("error occurred while trying to fetch node object - err: %v", err)
+			return machineutils.ShortRetry, err
+		}
+		skipStep = true
+		description = fmt.Sprintf("Node does not exist. %s", machineutils.InitiateVMDeletion)
+	}
+	var updatedNode *v1.Node
+	if node != nil {
+		updatedNode, taintUpdated, _ = taintutils.AddOrUpdateTaint(node, &toBeDeletedTaint)
+		if !taintUpdated {
+			description = fmt.Sprintf("Node tainted. %s", machineutils.InitiateVMDeletion)
+		}
+	}
+
+	if !taintUpdated || skipStep {
+		return c.machineStatusUpdate(
+			ctx,
+			machine,
+			v1alpha1.LastOperation{
+				Description:    description,
+				State:          v1alpha1.MachineStateProcessing,
+				Type:           v1alpha1.MachineOperationDelete,
+				LastUpdateTime: metav1.Now(),
+			},
+			// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
+			// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
+			// Ref - https://github.com/gardener/machine-controller-manager/blob/97ca0de6df297c1b53ac2b66ec28120840b6906a/pkg/util/provider/machinecontroller/machine_util.go#L1621
+			machine.Status.CurrentStatus,
+			machine.Status.LastKnownState,
+		)
+	}
+
+	if _, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, updatedNode, metav1.UpdateOptions{}); err != nil {
+		if apierrors.IsConflict(err) {
+			return machineutils.ConflictRetry, err
+		}
+		return machineutils.ShortRetry, err
+	}
+
+	return machineutils.ShortRetry, nil
 }
 
 // deleteVM attempts to delete the VM backed by the machine object

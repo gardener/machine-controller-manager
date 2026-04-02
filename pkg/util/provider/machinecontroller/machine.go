@@ -641,11 +641,11 @@ func (c *controller) triggerDeletionFlow(ctx context.Context, deleteMachineReque
 	case strings.Contains(machine.Status.LastOperation.Description, machineutils.InitiateDrain):
 		return c.drainNode(ctx, deleteMachineRequest)
 
-	case strings.Contains(machine.Status.LastOperation.Description, machineutils.SetDeletionTaint):
-		return c.taintNode(ctx, deleteMachineRequest)
-
 	case strings.Contains(machine.Status.LastOperation.Description, machineutils.DelVolumesAttachments):
 		return c.deleteNodeVolAttachments(ctx, deleteMachineRequest)
+
+	case strings.Contains(machine.Status.LastOperation.Description, machineutils.SetDeletionTaint):
+		return c.taintNode(ctx, deleteMachineRequest)
 
 	case strings.Contains(machine.Status.LastOperation.Description, machineutils.InitiateVMDeletion):
 		return c.deleteVM(ctx, deleteMachineRequest)
