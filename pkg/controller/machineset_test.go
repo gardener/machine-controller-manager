@@ -9,10 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	corev1 "k8s.io/api/core/v1"
-	corev1 "k8s.io/api/core/v1"
 	"sync"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
@@ -1500,20 +1500,89 @@ var _ = Describe("machineset", func() {
 			Expect(machinesToDelete[3].Name).To(Equal(testMachine4.Name))
 		})
 		It("should prioritise non-preserved machines for deletion.", func() {
-			diff = 2
-			testPreservedFailedMachine := testFailedMachine1.DeepCopy()
-			testPreservedFailedMachine.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: time.Now().Add(1 * time.Hour)}
-			filteredMachines := []*machinev1.Machine{testActiveMachine1, testFailedMachine1, testPreservedFailedMachine}
+			testPreservedFailedMachine := &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-1",
+					Namespace: testNamespace,
+					UID:       "1234561",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						machineutils.MachinePriority: "3",
+					},
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase:              MachineFailed,
+						PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+					},
+				},
+			}
+			testRunningMachine := &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-2",
+					Namespace: testNamespace,
+					UID:       "1234561",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						machineutils.MachinePriority: "3",
+					},
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineRunning,
+					},
+				},
+			}
+			diff = 1
+			filteredMachines := []*machinev1.Machine{testRunningMachine, testPreservedFailedMachine}
 			machinesToDelete := getMachinesToDelete(filteredMachines, diff)
 			Expect(len(machinesToDelete)).To(Equal(diff))
-			// expect machinesToDelete to not contain testPreservedFailedMachine
 			Expect(machinesToDelete).ToNot(ContainElement(testPreservedFailedMachine))
 		})
 		It("should include preserved machine when needed to maintain replica count", func() {
+			testPreservedFailedMachine := &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-1",
+					Namespace: testNamespace,
+					UID:       "1234561",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						machineutils.MachinePriority: "3",
+					},
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase:              MachineFailed,
+						PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+					},
+				},
+			}
+			testRunningMachine := &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-2",
+					Namespace: testNamespace,
+					UID:       "1234561",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+					Annotations: map[string]string{
+						machineutils.MachinePriority: "3",
+					},
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineRunning,
+					},
+				},
+			}
 			diff = 2
-			testPreservedFailedMachine := testFailedMachine1.DeepCopy()
-			testPreservedFailedMachine.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: time.Now().Add(1 * time.Hour)}
-			filteredMachines := []*machinev1.Machine{testActiveMachine1, testPreservedFailedMachine}
+			filteredMachines := []*machinev1.Machine{testRunningMachine, testPreservedFailedMachine}
 			machinesToDelete := getMachinesToDelete(filteredMachines, diff)
 			Expect(len(machinesToDelete)).To(Equal(diff))
 			// expect machinesToDelete to contain testPreservedFailedMachine

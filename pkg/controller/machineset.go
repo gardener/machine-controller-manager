@@ -429,7 +429,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	staleMachines = append(staleMachines, getMachinesMarkedForDeletion(machinesWithoutUpdateSuccessfulLabel, machineSet)...)
 	for _, machine := range machinesWithoutUpdateSuccessfulLabel {
 		// if machine is preserved or in the process of being preserved, the machine should be considered an active machine and not be added to stale machines
-		preserve := shouldFailedMachineBeTerminated(machine)
+		preserve := c.shouldFailedMachineBeTerminated(machine)
 		if !preserve {
 			staleMachines = append(staleMachines, machine)
 		}
@@ -808,6 +808,34 @@ func (c *controller) updateMachineSetFinalizers(ctx context.Context, machineSet 
 
 	klog.Warning(fmt.Sprintf("Updating machineset %q failed at time %q with err: %q, requeuing", machineSet.Name, time.Now(), err.Error()))
 	return err
+}
+
+// getMachinesMarkedForDeletion iterates through the machines and if a machine has MarkedForDeletionTime before LastDeploymentReplicaChangeByScalerTime of the machineSet,
+// that machine is added to the staleMachine list to be deleted.
+// This is done to have consistency between machineDeployment replica change and the machines marked for deletion.
+func getMachinesMarkedForDeletion(machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) (staleMachines []*v1alpha1.Machine) {
+	machineSetLRCA, perr := time.Parse(time.RFC3339, machineSet.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime])
+	if perr != nil {
+		klog.Warningf("Unable to parse %q of machineset %q: %v", machineutils.LastDeploymentReplicaChangeByScalerTime, machineSet.Name, perr)
+		return
+	}
+
+	for _, machine := range machineList {
+		markedMachineDeletionTime := machine.Annotations[machineutils.MarkedForDeletionTime]
+		if markedMachineDeletionTime == "" || machine.Annotations[machineutils.MachinePriority] != "1" {
+			continue
+		}
+		machineLRCA, err := time.Parse(time.RFC3339, markedMachineDeletionTime)
+		if err != nil {
+			klog.Infof("Error parsing time from annotation %q=%q on machine %q: %v", machineutils.MarkedForDeletionTime, markedMachineDeletionTime, machine.Name, err)
+			continue
+		}
+		if machineLRCA.Before(machineSetLRCA) || machineLRCA.Equal(machineSetLRCA) {
+			staleMachines = append(staleMachines, machine)
+		}
+	}
+
+	return
 }
 
 func (c *controller) updateMachineStatus(
