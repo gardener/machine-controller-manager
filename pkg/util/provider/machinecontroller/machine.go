@@ -794,7 +794,10 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	case "", machineutils.PreserveMachineAnnotationValueFalse:
 		machineAnnotationsSynced, err = c.stopPreservationIfActive(ctx, clone, false)
 	case machineutils.PreserveMachineAnnotationValueWhenFailed:
-		if !machineutils.IsMachineFailed(clone) || machineutils.IsMachinePreservationExpired(clone) {
+		// on timing out, remove preserve annotation to prevent incorrect re-preservation
+		if machineutils.IsMachinePreservationExpired(clone) {
+			machineAnnotationsSynced, err = c.stopPreservationIfActive(ctx, clone, true)
+		} else if !machineutils.IsMachineFailed(clone) {
 			machineAnnotationsSynced, err = c.stopPreservationIfActive(ctx, clone, false)
 		} else {
 			machineAnnotationsSynced, err = c.preserveMachine(ctx, clone, effectivePreserveValue)

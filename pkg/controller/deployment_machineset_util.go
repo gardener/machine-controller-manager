@@ -122,7 +122,9 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 				readyReplicasCount++
 			}
 		}
-		if machine.Status.LastOperation.State == v1alpha1.MachineStateFailed {
+		isMachinePreserved := !machine.Status.CurrentStatus.PreserveExpiryTime.IsZero()
+		// exclude failed preserved machines from failedMachines to prevent MCD from being marked as unavailable
+		if machine.Status.LastOperation.State == v1alpha1.MachineStateFailed && !isMachinePreserved {
 			machineSummary.Name = machine.Name
 			machineSummary.ProviderID = machine.Spec.ProviderID
 			machineSummary.LastOperation = machine.Status.LastOperation
@@ -131,8 +133,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 				machineSummary.OwnerRef = controller.Name
 			}
 			failedMachines = append(failedMachines, machineSummary)
-		}
-		if isMachinePreservedAndFailed(machine) {
+		} else if isMachinePreserved && machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
 			preservedFailedReplicasCount++
 		}
 		// Count number of failed machines annotated with PreserveMachineAnnotationValuePreservedByMCM
