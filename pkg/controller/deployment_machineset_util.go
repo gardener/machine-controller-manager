@@ -70,7 +70,7 @@ func updateMachineSetStatus(ctx context.Context, machineClient machineapi.Machin
 			fmt.Sprintf("fullyLabeledReplicas %d->%d, ", is.Status.FullyLabeledReplicas, newStatus.FullyLabeledReplicas)+
 			fmt.Sprintf("readyReplicas %d->%d, ", is.Status.ReadyReplicas, newStatus.ReadyReplicas)+
 			fmt.Sprintf("availableReplicas %d->%d, ", is.Status.AvailableReplicas, newStatus.AvailableReplicas)+
-			fmt.Sprintf("sequence No: %v->%v, ", is.Status.ObservedGeneration, newStatus.ObservedGeneration)+
+			fmt.Sprintf("observedGeneration: %v->%v, ", is.Status.ObservedGeneration, newStatus.ObservedGeneration)+
 			fmt.Sprintf("autoPreserveFailedMachineCount %v->%v, ", is.Status.AutoPreserveFailedMachineCount, newStatus.AutoPreserveFailedMachineCount)+
 			fmt.Sprintf("preservedFailedReplicas %v->%v", is.Status.PreservedFailedReplicas, newStatus.PreservedFailedReplicas))
 
@@ -122,9 +122,11 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 				readyReplicasCount++
 			}
 		}
-		isMachinePreserved := !machine.Status.CurrentStatus.PreserveExpiryTime.IsZero()
+
 		// exclude failed preserved machines from failedMachines to prevent MCD from being marked as unavailable
-		if machine.Status.LastOperation.State == v1alpha1.MachineStateFailed && !isMachinePreserved {
+		if isMachinePreservedAndFailed(machine) {
+			preservedFailedReplicasCount++
+		} else if machine.Status.LastOperation.State == v1alpha1.MachineStateFailed {
 			machineSummary.Name = machine.Name
 			machineSummary.ProviderID = machine.Spec.ProviderID
 			machineSummary.LastOperation = machine.Status.LastOperation
@@ -133,8 +135,6 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 				machineSummary.OwnerRef = controller.Name
 			}
 			failedMachines = append(failedMachines, machineSummary)
-		} else if isMachinePreserved && machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
-			preservedFailedReplicasCount++
 		}
 		// Count number of failed machines annotated with PreserveMachineAnnotationValuePreservedByMCM
 		// Cannot combine with above if block in case auto-preservation is not complete yet
