@@ -1567,9 +1567,11 @@ var _ = Describe("machineDeployment", func() {
 			testMachine           *machinev1.Machine
 			testNode              *corev1.Node
 			ptrBool               bool
+			ts                    string
 		)
 		BeforeEach(func() {
 			ptrBool = true
+			ts = time.Now().Format(time.RFC3339)
 			testMachineDeployment = &machinev1.MachineDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "MachineDeployment-test",
@@ -1969,6 +1971,18 @@ var _ = Describe("machineDeployment", func() {
 				},
 				func(_ *machinev1.MachineDeployment, _ []machinev1.MachineSet, machines []machinev1.Machine, _ *corev1.Node) error {
 					Expect(machines[0].Annotations[machineutils.MachinePriority]).To(Equal("1"))
+					return nil
+				},
+			),
+			Entry("set LDRCBST annotation on the machineSet and TriggerDeletionByMCM annotation is not set on the machineSet",
+				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
+					testMachineDeployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = ts
+					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))
+				},
+				func(_ *machinev1.MachineDeployment, mcs []machinev1.MachineSet, machines []machinev1.Machine, _ *corev1.Node) error {
+					Expect(mcs[0].Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]).To(Equal(ts))
+					_, exists := mcs[0].Annotations[machineutils.TriggerDeletionByMCM]
+					Expect(exists).To(BeFalse())
 					return nil
 				},
 			),
