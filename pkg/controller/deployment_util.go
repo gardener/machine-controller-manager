@@ -1042,7 +1042,7 @@ func GetAvailableReplicaCountForMachineSets(MachineSets []*v1alpha1.MachineSet) 
 	return totalAvailableReplicas
 }
 
-// GetPreservedFailedReplicaCountForMachineSets returns the number of available machines corresponding to the given machine sets.
+// GetPreservedFailedReplicaCountForMachineSets returns the number of preserved failed machines corresponding to the given machine sets.
 func GetPreservedFailedReplicaCountForMachineSets(MachineSets []*v1alpha1.MachineSet) int32 {
 	totalPreservedFailedReplicas := int32(0)
 	for _, is := range MachineSets {
