@@ -1221,6 +1221,41 @@ var _ = Describe("machineset", func() {
 			Expect(len(machines.Items)).To(Equal(int(0)))
 			Expect(Err).Should(BeNil())
 		})
+
+		// Testcase: It should count preserved Failed Replicas and exclude these replicas from failed machines
+		It("should count preserved Failed Replicas and exclude these replicas from failed machines", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+			objects := []runtime.Object{}
+			testPreservedFailedMachine := &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-1",
+					Namespace: testNamespace,
+					UID:       "1234568",
+					Labels: map[string]string{
+						"test-label": "test-label",
+					},
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase:              MachineFailed,
+						PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+					},
+				},
+			}
+			objects = append(objects, testMachineSet, testPreservedFailedMachine)
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+			Key := testNamespace + "/" + testMachineSet.Name
+			Err := c.reconcileClusterMachineSet(Key)
+			Expect(Err).Should(BeNil())
+			waitForCacheSync(stop, c)
+			testMachineSet, err := c.controlMachineClient.MachineSets(testNamespace).Get(context.TODO(), testMachineSet.Name, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(testMachineSet.Status.PreservedFailedReplicas).To(Equal(int32(1)))
+			Expect(testMachineSet.Status.FailedMachines).To(BeNil())
+		})
 	})
 
 	Describe("#claimMachines", func() {

@@ -7,9 +7,10 @@ package controller
 import (
 	"context"
 	"fmt"
-	k8stesting "k8s.io/client-go/testing"
 	"math"
 	"time"
+
+	k8stesting "k8s.io/client-go/testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -4283,7 +4284,7 @@ var _ = Describe("machine", func() {
 					retry:                   machineutils.LongRetry,
 				},
 			}),
-			Entry("when node of Failed machine is annotated with `when-failed`, should start preservation", testCase{
+			Entry("when node of Failed machine has annotation `when-failed`, should start preservation", testCase{
 				setup: setup{
 					nodeAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
 					nodeName:            "node-1",
@@ -4460,7 +4461,7 @@ var _ = Describe("machine", func() {
 				},
 			}),
 			// case possible when MCM goes down and node annotation value is cleared and machine is annotated
-			Entry("when node and machine are found to be annotated with \"\", and 'now', respectively and last applied node perserve value is 'now', should stop preservation", testCase{
+			Entry("when node and machine are found to be annotated with \"\", and 'now', respectively and last applied node preserve value is 'now', should stop preservation", testCase{
 				setup: setup{
 					nodeAnnotationValue:    "",
 					laNodePreserveValue:    "now",

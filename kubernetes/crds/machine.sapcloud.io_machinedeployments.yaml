@@ -530,6 +530,11 @@ spec:
                 description: The generation observed by the MachineDeployment controller.
                 format: int64
                 type: integer
+              preservedFailedReplicas:
+                description: PreservedFailedReplicas is the number of preserved machines
+                  in Failed phase targeted by this MachineDeployment
+                format: int32
+                type: integer
               readyReplicas:
                 description: Total number of ready machines targeted by this MachineDeployment.
                 format: int32
@@ -543,7 +548,8 @@ spec:
                 description: |-
                   Total number of unavailable machines targeted by this MachineDeployment. This is the total number of
                   machines that are still required for the MachineDeployment to have 100% available capacity. They may
-                  either be machines that are running but not yet available or machines that still have not been created.
+                  either be machines that are running but not yet available, machines that still have not been created, or
+                  machines that are preserved in Failed phase.
                 format: int32
                 type: integer
               updatedReplicas:
