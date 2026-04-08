@@ -111,10 +111,6 @@ const (
 	// is deployment.spec.replicas + maxSurge. Used by the underlying machine sets to estimate their
 	// proportions in case the deployment has surge replicas.
 	MaxReplicasAnnotation = "deployment.kubernetes.io/max-replicas"
-	// TriggerDeletionByMCM is the annotation set on the MachineDeployment by the CA-MCM cloud provider. It contains the machine names
-	// for which deletion should be triggered along with the time when CA decided to scale-down those machines.
-	// Expected format for this annotation value is [M1~T1,M2~T2,...]
-	TriggerDeletionByMCM = "node.machine.sapcloud.io/trigger-deletion-by-mcm"
 	// PreferNoScheduleKey is used to identify machineSet nodes on which PreferNoSchedule taint is added on
 	// older machineSets during a rolling update
 	PreferNoScheduleKey = "deployment.machine.sapcloud.io/prefer-no-schedule"
@@ -457,14 +453,14 @@ func UpdateMachineSetClassKind(deployment *v1alpha1.MachineDeployment, newIS *v1
 }
 
 var annotationsToSkip = map[string]bool{
-	v1.LastAppliedConfigAnnotation: true,
-	RevisionAnnotation:             true,
-	RevisionHistoryAnnotation:      true,
-	DesiredReplicasAnnotation:      true,
-	MaxReplicasAnnotation:          true,
-	PreferNoScheduleKey:            true,
-	UnfreezeAnnotation:             true,
-	TriggerDeletionByMCM:           true,
+	v1.LastAppliedConfigAnnotation:    true,
+	RevisionAnnotation:                true,
+	RevisionHistoryAnnotation:         true,
+	DesiredReplicasAnnotation:         true,
+	MaxReplicasAnnotation:             true,
+	PreferNoScheduleKey:               true,
+	UnfreezeAnnotation:                true,
+	machineutils.TriggerDeletionByMCM: true,
 }
 
 // skipCopyAnnotation returns true if we should skip copying the annotation with the given annotation key
