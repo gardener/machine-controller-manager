@@ -1979,7 +1979,7 @@ var _ = Describe("machineDeployment", func() {
 					testMachineDeployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = ts
 					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))
 				},
-				func(_ *machinev1.MachineDeployment, mcs []machinev1.MachineSet, machines []machinev1.Machine, _ *corev1.Node) error {
+				func(_ *machinev1.MachineDeployment, mcs []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 					Expect(mcs[0].Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]).To(Equal(ts))
 					_, exists := mcs[0].Annotations[machineutils.TriggerDeletionByMCM]
 					Expect(exists).To(BeFalse())
