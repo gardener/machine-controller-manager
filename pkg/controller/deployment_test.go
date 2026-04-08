@@ -1754,6 +1754,7 @@ var _ = Describe("machineDeployment", func() {
 				waitForCacheSync(stop, c)
 				actualMachineDeployment, _ := c.controlMachineClient.MachineDeployments(testNamespace).Get(context.Background(), testMachineDeployment.Name, metav1.GetOptions{})
 				actualMachineSets, _ := c.controlMachineClient.MachineSets(testNamespace).List(context.Background(), metav1.ListOptions{})
+				waitForCacheSync(stop, c)
 				actualMachines, _ := c.controlMachineClient.Machines(testNamespace).List(context.Background(), metav1.ListOptions{})
 				testNode, _ := c.targetCoreClient.CoreV1().Nodes().Get(context.Background(), testNode.Name, metav1.GetOptions{})
 
