@@ -487,7 +487,7 @@ func copyMachineDeploymentAnnotationsToMachineSet(deployment *v1alpha1.MachineDe
 		// newRS revision is updated automatically in getNewMachineSet, and the deployment's revision number is then updated
 		// by copying its newRS revision number. We should not copy deployment's revision to its newRS, since the update of
 		// deployment revision number may fail (revision becomes stale) and the revision number in newRS is more reliable.
-		if skipCopyAnnotation(k) || is.Annotations[k] == v || v == "" {
+		if skipCopyAnnotation(k) || is.Annotations[k] == v {
 			continue
 		}
 		is.Annotations[k] = v
