@@ -25,13 +25,14 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"maps"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 
 	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -452,13 +453,14 @@ func UpdateMachineSetClassKind(deployment *v1alpha1.MachineDeployment, newIS *v1
 }
 
 var annotationsToSkip = map[string]bool{
-	v1.LastAppliedConfigAnnotation: true,
-	RevisionAnnotation:             true,
-	RevisionHistoryAnnotation:      true,
-	DesiredReplicasAnnotation:      true,
-	MaxReplicasAnnotation:          true,
-	PreferNoScheduleKey:            true,
-	UnfreezeAnnotation:             true,
+	v1.LastAppliedConfigAnnotation:    true,
+	RevisionAnnotation:                true,
+	RevisionHistoryAnnotation:         true,
+	DesiredReplicasAnnotation:         true,
+	MaxReplicasAnnotation:             true,
+	PreferNoScheduleKey:               true,
+	UnfreezeAnnotation:                true,
+	machineutils.TriggerDeletionByMCM: true,
 }
 
 // skipCopyAnnotation returns true if we should skip copying the annotation with the given annotation key

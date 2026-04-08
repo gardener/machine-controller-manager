@@ -47,8 +47,9 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
-// triggerDeletionData contains the annotation to be put on machineDeployment, a boolean to indicate whether annotation is changed and
-// map of machine and its markedDeletionTime
+// triggerDeletionData is used to store the data related to the machines for which deletion
+// should be triggered by MCM and the time when scaler decided to scale-down those machines.
+// This data is stored in the TriggerDeletionByMCM annotation on the MachineDeployment.
 type triggerDeletionData struct {
 	markedMachines                        []*v1alpha1.Machine
 	markedMachineDeletionTimes            []string
@@ -755,6 +756,7 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 	}
 }
 
+// TODO: separate the logic of adjusting the annotation value and updating the annotation on the MachineDeployment into two functions, and add unit tests for the function that computes the new annotation value.
 func (dc *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (*v1alpha1.MachineDeployment, error) {
 	if mcd.Annotations[machineutils.TriggerDeletionByMCM] == "" {
 		return mcd, nil
