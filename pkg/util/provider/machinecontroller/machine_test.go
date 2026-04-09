@@ -402,12 +402,13 @@ var _ = Describe("machine", func() {
 
 	Describe("#triggerCreationFlow", func() {
 		type setup struct {
-			machineClasses      []*v1alpha1.MachineClass
-			machines            []*v1alpha1.Machine
-			secrets             []*corev1.Secret
-			nodes               []*corev1.Node
-			fakeResourceActions *customfake.ResourceActions
-			noTargetCluster     bool
+			machineClasses         []*v1alpha1.MachineClass
+			machines               []*v1alpha1.Machine
+			secrets                []*corev1.Secret
+			nodes                  []*corev1.Node
+			fakeResourceActions    *customfake.ResourceActions
+			noTargetCluster        bool
+			resourceExhaustedRetry machineutils.RetryPeriod
 		}
 		type action struct {
 			machine    string
@@ -465,6 +466,10 @@ var _ = Describe("machine", func() {
 				defer trackers.Stop()
 
 				waitForCacheSync(stop, controller)
+
+				if data.setup.resourceExhaustedRetry != 0 {
+					controller.resourceExhaustedRetry = data.setup.resourceExhaustedRetry
+				}
 
 				action := data.action
 				machine, err := controller.controlMachineClient.Machines(objMeta.Namespace).Get(context.TODO(), action.machine, metav1.GetOptions{})
@@ -838,6 +843,59 @@ var _ = Describe("machine", func() {
 					}, nil, nil, nil, true, metav1.Now()),
 					err:   status.Error(codes.ResourceExhausted, "Provider does not have capacity to create VM"),
 					retry: machineutils.LongRetry,
+				},
+			}),
+			Entry("Machine creation fails with CrashLoopBackOff due to resource exhaustion with configured retry period", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Data:       map[string][]byte{"userData": []byte("test")},
+						},
+					},
+					machineClasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(1, &v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machine-0",
+							},
+						},
+					}, nil, nil, nil, nil, true, metav1.Now()),
+					resourceExhaustedRetry: machineutils.RetryPeriod(9 * time.Minute),
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists: false,
+						Err:      status.Error(codes.ResourceExhausted, "Provider does not have capacity to create VM"),
+					},
+				},
+				expect: expect{
+					machine: newMachine(&v1alpha1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: v1alpha1.MachineSpec{
+							Class: v1alpha1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "machineClass",
+							},
+						},
+					}, &v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
+							Phase: v1alpha1.MachineCrashLoopBackOff,
+						},
+						LastOperation: v1alpha1.LastOperation{
+							ErrorCode: codes.ResourceExhausted.String(),
+						},
+					}, nil, nil, nil, true, metav1.Now()),
+					err:   status.Error(codes.ResourceExhausted, "Provider does not have capacity to create VM"),
+					retry: machineutils.RetryPeriod(9 * time.Minute),
 				},
 			}),
 			Entry("Machine creation fails with Failure due to timeout", &data{
