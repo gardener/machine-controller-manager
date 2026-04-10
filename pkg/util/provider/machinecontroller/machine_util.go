@@ -1893,11 +1893,6 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 	if nodeName != "" {
 		var node *v1.Node
 		node, err = c.nodeLister.Get(nodeName)
-		if apierrors.IsNotFound(err) {
-			// Lister cache may be stale; confirm with API server
-			klog.V(3).Infof("Node %q not found in lister cache, attempting live fetch from API server", nodeName)
-			node, err = c.targetCoreClient.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
-		}
 		if err != nil {
 			switch {
 			case apierrors.IsNotFound(err):
