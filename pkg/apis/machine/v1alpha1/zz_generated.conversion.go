@@ -698,6 +698,7 @@ func autoConvert_v1alpha1_MachineDeploymentStatus_To_machine_MachineDeploymentSt
 	out.UpdatedReplicas = in.UpdatedReplicas
 	out.ReadyReplicas = in.ReadyReplicas
 	out.AvailableReplicas = in.AvailableReplicas
+	out.PreservedFailedReplicas = in.PreservedFailedReplicas
 	out.UnavailableReplicas = in.UnavailableReplicas
 	out.Conditions = *(*[]machine.MachineDeploymentCondition)(unsafe.Pointer(&in.Conditions))
 	out.CollisionCount = (*int32)(unsafe.Pointer(in.CollisionCount))
@@ -716,6 +717,7 @@ func autoConvert_machine_MachineDeploymentStatus_To_v1alpha1_MachineDeploymentSt
 	out.UpdatedReplicas = in.UpdatedReplicas
 	out.ReadyReplicas = in.ReadyReplicas
 	out.AvailableReplicas = in.AvailableReplicas
+	out.PreservedFailedReplicas = in.PreservedFailedReplicas
 	out.UnavailableReplicas = in.UnavailableReplicas
 	out.Conditions = *(*[]MachineDeploymentCondition)(unsafe.Pointer(&in.Conditions))
 	out.CollisionCount = (*int32)(unsafe.Pointer(in.CollisionCount))
@@ -899,6 +901,7 @@ func autoConvert_v1alpha1_MachineSetStatus_To_machine_MachineSetStatus(in *Machi
 	out.FullyLabeledReplicas = in.FullyLabeledReplicas
 	out.ReadyReplicas = in.ReadyReplicas
 	out.AvailableReplicas = in.AvailableReplicas
+	out.PreservedFailedReplicas = in.PreservedFailedReplicas
 	out.ObservedGeneration = in.ObservedGeneration
 	out.Conditions = *(*[]machine.MachineSetCondition)(unsafe.Pointer(&in.Conditions))
 	if err := Convert_v1alpha1_LastOperation_To_machine_LastOperation(&in.LastOperation, &out.LastOperation, s); err != nil {
@@ -919,6 +922,7 @@ func autoConvert_machine_MachineSetStatus_To_v1alpha1_MachineSetStatus(in *machi
 	out.FullyLabeledReplicas = in.FullyLabeledReplicas
 	out.ReadyReplicas = in.ReadyReplicas
 	out.AvailableReplicas = in.AvailableReplicas
+	out.PreservedFailedReplicas = in.PreservedFailedReplicas
 	out.ObservedGeneration = in.ObservedGeneration
 	out.Conditions = *(*[]MachineSetCondition)(unsafe.Pointer(&in.Conditions))
 	if err := Convert_machine_LastOperation_To_v1alpha1_LastOperation(&in.LastOperation, &out.LastOperation, s); err != nil {
