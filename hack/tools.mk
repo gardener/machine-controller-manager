@@ -26,21 +26,23 @@ GOLANGCI_LINT ?= $(TOOLS_BIN_DIR)/golangci-lint
 GOSEC ?= $(TOOLS_BIN_DIR)/gosec
 
 ## Tool Versions
-CODE_GENERATOR_VERSION ?= v0.31.0
-VGOPATH_VERSION ?= v0.1.6
-CONTROLLER_TOOLS_VERSION ?= v0.16.1
+CODE_GENERATOR_VERSION ?= $(call version_gomod,k8s.io/code-generator)
+VGOPATH_VERSION ?= v0.1.10
+CONTROLLER_TOOLS_VERSION ?= v0.20.1
 GEN_CRD_API_REFERENCE_DOCS_VERSION ?= v0.3.0
 ADDLICENSE_VERSION ?= v1.1.1
-GOIMPORTS_VERSION ?= v0.13.0
-GOLANGCI_LINT_VERSION ?= v1.64.8
-GOSEC_VERSION ?= v2.21.4
-
+GOIMPORTS_VERSION ?= $(call version_gomod,golang.org/x/tools)
+GOLANGCI_LINT_VERSION ?= v2.11.4
+GOSEC_VERSION ?= v2.25.0
 
 # default tool versions
 GO_ADD_LICENSE_VERSION ?= latest
 
 export TOOLS_BIN_DIR := $(TOOLS_BIN_DIR)
 export PATH := $(abspath $(TOOLS_BIN_DIR)):$(PATH)
+
+# Use this function to get the version of a go module from go.mod
+version_gomod = $(shell go list -f '{{ .Version }}' -m $(1))
 
 #########################################
 # Tools                                 #

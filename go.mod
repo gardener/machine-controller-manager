@@ -25,8 +25,6 @@ require (
 	sigs.k8s.io/yaml v1.6.0
 )
 
-require golang.org/x/lint v0.0.0-20241112194109-818c5a804067
-
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
