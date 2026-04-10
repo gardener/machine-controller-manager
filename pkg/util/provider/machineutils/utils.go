@@ -38,9 +38,6 @@ const (
 	// InitiateVMDeletion specifies next step as initiate VM deletion
 	InitiateVMDeletion = "Initiate VM deletion"
 
-	//RemoveNodeFinalizers specifies next step as removing node finalizers
-	RemoveNodeFinalizers = "Remove node finalizers"
-
 	// InitiateNodeDeletion specifies next step as node object deletion
 	InitiateNodeDeletion = "Initiate node object deletion"
 
