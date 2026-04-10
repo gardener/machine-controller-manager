@@ -10,8 +10,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	"time"
+
+	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
@@ -72,33 +73,29 @@ func (c *controller) updateNode(oldObj, newObj any) {
 	}
 
 	// delete the machine if the node is deleted
-	if node.DeletionTimestamp != nil {
+	switch {
+	case node.DeletionTimestamp != nil:
 		err := c.triggerMachineDeletion(context.Background(), node.Name)
 		if err != nil {
 			c.enqueueNodeAfter(node, time.Duration(machineutils.ShortRetry), fmt.Sprintf("handling node UPDATE event. Failed to trigger machine deletion for node %q, re-queuing", node.Name))
 		}
 		return
+	case !HasFinalizer(node, NodeFinalizerName):
+		c.enqueueNodeAfter(node, time.Duration(machineutils.MediumRetry), fmt.Sprintf("MCM finalizer missing from node %q, re-queuing", node.Name))
 	}
 
-	if !HasFinalizer(node, NodeFinalizerName) {
-		c.enqueueNodeAfter(node, time.Duration(machineutils.MediumRetry), fmt.Sprintf("MCM finalizer missing from node %q, re-queuing", node.Name))
-		return
-	}
-	// to reconcile on addition/removal of essential taints in machine lifecycle, example - critical component taint
-	if addedOrRemovedEssentialTaints(oldNode, node, machineutils.EssentialTaints) {
-		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Atleast one of essential taints on node %q has changed", getNodeName(machine)))
-		return
-	}
-	if inPlaceUpdateLabelsChanged(oldNode, node) {
-		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. in-place update label added or updated for node %q", getNodeName(machine)))
-		return
-	}
 	isMachineCrashLooping := machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff
 	isMachineTerminating := machine.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating
 	_, _, nodeConditionsHaveChanged := nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions)
 
-	// Enqueue machine if node conditions have changed and machine is not in crashloop or terminating state
-	if nodeConditionsHaveChanged && !(isMachineCrashLooping || isMachineTerminating) {
+	// to reconcile on addition/removal of essential taints in machine lifecycle, example - critical component taint
+	switch {
+	case addedOrRemovedEssentialTaints(oldNode, node, machineutils.EssentialTaints):
+		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Atleast one of essential taints on node %q has changed", node.Name))
+	case inPlaceUpdateLabelsChanged(oldNode, node):
+		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. in-place update label added or updated for node %q", node.Name))
+	case nodeConditionsHaveChanged && !(isMachineCrashLooping || isMachineTerminating):
+		// Enqueue machine if node conditions have changed and machine is not in crashloop or terminating state
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Conditions of node %q differ from machine status", node.Name))
 	}
 	// to reconcile on change in annotations related to preservation
@@ -185,7 +182,6 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 			return nil
 		}
 	}
-
 	return nil
 }
 
