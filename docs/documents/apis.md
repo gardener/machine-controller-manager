@@ -1566,6 +1566,19 @@ int32
 </tr>
 <tr>
 <td>
+<code>preservedFailedReplicas</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<p>PreservedFailedReplicas is the number of preserved machines in Failed phase targeted by this MachineDeployment</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>unavailableReplicas</code>
 </td>
 <td>
@@ -1577,7 +1590,8 @@ int32
 <em>(Optional)</em>
 <p>Total number of unavailable machines targeted by this MachineDeployment. This is the total number of
 machines that are still required for the MachineDeployment to have 100% available capacity. They may
-either be machines that are running but not yet available or machines that still have not been created.</p>
+either be machines that are running but not yet available, machines that still have not been created, or
+machines that are preserved in Failed phase.</p>
 </td>
 </tr>
 <tr>
@@ -2022,6 +2036,19 @@ int32
 <td>
 <em>(Optional)</em>
 <p>The number of available replicas (ready for at least minReadySeconds) for this replica set.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>preservedFailedReplicas</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<p>PreservedFailedReplicas is the number of preserved replicas in Failed phase for this replica set</p>
 </td>
 </tr>
 <tr>
