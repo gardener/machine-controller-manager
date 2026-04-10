@@ -118,7 +118,7 @@ func (c *Cluster) getSecret(ref *v1.SecretReference, _ string) (*v1.Secret, erro
 func (c *Cluster) VerifyControlClusterNamespace(isControlSeed string, controlClusterNamespace string) error {
 	if isControlSeed == "true" {
 		if controlClusterNamespace == "default" {
-			return fmt.Errorf("Cannot use default namespace when control cluster is a seed")
+			return fmt.Errorf("cannot use default namespace when control cluster is a seed")
 		}
 	}
 
@@ -129,5 +129,5 @@ func (c *Cluster) VerifyControlClusterNamespace(isControlSeed string, controlClu
 			return nil
 		}
 	}
-	return fmt.Errorf("Control Namespace not found inside control cluster")
+	return fmt.Errorf("control Namespace not found inside control cluster")
 }

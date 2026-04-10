@@ -1853,7 +1853,7 @@ var _ = Describe("machineset", func() {
 			// Add a reactor that intercepts machine delete call and returns an error
 			// to simulate error when processing deletion request for a machine
 			machineDeletionError := "forced machine deletion error"
-			c.controlMachineClient.(*faketyped.FakeMachineV1alpha1).Fake.PrependReactor("delete", "machines", func(_ testing.Action) (handled bool, ret runtime.Object, err error) {
+			c.controlMachineClient.(*faketyped.FakeMachineV1alpha1).PrependReactor("delete", "machines", func(_ testing.Action) (handled bool, ret runtime.Object, err error) {
 				return true, &machinev1.Machine{}, errors.New(machineDeletionError)
 			})
 			targetMachines := []*machinev1.Machine{testFailedMachine1, testRunningMachine}

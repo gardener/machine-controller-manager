@@ -52,8 +52,8 @@ func (t *FakeObjectTracker) Patch(gvr schema.GroupVersionResource, obj runtime.O
 		}
 
 		if gvr.Resource == "nodes" {
-			if t.fakingOptions.failAt.Node.Update != "" {
-				return errors.New(t.fakingOptions.failAt.Node.Update)
+			if t.failAt.Node.Update != "" {
+				return errors.New(t.failAt.Node.Update)
 			}
 		}
 	}
@@ -64,14 +64,14 @@ func (t *FakeObjectTracker) Patch(gvr schema.GroupVersionResource, obj runtime.O
 	}
 
 	if t.FakeWatcher == nil {
-		return errors.New("Error sending event on a tracker with no watch support")
+		return errors.New("error sending event on a tracker with no watch support")
 	}
 
 	if t.IsStopped() {
-		return errors.New("Error sending event on a stopped tracker")
+		return errors.New("error sending event on a stopped tracker")
 	}
 
-	t.FakeWatcher.Modify(obj)
+	t.Modify(obj)
 	return nil
 }
 
@@ -105,7 +105,7 @@ func (t *FakeObjectTracker) Get(gvr schema.GroupVersionResource, ns, name string
 		}
 
 		if gvr.Resource == "machines" {
-			if t.fakingOptions.failAt.Machine.Get != nil {
+			if t.failAt.Machine.Get != nil {
 				return nil, t.fakingOptions.failAt.Machine.Get
 			}
 		}
@@ -178,7 +178,7 @@ func (t *FakeObjectTracker) Update(gvr schema.GroupVersionResource, obj runtime.
 		return errors.New("error sending event on a stopped tracker")
 	}
 
-	t.FakeWatcher.Modify(obj)
+	t.Modify(obj)
 	return nil
 }
 
@@ -499,8 +499,8 @@ func NewMachineClientSet(objects ...runtime.Object) (*fakeuntyped.Clientset, *Fa
 	}
 
 	cs := &fakeuntyped.Clientset{}
-	cs.Fake.AddReactor("*", "*", k8stesting.ObjectReaction(o))
-	cs.Fake.AddWatchReactor("*", o.watchReactionfunc)
+	cs.AddReactor("*", "*", k8stesting.ObjectReaction(o))
+	cs.AddWatchReactor("*", o.watchReactionfunc)
 
 	return cs, o
 }
@@ -567,8 +567,8 @@ func NewCoreClientSet(objects ...runtime.Object) (*Clientset, *FakeObjectTracker
 
 	cs := &Clientset{Clientset: &k8sfake.Clientset{}}
 	cs.FakeDiscovery = &fakediscovery.FakeDiscovery{Fake: &cs.Fake}
-	cs.Fake.AddReactor("*", "*", k8stesting.ObjectReaction(o))
-	cs.Fake.AddWatchReactor("*", o.watchReactionfunc)
+	cs.AddReactor("*", "*", k8stesting.ObjectReaction(o))
+	cs.AddWatchReactor("*", o.watchReactionfunc)
 
 	return cs, o
 }

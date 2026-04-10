@@ -203,7 +203,7 @@ func (dc *controller) addHashKeyToISAndMachines(ctx context.Context, is *v1alpha
 	// TODO: Revisit if we really need to wait here as opposed to returning and
 	// potentially unblocking this worker (can wait up to 1min before timing out).
 	if err := WaitForMachinesHashPopulated(ctx, dc.machineSetLister, updatedIS.Generation, updatedIS.Namespace, updatedIS.Name); err != nil {
-		return nil, fmt.Errorf("Machine set %s: error waiting for machineset controller to observe machines being labeled with template hash: %v", updatedIS.Name, err)
+		return nil, fmt.Errorf("machine set %s: error waiting for machineset controller to observe machines being labeled with template hash: %v", updatedIS.Name, err)
 	}
 
 	// 3. Update rs label and selector to include the new hash label
@@ -574,7 +574,7 @@ func (dc *controller) cleanupMachineDeployment(ctx context.Context, oldISs []*v1
 
 	// Avoid deleting machine set with deletion timestamp set
 	aliveFilter := func(is *v1alpha1.MachineSet) bool {
-		return is != nil && is.ObjectMeta.DeletionTimestamp == nil
+		return is != nil && is.DeletionTimestamp == nil
 	}
 	cleanableISes := FilterMachineSets(oldISs, aliveFilter)
 

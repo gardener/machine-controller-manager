@@ -238,7 +238,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	syncedFuncs = slices.DeleteFunc(syncedFuncs, func(fn cache.InformerSynced) bool { return fn == nil })
 
 	if !cache.WaitForCacheSync(stopCh, syncedFuncs...) {
-		runtimeutil.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+		runtimeutil.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 		return
 	}
 

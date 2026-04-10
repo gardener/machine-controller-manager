@@ -128,7 +128,7 @@ func (c *controller) enqueueMachineAfter(obj any, after time.Duration, reason st
 func (c *controller) enqueueMachineTermination(machine *v1alpha1.Machine, reason string) {
 
 	if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(machine); err != nil {
-		utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %#v: %v", machine, err))
+		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %#v: %v", machine, err))
 		return
 	} else {
 		klog.V(3).Infof("Adding machine object to termination queue %q, reason: %s", key, reason)
@@ -138,7 +138,7 @@ func (c *controller) enqueueMachineTermination(machine *v1alpha1.Machine, reason
 
 func (c *controller) enqueueMachineTerminationAfter(machine *v1alpha1.Machine, after time.Duration, reason string) {
 	if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(machine); err != nil {
-		utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %#v: %v", machine, err))
+		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %#v: %v", machine, err))
 		return
 	} else {
 		klog.V(3).Infof("Adding machine object to termination queue %q after %s, reason: %s", key, after, reason)
