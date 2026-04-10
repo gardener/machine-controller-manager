@@ -665,9 +665,6 @@ func (c *controller) triggerDeletionFlow(ctx context.Context, deleteMachineReque
 	case strings.Contains(machine.Status.LastOperation.Description, machineutils.InitiateVMDeletion):
 		return c.deleteVM(ctx, deleteMachineRequest)
 
-	case strings.Contains(machine.Status.LastOperation.Description, machineutils.RemoveNodeFinalizers):
-		return c.deleteNodeFinalizers(ctx, machine)
-
 	case strings.Contains(machine.Status.LastOperation.Description, machineutils.InitiateNodeDeletion):
 		return c.deleteNodeObject(ctx, machine)
 
