@@ -98,7 +98,7 @@ func (c *controller) updateNode(oldObj, newObj any) {
 	_, _, nodeConditionsHaveChanged := nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions)
 
 	// Enqueue machine if node conditions have changed and machine is not in crashloop or terminating state
-	if nodeConditionsHaveChanged && !(isMachineCrashLooping || isMachineTerminating) {
+	if nodeConditionsHaveChanged && !isMachineCrashLooping && !isMachineTerminating {
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Conditions of node %q differ from machine status", node.Name))
 	}
 	// to reconcile on change in annotations related to preservation
