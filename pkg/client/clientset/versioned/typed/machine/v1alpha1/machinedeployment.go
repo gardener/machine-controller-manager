@@ -7,9 +7,9 @@
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	machinev1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	scheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,16 +26,16 @@ type MachineDeploymentsGetter interface {
 
 // MachineDeploymentInterface has methods to work with MachineDeployment resources.
 type MachineDeploymentInterface interface {
-	Create(ctx context.Context, machineDeployment *v1alpha1.MachineDeployment, opts v1.CreateOptions) (*v1alpha1.MachineDeployment, error)
-	Update(ctx context.Context, machineDeployment *v1alpha1.MachineDeployment, opts v1.UpdateOptions) (*v1alpha1.MachineDeployment, error)
+	Create(ctx context.Context, machineDeployment *machinev1alpha1.MachineDeployment, opts v1.CreateOptions) (*machinev1alpha1.MachineDeployment, error)
+	Update(ctx context.Context, machineDeployment *machinev1alpha1.MachineDeployment, opts v1.UpdateOptions) (*machinev1alpha1.MachineDeployment, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, machineDeployment *v1alpha1.MachineDeployment, opts v1.UpdateOptions) (*v1alpha1.MachineDeployment, error)
+	UpdateStatus(ctx context.Context, machineDeployment *machinev1alpha1.MachineDeployment, opts v1.UpdateOptions) (*machinev1alpha1.MachineDeployment, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.MachineDeployment, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.MachineDeploymentList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*machinev1alpha1.MachineDeployment, error)
+	List(ctx context.Context, opts v1.ListOptions) (*machinev1alpha1.MachineDeploymentList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.MachineDeployment, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *machinev1alpha1.MachineDeployment, err error)
 	UpdateScale(ctx context.Context, machineDeploymentName string, scale *autoscalingv1.Scale, opts v1.UpdateOptions) (*autoscalingv1.Scale, error)
 
 	MachineDeploymentExpansion
@@ -43,19 +43,20 @@ type MachineDeploymentInterface interface {
 
 // machineDeployments implements MachineDeploymentInterface
 type machineDeployments struct {
-	*gentype.ClientWithList[*v1alpha1.MachineDeployment, *v1alpha1.MachineDeploymentList]
+	*gentype.ClientWithList[*machinev1alpha1.MachineDeployment, *machinev1alpha1.MachineDeploymentList]
 }
 
 // newMachineDeployments returns a MachineDeployments
 func newMachineDeployments(c *MachineV1alpha1Client, namespace string) *machineDeployments {
 	return &machineDeployments{
-		gentype.NewClientWithList[*v1alpha1.MachineDeployment, *v1alpha1.MachineDeploymentList](
+		gentype.NewClientWithList[*machinev1alpha1.MachineDeployment, *machinev1alpha1.MachineDeploymentList](
 			"machinedeployments",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.MachineDeployment { return &v1alpha1.MachineDeployment{} },
-			func() *v1alpha1.MachineDeploymentList { return &v1alpha1.MachineDeploymentList{} }),
+			func() *machinev1alpha1.MachineDeployment { return &machinev1alpha1.MachineDeployment{} },
+			func() *machinev1alpha1.MachineDeploymentList { return &machinev1alpha1.MachineDeploymentList{} },
+		),
 	}
 }
 

@@ -110,7 +110,7 @@ var _ = Describe("MachineDeployment API Validation", func() {
 				})
 
 				It("should return error if MaxUnavailable is unspecified", func() {
-					machineDeployment.Spec.Strategy.RollingUpdate.UpdateConfiguration.MaxUnavailable = nil
+					machineDeployment.Spec.Strategy.RollingUpdate.MaxUnavailable = nil
 
 					Expect(ValidateMachineDeployment(machineDeployment)).To(ContainElement(PointTo(MatchFields(IgnoreExtras, Fields{
 						"Type":   Equal(field.ErrorTypeRequired),
@@ -120,7 +120,7 @@ var _ = Describe("MachineDeployment API Validation", func() {
 				})
 
 				It("should return error if MaxSurge is unspecified", func() {
-					machineDeployment.Spec.Strategy.RollingUpdate.UpdateConfiguration.MaxSurge = nil
+					machineDeployment.Spec.Strategy.RollingUpdate.MaxSurge = nil
 
 					Expect(ValidateMachineDeployment(machineDeployment)).To(ContainElement(PointTo(MatchFields(IgnoreExtras, Fields{
 						"Type":   Equal(field.ErrorTypeRequired),
@@ -149,7 +149,7 @@ var _ = Describe("MachineDeployment API Validation", func() {
 				})
 
 				It("should return error if MaxUnavailable is unspecified", func() {
-					machineDeployment.Spec.Strategy.InPlaceUpdate.UpdateConfiguration.MaxUnavailable = nil
+					machineDeployment.Spec.Strategy.InPlaceUpdate.MaxUnavailable = nil
 
 					Expect(ValidateMachineDeployment(machineDeployment)).To(ContainElement(PointTo(MatchFields(IgnoreExtras, Fields{
 						"Type":   Equal(field.ErrorTypeRequired),
@@ -159,7 +159,7 @@ var _ = Describe("MachineDeployment API Validation", func() {
 				})
 
 				It("should return error if MaxSurge is unspecified", func() {
-					machineDeployment.Spec.Strategy.InPlaceUpdate.UpdateConfiguration.MaxSurge = nil
+					machineDeployment.Spec.Strategy.InPlaceUpdate.MaxSurge = nil
 
 					Expect(ValidateMachineDeployment(machineDeployment)).To(ContainElement(PointTo(MatchFields(IgnoreExtras, Fields{
 						"Type":   Equal(field.ErrorTypeRequired),
