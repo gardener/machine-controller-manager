@@ -60,6 +60,7 @@ jobs:
     with:
       linter: gosec
       run: .ci/check
+      go-version: '1.26'
 
   test:
     runs-on: ubuntu-latest
@@ -69,7 +70,7 @@ jobs:
       - uses: gardener/cc-utils/.github/actions/trusted-checkout@v1
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.26'
       - name: run-test
         shell: bash
         run: |

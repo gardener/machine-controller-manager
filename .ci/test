@@ -28,7 +28,7 @@ cd "${SOURCE_PATH}"
 # Install Ginkgo (test framework) to be able to execute the tests.
 echo "Building Ginkgo framework"
 go install github.com/onsi/ginkgo/v2/ginkgo
-echo "Successfully built Ginkgo frawework"
+echo "Successfully built Ginkgo framework"
 
 ##############################################################################
 
