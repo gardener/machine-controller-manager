@@ -10,6 +10,5 @@ package tools
 
 import (
 	_ "github.com/onsi/ginkgo/v2/ginkgo"
-	_ "golang.org/x/lint/golint"
 	_ "k8s.io/code-generator"
 )
