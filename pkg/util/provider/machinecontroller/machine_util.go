@@ -1901,14 +1901,14 @@ func (c *controller) deleteNodeFinalizers(ctx context.Context, machine *v1alpha1
 				state = v1alpha1.MachineStateProcessing
 			default:
 				description = fmt.Sprintf("Retrieval of Node Object %q failed due to error: %s, Retrying node finalizer removal. %s", nodeName, err, machineutils.RemoveNodeFinalizers)
-				klog.Errorf(description)
+				klog.Errorf("%s", description)
 				state = v1alpha1.MachineStateFailed
 			}
 		} else {
 			err = c.removeNodeFinalizers(ctx, node)
 			if err != nil {
 				description = fmt.Sprintf("Removal of finalizers from Node Object %q failed due to error: %s, Retrying node finalizer removal. %s", nodeName, err, machineutils.RemoveNodeFinalizers)
-				klog.Errorf(description)
+				klog.Errorf("%s", description)
 				state = v1alpha1.MachineStateFailed
 			} else {
 				description = fmt.Sprintf("Removal of finalizers from Node Object %q is successful. %s", nodeName, machineutils.InitiateNodeDeletion)

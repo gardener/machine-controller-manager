@@ -656,7 +656,8 @@ func calculateDeploymentStatus(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.Ma
 	// Copy conditions one by one so we won't mutate the original object.
 	status.Conditions = append(status.Conditions, deployment.Status.Conditions...)
 
-	if availableReplicas >= (deployment.Spec.Replicas)-MaxUnavailable(*deployment)-totalPreservedFailedReplicas {
+	minRequired := max((deployment.Spec.Replicas)-MaxUnavailable(*deployment)-totalPreservedFailedReplicas, 0)
+	if availableReplicas >= minRequired {
 		minAvailability := NewMachineDeploymentCondition(v1alpha1.MachineDeploymentAvailable, v1alpha1.ConditionTrue, MinimumReplicasAvailable, "Deployment has minimum availability.")
 		SetMachineDeploymentCondition(&status, *minAvailability)
 	} else {
