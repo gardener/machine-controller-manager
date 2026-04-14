@@ -27,9 +27,9 @@ cd "${SOURCE_PATH}"
 
 # Install golangci-lint (linting tool).
 if [[ -z "${GOLANGCI_LINT_VERSION}" ]]; then
-  export GOLANGCI_LINT_VERSION=v1.64.8
+  export GOLANGCI_LINT_VERSION=v2.11.4
 fi
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@"${GOLANGCI_LINT_VERSION}"
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@"${GOLANGCI_LINT_VERSION}"
 
 ###############################################################################
 

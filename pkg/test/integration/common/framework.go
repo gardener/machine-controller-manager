@@ -192,8 +192,8 @@ func (c *IntegrationTestFramework) initalizeClusters() error {
 		}
 
 		targetKubeConfigPath, _ = filepath.Abs(targetKubeConfigPath)
-		log.Printf("Control cluster kube-config - %s\n", controlKubeConfigPath)
-		log.Printf("Target cluster kube-config  - %s\n", targetKubeConfigPath)
+		log.Printf("Control cluster kube-config - %s\n", controlKubeConfigPath) // #nosec  G706 (CWE-117) -- Only used for checking the config path in testing.
+		log.Printf("Target cluster kube-config  - %s\n", targetKubeConfigPath)  // #nosec  G706 (CWE-117) -- Only used for checking the config path in testing.
 
 		// intialize clusters
 		var err error
@@ -256,9 +256,9 @@ func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
 		}
 
 		if replicas == 0 {
-			result.ObjectMeta.Annotations[dwdIgnoreScalingAnnotation] = "true"
+			result.Annotations[dwdIgnoreScalingAnnotation] = "true"
 		} else if replicas == 1 {
-			delete(result.ObjectMeta.Annotations, dwdIgnoreScalingAnnotation)
+			delete(result.Annotations, dwdIgnoreScalingAnnotation)
 		}
 		// if number of replicas is not equal to the required replicas then update
 		if *result.Spec.Replicas != replicas {
@@ -387,8 +387,8 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 					&v1alpha1.MachineClass{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:        resourceName,
-							Labels:      machineClasses.Items[0].ObjectMeta.Labels,
-							Annotations: machineClasses.Items[0].ObjectMeta.Annotations,
+							Labels:      machineClasses.Items[0].Labels,
+							Annotations: machineClasses.Items[0].Annotations,
 						},
 						NodeTemplate:         machineClasses.Items[0].NodeTemplate, // virtual
 						ProviderSpec:         machineClasses.Items[0].ProviderSpec,

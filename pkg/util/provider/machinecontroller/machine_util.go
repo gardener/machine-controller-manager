@@ -1904,14 +1904,14 @@ func (c *controller) deleteNodeFinalizers(ctx context.Context, machine *v1alpha1
 				state = v1alpha1.MachineStateProcessing
 			default:
 				description = fmt.Sprintf("Retrieval of Node Object %q failed due to error: %s, Retrying node finalizer removal. %s", nodeName, err, machineutils.RemoveNodeFinalizers)
-				klog.Errorf(description)
+				klog.Errorf("%s", description)
 				state = v1alpha1.MachineStateFailed
 			}
 		} else {
 			err = c.removeNodeFinalizers(ctx, node)
 			if err != nil {
 				description = fmt.Sprintf("Removal of finalizers from Node Object %q failed due to error: %s, Retrying node finalizer removal. %s", nodeName, err, machineutils.RemoveNodeFinalizers)
-				klog.Errorf(description)
+				klog.Errorf("%s", description)
 				state = v1alpha1.MachineStateFailed
 			} else {
 				description = fmt.Sprintf("Removal of finalizers from Node Object %q is successful. %s", nodeName, machineutils.InitiateNodeDeletion)
@@ -2008,8 +2008,8 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 // getEffectiveDrainTimeout returns the drainTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
 func (c *controller) getEffectiveDrainTimeout(machine *v1alpha1.Machine) *metav1.Duration {
 	var effectiveDrainTimeout *metav1.Duration
-	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineConfiguration.MachineDrainTimeout != nil {
-		effectiveDrainTimeout = machine.Spec.MachineConfiguration.MachineDrainTimeout
+	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineDrainTimeout != nil {
+		effectiveDrainTimeout = machine.Spec.MachineDrainTimeout
 	} else {
 		effectiveDrainTimeout = &c.safetyOptions.MachineDrainTimeout
 	}
@@ -2019,8 +2019,8 @@ func (c *controller) getEffectiveDrainTimeout(machine *v1alpha1.Machine) *metav1
 // getEffectiveMaxEvictRetries returns the maxEvictRetries set on the machine-object, otherwise returns the evict retries set using the global-flag.
 func (c *controller) getEffectiveMaxEvictRetries(machine *v1alpha1.Machine) *int32 {
 	var maxEvictRetries *int32
-	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineConfiguration.MaxEvictRetries != nil {
-		maxEvictRetries = machine.Spec.MachineConfiguration.MaxEvictRetries
+	if machine.Spec.MachineConfiguration != nil && machine.Spec.MaxEvictRetries != nil {
+		maxEvictRetries = machine.Spec.MaxEvictRetries
 	} else {
 		maxEvictRetries = &c.safetyOptions.MaxEvictRetries
 	}
@@ -2030,8 +2030,8 @@ func (c *controller) getEffectiveMaxEvictRetries(machine *v1alpha1.Machine) *int
 // getEffectiveHealthTimeout returns the healthTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
 func (c *controller) getEffectiveHealthTimeout(machine *v1alpha1.Machine) *metav1.Duration {
 	var effectiveHealthTimeout *metav1.Duration
-	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineConfiguration.MachineHealthTimeout != nil {
-		effectiveHealthTimeout = machine.Spec.MachineConfiguration.MachineHealthTimeout
+	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineHealthTimeout != nil {
+		effectiveHealthTimeout = machine.Spec.MachineHealthTimeout
 	} else {
 		effectiveHealthTimeout = &c.safetyOptions.MachineHealthTimeout
 	}
@@ -2041,8 +2041,8 @@ func (c *controller) getEffectiveHealthTimeout(machine *v1alpha1.Machine) *metav
 // getEffectiveCreationTimeout returns the creationTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
 func (c *controller) getEffectiveCreationTimeout(machine *v1alpha1.Machine) *metav1.Duration {
 	var effectiveCreationTimeout *metav1.Duration
-	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineConfiguration.MachineCreationTimeout != nil {
-		effectiveCreationTimeout = machine.Spec.MachineConfiguration.MachineCreationTimeout
+	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineCreationTimeout != nil {
+		effectiveCreationTimeout = machine.Spec.MachineCreationTimeout
 	} else {
 		effectiveCreationTimeout = &c.safetyOptions.MachineCreationTimeout
 	}
