@@ -804,7 +804,10 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 	if ok {
 		switch machineErr.Code() {
 		case codes.ResourceExhausted:
-			retryRequired = machineutils.LongRetry
+			if c.resourceExhaustedRetry == 0 {
+				c.resourceExhaustedRetry = machineutils.LongRetry
+			}
+			retryRequired = c.resourceExhaustedRetry
 			lastKnownState = machine.Status.LastKnownState
 		case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 			retryRequired = machineutils.ShortRetry

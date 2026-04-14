@@ -73,6 +73,9 @@ type MachineControllerConfiguration struct {
 
 	//BootstrapTokenAuthExtraGroups is a comma-separated string of groups to set bootstrap token's "auth-extra-groups" field to.
 	BootstrapTokenAuthExtraGroups string
+
+	// ResourceExhaustedRetry is the duration after which the controller retries reconciliation of machine object if the call to driver.CreateMachine failed with "Resource Exhausted" error.
+	ResourceExhaustedRetry metav1.Duration
 }
 
 // SafetyOptions are used to configure the upper-limit and lower-limit
