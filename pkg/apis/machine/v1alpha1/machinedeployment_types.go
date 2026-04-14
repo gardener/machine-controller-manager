@@ -214,6 +214,7 @@ type MachineDeploymentStatus struct {
 	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
 
 	// PreservedFailedReplicas is the number of preserved machines in Failed phase targeted by this MachineDeployment
+	// +optional
 	PreservedFailedReplicas int32 `json:"preservedFailedReplicas,omitempty"`
 
 	// Total number of unavailable machines targeted by this MachineDeployment. This is the total number of
