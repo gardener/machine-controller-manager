@@ -7,9 +7,9 @@
 package v1alpha1
 
 import (
-	context "context"
+	"context"
 
-	machinev1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	scheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,16 +26,16 @@ type MachineSetsGetter interface {
 
 // MachineSetInterface has methods to work with MachineSet resources.
 type MachineSetInterface interface {
-	Create(ctx context.Context, machineSet *machinev1alpha1.MachineSet, opts v1.CreateOptions) (*machinev1alpha1.MachineSet, error)
-	Update(ctx context.Context, machineSet *machinev1alpha1.MachineSet, opts v1.UpdateOptions) (*machinev1alpha1.MachineSet, error)
+	Create(ctx context.Context, machineSet *v1alpha1.MachineSet, opts v1.CreateOptions) (*v1alpha1.MachineSet, error)
+	Update(ctx context.Context, machineSet *v1alpha1.MachineSet, opts v1.UpdateOptions) (*v1alpha1.MachineSet, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, machineSet *machinev1alpha1.MachineSet, opts v1.UpdateOptions) (*machinev1alpha1.MachineSet, error)
+	UpdateStatus(ctx context.Context, machineSet *v1alpha1.MachineSet, opts v1.UpdateOptions) (*v1alpha1.MachineSet, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*machinev1alpha1.MachineSet, error)
-	List(ctx context.Context, opts v1.ListOptions) (*machinev1alpha1.MachineSetList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.MachineSet, error)
+	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.MachineSetList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *machinev1alpha1.MachineSet, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.MachineSet, err error)
 	UpdateScale(ctx context.Context, machineSetName string, scale *autoscalingv1.Scale, opts v1.UpdateOptions) (*autoscalingv1.Scale, error)
 
 	MachineSetExpansion
@@ -43,20 +43,19 @@ type MachineSetInterface interface {
 
 // machineSets implements MachineSetInterface
 type machineSets struct {
-	*gentype.ClientWithList[*machinev1alpha1.MachineSet, *machinev1alpha1.MachineSetList]
+	*gentype.ClientWithList[*v1alpha1.MachineSet, *v1alpha1.MachineSetList]
 }
 
 // newMachineSets returns a MachineSets
 func newMachineSets(c *MachineV1alpha1Client, namespace string) *machineSets {
 	return &machineSets{
-		gentype.NewClientWithList[*machinev1alpha1.MachineSet, *machinev1alpha1.MachineSetList](
+		gentype.NewClientWithList[*v1alpha1.MachineSet, *v1alpha1.MachineSetList](
 			"machinesets",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *machinev1alpha1.MachineSet { return &machinev1alpha1.MachineSet{} },
-			func() *machinev1alpha1.MachineSetList { return &machinev1alpha1.MachineSetList{} },
-		),
+			func() *v1alpha1.MachineSet { return &v1alpha1.MachineSet{} },
+			func() *v1alpha1.MachineSetList { return &v1alpha1.MachineSetList{} }),
 	}
 }
 

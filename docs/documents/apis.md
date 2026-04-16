@@ -1574,6 +1574,7 @@ int32
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>PreservedFailedReplicas is the number of preserved machines in Failed phase targeted by this MachineDeployment</p>
 </td>
 </tr>
