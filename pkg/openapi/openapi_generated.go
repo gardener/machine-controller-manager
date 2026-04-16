@@ -1013,9 +1013,16 @@ func schema_pkg_apis_machine_v1alpha1_MachineDeploymentStatus(ref common.Referen
 							Format:      "int32",
 						},
 					},
+					"preservedFailedReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreservedFailedReplicas is the number of preserved machines in Failed phase targeted by this MachineDeployment",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"unavailableReplicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Total number of unavailable machines targeted by this MachineDeployment. This is the total number of machines that are still required for the MachineDeployment to have 100% available capacity. They may either be machines that are running but not yet available or machines that still have not been created.",
+							Description: "Total number of unavailable machines targeted by this MachineDeployment. This is the total number of machines that are still required for the MachineDeployment to have 100% available capacity. They may either be machines that are running but not yet available, machines that still have not been created, or machines that are preserved in Failed phase.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1381,6 +1388,13 @@ func schema_pkg_apis_machine_v1alpha1_MachineSetStatus(ref common.ReferenceCallb
 					"availableReplicas": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The number of available replicas (ready for at least minReadySeconds) for this replica set.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"preservedFailedReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreservedFailedReplicas is the number of preserved replicas in Failed phase for this replica set",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

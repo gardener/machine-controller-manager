@@ -25,13 +25,14 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"maps"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 
 	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -1039,6 +1040,17 @@ func GetAvailableReplicaCountForMachineSets(MachineSets []*v1alpha1.MachineSet) 
 		}
 	}
 	return totalAvailableReplicas
+}
+
+// GetPreservedFailedReplicaCountForMachineSets returns the number of preserved failed machines corresponding to the given machine sets.
+func GetPreservedFailedReplicaCountForMachineSets(MachineSets []*v1alpha1.MachineSet) int32 {
+	totalPreservedFailedReplicas := int32(0)
+	for _, is := range MachineSets {
+		if is != nil {
+			totalPreservedFailedReplicas += is.Status.PreservedFailedReplicas
+		}
+	}
+	return totalPreservedFailedReplicas
 }
 
 // IsRollingUpdate returns true if the strategy type is a rolling update.

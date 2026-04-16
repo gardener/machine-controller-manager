@@ -405,6 +405,9 @@ type MachineSetStatus struct {
 	// The number of available replicas (ready for at least minReadySeconds) for this replica set.
 	AvailableReplicas int32
 
+	// PreservedFailedReplicas is the number of preserved replicas in Failed phase for this replica set
+	PreservedFailedReplicas int32
+
 	// ObservedGeneration is the most recent generation observed by the controller.
 	ObservedGeneration int64
 
@@ -633,9 +636,13 @@ type MachineDeploymentStatus struct {
 	// Total number of available machines (ready for at least minReadySeconds) targeted by this MachineDeployment.
 	AvailableReplicas int32
 
+	// PreservedFailedReplicas is the number of preserved machines in Failed phase targeted by this MachineDeployment
+	PreservedFailedReplicas int32
+
 	// Total number of unavailable machines targeted by this MachineDeployment. This is the total number of
 	// machines that are still required for the MachineDeployment to have 100% available capacity. They may
-	// either be machines that are running but not yet available or machines that still have not been created.
+	// either be machines that are running but not yet available, machines that still have not been created, or
+	// machines that are preserved in Failed phase.
 	UnavailableReplicas int32
 
 	// Represents the latest available observations of a MachineDeployment's current state.

@@ -213,9 +213,14 @@ type MachineDeploymentStatus struct {
 	// +optional
 	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
 
+	// PreservedFailedReplicas is the number of preserved machines in Failed phase targeted by this MachineDeployment
+	// +optional
+	PreservedFailedReplicas int32 `json:"preservedFailedReplicas,omitempty"`
+
 	// Total number of unavailable machines targeted by this MachineDeployment. This is the total number of
 	// machines that are still required for the MachineDeployment to have 100% available capacity. They may
-	// either be machines that are running but not yet available or machines that still have not been created.
+	// either be machines that are running but not yet available, machines that still have not been created, or
+	// machines that are preserved in Failed phase.
 	// +optional
 	UnavailableReplicas int32 `json:"unavailableReplicas,omitempty"`
 

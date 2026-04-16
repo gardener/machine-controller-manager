@@ -7,9 +7,10 @@ package controller
 import (
 	"context"
 	"fmt"
-	k8stesting "k8s.io/client-go/testing"
 	"math"
 	"time"
+
+	k8stesting "k8s.io/client-go/testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -4341,7 +4342,7 @@ var _ = Describe("machine", func() {
 					retry:                   machineutils.LongRetry,
 				},
 			}),
-			Entry("when node of Failed machine is annotated with `when-failed`, should start preservation", testCase{
+			Entry("when node of Failed machine has annotation `when-failed`, should start preservation", testCase{
 				setup: setup{
 					nodeAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
 					nodeName:            "node-1",
@@ -4398,11 +4399,24 @@ var _ = Describe("machine", func() {
 					retry:                   machineutils.LongRetry,
 				},
 			}),
-			Entry("when machine is annotated and preservation times out, should stop preservation", testCase{
+			Entry("when machine is annotated with preserve=now and preservation times out, should stop preservation, and remove annotation", testCase{
 				setup: setup{
 					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
 					nodeName:               "node-1",
 					machinePhase:           v1alpha1.MachineRunning,
+					preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(-1 * time.Minute)},
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+					retry:                   machineutils.LongRetry,
+				},
+			}),
+			Entry("when machine is annotated with preserve=when-failed and preservation times out, should stop preservation, and remove annotation", testCase{
+				setup: setup{
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
+					nodeName:               "node-1",
+					machinePhase:           v1alpha1.MachineFailed,
 					preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(-1 * time.Minute)},
 				},
 				expect: expect{
@@ -4518,7 +4532,7 @@ var _ = Describe("machine", func() {
 				},
 			}),
 			// case possible when MCM goes down and node annotation value is cleared and machine is annotated
-			Entry("when node and machine are found to be annotated with \"\", and 'now', respectively and last applied node perserve value is 'now', should stop preservation", testCase{
+			Entry("when node and machine are found to be annotated with \"\", and 'now', respectively and last applied node preserve value is 'now', should stop preservation", testCase{
 				setup: setup{
 					nodeAnnotationValue:    "",
 					laNodePreserveValue:    "now",

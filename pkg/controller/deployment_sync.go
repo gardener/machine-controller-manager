@@ -625,19 +625,21 @@ func (dc *controller) syncMachineDeploymentStatus(ctx context.Context, allISs []
 func calculateDeploymentStatus(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) v1alpha1.MachineDeploymentStatus {
 	availableReplicas := GetAvailableReplicaCountForMachineSets(allISs)
 	totalReplicas := GetReplicaCountForMachineSets(allISs)
+	totalPreservedFailedReplicas := GetPreservedFailedReplicaCountForMachineSets(allISs)
 	// If unavailableReplicas is negative, then that means the Deployment has more available replicas running than
 	// desired, e.g. whenever it scales down. In such a case we should simply default unavailableReplicas to zero.
 	unavailableReplicas := max(totalReplicas-availableReplicas, 0)
 
 	status := v1alpha1.MachineDeploymentStatus{
 		// TODO: Ensure that if we start retrying status updates, we won't pick up a new Generation value.
-		ObservedGeneration:  deployment.Generation,
-		Replicas:            GetActualReplicaCountForMachineSets(allISs),
-		UpdatedReplicas:     GetActualReplicaCountForMachineSets([]*v1alpha1.MachineSet{newIS}),
-		ReadyReplicas:       GetReadyReplicaCountForMachineSets(allISs),
-		AvailableReplicas:   availableReplicas,
-		UnavailableReplicas: unavailableReplicas,
-		CollisionCount:      deployment.Status.CollisionCount,
+		ObservedGeneration:      deployment.Generation,
+		Replicas:                GetActualReplicaCountForMachineSets(allISs),
+		UpdatedReplicas:         GetActualReplicaCountForMachineSets([]*v1alpha1.MachineSet{newIS}),
+		ReadyReplicas:           GetReadyReplicaCountForMachineSets(allISs),
+		AvailableReplicas:       availableReplicas,
+		PreservedFailedReplicas: totalPreservedFailedReplicas,
+		UnavailableReplicas:     unavailableReplicas,
+		CollisionCount:          deployment.Status.CollisionCount,
 	}
 	status.FailedMachines = []*v1alpha1.MachineSummary{}
 
@@ -654,7 +656,8 @@ func calculateDeploymentStatus(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.Ma
 	// Copy conditions one by one so we won't mutate the original object.
 	status.Conditions = append(status.Conditions, deployment.Status.Conditions...)
 
-	if availableReplicas >= (deployment.Spec.Replicas)-MaxUnavailable(*deployment) {
+	minRequired := max((deployment.Spec.Replicas)-MaxUnavailable(*deployment)-totalPreservedFailedReplicas, 0)
+	if availableReplicas >= minRequired {
 		minAvailability := NewMachineDeploymentCondition(v1alpha1.MachineDeploymentAvailable, v1alpha1.ConditionTrue, MinimumReplicasAvailable, "Deployment has minimum availability.")
 		SetMachineDeploymentCondition(&status, *minAvailability)
 	} else {
