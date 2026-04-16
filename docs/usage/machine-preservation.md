@@ -81,6 +81,9 @@ spec:
 > If `AutoPreserveFailedMachineMax` is decreased, preservation is stopped for older auto-preserved machines(earlier creationTimestamp) until the number of preserved machines is within the new limit.
 > If the number of failed machines exceeds the `AutoPreserveFailedMachineMax` limit at any given time, machines with more recent creationTimestamp are auto-preserved first.
 
+> Note: ⚠️Preserved failed nodes still count toward the total number of nodes unable to renew their leases. If this total — across both preserved and non-preserved nodes — exceeds the threshold configured (defaults to 60%) for
+> dependency-watchdog, then the components configured as dependent resources in dependency-watchdog (by default: kube-controller-manager, machine-controller-manager, and cluster-autoscaler),
+> will be scaled-down. Since a higher AutoPreserveFailedMachineMax value increases the number of preserved failed nodes, it also raises the risk of breaching this threshold. Please exercise caution when setting this value.
 ### Preservation annotations
 
 annotation key: `node.machine.sapcloud.io/preserve`
@@ -148,6 +151,8 @@ In all the cases, when the machine moves to `Running` during preservation, the b
 - Scale-down preference: Preserved machines are the last to be scaled down.
 - Preservation status is visible via Node Conditions and Machine Status fields.
 - machinePreserveTimeout changes do not affect existing preserved machines. Operators may edit PreserveExpiryTime directly if required to extend preservation.
+- If a machine or its backing node is annotated for preservation when the machine is in the Failed state, MCM may not be able to act on it before the machine is Terminated. Therefore, it is recommended to annotate the machine/node for preservation when the machine enters the Unknown phase, or as soon as the node is observed to be NotReady, to increase the chances of preservation taking effect before termination.
+- Similarly, if an underutilized and unneeded machine is annotated for preservation, but CA initiates scale-down before MCM can add the CA scale-down-disabled annotation as a part of its preservation logic, the machine may be scaled down before preservation takes effect. 
 
 
-> NOTE: To prevent confusion and unintended behaviour, it is recommended to use preservation by annotating the node object if it exists and can be accessed.
+> NOTE: To prevent confusion and unintended behaviour, it is recommended to use preservation by annotating the node object, if it exists and can be accessed, rather than the machine object.
