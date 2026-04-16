@@ -7,49 +7,142 @@
 package fake
 
 import (
-	context "context"
+	"context"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	machinev1alpha1 "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
-	v1 "k8s.io/api/autoscaling/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	gentype "k8s.io/client-go/gentype"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	types "k8s.io/apimachinery/pkg/types"
+	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
 )
 
-// fakeMachineSets implements MachineSetInterface
-type fakeMachineSets struct {
-	*gentype.FakeClientWithList[*v1alpha1.MachineSet, *v1alpha1.MachineSetList]
+// FakeMachineSets implements MachineSetInterface
+type FakeMachineSets struct {
 	Fake *FakeMachineV1alpha1
+	ns   string
 }
 
-func newFakeMachineSets(fake *FakeMachineV1alpha1, namespace string) machinev1alpha1.MachineSetInterface {
-	return &fakeMachineSets{
-		gentype.NewFakeClientWithList[*v1alpha1.MachineSet, *v1alpha1.MachineSetList](
-			fake.Fake,
-			namespace,
-			v1alpha1.SchemeGroupVersion.WithResource("machinesets"),
-			v1alpha1.SchemeGroupVersion.WithKind("MachineSet"),
-			func() *v1alpha1.MachineSet { return &v1alpha1.MachineSet{} },
-			func() *v1alpha1.MachineSetList { return &v1alpha1.MachineSetList{} },
-			func(dst, src *v1alpha1.MachineSetList) { dst.ListMeta = src.ListMeta },
-			func(list *v1alpha1.MachineSetList) []*v1alpha1.MachineSet { return gentype.ToPointerSlice(list.Items) },
-			func(list *v1alpha1.MachineSetList, items []*v1alpha1.MachineSet) {
-				list.Items = gentype.FromPointerSlice(items)
-			},
-		),
-		fake,
-	}
-}
+var machinesetsResource = v1alpha1.SchemeGroupVersion.WithResource("machinesets")
 
-// UpdateScale takes the representation of a scale and updates it. Returns the server's representation of the scale, and an error, if there is any.
-func (c *fakeMachineSets) UpdateScale(ctx context.Context, machineSetName string, scale *v1.Scale, opts metav1.UpdateOptions) (result *v1.Scale, err error) {
-	emptyResult := &v1.Scale{}
+var machinesetsKind = v1alpha1.SchemeGroupVersion.WithKind("MachineSet")
+
+// Get takes name of the machineSet, and returns the corresponding machineSet object, and an error if there is any.
+func (c *FakeMachineSets) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.MachineSet, err error) {
+	emptyResult := &v1alpha1.MachineSet{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(c.Resource(), "scale", c.Namespace(), scale, opts), &v1.Scale{})
+		Invokes(testing.NewGetActionWithOptions(machinesetsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
 		return emptyResult, err
 	}
-	return obj.(*v1.Scale), err
+	return obj.(*v1alpha1.MachineSet), err
+}
+
+// List takes label and field selectors, and returns the list of MachineSets that match those selectors.
+func (c *FakeMachineSets) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.MachineSetList, err error) {
+	emptyResult := &v1alpha1.MachineSetList{}
+	obj, err := c.Fake.
+		Invokes(testing.NewListActionWithOptions(machinesetsResource, machinesetsKind, c.ns, opts), emptyResult)
+
+	if obj == nil {
+		return emptyResult, err
+	}
+
+	label, _, _ := testing.ExtractFromListOptions(opts)
+	if label == nil {
+		label = labels.Everything()
+	}
+	list := &v1alpha1.MachineSetList{ListMeta: obj.(*v1alpha1.MachineSetList).ListMeta}
+	for _, item := range obj.(*v1alpha1.MachineSetList).Items {
+		if label.Matches(labels.Set(item.Labels)) {
+			list.Items = append(list.Items, item)
+		}
+	}
+	return list, err
+}
+
+// Watch returns a watch.Interface that watches the requested machineSets.
+func (c *FakeMachineSets) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+	return c.Fake.
+		InvokesWatch(testing.NewWatchActionWithOptions(machinesetsResource, c.ns, opts))
+
+}
+
+// Create takes the representation of a machineSet and creates it.  Returns the server's representation of the machineSet, and an error, if there is any.
+func (c *FakeMachineSets) Create(ctx context.Context, machineSet *v1alpha1.MachineSet, opts v1.CreateOptions) (result *v1alpha1.MachineSet, err error) {
+	emptyResult := &v1alpha1.MachineSet{}
+	obj, err := c.Fake.
+		Invokes(testing.NewCreateActionWithOptions(machinesetsResource, c.ns, machineSet, opts), emptyResult)
+
+	if obj == nil {
+		return emptyResult, err
+	}
+	return obj.(*v1alpha1.MachineSet), err
+}
+
+// Update takes the representation of a machineSet and updates it. Returns the server's representation of the machineSet, and an error, if there is any.
+func (c *FakeMachineSets) Update(ctx context.Context, machineSet *v1alpha1.MachineSet, opts v1.UpdateOptions) (result *v1alpha1.MachineSet, err error) {
+	emptyResult := &v1alpha1.MachineSet{}
+	obj, err := c.Fake.
+		Invokes(testing.NewUpdateActionWithOptions(machinesetsResource, c.ns, machineSet, opts), emptyResult)
+
+	if obj == nil {
+		return emptyResult, err
+	}
+	return obj.(*v1alpha1.MachineSet), err
+}
+
+// UpdateStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+func (c *FakeMachineSets) UpdateStatus(ctx context.Context, machineSet *v1alpha1.MachineSet, opts v1.UpdateOptions) (result *v1alpha1.MachineSet, err error) {
+	emptyResult := &v1alpha1.MachineSet{}
+	obj, err := c.Fake.
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(machinesetsResource, "status", c.ns, machineSet, opts), emptyResult)
+
+	if obj == nil {
+		return emptyResult, err
+	}
+	return obj.(*v1alpha1.MachineSet), err
+}
+
+// Delete takes name of the machineSet and deletes it. Returns an error if one occurs.
+func (c *FakeMachineSets) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+	_, err := c.Fake.
+		Invokes(testing.NewDeleteActionWithOptions(machinesetsResource, c.ns, name, opts), &v1alpha1.MachineSet{})
+
+	return err
+}
+
+// DeleteCollection deletes a collection of objects.
+func (c *FakeMachineSets) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionActionWithOptions(machinesetsResource, c.ns, opts, listOpts)
+
+	_, err := c.Fake.Invokes(action, &v1alpha1.MachineSetList{})
+	return err
+}
+
+// Patch applies the patch and returns the patched machineSet.
+func (c *FakeMachineSets) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.MachineSet, err error) {
+	emptyResult := &v1alpha1.MachineSet{}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceActionWithOptions(machinesetsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
+
+	if obj == nil {
+		return emptyResult, err
+	}
+	return obj.(*v1alpha1.MachineSet), err
+}
+
+// UpdateScale takes the representation of a scale and updates it. Returns the server's representation of the scale, and an error, if there is any.
+func (c *FakeMachineSets) UpdateScale(ctx context.Context, machineSetName string, scale *autoscalingv1.Scale, opts v1.UpdateOptions) (result *autoscalingv1.Scale, err error) {
+	emptyResult := &autoscalingv1.Scale{}
+	obj, err := c.Fake.
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(machinesetsResource, "scale", c.ns, scale, opts), &autoscalingv1.Scale{})
+
+	if obj == nil {
+		return emptyResult, err
+	}
+	return obj.(*autoscalingv1.Scale), err
 }

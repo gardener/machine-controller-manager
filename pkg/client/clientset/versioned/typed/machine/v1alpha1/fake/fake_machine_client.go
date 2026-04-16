@@ -17,19 +17,19 @@ type FakeMachineV1alpha1 struct {
 }
 
 func (c *FakeMachineV1alpha1) Machines(namespace string) v1alpha1.MachineInterface {
-	return newFakeMachines(c, namespace)
+	return &FakeMachines{c, namespace}
 }
 
 func (c *FakeMachineV1alpha1) MachineClasses(namespace string) v1alpha1.MachineClassInterface {
-	return newFakeMachineClasses(c, namespace)
+	return &FakeMachineClasses{c, namespace}
 }
 
 func (c *FakeMachineV1alpha1) MachineDeployments(namespace string) v1alpha1.MachineDeploymentInterface {
-	return newFakeMachineDeployments(c, namespace)
+	return &FakeMachineDeployments{c, namespace}
 }
 
 func (c *FakeMachineV1alpha1) MachineSets(namespace string) v1alpha1.MachineSetInterface {
-	return newFakeMachineSets(c, namespace)
+	return &FakeMachineSets{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

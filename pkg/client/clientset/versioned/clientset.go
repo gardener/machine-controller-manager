@@ -7,8 +7,8 @@
 package versioned
 
 import (
-	fmt "fmt"
-	http "net/http"
+	"fmt"
+	"net/http"
 
 	machinev1alpha1 "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
