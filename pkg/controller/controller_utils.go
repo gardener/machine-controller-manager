@@ -799,7 +799,7 @@ func (s ActiveMachines) Less(i, j int) bool {
 	// and prioritize as mentioned in the above map
 	case m[s[i].Status.CurrentStatus.Phase] != m[s[j].Status.CurrentStatus.Phase]:
 		return m[s[i].Status.CurrentStatus.Phase] < m[s[j].Status.CurrentStatus.Phase]
-		// Case-4: If all above cases are false, we prioritize based on creation time
+	// Case-4: If all above cases are false, we prioritize based on creation time
 	case s[i].CreationTimestamp != s[j].CreationTimestamp:
 		return s[i].CreationTimestamp.Before(&s[j].CreationTimestamp)
 	}

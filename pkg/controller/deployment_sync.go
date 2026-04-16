@@ -549,11 +549,11 @@ func (dc *controller) scaleMachineSet(ctx context.Context, is *v1alpha1.MachineS
 	// TODO: Do not mutate the machine set here, instead simply compare the annotation and if they mismatch
 	// call SetReplicasAnnotations inside the following if clause. Then we can also move the deep-copy from
 	// above inside the if too.
-	annotationsNeedUpdate := SetReplicasAnnotations(isCopy, (deployment.Spec.Replicas), (deployment.Spec.Replicas)+MaxSurge(*deployment))
+	replicaAnnotationNeedsUpdate := SetReplicasAnnotations(isCopy, (deployment.Spec.Replicas), (deployment.Spec.Replicas)+MaxSurge(*deployment))
 
 	scaled := false
 	var err error
-	if sizeNeedsUpdate || annotationsNeedUpdate {
+	if sizeNeedsUpdate || replicaAnnotationNeedsUpdate {
 		isCopy.Spec.Replicas = newScale
 		is, err = dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(ctx, isCopy, metav1.UpdateOptions{})
 		if err == nil && sizeNeedsUpdate {
