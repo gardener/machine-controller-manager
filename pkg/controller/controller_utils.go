@@ -768,6 +768,9 @@ func (s ActiveMachines) Less(i, j int) bool {
 		}
 	}
 
+	machineDeletionTimeI, perri := time.Parse(time.RFC3339, s[i].Annotations[machineutils.MarkedForDeletionTime])
+	machineDeletionTimeJ, perrj := time.Parse(time.RFC3339, s[j].Annotations[machineutils.MarkedForDeletionTime])
+
 	// Map containing machinePhase priority
 	// the lower the priority, the more likely
 	// it is to be deleted
@@ -781,28 +784,23 @@ func (s ActiveMachines) Less(i, j int) bool {
 		v1alpha1.MachineRunning:          6,
 	}
 
+	switch {
 	// Case-1: Initially we try to prioritize machine deletion based on machinePriority annotation.
+	case machineIPriority != machineJPriority:
+		return machineIPriority < machineJPriority
 	// Case-2: If both priorities are equal, then we pick the one with older MarkedForDeletionTime annotation
+	case perri == nil && perrj != nil:
+		return true
+	case perri != nil && perrj == nil:
+		return false
+	case perri == nil && perrj == nil && !machineDeletionTimeI.Equal(machineDeletionTimeJ):
+		return machineDeletionTimeI.Before(machineDeletionTimeJ)
 	// Case-3: If both don't have the MarkedForDeletionTime annotation, then we look at their machinePhase
 	// and prioritize as mentioned in the above map
-	// Case-4: If all above cases are false, we prioritize based on creation time
-	if machineIPriority != machineJPriority {
-		return machineIPriority < machineJPriority
-	} else if s[i].Annotations[machineutils.MarkedForDeletionTime] != s[j].Annotations[machineutils.MarkedForDeletionTime] {
-		machineIDeletionTime, machineJDeletionTime := s[i].Annotations[machineutils.MarkedForDeletionTime], s[j].Annotations[machineutils.MarkedForDeletionTime]
-		if machineIDeletionTime != "" && machineJDeletionTime == "" {
-			return true
-		} else if machineIDeletionTime == "" && machineJDeletionTime != "" {
-			return false
-		} else {
-			// TODO: have error handling for parsing time
-			timeI, _ := time.Parse(time.RFC3339, machineIDeletionTime)
-			timeJ, _ := time.Parse(time.RFC3339, machineJDeletionTime)
-			return timeI.Before(timeJ)
-		}
-	} else if m[s[i].Status.CurrentStatus.Phase] != m[s[j].Status.CurrentStatus.Phase] {
+	case m[s[i].Status.CurrentStatus.Phase] != m[s[j].Status.CurrentStatus.Phase]:
 		return m[s[i].Status.CurrentStatus.Phase] < m[s[j].Status.CurrentStatus.Phase]
-	} else if s[i].CreationTimestamp != s[j].CreationTimestamp {
+	// Case-4: If all above cases are false, we prioritize based on creation time
+	case s[i].CreationTimestamp != s[j].CreationTimestamp:
 		return s[i].CreationTimestamp.Before(&s[j].CreationTimestamp)
 	}
 

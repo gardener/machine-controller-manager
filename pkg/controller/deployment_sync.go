@@ -31,7 +31,6 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -550,15 +549,12 @@ func (dc *controller) scaleMachineSet(ctx context.Context, is *v1alpha1.MachineS
 	// TODO: Do not mutate the machine set here, instead simply compare the annotation and if they mismatch
 	// call SetReplicasAnnotations inside the following if clause. Then we can also move the deep-copy from
 	// above inside the if too.
-	annotationsNeedUpdate := SetReplicasAnnotations(isCopy, (deployment.Spec.Replicas), (deployment.Spec.Replicas)+MaxSurge(*deployment))
-	// We keep the LDRCBST annotation of MCS always in sync with MCD, regardless of whether any replica change was observed.
-	LDRCBSTchanged := deployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] != is.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]
+	replicaAnnotationNeedsUpdate := SetReplicasAnnotations(isCopy, (deployment.Spec.Replicas), (deployment.Spec.Replicas)+MaxSurge(*deployment))
 
 	scaled := false
 	var err error
-	if sizeNeedsUpdate || annotationsNeedUpdate || LDRCBSTchanged {
+	if sizeNeedsUpdate || replicaAnnotationNeedsUpdate {
 		isCopy.Spec.Replicas = newScale
-		isCopy.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = deployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]
 		is, err = dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(ctx, isCopy, metav1.UpdateOptions{})
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
