@@ -708,7 +708,7 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 
 // computeMachineTriggerDeletionData computes the data related to machines that are triggered for deletion based on the annotation on the MachineDeployment.
 func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDeployment) *triggerDeletionData {
-	oldTriggerDeletionAnnotationList := annotations.GetMachineNamesTriggeredForDeletion(mcd)
+	oldTriggerDeletionAnnotationList := annotations.GetMachineNamesWithDeletionTimesTriggeredForDeletion(mcd)
 	newTriggerDeletionAnnotationList := make([]string, 0)
 	markedMachines := make([]*v1alpha1.Machine, 0)
 	markedMachineDeletionTimes := make([]string, 0)
