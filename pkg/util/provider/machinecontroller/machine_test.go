@@ -3120,7 +3120,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:         fmt.Errorf("Machine deletion in process. Deletion of Node Object %q is successful. %s", "fakeID-0", machineutils.InitiateFinalizerRemoval),
+					err:         fmt.Errorf("machine deletion in process: Deletion of Node Object %q is successful. %s", "fakeID-0", machineutils.InitiateFinalizerRemoval),
 					retry:       machineutils.ShortRetry,
 					nodeDeleted: true,
 					machine: newMachine(
@@ -3502,7 +3502,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:         fmt.Errorf("Machine deletion in process. No node object found"),
+					err:         fmt.Errorf("machine deletion in process: no node object found"),
 					retry:       machineutils.ShortRetry,
 					nodeDeleted: false,
 					machine: newMachine(
