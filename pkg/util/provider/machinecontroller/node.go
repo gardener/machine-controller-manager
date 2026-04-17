@@ -99,7 +99,7 @@ func (c *controller) updateNode(oldObj, newObj any) {
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Conditions of node %q differ from machine status", node.Name))
 	case node.Annotations[machineutils.PreserveMachineAnnotationKey] != oldNode.Annotations[machineutils.PreserveMachineAnnotationKey]:
 		// to reconcile on change in annotations related to preservation
-		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Preserve annotations added or updated for node %q", getNodeName(machine)))
+		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Preserve annotations added or updated for node %q", node.Name))
 	}
 }
 
@@ -172,7 +172,7 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 		return nil
 	}
 
-	if machine.DeletionTimestamp == nil { // If machine is marked for deletion, ensure node finalizers are not added
+	if machine.DeletionTimestamp == nil { // Ensure node finalizers are added only for non-deleting machines
 		err = c.addNodeFinalizers(ctx, node) // Add finalizers to node object if not present
 		if err != nil {
 			klog.Errorf("ClusterNode %q: error adding finalizers to node: %v", key, err)
@@ -228,7 +228,10 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	)
 
 	selector = selector.Add(*req)
-	machines, _ := c.machineLister.List(selector)
+	machines, err := c.machineLister.List(selector)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(machines) > 1 {
 		return nil, errMultipleMachineMatch
