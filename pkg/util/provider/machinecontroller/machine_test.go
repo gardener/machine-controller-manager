@@ -3502,7 +3502,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:         fmt.Errorf("machine deletion in process: no node object found"),
+					err:         fmt.Errorf("machine deletion in process: no node label found"),
 					retry:       machineutils.ShortRetry,
 					nodeDeleted: false,
 					machine: newMachine(
