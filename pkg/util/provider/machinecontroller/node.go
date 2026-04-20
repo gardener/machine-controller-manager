@@ -77,11 +77,11 @@ func (c *controller) updateNode(oldObj, newObj any) {
 	case node.DeletionTimestamp != nil:
 		err := c.triggerMachineDeletion(context.Background(), node.Name)
 		if err != nil {
-			c.enqueueNodeAfter(node, time.Duration(machineutils.ShortRetry), fmt.Sprintf("handling node UPDATE event. Failed to trigger machine deletion for node %q, re-queuing", node.Name))
+			c.enqueueNodeAfter(node, machineutils.ShortRetry, fmt.Sprintf("handling node UPDATE event. Failed to trigger machine deletion for node %q, re-queuing", node.Name))
 		}
 		return
 	case !HasFinalizer(node, NodeFinalizerName):
-		c.enqueueNodeAfter(node, time.Duration(machineutils.MediumRetry), fmt.Sprintf("MCM finalizer missing from node %q, re-queuing", node.Name))
+		c.enqueueNodeAfter(node, machineutils.MediumRetry, fmt.Sprintf("MCM finalizer missing from node %q, re-queuing", node.Name))
 	}
 
 	isMachineCrashLooping := machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff
@@ -172,12 +172,12 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 		return nil
 	}
 
-	if machine.DeletionTimestamp == nil { // Ensure node finalizers are added only for non-deleting machines
-		err = c.addNodeFinalizers(ctx, node) // Add finalizers to node object if not present
+	// Ensure node finalizers are added only for non-deleting machines
+	if machine.DeletionTimestamp == nil {
+		err = c.addNodeFinalizers(ctx, node)
 		if err != nil {
 			klog.Errorf("ClusterNode %q: error adding finalizers to node: %v", key, err)
-			c.enqueueNodeAfter(node, time.Duration(machineutils.ShortRetry), err.Error())
-			return nil
+			return err
 		}
 	}
 	return nil
@@ -213,10 +213,10 @@ func (c *controller) enqueueNode(obj any, reason string) {
 	}
 }
 
-func (c *controller) enqueueNodeAfter(obj any, after time.Duration, reason string) {
+func (c *controller) enqueueNodeAfter(obj any, after machineutils.RetryPeriod, reason string) {
 	if key, ok := c.getKeyForObj(obj); ok {
-		klog.Infof("Adding node object to queue %q after %s, reason: %s", key, after, reason)
-		c.nodeQueue.AddAfter(key, after)
+		klog.Infof("Adding node object to queue %q after %s, reason: %s", key, time.Duration(after), reason)
+		c.nodeQueue.AddAfter(key, time.Duration(after))
 	}
 }
 
