@@ -1951,7 +1951,7 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 	return c.updateStatusForNodeDeletion(ctx, machine, description, state, err)
 }
 
-func (c *controller) updateStatusForNodeDeletion(ctx context.Context, machine *v1alpha1.Machine, description string, state v1alpha1.MachineState, err error) (machineutils.RetryPeriod, error) {
+func (c *controller) updateStatusForNodeDeletion(ctx context.Context, machine *v1alpha1.Machine, description string, state v1alpha1.MachineState, retryReason error) (machineutils.RetryPeriod, error) {
 	updateRetryPeriod, updateErr := c.machineStatusUpdate(
 		ctx,
 		machine,
@@ -1972,7 +1972,7 @@ func (c *controller) updateStatusForNodeDeletion(ctx context.Context, machine *v
 		return updateRetryPeriod, updateErr
 	}
 
-	return machineutils.ShortRetry, err
+	return machineutils.ShortRetry, retryReason
 }
 
 // getEffectiveDrainTimeout returns the drainTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
