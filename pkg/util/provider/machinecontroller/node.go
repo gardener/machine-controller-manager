@@ -10,8 +10,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	"time"
+
+	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
@@ -72,39 +73,33 @@ func (c *controller) updateNode(oldObj, newObj any) {
 	}
 
 	// delete the machine if the node is deleted
-	if node.DeletionTimestamp != nil {
+	switch {
+	case node.DeletionTimestamp != nil:
 		err := c.triggerMachineDeletion(context.Background(), node.Name)
 		if err != nil {
-			c.enqueueNodeAfter(node, time.Duration(machineutils.ShortRetry), fmt.Sprintf("handling node UPDATE event. Failed to trigger machine deletion for node %q, re-queuing", node.Name))
+			c.enqueueNodeAfter(node, machineutils.ShortRetry, fmt.Sprintf("handling node UPDATE event. Failed to trigger machine deletion for node %q, re-queuing", node.Name))
 		}
 		return
+	case !HasFinalizer(node, NodeFinalizerName):
+		c.enqueueNodeAfter(node, machineutils.MediumRetry, fmt.Sprintf("MCM finalizer missing from node %q, re-queuing", node.Name))
 	}
 
-	if !HasFinalizer(node, NodeFinalizerName) {
-		c.enqueueNodeAfter(node, time.Duration(machineutils.MediumRetry), fmt.Sprintf("MCM finalizer missing from node %q, re-queuing", node.Name))
-		return
-	}
-	// to reconcile on addition/removal of essential taints in machine lifecycle, example - critical component taint
-	if addedOrRemovedEssentialTaints(oldNode, node, machineutils.EssentialTaints) {
-		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Atleast one of essential taints on node %q has changed", getNodeName(machine)))
-		return
-	}
-	if inPlaceUpdateLabelsChanged(oldNode, node) {
-		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. in-place update label added or updated for node %q", getNodeName(machine)))
-		return
-	}
 	isMachineCrashLooping := machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff
 	isMachineTerminating := machine.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating
 	_, _, nodeConditionsHaveChanged := nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions)
 
-	// Enqueue machine if node conditions have changed and machine is not in crashloop or terminating state
-	if nodeConditionsHaveChanged && !(isMachineCrashLooping || isMachineTerminating) {
+	// to reconcile on addition/removal of essential taints in machine lifecycle, example - critical component taint
+	switch {
+	case addedOrRemovedEssentialTaints(oldNode, node, machineutils.EssentialTaints):
+		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Atleast one of essential taints on node %q has changed", node.Name))
+	case inPlaceUpdateLabelsChanged(oldNode, node):
+		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. in-place update label added or updated for node %q", node.Name))
+	case nodeConditionsHaveChanged && !(isMachineCrashLooping || isMachineTerminating):
+		// Enqueue machine if node conditions have changed and machine is not in crashloop or terminating state
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Conditions of node %q differ from machine status", node.Name))
-	}
-	// to reconcile on change in annotations related to preservation
-	if node.Annotations[machineutils.PreserveMachineAnnotationKey] != oldNode.Annotations[machineutils.PreserveMachineAnnotationKey] {
-		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Preserve annotations added or updated for node %q", getNodeName(machine)))
-		return
+	case node.Annotations[machineutils.PreserveMachineAnnotationKey] != oldNode.Annotations[machineutils.PreserveMachineAnnotationKey]:
+		// to reconcile on change in annotations related to preservation
+		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Preserve annotations added or updated for node %q", node.Name))
 	}
 }
 
@@ -155,7 +150,8 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 
 	// Ignore node updates without an associated machine. Retry only for errors other than errNoMachineMatch;
 	// transient fetch errors will be eventually requeued by the update handler due to kubelet updates.
-	if _, err := c.getMachineFromNode(node.Name); err != nil {
+	machine, err := c.getMachineFromNode(node.Name)
+	if err != nil {
 		if errors.Is(err, errNoMachineMatch) {
 			klog.Errorf("ClusterNode %q: No machine found matching node, skipping adding finalizers", key)
 			return nil
@@ -176,13 +172,14 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 		return nil
 	}
 
-	//Add finalizers to node object if not present
-	err = c.addNodeFinalizers(ctx, node)
-	if err != nil {
-		klog.Errorf("ClusterNode %q: error adding finalizers to node: %v", key, err)
-		c.enqueueNodeAfter(node, time.Duration(machineutils.ShortRetry), err.Error())
+	// Ensure node finalizers are added only for non-deleting machines
+	if machine.DeletionTimestamp == nil {
+		err = c.addNodeFinalizers(ctx, node)
+		if err != nil {
+			klog.Errorf("ClusterNode %q: error adding finalizers to node: %v", key, err)
+			return err
+		}
 	}
-
 	return nil
 }
 
@@ -216,10 +213,10 @@ func (c *controller) enqueueNode(obj any, reason string) {
 	}
 }
 
-func (c *controller) enqueueNodeAfter(obj any, after time.Duration, reason string) {
+func (c *controller) enqueueNodeAfter(obj any, after machineutils.RetryPeriod, reason string) {
 	if key, ok := c.getKeyForObj(obj); ok {
-		klog.Infof("Adding node object to queue %q after %s, reason: %s", key, after, reason)
-		c.nodeQueue.AddAfter(key, after)
+		klog.Infof("Adding node object to queue %q after %s, reason: %s", key, time.Duration(after), reason)
+		c.nodeQueue.AddAfter(key, time.Duration(after))
 	}
 }
 
@@ -231,7 +228,10 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	)
 
 	selector = selector.Add(*req)
-	machines, _ := c.machineLister.List(selector)
+	machines, err := c.machineLister.List(selector)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(machines) > 1 {
 		return nil, errMultipleMachineMatch

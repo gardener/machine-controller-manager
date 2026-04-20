@@ -1835,7 +1835,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 				state = v1alpha1.MachineStateFailed
 			case codes.NotFound:
 				retryRequired = machineutils.ShortRetry
-				description = fmt.Sprintf("VM not found. Continuing deletion flow. %s", machineutils.RemoveNodeFinalizers)
+				description = fmt.Sprintf("VM not found. Continuing deletion flow. %s", machineutils.InitiateNodeDeletion)
 				state = v1alpha1.MachineStateProcessing
 			default:
 				retryRequired = machineutils.LongRetry
@@ -1850,7 +1850,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 
 	} else {
 		retryRequired = machineutils.ShortRetry
-		description = fmt.Sprintf("VM deletion was successful. %s", machineutils.RemoveNodeFinalizers)
+		description = fmt.Sprintf("VM deletion was successful. %s", machineutils.InitiateNodeDeletion)
 		state = v1alpha1.MachineStateProcessing
 
 		err = fmt.Errorf("Machine deletion in process. %s", description)
@@ -1883,105 +1883,78 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 	return retryRequired, err
 }
 
-// deleteNodeFinalizers attempts to remove finalizers from the node object backed by the machine object
-func (c *controller) deleteNodeFinalizers(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
-	var (
-		err         error
-		description string
-		state       v1alpha1.MachineState
-	)
-
-	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
-
-	if nodeName != "" {
-		var node *v1.Node
-		node, err = c.nodeLister.Get(nodeName)
-		if err != nil {
-			switch {
-			case apierrors.IsNotFound(err):
-				description = fmt.Sprintf("No node object found for %q, skipping node finalizer removal. %s", nodeName, machineutils.InitiateNodeDeletion)
-				klog.Warning(description)
-				state = v1alpha1.MachineStateProcessing
-			default:
-				description = fmt.Sprintf("Retrieval of Node Object %q failed due to error: %s, Retrying node finalizer removal. %s", nodeName, err, machineutils.RemoveNodeFinalizers)
-				klog.Errorf(description)
-				state = v1alpha1.MachineStateFailed
-			}
-		} else {
-			err = c.removeNodeFinalizers(ctx, node)
-			if err != nil {
-				description = fmt.Sprintf("Removal of finalizers from Node Object %q failed due to error: %s, Retrying node finalizer removal. %s", nodeName, err, machineutils.RemoveNodeFinalizers)
-				klog.Errorf(description)
-				state = v1alpha1.MachineStateFailed
-			} else {
-				description = fmt.Sprintf("Removal of finalizers from Node Object %q is successful. %s", nodeName, machineutils.InitiateNodeDeletion)
-				state = v1alpha1.MachineStateProcessing
-				err = fmt.Errorf("machine deletion in process. %s", description)
-			}
-		}
-	} else {
-		description = fmt.Sprintf("Label %q not present on machine %q, skipping node finalizer removal. %s", v1alpha1.NodeLabelKey, machine.Name, machineutils.InitiateNodeDeletion)
-		klog.Warning(description)
-		state = v1alpha1.MachineStateProcessing
-	}
-
-	updateRetryPeriod, updateErr := c.machineStatusUpdate(
-		ctx,
-		machine,
-		v1alpha1.LastOperation{
-			Description:    description,
-			State:          state,
-			Type:           v1alpha1.MachineOperationDelete,
-			LastUpdateTime: metav1.Now(),
-		},
-		// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
-		// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
-		machine.Status.CurrentStatus,
-		machine.Status.LastKnownState,
-	)
-
-	if updateErr != nil {
-		return updateRetryPeriod, updateErr
-	}
-	return machineutils.ShortRetry, err
-}
-
-// deleteNodeObject attempts to delete the node object backed by the machine object
+// deleteNodeObject attempts to remove finalizers from and delete the node object backed by the machine object
 func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
 	var (
 		err         error
 		description string
 		state       v1alpha1.MachineState
+		node        *v1.Node
 	)
 
+	// nodeName label is expected to be present on machine object, but in case it is not present
+	// we should not block deletion of machine and should move forward with flow.
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
+	if nodeName == "" {
+		description = fmt.Sprintf("Label %q not present on machine %q, continuing deletion flow. %s", v1alpha1.NodeLabelKey, machine.Name, machineutils.InitiateFinalizerRemoval)
+		klog.Warning(description)
+		state = v1alpha1.MachineStateProcessing
+		err = errors.New("machine deletion in process: no node label found")
 
-	if nodeName != "" {
-		// Delete node object
-		err = c.targetCoreClient.CoreV1().Nodes().Delete(ctx, nodeName, metav1.DeleteOptions{})
-		klog.V(3).Infof("Deleting node %q associated with machine %q", nodeName, machine.Name)
-		if err != nil && !apierrors.IsNotFound(err) {
-			// If its an error, and any other error than object not found
-			description = fmt.Sprintf("Deletion of Node Object %q failed due to error: %s. %s", nodeName, err, machineutils.InitiateNodeDeletion)
-			klog.Error(description)
-			state = v1alpha1.MachineStateFailed
-		} else if err == nil {
-			description = fmt.Sprintf("Deletion of Node Object %q is successful. %s", nodeName, machineutils.InitiateFinalizerRemoval)
-			klog.V(3).Info(description)
-			state = v1alpha1.MachineStateProcessing
-			err = fmt.Errorf("Machine deletion in process. Deletion of node object was successful")
-		} else {
+		return c.updateStatusForNodeDeletion(ctx, machine, description, state, err)
+	}
+
+	node, err = c.nodeLister.Get(nodeName)
+	if err != nil {
+		// If node object is not found, then it could have already been deleted,
+		// therefore we should not block deletion of machine. But if error is other than NotFound,
+		// then we should retry as it could be a transient error.
+		switch {
+		case apierrors.IsNotFound(err):
 			description = fmt.Sprintf("No node object found for %q, continuing deletion flow. %s", nodeName, machineutils.InitiateFinalizerRemoval)
 			klog.Warning(description)
 			state = v1alpha1.MachineStateProcessing
+		default:
+			description = fmt.Sprintf("Retrieval of Node Object %q failed due to error: %s, Retrying. %s", nodeName, err, machineutils.InitiateNodeDeletion)
+			klog.Error(description)
+			state = v1alpha1.MachineStateFailed
 		}
-	} else {
-		description = fmt.Sprintf("Label %q not present on machine %q or no associated node object found, continuing deletion flow. %s", v1alpha1.NodeLabelKey, machine.Name, machineutils.InitiateFinalizerRemoval)
-		klog.Error(description)
-		state = v1alpha1.MachineStateProcessing
-		err = fmt.Errorf("Machine deletion in process. No node object found")
+
+		return c.updateStatusForNodeDeletion(ctx, machine, description, state, err)
 	}
 
+	// Remove finalizers from node object before deletion.
+	klog.V(3).Infof("Removing finalizers from node %q associated with machine %q", nodeName, machine.Name)
+	err = c.removeNodeFinalizers(ctx, node)
+	if err != nil {
+		description = fmt.Sprintf("Removal of finalizers from Node Object %q failed due to error: %s, Retrying. %s", nodeName, err, machineutils.InitiateNodeDeletion)
+		klog.Error(description)
+		state = v1alpha1.MachineStateFailed
+		return c.updateStatusForNodeDeletion(ctx, machine, description, state, err)
+	}
+
+	// Delete node object.
+	klog.V(3).Infof("Deleting node %q associated with machine %q", nodeName, machine.Name)
+	err = c.targetCoreClient.CoreV1().Nodes().Delete(ctx, nodeName, metav1.DeleteOptions{})
+	switch {
+	case err == nil:
+		description = fmt.Sprintf("Deletion of Node Object %q is successful. %s", nodeName, machineutils.InitiateFinalizerRemoval)
+		klog.V(3).Info(description)
+		state = v1alpha1.MachineStateProcessing
+		err = fmt.Errorf("machine deletion in process: %s", description)
+	case apierrors.IsNotFound(err):
+		description = fmt.Sprintf("No node object found for %q, continuing deletion flow. %s", nodeName, machineutils.InitiateFinalizerRemoval)
+		klog.Warning(description)
+		state = v1alpha1.MachineStateProcessing
+	default:
+		description = fmt.Sprintf("Deletion of Node Object %q failed due to error: %s. %s", nodeName, err, machineutils.InitiateNodeDeletion)
+		klog.Error(description)
+		state = v1alpha1.MachineStateFailed
+	}
+	return c.updateStatusForNodeDeletion(ctx, machine, description, state, err)
+}
+
+func (c *controller) updateStatusForNodeDeletion(ctx context.Context, machine *v1alpha1.Machine, description string, state v1alpha1.MachineState, retryReason error) (machineutils.RetryPeriod, error) {
 	updateRetryPeriod, updateErr := c.machineStatusUpdate(
 		ctx,
 		machine,
@@ -2002,7 +1975,7 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 		return updateRetryPeriod, updateErr
 	}
 
-	return machineutils.ShortRetry, err
+	return machineutils.ShortRetry, retryReason
 }
 
 // getEffectiveDrainTimeout returns the drainTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
