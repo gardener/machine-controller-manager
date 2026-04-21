@@ -756,11 +756,8 @@ func (s ActiveMachines) Less(i, j int) bool {
 		}
 		// if both are auto-preserved or both are explicitly preserved, we decide based on whichever machine
 		// has an earlier preserve expiry time
-		diff := s[j].Status.CurrentStatus.PreserveExpiryTime.Time.Sub(s[i].Status.CurrentStatus.PreserveExpiryTime.Time)
-		if diff > 0 {
-			return true // if s[i] expires earlier, it is "less" and should be deleted first
-		} else if diff < 0 {
-			return false
+		if !s[i].Status.CurrentStatus.PreserveExpiryTime.Equal(s[j].Status.CurrentStatus.PreserveExpiryTime) {
+			return s[i].Status.CurrentStatus.PreserveExpiryTime.Before(s[j].Status.CurrentStatus.PreserveExpiryTime)
 		}
 	}
 
