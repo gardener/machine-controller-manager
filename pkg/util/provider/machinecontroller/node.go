@@ -343,6 +343,9 @@ func addedOrRemovedEssentialTaints(oldNode, node *corev1.Node, taintKeys []strin
 func (c *controller) getNodePreserveAnnotationValue(nodeName string) (string, error) {
 	node, err := c.nodeLister.Get(nodeName)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return "", nil
+		}
 		klog.Errorf("error fetching node %q: %v", nodeName, err)
 		return "", err
 	}
