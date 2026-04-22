@@ -2333,39 +2333,37 @@ Utility Functions for Machine Preservation
 */
 
 // preserveMachine contains logic to start the preservation of a machine and node.
-func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine, preserveValue string) (bool, error) {
+func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine, preserveValue string) error {
 	var err error
-	machineObjectUpdated := false
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
 		klog.V(4).Infof("Starting preservation flow for machine %q.", machine.Name)
 		// Step 1: Add preserveExpiryTime to machine status
 		machine, err = c.setPreserveExpiryTimeOnMachine(ctx, machine)
 		if err != nil {
-			return machineObjectUpdated, err
+			return err
 		}
-		machineObjectUpdated = true
 	}
 	if nodeName == "" {
 		// Machine has no backing node, preservation is complete
 		klog.V(2).Infof("Machine %q without backing node is preserved successfully till %v.", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
-		return machineObjectUpdated, nil
+		return nil
 	}
 	// Machine has a backing node
 	node, err := c.nodeLister.Get(nodeName)
 	if err != nil {
 		klog.Errorf("error trying to get node %q of machine %q: %v. Retrying.", nodeName, machine.Name, err)
-		return machineObjectUpdated, err
+		return err
 	}
 	existingNodePreservedCondition := nodeops.GetCondition(node, v1alpha1.NodePreserved)
 	// checks if preservation is already complete
 	if existingNodePreservedCondition != nil && existingNodePreservedCondition.Status == v1.ConditionTrue {
-		return machineObjectUpdated, nil
+		return nil
 	}
 	// Step 2: Add annotations to prevent scale down of node by CA
 	updatedNode, err := c.addCAScaleDownDisabledAnnotationOnNode(ctx, node)
 	if err != nil {
-		return machineObjectUpdated, err
+		return err
 	}
 	var drainErr error
 	if shouldPreservedNodeBeDrained(existingNodePreservedCondition, machine.Status.CurrentStatus.Phase) {
@@ -2378,15 +2376,15 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 		_, err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, updatedNode.Name, *newCond)
 		if drainErr != nil {
 			klog.Errorf("error draining preserved node %q for machine %q : %v", nodeName, machine.Name, drainErr)
-			return machineObjectUpdated, drainErr
+			return drainErr
 		}
 		if err != nil {
 			klog.Errorf("error trying to update node preserved condition for node %q of machine %q : %v", nodeName, machine.Name, err)
-			return machineObjectUpdated, err
+			return err
 		}
 	}
 	klog.V(2).Infof("Machine %q and backing node preserved successfully till %v.", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
-	return machineObjectUpdated, nil
+	return nil
 }
 
 // stopPreservationIfActive stops the preservation of the machine and node, if preserved, and returns true if machine object has been updated
@@ -2407,7 +2405,7 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 				return false, err
 			}
 		}
-		err := c.clearMachinePreserveExpiryTime(ctx, machine)
+		machine, err := c.clearMachinePreserveExpiryTime(ctx, machine)
 		if err != nil {
 			return false, err
 		}
@@ -2423,7 +2421,7 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 		if apierrors.IsNotFound(err) {
 			// Node not found, proceed to clear preserveExpiryTime on machine
 			klog.Warningf("Node %q of machine %q not found. Proceeding to clear PreserveExpiryTime on machine.", nodeName, machine.Name)
-			err := c.clearMachinePreserveExpiryTime(ctx, machine)
+			_, err := c.clearMachinePreserveExpiryTime(ctx, machine)
 			if err != nil {
 				return false, err
 			}
@@ -2458,7 +2456,7 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 		}
 	}
 	// Step 4: update machine status to set preserve expiry time to nil
-	err = c.clearMachinePreserveExpiryTime(ctx, machine)
+	machine, err = c.clearMachinePreserveExpiryTime(ctx, machine)
 	if err != nil {
 		return false, err
 	}
@@ -2537,18 +2535,18 @@ func shouldPreservedNodeBeDrained(existingCondition *v1.NodeCondition, machinePh
 }
 
 // clearMachinePreserveExpiryTime clears the PreserveExpiryTime on the machine object's Status.CurrentStatus
-func (c *controller) clearMachinePreserveExpiryTime(ctx context.Context, machine *v1alpha1.Machine) error {
+func (c *controller) clearMachinePreserveExpiryTime(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
 	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
-		return nil
+		return machine, nil
 	}
 	machine.Status.CurrentStatus.PreserveExpiryTime = nil
 	machine.Status.CurrentStatus.LastUpdateTime = metav1.Now()
-	_, err := c.controlMachineClient.Machines(machine.Namespace).UpdateStatus(ctx, machine, metav1.UpdateOptions{})
+	updatedMachine, err := c.controlMachineClient.Machines(machine.Namespace).UpdateStatus(ctx, machine, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("machine/status UPDATE failed for machine %q. Retrying, error: %s", machine.Name, err)
-		return err
+		return nil, err
 	}
-	return nil
+	return updatedMachine, nil
 }
 
 func (c *controller) removePreserveAnnotationOnMachine(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
