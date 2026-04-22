@@ -829,7 +829,7 @@ func getMachinesMarkedForDeletion(machineList []*v1alpha1.Machine, machineSet *v
 	if LDRCBST == "" {
 		return
 	}
-	machineSetLDRCBST, perr := time.Parse(time.RFC3339, machineSet.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime])
+	machineSetLDRCBST, perr := time.Parse(time.RFC3339, LDRCBST)
 	if perr != nil {
 		klog.Warningf("Unable to parse %q of machineset %q: %v", machineutils.LastDeploymentReplicaChangeByScalerTime, machineSet.Name, perr)
 		return
