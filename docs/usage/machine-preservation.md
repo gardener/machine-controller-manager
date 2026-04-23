@@ -74,16 +74,12 @@ spec:
 ```
 
 #### Configuration Semantics
-- `AutoPreserveFailedMachineMax` : Maximum number of failed machines that can be auto-preserved concurrently in a worker pool. This value is distributed across machineDeployments (zones) in the worker pool. If the limit is reached, additional failed machines will not be preserved and will proceed to termination as usual.
-- `machinePreserveTimeout` : Duration after which preserved machines are automatically released
+- `AutoPreserveFailedMachineMax`: Maximum number of failed machines that can be auto-preserved concurrently in a worker pool. This value is distributed across `machineDeployments` (zones) in the worker pool. If the limit is reached, additional failed machines will not be preserved and will be terminated normally. On worker pools where `workers[i].systemComponents.allow: true`, `AutoPreserveFailedMachineMax` cannot exceed `worker[i].Maximum - 1`. If `workers[i].systemComponents.allow: false`, `AutoPreserveFailedMachineMax` can be at most `worker[i].Maximum`.
+- `machinePreserveTimeout` : Duration after which preserved machines are automatically released. This defaults to `96h` (4 days).
 
-> Note: ⚠️ Changes to `machinePreserveTimeout` apply only to preservation done after the change.
-> If `AutoPreserveFailedMachineMax` is decreased, preservation is stopped for older auto-preserved machines(earlier creationTimestamp) until the number of preserved machines is within the new limit.
-> If the number of failed machines exceeds the `AutoPreserveFailedMachineMax` limit at any given time, machines with more recent creationTimestamp are auto-preserved first.
+> Note: ⚠️ Changes to machinePreserveTimeout apply only to preservations that occur after the change.
+> If AutoPreserveFailedMachineMax is decreased, auto-preserved machines are de-preserved first, followed by manually preserved machines, until the count is within the new limit. When deciding between two auto-preserved or two manually preserved machines to de-preserve, the machine with the earlier PreserveExpiryTime is de-preserved first.
 
-> Note: ⚠️Preserved failed nodes still count toward the total number of nodes unable to renew their leases. If this total — across both preserved and non-preserved nodes — exceeds the threshold configured (defaults to 60%) for
-> dependency-watchdog, then the components configured as dependent resources in dependency-watchdog (by default: kube-controller-manager, machine-controller-manager, and cluster-autoscaler),
-> will be scaled-down. Since a higher AutoPreserveFailedMachineMax value increases the number of preserved failed nodes, it also raises the risk of breaching this threshold. Please exercise caution when setting this value.
 ### Preservation annotations
 
 annotation key: `node.machine.sapcloud.io/preserve`

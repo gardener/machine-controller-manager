@@ -79,7 +79,7 @@ func NewMCServer() *MCServer {
 				MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 15 * time.Minute},
 				MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
 				MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
-				MachinePreserveTimeout:                   metav1.Duration{Duration: 72 * time.Hour},
+				MachinePreserveTimeout:                   metav1.Duration{Duration: 96 * time.Hour},
 			},
 		},
 	}
