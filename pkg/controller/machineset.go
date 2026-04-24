@@ -437,7 +437,6 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 		if machinesWithoutUpdateSuccessfulLabelDiff > BurstReplicas {
 			machinesWithoutUpdateSuccessfulLabelDiff = BurstReplicas
 		}
-		logMachinesPriorityAndMarkedDeletionTime(machinesWithoutUpdateSuccessfulLabel)
 		staleMachines = append(staleMachines, getMachinesToDelete(machinesWithoutUpdateSuccessfulLabel, machinesWithoutUpdateSuccessfulLabelDiff)...)
 	}
 

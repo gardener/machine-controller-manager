@@ -203,19 +203,15 @@ func copyMachineSetClassKindToMachines(machineset *v1alpha1.MachineSet, machine 
 	return false
 }
 
-func logMachinesPriorityAndMarkedDeletionTime(machines []*v1alpha1.Machine) {
+func logMachinesToDelete(machines []*v1alpha1.Machine) {
 	for _, m := range machines {
 		priority := m.Annotations[machineutils.MachinePriority]
 		markedDeletionTime := m.Annotations[machineutils.MarkedForDeletionTime]
 		if priority == "1" {
-			klog.V(3).Infof("Machine %q has %s annotation set to 1 and %s set to %q", m.Name, machineutils.MachinePriority, machineutils.MarkedForDeletionTime, markedDeletionTime)
+			klog.V(3).Infof("Machine %q needs to be deleted, since it has %s annotation set to 1 and %s set to %q", m.Name, machineutils.MachinePriority, machineutils.MarkedForDeletionTime, markedDeletionTime)
+		} else {
+			klog.V(3).Infof("Machine %q needs to be deleted", m.Name)
 		}
-	}
-}
-
-func logMachinesToDelete(machines []*v1alpha1.Machine) {
-	for _, m := range machines {
-		klog.V(3).Infof("Machine %q needs to be deleted", m.Name)
 	}
 }
 
