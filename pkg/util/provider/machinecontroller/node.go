@@ -88,17 +88,17 @@ func (c *controller) updateNode(oldObj, newObj any) {
 	isMachineTerminating := machine.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating
 	_, _, nodeConditionsHaveChanged := nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions)
 
-	// to reconcile on addition/removal of essential taints in machine lifecycle, example - critical component taint
 	switch {
+	// to reconcile on addition/removal of essential taints in machine lifecycle, example - critical component taint
 	case addedOrRemovedEssentialTaints(oldNode, node, machineutils.EssentialTaints):
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Atleast one of essential taints on node %q has changed", node.Name))
 	case inPlaceUpdateLabelsChanged(oldNode, node):
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. in-place update label added or updated for node %q", node.Name))
-	case nodeConditionsHaveChanged && !(isMachineCrashLooping || isMachineTerminating):
-		// Enqueue machine if node conditions have changed and machine is not in crashloop or terminating state
+	// Enqueue machine if node conditions have changed and machine is not in crashloop or terminating state
+	case nodeConditionsHaveChanged && !isMachineCrashLooping && !isMachineTerminating:
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Conditions of node %q differ from machine status", node.Name))
+	// to reconcile on change in annotations related to preservation
 	case node.Annotations[machineutils.PreserveMachineAnnotationKey] != oldNode.Annotations[machineutils.PreserveMachineAnnotationKey]:
-		// to reconcile on change in annotations related to preservation
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Preserve annotations added or updated for node %q", node.Name))
 	}
 }
