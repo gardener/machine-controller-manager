@@ -905,7 +905,7 @@ func (c *controller) getCreateFailurePhase(machine *v1alpha1.Machine) v1alpha1.M
 	timeOut := metav1.Now().Add(-timeOutDuration).Sub(machine.CreationTimestamp.Time)
 
 	if timeOut > 0 {
-		// Machine creation timeout occured while joining of machine
+		// Machine creation timeout occurred while joining of machine
 		// Machine set controller would replace this machine with a new one as phase is failed.
 		klog.V(2).Infof("Machine %q , providerID %q and backing node %q couldn't join in creation timeout of %s. Changing phase to Failed.", machine.Name, getProviderID(machine), getNodeName(machine), timeOutDuration)
 		return v1alpha1.MachineFailed
@@ -1151,7 +1151,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		} else {
 			// If timeout has not occurred, re-enqueue the machine
 			// after a specified sleep time
-			klog.V(4).Infof("Creation/Health Timeout hasn't occured yet , will re-enqueue after %s", time.Duration(sleepTime))
+			klog.V(4).Infof("Creation/Health Timeout hasn't occurred yet , will re-enqueue after %s", time.Duration(sleepTime))
 			c.enqueueMachineAfter(machine, sleepTime, "re-check for creation/health timeout")
 		}
 	}
