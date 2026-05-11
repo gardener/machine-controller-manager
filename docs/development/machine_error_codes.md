@@ -392,7 +392,7 @@ A Provider can OPTIONALLY implement this driver call. Else should return a `UNIM
 This driver call will be called by the MCM to get the `VolumeIDs` for the list of `PersistentVolumes (PVs)` supplied.
 This OPTIONAL (but recommended) driver call helps in serailzied eviction of pods with PVs while draining of machines. This implies applications backed by PVs would be evicted one by one, leading to shorter application downtimes.
 
-- On succesful returnal of a list of `Volume-IDs` for all supplied `PVSpecs`, the Provider MUST reply `0 OK`.
+- On successful returnal of a list of `Volume-IDs` for all supplied `PVSpecs`, the Provider MUST reply `0 OK`.
 - The `GetVolumeIDsResponse` is expected to return a repeated list of `strings` consisting of the `VolumeIDs` for `PVSpec` that could be extracted.
 - If for any `PV` the Provider wasn't able to identify the `Volume-ID`, the provider MAY chose to ignore it and return the `Volume-IDs` for the rest of the `PVs` for whom the `Volume-ID` was found.
 - Getting the `VolumeID` from the `PVSpec` depends on the Cloud-provider. You can extract this information by parsing the `PVSpec` based on the `ProviderType`
