@@ -100,6 +100,14 @@ func (c *controller) deleteMachine(obj any) {
 		}
 	}
 	c.enqueueMachineTermination(machine, "handling terminating machine object DELETE event")
+
+	if c.targetCoreClient != nil {
+		if nodeName := machine.Labels[v1alpha1.NodeLabelKey]; nodeName != "" {
+			if err := c.targetCoreClient.CoreV1().Nodes().Delete(context.Background(), nodeName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+				klog.Errorf("Machine %q: failed to delete node %q: %v", machine.Name, nodeName, err)
+			}
+		}
+	}
 }
 
 // getKeyForObj returns key for object, else returns false
@@ -530,7 +538,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 	if machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
 		clone := clone.DeepCopy()
 		clone.Status.LastOperation = v1alpha1.LastOperation{
-			Description:    "Creating machine on cloud provider",
+			Description:    "Creating machine on cloud provider. Waiting for node object to register",
 			State:          v1alpha1.MachineStateProcessing,
 			Type:           v1alpha1.MachineOperationCreate,
 			LastUpdateTime: metav1.Now(),

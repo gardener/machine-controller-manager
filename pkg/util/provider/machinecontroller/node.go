@@ -68,6 +68,10 @@ func (c *controller) updateNode(oldObj, newObj any) {
 	// as the update handler will be triggered again due to kubelet updates.
 	machine, err := c.getMachineFromNode(node.Name)
 	if err != nil {
+		if errors.Is(err, errNoMachineMatch) && node.DeletionTimestamp != nil {
+			c.enqueueNode(node, fmt.Sprintf("handling node UPDATE event. Node %q is being deleted with no backing machine", node.Name))
+			return
+		}
 		klog.Errorf("unable to handle update event for node %q, couldn't fetch associated machine. Error: %v", node.Name, err)
 		return
 	}
@@ -153,6 +157,10 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 	machine, err := c.getMachineFromNode(node.Name)
 	if err != nil {
 		if errors.Is(err, errNoMachineMatch) {
+			if node.DeletionTimestamp != nil {
+				klog.V(2).Infof("ClusterNode %q: Node is being deleted with no backing machine, removing finalizer", key)
+				return c.removeNodeFinalizers(ctx, node)
+			}
 			klog.Errorf("ClusterNode %q: No machine found matching node, skipping adding finalizers", key)
 			return nil
 		}
