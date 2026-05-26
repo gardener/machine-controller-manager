@@ -7,12 +7,10 @@ package v1alpha1
 const (
 	// AnnotationKeyMachineUpdateFailedReason is the annotation key that indicates the reason for a machine update failure.
 	AnnotationKeyMachineUpdateFailedReason = "node.machine.sapcloud.io/update-failed-reason"
-	// AnnotationKeyMachineCreationDuration is the annotation key that indicates the duration  for the
-	// Machine's instance to be created by the provider.
-	AnnotationKeyMachineCreationDuration = "node.machine.sapcloud.io/creation-duration"
-	// AnnotationKeyMachineInitializationDuration is the annotation key that indicates the duration for the
-	// Machine's instance to be initialized by the provider.
-	AnnotationKeyMachineInitializationDuration = "node.machine.sapcloud.io/initialization-duration"
+	// AnnotationKeyMachineEffectiveCreationTimeout is the annotation key set on the MachineDeployment that indicates
+	// the effective creation timeout for all Machine's belonging to this MachineDeployment. If specified, the value for this
+	// annotation takes precedence over the MachineDeployment.Spec.Template.Spec.MachineCreationTimeout.
+	AnnotationKeyMachineEffectiveCreationTimeout = "node.machine.sapcloud.io/effective-creation-duration"
 	// LabelKeyNodeCandidateForUpdate is the label key that indicates a node is a candidate for update.
 	LabelKeyNodeCandidateForUpdate = "node.machine.sapcloud.io/candidate-for-update"
 	// LabelKeyNodeSelectedForUpdate is the label key that indicates a node has been selected for update.

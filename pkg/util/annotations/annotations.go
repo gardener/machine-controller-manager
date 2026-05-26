@@ -8,10 +8,14 @@ package annotations
 import (
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // AddOrUpdateAnnotation tries to add an annotation. Returns a new copy of updated Node and true if something was updated
@@ -86,4 +90,22 @@ func GetMachineNamesWithDeletionTimesTriggeredForDeletion(mcd *v1alpha1.MachineD
 func CreateMachinesTriggeredForDeletionAnnotValue(machineNames []string) string {
 	slices.Sort(machineNames)
 	return strings.Join(machineNames, ",")
+}
+
+// GetEffectiveMachineCreationTimeoutFromRuntimeObject gets the value of the annotation [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout]
+// as a [metav1.Duration] if present.
+func GetEffectiveMachineCreationTimeoutFromRuntimeObject(object runtime.Object) (*metav1.Duration, error) {
+	metaObject, err := meta.Accessor(object)
+	if err != nil {
+		return nil, err
+	}
+	effectiveMachineCreationTimeoutStr, ok := metaObject.GetAnnotations()[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout]
+	if !ok {
+		return nil, nil
+	}
+	effectiveMachineCreationTimeout, err := time.ParseDuration(effectiveMachineCreationTimeoutStr)
+	if err != nil {
+		return nil, err
+	}
+	return &metav1.Duration{Duration: effectiveMachineCreationTimeout}, nil
 }
