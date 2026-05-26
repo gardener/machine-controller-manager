@@ -7,6 +7,7 @@ package controller
 
 import (
 	"strconv"
+	"time"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
@@ -14,6 +15,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 )
 
 // Describe is method required to implement the prometheus.Collect interface.
@@ -60,6 +62,46 @@ func (c *controller) CollectMachineControllerFrozenStatusMetrics(ch chan<- prome
 		return
 	}
 	ch <- metric
+}
+
+func (c *controller) recordNewDurations(machine *v1alpha1.Machine, newDurations machineDurations) {
+	mcdName := getMachineDeploymentName(machine)
+	if mcdName == "" {
+		klog.Warning("Machine %q does not possess 'name' label which is its MachineDeployment name", machine.Name)
+		return
+	}
+	maxDurations := c.machineDeploymentMachineMaxDurations[mcdName]
+	changed := false
+	if newDurations.create > maxDurations.create {
+		maxDurations.create = newDurations.create
+		klog.V(3).Info("updated create duration in machineDeploymentMachineMaxDurations to %s", newDurations.create)
+		metrics.MachineDeploymentMaxMachineCreateDurationSeconds.With(prometheus.Labels{
+			"name":      mcdName,
+			"namespace": machine.GetNamespace(),
+		}).Set(newDurations.create.Round(time.Second).Seconds())
+		changed = true
+	}
+	if newDurations.initialize > maxDurations.initialize {
+		maxDurations.initialize = newDurations.initialize
+		klog.V(3).Info("updated initialize duration in machineDeploymentMachineMaxDurations to %s", newDurations.initialize)
+		metrics.MachineDeploymentMaxMachineInitializeDurationSeconds.With(prometheus.Labels{
+			"name":      mcdName,
+			"namespace": machine.GetNamespace(),
+		}).Set(newDurations.initialize.Round(time.Second).Seconds())
+		changed = true
+	}
+	if newDurations.join > maxDurations.join {
+		maxDurations.join = newDurations.join
+		klog.V(3).Info("updated join duration in machineDeploymentMachineMaxDurations to %s", newDurations.join)
+		metrics.MachineDeploymentMaxMachineInitializeDurationSeconds.With(prometheus.Labels{
+			"name":      mcdName,
+			"namespace": machine.GetNamespace(),
+		}).Set(newDurations.join.Round(time.Second).Seconds())
+		changed = true
+	}
+	if changed {
+		c.machineDeploymentMachineMaxDurations[mcdName] = maxDurations
+	}
 }
 
 func updateMachineCountMetric(ch chan<- prometheus.Metric, machineList []*v1alpha1.Machine) {

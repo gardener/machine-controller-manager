@@ -973,8 +973,9 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				if clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning && !isPendingMachineWithCriticalComponentsNotReadyTaint(clone, node) {
 					if clone.Status.LastOperation.Type == v1alpha1.MachineOperationCreate &&
 						clone.Status.LastOperation.State != v1alpha1.MachineStateSuccessful {
+						joinDuration := time.Since(machine.CreationTimestamp.Time)
 						// When machine creation went through
-						description = fmt.Sprintf("Machine %s successfully joined the cluster", clone.Name)
+						description = fmt.Sprintf("Machine %s successfully joined the cluster in %s", clone.Name, joinDuration)
 						lastOperationType = v1alpha1.MachineOperationCreate
 
 						// Delete the bootstrap token
@@ -982,6 +983,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 						if err != nil {
 							klog.Warning(err)
 						}
+						c.recordNewDurations(machine, machineDurations{join: joinDuration})
 					} else {
 						// Machine rejoined the cluster after a health-check
 						description = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)

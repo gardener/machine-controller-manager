@@ -292,17 +292,24 @@ type controller struct {
 	machineSafetyOrphanVMsQueue workqueue.TypedRateLimitingInterface[string]
 	machineSafetyAPIServerQueue workqueue.TypedRateLimitingInterface[string]
 	// syncs
-	pvcSynced               cache.InformerSynced
-	pvSynced                cache.InformerSynced
-	secretSynced            cache.InformerSynced
-	pdbSynced               cache.InformerSynced
-	volumeAttachementSynced cache.InformerSynced
-	nodeSynced              cache.InformerSynced
-	machineClassSynced      cache.InformerSynced
-	machineSynced           cache.InformerSynced
-	podSynced               cache.InformerSynced
+	pvcSynced                            cache.InformerSynced
+	pvSynced                             cache.InformerSynced
+	secretSynced                         cache.InformerSynced
+	pdbSynced                            cache.InformerSynced
+	volumeAttachementSynced              cache.InformerSynced
+	nodeSynced                           cache.InformerSynced
+	machineClassSynced                   cache.InformerSynced
+	machineSynced                        cache.InformerSynced
+	podSynced                            cache.InformerSynced
+	resourceExhaustedRetry               machineutils.RetryPeriod
+	machineDeploymentMachineMaxDurations map[string]machineDurations
+}
 
-	resourceExhaustedRetry machineutils.RetryPeriod
+// machineDurations encapsulates duration data for a machine and used as data to update prometheus metrics.
+type machineDurations struct {
+	create     time.Duration
+	initialize time.Duration
+	join       time.Duration
 }
 
 func (dc *controller) Run(workers int, stopCh <-chan struct{}) {

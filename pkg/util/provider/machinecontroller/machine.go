@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -333,6 +334,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		machineName          = createMachineRequest.Machine.Name
 		uninitializedMachine = false
 		addresses            = sets.New[corev1.NodeAddress]()
+		createDuration       time.Duration
 	)
 	c.markCreationProcessing(machine)
 	defer func() {
@@ -392,7 +394,9 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				providerID = createMachineResponse.ProviderID
 				addresses.Insert(createMachineResponse.Addresses...)
 				// Creation was successful
-				klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q", machine.Name, providerID, nodeName)
+				createDuration = time.Since(machine.CreationTimestamp.Time)
+				klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q, createDuration: %s", machine.Name, providerID, nodeName, createDuration)
+				c.recordNewDurations(machine, machineDurations{create: createDuration})
 
 				if c.nodeLister != nil {
 					// If a node obj already exists by the same nodeName, treat it as a stale node and trigger machine deletion.
@@ -489,12 +493,18 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 	}
 	//initialize VM if not initialized
 	if uninitializedMachine {
-		var retryPeriod machineutils.RetryPeriod
-		var initResponse *driver.InitializeMachineResponse
+		var (
+			retryPeriod         machineutils.RetryPeriod
+			initResponse        *driver.InitializeMachineResponse
+			initializeBeginTime = time.Now()
+			initializeDuration  time.Duration
+		)
 		initResponse, retryPeriod, err = c.initializeMachine(ctx, clone, createMachineRequest.MachineClass, createMachineRequest.Secret)
 		if err != nil {
 			return retryPeriod, err
 		}
+		initializeDuration = time.Since(initializeBeginTime)
+		c.recordNewDurations(machine, metrics.MaxMachineInitializeDurationName, initializeDuration)
 
 		if c.targetCoreClient == nil {
 			// persist addresses from the InitializeMachine and CreateMachine responses

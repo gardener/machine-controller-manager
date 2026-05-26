@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	namespace         = "mcm"
-	machineSubsystem  = "machine"
-	cloudAPISubsystem = "cloud_api"
-	miscSubsystem     = "misc"
+	namespace                  = "mcm"
+	machineSubsystem           = "machine"
+	machineDeploymentSubsystem = "machine_deployment"
+	cloudAPISubsystem          = "cloud_api"
+	miscSubsystem              = "misc"
 )
 
 // variables for subsystem: machine
@@ -46,6 +47,36 @@ var (
 		Name:      "status_condition",
 		Help:      "Information of the mcm managed Machines' status conditions.",
 	}, []string{"name", "namespace", "condition"})
+)
+
+// variables for subsystem: machine_deployment
+var (
+	// MachineDeploymentMaxMachineCreateDurationSeconds is the Prometheus gauge metric representing the maximum time duration
+	// in seconds to create a Machine for a MachineDeployment.
+	MachineDeploymentMaxMachineCreateDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: machineDeploymentSubsystem,
+		Name:      "max_machine_create_duration_seconds",
+		Help:      "Maximum Duration in Seconds for Machine of this MachineDeployment to be created.",
+	}, []string{"name", "namespace"})
+
+	// MachineDeploymentMaxMachineInitializeDurationSeconds is the Prometheus gauge metric representing the maximum time duration
+	// in seconds to initialize a Machine for a MachineDeployment.
+	MachineDeploymentMaxMachineInitializeDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: machineDeploymentSubsystem,
+		Name:      "max_machine_initialize_duration_seconds",
+		Help:      "Maximum Duration in Seconds for Machine of this MachineDeployment to be initialized.",
+	}, []string{"name", "namespace"})
+
+	// MachineDeploymentMaxMachineJoinDurationSeconds is the Prometheus gauge metric representing the maximum time duration
+	// in seconds to initialize a Machine for a MachineDeployment.
+	MachineDeploymentMaxMachineJoinDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: machineDeploymentSubsystem,
+		Name:      "max_machine_join_duration_seconds",
+		Help:      "Maximum Duration in Seconds for a Machine of this MachineDeployment to join the cluster.",
+	}, []string{"name", "namespace"})
 )
 
 // variables for subsystem: cloud_api
@@ -113,6 +144,12 @@ func registerMachineSubsystemMetrics() {
 	prometheus.MustRegister(MachineStatusCondition)
 }
 
+func registerMachineDeploymentSubsystemMetrics() {
+	prometheus.MustRegister(MachineDeploymentMaxMachineCreateDurationSeconds)
+	prometheus.MustRegister(MachineDeploymentMaxMachineInitializeDurationSeconds)
+	prometheus.MustRegister(MachineDeploymentMaxMachineJoinDurationSeconds)
+}
+
 func registerCloudAPISubsystemMetrics() {
 	prometheus.MustRegister(APIRequestCount)
 	prometheus.MustRegister(APIFailedRequestCount)
@@ -127,6 +164,7 @@ func registerMiscellaneousMetrics() {
 
 func init() {
 	registerMachineSubsystemMetrics()
+	registerMachineDeploymentSubsystemMetrics()
 	registerCloudAPISubsystemMetrics()
 	registerMiscellaneousMetrics()
 }
