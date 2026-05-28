@@ -1187,6 +1187,11 @@ func (o *Options) RunCordonOrUncordon(ctx context.Context, desired bool) error {
 	return nil
 }
 
+// GetDrainDuration gets the duration of drain activity
+func (o *Options) GetDrainDuration() time.Duration {
+	return o.drainEndedOn.Sub(o.drainStartedOn)
+}
+
 func getPdbForPod(pdbLister policyv1listers.PodDisruptionBudgetLister, pod *corev1.Pod) *policyv1.PodDisruptionBudget {
 	// GetPodPodDisruptionBudgets returns an error only if no PodDisruptionBudgets are found.
 	// We don't return that as an error to the caller.

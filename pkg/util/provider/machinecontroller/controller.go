@@ -304,13 +304,6 @@ type controller struct {
 	resourceExhaustedRetry  machineutils.RetryPeriod
 }
 
-// machineDurations encapsulates duration data for a machine and used as data to update prometheus metrics.
-type machineDurations struct {
-	create     time.Duration
-	initialize time.Duration
-	join       time.Duration
-}
-
 func (dc *controller) Run(workers int, stopCh <-chan struct{}) {
 
 	var (

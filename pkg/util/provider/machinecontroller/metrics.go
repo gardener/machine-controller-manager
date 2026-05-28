@@ -7,7 +7,6 @@ package controller
 
 import (
 	"strconv"
-	"time"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
@@ -15,7 +14,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/klog/v2"
 )
 
 // Describe is method required to implement the prometheus.Collect interface.
@@ -62,36 +60,6 @@ func (c *controller) CollectMachineControllerFrozenStatusMetrics(ch chan<- prome
 		return
 	}
 	ch <- metric
-}
-
-// updateMetricsForMachineDurations updates the prometheus metrics relevant for machine activity durations such as
-// create/initialize/join using the values specified in the given [machineDurations] object.
-func (c *controller) updateMetricsForMachineDurations(machine *v1alpha1.Machine, newDurations machineDurations) {
-	mcdName := getMachineDeploymentName(machine)
-	if mcdName == "" {
-		klog.Warningf("Machine %q does not possess 'name' label which is its MachineDeployment name", machine.Name)
-		return
-	}
-	metricLabels := prometheus.Labels{
-		"name":               mcdName,
-		"namespace":          machine.GetNamespace(),
-		"machine_deployment": mcdName,
-	}
-	if newDurations.create != 0 {
-		numSecs := newDurations.create.Round(time.Second).Seconds()
-		metrics.MachineCreateDurationSeconds.With(metricLabels).Set(numSecs)
-		klog.V(3).Infof("updated machine_create_duration_seconds metric to %f with labels %s", numSecs, metricLabels)
-	}
-	if newDurations.initialize != 0 {
-		numSecs := newDurations.initialize.Round(time.Second).Seconds()
-		metrics.MachineInitializeDurationSeconds.With(metricLabels).Set(numSecs)
-		klog.V(3).Infof("updated machine_initialize_duration_seconds metric to %f with labels %s", numSecs, metricLabels)
-	}
-	if newDurations.join != 0 {
-		numSecs := newDurations.join.Round(time.Second).Seconds()
-		metrics.MachineJoinDurationSeconds.With(metricLabels).Set(numSecs)
-		klog.V(3).Infof("updated machine_join_duration_seconds metric to %f with labels %s", numSecs, metricLabels)
-	}
 }
 
 func updateMachineCountMetric(ch chan<- prometheus.Metric, machineList []*v1alpha1.Machine) {

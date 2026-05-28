@@ -7,6 +7,8 @@ package machineutils
 
 import (
 	"context"
+	"time"
+
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
@@ -16,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-	"time"
 )
 
 const (
@@ -172,6 +173,11 @@ func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
 func IsMachinePreservationExpired(m *v1alpha1.Machine) bool {
 	t := m.Status.CurrentStatus.PreserveExpiryTime
 	return t != nil && !t.After(time.Now())
+}
+
+// GetMachineDeploymentName gets the name of the MachineDeployment associated with this Machine
+func GetMachineDeploymentName(machine *v1alpha1.Machine) string {
+	return machine.Labels["name"]
 }
 
 // see https://github.com/kubernetes/kubernetes/issues/21479

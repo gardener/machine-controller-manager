@@ -5,7 +5,13 @@
 package metrics
 
 import (
+	"time"
+
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -47,31 +53,49 @@ var (
 		Help:      "Information of the mcm managed Machines' status conditions.",
 	}, []string{"name", "namespace", "condition"})
 
-	// MachineCreateDurationSeconds is the Prometheus gauge metric representing the maximum time duration
-	// in seconds to create a Machine for a MachineDeployment.
+	// MachineCreateDurationSeconds is the Prometheus gauge metric representing the time duration
+	// in seconds to create a Machine of a MachineDeployment.
 	MachineCreateDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: machineSubsystem,
 		Name:      "machine_create_duration_seconds",
-		Help:      "Maximum Duration in Seconds for Machine of a MachineDeployment to be created.",
+		Help:      "Duration in seconds to create a Machine of a MachineDeployment.",
 	}, []string{"name", "namespace", "machine_deployment"})
 
-	// MachineDeploymentMaxMachineInitializeDurationSeconds is the Prometheus gauge metric representing the maximum time duration
-	// in seconds to initialize a Machine for a MachineDeployment.
+	// MachineInitializeDurationSeconds is the Prometheus gauge metric representing the time duration
+	// in seconds to initialize a Machine of a MachineDeployment.
 	MachineInitializeDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: machineSubsystem,
 		Name:      "machine_initialize_duration_seconds",
-		Help:      "Maximum Duration in Seconds for Machine of a MachineDeployment to be initialized.",
+		Help:      "Duration in seconds to initialize a Machine of a MachineDeployment.",
 	}, []string{"name", "namespace", "machine_deployment"})
 
-	// MachineDeploymentMaxMachineJoinDurationSeconds is the Prometheus gauge metric representing the maximum time duration
-	// in seconds to initialize a Machine for a MachineDeployment.
+	// MachineJoinDurationSeconds is the Prometheus gauge metric representing the time duration
+	// in seconds for a Machine of a MachineDeployment to join the cluster.
 	MachineJoinDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: machineSubsystem,
-		Name:      "max_machine_join_duration_seconds",
-		Help:      "Maximum Duration in Seconds for a Machine of a MachineDeployment to join the cluster.",
+		Name:      "machine_join_duration_seconds",
+		Help:      "Duration in seconds for a Machine of a MachineDeployment to join the cluster",
+	}, []string{"name", "namespace", "machine_deployment"})
+
+	// MachineDrainDurationSeconds is the Prometheus gauge metric representing the time duration
+	// in seconds to drain a Machine of a MachineDeployment.
+	MachineDrainDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: machineSubsystem,
+		Name:      "machine_drain_duration_seconds",
+		Help:      "Duration in seconds to drain a Machine of a MachineDeployment.",
+	}, []string{"name", "namespace", "machine_deployment"})
+
+	// MachineDeleteDurationSeconds is the Prometheus gauge metric representing the time duration
+	// in seconds to delete a Machine for a MachineDeployment.
+	MachineDeleteDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: machineSubsystem,
+		Name:      "machine_delete_duration_seconds",
+		Help:      "Duration in seconds to delete a Machine of a MachineDeployment.",
 	}, []string{"name", "namespace", "machine_deployment"})
 )
 
@@ -134,6 +158,61 @@ var (
 		ConstLabels: map[string]string{"binary": "machine-controller-manager-provider"},
 	}, []string{"kind"})
 )
+
+// MachineDurations encapsulates duration data for a machine and used as input to update prometheus metrics.
+type MachineDurations struct {
+	// Create is the duration to create a Machine from the time of its creation timestamp.
+	Create time.Duration
+	// Create is the duration to initialize a Machine after creation.
+	Initialize time.Duration
+	// Join is the duration for a Machine to join the cluster ie associated Node becomes Ready
+	Join time.Duration
+	// Drain is the duration for the machine-controller to drain the Machine or rather the Node associated with a Machine
+	Drain time.Duration
+	// Delete is the duration for the machine-controller to delete the Machine from the time its deletion timestamp was set.
+	Delete time.Duration
+}
+
+// UpdateMetricsForMachineDurations updates the prometheus metrics relevant for machine activity durations such as
+// create/initialize/join/drain/delete using the values specified in the given [MachineDurations] object.
+func UpdateMetricsForMachineDurations(machine *v1alpha1.Machine, newDurations MachineDurations) {
+	mcdName := machineutils.GetMachineDeploymentName(machine)
+	if mcdName == "" {
+		klog.Warningf("Machine %q does not possess 'name' label which is its MachineDeployment name", machine.Name)
+		return
+	}
+	metricLabels := prometheus.Labels{
+		"name":               mcdName,
+		"namespace":          machine.GetNamespace(),
+		"machine_deployment": mcdName,
+	}
+	metricLabelsStr := labels.FormatLabels(metricLabels)
+	if newDurations.Create != 0 {
+		numSecs := newDurations.Create.Round(time.Second).Seconds()
+		MachineCreateDurationSeconds.With(metricLabels).Set(numSecs)
+		klog.V(3).Infof("updated machine_create_duration_seconds metric to %f with labels %s", numSecs, metricLabelsStr)
+	}
+	if newDurations.Initialize != 0 {
+		numSecs := newDurations.Initialize.Round(time.Second).Seconds()
+		MachineInitializeDurationSeconds.With(metricLabels).Set(numSecs)
+		klog.V(3).Infof("updated machine_initialize_duration_seconds metric to %f with labels %s", numSecs, metricLabelsStr)
+	}
+	if newDurations.Join != 0 {
+		numSecs := newDurations.Join.Round(time.Second).Seconds()
+		MachineJoinDurationSeconds.With(metricLabels).Set(numSecs)
+		klog.V(3).Infof("updated machine_join_duration_seconds metric to %f with labels %s", numSecs, metricLabelsStr)
+	}
+	if newDurations.Drain != 0 {
+		numSecs := newDurations.Drain.Round(time.Second).Seconds()
+		MachineDrainDurationSeconds.With(metricLabels).Set(numSecs)
+		klog.V(3).Infof("updated machine_drain_duration_seconds metric to %f with labels %s", numSecs, metricLabelsStr)
+	}
+	if newDurations.Delete != 0 {
+		numSecs := newDurations.Delete.Round(time.Second).Seconds()
+		MachineDeleteDurationSeconds.With(metricLabels).Set(numSecs)
+		klog.V(3).Infof("updated machine_delete_duration_seconds metric to %f with labels %s", numSecs, metricLabelsStr)
+	}
+}
 
 func registerMachineSubsystemMetrics() {
 	prometheus.MustRegister(MachineInfo)

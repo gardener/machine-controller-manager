@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -395,7 +396,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				// Creation was successful
 				createDuration = time.Since(machine.CreationTimestamp.Time)
 				klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q, createDuration: %s", machine.Name, providerID, nodeName, createDuration)
-				c.updateMetricsForMachineDurations(machine, machineDurations{create: createDuration})
+				metrics.UpdateMetricsForMachineDurations(machine, metrics.MachineDurations{Create: createDuration})
 
 				if c.nodeLister != nil {
 					// If a node obj already exists by the same nodeName, treat it as a stale node and trigger machine deletion.
@@ -504,7 +505,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		}
 		initializeDuration = time.Since(initializeBeginTime)
 		klog.V(2).Infof("Machine %q was initialized in  %q", machine.Name, initializeDuration)
-		c.updateMetricsForMachineDurations(machine, machineDurations{initialize: initializeDuration})
+		metrics.UpdateMetricsForMachineDurations(machine, metrics.MachineDurations{Initialize: initializeDuration})
 
 		if c.targetCoreClient == nil {
 			// persist addresses from the InitializeMachine and CreateMachine responses
