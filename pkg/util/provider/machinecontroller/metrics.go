@@ -64,43 +64,33 @@ func (c *controller) CollectMachineControllerFrozenStatusMetrics(ch chan<- prome
 	ch <- metric
 }
 
-func (c *controller) recordNewDurations(machine *v1alpha1.Machine, newDurations machineDurations) {
+// updateMetricsForMachineDurations updates the prometheus metrics relevant for machine activity durations such as
+// create/initialize/join using the values specified in the given [machineDurations] object.
+func (c *controller) updateMetricsForMachineDurations(machine *v1alpha1.Machine, newDurations machineDurations) {
 	mcdName := getMachineDeploymentName(machine)
 	if mcdName == "" {
-		klog.Warning("Machine %q does not possess 'name' label which is its MachineDeployment name", machine.Name)
+		klog.Warningf("Machine %q does not possess 'name' label which is its MachineDeployment name", machine.Name)
 		return
 	}
-	maxDurations := c.machineDeploymentMachineMaxDurations[mcdName]
-	changed := false
-	if newDurations.create > maxDurations.create {
-		maxDurations.create = newDurations.create
-		klog.V(3).Info("updated create duration in machineDeploymentMachineMaxDurations to %s", newDurations.create)
-		metrics.MachineDeploymentMaxMachineCreateDurationSeconds.With(prometheus.Labels{
-			"name":      mcdName,
-			"namespace": machine.GetNamespace(),
-		}).Set(newDurations.create.Round(time.Second).Seconds())
-		changed = true
+	metricLabels := prometheus.Labels{
+		"name":               mcdName,
+		"namespace":          machine.GetNamespace(),
+		"machine_deployment": mcdName,
 	}
-	if newDurations.initialize > maxDurations.initialize {
-		maxDurations.initialize = newDurations.initialize
-		klog.V(3).Info("updated initialize duration in machineDeploymentMachineMaxDurations to %s", newDurations.initialize)
-		metrics.MachineDeploymentMaxMachineInitializeDurationSeconds.With(prometheus.Labels{
-			"name":      mcdName,
-			"namespace": machine.GetNamespace(),
-		}).Set(newDurations.initialize.Round(time.Second).Seconds())
-		changed = true
+	if newDurations.create != 0 {
+		numSecs := newDurations.create.Round(time.Second).Seconds()
+		metrics.MachineCreateDurationSeconds.With(metricLabels).Set(numSecs)
+		klog.V(3).Infof("updated machine_create_duration_seconds metric to %f with labels %s", numSecs, metricLabels)
 	}
-	if newDurations.join > maxDurations.join {
-		maxDurations.join = newDurations.join
-		klog.V(3).Info("updated join duration in machineDeploymentMachineMaxDurations to %s", newDurations.join)
-		metrics.MachineDeploymentMaxMachineInitializeDurationSeconds.With(prometheus.Labels{
-			"name":      mcdName,
-			"namespace": machine.GetNamespace(),
-		}).Set(newDurations.join.Round(time.Second).Seconds())
-		changed = true
+	if newDurations.initialize != 0 {
+		numSecs := newDurations.initialize.Round(time.Second).Seconds()
+		metrics.MachineInitializeDurationSeconds.With(metricLabels).Set(numSecs)
+		klog.V(3).Infof("updated machine_initialize_duration_seconds metric to %f with labels %s", numSecs, metricLabels)
 	}
-	if changed {
-		c.machineDeploymentMachineMaxDurations[mcdName] = maxDurations
+	if newDurations.join != 0 {
+		numSecs := newDurations.join.Round(time.Second).Seconds()
+		metrics.MachineJoinDurationSeconds.With(metricLabels).Set(numSecs)
+		klog.V(3).Infof("updated machine_join_duration_seconds metric to %f with labels %s", numSecs, metricLabels)
 	}
 }
 

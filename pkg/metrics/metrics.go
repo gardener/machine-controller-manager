@@ -250,6 +250,13 @@ var (
 	}, []string{"name", "namespace", "failed_machine_name", "failed_machine_provider_id", "failed_machine_owner_ref",
 		"failed_machine_last_operation_state",
 		"failed_machine_last_operation_machine_operation_type"})
+
+	MachineDeploymentStatusNumFailedJoin = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: machinedeploymentSubsystem,
+		Name:      "num_failed_join_in_window",
+		Help:      "Number of Machines for the MachineDeployment that failed to join the cluster in a window.",
+	}, []string{"name", "namespace", "zone", "instance_type"})
 )
 
 // variables for subsystem: misc

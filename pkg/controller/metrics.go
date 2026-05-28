@@ -7,6 +7,7 @@ package controller
 
 import (
 	"strconv"
+	"strings"
 	"sync"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -218,6 +219,23 @@ func updateMachineDeploymentStatusFailedMachinesMetric(machineDeployment *v1alph
 				"failed_machine_owner_ref":                             failedMachine.OwnerRef}).Set(float64(1))
 
 		}
+		var numFailedToJoinInWindow int
+		for _, machineSummary := range machineDeployment.Status.FailedMachines {
+			//// TODO: what should window be here ?
+			//if time.Since(machineSummary.LastOperation.LastUpdateTime.Time) > 2*machineDeployment.Spec.Template.Spec.MachineCreationTimeout.Duration {
+			//	continue
+			//}
+			if !strings.Contains(machineSummary.LastOperation.Description, "failed to join the cluster") {
+				continue
+			}
+			numFailedToJoinInWindow++
+		}
+		metrics.MachineDeploymentStatusNumFailedJoin.With(prometheus.Labels{
+			"name":      mdMeta.Name,
+			"namespace": mdMeta.Namespace,
+			"zone":      machineDeployment.Spec.Template.Spec.NodeTemplateSpec.Labels["topology.kubernetes.io/zone"],
+			// also add instance_type here.
+		}).Set(float64(numFailedToJoinInWindow))
 	}
 }
 

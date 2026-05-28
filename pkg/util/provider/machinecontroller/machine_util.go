@@ -983,7 +983,8 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 						if err != nil {
 							klog.Warning(err)
 						}
-						c.recordNewDurations(machine, machineDurations{join: joinDuration})
+						klog.V(2).Infof("Machine %q joined the cluster in  %q", machine.Name, joinDuration)
+						c.updateMetricsForMachineDurations(machine, machineDurations{join: joinDuration})
 					} else {
 						// Machine rejoined the cluster after a health-check
 						description = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)

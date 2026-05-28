@@ -292,17 +292,16 @@ type controller struct {
 	machineSafetyOrphanVMsQueue workqueue.TypedRateLimitingInterface[string]
 	machineSafetyAPIServerQueue workqueue.TypedRateLimitingInterface[string]
 	// syncs
-	pvcSynced                            cache.InformerSynced
-	pvSynced                             cache.InformerSynced
-	secretSynced                         cache.InformerSynced
-	pdbSynced                            cache.InformerSynced
-	volumeAttachementSynced              cache.InformerSynced
-	nodeSynced                           cache.InformerSynced
-	machineClassSynced                   cache.InformerSynced
-	machineSynced                        cache.InformerSynced
-	podSynced                            cache.InformerSynced
-	resourceExhaustedRetry               machineutils.RetryPeriod
-	machineDeploymentMachineMaxDurations map[string]machineDurations
+	pvcSynced               cache.InformerSynced
+	pvSynced                cache.InformerSynced
+	secretSynced            cache.InformerSynced
+	pdbSynced               cache.InformerSynced
+	volumeAttachementSynced cache.InformerSynced
+	nodeSynced              cache.InformerSynced
+	machineClassSynced      cache.InformerSynced
+	machineSynced           cache.InformerSynced
+	podSynced               cache.InformerSynced
+	resourceExhaustedRetry  machineutils.RetryPeriod
 }
 
 // machineDurations encapsulates duration data for a machine and used as data to update prometheus metrics.
