@@ -10,6 +10,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"github.com/prometheus/client_golang/prometheus"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 )
@@ -60,7 +61,7 @@ var (
 		Subsystem: machineSubsystem,
 		Name:      "machine_create_duration_seconds",
 		Help:      "Duration in seconds to create a Machine of a MachineDeployment.",
-	}, []string{"name", "namespace", "machine_deployment"})
+	}, []string{"namespace", "machine_deployment"})
 
 	// MachineInitializeDurationSeconds is the Prometheus gauge metric representing the time duration
 	// in seconds to initialize a Machine of a MachineDeployment.
@@ -69,7 +70,7 @@ var (
 		Subsystem: machineSubsystem,
 		Name:      "machine_initialize_duration_seconds",
 		Help:      "Duration in seconds to initialize a Machine of a MachineDeployment.",
-	}, []string{"name", "namespace", "machine_deployment"})
+	}, []string{"namespace", "machine_deployment"})
 
 	// MachineJoinDurationSeconds is the Prometheus gauge metric representing the time duration
 	// in seconds for a Machine of a MachineDeployment to join the cluster.
@@ -78,7 +79,7 @@ var (
 		Subsystem: machineSubsystem,
 		Name:      "machine_join_duration_seconds",
 		Help:      "Duration in seconds for a Machine of a MachineDeployment to join the cluster",
-	}, []string{"name", "namespace", "machine_deployment"})
+	}, []string{"namespace", "machine_deployment"})
 
 	// MachineDrainDurationSeconds is the Prometheus gauge metric representing the time duration
 	// in seconds to drain a Machine of a MachineDeployment.
@@ -87,7 +88,7 @@ var (
 		Subsystem: machineSubsystem,
 		Name:      "machine_drain_duration_seconds",
 		Help:      "Duration in seconds to drain a Machine of a MachineDeployment.",
-	}, []string{"name", "namespace", "machine_deployment"})
+	}, []string{"namespace", "machine_deployment"})
 
 	// MachineDeleteDurationSeconds is the Prometheus gauge metric representing the time duration
 	// in seconds to delete a Machine for a MachineDeployment.
@@ -96,7 +97,14 @@ var (
 		Subsystem: machineSubsystem,
 		Name:      "machine_delete_duration_seconds",
 		Help:      "Duration in seconds to delete a Machine of a MachineDeployment.",
-	}, []string{"name", "namespace", "machine_deployment"})
+	}, []string{"namespace", "machine_deployment"})
+
+	MachineNumFailedJoin = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: machineSubsystem,
+		Name:      "num_failed_join",
+		Help:      "Number of Machines of a MachineDeployment that failed to join the cluster.",
+	}, []string{"namespace", "machine_deployment", "instance_type", "zone"})
 )
 
 // variables for subsystem: cloud_api
@@ -182,7 +190,6 @@ func UpdateMetricsForMachineDurations(machine *v1alpha1.Machine, newDurations Ma
 		return
 	}
 	metricLabels := prometheus.Labels{
-		"name":               mcdName,
 		"namespace":          machine.GetNamespace(),
 		"machine_deployment": mcdName,
 	}
@@ -214,12 +221,34 @@ func UpdateMetricsForMachineDurations(machine *v1alpha1.Machine, newDurations Ma
 	}
 }
 
+func IncrementNumFailedToJoin(machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass) {
+	mcdName := machineutils.GetMachineDeploymentName(machine)
+	if mcdName == "" {
+		klog.Warningf("Machine %q does not possess 'name' label which is its MachineDeployment name", machine.Name)
+		return
+	}
+	instanceType := machineClass.NodeTemplate.InstanceType
+	zone := machine.Spec.NodeTemplateSpec.Labels[corev1.LabelTopologyZone]
+	metricLabels := prometheus.Labels{
+		"namespace":          machine.GetNamespace(),
+		"machine_deployment": mcdName,
+		"instance_type":      instanceType,
+		"zone":               zone,
+	}
+	metricLabelsStr := labels.FormatLabels(metricLabels)
+	MachineNumFailedJoin.With(metricLabels).Inc()
+	klog.V(3).Infof("incremented num_failed_join metric due to %q with labels %s", machine.Name, metricLabelsStr)
+}
+
 func registerMachineSubsystemMetrics() {
 	prometheus.MustRegister(MachineInfo)
 	prometheus.MustRegister(MachineStatusCondition)
 	prometheus.MustRegister(MachineCreateDurationSeconds)
 	prometheus.MustRegister(MachineInitializeDurationSeconds)
 	prometheus.MustRegister(MachineJoinDurationSeconds)
+	prometheus.MustRegister(MachineDrainDurationSeconds)
+	prometheus.MustRegister(MachineDeleteDurationSeconds)
+	prometheus.MustRegister(MachineNumFailedJoin)
 }
 
 func registerCloudAPISubsystemMetrics() {

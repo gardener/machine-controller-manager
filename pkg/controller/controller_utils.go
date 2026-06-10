@@ -505,9 +505,10 @@ func getMachinesFinalizers(template *v1alpha1.MachineTemplateSpec) []string {
 	return desiredFinalizers
 }
 
-func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, _ runtime.Object) labels.Set {
+func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, parentObject metav1.Object) labels.Set {
 	desiredAnnotations := make(labels.Set)
 	maps.Copy(desiredAnnotations, template.Annotations)
+	maps.Copy(desiredAnnotations, parentObject.GetAnnotations())
 	return desiredAnnotations
 }
 
@@ -535,13 +536,13 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 	desiredLabels := getMachinesLabelSet(template)
 	//klog.Info(desiredLabels)
 	desiredFinalizers := getMachinesFinalizers(template)
-	desiredAnnotations := getMachinesAnnotationSet(template, parentObject)
 
-	accessor, err := meta.Accessor(parentObject)
+	parentMetaObj, err := meta.Accessor(parentObject)
 	if err != nil {
 		return nil, fmt.Errorf("parentObject does not have ObjectMeta, %v", err)
 	}
-	prefix := getMachinesPrefix(accessor.GetName())
+	prefix := getMachinesPrefix(parentMetaObj.GetName())
+	desiredAnnotations := getMachinesAnnotationSet(template, parentMetaObj)
 
 	machine := &v1alpha1.Machine{
 		ObjectMeta: metav1.ObjectMeta{
@@ -705,13 +706,13 @@ func GetFakeMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentOb
 	desiredLabels := getMachinesLabelSet(template)
 
 	desiredFinalizers := getMachinesFinalizers(template)
-	desiredAnnotations := getMachinesAnnotationSet(template, parentObject)
-
-	accessor, err := meta.Accessor(parentObject)
+	parentMetaObj, err := meta.Accessor(parentObject)
 	if err != nil {
 		return nil, fmt.Errorf("parentObject does not have ObjectMeta, %v", err)
 	}
-	prefix := getMachinesPrefix(accessor.GetName())
+	desiredAnnotations := getMachinesAnnotationSet(template, parentMetaObj)
+
+	prefix := getMachinesPrefix(parentMetaObj.GetName())
 	prefix = prefix + "-" + uuid.New().String()[:5]
 	machine := &v1alpha1.Machine{
 		ObjectMeta: metav1.ObjectMeta{

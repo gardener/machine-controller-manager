@@ -35,6 +35,8 @@ import (
 	"strings"
 	"time"
 
+	annotationsutils "github.com/gardener/machine-controller-manager/pkg/util/annotations"
+
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
@@ -1151,6 +1153,13 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 				}
 				cloneDirty = true
+				machineClass, err := c.machineClassLister.MachineClasses(c.namespace).Get(machine.Spec.Class.Name)
+				if err != nil {
+					klog.Warningf("unable to get MachineClass %q for Machine %q: %v", machine.Spec.Class.Name, machine.Name, err)
+				}
+				if machineClass != nil {
+					metrics.IncrementNumFailedToJoin(machine, machineClass)
+				}
 			}
 		} else {
 			// If timeout has not occurred, re-enqueue the machine
@@ -2026,11 +2035,20 @@ func (c *controller) getEffectiveHealthTimeout(machine *v1alpha1.Machine) *metav
 // getEffectiveCreationTimeout returns the creationTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
 func (c *controller) getEffectiveCreationTimeout(machine *v1alpha1.Machine) *metav1.Duration {
 	var effectiveCreationTimeout *metav1.Duration
+	effectiveCreationTimeout, err := annotationsutils.GetEffectiveMachineCreationTimeoutFromRuntimeObject(machine)
+	if effectiveCreationTimeout != nil {
+		return effectiveCreationTimeout
+	}
+	if err != nil {
+		klog.Warningf("error obtaining effectiveCreationTimeout from annotation %q (if any) on machine %q: %v",
+			v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout, machine.Name, err)
+	}
 	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineCreationTimeout != nil {
 		effectiveCreationTimeout = machine.Spec.MachineCreationTimeout
 	} else {
 		effectiveCreationTimeout = &c.safetyOptions.MachineCreationTimeout
 	}
+	klog.V(4).Infof("obtained effectiveCreationTimeout %q for machine %q", effectiveCreationTimeout, machine.Name)
 	return effectiveCreationTimeout
 }
 
