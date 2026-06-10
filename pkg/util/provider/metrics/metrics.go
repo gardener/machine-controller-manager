@@ -221,6 +221,8 @@ func UpdateMetricsForMachineDurations(machine *v1alpha1.Machine, newDurations Ma
 	}
 }
 
+// IncrementNumFailedToJoin increments the prometheus metric for the number of machines that failed to join the cluster,
+// deriving label classifiers from the given Machine and MachineClass
 func IncrementNumFailedToJoin(machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass) {
 	mcdName := machineutils.GetMachineDeploymentName(machine)
 	if mcdName == "" {
