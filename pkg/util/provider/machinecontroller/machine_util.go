@@ -988,6 +988,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 						}
 						klog.V(2).Infof("Machine %q joined the cluster in  %q", machine.Name, joinDuration)
 						metrics.UpdateMetricsForMachineDurations(machine, metrics.MachineDurations{Join: joinDuration})
+						metav1.SetMetaDataAnnotation(&clone.ObjectMeta, v1alpha1.AnnotationKeyMachineJoinDuration, joinDuration.String())
 					} else {
 						// Machine rejoined the cluster after a health-check
 						description = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
