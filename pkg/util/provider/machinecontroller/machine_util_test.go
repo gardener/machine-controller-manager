@@ -4624,7 +4624,7 @@ var _ = Describe("machine_util", func() {
 				c, trackers := createController(stop, testNamespace, nil, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				err := c.removePreservationRelatedAnnotationsOnNode(context.TODO(), node, tc.setup.removePreserveAnnotation)
+				_, err := c.removePreservationRelatedAnnotationsOnNode(context.TODO(), node, tc.setup.removePreserveAnnotation)
 				waitForCacheSync(stop, c)
 				updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 				Expect(getErr).To(BeNil())

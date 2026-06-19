@@ -2444,7 +2444,7 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 		return false, err
 	}
 	// Step 2: remove annotations from node
-	err = c.removePreservationRelatedAnnotationsOnNode(ctx, updatedNode, removePreservationAnnotations)
+	updatedNode, err = c.removePreservationRelatedAnnotationsOnNode(ctx, updatedNode, removePreservationAnnotations)
 	if err != nil {
 		return false, err
 	}
@@ -2455,7 +2455,15 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 			return false, err
 		}
 	}
-	// Step 4: update machine status to set preserve expiry time to nil
+	// Step 4: uncordon the node when the machine has recovered to Running so pods can be scheduled again.
+	// Ordered before clearMachinePreserveExpiryTime so a failed uncordon retries next reconcile.
+	if machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+		if err = c.uncordonNodeIfCordoned(ctx, updatedNode); err != nil {
+			klog.Errorf("failed to uncordon node %q of machine %q after preservation was stopped: %v", nodeName, machine.Name, err)
+			return false, err
+		}
+	}
+	// Step 5: update machine status to set preserve expiry time to nil
 	machine, err = c.clearMachinePreserveExpiryTime(ctx, machine)
 	if err != nil {
 		return false, err
