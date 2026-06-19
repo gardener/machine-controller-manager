@@ -777,6 +777,14 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			return
 		}
 	}
+	machinePreserved := clone.Status.CurrentStatus.PreserveExpiryTime != nil
+	machineAnnotated := clone.Annotations[machineutils.PreserveMachineAnnotationKey] != ""
+	lastApplied := clone.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]
+	nodeAnnotated := nodeAnnotationValue != ""
+	if !machinePreserved && !machineAnnotated && !nodeAnnotated && lastApplied == "" {
+		// Machine has no preservation state — skip the rest of the flow.
+		return
+	}
 	var effectivePreserveValue string
 	effectivePreserveValue, clone.Annotations = getEffectivePreservationAnnotations(nodeAnnotationValue, clone.Annotations)
 	if !machineutils.AllowedPreserveAnnotationValues.Has(effectivePreserveValue) {
@@ -818,11 +826,6 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	}
 	if err != nil {
 		return
-	}
-	// This is to handle the case where a preserved machine recovers from Failed to Running
-	// in which case, pods should be allowed to be scheduled onto the node
-	if machineutils.IsMachineActive(clone) && nodeName != "" {
-		err = c.uncordonNodeIfCordoned(ctx, nodeName)
 	}
 	return
 }
