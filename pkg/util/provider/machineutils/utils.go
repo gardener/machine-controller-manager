@@ -120,7 +120,7 @@ const (
 )
 
 // AllowedPreserveAnnotationValues contains the allowed values for the preserve annotation
-var AllowedPreserveAnnotationValues = sets.New(PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValuePreservedByMCM, PreserveMachineAnnotationValueFalse, "")
+var AllowedPreserveAnnotationValues = sets.New(PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValuePreservedByMCM, PreserveMachineAnnotationValueFalse)
 
 // PreventAutoPreserveAnnotationValues contains the values to check if a machine is already annotated for preservation,
 // in which case it should not be auto-preserved.
