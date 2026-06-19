@@ -340,33 +340,19 @@ func addedOrRemovedEssentialTaints(oldNode, node *corev1.Node, taintKeys []strin
 	return false
 }
 
-func (c *controller) getNodePreserveAnnotationValue(nodeName string) (string, error) {
-	node, err := c.nodeLister.Get(nodeName)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return "", nil
-		}
-		klog.Errorf("error fetching node %q: %v", nodeName, err)
-		return "", err
-	}
-	return node.Annotations[machineutils.PreserveMachineAnnotationKey], nil
-}
-
-func (c *controller) uncordonNodeIfCordoned(ctx context.Context, nodeName string) error {
-	node, err := c.nodeLister.Get(nodeName)
-	if err != nil {
-		return err
-	}
+func (c *controller) uncordonNodeIfCordoned(ctx context.Context, node *corev1.Node, machineName string) error {
 	if !node.Spec.Unschedulable {
 		return nil
 	}
 	nodeClone := node.DeepCopy()
 	nodeClone.Spec.Unschedulable = false
-	_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeClone, metav1.UpdateOptions{})
+	_, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeClone, metav1.UpdateOptions{})
 	if err != nil {
-		klog.Errorf("error uncordoning node %q: %v", nodeName, err)
+		klog.Errorf("error uncordoning node %q backing machine %q: %v", node.Name, machineName, err)
+		return err
 	}
-	return err
+	klog.V(2).Infof("Node %q backing machine %q has been uncordoned.", node.Name, machineName)
+	return nil
 }
 
 // removePreservationRelatedAnnotationsOnNode removes the cluster-autoscaler annotation that disables scale down of preserved node
