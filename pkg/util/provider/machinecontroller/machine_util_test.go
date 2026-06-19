@@ -4024,7 +4024,7 @@ var _ = Describe("machine_util", func() {
 				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				err := c.preserveMachine(context.TODO(), machine, tc.setup.preserveValue)
+				_, err := c.preserveMachine(context.TODO(), machine, tc.setup.preserveValue)
 				if tc.expect.err == nil {
 					Expect(err).To(BeNil())
 				} else {
