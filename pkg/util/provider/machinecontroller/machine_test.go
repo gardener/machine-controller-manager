@@ -4499,7 +4499,38 @@ var _ = Describe("machine", func() {
 					retry:                   machineutils.LongRetry,
 				},
 			}),
-			Entry("when preserved machine is still in Failed phase, should not uncordon node", testCase{
+			Entry("when machine is actively preserved via node annotation 'now' and node is cordoned, node should remain cordoned", testCase{
+				setup: setup{
+					nodeAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
+					laNodePreserveValue: machineutils.PreserveMachineAnnotationValueNow,
+					nodeName:            "node-1",
+					machinePhase:        v1alpha1.MachineRunning,
+					preserveExpiryTime:  &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)},
+					nodeUnschedulable:   true,
+				},
+				expect: expect{
+					laNodePreserveValue:     machineutils.PreserveMachineAnnotationValueNow,
+					preserveExpiryTimeIsSet: true,
+					nodeUnschedulable:       true,
+					retry:                   machineutils.LongRetry,
+				},
+			}),
+			Entry("when machine is actively preserved via machine annotation 'now' and node is cordoned, node should remain cordoned", testCase{
+				setup: setup{
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
+					nodeName:               "node-1",
+					machinePhase:           v1alpha1.MachineRunning,
+					preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)},
+					nodeUnschedulable:      true,
+				},
+				expect: expect{
+					machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueNow,
+					preserveExpiryTimeIsSet: true,
+					nodeUnschedulable:       true,
+					retry:                   machineutils.LongRetry,
+				},
+			}),
+			Entry("when machine is actively preserved via machine annotation 'when-failed' and node is cordoned, node should remain cordoned", testCase{
 				setup: setup{
 					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
 					nodeName:               "node-1",
@@ -4508,12 +4539,58 @@ var _ = Describe("machine", func() {
 					nodeUnschedulable:      true,
 				},
 				expect: expect{
+					machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueWhenFailed,
 					preserveExpiryTimeIsSet: true,
 					nodeUnschedulable:       true,
-					machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueWhenFailed,
 					retry:                   machineutils.LongRetry,
 				},
 			}),
 		)
+
+		It("should not modify a non-preservation-bound machine's status, annotations, labels, spec, or backing node", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			machine := &v1alpha1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "m1",
+					Labels:    map[string]string{v1alpha1.NodeLabelKey: "node-1"},
+				},
+				Status: v1alpha1.MachineStatus{
+					CurrentStatus: v1alpha1.CurrentStatus{
+						Phase:          v1alpha1.MachineRunning,
+						LastUpdateTime: metav1.Now(),
+					},
+				},
+			}
+			node := &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{Name: "node-1"},
+				Spec:       corev1.NodeSpec{Unschedulable: true},
+				Status:     corev1.NodeStatus{Conditions: []corev1.NodeCondition{}},
+			}
+
+			c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, []runtime.Object{node}, nil, false)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			retry, err := c.manageMachinePreservation(context.TODO(), machine)
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(retry).To(Equal(machineutils.LongRetry))
+
+			updatedMachine, err := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(updatedMachine.Annotations).To(Equal(machine.Annotations))
+			Expect(updatedMachine.Labels).To(Equal(machine.Labels))
+			Expect(updatedMachine.Spec).To(Equal(machine.Spec))
+			Expect(updatedMachine.Status).To(Equal(machine.Status))
+
+			updatedNode, err := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(updatedNode.Annotations).To(Equal(node.Annotations))
+			Expect(updatedNode.Spec).To(Equal(node.Spec))
+			Expect(updatedNode.Status).To(Equal(node.Status))
+		})
 	})
 })
