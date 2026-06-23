@@ -774,7 +774,15 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	if nodeName != "" {
 		nodeAnnotationValue, err = c.getNodePreserveAnnotationValue(nodeName)
 		if err != nil {
-			return
+			// If the Node object doesn't exist in the cluster yet,
+			// it cannot have a preservation annotation. Swallow the NotFound error
+			// so the machine can continue its status transition to Pending.
+			if apierrors.IsNotFound(err) {
+				err = nil
+				nodeAnnotationValue = ""
+			} else {
+				return
+			}
 		}
 	}
 	var effectivePreserveValue string
