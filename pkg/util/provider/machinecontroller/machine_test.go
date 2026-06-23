@@ -4448,6 +4448,20 @@ var _ = Describe("machine", func() {
 					err:                     nil,
 				},
 			}),
+			Entry("when machine has a backing node name, but node object does not exist in cluster, should swallow NotFound error and return LongRetry", testCase{
+				setup: setup{
+					nodeName:               "non-existent-node",
+					nodeAnnotationValue:    "",
+					machineAnnotationValue: "",
+					machinePhase:           v1alpha1.MachineUnknown,
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           nil,
+					retry:                   machineutils.LongRetry,
+					err:                     nil,
+				},
+			}),
 		)
 	})
 })
