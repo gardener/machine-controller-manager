@@ -4291,7 +4291,7 @@ var _ = Describe("machine", func() {
 			}),
 			Entry("when machine is annotated for auto-preservation by MCM, should start preservation", testCase{
 				setup: setup{
-					machineAnnotationValue: machineutils.PreserveMachineAnnotationValuePreservedByMCM,
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 					machineAnnotated:       true,
 					nodeName:               "node-1",
 					machinePhase:           v1alpha1.MachineFailed,
@@ -4302,7 +4302,7 @@ var _ = Describe("machine", func() {
 						Type:   v1alpha1.NodePreserved,
 						Status: corev1.ConditionTrue},
 					retry:                  machineutils.LongRetry,
-					machineAnnotationValue: machineutils.PreserveMachineAnnotationValuePreservedByMCM,
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 				},
 			}),
 			Entry("when machine is annotated with preserve=now and preservation times out, should stop preservation, and remove annotation", testCase{
@@ -4395,7 +4395,7 @@ var _ = Describe("machine", func() {
 			}),
 			Entry("when auto-preserved machine moves to Running, should stop preservation and remove auto-preserve annotation", testCase{
 				setup: setup{
-					machineAnnotationValue: machineutils.PreserveMachineAnnotationValuePreservedByMCM,
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 					machineAnnotated:       true,
 					nodeName:               "node-1",
 					machinePhase:           v1alpha1.MachineRunning,

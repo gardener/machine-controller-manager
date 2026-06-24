@@ -920,7 +920,7 @@ func (c *controller) shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) 
 		return true
 	}
 	switch preserveValue {
-	case machineutils.PreserveMachineAnnotationValueWhenFailed, machineutils.PreserveMachineAnnotationValueNow, machineutils.PreserveMachineAnnotationValuePreservedByMCM: // this is in case preservation process is not complete yet
+	case machineutils.PreserveMachineAnnotationValueWhenFailed, machineutils.PreserveMachineAnnotationValueNow, machineutils.PreserveMachineAnnotationValueAutoPreserved: // this is in case preservation process is not complete yet
 		return false
 	case machineutils.PreserveMachineAnnotationValueFalse:
 		return true
@@ -978,7 +978,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machines []*v1alpha1.Machine, numToStop int) int {
 	var autoPreservedMachines []*v1alpha1.Machine
 	for _, m := range machines {
-		if m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
+		if m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved {
 			autoPreservedMachines = append(autoPreservedMachines, m)
 		}
 	}
@@ -998,7 +998,7 @@ func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machin
 		klog.V(2).Infof("Removing auto-preservation annotation from machine %q as AutoPreserveFailedMachineMax is breached", m.Name)
 		updatedMachine, err := machineutils.UpdateMachineWithRetries(ctx, c.controlMachineClient.Machines(m.Namespace), c.machineLister, m.Namespace, m.Name, removeAutoPreserveAnnotationFromMachine)
 		if err != nil {
-			klog.Warningf("Error removing %q=%q annotation from machine %q: %v.", machineutils.PreserveMachineAnnotationKey, machineutils.PreserveMachineAnnotationValuePreservedByMCM, m.Name, err)
+			klog.Warningf("Error removing %q=%q annotation from machine %q: %v.", machineutils.PreserveMachineAnnotationKey, machineutils.PreserveMachineAnnotationValueAutoPreserved, m.Name, err)
 			continue
 		}
 		autoPreservedMachines[index] = updatedMachine
@@ -1011,7 +1011,7 @@ func addAutoPreserveAnnotationOnMachine(machineToUpdate *v1alpha1.Machine) error
 	if machineToUpdate.Annotations == nil {
 		machineToUpdate.Annotations = make(map[string]string)
 	}
-	machineToUpdate.Annotations[machineutils.PreserveMachineAnnotationKey] = machineutils.PreserveMachineAnnotationValuePreservedByMCM
+	machineToUpdate.Annotations[machineutils.PreserveMachineAnnotationKey] = machineutils.PreserveMachineAnnotationValueAutoPreserved
 	return nil
 }
 

@@ -2525,7 +2525,7 @@ func computeNewNodePreservedCondition(currentStatus v1alpha1.CurrentStatus, pres
 		newNodePreservedCondition.Message = fmt.Sprintf("%s %v.", preserveExpiryMessageSuffix, currentStatus.PreserveExpiryTime)
 		needsUpdate = true
 	}
-	if preserveValue == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
+	if preserveValue == machineutils.PreserveMachineAnnotationValueAutoPreserved {
 		newNodePreservedCondition.Reason = v1alpha1.PreservedByMCM
 	} else {
 		newNodePreservedCondition.Reason = v1alpha1.PreservedByUser
