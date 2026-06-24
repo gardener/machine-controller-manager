@@ -761,6 +761,11 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			}
 		}
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				klog.Warningf("Error during preservation flow:%v", err.Error())
+				retry = machineutils.LongRetry
+				err = nil
+			}
 			if apierrors.IsConflict(err) {
 				retry = machineutils.ConflictRetry
 			} else {
