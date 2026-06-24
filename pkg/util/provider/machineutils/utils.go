@@ -116,7 +116,7 @@ const (
 
 	// PreserveMachineAnnotationValueFalse is the annotation value used to
 	// 1) indicate to MCM that a machine must not be auto-preserved on failure
-	// and, 2) to stop auto-preservation of a machine that is already auto-preserved by MCM.
+	// and, 2) to stop preservation of a machine that is already preserved by MCM.
 	PreserveMachineAnnotationValueFalse = "false"
 )
 
