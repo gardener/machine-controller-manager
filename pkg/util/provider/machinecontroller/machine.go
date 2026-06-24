@@ -749,7 +749,8 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	var preservationBound bool
 	preservationBound, err = c.isMachinePreservationBound(ctx, machine)
 	if !preservationBound {
-		return
+		// we clear the error here to prevent preservation logic from interfering with non-preservation-bound machines
+		return machineutils.LongRetry, nil
 	}
 	clone := machine.DeepCopy()
 	var removeAnnotations bool
