@@ -744,6 +744,19 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 	Machine Preservation operations
 */
 
+// preserveStateInfo encapsulates the preservation annotation values found
+// on the machine and node objects, along with the effective preservation value for the machine
+// and the last applied node preserve value by MCM.
+type preserveStateInfo struct {
+	nodeAnnotated         bool
+	machineAnnotated      bool
+	nodeValue             string
+	machineValue          string
+	lastAppliedNodeValue  string
+	PreserveExpiryTimeSet bool
+	effectiveValue        string
+}
+
 // manageMachinePreservation manages machine preservation based on the preserve annotation values on the node and machine objects.
 func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (retry machineutils.RetryPeriod, err error) {
 	var preservationBound bool
