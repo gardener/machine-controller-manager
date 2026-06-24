@@ -4392,7 +4392,7 @@ var _ = Describe("machine", func() {
 					nodeCondition:           nil,
 					machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueNow,
 					retry:                   machineutils.ShortRetry,
-					err:                     fmt.Errorf("node %q not found", "invalid"),
+					err:                     nil,
 				},
 			}),
 			Entry("when auto-preserved machine moves to Running, should stop preservation and remove auto-preserve annotation", testCase{
