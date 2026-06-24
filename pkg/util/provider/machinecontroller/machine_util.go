@@ -2461,7 +2461,13 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 			return nil, err
 		}
 	}
-	// Step 4: update machine status to set preserve expiry time to nil
+	// Step 4: uncordon the node if the machine has recovered to Running.
+	if machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+		if err = c.uncordonNodeIfCordoned(ctx, nodeName); err != nil {
+			return nil, err
+		}
+	}
+	// Step 5: update machine status to set preserve expiry time to nil
 	machine, err = c.clearMachinePreserveExpiryTime(ctx, machine)
 	if err != nil {
 		return nil, err
