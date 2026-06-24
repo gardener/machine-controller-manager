@@ -799,14 +799,16 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	clone := machine.DeepCopy()
 	switch effectivePreserveValue {
 	case "", machineutils.PreserveMachineAnnotationValueFalse:
-
+		preservationStopped = true
 		clone, err = c.stopPreservationIfActive(ctx, clone, removeAnnotations)
 	case machineutils.PreserveMachineAnnotationValueWhenFailed:
 		// on timing out, remove preserve annotation to prevent incorrect re-preservation
 		if machineutils.IsMachinePreservationExpired(clone) {
 			removeAnnotations = true
+			preservationStopped = true
 			clone, err = c.stopPreservationIfActive(ctx, clone, removeAnnotations)
 		} else if !machineutils.IsMachineFailed(clone) {
+			preservationStopped = true
 			clone, err = c.stopPreservationIfActive(ctx, clone, removeAnnotations)
 		} else {
 			clone, err = c.preserveMachine(ctx, clone, effectivePreserveValue)
@@ -815,6 +817,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		if machineutils.IsMachinePreservationExpired(clone) {
 			// on timing out, remove preserve annotation to prevent incorrect re-preservation
 			removeAnnotations = true
+			preservationStopped = true
 			clone, err = c.stopPreservationIfActive(ctx, clone, removeAnnotations)
 		} else {
 			clone, err = c.preserveMachine(ctx, clone, effectivePreserveValue)
@@ -825,6 +828,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			// (since the autoPreserveFailedMachineCount maintained by the machineSetController, may have changed),
 			// in addition to stopping preservation, we also remove the preservation annotation on the machine.
 			removeAnnotations = true
+			preservationStopped = true
 			clone, err = c.stopPreservationIfActive(ctx, clone, removeAnnotations)
 		} else {
 			clone, err = c.preserveMachine(ctx, clone, effectivePreserveValue)
@@ -833,10 +837,22 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	if err != nil {
 		return
 	}
-	// This is to handle the case where a preserved machine recovers from Failed to Running
-	// in which case, pods should be allowed to be scheduled onto the node
-	if clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && nodeName != "" {
-		err = c.uncordonNodeIfCordoned(ctx, nodeName)
+	// For the preserveMachine path (preservation still active), uncordon the node if the machine
+	// has recovered to Running. The stopPreservationIfActive path handles uncordon internally.
+	if !preservationStopped && clone.Status.CurrentStatus.PreserveExpiryTime != nil && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && nodeName != "" {
+		var node *corev1.Node
+		node, err = c.nodeLister.Get(nodeName)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				err = nil
+				return
+			}
+			return
+		}
+		err = c.uncordonNodeIfCordoned(ctx, node)
+		if err != nil {
+			return
+		}
 	}
 
 	if shouldAnnotationsBeUpdatedOnMachine(removeAnnotations, preserveInfo) {
@@ -869,7 +885,6 @@ func getEffectivePreservationAnnotations(info *preserveStateInfo) string {
 	return info.nodeValue
 }
 
-func (c *controller) isMachinePreservationBound(ctx context.Context, machine *v1alpha1.Machine) (bool, error) {
 func (c *controller) isMachinePreservationBound(info *preserveStateInfo) bool {
 	// if machine has no preservation state, the machine is not preservation-bound
 	if !info.PreserveExpiryTimeSet && !info.nodeAnnotated && !info.machineAnnotated && info.lastAppliedNodeValue == "" {
