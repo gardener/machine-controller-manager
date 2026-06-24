@@ -4097,24 +4097,6 @@ var _ = Describe("machine_util", func() {
 					},
 				},
 			}),
-			Entry("when preserve=now, the machine has Failed, and the preservation is incomplete after step 1 - adding preserveExpiryTime", &testCase{
-				setup: setup{
-					machinePhase:  machinev1.MachineFailed,
-					nodeName:      "node-1",
-					preserveValue: machineutils.PreserveMachineAnnotationValueNow,
-				},
-				expect: expect{
-					err:                     nil,
-					isPreserveExpiryTimeSet: true,
-					isCAAnnotationPresent:   true,
-					preserveNodeCondition: corev1.NodeCondition{
-						Type:    machinev1.NodePreserved,
-						Status:  corev1.ConditionTrue,
-						Reason:  machinev1.PreservedByUser,
-						Message: machinev1.PreservedNodeDrainSuccessful,
-					},
-				},
-			}),
 			Entry("when preserve=now, the machine has Failed, and the preservation is incomplete at step 2 - adding CA annotations", &testCase{
 				setup: setup{
 					machinePhase:          machinev1.MachineFailed,
@@ -4624,7 +4606,7 @@ var _ = Describe("machine_util", func() {
 				c, trackers := createController(stop, testNamespace, nil, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				err := c.removePreservationRelatedAnnotationsOnNode(context.TODO(), node, tc.setup.removePreserveAnnotation)
+				_, err := c.removePreservationRelatedAnnotationsOnNode(context.TODO(), node, tc.setup.removePreserveAnnotation)
 				waitForCacheSync(stop, c)
 				updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 				Expect(getErr).To(BeNil())

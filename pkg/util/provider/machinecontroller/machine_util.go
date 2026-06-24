@@ -2421,11 +2421,9 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 		if apierrors.IsNotFound(err) {
 			klog.Warningf("Node %q of machine %q not found. Proceeding to stop preservation on machine.", nodeName, machine.Name)
 			// Node not found, proceed to delete annotations and clear preserveExpiryTime on machine
-			if removePreservationAnnotations {
-				machine, err = c.removePreserveAnnotationOnMachine(ctx, machine)
-				if err != nil {
-					return nil, err
-				}
+			machine, err = c.removePreserveAnnotationOnMachine(ctx, machine)
+			if err != nil {
+				return nil, err
 			}
 			machine, err = c.clearMachinePreserveExpiryTime(ctx, machine)
 			if err != nil {
@@ -2450,7 +2448,7 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 		return nil, err
 	}
 	// Step 2: remove annotations from node
-	err = c.removePreservationRelatedAnnotationsOnNode(ctx, updatedNode, removePreservationAnnotations)
+	updatedNode, err = c.removePreservationRelatedAnnotationsOnNode(ctx, updatedNode, removePreservationAnnotations)
 	if err != nil {
 		return nil, err
 	}
@@ -2463,7 +2461,7 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 	}
 	// Step 4: uncordon the node if the machine has recovered to Running.
 	if machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
-		if err = c.uncordonNodeIfCordoned(ctx, nodeName); err != nil {
+		if err = c.uncordonNodeIfCordoned(ctx, updatedNode); err != nil {
 			return nil, err
 		}
 	}

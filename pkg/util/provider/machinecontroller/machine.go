@@ -775,12 +775,15 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	}()
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	preserveInfo, err := c.getPreserveStateInfo(machine)
+	if err != nil {
+		return
+	}
 	if preserveInfo.machineAnnotated && !machineutils.AllowedPreserveAnnotationValues.Has(preserveInfo.machineValue) {
-		klog.Warningf("Preserve annotation value %q on machine %q is invalid", preserveInfo.machineValue, machine.Name)
+		klog.Warningf("Preserve annotation %q=%q on machine %q is invalid", machineutils.PreserveMachineAnnotationKey, preserveInfo.machineValue, machine.Name)
 		return
 	}
 	if preserveInfo.nodeAnnotated && !machineutils.AllowedPreserveAnnotationValues.Has(preserveInfo.nodeValue) {
-		klog.Warningf("Preserve annotation value %q on node %q backing machine %q is invalid", preserveInfo.nodeValue, nodeName, machine.Name)
+		klog.Warningf("Preserve annotation %q=%q on node %q backing machine %q is invalid", machineutils.PreserveMachineAnnotationKey, preserveInfo.nodeValue, nodeName, machine.Name)
 		return
 	}
 	preservationBound := c.isMachinePreservationBound(preserveInfo)
@@ -792,8 +795,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		return
 	}
 
-	var effectivePreserveValue string
-	effectivePreserveValue = getEffectivePreservationAnnotations(preserveInfo)
+	effectivePreserveValue := getEffectivePreservationAnnotations(preserveInfo)
 
 	var removeAnnotations, preservationStopped bool
 	clone := machine.DeepCopy()
@@ -909,6 +911,7 @@ func (c *controller) getPreserveStateInfo(machine *v1alpha1.Machine) (*preserveS
 		node, err = c.nodeLister.Get(nodeName)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
+				klog.Warningf("Couldn't find node %q for machine %q", nodeName, machine.Name)
 				err = nil
 			}
 			return &info, err
