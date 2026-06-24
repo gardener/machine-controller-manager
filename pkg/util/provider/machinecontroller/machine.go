@@ -824,7 +824,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		} else {
 			clone, err = c.preserveMachine(ctx, clone, effectivePreserveValue)
 		}
-	case machineutils.PreserveMachineAnnotationValuePreservedByMCM:
+	case machineutils.PreserveMachineAnnotationValueAutoPreserved:
 		if !machineutils.IsMachineFailed(clone) || machineutils.IsMachinePreservationExpired(clone) {
 			// To prevent incorrect re-preservation of a recovered, previously auto-preserved machine on future failures
 			// (since the autoPreserveFailedMachineCount maintained by the machineSetController, may have changed),

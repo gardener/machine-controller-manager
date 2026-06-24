@@ -2163,10 +2163,10 @@ var _ = Describe("machineset", func() {
 			updatedMachine3, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testMachine3.Name, metav1.GetOptions{})
 			updatedMachine4, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testMachine4.Name, metav1.GetOptions{})
 			preservedCount := 0
-			if updatedMachine1.Annotations != nil && updatedMachine1.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
+			if updatedMachine1.Annotations != nil && updatedMachine1.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved {
 				preservedCount++
 			}
-			if updatedMachine2.Annotations != nil && updatedMachine2.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
+			if updatedMachine2.Annotations != nil && updatedMachine2.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved {
 				preservedCount++
 			}
 			// Running machine should not be auto-preserved in any of the cases
@@ -2176,7 +2176,7 @@ var _ = Describe("machineset", func() {
 
 			for _, m := range tc.setup.additionalMachines {
 				updatedMachine, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), m.Name, metav1.GetOptions{})
-				if updatedMachine.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValuePreservedByMCM {
+				if updatedMachine.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved {
 					preservedCount++
 				}
 			}
@@ -2237,7 +2237,7 @@ var _ = Describe("machineset", func() {
 								Name:      "machine-5",
 								Namespace: testNamespace,
 								Annotations: map[string]string{
-									machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValuePreservedByMCM,
+									machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 								},
 							},
 							Status: machinev1.MachineStatus{

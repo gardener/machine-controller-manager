@@ -4163,7 +4163,7 @@ var _ = Describe("machine_util", func() {
 				setup: setup{
 					machinePhase:  machinev1.MachineFailed,
 					nodeName:      "node-1",
-					preserveValue: machineutils.PreserveMachineAnnotationValuePreservedByMCM,
+					preserveValue: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 				},
 				expect: expect{
 					err:                     nil,
@@ -4424,7 +4424,7 @@ var _ = Describe("machine_util", func() {
 						LastUpdateTime:     metav1.Now(),
 						PreserveExpiryTime: preserveExpiryTime,
 					},
-					preserveValue:         machineutils.PreserveMachineAnnotationValuePreservedByMCM,
+					preserveValue:         machineutils.PreserveMachineAnnotationValueAutoPreserved,
 					drainErr:              nil,
 					existingNodeCondition: nil,
 				},

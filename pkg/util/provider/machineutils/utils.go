@@ -109,10 +109,10 @@ const (
 	// a Machine be preserved if and when it enters Failed phase
 	PreserveMachineAnnotationValueWhenFailed = "when-failed"
 
-	// PreserveMachineAnnotationValuePreservedByMCM is the annotation value used by the machineset controller to
+	// PreserveMachineAnnotationValueAutoPreserved is the annotation value used by the machineset controller to
 	// indicate to the machine controller that the machine must be auto-preserved.
 	// The AutoPreserveFailedMachineMax, set on the MCD, is enforced based on the number of machines annotated with this value.
-	PreserveMachineAnnotationValuePreservedByMCM = "auto-preserved"
+	PreserveMachineAnnotationValueAutoPreserved = "auto-preserved"
 
 	// PreserveMachineAnnotationValueFalse is the annotation value used to
 	// 1) indicate to MCM that a machine must not be auto-preserved on failure
@@ -121,7 +121,7 @@ const (
 )
 
 // AllowedPreserveAnnotationValues contains the allowed values for the preserve annotation
-var AllowedPreserveAnnotationValues = sets.New(PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValuePreservedByMCM, PreserveMachineAnnotationValueFalse)
+var AllowedPreserveAnnotationValues = sets.New(PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValueAutoPreserved, PreserveMachineAnnotationValueFalse)
 
 // RetryPeriod is an alias for specifying the retry period
 type RetryPeriod time.Duration
