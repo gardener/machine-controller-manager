@@ -340,43 +340,24 @@ func addedOrRemovedEssentialTaints(oldNode, node *corev1.Node, taintKeys []strin
 	return false
 }
 
-func (c *controller) getNodePreserveAnnotationValue(nodeName string) (string, error) {
-	node, err := c.nodeLister.Get(nodeName)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return "", nil
-		}
-		klog.Errorf("error fetching node %q: %v", nodeName, err)
-		return "", err
-	}
-	return node.Annotations[machineutils.PreserveMachineAnnotationKey], nil
-}
-
-func (c *controller) uncordonNodeIfCordoned(ctx context.Context, nodeName string) error {
-	node, err := c.nodeLister.Get(nodeName)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
+func (c *controller) uncordonNodeIfCordoned(ctx context.Context, node *corev1.Node) error {
 	if !node.Spec.Unschedulable {
 		return nil
 	}
 	nodeClone := node.DeepCopy()
 	nodeClone.Spec.Unschedulable = false
-	_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeClone, metav1.UpdateOptions{})
+	_, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeClone, metav1.UpdateOptions{})
 	if err != nil {
-		klog.Errorf("error uncordoning node %q: %v", nodeName, err)
+		klog.Errorf("error uncordoning node %q: %v", node.Name, err)
 	}
 	return err
 }
 
 // removePreservationRelatedAnnotationsOnNode removes the cluster-autoscaler annotation that disables scale down of preserved node
-func (c *controller) removePreservationRelatedAnnotationsOnNode(ctx context.Context, node *corev1.Node, removePreserveAnnotation bool) error {
+func (c *controller) removePreservationRelatedAnnotationsOnNode(ctx context.Context, node *corev1.Node, removePreserveAnnotation bool) (*corev1.Node, error) {
 	// Check if annotation already absent
 	if node.Annotations == nil {
-		return nil
+		return node, nil
 	}
 	updateRequired := false
 	nodeCopy := node.DeepCopy()
@@ -392,14 +373,14 @@ func (c *controller) removePreservationRelatedAnnotationsOnNode(ctx context.Cont
 		updateRequired = true
 	}
 	if !updateRequired {
-		return nil
+		return node, nil
 	}
-	_, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
+	updatedNode, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("node UPDATE failed for node %q. Retrying, error: %s", node.Name, err)
-		return err
+		return nil, err
 	}
-	return nil
+	return updatedNode, nil
 }
 
 // addCAScaleDownDisabledAnnotationOnNode adds the cluster-autoscaler annotation to disable scale down of preserved node
