@@ -4101,6 +4101,7 @@ var _ = Describe("machine", func() {
 			nodeName               string
 			machinePhase           v1alpha1.MachinePhase
 			preserveExpiryTime     *metav1.Time
+			nodeUnschedulable      bool
 		}
 		type expect struct {
 			retry                   machineutils.RetryPeriod
@@ -4109,6 +4110,7 @@ var _ = Describe("machine", func() {
 			machineAnnotationValue  string
 			laNodePreserveValue     string
 			err                     error
+			nodeUnschedulable       *bool
 		}
 		type testCase struct {
 			setup  setup
@@ -4154,6 +4156,9 @@ var _ = Describe("machine", func() {
 								machineutils.PreserveMachineAnnotationKey: tc.setup.nodeAnnotationValue,
 							},
 						},
+						Spec: corev1.NodeSpec{
+							Unschedulable: tc.setup.nodeUnschedulable,
+						},
 						Status: corev1.NodeStatus{
 							Conditions: []corev1.NodeCondition{},
 						},
@@ -4197,6 +4202,9 @@ var _ = Describe("machine", func() {
 						Expect(found).To(BeTrue())
 					} else {
 						Expect(found).To(BeFalse())
+					}
+					if tc.expect.nodeUnschedulable != nil {
+						Expect(updatedNode.Spec.Unschedulable).To(Equal(*tc.expect.nodeUnschedulable))
 					}
 				}
 				Expect(updatedMachine.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(tc.expect.machineAnnotationValue))
@@ -4448,6 +4456,80 @@ var _ = Describe("machine", func() {
 					err:                     nil,
 				},
 			}),
+			Entry("when preserve=when-failed machine with cordoned node recovers to Running, should stop preservation and uncordon node", func() testCase {
+				uncordoned := false
+				return testCase{
+					setup: setup{
+						machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
+						nodeName:               "node-1",
+						machinePhase:           v1alpha1.MachineRunning,
+						preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)},
+						nodeUnschedulable:      true,
+					},
+					expect: expect{
+						preserveExpiryTimeIsSet: false,
+						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+						machineAnnotationValue:  "",
+						retry:                   machineutils.LongRetry,
+						nodeUnschedulable:       &uncordoned,
+					},
+				}
+			}()),
+			Entry("when preserve=when-failed machine with cordoned node has expired preservation while Running, should stop preservation and uncordon node", func() testCase {
+				uncordoned := false
+				return testCase{
+					setup: setup{
+						machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
+						nodeName:               "node-1",
+						machinePhase:           v1alpha1.MachineRunning,
+						preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(-1 * time.Minute)},
+						nodeUnschedulable:      true,
+					},
+					expect: expect{
+						preserveExpiryTimeIsSet: false,
+						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+						machineAnnotationValue:  "",
+						retry:                   machineutils.LongRetry,
+						nodeUnschedulable:       &uncordoned,
+					},
+				}
+			}()),
+			Entry("when preserve=when-failed machine is Failed with active preservation and cordoned node, node should stay cordoned", func() testCase {
+				cordoned := true
+				return testCase{
+					setup: setup{
+						nodeAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
+						nodeName:            "node-1",
+						machinePhase:        v1alpha1.MachineFailed,
+						nodeUnschedulable:   true,
+					},
+					expect: expect{
+						laNodePreserveValue:     machineutils.PreserveMachineAnnotationValueWhenFailed,
+						preserveExpiryTimeIsSet: true,
+						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionTrue},
+						retry:                   machineutils.LongRetry,
+						nodeUnschedulable:       &cordoned,
+					},
+				}
+			}()),
+			Entry("when preserve=now machine is Failed with active preservation and cordoned node, node should stay cordoned", func() testCase {
+				cordoned := true
+				return testCase{
+					setup: setup{
+						machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
+						nodeName:               "node-1",
+						machinePhase:           v1alpha1.MachineFailed,
+						nodeUnschedulable:      true,
+					},
+					expect: expect{
+						preserveExpiryTimeIsSet: true,
+						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionTrue},
+						machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueNow,
+						retry:                   machineutils.LongRetry,
+						nodeUnschedulable:       &cordoned,
+					},
+				}
+			}()),
 		)
 
 		DescribeTable("when machine is not preservation-bound, should return early without modifying the machine",
