@@ -747,7 +747,7 @@ func (s ActiveMachines) Less(i, j int) bool {
 	}
 	if isPreservedI { // both machines are preserved, in which case deprioritize explicitly preserved machines over auto-preserved
 		isAutoPreserved := func(m *v1alpha1.Machine) bool {
-			return m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValuePreservedByMCM
+			return m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved
 		}
 		isAutoPreservedI := isAutoPreserved(s[i])
 		isAutoPreservedJ := isAutoPreserved(s[j])
