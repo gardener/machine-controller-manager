@@ -746,6 +746,11 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 
 // manageMachinePreservation manages machine preservation based on the preserve annotation values on the node and machine objects.
 func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (retry machineutils.RetryPeriod, err error) {
+	var preservationBound bool
+	preservationBound, err = c.isMachinePreservationBound(ctx, machine)
+	if !preservationBound {
+		return
+	}
 	machineAnnotationsSynced := false
 	clone := machine.DeepCopy()
 	defer func() {
@@ -840,4 +845,33 @@ func getEffectivePreservationAnnotations(nodeAnnotationValue string, machineAnno
 	delete(clonedMachineAnnotations, machineutils.PreserveMachineAnnotationKey)
 	clonedMachineAnnotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] = nodeAnnotationValue
 	return nodeAnnotationValue, clonedMachineAnnotations
+}
+
+func (c *controller) isMachinePreservationBound(ctx context.Context, machine *v1alpha1.Machine) (bool, error) {
+	var err error
+	var machineAnnotated, nodeAnnotated bool
+	var laNodeAV string
+	var node *corev1.Node
+
+	if machine.Annotations != nil {
+		_, machineAnnotated = machine.Annotations[machineutils.PreserveMachineAnnotationKey]
+		laNodeAV = machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]
+	}
+
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
+	if nodeName != "" {
+		node, err = c.nodeLister.Get(nodeName)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				err = nil
+			}
+		} else {
+			_, nodeAnnotated = node.Annotations[machineutils.PreserveMachineAnnotationKey]
+		}
+	}
+	// if machine has no preservation state, the machine is not preservation-bound
+	if machine.Status.CurrentStatus.PreserveExpiryTime == nil && !nodeAnnotated && !machineAnnotated && laNodeAV == "" {
+		return false, err
+	}
+	return true, err
 }
