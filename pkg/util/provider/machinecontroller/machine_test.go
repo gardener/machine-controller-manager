@@ -4449,5 +4449,176 @@ var _ = Describe("machine", func() {
 				},
 			}),
 		)
+
+		DescribeTable("when machine is not preservation-bound, should return early without modifying the machine",
+			func(nodeUnschedulable bool, includeNode bool) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				machine := &v1alpha1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "m1",
+						Labels:    map[string]string{v1alpha1.NodeLabelKey: "node-1"},
+					},
+					Status: v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{Phase: v1alpha1.MachineRunning},
+					},
+				}
+
+				var targetCoreObjects []runtime.Object
+				if includeNode {
+					targetCoreObjects = append(targetCoreObjects, &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{Name: "node-1"},
+						Spec:       corev1.NodeSpec{Unschedulable: nodeUnschedulable},
+					})
+				}
+
+				c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, targetCoreObjects, nil, false)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+
+				retry, err := c.manageMachinePreservation(context.TODO(), machine)
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(retry).To(Equal(machineutils.LongRetry))
+
+				updatedMachine, err := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(updatedMachine.Annotations).To(Equal(machine.Annotations))
+				Expect(updatedMachine.Labels).To(Equal(machine.Labels))
+				Expect(updatedMachine.Spec).To(Equal(machine.Spec))
+				Expect(updatedMachine.Status).To(Equal(machine.Status))
+
+				if includeNode {
+					updatedNode, err := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), "node-1", metav1.GetOptions{})
+					Expect(err).ToNot(HaveOccurred())
+					Expect(updatedNode.Spec.Unschedulable).To(Equal(nodeUnschedulable))
+				}
+			},
+			Entry("node is cordoned", true, true),
+			Entry("node is uncordoned", false, true),
+			Entry("node retrieval fails (node not found)", false, false),
+		)
+	})
+
+	Describe("#isMachinePreservationBound", func() {
+		type setup struct {
+			machineAnnotations map[string]string
+			preserveExpiryTime *metav1.Time
+			nodeName           string
+			nodeAnnotations    map[string]string
+			includeNode        bool
+		}
+		type expect struct {
+			bound bool
+			err   error
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("isMachinePreservationBound scenarios",
+			func(tc testCase) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				machine := &v1alpha1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace:   testNamespace,
+						Name:        "m1",
+						Labels:      map[string]string{v1alpha1.NodeLabelKey: tc.setup.nodeName},
+						Annotations: tc.setup.machineAnnotations,
+					},
+					Status: v1alpha1.MachineStatus{
+						CurrentStatus: v1alpha1.CurrentStatus{
+							PreserveExpiryTime: tc.setup.preserveExpiryTime,
+						},
+					},
+				}
+
+				var targetCoreObjects []runtime.Object
+				if tc.setup.includeNode {
+					targetCoreObjects = append(targetCoreObjects, &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        tc.setup.nodeName,
+							Annotations: tc.setup.nodeAnnotations,
+						},
+					})
+				}
+
+				c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, targetCoreObjects, nil, false)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+
+				bound, err := c.isMachinePreservationBound(context.TODO(), machine)
+				if tc.expect.err != nil {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
+				} else {
+					Expect(err).ToNot(HaveOccurred())
+				}
+				Expect(bound).To(Equal(tc.expect.bound))
+			},
+			Entry("machine has no annotations, no preserveExpiryTime, and node has no preservation annotation", testCase{
+				setup: setup{
+					nodeName:    "node-1",
+					includeNode: true,
+				},
+				expect: expect{bound: false},
+			}),
+			Entry("machine has no node label and no other preservation markers", testCase{
+				setup: setup{
+					nodeName: "",
+				},
+				expect: expect{bound: false},
+			}),
+			Entry("machine has preserve annotation set", testCase{
+				setup: setup{
+					nodeName: "node-1",
+					machineAnnotations: map[string]string{
+						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueNow,
+					},
+					includeNode: true,
+				},
+				expect: expect{bound: true},
+			}),
+			Entry("machine has a non-nil preserveExpiryTime", testCase{
+				setup: setup{
+					nodeName:           "node-1",
+					preserveExpiryTime: &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)},
+					includeNode:        true,
+				},
+				expect: expect{bound: true},
+			}),
+			Entry("machine's node has a preservation annotation", testCase{
+				setup: setup{
+					nodeName: "node-1",
+					nodeAnnotations: map[string]string{
+						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueNow,
+					},
+					includeNode: true,
+				},
+				expect: expect{bound: true},
+			}),
+			Entry("machine has last-applied node preserve value annotation", testCase{
+				setup: setup{
+					nodeName: "node-1",
+					machineAnnotations: map[string]string{
+						machineutils.LastAppliedNodePreserveValueAnnotationKey: machineutils.PreserveMachineAnnotationValueNow,
+					},
+					includeNode: true,
+				},
+				expect: expect{bound: true},
+			}),
+			Entry("node is not found and machine has no preservation markers", testCase{
+				setup: setup{
+					nodeName:    "node-1",
+					includeNode: false,
+				},
+				expect: expect{bound: false},
+			}),
+		)
 	})
 })
