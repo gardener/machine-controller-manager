@@ -349,8 +349,10 @@ func (c *controller) uncordonNodeIfCordoned(ctx context.Context, node *corev1.No
 	_, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeClone, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("error uncordoning node %q: %v", node.Name, err)
+		return err
 	}
-	return err
+	klog.Infof("Successfully uncordoned node %q", node.Name)
+	return nil
 }
 
 // removePreservationRelatedAnnotationsOnNode removes the cluster-autoscaler annotation that disables scale down of preserved node
