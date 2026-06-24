@@ -355,6 +355,9 @@ func (c *controller) getNodePreserveAnnotationValue(nodeName string) (string, er
 func (c *controller) uncordonNodeIfCordoned(ctx context.Context, nodeName string) error {
 	node, err := c.nodeLister.Get(nodeName)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
 	if !node.Spec.Unschedulable {
