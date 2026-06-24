@@ -4469,7 +4469,7 @@ var _ = Describe("machine", func() {
 					expect: expect{
 						preserveExpiryTimeIsSet: false,
 						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
-						machineAnnotationValue:  "",
+						machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueWhenFailed,
 						retry:                   machineutils.LongRetry,
 						nodeUnschedulable:       &uncordoned,
 					},
