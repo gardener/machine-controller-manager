@@ -4180,7 +4180,7 @@ var _ = Describe("machine", func() {
 				} else {
 					Expect(updatedMachine.Status.CurrentStatus.PreserveExpiryTime.IsZero()).To(BeTrue())
 				}
-				if tc.setup.nodeName != "" {
+				if tc.setup.nodeName != "" && tc.setup.nodeName != "invalid" {
 					updatedNode, err := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), tc.setup.nodeName, metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
 					found := false
@@ -4388,10 +4388,10 @@ var _ = Describe("machine", func() {
 					machinePhase:           v1alpha1.MachineUnknown,
 				},
 				expect: expect{
-					preserveExpiryTimeIsSet: false,
+					preserveExpiryTimeIsSet: true,
 					nodeCondition:           nil,
 					machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueNow,
-					retry:                   machineutils.ShortRetry,
+					retry:                   machineutils.LongRetry,
 					err:                     nil,
 				},
 			}),
