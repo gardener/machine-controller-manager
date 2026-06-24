@@ -826,7 +826,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	}
 	// This is to handle the case where a preserved machine recovers from Failed to Running
 	// in which case, pods should be allowed to be scheduled onto the node
-	if machineutils.IsMachineActive(clone) && nodeName != "" {
+	if clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && nodeName != "" {
 		err = c.uncordonNodeIfCordoned(ctx, nodeName)
 	}
 	return
