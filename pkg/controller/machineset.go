@@ -949,7 +949,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 	var others []*v1alpha1.Machine
 	for _, m := range machines {
 		// check if machine is already annotated for preservation, if yes, skip. Machine controller will take care of the rest.
-		if machineutils.IsMachineFailed(m) && !machineutils.PreventAutoPreserveAnnotationValues.Has(m.Annotations[machineutils.PreserveMachineAnnotationKey]) {
+		if machineutils.IsMachineFailed(m) && !machineutils.AllowedPreserveAnnotationValues.Has(m.Annotations[machineutils.PreserveMachineAnnotationKey]) {
 			autoPreservationCandidates = append(autoPreservationCandidates, m)
 		} else {
 			others = append(others, m)
