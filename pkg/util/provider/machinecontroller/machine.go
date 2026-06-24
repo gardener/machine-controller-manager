@@ -754,27 +754,11 @@ type preserveStateInfo struct {
 	machineValue          string
 	lastAppliedNodeValue  string
 	PreserveExpiryTimeSet bool
-	effectiveValue        string
 }
 
 // manageMachinePreservation manages machine preservation based on the preserve annotation values on the node and machine objects.
 func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (retry machineutils.RetryPeriod, err error) {
-	var preservationBound bool
-	preservationBound, err = c.isMachinePreservationBound(ctx, machine)
-	if !preservationBound {
-		// we clear the error here to prevent preservation logic from interfering with non-preservation-bound machines
-		return machineutils.LongRetry, nil
-	}
-	clone := machine.DeepCopy()
-	var removeAnnotations bool
 	defer func() {
-		// We compare annotation value in the clone with the original machine object to see if an update is required
-		if err == nil && !removeAnnotations && clone.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] != machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] {
-			_, err = c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
-			if err != nil {
-				klog.Errorf("error updating LastAppliedNodePreserveValueAnnotation value on machine %q: %v", machine.Name, err)
-			}
-		}
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				klog.Warningf("Error during preservation flow:%v", err.Error())
@@ -789,25 +773,30 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			retry = machineutils.LongRetry
 		}
 	}()
-
-	nodeName := clone.Labels[v1alpha1.NodeLabelKey]
-	nodeAnnotationValue := ""
-	if nodeName != "" {
-		nodeAnnotationValue, err = c.getNodePreserveAnnotationValue(nodeName)
-		if err != nil {
-			return
-		}
-	}
-	var effectivePreserveValue string
-	effectivePreserveValue, clone.Annotations = getEffectivePreservationAnnotations(nodeAnnotationValue, clone.Annotations)
-	if !machineutils.AllowedPreserveAnnotationValues.Has(effectivePreserveValue) {
-		if effectivePreserveValue == nodeAnnotationValue {
-			klog.Warningf("Preserve annotation value %q on node %q is invalid", effectivePreserveValue, nodeName)
-		} else {
-			klog.Warningf("Preserve annotation value %q on machine %q is invalid", effectivePreserveValue, clone.Name)
-		}
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
+	preserveInfo, err := c.getPreserveStateInfo(machine)
+	if preserveInfo.machineAnnotated && !machineutils.AllowedPreserveAnnotationValues.Has(preserveInfo.machineValue) {
+		klog.Warningf("Preserve annotation value %q on machine %q is invalid", preserveInfo.machineValue, machine.Name)
 		return
 	}
+	if preserveInfo.nodeAnnotated && !machineutils.AllowedPreserveAnnotationValues.Has(preserveInfo.nodeValue) {
+		klog.Warningf("Preserve annotation value %q on node %q backing machine %q is invalid", preserveInfo.nodeValue, nodeName, machine.Name)
+		return
+	}
+	preservationBound := c.isMachinePreservationBound(preserveInfo)
+	if !preservationBound {
+		// we clear the error here to prevent preservation logic from interfering with non-preservation-bound machines
+		err = nil
+		return
+	} else if err != nil {
+		return
+	}
+
+	var effectivePreserveValue string
+	effectivePreserveValue = getEffectivePreservationAnnotations(preserveInfo)
+
+	var removeAnnotations, preservationStopped bool
+	clone := machine.DeepCopy()
 	switch effectivePreserveValue {
 	case "", machineutils.PreserveMachineAnnotationValueFalse:
 
@@ -849,49 +838,99 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	if clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && nodeName != "" {
 		err = c.uncordonNodeIfCordoned(ctx, nodeName)
 	}
+
+	if shouldAnnotationsBeUpdatedOnMachine(removeAnnotations, preserveInfo) {
+		err = c.updatePreserveAnnotationOnMachine(ctx, preserveInfo.nodeValue, clone)
+	}
 	return
 }
 
-// getEffectivePreservationAnnotations returns the effective preservation value, and updates the machine Annotations related to preservation
-func getEffectivePreservationAnnotations(nodeAnnotationValue string, machineAnnotations map[string]string) (string, map[string]string) {
+// getEffectivePreservationAnnotations returns the effective preservation value.
+//
+// If there is no active node annotation AND no previously-applied node annotation,
+// enforce machine's preserve annotation.
+// Otherwise, the node annotation takes precedence (even if now empty/removed).
+//
+// This is required to handle the following scenario:
+//
+//	T1: Node and Machine both have the same annotation with the same value. (MCM is up and running).
+//	T2 (T2 > T1): MCM went down.
+//	T3 (T3 > T2): Node annotation was removed.
+//	T4 (T4 > T3): MCM came back up.
+//	At T4 it sees a Node with no preserve annotation but a Machine with a preserve annotation.
+//	It continues to preserve the machine.
+func getEffectivePreservationAnnotations(info *preserveStateInfo) string {
 	// If there is no active node annotation AND no previously-applied node annotation,
 	// enforce machine's preserve annotation.
 	// Otherwise, the node annotation takes precedence (even if now empty/removed).
-	if nodeAnnotationValue == "" && machineAnnotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] == "" {
-		return machineAnnotations[machineutils.PreserveMachineAnnotationKey], machineAnnotations
+	if info.nodeValue == "" && info.lastAppliedNodeValue == "" {
+		return info.machineValue
 	}
-	clonedMachineAnnotations := make(map[string]string)
-	maps.Copy(clonedMachineAnnotations, machineAnnotations)
-	delete(clonedMachineAnnotations, machineutils.PreserveMachineAnnotationKey)
-	clonedMachineAnnotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] = nodeAnnotationValue
-	return nodeAnnotationValue, clonedMachineAnnotations
+	return info.nodeValue
 }
 
 func (c *controller) isMachinePreservationBound(ctx context.Context, machine *v1alpha1.Machine) (bool, error) {
-	var err error
-	var machineAnnotated, nodeAnnotated bool
-	var laNodeAV string
-	var node *corev1.Node
-
-	if machine.Annotations != nil {
-		_, machineAnnotated = machine.Annotations[machineutils.PreserveMachineAnnotationKey]
-		laNodeAV = machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]
+func (c *controller) isMachinePreservationBound(info *preserveStateInfo) bool {
+	// if machine has no preservation state, the machine is not preservation-bound
+	if !info.PreserveExpiryTimeSet && !info.nodeAnnotated && !info.machineAnnotated && info.lastAppliedNodeValue == "" {
+		return false
 	}
+	return true
+}
 
+func (c *controller) getPreserveStateInfo(machine *v1alpha1.Machine) (*preserveStateInfo, error) {
+	var info preserveStateInfo
+	var err error
+	if machine.Annotations != nil {
+		info.machineValue, info.machineAnnotated = machine.Annotations[machineutils.PreserveMachineAnnotationKey]
+		info.lastAppliedNodeValue = machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]
+	}
+	if machine.Status.CurrentStatus.PreserveExpiryTime != nil {
+		info.PreserveExpiryTimeSet = true
+	}
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	if nodeName != "" {
+		var node *corev1.Node
 		node, err = c.nodeLister.Get(nodeName)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				err = nil
 			}
-		} else {
-			_, nodeAnnotated = node.Annotations[machineutils.PreserveMachineAnnotationKey]
+			return &info, err
 		}
+		info.nodeValue, info.nodeAnnotated = node.Annotations[machineutils.PreserveMachineAnnotationKey]
 	}
-	// if machine has no preservation state, the machine is not preservation-bound
-	if machine.Status.CurrentStatus.PreserveExpiryTime == nil && !nodeAnnotated && !machineAnnotated && laNodeAV == "" {
-		return false, err
+	return &info, err
+}
+
+// shouldAnnotationsBeUpdatedOnMachine returns true when the machine's annotation tracking needs
+// to be synced after a preservation action.
+func shouldAnnotationsBeUpdatedOnMachine(removeAnnotations bool, preserveInfo *preserveStateInfo) bool {
+	// annotations were already removed by stopPreservationIfActive — nothing left to sync
+	if removeAnnotations {
+		return false
 	}
-	return true, err
+	// node annotation is not in control — machine annotation prevails, no sync needed
+	if !preserveInfo.nodeAnnotated && preserveInfo.lastAppliedNodeValue == "" {
+		return false
+	}
+	// node value is unchanged and machine has no annotation to clear — nothing has changed
+	if preserveInfo.nodeValue == preserveInfo.lastAppliedNodeValue && !preserveInfo.machineAnnotated {
+		return false
+	}
+	return true
+}
+
+// updatePreserveAnnotationOnMachine clears the machine's PreserveMachineAnnotationKey and sets
+// LastAppliedNodePreserveValueAnnotationKey to nodeValue.
+func (c *controller) updatePreserveAnnotationOnMachine(ctx context.Context, nodeValue string, machine *v1alpha1.Machine) error {
+	clone := machine.DeepCopy()
+	if clone.Annotations == nil {
+		clone.Annotations = make(map[string]string)
+	} else {
+		delete(clone.Annotations, machineutils.PreserveMachineAnnotationKey)
+	}
+	clone.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] = nodeValue
+	_, err := c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
+	return err
 }
