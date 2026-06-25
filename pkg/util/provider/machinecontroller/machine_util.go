@@ -2420,10 +2420,11 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 		// therefore, this error is handled specifically
 		if apierrors.IsNotFound(err) {
 			klog.Warningf("Node %q of machine %q not found. Proceeding to stop preservation on machine.", nodeName, machine.Name)
-			// Node not found, proceed to delete annotations and clear preserveExpiryTime on machine
-			machine, err = c.removePreserveAnnotationOnMachine(ctx, machine)
-			if err != nil {
-				return nil, err
+			if removePreservationAnnotations {
+				machine, err = c.removePreserveAnnotationOnMachine(ctx, machine)
+				if err != nil {
+					return nil, err
+				}
 			}
 			machine, err = c.clearMachinePreserveExpiryTime(ctx, machine)
 			if err != nil {
