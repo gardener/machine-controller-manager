@@ -776,9 +776,6 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	// We buffer the error returned here until we can tell if the machine is preservation-bound.
 	preserveInfo, getErr := c.getPreserveStateInfo(machine)
-	if preserveInfo == nil { // machine object not annotated with preservation state and error fetching node object
-		return
-	}
 	if preserveInfo.machineAnnotated && !machineutils.AllowedPreserveAnnotationValues.Has(preserveInfo.machineValue) {
 		// If machine is annotated incorrectly, log and proceed as though machine is not annotated.
 		klog.Warningf("Preserve annotation %q=%q on machine %q is invalid", machineutils.PreserveMachineAnnotationKey, preserveInfo.machineValue, machine.Name)
@@ -789,7 +786,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		klog.Warningf("Preserve annotation %q=%q on node %q backing machine %q is invalid", machineutils.PreserveMachineAnnotationKey, preserveInfo.nodeValue, nodeName, machine.Name)
 		return
 	}
-	preservationBound := c.isMachinePreservationBound(preserveInfo)
+	preservationBound := isMachinePreservationBound(preserveInfo)
 	if !preservationBound {
 		// We clear the error here to prevent preservation logic from interfering with non-preservation-bound machines.
 		err = nil
@@ -901,7 +898,7 @@ func getEffectivePreservationAnnotations(info *preserveStateInfo, getPreserveSta
 	return info.nodeValue
 }
 
-func (c *controller) isMachinePreservationBound(info *preserveStateInfo) bool {
+func isMachinePreservationBound(info *preserveStateInfo) bool {
 	// if machine has no preservation state, the machine is not preservation-bound
 	if !info.preserveExpiryTimeSet && !info.nodeAnnotated && !info.machineAnnotated && info.lastAppliedNodeValue == "" {
 		return false
