@@ -49,6 +49,8 @@ var (
 	// MachineStatusCondition Information of the mcm managed Machines' status conditions
 	MachineStatusCondition = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
+		// MachineNumFailedJoin is the Prometheus counter metric rpresenting the number of machines that
+		// failed to join the cluster for a MachineDeployment.
 		Subsystem: machineSubsystem,
 		Name:      "status_condition",
 		Help:      "Information of the mcm managed Machines' status conditions.",
@@ -59,7 +61,7 @@ var (
 	MachineCreateDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: machineSubsystem,
-		Name:      "machine_create_duration_seconds",
+		Name:      "create_duration_seconds",
 		Help:      "Duration in seconds to create a Machine of a MachineDeployment.",
 	}, []string{"namespace", "machine_deployment"})
 
@@ -68,7 +70,7 @@ var (
 	MachineInitializeDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: machineSubsystem,
-		Name:      "machine_initialize_duration_seconds",
+		Name:      "initialize_duration_seconds",
 		Help:      "Duration in seconds to initialize a Machine of a MachineDeployment.",
 	}, []string{"namespace", "machine_deployment"})
 
@@ -77,7 +79,7 @@ var (
 	MachineJoinDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: machineSubsystem,
-		Name:      "machine_join_duration_seconds",
+		Name:      "join_duration_seconds",
 		Help:      "Duration in seconds for a Machine of a MachineDeployment to join the cluster",
 	}, []string{"namespace", "machine_deployment"})
 
@@ -86,7 +88,7 @@ var (
 	MachineDrainDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: machineSubsystem,
-		Name:      "machine_drain_duration_seconds",
+		Name:      "drain_duration_seconds",
 		Help:      "Duration in seconds to drain a Machine of a MachineDeployment.",
 	}, []string{"namespace", "machine_deployment"})
 
@@ -95,7 +97,7 @@ var (
 	MachineDeleteDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: machineSubsystem,
-		Name:      "machine_delete_duration_seconds",
+		Name:      "delete_duration_seconds",
 		Help:      "Duration in seconds to delete a Machine of a MachineDeployment.",
 	}, []string{"namespace", "machine_deployment"})
 
