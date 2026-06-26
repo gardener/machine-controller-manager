@@ -551,10 +551,8 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 			GenerateName: prefix,
 			Finalizers:   desiredFinalizers,
 		},
-		Spec: v1alpha1.MachineSpec{
-			Class: template.Spec.Class,
-		},
 	}
+	machine.Spec = *template.Spec.DeepCopy()
 	effectiveMachineCreationTimeout, err := annotationsutils.GetEffectiveMachineCreationTimeoutFromRuntimeObject(parentObject)
 	if err != nil {
 		klog.Warningf("Failed to obtain effective creation timeout from annotation %q on machine set %q due to %s",
@@ -567,8 +565,6 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 	if controllerRef != nil {
 		machine.OwnerReferences = append(machine.OwnerReferences, *controllerRef)
 	}
-	machine.Spec = *template.Spec.DeepCopy()
-
 	return machine, nil
 }
 
