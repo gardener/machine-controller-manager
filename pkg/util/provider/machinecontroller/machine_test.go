@@ -4348,6 +4348,20 @@ var _ = Describe("machine", func() {
 					err:                     nil,
 				},
 			}),
+			Entry("when invalid preserve annotation is added on node of un-preserved machine, should do nothing", testCase{
+				setup: setup{
+					nodeAnnotationValue: "invalidValue",
+					nodeAnnotated:       true,
+					nodeName:            "node-1",
+					machinePhase:        v1alpha1.MachineRunning,
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           nil,
+					retry:                   machineutils.LongRetry,
+					err:                     nil,
+				},
+			}),
 			Entry("when a machine is annotated with preserve=now, but has no backing node, should start preservation", testCase{
 				setup: setup{
 					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
