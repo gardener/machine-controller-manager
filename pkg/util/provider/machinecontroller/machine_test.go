@@ -4637,7 +4637,7 @@ var _ = Describe("machine", func() {
 				} else {
 					Expect(err).ToNot(HaveOccurred())
 				}
-				bound := c.isMachinePreservationBound(preserveInfo)
+				bound := isMachinePreservationBound(preserveInfo)
 				Expect(bound).To(Equal(tc.expect.bound))
 			},
 			Entry("machine has no annotations, no preserveExpiryTime, and node has no preservation annotation", testCase{
