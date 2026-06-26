@@ -2341,7 +2341,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 		// Step 1: Add preserveExpiryTime to machine status
 		machine, err = c.setPreserveExpiryTimeOnMachine(ctx, machine)
 		if err != nil {
-			return nil, err
+			return machine, err
 		}
 	}
 	if nodeName == "" {
@@ -2353,7 +2353,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 	node, err := c.nodeLister.Get(nodeName)
 	if err != nil {
 		klog.Errorf("error trying to get node %q of machine %q: %v. Retrying.", nodeName, machine.Name, err)
-		return nil, err
+		return machine, err
 	}
 	existingNodePreservedCondition := nodeops.GetCondition(node, v1alpha1.NodePreserved)
 	// checks if preservation is already complete
@@ -2363,7 +2363,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 	// Step 2: Add annotations to prevent scale down of node by CA
 	updatedNode, err := c.addCAScaleDownDisabledAnnotationOnNode(ctx, node)
 	if err != nil {
-		return nil, err
+		return machine, err
 	}
 	var drainErr error
 	if shouldPreservedNodeBeDrained(existingNodePreservedCondition, machine.Status.CurrentStatus.Phase) {
@@ -2376,11 +2376,11 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 		_, err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, updatedNode.Name, *newCond)
 		if drainErr != nil {
 			klog.Errorf("error draining preserved node %q for machine %q : %v", nodeName, machine.Name, drainErr)
-			return nil, drainErr
+			return machine, drainErr
 		}
 		if err != nil {
 			klog.Errorf("error trying to update node preserved condition for node %q of machine %q : %v", nodeName, machine.Name, err)
-			return nil, err
+			return machine, err
 		}
 	}
 	klog.V(2).Infof("Machine %q and backing node %q preserved successfully till %v.", machine.Name, nodeName, machine.Status.CurrentStatus.PreserveExpiryTime)
