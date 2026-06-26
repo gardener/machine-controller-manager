@@ -99,6 +99,8 @@ var (
 		Help:      "Duration in seconds to delete a Machine of a MachineDeployment.",
 	}, []string{"namespace", "machine_deployment"})
 
+	// MachineNumFailedJoin is the Prometheus counter metric rpresenting the number of machines that
+	// failed to join the cluster for a MachineDeployment.
 	MachineNumFailedJoin = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: machineSubsystem,
