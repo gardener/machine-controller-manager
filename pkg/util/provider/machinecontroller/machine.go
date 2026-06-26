@@ -504,7 +504,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			return retryPeriod, err
 		}
 		initializeDuration = time.Since(initializeBeginTime)
-		klog.V(2).Infof("Machine %q was initialized in  %q", machine.Name, initializeDuration)
+		klog.V(2).Infof("Machine %q was initialized in %q", machine.Name, initializeDuration)
 		metrics.UpdateMetricsForMachineDurations(machine, metrics.MachineDurations{Initialize: initializeDuration})
 
 		if c.targetCoreClient == nil {
