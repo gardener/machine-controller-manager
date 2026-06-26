@@ -328,13 +328,13 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 	var (
 		// Declarations
 		nodeName, providerID string
+		createDuration       time.Duration
 
 		// Initializations
 		machine              = createMachineRequest.Machine
 		machineName          = createMachineRequest.Machine.Name
 		uninitializedMachine = false
 		addresses            = sets.New[corev1.NodeAddress]()
-		createDuration       time.Duration
 	)
 	c.markCreationProcessing(machine)
 	defer func() {

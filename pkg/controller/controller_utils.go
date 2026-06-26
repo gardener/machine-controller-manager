@@ -508,7 +508,10 @@ func getMachinesFinalizers(template *v1alpha1.MachineTemplateSpec) []string {
 func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, parentObject metav1.Object) labels.Set {
 	desiredAnnotations := make(labels.Set)
 	maps.Copy(desiredAnnotations, template.Annotations)
-	maps.Copy(desiredAnnotations, parentObject.GetAnnotations())
+	effectiveCreationTimeoutStr, ok := parentObject.GetAnnotations()[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout]
+	if ok {
+		desiredAnnotations[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout] = effectiveCreationTimeoutStr
+	}
 	return desiredAnnotations
 }
 
@@ -559,7 +562,11 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 			v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout, controllerRef, err)
 	}
 	if effectiveCreationTimeout != nil {
-		machine.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{MachineCreationTimeout: effectiveCreationTimeout}
+		if machine.Spec.MachineConfiguration == nil {
+			machine.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{MachineCreationTimeout: effectiveCreationTimeout}
+		} else {
+			machine.Spec.MachineConfiguration.MachineCreationTimeout = effectiveCreationTimeout
+		}
 		klog.V(2).Infof("MachineCreationTimeout overridden on new Machine with GenerateName %q and parent MachineSet %q to %q",
 			machine.ObjectMeta.GenerateName, parentMetaObj.GetName(), effectiveCreationTimeout.Duration)
 	}

@@ -57,7 +57,7 @@ var (
 	}, []string{"name", "namespace", "condition"})
 
 	// MachineCreateDurationSeconds is the Prometheus gauge metric representing the time duration
-	// in seconds to create a Machine of a MachineDeployment.
+	// in seconds to create a Machine of a MachineDeployment from the time of Machine creation.
 	MachineCreateDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: machineSubsystem,
@@ -75,7 +75,7 @@ var (
 	}, []string{"namespace", "machine_deployment"})
 
 	// MachineJoinDurationSeconds is the Prometheus gauge metric representing the time duration
-	// in seconds for a Machine of a MachineDeployment to join the cluster.
+	// in seconds for a Machine of a MachineDeployment to join the cluster from the time of Machine creation.
 	MachineJoinDurationSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: machineSubsystem,
@@ -231,6 +231,10 @@ func IncrementNumFailedToJoin(machine *v1alpha1.Machine, machineClass *v1alpha1.
 	mcdName := machineutils.GetMachineDeploymentName(machine)
 	if mcdName == "" {
 		klog.Warningf("Machine %q does not possess 'name' label which is its MachineDeployment name", machine.Name)
+		return
+	}
+	if machineClass.NodeTemplate == nil {
+		klog.Warningf("MachineClass %q does not have NodeTemplate", machineClass.Name)
 		return
 	}
 	instanceType := machineClass.NodeTemplate.InstanceType
