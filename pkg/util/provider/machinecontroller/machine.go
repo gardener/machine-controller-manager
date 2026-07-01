@@ -786,7 +786,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		klog.Warningf("Preserve annotation %q=%q on node %q backing machine %q is invalid", machineutils.PreserveMachineAnnotationKey, preserveInfo.nodeValue, nodeName, machine.Name)
 		return
 	}
-	preservationBound := isMachinePreservationBound(preserveInfo)
+	preservationBound := isMachinePreservationBound(&preserveInfo)
 	if !preservationBound {
 		// We clear the error here to prevent preservation logic from interfering with non-preservation-bound machines.
 		err = nil
@@ -801,7 +801,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	}
 	// Note: when the backing node cannot be found, we assume the machine's annotation value needs to be enforced to enable
 	// preservation of the machine object.
-	effectivePreserveValue := getEffectivePreservationAnnotations(preserveInfo, getErr)
+	effectivePreserveValue := getEffectivePreservationAnnotations(&preserveInfo, getErr)
 
 	var removeAnnotations bool
 	clone := machine.DeepCopy()
@@ -858,7 +858,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		}
 	}
 
-	if shouldAnnotationsBeUpdatedOnMachine(removeAnnotations, preserveInfo) {
+	if shouldAnnotationsBeUpdatedOnMachine(removeAnnotations, &preserveInfo) {
 		err = c.updatePreserveAnnotationOnMachine(ctx, preserveInfo.nodeValue, clone)
 	}
 	return
@@ -901,7 +901,7 @@ func isMachinePreservationBound(info *preserveStateInfo) bool {
 	return true
 }
 
-func (c *controller) getPreserveStateInfo(machine *v1alpha1.Machine) (*preserveStateInfo, error) {
+func (c *controller) getPreserveStateInfo(machine *v1alpha1.Machine) (preserveStateInfo, error) {
 	var info preserveStateInfo
 	if machine.Annotations != nil {
 		info.machineValue, info.machineAnnotated = machine.Annotations[machineutils.PreserveMachineAnnotationKey]
@@ -914,11 +914,11 @@ func (c *controller) getPreserveStateInfo(machine *v1alpha1.Machine) (*preserveS
 	if nodeName != "" {
 		node, err := c.nodeLister.Get(nodeName)
 		if err != nil {
-			return &info, err
+			return info, err
 		}
 		info.nodeValue, info.nodeAnnotated = node.Annotations[machineutils.PreserveMachineAnnotationKey]
 	}
-	return &info, nil
+	return info, nil
 }
 
 // shouldAnnotationsBeUpdatedOnMachine returns true when the machine's annotation tracking needs
