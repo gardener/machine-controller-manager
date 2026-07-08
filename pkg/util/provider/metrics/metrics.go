@@ -175,7 +175,7 @@ var (
 type MachineDurations struct {
 	// Create is the duration to create a Machine from the time of its creation timestamp.
 	Create time.Duration
-	// Create is the duration to initialize a Machine after creation.
+	// Initialize is the duration to initialize a Machine after creation.
 	Initialize time.Duration
 	// Join is the duration for a Machine to join the cluster ie associated Node becomes Ready
 	Join time.Duration
