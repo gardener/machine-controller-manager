@@ -235,10 +235,6 @@ func (o *Options) RunDrain(ctx context.Context) error {
 		)
 	}()
 
-	if err := o.RunCordonOrUncordon(drainContext, true); err != nil {
-		klog.Errorf("Drain Error: Cordoning of node failed with error: %v", err)
-		return err
-	}
 	if !cache.WaitForCacheSync(drainContext.Done(), o.podSynced) {
 		err := fmt.Errorf("timed out waiting for pod cache to sync")
 		return err
@@ -1162,29 +1158,6 @@ func SupportEviction(clientset kubernetes.Interface) (string, error) {
 		}
 	}
 	return "", nil
-}
-
-// RunCordonOrUncordon runs either Cordon or Uncordon.  The desired value for
-// "Unschedulable" is passed as the first arg.
-func (o *Options) RunCordonOrUncordon(ctx context.Context, desired bool) error {
-	node, err := o.client.CoreV1().Nodes().Get(ctx, o.nodeName, metav1.GetOptions{})
-	if err != nil {
-		// Deletion could be triggered when machine is just being created, no node present then
-		return nil
-	}
-	unsched := node.Spec.Unschedulable
-	if unsched == desired {
-		klog.V(3).Infof("Scheduling state for node %q is already in desired state", node.Name)
-	} else {
-		clone := node.DeepCopy()
-		clone.Spec.Unschedulable = desired
-
-		_, err = o.client.CoreV1().Nodes().Update(ctx, clone, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func getPdbForPod(pdbLister policyv1listers.PodDisruptionBudgetLister, pod *corev1.Pod) *policyv1.PodDisruptionBudget {

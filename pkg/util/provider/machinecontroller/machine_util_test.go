@@ -3966,11 +3966,13 @@ var _ = Describe("machine_util", func() {
 			preserveValue          string
 			isCAAnnotationPresent  bool
 			preservedNodeCondition corev1.NodeCondition
+			isUserCordoned         bool
 		}
 		type expect struct {
 			preserveNodeCondition   corev1.NodeCondition
 			isPreserveExpiryTimeSet bool
 			isCAAnnotationPresent   bool
+			isNodeTainted           bool
 			err                     error
 		}
 		type testCase struct {
@@ -4010,6 +4012,7 @@ var _ = Describe("machine_util", func() {
 							Labels:      map[string]string{},
 							Annotations: map[string]string{},
 						},
+						Spec: corev1.NodeSpec{Unschedulable: tc.setup.isUserCordoned},
 						Status: corev1.NodeStatus{
 							Conditions: []corev1.NodeCondition{},
 						},
@@ -4050,6 +4053,16 @@ var _ = Describe("machine_util", func() {
 					Expect(updatedNodeCondition.Reason).To(Equal(tc.expect.preserveNodeCondition.Reason))
 					Expect(updatedNodeCondition.Message).To(ContainSubstring(tc.expect.preserveNodeCondition.Message))
 				}
+				Expect(updatedNode.Spec.Unschedulable).To(Equal(tc.setup.isUserCordoned),
+					"preserveMachine must not change Spec.Unschedulable")
+				hasTaint := false
+				for _, t := range updatedNode.Spec.Taints {
+					if t.Key == machineutils.NodePreservedTaintKey {
+						hasTaint = true
+						break
+					}
+				}
+				Expect(hasTaint).To(Equal(tc.expect.isNodeTainted))
 			},
 			Entry("when preserve=now and there is no backing node", &testCase{
 				setup: setup{
@@ -4089,6 +4102,7 @@ var _ = Describe("machine_util", func() {
 					err:                     nil,
 					isPreserveExpiryTimeSet: true,
 					isCAAnnotationPresent:   true,
+					isNodeTainted:           true,
 					preserveNodeCondition: corev1.NodeCondition{
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
@@ -4107,6 +4121,7 @@ var _ = Describe("machine_util", func() {
 					err:                     nil,
 					isPreserveExpiryTimeSet: true,
 					isCAAnnotationPresent:   true,
+					isNodeTainted:           true,
 					preserveNodeCondition: corev1.NodeCondition{
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
@@ -4126,6 +4141,7 @@ var _ = Describe("machine_util", func() {
 					err:                     nil,
 					isPreserveExpiryTimeSet: true,
 					isCAAnnotationPresent:   true,
+					isNodeTainted:           true,
 					preserveNodeCondition: corev1.NodeCondition{
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
@@ -4151,6 +4167,7 @@ var _ = Describe("machine_util", func() {
 					err:                     nil,
 					isPreserveExpiryTimeSet: true,
 					isCAAnnotationPresent:   true,
+					isNodeTainted:           true,
 					preserveNodeCondition: corev1.NodeCondition{
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
@@ -4169,6 +4186,7 @@ var _ = Describe("machine_util", func() {
 					err:                     nil,
 					isPreserveExpiryTimeSet: true,
 					isCAAnnotationPresent:   true,
+					isNodeTainted:           true,
 					preserveNodeCondition: corev1.NodeCondition{
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
@@ -4187,6 +4205,7 @@ var _ = Describe("machine_util", func() {
 					err:                     nil,
 					isPreserveExpiryTimeSet: true,
 					isCAAnnotationPresent:   true,
+					isNodeTainted:           true,
 					preserveNodeCondition: corev1.NodeCondition{
 						Type:    machinev1.NodePreserved,
 						Status:  corev1.ConditionTrue,
@@ -4208,12 +4227,131 @@ var _ = Describe("machine_util", func() {
 				},
 			},
 			),
+			Entry("when preserve=now, the machine is Running, and the node is user-cordoned, Spec.Unschedulable must remain true", &testCase{
+				setup: setup{
+					machinePhase:   machinev1.MachineRunning,
+					nodeName:       "node-1",
+					preserveValue:  machineutils.PreserveMachineAnnotationValueNow,
+					isUserCordoned: true,
+				},
+				expect: expect{
+					err:                     nil,
+					isPreserveExpiryTimeSet: true,
+					isCAAnnotationPresent:   true,
+					preserveNodeCondition: corev1.NodeCondition{
+						Type:   machinev1.NodePreserved,
+						Status: corev1.ConditionTrue,
+						Reason: machinev1.PreservedByUser,
+					},
+				},
+			}),
+			Entry("when preserve=now, the machine has Failed, and the node is user-cordoned, Spec.Unschedulable must remain true", &testCase{
+				setup: setup{
+					machinePhase:   machinev1.MachineFailed,
+					nodeName:       "node-1",
+					preserveValue:  machineutils.PreserveMachineAnnotationValueNow,
+					isUserCordoned: true,
+				},
+				expect: expect{
+					err:                     nil,
+					isPreserveExpiryTimeSet: true,
+					isCAAnnotationPresent:   true,
+					isNodeTainted:           true,
+					preserveNodeCondition: corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionTrue,
+						Reason:  machinev1.PreservedByUser,
+						Message: machinev1.PreservedNodeDrainSuccessful,
+					},
+				},
+			}),
+		)
+	})
+	Describe("#cordonNode", func() {
+		type setup struct {
+			nodeExists      bool
+			alreadyCordoned bool
+		}
+		type expect struct {
+			err      error
+			cordoned bool
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+		DescribeTable("##cordonNode behaviour scenarios",
+			func(tc *testCase) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				var targetCoreObjects []runtime.Object
+				nodeName := "node-1"
+
+				if tc.setup.nodeExists {
+					node := &corev1.Node{
+						ObjectMeta: metav1.ObjectMeta{Name: nodeName},
+						Spec:       corev1.NodeSpec{Unschedulable: tc.setup.alreadyCordoned},
+					}
+					targetCoreObjects = append(targetCoreObjects, node)
+				}
+
+				c, trackers := createController(stop, testNamespace, nil, nil, targetCoreObjects, nil, false)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+
+				err := c.cordonNode(context.TODO(), nodeName)
+				if tc.expect.err != nil {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
+					return
+				}
+				Expect(err).To(BeNil())
+
+				if !tc.setup.nodeExists {
+					return
+				}
+				updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
+				Expect(getErr).To(BeNil())
+				Expect(updatedNode.Spec.Unschedulable).To(Equal(tc.expect.cordoned))
+			},
+			Entry("when the node does not exist, should succeed without error", &testCase{
+				setup: setup{
+					nodeExists: false,
+				},
+				expect: expect{
+					err: nil,
+				},
+			}),
+			Entry("when the node exists and is not yet cordoned, should cordon it", &testCase{
+				setup: setup{
+					nodeExists:      true,
+					alreadyCordoned: false,
+				},
+				expect: expect{
+					err:      nil,
+					cordoned: true,
+				},
+			}),
+			Entry("when the node exists and is already cordoned, should remain cordoned without error", &testCase{
+				setup: setup{
+					nodeExists:      true,
+					alreadyCordoned: true,
+				},
+				expect: expect{
+					err:      nil,
+					cordoned: true,
+				},
+			}),
 		)
 	})
 	Describe("#stopPreservationIfActive", func() {
 		type setup struct {
 			nodeName                 string
 			removePreserveAnnotation bool
+			machinePhase             machinev1.MachinePhase
+			isUserCordoned           bool
+			isTainted                bool
 		}
 		type expect struct {
 			err error
@@ -4230,6 +4368,10 @@ var _ = Describe("machine_util", func() {
 				var controlMachineObjects []runtime.Object
 				var targetCoreObjects []runtime.Object
 
+				machinePhase := tc.setup.machinePhase
+				if machinePhase == "" {
+					machinePhase = machinev1.MachineFailed
+				}
 				machine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "machine-1",
@@ -4239,7 +4381,7 @@ var _ = Describe("machine_util", func() {
 					Spec: machinev1.MachineSpec{},
 					Status: machinev1.MachineStatus{
 						CurrentStatus: machinev1.CurrentStatus{
-							Phase:              machinev1.MachineFailed,
+							Phase:              machinePhase,
 							LastUpdateTime:     metav1.Now(),
 							PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(10 * time.Minute)},
 						},
@@ -4255,6 +4397,7 @@ var _ = Describe("machine_util", func() {
 								autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey: autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue,
 							},
 						},
+						Spec: corev1.NodeSpec{Unschedulable: tc.setup.isUserCordoned},
 						Status: corev1.NodeStatus{
 							Conditions: []corev1.NodeCondition{
 								{
@@ -4264,6 +4407,11 @@ var _ = Describe("machine_util", func() {
 								},
 							},
 						},
+					}
+					if tc.setup.isTainted {
+						node.Spec.Taints = []corev1.Taint{
+							{Key: machineutils.NodePreservedTaintKey, Effect: corev1.TaintEffectNoSchedule},
+						}
 					}
 					targetCoreObjects = append(targetCoreObjects, node)
 
@@ -4301,6 +4449,17 @@ var _ = Describe("machine_util", func() {
 				} else {
 					Expect(updatedNode.Annotations).To(HaveKey(machineutils.PreserveMachineAnnotationKey))
 				}
+				Expect(updatedNode.Spec.Unschedulable).To(Equal(tc.setup.isUserCordoned))
+				if tc.setup.isTainted {
+					hasTaint := false
+					for _, t := range updatedNode.Spec.Taints {
+						if t.Key == machineutils.NodePreservedTaintKey {
+							hasTaint = true
+							break
+						}
+					}
+					Expect(hasTaint).To(BeFalse())
+				}
 
 			},
 			Entry("when stopping preservation on a preserved machine with backing node and preserve annotation needs to be removed", &testCase{
@@ -4332,6 +4491,28 @@ var _ = Describe("machine_util", func() {
 			Entry("when stopping preservation on a preserved machine, and the backing node is not found", &testCase{
 				setup: setup{
 					nodeName: "no-backing-node",
+				},
+				expect: expect{
+					err: nil,
+				},
+			}),
+			Entry("when machine recovers to Running and node was not user-cordoned, preservation taint must be removed and Spec.Unschedulable must remain false", &testCase{
+				setup: setup{
+					nodeName:       "node-1",
+					machinePhase:   machinev1.MachineRunning,
+					isUserCordoned: false,
+					isTainted:      true,
+				},
+				expect: expect{
+					err: nil,
+				},
+			}),
+			Entry("when machine recovers to Running and node was user-cordoned, preservation taint must be removed and Spec.Unschedulable must remain true", &testCase{
+				setup: setup{
+					nodeName:       "node-1",
+					machinePhase:   machinev1.MachineRunning,
+					isUserCordoned: true,
+					isTainted:      true,
 				},
 				expect: expect{
 					err: nil,

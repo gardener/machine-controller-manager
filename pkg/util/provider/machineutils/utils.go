@@ -7,6 +7,8 @@ package machineutils
 
 import (
 	"context"
+	"time"
+
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
@@ -16,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-	"time"
 )
 
 const (
@@ -117,6 +118,10 @@ const (
 	// 1) indicate to MCM that a machine must not be auto-preserved on failure
 	// and, 2) to stop auto-preservation of a machine that is already auto-preserved by MCM.
 	PreserveMachineAnnotationValueFalse = "false"
+
+	// NodePreservedTaintKey is used to cordon a node when a Failed machine is preserved.
+	// This taint is added to the node before draining it, and removed when the machine is unpreserved.
+	NodePreservedTaintKey = "node.machine.sapcloud.io/preserved"
 )
 
 // AllowedPreserveAnnotationValues contains the allowed values for the preserve annotation
