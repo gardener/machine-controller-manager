@@ -49,8 +49,6 @@ var (
 	// MachineStatusCondition Information of the mcm managed Machines' status conditions
 	MachineStatusCondition = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
-		// MachineNumFailedJoin is the Prometheus counter metric rpresenting the number of machines that
-		// failed to join the cluster for a MachineDeployment.
 		Subsystem: machineSubsystem,
 		Name:      "status_condition",
 		Help:      "Information of the mcm managed Machines' status conditions.",
@@ -63,7 +61,7 @@ var (
 		Subsystem: machineSubsystem,
 		Name:      "create_duration_seconds",
 		Help:      "Duration in seconds to create a Machine of a MachineDeployment.",
-	}, []string{"namespace", "machine_deployment"})
+	}, []string{"namespace", "machine_deployment", "instance_type", "zone"})
 
 	// MachineInitializeDurationSeconds is the Prometheus gauge metric representing the time duration
 	// in seconds to initialize a Machine of a MachineDeployment.
@@ -72,7 +70,7 @@ var (
 		Subsystem: machineSubsystem,
 		Name:      "initialize_duration_seconds",
 		Help:      "Duration in seconds to initialize a Machine of a MachineDeployment.",
-	}, []string{"namespace", "machine_deployment"})
+	}, []string{"namespace", "machine_deployment", "instance_type", "zone"})
 
 	// MachineJoinDurationSeconds is the Prometheus gauge metric representing the time duration
 	// in seconds for a Machine of a MachineDeployment to join the cluster from the time of Machine creation.
@@ -81,7 +79,7 @@ var (
 		Subsystem: machineSubsystem,
 		Name:      "join_duration_seconds",
 		Help:      "Duration in seconds for a Machine of a MachineDeployment to join the cluster",
-	}, []string{"namespace", "machine_deployment"})
+	}, []string{"namespace", "machine_deployment", "instance_type", "zone"})
 
 	// MachineDrainDurationSeconds is the Prometheus gauge metric representing the time duration
 	// in seconds to drain a Machine of a MachineDeployment.
@@ -99,7 +97,7 @@ var (
 		Subsystem: machineSubsystem,
 		Name:      "delete_duration_seconds",
 		Help:      "Duration in seconds to delete a Machine of a MachineDeployment.",
-	}, []string{"namespace", "machine_deployment"})
+	}, []string{"namespace", "machine_deployment", "instance_type", "zone"})
 
 	// MachineNumFailedJoin is the Prometheus counter metric representing the number of machines that
 	// failed to join the cluster for a MachineDeployment.
@@ -187,16 +185,12 @@ type MachineDurations struct {
 
 // UpdateMetricsForMachineDurations updates the prometheus metrics relevant for machine activity durations such as
 // create/initialize/join/drain/delete using the values specified in the given [MachineDurations] object.
-func UpdateMetricsForMachineDurations(machine *v1alpha1.Machine, newDurations MachineDurations) {
-	mcdName := machineutils.GetMachineDeploymentName(machine)
-	if mcdName == "" {
-		klog.Warningf("Machine %q does not possess 'name' label which is its MachineDeployment name", machine.Name)
+func UpdateMetricsForMachineDurations(machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass, newDurations MachineDurations) {
+	metricLabels := getDeploymentLabels(machine)
+	if metricLabels == nil {
 		return
 	}
-	metricLabels := prometheus.Labels{
-		"namespace":          machine.GetNamespace(),
-		"machine_deployment": mcdName,
-	}
+	addPlacementLabels(metricLabels, machine, machineClass)
 	metricLabelsStr := labels.FormatLabels(metricLabels)
 	if newDurations.Create != 0 {
 		numSecs := newDurations.Create.Round(time.Second).Seconds()
@@ -228,23 +222,11 @@ func UpdateMetricsForMachineDurations(machine *v1alpha1.Machine, newDurations Ma
 // IncrementNumFailedToJoin increments the prometheus metric for the number of machines that failed to join the cluster,
 // deriving label classifiers from the given Machine and MachineClass
 func IncrementNumFailedToJoin(machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass) {
-	mcdName := machineutils.GetMachineDeploymentName(machine)
-	if mcdName == "" {
-		klog.Warningf("Machine %q does not possess 'name' label which is its MachineDeployment name", machine.Name)
+	metricLabels := getDeploymentLabels(machine)
+	if metricLabels == nil {
 		return
 	}
-	if machineClass.NodeTemplate == nil {
-		klog.Warningf("MachineClass %q does not have NodeTemplate", machineClass.Name)
-		return
-	}
-	instanceType := machineClass.NodeTemplate.InstanceType
-	zone := machine.Spec.NodeTemplateSpec.Labels[corev1.LabelTopologyZone]
-	metricLabels := prometheus.Labels{
-		"namespace":          machine.GetNamespace(),
-		"machine_deployment": mcdName,
-		"instance_type":      instanceType,
-		"zone":               zone,
-	}
+	addPlacementLabels(metricLabels, machine, machineClass)
 	metricLabelsStr := labels.FormatLabels(metricLabels)
 	MachineNumFailedJoin.With(metricLabels).Inc()
 	klog.V(3).Infof("incremented num_failed_join metric due to %q with labels %s", machine.Name, metricLabelsStr)
@@ -271,6 +253,36 @@ func registerCloudAPISubsystemMetrics() {
 
 func registerMiscellaneousMetrics() {
 	prometheus.MustRegister(ScrapeFailedCounter)
+}
+
+// getDeploymentLabels returns  prometheus Labels populated with machine deployment related labels or nil if labels
+// cannot be populated. Presently, this is the machine deployment name and namespace.
+func getDeploymentLabels(machine *v1alpha1.Machine) prometheus.Labels {
+	mcdName := machineutils.GetMachineDeploymentName(machine)
+	if mcdName == "" {
+		klog.Warningf("Machine %q does not possess 'name' label which is its MachineDeployment name", machine.Name)
+		return nil
+	}
+	metricLabels := prometheus.Labels{
+		"namespace":          machine.GetNamespace(),
+		"machine_deployment": mcdName,
+	}
+	return metricLabels
+}
+
+// addPlacementLabels adds metric labels related to placement, currently instance_type and zone to the given prometheus metricLabels.
+func addPlacementLabels(metricLabels prometheus.Labels, machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass) {
+	if machine == nil || machineClass == nil {
+		return
+	}
+	if machineClass.NodeTemplate == nil {
+		klog.Warningf("MachineClass %q does not have NodeTemplate", machineClass.Name)
+		return
+	}
+	instanceType := machineClass.NodeTemplate.InstanceType
+	zone := machine.Spec.NodeTemplateSpec.Labels[corev1.LabelTopologyZone]
+	metricLabels["instance_type"] = instanceType
+	metricLabels["zone"] = zone
 }
 
 func init() {

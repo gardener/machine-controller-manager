@@ -926,7 +926,10 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		description       string
 		lastOperationType v1alpha1.MachineOperationType
 	)
-
+	machineClass, err := c.machineClassLister.MachineClasses(c.namespace).Get(machine.Spec.Class.Name)
+	if err != nil {
+		klog.Warningf("unable to get MachineClass %q for Machine %q: %v", machine.Spec.Class.Name, machine.Name, err)
+	}
 	node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -987,7 +990,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 							klog.Warning(err)
 						}
 						klog.V(2).Infof("Machine %q joined the cluster in %q", machine.Name, joinDuration)
-						metrics.UpdateMetricsForMachineDurations(machine, metrics.MachineDurations{Join: joinDuration})
+						metrics.UpdateMetricsForMachineDurations(machine, machineClass, metrics.MachineDurations{Join: joinDuration})
 						metav1.SetMetaDataAnnotation(&clone.ObjectMeta, v1alpha1.AnnotationKeyMachineJoinDuration, joinDuration.String())
 					} else {
 						// Machine rejoined the cluster after a health-check
@@ -1154,10 +1157,6 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 				}
 				cloneDirty = true
-				machineClass, err := c.machineClassLister.MachineClasses(c.namespace).Get(machine.Spec.Class.Name)
-				if err != nil {
-					klog.Warningf("unable to get MachineClass %q for Machine %q: %v", machine.Spec.Class.Name, machine.Name, err)
-				}
 				if machineClass != nil {
 					metrics.IncrementNumFailedToJoin(machine, machineClass)
 				}
@@ -1558,7 +1557,7 @@ func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.
 			description = fmt.Sprintf("Drain successful. %s", machineutils.NodeReadyForUpdate)
 		}
 		state = v1alpha1.MachineStateProcessing
-		metrics.UpdateMetricsForMachineDurations(machine, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
+		metrics.UpdateMetricsForMachineDurations(machine, nil, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
 	} else {
 		klog.Warningf("Drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
 
@@ -1723,7 +1722,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				}
 				err = fmt.Errorf("%s", description)
 				state = v1alpha1.MachineStateProcessing
-				metrics.UpdateMetricsForMachineDurations(machine, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
+				metrics.UpdateMetricsForMachineDurations(machine, nil, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
 
 				// Return error even when machine object is updated
 			} else if err != nil && forceDeleteMachine {
@@ -1872,7 +1871,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 
 		if machine.DeletionTimestamp != nil {
 			deleteDuration = time.Since(machine.DeletionTimestamp.Time)
-			metrics.UpdateMetricsForMachineDurations(machine, metrics.MachineDurations{Delete: deleteDuration})
+			metrics.UpdateMetricsForMachineDurations(machine, deleteMachineRequest.MachineClass, metrics.MachineDurations{Delete: deleteDuration})
 		}
 
 		err = fmt.Errorf("Machine deletion in process. %s", description)
@@ -2702,6 +2701,6 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	} else {
 		klog.V(3).Infof("Drain successful for machine %q , providerID %q ,backing node %q.", machine.Name, getProviderID(machine), getNodeName(machine))
 	}
-	metrics.UpdateMetricsForMachineDurations(machine, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
+	metrics.UpdateMetricsForMachineDurations(machine, nil, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
 	return nil
 }

@@ -396,7 +396,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				// Creation was successful
 				createDuration = time.Since(machine.CreationTimestamp.Time)
 				klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q, createDuration: %s", machine.Name, providerID, nodeName, createDuration)
-				metrics.UpdateMetricsForMachineDurations(machine, metrics.MachineDurations{Create: createDuration})
+				metrics.UpdateMetricsForMachineDurations(machine, createMachineRequest.MachineClass, metrics.MachineDurations{Create: createDuration})
 
 				if c.nodeLister != nil {
 					// If a node obj already exists by the same nodeName, treat it as a stale node and trigger machine deletion.
@@ -505,7 +505,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		}
 		initializeDuration = time.Since(initializeBeginTime)
 		klog.V(2).Infof("Machine %q was initialized in %q", machine.Name, initializeDuration)
-		metrics.UpdateMetricsForMachineDurations(machine, metrics.MachineDurations{Initialize: initializeDuration})
+		metrics.UpdateMetricsForMachineDurations(machine, createMachineRequest.MachineClass, metrics.MachineDurations{Initialize: initializeDuration})
 
 		if c.targetCoreClient == nil {
 			// persist addresses from the InitializeMachine and CreateMachine responses

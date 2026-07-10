@@ -12,7 +12,7 @@ const (
 	// annotation takes precedence over the MachineDeployment.Spec.Template.Spec.MachineCreationTimeout.
 	AnnotationKeyMachineEffectiveCreationTimeout = "node.machine.sapcloud.io/effective-creation-timeout"
 	// AnnotationKeyMachineJoinDuration is the annotation key set on the Machine that indicates the amount of time Machine
-	// took to join the cluster. The value is a Go Duration string.
+	// took to join the cluster and is useful for diagnosis. The value is a Go Duration string.
 	AnnotationKeyMachineJoinDuration = "node.machine.sapcloud.io/machine-join-duration"
 	// LabelKeyNodeCandidateForUpdate is the label key that indicates a node is a candidate for update.
 	LabelKeyNodeCandidateForUpdate = "node.machine.sapcloud.io/candidate-for-update"
