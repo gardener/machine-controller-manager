@@ -27,7 +27,7 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
     - [How to scale down MachineDeployment by selective deletion of machines?](#how-to-scale-down-machinedeployment-by-selective-deletion-of-machines)
     - [How to force delete a machine?](#how-to-force-delete-a-machine)
     - [How to pause the ongoing rolling-update of the machinedeployment?](#how-to-pause-the-ongoing-rolling-update-of-the-machinedeployment)
-    - [How to delete machine object immedietly if I don't have access to it?](#how-to-delete-machine-object-immedietly-if-i-dont-have-access-to-it)
+    - [How to delete machine object immediately if I don't have access to it?](#how-to-delete-machine-object-immediately-if-i-dont-have-access-to-it)
     - [How to avoid garbage collection of your node?](#how-to-avoid-garbage-collection-of-your-node)
     - [How to trigger rolling update of a machinedeployment?](#how-to-trigger-rolling-update-of-a-machinedeployment)
 - [Internals](#internals)
