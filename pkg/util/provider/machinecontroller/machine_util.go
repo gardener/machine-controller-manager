@@ -1490,7 +1490,7 @@ func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.
 
 	if err = c.cordonNode(ctx, nodeName); err != nil {
 		klog.Errorf("cordoning of backing node %q for machine %q, with providerID %q, failed with error: %v", nodeName, machine.Name, getProviderID(machine), err)
-		description = fmt.Sprintf("Cordoning failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
+		description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
 		state = v1alpha1.MachineStateProcessing
 		return c.updateMachineStatusAndNodeCondition(ctx, machine, description, state, err)
 	}
@@ -1655,7 +1655,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				if updateErr != nil {
 					return updateRetryPeriod, updateErr
 				}
-				return machineutils.ShortRetry, err
+				return machineutils.ShortRetry, fmt.Errorf("%s", description)
 			}
 			klog.Warningf("Failed to update node conditions: %v. However, since it's a force deletion shall continue deletion of VM.", err)
 		}
@@ -1668,7 +1668,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				state = v1alpha1.MachineStateProcessing
 			} else {
 				klog.Errorf("cordoning of backing node %q for machine %q, with providerID %q, failed with error: %v", nodeName, machine.Name, getProviderID(machine), err)
-				description = fmt.Sprintf("Cordoning failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
+				description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
 				state = v1alpha1.MachineStateFailed
 			}
 			updateRetryPeriod, updateErr := c.updateMachineStatusForDrain(ctx, machine, description, state, v1alpha1.MachineOperationDelete)
@@ -2499,7 +2499,7 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 	// If machine is in Running, workload can get scheduled onto it.
 	err = nodeops.RemoveTaintOffNode(ctx, c.targetCoreClient, updatedNode.Name, updatedNode, &v1.Taint{Key: machineutils.NodePreservedTaintKey, Effect: v1.TaintEffectNoSchedule})
 	if err != nil {
-		return true, err
+		return false, err
 	}
 
 	// Step 5: update machine status to set preserve expiry time to nil
@@ -2631,6 +2631,11 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		nodeNotReadyDuration                        = 5 * time.Minute
 		ReadonlyFilesystem     v1.NodeConditionType = "ReadonlyFilesystem"
 	)
+	if nodeName == "" {
+		klog.Warningf("(drainNode) machine %q has no node name. Skipping drain.", machine.Name)
+		return nil
+	}
+
 	for _, condition := range machine.Status.Conditions {
 		if condition.Type == v1.NodeReady {
 			nodeReadyCondition = condition
@@ -2638,10 +2643,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 			readOnlyFileSystemCondition = condition
 		}
 	}
-	if nodeName == "" {
-		klog.Warningf("(drainNode) machine %q has no node name. Skipping drain.", machine.Name)
-		return nil
-	}
+
 	// verify and log node object's existence
 	_, err = c.nodeLister.Get(nodeName)
 	if err == nil {
@@ -2689,10 +2691,10 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	}
 
 	// since we do not wish to accidentally uncordon a user-cordoned node after preservation stops,
-	// we add a taint with effect NoSchedule, before draining the node, instead of setting Spec.Unschedulable = true
+	// we add a taint with effect `NoSchedule`, before draining the node, instead of cordoning it.
 	err = nodeops.AddOrUpdateTaintOnNode(ctx, c.targetCoreClient, nodeName, &v1.Taint{Key: machineutils.NodePreservedTaintKey, Effect: v1.TaintEffectNoSchedule})
 	if err != nil {
-		klog.Errorf("cordoning of backing node %q for machine %q, with providerID %q, failed with error: %v", nodeName, machine.Name, getProviderID(machine), err)
+		klog.Errorf("tainting of backing node %q for machine %q, with providerID %q, failed with error: %v", nodeName, machine.Name, getProviderID(machine), err)
 		return err
 	}
 
