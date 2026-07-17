@@ -1444,7 +1444,7 @@ func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.
 	if node, err = c.nodeLister.Get(nodeName); err == nil {
 		klog.V(3).Infof("(drainNode) For node %q, machine %q, nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeName, machine.Name, nodeReadyCondition, readOnlyFileSystemCondition)
 	} else if apierrors.IsNotFound(err) {
-		klog.Warningf("(drainNode) Node %q for machine %q doesn't exist, so drain will finish instantly", nodeName, machine.Name)
+		klog.Warningf("(drainNode) Node %q for machine %q doesn't exist. Skipping drain.", nodeName, machine.Name)
 	}
 
 	if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != v1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
@@ -1593,7 +1593,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		if _, err := c.nodeLister.Get(nodeName); err == nil {
 			klog.V(3).Infof("(drainNode) For node %q, machine %q, nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeName, machine.Name, nodeReadyCondition, readOnlyFileSystemCondition)
 		} else if apierrors.IsNotFound(err) {
-			klog.Warningf("(drainNode) Node %q for machine %q doesn't exist, so drain will finish instantly", nodeName, machine.Name)
+			klog.Warningf("(drainNode) Node %q for machine %q doesn't exist. Skipping drain.", nodeName, machine.Name)
 		}
 
 		if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != v1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
@@ -1655,7 +1655,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				if updateErr != nil {
 					return updateRetryPeriod, updateErr
 				}
-				return machineutils.ShortRetry, fmt.Errorf("%s", description)
+				return machineutils.ShortRetry, err
 			}
 			klog.Warningf("Failed to update node conditions: %v. However, since it's a force deletion shall continue deletion of VM.", err)
 		}
@@ -1663,7 +1663,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		if err = c.cordonNode(ctx, nodeName); err != nil {
 			if forceDeleteMachine {
 				// Cordoning failed on force deletion
-				klog.Warningf("Cordoning failed for machine %q. However, since it's a force deletion shall continue deletion of VM. \nErr-Message:%v", machine.Name, err)
+				klog.Warningf("Cordoning of backing node %q for machine %q, with providerID %q, failed. However, since it's a force deletion, shall continue deletion of VM. \nErr-Message:%v", nodeName, machine.Name, getProviderID(machine), err)
 				description = fmt.Sprintf("Drain failed due to - %s. However, since it's a force deletion shall continue deletion of VM. %s", err.Error(), machineutils.DelVolumesAttachments)
 				state = v1alpha1.MachineStateProcessing
 			} else {
@@ -1750,7 +1750,7 @@ func (c *controller) cordonNode(ctx context.Context, nodeName string) error {
 		return nil
 	}
 	if node.Spec.Unschedulable {
-		klog.V(3).Infof("Scheduling state for node %q is already in desired state", node.Name)
+		klog.V(3).Infof("Node %q is already cordoned.", node.Name)
 		return nil
 	}
 	clone := node.DeepCopy()
@@ -2497,7 +2497,10 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 
 	// Step 4: remove preservation-related taint regardless of machine phase.
 	// If machine is in Running, workload can get scheduled onto it.
-	err = nodeops.RemoveTaintOffNode(ctx, c.targetCoreClient, updatedNode.Name, updatedNode, &v1.Taint{Key: machineutils.NodePreservedTaintKey, Effect: v1.TaintEffectNoSchedule})
+	err = nodeops.RemoveTaintOffNode(ctx, c.targetCoreClient, updatedNode.Name, updatedNode, &v1.Taint{
+		Key:    machineutils.NodePreservedTaintKey,
+		Effect: v1.TaintEffectNoSchedule,
+	})
 	if err != nil {
 		return false, err
 	}
@@ -2649,7 +2652,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	if err == nil {
 		klog.V(3).Infof("(drainNode) For node %q, machine %q, nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeName, machine.Name, nodeReadyCondition, readOnlyFileSystemCondition)
 	} else if apierrors.IsNotFound(err) {
-		klog.Warningf("(drainNode) Node %q for machine %q doesn't exist, so drain will finish instantly", nodeName, machine.Name)
+		klog.Warningf("(drainNode) Node %q for machine %q doesn't exist. Skipping drain.", nodeName, machine.Name)
 		return nil
 	}
 
