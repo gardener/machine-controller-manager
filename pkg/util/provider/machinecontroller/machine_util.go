@@ -1553,7 +1553,6 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		forceDeletePods                                 bool
 		forceDeleteMachine                              bool
 		timeOutOccurred                                 bool
-		skipDrain                                       bool
 		description                                     string
 		state                                           v1alpha1.MachineState
 		readOnlyFileSystemCondition, nodeReadyCondition v1.NodeCondition
@@ -1579,160 +1578,160 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 	if nodeName == "" {
 		message := "Skipping drain as nodeName is not a valid one for machine."
 		printLogInitError(message, &err, &description, machine, false)
-		skipDrain = true
-	} else {
-		for _, condition := range machine.Status.Conditions {
-			if condition.Type == v1.NodeReady {
-				nodeReadyCondition = condition
-			} else if condition.Type == ReadonlyFilesystem {
-				readOnlyFileSystemCondition = condition
-			}
+		state = v1alpha1.MachineStateProcessing
+		updateRetryPeriod, updateErr := c.updateMachineStatusForDrain(ctx, machine, description, state, v1alpha1.MachineOperationDelete)
+		if updateErr != nil {
+			return updateRetryPeriod, updateErr
 		}
-
-		// verify and log node object's existence
-		if _, err := c.nodeLister.Get(nodeName); err == nil {
-			klog.V(3).Infof("(drainNode) For node %q, machine %q, nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeName, machine.Name, nodeReadyCondition, readOnlyFileSystemCondition)
-		} else if apierrors.IsNotFound(err) {
-			klog.Warningf("(drainNode) Node %q for machine %q doesn't exist. Skipping drain.", nodeName, machine.Name)
-		}
-
-		if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != v1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
-			message := "Setting forceDeletePods & forceDeleteMachine to true for drain as machine is NotReady for over 5min"
-			forceDeleteMachine = true
-			forceDeletePods = true
-			printLogInitError(message, &err, &description, machine, false)
-		} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != v1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
-			message := "Setting forceDeletePods & forceDeleteMachine to true for drain as machine is in ReadonlyFilesystem for over 5min"
-			forceDeleteMachine = true
-			forceDeletePods = true
-			printLogInitError(message, &err, &description, machine, false)
+		return machineutils.ShortRetry, fmt.Errorf("%s", description)
+	}
+	for _, condition := range machine.Status.Conditions {
+		if condition.Type == v1.NodeReady {
+			nodeReadyCondition = condition
+		} else if condition.Type == ReadonlyFilesystem {
+			readOnlyFileSystemCondition = condition
 		}
 	}
 
-	if skipDrain {
-		state = v1alpha1.MachineStateProcessing
+	// verify and log node object's existence
+	if _, err := c.nodeLister.Get(nodeName); err == nil {
+		klog.V(3).Infof("(drainNode) For node %q, machine %q, nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeName, machine.Name, nodeReadyCondition, readOnlyFileSystemCondition)
+	} else if apierrors.IsNotFound(err) {
+		klog.Warningf("(drainNode) Node %q for machine %q doesn't exist. Skipping drain.", nodeName, machine.Name)
+	}
+
+	if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != v1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+		message := "Setting forceDeletePods & forceDeleteMachine to true for drain as machine is NotReady for over 5min"
+		forceDeleteMachine = true
+		forceDeletePods = true
+		printLogInitError(message, &err, &description, machine, false)
+	} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != v1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+		message := "Setting forceDeletePods & forceDeleteMachine to true for drain as machine is in ReadonlyFilesystem for over 5min"
+		forceDeleteMachine = true
+		forceDeletePods = true
+		printLogInitError(message, &err, &description, machine, false)
+	}
+
+	timeOutOccurred = utiltime.HasTimeOutOccurred(*machine.DeletionTimestamp, timeOutDuration)
+
+	if forceDeleteLabelPresent || timeOutOccurred {
+		// To perform forceful machine drain/delete either one of the below conditions must be satisfied
+		// 1. force-deletion: "True" label must be present
+		// 2. Deletion operation is more than drain-timeout minutes old
+		// 3. Last machine drain had failed
+		forceDeleteMachine = true
+		forceDeletePods = true
+		timeOutDuration = 1 * time.Minute
+		maxEvictRetries = 1
+
+		klog.V(2).Infof(
+			"Force delete/drain has been triggerred for machine %q with providerID %q and backing node %q due to Label:%t, timeout:%t",
+			machine.Name,
+			getProviderID(machine),
+			getNodeName(machine),
+			forceDeleteLabelPresent,
+			timeOutOccurred,
+		)
 	} else {
-		timeOutOccurred = utiltime.HasTimeOutOccurred(*machine.DeletionTimestamp, timeOutDuration)
+		klog.V(2).Infof(
+			"Normal delete/drain has been triggerred for machine %q with providerID %q and backing node %q with drain-timeout:%v & maxEvictRetries:%d",
+			machine.Name,
+			getProviderID(machine),
+			getNodeName(machine),
+			timeOutDuration,
+			maxEvictRetries,
+		)
+	}
 
-		if forceDeleteLabelPresent || timeOutOccurred {
-			// To perform forceful machine drain/delete either one of the below conditions must be satified
-			// 1. force-deletion: "True" label must be present
-			// 2. Deletion operation is more than drain-timeout minutes old
-			// 3. Last machine drain had failed
-			forceDeleteMachine = true
-			forceDeletePods = true
-			timeOutDuration = 1 * time.Minute
-			maxEvictRetries = 1
+	// update node with the machine's phase prior to termination
+	if err = c.UpdateNodeTerminationCondition(ctx, machine); err != nil {
+		if !forceDeleteMachine {
+			klog.Errorf("drain failed due to failure in update of node conditions: %v", err)
 
-			klog.V(2).Infof(
-				"Force delete/drain has been triggerred for machine %q with providerID %q and backing node %q due to Label:%t, timeout:%t",
-				machine.Name,
-				getProviderID(machine),
-				getNodeName(machine),
-				forceDeleteLabelPresent,
-				timeOutOccurred,
-			)
-		} else {
-			klog.V(2).Infof(
-				"Normal delete/drain has been triggerred for machine %q with providerID %q and backing node %q with drain-timeout:%v & maxEvictRetries:%d",
-				machine.Name,
-				getProviderID(machine),
-				getNodeName(machine),
-				timeOutDuration,
-				maxEvictRetries,
-			)
-		}
+			description = fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
+			state = v1alpha1.MachineStateFailed
 
-		// update node with the machine's phase prior to termination
-		if err = c.UpdateNodeTerminationCondition(ctx, machine); err != nil {
-			if !forceDeleteMachine {
-				klog.Errorf("drain failed due to failure in update of node conditions: %v", err)
-
-				description = fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
-				state = v1alpha1.MachineStateFailed
-
-				updateRetryPeriod, updateErr := c.updateMachineStatusForDrain(ctx, machine, description, state, v1alpha1.MachineOperationDelete)
-				if updateErr != nil {
-					return updateRetryPeriod, updateErr
-				}
-				return machineutils.ShortRetry, err
-			}
-			klog.Warningf("Failed to update node conditions: %v. However, since it's a force deletion shall continue deletion of VM.", err)
-		}
-
-		if err = c.cordonNode(ctx, nodeName); err != nil {
-			if forceDeleteMachine {
-				// Cordoning failed on force deletion
-				klog.Warningf("Cordoning of backing node %q for machine %q, with providerID %q, failed. However, since it's a force deletion, shall continue deletion of VM. \nErr-Message:%v", nodeName, machine.Name, getProviderID(machine), err)
-				description = fmt.Sprintf("Drain failed due to - %s. However, since it's a force deletion shall continue deletion of VM. %s", err.Error(), machineutils.DelVolumesAttachments)
-				state = v1alpha1.MachineStateProcessing
-			} else {
-				klog.Errorf("cordoning of backing node %q for machine %q, with providerID %q, failed with error: %v", nodeName, machine.Name, getProviderID(machine), err)
-				description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
-				state = v1alpha1.MachineStateFailed
-			}
 			updateRetryPeriod, updateErr := c.updateMachineStatusForDrain(ctx, machine, description, state, v1alpha1.MachineOperationDelete)
 			if updateErr != nil {
 				return updateRetryPeriod, updateErr
 			}
 			return machineutils.ShortRetry, err
 		}
+		klog.Warningf("Failed to update node conditions: %v. However, since it's a force deletion shall continue deletion of VM.", err)
+	}
 
-		buf := bytes.NewBuffer([]byte{})
-		errBuf := bytes.NewBuffer([]byte{})
-
-		drainOptions := drain.NewDrainOptions(
-			c.targetCoreClient,
-			c.targetKubernetesVersion,
-			timeOutDuration,
-			maxEvictRetries,
-			pvDetachTimeOut,
-			pvReattachTimeOut,
-			nodeName,
-			-1,
-			forceDeletePods,
-			true,
-			true,
-			true,
-			buf,
-			errBuf,
-			c.driver,
-			c.pvcLister,
-			c.pvLister,
-			c.pdbLister,
-			c.nodeLister,
-			c.podLister,
-			c.volumeAttachmentHandler,
-			c.podSynced,
-		)
-
-		klog.V(3).Infof("(drainNode) Invoking RunDrain, forceDeleteMachine: %t, forceDeletePods: %t, timeOutDuration: %s", forceDeletePods, forceDeleteMachine, timeOutDuration)
-		err = drainOptions.RunDrain(ctx)
-		if err == nil {
-			// Drain successful
-			klog.V(2).Infof("Drain successful for machine %q ,providerID %q, backing node %q. \nBuf:%v \nErrBuf:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf)
-
-			if forceDeletePods {
-				description = fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments)
-			} else { // regular drain already waits for vol detach and attach for another node.
-				description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
-			}
-			err = fmt.Errorf("%s", description)
-			state = v1alpha1.MachineStateProcessing
-
-			// Return error even when machine object is updated
-		} else if err != nil && forceDeleteMachine {
-			// Drain failed on force deletion
-			klog.Warningf("Drain failed for machine %q. However, since it's a force deletion shall continue deletion of VM. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
-
+	if err = c.cordonNode(ctx, nodeName); err != nil {
+		if forceDeleteMachine {
+			// Cordoning failed on force deletion
+			klog.Warningf("Cordoning of backing node %q for machine %q, with providerID %q, failed. However, since it's a force deletion, shall continue deletion of VM. \nErr-Message:%v", nodeName, machine.Name, getProviderID(machine), err)
 			description = fmt.Sprintf("Drain failed due to - %s. However, since it's a force deletion shall continue deletion of VM. %s", err.Error(), machineutils.DelVolumesAttachments)
 			state = v1alpha1.MachineStateProcessing
 		} else {
-			klog.Errorf("drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
-
+			klog.Errorf("cordoning of backing node %q for machine %q, with providerID %q, failed with error: %v", nodeName, machine.Name, getProviderID(machine), err)
 			description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
 			state = v1alpha1.MachineStateFailed
 		}
+		updateRetryPeriod, updateErr := c.updateMachineStatusForDrain(ctx, machine, description, state, v1alpha1.MachineOperationDelete)
+		if updateErr != nil {
+			return updateRetryPeriod, updateErr
+		}
+		return machineutils.ShortRetry, err
+	}
+
+	buf := bytes.NewBuffer([]byte{})
+	errBuf := bytes.NewBuffer([]byte{})
+
+	drainOptions := drain.NewDrainOptions(
+		c.targetCoreClient,
+		c.targetKubernetesVersion,
+		timeOutDuration,
+		maxEvictRetries,
+		pvDetachTimeOut,
+		pvReattachTimeOut,
+		nodeName,
+		-1,
+		forceDeletePods,
+		true,
+		true,
+		true,
+		buf,
+		errBuf,
+		c.driver,
+		c.pvcLister,
+		c.pvLister,
+		c.pdbLister,
+		c.nodeLister,
+		c.podLister,
+		c.volumeAttachmentHandler,
+		c.podSynced,
+	)
+
+	klog.V(3).Infof("(drainNode) Invoking RunDrain, forceDeleteMachine: %t, forceDeletePods: %t, timeOutDuration: %s", forceDeletePods, forceDeleteMachine, timeOutDuration)
+	err = drainOptions.RunDrain(ctx)
+	if err == nil {
+		// Drain successful
+		klog.V(2).Infof("Drain successful for machine %q ,providerID %q, backing node %q. \nBuf:%v \nErrBuf:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf)
+
+		if forceDeletePods {
+			description = fmt.Sprintf("Force Drain successful. %s", machineutils.DelVolumesAttachments)
+		} else { // regular drain already waits for vol detach and attach for another node.
+			description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
+		}
+		err = fmt.Errorf("%s", description)
+		state = v1alpha1.MachineStateProcessing
+
+		// Return error even when machine object is updated
+	} else if err != nil && forceDeleteMachine {
+		// Drain failed on force deletion
+		klog.Warningf("Drain failed for machine %q. However, since it's a force deletion shall continue deletion of VM. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, buf, errBuf, err)
+
+		description = fmt.Sprintf("Drain failed due to - %s. However, since it's a force deletion shall continue deletion of VM. %s", err.Error(), machineutils.DelVolumesAttachments)
+		state = v1alpha1.MachineStateProcessing
+	} else {
+		klog.Errorf("drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
+
+		description = fmt.Sprintf("Drain failed due to - %s. Will retry in next sync. %s", err.Error(), machineutils.InitiateDrain)
+		state = v1alpha1.MachineStateFailed
 	}
 
 	updateRetryPeriod, updateErr := c.updateMachineStatusForDrain(ctx, machine, description, state, v1alpha1.MachineOperationDelete)
