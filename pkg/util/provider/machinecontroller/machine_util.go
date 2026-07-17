@@ -1717,7 +1717,6 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		} else { // regular drain already waits for vol detach and attach for another node.
 			description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
 		}
-		err = fmt.Errorf("%s", description)
 		state = v1alpha1.MachineStateProcessing
 
 		// Return error even when machine object is updated
@@ -1739,26 +1738,6 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		return updateRetryPeriod, updateErr
 	}
 	return machineutils.ShortRetry, fmt.Errorf("%s", description)
-}
-
-// cordonNode sets node.Spec.Unschedulable to true, if not already set to true
-func (c *controller) cordonNode(ctx context.Context, nodeName string) error {
-	node, err := c.targetCoreClient.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
-	if err != nil {
-		// Deletion could be triggered when machine is just being created, no node present then
-		return nil
-	}
-	if node.Spec.Unschedulable {
-		klog.V(3).Infof("Node %q is already cordoned.", node.Name)
-		return nil
-	}
-	clone := node.DeepCopy()
-	clone.Spec.Unschedulable = true
-	_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, clone, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (c *controller) updateMachineStatusForDrain(ctx context.Context, machine *v1alpha1.Machine, description string, state v1alpha1.MachineState, opType v1alpha1.MachineOperationType) (machineutils.RetryPeriod, error) {
