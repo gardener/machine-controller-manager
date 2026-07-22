@@ -7,8 +7,8 @@ This document explains how to **use machine preservation** to retain machines an
 A machine and its backing node can be preserved by an end-user/SRE/operator to retain machines and their backing VMs for debugging, analysis, or operational safety. 
 
 A preserved machine/node has the following properties:
-- When a machine in `Failed` phase is preserved, it continues to stay in `Failed` state until `machinePreserveTimeout` runs out, without getting terminated. This allows end-users and SREs to debug the machine and backing node, and take necessary actions to recover the machine if needed.
-- If a machine is in its `Failed` phase and is preserved, on recovering from failure, the machine can be moved to `Running` phase and the backing node can be uncordoned to allow scheduling of pods again.
+- When a machine in `Failed` phase is preserved, it continues to stay in `Failed` phase until `machinePreserveTimeout` runs out, without getting terminated. This allows end-users and SREs to debug the machine and backing node, and take necessary actions to recover the machine if needed.
+- If a machine is in its `Failed` phase and is preserved, on recovering from failure, the machine will be moved to `Running` phase and the backing node will be uncordoned to allow scheduling of pods again.
 - If a machine is preserved and is in its `Failed` phase, MCM drains the backing node of all pods, but the daemonset pods remain on the node.
 - If a machine is preserved in its `Running` phase, the MCM adds the CA scale-down-disabled annotation to prevent the CA from scaling down the machine in case of underutilization.
 - When the machineset is scaled down, machines in the machineset marked for preservation are de-prioritized for deletion.
@@ -51,7 +51,7 @@ A preserved machine/node has the following properties:
 
 - The preservation feature offers two modes of preservation:
     - Manual preservation by adding annotations
-    - Auto-preservation by MCM by specifying `AutoPreserveFailedMachineMax` for a workerpool. This value is distributed evenly across zones (MCD).
+    - Auto-preservation by MCM by specifying `AutoPreserveFailedMachineMax` for a workerpool. This value is distributed evenly across zones(MachineDeployments).
 - For manual preservation, the end-user and operators must annotate either the node or the machine objects with annotation key: `node.machine.sapcloud.io/preserve` and the desired value, as described in the table below.
 - If there is no backing node, the machine object can still be annotated.
 
@@ -68,8 +68,8 @@ spec:
   - cri:      
       name: containerd    
     name: worker1
-    autoPreserveFailedMachineMax: 1
-    machineControllerManager:      
+    machineControllerManager:
+      autoPreserveFailedMachineMax: 1
       machinePreserveTimeout: 72h
 ```
 
@@ -95,8 +95,8 @@ annotation key: `node.machine.sapcloud.io/preserve`
 **Auto-preservation Annotation values added by MCM:**
 
 | Annotation value | Purpose                                                                                                                                               |
-| ---------------- |-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| auto-preserve    | Added by MCM to indicate that a machine has been **auto-preserved** on failure. This machine will be counted towards **AutoPreserveFailedMachineMax** |
+|------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| auto-preserved   | Added by MCM to indicate that a machine has been **auto-preserved** on failure. This machine will be counted towards **AutoPreserveFailedMachineMax** |
 
 ### ⚠️ Preservation Annotation semantics:
 
@@ -129,11 +129,11 @@ If the preserve annotation value is set to empty or the annotation is deleted, M
 ---
 ### What happens when a machine recovers from failure and moves to `Running` during preservation?
 
-Depending on the annotation value - (`now/when-failed/auto-preserve`), the behaviour differs. This is to reflect the meaning behind the annotation value.
+Depending on the annotation value - (`now/when-failed/auto-preserved`), the behaviour differs. This is to reflect the meaning behind the annotation value.
 
 1. `now`: on recovery from failure, machine preservation continues until `PreserveExpiryTime`
 2. `when-failed`: on recovery from failure, machine preservation stops. This is because the annotation value clearly expresses that a machine must be preserved only when `Failed`. If the annotation is not changed, and the machine fails again, the machine is preserved again.
-3. `auto-preserve`: since MCM performs auto-preservation of machines only when they are `Failed`, on recovery, the machine preservation is stopped.
+3. `auto-preserved`: since MCM performs auto-preservation of machines only when they are `Failed`, on recovery, the machine preservation is stopped.
 
 In all the cases, when the machine moves to `Running` during preservation, the backing node is uncordoned to allow pods to be scheduled on it again.
 
@@ -146,8 +146,8 @@ In all the cases, when the machine moves to `Running` during preservation, the b
 - Replica enforcement: Preserved machines count towards MachineDeployment replicas, and can be scaled down if the desired replica count is reduced below the number of preserved machines.
 - Scale-down preference: Preserved machines are the last to be scaled down.
 - Preservation status is visible via Node Conditions and Machine Status fields.
-- machinePreserveTimeout changes do not affect existing preserved machines. Operators may edit PreserveExpiryTime directly if required to extend preservation.
-- If a machine or its backing node is annotated for preservation when the machine is in the Failed state, MCM may not be able to act on it before the machine is Terminated. Therefore, it is recommended to annotate the machine/node for preservation when the machine enters the Unknown phase, or as soon as the node is observed to be NotReady, to increase the chances of preservation taking effect before termination.
+- `machinePreserveTimeout` changes do not affect existing preserved machines. Operators may edit PreserveExpiryTime directly if required to extend preservation.
+- If a machine or its backing node is annotated for preservation when the machine is in the Failed phase, MCM may not be able to act on it before the machine is Terminated. Therefore, it is recommended to annotate the machine/node for preservation when the machine enters the Unknown phase, or as soon as the node is observed to be NotReady, to increase the chances of preservation taking effect before termination.
 - Similarly, if an underutilized and unneeded machine is annotated for preservation, but CA initiates scale-down before MCM can add the CA scale-down-disabled annotation as a part of its preservation logic, the machine may be scaled down before preservation takes effect. 
 
 
