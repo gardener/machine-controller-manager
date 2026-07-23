@@ -352,6 +352,30 @@ func (c *controller) getNodePreserveAnnotationValue(nodeName string) (string, er
 	return node.Annotations[machineutils.PreserveMachineAnnotationKey], nil
 }
 
+// cordonNode sets `node.Spec.Unschedulable` to true, if not already set to true
+func (c *controller) cordonNode(ctx context.Context, nodeName string) error {
+	node, err := c.targetCoreClient.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+	if err != nil {
+		// Deletion could be triggered when machine is just being created, no node present then
+		if apierrors.IsNotFound(err) {
+			klog.Warningf("Node %q could not be found.", nodeName)
+			return nil
+		}
+		return err
+	}
+	if node.Spec.Unschedulable {
+		klog.V(3).Infof("Node %q is already cordoned.", node.Name)
+		return nil
+	}
+	clone := node.DeepCopy()
+	clone.Spec.Unschedulable = true
+	_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, clone, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *controller) uncordonNodeIfCordoned(ctx context.Context, nodeName string) error {
 	node, err := c.nodeLister.Get(nodeName)
 	if err != nil {
