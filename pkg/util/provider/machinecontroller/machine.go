@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -327,6 +328,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 	var (
 		// Declarations
 		nodeName, providerID string
+		createDuration       time.Duration
 
 		// Initializations
 		machine              = createMachineRequest.Machine
@@ -392,7 +394,9 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 				providerID = createMachineResponse.ProviderID
 				addresses.Insert(createMachineResponse.Addresses...)
 				// Creation was successful
-				klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q", machine.Name, providerID, nodeName)
+				createDuration = time.Since(machine.CreationTimestamp.Time)
+				klog.V(2).Infof("Created new VM for machine: %q with ProviderID: %q and backing node: %q, createDuration: %s", machine.Name, providerID, nodeName, createDuration)
+				metrics.UpdateMetricsForMachineDurations(machine, metrics.MachineDurations{Create: createDuration})
 
 				if c.nodeLister != nil {
 					// If a node obj already exists by the same nodeName, treat it as a stale node and trigger machine deletion.
@@ -489,12 +493,19 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 	}
 	//initialize VM if not initialized
 	if uninitializedMachine {
-		var retryPeriod machineutils.RetryPeriod
-		var initResponse *driver.InitializeMachineResponse
+		var (
+			retryPeriod         machineutils.RetryPeriod
+			initResponse        *driver.InitializeMachineResponse
+			initializeBeginTime = time.Now()
+			initializeDuration  time.Duration
+		)
 		initResponse, retryPeriod, err = c.initializeMachine(ctx, clone, createMachineRequest.MachineClass, createMachineRequest.Secret)
 		if err != nil {
 			return retryPeriod, err
 		}
+		initializeDuration = time.Since(initializeBeginTime)
+		klog.V(2).Infof("Machine %q was initialized in %q", machine.Name, initializeDuration)
+		metrics.UpdateMetricsForMachineDurations(machine, metrics.MachineDurations{Initialize: initializeDuration})
 
 		if c.targetCoreClient == nil {
 			// persist addresses from the InitializeMachine and CreateMachine responses

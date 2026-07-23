@@ -301,8 +301,7 @@ type controller struct {
 	machineClassSynced      cache.InformerSynced
 	machineSynced           cache.InformerSynced
 	podSynced               cache.InformerSynced
-
-	resourceExhaustedRetry machineutils.RetryPeriod
+	resourceExhaustedRetry  machineutils.RetryPeriod
 }
 
 func (dc *controller) Run(workers int, stopCh <-chan struct{}) {

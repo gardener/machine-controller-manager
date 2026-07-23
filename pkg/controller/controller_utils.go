@@ -505,9 +505,13 @@ func getMachinesFinalizers(template *v1alpha1.MachineTemplateSpec) []string {
 	return desiredFinalizers
 }
 
-func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, _ runtime.Object) labels.Set {
+func getMachinesAnnotationSet(template *v1alpha1.MachineTemplateSpec, parentObject metav1.Object) labels.Set {
 	desiredAnnotations := make(labels.Set)
 	maps.Copy(desiredAnnotations, template.Annotations)
+	effectiveCreationTimeoutStr, ok := parentObject.GetAnnotations()[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout]
+	if ok {
+		desiredAnnotations[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout] = effectiveCreationTimeoutStr
+	}
 	return desiredAnnotations
 }
 
@@ -535,13 +539,13 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 	desiredLabels := getMachinesLabelSet(template)
 	//klog.Info(desiredLabels)
 	desiredFinalizers := getMachinesFinalizers(template)
-	desiredAnnotations := getMachinesAnnotationSet(template, parentObject)
 
-	accessor, err := meta.Accessor(parentObject)
+	parentMetaObj, err := meta.Accessor(parentObject)
 	if err != nil {
 		return nil, fmt.Errorf("parentObject does not have ObjectMeta, %v", err)
 	}
-	prefix := getMachinesPrefix(accessor.GetName())
+	prefix := getMachinesPrefix(parentMetaObj.GetName())
+	desiredAnnotations := getMachinesAnnotationSet(template, parentMetaObj)
 
 	machine := &v1alpha1.Machine{
 		ObjectMeta: metav1.ObjectMeta{
@@ -550,15 +554,25 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 			GenerateName: prefix,
 			Finalizers:   desiredFinalizers,
 		},
-		Spec: v1alpha1.MachineSpec{
-			Class: template.Spec.Class,
-		},
+	}
+	machine.Spec = *template.Spec.DeepCopy()
+	effectiveCreationTimeout, err := annotationsutils.GetEffectiveMachineCreationTimeoutFromRuntimeObject(parentObject)
+	if err != nil {
+		klog.Warningf("Failed to obtain effective creation timeout from annotation %q on machine set %q due to %s",
+			v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout, controllerRef, err)
+	}
+	if effectiveCreationTimeout != nil {
+		if machine.Spec.MachineConfiguration == nil {
+			machine.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{MachineCreationTimeout: effectiveCreationTimeout}
+		} else {
+			machine.Spec.MachineConfiguration.MachineCreationTimeout = effectiveCreationTimeout
+		}
+		klog.V(2).Infof("MachineCreationTimeout overridden on new Machine with GenerateName %q and parent MachineSet %q to %q",
+			machine.ObjectMeta.GenerateName, parentMetaObj.GetName(), effectiveCreationTimeout.Duration)
 	}
 	if controllerRef != nil {
 		machine.OwnerReferences = append(machine.OwnerReferences, *controllerRef)
 	}
-	machine.Spec = *template.Spec.DeepCopy()
-
 	return machine, nil
 }
 
@@ -696,13 +710,13 @@ func GetFakeMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentOb
 	desiredLabels := getMachinesLabelSet(template)
 
 	desiredFinalizers := getMachinesFinalizers(template)
-	desiredAnnotations := getMachinesAnnotationSet(template, parentObject)
-
-	accessor, err := meta.Accessor(parentObject)
+	parentMetaObj, err := meta.Accessor(parentObject)
 	if err != nil {
 		return nil, fmt.Errorf("parentObject does not have ObjectMeta, %v", err)
 	}
-	prefix := getMachinesPrefix(accessor.GetName())
+	desiredAnnotations := getMachinesAnnotationSet(template, parentMetaObj)
+
+	prefix := getMachinesPrefix(parentMetaObj.GetName())
 	prefix = prefix + "-" + uuid.New().String()[:5]
 	machine := &v1alpha1.Machine{
 		ObjectMeta: metav1.ObjectMeta{
