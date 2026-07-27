@@ -818,8 +818,9 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 			LastUpdateTime: metav1.Now(),
 		},
 		v1alpha1.CurrentStatus{
-			Phase:          c.getCreateFailurePhase(machine),
-			LastUpdateTime: metav1.Now(),
+			Phase:              c.getCreateFailurePhase(machine),
+			LastUpdateTime:     metav1.Now(),
+			PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 		},
 		lastKnownState,
 	)
