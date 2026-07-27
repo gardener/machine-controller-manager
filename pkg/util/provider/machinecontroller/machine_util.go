@@ -2399,8 +2399,15 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 		return machine, err
 	}
 	existingNodePreservedCondition := nodeops.GetCondition(node, v1alpha1.NodePreserved)
-	// if the `Preserved` NodeCondition has ConditionStatus==ConditionTrue, preservation is complete
-	if existingNodePreservedCondition != nil && existingNodePreservedCondition.Status == v1.ConditionTrue {
+	drainRequired := shouldPreservedNodeBeDrained(existingNodePreservedCondition, machine.Status.CurrentStatus.Phase)
+	// For a Running machine, preservation is complete when ConditionStatus is True. However, for a Failed machine,
+	// preservation is complete only once the node is drained and tainted.
+	// Edge-case: when a machine in Running phase is preserved with preserve=now, and
+	// the machine transitions to Failed.
+	// In such cases, even though ConditionStatus would be set to True, on transitioning to
+	// Failed, the preservation needs to be considered as incomplete.
+	if existingNodePreservedCondition != nil && existingNodePreservedCondition.Status == v1.ConditionTrue &&
+		!drainRequired {
 		return machine, nil
 	}
 	// Step 2: Add annotations to prevent scale down of node by CA
@@ -2409,7 +2416,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 		return machine, err
 	}
 	var drainErr error
-	if shouldPreservedNodeBeDrained(existingNodePreservedCondition, machine.Status.CurrentStatus.Phase) {
+	if drainRequired {
 		// Step 3: If machine is in Failed Phase, drain the backing node
 		drainErr = c.drainPreservedNode(ctx, machine)
 	}
@@ -2696,11 +2703,15 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 			timeOutDuration,
 			maxEvictRetries,
 		)
-	}
-
-	// since we do not wish to change a user's explicit cordoning of a node, for preservation, we make use of
+	} // since we do not wish to change a user's explicit cordoning of a node, for preservation, we make use of
 	// a taint with effect `NoSchedule` before draining the node, instead of cordoning it.
-	err = nodeops.AddOrUpdateTaintOnNode(ctx, c.targetCoreClient, nodeName, &v1.Taint{Key: machineutils.NodePreservedTaintKey, Effect: v1.TaintEffectNoSchedule})
+	err = nodeops.AddOrUpdateTaintOnNode(ctx, c.targetCoreClient,
+		nodeName,
+		&v1.Taint{
+			Key:       machineutils.NodePreservedTaintKey,
+			Effect:    v1.TaintEffectNoSchedule,
+			TimeAdded: new(metav1.Now()),
+		})
 	if err != nil {
 		klog.Errorf("tainting of backing node %q for machine %q, with providerID %q, failed with error: %v", nodeName, machine.Name, getProviderID(machine), err)
 		return err

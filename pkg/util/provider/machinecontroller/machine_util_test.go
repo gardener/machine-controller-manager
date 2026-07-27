@@ -3961,12 +3961,13 @@ var _ = Describe("machine_util", func() {
 	})
 	Describe("#preserveMachine", func() {
 		type setup struct {
-			machinePhase           machinev1.MachinePhase
-			nodeName               string
-			preserveValue          string
-			isCAAnnotationPresent  bool
-			preservedNodeCondition corev1.NodeCondition
-			isUserCordoned         bool
+			machinePhase            machinev1.MachinePhase
+			nodeName                string
+			preserveValue           string
+			isCAAnnotationPresent   bool
+			preservedNodeCondition  corev1.NodeCondition
+			isUserCordoned          bool
+			isPreserveExpiryTimeSet bool
 		}
 		type expect struct {
 			preserveNodeCondition   corev1.NodeCondition
@@ -3998,9 +3999,15 @@ var _ = Describe("machine_util", func() {
 					Spec: machinev1.MachineSpec{},
 					Status: machinev1.MachineStatus{
 						CurrentStatus: machinev1.CurrentStatus{
-							Phase:              tc.setup.machinePhase,
-							LastUpdateTime:     metav1.Now(),
-							PreserveExpiryTime: nil,
+							Phase:          tc.setup.machinePhase,
+							LastUpdateTime: metav1.Now(),
+							PreserveExpiryTime: func() *metav1.Time {
+								if tc.setup.isPreserveExpiryTimeSet {
+									t := metav1.NewTime(metav1.Now().Add(96 * time.Hour))
+									return &t
+								}
+								return nil
+							}(),
 						},
 					},
 				}
@@ -4016,6 +4023,9 @@ var _ = Describe("machine_util", func() {
 						Status: corev1.NodeStatus{
 							Conditions: []corev1.NodeCondition{},
 						},
+					}
+					if tc.setup.preservedNodeCondition.Type != "" {
+						node.Status.Conditions = append(node.Status.Conditions, tc.setup.preservedNodeCondition)
 					}
 					if tc.setup.isCAAnnotationPresent {
 						node.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = "true"
@@ -4089,6 +4099,32 @@ var _ = Describe("machine_util", func() {
 						Type:   machinev1.NodePreserved,
 						Status: corev1.ConditionTrue,
 						Reason: machinev1.PreservedByUser,
+					},
+				},
+			}),
+			Entry("when preserve=now, machine was preserved while Running (NodePreserved=True set without drain), then transitions to Failed: drain and taint must be applied", &testCase{
+				setup: setup{
+					machinePhase:            machinev1.MachineFailed,
+					nodeName:                "node-1",
+					preserveValue:           machineutils.PreserveMachineAnnotationValueNow,
+					isCAAnnotationPresent:   true,
+					isPreserveExpiryTimeSet: true,
+					preservedNodeCondition: corev1.NodeCondition{
+						Type:   machinev1.NodePreserved,
+						Status: corev1.ConditionTrue,
+						Reason: machinev1.PreservedByUser,
+					},
+				},
+				expect: expect{
+					err:                     nil,
+					isPreserveExpiryTimeSet: true,
+					isCAAnnotationPresent:   true,
+					isNodeTainted:           true,
+					preserveNodeCondition: corev1.NodeCondition{
+						Type:    machinev1.NodePreserved,
+						Status:  corev1.ConditionTrue,
+						Reason:  machinev1.PreservedByUser,
+						Message: machinev1.PreservedNodeDrainSuccessful,
 					},
 				},
 			}),
