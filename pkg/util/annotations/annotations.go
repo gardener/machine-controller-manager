@@ -92,9 +92,9 @@ func CreateMachinesTriggeredForDeletionAnnotValue(machineNames []string) string 
 	return strings.Join(machineNames, ",")
 }
 
-// GetEffectiveMachineCreationTimeoutFromRuntimeObject gets the value of the annotation [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout]
+// GetEffectiveMachineCreationTimeout gets the value of the annotation [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout]
 // as a [metav1.Duration] if present.
-func GetEffectiveMachineCreationTimeoutFromRuntimeObject(object runtime.Object) (*metav1.Duration, error) {
+func GetEffectiveMachineCreationTimeout(object runtime.Object) (*metav1.Duration, error) {
 	metaObject, err := meta.Accessor(object)
 	if err != nil {
 		return nil, err

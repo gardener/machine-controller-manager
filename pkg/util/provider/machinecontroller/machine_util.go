@@ -2035,7 +2035,7 @@ func (c *controller) getEffectiveHealthTimeout(machine *v1alpha1.Machine) *metav
 // getEffectiveCreationTimeout returns the creationTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
 func (c *controller) getEffectiveCreationTimeout(machine *v1alpha1.Machine) *metav1.Duration {
 	var effectiveCreationTimeout *metav1.Duration
-	effectiveCreationTimeout, err := annotationsutils.GetEffectiveMachineCreationTimeoutFromRuntimeObject(machine)
+	effectiveCreationTimeout, err := annotationsutils.GetEffectiveMachineCreationTimeout(machine)
 	if effectiveCreationTimeout != nil {
 		return effectiveCreationTimeout
 	}
