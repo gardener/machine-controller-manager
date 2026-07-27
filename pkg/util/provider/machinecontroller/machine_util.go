@@ -2377,7 +2377,6 @@ Utility Functions for Machine Preservation
 // preserveMachine contains logic to start the preservation of a machine and node.
 func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine, preserveValue string) (*v1alpha1.Machine, error) {
 	var err error
-	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
 		klog.V(4).Infof("Starting preservation flow for machine %q.", machine.Name)
 		// Step 1: Add preserveExpiryTime to machine status
@@ -2386,8 +2385,10 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 			return machine, err
 		}
 	}
+
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	if nodeName == "" {
-		// Machine has no backing node, preservation is complete
+		// Machine has no backing node( such as in the case of self-hosted shoots), preservation is complete
 		klog.V(2).Infof("Machine %q without backing node is preserved successfully till %v.", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
 		return machine, nil
 	}
@@ -2398,7 +2399,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 		return machine, err
 	}
 	existingNodePreservedCondition := nodeops.GetCondition(node, v1alpha1.NodePreserved)
-	// checks if preservation is already complete
+	// if the `Preserved` NodeCondition has ConditionStatus==ConditionTrue, preservation is complete
 	if existingNodePreservedCondition != nil && existingNodePreservedCondition.Status == v1.ConditionTrue {
 		return machine, nil
 	}
@@ -2434,11 +2435,12 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 	var err error
 	// removal of preserveExpiryTime is the last step of stopping preservation
 	// therefore, if preserveExpiryTime is not set, machine is not preserved
-	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
 		return machine, nil
 	}
-	// if there is no backing node
+
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
+	// if there is no backing node (such as in the case of self-hosted shoots), only machine object should be updated
 	if nodeName == "" {
 		// remove annotation from machine if needed
 		if removePreservationAnnotations {
@@ -2458,8 +2460,7 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 	// Machine has a backing node
 	node, err := c.nodeLister.Get(nodeName)
 	if err != nil {
-		// if node is not found and error is simply returned, then preservation will never be stopped on machine
-		// therefore, this error is handled specifically
+		// If node is not found and error is simply returned, then preservation will never be stopped on the machine.
 		if apierrors.IsNotFound(err) {
 			klog.Warningf("Node %q of machine %q not found. Proceeding to stop preservation on machine.", nodeName, machine.Name)
 			if removePreservationAnnotations {
@@ -2628,7 +2629,6 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		err                                             error
 		forceDeletePods                                 bool
 		timeOutOccurred                                 bool
-		description                                     string
 		readOnlyFileSystemCondition, nodeReadyCondition v1.NodeCondition
 
 		// Initialization
@@ -2664,13 +2664,11 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	}
 
 	if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != v1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
-		message := "Setting forceDeletePods to true for drain as machine is NotReady for over 5min"
+		klog.V(2).Infof("Setting forceDeletePods to true for drain because node %q with backing machine %q is NotReady for over 5min", nodeName, machine.Name)
 		forceDeletePods = true
-		printLogInitError(message, &err, &description, machine, true)
 	} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != v1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
-		message := "Setting forceDeletePods to true for drain as machine is in ReadonlyFilesystem for over 5min"
+		klog.V(2).Infof("Setting forceDeletePods to true for drain because node %q with backing machine %q is in ReadonlyFilesystem for over 5min", nodeName, machine.Name)
 		forceDeletePods = true
-		printLogInitError(message, &err, &description, machine, true)
 	}
 
 	// TODO@thiyyakat: how to calculate timeout? In the case of preserve=now, PreserveExpiryTime will not coincide with time of failure in which case pods will get force
@@ -2700,8 +2698,8 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		)
 	}
 
-	// since we do not wish to accidentally uncordon a user-cordoned node after preservation stops,
-	// we add a taint with effect `NoSchedule`, before draining the node, instead of cordoning it.
+	// since we do not wish to change a user's explicit cordoning of a node, for preservation, we make use of
+	// a taint with effect `NoSchedule` before draining the node, instead of cordoning it.
 	err = nodeops.AddOrUpdateTaintOnNode(ctx, c.targetCoreClient, nodeName, &v1.Taint{Key: machineutils.NodePreservedTaintKey, Effect: v1.TaintEffectNoSchedule})
 	if err != nil {
 		klog.Errorf("tainting of backing node %q for machine %q, with providerID %q, failed with error: %v", nodeName, machine.Name, getProviderID(machine), err)
@@ -2738,13 +2736,13 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	klog.V(3).Infof("(drainNode) Invoking RunDrain, timeOutDuration: %s", timeOutDuration)
 	err = drainOptions.RunDrain(ctx)
 	if err != nil {
-		klog.Errorf("drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
+		klog.Errorf("drain failed for machine %q, providerID %q, backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
 		return err
 	}
 	if forceDeletePods {
-		klog.V(3).Infof("Force drain successful for machine %q , providerID %q ,backing node %q.", machine.Name, getProviderID(machine), getNodeName(machine))
+		klog.V(3).Infof("Force drain successful for machine %q, providerID %q, backing node %q.", machine.Name, getProviderID(machine), getNodeName(machine))
 	} else {
-		klog.V(3).Infof("Drain successful for machine %q , providerID %q ,backing node %q.", machine.Name, getProviderID(machine), getNodeName(machine))
+		klog.V(3).Infof("Drain successful for machine %q, providerID %q, backing node %q.", machine.Name, getProviderID(machine), getNodeName(machine))
 	}
 	metrics.UpdateMetricsForMachineDurations(machine, nil, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
 	return nil
