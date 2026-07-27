@@ -1206,7 +1206,8 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				}
 				patchBytes, err := json.Marshal(patch)
 				gomega.Expect(err).To(gomega.BeNil())
-				c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).Patch(ctx, machineList.Items[0].Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+				_, err = c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).Patch(ctx, machineList.Items[0].Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+				gomega.Expect(err).To(gomega.BeNil())
 
 				ginkgo.By("Waiting for this machine to now be deleted")
 				gomega.Eventually(
@@ -1249,7 +1250,8 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				}
 				patchBytes, err := json.Marshal(patch)
 				gomega.Expect(err).To(gomega.BeNil())
-				c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).Patch(ctx, machineList.Items[0].Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+				_, err = c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).Patch(ctx, machineList.Items[0].Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+				gomega.Expect(err).To(gomega.BeNil())
 
 				// Simulate kubelet for the node so that it can be preserved
 				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for this machine")

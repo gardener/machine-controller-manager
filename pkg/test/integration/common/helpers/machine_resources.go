@@ -132,7 +132,7 @@ func (c *Cluster) GetMachineList(ctx context.Context) *v1alpha1.MachineList {
 		},
 	)
 	if err != nil {
-		log.Printf("error listing machines: ", err)
+		log.Printf("error listing machines: %v", err)
 		return nil
 	}
 
@@ -180,7 +180,7 @@ func (c *Cluster) IsFailingMachinePreserved(ctx context.Context, namespace strin
 			Machines(namespace).
 			Get(ctx, mcName, metav1.GetOptions{})
 		if err != nil {
-			log.Printf("error listing machines: ", err)
+			log.Printf("error listing machines: %v", err)
 			return false
 		}
 
