@@ -2703,7 +2703,8 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 			timeOutDuration,
 			maxEvictRetries,
 		)
-	} // since we do not wish to change a user's explicit cordoning of a node, for preservation, we make use of
+	}
+	// since we do not wish to change a user's explicit cordoning of a node, for preservation, we make use of
 	// a taint with effect `NoSchedule` before draining the node, instead of cordoning it.
 	err = nodeops.AddOrUpdateTaintOnNode(ctx, c.targetCoreClient,
 		nodeName,
