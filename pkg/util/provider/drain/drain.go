@@ -1208,5 +1208,14 @@ func isMisconfiguredPdb(pdb *policyv1.PodDisruptionBudget) bool {
 		return false
 	}
 
-	return pdb.Status.ExpectedPods > 0 && pdb.Status.CurrentHealthy >= pdb.Status.ExpectedPods && pdb.Status.DisruptionsAllowed == 0
+	hasPods := pdb.Status.ExpectedPods > 0
+	// `>=` instead of `==` (because of an in progress scale down `CurrentHealthy` can be larger than `ExpectedPods` current might be larger than expected
+	allPodsReady := pdb.Status.CurrentHealthy >= pdb.Status.ExpectedPods
+	// Because of how the PDB controller and eviction requests work together `CurrentHealthy` can be outdated, therefore additionally ensuring that the `DisruptedPods` map is empty
+	noDisruptedPods := len(pdb.Status.DisruptedPods) == 0
+
+	return hasPods && // Only check PDBs that currently have Pods
+		allPodsReady && // Only check PDBs where all Pods are ready
+		noDisruptedPods && // Only check PDBs that have **no** `DisruptedPods`
+		pdb.Status.DisruptionsAllowed == 0 // PDB is misconfigured
 }
