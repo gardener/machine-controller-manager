@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -818,6 +818,8 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	var removeAnnotations bool
 	clone := machine.DeepCopy()
 	switch effectivePreserveValue {
+	// effectivePreserveValue == "" implies the preservation annotation was deleted to indicate that
+	// preservation must be stopped
 	case "", machineutils.PreserveMachineAnnotationValueFalse:
 		clone, err = c.stopPreservationIfActive(ctx, clone, removeAnnotations)
 	case machineutils.PreserveMachineAnnotationValueWhenFailed:

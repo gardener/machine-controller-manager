@@ -1599,7 +1599,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		if updateErr != nil {
 			return updateRetryPeriod, updateErr
 		}
-		return machineutils.ShortRetry, fmt.Errorf("%s", description)
+		return machineutils.ShortRetry, err
 	}
 	for _, condition := range machine.Status.Conditions {
 		if condition.Type == v1.NodeReady {
@@ -1733,6 +1733,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		} else { // regular drain already waits for vol detach and attach for another node.
 			description = fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
 		}
+		err = fmt.Errorf("%s", description)
 		state = v1alpha1.MachineStateProcessing
 		metrics.UpdateMetricsForMachineDurations(machine, nil, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
 
@@ -1754,7 +1755,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 	if updateErr != nil {
 		return updateRetryPeriod, updateErr
 	}
-	return machineutils.ShortRetry, fmt.Errorf("%s", description)
+	return machineutils.ShortRetry, err
 }
 
 func (c *controller) updateMachineStatusForDrain(ctx context.Context, machine *v1alpha1.Machine, description string, state v1alpha1.MachineState, opType v1alpha1.MachineOperationType) (machineutils.RetryPeriod, error) {
@@ -2664,17 +2665,17 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	// verify and log node object's existence
 	_, err = c.nodeLister.Get(nodeName)
 	if err == nil {
-		klog.V(3).Infof("(drainNode) For node %q, machine %q, nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeName, machine.Name, nodeReadyCondition, readOnlyFileSystemCondition)
+		klog.V(3).Infof("(drainPreservedNode) For node %q, machine %q, nodeReadyCondition: %s, readOnlyFileSystemCondition: %s", nodeName, machine.Name, nodeReadyCondition, readOnlyFileSystemCondition)
 	} else if apierrors.IsNotFound(err) {
-		klog.Warningf("(drainNode) Node %q for machine %q doesn't exist. Skipping drain.", nodeName, machine.Name)
+		klog.Warningf("(drainPreservedNode) Node %q for machine %q doesn't exist. Skipping drain.", nodeName, machine.Name)
 		return nil
 	}
 
 	if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != v1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
-		klog.V(2).Infof("Setting forceDeletePods to true for drain because node %q with backing machine %q is NotReady for over 5min", nodeName, machine.Name)
+		klog.Warningf("Setting forceDeletePods to true for drain because node %q with backing machine %q is NotReady for over 5min", nodeName, machine.Name)
 		forceDeletePods = true
 	} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != v1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
-		klog.V(2).Infof("Setting forceDeletePods to true for drain because node %q with backing machine %q is in ReadonlyFilesystem for over 5min", nodeName, machine.Name)
+		klog.Warningf("Setting forceDeletePods to true for drain because node %q with backing machine %q is in ReadonlyFilesystem for over 5min", nodeName, machine.Name)
 		forceDeletePods = true
 	}
 
@@ -2687,7 +2688,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		timeOutDuration = 1 * time.Minute
 		maxEvictRetries = 1
 		klog.V(2).Infof(
-			"Force delete/drain has been triggerred for machine %q with providerID %q and backing node %q. Timeout Occurred:%t, force-drain label present:%t",
+			"Force delete/drain has been triggerred for preserved machine %q with providerID %q and backing node %q. Timeout Occurred:%t, force-drain label present:%t",
 			machine.Name,
 			getProviderID(machine),
 			getNodeName(machine),
@@ -2714,7 +2715,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 			TimeAdded: new(metav1.Now()),
 		})
 	if err != nil {
-		klog.Errorf("tainting of backing node %q for machine %q, with providerID %q, failed with error: %v", nodeName, machine.Name, getProviderID(machine), err)
+		klog.Errorf("tainting of backing node %q for preserved machine %q, with providerID %q, failed with error: %v", nodeName, machine.Name, getProviderID(machine), err)
 		return err
 	}
 
@@ -2745,16 +2746,16 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		c.volumeAttachmentHandler,
 		c.podSynced,
 	)
-	klog.V(3).Infof("(drainNode) Invoking RunDrain, timeOutDuration: %s", timeOutDuration)
+	klog.V(3).Infof("(drainPreservedNode) Invoking RunDrain, timeOutDuration: %s", timeOutDuration)
 	err = drainOptions.RunDrain(ctx)
 	if err != nil {
-		klog.Errorf("drain failed for machine %q, providerID %q, backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
+		klog.Errorf("drain failed for preserved machine %q, providerID %q, backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
 		return err
 	}
 	if forceDeletePods {
-		klog.V(3).Infof("Force drain successful for machine %q, providerID %q, backing node %q.", machine.Name, getProviderID(machine), getNodeName(machine))
+		klog.V(3).Infof("Force drain successful for preserved machine %q, providerID %q, backing node %q.", machine.Name, getProviderID(machine), getNodeName(machine))
 	} else {
-		klog.V(3).Infof("Drain successful for machine %q, providerID %q, backing node %q.", machine.Name, getProviderID(machine), getNodeName(machine))
+		klog.V(3).Infof("Drain successful for preserved machine %q, providerID %q, backing node %q.", machine.Name, getProviderID(machine), getNodeName(machine))
 	}
 	metrics.UpdateMetricsForMachineDurations(machine, nil, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
 	return nil
