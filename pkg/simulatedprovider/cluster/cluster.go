@@ -116,7 +116,11 @@ func (env *Env) deployCRDs() (err error) {
 
 func (env *Env) watchMCCForSecretRefs() error {
 	return env.Cfg.Client().Resources().
-		Watch(&v1alpha1.MachineClassList{}).
+		Watch(&v1alpha1.MachineClassList{}, func(listOpts *metav1.ListOptions) {
+			// Create Secrets for 'any' observed MCCs. Ref:
+			// https://kubernetes.io/docs/reference/using-api/api-concepts/#semantics-for-watch
+			listOpts.ResourceVersion = "0"
+		}).
 		WithAddFunc(func(obj any) {
 			mcc, ok := obj.(*v1alpha1.MachineClass)
 			if !ok || mcc.CredentialsSecretRef == nil || mcc.SecretRef == nil {
