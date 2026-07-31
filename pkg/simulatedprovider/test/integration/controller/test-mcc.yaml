@@ -1,0 +1,53 @@
+apiVersion: machine.sapcloud.io/v1alpha1
+credentialsSecretRef:
+  name: cloudprovider
+  namespace: test-ns
+kind: MachineClass
+metadata:
+  creationTimestamp: "2026-07-04T22:36:34Z"
+  finalizers:
+  - machine.sapcloud.io/machine-controller-manager
+  generation: 1
+  labels:
+    failure-domain.beta.kubernetes.io/zone: eu-west-1a
+    operatingSystemName: gardenlinux
+  name: test-mc-v1
+  namespace: test-ns
+nodeTemplate:
+  architecture: amd64
+  capacity:
+    cpu: "2"
+    gpu: "0"
+    memory: 8Gi
+  instanceType: m5.large
+  region: eu-west-1
+  zone: eu-west-1a
+provider: AWS
+providerSpec:
+  ami: ami-0xxxx
+  blockDevices:
+  - ebs:
+      deleteOnTermination: true
+      encrypted: true
+      volumeSize: 50
+      volumeType: gp2
+  machineType: m5.large
+  networkInterfaces:
+  - securityGroupIDs:
+    - sg-0xxxx
+    subnetID: subnet-0xxxx
+  region: eu-west-1
+  srcAndDstChecksEnabled: false
+  tags:
+    kubernetes.io/arch: amd64
+    kubernetes.io/role/integration-test: "1"
+    networking.gardener.cloud/node-local-dns-enabled: "true"
+    node.kubernetes.io/role: node
+    worker.garden.sapcloud.io/group: worker-1
+    worker.gardener.cloud/cri-name: containerd
+    worker.gardener.cloud/gardener-node-agent-secret-name: gardener-node-agent-worker-1xxxx
+    worker.gardener.cloud/pool: worker-1
+    worker.gardener.cloud/system-components: "true"
+secretRef:
+  name: test-secret
+  namespace: test-ns
