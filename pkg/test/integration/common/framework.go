@@ -633,13 +633,17 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	}
 
 	ginkgo.By("Looking for secrets refered in machineclass in the control cluster")
-	secretData, err := c.ControlCluster.
-		GetSecretData(
-			machineClass.Name,
-			machineClass.SecretRef,
-			machineClass.CredentialsSecretRef,
-		)
-	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	var secretData map[string][]byte
+	gomega.Eventually(func() error {
+		var err error
+		secretData, err = c.ControlCluster.
+			GetSecretData(
+				machineClass.Name,
+				machineClass.SecretRef,
+				machineClass.CredentialsSecretRef,
+			)
+		return err
+	}, c.timeout, c.pollingInterval).ShouldNot(gomega.HaveOccurred())
 
 	ginkgo.By("Initializing orphan resource tracker")
 	err = c.resourcesTracker.InitializeResourcesTracker(machineClass, secretData, clusterName)
