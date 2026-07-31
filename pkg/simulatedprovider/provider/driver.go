@@ -46,6 +46,8 @@ type DriverImpl struct {
 	managedNodes  sync.Map
 }
 
+// NewDriver returns a DriverImpl object containing the client, machineclient and a map
+// of nodes managed by MCM.
 func NewDriver(ctx context.Context, kubeconfig string) (driver.Driver, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
@@ -77,6 +79,8 @@ func NewDriver(ctx context.Context, kubeconfig string) (driver.Driver, error) {
 	return d, nil
 }
 
+// CreateMachine handles a machine creation request. For the simulated provider, it creates
+// a node and attempts to transition it to 'Ready' state.
 func (d *DriverImpl) CreateMachine(ctx context.Context, req *driver.CreateMachineRequest) (resp *driver.CreateMachineResponse, err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -113,13 +117,16 @@ func (d *DriverImpl) CreateMachine(ctx context.Context, req *driver.CreateMachin
 	return
 }
 
+// InitializeMachine handles VM initialization. Currently, un-implemented.
 func (d *DriverImpl) InitializeMachine(_ context.Context, _ *driver.InitializeMachineRequest) (resp *driver.InitializeMachineResponse, err error) {
 	defer driverAPIMetricRecorderFn(labelInitializeMachine, &err)()
 	err = status.Error(codes.Unimplemented, "simulation provider does not implement InitializeMachine")
 	return
 }
 
-func (d *DriverImpl) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (resp *driver.DeleteMachineResponse, err error) {
+// DeleteMachine handles a machine deletion request. For the simulated provider, it just
+// removes the corresponding node from the managedNodes map.
+func (d *DriverImpl) DeleteMachine(_ context.Context, req *driver.DeleteMachineRequest) (resp *driver.DeleteMachineResponse, err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	defer driverAPIMetricRecorderFn(labelDeleteMachine, &err)()
@@ -130,6 +137,7 @@ func (d *DriverImpl) DeleteMachine(ctx context.Context, req *driver.DeleteMachin
 	return
 }
 
+// GetMachineStatus handles a machine get status request.
 func (d *DriverImpl) GetMachineStatus(_ context.Context, req *driver.GetMachineStatusRequest) (resp *driver.GetMachineStatusResponse, err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -153,6 +161,8 @@ func (d *DriverImpl) GetMachineStatus(_ context.Context, req *driver.GetMachineS
 	return
 }
 
+// ListMachines lists all the machines possibly created by a machineClass.
+// Returns a `map[providerID]machineName` for the specified `MachineClass`.
 func (d *DriverImpl) ListMachines(_ context.Context, req *driver.ListMachinesRequest) (resp *driver.ListMachinesResponse, err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -172,6 +182,7 @@ func (d *DriverImpl) ListMachines(_ context.Context, req *driver.ListMachinesReq
 	return
 }
 
+// GetVolumeIDs returns a list of Volume IDs for all PV Specs for whom a provider volume was found. Currently, un-implemented.
 func (d *DriverImpl) GetVolumeIDs(_ context.Context, _ *driver.GetVolumeIDsRequest) (resp *driver.GetVolumeIDsResponse, err error) {
 	defer driverAPIMetricRecorderFn(labelGetVolumeIDs, &err)()
 	err = status.Error(codes.Unimplemented, "simulation provider does not implement GetVolumeIDs")
