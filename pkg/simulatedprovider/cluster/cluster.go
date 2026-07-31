@@ -26,6 +26,7 @@ import (
 //go:embed kwok-config.yaml
 var kwokctlConfig []byte
 
+// Env specifies the virtual cluster details/configuration.
 type Env struct {
 	Name      string
 	Namespace string
@@ -33,6 +34,9 @@ type Env struct {
 	Cfg       *envconf.Config
 }
 
+// New returns an kwokctl created cluster's Environment.
+// Name is used as cluster name and optionally a namespace can
+// be specified to be created as part of the cluster creation.
 func New(name, namespace string) Env {
 	return Env{
 		Name:      name,
@@ -42,6 +46,8 @@ func New(name, namespace string) Env {
 	}
 }
 
+// SetupCluster creates a cluster containing MCM CRDs and starts a watch for MachineClass
+// objects to create fake secrets for the class' SecretRef and CredentialsSecretRef.
 func (env *Env) SetupCluster() (err error) {
 	if err = env.createCluster(); err != nil {
 		return
@@ -65,6 +71,7 @@ func (env *Env) SetupCluster() (err error) {
 	return env.watchMCCForSecretRefs()
 }
 
+// DeleteCluster removes the cluster corresponding to the Env.
 func (env *Env) DeleteCluster() (err error) {
 	destroyClusterFunc := envfuncs.DestroyCluster(env.Name)
 	_, err = destroyClusterFunc(env.Ctx, env.Cfg)
@@ -76,7 +83,7 @@ func (env *Env) createCluster() (err error) {
 	// relative to the caller, so the config file is embedded and a
 	// temporary file path is passed in order to create the cluster.
 	configPath := filepath.Join(os.TempDir(), "kwok-config.yaml")
-	if err = os.WriteFile(configPath, kwokctlConfig, 0644); err != nil {
+	if err = os.WriteFile(configPath, kwokctlConfig, 0600); err != nil {
 		return
 	}
 	defer os.Remove(configPath)
