@@ -60,6 +60,7 @@ var _ = Describe("drain", func() {
 		terminationGracePeriod    time.Duration
 		pvReattachTimeout         time.Duration
 		force                     bool
+		skipVolumeHandling        bool
 		evictError                error
 		deleteError               error
 	}
@@ -163,6 +164,7 @@ var _ = Describe("drain", func() {
 			Timeout:                      2 * time.Minute,
 			volumeAttachmentHandler:      volumeAttachmentHandler,
 			podSynced:                    podSynced,
+			SkipVolumeHandling:           setup.skipVolumeHandling,
 		}
 
 		// Get the pod directly from the ObjectTracker to avoid locking issues in the Fake object.
@@ -298,12 +300,10 @@ var _ = Describe("drain", func() {
 					}
 
 					// Delete the pod asyncronously to work around the lock problems in testing.Fake
-					wg.Add(1)
-					go func() {
-						defer wg.Done()
+					wg.Go(func() {
 						runPodDrainHandlers(pod)
 						fmt.Fprintf(GinkgoWriter, "Drained pod %s/%s in %s\n", pod.Namespace, pod.Name, time.Since(start).String())
-					}()
+					})
 
 					nEvictions++
 					return
@@ -330,12 +330,10 @@ var _ = Describe("drain", func() {
 					}
 
 					// Delete the pod asyncronously to work around the lock problems in testing.Fake
-					wg.Add(1)
-					go func() {
-						defer wg.Done()
+					wg.Go(func() {
 						runPodDrainHandlers(pod)
 						fmt.Fprintf(GinkgoWriter, "Drained pod %s/%s in %s\n", pod.Namespace, pod.Name, time.Since(start).String())
-					}()
+					})
 				default:
 					err = fmt.Errorf("Expected type k8stesting.GetAction but got %T", action)
 				}
@@ -858,7 +856,184 @@ var _ = Describe("drain", func() {
 				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
 				minDrainDuration: terminationGracePeriodMedium,
 			}),
+		Entry("Successful drain with SkipVolumeHandling and eviction of pods with exclusive volumes",
+			&setup{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      2,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
+				},
+				attemptEviction:        true,
+				terminationGracePeriod: terminationGracePeriodShort,
+				skipVolumeHandling:     true,
+			},
+			// SkipVolumeHandling routes pods through evictPodsWithoutPv, which does NOT wait for volume detach.
+			// The test only needs deletePod so that the fake eviction reactor finds and removes the pod.
+			[]podDrainHandler{deletePod},
+			&expectation{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      0,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+				},
+				// No PV detach/reattach wait — completes quickly.
+				timeout:          terminationGracePeriodMedium,
+				drainTimeout:     false,
+				drainError:       nil,
+				nEvictions:       2,
+				minDrainDuration: 0,
+			}),
+		Entry("Successful drain with SkipVolumeHandling without eviction of pods with exclusive volumes",
+			&setup{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      2,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
+				},
+				attemptEviction:        false,
+				terminationGracePeriod: terminationGracePeriodShort,
+				skipVolumeHandling:     true,
+			},
+			nil,
+			&expectation{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      0,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+				},
+				timeout:          terminationGracePeriodShort,
+				drainTimeout:     false,
+				drainError:       nil,
+				nEvictions:       0,
+				minDrainDuration: 0,
+			}),
 	)
+
+	Describe("getPodsForDeletion", func() {
+		var (
+			ctx      context.Context
+			nodeName string
+			drain    *Options
+		)
+
+		BeforeEach(func() {
+			ctx = context.Background()
+			nodeName = oldNodeName
+			drain = &Options{
+				ErrOut:                       GinkgoWriter,
+				Out:                          GinkgoWriter,
+				nodeName:                     nodeName,
+				IgnorePodsWithoutControllers: true,
+				IgnoreDaemonsets:             true,
+				DeleteLocalData:              true,
+			}
+		})
+
+		Context("PodProvider", func() {
+			It("uses PodProvider instead of podLister when set", func() {
+				pod := getPodWithoutPV(testNamespace, "pod-0", nodeName, terminationGracePeriodDefault, nil)
+				drain.podProvider = &fakePodProvider{pods: []corev1.Pod{*pod}}
+
+				pods, err := drain.getPodsForDeletion(ctx)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(pods).To(HaveLen(1))
+				Expect(pods[0].Name).To(Equal("pod-0"))
+			})
+
+			It("returns only pods on the target node from PodProvider", func() {
+				podOnNode := getPodWithoutPV(testNamespace, "on-node", nodeName, terminationGracePeriodDefault, nil)
+				podOtherNode := getPodWithoutPV(testNamespace, "other-node", "different-node", terminationGracePeriodDefault, nil)
+				drain.podProvider = &fakePodProvider{pods: []corev1.Pod{*podOnNode, *podOtherNode}}
+
+				pods, err := drain.getPodsForDeletion(ctx)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(pods).To(HaveLen(1))
+				Expect(pods[0].Name).To(Equal("on-node"))
+			})
+
+			It("returns error when PodProvider fails", func() {
+				drain.podProvider = &fakePodProvider{err: fmt.Errorf("provider error")}
+
+				_, err := drain.getPodsForDeletion(ctx)
+				Expect(err).To(MatchError("provider error"))
+			})
+
+			It("returns empty list when PodProvider returns no pods", func() {
+				drain.podProvider = &fakePodProvider{pods: []corev1.Pod{}}
+
+				pods, err := drain.getPodsForDeletion(ctx)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(pods).To(BeEmpty())
+			})
+		})
+
+		Context("AdditionalPodFilters", func() {
+			var podProvider *fakePodProvider
+
+			BeforeEach(func() {
+				pods := getPodsWithoutPV(4, testNamespace, "pod-", nodeName, terminationGracePeriodDefault, nil)
+				podProvider = &fakePodProvider{}
+				for _, p := range pods {
+					podProvider.pods = append(podProvider.pods, *p)
+				}
+				drain.podProvider = podProvider
+			})
+
+			It("includes all pods when no additional filters are set", func() {
+				pods, err := drain.getPodsForDeletion(ctx)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(pods).To(HaveLen(4))
+			})
+
+			It("filters pods with a single additional filter", func() {
+				// Keep only pods whose name ends with "0" or "1"
+				drain.AdditionalPodFilters = []AdditionalPodFilter{
+					func(pod corev1.Pod) bool {
+						return pod.Name == "pod-0" || pod.Name == "pod-1"
+					},
+				}
+
+				pods, err := drain.getPodsForDeletion(ctx)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(pods).To(HaveLen(2))
+				Expect(pods).To(ConsistOf(
+					HaveField("Name", "pod-0"),
+					HaveField("Name", "pod-1"),
+				))
+			})
+
+			It("combines multiple additional filters with AND semantics", func() {
+				drain.AdditionalPodFilters = []AdditionalPodFilter{
+					func(pod corev1.Pod) bool { return pod.Name != "pod-0" },
+					func(pod corev1.Pod) bool { return pod.Name != "pod-1" },
+				}
+
+				pods, err := drain.getPodsForDeletion(ctx)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(pods).To(HaveLen(2))
+				Expect(pods).To(ConsistOf(
+					HaveField("Name", "pod-2"),
+					HaveField("Name", "pod-3"),
+				))
+			})
+
+			It("returns empty list when an additional filter excludes all pods", func() {
+				drain.AdditionalPodFilters = []AdditionalPodFilter{
+					func(_ corev1.Pod) bool { return false },
+				}
+
+				pods, err := drain.getPodsForDeletion(ctx)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(pods).To(BeEmpty())
+			})
+		})
+	})
 
 	Describe("getPodVolumeInfos", func() {
 		var (
@@ -1312,4 +1487,16 @@ func appendSuffixToVolumeHandles(pvs []*corev1.PersistentVolume, suffix string) 
 		pv.Spec.CSI.VolumeHandle += suffix
 	}
 	return pvs
+}
+
+type fakePodProvider struct {
+	pods []corev1.Pod
+	err  error
+}
+
+func (f *fakePodProvider) PodsForNode(_ context.Context, _ string) ([]corev1.Pod, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.pods, nil
 }
