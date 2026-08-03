@@ -997,10 +997,8 @@ var _ = Describe("isMisconfiguredPdb", func() {
 		var pdb *policyv1.PodDisruptionBudget
 		Context("normal", func() {
 			It("returns false", func() {
-				// Example PDB from etcd-druid (3 replicas)
 				pdb = &policyv1.PodDisruptionBudget{
 					Spec: policyv1.PodDisruptionBudgetSpec{
-						// MaxUnavailable: new(intstr.FromInt(1)),
 						MinAvailable: new(intstr.FromInt(2)),
 					},
 					Status: policyv1.PodDisruptionBudgetStatus{
@@ -1009,7 +1007,6 @@ var _ = Describe("isMisconfiguredPdb", func() {
 						CurrentHealthy:     3,
 						DisruptionsAllowed: 1, // `CurrentHealthy` - `DesiredHealthy`
 					},
-					// `ExpectedPods` - `MaxUnavailable`
 				}
 
 				// All healthy and `DisruptionsAllowed` > 0 -> not misconfigured
@@ -1043,7 +1040,7 @@ var _ = Describe("isMisconfiguredPdb", func() {
 		var pdb *policyv1.PodDisruptionBudget
 		Context("normal", func() {
 			It("returns true", func() {
-				// Example PDB: 3 replicas, prevent eviction
+				// Example PDB: 3 replicas, prevent all evictions
 				pdb = &policyv1.PodDisruptionBudget{
 					Spec: policyv1.PodDisruptionBudgetSpec{
 						MaxUnavailable: new(intstr.FromInt(0)),

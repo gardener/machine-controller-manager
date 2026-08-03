@@ -1209,7 +1209,7 @@ func isMisconfiguredPdb(pdb *policyv1.PodDisruptionBudget) bool {
 	}
 
 	hasPods := pdb.Status.ExpectedPods > 0
-	// `>=` instead of `==` (because of an in progress scale down `CurrentHealthy` can be larger than `ExpectedPods` current might be larger than expected
+	// `>=` instead of `==` (because of an in progress scale down `CurrentHealthy` can be larger than `ExpectedPods`.
 	allPodsReady := pdb.Status.CurrentHealthy >= pdb.Status.ExpectedPods
 	// Because of how the PDB controller and eviction requests work together `CurrentHealthy` can be outdated, therefore additionally ensuring that the `DisruptedPods` map is empty
 	noDisruptedPods := len(pdb.Status.DisruptedPods) == 0
