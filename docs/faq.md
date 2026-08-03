@@ -30,6 +30,7 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
     - [How to delete machine object immediately if I don't have access to it?](#how-to-delete-machine-object-immediately-if-i-dont-have-access-to-it)
     - [How to avoid garbage collection of your node?](#how-to-avoid-garbage-collection-of-your-node)
     - [How to trigger rolling update of a machinedeployment?](#how-to-trigger-rolling-update-of-a-machinedeployment)
+    - [How to override a MachineDeployment's MachineCreationTimeout ?](#how-to-override-a-machinedeployments-machinecreationtimeout)
 - [Internals](#internals)
     - [What is the high level design of MCM?](#what-is-the-high-level-design-of-mcm)
     - [What are the different configuration options in MCM?](#what-are-the-different-configuration-options-in-mcm)
@@ -181,6 +182,17 @@ Rolling update can be triggered for a machineDeployment by updating one of the f
 
 - `.spec.template.metadata.annotations`
 - `.spec.template.spec.class.name`
+ 
+### How to override a MachineDeployment's MachineCreationTimeout?
+
+In production, the MachineDeployment's `.Spec.Template.Spec.MachineCreationTimeout` is generally
+set from an orchestrating controller during its reconcile cycle. (Ex: in gardener, this is the shoot controller.)
+
+As an operator, you would like to override the machine creation timeout for Machines of a bunch of MachineDeployment(s)
+without touching the orchestrating controller logic or configuration.
+
+This can be done by setting the annotation `node.machine.sapcloud.io/effective-creation-timeout` on the `MachineDeployment`.
+This will take effect for any newly launched Machine(s) belonging to this `MachineDeployment`.
 
 # Internals
 

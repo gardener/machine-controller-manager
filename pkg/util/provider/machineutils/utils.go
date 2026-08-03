@@ -171,6 +171,11 @@ func IsMachinePreservationExpired(m *v1alpha1.Machine) bool {
 	return t != nil && !t.After(time.Now())
 }
 
+// GetMachineDeploymentName gets the name of the MachineDeployment associated with this Machine
+func GetMachineDeploymentName(machine *v1alpha1.Machine) string {
+	return machine.Labels["name"]
+}
+
 // see https://github.com/kubernetes/kubernetes/issues/21479
 type updateMachineFunc func(machine *v1alpha1.Machine) error
 

@@ -35,6 +35,8 @@ import (
 	"strings"
 	"time"
 
+	annotationsutils "github.com/gardener/machine-controller-manager/pkg/util/annotations"
+
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
@@ -43,6 +45,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
 	utilstrings "github.com/gardener/machine-controller-manager/pkg/util/strings"
 	utiltime "github.com/gardener/machine-controller-manager/pkg/util/time"
 
@@ -923,7 +926,10 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		description       string
 		lastOperationType v1alpha1.MachineOperationType
 	)
-
+	machineClass, err := c.machineClassLister.MachineClasses(c.namespace).Get(machine.Spec.Class.Name)
+	if err != nil {
+		klog.Warningf("unable to get MachineClass %q for Machine %q: %v", machine.Spec.Class.Name, machine.Name, err)
+	}
 	node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -973,8 +979,9 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				if clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning && !isPendingMachineWithCriticalComponentsNotReadyTaint(clone, node) {
 					if clone.Status.LastOperation.Type == v1alpha1.MachineOperationCreate &&
 						clone.Status.LastOperation.State != v1alpha1.MachineStateSuccessful {
+						joinDuration := time.Since(machine.CreationTimestamp.Time)
 						// When machine creation went through
-						description = fmt.Sprintf("Machine %s successfully joined the cluster", clone.Name)
+						description = fmt.Sprintf("Machine %s successfully joined the cluster in %s", clone.Name, joinDuration)
 						lastOperationType = v1alpha1.MachineOperationCreate
 
 						// Delete the bootstrap token
@@ -982,6 +989,9 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 						if err != nil {
 							klog.Warning(err)
 						}
+						klog.V(2).Infof("Machine %q joined the cluster in %q", machine.Name, joinDuration)
+						metrics.UpdateMetricsForMachineDurations(machine, machineClass, metrics.MachineDurations{Join: joinDuration})
+						metav1.SetMetaDataAnnotation(&clone.ObjectMeta, v1alpha1.AnnotationKeyMachineJoinDuration, joinDuration.String())
 					} else {
 						// Machine rejoined the cluster after a health-check
 						description = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
@@ -1099,7 +1109,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					timeOutDuration,
 					machine.Status.Conditions,
 				)
-				machineDeployName := getMachineDeploymentName(machine)
+				machineDeployName := machineutils.GetMachineDeploymentName(machine)
 				// creating lock for machineDeployment, if not allocated
 				c.permitGiver.RegisterPermits(machineDeployName, 1)
 				return c.tryMarkingMachineFailed(ctx, machine, clone, machineDeployName, description, lockAcquireTimeout)
@@ -1147,6 +1157,9 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 				}
 				cloneDirty = true
+				if machineClass != nil {
+					metrics.IncrementNumFailedToJoin(machine, machineClass)
+				}
 			}
 		} else {
 			// If timeout has not occurred, re-enqueue the machine
@@ -1544,6 +1557,7 @@ func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.
 			description = fmt.Sprintf("Drain successful. %s", machineutils.NodeReadyForUpdate)
 		}
 		state = v1alpha1.MachineStateProcessing
+		metrics.UpdateMetricsForMachineDurations(machine, nil, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
 	} else {
 		klog.Warningf("Drain failed for machine %q , providerID %q ,backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
 
@@ -1708,6 +1722,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 				}
 				err = fmt.Errorf("%s", description)
 				state = v1alpha1.MachineStateProcessing
+				metrics.UpdateMetricsForMachineDurations(machine, nil, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
 
 				// Return error even when machine object is updated
 			} else if err != nil && forceDeleteMachine {
@@ -1820,6 +1835,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		description    string
 		state          v1alpha1.MachineState
 		lastKnownState string
+		deleteDuration time.Duration
 	)
 
 	deleteMachineResponse, err := c.driver.DeleteMachine(ctx, deleteMachineRequest)
@@ -1852,6 +1868,11 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		retryRequired = machineutils.ShortRetry
 		description = fmt.Sprintf("VM deletion was successful. %s", machineutils.InitiateNodeDeletion)
 		state = v1alpha1.MachineStateProcessing
+
+		if machine.DeletionTimestamp != nil {
+			deleteDuration = time.Since(machine.DeletionTimestamp.Time)
+			metrics.UpdateMetricsForMachineDurations(machine, deleteMachineRequest.MachineClass, metrics.MachineDurations{Delete: deleteDuration})
+		}
 
 		err = fmt.Errorf("Machine deletion in process. %s", description)
 	}
@@ -2014,11 +2035,20 @@ func (c *controller) getEffectiveHealthTimeout(machine *v1alpha1.Machine) *metav
 // getEffectiveCreationTimeout returns the creationTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
 func (c *controller) getEffectiveCreationTimeout(machine *v1alpha1.Machine) *metav1.Duration {
 	var effectiveCreationTimeout *metav1.Duration
+	effectiveCreationTimeout, err := annotationsutils.GetEffectiveMachineCreationTimeout(machine)
+	if effectiveCreationTimeout != nil {
+		return effectiveCreationTimeout
+	}
+	if err != nil {
+		klog.Warningf("error obtaining effectiveCreationTimeout from annotation %q (if any) on machine %q: %v",
+			v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout, machine.Name, err)
+	}
 	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineCreationTimeout != nil {
 		effectiveCreationTimeout = machine.Spec.MachineCreationTimeout
 	} else {
 		effectiveCreationTimeout = &c.safetyOptions.MachineCreationTimeout
 	}
+	klog.V(4).Infof("obtained effectiveCreationTimeout %q for machine %q", effectiveCreationTimeout, machine.Name)
 	return effectiveCreationTimeout
 }
 
@@ -2278,10 +2308,6 @@ func getProviderID(machine *v1alpha1.Machine) string {
 
 func getNodeName(machine *v1alpha1.Machine) string {
 	return machine.Labels[v1alpha1.NodeLabelKey]
-}
-
-func getMachineDeploymentName(machine *v1alpha1.Machine) string {
-	return machine.Labels["name"]
 }
 
 func (c *controller) updateMachineNodeLabel(ctx context.Context, machine *v1alpha1.Machine, nodeName string) error {
@@ -2686,5 +2712,6 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	} else {
 		klog.V(3).Infof("Drain successful for machine %q , providerID %q ,backing node %q.", machine.Name, getProviderID(machine), getNodeName(machine))
 	}
+	metrics.UpdateMetricsForMachineDurations(machine, nil, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
 	return nil
 }
