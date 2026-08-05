@@ -35,7 +35,7 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 	for _, noName := range nodeNames {
 		_, err := c.Clientset.CoreV1().Nodes().Get(ctx, noName, metav1.GetOptions{})
 		if err != nil {
-			log.Printf("error fetching node: %v", err)
+			log.Printf("error fetching node: %v\n", err)
 			return err
 		}
 	}
@@ -98,18 +98,18 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 	if apierrors.IsAlreadyExists(err) {
 		existingVAPolicy, err := c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Get(ctx, VAPName, metav1.GetOptions{})
 		if err != nil {
-			log.Printf("error fetching validating admission policy: %v", err)
+			log.Printf("error fetching validating admission policy %s: %v\n", VAPName, err)
 			return err
 		}
 		VAPolicy.ResourceVersion = existingVAPolicy.ResourceVersion
 
 		_, err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Update(ctx, VAPolicy, metav1.UpdateOptions{})
 		if err != nil {
-			log.Printf("error updating validating admission policy: %v", err)
+			log.Printf("error updating validating admission policy: %v\n", err)
 			return err
 		}
 	} else if err != nil {
-		log.Printf("error creating validating admission policy: %v", err)
+		log.Printf("error creating validating admission policy: %v\n", err)
 		return err
 	}
 
@@ -117,18 +117,18 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 	if apierrors.IsAlreadyExists(err) {
 		existingVAPBinding, err := c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().Get(ctx, VAPBName, metav1.GetOptions{})
 		if err != nil {
-			log.Printf("error fetching validating admission policy binding: %v", err)
+			log.Printf("error fetching validating admission policy binding %s: %v\n", VAPBName, err)
 			return err
 		}
 		VAPBinding.ResourceVersion = existingVAPBinding.ResourceVersion
 
 		_, err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().Update(ctx, VAPBinding, metav1.UpdateOptions{})
 		if err != nil {
-			log.Printf("error updating validating admission policy binding: %v", err)
+			log.Printf("error updating validating admission policy binding: %v\n", err)
 			return err
 		}
 	} else if err != nil {
-		log.Printf("error creating validating admission policy binding: %v", err)
+		log.Printf("error creating validating admission policy binding: %v\n", err)
 		return err
 	}
 
@@ -153,12 +153,12 @@ func (c *Cluster) DeleteVAPToRestartKubeletUpdates(ctx context.Context) error {
 	var vapErr, vapbErr error
 	vapErr = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Delete(ctx, VAPName, metav1.DeleteOptions{})
 	if vapErr != nil {
-		log.Printf("error deleting validating admission policy: %v", vapErr)
+		log.Printf("error deleting validating admission policy: %v\n", vapErr)
 	}
 
 	vapbErr = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().Delete(ctx, VAPBName, metav1.DeleteOptions{})
 	if vapbErr != nil {
-		log.Printf("error deleting validating admission policy binding: %v", vapbErr)
+		log.Printf("error deleting validating admission policy binding: %v\n", vapbErr)
 	}
 
 	return errors.Join(vapErr, vapbErr)

@@ -59,7 +59,7 @@ func (c *Cluster) CreateMachine(namespace string, gnaSecretName string) error {
 
 // CreateMachineDeployment creates a test-machine-deployment with a specified number of replicas and returns error if it occurs
 func (c *Cluster) CreateMachineDeployment(namespace string, gnaSecretName string, replicas int32) error {
-	mcd := GetMCD(namespace, gnaSecretName, replicas)
+	mcd := NewMachineDeployment(namespace, gnaSecretName, replicas)
 	_, err := c.McmClient.
 		MachineV1alpha1().
 		MachineDeployments(namespace).
@@ -108,8 +108,8 @@ func (c *Cluster) IsMachineDeleted(ctx context.Context, machineName string) bool
 	return errors.IsNotFound(err)
 }
 
-// IsMachineRunning returns boolean value indicating whether the specified machine is in the running state or not
-func (c *Cluster) IsMachineRunning(ctx context.Context, machineNames []string) bool {
+// AreMachinesRunning returns boolean value indicating whether all the machines names passed to it are in the running state or not
+func (c *Cluster) AreMachinesRunning(ctx context.Context, machineNames []string) bool {
 	controlClusterNamespace := os.Getenv("CONTROL_CLUSTER_NAMESPACE")
 	for _, mcName := range machineNames {
 		mc, err := c.McmClient.
@@ -130,28 +130,26 @@ func (c *Cluster) IsMachineRunning(ctx context.Context, machineNames []string) b
 	return true
 }
 
-// IsFailingMachinePreserved returns boolean value indicating whether the specified machine is in the failed state and preserved or not
-func (c *Cluster) IsFailingMachinePreserved(ctx context.Context, namespace string, machineNames []string) bool {
-	for _, mcName := range machineNames {
-		mc, err := c.McmClient.
-			MachineV1alpha1().
-			Machines(namespace).
-			Get(ctx, mcName, metav1.GetOptions{})
-		if err != nil {
-			log.Printf("error listing machines: %v", err)
-			return false
-		}
+// IsFailingMachinePreserved checks if the specified machine is in the failed state and is preserved
+func (c *Cluster) IsFailingMachinePreserved(ctx context.Context, namespace string, machineName string) bool {
+	mc, err := c.McmClient.
+		MachineV1alpha1().
+		Machines(namespace).
+		Get(ctx, machineName, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("error listing machine %s: %v", machineName, err)
+		return false
+	}
 
-		if mc.Status.CurrentStatus.PreserveExpiryTime == nil || mc.Status.CurrentStatus.Phase != v1alpha1.MachineFailed {
-			return false
-		}
+	if mc.Status.CurrentStatus.PreserveExpiryTime == nil || mc.Status.CurrentStatus.Phase != v1alpha1.MachineFailed {
+		return false
 	}
 
 	return true
 }
 
-// GetMCD returns a MachineDeployment object with the specified namespace, gnaSecretName, replicas and machineLabels
-func GetMCD(namespace string, gnaSecretName string, replicas int32) v1alpha1.MachineDeployment {
+// NewMachineDeployment returns a MachineDeployment object with the specified namespace, gnaSecretName, replicas and machineLabels
+func NewMachineDeployment(namespace string, gnaSecretName string, replicas int32) v1alpha1.MachineDeployment {
 	mcd := v1alpha1.MachineDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      mcdName,
