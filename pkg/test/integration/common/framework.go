@@ -1035,10 +1035,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Waiting for machine to fail and be preserved")
 				gomega.Eventually(
-					c.ControlCluster.IsFailingMachinePreserved,
+					c.ControlCluster.AreFailingMachinesPreserved,
 					c.timeout,
 					c.pollingInterval).
-					WithArguments(ctx, controlClusterNamespace, machineList.Items[0].Name).
+					WithArguments(ctx, controlClusterNamespace, []string{machineList.Items[0].Name}).
 					Should(gomega.BeTrue())
 
 				ginkgo.By("remove VAP and VAPB to simulate kubelet restart")
@@ -1110,10 +1110,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Waiting for machine to fail and be preserved")
 				gomega.Eventually(
-					c.ControlCluster.IsFailingMachinePreserved,
+					c.ControlCluster.AreFailingMachinesPreserved,
 					c.timeout,
 					c.pollingInterval).
-					WithArguments(ctx, controlClusterNamespace, preservedMachine.Name).
+					WithArguments(ctx, controlClusterNamespace, []string{preservedMachine.Name}).
 					Should(gomega.BeTrue())
 
 				// Simulate kubelet failure for the other node too. This node is expected to fail, but is not expected to be preserved
@@ -1132,6 +1132,85 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.By("cleanup")
 				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 
+			})
+			ginkgo.It("when AutoPreserveFailedMachineMax is reduced, number of preserved failed machines also get reduced", func() {
+				// Create an mcd with replica=2, and AutoPreserveFailedMachineMax=2
+				ginkgo.By("Creating a MCD with preservation fields populated")
+				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 2)
+				//Update the standard mcd to have preservation fields with values needed for this test
+				mcd.Spec.AutoPreserveFailedMachineMax = 2
+				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
+					MachineHealthTimeout: &metav1.Duration{Duration: 15 * time.Second},
+				}
+
+				_, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Create(ctx, &mcd, metav1.CreateOptions{})
+				if errors.IsAlreadyExists(err) {
+					retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+						existingMCD, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(context.Background(), mcd.Name, metav1.GetOptions{})
+						gomega.Expect(err).To(gomega.BeNil())
+						mcd.ResourceVersion = existingMCD.ResourceVersion
+						_, updateErr := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Update(context.Background(), &mcd, metav1.UpdateOptions{})
+						return updateErr
+					})
+					gomega.Expect(retryErr).To(gomega.BeNil())
+				} else if !errors.IsAlreadyExists(err) {
+					gomega.Expect(err).To(gomega.BeNil())
+				}
+
+				ginkgo.By("wait for machines to be created")
+				var machineList *v1alpha1.MachineList
+				gomega.Eventually(
+					func() *v1alpha1.MachineList {
+						machineList = c.ControlCluster.GetMachineList(ctx)
+						return machineList
+					},
+					c.timeout,
+					c.pollingInterval).
+					Should(gomega.HaveField("Items", gomega.HaveLen(2)))
+
+				ginkgo.By("wait for machines to start running")
+				gomega.Eventually(
+					c.ControlCluster.AreMachinesRunning,
+					c.timeout,
+					c.pollingInterval).
+					WithArguments(ctx, []string{machineList.Items[0].Name, machineList.Items[1].Name}).
+					Should(gomega.BeTrue())
+
+				// Get list of running machines
+				machineList = c.ControlCluster.GetMachineList(ctx)
+
+				// Simulate kubelet failure for both the nodes.
+				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for both nodes")
+				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{machineList.Items[0].ObjectMeta.Labels["node"], machineList.Items[1].ObjectMeta.Labels["node"]})).To(gomega.BeNil())
+
+				ginkgo.By("Wait for both machines to fail and be preserved")
+				gomega.Eventually(
+					c.ControlCluster.AreFailingMachinesPreserved,
+					c.timeout,
+					c.pollingInterval).
+					WithArguments(ctx, controlClusterNamespace, []string{machineList.Items[0].Name, machineList.Items[1].Name}).
+					Should(gomega.BeTrue())
+
+				ginkgo.By("Reduce mcd.AutoPreserveFailedMachineMax to 1")
+				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					existingMCD, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(context.Background(), mcd.Name, metav1.GetOptions{})
+					gomega.Expect(err).To(gomega.BeNil())
+					existingMCD.Spec.AutoPreserveFailedMachineMax = 1
+					_, updateErr := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Update(context.Background(), existingMCD, metav1.UpdateOptions{})
+					return updateErr
+				})
+				gomega.Expect(retryErr).To(gomega.BeNil())
+
+				ginkgo.By("wait for only one machine to be deleted while the other one stays preserved")
+				gomega.Eventually(func() bool {
+					isOnlyMachine0Deleted := c.ControlCluster.IsMachineDeleted(ctx, machineList.Items[0].Name) && c.ControlCluster.AreFailingMachinesPreserved(ctx, controlClusterNamespace, []string{machineList.Items[1].Name})
+					isOnlyMachine1Deleted := c.ControlCluster.IsMachineDeleted(ctx, machineList.Items[1].Name) && c.ControlCluster.AreFailingMachinesPreserved(ctx, controlClusterNamespace, []string{machineList.Items[0].Name})
+
+					return isOnlyMachine0Deleted != isOnlyMachine1Deleted
+				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+
+				ginkgo.By("cleanup")
+				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 			})
 		})
 
@@ -1190,10 +1269,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Waiting for machine to fail and be preserved")
 				gomega.Eventually(
-					c.ControlCluster.IsFailingMachinePreserved,
+					c.ControlCluster.AreFailingMachinesPreserved,
 					c.timeout,
 					c.pollingInterval).
-					WithArguments(ctx, controlClusterNamespace, machineList.Items[0].Name).
+					WithArguments(ctx, controlClusterNamespace, []string{machineList.Items[0].Name}).
 					Should(gomega.BeTrue())
 
 				ginkgo.By("add the node.machine.sapcloud.io/preserve=false annotation to the preserved machine")
@@ -1323,18 +1402,18 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Waiting for machine to fail and be preserved")
 				gomega.Eventually(
-					c.ControlCluster.IsFailingMachinePreserved,
+					c.ControlCluster.AreFailingMachinesPreserved,
 					c.timeout,
 					c.pollingInterval).
-					WithArguments(ctx, controlClusterNamespace, machineList.Items[0].Name).
+					WithArguments(ctx, controlClusterNamespace, []string{machineList.Items[0].Name}).
 					Should(gomega.BeTrue())
 
 				ginkgo.By("Ensure that machine stays preserved for one minute")
 				gomega.Consistently(
-					c.ControlCluster.IsFailingMachinePreserved,
+					c.ControlCluster.AreFailingMachinesPreserved,
 					1*time.Minute,
 					c.pollingInterval).
-					WithArguments(ctx, controlClusterNamespace, machineList.Items[0].Name).
+					WithArguments(ctx, controlClusterNamespace, []string{machineList.Items[0].Name}).
 					Should(gomega.BeTrue())
 
 				ginkgo.By("Waiting for machine to be deleted")

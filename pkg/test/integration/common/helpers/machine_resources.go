@@ -130,19 +130,21 @@ func (c *Cluster) AreMachinesRunning(ctx context.Context, machineNames []string)
 	return true
 }
 
-// IsFailingMachinePreserved checks if the specified machine is in the failed state and is preserved
-func (c *Cluster) IsFailingMachinePreserved(ctx context.Context, namespace string, machineName string) bool {
-	mc, err := c.McmClient.
-		MachineV1alpha1().
-		Machines(namespace).
-		Get(ctx, machineName, metav1.GetOptions{})
-	if err != nil {
-		log.Printf("error listing machine %s: %v", machineName, err)
-		return false
-	}
+// AreFailingMachinesPreserved checks if the all specified machines are in the failed state and are preserved
+func (c *Cluster) AreFailingMachinesPreserved(ctx context.Context, namespace string, machineNames []string) bool {
+	for _, mcName := range machineNames {
+		mc, err := c.McmClient.
+			MachineV1alpha1().
+			Machines(namespace).
+			Get(ctx, mcName, metav1.GetOptions{})
+		if err != nil {
+			log.Printf("error listing machine %s: %v", mcName, err)
+			return false
+		}
 
-	if mc.Status.CurrentStatus.PreserveExpiryTime == nil || mc.Status.CurrentStatus.Phase != v1alpha1.MachineFailed {
-		return false
+		if mc.Status.CurrentStatus.PreserveExpiryTime == nil || mc.Status.CurrentStatus.Phase != v1alpha1.MachineFailed {
+			return false
+		}
 	}
 
 	return true
