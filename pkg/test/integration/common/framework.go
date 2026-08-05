@@ -1135,7 +1135,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 			})
 		})
 
-		ginkgo.Context("Should honour presense/absense of lablels", func() {
+		ginkgo.Context("Should honour presence/absence of labels", func() {
 			var (
 				machineList *v1alpha1.MachineList
 			)
@@ -1240,7 +1240,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				machineList = c.ControlCluster.GetMachineList(ctx)
 
-				ginkgo.By("add the node.machine.sapcloud.io/preserve=false annotation from the running machine")
+				ginkgo.By("add the node.machine.sapcloud.io/preserve=false annotation to the running machine")
 				patch := map[string]any{
 					"metadata": map[string]any{
 						"annotations": map[string]any{
@@ -1253,7 +1253,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				_, err = c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).Patch(ctx, machineList.Items[0].Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 				gomega.Expect(err).To(gomega.BeNil())
 
-				// Simulate kubelet for the node so that it can be preserved
+				// Simulate kubelet failure for the node so that it can be preserved
 				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for this machine")
 				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{machineList.Items[0].ObjectMeta.Labels["node"]})).To(gomega.BeNil())
 
@@ -1270,7 +1270,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 		})
 
 		ginkgo.Context("Ensure that machinePreserveTimeout is honoured", func() {
-			ginkgo.It("when number of failed machines cross the threshold, only AutoPreserveFailedMachineMax number of machines are preserved. The rest are terminated", func() {
+			ginkgo.It("a preserved machine is terminated once its machinePreserveTimeout expires", func() {
 				var machineList *v1alpha1.MachineList
 				// Create an mcd with replica=1, AutoPreserveFailedMachineMax=1, and with a very small machinePreserveTimeout
 				ginkgo.By("Create a MCD with preservation fields populated")
@@ -1317,7 +1317,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				// Get list of running machines
 				machineList = c.ControlCluster.GetMachineList(ctx)
 
-				// Simulate kubelet for the node so that it can be preserved
+				// Simulate kubelet failure for the node so that it can be preserved
 				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for the machine")
 				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{machineList.Items[0].ObjectMeta.Labels["node"]})).To(gomega.BeNil())
 

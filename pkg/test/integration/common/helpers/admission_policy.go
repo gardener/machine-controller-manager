@@ -6,12 +6,13 @@ package helpers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,8 +26,11 @@ const (
 // CreateVAPToBlockKubeletUpdates is a utility method to create a ValidatingAdmissionPolicy and ValidatingAdmissionPolicyBinding
 // to block kubelet from updating node leases and node status.
 // This is used to cause nodes to go into the NotReady state to test the machine preservation feature of MCM.
-// TODO: pass context from caller
 func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames []string) error {
+	if len(nodeNames) == 0 {
+		return fmt.Errorf("no node names provided to block kubelet updates")
+	}
+
 	var err error
 	for _, noName := range nodeNames {
 		_, err := c.Clientset.CoreV1().Nodes().Get(ctx, noName, metav1.GetOptions{})
@@ -91,7 +95,7 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 	}
 
 	_, err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Create(ctx, VAPolicy, metav1.CreateOptions{})
-	if errors.IsAlreadyExists(err) {
+	if apierrors.IsAlreadyExists(err) {
 		existingVAPolicy, err := c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Get(ctx, VAPName, metav1.GetOptions{})
 		if err != nil {
 			log.Printf("error fetching validating admission policy: %v", err)
@@ -110,7 +114,7 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 	}
 
 	_, err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().Create(ctx, VAPBinding, metav1.CreateOptions{})
-	if errors.IsAlreadyExists(err) {
+	if apierrors.IsAlreadyExists(err) {
 		existingVAPBinding, err := c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().Get(ctx, VAPBName, metav1.GetOptions{})
 		if err != nil {
 			log.Printf("error fetching validating admission policy binding: %v", err)
@@ -146,17 +150,16 @@ func blockedKubeletExpression(nodes []string) string {
 
 // DeleteVAPToRestartKubeletUpdates deletes the ValidatingAdmissionPolicy and ValidatingAdmissionPolicyBinding that were created to block kubelet from updating node leases and node status.
 func (c *Cluster) DeleteVAPToRestartKubeletUpdates(ctx context.Context) error {
-	err := c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Delete(ctx, VAPName, metav1.DeleteOptions{})
-	if err != nil {
-		log.Printf("error deleting validating admission policy: %v", err)
-		return err
+	var vapErr, vapbErr error
+	vapErr = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Delete(ctx, VAPName, metav1.DeleteOptions{})
+	if vapErr != nil {
+		log.Printf("error deleting validating admission policy: %v", vapErr)
 	}
 
-	err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().Delete(ctx, VAPBName, metav1.DeleteOptions{})
-	if err != nil {
-		log.Printf("error deleting validating admission policy binding: %v", err)
-		return err
+	vapbErr = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().Delete(ctx, VAPBName, metav1.DeleteOptions{})
+	if vapbErr != nil {
+		log.Printf("error deleting validating admission policy binding: %v", vapbErr)
 	}
 
-	return nil
+	return errors.Join(vapErr, vapbErr)
 }

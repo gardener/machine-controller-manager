@@ -57,55 +57,13 @@ func (c *Cluster) CreateMachine(namespace string, gnaSecretName string) error {
 	return err
 }
 
-// CreateMachineDeployment creates a test-machine-deployment with 3 replicas and returns error if it occurs
+// CreateMachineDeployment creates a test-machine-deployment with a specified number of replicas and returns error if it occurs
 func (c *Cluster) CreateMachineDeployment(namespace string, gnaSecretName string, replicas int32) error {
+	mcd := GetMCD(namespace, gnaSecretName, replicas)
 	_, err := c.McmClient.
 		MachineV1alpha1().
 		MachineDeployments(namespace).
-		Create(
-			context.Background(),
-			&v1alpha1.MachineDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      mcdName,
-					Namespace: namespace,
-				},
-				Spec: v1alpha1.MachineDeploymentSpec{
-					Replicas:        replicas,
-					MinReadySeconds: 500,
-					Strategy: v1alpha1.MachineDeploymentStrategy{
-						Type: v1alpha1.RollingUpdateMachineDeploymentStrategyType,
-						RollingUpdate: &v1alpha1.RollingUpdateMachineDeployment{
-							UpdateConfiguration: v1alpha1.UpdateConfiguration{
-								MaxSurge:       &intstr.IntOrString{IntVal: 2},
-								MaxUnavailable: &intstr.IntOrString{IntVal: 1},
-							},
-						},
-					},
-					Selector: &metav1.LabelSelector{
-						MatchLabels: testLabels,
-					},
-					Template: v1alpha1.MachineTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: testLabels,
-						},
-						Spec: v1alpha1.MachineSpec{
-							Class: v1alpha1.ClassSpec{
-								Kind: "MachineClass",
-								Name: "test-mc-v1",
-							},
-							NodeTemplateSpec: v1alpha1.NodeTemplateSpec{
-								ObjectMeta: metav1.ObjectMeta{
-									Labels: map[string]string{
-										gnaSecretNameLabelKey: gnaSecretName,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			metav1.CreateOptions{},
-		)
+		Create(context.Background(), &mcd, metav1.CreateOptions{})
 	return err
 }
 
