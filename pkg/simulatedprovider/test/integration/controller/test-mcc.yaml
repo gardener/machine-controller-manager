@@ -4,7 +4,6 @@ credentialsSecretRef:
   namespace: test-ns
 kind: MachineClass
 metadata:
-  creationTimestamp: "2026-07-04T22:36:34Z"
   finalizers:
   - machine.sapcloud.io/machine-controller-manager
   generation: 1

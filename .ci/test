@@ -65,7 +65,7 @@ if [[ "${SKIP_INTEGRATION_TESTS}" != "" ]]; then
 else
   echo ">>>>> Invoking integration tests with the simulated provider"
 	ginkgo -v --show-node-events --poll-progress-after=300s --poll-progress-interval=60s pkg/simulatedprovider/test/integration/controller
-  echo ">>>>> Finished executing intergration test"
+  echo ">>>>> Finished executing integration tests"
 fi
 
 #TODO: return success failure properly
