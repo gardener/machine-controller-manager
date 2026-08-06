@@ -133,19 +133,19 @@ func (env *Env) watchMCCForSecretRefs() error {
 			if !ok || mcc.CredentialsSecretRef == nil || mcc.SecretRef == nil {
 				return
 			}
-			secretMap := map[string]string{
-				mcc.CredentialsSecretRef.Name: mcc.CredentialsSecretRef.Namespace,
-				mcc.SecretRef.Name:            mcc.SecretRef.Namespace,
+			err := env.createFakeSecret(mcc.CredentialsSecretRef.Name, mcc.CredentialsSecretRef.Namespace)
+			if err != nil && !apierrors.IsAlreadyExists(err) {
+				fmt.Printf("ERR: Creating secret %q for %q: %v\n",
+					mcc.CredentialsSecretRef.Name, mcc.Name, err,
+				)
+				return
 			}
-
-			for name, ns := range secretMap {
-				err := env.createFakeSecret(name, ns)
-				if err != nil && !apierrors.IsAlreadyExists(err) {
-					fmt.Printf("ERR: Creating secret %q for %q: %v\n",
-						name, mcc.Name, err,
-					)
-					return
-				}
+			err = env.createFakeSecret(mcc.SecretRef.Name, mcc.SecretRef.Namespace)
+			if err != nil && !apierrors.IsAlreadyExists(err) {
+				fmt.Printf("ERR: Creating secret %q for %q: %v\n",
+					mcc.SecretRef.Name, mcc.Name, err,
+				)
+				return
 			}
 		}).
 		Start(env.Ctx)

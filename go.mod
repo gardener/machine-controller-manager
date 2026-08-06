@@ -22,10 +22,9 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b // keep this value in sync with k8s.io/apiserver
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
+	sigs.k8s.io/e2e-framework v0.6.0
 	sigs.k8s.io/yaml v1.6.0
 )
-
-require sigs.k8s.io/e2e-framework v0.6.0
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect

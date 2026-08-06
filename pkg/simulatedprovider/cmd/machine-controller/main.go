@@ -27,7 +27,7 @@ func main() {
 	defer logs.FlushLogs()
 
 	if s.TargetKubeconfig == "" {
-		_ = fmt.Errorf("--target-kubeconfig must be provided")
+		fmt.Fprintf(os.Stderr, "--target-kubeconfig must be provided\n")
 		os.Exit(1)
 	}
 

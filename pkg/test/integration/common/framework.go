@@ -49,7 +49,7 @@ var (
 	// machine-controller log file
 	mcLogFile = filepath.Join(targetDir, "mc_process.log")
 
-	// Suffix for the`kubernetes-io-cluster` tag and cluster name for the orphan resource tracker. Used as ResourceGroupName for Azure clusters
+	// Suffix for the `kubernetes-io-cluster` tag and cluster name for the orphan resource tracker. Used as ResourceGroupName for Azure clusters
 	targetClusterName string
 
 	// relative path to clone machine-controller-manager repo.
@@ -624,13 +624,6 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 	clusterName := targetClusterName
-
-	// Because the simulated provider creates fake secrets for the MachineClasses
-	// on-the-fly, we add an artifical delay to give it time to create the secrets
-	// before their existence is checked below.
-	if isSimulatedProvider {
-		time.Sleep(2 * time.Second)
-	}
 
 	ginkgo.By("Looking for secrets refered in machineclass in the control cluster")
 	var secretData map[string][]byte
