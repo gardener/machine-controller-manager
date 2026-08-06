@@ -153,12 +153,22 @@ func (c *Cluster) DeleteVAPToRestartKubeletUpdates(ctx context.Context) error {
 	var vapErr, vapbErr error
 	vapErr = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Delete(ctx, VAPName, metav1.DeleteOptions{})
 	if vapErr != nil {
-		log.Printf("error deleting validating admission policy: %v\n", vapErr)
+		if apierrors.IsNotFound(vapErr) {
+			log.Printf("validating admission policy %s not found\n", VAPName)
+			vapErr = nil
+		} else {
+			log.Printf("error deleting validating admission policy %s: %v\n", VAPName, vapErr)
+		}
 	}
 
 	vapbErr = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().Delete(ctx, VAPBName, metav1.DeleteOptions{})
 	if vapbErr != nil {
-		log.Printf("error deleting validating admission policy binding: %v\n", vapbErr)
+		if apierrors.IsNotFound(vapbErr) {
+			log.Printf("validating admission policy binding %s not found\n", VAPBName)
+			vapbErr = nil
+		} else {
+			log.Printf("error deleting validating admission policy binding %s: %v\n", VAPBName, vapbErr)
+		}
 	}
 
 	return errors.Join(vapErr, vapbErr)
