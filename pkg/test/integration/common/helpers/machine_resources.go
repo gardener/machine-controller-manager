@@ -90,7 +90,7 @@ func (c *Cluster) GetMachineList(ctx context.Context) *v1alpha1.MachineList {
 		},
 	)
 	if err != nil {
-		log.Printf("error listing machines: %v", err)
+		log.Printf("error listing machines: %v\n", err)
 		return nil
 	}
 
@@ -130,7 +130,7 @@ func (c *Cluster) AreMachinesRunning(ctx context.Context, machineNames []string)
 	return true
 }
 
-// AreFailingMachinesPreserved checks if the all specified machines are in the failed state and are preserved
+// AreFailingMachinesPreserved checks if all the specified machines are in the Failed phase and are preserved
 func (c *Cluster) AreFailingMachinesPreserved(ctx context.Context, namespace string, machineNames []string) bool {
 	for _, mcName := range machineNames {
 		mc, err := c.McmClient.
@@ -138,7 +138,7 @@ func (c *Cluster) AreFailingMachinesPreserved(ctx context.Context, namespace str
 			Machines(namespace).
 			Get(ctx, mcName, metav1.GetOptions{})
 		if err != nil {
-			log.Printf("error listing machine %s: %v", mcName, err)
+			log.Printf("error listing machine %s: %v\n", mcName, err)
 			return false
 		}
 

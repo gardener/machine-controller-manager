@@ -984,7 +984,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 		})
 	})
 
-	// Testcase #04 | Auto Machine preservation
+	// Testcase #04 | Auto Preservation of Machines
 	ginkgo.Describe("Auto Machine Preservation", func() {
 		ginkgo.Context("Auto-Preserve Failed machine", func() {
 			ginkgo.It("Should preserve machine when it fails and let it join the cluster again when it recovers before preservation timeout", func() {
@@ -1005,7 +1005,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						return updateErr
 					})
 					gomega.Expect(retryErr).To(gomega.BeNil())
-				} else if !errors.IsAlreadyExists(err) {
+				} else {
 					gomega.Expect(err).To(gomega.BeNil())
 				}
 
@@ -1075,7 +1075,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						return updateErr
 					})
 					gomega.Expect(retryErr).To(gomega.BeNil())
-				} else if !errors.IsAlreadyExists(err) {
+				} else {
 					gomega.Expect(err).To(gomega.BeNil())
 				}
 
@@ -1133,11 +1133,11 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 
 			})
-			ginkgo.It("when AutoPreserveFailedMachineMax is reduced, number of preserved failed machines also get reduced", func() {
+			ginkgo.It("when AutoPreserveFailedMachineMax is reduced, the number of auto-preserved failed machines also gets reduced to honour the new max", func() {
 				// Create an mcd with replica=2, and AutoPreserveFailedMachineMax=2
 				ginkgo.By("Creating a MCD with preservation fields populated")
 				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 2)
-				//Update the standard mcd to have preservation fields with values needed for this test
+				// Update the standard mcd to have preservation fields with values needed for this test
 				mcd.Spec.AutoPreserveFailedMachineMax = 2
 				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
 					MachineHealthTimeout: &metav1.Duration{Duration: 15 * time.Second},
@@ -1153,7 +1153,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						return updateErr
 					})
 					gomega.Expect(retryErr).To(gomega.BeNil())
-				} else if !errors.IsAlreadyExists(err) {
+				} else {
 					gomega.Expect(err).To(gomega.BeNil())
 				}
 
@@ -1238,7 +1238,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						return updateErr
 					})
 					gomega.Expect(retryErr).To(gomega.BeNil())
-				} else if !errors.IsAlreadyExists(err) {
+				} else {
 					gomega.Expect(err).To(gomega.BeNil())
 				}
 
@@ -1371,7 +1371,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						return updateErr
 					})
 					gomega.Expect(retryErr).To(gomega.BeNil())
-				} else if !errors.IsAlreadyExists(err) {
+				} else {
 					gomega.Expect(err).To(gomega.BeNil())
 				}
 

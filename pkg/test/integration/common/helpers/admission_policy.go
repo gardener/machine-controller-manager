@@ -33,7 +33,7 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 
 	var err error
 	for _, noName := range nodeNames {
-		_, err := c.Clientset.CoreV1().Nodes().Get(ctx, noName, metav1.GetOptions{})
+		_, err = c.Clientset.CoreV1().Nodes().Get(ctx, noName, metav1.GetOptions{})
 		if err != nil {
 			log.Printf("error fetching node: %v\n", err)
 			return err
@@ -105,11 +105,11 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 
 		_, err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Update(ctx, VAPolicy, metav1.UpdateOptions{})
 		if err != nil {
-			log.Printf("error updating validating admission policy: %v\n", err)
+			log.Printf("error updating validating admission policy %s: %v\n", VAPName, err)
 			return err
 		}
 	} else if err != nil {
-		log.Printf("error creating validating admission policy: %v\n", err)
+		log.Printf("error creating validating admission policy %s: %v\n", VAPName, err)
 		return err
 	}
 
@@ -124,11 +124,11 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 
 		_, err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().Update(ctx, VAPBinding, metav1.UpdateOptions{})
 		if err != nil {
-			log.Printf("error updating validating admission policy binding: %v\n", err)
+			log.Printf("error updating validating admission policy binding %s: %v\n", VAPBName, err)
 			return err
 		}
 	} else if err != nil {
-		log.Printf("error creating validating admission policy binding: %v\n", err)
+		log.Printf("error creating validating admission policy binding %s: %v\n", VAPBName, err)
 		return err
 	}
 
