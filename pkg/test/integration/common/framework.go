@@ -975,23 +975,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 		})
 	})
 
-	// Testcase #03 | Orphaned Resources
-	ginkgo.Describe("orphaned resources", func() {
-		ginkgo.Context("when the hyperscaler resources are queried", func() {
-			ginkgo.It("should have been deleted", func() {
-				// if available, should delete orphaned resources in the cloud provider
-				ginkgo.By("Querying and comparing")
-				gomega.Eventually(
-					c.resourcesTracker.IsOrphanedResourcesAvailable,
-					c.timeout,
-					c.pollingInterval).
-					Should(gomega.BeEquivalentTo(false))
-
-			})
-		})
-	})
-
-	// Testcase #04 | Auto Preservation of Machines
+	// Testcase #03 | Auto Preservation of Machines
 	ginkgo.Describe("Auto Machine Preservation", func() {
 		ginkgo.Context("Auto-Preserve Failed machine", func() {
 			ginkgo.It("Should preserve machine when it fails and let it join the cluster again when it recovers before preservation timeout", func() {
@@ -1331,6 +1315,22 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.pollingInterval).
 					WithArguments(ctx, runningMachines[0].Name, controlClusterNamespace).
 					Should(gomega.BeTrue())
+			})
+		})
+	})
+
+	// Testcase #04 | Orphaned Resources
+	ginkgo.Describe("orphaned resources", func() {
+		ginkgo.Context("when the hyperscaler resources are queried", func() {
+			ginkgo.It("should have been deleted", func() {
+				// if available, should delete orphaned resources in the cloud provider
+				ginkgo.By("Querying and comparing")
+				gomega.Eventually(
+					c.resourcesTracker.IsOrphanedResourcesAvailable,
+					c.timeout,
+					c.pollingInterval).
+					Should(gomega.BeEquivalentTo(false))
+
 			})
 		})
 	})
