@@ -27,7 +27,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -730,9 +732,14 @@ func (o *Options) evictPodsWithPVInternal(
 
 		if attemptEvict && apierrors.IsTooManyRequests(err) {
 			// Pod eviction failed because of PDB violation, we will retry one we are done with this list.
-			klog.V(3).Infof("Pod %s/%s couldn't be evicted from node %s. This may also occur due to PDB violation. Will be retried. Error: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
 
+			var disruptedPods []string
 			pdb := getPdbForPod(o.pdbLister, pod)
+			if pdb != nil {
+				disruptedPods = slices.Collect(maps.Keys(pdb.Status.DisruptedPods))
+			}
+			klog.V(3).Infof("Pod %s/%s couldn't be evicted from node %s. This may also occur due to PDB violation (current disruptedPods: %v). Will be retried. Error: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, disruptedPods, err)
+
 			if pdb != nil {
 				if isMisconfiguredPdb(pdb) {
 					pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
@@ -1064,10 +1071,16 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 			returnCh <- fmt.Errorf("error when evicting pod %q: %v scheduled on node %v", pod.Name, err, pod.Spec.NodeName)
 			return
 		}
-		// Pod couldn't be evicted because of PDB violation
-		klog.V(3).Infof("Pod %s/%s couldn't be evicted from node %s. This may also occur due to PDB violation. Will be retried. Error: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
 
+		// Pod couldn't be evicted because of PDB violation
+
+		var disruptedPods []string
 		pdb := getPdbForPod(o.pdbLister, pod)
+		if pdb != nil {
+			disruptedPods = slices.Collect(maps.Keys(pdb.Status.DisruptedPods))
+		}
+		klog.V(3).Infof("Pod %s/%s couldn't be evicted from node %s. This may also occur due to PDB violation (current disruptedPods: %v). Will be retried. Error: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, disruptedPods, err)
+
 		if pdb != nil {
 			if isMisconfiguredPdb(pdb) {
 				pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
