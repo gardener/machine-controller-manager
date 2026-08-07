@@ -63,9 +63,10 @@ func (c *controller) updateNode(oldObj, newObj any) {
 		return
 	}
 
-	// Do not process node updates if there is no associated machine
-	// In case of transient errors while fetching machine, do not retry
-	// as the update handler will be triggered again due to kubelet updates.
+	// Do not process node updates if there is no associated machine, except
+	// when the node is being deleted, in that case enqueue it for finalizer removal.
+	// For transient fetch errors, do not retry; the update handler will be triggered
+	// again due to kubelet updates.
 	machine, err := c.getMachineFromNode(node.Name)
 	if err != nil {
 		if errors.Is(err, errNoMachineMatch) && node.DeletionTimestamp != nil {
@@ -152,8 +153,10 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 		return nil
 	}
 
-	// Ignore node updates without an associated machine. Retry only for errors other than errNoMachineMatch;
-	// transient fetch errors will be eventually requeued by the update handler due to kubelet updates.
+	// Ignore node updates without an associated machine, except when the node is being
+	// deleted, then remove the MCM finalizer to unblock deletion. Retry only for
+	// errors other than errNoMachineMatch; transient fetch errors will be eventually
+	// requeued by the update handler due to kubelet updates.
 	machine, err := c.getMachineFromNode(node.Name)
 	if err != nil {
 		if errors.Is(err, errNoMachineMatch) {
@@ -163,9 +166,10 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 			}
 			klog.Errorf("ClusterNode %q: No machine found matching node, skipping adding finalizers", key)
 			return nil
+		} else {
+			klog.Errorf("ClusterNode %q: error fetching machine for node: %v", key, err)
+			return err
 		}
-		klog.Errorf("ClusterNode %q: error fetching machine for node: %v", key, err)
-		return err
 	}
 
 	if node.DeletionTimestamp != nil {
