@@ -7,7 +7,6 @@ package helpers
 import (
 	"context"
 	"log"
-	"os"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 
@@ -15,6 +14,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"k8s.io/client-go/util/retry"
 )
 
 const (
@@ -68,22 +69,22 @@ func (c *Cluster) CreateMachineDeployment(namespace string, gnaSecretName string
 }
 
 // IsTestMachineDeleted returns boolean value of presence of 'test-machine' object
-func (c *Cluster) IsTestMachineDeleted() bool {
-	controlClusterNamespace := os.Getenv("CONTROL_CLUSTER_NAMESPACE")
+func (c *Cluster) IsTestMachineDeleted(ctx context.Context, namespace string) bool {
 	_, err := c.McmClient.
 		MachineV1alpha1().
-		Machines(controlClusterNamespace).
-		Get(context.Background(), "test-machine", metav1.GetOptions{})
+		Machines(namespace).
+		Get(ctx, "test-machine", metav1.GetOptions{})
 
 	return errors.IsNotFound(err)
 }
 
-// GetMachineList lists all machines that contain the given machine labels and returns the list of machines
-func (c *Cluster) GetMachineList(ctx context.Context) *v1alpha1.MachineList {
+// GetRunningMachineList lists all running machines that contain the given machine labels and returns the list of such machines
+func (c *Cluster) GetRunningMachineList(ctx context.Context, namespace string) ([]v1alpha1.Machine, error) {
 	selector := labels.SelectorFromSet(testLabels)
-	controlClusterNamespace := os.Getenv("CONTROL_CLUSTER_NAMESPACE")
 
-	machineList, err := c.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).List(
+	var runningMachines []v1alpha1.Machine
+
+	machineList, err := c.McmClient.MachineV1alpha1().Machines(namespace).List(
 		ctx,
 		metav1.ListOptions{
 			LabelSelector: selector.String(),
@@ -91,30 +92,34 @@ func (c *Cluster) GetMachineList(ctx context.Context) *v1alpha1.MachineList {
 	)
 	if err != nil {
 		log.Printf("error listing machines: %v\n", err)
-		return nil
+		return nil, err
 	}
 
-	return machineList
+	for _, mc := range machineList.Items {
+		if mc.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+			runningMachines = append(runningMachines, mc)
+		}
+	}
+
+	return runningMachines, nil
 }
 
 // IsMachineDeleted returns boolean value indicating whether the specified machine is deleted or not
-func (c *Cluster) IsMachineDeleted(ctx context.Context, machineName string) bool {
-	controlClusterNamespace := os.Getenv("CONTROL_CLUSTER_NAMESPACE")
+func (c *Cluster) IsMachineDeleted(ctx context.Context, machineName string, namespace string) bool {
 	_, err := c.McmClient.
 		MachineV1alpha1().
-		Machines(controlClusterNamespace).
+		Machines(namespace).
 		Get(ctx, machineName, metav1.GetOptions{})
 
 	return errors.IsNotFound(err)
 }
 
 // AreMachinesRunning returns boolean value indicating whether all the machines names passed to it are in the running state or not
-func (c *Cluster) AreMachinesRunning(ctx context.Context, machineNames []string) bool {
-	controlClusterNamespace := os.Getenv("CONTROL_CLUSTER_NAMESPACE")
+func (c *Cluster) AreMachinesRunning(ctx context.Context, machineNames []string, namespace string) bool {
 	for _, mcName := range machineNames {
 		mc, err := c.McmClient.
 			MachineV1alpha1().
-			Machines(controlClusterNamespace).
+			Machines(namespace).
 			Get(ctx, mcName, metav1.GetOptions{})
 
 		if err != nil {
@@ -194,4 +199,22 @@ func NewMachineDeployment(namespace string, gnaSecretName string, replicas int32
 	}
 
 	return mcd
+}
+
+// CreateOrUpdateMachineDeployment creates or updates a MachineDeployment with the specified namespace, gnaSecretName, replicas and machineLabels
+func (c *Cluster) CreateOrUpdateMcd(ctx context.Context, mcd v1alpha1.MachineDeployment, namespace string) error {
+	_, err := c.McmClient.MachineV1alpha1().MachineDeployments(namespace).Create(ctx, &mcd, metav1.CreateOptions{})
+	if errors.IsAlreadyExists(err) {
+		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			existingMCD, err := c.McmClient.MachineV1alpha1().MachineDeployments(namespace).Get(ctx, mcd.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			mcd.ResourceVersion = existingMCD.ResourceVersion
+			_, updateErr := c.McmClient.MachineV1alpha1().MachineDeployments(namespace).Update(ctx, &mcd, metav1.UpdateOptions{})
+			return updateErr
+		})
+		return retryErr
+	}
+	return err
 }
