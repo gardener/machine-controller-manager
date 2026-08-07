@@ -201,7 +201,7 @@ func NewMachineDeployment(namespace string, gnaSecretName string, replicas int32
 	return mcd
 }
 
-// CreateOrUpdateMachineDeployment creates or updates a MachineDeployment with the specified namespace, gnaSecretName, replicas and machineLabels
+// CreateOrUpdateMcd creates or updates a MachineDeployment with the specified namespace, gnaSecretName, replicas and machineLabels
 func (c *Cluster) CreateOrUpdateMcd(ctx context.Context, mcd v1alpha1.MachineDeployment, namespace string) error {
 	_, err := c.McmClient.MachineV1alpha1().MachineDeployments(namespace).Create(ctx, &mcd, metav1.CreateOptions{})
 	if errors.IsAlreadyExists(err) {
