@@ -358,7 +358,11 @@ func (c *controller) cordonNode(ctx context.Context, nodeName string) error {
 	clone := node.DeepCopy()
 	clone.Spec.Unschedulable = true
 	_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, clone, metav1.UpdateOptions{})
-	return err
+	if err != nil {
+		return err
+	}
+	klog.V(3).Infof("Node %q cordoned successfully.", node.Name)
+	return nil
 }
 
 // removePreservationRelatedAnnotationsOnNode removes the cluster-autoscaler annotation that disables scale down of preserved node
