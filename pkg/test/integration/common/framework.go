@@ -1003,12 +1003,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				// Simulate kubelet failure for the node
 				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure")
-				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{runningMachines[0].ObjectMeta.Labels["node"]})).To(gomega.BeNil())
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
 					ginkgo.By("cleanup deployed VAP/VAPB")
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 				})
+				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{runningMachines[0].ObjectMeta.Labels["node"]})).To(gomega.BeNil())
 
 				ginkgo.By("Waiting for machine to fail and be preserved")
 				gomega.Eventually(
@@ -1061,12 +1061,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				// Simulate kubelet failure for one node. We expect this node to be preserved
 				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for one machine")
-				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{preservedMachine.ObjectMeta.Labels["node"]})).To(gomega.BeNil())
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
 					ginkgo.By("cleanup deployed VAP/VAPB")
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 				})
+				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{preservedMachine.ObjectMeta.Labels["node"]})).To(gomega.BeNil())
 
 				ginkgo.By("Waiting for machine to fail and be preserved")
 				gomega.Eventually(
@@ -1115,12 +1115,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				// Simulate kubelet failure for both the nodes.
 				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for both nodes")
-				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{runningMachines[0].ObjectMeta.Labels["node"], runningMachines[1].ObjectMeta.Labels["node"]})).To(gomega.BeNil())
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
 					ginkgo.By("cleanup deployed VAP/VAPB")
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 				})
+				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{runningMachines[0].ObjectMeta.Labels["node"], runningMachines[1].ObjectMeta.Labels["node"]})).To(gomega.BeNil())
 
 				ginkgo.By("Wait for both machines to fail and be preserved")
 				gomega.Eventually(
@@ -1177,12 +1177,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				// Simulate kubelet failure for the node so that it can be preserved
 				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for the machine")
-				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{runningMachines[0].ObjectMeta.Labels["node"]})).To(gomega.BeNil())
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
 					ginkgo.By("cleanup deployed VAP/VAPB")
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 				})
+				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{runningMachines[0].ObjectMeta.Labels["node"]})).To(gomega.BeNil())
 
 				ginkgo.By("Waiting for machine to fail and be preserved")
 				gomega.Eventually(
@@ -1240,12 +1240,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				// Simulate kubelet failure for the node so that it can be preserved
 				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for this machine")
-				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{runningMachines[0].ObjectMeta.Labels["node"]})).To(gomega.BeNil())
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
 					ginkgo.By("cleanup deployed VAP/VAPB")
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 				})
+				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{runningMachines[0].ObjectMeta.Labels["node"]})).To(gomega.BeNil())
 
 				ginkgo.By("Waiting for machine to be deleted")
 				gomega.Eventually(
@@ -1285,12 +1285,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				// Simulate kubelet failure for the node so that it can be preserved
 				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for the machine")
-				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{runningMachines[0].ObjectMeta.Labels["node"]})).To(gomega.BeNil())
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
 					ginkgo.By("cleanup deployed VAP/VAPB")
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 				})
+				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{runningMachines[0].ObjectMeta.Labels["node"]})).To(gomega.BeNil())
 
 				ginkgo.By("Waiting for machine to fail and be preserved")
 				gomega.Eventually(
