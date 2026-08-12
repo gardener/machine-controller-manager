@@ -166,10 +166,9 @@ func (c *controller) reconcileClusterNodeKey(key string) error {
 			}
 			klog.Errorf("ClusterNode %q: No machine found matching node, skipping adding finalizers", key)
 			return nil
-		} else {
-			klog.Errorf("ClusterNode %q: error fetching machine for node: %v", key, err)
-			return err
 		}
+		klog.Errorf("ClusterNode %q: error fetching machine for node: %v", key, err)
+		return err
 	}
 
 	if node.DeletionTimestamp != nil {
