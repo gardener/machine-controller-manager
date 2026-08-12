@@ -104,8 +104,15 @@ func (c *controller) deleteMachine(obj any) {
 	// Node retains finalizer here, removed by reconcileClusterNodeKey once DeletionTimestamp is set
 	if c.targetCoreClient != nil {
 		if nodeName := machine.Labels[v1alpha1.NodeLabelKey]; nodeName != "" {
-			if err := c.targetCoreClient.CoreV1().Nodes().Delete(context.Background(), nodeName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-				klog.Errorf("failed to delete backing node %q of deleted machine %q: %v", nodeName, machine.Name, err)
+			err := c.targetCoreClient.CoreV1().Nodes().Delete(context.Background(), nodeName, metav1.DeleteOptions{})
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					klog.Errorf("backing node %q does not exist/already deleted for deleted machine %q: %v", nodeName, machine.Name, err)
+				} else {
+					klog.Errorf("failed to delete backing node %q of deleted machine %q: %v", nodeName, machine.Name, err)
+				}
+			} else {
+				klog.Infof("Successfully triggered deletion of backing node %q for deleted machine %q", nodeName, machine.Name)
 			}
 		}
 	}
