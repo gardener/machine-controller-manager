@@ -101,10 +101,11 @@ func (c *controller) deleteMachine(obj any) {
 	}
 	c.enqueueMachineTermination(machine, "handling terminating machine object DELETE event")
 
+	// Node retains finalizer here, removed by reconcileClusterNodeKey once DeletionTimestamp is set
 	if c.targetCoreClient != nil {
 		if nodeName := machine.Labels[v1alpha1.NodeLabelKey]; nodeName != "" {
 			if err := c.targetCoreClient.CoreV1().Nodes().Delete(context.Background(), nodeName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-				klog.Errorf("failed to delete backing node %q of machine %q queued for deletion: %v", nodeName, machine.Name, err)
+				klog.Errorf("failed to delete backing node %q of deleted machine %q: %v", nodeName, machine.Name, err)
 			}
 		}
 	}
