@@ -37,27 +37,23 @@ func (d *DriverImpl) initializeMCMManagedNodes(ctx context.Context) error {
 	return nil
 }
 
-func (d *DriverImpl) buildNode(mc *v1alpha1.Machine, mcc *v1alpha1.MachineClass) (node corev1.Node) {
+func (d *DriverImpl) buildNode(mc *v1alpha1.Machine, mcc *v1alpha1.MachineClass) *corev1.Node {
+	var node corev1.Node
 	node.Name = mc.Name
 	node.Labels = addNodeLabels(mc, mcc)
 	node.Status = buildNodeStatus(mcc)
 	node.Spec.ProviderID = fmt.Sprintf("fake://%s:%s", mcc.NodeTemplate.Region, mc.Name)
-	return
+	return &node
 }
 
-func (d *DriverImpl) transitionNodeToReady(ctx context.Context, name string) (updatedNode *corev1.Node, err error) {
-	node, err := d.client.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		err = fmt.Errorf("cannot get node with name %q: %w", name, err)
-		return
-	}
+func (d *DriverImpl) transitionNodeToReady(ctx context.Context, node *corev1.Node) (updatedNode *corev1.Node, err error) {
 	node.Spec.Taints = slices.DeleteFunc(node.Spec.Taints, func(taint corev1.Taint) bool {
 		return taint.Key == corev1.TaintNodeNotReady
 	})
 
 	updatedNode, err = d.client.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 	if err != nil {
-		err = fmt.Errorf("cannot update node with name %q: %w", name, err)
+		err = fmt.Errorf("cannot update node with name %q: %w", node.Name, err)
 		return
 	}
 	updatedNode.Status.Conditions = buildNodeReadyConditions(corev1.ConditionTrue)
@@ -65,7 +61,7 @@ func (d *DriverImpl) transitionNodeToReady(ctx context.Context, name string) (up
 
 	updatedNode, err = d.client.CoreV1().Nodes().UpdateStatus(ctx, updatedNode, metav1.UpdateOptions{})
 	if err != nil {
-		err = fmt.Errorf("cannot update the status of node with name %q: %w", name, err)
+		err = fmt.Errorf("cannot update the status of node with name %q: %w", node.Name, err)
 	}
 	return
 }
