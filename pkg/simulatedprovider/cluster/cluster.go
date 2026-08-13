@@ -34,7 +34,7 @@ type Env struct {
 	Cfg       *envconf.Config
 }
 
-// New returns an kwokctl created cluster's Environment.
+// New returns a kwokctl created cluster's Environment.
 // Name is used as cluster name and optionally a namespace can
 // be specified to be created as part of the cluster creation.
 func New(name, namespace string) Env {

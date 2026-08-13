@@ -43,20 +43,26 @@ type DriverImpl struct {
 	mu            sync.Mutex
 	client        *kubernetes.Clientset
 	machineClient machineclientset.Interface
-	managedNodes  sync.Map
+	// Map from node.Name to managedNodeInfo
+	managedNodes sync.Map
+}
+
+type managedNodeInfo struct {
+	ProviderID       string
+	MachineClassName string
 }
 
 // NewDriver returns a DriverImpl object containing the client, machineclient and a map
 // of nodes managed by MCM.
-func NewDriver(ctx context.Context, kubeconfig string) (driver.Driver, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+func NewDriver(ctx context.Context, kubecfg string) (driver.Driver, error) {
+	config, err := clientcmd.BuildConfigFromFlags("", kubecfg)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create rest.Config from kubeconfig %q: %w", kubeconfig, err)
+		return nil, fmt.Errorf("cannot create rest.Config from kubeconfig %q: %w", kubecfg, err)
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create clientset from kubeconfig %q: %w", kubeconfig, err)
+		return nil, fmt.Errorf("cannot create clientset from kubeconfig %q: %w", kubecfg, err)
 	}
 
 	mcb := machineclientbuilder.SimpleClientBuilder{
@@ -86,23 +92,29 @@ func (d *DriverImpl) CreateMachine(ctx context.Context, req *driver.CreateMachin
 	defer d.mu.Unlock()
 	defer driverAPIMetricRecorderFn(labelCreateMachine, &err)()
 
-	var node corev1.Node
-	nodeObj, found := d.managedNodes.Load(req.Machine.Name)
-	if !found {
+	var node *corev1.Node
+	if _, found := d.managedNodes.Load(req.Machine.Name); !found {
 		node = d.buildNode(req.Machine, req.MachineClass)
-		_, err = d.client.CoreV1().Nodes().Create(ctx, &node, metav1.CreateOptions{})
+		_, err = d.client.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		klog.Infof("Created node %q", node.Name)
 		// The node is considered 'managed' even when it hasn't transitioned to 'Ready'.
-		d.managedNodes.Store(node.Name, node)
-	} else {
-		node, _ = nodeObj.(corev1.Node)
+		d.managedNodes.Store(node.Name, managedNodeInfo{
+			ProviderID:       node.Spec.ProviderID,
+			MachineClassName: req.MachineClass.Name,
+		})
+	}
+
+	node, err = d.client.CoreV1().Nodes().Get(ctx, req.Machine.Name, metav1.GetOptions{})
+	if err != nil {
+		err = fmt.Errorf("cannot get node with name %q: %w", req.Machine.Name, err)
+		return
 	}
 
 	// If the node cannot be transitioned to 'Ready' state, return an 'Internal' error.
-	_, readyErr := d.transitionNodeToReady(ctx, node.Name)
+	_, readyErr := d.transitionNodeToReady(ctx, node)
 	if readyErr != nil {
 		err = fmt.Errorf("failed to make node %q Ready: %v", node.Name, readyErr)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -120,7 +132,9 @@ func (d *DriverImpl) CreateMachine(ctx context.Context, req *driver.CreateMachin
 // InitializeMachine handles VM initialization. Currently, un-implemented.
 func (d *DriverImpl) InitializeMachine(_ context.Context, _ *driver.InitializeMachineRequest) (resp *driver.InitializeMachineResponse, err error) {
 	defer driverAPIMetricRecorderFn(labelInitializeMachine, &err)()
-	err = status.Error(codes.Unimplemented, "simulation provider does not implement InitializeMachine")
+	err = status.Error(
+		codes.Unimplemented, "simulation provider does not implement InitializeMachine",
+	)
 	return
 }
 
@@ -143,20 +157,17 @@ func (d *DriverImpl) GetMachineStatus(_ context.Context, req *driver.GetMachineS
 	defer d.mu.Unlock()
 	defer driverAPIMetricRecorderFn(labelGetMachineStatus, &err)()
 
-	nodeObj, ok := d.managedNodes.Load(req.Machine.Name)
+	nodeInfo, ok := d.managedNodes.Load(req.Machine.Name)
 	if !ok {
-		err = status.Error(codes.NotFound, fmt.Sprintf("instance %q not found", req.Machine.Name))
+		err = status.Error(
+			codes.NotFound, fmt.Sprintf("instance %q not found", req.Machine.Name),
+		)
 		return
 	}
 
-	node, ok := nodeObj.(corev1.Node)
-	if !ok {
-		err = status.Error(codes.Internal, fmt.Sprintf("nodeObj %q not a corev1.Node", req.Machine.Name))
-		return
-	}
 	resp = &driver.GetMachineStatusResponse{
-		NodeName:   node.Name,
-		ProviderID: node.Spec.ProviderID,
+		NodeName:   req.Machine.Name,
+		ProviderID: nodeInfo.(managedNodeInfo).ProviderID,
 	}
 	return
 }
@@ -172,10 +183,10 @@ func (d *DriverImpl) ListMachines(_ context.Context, req *driver.ListMachinesReq
 		MachineList: make(map[string]string),
 	}
 
-	d.managedNodes.Range(func(_, nodeObj any) bool {
-		node, ok := nodeObj.(corev1.Node)
-		if ok && node.Labels[labelMachineClassName] == req.MachineClass.Name {
-			resp.MachineList[node.Spec.ProviderID] = node.Name
+	d.managedNodes.Range(func(nodeName, nodeInfoObj any) bool {
+		nodeInfo, ok := nodeInfoObj.(managedNodeInfo)
+		if ok && nodeInfo.MachineClassName == req.MachineClass.Name {
+			resp.MachineList[nodeInfo.ProviderID] = nodeName.(string)
 		}
 		return true
 	})
@@ -185,6 +196,8 @@ func (d *DriverImpl) ListMachines(_ context.Context, req *driver.ListMachinesReq
 // GetVolumeIDs returns a list of Volume IDs for all PV Specs for whom a provider volume was found. Currently, un-implemented.
 func (d *DriverImpl) GetVolumeIDs(_ context.Context, _ *driver.GetVolumeIDsRequest) (resp *driver.GetVolumeIDsResponse, err error) {
 	defer driverAPIMetricRecorderFn(labelGetVolumeIDs, &err)()
-	err = status.Error(codes.Unimplemented, "simulation provider does not implement GetVolumeIDs")
+	err = status.Error(
+		codes.Unimplemented, "simulation provider does not implement GetVolumeIDs",
+	)
 	return
 }
