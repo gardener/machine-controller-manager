@@ -3561,7 +3561,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:         fmt.Errorf("machine deletion in process: no node label found"),
+					err:         fmt.Errorf("machine deletion in process: %s", fmt.Sprintf("Label %q not present on machine %q, continuing deletion flow. %s", v1alpha1.NodeLabelKey, "machine-0", machineutils.InitiateFinalizerRemoval)),
 					retry:       machineutils.ShortRetry,
 					nodeDeleted: false,
 					machine: newMachine(
