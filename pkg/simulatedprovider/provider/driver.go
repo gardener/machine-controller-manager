@@ -40,7 +40,6 @@ var _ driver.Driver = &DriverImpl{}
 // DriverImpl is the struct that implements the MCM driver.Driver interface
 // It also maintains a map `managedNodes` of all the nodes currently managed by MCM
 type DriverImpl struct {
-	mu            sync.Mutex
 	client        *kubernetes.Clientset
 	machineClient machineclientset.Interface
 	// Map from node.Name to managedNodeInfo
@@ -88,8 +87,6 @@ func NewDriver(ctx context.Context, kubecfg string) (driver.Driver, error) {
 // CreateMachine handles a machine creation request. For the simulated provider, it creates
 // a node and attempts to transition it to 'Ready' state.
 func (d *DriverImpl) CreateMachine(ctx context.Context, req *driver.CreateMachineRequest) (resp *driver.CreateMachineResponse, err error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
 	defer driverAPIMetricRecorderFn(labelCreateMachine, &err)()
 
 	var node *corev1.Node
@@ -141,8 +138,6 @@ func (d *DriverImpl) InitializeMachine(_ context.Context, _ *driver.InitializeMa
 // DeleteMachine handles a machine deletion request. For the simulated provider, it just
 // removes the corresponding node from the managedNodes map.
 func (d *DriverImpl) DeleteMachine(_ context.Context, req *driver.DeleteMachineRequest) (resp *driver.DeleteMachineResponse, err error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
 	defer driverAPIMetricRecorderFn(labelDeleteMachine, &err)()
 
 	d.managedNodes.Delete(req.Machine.Name)
@@ -153,8 +148,6 @@ func (d *DriverImpl) DeleteMachine(_ context.Context, req *driver.DeleteMachineR
 
 // GetMachineStatus handles a machine get status request.
 func (d *DriverImpl) GetMachineStatus(_ context.Context, req *driver.GetMachineStatusRequest) (resp *driver.GetMachineStatusResponse, err error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
 	defer driverAPIMetricRecorderFn(labelGetMachineStatus, &err)()
 
 	nodeInfo, ok := d.managedNodes.Load(req.Machine.Name)
@@ -175,8 +168,6 @@ func (d *DriverImpl) GetMachineStatus(_ context.Context, req *driver.GetMachineS
 // ListMachines lists all the machines possibly created by a machineClass.
 // Returns a `map[providerID]machineName` for the specified `MachineClass`.
 func (d *DriverImpl) ListMachines(_ context.Context, req *driver.ListMachinesRequest) (resp *driver.ListMachinesResponse, err error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
 	defer driverAPIMetricRecorderFn(labelListMachines, &err)()
 
 	resp = &driver.ListMachinesResponse{
