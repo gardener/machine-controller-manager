@@ -115,7 +115,7 @@ func (c *controller) deleteMachine(obj any) {
 			return err
 		})
 		if retryErr != nil {
-			klog.Errorf("failed to delete backing node %q of deleted machine %q after retries: %v", nodeName, machine.Name, retryErr)
+			klog.Errorf("failed to delete backing node %q of deleted machine %q after multiple retries: %v", nodeName, machine.Name, retryErr)
 			return
 		}
 		klog.Infof("Successfully triggered deletion of backing node %q for deleted machine %q", nodeName, machine.Name)
