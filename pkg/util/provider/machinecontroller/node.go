@@ -253,13 +253,14 @@ func (c *controller) removeFinalizerAndDeleteNode(ctx context.Context, machine *
 		description = fmt.Sprintf("Label %q not present on machine %q, continuing deletion flow. %s", v1alpha1.NodeLabelKey, machine.Name, machineutils.InitiateFinalizerRemoval)
 		klog.Warning(description)
 		state = v1alpha1.MachineStateProcessing
-		return description, state, nil
+		err = nil
+		return
 	}
 
 	node, err = c.nodeLister.Get(nodeName)
 	if err != nil {
 		// If node object is not found, then it could have already been deleted,
-		// therefore we should not block deletion of machine. But if error is other than NotFound,
+		// therefore we should not block deletion of machine. But if error is something other than NotFound,
 		// then we should retry as it could be a transient error.
 		switch {
 		case apierrors.IsNotFound(err):
@@ -272,7 +273,7 @@ func (c *controller) removeFinalizerAndDeleteNode(ctx context.Context, machine *
 			klog.Error(description)
 			state = v1alpha1.MachineStateFailed
 		}
-		return description, state, err
+		return
 	}
 
 	// Remove finalizers from node object before deletion.
@@ -282,7 +283,7 @@ func (c *controller) removeFinalizerAndDeleteNode(ctx context.Context, machine *
 		description = fmt.Sprintf("Removal of finalizers from Node Object %q failed due to error: %s, Retrying. %s", nodeName, err, machineutils.InitiateNodeDeletion)
 		klog.Error(description)
 		state = v1alpha1.MachineStateFailed
-		return description, state, err
+		return
 	}
 
 	// Delete node object.
@@ -303,7 +304,7 @@ func (c *controller) removeFinalizerAndDeleteNode(ctx context.Context, machine *
 		klog.Error(description)
 		state = v1alpha1.MachineStateFailed
 	}
-	return description, state, err
+	return
 }
 
 func (c *controller) addNodeFinalizers(ctx context.Context, node *corev1.Node) error {
