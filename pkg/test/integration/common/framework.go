@@ -1170,7 +1170,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 			})
 		})
 
-		ginkgo.Context("Should honour presence/absence of labels", func() {
+		ginkgo.Context("Should honour presence/absence of annotations", func() {
 			ginkgo.It("preserved machine should stop being preserved when node.machine.sapcloud.io/preserve=false annotation is added", func() {
 				// Create an mcd with replica=1, and AutoPreserveFailedMachineMax=1
 				ginkgo.By("Creating a MCD with preservation fields populated")
@@ -1362,9 +1362,8 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				Should(gomega.BeTrue())
 		})
 		ginkgo.Context("Manual-Preserve Failed machine", func() {
-			ginkgo.It("Should preserve machine when it fails and let it join the cluster again when it recovers before preservation timeout", func() {
-				// Create an mcd with replica=1, AutoPreserveFailedMachineMax=1, and with a very small machinePreserveTimeout
-				ginkgo.By("Create a MCD with no preservation fields populated")
+			ginkgo.It("Should preserve machine when annotated with `preserve=when-failed` on failure and let it join the cluster again when it recovers before preservation timeout", func() {
+				ginkgo.By("Create an MCD with AutoPreserveFailedMachineMax set to 0")
 				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 3)
 				// Update the standard mcd to have preservation fields
 				mcd.Spec.AutoPreserveFailedMachineMax = 0
@@ -1424,8 +1423,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					Should(gomega.BeTrue())
 			})
 			ginkgo.It("Should preserve machine on failure when it's corresponding node is manually annotated", func() {
-				// Create an mcd with replica=1, AutoPreserveFailedMachineMax=1, and with a very small machinePreserveTimeout
-				ginkgo.By("Create a MCD with no preservation fields populated")
+				ginkgo.By("Create a MCD with AutoPreserveFailedMachineMax set to 0")
 				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 3)
 				// Update the standard mcd to have preservation fields
 				mcd.Spec.AutoPreserveFailedMachineMax = 0
@@ -1461,7 +1459,6 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				}
 				patchBytes, err := json.Marshal(patch)
 				gomega.Expect(err).To(gomega.BeNil())
-				//_, err = c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).Patch(ctx, runningMachines[0].Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 				_, err = c.TargetCluster.Clientset.CoreV1().Nodes().Patch(ctx, nodeName, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 				gomega.Expect(err).To(gomega.BeNil())
 
@@ -1489,9 +1486,9 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					Should(gomega.BeTrue())
 			})
 		})
-		ginkgo.Context("Ensure that machine annotated with `when-failed` are preserved", func() {
+		ginkgo.Context("Ensure that machines annotated with `when-failed` are preserved", func() {
 			ginkgo.It("Should ensure that a machine marked for preservation using `when-failed` is preserved even if `autoPreserveFailedMachineMax` number of machines are already preserved", func() {
-				ginkgo.By("Create a MCD with no preservation fields populated")
+				ginkgo.By("Create a MCD with with AutoPreserveFailedMachineMax set to 1")
 				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 3)
 				// Update the standard mcd to have preservation fields
 				mcd.Spec.AutoPreserveFailedMachineMax = 1
@@ -1540,12 +1537,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				gomega.Expect(err).To(gomega.BeNil())
 
 				// Simulate kubelet failure for the second node.
-				// The first node is already auto-preserved and counts AutoPreserveFailedMachineMax.
+				// The first node is already auto-preserved and counts towards AutoPreserveFailedMachineMax.
 				// We expect this machine to be preserved as well since it is explicitely marked
 				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for the second machine")
 				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{runningMachines[0].ObjectMeta.Labels["node"], runningMachines[1].ObjectMeta.Labels["node"]})).To(gomega.BeNil())
 
-				ginkgo.By("Waiting for second machine to fail and be preserved while ensurint that the first machine remains preserved")
+				ginkgo.By("Waiting for second machine to fail and be preserved while ensuring that the first machine remains preserved")
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
@@ -1557,8 +1554,8 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 			})
 		})
-		ginkgo.Context("Ensure preserved machines are deleted when preserve annotated is removed", func() {
-			ginkgo.It("Should ensure that a manually preserved machine is deleted if the preservation annotation is removed", func() {
+		ginkgo.Context("Ensure preserved machines are deleted when preserve annotation is removed", func() {
+			ginkgo.It("Should ensure that a manually preserved failed machine is deleted if the preservation annotation is removed", func() {
 				ginkgo.By("Create a MCD with no preservation fields populated")
 				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 3)
 				// Update the standard mcd to a low machine health timeout to speed up tests

@@ -6,6 +6,7 @@ package helpers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -14,7 +15,7 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -97,23 +98,22 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 
 	_, err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Create(ctx, VAPolicy, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
-		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			existingVAPolicy, err := c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Get(ctx, VAPName, metav1.GetOptions{})
-			if err != nil {
-				log.Printf("error fetching validating admission policy %s: %v\n", VAPName, err)
-				return err
-			}
-			VAPolicy.ResourceVersion = existingVAPolicy.ResourceVersion
-			_, err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Update(ctx, VAPolicy, metav1.UpdateOptions{})
-
-			return err
+		patch, err := json.Marshal(map[string]any{
+			"spec": map[string]any{
+				"validations": []map[string]any{
+					{
+						"expression": blockedKubeletExpression(nodeNames),
+						"message":    "blocking kubelet heartbeat for test",
+					},
+				},
+			},
 		})
-		if retryErr != nil {
-			log.Printf("error updating validating admission policy %s: %v\n", VAPName, retryErr)
-			return retryErr
+		_, err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Patch(ctx, VAPName, types.MergePatchType, patch, metav1.PatchOptions{})
+		if err != nil {
+			log.Printf("error patching validating admission policy %s: %v\n", VAPName, err)
+			return err
 		}
 	} else if err != nil {
-		log.Printf("error creating validating admission policy %s: %v\n", VAPName, err)
 		return err
 	}
 
