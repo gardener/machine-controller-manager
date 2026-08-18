@@ -108,6 +108,10 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 				},
 			},
 		})
+		if err != nil {
+			log.Printf("error marshalling patch for validating admission policy %s: %v\n", VAPName, err)
+			return err
+		}
 		_, err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Patch(ctx, VAPName, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			log.Printf("error patching validating admission policy %s: %v\n", VAPName, err)
