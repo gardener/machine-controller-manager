@@ -20,8 +20,10 @@ import (
 
 const (
 	gnaSecretNameLabelKey = "worker.gardener.cloud/gardener-node-agent-secret-name"
-	McdName               = "test-machine-deployment"
-	McName                = "test-machine"
+	// McdName is the name of the test machine deployment
+	McdName = "test-machine-deployment"
+	// McName is the name of the test machine
+	McName = "test-machine"
 )
 
 var (
@@ -37,7 +39,7 @@ func (c *Cluster) CreateMachine(namespace string, gnaSecretName string) error {
 			context.Background(),
 			&v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-machine",
+					Name:      McName,
 					Namespace: namespace,
 				},
 				Spec: v1alpha1.MachineSpec{
@@ -105,6 +107,7 @@ func (c *Cluster) IsMachineDeleted(ctx context.Context, machineName string, name
 	return errors.IsNotFound(err)
 }
 
+// IsMachineDeploymentDeleted returns boolean value indicating whether the specified machine deployment is deleted or not
 func (c *Cluster) IsMachineDeploymentDeleted(ctx context.Context, machineDeploymentName string, namespace string) bool {
 	_, err := c.McmClient.
 		MachineV1alpha1().
