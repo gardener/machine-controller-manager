@@ -69,16 +69,6 @@ func (c *Cluster) CreateMachineDeployment(namespace string, gnaSecretName string
 	return err
 }
 
-// // IsTestMachineDeleted returns boolean value of presence of 'test-machine' object
-// func (c *Cluster) IsTestMachineDeleted(ctx context.Context, namespace string) bool {
-// 	_, err := c.McmClient.
-// 		MachineV1alpha1().
-// 		Machines(namespace).
-// 		Get(ctx, "test-machine", metav1.GetOptions{})
-
-// 	return errors.IsNotFound(err)
-// }
-
 // GetRunningMachineList lists all running machines that contain the given machine labels and returns the list of such machines
 func (c *Cluster) GetRunningMachineList(ctx context.Context, namespace string) ([]v1alpha1.Machine, error) {
 	selector := labels.SelectorFromSet(testLabels)
