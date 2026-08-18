@@ -20,7 +20,7 @@ import (
 
 const (
 	gnaSecretNameLabelKey = "worker.gardener.cloud/gardener-node-agent-secret-name"
-	mcdName               = "test-machine-deployment"
+	McdName               = "test-machine-deployment"
 )
 
 var (
@@ -114,6 +114,15 @@ func (c *Cluster) IsMachineDeleted(ctx context.Context, machineName string, name
 	return errors.IsNotFound(err)
 }
 
+func (c *Cluster) IsMachineDeploymentDeleted(ctx context.Context, machineDeploymentName string, namespace string) bool {
+	_, err := c.McmClient.
+		MachineV1alpha1().
+		MachineDeployments(namespace).
+		Get(ctx, machineDeploymentName, metav1.GetOptions{})
+
+	return errors.IsNotFound(err)
+}
+
 // AreMachinesRunning returns boolean value indicating whether all the machines names passed to it are in the running state or not
 func (c *Cluster) AreMachinesRunning(ctx context.Context, machineNames []string, namespace string) bool {
 	for _, mcName := range machineNames {
@@ -159,7 +168,7 @@ func (c *Cluster) AreFailingMachinesPreserved(ctx context.Context, namespace str
 func NewMachineDeployment(namespace string, gnaSecretName string, replicas int32) v1alpha1.MachineDeployment {
 	mcd := v1alpha1.MachineDeployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      mcdName,
+			Name:      McdName,
 			Namespace: namespace,
 		},
 		Spec: v1alpha1.MachineDeploymentSpec{
