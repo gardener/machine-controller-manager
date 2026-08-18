@@ -14,6 +14,7 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 const (
@@ -96,17 +97,20 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 
 	_, err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Create(ctx, VAPolicy, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
-		existingVAPolicy, err := c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Get(ctx, VAPName, metav1.GetOptions{})
-		if err != nil {
-			log.Printf("error fetching validating admission policy %s: %v\n", VAPName, err)
-			return err
-		}
-		VAPolicy.ResourceVersion = existingVAPolicy.ResourceVersion
+		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			existingVAPolicy, err := c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Get(ctx, VAPName, metav1.GetOptions{})
+			if err != nil {
+				log.Printf("error fetching validating admission policy %s: %v\n", VAPName, err)
+				return err
+			}
+			VAPolicy.ResourceVersion = existingVAPolicy.ResourceVersion
+			_, err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Update(ctx, VAPolicy, metav1.UpdateOptions{})
 
-		_, err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Update(ctx, VAPolicy, metav1.UpdateOptions{})
-		if err != nil {
-			log.Printf("error updating validating admission policy %s: %v\n", VAPName, err)
 			return err
+		})
+		if retryErr != nil {
+			log.Printf("error updating validating admission policy %s: %v\n", VAPName, retryErr)
+			return retryErr
 		}
 	} else if err != nil {
 		log.Printf("error creating validating admission policy %s: %v\n", VAPName, err)
@@ -114,20 +118,8 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 	}
 
 	_, err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().Create(ctx, VAPBinding, metav1.CreateOptions{})
-	if apierrors.IsAlreadyExists(err) {
-		existingVAPBinding, err := c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().Get(ctx, VAPBName, metav1.GetOptions{})
-		if err != nil {
-			log.Printf("error fetching validating admission policy binding %s: %v\n", VAPBName, err)
-			return err
-		}
-		VAPBinding.ResourceVersion = existingVAPBinding.ResourceVersion
-
-		_, err = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().Update(ctx, VAPBinding, metav1.UpdateOptions{})
-		if err != nil {
-			log.Printf("error updating validating admission policy binding %s: %v\n", VAPBName, err)
-			return err
-		}
-	} else if err != nil {
+	// Since VAPB is static, no action needed if it already exists
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		log.Printf("error creating validating admission policy binding %s: %v\n", VAPBName, err)
 		return err
 	}

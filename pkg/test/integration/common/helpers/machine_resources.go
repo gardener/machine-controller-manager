@@ -21,6 +21,7 @@ import (
 const (
 	gnaSecretNameLabelKey = "worker.gardener.cloud/gardener-node-agent-secret-name"
 	McdName               = "test-machine-deployment"
+	McName                = "test-machine"
 )
 
 var (
@@ -68,15 +69,15 @@ func (c *Cluster) CreateMachineDeployment(namespace string, gnaSecretName string
 	return err
 }
 
-// IsTestMachineDeleted returns boolean value of presence of 'test-machine' object
-func (c *Cluster) IsTestMachineDeleted(ctx context.Context, namespace string) bool {
-	_, err := c.McmClient.
-		MachineV1alpha1().
-		Machines(namespace).
-		Get(ctx, "test-machine", metav1.GetOptions{})
+// // IsTestMachineDeleted returns boolean value of presence of 'test-machine' object
+// func (c *Cluster) IsTestMachineDeleted(ctx context.Context, namespace string) bool {
+// 	_, err := c.McmClient.
+// 		MachineV1alpha1().
+// 		Machines(namespace).
+// 		Get(ctx, "test-machine", metav1.GetOptions{})
 
-	return errors.IsNotFound(err)
-}
+// 	return errors.IsNotFound(err)
+// }
 
 // GetRunningMachineList lists all running machines that contain the given machine labels and returns the list of such machines
 func (c *Cluster) GetRunningMachineList(ctx context.Context, namespace string) ([]v1alpha1.Machine, error) {
@@ -144,8 +145,8 @@ func (c *Cluster) AreMachinesRunning(ctx context.Context, machineNames []string,
 	return true
 }
 
-// AreFailingMachinesPreserved checks if all the specified machines are in the Failed phase and are preserved
-func (c *Cluster) AreFailingMachinesPreserved(ctx context.Context, namespace string, machineNames []string) bool {
+// AreMachinesFailedAndPreserved checks if all the specified machines are in the Failed phase and are preserved
+func (c *Cluster) AreMachinesFailedAndPreserved(ctx context.Context, namespace string, machineNames []string) bool {
 	for _, mcName := range machineNames {
 		mc, err := c.McmClient.
 			MachineV1alpha1().

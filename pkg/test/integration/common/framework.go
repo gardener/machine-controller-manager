@@ -41,8 +41,8 @@ import (
 
 const (
 	dwdIgnoreScalingAnnotation = "dependency-watchdog.gardener.cloud/ignore-scaling"
-	testMachineDeploymentName  = "test-machine-deployment"
-	testMachineName            = "test-machine"
+	// testMachineDeploymentName  = "test-machine-deployment"
+	// testMachineName            = "test-machine"
 )
 
 var (
@@ -689,15 +689,15 @@ func (c *IntegrationTestFramework) ControllerTests() {
 							c.ControlCluster.McmClient.
 								MachineV1alpha1().
 								Machines(controlClusterNamespace).
-								Delete(ctx, testMachineName, metav1.DeleteOptions{})).
+								Delete(ctx, helpers.McName, metav1.DeleteOptions{})).
 							Should(gomega.BeNil(), "No Errors while deleting machine")
 
 						ginkgo.By("Waiting until test-machine machine object is deleted")
 						gomega.Eventually(
-							c.ControlCluster.IsTestMachineDeleted,
+							c.ControlCluster.IsMachineDeleted,
 							c.timeout,
 							c.pollingInterval).
-							WithArguments(ctx, controlClusterNamespace).
+							WithArguments(ctx, helpers.McName, controlClusterNamespace).
 							Should(gomega.BeTrue())
 
 						ginkgo.By("Waiting until number of ready nodes is equal to number of initial nodes")
@@ -762,7 +762,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDeployment, _ = c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
+						Get(ctx, helpers.McdName, metav1.GetOptions{})
 					machineDeployment.Spec.Replicas = 1
 					_, updateErr := c.ControlCluster.McmClient.
 						MachineV1alpha1().
@@ -779,7 +779,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDeployment, err = c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
+						Get(ctx, helpers.McdName, metav1.GetOptions{})
 					gomega.Expect(err).NotTo(gomega.HaveOccurred())
 					if len(machineDeployment.Status.Conditions) != 2 {
 						return false
@@ -819,7 +819,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDployment, _ := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
+						Get(ctx, helpers.McdName, metav1.GetOptions{})
 					machineDployment.Spec.Replicas = 6
 					_, updateErr := c.ControlCluster.McmClient.
 						MachineV1alpha1().
@@ -849,7 +849,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDployment, _ := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
+						Get(ctx, helpers.McdName, metav1.GetOptions{})
 					machineDployment.Spec.Replicas = 2
 					_, updateErr := c.ControlCluster.McmClient.
 						MachineV1alpha1().
@@ -887,7 +887,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDployment, _ := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
+						Get(ctx, helpers.McdName, metav1.GetOptions{})
 					machineDployment.Spec.Template.Spec.Class.Name = testMachineClassResources[1]
 					machineDployment.Spec.Replicas = 4
 					_, updateErr := c.ControlCluster.McmClient.
@@ -903,7 +903,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDeployment, err := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
+						Get(ctx, helpers.McdName, metav1.GetOptions{})
 					if err != nil {
 						log.Println("Failed to get machinedeployment object")
 					}
@@ -914,7 +914,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					machineDeployment, err := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
+						Get(ctx, helpers.McdName, metav1.GetOptions{})
 					if err != nil {
 						log.Println("Failed to get machinedeployment object")
 					}
@@ -940,7 +940,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					_, err := c.ControlCluster.McmClient.
 						MachineV1alpha1().
 						MachineDeployments(controlClusterNamespace).
-						Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
+						Get(ctx, helpers.McdName, metav1.GetOptions{})
 					if err == nil {
 						ginkgo.By("Checking for errors")
 						gomega.Expect(
@@ -949,7 +949,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 								MachineDeployments(controlClusterNamespace).
 								Delete(
 									ctx,
-									testMachineDeploymentName,
+									helpers.McdName,
 									metav1.DeleteOptions{},
 								)).
 							Should(gomega.BeNil())
@@ -966,7 +966,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 							Should(gomega.BeNumerically("==", initialNodes))
 
 						gomega.Eventually(func() error {
-							_, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, testMachineDeploymentName, metav1.GetOptions{})
+							_, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, helpers.McdName, metav1.GetOptions{})
 							return err
 						}, c.timeout, c.pollingInterval).Should(gomega.Satisfy(apierrors.IsNotFound))
 					}
@@ -985,7 +985,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					MachineDeployments(controlClusterNamespace).
 					Delete(
 						ctx,
-						testMachineDeploymentName,
+						helpers.McdName,
 						metav1.DeleteOptions{},
 					)).
 				Should(gomega.BeNil())
@@ -1032,7 +1032,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Waiting for machine to fail and be preserved")
 				gomega.Eventually(
-					c.ControlCluster.AreFailingMachinesPreserved,
+					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
 					c.pollingInterval).
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
@@ -1090,7 +1090,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Waiting for machine to fail and be preserved")
 				gomega.Eventually(
-					c.ControlCluster.AreFailingMachinesPreserved,
+					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
 					c.pollingInterval).
 					WithArguments(ctx, controlClusterNamespace, []string{preservedMachine.Name}).
@@ -1144,7 +1144,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Wait for both machines to fail and be preserved")
 				gomega.Eventually(
-					c.ControlCluster.AreFailingMachinesPreserved,
+					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
 					c.pollingInterval).
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name, runningMachines[1].Name}).
@@ -1162,8 +1162,8 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("wait for only one machine to be deleted while the other one stays preserved")
 				gomega.Eventually(func() bool {
-					isOnlyMachine0Deleted := c.ControlCluster.IsMachineDeleted(ctx, runningMachines[0].Name, controlClusterNamespace) && c.ControlCluster.AreFailingMachinesPreserved(ctx, controlClusterNamespace, []string{runningMachines[1].Name})
-					isOnlyMachine1Deleted := c.ControlCluster.IsMachineDeleted(ctx, runningMachines[1].Name, controlClusterNamespace) && c.ControlCluster.AreFailingMachinesPreserved(ctx, controlClusterNamespace, []string{runningMachines[0].Name})
+					isOnlyMachine0Deleted := c.ControlCluster.IsMachineDeleted(ctx, runningMachines[0].Name, controlClusterNamespace) && c.ControlCluster.AreMachinesFailedAndPreserved(ctx, controlClusterNamespace, []string{runningMachines[1].Name})
+					isOnlyMachine1Deleted := c.ControlCluster.IsMachineDeleted(ctx, runningMachines[1].Name, controlClusterNamespace) && c.ControlCluster.AreMachinesFailedAndPreserved(ctx, controlClusterNamespace, []string{runningMachines[0].Name})
 
 					return isOnlyMachine0Deleted != isOnlyMachine1Deleted
 				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
@@ -1206,7 +1206,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Waiting for machine to fail and be preserved")
 				gomega.Eventually(
-					c.ControlCluster.AreFailingMachinesPreserved,
+					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
 					c.pollingInterval).
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
@@ -1314,7 +1314,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Waiting for machine to fail and be preserved")
 				gomega.Eventually(
-					c.ControlCluster.AreFailingMachinesPreserved,
+					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
 					c.pollingInterval).
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
@@ -1322,7 +1322,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Ensure that machine stays preserved for one minute")
 				gomega.Consistently(
-					c.ControlCluster.AreFailingMachinesPreserved,
+					c.ControlCluster.AreMachinesFailedAndPreserved,
 					1*time.Minute,
 					c.pollingInterval).
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
@@ -1349,7 +1349,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					MachineDeployments(controlClusterNamespace).
 					Delete(
 						ctx,
-						testMachineDeploymentName,
+						helpers.McdName,
 						metav1.DeleteOptions{},
 					)).
 				Should(gomega.BeNil())
@@ -1406,7 +1406,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Waiting for machine to fail and be preserved")
 				gomega.Eventually(
-					c.ControlCluster.AreFailingMachinesPreserved,
+					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
 					c.pollingInterval).
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
@@ -1471,7 +1471,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Waiting for machine to fail and be preserved")
 				gomega.Eventually(
-					c.ControlCluster.AreFailingMachinesPreserved,
+					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
 					c.pollingInterval).
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
@@ -1519,7 +1519,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Waiting for machine to fail and be auto-preserved")
 				gomega.Eventually(
-					c.ControlCluster.AreFailingMachinesPreserved,
+					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
 					c.pollingInterval).
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
@@ -1547,7 +1547,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Waiting for second machine to fail and be preserved while ensurint that the first machine remains preserved")
 				gomega.Eventually(
-					c.ControlCluster.AreFailingMachinesPreserved,
+					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
 					c.pollingInterval).
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name, runningMachines[1].Name}).
@@ -1600,7 +1600,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Waiting for machine to fail and be preserved")
 				gomega.Eventually(
-					c.ControlCluster.AreFailingMachinesPreserved,
+					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
 					c.pollingInterval).
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
@@ -1729,11 +1729,11 @@ func (c *IntegrationTestFramework) Cleanup() {
 
 func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeout int64) {
 	// Check and delete machinedeployment resource
-	if err := c.cleanMachineDeployment(ctx, testMachineDeploymentName, timeout); err != nil {
+	if err := c.cleanMachineDeployment(ctx, helpers.McdName, timeout); err != nil {
 		log.Println(err.Error())
 	}
 	// Check and delete machine resource
-	if err := c.cleanMachine(ctx, testMachineName, timeout); err != nil {
+	if err := c.cleanMachine(ctx, helpers.McName, timeout); err != nil {
 		log.Println(err.Error())
 	}
 
@@ -1923,7 +1923,7 @@ func (c *IntegrationTestFramework) getTestMachineSets(ctx context.Context, names
 	testMachineSets := []string{}
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	for _, machineSet := range machineSets.Items {
-		if machineSet.OwnerReferences[0].Name == testMachineDeploymentName {
+		if machineSet.OwnerReferences[0].Name == helpers.McdName {
 			testMachineSets = append(testMachineSets, machineSet.Name)
 		}
 	}
