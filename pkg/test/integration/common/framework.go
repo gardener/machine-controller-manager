@@ -1004,7 +1004,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				//Update the standard mcd to have preservation fields with values needed for this test
 				mcd.Spec.AutoPreserveFailedMachineMax = 1
 				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
-					MachineHealthTimeout: &metav1.Duration{Duration: 15 * time.Second},
+					MachineHealthTimeout: &metav1.Duration{Duration: 5 * time.Second},
 				}
 
 				// Create mcd
@@ -1059,7 +1059,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				//Update the standard mcd to have preservation fields with values needed for this test
 				mcd.Spec.AutoPreserveFailedMachineMax = 1
 				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
-					MachineHealthTimeout: &metav1.Duration{Duration: 15 * time.Second},
+					MachineHealthTimeout: &metav1.Duration{Duration: 5 * time.Second},
 				}
 
 				// Create mcd
@@ -1116,7 +1116,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				// Update the standard mcd to have preservation fields with values needed for this test
 				mcd.Spec.AutoPreserveFailedMachineMax = 2
 				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
-					MachineHealthTimeout: &metav1.Duration{Duration: 15 * time.Second},
+					MachineHealthTimeout: &metav1.Duration{Duration: 5 * time.Second},
 				}
 
 				// Create mcd
@@ -1178,7 +1178,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				//Update the standard mcd to have preservation fields with values needed for this test
 				mcd.Spec.AutoPreserveFailedMachineMax = 1
 				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
-					MachineHealthTimeout: &metav1.Duration{Duration: 15 * time.Second},
+					MachineHealthTimeout: &metav1.Duration{Duration: 5 * time.Second},
 				}
 
 				// Create mcd
@@ -1285,8 +1285,8 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				//Update the standard mcd to have preservation fields
 				mcd.Spec.AutoPreserveFailedMachineMax = 1
 				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
-					MachineHealthTimeout:   &metav1.Duration{Duration: 15 * time.Second},
-					MachinePreserveTimeout: &metav1.Duration{Duration: 1 * time.Minute},
+					MachineHealthTimeout:   &metav1.Duration{Duration: 5 * time.Second},
+					MachinePreserveTimeout: &metav1.Duration{Duration: 15 * time.Second},
 				}
 
 				// Create mcd
@@ -1320,10 +1320,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("Ensure that machine stays preserved for one minute")
+				ginkgo.By("Ensure that machine stays preserved for MachinePreserveTimeout duration")
 				gomega.Consistently(
 					c.ControlCluster.AreMachinesFailedAndPreserved,
-					1*time.Minute,
+					mcd.Spec.Template.Spec.MachineConfiguration.MachinePreserveTimeout.Duration,
 					c.pollingInterval).
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
 					Should(gomega.BeTrue())
@@ -1370,7 +1370,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				// Update the standard mcd to have preservation fields
 				mcd.Spec.AutoPreserveFailedMachineMax = 0
 				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
-					MachineHealthTimeout: &metav1.Duration{Duration: 15 * time.Second},
+					MachineHealthTimeout: &metav1.Duration{Duration: 5 * time.Second},
 				}
 
 				// Create mcd
@@ -1447,7 +1447,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				// Update the standard mcd to have preservation fields
 				mcd.Spec.AutoPreserveFailedMachineMax = 0
 				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
-					MachineHealthTimeout: &metav1.Duration{Duration: 15 * time.Second},
+					MachineHealthTimeout: &metav1.Duration{Duration: 5 * time.Second},
 				}
 
 				// Create mcd
@@ -1529,7 +1529,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				// Update the standard mcd to have preservation fields
 				mcd.Spec.AutoPreserveFailedMachineMax = 1
 				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
-					MachineHealthTimeout: &metav1.Duration{Duration: 15 * time.Second},
+					MachineHealthTimeout: &metav1.Duration{Duration: 5 * time.Second},
 				}
 
 				// Create mcd
@@ -1610,7 +1610,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 2)
 				// Update the standard mcd to a low machine health timeout to speed up tests
 				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
-					MachineHealthTimeout: &metav1.Duration{Duration: 15 * time.Second},
+					MachineHealthTimeout: &metav1.Duration{Duration: 5 * time.Second},
 				}
 
 				// Create mcd
