@@ -2551,6 +2551,7 @@ var _ = Describe("machine_util", func() {
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
 					expectedPhase: machinev1.MachineFailed,
+					err:           errSuccessfulPhaseUpdate,
 				},
 			}),
 			Entry("Machine in Unknown state WITHOUT backing node obj for over 10min(healthTimeout) should be marked Failed", &data{
@@ -2567,6 +2568,7 @@ var _ = Describe("machine_util", func() {
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
 					expectedPhase: machinev1.MachineFailed,
+					err:           errSuccessfulPhaseUpdate,
 				},
 			}),
 			Entry("simple machine WITHOUT creation Timeout(20 min) and Pending state", &data{
@@ -2681,6 +2683,7 @@ var _ = Describe("machine_util", func() {
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
 					expectedPhase: machinev1.MachineFailed,
+					err:           errSuccessfulPhaseUpdate,
 				},
 			}),
 			Entry("Machine in InPlaceUpdateFailed state for over 10min(healthTimeout) should not be marked Failed if DisableHealthTimeout is set", &data{
@@ -2902,6 +2905,7 @@ var _ = Describe("machine_util", func() {
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
 					expectedPhase: machinev1.MachineFailed,
+					err:           errSuccessfulPhaseUpdate,
 				},
 			}),
 			Entry("1 HealthTimedOut, 1 Failed machine: from different machinedeployments,only 1 machine per machineDeployment present, targetMachine should be marked Failed", &data{
@@ -2926,6 +2930,7 @@ var _ = Describe("machine_util", func() {
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
 					expectedPhase: machinev1.MachineFailed,
+					err:           errSuccessfulPhaseUpdate,
 				},
 			}),
 			Entry("2 HealthTimedOut machines: from same machinedeployment,only 2 machines for machineDeployment present, targetMachine should be marked Failed", &data{
@@ -2943,6 +2948,7 @@ var _ = Describe("machine_util", func() {
 				expect: expect{
 					retryPeriod:   machineutils.ShortRetry,
 					expectedPhase: machinev1.MachineFailed,
+					err:           errSuccessfulPhaseUpdate,
 				},
 			}),
 			Entry("1 HealthTimedOut , 1 Failed machine: from same machinedeployment,only 2 machines for machineDeployment present, healthTimeoutOut one should NOT be marked Failed", &data{

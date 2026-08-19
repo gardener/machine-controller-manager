@@ -68,7 +68,7 @@ import (
 var emptyMap = make(map[string]string)
 var (
 	errSuccessfulALTsync     = errors.New("machine ALTs have been reconciled")
-	errSuccessfulPhaseUpdate = errors.New("machine creation is successful. Machine Phase/Conditions have been UPDATED")
+	errSuccessfulPhaseUpdate = errors.New("machine Update is successful. Machine Phase/Conditions have been UPDATED")
 )
 
 const (
@@ -2165,6 +2165,7 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 		klog.Errorf("update failed for machine %q in function. Retrying, error: %q", machine.Name, err)
 	} else {
 		updated = true
+		err = errSuccessfulPhaseUpdate
 		klog.Infof("Machine State has been updated to Phase %q for %q with providerID %q and backing node %q", clone.Status.CurrentStatus.Phase, machine.Name, getProviderID(machine), getNodeName(machine))
 	}
 
