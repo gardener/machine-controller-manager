@@ -678,7 +678,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    "Creating machine on cloud provider",
+								Description:    "VM created on cloud provider. Waiting for node registration",
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationCreate,
 								LastUpdateTime: metav1.Now(),
@@ -723,7 +723,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    "Creating machine on cloud provider",
+								Description:    "VM created on cloud provider. Waiting for node registration",
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationCreate,
 								LastUpdateTime: metav1.Now(),
@@ -3562,7 +3562,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:         fmt.Errorf("machine deletion in process: no node label found"),
+					err:         fmt.Errorf("machine deletion in process: %s", fmt.Sprintf("Label %q not present on machine %q, continuing deletion flow. %s", v1alpha1.NodeLabelKey, "machine-0", machineutils.InitiateFinalizerRemoval)),
 					retry:       machineutils.ShortRetry,
 					nodeDeleted: false,
 					machine: newMachine(

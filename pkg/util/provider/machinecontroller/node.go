@@ -242,6 +242,71 @@ func (c *controller) getMachineFromNode(nodeName string) (*v1alpha1.Machine, err
 	return machines[0], nil
 }
 
+// removeFinalizersAndDeleteNode removes the MCM finalizer from and deletes the node object backed by the machine.
+func (c *controller) removeFinalizerAndDeleteNode(ctx context.Context, machine *v1alpha1.Machine) (description string, state v1alpha1.MachineState, err error) {
+	var node *corev1.Node
+
+	// nodeName label is expected to be present on machine object, but in case it is not present
+	// we should not block deletion of machine and should move forward with flow.
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
+	if nodeName == "" {
+		description = fmt.Sprintf("Label %q not present on machine %q, continuing deletion flow. %s", v1alpha1.NodeLabelKey, machine.Name, machineutils.InitiateFinalizerRemoval)
+		klog.Warning(description)
+		state = v1alpha1.MachineStateProcessing
+		err = nil
+		return
+	}
+
+	node, err = c.nodeLister.Get(nodeName)
+	if err != nil {
+		// If node object is not found, then it could have already been deleted,
+		// therefore we should not block deletion of machine. But if error is something other than NotFound,
+		// then we should retry as it could be a transient error.
+		switch {
+		case apierrors.IsNotFound(err):
+			description = fmt.Sprintf("No node object found for %q, continuing deletion flow. %s", nodeName, machineutils.InitiateFinalizerRemoval)
+			klog.Warning(description)
+			state = v1alpha1.MachineStateProcessing
+			err = nil
+		default:
+			description = fmt.Sprintf("Retrieval of Node Object %q failed due to error: %s, Retrying. %s", nodeName, err, machineutils.InitiateNodeDeletion)
+			klog.Error(description)
+			state = v1alpha1.MachineStateFailed
+		}
+		return
+	}
+
+	// Remove finalizers from node object before deletion.
+	klog.V(3).Infof("Removing finalizers from node %q associated with machine %q", nodeName, machine.Name)
+	err = c.removeNodeFinalizers(ctx, node)
+	if err != nil {
+		description = fmt.Sprintf("Removal of finalizers from Node Object %q failed due to error: %s, Retrying. %s", nodeName, err, machineutils.InitiateNodeDeletion)
+		klog.Error(description)
+		state = v1alpha1.MachineStateFailed
+		return
+	}
+
+	// Delete node object.
+	klog.V(3).Infof("Deleting node %q associated with machine %q", nodeName, machine.Name)
+	err = c.targetCoreClient.CoreV1().Nodes().Delete(ctx, nodeName, metav1.DeleteOptions{})
+	switch {
+	case err == nil:
+		description = fmt.Sprintf("Deletion of Node Object %q is successful. %s", nodeName, machineutils.InitiateFinalizerRemoval)
+		klog.V(3).Info(description)
+		state = v1alpha1.MachineStateProcessing
+	case apierrors.IsNotFound(err):
+		description = fmt.Sprintf("No node object found for %q, continuing deletion flow. %s", nodeName, machineutils.InitiateFinalizerRemoval)
+		klog.Warning(description)
+		state = v1alpha1.MachineStateProcessing
+		err = nil
+	default:
+		description = fmt.Sprintf("Deletion of Node Object %q failed due to error: %s. %s", nodeName, err, machineutils.InitiateNodeDeletion)
+		klog.Error(description)
+		state = v1alpha1.MachineStateFailed
+	}
+	return
+}
+
 func (c *controller) addNodeFinalizers(ctx context.Context, node *corev1.Node) error {
 	if !HasFinalizer(node, NodeFinalizerName) {
 		finalizers := sets.NewString(node.Finalizers...)

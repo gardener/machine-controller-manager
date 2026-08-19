@@ -21,6 +21,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -101,6 +102,25 @@ func (c *controller) deleteMachine(obj any) {
 		}
 	}
 	c.enqueueMachineTermination(machine, "handling terminating machine object DELETE event")
+
+	if c.targetCoreClient == nil || c.nodeLister == nil {
+		return
+	}
+
+	// Remove the MCM finalizer from and delete the backing node
+	// The orphan-VM safety net eventually removes the finalizer from nodes if this still fails.
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
+	go func() {
+		retryErr := retry.OnError(retry.DefaultBackoff, func(error) bool { return true }, func() error {
+			_, _, err := c.removeFinalizerAndDeleteNode(context.Background(), machine)
+			return err
+		})
+		if retryErr != nil {
+			klog.Errorf("failed to delete backing node %q of deleted machine %q after multiple retries: %v", nodeName, machine.Name, retryErr)
+			return
+		}
+		klog.Infof("Successfully triggered deletion of backing node %q for deleted machine %q", nodeName, machine.Name)
+	}()
 }
 
 // getKeyForObj returns key for object, else returns false
@@ -531,7 +551,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 	if machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
 		clone := clone.DeepCopy()
 		clone.Status.LastOperation = v1alpha1.LastOperation{
-			Description:    "Creating machine on cloud provider",
+			Description:    "VM created on cloud provider. Waiting for node registration",
 			State:          v1alpha1.MachineStateProcessing,
 			Type:           v1alpha1.MachineOperationCreate,
 			LastUpdateTime: metav1.Now(),
