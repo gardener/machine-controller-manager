@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -817,6 +818,8 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	var removeAnnotations bool
 	clone := machine.DeepCopy()
 	switch effectivePreserveValue {
+	// effectivePreserveValue == "" implies the preservation annotation was deleted to indicate that
+	// preservation must be stopped
 	case "", machineutils.PreserveMachineAnnotationValueFalse:
 		clone, err = c.stopPreservationIfActive(ctx, clone, removeAnnotations)
 	case machineutils.PreserveMachineAnnotationValueWhenFailed:
@@ -851,19 +854,18 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	if err != nil {
 		return
 	}
-	// For the preserve=now path (preservation still active), uncordon the node if the machine
-	// has recovered to Running. For all other cases, stopPreservationIfActive path handles uncordon internally.
+	// For the preserve=now path (preservation still active), untaint the node if the machine
+	// has recovered to Running. For all other cases, stopPreservationIfActive path handles untainting internally.
 	if clone.Status.CurrentStatus.PreserveExpiryTime != nil && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && nodeName != "" {
 		var node *corev1.Node
 		node, err = c.nodeLister.Get(nodeName)
 		if err != nil {
-			if apierrors.IsNotFound(err) {
-				err = nil
-				return
-			}
 			return
 		}
-		err = c.uncordonNodeIfCordoned(ctx, node)
+		err = nodeops.RemoveTaintOffNode(ctx, c.targetCoreClient, node.Name, node, &corev1.Taint{
+			Key:    machineutils.NodePreservedTaintKey,
+			Effect: corev1.TaintEffectNoSchedule,
+		})
 		if err != nil {
 			return
 		}

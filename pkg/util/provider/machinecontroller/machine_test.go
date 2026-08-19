@@ -10,6 +10,7 @@ import (
 	"math"
 	"time"
 
+	taintutils "github.com/gardener/machine-controller-manager/pkg/util/taints"
 	k8stesting "k8s.io/client-go/testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -4105,7 +4106,7 @@ var _ = Describe("machine", func() {
 			nodeName               string
 			machinePhase           v1alpha1.MachinePhase
 			preserveExpiryTime     *metav1.Time
-			nodeUnschedulable      bool
+			nodeTainted            bool
 		}
 		type expect struct {
 			retry                   machineutils.RetryPeriod
@@ -4114,7 +4115,7 @@ var _ = Describe("machine", func() {
 			machineAnnotationValue  string
 			laNodePreserveValue     string
 			err                     error
-			nodeUnschedulable       *bool
+			nodeTainted             bool
 		}
 		type testCase struct {
 			setup  setup
@@ -4165,11 +4166,19 @@ var _ = Describe("machine", func() {
 							Annotations: nodeAnnotations,
 						},
 						Spec: corev1.NodeSpec{
-							Unschedulable: tc.setup.nodeUnschedulable,
+							Taints: []corev1.Taint{},
 						},
 						Status: corev1.NodeStatus{
 							Conditions: []corev1.NodeCondition{},
 						},
+					}
+					if tc.setup.nodeTainted {
+						node.Spec.Taints = []corev1.Taint{
+							{
+								Key:    machineutils.NodePreservedTaintKey,
+								Effect: corev1.TaintEffectNoSchedule,
+							},
+						}
 					}
 					targetCoreObjects = append(targetCoreObjects, node)
 				}
@@ -4211,9 +4220,7 @@ var _ = Describe("machine", func() {
 					} else {
 						Expect(found).To(BeFalse())
 					}
-					if tc.expect.nodeUnschedulable != nil {
-						Expect(updatedNode.Spec.Unschedulable).To(Equal(*tc.expect.nodeUnschedulable))
-					}
+					Expect(taintutils.TaintExists(updatedNode.Spec.Taints, &corev1.Taint{Key: machineutils.NodePreservedTaintKey, Effect: corev1.TaintEffectNoSchedule})).To(Equal(tc.expect.nodeTainted))
 				}
 				Expect(updatedMachine.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(tc.expect.machineAnnotationValue))
 				Expect(updatedMachine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]).To(Equal(tc.expect.laNodePreserveValue))
@@ -4271,7 +4278,8 @@ var _ = Describe("machine", func() {
 					nodeCondition: &corev1.NodeCondition{
 						Type:   v1alpha1.NodePreserved,
 						Status: corev1.ConditionTrue},
-					retry: machineutils.LongRetry,
+					retry:       machineutils.LongRetry,
+					nodeTainted: true,
 				},
 			}),
 			Entry("when node of preserved machine is annotated with preserve value 'false', should stop preservation", testCase{
@@ -4303,6 +4311,7 @@ var _ = Describe("machine", func() {
 						Status: corev1.ConditionTrue},
 					retry:                  machineutils.LongRetry,
 					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueAutoPreserved,
+					nodeTainted:            true,
 				},
 			}),
 			Entry("when machine is annotated with preserve=now and preservation times out, should stop preservation, and remove annotation", testCase{
@@ -4326,6 +4335,7 @@ var _ = Describe("machine", func() {
 					nodeName:               "node-1",
 					machinePhase:           v1alpha1.MachineFailed,
 					preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(-1 * time.Minute)},
+					nodeTainted:            true,
 				},
 				expect: expect{
 					preserveExpiryTimeIsSet: false,
@@ -4414,11 +4424,13 @@ var _ = Describe("machine", func() {
 					nodeName:               "node-1",
 					machinePhase:           v1alpha1.MachineRunning,
 					preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)},
+					nodeTainted:            true,
 				},
 				expect: expect{
 					preserveExpiryTimeIsSet: false,
 					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
 					machineAnnotationValue:  "",
+					nodeTainted:             false,
 					retry:                   machineutils.LongRetry,
 					err:                     nil,
 				},
@@ -4462,8 +4474,7 @@ var _ = Describe("machine", func() {
 					err:                     nil,
 				},
 			}),
-			Entry("when preserve=when-failed machine with cordoned node recovers to Running, should stop preservation and uncordon node", func() testCase {
-				uncordoned := false
+			Entry("when preserved machine with preserve=when-failed recovers to Running, should stop preservation and untaint node", func() testCase {
 				return testCase{
 					setup: setup{
 						machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
@@ -4471,72 +4482,69 @@ var _ = Describe("machine", func() {
 						nodeName:               "node-1",
 						machinePhase:           v1alpha1.MachineRunning,
 						preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)},
-						nodeUnschedulable:      true,
+						nodeTainted:            true,
 					},
 					expect: expect{
 						preserveExpiryTimeIsSet: false,
 						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
 						machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueWhenFailed,
 						retry:                   machineutils.LongRetry,
-						nodeUnschedulable:       &uncordoned,
+						nodeTainted:             false,
 					},
 				}
 			}()),
-			Entry("when preserve=when-failed machine with cordoned node has expired preservation while Running, should stop preservation and uncordon node", func() testCase {
-				uncordoned := false
+			Entry("when preserved machine with preserve=when-failed has expired preservation while in Failed phase, should stop preservation and untaint node", func() testCase {
 				return testCase{
 					setup: setup{
 						machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
 						machineAnnotated:       true,
 						nodeName:               "node-1",
-						machinePhase:           v1alpha1.MachineRunning,
+						machinePhase:           v1alpha1.MachineFailed,
 						preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(-1 * time.Minute)},
-						nodeUnschedulable:      true,
+						nodeTainted:            true,
 					},
 					expect: expect{
 						preserveExpiryTimeIsSet: false,
 						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
 						machineAnnotationValue:  "",
 						retry:                   machineutils.LongRetry,
-						nodeUnschedulable:       &uncordoned,
+						nodeTainted:             false,
 					},
 				}
 			}()),
-			Entry("when preserve=when-failed machine is Failed with active preservation and cordoned node, node should stay cordoned", func() testCase {
-				cordoned := true
+			Entry("when preserve=when-failed machine is in Failed phase with active preservation and tainted node, node should stay tainted", func() testCase {
 				return testCase{
 					setup: setup{
 						nodeAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
 						nodeAnnotated:       true,
 						nodeName:            "node-1",
 						machinePhase:        v1alpha1.MachineFailed,
-						nodeUnschedulable:   true,
+						nodeTainted:         true,
 					},
 					expect: expect{
 						laNodePreserveValue:     machineutils.PreserveMachineAnnotationValueWhenFailed,
 						preserveExpiryTimeIsSet: true,
 						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionTrue},
 						retry:                   machineutils.LongRetry,
-						nodeUnschedulable:       &cordoned,
+						nodeTainted:             true,
 					},
 				}
 			}()),
-			Entry("when preserve=now machine is Failed with active preservation and cordoned node, node should stay cordoned", func() testCase {
-				cordoned := true
+			Entry("when preserve=now machine is Failed with active preservation and tainted node, node should stay tainted", func() testCase {
 				return testCase{
 					setup: setup{
 						machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
 						machineAnnotated:       true,
 						nodeName:               "node-1",
 						machinePhase:           v1alpha1.MachineFailed,
-						nodeUnschedulable:      true,
+						nodeTainted:            true,
 					},
 					expect: expect{
 						preserveExpiryTimeIsSet: true,
 						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionTrue},
 						machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueNow,
 						retry:                   machineutils.LongRetry,
-						nodeUnschedulable:       &cordoned,
+						nodeTainted:             true,
 					},
 				}
 			}()),
@@ -4588,8 +4596,8 @@ var _ = Describe("machine", func() {
 					Expect(updatedNode.Spec.Unschedulable).To(Equal(nodeUnschedulable))
 				}
 			},
-			Entry("node is cordoned", true, true),
-			Entry("node is uncordoned", false, true),
+			Entry("node is tainted", true, true),
+			Entry("node is untainted", false, true),
 			Entry("node retrieval fails (node not found)", false, false),
 		)
 	})

@@ -340,18 +340,28 @@ func addedOrRemovedEssentialTaints(oldNode, node *corev1.Node, taintKeys []strin
 	return false
 }
 
-func (c *controller) uncordonNodeIfCordoned(ctx context.Context, node *corev1.Node) error {
-	if !node.Spec.Unschedulable {
-		return nil
-	}
-	nodeClone := node.DeepCopy()
-	nodeClone.Spec.Unschedulable = false
-	_, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeClone, metav1.UpdateOptions{})
+// cordonNode sets `node.Spec.Unschedulable` to true, if not already set to true
+func (c *controller) cordonNode(ctx context.Context, nodeName string) error {
+	node, err := c.targetCoreClient.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
-		klog.Errorf("error uncordoning node %q: %v", node.Name, err)
+		// Deletion could be triggered when machine is just being created, no node present then
+		if apierrors.IsNotFound(err) {
+			klog.Warningf("Node %q could not be found.", nodeName)
+			return nil
+		}
 		return err
 	}
-	klog.Infof("Successfully uncordoned node %q", node.Name)
+	if node.Spec.Unschedulable {
+		klog.V(3).Infof("Node %q is already cordoned.", node.Name)
+		return nil
+	}
+	clone := node.DeepCopy()
+	clone.Spec.Unschedulable = true
+	_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, clone, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	klog.V(3).Infof("Node %q cordoned successfully.", node.Name)
 	return nil
 }
 
