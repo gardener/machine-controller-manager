@@ -742,23 +742,27 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Waiting until number of ready nodes is 1 more than initial nodes")
 				gomega.Eventually(
-					c.TargetCluster.GetNumberOfNodes,
-					c.timeout,
-					c.pollingInterval).
-					Should(gomega.BeNumerically("==", initialNodes+1))
-
-				gomega.Eventually(
 					c.TargetCluster.GetNumberOfReadyNodes,
 					c.timeout,
 					c.pollingInterval).
 					Should(gomega.BeNumerically("==", initialNodes+1))
+
+				ginkgo.By("wait till node label is present on the machine")
+				gomega.Eventually(func() bool {
+					mc, err := c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).Get(ctx, testMachineName, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					_, exists := mc.GetLabels()[v1alpha1.NodeLabelKey]
+					return exists
+				}).Should(gomega.BeTrue())
 
 				// Get existing machine. This is needed to fetch node name
 				existingMachine, err := c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).Get(ctx, testMachineName, metav1.GetOptions{})
 				gomega.Expect(err).To(gomega.BeNil())
 
 				ginkgo.By("Deleting node associated with test-machine")
-				err = c.TargetCluster.Clientset.CoreV1().Nodes().Delete(ctx, existingMachine.Labels["node"], metav1.DeleteOptions{})
+				err = c.TargetCluster.Clientset.CoreV1().Nodes().Delete(ctx, existingMachine.Labels[v1alpha1.NodeLabelKey], metav1.DeleteOptions{})
 				gomega.Expect(err).To(gomega.BeNil())
 
 				ginkgo.By("Waiting until number of ready nodes is equal to number of initial nodes")
