@@ -118,6 +118,10 @@ const (
 	// 1) indicate to MCM that a machine must not be auto-preserved on failure
 	// and, 2) to stop preservation of a machine that is already preserved by MCM.
 	PreserveMachineAnnotationValueFalse = "false"
+
+	// NodePreservedTaintKey is used to cordon a node when a Failed machine is preserved.
+	// This taint is added to the node before draining it, and removed when the machine is unpreserved.
+	NodePreservedTaintKey = "node.machine.sapcloud.io/preserved"
 )
 
 // AllowedPreserveAnnotationValues contains the allowed values for the preserve annotation

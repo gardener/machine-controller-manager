@@ -18,11 +18,13 @@ import (
 	"github.com/onsi/gomega/gcustom"
 	gomegatypes "github.com/onsi/gomega/types"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	coreinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	k8stesting "k8s.io/client-go/testing"
@@ -1160,6 +1162,88 @@ var _ = Describe("drain", func() {
 			Expect(podVolumeInfos).To(HaveKeyWithValue(
 				"foo/bar", matchPodPersistentVolumeNames(BeEmpty()),
 			))
+		})
+	})
+
+})
+
+var _ = Describe("isMisconfiguredPdb", func() {
+	Context("Good PDB", Ordered, func() {
+		var pdb *policyv1.PodDisruptionBudget
+		Context("normal", func() {
+			It("returns false", func() {
+				pdb = &policyv1.PodDisruptionBudget{
+					Spec: policyv1.PodDisruptionBudgetSpec{
+						MinAvailable: new(intstr.FromInt(2)),
+					},
+					Status: policyv1.PodDisruptionBudgetStatus{
+						ExpectedPods:       3,
+						DesiredHealthy:     2, // `MinAvailable`
+						CurrentHealthy:     3,
+						DisruptionsAllowed: 1, // `CurrentHealthy` - `DesiredHealthy`
+					},
+				}
+
+				// All healthy and `DisruptionsAllowed` > 0 -> not misconfigured
+				Expect(isMisconfiguredPdb(pdb)).To(BeFalse())
+			})
+		})
+		Context("Pod getting evicted", func() {
+			It("returns false", func() {
+				// Evict request decrements `DisruptionsAllowed`
+				pdb.Status.DisruptionsAllowed = 0
+				// Evict request decrements `DisruptionsAllowed`
+				pdb.Status.DisruptedPods = map[string]metav1.Time{"pod-a": metav1.Now()}
+
+				// All healthy but has `DisruptedPods` -> `DisruptionsAllowed` is not checked -> not necessarily misconfigured
+				Expect(isMisconfiguredPdb(pdb)).To(BeFalse())
+			})
+		})
+		Context("Next PDB controller reconcile", func() {
+			It("returns false", func() {
+				// PDB controller recalculates everything
+				// `CurrentHealthy` excludes Pods that are being deleted (`DeletionTimestamp` not nil) or Pods that are in the `DisruptedPods` map
+				pdb.Status.CurrentHealthy = 2
+
+				// Not all healthy -> `DisruptionsAllowed` is not checked -> not necessarily misconfigured
+				Expect(isMisconfiguredPdb(pdb)).To(BeFalse())
+			})
+		})
+	})
+
+	Context("Bad PDB", Ordered, func() {
+		var pdb *policyv1.PodDisruptionBudget
+		Context("normal", func() {
+			It("returns true", func() {
+				// Example PDB: 3 replicas, prevent all evictions
+				pdb = &policyv1.PodDisruptionBudget{
+					Spec: policyv1.PodDisruptionBudgetSpec{
+						MaxUnavailable: new(intstr.FromInt(0)),
+					},
+					Status: policyv1.PodDisruptionBudgetStatus{
+						ExpectedPods:       3,
+						DesiredHealthy:     3, // `ExpectedPods` - `MaxUnavailable`
+						CurrentHealthy:     3,
+						DisruptionsAllowed: 0, // `CurrentHealthy` - `DesiredHealthy`
+					},
+				}
+
+				// All healthy but `DisruptionsAllowed` still 0 -> misconfigured
+				Expect(isMisconfiguredPdb(pdb)).To(BeTrue())
+			})
+		})
+
+		// No "Pod getting evicted" context here: `DisruptionsAllowed == 0` always blocks evictions
+
+		Context("Pod was force deleted, next PDB controller reconcile", func() {
+			It("returns false", func() {
+				// One less pod
+				pdb.Status.CurrentHealthy = 2
+				pdb.Status.DisruptionsAllowed = 2 - 3
+
+				// Not all healthy -> `DisruptionsAllowed` is not checked -> not necessarily misconfigured
+				Expect(isMisconfiguredPdb(pdb)).To(BeFalse())
+			})
 		})
 	})
 })

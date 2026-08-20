@@ -27,7 +27,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -265,6 +267,7 @@ func (o *Options) RunDrain(ctx context.Context) error {
 		klog.Errorf("Drain Error: Cordoning of node failed with error: %v", err)
 		return err
 	}
+  
 	if o.podSynced != nil && !cache.WaitForCacheSync(drainContext.Done(), o.podSynced) {
 		err := fmt.Errorf("timed out waiting for pod cache to sync")
 		return err
@@ -770,9 +773,14 @@ func (o *Options) evictPodsWithPVInternal(
 
 		if attemptEvict && apierrors.IsTooManyRequests(err) {
 			// Pod eviction failed because of PDB violation, we will retry one we are done with this list.
-			klog.V(3).Infof("Pod %s/%s couldn't be evicted from node %s. This may also occur due to PDB violation. Will be retried. Error: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
 
+			var disruptedPods []string
 			pdb := getPdbForPod(o.pdbLister, pod)
+			if pdb != nil {
+				disruptedPods = slices.Collect(maps.Keys(pdb.Status.DisruptedPods))
+			}
+			klog.V(3).Infof("Pod %s/%s couldn't be evicted from node %s. This may also occur due to PDB violation (current disruptedPods: %v). Will be retried. Error: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, disruptedPods, err)
+
 			if pdb != nil {
 				if isMisconfiguredPdb(pdb) {
 					pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
@@ -1104,10 +1112,16 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 			returnCh <- fmt.Errorf("error when evicting pod %q: %v scheduled on node %v", pod.Name, err, pod.Spec.NodeName)
 			return
 		}
-		// Pod couldn't be evicted because of PDB violation
-		klog.V(3).Infof("Pod %s/%s couldn't be evicted from node %s. This may also occur due to PDB violation. Will be retried. Error: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
 
+		// Pod couldn't be evicted because of PDB violation
+
+		var disruptedPods []string
 		pdb := getPdbForPod(o.pdbLister, pod)
+		if pdb != nil {
+			disruptedPods = slices.Collect(maps.Keys(pdb.Status.DisruptedPods))
+		}
+		klog.V(3).Infof("Pod %s/%s couldn't be evicted from node %s. This may also occur due to PDB violation (current disruptedPods: %v). Will be retried. Error: %v", pod.Namespace, pod.Name, pod.Spec.NodeName, disruptedPods, err)
+
 		if pdb != nil {
 			if isMisconfiguredPdb(pdb) {
 				pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is misconfigured and requires zero voluntary evictions",
@@ -1204,29 +1218,6 @@ func SupportEviction(clientset kubernetes.Interface) (string, error) {
 	return "", nil
 }
 
-// RunCordonOrUncordon runs either Cordon or Uncordon.  The desired value for
-// "Unschedulable" is passed as the first arg.
-func (o *Options) RunCordonOrUncordon(ctx context.Context, desired bool) error {
-	node, err := o.client.CoreV1().Nodes().Get(ctx, o.nodeName, metav1.GetOptions{})
-	if err != nil {
-		// Deletion could be triggered when machine is just being created, no node present then
-		return nil
-	}
-	unsched := node.Spec.Unschedulable
-	if unsched == desired {
-		klog.V(3).Infof("Scheduling state for node %q is already in desired state", node.Name)
-	} else {
-		clone := node.DeepCopy()
-		clone.Spec.Unschedulable = desired
-
-		_, err = o.client.CoreV1().Nodes().Update(ctx, clone, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // GetDrainDuration gets the duration of drain activity
 func (o *Options) GetDrainDuration() time.Duration {
 	return o.drainEndedOn.Sub(o.drainStartedOn)
@@ -1256,5 +1247,14 @@ func isMisconfiguredPdb(pdb *policyv1.PodDisruptionBudget) bool {
 		return false
 	}
 
-	return pdb.Status.ExpectedPods > 0 && pdb.Status.CurrentHealthy >= pdb.Status.ExpectedPods && pdb.Status.DisruptionsAllowed == 0
+	hasPods := pdb.Status.ExpectedPods > 0
+	// `>=` instead of `==` (because of an in progress scale down `CurrentHealthy` can be larger than `ExpectedPods`.
+	allPodsReady := pdb.Status.CurrentHealthy >= pdb.Status.ExpectedPods
+	// Because of how the PDB controller and eviction requests work together `CurrentHealthy` can be outdated, therefore additionally ensuring that the `DisruptedPods` map is empty
+	noDisruptedPods := len(pdb.Status.DisruptedPods) == 0
+
+	return hasPods && // Only check PDBs that currently have Pods
+		allPodsReady && // Only check PDBs where all Pods are ready
+		noDisruptedPods && // Only check PDBs that have **no** `DisruptedPods`
+		pdb.Status.DisruptionsAllowed == 0 // PDB is misconfigured
 }
