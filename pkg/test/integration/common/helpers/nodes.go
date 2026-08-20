@@ -22,7 +22,7 @@ func (c *Cluster) getNodes() (*v1.NodeList, error) {
 	return c.Clientset.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
 }
 
-// GetNumberOfReadyNodes tries to retrieve the list of node objects in the cluster.
+// GetNumberOfReadyNodes tries to retrieve the number of ready nodes in the cluster.
 func (c *Cluster) GetNumberOfReadyNodes() int16 {
 	nodes, _ := c.getNodes()
 	count := 0
@@ -36,7 +36,7 @@ func (c *Cluster) GetNumberOfReadyNodes() int16 {
 	return int16(count) //#nosec G115 (CWE-190) -- Test only
 }
 
-// GetNumberOfNodes tries to retrieve the list of node objects in the cluster.
+// GetNumberOfNodes tries to retrieve the number of node objects in the cluster.
 func (c *Cluster) GetNumberOfNodes() int16 {
 	nodes, _ := c.getNodes()
 	return int16(len(nodes.Items)) //#nosec G115 (CWE-190) -- Test only
