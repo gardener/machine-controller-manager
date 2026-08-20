@@ -142,6 +142,18 @@ const (
 	LongRetry RetryPeriod = RetryPeriod(10 * time.Minute)
 )
 
+// PreserveStateInfo encapsulates the preservation annotation values found
+// on the machine and node objects, along with the effective preservation value for the machine
+// and the last applied node preserve value by MCM.
+type PreserveStateInfo struct {
+	NodeAnnotated         bool
+	MachineAnnotated      bool
+	NodeValue             string
+	MachineValue          string
+	LastAppliedNodeValue  string
+	PreserveExpiryTimeSet bool
+}
+
 // EssentialTaints are taints on node object which if added/removed, require an immediate reconcile by machine controller
 // TODO: update this when taints for ALT updation and PostCreate operations is introduced.
 var EssentialTaints = []string{TaintNodeCriticalComponentsNotReady}
@@ -210,4 +222,61 @@ func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.
 	}
 
 	return machine, retryErr
+}
+
+// GetPreserveStateInfo collects the preservation state of a machine from its annotations, expiry time, and backing node.
+func GetPreserveStateInfo(node *v1.Node, machine *v1alpha1.Machine) PreserveStateInfo {
+	var info PreserveStateInfo
+	if machine.Annotations != nil {
+		info.MachineValue, info.MachineAnnotated = machine.Annotations[PreserveMachineAnnotationKey]
+		info.LastAppliedNodeValue = machine.Annotations[LastAppliedNodePreserveValueAnnotationKey]
+	}
+	if node != nil && node.Annotations != nil {
+		info.NodeValue, info.NodeAnnotated = node.Annotations[PreserveMachineAnnotationKey]
+	}
+	if !machine.Status.CurrentStatus.PreserveExpiryTime.IsZero() {
+		info.PreserveExpiryTimeSet = true
+	}
+	return info
+}
+
+// IsPositivePreserveValue returns true when value is a preserve annotation value that requests
+// preservation (now/when-failed/auto-preserved). The value "false", empty, or any unrecognized
+// value is not a positive preserve value.
+func IsPositivePreserveValue(value string) bool {
+	switch value {
+	case PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValueAutoPreserved:
+		return true
+	default:
+		return false
+	}
+}
+
+// GetEffectivePreservationAnnotations returns the effective preservation value.
+//
+// If there is no active node annotation AND no previously-applied node annotation,
+// enforce machine's preserve annotation.
+// Otherwise, the node annotation takes precedence (even if now empty/removed).
+//
+// lastAppliedNodeValue is required to handle the following scenario:
+//
+//	T1: Node and Machine both have the same annotation with the same value. (MCM is up and running).
+//	T2 (T2 > T1): MCM went down.
+//	T3 (T3 > T2): Node annotation was removed.
+//	T4 (T4 > T3): MCM came back up.
+//	At T4 it sees a Node with no preserve annotation but a Machine with a preserve annotation.
+//	It continues to preserve the machine.
+func GetEffectivePreservationAnnotations(info *PreserveStateInfo, nodeFound bool) string {
+	// If the node cannot be found, nodeValue is "".
+	// In this case, we want the machine's annotation value to be enforced.
+	if !nodeFound {
+		return info.MachineValue
+	}
+	// If there is no active node annotation AND no previously-applied node annotation,
+	// enforce machine's preserve annotation.
+	// Otherwise, the node annotation takes precedence (even if now empty/removed).
+	if info.NodeValue == "" && info.LastAppliedNodeValue == "" {
+		return info.MachineValue
+	}
+	return info.NodeValue
 }
