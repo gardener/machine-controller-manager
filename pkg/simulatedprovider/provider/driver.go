@@ -91,6 +91,10 @@ func (d *DriverImpl) CreateMachine(ctx context.Context, req *driver.CreateMachin
 
 	var node *corev1.Node
 	if _, found := d.managedNodes.Load(req.Machine.Name); !found {
+		if req.MachineClass.NodeTemplate == nil {
+			err = fmt.Errorf("cannot build a node as `machineClass.NodeTemplate` is nil")
+			return
+		}
 		node = d.buildNode(req.Machine, req.MachineClass)
 		_, err = d.client.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
 		if err != nil {
