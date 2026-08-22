@@ -10,16 +10,19 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	_ "embed"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	controller "github.com/gardener/machine-controller-manager/pkg/util/provider/machinecontroller"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	e2efwkenv "sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
+	"sigs.k8s.io/e2e-framework/support"
 	"sigs.k8s.io/e2e-framework/support/kwok"
 )
 
@@ -38,10 +41,19 @@ type Env struct {
 // Name is used as cluster name and optionally a namespace can
 // be specified to be created as part of the cluster creation.
 func New(name, namespace string) Env {
+	// We create an environment and populate its context with the required
+	// provider details and cluster name, without this the delete call
+	// fails because it expects this information to be present in the passed
+	// context.
+	kwokProvider := kwok.NewProvider().SetDefaults().WithName(name)
+	ctx := context.WithValue(
+		context.Background(), support.ClusterNameContextKey(name), kwokProvider,
+	)
+
 	return Env{
 		Name:      name,
 		Namespace: namespace,
-		Ctx:       context.Background(),
+		Ctx:       ctx,
 		Cfg:       e2efwkenv.New().EnvConf(),
 	}
 }
@@ -56,6 +68,9 @@ func (env *Env) SetupCluster() (err error) {
 	if err = env.deployCRDs(); err != nil {
 		return
 	}
+	// This delay is added to give time to the CRDs to register
+	// before any MCM watches are started or objects are deployed.
+	time.Sleep(200 * time.Millisecond)
 
 	// Register MCM API objects with the cluster scheme
 	scheme := env.Cfg.Client().Resources().GetScheme()
@@ -75,6 +90,13 @@ func (env *Env) SetupCluster() (err error) {
 func (env *Env) DeleteCluster() (err error) {
 	destroyClusterFunc := envfuncs.DestroyCluster(env.Name)
 	_, err = destroyClusterFunc(env.Ctx, env.Cfg)
+	return
+}
+
+// ExportLogs saves the control plane logs in the specified directory.
+func (env *Env) ExportLogs(dir string) (err error) {
+	exportLogsFunc := envfuncs.ExportClusterLogs(env.Name, dir)
+	_, err = exportLogsFunc(env.Ctx, env.Cfg)
 	return
 }
 
@@ -159,7 +181,11 @@ func (env *Env) createFakeSecret(name, namespace string) (err error) {
 		},
 		Data: map[string][]byte{},
 		StringData: map[string]string{
-			"userData": "fake-data",
+			"userData": fmt.Sprintf(
+				"fake-data%s%s",
+				controller.BootstrapTokenPlaceholder,
+				controller.MachineNamePlaceholder,
+			),
 		},
 		Type: corev1.SecretTypeOpaque,
 	}
