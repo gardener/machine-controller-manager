@@ -25,7 +25,6 @@ import (
 
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
-	appsV1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
@@ -45,13 +44,13 @@ const (
 var (
 	// path for storing log files (mcm & mc processes)
 	targetDir = filepath.Join("..", "..", "..", ".ci", "controllers-test", "logs")
-	// Suffix for the`kubernetes-io-cluster` tag and cluster name for the orphan resource tracker. Used as ResourceGroupName for Azure clusters
-	targetClusterName = os.Getenv("TARGET_CLUSTER_NAME")
 	// machine-controller-manager log file
 	mcmLogFile = filepath.Join(targetDir, "mcm_process.log")
-
 	// machine-controller log file
 	mcLogFile = filepath.Join(targetDir, "mc_process.log")
+
+	// Suffix for the `kubernetes-io-cluster` tag and cluster name for the orphan resource tracker. Used as ResourceGroupName for Azure clusters
+	targetClusterName string
 
 	// relative path to clone machine-controller-manager repo.
 	// used when control cluster is shoot cluster
@@ -59,21 +58,10 @@ var (
 
 	// control cluster namespace to create resources.
 	// ignored if the target cluster is a shoot of the control cluster
-	controlClusterNamespace = os.Getenv("CONTROL_CLUSTER_NAMESPACE")
-
-	// mcContainerPrefix is the prefix used for the container name of
-	// machine controller in the MCM deployment
-	// eg: machine-controller-manager-provider-<provider-name>
-	mcContainerPrefix = "machine-controller-manager-provider-"
+	controlClusterNamespace string
 
 	// make processes/sessions started by gexec. available only if the controllers are running in local setup. updated during runtime
 	mcmsession, mcsession *gexec.Session
-
-	// mcmDeploymentOrigObj a placeholder for mcm deployment object running in seed cluster.
-	// it will be scaled down to 0 before test starts.
-	// also used in cleanup to restore the controllers to its original state.
-	// used only if control cluster is seed
-	mcmDeploymentOrigObj *appsV1.Deployment
 
 	// machineControllerManagerDeploymentName specifies the name of the deployment
 	// running the mc and mcm containers in it.
@@ -85,28 +73,33 @@ var (
 	// path for v1machineclass yaml file to be used while creating machine resources
 	// name of the machineclass will always be test-mc-v1. overriding the name of machineclass in yaml file
 	// ignored if control cluster is seed cluster
-	v1MachineClassPath = os.Getenv("MACHINECLASS_V1")
+	v1MachineClassPath string
 
 	// path for v1machineclass yaml file to be used while upgrading machine deployment
 	// if machineClassV2 is not set then v1MachineClassPath will be used intead for creating test-mc-v2 class
 	// ignored if control cluster if seed cluster
-	v2MachineClassPath = os.Getenv("MACHINECLASS_V2")
+	v2MachineClassPath string
 
 	// if true, means that the tags present on VM are strings not key-value pairs
-	isTagsStrings = os.Getenv("TAGS_ARE_STRINGS")
+	isTagsStrings string
 
 	// if true, control cluster is a seed
 	// only set this variable if operating in gardener context
-	isControlSeed = os.Getenv("IS_CONTROL_CLUSTER_SEED")
+	isControlSeed string
 
 	//values for gardener-node-agent-secret-name
-	gnaSecretNameLabelValue = os.Getenv("GNA_SECRET_NAME")
+	gnaSecretNameLabelValue string
 
 	// Specifies whether the CRDs should be preserved during cleanup at the end
-	preserveCRDDuringCleanup = os.Getenv("PRESERVE_CRD_AT_END")
+	preserveCRDDuringCleanup string
 
-	// Are the tests running for the virtual provider
-	isVirtualProvider = os.Getenv("IS_VIRTUAL_PROVIDER")
+	// Are the tests running for the simulated provider
+	isSimulatedProvider bool
+
+	// Path to the control plane cluster's kubeconfig
+	controlKubeConfigPath string
+	// Path to the target cluster's kubeconfig
+	targetKubeConfigPath string
 )
 
 // ProviderSpecPatch struct holds tags for provider, which we want to patch the  machineclass with
@@ -176,12 +169,31 @@ func NewIntegrationTestFramework(
 	}
 }
 
-func (c *IntegrationTestFramework) initalizeClusters() error {
+func setGlobalsFromEnvVars() {
+	controlKubeConfigPath = os.Getenv("CONTROL_KUBECONFIG")
+	targetKubeConfigPath = os.Getenv("TARGET_KUBECONFIG")
+	targetClusterName = os.Getenv("TARGET_CLUSTER_NAME")
+	controlClusterNamespace = os.Getenv("CONTROL_CLUSTER_NAMESPACE")
+	isControlSeed = os.Getenv("IS_CONTROL_CLUSTER_SEED")
+	v1MachineClassPath = os.Getenv("MACHINECLASS_V1")
+	v2MachineClassPath = os.Getenv("MACHINECLASS_V2")
+	if os.Getenv("SIM_PROVIDER") == "true" {
+		isSimulatedProvider = true
+		// This repo path is relative to where the test is being invoked from,
+		// for the simulated provider, the mcmRepo lies at the root.
+		mcmRepoPath = filepath.Join("..", "..", "..", "..", "..")
+		// Logs are saved in 'pkg/simulatedprovider/test/controller/integration/logs'
+		mcmLogFile = filepath.Join("logs", "mcm_process.log")
+		mcLogFile = filepath.Join("logs", "mc_process.log")
+	}
+	isTagsStrings = os.Getenv("TAGS_ARE_STRINGS")
+	gnaSecretNameLabelValue = os.Getenv("GNA_SECRET_NAME")
+	preserveCRDDuringCleanup = os.Getenv("PRESERVE_CRD_AT_END")
+}
+
+func (c *IntegrationTestFramework) initializeClusters() error {
 	// checks for the validity of controlKubeConfig and targetKubeConfig clusters
 	// and intializes clientsets
-	controlKubeConfigPath := os.Getenv("CONTROL_KUBECONFIG")
-	targetKubeConfigPath := os.Getenv("TARGET_KUBECONFIG")
-
 	if len(controlKubeConfigPath) != 0 {
 		controlKubeConfigPath, _ = filepath.Abs(controlKubeConfigPath)
 
@@ -457,6 +469,7 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 							Annotations: machineClass.ObjectMeta.Annotations,
 						},
 						ProviderSpec:         machineClass.ProviderSpec,
+						NodeTemplate:         machineClass.NodeTemplate,
 						SecretRef:            machineClass.SecretRef,
 						CredentialsSecretRef: machineClass.CredentialsSecretRef,
 						Provider:             machineClass.Provider,
@@ -469,6 +482,10 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 		}
 	}
 
+	// No mcc patching necessary for the simulated provider
+	if isSimulatedProvider {
+		return nil
+	}
 	//patching the integration test machineclasses with IT role tag
 	if err := c.patchIntegrationTestMachineClasses(); err != nil {
 		return err
@@ -556,20 +573,23 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	ctx := context.Background()
 	log.SetOutput(ginkgo.GinkgoWriter)
 
+	ginkgo.By("Setting global values using the passed environment variables")
+	setGlobalsFromEnvVars()
+
 	ginkgo.By("Checking for the clusters if provided are available")
-	gomega.Expect(c.initalizeClusters()).To(gomega.BeNil())
+	gomega.Expect(c.initializeClusters()).To(gomega.BeNil())
 
 	ginkgo.By("Killing any existing processes")
 	stopMCM(ctx)
-	//setting up MCM either locally or by deploying after checking conditions
 
+	//setting up MCM either locally or by deploying after checking conditions
 	checkMcmRepoAvailable()
 
-	// When running the IT with virtual provider, there's no need to
-	// scale-down MC processes since none are running in the virtual cluster.
-	// Additionally, currently whenever running IT with the virtual provider,
+	// When running the IT with simulated provider, there's no need to
+	// scale-down MC processes since none are running in the simulated cluster.
+	// Additionally, currently whenever running IT with the simulated provider,
 	// ControlCluster is assumed to be a seed since that simplifies the setup.
-	if isControlSeed == "true" && isVirtualProvider != "true" {
+	if isControlSeed == "true" && !isSimulatedProvider {
 		ginkgo.By("Scaledown existing machine controllers")
 		gomega.Expect(c.scaleMcmDeployment(0)).To(gomega.BeNil())
 	} else if isControlSeed != "true" {
@@ -606,13 +626,17 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	clusterName := targetClusterName
 
 	ginkgo.By("Looking for secrets refered in machineclass in the control cluster")
-	secretData, err := c.ControlCluster.
-		GetSecretData(
-			machineClass.Name,
-			machineClass.SecretRef,
-			machineClass.CredentialsSecretRef,
-		)
-	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	var secretData map[string][]byte
+	gomega.Eventually(func() error {
+		var err error
+		secretData, err = c.ControlCluster.
+			GetSecretData(
+				machineClass.Name,
+				machineClass.SecretRef,
+				machineClass.CredentialsSecretRef,
+			)
+		return err
+	}, c.timeout, c.pollingInterval).ShouldNot(gomega.HaveOccurred())
 
 	ginkgo.By("Initializing orphan resource tracker")
 	err = c.resourcesTracker.InitializeResourcesTracker(machineClass, secretData, clusterName)
@@ -647,10 +671,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 		var initialNodes int16
 		ginkgo.Context("creation", func() {
 			ginkgo.It("should not lead to any errors and add 1 more node in target cluster", func() {
-				// In case of existing deployments creating nodes when starting virtual
+				// In case of existing deployments creating nodes when starting simulated
 				// provider, the change in node count can be >1, this delay prevents
 				// checking node count immediately to allow for a correct initial count
-				if isVirtualProvider == "true" {
+				if isSimulatedProvider {
 					time.Sleep(2 * time.Second)
 				}
 				// Probe nodes currently available in target cluster
@@ -989,6 +1013,14 @@ func (c *IntegrationTestFramework) Cleanup() {
 	ctx := context.Background()
 
 	ginkgo.By("Running Cleanup")
+	// No other cleanup is needed when running with the virtual cluster
+	// only stop the MCM and the MC processes
+	if isSimulatedProvider {
+		ginkgo.By("Killing any existing processes")
+		stopMCM(ctx)
+		return
+	}
+
 	//running locally, means none of the image is specified
 	for range 5 {
 		if mcsession.ExitCode() != -1 {

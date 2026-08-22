@@ -1,0 +1,197 @@
+// SPDX-FileCopyrightText: 2026 SAP SE or an SAP affiliate company and Gardener contributors
+//
+// SPDX-License-Identifier: Apache-2.0
+
+package cluster
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"time"
+
+	_ "embed"
+
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	controller "github.com/gardener/machine-controller-manager/pkg/util/provider/machinecontroller"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	e2efwkenv "sigs.k8s.io/e2e-framework/pkg/env"
+	"sigs.k8s.io/e2e-framework/pkg/envconf"
+	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
+	"sigs.k8s.io/e2e-framework/support"
+	"sigs.k8s.io/e2e-framework/support/kwok"
+)
+
+//go:embed kwok-config.yaml
+var kwokctlConfig []byte
+
+// Env specifies the virtual cluster details/configuration.
+type Env struct {
+	Name      string
+	Namespace string
+	Ctx       context.Context
+	Cfg       *envconf.Config
+}
+
+// New returns a kwokctl created cluster's Environment.
+// Name is used as cluster name and optionally a namespace can
+// be specified to be created as part of the cluster creation.
+func New(name, namespace string) Env {
+	// We create an environment and populate its context with the required
+	// provider details and cluster name, without this the delete call
+	// fails because it expects this information to be present in the passed
+	// context.
+	kwokProvider := kwok.NewProvider().SetDefaults().WithName(name)
+	ctx := context.WithValue(
+		context.Background(), support.ClusterNameContextKey(name), kwokProvider,
+	)
+
+	return Env{
+		Name:      name,
+		Namespace: namespace,
+		Ctx:       ctx,
+		Cfg:       e2efwkenv.New().EnvConf(),
+	}
+}
+
+// SetupCluster creates a cluster containing MCM CRDs and starts a watch for MachineClass
+// objects to create fake secrets for the class' SecretRef and CredentialsSecretRef.
+func (env *Env) SetupCluster() (err error) {
+	if err = env.createCluster(); err != nil {
+		return
+	}
+
+	if err = env.deployCRDs(); err != nil {
+		return
+	}
+	// This delay is added to give time to the CRDs to register
+	// before any MCM watches are started or objects are deployed.
+	time.Sleep(200 * time.Millisecond)
+
+	// Register MCM API objects with the cluster scheme
+	scheme := env.Cfg.Client().Resources().GetScheme()
+	if err = v1alpha1.AddToScheme(scheme); err != nil {
+		return
+	}
+
+	// For every MachineClass that's added, create fake secrets that
+	// are part of its SecretRef and CredentialsSecretRef.
+	// This is needed for the testing framework as well as for MCM
+	// machine reconciliation, wherein it passes the secret when
+	// issuing a CreateMachine() call. Ref triggerCreationFlow()
+	return env.watchMCCForSecretRefs()
+}
+
+// DeleteCluster removes the cluster corresponding to the Env.
+func (env *Env) DeleteCluster() (err error) {
+	destroyClusterFunc := envfuncs.DestroyCluster(env.Name)
+	_, err = destroyClusterFunc(env.Ctx, env.Cfg)
+	return
+}
+
+// ExportLogs saves the control plane logs in the specified directory.
+func (env *Env) ExportLogs(dir string) (err error) {
+	exportLogsFunc := envfuncs.ExportClusterLogs(env.Name, dir)
+	_, err = exportLogsFunc(env.Ctx, env.Cfg)
+	return
+}
+
+func (env *Env) createCluster() (err error) {
+	// Using the direct path doesn't work since it looks for the file
+	// relative to the caller, so the config file is embedded and a
+	// temporary file path is passed in order to create the cluster.
+	configPath := filepath.Join(os.TempDir(), "kwok-config.yaml")
+	if err = os.WriteFile(configPath, kwokctlConfig, 0600); err != nil {
+		return
+	}
+	defer os.Remove(configPath)
+
+	createClusterFunc := envfuncs.CreateClusterWithConfig(
+		kwok.NewProvider(), env.Name, configPath,
+	)
+	env.Ctx, err = createClusterFunc(env.Ctx, env.Cfg)
+	if err != nil {
+		return
+	}
+	createNamespaceFunc := envfuncs.CreateNamespace(env.Namespace)
+	env.Ctx, err = createNamespaceFunc(env.Ctx, env.Cfg)
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		return
+	}
+	return nil
+}
+
+func (env *Env) deployCRDs() (err error) {
+	// TODO: think if there's a better caller-agnostic way to get this path
+	_, f, _, ok := runtime.Caller(0)
+	if !ok {
+		err = fmt.Errorf("could not find the path to crds")
+		return
+	}
+	mcmRepoPath := filepath.Join(filepath.Dir(f), "..", "..", "..")
+	crdsDir := filepath.Join(mcmRepoPath, "kubernetes", "crds")
+	if _, err = os.Stat(crdsDir); err != nil {
+		return fmt.Errorf("crdsDir %q not found: %v", crdsDir, err)
+	}
+
+	installCRDs := envfuncs.SetupCRDs(crdsDir, "*")
+	_, err = installCRDs(env.Ctx, env.Cfg)
+	return
+}
+
+func (env *Env) watchMCCForSecretRefs() error {
+	return env.Cfg.Client().Resources().
+		Watch(&v1alpha1.MachineClassList{}, func(listOpts *metav1.ListOptions) {
+			// Create Secrets for 'any' observed MCCs. Ref:
+			// https://kubernetes.io/docs/reference/using-api/api-concepts/#semantics-for-watch
+			listOpts.ResourceVersion = "0"
+		}).
+		WithAddFunc(func(obj any) {
+			mcc, ok := obj.(*v1alpha1.MachineClass)
+			if !ok || mcc.CredentialsSecretRef == nil || mcc.SecretRef == nil {
+				return
+			}
+			err := env.createFakeSecret(mcc.CredentialsSecretRef.Name, mcc.CredentialsSecretRef.Namespace)
+			if err != nil && !apierrors.IsAlreadyExists(err) {
+				fmt.Printf("ERR: Creating secret %q for %q: %v\n",
+					mcc.CredentialsSecretRef.Name, mcc.Name, err,
+				)
+				return
+			}
+			err = env.createFakeSecret(mcc.SecretRef.Name, mcc.SecretRef.Namespace)
+			if err != nil && !apierrors.IsAlreadyExists(err) {
+				fmt.Printf("ERR: Creating secret %q for %q: %v\n",
+					mcc.SecretRef.Name, mcc.Name, err,
+				)
+				return
+			}
+		}).
+		Start(env.Ctx)
+}
+
+func (env *Env) createFakeSecret(name, namespace string) (err error) {
+	secret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{},
+		StringData: map[string]string{
+			"userData": fmt.Sprintf(
+				"fake-data%s%s",
+				controller.BootstrapTokenPlaceholder,
+				controller.MachineNamePlaceholder,
+			),
+		},
+		Type: corev1.SecretTypeOpaque,
+	}
+	err = env.Cfg.Client().Resources().Create(env.Ctx, &secret)
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		return fmt.Errorf("error creating secret %s: %w", name, err)
+	}
+	return
+}
