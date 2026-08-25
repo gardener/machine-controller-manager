@@ -34,7 +34,7 @@ func (d *DriverImpl) initializeMCMManagedNodes(ctx context.Context) error {
 	for _, n := range nodeList.Items {
 		d.managedNodes.Store(n.Name, managedNodeInfo{
 			ProviderID:       n.Spec.ProviderID,
-			MachineClassName: n.Name,
+			MachineClassName: n.Labels[labelMachineClassName],
 		})
 	}
 	return nil
