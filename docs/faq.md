@@ -9,7 +9,7 @@ persona: Operators
 
 The answers in this FAQ apply to the newest (HEAD) version of Machine Controller Manager. If
 you're using an older version of MCM please refer to corresponding version of
-this document. Few of the answers assume that the MCM being used is in conjuction with [cluster-autoscaler](https://github.com/gardener/autoscaler):
+this document. Few of the answers assume that the MCM being used is in conjunction with [cluster-autoscaler](https://github.com/gardener/autoscaler):
 
 # Table of Contents:
 <!--- TOC BEGIN -->
@@ -48,6 +48,7 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
     - [My machine is stuck in deletion for 1 hr, why?](#my-machine-is-stuck-in-deletion-for-1-hr-why)
     - [My machine is not joining the cluster, why?](#my-machine-is-not-joining-the-cluster-why)
     - [My rolling update is stuck, why?](#my-rolling-update-is-stuck-why)
+    - [Why are some preserved failed machines deleted even though they haven't passed their preserve expiry time yet?](#why-are-some-preserved-failed-machines-deleted-even-though-they-havent-passed-their-preserve-expiry-time-yet)
 - [Developer](#developer)
     - [How should I test my code before submitting a PR?](#how-should-i-test-my-code-before-submitting-a-pr)
     - [I need to change the APIs, what are the recommended steps?](#i-need-to-change-the-apis-what-are-the-recommended-steps)
@@ -239,7 +240,7 @@ It is recommended to only set `MachineDrainTimeout`. It satisfies the related re
   - MCM auto calculates the `maxEvictRetries` based on the `drainTimeout`.
 - If `drainTimeout` isn't set and only `maxEvictRetries` is set:
   - Default `drainTimeout` and user provided `maxEvictRetries` for each pod is considered.
-- If both `maxEvictRetries` and `drainTimoeut` are set:
+- If both `maxEvictRetries` and `drainTimeout` are set:
   - Then both will be respected.
 - If none are set:
   - Defaults are respected.
@@ -267,7 +268,7 @@ Below is a simple phase transition diagram:
 
 Health check performed on a machine are:
 
-- Existense of corresponding node obj
+- Existence of corresponding node obj
 - Status of certain user-configurable node conditions.
   - These conditions can be specified using the flag `--node-conditions` for OOT MCM provider or can be specified per machine object.
   - The default user configurable node conditions can be found [here](https://github.com/gardener/machine-controller-manager/blob/91eec24516b8339767db5a40e82698f9fe0daacd/pkg/util/provider/app/options/options.go#L60)
@@ -358,6 +359,15 @@ The following can be the reason:
 - [Old machines are stuck in deletion](#my-machine-is-stuck-in-deletion-for-1-hr-why)
 - If you are using Gardener for setting up kubernetes cluster, then machine object won't turn to `Running` state until `node-critical-components` are ready. Refer [this](https://github.com/gardener/gardener/blob/master/docs/usage/advanced/node-readiness.md) for more details.
 
+### Why are some preserved failed machines deleted even though they haven't passed their preserve expiry time yet?
+
+This can happen if either of the following values have been reduced
+1. `spec.autoPreserveFailedMachineMax`
+2. `spec.Replicas`
+
+When `spec.autoPreserveFailedMachineMax` is reduced and there are more auto-preserved machines than the max count, MCM will sort the machines according to their `PreserveExpiryTime`s and remove machines that have the nearest expiry time. This is to done to keep machines who have the potential for longer preservation and hence additional time for debugging.
+In the case where `spec.Replicas` has been reduced, MCM will always prioritize keeping preserved machines. If this is not possible due to all non-preserved machines being deleted already, then MCM uses the same mechanism as above. Additionally, MCM will also prioritize keeping manually preserved failed machines over auto-preserved failed machines. This might lead to a case where MCM deleted all auto preserved failed machines if `spec.Replicas` is reduced accordingly.
+
 # Developer
 
 ### How should I test my code before submitting a PR?
@@ -389,8 +399,8 @@ Please ignore the API-violation errors for now.
 
 ### How can I update the dependencies of MCM?
 
-MCM uses `gomod` for depedency management.
-Developer should add/udpate depedency in the go.mod file. Please run following command to automatically tidy the dependencies.
+MCM uses `gomod` for dependency management.
+Developer should add/udpate dependency in the go.mod file. Please run following command to automatically tidy the dependencies.
 
 ```sh
 make tidy

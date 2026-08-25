@@ -2254,6 +2254,83 @@ var _ = Describe("machineset", func() {
 				},
 			}),
 		)
+
+		It("should remove auto-preservation from machine with earlier PreserveExpiryTime first, not oldest by creation time", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			// machine-a: created recently, but expires sooner — should lose annotation first
+			machineA := &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-a",
+					Namespace: testNamespace,
+					Annotations: map[string]string{
+						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
+					},
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase:              MachineFailed,
+						PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+					},
+				},
+			}
+			// machine-b: created earlier, but expires later — should keep annotation
+			machineB := &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine-b",
+					Namespace: testNamespace,
+					Annotations: map[string]string{
+						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
+					},
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase:              MachineFailed,
+						PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(2 * time.Hour)},
+					},
+				},
+			}
+			testMachineSet := &machinev1.MachineSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "MachineSet-test",
+					Namespace: testNamespace,
+					UID:       "1234567",
+				},
+				Spec: machinev1.MachineSetSpec{
+					Replicas:                     2,
+					AutoPreserveFailedMachineMax: 1,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"test-label": "test-label"},
+					},
+					Template: machinev1.MachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{"test-label": "test-label"},
+						},
+					},
+				},
+				Status: machinev1.MachineSetStatus{
+					AutoPreserveFailedMachineCount: 2,
+				},
+			}
+
+			c, trackers := createController(stop, testNamespace, []runtime.Object{testMachineSet, machineA, machineB}, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			c.manageAutoPreservationOfFailedMachines(context.TODO(), []*machinev1.Machine{machineA, machineB}, testMachineSet)
+			waitForCacheSync(stop, c)
+
+			updatedA, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machineA.Name, metav1.GetOptions{})
+			updatedB, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machineB.Name, metav1.GetOptions{})
+
+			// machine-a has earlier expiry so it should no longer be preserved
+			Expect(updatedA.Annotations[machineutils.PreserveMachineAnnotationKey]).ToNot(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
+			// machine-b has later expiry so it should retain auto-preservation
+			Expect(updatedB.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
+		})
 	})
 
 	Describe("#shouldFailedMachineBeTerminated", func() {
