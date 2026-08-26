@@ -16,7 +16,7 @@ limitations under the License.
 This file was copied and modified from the kubernetes/kubernetes project
 https://github.com/kubernetes/kubernetes/release-1.8/pkg/controller/deployment/rolling.go
 
-Modifications Copyright Copyright Contributors to the Gardener project
+Modifications Copyright Contributors to the Gardener project
 */
 
 // Package controller is used to provide the core functionalities of machine-controller-manager

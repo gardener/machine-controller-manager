@@ -16,7 +16,7 @@ limitations under the License.
 This file was copied and modified from the kubernetes/kubernetes project
 https://github.com/kubernetes/kubernetes/blob/release-1.8/pkg/util/configz/configz.go
 
-Modifications Copyright Copyright Contributors to the Gardener project
+Modifications Copyright Contributors to the Gardener project
 */
 
 package configz

@@ -16,7 +16,7 @@ limitations under the License.
 This file was copied and modified from the kubernetes/kubernetes project
 https://github.com/kubernetes/kubernetes/blob/release-1.8/pkg/util/reflector/prometheus/prometheus.go
 
-Modifications Copyright Copyright Contributors to the Gardener project
+Modifications Copyright Contributors to the Gardener project
 */
 
 // Package prometheus sets the cache DefaultMetricsFactory to produce
