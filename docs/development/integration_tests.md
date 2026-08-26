@@ -21,7 +21,17 @@ Integration tests for `machine-controller-manager-provider-{provider-name}` can 
  - In case of non-gardener setup (control cluster is not a gardener seed), the name of the machineclass must be `test-mc-v1` and the value of `providerSpec.secretRef.name` should be `test-mc-secret`.
  - In case of azure, `TARGET_CLUSTER_NAME` must be same as the name of the Azure ResourceGroup for the cluster.
  - If you are deploying the secret manually, a `Secret` named `test-mc-secret` (that contains the provider secret and cloud-config) in the `default` namespace of the Control Cluster should be created.
-3. The controllers log files (`mcm_process.log` and `mc_process.log`) are stored in `.ci/controllers-test/logs` repo and can be used later.
+3. The controllers log files (`mcm_process.log` and `mc_process.log`) are stored in `.ci/controllers-test/logs` directory and can be used later.
+
+### With the Simulated Provider
+
+To run the integration tests against the simulated provider, rather than running the `test-integration` target from the provider repository, just run it on the project root.
+That is, `machine-controller-manager/Makefile` provides the same helper target that runs IT with the simulated provider.
+```
+make test-integration
+```
+No additional inputs are required. The logs are stored in `pkg/simulatedprovider/test/integration/controller/logs` directory.
+
 ## Adding Integration Tests for new providers
 
 For a new provider, Running Integration tests works with no changes. But for the orphan resource test cases to work correctly, the provider-specific API calls and the Resource Tracker Interface (RTI) should be implemented. Please check [`machine-controller-manager-provider-aws`](https://github.com/gardener/machine-controller-manager-provider-aws/blob/master/test/integration/provider/) for reference.
