@@ -17,7 +17,7 @@
  * This file was copied and modified from the github.com/grpc/grpc-go project
  * https://github.com/grpc/grpc-go/blob/v1.29.x/code/code.go
  *
- * Modifications Copyright Contributors to the Gardener project
+ * Modifications Contributors to the Gardener project
  *
  */
 

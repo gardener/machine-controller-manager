@@ -16,7 +16,7 @@ limitations under the License.
 This file was copied and modified from the kubernetes/kubernetes project
 https://github.com/kubernetes/kubernetes/blob/release-1.16/pkg/util/workqueue/prometheus/prometheus.go
 
-Modifications Copyright Contributors to the Gardener project
+Modifications Contributors to the Gardener project
 */
 
 package prometheus
