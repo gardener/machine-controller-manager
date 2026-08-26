@@ -17,7 +17,7 @@
  * This file was copied and modified from the github.com/grpc/grpc-go project
  * https://github.com/grpc/grpc-go/blob/v1.29.x/code/code_string.go
  *
- * Modifications Copyright SAP SE or an SAP affiliate company and Gardener contributors
+ * Modifications Copyright Copyright Contributors to the Gardener project
  *
  */
 

@@ -16,7 +16,7 @@ limitations under the License.
 This file was copied and modified from the kubernetes/kubernetes project
 https://github.com/kubernetes/kubernetes/blob/release-1.8/pkg/util/taints/taints.go
 
-Modifications Copyright SAP SE or an SAP affiliate company and Gardener contributors
+Modifications Copyright Copyright Contributors to the Gardener project
 */
 
 // Package taints implements utilites for working with taints

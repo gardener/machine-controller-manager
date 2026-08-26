@@ -16,7 +16,7 @@ limitations under the License.
 This file was copied and modified from the kubernetes/kubernetes project
 https://github.com/kubernetes/kubernetes/release-1.8/cmd/kube-controller-manager/app/controllermanager.go
 
-Modifications Copyright SAP SE or an SAP affiliate company and Gardener contributors
+Modifications Copyright Copyright Contributors to the Gardener project
 */
 
 package app
