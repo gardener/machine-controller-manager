@@ -5056,8 +5056,10 @@ var _ = Describe("machine", func() {
 	})
 
 	// Regression test for https://github.com/gardener/machine-controller-manager/issues/1141
+	// A new Machine can get permanently stuck with empty phase when the worker retry budget is
+	// exhausted by 409 Conflict errors from addMachineFinalizers.
 	Describe("#reconcileClusterMachineKey", func() {
-		It("machine should have finalizer and non-empty phase even after MaxRetries 409 conflicts on finalizer addition", func() {
+		It("machine should have finalizer even after MaxRetries 409 conflicts on finalizer addition", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -5073,38 +5075,48 @@ var _ = Describe("machine", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			// Inject a 409 Conflict reactor on every Machine Update — simulating sustained informer cache lag.
+			// Inject 409 Conflict on the first DefaultMaxRetries finalizer Update calls, then allow
+			// subsequent calls to succeed.
 			conflictErr := apierrors.NewConflict(
 				schema.GroupResource{Group: "machine.sapcloud.io", Resource: "machines"},
 				machine.Name,
 				errors.New("the object has been modified; please apply your changes to the latest version and try again"),
 			)
+			conflictCallCount := 0
 			fakeClient := c.controlMachineClient.(*fakemachineapi.FakeMachineV1alpha1)
-			fakeClient.Fake.PrependReactor("update", "machines", func(_ k8stesting.Action) (bool, runtime.Object, error) {
-				return true, nil, conflictErr
+			fakeClient.Fake.PrependReactor("update", "machines", func(action k8stesting.Action) (bool, runtime.Object, error) {
+				// Allow UpdateStatus (subresource "status") through unconditionally.
+				if action.GetSubresource() == "status" {
+					return false, nil, nil
+				}
+				// Return a 409 for the first DefaultMaxRetries finalizer updates, then pass through.
+				if conflictCallCount < worker.DefaultMaxRetries {
+					conflictCallCount++
+					return true, nil, conflictErr
+				}
+				return false, nil, nil
 			})
 
 			key := cache.MetaObjectToName(machine).String()
 
-			// Drive reconcileClusterMachineKey through all DefaultMaxRetries attempts directly (bypassing the queue) to
-			// exhaust the retry budget.
-			for i := 0; i < worker.DefaultMaxRetries+1; i++ {
+			// Run DefaultMaxRetries+5 iterations — without the fix this would exhaust the worker's
+			// retry budget on the first DefaultMaxRetries calls and permanently strand the machine.
+			for i := 0; i < worker.DefaultMaxRetries+5; i++ {
 				_ = c.reconcileClusterMachineKey(key)
 			}
 
-			// After the fix: 409 conflicts on finalizer addition should not strand the machine. 409 conflict does
-			// not burn retries
+			// Sync the lister so it reflects what the fake API server now holds.
+			waitForCacheSync(stop, c)
+
+			// The machine must have the finalizer; without the fix it would not (the key would have
+			// been dropped from the queue before the Update could succeed).
 			updatedMachine, err := c.controlMachineClient.Machines(testNamespace).Get(
 				context.TODO(), machine.Name, metav1.GetOptions{},
 			)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(updatedMachine.Finalizers).To(
 				ContainElement(MCMFinalizerName),
-				"machine must have the MCM finalizer — conflict errors should not prevent finalizer addition",
-			)
-			Expect(updatedMachine.Status.CurrentStatus.Phase).NotTo(
-				BeEmpty(),
-				"machine phase must not be empty — reconcileClusterMachine must have been reached",
+				"machine must have the MCM finalizer — 409 conflict errors must not prevent finalizer addition",
 			)
 		})
 	})

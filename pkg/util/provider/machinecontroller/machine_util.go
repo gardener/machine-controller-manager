@@ -1198,6 +1198,12 @@ func (c *controller) addMachineFinalizers(ctx context.Context, machine *v1alpha1
 		clone.Finalizers = finalizers.List()
 		_, err := c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
+			if apierrors.IsConflict(err) {
+				// Informer cache is stale; the watch event will re-enqueue the machine once the
+				// cache catches up, so this is not a retriable error from the worker's perspective.
+				// Returning nil avoids burning a retry slot from the fixed budget (DefaultMaxRetries).
+				return machineutils.ShortRetry, nil
+			}
 			// Keep retrying until update goes through
 			klog.Errorf("Failed to add finalizers for machine %q: %s", machine.Name, err)
 		} else {
