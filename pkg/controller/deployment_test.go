@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
+	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"k8s.io/utils/ptr"
 
@@ -1751,15 +1752,17 @@ var _ = Describe("machineDeployment", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 				Key := testNamespace + "/" + testMachineDeployment.Name
+				Expect(c.reconcileClusterMachineDeployment(Key)).NotTo(HaveOccurred())
 
-				Eventually(func() error {
-					_ = c.reconcileClusterMachineDeployment(Key)
-					actualMachineDeployment, _ := c.controlMachineClient.MachineDeployments(testNamespace).Get(context.Background(), testMachineDeployment.Name, metav1.GetOptions{})
-					actualMachineSets, _ := c.controlMachineClient.MachineSets(testNamespace).List(context.Background(), metav1.ListOptions{})
-					actualMachines, _ := c.controlMachineClient.Machines(testNamespace).List(context.Background(), metav1.ListOptions{})
-					actualNode, _ := c.targetCoreClient.CoreV1().Nodes().Get(context.Background(), testNode.Name, metav1.GetOptions{})
-					return postCheck(actualMachineDeployment, actualMachineSets.Items, actualMachines.Items, actualNode)
-				}).WithTimeout(500 * time.Millisecond).WithPolling(100 * time.Millisecond).Should(Succeed())
+				waitForCacheSync(stop, c)
+				actualMachineDeployment, _ := c.controlMachineClient.MachineDeployments(testNamespace).Get(context.Background(), testMachineDeployment.Name, metav1.GetOptions{})
+				waitForCacheSync(stop, c)
+				actualMachineSets, _ := c.controlMachineClient.MachineSets(testNamespace).List(context.Background(), metav1.ListOptions{})
+				waitForCacheSync(stop, c)
+				actualMachines, _ := c.controlMachineClient.Machines(testNamespace).List(context.Background(), metav1.ListOptions{})
+				testNode, _ := c.targetCoreClient.CoreV1().Nodes().Get(context.Background(), testNode.Name, metav1.GetOptions{})
+
+				Expect(postCheck(actualMachineDeployment, actualMachineSets.Items, actualMachines.Items, testNode)).To(BeNil())
 			},
 			Entry("reconcile the machineDeployment and return nil",
 				func(_ *machinev1.MachineDeployment, _ *machinev1.MachineSet) {},
@@ -1986,9 +1989,15 @@ var _ = Describe("machineDeployment", func() {
 				},
 			),
 			Entry("set LDRCBST annotation on the machineSet and TriggerDeletionByMCM annotation is not set on the machineSet",
-				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
+				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
 					testMachineDeployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = ts
 					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))
+
+					const hash = "testhash"
+					testMachineSet.Labels = labelsutil.CloneAndAddLabel(testMachineSet.Labels, machinev1.DefaultMachineDeploymentUniqueLabelKey, hash)
+					testMachineSet.Spec.Selector = labelsutil.CloneSelectorAndAddLabel(testMachineSet.Spec.Selector, machinev1.DefaultMachineDeploymentUniqueLabelKey, hash)
+					testMachineSet.Spec.Template.Labels = labelsutil.CloneAndAddLabel(testMachineSet.Spec.Template.Labels, machinev1.DefaultMachineDeploymentUniqueLabelKey, hash)
+					testMachine.Labels = labelsutil.CloneAndAddLabel(testMachine.Labels, machinev1.DefaultMachineDeploymentUniqueLabelKey, hash)
 				},
 				func(_ *machinev1.MachineDeployment, mcs []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 					var ms *machinev1.MachineSet
