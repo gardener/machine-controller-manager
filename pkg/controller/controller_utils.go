@@ -717,10 +717,7 @@ func GetFakeMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentOb
 	desiredAnnotations := getMachinesAnnotationSet(template, parentMetaObj)
 
 	prefix := getMachinesPrefix(parentMetaObj.GetName())
-	// Use the full UUID as the suffix to avoid name collisions when many machines
-	// are created in a single reconcile (e.g. burstReplicas). Unlike the real
-	// apiserver, the fake client does not retry on GenerateName conflicts, so a
-	// truncated suffix can produce duplicate names and flake the test.
+	// Use the full UUID as the suffix to avoid name collisions when many machines are created in a single reconcile.
 	prefix = prefix + "-" + uuid.New().String()
 	machine := &v1alpha1.Machine{
 		ObjectMeta: metav1.ObjectMeta{
