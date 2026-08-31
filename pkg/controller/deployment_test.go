@@ -1992,12 +1992,7 @@ var _ = Describe("machineDeployment", func() {
 				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
 					testMachineDeployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = ts
 					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))
-
-					const hash = "testhash"
-					testMachineSet.Labels = labelsutil.CloneAndAddLabel(testMachineSet.Labels, machinev1.DefaultMachineDeploymentUniqueLabelKey, hash)
-					testMachineSet.Spec.Selector = labelsutil.CloneSelectorAndAddLabel(testMachineSet.Spec.Selector, machinev1.DefaultMachineDeploymentUniqueLabelKey, hash)
-					testMachineSet.Spec.Template.Labels = labelsutil.CloneAndAddLabel(testMachineSet.Spec.Template.Labels, machinev1.DefaultMachineDeploymentUniqueLabelKey, hash)
-					testMachine.Labels = labelsutil.CloneAndAddLabel(testMachine.Labels, machinev1.DefaultMachineDeploymentUniqueLabelKey, hash)
+					testMachineSet.Spec.Selector = labelsutil.CloneSelectorAndAddLabel(testMachineSet.Spec.Selector, machinev1.DefaultMachineDeploymentUniqueLabelKey, "testhash")
 				},
 				func(_ *machinev1.MachineDeployment, mcs []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 					var ms *machinev1.MachineSet
