@@ -361,11 +361,13 @@ The following can be the reason:
 
 ### Why are some preserved failed machines deleted even though they haven't passed their preserve expiry time yet?
 
-This can happen if either of the following values have been reduced
-1. `spec.autoPreserveFailedMachineMax`
-2. `spec.Replicas`
+The most likely reason would be due to a rolling or inPlace upgrade that happened, since preservation is not honoured during upgrades.
 
-When `spec.autoPreserveFailedMachineMax` is reduced and there are more auto-preserved machines than the max count, MCM will sort the machines according to their `PreserveExpiryTime`s and remove machines that have the nearest expiry time. This is to done to keep machines who have the potential for longer preservation and hence additional time for debugging.
+This can also happen if either of the following values have been reduced
+1. `machineDeployment.spec.autoPreserveFailedMachineMax`
+2. `machineDeployment.spec.Replicas`
+
+When `spec.autoPreserveFailedMachineMax` is reduced and there are more auto-preserved machines than the max count, MCM will sort the machines according to their `PreserveExpiryTime`s and remove machines that have the nearest expiry time. This is done to keep machines who have the potential for longer preservation and hence additional time for debugging.
 In the case where `spec.Replicas` has been reduced, MCM will always prioritize keeping preserved machines. If this is not possible due to all non-preserved machines being deleted already, then MCM uses the same mechanism as above. Additionally, MCM will also prioritize keeping manually preserved failed machines over auto-preserved failed machines. This might lead to a case where MCM deleted all auto preserved failed machines if `spec.Replicas` is reduced accordingly.
 
 # Developer
