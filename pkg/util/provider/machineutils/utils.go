@@ -173,7 +173,8 @@ func GetMachineDeploymentName(machine *v1alpha1.Machine) string {
 	return machine.Labels["name"]
 }
 
-// We treat invalid annotation as no annotation present.
+// GetPreserveAnnotationValue returns the preserve annotation value for the given node and machine.
+// Invalid annotation values are treated as absent.
 func GetPreserveAnnotationValue(node *corev1.Node, machine *v1alpha1.Machine) (string, bool) {
 	if node != nil {
 		if val, ok :=
