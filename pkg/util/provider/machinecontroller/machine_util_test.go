@@ -4973,8 +4973,8 @@ var _ = Describe("machine_util", func() {
 
 	Describe("#updateMachineToFailedState", func() {
 		type setup struct {
-			preserveAnnotation  string
-			existingExpiryTime  *metav1.Time
+			preserveAnnotation string
+			existingExpiryTime *metav1.Time
 		}
 		type expect struct {
 			preserveExpiryTimeSet bool
@@ -5057,4 +5057,3 @@ var _ = Describe("machine_util", func() {
 		)
 	})
 })
-
