@@ -275,6 +275,12 @@ func (c *controller) checkMachineClass(ctx context.Context, machineClass *v1alph
 					klog.V(3).Infof("SafetyController: Machine object %q with backing nodeName %q , providerID %q is being processed by machine controller, hence skipping", machine.Name, getNodeName(machine), getProviderID(machine))
 					continue
 				}
+				// machine obj is preserved, so its backing VM must not be treated as an orphan and deleted,
+				// even if spec.ProviderID does not match.
+				if machineutils.IsMachinePreserved(machine) {
+					klog.V(3).Infof("SafetyController: Machine object %q with backing nodeName %q , providerID %q is preserved, hence skipping", machine.Name, getNodeName(machine), getProviderID(machine))
+					continue
+				}
 			}
 
 			// Creating a dummy machine object to create deleteMachineRequest

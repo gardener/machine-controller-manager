@@ -47,6 +47,7 @@ this document. Few of the answers assume that the MCM being used is in conjuctio
 - [Troubleshooting](#troubleshooting)
     - [My machine is stuck in deletion for 1 hr, why?](#my-machine-is-stuck-in-deletion-for-1-hr-why)
     - [My machine is not joining the cluster, why?](#my-machine-is-not-joining-the-cluster-why)
+    - [My machine failed to register within the MachineCreationTimeout, what can I expect?](#my-machine-failed-to-register-within-the-machinecreationtimeout-what-can-i-expect)
     - [My rolling update is stuck, why?](#my-rolling-update-is-stuck-why)
 - [Developer](#developer)
     - [How should I test my code before submitting a PR?](#how-should-i-test-my-code-before-submitting-a-pr)
@@ -349,6 +350,26 @@ It could possibly be debugged with following steps:
 - Verify if the machine is actually created in the cloud. User can use the `Machine.Spec.ProviderId` to query the machine in cloud.
 - A Kubernetes node is generally bootstrapped with the cloud-config. Please verify, if `MachineDeployment` is pointing the correct `MachineClass`, and `MachineClass` is pointing to the correct `Secret`. The secret object contains the actual cloud-config in `base64` format which will be used to boot the machine.
 - User must also check the logs of the MCM pod to understand any broken logical flow of reconciliation.
+
+### My machine failed to register within the MachineCreationTimeout, what can I expect?
+
+When a machine's backing node does not register with the cluster within the effective `MachineCreationTimeout`, the machine
+is declared `Failed`. If the machine is eligible for preservation, it is intentionally retained instead of being terminated
+and replaced:
+
+- **Auto-preservation of failed machines.** If the owning `MachineDeployment` has `autoPreserveFailedMachineMax` configured and
+  that limit has not been breached, such a `Failed` machine is **auto-preserved** (annotated with
+  `node.machine.sapcloud.io/preserve: auto-preserved`) instead of being terminated and replaced.
+
+- **The machine is not re-created while preserved.** A preserved machine that failed during creation is not re-created by the
+  `MachineSet` controller. The operator is expected to inspect and recover it (or explicitly stop preservation) before the
+  effective `machinePreserveTimeout` elapses.
+
+- **The backing VM is not deleted as an orphan.** The safety controller skips orphan-VM collection for machines that are
+  actually preserved (i.e. those carrying a `PreserveExpiryTime` on their status), so it will not delete the backing VM of a
+  machine that was preserved during creation, even before the machine's `providerID` has been persisted onto its spec.
+
+> Note: The bootstrap token for a machine is valid only for the `MachineCreationTimeout`. If a node fails to register within that window and the machine is preserved, its bootstrap token will already have expired, so the node will not join the cluster on its own. This is expected behaviour and the preserved machine and its backing VM are retained for inspection and recovery rather than for the node to join later.
 
 ### My rolling update is stuck, why?
 

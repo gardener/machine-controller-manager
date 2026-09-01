@@ -400,6 +400,58 @@ var _ = Describe("safety_logic", func() {
 					toBePresentMachines: nil,
 				},
 			}),
+			Entry("machine object is Failed but preserved (unexpired PreserveExpiryTime), so its backing VM should NOT be deleted", &data{
+				setup: setup{
+					machineObjects: []*v1alpha1.Machine{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "testmachine_1",
+								Namespace: testNamespace,
+							},
+							Status: v1alpha1.MachineStatus{
+								CurrentStatus: v1alpha1.CurrentStatus{
+									Phase:              v1alpha1.MachineFailed,
+									PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+								},
+							},
+						},
+					},
+					machinesOnProvider: map[string]string{
+						"testmachine-ip1": "testmachine_1",
+					},
+				},
+				expect: expect{
+					toBeDeletedMachines: nil,
+					toBePresentMachines: map[string]string{
+						"testmachine-ip1": "testmachine_1",
+					},
+				},
+			}),
+			Entry("machine object is Failed but preservation expired, so its backing VM should be deleted", &data{
+				setup: setup{
+					machineObjects: []*v1alpha1.Machine{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "testmachine_1",
+								Namespace: testNamespace,
+							},
+							Status: v1alpha1.MachineStatus{
+								CurrentStatus: v1alpha1.CurrentStatus{
+									Phase:              v1alpha1.MachineFailed,
+									PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
+								},
+							},
+						},
+					},
+					machinesOnProvider: map[string]string{
+						"testmachine-ip1": "testmachine_1",
+					},
+				},
+				expect: expect{
+					toBeDeletedMachines: []string{"testmachine-ip1"},
+					toBePresentMachines: nil,
+				},
+			}),
 		)
 	})
 
