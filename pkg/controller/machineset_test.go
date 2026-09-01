@@ -2156,7 +2156,8 @@ var _ = Describe("machineset", func() {
 			waitForCacheSync(stop, c)
 			machinesList := []*machinev1.Machine{testMachine1, testMachine2, testMachine3, testMachine4}
 			machinesList = append(machinesList, tc.setup.additionalMachines...)
-			c.manageAutoPreservationOfFailedMachines(context.TODO(), machinesList, testMachineSet)
+			_, err := c.manageAutoPreservationOfFailedMachines(context.TODO(), machinesList, testMachineSet)
+			Expect(err).To(BeNil())
 			waitForCacheSync(stop, c)
 			updatedMachine1, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testMachine1.Name, metav1.GetOptions{})
 			updatedMachine2, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testMachine2.Name, metav1.GetOptions{})
