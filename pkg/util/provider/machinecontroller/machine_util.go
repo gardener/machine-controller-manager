@@ -1142,6 +1142,10 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					LastUpdateTime:     metav1.Now(),
 					PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 				}
+				// check if preservation is needed for the failed machine
+				if val, exists := machineutils.GetPreserveAnnotationValue(node, machine); exists && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+					clone.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+				}
 				cloneDirty = true
 				if machineClass != nil {
 					metrics.IncrementNumFailedToJoin(machine, machineClass)
@@ -2144,6 +2148,7 @@ func (c *controller) UpdateNodeTerminationCondition(ctx context.Context, machine
 func (c *controller) updateMachineToFailedState(ctx context.Context, description string, machine, clone *v1alpha1.Machine) (bool, error) {
 	// Log the error message for machine failure
 	klog.Error(description)
+	node, _ := c.nodeLister.Get(machine.Annotations[v1alpha1.NodeLabelKey])
 
 	clone.Status.LastOperation = v1alpha1.LastOperation{
 		Description:    description,
@@ -2156,6 +2161,13 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 		// TimeoutActive:  false,
 		LastUpdateTime:     metav1.Now(),
 		PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
+	}
+	// check if preservation is needed for the failed machine
+	if val, exists := machineutils.GetPreserveAnnotationValue(node, machine); exists && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+		// we set the PreserveExpiryTime if not already set.
+		if clone.Status.CurrentStatus.PreserveExpiryTime == nil {
+			clone.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+		}
 	}
 
 	_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})

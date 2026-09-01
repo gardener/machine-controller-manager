@@ -70,6 +70,7 @@ func NewMCMServer() *MCMServer {
 				SafetyUp:                        2,
 				SafetyDown:                      1,
 				MachineSafetyOvershootingPeriod: metav1.Duration{Duration: 1 * time.Minute},
+				MachinePreserveTimeout:          metav1.Duration{Duration: 96 * time.Hour},
 			},
 		},
 	}
@@ -98,6 +99,7 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&s.SafetyOptions.SafetyDown, "safety-down", s.SafetyOptions.SafetyDown, "Upper-limit minus safety-down value gives the lower-limit. This is the limits below which any temporarily frozen machineSet/machineDeployment object is unfrozen. lower-limit = desired + maxSurge (if applicable) + safetyUp - safetyDown.")
 
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration, "machine-safety-overshooting-period", s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration, "Time period (in duration) used to poll for overshooting of machine objects backing a machineSet by safety controller.")
+	fs.DurationVar(&s.SafetyOptions.MachinePreserveTimeout.Duration, "machine-preserve-timeout", s.SafetyOptions.MachinePreserveTimeout.Duration, "Duration for which a failed machine should be preserved if it has the appropriate preserve annotation set.")
 
 	fs.BoolVar(&s.AutoscalerScaleDownAnnotationDuringRollout, "autoscaler-scaledown-annotation-during-rollout", true, "Add cluster autoscaler scale-down disabled annotation during roll-out.")
 
