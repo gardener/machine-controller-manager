@@ -3541,6 +3541,47 @@ var _ = Describe("machine_util", func() {
 				},
 			}),
 		)
+
+		DescribeTable("##PreserveExpiryTime on creation-timeout transition to Failed",
+			func(preserveAnnotation string, expectExpirySet bool) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				annotations := map[string]string{}
+				if preserveAnnotation != "" {
+					annotations[machineutils.PreserveMachineAnnotationKey] = preserveAnnotation
+				}
+				machine := newMachine(
+					&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+					&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachinePending}},
+					nil, annotations, map[string]string{machinev1.NodeLabelKey: "node-0-0"}, true, metav1.NewTime(time.Now().Add(-25*time.Minute)),
+				)
+
+				c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, nil, nil, false)
+				defer trackers.Stop()
+				c.safetyOptions.MachinePreserveTimeout = metav1.Duration{Duration: 24 * time.Hour}
+				c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
+				defer c.permitGiver.Close()
+				waitForCacheSync(stop, c)
+
+				_, _ = c.reconcileMachineHealth(context.TODO(), machine)
+
+				updated, err := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+				Expect(err).To(BeNil())
+				Expect(updated.Status.CurrentStatus.Phase).To(Equal(machinev1.MachineFailed))
+				if expectExpirySet {
+					Expect(updated.Status.CurrentStatus.PreserveExpiryTime).NotTo(BeNil())
+					Expect(updated.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())).To(BeTrue())
+				} else {
+					Expect(updated.Status.CurrentStatus.PreserveExpiryTime).To(BeNil())
+				}
+			},
+			Entry("preserve=when-failed: PreserveExpiryTime must be set", machineutils.PreserveMachineAnnotationValueWhenFailed, true),
+			Entry("preserve=now: PreserveExpiryTime must NOT be set by creation-timeout path", machineutils.PreserveMachineAnnotationValueNow, false),
+			Entry("preserve=false: PreserveExpiryTime must NOT be set", machineutils.PreserveMachineAnnotationValueFalse, false),
+			Entry("preserve=auto-preserved: PreserveExpiryTime must NOT be set (set later after auto-preserve selection)", machineutils.PreserveMachineAnnotationValueAutoPreserved, false),
+			Entry("no preserve annotation: PreserveExpiryTime must NOT be set", "", false),
+		)
 	})
 
 	Describe("#inPlaceUpdate", func() {
@@ -4923,4 +4964,91 @@ var _ = Describe("machine_util", func() {
 			}),
 		)
 	})
+
+	Describe("#updateMachineToFailedState", func() {
+		type setup struct {
+			preserveAnnotation  string
+			existingExpiryTime  *metav1.Time
+		}
+		type expect struct {
+			preserveExpiryTimeSet bool
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("##PreserveExpiryTime on transition to Failed",
+			func(tc *testCase) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				annotations := map[string]string{}
+				if tc.setup.preserveAnnotation != "" {
+					annotations[machineutils.PreserveMachineAnnotationKey] = tc.setup.preserveAnnotation
+				}
+
+				machine := &machinev1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "machine-1",
+						Namespace:   testNamespace,
+						Annotations: annotations,
+					},
+					Status: machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase:              machinev1.MachinePending,
+							PreserveExpiryTime: tc.setup.existingExpiryTime,
+						},
+					},
+				}
+				clone := machine.DeepCopy()
+
+				c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, nil, nil, false)
+				defer trackers.Stop()
+				c.safetyOptions.MachinePreserveTimeout = metav1.Duration{Duration: 24 * time.Hour}
+				waitForCacheSync(stop, c)
+
+				_, err := c.updateMachineToFailedState(context.TODO(), "test failure", machine, clone)
+				Expect(err).To(BeNil())
+
+				updated, getErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+				Expect(getErr).To(BeNil())
+				Expect(updated.Status.CurrentStatus.Phase).To(Equal(machinev1.MachineFailed))
+				if tc.expect.preserveExpiryTimeSet {
+					Expect(updated.Status.CurrentStatus.PreserveExpiryTime).NotTo(BeNil())
+					Expect(updated.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())).To(BeTrue())
+				} else {
+					Expect(updated.Status.CurrentStatus.PreserveExpiryTime).To(BeNil())
+				}
+			},
+			Entry("preserve=when-failed: PreserveExpiryTime must be set on transition to Failed", &testCase{
+				setup:  setup{preserveAnnotation: machineutils.PreserveMachineAnnotationValueWhenFailed},
+				expect: expect{preserveExpiryTimeSet: true},
+			}),
+			Entry("preserve=when-failed with existing expiry: existing PreserveExpiryTime must be preserved", &testCase{
+				setup: setup{
+					preserveAnnotation: machineutils.PreserveMachineAnnotationValueWhenFailed,
+					existingExpiryTime: func() *metav1.Time { t := metav1.NewTime(time.Now().Add(96 * time.Hour)); return &t }(),
+				},
+				expect: expect{preserveExpiryTimeSet: true},
+			}),
+			Entry("preserve=now: PreserveExpiryTime must NOT be set by updateMachineToFailedState (set later by preserveMachine)", &testCase{
+				setup:  setup{preserveAnnotation: machineutils.PreserveMachineAnnotationValueNow},
+				expect: expect{preserveExpiryTimeSet: false},
+			}),
+			Entry("preserve=false: PreserveExpiryTime must NOT be set", &testCase{
+				setup:  setup{preserveAnnotation: machineutils.PreserveMachineAnnotationValueFalse},
+				expect: expect{preserveExpiryTimeSet: false},
+			}),
+			Entry("no preserve annotation: PreserveExpiryTime must NOT be set", &testCase{
+				setup:  setup{},
+				expect: expect{preserveExpiryTimeSet: false},
+			}),
+			Entry("preserve=auto-preserved: PreserveExpiryTime must NOT be set (set later after auto-preserve selection)", &testCase{
+				setup:  setup{preserveAnnotation: machineutils.PreserveMachineAnnotationValueAutoPreserved},
+				expect: expect{preserveExpiryTimeSet: false},
+			}),
+		)
+	})
 })
+

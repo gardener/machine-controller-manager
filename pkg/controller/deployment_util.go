@@ -41,7 +41,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/errors"
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -963,26 +962,20 @@ func WaitForMachinesHashPopulated(ctx context.Context, c v1alpha1listers.Machine
 }
 
 // LabelMachinesWithHash labels all machines in the given machineList with the new hash label.
-func LabelMachinesWithHash(ctx context.Context, machineList *v1alpha1.MachineList, c v1alpha1client.MachineV1alpha1Interface, machineLister v1alpha1listers.MachineLister, namespace, name, hash string) error {
-	for _, machine := range machineList.Items {
+func LabelMachinesWithHash(ctx context.Context, machineList *v1alpha1.MachineList, c v1alpha1client.MachineV1alpha1Interface, namespace, name, hash string) error {
+	for i, machine := range machineList.Items {
 		// Ignore inactive Machines.
 		if !machineutils.IsMachineActive(&machine) {
 			continue
 		}
 		// Only label the machine that doesn't already have the new hash
 		if machine.Labels[v1alpha1.DefaultMachineDeploymentUniqueLabelKey] != hash {
-			_, err := machineutils.UpdateMachineWithRetries(ctx, c.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
-				func(machineToUpdate *v1alpha1.Machine) error {
-					// Precondition: the machine doesn't contain the new hash in its label.
-					if machineToUpdate.Labels[v1alpha1.DefaultMachineDeploymentUniqueLabelKey] == hash {
-						return errors.ErrPreconditionViolated
-					}
-					machineToUpdate.Labels = labelsutil.AddLabel(machineToUpdate.Labels, v1alpha1.DefaultMachineDeploymentUniqueLabelKey, hash)
-					return nil
-				})
+			machine.Labels = labelsutil.AddLabel(machine.Labels, v1alpha1.DefaultMachineDeploymentUniqueLabelKey, hash)
+			updatedMachine, err := c.Machines(machine.Namespace).Update(ctx, &machine, metav1.UpdateOptions{})
 			if err != nil {
 				return fmt.Errorf("error in adding template hash label %s to machine %q: %v", hash, machine.Name, err)
 			}
+			machineList.Items[i] = *updatedMachine
 			klog.V(4).Infof("Labeled machine %s/%s of MachineSet %s/%s with hash %s.", machine.Namespace, machine.Name, namespace, name, hash)
 		}
 	}

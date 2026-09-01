@@ -558,7 +558,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return err
 	}
 
-	err = dc.updateMachineAndMachineDeploymentDeletionAnnotations(ctx, d)
+	d, err = dc.updateMachineAndMachineDeploymentDeletionAnnotations(ctx, d, machineMap)
 	if err != nil {
 		return err
 	}
@@ -659,10 +659,10 @@ func (dc *controller) updateMachineDeploymentFinalizers(ctx context.Context, mac
 	}
 }
 
-func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (err error) {
+func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment, machineMap map[types.UID]*v1alpha1.MachineList) (*v1alpha1.MachineDeployment, error) {
 	tgd := dc.computeMachineTriggerDeletionData(mcd)
 	if tgd == nil {
-		return nil
+		return mcd, nil
 	}
 
 	if tgd.triggerDeletionAnnotationValueChanged {
@@ -674,12 +674,13 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 		if mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] == "" {
 			delete(mcdDeepCopy.Annotations, machineutils.TriggerDeletionByMCM)
 		}
-		_, err = dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
+		updatedMCD, err := dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf("failed to update MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(tgd.markedMachines), mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
-			return
+			return mcd, err
 		}
 		klog.V(3).Infof("Updated MachineDeployment %q with #%d machines still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(tgd.markedMachines), mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
+		mcd = updatedMCD
 	}
 
 	for i, machine := range tgd.markedMachines {
@@ -695,15 +696,23 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 		if machineDeepCopy.Annotations[machineutils.MarkedForDeletionTime] == "" {
 			machineDeepCopy.Annotations[machineutils.MarkedForDeletionTime] = tgd.markedMachineDeletionTimes[i]
 		}
-		_, err = dc.controlMachineClient.Machines(machine.Namespace).Update(ctx, machineDeepCopy, metav1.UpdateOptions{})
+		updatedMachine, err := dc.controlMachineClient.Machines(machine.Namespace).Update(ctx, machineDeepCopy, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf("failed to set MachinePriority=1 annotation on Machine %q of MachineDeployment %q: %v", machine.Name, mcd.Name, err)
-			return
+			return mcd, err
+		}
+		// TODO: not neat. refactor later.
+		for _, machineList := range machineMap {
+			for i, machine := range machineList.Items {
+				if machine.Name == updatedMachine.Name && machine.Namespace == updatedMachine.Namespace {
+					machineList.Items[i] = *updatedMachine
+				}
+			}
 		}
 		klog.V(3).Infof("Machine %q of MachineDeployment %q marked with MachinePriority=1 annotation successfully", machine.Name, mcd.Name)
 	}
 
-	return
+	return mcd, nil
 }
 
 // computeMachineTriggerDeletionData computes the data related to machines that are triggered for deletion based on the annotation on the MachineDeployment.

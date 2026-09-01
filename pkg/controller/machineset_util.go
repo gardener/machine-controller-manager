@@ -83,11 +83,7 @@ func GetMachineSetHash(is *v1alpha1.MachineSet, uniquifier *int32) (string, erro
 
 // syncMachinesNodeTemplates updates all machines in the given machineList with the new nodeTemplate if required.
 func (c *controller) syncMachinesNodeTemplates(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
-
-	controlClient := c.controlMachineClient
-	machineLister := c.machineLister
-
-	for _, machine := range machineList {
+	for i, machine := range machineList {
 		// Ignore inactive Machines.
 		if !machineutils.IsMachineActive(machine) {
 			continue
@@ -96,13 +92,11 @@ func (c *controller) syncMachinesNodeTemplates(ctx context.Context, machineList 
 		nodeTemplateChanged := copyMachineSetNodeTemplatesToMachines(machineSet, machine)
 		// Only sync the machine that doesn't already have the latest nodeTemplate.
 		if nodeTemplateChanged {
-			_, err := machineutils.UpdateMachineWithRetries(ctx, controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
-				func(_ *v1alpha1.Machine) error {
-					return nil
-				})
+			updatedMachine, err := c.controlMachineClient.Machines(machine.Namespace).Update(ctx, machine, metav1.UpdateOptions{})
 			if err != nil {
 				return fmt.Errorf("error in updating nodeTemplateSpec to machine %q: %v", machine.Name, err)
 			}
+			machineList[i] = updatedMachine
 			klog.V(2).Infof("Updated machine %s/%s of MachineSet %s/%s with latest nodeTemplate.", machine.Namespace, machine.Name, machineSet.Namespace, machineSet.Name)
 		}
 	}
@@ -111,21 +105,15 @@ func (c *controller) syncMachinesNodeTemplates(ctx context.Context, machineList 
 
 // syncMachinesClassKind updates all machines in the given machineList with the new classKind if required.
 func (c *controller) syncMachinesClassKind(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
-
-	controlClient := c.controlMachineClient
-	machineLister := c.machineLister
-
-	for _, machine := range machineList {
+	for i, machine := range machineList {
 		classKindChanged := copyMachineSetClassKindToMachines(machineSet, machine)
 		// Only sync the machine that doesn't already have the matching classKind.
 		if classKindChanged {
-			_, err := machineutils.UpdateMachineWithRetries(ctx, controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
-				func(_ *v1alpha1.Machine) error {
-					return nil
-				})
+			updatedMachine, err := c.controlMachineClient.Machines(machine.Namespace).Update(ctx, machine, metav1.UpdateOptions{})
 			if err != nil {
 				return fmt.Errorf("error in updating classKind to machine %q: %v", machine.Name, err)
 			}
+			machineList[i] = updatedMachine
 			klog.V(2).Infof("Updated Machine %s/%s of MachineSet %s/%s with latest classKind.", machine.Namespace, machine.Name, machineSet.Namespace, machineSet.Name)
 		}
 	}
@@ -149,11 +137,7 @@ func copyMachineSetNodeTemplatesToMachines(machineset *v1alpha1.MachineSet, mach
 
 // syncMachinesConfig updates all machines in the given machineList with the new config if required.
 func (c *controller) syncMachinesConfig(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
-
-	controlClient := c.controlMachineClient
-	machineLister := c.machineLister
-
-	for _, machine := range machineList {
+	for i, machine := range machineList {
 		// Ignore inactive Machines.
 		if !machineutils.IsMachineActive(machine) {
 			continue
@@ -162,13 +146,11 @@ func (c *controller) syncMachinesConfig(ctx context.Context, machineList []*v1al
 		configChanged := copyMachineSetConfigToMachines(machineSet, machine)
 		// Only sync the machine that doesn't already have the latest config.
 		if configChanged {
-			_, err := machineutils.UpdateMachineWithRetries(ctx, controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
-				func(_ *v1alpha1.Machine) error {
-					return nil
-				})
+			updatedMachine, err := c.controlMachineClient.Machines(machine.Namespace).Update(ctx, machine, metav1.UpdateOptions{})
 			if err != nil {
 				return fmt.Errorf("error in updating MachineConfig to machine %q: %v", machine.Name, err)
 			}
+			machineList[i] = updatedMachine
 			klog.V(2).Infof("Updated machine %s/%s of MachineSet %s/%s with latest config.", machine.Namespace, machine.Name, machineSet.Namespace, machineSet.Name)
 		}
 	}
