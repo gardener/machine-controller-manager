@@ -6,18 +6,11 @@
 package machineutils
 
 import (
-	"context"
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
-	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	errorsutil "k8s.io/apimachinery/pkg/util/errors"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/util/retry"
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -82,7 +75,7 @@ const (
 	NodeScaledDown = "ScaleDown"
 
 	// NodeTerminationCondition describes nodes that are terminating
-	NodeTerminationCondition v1.NodeConditionType = "Terminating"
+	NodeTerminationCondition corev1.NodeConditionType = "Terminating"
 
 	// TaintNodeCriticalComponentsNotReady is the name of a gardener taint
 	// indicating that a node is not yet ready to have user workload scheduled
@@ -180,34 +173,23 @@ func GetMachineDeploymentName(machine *v1alpha1.Machine) string {
 	return machine.Labels["name"]
 }
 
-// see https://github.com/kubernetes/kubernetes/issues/21479
-type updateMachineFunc func(machine *v1alpha1.Machine) error
-
-// UpdateMachineWithRetries updates a machine with given applyUpdate function. Note that machine not found error is ignored.
-func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.MachineInterface, machineLister v1alpha1listers.MachineLister, namespace, name string, applyUpdate updateMachineFunc) (*v1alpha1.Machine, error) {
-	var machine *v1alpha1.Machine
-
-	retryErr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		var err error
-		machine, err = machineLister.Machines(namespace).Get(name)
-		if err != nil {
-			return err
+// We treat invalid annotation as no annotation present.
+func GetPreserveAnnotationValue(node *corev1.Node, machine *v1alpha1.Machine) (string, bool) {
+	if node != nil {
+		if val, ok :=
+			node.Annotations[PreserveMachineAnnotationKey]; ok &&
+			AllowedPreserveAnnotationValues.Has(val) {
+			return val, true
 		}
-		machine = machine.DeepCopy()
-		// Apply the update, then attempt to push it to the apiserver.
-		if applyErr := applyUpdate(machine); applyErr != nil {
-			return applyErr
+		if _, ok :=
+			machine.Annotations[LastAppliedNodePreserveValueAnnotationKey]; ok {
+			return "", true
 		}
-		machine, err = machineClient.Update(ctx, machine, metav1.UpdateOptions{})
-		return err
-	})
-
-	// Ignore the precondition violated error, this machine is already updated
-	// with the desired label.
-	if retryErr == errorsutil.ErrPreconditionViolated {
-		klog.V(4).Infof("Machine %s precondition doesn't hold, skip updating it.", name)
-		retryErr = nil
 	}
-
-	return machine, retryErr
+	if val, ok :=
+		machine.Annotations[PreserveMachineAnnotationKey]; ok &&
+		AllowedPreserveAnnotationValues.Has(val) {
+		return val, true
+	}
+	return "", false
 }
