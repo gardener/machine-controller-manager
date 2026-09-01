@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -2385,7 +2386,10 @@ var _ = Describe("machineDeployment", func() {
 
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				err := c.updateMachineAndMachineDeploymentDeletionAnnotations(context.TODO(), testMachineDeployment)
+				err := func() error {
+					_, err := c.updateMachineAndMachineDeploymentDeletionAnnotations(context.TODO(), testMachineDeployment, map[types.UID]*machinev1.MachineList{})
+					return err
+				}()
 				Expect(err).To(BeNil())
 
 				waitForCacheSync(stop, c)
