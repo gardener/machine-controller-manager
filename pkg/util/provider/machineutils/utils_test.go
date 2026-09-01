@@ -14,11 +14,11 @@ import (
 
 func TestGetPreserveAnnotationValue(t *testing.T) {
 	tests := []struct {
-		name            string
-		node            *corev1.Node
-		machine         *v1alpha1.Machine
-		expectedValue   string
-		expectedExists  bool
+		name           string
+		node           *corev1.Node
+		machine        *v1alpha1.Machine
+		expectedValue  string
+		expectedExists bool
 	}{
 		{
 			name: "node nil, machine has valid preserve annotation",
