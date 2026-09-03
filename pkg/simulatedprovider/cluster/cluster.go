@@ -8,17 +8,18 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	_ "embed"
 
+	crd "github.com/gardener/machine-controller-manager/kubernetes"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	controller "github.com/gardener/machine-controller-manager/pkg/util/provider/machinecontroller"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	e2efwkenv "sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
@@ -65,15 +66,16 @@ func (env *Env) SetupCluster() (err error) {
 		return
 	}
 
+	scheme := env.Cfg.Client().Resources().GetScheme()
+	if err = apiextensionsv1.AddToScheme(scheme); err != nil {
+		return
+	}
+
 	if err = env.deployCRDs(); err != nil {
 		return
 	}
-	// This delay is added to give time to the CRDs to register
-	// before any MCM watches are started or objects are deployed.
-	time.Sleep(200 * time.Millisecond)
 
 	// Register MCM API objects with the cluster scheme
-	scheme := env.Cfg.Client().Resources().GetScheme()
 	if err = v1alpha1.AddToScheme(scheme); err != nil {
 		return
 	}
@@ -104,14 +106,14 @@ func (env *Env) createCluster() (err error) {
 	// Using the direct path doesn't work since it looks for the file
 	// relative to the caller, so the config file is embedded and a
 	// temporary file path is passed in order to create the cluster.
-	configPath := filepath.Join(os.TempDir(), "kwok-config.yaml")
-	if err = os.WriteFile(configPath, kwokctlConfig, 0600); err != nil {
+	configFile, err := os.CreateTemp("", "kwokctl-config-*")
+	if err = os.WriteFile(configFile.Name(), kwokctlConfig, 0600); err != nil {
 		return
 	}
-	defer os.Remove(configPath)
+	defer os.Remove(configFile.Name())
 
 	createClusterFunc := envfuncs.CreateClusterWithConfig(
-		kwok.NewProvider(), env.Name, configPath,
+		kwok.NewProvider(), env.Name, configFile.Name(),
 	)
 	env.Ctx, err = createClusterFunc(env.Ctx, env.Cfg)
 	if err != nil {
@@ -126,20 +128,26 @@ func (env *Env) createCluster() (err error) {
 }
 
 func (env *Env) deployCRDs() (err error) {
-	// TODO: think if there's a better caller-agnostic way to get this path
-	_, f, _, ok := runtime.Caller(0)
-	if !ok {
-		err = fmt.Errorf("could not find the path to crds")
-		return
-	}
-	mcmRepoPath := filepath.Join(filepath.Dir(f), "..", "..", "..")
-	crdsDir := filepath.Join(mcmRepoPath, "kubernetes", "crds")
-	if _, err = os.Stat(crdsDir); err != nil {
-		return fmt.Errorf("crdsDir %q not found: %v", crdsDir, err)
+	for _, crd := range crd.CRDs {
+		err = env.Cfg.Client().Resources().Create(env.Ctx, crd)
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create CRD %q: %w", crd.Name, err)
+		}
+
+		// This checks if the CRDs are registered before any MCM watches are
+		// started or objects are deployed.
+		err = wait.PollUntilContextTimeout(env.Ctx, 100*time.Millisecond, 1*time.Second, false,
+			func(ctx context.Context) (bool, error) {
+				crdObj := &apiextensionsv1.CustomResourceDefinition{}
+				err := env.Cfg.Client().Resources().Get(ctx, crd.Name, "", crdObj)
+				if err != nil {
+					return false, err
+				}
+				return true, nil
+			},
+		)
 	}
 
-	installCRDs := envfuncs.SetupCRDs(crdsDir, "*")
-	_, err = installCRDs(env.Ctx, env.Cfg)
 	return
 }
 

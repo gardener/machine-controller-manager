@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package driver
+package provider
 
 import (
 	"context"
@@ -108,19 +108,10 @@ func (d *DriverImpl) CreateMachine(ctx context.Context, req *driver.CreateMachin
 		})
 	}
 
-	node, err = d.client.CoreV1().Nodes().Get(ctx, req.Machine.Name, metav1.GetOptions{})
+	err = d.transitionNodeToReady(ctx, req.Machine.Name)
 	if err != nil {
-		err = fmt.Errorf("cannot get node with name %q: %w", req.Machine.Name, err)
 		return
 	}
-
-	// If the node cannot be transitioned to 'Ready' state, return an 'Internal' error.
-	_, readyErr := d.transitionNodeToReady(ctx, node)
-	if readyErr != nil {
-		err = fmt.Errorf("failed to make node %q Ready: %v", node.Name, readyErr)
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	klog.Infof("Node %q is ready", node.Name)
 
 	resp = &driver.CreateMachineResponse{
 		ProviderID:     node.Spec.ProviderID,

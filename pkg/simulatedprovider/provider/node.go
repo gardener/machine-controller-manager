@@ -2,20 +2,25 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package driver
+package provider
 
 import (
 	"context"
 	"fmt"
 	"maps"
-	"slices"
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
+	controller "github.com/gardener/machine-controller-manager/pkg/util/provider/machinecontroller"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
 
@@ -43,29 +48,46 @@ func (d *DriverImpl) initializeMCMManagedNodes(ctx context.Context) error {
 func (d *DriverImpl) buildNode(mc *v1alpha1.Machine, mcc *v1alpha1.MachineClass) *corev1.Node {
 	var node corev1.Node
 	node.Name = mc.Name
+	node.Finalizers = []string{controller.NodeFinalizerName}
 	node.Labels = addNodeLabels(mc, mcc)
 	node.Status = buildNodeStatus(mcc)
 	node.Spec.ProviderID = fmt.Sprintf("fake://%s:%s", mcc.NodeTemplate.Region, mc.Name)
 	return &node
 }
 
-func (d *DriverImpl) transitionNodeToReady(ctx context.Context, node *corev1.Node) (updatedNode *corev1.Node, err error) {
-	node.Spec.Taints = slices.DeleteFunc(node.Spec.Taints, func(taint corev1.Taint) bool {
-		return taint.Key == corev1.TaintNodeNotReady
+func (d *DriverImpl) transitionNodeToReady(ctx context.Context, name string) (err error) {
+	backoff := wait.Backoff{
+		Duration: 500 * time.Millisecond,
+		Factor:   1.5,
+		Jitter:   0.1,
+		Steps:    10,
+		Cap:      10 * time.Second,
+	}
+
+	var node *corev1.Node
+	err = retry.OnError(backoff, func(error) bool { return true }, func() error {
+		node, err = d.client.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("cannot get node with name %q: %w", name, err)
+
+		}
+		for i, cond := range node.Status.Conditions {
+			if cond.Type == corev1.NodeReady {
+				node.Status.Conditions[i].Status = corev1.ConditionTrue
+			}
+		}
+		node.Status.Phase = corev1.NodeRunning
+
+		_, err = d.client.CoreV1().Nodes().UpdateStatus(ctx, node, metav1.UpdateOptions{})
+		return err
 	})
 
-	updatedNode, err = d.client.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 	if err != nil {
-		err = fmt.Errorf("cannot update node with name %q: %w", node.Name, err)
-		return
+		// If the node cannot be transitioned to 'Ready' state, return an 'Internal' error.
+		return status.Error(codes.Internal, err.Error())
 	}
-	updatedNode.Status.Conditions = buildNodeReadyConditions(corev1.ConditionTrue)
-	updatedNode.Status.Phase = corev1.NodeRunning
 
-	updatedNode, err = d.client.CoreV1().Nodes().UpdateStatus(ctx, updatedNode, metav1.UpdateOptions{})
-	if err != nil {
-		err = fmt.Errorf("cannot update the status of node with name %q: %w", node.Name, err)
-	}
+	klog.Infof("Node %q is ready", node.Name)
 	return
 }
 
