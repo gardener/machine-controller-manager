@@ -22,14 +22,19 @@ func mustUnmarshal(raw []byte) *apiextensionsv1.CustomResourceDefinition {
 
 var (
 	//go:embed crds/machine.sapcloud.io_machineclasses.yaml
+	// MachineClassCRD represents the raw bytes for MachineClass resource.
 	MachineClassCRD []byte
 	//go:embed crds/machine.sapcloud.io_machinedeployments.yaml
+	// MachineDeploymentCRD represents the raw bytes for MachineDeployment resource.
 	MachineDeploymentCRD []byte
 	//go:embed crds/machine.sapcloud.io_machinesets.yaml
+	// MachineSetCRD represents the raw bytes for MachineSet resource.
 	MachineSetCRD []byte
 	//go:embed crds/machine.sapcloud.io_machines.yaml
+	// MachineCRD represents the raw bytes for Machine resource.
 	MachineCRD []byte
 
+	// CRDs is a list of all machine-controller-manager CRDs.
 	CRDs = []*apiextensionsv1.CustomResourceDefinition{
 		mustUnmarshal(MachineClassCRD),
 		mustUnmarshal(MachineDeploymentCRD),
