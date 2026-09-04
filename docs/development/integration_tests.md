@@ -25,6 +25,8 @@ Integration tests for `machine-controller-manager-provider-{provider-name}` can 
 
 ### With the Simulated Provider
 
+Before running the simulated provider, please ensure that there's no old `kwokctl` versions present on your system since the cluster creation installs the required version. But that only happens if there's no existing installation present.
+
 To run the integration tests against the simulated provider, rather than running the `test-integration` target from the provider repository, just run it on the project root.
 That is, `machine-controller-manager/Makefile` provides the same helper target that runs IT with the simulated provider.
 ```

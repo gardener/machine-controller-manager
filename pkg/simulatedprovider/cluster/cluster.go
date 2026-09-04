@@ -27,6 +27,8 @@ import (
 	"sigs.k8s.io/e2e-framework/support/kwok"
 )
 
+const kwokVersion = "v0.8.0"
+
 //go:embed kwok-config.yaml
 var kwokctlConfig []byte
 
@@ -112,13 +114,24 @@ func (env *Env) createCluster() (err error) {
 	}
 	defer os.Remove(configFile.Name())
 
-	createClusterFunc := envfuncs.CreateClusterWithConfig(
-		kwok.NewProvider(), env.Name, configFile.Name(),
-	)
-	env.Ctx, err = createClusterFunc(env.Ctx, env.Cfg)
+	// Cluster creation is done manually rather than using `CreateClusterWithConfig` helper
+	// from e2e-fwk since we wish to override the specified kwokVersion with our own.
+	kwokProvider := kwok.NewProvider()
+	k := kwokProvider.SetDefaults().WithName(env.Name).WithVersion(kwokVersion)
+	kubecfg, err := k.CreateWithConfig(env.Ctx, configFile.Name())
 	if err != nil {
 		return
 	}
+	// update envconfig  with kubeconfig
+	env.Cfg.WithKubeconfigFile(kubecfg)
+	// stall, wait for pods initializations
+	err = k.WaitForControlPlane(env.Ctx, env.Cfg.Client())
+	if err != nil {
+		return
+	}
+	// store entire cluster value in ctx for future access using the cluster name
+	env.Ctx = context.WithValue(env.Ctx, support.ClusterNameContextKey(env.Name), k)
+
 	createNamespaceFunc := envfuncs.CreateNamespace(env.Namespace)
 	env.Ctx, err = createNamespaceFunc(env.Ctx, env.Cfg)
 	if err != nil && !apierrors.IsAlreadyExists(err) {
