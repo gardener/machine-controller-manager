@@ -970,8 +970,10 @@ func LabelMachinesWithHash(ctx context.Context, machineList *v1alpha1.MachineLis
 		}
 		// Only label the machine that doesn't already have the new hash
 		if machine.Labels[v1alpha1.DefaultMachineDeploymentUniqueLabelKey] != hash {
-			machine.Labels = labelsutil.AddLabel(machine.Labels, v1alpha1.DefaultMachineDeploymentUniqueLabelKey, hash)
-			updatedMachine, err := c.Machines(machine.Namespace).Update(ctx, &machine, metav1.UpdateOptions{})
+			updatedMachine, err := machineutils.PatchMachine(ctx, c.Machines(machine.Namespace), &machine, func(m *v1alpha1.Machine) error {
+				m.Labels = labelsutil.AddLabel(m.Labels, v1alpha1.DefaultMachineDeploymentUniqueLabelKey, hash)
+				return nil
+			}, true)
 			if err != nil {
 				return fmt.Errorf("error in adding template hash label %s to machine %q: %v", hash, machine.Name, err)
 			}

@@ -688,15 +688,17 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 			klog.V(4).Infof("Machine %q of MachineDeployment %q already has MachinePriority=1 and MarkedForDeletionTime=%q annotation", machine.Name, mcd.Name, machine.Annotations[machineutils.MarkedForDeletionTime])
 			continue
 		}
-		machineDeepCopy := machine.DeepCopy()
-		if machineDeepCopy.Annotations == nil {
-			machineDeepCopy.Annotations = make(map[string]string)
-		}
-		machineDeepCopy.Annotations[machineutils.MachinePriority] = "1"
-		if machineDeepCopy.Annotations[machineutils.MarkedForDeletionTime] == "" {
-			machineDeepCopy.Annotations[machineutils.MarkedForDeletionTime] = tgd.markedMachineDeletionTimes[i]
-		}
-		updatedMachine, err := dc.controlMachineClient.Machines(machine.Namespace).Update(ctx, machineDeepCopy, metav1.UpdateOptions{})
+		deletionTime := tgd.markedMachineDeletionTimes[i]
+		updatedMachine, err := machineutils.PatchMachine(ctx, dc.controlMachineClient.Machines(machine.Namespace), machine, func(m *v1alpha1.Machine) error {
+			if m.Annotations == nil {
+				m.Annotations = make(map[string]string)
+			}
+			m.Annotations[machineutils.MachinePriority] = "1"
+			if m.Annotations[machineutils.MarkedForDeletionTime] == "" {
+				m.Annotations[machineutils.MarkedForDeletionTime] = deletionTime
+			}
+			return nil
+		}, true)
 		if err != nil {
 			klog.Errorf("failed to set MachinePriority=1 annotation on Machine %q of MachineDeployment %q: %v", machine.Name, mcd.Name, err)
 			return mcd, err
