@@ -4125,7 +4125,7 @@ var _ = Describe("machine", func() {
 				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				retry, err := c.manageMachinePreservation(context.TODO(), machine)
+				_, retry, err := c.manageMachinePreservation(context.TODO(), machine)
 
 				Expect(retry).To(Equal(tc.expect.retry))
 				if tc.expect.err != nil {
@@ -4518,7 +4518,7 @@ var _ = Describe("machine", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
-				retry, err := c.manageMachinePreservation(context.TODO(), machine)
+				_, retry, err := c.manageMachinePreservation(context.TODO(), machine)
 
 				Expect(err).ToNot(HaveOccurred())
 				Expect(retry).To(Equal(machineutils.LongRetry))
@@ -4574,7 +4574,7 @@ var _ = Describe("machine", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
-				err := c.updatePreserveAnnotationOnMachine(context.TODO(), tc.nodeValue, machine)
+				_, err := c.updatePreserveAnnotationOnMachine(context.TODO(), tc.nodeValue, machine)
 				if tc.expect.err != nil {
 					Expect(err).To(HaveOccurred())
 				} else {
