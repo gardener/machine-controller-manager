@@ -6,11 +6,17 @@
 package machineutils
 
 import (
+	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
 const (
@@ -173,9 +179,48 @@ func GetMachineDeploymentName(machine *v1alpha1.Machine) string {
 	return machine.Labels["name"]
 }
 
-// GetPreserveAnnotationValue returns the preserve annotation value for the given node and machine.
+// PatchMachine patches a machine using a strategic merge patch derived from mutateFn applied to the given machine object.
+// If optimisticLock is true, the patch includes the current resourceVersion to detect concurrent updates.
+func PatchMachine(ctx context.Context, machineClient v1alpha1client.MachineInterface, machine *v1alpha1.Machine, mutateFn func(*v1alpha1.Machine) error, optimisticLock bool, subresources ...string) (*v1alpha1.Machine, error) {
+	base, err := json.Marshal(machine)
+	if err != nil {
+		return nil, err
+	}
+	modified := machine.DeepCopy()
+	if err := mutateFn(modified); err != nil {
+		return nil, err
+	}
+	modifiedJSON, err := json.Marshal(modified)
+	if err != nil {
+		return nil, err
+	}
+	patch, err := strategicpatch.CreateTwoWayMergePatch(base, modifiedJSON, v1alpha1.Machine{})
+	if err != nil {
+		return nil, err
+	}
+	if optimisticLock {
+		var patchMap map[string]any
+		if err := json.Unmarshal(patch, &patchMap); err != nil {
+			return nil, err
+		}
+		meta, ok := patchMap["metadata"].(map[string]any)
+		if !ok {
+			meta = map[string]any{}
+		}
+		meta["resourceVersion"] = machine.ResourceVersion
+		patchMap["metadata"] = meta
+		patch, err = json.Marshal(patchMap)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return machineClient.Patch(ctx, machine.Name, types.MergePatchType, patch, metav1.PatchOptions{}, subresources...)
+}
+
+// GetPreserveAnnotationValue returns the preserve annotation value for the given node and machine
+// and a boolean informing whether we need to do any work or skip.
 // Invalid annotation values are treated as absent.
-func GetPreserveAnnotationValue(node *corev1.Node, machine *v1alpha1.Machine) (string, bool) {
+func GetPreserveAnnotationValue(node *corev1.Node, machine *v1alpha1.Machine) (annotationValue string, shouldHandlePreservation bool) {
 	if node != nil {
 		if val, ok :=
 			node.Annotations[PreserveMachineAnnotationKey]; ok &&
@@ -191,6 +236,9 @@ func GetPreserveAnnotationValue(node *corev1.Node, machine *v1alpha1.Machine) (s
 		machine.Annotations[PreserveMachineAnnotationKey]; ok &&
 		AllowedPreserveAnnotationValues.Has(val) {
 		return val, true
+	}
+	if machine.Status.CurrentStatus.PreserveExpiryTime != nil {
+		return "", true
 	}
 	return "", false
 }
