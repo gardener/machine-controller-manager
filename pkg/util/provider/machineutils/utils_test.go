@@ -202,12 +202,12 @@ func TestGetPreserveAnnotationValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			val, exists := GetPreserveAnnotationValue(tt.node, tt.machine)
+			val, shouldHandlePreservation := GetPreserveAnnotationValue(tt.node, tt.machine)
 			if val != tt.expectedValue {
 				t.Errorf("expected value %q, got %q", tt.expectedValue, val)
 			}
-			if exists != tt.expectedExists {
-				t.Errorf("expected exists %v, got %v", tt.expectedExists, exists)
+			if shouldHandlePreservation != tt.expectedExists {
+				t.Errorf("expected exists %v, got %v", tt.expectedExists, shouldHandlePreservation)
 			}
 		})
 	}
