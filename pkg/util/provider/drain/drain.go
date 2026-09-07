@@ -473,18 +473,6 @@ func (o *Options) getTerminationGracePeriod(pod *corev1.Pod) time.Duration {
 	return time.Duration(*pod.Spec.TerminationGracePeriodSeconds) * time.Second
 }
 
-func (o *Options) getGlobalTimeoutForPodsWithoutPV(pods []*corev1.Pod) time.Duration {
-	var tgpsMax time.Duration
-	for _, pod := range pods {
-		tgps := o.getTerminationGracePeriod(pod)
-		if tgps > tgpsMax {
-			tgpsMax = tgps
-		}
-	}
-
-	return tgpsMax + PodsWithoutPVDrainGracePeriod
-}
-
 func (o *Options) evictPods(ctx context.Context, attemptEvict bool, pods []corev1.Pod, policyGroupVersion string, getPodFn func(namespace, name string) (*corev1.Pod, error)) error {
 	returnCh := make(chan error, len(pods))
 	defer close(returnCh)
