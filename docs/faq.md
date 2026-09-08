@@ -365,11 +365,9 @@ and replaced:
   `MachineSet` controller. The operator is expected to inspect and recover it (or explicitly stop preservation) before the
   effective `machinePreserveTimeout` elapses.
 
-- **The backing VM is not deleted as an orphan.** The safety controller skips orphan-VM collection for machines that are
-  actually preserved (i.e. those carrying a `PreserveExpiryTime` on their status), so it will not delete the backing VM of a
-  machine that was preserved during creation, even before the machine's `providerID` has been persisted onto its spec.
+- The backing VM of a preserved machine (PreserveExpiryTime set) is not treated as an orphaned resource and is therefore not deleted while preservation is in effect. As a result, even if a machine transitions to Failed before its providerID has been persisted to the machine spec, its backing VM will not be deleted as long as the machine is preserved.
 
-> Note: The bootstrap token for a machine is valid only for the `MachineCreationTimeout`. If a node fails to register within that window and the machine is preserved, its bootstrap token will already have expired, so the node will not join the cluster on its own. This is expected behaviour and the preserved machine and its backing VM are retained for inspection and recovery rather than for the node to join later.
+> Note: The bootstrap token for a machine is valid only for the `MachineCreationTimeout`. If a node fails to register within that window and the machine is preserved, its bootstrap token will already have expired. Because the token cannot be renewed automatically, the node **cannot** join the cluster on its own and the machine **cannot** recover to `Running` by itself. The preserved machine and its backing VM are retained solely for operator inspection, not for the node to eventually join.
 
 ### My rolling update is stuck, why?
 
