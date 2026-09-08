@@ -678,7 +678,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    "Creating machine on cloud provider",
+								Description:    "VM created on cloud provider. Waiting for node registration",
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationCreate,
 								LastUpdateTime: metav1.Now(),
@@ -723,7 +723,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							LastOperation: v1alpha1.LastOperation{
-								Description:    "Creating machine on cloud provider",
+								Description:    "VM created on cloud provider. Waiting for node registration",
 								State:          v1alpha1.MachineStateProcessing,
 								Type:           v1alpha1.MachineOperationCreate,
 								LastUpdateTime: metav1.Now(),

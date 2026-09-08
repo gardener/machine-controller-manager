@@ -21,6 +21,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -100,7 +101,48 @@ func (c *controller) deleteMachine(obj any) {
 			return
 		}
 	}
-	c.enqueueMachineTermination(machine, "handling terminating machine object DELETE event")
+	klog.Infof("Machine %q deletion successful, machine object removed from cluster", machine.Name)
+
+	if c.targetCoreClient == nil || c.nodeLister == nil {
+		return
+	}
+
+	// Remove the MCM finalizer from and delete the backing node.
+	// The orphan-VM safety net eventually removes the finalizer from nodes if this still fails.
+	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
+	if nodeName == "" {
+		return
+	}
+
+	if _, err := c.nodeLister.Get(nodeName); apierrors.IsNotFound(err) {
+		return
+	}
+
+	go func() {
+		retryErr := retry.OnError(retry.DefaultBackoff, func(error) bool { return true }, func() error {
+			node, err := c.nodeLister.Get(nodeName)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					return nil
+				}
+				return err
+			}
+			if err := c.removeNodeFinalizers(context.Background(), node); err != nil {
+				return err
+			}
+			err = c.targetCoreClient.CoreV1().Nodes().Delete(context.Background(), nodeName, metav1.DeleteOptions{})
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			if err == nil {
+				klog.Infof("Successfully triggered deletion of backing node %q for deleted machine %q", nodeName, machine.Name)
+			}
+			return err
+		})
+		if retryErr != nil {
+			klog.Errorf("failed to delete backing node %q of deleted machine %q after multiple retries: %v", nodeName, machine.Name, retryErr)
+		}
+	}()
 }
 
 // getKeyForObj returns key for object, else returns false
@@ -310,12 +352,6 @@ func (c *controller) reconcileClusterMachineTermination(key string) error {
 
 	if err != nil {
 		c.enqueueMachineTerminationAfter(machine, time.Duration(retryPeriod), err.Error())
-	} else {
-		// If the informer loses connection to the API server it may need to resync.
-		// If a resource is deleted while the watch is down, the informer won’t get
-		// delete event because the object is already gone. To avoid this edge-case,
-		// a requeue is scheduled post machine deletion as well.
-		c.enqueueMachineTerminationAfter(machine, time.Duration(retryPeriod), "post-deletion reconcile")
 	}
 	return nil
 }
@@ -531,7 +567,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 	if machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
 		clone := clone.DeepCopy()
 		clone.Status.LastOperation = v1alpha1.LastOperation{
-			Description:    "Creating machine on cloud provider",
+			Description:    "VM created on cloud provider. Waiting for node registration",
 			State:          v1alpha1.MachineStateProcessing,
 			Type:           v1alpha1.MachineOperationCreate,
 			LastUpdateTime: metav1.Now(),
