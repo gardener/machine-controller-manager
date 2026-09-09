@@ -90,7 +90,7 @@ func (c *controller) syncMachinesNodeTemplates(ctx context.Context, machineList 
 		}
 
 		// Only sync the machine that doesn't already have the latest nodeTemplate.
-		if nodeTemplateChanged(machineSet, machine) {
+		if nodeTemplateOutOfSync(machineSet, machine) {
 			updatedMachine, err := machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(machine.Namespace), machine, func(m *v1alpha1.Machine) error {
 				m.Spec.NodeTemplateSpec = machineSet.Spec.Template.Spec.NodeTemplateSpec
 				return nil
@@ -109,7 +109,7 @@ func (c *controller) syncMachinesNodeTemplates(ctx context.Context, machineList 
 func (c *controller) syncMachinesClassKind(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
 	for i, machine := range machineList {
 		// Only sync the machine that doesn't already have the matching classKind.
-		if classKindChanged(machineSet, machine) {
+		if classKindOutOfSync(machineSet, machine) {
 			updatedMachine, err := machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(machine.Namespace), machine, func(m *v1alpha1.Machine) error {
 				m.Spec.Class.Kind = machineSet.Spec.Template.Spec.Class.Kind
 				return nil
@@ -124,8 +124,8 @@ func (c *controller) syncMachinesClassKind(ctx context.Context, machineList []*v
 	return nil
 }
 
-// nodeTemplateChanged returns true if machine's nodeTemplate is changed.
-func nodeTemplateChanged(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
+// nodeTemplateOutOfSync returns true if machine's nodeTemplate is changed.
+func nodeTemplateOutOfSync(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
 	machineSetNodeTemplate := machineset.Spec.Template.Spec.NodeTemplateSpec
 	machineNodeTemplate := machine.Spec.NodeTemplateSpec
 
@@ -141,7 +141,7 @@ func (c *controller) syncMachinesConfig(ctx context.Context, machineList []*v1al
 		}
 
 		// Only sync the machine that doesn't already have the latest config.
-		if configChanged(machineSet, machine) {
+		if configOutOfSync(machineSet, machine) {
 			updatedMachine, err := machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(machine.Namespace), machine, func(m *v1alpha1.Machine) error {
 				m.Spec.MachineConfiguration = machineSet.Spec.Template.Spec.MachineConfiguration
 				return nil
@@ -156,16 +156,16 @@ func (c *controller) syncMachinesConfig(ctx context.Context, machineList []*v1al
 	return nil
 }
 
-// configChanged returns true if machine's config is changed.
-func configChanged(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
+// configOutOfSync returns true if machine's config is changed.
+func configOutOfSync(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
 	machineSetConfig := machineset.Spec.Template.Spec.MachineConfiguration
 	machineConfig := machine.Spec.MachineConfiguration
 
 	return !(apiequality.Semantic.DeepEqual(machineSetConfig, machineConfig))
 }
 
-// classKindChanged returns true if machine's class.Kind is changed.
-func classKindChanged(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
+// classKindOutOfSync returns true if machine's class.Kind is changed.
+func classKindOutOfSync(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
 	return machineset.Spec.Template.Spec.Class.Kind != machine.Spec.Class.Kind
 }
 
