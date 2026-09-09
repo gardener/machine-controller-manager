@@ -940,25 +940,15 @@ var _ = Describe("drain", func() {
 		})
 
 		Context("PodProvider", func() {
-			It("uses PodProvider instead of podLister when set", func() {
+			It("should returns only pods on the target node from PodProvider", func() {
 				pod := getPodWithoutPV(testNamespace, "pod-0", nodeName, terminationGracePeriodDefault, nil)
-				drain.podProvider = &fakePodProvider{pods: []corev1.Pod{*pod}}
+				podOtherNode := getPodWithoutPV(testNamespace, "other-node", "different-node", terminationGracePeriodDefault, nil)
+				drain.podProvider = &fakePodProvider{pods: []corev1.Pod{*pod, *podOtherNode}}
 
 				pods, err := drain.getPodsForDeletion(ctx)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(pods).To(HaveLen(1))
 				Expect(pods[0].Name).To(Equal("pod-0"))
-			})
-
-			It("returns only pods on the target node from PodProvider", func() {
-				podOnNode := getPodWithoutPV(testNamespace, "on-node", nodeName, terminationGracePeriodDefault, nil)
-				podOtherNode := getPodWithoutPV(testNamespace, "other-node", "different-node", terminationGracePeriodDefault, nil)
-				drain.podProvider = &fakePodProvider{pods: []corev1.Pod{*podOnNode, *podOtherNode}}
-
-				pods, err := drain.getPodsForDeletion(ctx)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(pods).To(HaveLen(1))
-				Expect(pods[0].Name).To(Equal("on-node"))
 			})
 
 			It("returns error when PodProvider fails", func() {
@@ -1627,9 +1617,16 @@ type fakePodProvider struct {
 	err  error
 }
 
-func (f *fakePodProvider) PodsForNode(_ context.Context, _ string) ([]corev1.Pod, error) {
+func (f *fakePodProvider) PodsForNode(_ context.Context, nodeName string) ([]corev1.Pod, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
-	return f.pods, nil
+
+	pods := make([]corev1.Pod, 0)
+	for _, pod := range f.pods {
+		if pod.Spec.NodeName == nodeName {
+			pods = append(pods, pod)
+		}
+	}
+	return pods, nil
 }

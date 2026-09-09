@@ -412,9 +412,6 @@ func (o *Options) getPodsForDeletion(ctx context.Context) (pods []corev1.Pod, er
 	fs := podStatuses{}
 
 	for _, pod := range podList {
-		if pod.Spec.NodeName != o.nodeName {
-			continue
-		}
 		podOk := true
 		for _, filt := range []podFilter{mirrorPodFilter, o.localStorageFilter, o.unreplicatedFilter, o.daemonsetFilter} {
 			filterOk, w, f := filt(pod)
