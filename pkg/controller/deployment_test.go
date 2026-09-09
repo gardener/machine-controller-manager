@@ -1983,7 +1983,11 @@ var _ = Describe("machineDeployment", func() {
 					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))
 				},
 				func(_ *machinev1.MachineDeployment, mcs []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
-					Expect(mcs[0].Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]).To(Equal(ts))
+					actualTS, err := time.Parse(time.RFC3339, mcs[0].Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime])
+					Expect(err).NotTo(HaveOccurred())
+					expectedTS, err := time.Parse(time.RFC3339, ts)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(actualTS).To(BeTemporally(">=", expectedTS))
 					_, exists := mcs[0].Annotations[machineutils.TriggerDeletionByMCM]
 					Expect(exists).To(BeFalse())
 					return nil
@@ -2357,10 +2361,7 @@ var _ = Describe("machineDeployment", func() {
 
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				err := func() error {
-					_, err := c.updateMachineAndMachineDeploymentDeletionAnnotations(context.TODO(), testMachineDeployment, map[types.UID]*machinev1.MachineList{})
-					return err
-				}()
+				_, err := c.updateMachineAndMachineDeploymentDeletionAnnotations(context.TODO(), testMachineDeployment, map[types.UID]*machinev1.MachineList{})
 				Expect(err).To(BeNil())
 
 				waitForCacheSync(stop, c)

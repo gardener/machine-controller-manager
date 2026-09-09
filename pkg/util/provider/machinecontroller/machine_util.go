@@ -2147,7 +2147,6 @@ func (c *controller) UpdateNodeTerminationCondition(ctx context.Context, machine
 func (c *controller) updateMachineToFailedState(ctx context.Context, description string, machine, clone *v1alpha1.Machine) (bool, error) {
 	// Log the error message for machine failure
 	klog.Error(description)
-	node, _ := c.nodeLister.Get(machine.Annotations[v1alpha1.NodeLabelKey])
 
 	clone.Status.LastOperation = v1alpha1.LastOperation{
 		Description:    description,
@@ -2161,6 +2160,12 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 		LastUpdateTime:     metav1.Now(),
 		PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 	}
+
+	node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+	if err != nil {
+		klog.Infof("Error fetching the node %q: %v", machine.Labels[v1alpha1.NodeLabelKey], err)
+	}
+
 	// check if preservation is needed for the failed machine
 	if val, shouldHandlePreservation := machineutils.GetPreserveAnnotationValue(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
 		// we set the PreserveExpiryTime if not already set.
@@ -2169,7 +2174,7 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 		}
 	}
 
-	_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
+	_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 	updated := false
 	if err != nil {
 		// Keep retrying until update goes through

@@ -422,12 +422,12 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 						}
 
 						_, err := c.driver.DeleteMachine(ctx, deleteMachineRequest)
-
 						if err != nil {
 							klog.V(2).Infof("VM deletion in context of stale node obj failed for machine %q, will be retried. err=%q", machine.Name, err.Error())
 						} else {
 							klog.V(2).Infof("VM successfully deleted in context of stale node obj for machine %q", machine.Name)
 						}
+
 						machineCurrentStatus := v1alpha1.CurrentStatus{
 							Phase:          v1alpha1.MachineFailed,
 							LastUpdateTime: metav1.Now(),
@@ -780,7 +780,11 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		}
 	}()
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
-	node, _ := c.nodeLister.Get(nodeName)
+	node, err := c.nodeLister.Get(nodeName)
+	if err != nil {
+		klog.V(3).Infof("Error fetching node %q . Will check the machine %q for annotation:%q", nodeName, machine.Name, machineutils.PreserveMachineAnnotationKey)
+	}
+
 	preserveAnnotationValue, shouldHandlePreservation := machineutils.GetPreserveAnnotationValue(node, machine)
 	if !shouldHandlePreservation {
 		return
@@ -788,7 +792,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 
 	clone := machine.DeepCopy()
 	switch preserveAnnotationValue {
-	// effectivePreserveValue == "" implies the preservation annotation was deleted to indicate that
+	// preserveAnnotationValue == "" implies the preservation annotation was deleted to indicate that
 	// preservation must be stopped
 	case "", machineutils.PreserveMachineAnnotationValueFalse:
 		clone, err = c.stopPreservationIfActive(ctx, clone, false)
@@ -840,6 +844,9 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 
 	if node != nil {
 		updatedMachine, err = c.updatePreserveAnnotationOnMachine(ctx, node.Annotations[machineutils.PreserveMachineAnnotationKey], clone)
+		if err != nil {
+			updatedMachine = clone
+		}
 	} else {
 		updatedMachine = clone
 	}
@@ -855,19 +862,19 @@ func (c *controller) updatePreserveAnnotationOnMachine(ctx context.Context, node
 		}
 		klog.V(3).Infof(
 			"Since node %q 's annotation:%q was removed, removing machine %q 's annotation:%q",
-			machine.Annotations[v1alpha1.NodeLabelKey],
+			machine.Labels[v1alpha1.NodeLabelKey],
 			machineutils.PreserveMachineAnnotationKey,
 			machine.Name,
 			machineutils.LastAppliedNodePreserveValueAnnotationKey,
 		)
 	} else {
 		klog.V(3).Infof(
-			"Syncing machine %q 's annotation:%q=%q to its node %q 's annotation:%q=%q",
+			"Syncing node %q 's annotation:%q=%q to its machine %q 's annotation:%q=%q",
+			machine.Labels[v1alpha1.NodeLabelKey],
+			machineutils.PreserveMachineAnnotationKey,
+			nodeValue,
 			machine.Name,
 			machineutils.LastAppliedNodePreserveValueAnnotationKey,
-			machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey],
-			machine.Annotations[v1alpha1.NodeLabelKey],
-			machineutils.PreserveMachineAnnotationKey,
 			nodeValue,
 		)
 	}
@@ -876,7 +883,7 @@ func (c *controller) updatePreserveAnnotationOnMachine(ctx context.Context, node
 		machine.Name,
 		machineutils.PreserveMachineAnnotationKey,
 		machine.Annotations[machineutils.PreserveMachineAnnotationKey],
-		machine.Annotations[v1alpha1.NodeLabelKey],
+		machine.Labels[v1alpha1.NodeLabelKey],
 		machineutils.PreserveMachineAnnotationKey,
 		nodeValue,
 	)
