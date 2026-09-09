@@ -970,34 +970,45 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		return autoPreservationCandidates[i].CreationTimestamp.After(autoPreservationCandidates[j].CreationTimestamp.Time)
 	})
 
+	var errs []error
 	for index, machine := range autoPreservationCandidates {
 		if autoPreservationCapacityRemaining == 0 {
 			break
 		}
 
 		klog.V(2).Infof("Annotating failed machine %q for auto-preservation and setting PreserveExpiryTime as part of machine set %q", machine.Name, machineSet.Name)
-		updatedMachine, err := machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(machine.Namespace), machine, func(m *v1alpha1.Machine) error {
+		annotatedMachine, err := machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(machine.Namespace), machine, func(m *v1alpha1.Machine) error {
 			if m.Annotations == nil {
 				m.Annotations = make(map[string]string)
 			}
 			m.Annotations[machineutils.PreserveMachineAnnotationKey] = machineutils.PreserveMachineAnnotationValueAutoPreserved
-			if m.Spec.MachineConfiguration != nil && m.Spec.MachineConfiguration.MachinePreserveTimeout != nil {
-				m.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(m.Spec.MachineConfiguration.MachinePreserveTimeout.Duration)}
+			return nil
+		}, true)
+		if err != nil {
+			klog.Errorf("could not annotate machine %q for auto-preservation: %v", machine.Name, err)
+			errs = append(errs, err)
+			continue
+		}
+
+		preservedMachine, err := machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(annotatedMachine.Namespace), annotatedMachine, func(m *v1alpha1.Machine) error {
+			if annotatedMachine.Spec.MachineConfiguration != nil && annotatedMachine.Spec.MachineConfiguration.MachinePreserveTimeout != nil {
+				m.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(annotatedMachine.Spec.MachineConfiguration.MachinePreserveTimeout.Duration)}
 			} else {
 				m.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.safetyOptions.MachinePreserveTimeout.Duration)}
 			}
 			return nil
-		}, true)
+		}, true, "status")
 		if err != nil {
-			klog.Errorf("Error annotating and setting PreserveExpiryTime on machine %q for auto-preservation: %v", machine.Name, err)
-			return nil, err
+			klog.Errorf("could not set PreserveExpiryTime on machine %q for auto-preservation: %v", annotatedMachine.Name, err)
+			errs = append(errs, err)
+			continue
 		}
 
-		autoPreservationCandidates[index] = updatedMachine
+		autoPreservationCandidates[index] = preservedMachine
 		autoPreservationCapacityRemaining--
 	}
 
-	return append(autoPreservationCandidates, others...), nil
+	return append(autoPreservationCandidates, others...), errors.Join(errs...)
 }
 
 func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machines []*v1alpha1.Machine, numToStop int) int {
