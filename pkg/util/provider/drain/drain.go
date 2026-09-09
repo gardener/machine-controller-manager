@@ -86,13 +86,13 @@ type Options struct {
 	// podProvider, if set, is used to list the pods on the node instead of podLister. It allows callers that do not
 	// run client-go informers (e.g. controller-runtime based controllers) to supply their own pod source.
 	podProvider PodProvider
-	// SkipVolumeHandling, if true, skips the PersistentVolume detach/reattach handling during eviction.
-	SkipVolumeHandling bool
+	// SkipVolumeDetach, if true, skips the PersistentVolume detach handling during eviction.
+	SkipVolumeDetach bool
 }
 
 // AdditionalPodFilter takes a pod and returns whether the pod should be included for draining (true) or excluded
 // (false). It is a caller-supplied predicate evaluated in addition to the built-in filters.
-type AdditionalPodFilter func(corev1.Pod) bool
+type AdditionalPodFilter func(corev1.Pod) (include bool)
 
 // PodProvider lists the pods running on a given node. It abstracts the pod source (client-go lister vs. a
 // controller-runtime client) used during drain.
@@ -205,7 +205,7 @@ func NewDrainOptions(
 	volumeAttachmentHandler *VolumeAttachmentHandler,
 	podSynced cache.InformerSynced,
 ) *Options {
-	return &Options{
+	drainOptions := &Options{
 		client:                       client,
 		kubernetesVersion:            kubernetesVersion,
 		ForceDeletePods:              forceDeletePods,
@@ -229,6 +229,12 @@ func NewDrainOptions(
 		volumeAttachmentHandler:      volumeAttachmentHandler,
 		podSynced:                    podSynced,
 	}
+
+	if drainOptions.podLister != nil {
+		drainOptions.SetPodProvider(&podProvider{Lister: podLister})
+	}
+
+	return drainOptions
 }
 
 // SetPodProvider sets the PodProvider used to list the pods on the node instead of the client-go pod lister. It lets
@@ -236,6 +242,26 @@ func NewDrainOptions(
 // source when using NewDrainOptions/RunDrain.
 func (o *Options) SetPodProvider(podProvider PodProvider) {
 	o.podProvider = podProvider
+}
+
+type podProvider struct {
+	Lister corelisters.PodLister
+}
+
+// PodsForNode returns all pods scheduled on the given node.
+func (p *podProvider) PodsForNode(_ context.Context, nodeName string) ([]corev1.Pod, error) {
+	podList, err := p.Lister.List(labels.Everything())
+	if err != nil {
+		return nil, fmt.Errorf("error listing pods: %w", err)
+	}
+
+	pods := make([]corev1.Pod, 0)
+	for _, pod := range podList {
+		if pod.Spec.NodeName == nodeName {
+			pods = append(pods, *pod)
+		}
+	}
+	return pods, nil
 }
 
 // RunDrain runs the 'drain' command
@@ -369,21 +395,15 @@ func (ps podStatuses) Message() string {
 // getPodsForDeletion returns all the pods we're going to delete.  If there are
 // any pods preventing us from deleting, we return that list in an error.
 func (o *Options) getPodsForDeletion(ctx context.Context) (pods []corev1.Pod, err error) {
-	var podList []*corev1.Pod
-	if o.podProvider != nil {
-		nodePods, providerErr := o.podProvider.PodsForNode(ctx, o.nodeName)
-		if providerErr != nil {
-			return nil, providerErr
-		}
-		for _, pod := range nodePods {
-			podList = append(podList, &pod)
-		}
-	} else {
-		podList, err = o.podLister.List(labels.Everything())
-		if err != nil {
-			return
-		}
+	if o.podProvider == nil {
+		return nil, fmt.Errorf("pod provider is not set, unable to get pods for deletion")
 	}
+
+	podList, providerErr := o.podProvider.PodsForNode(ctx, o.nodeName)
+	if providerErr != nil {
+		return nil, providerErr
+	}
+
 	if len(podList) == 0 {
 		klog.Infof("no pods found in store")
 		return
@@ -397,7 +417,7 @@ func (o *Options) getPodsForDeletion(ctx context.Context) (pods []corev1.Pod, er
 		}
 		podOk := true
 		for _, filt := range []podFilter{mirrorPodFilter, o.localStorageFilter, o.unreplicatedFilter, o.daemonsetFilter} {
-			filterOk, w, f := filt(*pod)
+			filterOk, w, f := filt(pod)
 			podOk = podOk && filterOk
 			if w != nil {
 				ws[w.string] = append(ws[w.string], pod.Name)
@@ -407,10 +427,10 @@ func (o *Options) getPodsForDeletion(ctx context.Context) (pods []corev1.Pod, er
 			}
 		}
 		for _, filt := range o.AdditionalPodFilters {
-			podOk = podOk && filt(*pod)
+			podOk = podOk && filt(pod)
 		}
 		if podOk {
-			pods = append(pods, *pod)
+			pods = append(pods, pod)
 		}
 	}
 
@@ -513,7 +533,7 @@ func (o *Options) evictPods(ctx context.Context, attemptEvict bool, pods []corev
 	returnCh := make(chan error, len(pods))
 	defer close(returnCh)
 
-	if o.ForceDeletePods || o.SkipVolumeHandling {
+	if o.ForceDeletePods || o.SkipVolumeDetach {
 		podsToDrain := make([]*corev1.Pod, len(pods))
 		for i := range pods {
 			podsToDrain[i] = &pods[i]
