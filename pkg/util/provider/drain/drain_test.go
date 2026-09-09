@@ -167,8 +167,9 @@ var _ = Describe("drain", func() {
 			Timeout:                      2 * time.Minute,
 			volumeAttachmentHandler:      volumeAttachmentHandler,
 			podSynced:                    podSynced,
-			SkipVolumeHandling:           setup.skipVolumeHandling,
+			SkipVolumeDetach:             setup.skipVolumeHandling,
 		}
+		d.SetPodProvider(&podProvider{Lister: fakePodLister})
 
 		// Get the pod directly from the ObjectTracker to avoid locking issues in the Fake object.
 		getPod := func(gvr schema.GroupVersionResource, ns, name string) (*corev1.Pod, error) {
