@@ -688,14 +688,13 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 			klog.V(4).Infof("Machine %q of MachineDeployment %q already has MachinePriority=1 and MarkedForDeletionTime=%q annotation", machine.Name, mcd.Name, machine.Annotations[machineutils.MarkedForDeletionTime])
 			continue
 		}
-		deletionTime := tgd.markedMachineDeletionTimes[i]
 		updatedMachine, err := machineutils.PatchMachine(ctx, dc.controlMachineClient.Machines(machine.Namespace), machine, func(m *v1alpha1.Machine) error {
 			if m.Annotations == nil {
 				m.Annotations = make(map[string]string)
 			}
 			m.Annotations[machineutils.MachinePriority] = "1"
 			if m.Annotations[machineutils.MarkedForDeletionTime] == "" {
-				m.Annotations[machineutils.MarkedForDeletionTime] = deletionTime
+				m.Annotations[machineutils.MarkedForDeletionTime] = tgd.markedMachineDeletionTimes[i]
 			}
 			return nil
 		}, true)
@@ -703,11 +702,12 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 			klog.Errorf("failed to set MachinePriority=1 annotation on Machine %q of MachineDeployment %q: %v", machine.Name, mcd.Name, err)
 			return mcd, err
 		}
-		// TODO: not neat. refactor later.
-		for _, machineList := range machineMap {
-			for i, machine := range machineList.Items {
-				if machine.Name == updatedMachine.Name && machine.Namespace == updatedMachine.Namespace {
-					machineList.Items[i] = *updatedMachine
+		if controllerRef := metav1.GetControllerOf(updatedMachine); controllerRef != nil {
+			if machineList, ok := machineMap[controllerRef.UID]; ok {
+				for i, machine := range machineList.Items {
+					if machine.Name == updatedMachine.Name && machine.Namespace == updatedMachine.Namespace {
+						machineList.Items[i] = *updatedMachine
+					}
 				}
 			}
 		}
