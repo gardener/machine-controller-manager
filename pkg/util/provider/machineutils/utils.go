@@ -16,7 +16,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/klog/v2"
+
+	jsonpatch "gopkg.in/evanphx/json-patch.v4"
 )
 
 const (
@@ -179,9 +181,17 @@ func GetMachineDeploymentName(machine *v1alpha1.Machine) string {
 	return machine.Labels["name"]
 }
 
-// PatchMachine patches a machine using a strategic merge patch derived from mutateFn applied to the given machine object.
+// PatchMachine patches a machine using a merge patch derived from mutateFn applied to the given machine object.
 // If optimisticLock is true, the patch includes the current resourceVersion to detect concurrent updates.
-func PatchMachine(ctx context.Context, machineClient v1alpha1client.MachineInterface, machine *v1alpha1.Machine, mutateFn func(*v1alpha1.Machine) error, optimisticLock bool, subresources ...string) (*v1alpha1.Machine, error) {
+// subresources optionally targets a subresource (e.g. "status"); omit it to patch the main resource.
+func PatchMachine(
+	ctx context.Context,
+	machineClient v1alpha1client.MachineInterface,
+	machine *v1alpha1.Machine,
+	mutateFn func(*v1alpha1.Machine) error,
+	optimisticLock bool,
+	subresources ...string,
+) (*v1alpha1.Machine, error) {
 	base, err := json.Marshal(machine)
 	if err != nil {
 		return nil, err
@@ -194,9 +204,12 @@ func PatchMachine(ctx context.Context, machineClient v1alpha1client.MachineInter
 	if err != nil {
 		return nil, err
 	}
-	patch, err := strategicpatch.CreateTwoWayMergePatch(base, modifiedJSON, v1alpha1.Machine{})
+	patch, err := jsonpatch.CreateMergePatch(base, modifiedJSON)
 	if err != nil {
 		return nil, err
+	}
+	if string(patch) == "{}" {
+		return machine, nil
 	}
 	if optimisticLock {
 		var patchMap map[string]any
@@ -220,13 +233,21 @@ func PatchMachine(ctx context.Context, machineClient v1alpha1client.MachineInter
 // GetPreserveAnnotationValue returns the preserve annotation value for the given node and machine
 // and a boolean informing whether we need to do any work or skip.
 // Invalid annotation values are treated as absent.
-func GetPreserveAnnotationValue(node *corev1.Node, machine *v1alpha1.Machine) (annotationValue string, shouldHandlePreservation bool) {
+func GetPreserveAnnotationValue(
+	node *corev1.Node,
+	machine *v1alpha1.Machine,
+) (annotationValue string, shouldHandlePreservation bool) {
 	if node != nil {
 		if val, ok :=
 			node.Annotations[PreserveMachineAnnotationKey]; ok &&
 			AllowedPreserveAnnotationValues.Has(val) {
 			return val, true
 		}
+		klog.Warningf(
+			"Node %q doesn't have the annotation:%q or the annotation is not valid",
+			machine.Labels[v1alpha1.NodeLabelKey],
+			PreserveMachineAnnotationKey,
+		)
 		if _, ok :=
 			machine.Annotations[LastAppliedNodePreserveValueAnnotationKey]; ok {
 			return "", true
@@ -237,6 +258,11 @@ func GetPreserveAnnotationValue(node *corev1.Node, machine *v1alpha1.Machine) (a
 		AllowedPreserveAnnotationValues.Has(val) {
 		return val, true
 	}
+	klog.Warningf(
+		"Machine %q doesn't have the annotation:%q or the annotation is not valid",
+		machine.Name,
+		PreserveMachineAnnotationKey,
+	)
 	if machine.Status.CurrentStatus.PreserveExpiryTime != nil {
 		return "", true
 	}
