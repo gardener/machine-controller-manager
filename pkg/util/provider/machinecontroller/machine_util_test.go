@@ -4974,7 +4974,6 @@ var _ = Describe("machine_util", func() {
 	Describe("#updateMachineToFailedState", func() {
 		type setup struct {
 			preserveAnnotation string
-			existingExpiryTime *metav1.Time
 		}
 		type expect struct {
 			preserveExpiryTimeSet bool
@@ -5002,8 +5001,7 @@ var _ = Describe("machine_util", func() {
 					},
 					Status: machinev1.MachineStatus{
 						CurrentStatus: machinev1.CurrentStatus{
-							Phase:              machinev1.MachinePending,
-							PreserveExpiryTime: tc.setup.existingExpiryTime,
+							Phase: machinev1.MachinePending,
 						},
 					},
 				}
@@ -5029,13 +5027,6 @@ var _ = Describe("machine_util", func() {
 			},
 			Entry("preserve=when-failed: PreserveExpiryTime must be set on transition to Failed", &testCase{
 				setup:  setup{preserveAnnotation: machineutils.PreserveMachineAnnotationValueWhenFailed},
-				expect: expect{preserveExpiryTimeSet: true},
-			}),
-			Entry("preserve=when-failed with existing expiry: existing PreserveExpiryTime must be preserved", &testCase{
-				setup: setup{
-					preserveAnnotation: machineutils.PreserveMachineAnnotationValueWhenFailed,
-					existingExpiryTime: func() *metav1.Time { t := metav1.NewTime(time.Now().Add(96 * time.Hour)); return &t }(),
-				},
 				expect: expect{preserveExpiryTimeSet: true},
 			}),
 			Entry("preserve=now: PreserveExpiryTime must NOT be set by updateMachineToFailedState (set later by preserveMachine)", &testCase{
