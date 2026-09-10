@@ -4,8 +4,8 @@ options:
   runtime: binary
   kubeVersion: v1.35.0
   # disableKubeControllerManager: true
-  nodeLeaseDurationSeconds: 10
-  kubeControllerManagerNodeMonitorPeriodMilliseconds: 10000
+  nodeLeaseDurationSeconds: 20
+  kubeControllerManagerNodeMonitorPeriodMilliseconds: 15000
   kubeControllerManagerNodeMonitorGracePeriodMilliseconds: 20000
   heartbeatFactor: 1
   manageAllNodes: true
@@ -21,8 +21,9 @@ componentsPatches:
 
 ## These are the default stages added by kwok when `enableCRDs : "stage"` isn't used
 ## They're reproduced here to ensure that pod/node lifecycles can be mimiced exactly.
-## And to speed up the preservation IT tests, since the `node-heartbeat-with-lease`
-## stage has a default delay that increases the time each machine recovery takes.
+
+## There is an additional stage added called `node-recover` that sets a node's Ready
+## condition back to True if its annotated with `kwok/fail-condition=Recover`.
 
 ## TODO(@takoverflow): see if the `node-initialize` stage should be removed since
 ## simulatedprovider `CreateMachine` call also handles transitioning the node to `Ready`
@@ -297,6 +298,50 @@ spec:
             Port: {{ . }}
         {{ end }}
 status: {}
+
+---
+apiVersion: kwok.x-k8s.io/v1alpha1
+kind: Stage
+metadata:
+  name: node-recover
+spec:
+  delay:
+    durationMilliseconds: 5000
+    jitterDurationMilliseconds: 6000
+  resourceRef:
+    apiGroup: v1
+    kind: Node
+  selector:
+    matchExpressions:
+      - key: '.metadata.annotations["kwok/fail-condition"]'
+        operator: 'In'
+        values:
+        - 'Recover'
+  next:
+   statusTemplate: |
+     {{- $now := Now }}
+     conditions:
+     {{- range $index, $item := .status.conditions }}
+     {{- if eq $item.type "Ready" }}
+     - lastHeartbeatTime: {{ $now | Quote }}
+       lastTransitionTime: {{ $now | Quote }}
+       message: ""
+       reason: ""
+       status: "True"
+       type: {{ $item.type | Quote }}
+     {{ else }}
+     - lastHeartbeatTime: {{ $now | Quote }}
+       lastTransitionTime: {{ $now | Quote }}
+       message: ""
+       reason: ""
+       status: "False"
+       type: {{ $item.type | Quote }}
+     {{- end }}
+     {{- end }}
+     addresses: {{ .status.addresses | toJson }}
+     allocatable: {{ .status.allocatable | toJson }}
+     capacity: {{ .status.capacity | toJson }}
+     nodeInfo: {{ .status.nodeInfo | toJson }}
 
 ---
 apiVersion: kwok.x-k8s.io/v1alpha1
