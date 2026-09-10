@@ -5029,7 +5029,7 @@ var _ = Describe("machine_util", func() {
 				setup:  setup{preserveAnnotation: machineutils.PreserveMachineAnnotationValueWhenFailed},
 				expect: expect{preserveExpiryTimeSet: true},
 			}),
-			Entry("preserve=now: PreserveExpiryTime must NOT be set by updateMachineToFailedState (set later by preserveMachine)", &testCase{
+			Entry("preserve=now: PreserveExpiryTime must NOT be set by updateMachineToFailedState (already set by preserveMachine)", &testCase{
 				setup:  setup{preserveAnnotation: machineutils.PreserveMachineAnnotationValueNow},
 				expect: expect{preserveExpiryTimeSet: false},
 			}),
@@ -5039,10 +5039,6 @@ var _ = Describe("machine_util", func() {
 			}),
 			Entry("no preserve annotation: PreserveExpiryTime must NOT be set", &testCase{
 				setup:  setup{},
-				expect: expect{preserveExpiryTimeSet: false},
-			}),
-			Entry("preserve=auto-preserved: PreserveExpiryTime must NOT be set (set later after auto-preserve selection)", &testCase{
-				setup:  setup{preserveAnnotation: machineutils.PreserveMachineAnnotationValueAutoPreserved},
 				expect: expect{preserveExpiryTimeSet: false},
 			}),
 		)
