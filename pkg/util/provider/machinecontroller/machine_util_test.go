@@ -5013,7 +5013,7 @@ var _ = Describe("machine_util", func() {
 				waitForCacheSync(stop, c)
 
 				_, err := c.updateMachineToFailedState(context.TODO(), "test failure", machine, clone)
-				Expect(err).To(BeNil())
+				Expect(err).To(Equal(errSuccessfulPhaseUpdate))
 
 				updated, getErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
 				Expect(getErr).To(BeNil())
