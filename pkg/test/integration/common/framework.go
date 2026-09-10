@@ -975,7 +975,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 									metav1.DeleteOptions{},
 								)).
 							Should(gomega.BeNil())
-						ginkgo.By("Waiting until number of ready nodes is equal to number of initial  nodes")
+						ginkgo.By("Waiting until number of ready nodes is equal to number of initial nodes")
 						gomega.Eventually(
 							c.TargetCluster.GetNumberOfNodes,
 							c.timeout,
@@ -1164,7 +1164,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				// Simulate kubelet failure for both the nodes.
 				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for both nodes")
-				targetNodes := []string{runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey], runningMachines[1].ObjectMeta.Labels[v1alpha1.NodeLabelKey]}
+				targetNodes := []string{
+					runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey],
+					runningMachines[1].ObjectMeta.Labels[v1alpha1.NodeLabelKey],
+				}
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
 					ginkgo.By("cleanup deployed VAP/VAPB")
@@ -1191,12 +1194,40 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				gomega.Expect(retryErr).To(gomega.BeNil())
 
 				ginkgo.By("wait for only one machine to be deleted while the other one stays preserved")
+				var isOnlyMachine0Deleted, isOnlyMachine1Deleted bool
 				gomega.Eventually(func() bool {
-					isOnlyMachine0Deleted := c.ControlCluster.IsMachineDeleted(ctx, runningMachines[0].Name, controlClusterNamespace) && c.ControlCluster.AreMachinesFailedAndPreserved(ctx, controlClusterNamespace, []string{runningMachines[1].Name})
-					isOnlyMachine1Deleted := c.ControlCluster.IsMachineDeleted(ctx, runningMachines[1].Name, controlClusterNamespace) && c.ControlCluster.AreMachinesFailedAndPreserved(ctx, controlClusterNamespace, []string{runningMachines[0].Name})
+					isOnlyMachine0Deleted = c.ControlCluster.IsMachineDeleted(
+						ctx, runningMachines[0].Name, controlClusterNamespace,
+					) && c.ControlCluster.AreMachinesFailedAndPreserved(
+						ctx, controlClusterNamespace, []string{runningMachines[1].Name},
+					)
+
+					isOnlyMachine1Deleted = c.ControlCluster.IsMachineDeleted(
+						ctx, runningMachines[1].Name, controlClusterNamespace,
+					) && c.ControlCluster.AreMachinesFailedAndPreserved(
+						ctx, controlClusterNamespace, []string{runningMachines[0].Name},
+					)
 
 					return isOnlyMachine0Deleted != isOnlyMachine1Deleted
 				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+
+				// The other machine's preservation needs to be stopped as well otherwise node readiness check
+				// before each test halts since a NotReady node is being preserved.
+				ginkgo.By("remove VAP and VAPB to simulate kubelet restart")
+				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
+
+				preservedMachine := runningMachines[0].Name
+				if isOnlyMachine0Deleted {
+					preservedMachine = runningMachines[1].Name
+				}
+
+				ginkgo.By("wait for machine to recover and move to Running phase")
+				gomega.Eventually(
+					c.ControlCluster.AreMachinesRunning,
+					c.timeout,
+					c.pollingInterval).
+					WithArguments(ctx, []string{preservedMachine}, controlClusterNamespace).
+					Should(gomega.BeTrue())
 			})
 		})
 

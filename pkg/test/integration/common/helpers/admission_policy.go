@@ -12,6 +12,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -196,6 +197,10 @@ func (c *Cluster) DeleteVAPToRestartKubeletUpdates(ctx context.Context, nodeName
 			log.Printf("error deleting validating admission policy binding %s: %v\n", VAPBName, vapbErr)
 		}
 	}
+
+	// This delay is intentionally added to ensure that node updates are issued a bit later than VAP removal
+	// so that the node recovery update event isn't blocked by the VAP.
+	time.Sleep(2 * time.Second)
 
 	for _, node := range nodeNames {
 		nodeUpdateErr = c.addNodeRecoverAnnotation(ctx, node)
