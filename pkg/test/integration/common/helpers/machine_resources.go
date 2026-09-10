@@ -26,14 +26,16 @@ const (
 	McdName = "test-machine-deployment"
 	// McName is the name of the test machine
 	McName = "test-machine"
+	// NodeDeleteMcName is the name of the test machine used for the node deletion test
+	NodeDeleteMcName = "node-delete-test-machine"
 )
 
 var (
 	testLabels = map[string]string{"test-label": "test-label"}
 )
 
-// CreateMachine creates a test-machine using machineclass "test-mc"
-func (c *Cluster) CreateMachine(namespace string, gnaSecretName string) error {
+// CreateMachines creates test-machines using machineclass "test-mc"
+func (c *Cluster) CreateMachines(namespace string, gnaSecretName string) error {
 	_, err := c.McmClient.
 		MachineV1alpha1().
 		Machines(namespace).
@@ -42,6 +44,36 @@ func (c *Cluster) CreateMachine(namespace string, gnaSecretName string) error {
 			&v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      McName,
+					Namespace: namespace,
+				},
+				Spec: v1alpha1.MachineSpec{
+					Class: v1alpha1.ClassSpec{
+						Kind: "MachineClass",
+						Name: "test-mc-v1",
+					},
+					NodeTemplateSpec: v1alpha1.NodeTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								gnaSecretNameLabelKey: gnaSecretName,
+							},
+						},
+					},
+				},
+			},
+			metav1.CreateOptions{},
+		)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.McmClient.
+		MachineV1alpha1().
+		Machines(namespace).
+		Create(
+			context.Background(),
+			&v1alpha1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      NodeDeleteMcName,
 					Namespace: namespace,
 				},
 				Spec: v1alpha1.MachineSpec{
