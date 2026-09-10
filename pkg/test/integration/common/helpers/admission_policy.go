@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -77,8 +78,12 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 			},
 			Validations: []admissionregistrationv1.Validation{
 				{
-					Expression: blockedKubeletExpression(nodeNames),
+					Expression: blockedLeaseRenewalExpression(nodeNames),
 					Message:    "blocking kubelet heartbeat for test",
+				},
+				{
+					Expression: blockNodeReadyExpression(nodeNames),
+					Message:    "blocking node status patch for test",
 				},
 			},
 		},
@@ -102,8 +107,12 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 			"spec": map[string]any{
 				"validations": []map[string]any{
 					{
-						"expression": blockedKubeletExpression(nodeNames),
+						"expression": blockedLeaseRenewalExpression(nodeNames),
 						"message":    "blocking kubelet heartbeat for test",
+					},
+					{
+						"expression": blockNodeReadyExpression(nodeNames),
+						"message":    "blocking node status patch for test",
 					},
 				},
 			},
@@ -131,15 +140,32 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 	return nil
 }
 
-func blockedKubeletExpression(nodes []string) string {
+func blockNodeReadyExpression(nodes []string) string {
+	quotedNodes := make([]string, len(nodes))
+	for i, n := range nodes {
+		quotedNodes[i] = strconv.Quote(n)
+	}
+
+	return fmt.Sprintf(
+		"request.resource.resource != 'nodes' || "+
+			"!(has(object.status) && has(object.status.conditions) && "+
+			"object.status.conditions.exists(c, c.type == 'Ready' && c.status == 'True') && "+
+			"object.metadata.name in [%s])",
+		strings.Join(quotedNodes, ", "),
+	)
+}
+
+func blockedLeaseRenewalExpression(nodes []string) string {
 	users := make([]string, 0, len(nodes))
 
 	for _, node := range nodes {
 		users = append(users, fmt.Sprintf(`"system:node:%s"`, node))
 	}
 
+	users = append(users, `"kwok-admin"`)
+
 	return fmt.Sprintf(
-		"!(request.userInfo.username in [%s])",
+		"request.resource.resource != 'leases' || !(request.userInfo.username in [%s])",
 		strings.Join(users, ", "),
 	)
 }
