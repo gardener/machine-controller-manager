@@ -80,7 +80,7 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 		// had the MCM finalizer added would be silently dropped here. Re-enqueue it so
 		// reconcileClusterMachine is reached and the machine advances past the empty phase.
 		if !sets.NewString(oldMachine.Finalizers...).HasAll(newMachine.Finalizers...) {
-			klog.V(4).Infof("updateMachine: machine %q gained finalizer — re-enqueuing despite unchanged Generation", newMachine.Name)
+			klog.V(3).Infof("updateMachine: machine %q gained finalizer — re-enqueuing despite unchanged Generation", newMachine.Name)
 			c.enqueueMachine(newObj, "handling machine finalizer UPDATE event")
 		}
 		return
