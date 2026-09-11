@@ -79,6 +79,25 @@ type Options struct {
 	volumeAttachmentHandler      *VolumeAttachmentHandler
 	Timeout                      time.Duration
 	podSynced                    cache.InformerSynced
+
+	// AdditionalPodFilters are extra predicates evaluated alongside the built-in filters when selecting pods to
+	// drain.
+	AdditionalPodFilters []AdditionalPodFilter
+	// podProvider, if set, is used to list the pods on the node instead of podLister. It allows callers that do not
+	// run client-go informers (e.g. controller-runtime based controllers) to supply their own pod source.
+	podProvider PodProvider
+	// SkipVolumeDetach, if true, skips the PersistentVolume detach handling during eviction.
+	SkipVolumeDetach bool
+}
+
+// AdditionalPodFilter takes a pod and returns whether the pod should be included for draining (true) or excluded
+// (false). It is a caller-supplied predicate evaluated in addition to the built-in filters.
+type AdditionalPodFilter func(corev1.Pod) (include bool)
+
+// PodProvider lists the pods running on a given node. It abstracts the pod source (client-go lister vs. a
+// controller-runtime client) used during drain.
+type PodProvider interface {
+	PodsForNode(ctx context.Context, nodeName string) ([]corev1.Pod, error)
 }
 
 // Takes a pod and returns a bool indicating whether or not to operate on the
@@ -186,7 +205,7 @@ func NewDrainOptions(
 	volumeAttachmentHandler *VolumeAttachmentHandler,
 	podSynced cache.InformerSynced,
 ) *Options {
-	return &Options{
+	drainOptions := &Options{
 		client:                       client,
 		kubernetesVersion:            kubernetesVersion,
 		ForceDeletePods:              forceDeletePods,
@@ -210,6 +229,39 @@ func NewDrainOptions(
 		volumeAttachmentHandler:      volumeAttachmentHandler,
 		podSynced:                    podSynced,
 	}
+
+	if drainOptions.podLister != nil {
+		drainOptions.SetPodProvider(&podProvider{Lister: podLister})
+	}
+
+	return drainOptions
+}
+
+// SetPodProvider sets the PodProvider used to list the pods on the node instead of the client-go pod lister. It lets
+// callers that do not run client-go informers (e.g. controller-runtime based controllers) supply their own pod
+// source when using NewDrainOptions/RunDrain.
+func (o *Options) SetPodProvider(podProvider PodProvider) {
+	o.podProvider = podProvider
+}
+
+type podProvider struct {
+	Lister corelisters.PodLister
+}
+
+// PodsForNode returns all pods scheduled on the given node.
+func (p *podProvider) PodsForNode(_ context.Context, nodeName string) ([]corev1.Pod, error) {
+	podList, err := p.Lister.List(labels.Everything())
+	if err != nil {
+		return nil, fmt.Errorf("error listing pods: %w", err)
+	}
+
+	pods := make([]corev1.Pod, 0)
+	for _, pod := range podList {
+		if pod.Spec.NodeName == nodeName {
+			pods = append(pods, *pod)
+		}
+	}
+	return pods, nil
 }
 
 // RunDrain runs the 'drain' command
@@ -233,7 +285,7 @@ func (o *Options) RunDrain(ctx context.Context) error {
 		)
 	}()
 
-	if !cache.WaitForCacheSync(drainContext.Done(), o.podSynced) {
+	if o.podSynced != nil && !cache.WaitForCacheSync(drainContext.Done(), o.podSynced) {
 		err := fmt.Errorf("timed out waiting for pod cache to sync")
 		return err
 	}
@@ -243,14 +295,14 @@ func (o *Options) RunDrain(ctx context.Context) error {
 }
 
 func (o *Options) deleteOrEvictPodsSimple(ctx context.Context) error {
-	pods, err := o.getPodsForDeletion()
+	pods, err := o.getPodsForDeletion(ctx)
 	if err != nil {
 		return err
 	}
 
 	err = o.deleteOrEvictPods(ctx, pods)
 	if err != nil {
-		pendingPods, newErr := o.getPodsForDeletion()
+		pendingPods, newErr := o.getPodsForDeletion(ctx)
 		if newErr != nil {
 			return newErr
 		}
@@ -342,11 +394,16 @@ func (ps podStatuses) Message() string {
 
 // getPodsForDeletion returns all the pods we're going to delete.  If there are
 // any pods preventing us from deleting, we return that list in an error.
-func (o *Options) getPodsForDeletion() (pods []corev1.Pod, err error) {
-	podList, err := o.podLister.List(labels.Everything())
-	if err != nil {
-		return
+func (o *Options) getPodsForDeletion(ctx context.Context) (pods []corev1.Pod, err error) {
+	if o.podProvider == nil {
+		return nil, fmt.Errorf("pod provider is not set, unable to get pods for deletion")
 	}
+
+	podList, providerErr := o.podProvider.PodsForNode(ctx, o.nodeName)
+	if providerErr != nil {
+		return nil, providerErr
+	}
+
 	if len(podList) == 0 {
 		klog.Infof("no pods found in store")
 		return
@@ -355,12 +412,9 @@ func (o *Options) getPodsForDeletion() (pods []corev1.Pod, err error) {
 	fs := podStatuses{}
 
 	for _, pod := range podList {
-		if pod.Spec.NodeName != o.nodeName {
-			continue
-		}
 		podOk := true
 		for _, filt := range []podFilter{mirrorPodFilter, o.localStorageFilter, o.unreplicatedFilter, o.daemonsetFilter} {
-			filterOk, w, f := filt(*pod)
+			filterOk, w, f := filt(pod)
 			podOk = podOk && filterOk
 			if w != nil {
 				ws[w.string] = append(ws[w.string], pod.Name)
@@ -369,8 +423,11 @@ func (o *Options) getPodsForDeletion() (pods []corev1.Pod, err error) {
 				fs[f.string] = append(fs[f.string], pod.Name)
 			}
 		}
+		for _, filt := range o.AdditionalPodFilters {
+			podOk = podOk && filt(pod)
+		}
 		if podOk {
-			pods = append(pods, *pod)
+			pods = append(pods, pod)
 		}
 	}
 
@@ -473,15 +530,15 @@ func (o *Options) evictPods(ctx context.Context, attemptEvict bool, pods []corev
 	returnCh := make(chan error, len(pods))
 	defer close(returnCh)
 
-	if o.ForceDeletePods {
+	if o.ForceDeletePods || o.SkipVolumeDetach {
 		podsToDrain := make([]*corev1.Pod, len(pods))
 		for i := range pods {
 			podsToDrain[i] = &pods[i]
 		}
 
-		klog.V(3).Infof("Forceful eviction of pods on the node: %q", o.nodeName)
+		klog.V(3).Infof("Eviction of pods on the node without volume handling: %q", o.nodeName)
 
-		// evict all pods in parallel without waiting for pods or volume detachment
+		// Evict all pods without waiting for volume detachment.
 		go o.evictPodsWithoutPv(ctx, attemptEvict, podsToDrain, policyGroupVersion, getPodFn, returnCh)
 	} else {
 		podsWithPv, podsWithoutPv := filterPodsWithPv(pods)
@@ -1163,6 +1220,9 @@ func (o *Options) GetDrainDuration() time.Duration {
 }
 
 func getPdbForPod(pdbLister policyv1listers.PodDisruptionBudgetLister, pod *corev1.Pod) *policyv1.PodDisruptionBudget {
+	if pdbLister == nil {
+		return nil
+	}
 	// GetPodPodDisruptionBudgets returns an error only if no PodDisruptionBudgets are found.
 	// We don't return that as an error to the caller.
 	pdbs, err := pdbLister.GetPodPodDisruptionBudgets(pod)
