@@ -1190,31 +1190,25 @@ func getFormattedNodeConditions(conditions []v1.NodeCondition) string {
 */
 
 func (c *controller) addMachineFinalizers(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+	retryPeriod := machineutils.ShortRetry
 	if finalizers := sets.NewString(machine.Finalizers...); !finalizers.Has(MCMFinalizerName) {
-
 		finalizers.Insert(MCMFinalizerName)
 		clone := machine.DeepCopy()
 		clone.Finalizers = finalizers.List()
 		_, err := c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
 		if err != nil {
-			if apierrors.IsConflict(err) {
-				// Informer cache is stale; the watch event will re-enqueue the machine once the
-				// cache catches up, so this is not a retriable error from the worker's perspective.
-				// Returning nil avoids burning a retry slot from the fixed budget (DefaultMaxRetries).
-				return machineutils.ShortRetry, nil
-			}
-			// Keep retrying until update goes through
 			klog.Errorf("Failed to add finalizers for machine %q: %s", machine.Name, err)
+			if apierrors.IsConflict(err) {
+				retryPeriod = machineutils.ConflictRetry
+			}
 		} else {
 			// Return error even when machine object is updated
 			klog.V(2).Infof("Added finalizer to machine %q with providerID %q and backing node %q", machine.Name, getProviderID(machine), getNodeName(machine))
 			err = fmt.Errorf("Machine creation in process. Machine finalizers are UPDATED")
 		}
-
-		return machineutils.ShortRetry, err
+		return retryPeriod, err
 	}
-
-	return machineutils.ShortRetry, nil
+	return retryPeriod, nil
 }
 
 func (c *controller) deleteMachineFinalizers(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
