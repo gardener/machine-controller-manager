@@ -13,7 +13,6 @@ KWOK_VERSION  ?= v0.8.0
 $(KWOKCTL): $(TOOLS_BIN_DIR)
 	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install sigs.k8s.io/kwok/cmd/{kwok,kwokctl}@$(KWOK_VERSION)
 
-
 .PHONY: build
 build:
 	@mkdir -p bin
@@ -47,3 +46,8 @@ stop-simulated-cluster: $(KWOKCTL)
 .PHONY: test-integration
 test-integration:
 	@(cd test/integration/controller; ginkgo -v --show-node-events --poll-progress-after=300s --poll-progress-interval=60s)
+
+.PHONY: build-clustersim
+build-clustersim:
+	@mkdir -p bin
+	go build -v -o bin/clustersim ./cmd/clustersim
