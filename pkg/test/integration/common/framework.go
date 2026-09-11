@@ -671,8 +671,8 @@ func (c *IntegrationTestFramework) ControllerTests() {
 	ginkgo.Describe("machine resource", func() {
 		var initialNodes int16
 		ginkgo.Context("creation", func() {
-			ginkgo.It("should not lead to any errors and add 1 more node in target cluster", func() {
-				// In case of existing deployments creating nodes when starting simulated
+			ginkgo.It("should not lead to any errors and add 2 more node in target cluster", func() {
+				// In case of existing deployments creating nodes when starting virtual
 				// provider, the change in node count can be >1, this delay prevents
 				// checking node count immediately to allow for a correct initial count
 				if isSimulatedProvider {
@@ -681,20 +681,20 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				// Probe nodes currently available in target cluster
 				initialNodes = c.TargetCluster.GetNumberOfNodes()
 				ginkgo.By("Checking for errors")
-				gomega.Expect(c.ControlCluster.CreateMachine(controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.BeNil())
+				gomega.Expect(c.ControlCluster.CreateMachines(controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.BeNil())
 
-				ginkgo.By("Waiting until number of ready nodes is 1 more than initial nodes")
+				ginkgo.By("Waiting until number of ready nodes is 2 more than initial nodes")
 				gomega.Eventually(
 					c.TargetCluster.GetNumberOfNodes,
 					c.timeout,
 					c.pollingInterval).
-					Should(gomega.BeNumerically("==", initialNodes+1))
+					Should(gomega.BeNumerically("==", initialNodes+2))
 
 				gomega.Eventually(
 					c.TargetCluster.GetNumberOfReadyNodes,
 					c.timeout,
 					c.pollingInterval).
-					Should(gomega.BeNumerically("==", initialNodes+1))
+					Should(gomega.BeNumerically("==", initialNodes+2))
 			})
 		})
 
@@ -722,19 +722,53 @@ func (c *IntegrationTestFramework) ControllerTests() {
 							WithArguments(ctx, helpers.McName, controlClusterNamespace).
 							Should(gomega.BeTrue())
 
-						ginkgo.By("Waiting until number of ready nodes is equal to number of initial nodes")
+						ginkgo.By("Waiting until number of ready nodes is equal to number of initial nodes+1")
 						gomega.Eventually(
 							c.TargetCluster.GetNumberOfNodes,
 							c.timeout,
 							c.pollingInterval).
-							Should(gomega.BeNumerically("==", initialNodes))
+							Should(gomega.BeNumerically("==", initialNodes+1))
 						gomega.Eventually(
 							c.TargetCluster.GetNumberOfReadyNodes,
 							c.timeout,
 							c.pollingInterval).
-							Should(gomega.BeNumerically("==", initialNodes))
+							Should(gomega.BeNumerically("==", initialNodes+1))
 					}
 
+				})
+			})
+			ginkgo.Context("node deletion", func() {
+				ginkgo.It("should delete machine resource when node resource is deleted", func() {
+					ginkgo.By("Ensure node label is present on the machine")
+					var existingMachine *v1alpha1.Machine
+					var err error
+					gomega.Eventually(func() bool {
+						existingMachine, err = c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).Get(ctx, helpers.NodeDeleteMcName, metav1.GetOptions{})
+						if err != nil {
+							return false
+						}
+						_, exists := existingMachine.GetLabels()[v1alpha1.NodeLabelKey]
+						return exists
+					}).Should(gomega.BeTrue())
+
+					ginkgo.By("Deleting node associated with test-machine")
+					err = c.TargetCluster.Clientset.CoreV1().Nodes().Delete(ctx, existingMachine.Labels[v1alpha1.NodeLabelKey], metav1.DeleteOptions{})
+					gomega.Expect(err).To(gomega.BeNil())
+
+					ginkgo.By("Waiting until number of ready nodes is equal to number of initial nodes")
+					gomega.Eventually(
+						c.TargetCluster.GetNumberOfNodes,
+						c.timeout,
+						c.pollingInterval).
+						Should(gomega.BeNumerically("==", initialNodes))
+
+					ginkgo.By("Waiting until test-machine machine object is deleted")
+					gomega.Eventually(
+						c.ControlCluster.IsMachineDeleted,
+						c.timeout,
+						c.pollingInterval).
+						WithArguments(ctx, helpers.NodeDeleteMcName, controlClusterNamespace).
+						Should(gomega.BeTrue())
 				})
 			})
 			ginkgo.Context("when machines are not available", func() {
@@ -753,7 +787,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 							Delete(ctx, "test-machine-dummy", metav1.DeleteOptions{})
 						ginkgo.By("Checking for errors")
 						gomega.Expect(err).To(gomega.HaveOccurred())
-						ginkgo.By("Checking number of nodes is eual to number of initial nodes")
+						ginkgo.By("Checking number of nodes is equal to number of initial nodes")
 						gomega.Expect(c.TargetCluster.GetNumberOfNodes()).To(gomega.BeEquivalentTo(initialNodes))
 					} else {
 						ginkgo.By("Skipping as there are machines available and this check can't be performed")
