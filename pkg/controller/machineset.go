@@ -988,7 +988,7 @@ func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machin
 	}
 	if numOfAutoPreservedMachines > numToStop {
 		sort.Slice(autoPreservedMachines, func(i, j int) bool {
-			return autoPreservedMachines[i].CreationTimestamp.Before(&autoPreservedMachines[j].CreationTimestamp)
+			return autoPreservedMachines[i].Status.CurrentStatus.PreserveExpiryTime.Before(autoPreservedMachines[j].Status.CurrentStatus.PreserveExpiryTime)
 		})
 	}
 	for index, m := range autoPreservedMachines {
