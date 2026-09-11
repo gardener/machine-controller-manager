@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
+	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	"k8s.io/utils/ptr"
 
@@ -1966,25 +1967,51 @@ var _ = Describe("machineDeployment", func() {
 					return nil
 				},
 			),
-			// flaky test because of reusing same testMachine for mutilple tests.
 			Entry("should set MachinePriority=1 for the machines named in TriggerDeletionByMCM annotation in the MachineDeployment",
-				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
+				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
 					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))
+					testMachineSet.Spec.Selector = labelsutil.CloneSelectorAndAddLabel(testMachineSet.Spec.Selector, machinev1.DefaultMachineDeploymentUniqueLabelKey, "testhash")
 				},
 				func(_ *machinev1.MachineDeployment, _ []machinev1.MachineSet, machines []machinev1.Machine, _ *corev1.Node) error {
-					Expect(machines[0].Annotations[machineutils.MachinePriority]).To(Equal("1"))
+					var targetMachine *machinev1.Machine
+					for i := range machines {
+						if machines[i].Name == "Machine-test" {
+							targetMachine = &machines[i]
+							break
+						}
+					}
+					if targetMachine == nil {
+						return errors.New("machine \"Machine-test\" not found")
+					}
+					if targetMachine.Annotations[machineutils.MachinePriority] != "1" {
+						return errors.New("expected MachinePriority=1 on machine \"Machine-test\"")
+					}
 					return nil
 				},
 			),
 			Entry("set LDRCBST annotation on the machineSet and TriggerDeletionByMCM annotation is not set on the machineSet",
-				func(testMachineDeployment *machinev1.MachineDeployment, _ *machinev1.MachineSet) {
+				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
 					testMachineDeployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = ts
 					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))
+					testMachineSet.Spec.Selector = labelsutil.CloneSelectorAndAddLabel(testMachineSet.Spec.Selector, machinev1.DefaultMachineDeploymentUniqueLabelKey, "testhash")
 				},
 				func(_ *machinev1.MachineDeployment, mcs []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
-					Expect(mcs[0].Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]).To(Equal(ts))
-					_, exists := mcs[0].Annotations[machineutils.TriggerDeletionByMCM]
-					Expect(exists).To(BeFalse())
+					var ms *machinev1.MachineSet
+					for i := range mcs {
+						if mcs[i].Name == "MachineSet-test" {
+							ms = &mcs[i]
+							break
+						}
+					}
+					if ms == nil {
+						return errors.New("machineSet \"MachineSet-test\" not found")
+					}
+					if ms.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] != ts {
+						return errors.New("expected LastDeploymentReplicaChangeByScalerTime annotation to be preserved on the machineSet")
+					}
+					if _, exists := ms.Annotations[machineutils.TriggerDeletionByMCM]; exists {
+						return errors.New("TriggerDeletionByMCM annotation should not be set on the machineSet")
+					}
 					return nil
 				},
 			),
