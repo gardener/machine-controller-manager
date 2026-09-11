@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	coreinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	corelisters "k8s.io/client-go/listers/core/v1"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
@@ -1312,4 +1313,51 @@ func appendSuffixToVolumeHandles(pvs []*corev1.PersistentVolume, suffix string) 
 		pv.Spec.CSI.VolumeHandle += suffix
 	}
 	return pvs
+}
+
+func createFakeController(
+	stop <-chan struct{},
+	namespace string,
+	targetCoreObjects []runtime.Object,
+) (
+	kubernetes.Interface,
+	corelisters.PersistentVolumeLister,
+	corelisters.PersistentVolumeClaimLister,
+	corelisters.NodeLister,
+	corelisters.PodLister,
+	func() bool,
+	func() bool,
+	func() bool,
+	func() bool,
+	*fakeclient.FakeObjectTracker) {
+
+	fakeTargetCoreClient, targetCoreObjectTracker := fakeclient.NewCoreClientSet(targetCoreObjects...)
+	go func() {
+		_ = targetCoreObjectTracker.Start()
+	}()
+
+	coreTargetInformerFactory := coreinformers.NewFilteredSharedInformerFactory(
+		fakeTargetCoreClient,
+		100*time.Millisecond,
+		namespace,
+		nil,
+	)
+	defer coreTargetInformerFactory.Start(stop)
+	coreTargetSharedInformers := coreTargetInformerFactory.Core().V1()
+	pvcs := coreTargetSharedInformers.PersistentVolumeClaims()
+	pvs := coreTargetSharedInformers.PersistentVolumes()
+	nodes := coreTargetSharedInformers.Nodes()
+	pods := coreTargetSharedInformers.Pods()
+
+	pvcLister := pvcs.Lister()
+	pvLister := pvs.Lister()
+	nodeLister := nodes.Lister()
+	podLister := pods.Lister()
+
+	pvcSynced := pvcs.Informer().HasSynced
+	pvSynced := pvs.Informer().HasSynced
+	nodeSynced := nodes.Informer().HasSynced
+	podSynced := pods.Informer().HasSynced
+
+	return fakeTargetCoreClient, pvLister, pvcLister, nodeLister, podLister, pvcSynced, pvSynced, nodeSynced, podSynced, targetCoreObjectTracker
 }
