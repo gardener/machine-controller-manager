@@ -1,0 +1,30 @@
+apiVersion: machine.sapcloud.io/v1alpha1
+kind: MachineClass
+credentialsSecretRef:
+  name: cloudprovider
+  namespace: default
+metadata:
+  finalizers:
+  - machine.sapcloud.io/machine-controller-manager
+  labels:
+    failure-domain.beta.kubernetes.io/zone: {{.Zone}}
+  name: {{.ClusterName}}-mcc-{{.Instance}}-{{.Zone}}
+  namespace: default
+nodeTemplate:
+  architecture: {{.Arch}}
+  capacity:
+    cpu: "{{.Cpu}}"
+    gpu: "{{.Gpu}}"
+    memory: {{.Mem}}
+  instanceType: {{.Instance}}
+  zone: {{.Zone}}
+provider: simulated
+providerSpec:
+  tags:
+    kubernetes.io/arch: {{.Arch}}
+    kubernetes.io/cluster/default: "1"
+    kubernetes.io/role/node: "1"
+    node.kubernetes.io/role: node
+secretRef:
+  name: {{.ClusterName}}-mcc-{{.Instance}}-{{.Zone}}
+  namespace: default
