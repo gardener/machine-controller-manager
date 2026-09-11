@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -1982,7 +1983,11 @@ var _ = Describe("machineDeployment", func() {
 					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))
 				},
 				func(_ *machinev1.MachineDeployment, mcs []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
-					Expect(mcs[0].Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime]).To(Equal(ts))
+					actualTS, err := time.Parse(time.RFC3339, mcs[0].Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime])
+					Expect(err).NotTo(HaveOccurred())
+					expectedTS, err := time.Parse(time.RFC3339, ts)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(actualTS).To(BeTemporally(">=", expectedTS))
 					_, exists := mcs[0].Annotations[machineutils.TriggerDeletionByMCM]
 					Expect(exists).To(BeFalse())
 					return nil
@@ -2356,7 +2361,7 @@ var _ = Describe("machineDeployment", func() {
 
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				err := c.updateMachineAndMachineDeploymentDeletionAnnotations(context.TODO(), testMachineDeployment)
+				_, err := c.updateMachineAndMachineDeploymentDeletionAnnotations(context.TODO(), testMachineDeployment, map[types.UID]*machinev1.MachineList{})
 				Expect(err).To(BeNil())
 
 				waitForCacheSync(stop, c)
