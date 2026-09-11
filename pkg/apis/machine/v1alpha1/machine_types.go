@@ -244,24 +244,23 @@ const (
 	UpdateFailed string = "UpdateFailed"
 )
 
+// Constants used by the preservation flow.
 const (
-	// NodePreserved is a node condition type for preservation of machines to allow end-user to know that a node is preserved
+	// NodePreserved is a node condition type that surfaces preservation information to the end-users.
 	NodePreserved corev1.NodeConditionType = "Preserved"
 
-	// PreservedByMCM is a node condition reason for preservation of machines to indicate that the node is auto-preserved by MCM
-	PreservedByMCM string = "Preserved by MCM."
+	// PreservationInProgress is a node condition reason indicating preservation has started but is not yet complete.
+	PreservationInProgress string = "PreservationInProgress"
 
-	// PreservedByUser is a node condition reason to indicate that a machine/node has been preserved due to explicit annotation by user
-	PreservedByUser string = "Preserved by user."
+	// PreservationWithoutDrainCompleted is a node condition reason indicating the node has not been drained but is fully preserved. This Reason is used
+	// when machines are preserved in Running, and the node need not be drained.
+	PreservationWithoutDrainCompleted string = "PreservationWithoutDrainCompleted"
 
-	// PreservationStopped is a node condition reason to indicate that a machine/node preservation has been stopped due to annotation update or timeout
-	PreservationStopped string = "Preservation stopped."
+	// PreservationWithDrainCompleted is a node condition reason indicating the node has been drained and is fully preserved.
+	PreservationWithDrainCompleted string = "PreservationWithDrainCompleted"
 
-	// PreservedNodeDrainSuccessful is a constant for the message in condition that indicates that the preserved node's drain is successful
-	PreservedNodeDrainSuccessful string = "Preserved node drained successfully."
-
-	// PreservedNodeDrainUnsuccessful is a constant for the message in condition that indicates that the preserved node's drain was not successful
-	PreservedNodeDrainUnsuccessful string = "Preserved node could not be drained."
+	// DrainFailed is a node condition reason indicating the preserved node could not be drained.
+	DrainFailed string = "DrainFailed"
 )
 
 // CurrentStatus contains information about the current status of Machine.

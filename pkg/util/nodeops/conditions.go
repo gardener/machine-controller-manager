@@ -94,6 +94,37 @@ func AddOrUpdateConditionsOnNode(ctx context.Context, c clientset.Interface, nod
 	return updatedNode, err
 }
 
+// RemoveConditionFromNode removes the condition with the given type from the node's status.
+// If the condition is not present, it is a no-op.
+func RemoveConditionFromNode(ctx context.Context, c clientset.Interface, nodeName string, conditionType v1.NodeConditionType) (*v1.Node, error) {
+	firstTry := true
+	var updatedNode *v1.Node
+	err := clientretry.RetryOnConflict(Backoff, func() error {
+		var err error
+		var oldNode *v1.Node
+		if firstTry {
+			oldNode, err = c.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{ResourceVersion: "0"})
+			firstTry = false
+		} else {
+			oldNode, err = c.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+		}
+		if err != nil {
+			return err
+		}
+		newNode := oldNode.DeepCopy()
+		conditions := make([]v1.NodeCondition, 0, len(newNode.Status.Conditions))
+		for _, cond := range newNode.Status.Conditions {
+			if cond.Type != conditionType {
+				conditions = append(conditions, cond)
+			}
+		}
+		newNode.Status.Conditions = conditions
+		updatedNode, err = UpdateNodeConditions(ctx, c, nodeName, oldNode, newNode)
+		return err
+	})
+	return updatedNode, err
+}
+
 // UpdateNodeConditions is for updating the node conditions from oldNode to the newNode
 // using the node's UpdateStatus() method
 func UpdateNodeConditions(ctx context.Context, c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) (*v1.Node, error) {
