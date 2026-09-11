@@ -59,7 +59,7 @@ func worker(queue workqueue.TypedRateLimitingInterface[string], resourceType str
 					return false
 				}
 
-				klog.V(4).Infof("Dropping %s %q out of the queue: %v", resourceType, key, err)
+				klog.V(3).Infof("Dropping %s %q out of the queue after %d retries: %v", resourceType, key, maxRetries, err)
 				queue.Forget(key)
 				return false
 			}()

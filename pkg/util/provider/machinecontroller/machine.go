@@ -77,7 +77,15 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 	}
 
 	if oldMachine.Generation == newMachine.Generation {
-		klog.V(3).Infof("Skipping other non-spec updates for machine %q", oldMachine.Name)
+		// Finalizer changes increment resourceVersion but not Generation, so a machine that just
+		// had the MCM finalizer added would be silently dropped here. Re-enqueue it so
+		// reconcileClusterMachine is reached and the machine advances past the empty phase.
+		if !sets.NewString(oldMachine.Finalizers...).HasAll(newMachine.Finalizers...) {
+			klog.V(3).Infof("updateMachine: machine %q gained finalizer — re-enqueuing despite unchanged Generation", newMachine.Name)
+			c.enqueueMachine(newObj, "handling machine finalizer UPDATE event")
+		} else {
+			klog.V(4).Infof("updateMachine: machine %q generation unchanged and no work to be done", newMachine.Name)
+		}
 		return
 	}
 
@@ -209,9 +217,10 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 	}
 
 	// Add finalizers if not present on machine object
-	_, err = c.addMachineFinalizers(ctx, machine)
+	retryPeriod, err := c.addMachineFinalizers(ctx, machine)
 	if err != nil {
-		return err
+		c.enqueueMachineAfter(machine, time.Duration(retryPeriod), err.Error())
+		return nil
 	}
 
 	if c.shouldMachineBeMovedToTerminatingQueue(machine) {
@@ -220,7 +229,7 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 		return nil
 	}
 
-	retryPeriod, err := c.reconcileClusterMachine(ctx, machine)
+	retryPeriod, err = c.reconcileClusterMachine(ctx, machine)
 
 	var reEnqueReason = "periodic reconcile"
 	if err != nil {
