@@ -24,6 +24,7 @@ package controller
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -2427,14 +2428,12 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 	if needsUpdate {
 		// Step 4: Update NodePreserved Condition on Node, with drain status
 		_, err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, updatedNode.Name, *newCond)
-		if drainErr != nil {
-			klog.Errorf("error draining preserved node %q for machine %q : %v", nodeName, machine.Name, drainErr)
-			return machine, drainErr
-		}
 		if err != nil {
 			klog.Errorf("error trying to update node preserved condition for node %q of machine %q : %v", nodeName, machine.Name, err)
-			return machine, err
 		}
+	}
+	if drainErr != nil || err != nil {
+		return machine, cmp.Or(drainErr, err)
 	}
 	klog.V(2).Infof("Machine %q and backing node %q preserved successfully till %v.", machine.Name, nodeName, machine.Status.CurrentStatus.PreserveExpiryTime)
 	return machine, nil
