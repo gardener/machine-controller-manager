@@ -392,12 +392,11 @@ func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context
 			if err != nil {
 				return addedNewReplicasCount, err
 			}
-			// update the owner reference of the machine to the new machine set and update the labels
+			// update the owner reference of the machine to the new machine set, update the labels and update the machineClassName
 			addControllerPatch := fmt.Sprintf(
-				`{"metadata":{"ownerReferences":[{"apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"labels":%s,"uid":"%s"}}`,
+				`{"metadata":{"ownerReferences":[{"apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"labels":%s,"uid":"%s"},"spec":{"class":{"name":"%s"}}}`,
 				v1alpha1.SchemeGroupVersion.WithKind("MachineSet").Kind,
-				newMachineSet.GetName(), newMachineSet.GetUID(), string(labelsJSONBytes), oldMachine.UID)
-
+				newMachineSet.GetName(), newMachineSet.GetUID(), string(labelsJSONBytes), oldMachine.UID, newMachineSet.Spec.Template.Spec.Class.Name)
 			err = dc.machineControl.PatchMachine(ctx, oldMachine.Namespace, oldMachine.Name, []byte(addControllerPatch))
 			if err != nil {
 				klog.Errorf("failed to transfer the ownership of machine %s to new machine set. Err: %v", oldMachine.Name, err)
