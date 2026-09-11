@@ -750,12 +750,8 @@ func (s ActiveMachines) Less(i, j int) bool {
 	// So, we check if either of the machines is preserved first.
 	// If one is preserved and the other is not, the preserved one is "greater"
 	// If both are preserved or both are not preserved, we move to the next criteria.
-	now := metav1.Now()
-	isPreserved := func(m *v1alpha1.Machine) bool {
-		return m.Status.CurrentStatus.PreserveExpiryTime != nil && m.Status.CurrentStatus.PreserveExpiryTime.After(now.Time)
-	}
-	isPreservedI := isPreserved(s[i])
-	isPreservedJ := isPreserved(s[j])
+	isPreservedI := machineutils.IsMachinePreserved(s[i])
+	isPreservedJ := machineutils.IsMachinePreserved(s[j])
 	if isPreservedI != isPreservedJ {
 		return !isPreservedI // if s[i] preserved, it is "greater" and should not be deleted first, therefore, "less" is false, and vice versa
 	}

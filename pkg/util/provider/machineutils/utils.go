@@ -175,6 +175,13 @@ func IsMachinePreservationExpired(m *v1alpha1.Machine) bool {
 	return t != nil && !t.After(time.Now())
 }
 
+// IsMachinePreserved returns true if the machine is currently being preserved, i.e. it has a
+// PreserveExpiryTime set on its status that lies in the future.
+func IsMachinePreserved(m *v1alpha1.Machine) bool {
+	t := m.Status.CurrentStatus.PreserveExpiryTime
+	return t != nil && t.After(time.Now())
+}
+
 // GetMachineDeploymentName gets the name of the MachineDeployment associated with this Machine
 func GetMachineDeploymentName(machine *v1alpha1.Machine) string {
 	return machine.Labels["name"]
