@@ -6,6 +6,7 @@
 /test
 /logs
 /hack/tools/bin
+/pkg/simulatedprovider/bin
 
 *.html
 .vscode
@@ -20,11 +21,16 @@ kubectl
 .cache_ggshield
 
 # Binary files of MCM
+./machine-controller
 ./machine-controller-manager
 ./managevm
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *coverprofile.out*
+
+# Output of MCM IT logs
+**/*.log
+**/*.log.*
 
 # Autogen tags
 tags

@@ -10,7 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
+	"time"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,6 +31,7 @@ const (
 // to block kubelet from updating node leases and node status.
 // This is used to cause nodes to go into the NotReady state to test the machine preservation feature of MCM.
 func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames []string) error {
+	log.Printf("Creating VAP to block updates for %+v\n", nodeNames)
 	if len(nodeNames) == 0 {
 		return fmt.Errorf("no node names provided to block kubelet updates")
 	}
@@ -77,8 +80,12 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 			},
 			Validations: []admissionregistrationv1.Validation{
 				{
-					Expression: blockedKubeletExpression(nodeNames),
+					Expression: blockedLeaseRenewalExpression(nodeNames),
 					Message:    "blocking kubelet heartbeat for test",
+				},
+				{
+					Expression: blockNodeReadyExpression(nodeNames),
+					Message:    "blocking node status patch for test",
 				},
 			},
 		},
@@ -102,8 +109,12 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 			"spec": map[string]any{
 				"validations": []map[string]any{
 					{
-						"expression": blockedKubeletExpression(nodeNames),
+						"expression": blockedLeaseRenewalExpression(nodeNames),
 						"message":    "blocking kubelet heartbeat for test",
+					},
+					{
+						"expression": blockNodeReadyExpression(nodeNames),
+						"message":    "blocking node status patch for test",
 					},
 				},
 			},
@@ -131,22 +142,42 @@ func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames 
 	return nil
 }
 
-func blockedKubeletExpression(nodes []string) string {
+func blockNodeReadyExpression(nodes []string) string {
+	quotedNodes := make([]string, len(nodes))
+	for i, n := range nodes {
+		quotedNodes[i] = strconv.Quote(n)
+	}
+
+	return fmt.Sprintf(
+		"request.resource.resource != 'nodes' || "+
+			"!(has(object.status) && has(object.status.conditions) && "+
+			"object.status.conditions.exists(c, c.type == 'Ready' && c.status == 'True') && "+
+			"object.metadata.name in [%s])",
+		strings.Join(quotedNodes, ", "),
+	)
+}
+
+func blockedLeaseRenewalExpression(nodes []string) string {
 	users := make([]string, 0, len(nodes))
 
 	for _, node := range nodes {
 		users = append(users, fmt.Sprintf(`"system:node:%s"`, node))
 	}
 
+	users = append(users, `"kwok-admin"`)
+
 	return fmt.Sprintf(
-		"!(request.userInfo.username in [%s])",
+		"request.resource.resource != 'leases' || !(request.userInfo.username in [%s])",
 		strings.Join(users, ", "),
 	)
 }
 
 // DeleteVAPToRestartKubeletUpdates deletes the ValidatingAdmissionPolicy and ValidatingAdmissionPolicyBinding that were created to block kubelet from updating node leases and node status.
-func (c *Cluster) DeleteVAPToRestartKubeletUpdates(ctx context.Context) error {
-	var vapErr, vapbErr error
+// Furthermore, it triggers node recovery for virtual clusters by adding annotation "kwok/fail-condition=Recover"
+// for each node whose readiness was being blocked by the VAP.
+func (c *Cluster) DeleteVAPToRestartKubeletUpdates(ctx context.Context, nodeNames []string) error {
+	var vapErr, vapbErr, nodeUpdateErr error
+
 	vapErr = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Delete(ctx, VAPName, metav1.DeleteOptions{})
 	if vapErr != nil {
 		if apierrors.IsNotFound(vapErr) {
@@ -164,6 +195,21 @@ func (c *Cluster) DeleteVAPToRestartKubeletUpdates(ctx context.Context) error {
 			vapbErr = nil
 		} else {
 			log.Printf("error deleting validating admission policy binding %s: %v\n", VAPBName, vapbErr)
+		}
+	}
+
+	// This delay is intentionally added to ensure that node updates are issued a bit later than VAP removal
+	// so that the node recovery update event isn't blocked by the VAP.
+	time.Sleep(2 * time.Second)
+
+	for _, node := range nodeNames {
+		nodeUpdateErr = c.addNodeRecoverAnnotation(ctx, node)
+		if nodeUpdateErr != nil {
+			if apierrors.IsNotFound(nodeUpdateErr) {
+				log.Printf("node %s not found\n", node)
+			} else {
+				log.Printf("error updating node with recover annotation %s: %v\n", node, nodeUpdateErr)
+			}
 		}
 	}
 

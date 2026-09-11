@@ -36,7 +36,10 @@ function test_with_coverage() {
   local output_dir=test/output
   local coverprofile_file=coverprofile.out
   mkdir -p test/output
-  ginkgo $GINKGO_COMMON_FLAGS --coverprofile ${coverprofile_file} -covermode=set -output-dir ${output_dir} ${TEST_PACKAGES}
+  ginkgo $GINKGO_COMMON_FLAGS \
+         --coverprofile ${coverprofile_file} -covermode=set \
+         --skip-package ${SKIP_PACKAGES} \
+         -output-dir ${output_dir} ${TEST_PACKAGES}
 
   sed -i -e '/mode: set/d' ${output_dir}/${coverprofile_file}
   {( echo "mode: set"; cat ${output_dir}/${coverprofile_file} )} > ${output_dir}/${coverprofile_file}.temp
@@ -47,18 +50,22 @@ function test_with_coverage() {
 ###############################################################################
 
 if [[ "${SKIP_UNIT_TESTS}" != "" ]]; then
-  echo ">>>>>Skipping unit tests"
+  echo ">>>>> Skipping unit tests"
 else
   echo ">>>>> Invoking unit tests"
   TEST_PACKAGES="cmd pkg"
-  GINKGO_COMMON_FLAGS="-r -timeout=1h0m0s --randomize-all --randomize-suites --fail-on-pending  --show-node-events"
+  SKIP_PACKAGES="simulatedprovider/test/integration"
+  GINKGO_COMMON_FLAGS="-r -timeout=1h0m0s --randomize-all --randomize-suites --fail-on-pending  --show-node-events --poll-progress-after=300s --poll-progress-interval=60s"
   test_with_coverage
   echo ">>>>> Finished executing unit tests"
 fi
 
-# Integration tests here will always be skipped.
 if [[ "${SKIP_INTEGRATION_TESTS}" != "" ]]; then
   echo ">>>>> Skipping integration tests"
+else
+  echo ">>>>> Invoking integration tests with the simulated provider"
+	ginkgo -v --show-node-events --poll-progress-after=300s --poll-progress-interval=60s pkg/simulatedprovider/test/integration/controller
+  echo ">>>>> Finished executing integration tests"
 fi
 
 #TODO: return success failure properly
