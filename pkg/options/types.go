@@ -78,9 +78,6 @@ type SafetyOptions struct {
 	// Period (in durartion) used to poll for overshooting
 	// of machine objects backing a machineSet by safety controller
 	MachineSafetyOvershootingPeriod metav1.Duration
-	// Timeout (in duration) used while preserving a machine,
-	// beyond which preservation is stopped
-	MachinePreserveTimeout metav1.Duration
 }
 
 // LeaderElectionConfiguration defines the configuration of leader election
