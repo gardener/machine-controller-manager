@@ -4,6 +4,12 @@
 
 package v1alpha1
 
+import (
+	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
 const (
 	// AnnotationKeyMachineUpdateFailedReason is the annotation key that indicates the reason for a machine update failure.
 	AnnotationKeyMachineUpdateFailedReason = "node.machine.sapcloud.io/update-failed-reason"
@@ -25,4 +31,10 @@ const (
 	LabelValueNodeUpdateSuccessful = "successful"
 	// LabelValueNodeUpdateFailed is the label value that indicates the update on the node has failed.
 	LabelValueNodeUpdateFailed = "failed"
+)
+
+var (
+	// DefaultMachinePreserveTimeout is the default time for which the machine is preserved
+	// when [MachineConfiguration.MachinePreserveTimeout] is not specified.
+	DefaultMachinePreserveTimeout = metav1.Duration{Duration: 96 * time.Hour}
 )
