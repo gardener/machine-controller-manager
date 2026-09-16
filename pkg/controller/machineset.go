@@ -981,7 +981,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 			if annotatedMachine.Spec.MachineConfiguration != nil && annotatedMachine.Spec.MachineConfiguration.MachinePreserveTimeout != nil {
 				m.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(annotatedMachine.Spec.MachineConfiguration.MachinePreserveTimeout.Duration)}
 			} else {
-				m.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.safetyOptions.MachinePreserveTimeout.Duration)}
+				m.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(v1alpha1.DefaultMachinePreserveTimeout.Duration)}
 			}
 			return nil
 		}, true, "status")
