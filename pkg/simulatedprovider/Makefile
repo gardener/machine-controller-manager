@@ -48,7 +48,6 @@ stop-simulated-cluster: $(KWOKCTL)
 set-kubeconfig: $(KWOKCTL)
 	$(KWOKCTL) get kubeconfig --name "test-cluster" > /tmp/test-cluster.kubeconfig
 	@echo "export KUBECONFIG=/tmp/test-cluster.kubeconfig"
-	@echo "# Or run: eval \$$(make set-kubeconfig 2>/dev/null)"
 
 .PHONY: test-integration
 test-integration:
