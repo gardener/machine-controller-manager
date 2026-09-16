@@ -2309,7 +2309,7 @@ var _ = Describe("machineset", func() {
 					preservedMachineCount: 0,
 				},
 			}),
-			Entry("should reduce auto-preserved machines to the new lower AutoPreserveFailedMachineMax, removing the oldest first", testCase{
+			Entry("should reduce auto-preserved machines to the new lower AutoPreserveFailedMachineMax", testCase{
 				setup: setup{
 					autoPreserveFailedMachineCount: 2,
 					autoPreserveFailedMachineMax:   1,
