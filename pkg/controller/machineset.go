@@ -934,12 +934,18 @@ func (c *controller) shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) 
 // MachineSet's AutoPreserveFailedMachineMax field. If the AutoPreserveFailedMachineMax limit is breached, it removes the preserve=auto-preserved annotation from the machines which are nearest to preserve expiry.
 func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context, machines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) []*v1alpha1.Machine {
 	// TODO@thiyyakat: if preservation is to be honoured across updates, capacity remaining should consider machines in all machinesets
-	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - machineSet.Status.AutoPreserveFailedMachineCount
+	currentAutoPreservedCount := int32(0)
+	for _, m := range machines {
+		if m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved {
+			currentAutoPreservedCount++
+		}
+	}
+	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - currentAutoPreservedCount
 	if autoPreservationCapacityRemaining == 0 {
 		// no capacity remaining, nothing to do
 		return machines
 	} else if autoPreservationCapacityRemaining < 0 { // when autoPreserveFailedMachineMax is decreased, it can be negative.
-		numStillExceeding := c.stopAutoPreservationForMachines(ctx, machines, int(-autoPreservationCapacityRemaining))
+		numStillExceeding := c.stopAutoPreservationForMachines(ctx, machines, int(machineSet.Spec.AutoPreserveFailedMachineMax))
 		if numStillExceeding > 0 {
 			klog.V(2).Infof("Attempted to decrease count of auto-preserved machines, but there are still %d violations of AutoPreserveFailedMachineMax.", numStillExceeding)
 		}
@@ -989,17 +995,16 @@ func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machin
 	if numOfAutoPreservedMachines > numToStop {
 		sort.Sort(ActiveMachines(autoPreservedMachines))
 	}
-	for index, m := range autoPreservedMachines {
+	for _, m := range autoPreservedMachines {
 		if numToStop == 0 {
 			break
 		}
 		klog.V(2).Infof("Removing auto-preservation annotation from machine %q as AutoPreserveFailedMachineMax is breached", m.Name)
-		updatedMachine, err := machineutils.UpdateMachineWithRetries(ctx, c.controlMachineClient.Machines(m.Namespace), c.machineLister, m.Namespace, m.Name, removeAutoPreserveAnnotationFromMachine)
+		_, err := machineutils.UpdateMachineWithRetries(ctx, c.controlMachineClient.Machines(m.Namespace), c.machineLister, m.Namespace, m.Name, removeAutoPreserveAnnotationFromMachine)
 		if err != nil {
 			klog.Warningf("Error removing %q=%q annotation from machine %q: %v.", machineutils.PreserveMachineAnnotationKey, machineutils.PreserveMachineAnnotationValueAutoPreserved, m.Name, err)
 			continue
 		}
-		autoPreservedMachines[index] = updatedMachine
 		numToStop--
 	}
 	return numToStop
