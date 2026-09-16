@@ -37,7 +37,7 @@ func (c *Cluster) getNodes() (*corev1.NodeList, error) {
 }
 
 // GetNumberOfReadyNodes tries to retrieve the list of node objects in the cluster.
-// Preserved nodes are excluded, since they are intentionally kept NotReady.
+// Preserved nodes are excluded, since they are NotReady.
 func (c *Cluster) GetNumberOfReadyNodes() int16 {
 	nodes, _ := c.getNodes()
 	count := 0
