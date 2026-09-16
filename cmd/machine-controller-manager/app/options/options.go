@@ -67,9 +67,10 @@ func NewMCMServer() *MCMServer {
 			ControllerStartInterval: metav1.Duration{Duration: 0 * time.Second},
 			AutoscalerScaleDownAnnotationDuringRollout: true,
 			SafetyOptions: machineconfig.SafetyOptions{
-				SafetyUp:                        2,
-				SafetyDown:                      1,
-				MachineSafetyOvershootingPeriod: metav1.Duration{Duration: 1 * time.Minute},
+				SafetyUp:                          2,
+				SafetyDown:                        1,
+				MachineSafetyOvershootingPeriod:   metav1.Duration{Duration: 1 * time.Minute},
+				MachineReplaceCycleCountThreshold: constants.DefaultMachineReplaceCycleThreshold,
 			},
 		},
 	}
@@ -98,6 +99,7 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&s.SafetyOptions.SafetyDown, "safety-down", s.SafetyOptions.SafetyDown, "Upper-limit minus safety-down value gives the lower-limit. This is the limits below which any temporarily frozen machineSet/machineDeployment object is unfrozen. lower-limit = desired + maxSurge (if applicable) + safetyUp - safetyDown.")
 
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration, "machine-safety-overshooting-period", s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration, "Time period (in duration) used to poll for overshooting of machine objects backing a machineSet by safety controller.")
+	fs.Uint32Var(&s.SafetyOptions.MachineReplaceCycleCountThreshold, "machine-replace-cycle-count-threshold", s.SafetyOptions.MachineReplaceCycleCountThreshold, "Threshold for Machine replace cycles caused by failures following which the effective-creation-timeout is grown within a MachineDeployment.")
 
 	fs.BoolVar(&s.AutoscalerScaleDownAnnotationDuringRollout, "autoscaler-scaledown-annotation-during-rollout", true, "Add cluster autoscaler scale-down disabled annotation during roll-out.")
 

@@ -237,7 +237,7 @@ var _ = Describe("annotations", func() {
 			object any
 		}
 		type expect struct {
-			timeout *metav1.Duration
+			timeout metav1.Duration
 			err     bool
 		}
 		type data struct {
@@ -247,7 +247,7 @@ var _ = Describe("annotations", func() {
 
 		DescribeTable("##table",
 			func(data *data) {
-				timeout, err := GetEffectiveMachineCreationTimeout(data.setup.object.(runtime.Object))
+				timeout, err := GetMachineEffectiveCreationTimeout(data.setup.object.(runtime.Object))
 
 				if data.expect.err {
 					Expect(err).To(HaveOccurred())
@@ -268,7 +268,7 @@ var _ = Describe("annotations", func() {
 					},
 				},
 				expect: expect{
-					timeout: nil,
+					timeout: metav1.Duration{Duration: 0},
 					err:     false,
 				},
 			}),
@@ -285,7 +285,7 @@ var _ = Describe("annotations", func() {
 					},
 				},
 				expect: expect{
-					timeout: &metav1.Duration{
+					timeout: metav1.Duration{
 						Duration: 15*time.Minute + 30*time.Second,
 					},
 					err: false,
@@ -304,7 +304,7 @@ var _ = Describe("annotations", func() {
 					},
 				},
 				expect: expect{
-					timeout: nil,
+					timeout: metav1.Duration{},
 					err:     true,
 				},
 			}),
@@ -314,7 +314,7 @@ var _ = Describe("annotations", func() {
 					object: &corev1.NodeList{},
 				},
 				expect: expect{
-					timeout: nil,
+					timeout: metav1.Duration{},
 					err:     true,
 				},
 			}),

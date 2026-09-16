@@ -25,11 +25,16 @@ package controller
 import (
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/gardener/machine-controller-manager/pkg/apis/constants"
+	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -575,6 +580,11 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return dc.rollback(ctx, d, machineSets, machineMap)
 	}
 
+	// Check/Adjust machine-replace-cycle-count and effective-creation-timeout On MachineDeployment
+	if err = dc.checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout(ctx, d, machineMap); err != nil {
+		return err
+	}
+
 	scalingEvent, err := dc.isScalingEvent(ctx, d, machineSets, machineMap)
 
 	if err != nil {
@@ -792,4 +802,142 @@ func (dc *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.
 	}
 
 	return mcdDeepCopy, nil
+}
+
+func (dc *controller) checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout(ctx context.Context, mcd *v1alpha1.MachineDeployment, machineMap map[types.UID]*v1alpha1.MachineList) error {
+	oldInfo, err := getCreationTimeoutAdjustInfo(mcd)
+	if err != nil {
+		return nil
+	}
+	numFailedJoinInWindow, numJoinedInWindow, maxJoinDuration := getNumFailedJoinedAndMaxJoinDurationSince(machineMap, oldInfo.replaceCycleCountLastAdjustedAt)
+	klog.V(4).Infof("For MachineDeployment %q, numFailedJoinInWindow=%d,numJoinedInWindow=%d,maxJoinDuration=%s, replaceCount=%d, replaceCycleCountLastAdjustedAt: %s",
+		mcd.Name, numFailedJoinInWindow, numJoinedInWindow, maxJoinDuration, oldInfo.replaceCycleCount, oldInfo.replaceCycleCountLastAdjustedAt.Time.Format(time.RFC3339))
+	newInfo := oldInfo
+	if numJoinedInWindow > 0 {
+		specCreationTimeout := GetSpecCreationTimeoutOrDefaultOnMachineDeployment(mcd)
+		newInfo.effectiveCreationTimeout.Duration = max(specCreationTimeout.Duration, maxJoinDuration.Duration)
+	} else if numJoinedInWindow == 0 && numFailedJoinInWindow > 0 {
+		// replace-cycle-count only increments once if at-least one machine failed join && zero machines joined within the
+		// effective-creation-timeout.
+		newInfo.replaceCycleCount++
+		newInfo.replaceCycleCountLastAdjustedAt = metav1.Now()
+		if newInfo.replaceCycleCount >= int(dc.safetyOptions.MachineReplaceCycleCountThreshold) &&
+			newInfo.replaceCycleCountLastAdjustedAt.Sub(oldInfo.replaceCycleCountLastAdjustedAt.Time) > oldInfo.effectiveCreationTimeout.Duration {
+			newInfo.effectiveCreationTimeout = increaseEffectiveCreationTimeout(oldInfo.effectiveCreationTimeout, constants.DefaultCreationTimeoutGrowthFactor, metav1.Duration{Duration: constants.DefaultCreationTimeoutMax})
+			newInfo.effectiveCreationTimeoutLastAdjustedAt = metav1.Now()
+			newInfo.replaceCycleCount = 0 // reset replace-cycle-count after you grow effective-creation-timeout
+			klog.V(3).Infof("For MachineDeployment %q, adjust threshold breached (numFailedJoinInWindow:%d, numJoinedInWindow:%d, replaceCycleCountLastAdjustedAt: %s, older replaceCycleCountLastAdjustedAt: %s)",
+				mcd.Name, numFailedJoinInWindow, numJoinedInWindow, newInfo.replaceCycleCountLastAdjustedAt.Format(time.RFC3339), oldInfo.replaceCycleCountLastAdjustedAt.Format(time.RFC3339))
+		} else {
+			klog.V(4).Infof("For MachineDeployment %q, adjust threshold not breached (numFailedJoin:%d, numJoined:%d, replaceCycleCount:%d, replaceCycleCountLastAdjustedAt: %s)",
+				mcd.Name, numFailedJoinInWindow, numJoinedInWindow, newInfo.replaceCycleCount, newInfo.replaceCycleCountLastAdjustedAt.Format(time.RFC3339))
+		}
+	}
+	if adjustedAnnotations := createAdjustedAnnotations(oldInfo, newInfo); len(adjustedAnnotations) > 0 {
+		newMcd := mcd.DeepCopy()
+		for k, v := range adjustedAnnotations {
+			metav1.SetMetaDataAnnotation(&newMcd.ObjectMeta, k, v)
+		}
+		_, err = dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, newMcd, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+		klog.V(3).Infof("For MachineDeployment %q, adjusted annotations: %q", mcd.Name, adjustedAnnotations)
+	}
+	return nil
+}
+
+func createAdjustedAnnotations(oldInfo, newInfo creationTimeoutAdjustInfo) (adjustedAnnotations map[string]string) {
+	adjustedAnnotations = make(map[string]string)
+	if oldInfo.replaceCycleCount != newInfo.replaceCycleCount &&
+		time.Since(oldInfo.replaceCycleCountLastAdjustedAt.Time) > oldInfo.effectiveCreationTimeout.Duration {
+		countStr := strconv.Itoa(newInfo.replaceCycleCount)
+		lastAdjustedAt := newInfo.replaceCycleCountLastAdjustedAt.Time.Format(time.RFC3339)
+		adjustedAnnotations[v1alpha1.AnnotationKeyMachineReplaceCycleCount] = countStr
+		adjustedAnnotations[v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAdjustedAt] = lastAdjustedAt
+	}
+	if oldInfo.effectiveCreationTimeout.Duration != newInfo.effectiveCreationTimeout.Duration &&
+		time.Since(oldInfo.effectiveCreationTimeoutLastAdjustedAt.Time) > oldInfo.effectiveCreationTimeout.Duration {
+		durationStr := newInfo.effectiveCreationTimeout.Duration.String()
+		lastAdjustedAt := newInfo.effectiveCreationTimeoutLastAdjustedAt.Time.Format(time.RFC3339)
+		adjustedAnnotations[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout] = durationStr
+		adjustedAnnotations[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAdjustedAt] = lastAdjustedAt
+	}
+	return
+}
+
+func getCreationTimeoutAdjustInfo(mcd *v1alpha1.MachineDeployment) (adjustInfo creationTimeoutAdjustInfo, err error) {
+	adjustInfo.effectiveCreationTimeout, err = GetEffectiveCreationTimeoutOnMachineDeployment(mcd)
+	if err != nil {
+		klog.Warningf("Failed to get effective-creation-timeout for MachineDeployment %q: %v", mcd.Name, err)
+		return
+	}
+	adjustInfo.effectiveCreationTimeoutLastAdjustedAt, err = annotations.GetMachineEffectiveCreationTimeoutLastAdjustedAt(mcd)
+	if err != nil {
+		klog.Warningf("Failed to get annotation %q on MachineDeployment %q: %v", v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAdjustedAt, mcd.Name, err)
+		return
+	}
+	adjustInfo.replaceCycleCountLastAdjustedAt, err = annotations.GetMachineReplaceCycleCountLastAdjustedAt(mcd)
+	if err != nil {
+		klog.Warningf("Failed to get annotation %q on MachineDeployment %q: %v", v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAdjustedAt, mcd.Name, err)
+		return
+	}
+	adjustInfo.replaceCycleCount, err = annotations.GetMachineReplaceCycleCount(mcd)
+	if err != nil {
+		klog.Warningf("Failed to get annotation %q on MachineDeployment %q: %v", v1alpha1.AnnotationKeyMachineReplaceCycleCount, mcd.Name, err)
+		return
+	}
+	return
+}
+
+func getNumFailedJoinedAndMaxJoinDurationSince(machineMap map[types.UID]*v1alpha1.MachineList, mark metav1.Time) (numFailedInWindow int, numJoinedInWindow int, maxJoinDuration metav1.Duration) {
+	for mList := range maps.Values(machineMap) {
+		for _, m := range mList.Items {
+			machineFailedCond := nodeops.FilterNodeConditionOfType(m.Status.Conditions, v1alpha1.ConditionMachineFailed)
+			machineJoinedCond := nodeops.FilterNodeConditionOfType(m.Status.Conditions, v1alpha1.ConditionMachineJoined)
+			if machineJoinedCond != nil {
+				if machineJoinedCond.LastTransitionTime.After(mark.Time) {
+					numJoinedInWindow++
+				}
+				joinDuration := machineJoinedCond.LastTransitionTime.Sub(m.CreationTimestamp.Time)
+				maxJoinDuration.Duration = max(maxJoinDuration.Duration, joinDuration)
+			} else if machineFailedCond != nil &&
+				machineFailedCond.LastTransitionTime.After(mark.Time) &&
+				machineFailedCond.Reason == codes.FailedJoin.String() {
+				// currently we only adjust creation-timeout upwards for machines that failed to join cluster.
+				numFailedInWindow++
+			}
+		}
+	}
+	return
+}
+
+// increaseEffectiveCreationTimeout increases the currTimeout by the growthFactor bounded to maxTimeout. Returns currTimeout if there was no adjustment.
+func increaseEffectiveCreationTimeout(currTimeout metav1.Duration, growthFactor float64, maxTimeout metav1.Duration) metav1.Duration {
+	if growthFactor <= 1.0 || currTimeout.Duration >= maxTimeout.Duration || currTimeout.Duration <= 0 {
+		return currTimeout
+	}
+	newDuration := time.Duration(float64(currTimeout.Duration) * growthFactor)
+	if newDuration > maxTimeout.Duration {
+		newDuration = maxTimeout.Duration
+	}
+	if newDuration == currTimeout.Duration {
+		return currTimeout
+	}
+	return metav1.Duration{Duration: newDuration}
+}
+
+type creationTimeoutAdjustInfo struct {
+	effectiveCreationTimeout               metav1.Duration
+	effectiveCreationTimeoutLastAdjustedAt metav1.Time
+	replaceCycleCount                      int
+	replaceCycleCountLastAdjustedAt        metav1.Time
+}
+
+func (i creationTimeoutAdjustInfo) String() string {
+	return fmt.Sprintf("(effectiveCreationTimeout=%q, effectiveCreationTimeoutLastAdjustedAt=%q, replaceCycleCount=%d, replaceCycleCountLastAdjustedAt=%q)",
+		i.effectiveCreationTimeout,
+		i.effectiveCreationTimeoutLastAdjustedAt.Time.Format(time.RFC3339),
+		i.replaceCycleCount,
+		i.replaceCycleCountLastAdjustedAt.Time.Format(time.RFC3339))
 }

@@ -36,26 +36,26 @@ func (cntr *staleMachinesRemovedCounter) readAndReset() int32 {
 }
 
 // Describe is method required to implement the prometheus.Collect interface.
-func (c *controller) Describe(ch chan<- *prometheus.Desc) {
+func (dc *controller) Describe(ch chan<- *prometheus.Desc) {
 	ch <- metrics.MachineSetCountDesc
 	ch <- metrics.MachineDeploymentCountDesc
 }
 
 // Collect is method required to implement the prometheus.Collect interface.
-func (c *controller) Collect(ch chan<- prometheus.Metric) {
-	c.CollectMachineMetrics(ch)
-	c.CollectMachineSetMetrics(ch)
-	c.CollectMachineDeploymentMetrics(ch)
+func (dc *controller) Collect(ch chan<- prometheus.Metric) {
+	dc.CollectMachineMetrics(ch)
+	dc.CollectMachineSetMetrics(ch)
+	dc.CollectMachineDeploymentMetrics(ch)
 }
 
 // CollectMachineMetrics is a method to collect overall machine metrics
-func (c *controller) CollectMachineMetrics(_ chan<- prometheus.Metric) {
+func (dc *controller) CollectMachineMetrics(_ chan<- prometheus.Metric) {
 	metrics.StaleMachineCount.Add(float64(staleMachinesRemoved.readAndReset()))
 }
 
 // CollectMachineDeploymentMetrics is method to collect machineSet related metrics.
-func (c *controller) CollectMachineDeploymentMetrics(ch chan<- prometheus.Metric) {
-	machineDeploymentList, err := c.machineDeploymentLister.MachineDeployments(c.namespace).List(labels.Everything())
+func (dc *controller) CollectMachineDeploymentMetrics(ch chan<- prometheus.Metric) {
+	machineDeploymentList, err := dc.machineDeploymentLister.MachineDeployments(dc.namespace).List(labels.Everything())
 	if err != nil {
 		metrics.ScrapeFailedCounter.With(prometheus.Labels{"kind": "Machinedeployment-count"}).Inc()
 		return
@@ -74,8 +74,8 @@ func (c *controller) CollectMachineDeploymentMetrics(ch chan<- prometheus.Metric
 }
 
 // CollectMachineSetMetrics is method to collect machineSet related metrics.
-func (c *controller) CollectMachineSetMetrics(ch chan<- prometheus.Metric) {
-	machineSetList, err := c.machineSetLister.MachineSets(c.namespace).List(labels.Everything())
+func (dc *controller) CollectMachineSetMetrics(ch chan<- prometheus.Metric) {
+	machineSetList, err := dc.machineSetLister.MachineSets(dc.namespace).List(labels.Everything())
 	if err != nil {
 		metrics.ScrapeFailedCounter.With(prometheus.Labels{"kind": "Machineset-count"}).Inc()
 		return
