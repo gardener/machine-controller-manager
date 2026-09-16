@@ -28,7 +28,7 @@ start:
 			--namespace=$(CONTROL_NAMESPACE) \
 			--machine-creation-timeout=20m \
 			--machine-drain-timeout=10s \
-			--machine-health-timeout=10m \
+			--machine-health-timeout=5m \
 			--machine-pv-detach-timeout=2m \
 			--machine-safety-apiserver-statuscheck-timeout=30s \
 			--machine-safety-apiserver-statuscheck-period=1m \
