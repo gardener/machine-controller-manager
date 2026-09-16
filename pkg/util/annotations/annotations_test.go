@@ -312,4 +312,26 @@ var _ = Describe("annotations", func() {
 		)
 	})
 
+	Describe("#GetInstanceDeletionSuspensionMessage", func() {
+		It("returns a deterministic message for all suspension annotations", func() {
+			machine := &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/etcd-member-removal":      "my-controller",
+					v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/custom-termination-logic": "another-controller",
+				},
+			}}
+
+			Expect(IsInstanceDeletionSuspended(machine)).To(BeTrue())
+			message := GetInstanceDeletionSuspensionMessage(machine)
+			Expect(message).To(Equal("Instance Deletion suspended by another-controller for custom-termination-logic, my-controller for etcd-member-removal."))
+		})
+
+		It("returns false when no suspension annotation exists", func() {
+			machine := &v1alpha1.Machine{}
+			Expect(IsInstanceDeletionSuspended(machine)).To(BeFalse())
+			message := GetInstanceDeletionSuspensionMessage(machine)
+			Expect(message).To(BeEmpty())
+		})
+	})
+
 })

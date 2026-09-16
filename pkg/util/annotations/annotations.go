@@ -109,3 +109,63 @@ func GetEffectiveMachineCreationTimeout(object runtime.Object) (*metav1.Duration
 	}
 	return &metav1.Duration{Duration: effectiveMachineCreationTimeout}, nil
 }
+
+// IsInstanceDeletionSuspended reports whether any instance-deletion suspension annotation is set on the machine.
+func IsInstanceDeletionSuspended(machine *v1alpha1.Machine) bool {
+	return len(getInstanceDeletionSuspensions(machine)) > 0
+}
+
+// GetInstanceDeletionSuspensionMessage returns a deterministic human-readable message for all
+// instance-deletion suspension annotations on the machine, or an empty string if none are set.
+func GetInstanceDeletionSuspensionMessage(machine *v1alpha1.Machine) string {
+	suspensions := getInstanceDeletionSuspensions(machine)
+	if len(suspensions) == 0 {
+		return ""
+	}
+
+	details := make([]string, 0, len(suspensions))
+	for _, suspension := range suspensions {
+		detail := suspension.owner
+		if suspension.purpose != "" {
+			detail += " for " + suspension.purpose
+		}
+		details = append(details, detail)
+	}
+
+	return "Instance Deletion suspended by " + strings.Join(details, ", ") + "."
+}
+
+type instanceDeletionSuspension struct {
+	purpose string
+	owner   string
+}
+
+func getInstanceDeletionSuspensions(machine *v1alpha1.Machine) []instanceDeletionSuspension {
+	if machine == nil {
+		return nil
+	}
+
+	var suspensions []instanceDeletionSuspension
+	if owner, exists := machine.Annotations[v1alpha1.AnnotationSuspendInstanceDeletionPrefix]; exists {
+		// Support the base annotation as a boolean-style hook.
+		suspensions = append(suspensions, instanceDeletionSuspension{owner: owner})
+	}
+
+	prefix := v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/"
+	for annotation, owner := range machine.Annotations {
+		if !strings.HasPrefix(annotation, prefix) {
+			continue
+		}
+		purpose := strings.TrimPrefix(annotation, prefix)
+		suspensions = append(suspensions, instanceDeletionSuspension{purpose: purpose, owner: owner})
+	}
+
+	// Sort annotations to keep the condition message deterministic; annotation map iteration order is not stable.
+	slices.SortFunc(suspensions, func(a, b instanceDeletionSuspension) int {
+		if comparison := strings.Compare(a.purpose, b.purpose); comparison != 0 {
+			return comparison
+		}
+		return strings.Compare(a.owner, b.owner)
+	})
+	return suspensions
+}
