@@ -945,7 +945,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		// no capacity remaining, nothing to do
 		return machines
 	} else if autoPreservationCapacityRemaining < 0 { // when autoPreserveFailedMachineMax is decreased, it can be negative.
-		numStillExceeding := c.stopAutoPreservationForMachines(ctx, machines, int(machineSet.Spec.AutoPreserveFailedMachineMax))
+		numStillExceeding := c.stopAutoPreservationForMachines(ctx, machines, int(-autoPreservationCapacityRemaining))
 		if numStillExceeding > 0 {
 			klog.V(2).Infof("Attempted to decrease count of auto-preserved machines, but there are still %d violations of AutoPreserveFailedMachineMax.", numStillExceeding)
 		}
