@@ -934,13 +934,7 @@ func (c *controller) shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) 
 // MachineSet's AutoPreserveFailedMachineMax field. If the AutoPreserveFailedMachineMax limit is breached, it removes the preserve=auto-preserved annotation from the machines which are nearest to preserve expiry.
 func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context, machines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) []*v1alpha1.Machine {
 	// TODO@thiyyakat: if preservation is to be honoured across updates, capacity remaining should consider machines in all machinesets
-	currentAutoPreservedCount := int32(0)
-	for _, m := range machines {
-		if m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved {
-			currentAutoPreservedCount++
-		}
-	}
-	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - currentAutoPreservedCount
+	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - int32(len(filterAutoPreservedMachines(machines)))
 	if autoPreservationCapacityRemaining == 0 {
 		// no capacity remaining, nothing to do
 		return machines
@@ -982,12 +976,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 }
 
 func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machines []*v1alpha1.Machine, numToStop int) int {
-	var autoPreservedMachines []*v1alpha1.Machine
-	for _, m := range machines {
-		if m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved {
-			autoPreservedMachines = append(autoPreservedMachines, m)
-		}
-	}
+	autoPreservedMachines := filterAutoPreservedMachines(machines)
 	numOfAutoPreservedMachines := len(autoPreservedMachines)
 	if numOfAutoPreservedMachines == 0 {
 		return numToStop

@@ -210,8 +210,8 @@ metadata:
   name: node-heartbeat-with-lease
 spec:
   delay:
-    durationMilliseconds: 60000
-    jitterDurationMilliseconds: 61000
+    durationMilliseconds: 5000
+    jitterDurationMilliseconds: 6000
   immediateNextStage: false
   next:
     statusTemplate: |

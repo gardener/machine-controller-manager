@@ -215,6 +215,22 @@ func logMachinesToDelete(machines []*v1alpha1.Machine) {
 	}
 }
 
+// isAutoPreserved reports whether the machine currently carries the auto-preserved annotation.
+func isAutoPreserved(m *v1alpha1.Machine) bool {
+	return m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved
+}
+
+// filterAutoPreservedMachines returns the machines currently carrying the auto-preserved annotation.
+func filterAutoPreservedMachines(machines []*v1alpha1.Machine) []*v1alpha1.Machine {
+	var autoPreservedMachines []*v1alpha1.Machine
+	for _, m := range machines {
+		if isAutoPreserved(m) {
+			autoPreservedMachines = append(autoPreservedMachines, m)
+		}
+	}
+	return autoPreservedMachines
+}
+
 // uniqueMachines returns the input slice with duplicates removed (by MachineKey),
 // preserving the first occurrence order.
 func uniqueMachines(machines []*v1alpha1.Machine) []*v1alpha1.Machine {

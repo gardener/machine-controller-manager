@@ -27,8 +27,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
-
 	"k8s.io/klog/v2"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -138,7 +136,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 		}
 		// Count number of failed machines annotated with PreserveAnnotationValueAutoPreserved
 		// Cannot combine with above if block in case auto-preservation is not complete yet
-		if machine.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved {
+		if isAutoPreserved(machine) {
 			autoPreserveFailedMachineCount++
 		}
 	}
