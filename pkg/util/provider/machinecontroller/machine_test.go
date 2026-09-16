@@ -4329,7 +4329,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					preserveExpiryTimeIsSet: false,
-					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+					nodeCondition:           nil,
 					retry:                   machineutils.LongRetry,
 				},
 			}),
@@ -4344,7 +4344,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					preserveExpiryTimeIsSet: false,
-					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+					nodeCondition:           nil,
 					retry:                   machineutils.LongRetry,
 				},
 			}),
@@ -4433,7 +4433,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					preserveExpiryTimeIsSet: false,
-					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+					nodeCondition:           nil,
 					machineAnnotationValue:  "",
 					nodeTainted:             false,
 					retry:                   machineutils.LongRetry,
@@ -4472,7 +4472,7 @@ var _ = Describe("machine", func() {
 				},
 				expect: expect{
 					preserveExpiryTimeIsSet: false,
-					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+					nodeCondition:           nil,
 					machineAnnotationValue:  "",
 					laNodePreserveValue:     "",
 					retry:                   machineutils.LongRetry,
@@ -4491,7 +4491,7 @@ var _ = Describe("machine", func() {
 					},
 					expect: expect{
 						preserveExpiryTimeIsSet: false,
-						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+						nodeCondition:           nil,
 						machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueWhenFailed,
 						retry:                   machineutils.LongRetry,
 						nodeTainted:             false,
@@ -4510,7 +4510,7 @@ var _ = Describe("machine", func() {
 					},
 					expect: expect{
 						preserveExpiryTimeIsSet: false,
-						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+						nodeCondition:           nil,
 						machineAnnotationValue:  "",
 						retry:                   machineutils.LongRetry,
 						nodeTainted:             false,

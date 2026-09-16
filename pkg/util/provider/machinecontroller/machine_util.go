@@ -78,6 +78,13 @@ const (
 	cacheUpdateTimeout = 1 * time.Second
 )
 
+// constants used to build the Preserved node condition message/
+const (
+	preservedByUser             = "Preserved by user."
+	autoPreservedByMCM          = "Auto-preserved by MCM."
+	preserveExpiryMessagePrefix = "Machine preserved until"
+)
+
 // ValidateMachineClass validates the machine class.
 func (c *controller) ValidateMachineClass(_ context.Context, classSpec *v1alpha1.ClassSpec) (*v1alpha1.MachineClass, map[string][]byte, machineutils.RetryPeriod, error) {
 	var (
@@ -2391,30 +2398,41 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	if nodeName == "" {
-		// Machine has no backing node( such as in the case of self-hosted shoots), preservation is complete
+		// If machine has no backing node (or no targetCoreClient), such as in the case of self-hosted shoots,
+		// preservation is complete after setting preserveExpiryTime on the machine.
 		klog.V(2).Infof("Machine %q without backing node is preserved successfully till %v.", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
 		return machine, nil
 	}
 	// Machine has a backing node
 	node, err := c.nodeLister.Get(nodeName)
 	if err != nil {
-		klog.Errorf("error trying to get node %q of machine %q: %v. Retrying.", nodeName, machine.Name, err)
+		klog.Errorf("error trying to get node %q of machine %q: %v.", nodeName, machine.Name, err)
 		return machine, err
 	}
-	existingNodePreservedCondition := nodeops.GetCondition(node, v1alpha1.NodePreserved)
+	nodeClone := node.DeepCopy()
+	existingNodePreservedCondition := nodeops.GetCondition(nodeClone, v1alpha1.NodePreserved)
 	drainRequired := shouldPreservedNodeBeDrained(existingNodePreservedCondition, machine.Status.CurrentStatus.Phase)
-	// For a Running machine, preservation is complete when ConditionStatus is True. However, for a Failed machine,
-	// preservation is complete only once the node is drained and tainted.
-	// Edge-case: when a machine in Running phase is preserved with preserve=now, and
-	// the machine transitions to Failed.
-	// In such cases, even though ConditionStatus would be set to True, on transitioning to
-	// Failed, the preservation needs to be considered as incomplete.
-	if existingNodePreservedCondition != nil && existingNodePreservedCondition.Status == v1.ConditionTrue &&
-		!drainRequired {
+	// For a Running machine, preservation is complete once preserveExpiryTime is set on the machine and
+	// the CA annotations are set on the node. However, for a Failed machine, preservation is complete
+	// only after the node is tainted and drained. When a machine in Running phase is preserved with preserve=now, and
+	// the machine transitions to Failed, the node needs to be drained, even though preservation was complete earlier.
+	if existingNodePreservedCondition != nil &&
+		(existingNodePreservedCondition.Reason == v1alpha1.PreservationWithDrainCompleted ||
+			(existingNodePreservedCondition.Reason == v1alpha1.PreservationWithoutDrainCompleted && !drainRequired)) {
 		return machine, nil
 	}
+
+	if existingNodePreservedCondition == nil {
+		initialCond := getInitializedPreservedNodeCondition(preserveValue, machine.Status.CurrentStatus.PreserveExpiryTime)
+		if _, err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, nodeName, initialCond); err != nil {
+			klog.Errorf("error setting initial Preserved node condition on node %q of machine %q: %v", nodeName, machine.Name, err)
+			return machine, err
+		}
+		existingNodePreservedCondition = &initialCond
+	}
+
 	// Step 2: Add annotations to prevent scale down of node by CA
-	updatedNode, err := c.addCAScaleDownDisabledAnnotationOnNode(ctx, node)
+	err = c.addCAScaleDownDisabledAnnotationOnNode(ctx, nodeName)
 	if err != nil {
 		return machine, err
 	}
@@ -2422,20 +2440,28 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 	if drainRequired {
 		// Step 3: If machine is in Failed Phase, drain the backing node
 		drainErr = c.drainPreservedNode(ctx, machine)
-	}
-	newCond, needsUpdate := computeNewNodePreservedCondition(machine.Status.CurrentStatus, preserveValue, drainErr, existingNodePreservedCondition)
-	if needsUpdate {
-		// Step 4: Update NodePreserved Condition on Node, with drain status
-		_, err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, updatedNode.Name, *newCond)
 		if drainErr != nil {
 			klog.Errorf("error draining preserved node %q for machine %q : %v", nodeName, machine.Name, drainErr)
-			return machine, drainErr
-		}
-		if err != nil {
-			klog.Errorf("error trying to update node preserved condition for node %q of machine %q : %v", nodeName, machine.Name, err)
-			return machine, err
 		}
 	}
+
+	// Step 4: Update Preserved Node Condition with drain status if required
+	newCond := recomputePreservedNodeCondition(machine.Status.CurrentStatus, preserveValue, drainErr, existingNodePreservedCondition)
+	if needsPreservedNodeConditionUpdate(existingNodePreservedCondition, newCond) {
+		_, err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, nodeName, *newCond)
+		if err != nil {
+			klog.Errorf("error trying to update node preserved condition for node %q of machine %q : %v", nodeName, machine.Name, err)
+		}
+	}
+
+	if drainErr != nil {
+		return machine, drainErr
+	}
+
+	if err != nil {
+		return machine, err
+	}
+
 	klog.V(2).Infof("Machine %q and backing node %q preserved successfully till %v.", machine.Name, nodeName, machine.Status.CurrentStatus.PreserveExpiryTime)
 	return machine, nil
 }
@@ -2489,15 +2515,8 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 		klog.Errorf("error trying to get node %q of machine %q: %v. Retrying.", nodeName, machine.Name, err)
 		return nil, err
 	}
-	// prepare NodeCondition to set preservation as stopped
-	preservedConditionFalse := v1.NodeCondition{
-		Type:               v1alpha1.NodePreserved,
-		Status:             v1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             v1alpha1.PreservationStopped,
-	}
-	// Step 1: change node condition to reflect that preservation has stopped
-	updatedNode, err := nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, node.Name, preservedConditionFalse)
+	// Step 1: remove Preserved Node Condition.
+	updatedNode, err := nodeops.RemoveConditionFromNode(ctx, c.targetCoreClient, node.Name, v1alpha1.NodePreserved)
 	if err != nil {
 		return nil, err
 	}
@@ -2550,56 +2569,63 @@ func (c *controller) setPreserveExpiryTimeOnMachine(ctx context.Context, machine
 	return updatedMachine, nil
 }
 
-// computeNewNodePreservedCondition returns the NodeCondition with the values set according to the preserveValue and the stage of Preservation
-func computeNewNodePreservedCondition(currentStatus v1alpha1.CurrentStatus, preserveValue string, drainErr error, existingNodeCondition *v1.NodeCondition) (*v1.NodeCondition, bool) {
-	const preserveExpiryMessageSuffix = "Machine preserved until"
-	var newNodePreservedCondition *v1.NodeCondition
-	var needsUpdate bool
+// recomputePreservedNodeCondition returns the NodeCondition with the values set according to the preserveValue and the stage of Preservation
+func recomputePreservedNodeCondition(currentStatus v1alpha1.CurrentStatus, preserveValue string, drainErr error, existingNodeCondition *v1.NodeCondition) *v1.NodeCondition {
+	var newCond *v1.NodeCondition
 	if existingNodeCondition == nil {
-		newNodePreservedCondition = &v1.NodeCondition{
-			Type:               v1alpha1.NodePreserved,
-			Status:             v1.ConditionFalse,
-			LastTransitionTime: metav1.Now(),
-		}
-		needsUpdate = true
+		initialCond := getInitializedPreservedNodeCondition(preserveValue, currentStatus.PreserveExpiryTime)
+		newCond = &initialCond
 	} else {
-		newNodePreservedCondition = existingNodeCondition.DeepCopy()
+		newCond = existingNodeCondition.DeepCopy()
 	}
-	machinePhase := currentStatus.Phase
-	if machinePhase == v1alpha1.MachineFailed {
-		if drainErr == nil {
-			if !strings.Contains(newNodePreservedCondition.Message, v1alpha1.PreservedNodeDrainSuccessful) {
-				newNodePreservedCondition.Message = fmt.Sprintf("%s %s %v.", v1alpha1.PreservedNodeDrainSuccessful, preserveExpiryMessageSuffix, currentStatus.PreserveExpiryTime)
-				newNodePreservedCondition.Status = v1.ConditionTrue
-				needsUpdate = true
-			}
-		} else if !strings.Contains(newNodePreservedCondition.Message, v1alpha1.PreservedNodeDrainUnsuccessful) {
-			newNodePreservedCondition.Message = fmt.Sprintf("%s %s %v.", v1alpha1.PreservedNodeDrainUnsuccessful, preserveExpiryMessageSuffix, currentStatus.PreserveExpiryTime)
-			newNodePreservedCondition.Status = v1.ConditionFalse
-			needsUpdate = true
+	newCond.LastTransitionTime = metav1.Now()
+	// there is no need to set ConditionStatus to ConditionTrue since it is handled by getInitializedNodePreservedCondition()
+	if currentStatus.Phase == v1alpha1.MachineFailed {
+		if drainErr != nil {
+			newCond.Reason = v1alpha1.DrainFailed
+			// compute message again before comparison in case drain is failing due to a different reason.
+			newCond.Message = buildPreservedNodeConditionMessage(fmt.Sprintf("Preserved node could not be drained: %v.", drainErr), preserveValue, currentStatus.PreserveExpiryTime)
+			return newCond
 		}
-	} else if newNodePreservedCondition.Status != v1.ConditionTrue {
-		newNodePreservedCondition.Status = v1.ConditionTrue
-		newNodePreservedCondition.Message = fmt.Sprintf("%s %v.", preserveExpiryMessageSuffix, currentStatus.PreserveExpiryTime)
-		needsUpdate = true
+		newCond.Reason = v1alpha1.PreservationWithDrainCompleted
+		newCond.Message = buildPreservedNodeConditionMessage("Preserved node drained successfully.", preserveValue, currentStatus.PreserveExpiryTime)
+		return newCond
 	}
-	if preserveValue == machineutils.PreserveMachineAnnotationValueAutoPreserved {
-		newNodePreservedCondition.Reason = v1alpha1.PreservedByMCM
-	} else {
-		newNodePreservedCondition.Reason = v1alpha1.PreservedByUser
+	newCond.Reason = v1alpha1.PreservationWithoutDrainCompleted
+	newCond.Message = buildPreservedNodeConditionMessage("", preserveValue, currentStatus.PreserveExpiryTime)
+	return newCond
+}
+
+// needsPreservedNodeConditionUpdate returns true if newCond is not semantically equal to oldCond,
+// or if either condition is nil.
+// In both cases the node needs to be updated with newCond
+func needsPreservedNodeConditionUpdate(oldCond, newCond *v1.NodeCondition) bool {
+	if oldCond == nil || newCond == nil {
+		return true
 	}
-	return newNodePreservedCondition, needsUpdate
+	return oldCond.Status != newCond.Status || oldCond.Reason != newCond.Reason || oldCond.Message != newCond.Message
+}
+
+// getInitializedPreservedNodeCondition returns an initialized Node Condition of Type Preserved
+func getInitializedPreservedNodeCondition(value string, preserveExpiryTime *metav1.Time) v1.NodeCondition {
+	return v1.NodeCondition{
+		Type:               v1alpha1.NodePreserved,
+		Status:             v1.ConditionTrue, // since preserveExpiryTime is the gate for checking if a machine is preserved, and this is already checked
+		Reason:             v1alpha1.PreservationInProgress,
+		Message:            buildPreservedNodeConditionMessage("Preservation in progress.", value, preserveExpiryTime),
+		LastTransitionTime: metav1.Now(),
+	}
 }
 
 // shouldPreservedNodeBeDrained returns true if the machine's backing node must be drained, else false
 func shouldPreservedNodeBeDrained(existingCondition *v1.NodeCondition, machinePhase v1alpha1.MachinePhase) bool {
-	if machinePhase == v1alpha1.MachineFailed {
-		if existingCondition == nil {
-			return true
-		}
-		return !strings.Contains(existingCondition.Message, v1alpha1.PreservedNodeDrainSuccessful)
+	if machinePhase != v1alpha1.MachineFailed {
+		return false
 	}
-	return false
+	if existingCondition == nil {
+		return true
+	}
+	return existingCondition.Reason != v1alpha1.PreservationWithDrainCompleted
 }
 
 // clearMachinePreserveExpiryTime clears the PreserveExpiryTime on the machine object's Status.CurrentStatus
@@ -2630,6 +2656,22 @@ func (c *controller) removePreserveAnnotationOnMachine(ctx context.Context, mach
 		return nil, err
 	}
 	return updatedClone, nil
+}
+
+func preservationCause(preserveValue string) string {
+	why := preservedByUser
+	if preserveValue == machineutils.PreserveMachineAnnotationValueAutoPreserved {
+		why = autoPreservedByMCM
+	}
+	return why
+}
+
+func buildPreservedNodeConditionMessage(custom, preserveValue string, preserveExpiryTime *metav1.Time) string {
+	why := preservationCause(preserveValue)
+	if custom != "" {
+		return fmt.Sprintf("%s %s %s %v.", custom, why, preserveExpiryMessagePrefix, preserveExpiryTime)
+	}
+	return fmt.Sprintf("%s %s %v.", why, preserveExpiryMessagePrefix, preserveExpiryTime)
 }
 
 // drainPreservedNode attempts to drain the node backing a preserved machine
@@ -2699,7 +2741,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		)
 	} else {
 		klog.V(2).Infof(
-			"Drain has been triggerred for preserved machine %q with providerID %q and backing node %q with drain-timeout:%v & maxEvictRetries:%d",
+			"Drain has been triggered for preserved machine %q with providerID %q and backing node %q with drain-timeout:%v & maxEvictRetries:%d",
 			machine.Name,
 			getProviderID(machine),
 			getNodeName(machine),
@@ -2709,12 +2751,13 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	}
 	// since we do not wish to change a user's explicit cordoning of a node, for preservation, we make use of
 	// a taint with effect `NoSchedule` before draining the node, instead of cordoning it.
+	timeAdded := metav1.Now()
 	err = nodeops.AddOrUpdateTaintOnNode(ctx, c.targetCoreClient,
 		nodeName,
 		&v1.Taint{
 			Key:       machineutils.NodePreservedTaintKey,
 			Effect:    v1.TaintEffectNoSchedule,
-			TimeAdded: new(metav1.Now()),
+			TimeAdded: &timeAdded,
 		})
 	if err != nil {
 		klog.Errorf("tainting of backing node %q for preserved machine %q, with providerID %q, failed with error: %v", nodeName, machine.Name, getProviderID(machine), err)
