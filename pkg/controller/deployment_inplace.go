@@ -384,7 +384,7 @@ func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context
 
 			klog.V(3).Infof("Attempting to transfer machine %s to new machine set %s", oldMachine.Name, newMachineSet.Name)
 
-			labelsUniqueToOldMachine := removeLabelsNotCommingFromMachineSet(oldMachine.Labels, oldMachineSet.Spec.Selector.MatchLabels)
+			labelsUniqueToOldMachine := removeLabelsNotComingFromMachineSet(oldMachine.Labels, oldMachineSet.Spec.Selector.MatchLabels)
 			maps.Copy(labelsUniqueToOldMachine, newMachineSet.Spec.Selector.MatchLabels)
 			machineNewLabels := MergeStringMaps(labelsUniqueToOldMachine, map[string]string{v1alpha1.LabelKeyNodeUpdateResult: v1alpha1.LabelValueNodeUpdateSuccessful})
 
@@ -638,7 +638,7 @@ func isUpdateNotSuccessful(condition *v1.NodeCondition, labels map[string]string
 	return condition == nil || condition.Reason != v1alpha1.UpdateSuccessful || labels[v1alpha1.LabelKeyNodeUpdateResult] != v1alpha1.LabelValueNodeUpdateSuccessful
 }
 
-func removeLabelsNotCommingFromMachineSet(map1, map2 map[string]string) map[string]string {
+func removeLabelsNotComingFromMachineSet(map1, map2 map[string]string) map[string]string {
 	out := make(map[string]string, len(map1))
 
 	maps.Copy(out, map1)

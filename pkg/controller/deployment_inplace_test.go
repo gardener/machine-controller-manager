@@ -1016,6 +1016,171 @@ var _ = Describe("deployment_inplace", func() {
 		)
 	})
 
+	Describe("transferMachinesFromOldToNewMachineSet", func() {
+		type setup struct {
+			oldMachineLabels     map[string]string
+			oldMachineConditions []corev1.NodeCondition
+			oldMachinePhase      machinev1.MachinePhase
+			nodeLabels           map[string]string
+			nodeUnschedulable    bool
+			skipNodeLabel        bool
+		}
+		type expect struct {
+			transferred     int32
+			err             bool
+			ownerRefName    string
+			labels          map[string]string
+			nodeSchedulable bool
+		}
+		type data struct {
+			setup  setup
+			expect expect
+		}
+
+		const (
+			oldMachineClassName = "old-machine-class"
+			newMachineClassName = "new-machine-class"
+		)
+
+		machineSets := newMachineSets(
+			2,
+			&machinev1.MachineTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"machineset": "old"},
+				},
+				Spec: machinev1.MachineSpec{
+					Class: machinev1.ClassSpec{
+						Kind: "MachineClass",
+						Name: oldMachineClassName,
+					},
+				},
+			}, 1, 500, &machinev1.MachineSetStatus{AvailableReplicas: 1}, nil, nil, map[string]string{"machineset": "old"})
+
+		oldMachineSet := machineSets[0]
+		newMachineSet := machineSets[1]
+		oldMachineSet.Spec.Selector = &metav1.LabelSelector{MatchLabels: map[string]string{"machineset": "old"}}
+		newMachineSet.Spec.Selector = &metav1.LabelSelector{MatchLabels: map[string]string{"machineset": "new"}}
+		newMachineSet.Spec.Template.Spec.Class.Name = newMachineClassName
+
+		deployment := &machinev1.MachineDeployment{
+			Spec: machinev1.MachineDeploymentSpec{
+				Replicas: int32(2),
+			},
+		}
+
+		DescribeTable("##table",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				machine := newMachinesFromMachineSet(1, oldMachineSet, &machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{Phase: data.setup.oldMachinePhase},
+					Conditions:    data.setup.oldMachineConditions,
+				}, nil, data.setup.oldMachineLabels)[0]
+				if !data.setup.skipNodeLabel {
+					machine.Labels[machinev1.NodeLabelKey] = "node-0"
+				}
+
+				controlMachineObjects := []runtime.Object{oldMachineSet, newMachineSet, machine}
+
+				node := newNodes(1, data.setup.nodeLabels, &corev1.NodeSpec{Unschedulable: data.setup.nodeUnschedulable}, nil)[0]
+				node.Name = "node-0"
+
+				targetCoreObjects := []runtime.Object{node}
+
+				controller, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects)
+				defer trackers.Stop()
+				waitForCacheSync(stop, controller)
+
+				count, err := controller.transferMachinesFromOldToNewMachineSet(context.TODO(), []*machinev1.MachineSet{oldMachineSet}, newMachineSet, deployment)
+				if data.expect.err {
+					Expect(err).To(HaveOccurred())
+					return
+				}
+				Expect(err).ToNot(HaveOccurred())
+				Expect(count).To(Equal(data.expect.transferred))
+
+				if data.expect.transferred == 0 {
+					return
+				}
+
+				actualMachine, err := controller.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(actualMachine.OwnerReferences).To(HaveLen(1))
+				Expect(actualMachine.OwnerReferences[0].Name).To(Equal(data.expect.ownerRefName))
+				Expect(actualMachine.OwnerReferences[0].Kind).To(Equal("MachineSet"))
+				Expect(ptr.Deref(actualMachine.OwnerReferences[0].Controller, false)).To(BeTrue())
+
+				Expect(actualMachine.Labels).To(Equal(data.expect.labels))
+
+				Expect(actualMachine.Spec.Class.Name).To(Equal(newMachineSet.Spec.Template.Spec.Class.Name))
+
+				actualNode, err := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(actualNode.Spec.Unschedulable).To(Equal(data.expect.nodeSchedulable))
+			},
+
+			Entry("transfers machine: owner ref updated to new machineset, old selector labels replaced with new, extra labels preserved, mcc updated", &data{
+				setup: setup{
+					oldMachineLabels: map[string]string{"machineset": "old", "extra": "label"},
+					oldMachineConditions: []corev1.NodeCondition{
+						{Type: machinev1.NodeInPlaceUpdate, Reason: machinev1.UpdateSuccessful},
+					},
+					nodeLabels:        map[string]string{machinev1.LabelKeyNodeUpdateResult: machinev1.LabelValueNodeUpdateSuccessful},
+					nodeUnschedulable: true,
+				},
+				expect: expect{
+					transferred:  1,
+					ownerRefName: newMachineSet.Name,
+					labels: map[string]string{
+						"machineset":                       "new",
+						"extra":                            "label",
+						machinev1.NodeLabelKey:             "node-0",
+						machinev1.LabelKeyNodeUpdateResult: machinev1.LabelValueNodeUpdateSuccessful,
+					},
+					nodeSchedulable: false,
+				},
+			}),
+			Entry("skips machine without node label", &data{
+				setup: setup{
+					oldMachineLabels: map[string]string{"machineset": "old"},
+					oldMachineConditions: []corev1.NodeCondition{
+						{Type: machinev1.NodeInPlaceUpdate, Reason: machinev1.UpdateSuccessful},
+					},
+					nodeLabels:        map[string]string{machinev1.LabelKeyNodeUpdateResult: machinev1.LabelValueNodeUpdateSuccessful},
+					nodeUnschedulable: true,
+					skipNodeLabel:     true,
+				},
+				expect: expect{
+					transferred: 0,
+				},
+			}),
+			Entry("skips machine in InPlaceUpdating phase", &data{
+				setup: setup{
+					oldMachineLabels:  map[string]string{"machineset": "old"},
+					oldMachinePhase:   machinev1.MachineInPlaceUpdating,
+					nodeLabels:        map[string]string{},
+					nodeUnschedulable: false,
+				},
+				expect: expect{
+					transferred: 0,
+				},
+			}),
+			Entry("skips machine whose update was not successful", &data{
+				setup: setup{
+					oldMachineLabels:     map[string]string{"machineset": "old"},
+					oldMachineConditions: []corev1.NodeCondition{},
+					nodeLabels:           map[string]string{},
+					nodeUnschedulable:    false,
+				},
+				expect: expect{
+					transferred: 0,
+				},
+			}),
+		)
+	})
+
 	Describe("getMachinesForDrain", func() {
 		type setup struct {
 			machineSet *machinev1.MachineSet
