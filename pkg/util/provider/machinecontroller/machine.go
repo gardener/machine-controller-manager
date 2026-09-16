@@ -77,8 +77,7 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 	}
 
 	if oldMachine.Generation == newMachine.Generation {
-		// Finalizer changes increment resourceVersion but not Generation, so a machine that just
-		// had the MCM finalizer added would be silently dropped here. Re-enqueue it so
+		// Finalizer changes increment resourceVersion but not Generation. Re-enqueue it so
 		// reconcileClusterMachine is reached and the machine advances past the empty phase.
 		if !sets.NewString(oldMachine.Finalizers...).HasAll(newMachine.Finalizers...) {
 			klog.V(3).Infof("updateMachine: machine %q gained finalizer — re-enqueuing despite unchanged Generation", newMachine.Name)
