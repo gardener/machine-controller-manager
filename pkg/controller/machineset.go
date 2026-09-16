@@ -934,7 +934,7 @@ func (c *controller) shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) 
 // MachineSet's AutoPreserveFailedMachineMax field. If the AutoPreserveFailedMachineMax limit is breached, it removes the preserve=auto-preserved annotation from the machines which are nearest to preserve expiry.
 func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context, machines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) []*v1alpha1.Machine {
 	// TODO@thiyyakat: if preservation is to be honoured across updates, capacity remaining should consider machines in all machinesets
-	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - int32(len(filterAutoPreservedMachines(machines)))
+	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - int32(len(filterAutoPreservedMachines(machines))) // #nosec G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	if autoPreservationCapacityRemaining == 0 {
 		// no capacity remaining, nothing to do
 		return machines
