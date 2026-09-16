@@ -1987,13 +1987,13 @@ func findPidsByPrefix(ctx context.Context, prefix string) (pids []int, err error
 	return
 }
 
-func (c *IntegrationTestFramework) getTestMachineSets(ctx context.Context, namespace string) []string {
+func (c *IntegrationTestFramework) getTestMachineSets(ctx context.Context, namespace string) []types.UID {
 	machineSets, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineSets(namespace).List(ctx, metav1.ListOptions{})
-	testMachineSets := []string{}
+	testMachineSets := []types.UID{}
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	for _, machineSet := range machineSets.Items {
-		if machineSet.OwnerReferences[0].Name == helpers.McdName {
-			testMachineSets = append(testMachineSets, machineSet.Name)
+		if len(machineSet.OwnerReferences) > 0 && machineSet.OwnerReferences[0].Name == helpers.McdName {
+			testMachineSets = append(testMachineSets, machineSet.UID)
 		}
 	}
 	return testMachineSets
@@ -2004,9 +2004,9 @@ func (c *IntegrationTestFramework) machineSetFreezeEventCount(ctx context.Contex
 	testMachineSets := c.getTestMachineSets(ctx, namespace)
 	machineSetFreezeReason := fmt.Sprintf("reason=%s", controller.MachineSetFreezeEvent)
 	machineSetUnfreezeReason := fmt.Sprintf("reason=%s", controller.MachineSetUnfreezeEvent)
-	for _, machineSet := range testMachineSets {
+	for _, machineSetUID := range testMachineSets {
 		for _, reason := range []string{machineSetFreezeReason, machineSetUnfreezeReason} {
-			event := fmt.Sprintf("%s,involvedObject.name=%s", reason, machineSet)
+			event := fmt.Sprintf("%s,involvedObject.uid=%s", reason, machineSetUID)
 			frozenEvents, err := c.ControlCluster.Clientset.
 				CoreV1().
 				Events(namespace).
