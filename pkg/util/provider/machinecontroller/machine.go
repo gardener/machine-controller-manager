@@ -209,9 +209,10 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 	}
 
 	// Add finalizers if not present on machine object
-	_, err = c.addMachineFinalizers(ctx, machine)
+	retryPeriod, err := c.addMachineFinalizers(ctx, machine)
 	if err != nil {
-		return err
+		c.enqueueMachineAfter(machine, time.Duration(retryPeriod), err.Error())
+		return nil
 	}
 
 	if c.shouldMachineBeMovedToTerminatingQueue(machine) {
@@ -220,7 +221,7 @@ func (c *controller) reconcileClusterMachineKey(key string) error {
 		return nil
 	}
 
-	retryPeriod, err := c.reconcileClusterMachine(ctx, machine)
+	retryPeriod, err = c.reconcileClusterMachine(ctx, machine)
 
 	var reEnqueReason = "periodic reconcile"
 	if err != nil {

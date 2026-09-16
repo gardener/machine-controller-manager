@@ -6,18 +6,22 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"time"
 
 	taintutils "github.com/gardener/machine-controller-manager/pkg/util/taints"
 	k8stesting "k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/cache"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
@@ -29,6 +33,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
+	"github.com/gardener/machine-controller-manager/pkg/util/worker"
 )
 
 const testNamespace = "test"
@@ -5048,5 +5053,71 @@ var _ = Describe("machine", func() {
 				},
 			}),
 		)
+	})
+
+	// Regression test for https://github.com/gardener/machine-controller-manager/issues/1141
+	// A new Machine can get permanently stuck with empty phase when the worker retry budget is
+	// exhausted by 409 Conflict errors from addMachineFinalizers.
+	Describe("#reconcileClusterMachineKey", func() {
+		It("machine should have finalizer even after MaxRetries 409 conflicts on finalizer addition", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			// Machine with no finalizer and empty phase — as created by MachineSet
+			machine := &v1alpha1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-machine",
+					Namespace: testNamespace,
+				},
+			}
+
+			c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, nil, nil, false)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			// Inject 409 Conflict on the first DefaultMaxRetries finalizer Update calls, then allow
+			// subsequent calls to succeed.
+			conflictErr := apierrors.NewConflict(
+				schema.GroupResource{Group: "machine.sapcloud.io", Resource: "machines"},
+				machine.Name,
+				errors.New("the object has been modified; please apply your changes to the latest version and try again"),
+			)
+			conflictCallCount := 0
+			fakeClient := c.controlMachineClient.(*fakemachineapi.FakeMachineV1alpha1)
+			fakeClient.Fake.PrependReactor("update", "machines", func(action k8stesting.Action) (bool, runtime.Object, error) {
+				// Allow UpdateStatus (subresource "status") through unconditionally.
+				if action.GetSubresource() == "status" {
+					return false, nil, nil
+				}
+				// Return a 409 for the first DefaultMaxRetries finalizer updates, then pass through.
+				if conflictCallCount < worker.DefaultMaxRetries {
+					conflictCallCount++
+					return true, nil, conflictErr
+				}
+				return false, nil, nil
+			})
+
+			key := cache.MetaObjectToName(machine).String()
+
+			// Run DefaultMaxRetries+5 iterations — without the fix this would exhaust the worker's
+			// retry budget on the first DefaultMaxRetries calls and permanently strand the machine.
+			for i := 0; i < worker.DefaultMaxRetries+5; i++ {
+				_ = c.reconcileClusterMachineKey(key)
+			}
+
+			// Sync the lister so it reflects what the fake API server now holds.
+			waitForCacheSync(stop, c)
+
+			// The machine must have the finalizer; without the fix it would not (the key would have
+			// been dropped from the queue before the Update could succeed).
+			updatedMachine, err := c.controlMachineClient.Machines(testNamespace).Get(
+				context.TODO(), machine.Name, metav1.GetOptions{},
+			)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(updatedMachine.Finalizers).To(
+				ContainElement(MCMFinalizerName),
+				"machine must have the MCM finalizer — 409 conflict errors must not prevent finalizer addition",
+			)
+		})
 	})
 })
