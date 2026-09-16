@@ -1080,16 +1080,16 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.pollingInterval).Should(gomega.BeNumerically(">=", 1))
 
 				// Simulate kubelet failure for the node
-				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure")
+				ginkgo.By(fmt.Sprintf("deploy VAP and VAPB to simulate kubelet failure: %s", runningMachines[0].Name))
 				targetNodes := []string{runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]}
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
-					ginkgo.By("cleanup deployed VAP/VAPB")
+					ginkgo.By(fmt.Sprintf("cleanup deployed VAP/VAPB: %s", runningMachines[0].Name))
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 				})
 				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 
-				ginkgo.By("Waiting for machine to fail and be preserved")
+				ginkgo.By(fmt.Sprintf("Waiting for machine to fail and be preserved: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
@@ -1097,10 +1097,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("remove VAP and VAPB to simulate kubelet restart")
+				ginkgo.By(fmt.Sprintf("remove VAP and VAPB to simulate kubelet restart: %s", runningMachines[0].Name))
 				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 
-				ginkgo.By("wait for machine to recover and move to Running phase")
+				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesRunning,
 					c.timeout,
@@ -1139,19 +1139,19 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				nonPreservedMachine := runningMachines[1]
 
 				// Simulate kubelet failure for one node. We expect this node to be preserved
-				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for one machine")
+				ginkgo.By(fmt.Sprintf("deploy VAP and VAPB to simulate kubelet failure for one machine: %s", preservedMachine.Name))
 				targetNodes := []string{
 					preservedMachine.ObjectMeta.Labels[v1alpha1.NodeLabelKey],
 					nonPreservedMachine.ObjectMeta.Labels[v1alpha1.NodeLabelKey],
 				}
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
-					ginkgo.By("cleanup deployed VAP/VAPB")
+					ginkgo.By(fmt.Sprintf("cleanup deployed VAP/VAPB: %s, %s", preservedMachine.Name, nonPreservedMachine.Name))
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 				})
 				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{preservedMachine.ObjectMeta.Labels[v1alpha1.NodeLabelKey]})).To(gomega.BeNil())
 
-				ginkgo.By("Waiting for machine to fail and be preserved")
+				ginkgo.By(fmt.Sprintf("Waiting for machine to fail and be preserved: %s", preservedMachine.Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
@@ -1161,10 +1161,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				// Simulate kubelet failure for the other node too. This node is expected to fail, but is not expected to be preserved
 				// because autoPreserveFailedMachineMax=1 and one machine is already preserved
-				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for other machine as well")
+				ginkgo.By(fmt.Sprintf("deploy VAP and VAPB to simulate kubelet failure for other machine as well: %s", nonPreservedMachine.Name))
 				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{preservedMachine.ObjectMeta.Labels[v1alpha1.NodeLabelKey], nonPreservedMachine.ObjectMeta.Labels[v1alpha1.NodeLabelKey]})).To(gomega.BeNil())
 
-				ginkgo.By("Waiting for the other machine to be deleted")
+				ginkgo.By(fmt.Sprintf("Waiting for the other machine to be deleted: %s", nonPreservedMachine.Name))
 				gomega.Eventually(
 					c.ControlCluster.IsMachineDeleted,
 					c.timeout,
@@ -1197,19 +1197,19 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.pollingInterval).Should(gomega.BeNumerically(">=", 2))
 
 				// Simulate kubelet failure for both the nodes.
-				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for both nodes")
+				ginkgo.By(fmt.Sprintf("deploy VAP and VAPB to simulate kubelet failure for both nodes: %s, %s", runningMachines[0].Name, runningMachines[1].Name))
 				targetNodes := []string{
 					runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey],
 					runningMachines[1].ObjectMeta.Labels[v1alpha1.NodeLabelKey],
 				}
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
-					ginkgo.By("cleanup deployed VAP/VAPB")
+					ginkgo.By(fmt.Sprintf("cleanup deployed VAP/VAPB: %s, %s", runningMachines[0].Name, runningMachines[1].Name))
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 				})
 				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 
-				ginkgo.By("Wait for both machines to fail and be preserved")
+				ginkgo.By(fmt.Sprintf("Wait for both machines to fail and be preserved (%s, %s)", runningMachines[0].Name, runningMachines[1].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
@@ -1227,7 +1227,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				})
 				gomega.Expect(retryErr).To(gomega.BeNil())
 
-				ginkgo.By("wait for only one machine to be deleted while the other one stays preserved")
+				ginkgo.By(fmt.Sprintf("wait for only one machine to be deleted (%s) while the other one stays preserved (%s)", runningMachines[0].Name, runningMachines[1].Name))
 				var isOnlyMachine0Deleted, isOnlyMachine1Deleted bool
 				gomega.Eventually(func() bool {
 					isOnlyMachine0Deleted = c.ControlCluster.IsMachineDeleted(
@@ -1247,7 +1247,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				// The other machine's preservation needs to be stopped as well otherwise node readiness check
 				// before each test halts since a NotReady node is being preserved.
-				ginkgo.By("remove VAP and VAPB to simulate kubelet restart")
+				ginkgo.By(fmt.Sprintf("remove VAP and VAPB to simulate kubelet restart: %s, %s", runningMachines[0].Name, runningMachines[1].Name))
 				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 
 				preservedMachine := runningMachines[0].Name
@@ -1255,7 +1255,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					preservedMachine = runningMachines[1].Name
 				}
 
-				ginkgo.By("wait for machine to recover and move to Running phase")
+				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", preservedMachine))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesRunning,
 					c.timeout,
@@ -1291,16 +1291,16 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.pollingInterval).Should(gomega.BeNumerically(">=", 1))
 
 				// Simulate kubelet failure for the node so that it can be preserved
-				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for the machine")
+				ginkgo.By(fmt.Sprintf("deploy VAP and VAPB to simulate kubelet failure for the machine: %s", runningMachines[0].Name))
 				targetNodes := []string{runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]}
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
-					ginkgo.By("cleanup deployed VAP/VAPB")
+					ginkgo.By(fmt.Sprintf("cleanup deployed VAP/VAPB: %s", runningMachines[0].Name))
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 				})
 				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 
-				ginkgo.By("Waiting for machine to fail and be preserved")
+				ginkgo.By(fmt.Sprintf("Waiting for machine to fail and be preserved: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
@@ -1308,13 +1308,13 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("add the node.machine.sapcloud.io/preserve=false annotation to the preserved machine")
+				ginkgo.By(fmt.Sprintf("add the node.machine.sapcloud.io/preserve=false annotation to the preserved machine: %s", runningMachines[0].Name))
 				err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, map[string]any{
 					mc_utils.PreserveMachineAnnotationKey: mc_utils.PreserveMachineAnnotationValueFalse,
 				})
 				gomega.Expect(err).To(gomega.BeNil())
 
-				ginkgo.By("Waiting for this machine to now be deleted")
+				ginkgo.By(fmt.Sprintf("Waiting for this machine to now be deleted: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.IsMachineDeleted,
 					c.timeout,
@@ -1334,23 +1334,23 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.timeout,
 					c.pollingInterval).Should(gomega.BeNumerically(">=", 1))
 
-				ginkgo.By("add the node.machine.sapcloud.io/preserve=false annotation to the running machine")
+				ginkgo.By(fmt.Sprintf("add the node.machine.sapcloud.io/preserve=false annotation to the running machine: %s", runningMachines[0].Name))
 				err := c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, map[string]any{
 					mc_utils.PreserveMachineAnnotationKey: mc_utils.PreserveMachineAnnotationValueFalse,
 				})
 				gomega.Expect(err).To(gomega.BeNil())
 
 				// Simulate kubelet failure for the node so that it can be preserved
-				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for this machine")
+				ginkgo.By(fmt.Sprintf("deploy VAP and VAPB to simulate kubelet failure for this machine: %s", runningMachines[0].Name))
 				targetNodes := []string{runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]}
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
-					ginkgo.By("cleanup deployed VAP/VAPB")
+					ginkgo.By(fmt.Sprintf("cleanup deployed VAP/VAPB: %s", runningMachines[0].Name))
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 				})
 				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 
-				ginkgo.By("Waiting for machine to be deleted")
+				ginkgo.By(fmt.Sprintf("Waiting for machine to be deleted: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.IsMachineDeleted,
 					c.timeout,
@@ -1388,15 +1388,15 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				// Simulate kubelet failure for the node so that it can be preserved
 				targetNodes := []string{runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]}
-				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for the machine")
+				ginkgo.By(fmt.Sprintf("deploy VAP and VAPB to simulate kubelet failure for the machine: %s", runningMachines[0].Name))
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
-					ginkgo.By("cleanup deployed VAP/VAPB")
+					ginkgo.By(fmt.Sprintf("cleanup deployed VAP/VAPB: %s", runningMachines[0].Name))
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 				})
 				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 
-				ginkgo.By("Waiting for machine to fail and be preserved")
+				ginkgo.By(fmt.Sprintf("Waiting for machine to fail and be preserved: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
@@ -1404,7 +1404,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("Ensure that machine stays preserved for MachinePreserveTimeout duration")
+				ginkgo.By(fmt.Sprintf("Ensure that machine stays preserved for MachinePreserveTimeout duration: %s", runningMachines[0].Name))
 				// Duration of check reduced by a small amount to account for any possible flakes arising due to delays in running this check
 				gomega.Consistently(
 					c.ControlCluster.AreMachinesFailedAndPreserved,
@@ -1413,7 +1413,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("Waiting for machine to be deleted")
+				ginkgo.By(fmt.Sprintf("Waiting for machine to be deleted: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.IsMachineDeleted,
 					c.timeout,
@@ -1425,9 +1425,9 @@ func (c *IntegrationTestFramework) ControllerTests() {
 		ginkgo.Context("Should manually preserve a failed machine", func() {
 			ginkgo.It("When a machine is annotated with `preserve=when-failed`. It should be preserved on failure and should re-join the cluster if it recovers before preservation timeout", func() {
 				ginkgo.By("Create an MCD with AutoPreserveFailedMachineMax set to 0")
-				// mcd replicas for the manual preservation tests are intentionally set to 2. This is done so that we pay the cost of
+				// mcd replicas for the manual preservation tests are intentionally set to 3. This is done so that we pay the cost of
 				// creating new machines only once and subsequent tests can be run without waiting for new machines to be created.
-				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 2)
+				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 3)
 				// Update the standard mcd to have preservation fields
 				mcd.Spec.AutoPreserveFailedMachineMax = 0
 				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
@@ -1449,9 +1449,9 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.pollingInterval).Should(gomega.BeNumerically(">=", 1))
 
 				// Add the node.machine.sapcloud.io/preserve=when-failed annotation to the running machine to ensure it is preserved when it fails
-				ginkgo.By("add the node.machine.sapcloud.io/preserve=when-failed annotation to the running machine")
+				ginkgo.By(fmt.Sprintf("add the node.machine.sapcloud.io/preserve=when-failed annotation to the running machine: %s", runningMachines[0].Name))
 				ginkgo.DeferCleanup(func() {
-					ginkgo.By("remove the node.machine.sapcloud.io/preserve=when-failed annotation from the preserved machine")
+					ginkgo.By(fmt.Sprintf("remove the node.machine.sapcloud.io/preserve=when-failed annotation from the preserved machine: %s", runningMachines[0].Name))
 					err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, nil)
 					gomega.Expect(err).To(gomega.BeNil())
 				})
@@ -1462,15 +1462,15 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				// Simulate kubelet failure for the node
 				targetNodes := []string{runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]}
-				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure")
+				ginkgo.By(fmt.Sprintf("deploy VAP and VAPB to simulate kubelet failure: %s", runningMachines[0].Name))
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
-					ginkgo.By("cleanup deployed VAP/VAPB")
+					ginkgo.By(fmt.Sprintf("cleanup deployed VAP/VAPB: %s", runningMachines[0].Name))
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 				})
 				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 
-				ginkgo.By("Waiting for machine to fail and be preserved")
+				ginkgo.By(fmt.Sprintf("Waiting for machine to fail and be preserved: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
@@ -1478,10 +1478,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("remove VAP and VAPB to simulate kubelet restart")
+				ginkgo.By(fmt.Sprintf("remove VAP and VAPB to simulate kubelet restart: %s", runningMachines[0].Name))
 				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 
-				ginkgo.By("wait for machine to recover and move to Running phase")
+				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesRunning,
 					c.timeout,
@@ -1491,7 +1491,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 			})
 			ginkgo.It("When it's corresponding node is manually annotated with `node.machine.sapcloud.io/preserve=when-failed`", func() {
 				ginkgo.By("Create a MCD with AutoPreserveFailedMachineMax set to 0")
-				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 2)
+				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 3)
 				// Update the standard mcd to have preservation fields
 				mcd.Spec.AutoPreserveFailedMachineMax = 0
 				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
@@ -1513,12 +1513,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.pollingInterval).Should(gomega.BeNumerically(">=", 1))
 
 				// Add the node.machine.sapcloud.io/preserve=when-failed annotation to the running node to ensure its corresponding machine is preserved when it fails
-				ginkgo.By("get node name from machine")
+				ginkgo.By(fmt.Sprintf("get node name from machine: %s", runningMachines[0].Name))
 				nodeName := runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]
 				gomega.Expect(len(nodeName)).Should(gomega.BeNumerically(">", 0))
-				ginkgo.By("add the node.machine.sapcloud.io/preserve=when-failed annotation to the running node")
+				ginkgo.By(fmt.Sprintf("add the node.machine.sapcloud.io/preserve=when-failed annotation to the running node: %s", runningMachines[0].Name))
 				ginkgo.DeferCleanup(func() {
-					ginkgo.By("remove the node.machine.sapcloud.io/preserve=when-failed annotation from the preserved node")
+					ginkgo.By(fmt.Sprintf("remove the node.machine.sapcloud.io/preserve=when-failed annotation from the preserved node: %s", runningMachines[0].Name))
 					err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, nil)
 					gomega.Expect(err).To(gomega.BeNil())
 				})
@@ -1529,15 +1529,15 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				// Simulate kubelet failure for the node
 				targetNodes := []string{runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]}
-				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure")
+				ginkgo.By(fmt.Sprintf("deploy VAP and VAPB to simulate kubelet failure: %s", runningMachines[0].Name))
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
-					ginkgo.By("cleanup deployed VAP/VAPB")
+					ginkgo.By(fmt.Sprintf("cleanup deployed VAP/VAPB: %s", runningMachines[0].Name))
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 				})
 				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 
-				ginkgo.By("Waiting for machine to fail and be preserved")
+				ginkgo.By(fmt.Sprintf("Waiting for machine to fail and be preserved: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
@@ -1545,10 +1545,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("remove VAP and VAPB to simulate kubelet restart")
+				ginkgo.By(fmt.Sprintf("remove VAP and VAPB to simulate kubelet restart: %s", runningMachines[0].Name))
 				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 
-				ginkgo.By("wait for machine to recover and move to Running phase")
+				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesRunning,
 					c.timeout,
@@ -1560,7 +1560,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 		ginkgo.Context("Should ensure that machines manually annotated with `when-failed` are preserved", func() {
 			ginkgo.It("Such that these manually annotated machines are preserved even if `autoPreserveFailedMachineMax` number of machines have already preserved", func() {
 				ginkgo.By("Create a MCD with AutoPreserveFailedMachineMax set to 1")
-				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 2)
+				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 3)
 				// Update the standard mcd to have preservation fields
 				mcd.Spec.AutoPreserveFailedMachineMax = 1
 				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
@@ -1586,15 +1586,15 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey],
 					runningMachines[1].ObjectMeta.Labels[v1alpha1.NodeLabelKey],
 				}
-				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for one node")
+				ginkgo.By(fmt.Sprintf("deploy VAP and VAPB to simulate kubelet failure for one node: %s", runningMachines[0].Name))
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
-					ginkgo.By("cleanup deployed VAP/VAPB")
+					ginkgo.By(fmt.Sprintf("remove VAP and VAPB so preserved machines recover: %s, %s", runningMachines[0].Name, runningMachines[1].Name))
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 				})
 				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]})).To(gomega.BeNil())
 
-				ginkgo.By("Waiting for machine to fail and be auto-preserved")
+				ginkgo.By(fmt.Sprintf("Waiting for machine to fail and be auto-preserved: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
@@ -1603,9 +1603,9 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					Should(gomega.BeTrue())
 
 				// Add the node.machine.sapcloud.io/preserve=when-failed annotation to the second machine that is running to ensure it is preserved when it fails
-				ginkgo.By("add the node.machine.sapcloud.io/preserve=when-failed annotation to the other running machine")
+				ginkgo.By(fmt.Sprintf("add the node.machine.sapcloud.io/preserve=when-failed annotation to the other running machine: %s", runningMachines[0].Name))
 				ginkgo.DeferCleanup(func() {
-					ginkgo.By("remove the node.machine.sapcloud.io/preserve=when-failed annotation from the preserved machine")
+					ginkgo.By(fmt.Sprintf("remove the node.machine.sapcloud.io/preserve=when-failed annotation from the preserved machine: %s", runningMachines[0].Name))
 					err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, nil)
 					gomega.Expect(err).To(gomega.BeNil())
 				})
@@ -1617,10 +1617,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				// Simulate kubelet failure for the second node.
 				// The first node is already auto-preserved and counts towards AutoPreserveFailedMachineMax.
 				// We expect this machine to be preserved as well since it is explicitly marked
-				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure for the second machine")
+				ginkgo.By(fmt.Sprintf("deploy VAP and VAPB to simulate kubelet failure for the second machine: %s", runningMachines[1].Name))
 				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey], runningMachines[1].ObjectMeta.Labels[v1alpha1.NodeLabelKey]})).To(gomega.BeNil())
 
-				ginkgo.By("Waiting for second machine to fail and be preserved while ensuring that the first machine remains preserved")
+				ginkgo.By(fmt.Sprintf("Waiting for second machine to fail and be preserved (%s) while ensuring that the first machine remains preserved (%s)", runningMachines[1].Name, runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
@@ -1632,7 +1632,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 		ginkgo.Context("Should ensure manually preserved machines are deleted when preserve annotation is removed", func() {
 			ginkgo.It("When the preservation annotation is removed, a manually preserved failed machine should be deleted", func() {
 				ginkgo.By("Create a MCD with no preservation fields populated")
-				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 2)
+				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 3)
 				// Update the standard mcd to a low machine health timeout to speed up tests
 				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
 					MachineHealthTimeout: &metav1.Duration{Duration: 5 * time.Second},
@@ -1653,7 +1653,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.pollingInterval).Should(gomega.BeNumerically(">=", 1))
 
 				// Add the node.machine.sapcloud.io/preserve=when-failed annotation to the running machine to ensure it is preserved when it fails
-				ginkgo.By("add the node.machine.sapcloud.io/preserve=when-failed annotation to the running machine")
+				ginkgo.By(fmt.Sprintf("add the node.machine.sapcloud.io/preserve=when-failed annotation to the running machine: %s", runningMachines[0].Name))
 				err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, map[string]any{
 					mc_utils.PreserveMachineAnnotationKey: mc_utils.PreserveMachineAnnotationValueWhenFailed,
 				})
@@ -1661,15 +1661,15 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				// Simulate kubelet failure for the node
 				targetNodes := []string{runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]}
-				ginkgo.By("deploy VAP and VAPB to simulate kubelet failure")
+				ginkgo.By(fmt.Sprintf("deploy VAP and VAPB to simulate kubelet failure: %s", runningMachines[0].Name))
 				// Defer VAP/VAPB cleanup to ensure that they are removed even if test fails
 				ginkgo.DeferCleanup(func() {
-					ginkgo.By("cleanup deployed VAP/VAPB")
+					ginkgo.By(fmt.Sprintf("cleanup deployed VAP/VAPB: %s", runningMachines[0].Name))
 					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 				})
 				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, targetNodes)).To(gomega.BeNil())
 
-				ginkgo.By("Waiting for machine to fail and be preserved")
+				ginkgo.By(fmt.Sprintf("Waiting for machine to fail and be preserved: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesFailedAndPreserved,
 					c.timeout,
@@ -1677,11 +1677,11 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("remove the node.machine.sapcloud.io/preserve=when-failed annotation from the preserved machine")
+				ginkgo.By(fmt.Sprintf("remove the node.machine.sapcloud.io/preserve=when-failed annotation from the preserved machine: %s", runningMachines[0].Name))
 				err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, nil)
 				gomega.Expect(err).To(gomega.BeNil())
 
-				ginkgo.By("wait for machine to be deleted")
+				ginkgo.By(fmt.Sprintf("wait for machine to be deleted: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.IsMachineDeleted,
 					c.timeout,

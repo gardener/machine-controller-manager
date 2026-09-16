@@ -306,8 +306,9 @@ metadata:
   name: node-recover
 spec:
   delay:
-    durationMilliseconds: 5000
-    jitterDurationMilliseconds: 6000
+    durationMilliseconds: 0
+    jitterDurationMilliseconds: 1000
+  immediateNextStage: true
   resourceRef:
     apiGroup: v1
     kind: Node

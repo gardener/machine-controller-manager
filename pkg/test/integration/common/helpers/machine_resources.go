@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"sort"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 
@@ -102,6 +103,11 @@ func (c *Cluster) GetRunningMachineList(ctx context.Context, namespace string) (
 			runningMachines = append(runningMachines, mc)
 		}
 	}
+
+	// Sort ascending by LastUpdateTime, so specs do not pick recovering or just-recovered machines.
+	sort.SliceStable(runningMachines, func(i, j int) bool {
+		return runningMachines[i].Status.CurrentStatus.LastUpdateTime.Before(&runningMachines[j].Status.CurrentStatus.LastUpdateTime)
+	})
 
 	return runningMachines, nil
 }
