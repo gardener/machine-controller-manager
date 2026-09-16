@@ -35,10 +35,9 @@ import (
 	"strings"
 	"time"
 
-	annotationsutils "github.com/gardener/machine-controller-manager/pkg/util/annotations"
-
 	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	annotationsutils "github.com/gardener/machine-controller-manager/pkg/util/annotations"
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/drain"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
@@ -962,6 +961,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		// Because if the machine failed to update in-place, the severity of the failure is uncertain.
 		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdating && machine.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdateFailed {
 			if c.isHealthy(clone) {
+				updateTime := metav1.Now()
 				if clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning && !isPendingMachineWithCriticalComponentsNotReadyTaint(clone, node) {
 					if clone.Status.LastOperation.Type == v1alpha1.MachineOperationCreate &&
 						clone.Status.LastOperation.State != v1alpha1.MachineStateSuccessful {
@@ -977,7 +977,14 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 						}
 						klog.V(2).Infof("Machine %q joined the cluster in %q", machine.Name, joinDuration)
 						metrics.UpdateMetricsForMachineDurations(machine, machineClass, metrics.MachineDurations{Join: joinDuration})
-						metav1.SetMetaDataAnnotation(&clone.ObjectMeta, v1alpha1.AnnotationKeyMachineJoinDuration, joinDuration.String())
+						clone.Status.Conditions = nodeops.CloneAndAddCondition(clone.Status.Conditions, v1.NodeCondition{
+							Type:               v1alpha1.ConditionMachineJoined,
+							Status:             v1.ConditionTrue,
+							LastHeartbeatTime:  updateTime,
+							LastTransitionTime: updateTime,
+							Reason:             codes.OK.String(),
+							Message:            description,
+						})
 					} else {
 						// Machine rejoined the cluster after a health-check
 						description = fmt.Sprintf("Machine %s successfully re-joined the cluster", clone.Name)
@@ -990,12 +997,12 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 						Description:    description,
 						State:          v1alpha1.MachineStateSuccessful,
 						Type:           lastOperationType,
-						LastUpdateTime: metav1.Now(),
+						LastUpdateTime: updateTime,
 					}
 					clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 						Phase: v1alpha1.MachineRunning,
 						// TimeoutActive:  false,
-						LastUpdateTime:     metav1.Now(),
+						LastUpdateTime:     updateTime,
 						PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 					}
 					cloneDirty = true
@@ -1131,15 +1138,25 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				// Log the error message for machine failure
 				klog.Error(description)
 
+				updateTime := metav1.Now()
+				clone.Status.Conditions = nodeops.CloneAndAddCondition(clone.Status.Conditions, v1.NodeCondition{
+					Type:               v1alpha1.ConditionMachineFailed,
+					Status:             v1.ConditionTrue,
+					LastHeartbeatTime:  updateTime,
+					LastTransitionTime: updateTime,
+					Reason:             codes.FailedJoin.String(),
+					Message:            description,
+				})
 				clone.Status.LastOperation = v1alpha1.LastOperation{
 					Description:    description,
+					ErrorCode:      codes.FailedJoin.String(),
 					State:          v1alpha1.MachineStateFailed,
 					Type:           machine.Status.LastOperation.Type,
-					LastUpdateTime: metav1.Now(),
+					LastUpdateTime: updateTime,
 				}
 				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
 					Phase:              v1alpha1.MachineFailed,
-					LastUpdateTime:     metav1.Now(),
+					LastUpdateTime:     updateTime,
 					PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 				}
 				cloneDirty = true
@@ -2051,20 +2068,20 @@ func (c *controller) getEffectiveHealthTimeout(machine *v1alpha1.Machine) *metav
 }
 
 // getEffectiveCreationTimeout returns the creationTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
-func (c *controller) getEffectiveCreationTimeout(machine *v1alpha1.Machine) *metav1.Duration {
-	var effectiveCreationTimeout *metav1.Duration
-	effectiveCreationTimeout, err := annotationsutils.GetEffectiveMachineCreationTimeout(machine)
-	if effectiveCreationTimeout != nil {
-		return effectiveCreationTimeout
-	}
+func (c *controller) getEffectiveCreationTimeout(machine *v1alpha1.Machine) metav1.Duration {
+	var effectiveCreationTimeout metav1.Duration
+	effectiveCreationTimeout, err := annotationsutils.GetMachineEffectiveCreationTimeout(machine)
 	if err != nil {
 		klog.Warningf("error obtaining effectiveCreationTimeout from annotation %q (if any) on machine %q: %v",
 			v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout, machine.Name, err)
 	}
+	if effectiveCreationTimeout.Duration != 0 {
+		return effectiveCreationTimeout
+	}
 	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineCreationTimeout != nil {
-		effectiveCreationTimeout = machine.Spec.MachineCreationTimeout
+		effectiveCreationTimeout = *machine.Spec.MachineCreationTimeout
 	} else {
-		effectiveCreationTimeout = &c.safetyOptions.MachineCreationTimeout
+		effectiveCreationTimeout = c.safetyOptions.MachineCreationTimeout
 	}
 	klog.V(4).Infof("obtained effectiveCreationTimeout %q for machine %q", effectiveCreationTimeout, machine.Name)
 	return effectiveCreationTimeout
