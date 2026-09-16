@@ -24,7 +24,6 @@ package controller
 
 import (
 	"bytes"
-	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -2431,7 +2430,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 		}
 	}
 	if drainErr != nil || err != nil {
-		return machine, cmp.Or(drainErr, err)
+		return machine, errors.Join(drainErr, err)
 	}
 	klog.V(2).Infof("Machine %q and backing node %q preserved successfully till %v.", machine.Name, nodeName, machine.Status.CurrentStatus.PreserveExpiryTime)
 	return machine, nil
