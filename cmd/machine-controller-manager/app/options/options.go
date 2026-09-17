@@ -70,7 +70,7 @@ func NewMCMServer() *MCMServer {
 				SafetyUp:                          2,
 				SafetyDown:                        1,
 				MachineSafetyOvershootingPeriod:   metav1.Duration{Duration: 1 * time.Minute},
-				MachineReplaceCycleCountThreshold: constants.DefaultMachineReplaceCycleThreshold,
+				MachineReplaceCycleCountThreshold: constants.DefaultMachineReplaceCycleCountThreshold,
 			},
 		},
 	}

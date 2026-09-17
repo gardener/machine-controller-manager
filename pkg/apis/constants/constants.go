@@ -16,9 +16,9 @@ const (
 	DefaultCreationTimeoutGrowthFactor = 2
 	// DefaultCreationTimeoutMax is the max limit upto which the effective-creation-timeout can be adjusted
 	DefaultCreationTimeoutMax = 90 * time.Minute
-	// DefaultMachineReplaceCycleThreshold is the default value of the threshold for Machine replace cycles caused
+	// DefaultMachineReplaceCycleCountThreshold is the default value of the threshold for Machine replace cycles caused
 	// by failures following which the effective-creation-timeout is grown.
-	DefaultMachineReplaceCycleThreshold = 2
+	DefaultMachineReplaceCycleCountThreshold = 2
 	// DefaultMaxJoinDurationLookback is the lookback window used to compute the maximum observed machine join
 	// duration when reducing the effective-creation-timeout after machines join successfully.
 	DefaultMaxJoinDurationLookback = 24 * time.Hour
