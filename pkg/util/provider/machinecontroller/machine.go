@@ -875,7 +875,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		if machineutils.IsPreserveExpiryTimeSetAndExpired(clone) {
 			removeAnnotations = true
 			clone, err = c.stopPreservationIfActive(ctx, clone, removeAnnotations)
-		} else if !machineutils.IsFailed(clone) {
+		} else if !machineutils.IsMachineFailed(clone) {
 			clone, err = c.stopPreservationIfActive(ctx, clone, removeAnnotations)
 		} else {
 			clone, err = c.preserveMachine(ctx, clone, effectivePreserveValue)
