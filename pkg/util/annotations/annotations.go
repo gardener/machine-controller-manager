@@ -108,21 +108,6 @@ func GetMachineEffectiveCreationTimeout(object runtime.Object) (creationTimeout 
 	return
 }
 
-// GetMachineMaxJoinDuration gets the value of the annotation [v1alpha1.AnnotationKeyMachineMaxJoinDuration]
-// as a [metav1.Duration] if present.
-func GetMachineMaxJoinDuration(object runtime.Object) (joinDuration metav1.Duration, err error) {
-	metaObject, err := meta.Accessor(object)
-	if err != nil {
-		return
-	}
-	durationStr, ok := metaObject.GetAnnotations()[v1alpha1.AnnotationKeyMachineMaxJoinDuration]
-	if !ok {
-		return
-	}
-	joinDuration.Duration, err = time.ParseDuration(durationStr)
-	return
-}
-
 // GetMachineEffectiveCreationTimeoutLastAdjustedAt gets the value of the annotation [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAdjustedAt]
 // as a [metav1.Time] if present using the layout [time.RFC3339].
 func GetMachineEffectiveCreationTimeoutLastAdjustedAt(object runtime.Object) (adjustedAt metav1.Time, err error) {
