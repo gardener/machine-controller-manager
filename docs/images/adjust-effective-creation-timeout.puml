@@ -14,14 +14,6 @@ if (numJoinedInWindow > 0\nAND now − effectiveCreationTimeoutLastAdjustedAt\n>
 else (no)
   if (numFailedJoinInWindow > 0\nAND now − windowStartMark > effectiveCreationTimeout?) then (yes)
     :replaceCycleCount++\nreplaceCycleCountLastAdjustedAt = now;
-    note right
-      replaceCycleCount tracks how many consecutive
-      timeout windows have elapsed with failed-join
-      machines and no successful joins.
-      When it reaches the threshold, the
-      effectiveCreationTimeout is grown and the
-      counter resets to 0.
-    end note
     if (replaceCycleCount ≥ threshold?) then (yes)
       :effectiveCreationTimeout = min(current × growthFactor, 90 m)\neffectiveCreationTimeoutLastAdjustedAt = now\nreplaceCycleCount = 0;
     else (no)

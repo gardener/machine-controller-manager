@@ -581,8 +581,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 		return dc.rollback(ctx, d, machineSets, machineMap)
 	}
 
-	// Check/Adjust machine-replace-cycle-count and effective-creation-timeout On MachineDeployment
-	if err = dc.checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout(ctx, d, machineMap); err != nil {
+	if adjusted, err := dc.checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout(ctx, d, machineMap); adjusted || err != nil {
 		return err
 	}
 
@@ -805,10 +804,10 @@ func (dc *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.
 	return mcdDeepCopy, nil
 }
 
-func (dc *controller) checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout(ctx context.Context, mcd *v1alpha1.MachineDeployment, machineMap map[types.UID]*v1alpha1.MachineList) error {
+func (dc *controller) checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout(ctx context.Context, mcd *v1alpha1.MachineDeployment, machineMap map[types.UID]*v1alpha1.MachineList) (adjusted bool, err error) {
 	oldInfo, err := getCreationTimeoutAdjustInfo(mcd)
 	if err != nil {
-		return nil
+		return
 	}
 	windowStartMark := oldInfo.replaceCycleCountLastAdjustedAt.Time
 	now := metav1.Now()
@@ -822,7 +821,7 @@ func (dc *controller) checkAndAdjustMachineReplaceCycleCountAndEffectiveCreation
 		newInfo.effectiveCreationTimeout.Duration = max(specCreationTimeout.Duration, maxJoinDuration.Duration)
 		newInfo.effectiveCreationTimeoutLastAdjustedAt = now
 	} else if numFailedJoinInWindow > 0 && now.Sub(windowStartMark) > oldInfo.effectiveCreationTimeout.Duration {
-		// replace-cycle-count only increments once per timeout window
+		// replace-cycle-count only increments once per timeout window if there are non-zero machines that failed to join in that window.
 		newInfo.replaceCycleCount++
 		newInfo.replaceCycleCountLastAdjustedAt = now
 		if newInfo.replaceCycleCount >= int(dc.safetyOptions.MachineReplaceCycleCountThreshold) {
@@ -843,11 +842,12 @@ func (dc *controller) checkAndAdjustMachineReplaceCycleCountAndEffectiveCreation
 		}
 		_, err = dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, newMcd, metav1.UpdateOptions{})
 		if err != nil {
-			return err
+			return
 		}
+		adjusted = true
 		klog.V(3).Infof("For MachineDeployment %q, adjusted annotations: %q", mcd.Name, adjustedAnnotations)
 	}
-	return nil
+	return
 }
 
 func createAdjustedAnnotations(oldInfo, newInfo creationTimeoutAdjustInfo) (adjustedAnnotations map[string]string) {
