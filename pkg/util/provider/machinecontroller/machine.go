@@ -309,6 +309,13 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		)
 	}
 
+	// If the machine is preserved, requeue it at its PreserveExpiryTime with
+	// /a delay to ensure it is processed after the preservation period ends.
+	if expiryTime := machine.Status.CurrentStatus.PreserveExpiryTime; expiryTime != nil {
+		if untilExpiry := time.Until(expiryTime.Time); untilExpiry > 0 && untilExpiry <= time.Duration(machineutils.LongRetry) {
+			c.enqueueMachineAfter(machine, untilExpiry+time.Second, "preserved machine reached its PreserveExpiryTime")
+		}
+	}
 	return machineutils.LongRetry, nil
 }
 
