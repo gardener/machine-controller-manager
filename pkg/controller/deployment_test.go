@@ -2946,7 +2946,7 @@ var _ = Describe("machineDeployment", func() {
 			defer close(stop)
 			objects := []runtime.Object{mcdIn}
 			c, trackers := createController(stop, testNamespace, objects, nil, nil)
-			c.safetyOptions.MachineReplaceCycleCountThreshold = constants.DefaultMachineReplaceCycleThreshold
+			c.safetyOptions.MachineReplaceCycleCountThreshold = constants.DefaultMachineReplaceCycleCountThreshold
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 			Expect(c.checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout(context.Background(), mcdIn, machineMap)).To(Succeed())
