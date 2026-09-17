@@ -19,4 +19,7 @@ const (
 	// DefaultMachineReplaceCycleThreshold is the default value of the threshold for Machine replace cycles caused
 	// by failures following which the effective-creation-timeout is grown.
 	DefaultMachineReplaceCycleThreshold = 2
+	// DefaultMaxJoinDurationLookback is the lookback window used to compute the maximum observed machine join
+	// duration when reducing the effective-creation-timeout after machines join successfully.
+	DefaultMaxJoinDurationLookback = 24 * time.Hour
 )

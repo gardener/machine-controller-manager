@@ -7,7 +7,6 @@ package machineutils
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -163,11 +162,6 @@ func IsActive(p *v1alpha1.Machine) bool {
 // IsFailed checks if machine has failed
 func IsFailed(p *v1alpha1.Machine) bool {
 	return p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed
-}
-
-// HasMachineJoined checks if the machine has joined the cluster
-func HasMachineJoined(m *v1alpha1.Machine) bool {
-	return m.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && strings.Contains(m.Status.LastOperation.Description, "successfully joined the cluster")
 }
 
 // IsMachineTriggeredForDeletion checks if machine was triggered for deletion
