@@ -1,0 +1,41 @@
+@startuml
+title checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout
+
+start
+
+:Read annotation state from MachineDeployment\n(effectiveCreationTimeout, effectiveCreationTimeoutLastAdjustedAt,\nreplaceCycleCount, replaceCycleCountLastAdjustedAt)\n**→ oldInfo**;
+
+:windowStartMark = replaceCycleCountLastAdjustedAt\n(falls back to MCD creation timestamp if annotation absent);
+:joinStartMark = now − 24 h;
+:Scan all Machines → numJoinedInWindow, numFailedJoinInWindow,\nmaxJoinDuration (within 24 h lookback);
+
+if (numJoinedInWindow > 0\nAND now − effectiveCreationTimeoutLastAdjustedAt\n> effectiveCreationTimeout?) then (yes)
+  :effectiveCreationTimeout =\nmax(specTimeout, maxJoinDuration)\neffectiveCreationTimeoutLastAdjustedAt = now;
+else (no)
+  if (numFailedJoinInWindow > 0\nAND now − windowStartMark > effectiveCreationTimeout?) then (yes)
+    :replaceCycleCount++\nreplaceCycleCountLastAdjustedAt = now;
+    note right
+      replaceCycleCount tracks how many consecutive
+      timeout windows have elapsed with failed-join
+      machines and no successful joins.
+      When it reaches the threshold, the
+      effectiveCreationTimeout is grown and the
+      counter resets to 0.
+    end note
+    if (replaceCycleCount ≥ threshold?) then (yes)
+      :effectiveCreationTimeout = min(current × growthFactor, 90 m)\neffectiveCreationTimeoutLastAdjustedAt = now\nreplaceCycleCount = 0;
+    else (no)
+      :no timeout change;
+    endif
+  else (no)
+    :no change;
+  endif
+endif
+
+if (any annotation value changed?) then (yes)
+  :Update MachineDeployment annotations\nvia API server;
+endif
+
+stop
+
+@enduml
