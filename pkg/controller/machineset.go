@@ -714,7 +714,7 @@ func (dc *controller) prepareMachineForDeletion(ctx context.Context, targetMachi
 	} else {
 		// successful delete of a Failed phase machine due to unhealthiness for too long, increments staleMachinesRemoved counter
 		// note: call is blocking and thread safe as other worker threads might be updating the counter as well
-		if machineutils.IsFailed(targetMachine) && targetMachine.Status.LastOperation.Type == v1alpha1.MachineOperationHealthCheck {
+		if machineutils.IsMachineFailed(targetMachine) && targetMachine.Status.LastOperation.Type == v1alpha1.MachineOperationHealthCheck {
 			staleMachinesRemoved.increment()
 		}
 	}
@@ -950,7 +950,7 @@ func (dc *controller) manageAutoPreservationOfFailedMachines(ctx context.Context
 	var others []*v1alpha1.Machine
 	for _, m := range machines {
 		// check if machine is already annotated for preservation, if yes, skip. Machine controller will take care of the rest.
-		if machineutils.IsFailed(m) && !machineutils.AllowedPreserveAnnotationValues.Has(m.Annotations[machineutils.PreserveMachineAnnotationKey]) {
+		if machineutils.IsMachineFailed(m) && !machineutils.AllowedPreserveAnnotationValues.Has(m.Annotations[machineutils.PreserveMachineAnnotationKey]) {
 			autoPreservationCandidates = append(autoPreservationCandidates, m)
 		} else {
 			others = append(others, m)

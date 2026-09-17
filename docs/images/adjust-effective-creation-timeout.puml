@@ -17,10 +17,8 @@ else (no)
     if (replaceCycleCount ≥ threshold?) then (yes)
       :effectiveCreationTimeout = min(current × growthFactor, 90 m)\neffectiveCreationTimeoutLastAdjustedAt = now\nreplaceCycleCount = 0;
     else (no)
-      :no timeout change;
     endif
   else (no)
-    :no change;
   endif
 endif
 
