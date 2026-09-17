@@ -2920,7 +2920,8 @@ var _ = Describe("machineDeployment", func() {
 			c.safetyOptions.MachineReplaceCycleCountThreshold = constants.DefaultMachineReplaceCycleCountThreshold
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
-			Expect(c.checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout(context.Background(), mcdIn, machineMap)).To(Succeed())
+			_, adjustErr := c.checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout(context.Background(), mcdIn, machineMap)
+			Expect(adjustErr).NotTo(HaveOccurred())
 			waitForCacheSync(stop, c)
 			result, err := c.controlMachineClient.MachineDeployments(testNamespace).Get(context.Background(), mcdIn.Name, metav1.GetOptions{})
 			Expect(err).NotTo(HaveOccurred())

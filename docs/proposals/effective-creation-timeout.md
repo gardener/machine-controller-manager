@@ -5,14 +5,14 @@
 MCM uses a `machineCreationTimeout` to detect machines that are stuck during provisioning. A fixed timeout works well under normal conditions, but is fragile otherwise:
 
 - **Too short**: legitimate slow-provision environments (e.g. busy cloud AZs, large images) cause healthy machines to be marked failed and replaced unnecessarily, creating a churn loop.
-- **Too long**: a timeout that is padded for slow environments causes auto-scaling scaledown by increasing the time taken for the `cluster-autoscaler` to put the `NodeGroup` of the `MachineDeployment` into backoff.
+- **Too long**: a timeout that is padded for slow environments increases the time taken by the `cluster-autoscaler` to put the `NodeGroup` of the `MachineDeployment` into backoff.
 
 The problem is that a single static value cannot adapt to observed provisioning behaviour.
 
 ## Design
 
 MCM automatically maintains an `effective-creation-timeout` annotation on each `MachineDeployment`. 
-The effective timeout starts at the `MachineDeployment` configured (or default) value and is adjusted up or down by the MCM controller based on observed machine join behaviour.
+The effective timeout starts at the `MachineDeployment` configured spec value (or default) and is adjusted up or down by the MCM controller based on observed machine join behaviour.
 
 When a new `Machine` is created, the `effective-creation-timeout` annotation is propagated from the `MachineDeployment` onto the `Machine` object (via `getMachinesAnnotationSet` in the MachineSet controller, [#1104](https://github.com/gardener/machine-controller-manager/pull/1104)). The machine controller reads this annotation to determine how long a `Pending` machine has before it is transitioned to the `Failed` phase and subsequently replaced. Specifically:
 
@@ -70,10 +70,10 @@ The activity diagram below illustrates the full decision flow:
 
 ### Defaults
 
-| Parameter | Default |
-|---|---|
-| Initial effective timeout | `spec.machineCreationTimeout` or 20 minutes |
-| Growth factor | `DefaultCreationTimeoutGrowthFactor` (2×) |
-| Maximum effective timeout | `DefaultCreationTimeoutMax` (90 minutes) |
-| Replace-cycle threshold | 2 (`MachineReplaceCycleCountThreshold`, CLI: `--machine-replace-cycle-count-threshold`) |
-| Join duration lookback | 24 hours |
+| Parameter                     | Default |
+|-------------------------------|---|
+| Initial effective timeout     | `spec.machineCreationTimeout` or 20 minutes |
+| Growth factor                 | `DefaultCreationTimeoutGrowthFactor` (2×) |
+| Maximum effective timeout     | `DefaultCreationTimeoutMax` (90 minutes) |
+| Replace-cycle count threshold | 2 (`MachineReplaceCycleCountThreshold`, CLI: `--machine-replace-cycle-count-threshold`) |
+| Join duration lookback        | 24 hours |
