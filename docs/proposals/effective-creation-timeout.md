@@ -27,7 +27,7 @@ All state is stored as annotations on the `MachineDeployment`:
 |---|---|
 | `node.machine.sapcloud.io/effective-creation-timeout` | Current effective timeout. Overrides `spec.machineCreationTimeout` when present. |
 | `node.machine.sapcloud.io/effective-creation-timeout-last-adjusted-at` | Timestamp of the last adjustment. Used as a cooldown guard. |
-| `node.machine.sapcloud.io/replace-cycle-count` | Number of consecutive timeout windows that have elapsed with failed-join machines and no successful joins. Resets to 0 after a timeout growth. |
+| `node.machine.sapcloud.io/replace-cycle-count` | Number of consecutive failure cycles (machines failing to join within the effective-creation-timeout with no successful joins) since the last timeout adjustment. Resets to 0 when the threshold is breached and the timeout is grown. |
 | `node.machine.sapcloud.io/replace-cycle-count-last-adjusted-at` | Timestamp of the last replace-cycle-count increment. Defines the start of the current failure window. |
 
 ### Adjustment logic
