@@ -171,7 +171,7 @@ func blockedLeaseRenewalExpression(nodes []string) string {
 }
 
 // DeleteVAPToRestartKubeletUpdates deletes the ValidatingAdmissionPolicy and ValidatingAdmissionPolicyBinding that were created to block kubelet from updating node leases and node status.
-func (c *Cluster) DeleteVAPToRestartKubeletUpdates(ctx context.Context, nodeNames []string) error {
+func (c *Cluster) DeleteVAPToRestartKubeletUpdates(ctx context.Context) error {
 	var vapErr, vapbErr error
 
 	vapErr = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Delete(ctx, VAPName, metav1.DeleteOptions{})
