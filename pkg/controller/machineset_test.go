@@ -1623,7 +1623,7 @@ var _ = Describe("machineset", func() {
 			// expect machinesToDelete to contain testPreservedFailedMachine
 			Expect(machinesToDelete).To(ContainElement(testPreservedFailedMachine))
 		})
-		It("should prioritize preserved machine with earlier PreserveExpiryTime first, not oldest by creation time", func() {
+		It("should prioritize preserved machine with earlier PreserveExpiryTime first for deletion", func() {
 			testMachine1.CreationTimestamp = metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
 			testMachine1.Status.CurrentStatus = machinev1.CurrentStatus{
 				Phase:              MachineFailed,
@@ -2275,7 +2275,7 @@ var _ = Describe("machineset", func() {
 			}),
 		)
 
-		It("should remove auto-preservation from machine with earlier PreserveExpiryTime first, not oldest by creation time", func() {
+		It("should remove auto-preservation from machine with earlier PreserveExpiryTime first", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
