@@ -15,6 +15,11 @@ COVERPROFILE       := test/output/coverprofile.out
 
 LEADER_ELECT 	   ?= "true" # If LEADER_ELECT is not set in the environment, use the default value "true"
 MACHINE_SAFETY_OVERSHOOTING_PERIOD:=1m
+# KUBE_API_QPS/KUBE_API_BURST default to the production client-side rate limits.
+# The simulated-provider integration tests override them to cut
+# client-side throttling against the fast kwok cluster.
+KUBE_API_QPS       ?= 20
+KUBE_API_BURST     ?= 30
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -100,6 +105,8 @@ start:
 			--safety-up=2 \
 			--safety-down=1 \
 			--machine-safety-overshooting-period=$(MACHINE_SAFETY_OVERSHOOTING_PERIOD) \
+			--kube-api-qps=$(KUBE_API_QPS) \
+			--kube-api-burst=$(KUBE_API_BURST) \
 			--leader-elect=$(LEADER_ELECT) \
 			--v=3
 

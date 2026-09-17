@@ -4,9 +4,9 @@ options:
   runtime: binary
   kubeVersion: v1.35.0
   # disableKubeControllerManager: true
-  nodeLeaseDurationSeconds: 20
-  kubeControllerManagerNodeMonitorPeriodMilliseconds: 15000
-  kubeControllerManagerNodeMonitorGracePeriodMilliseconds: 20000
+  nodeLeaseDurationSeconds: 10
+  kubeControllerManagerNodeMonitorPeriodMilliseconds: 7000
+  kubeControllerManagerNodeMonitorGracePeriodMilliseconds: 10000
   heartbeatFactor: 1
   manageAllNodes: true
 componentsPatches:
@@ -210,8 +210,8 @@ metadata:
   name: node-heartbeat-with-lease
 spec:
   delay:
-    durationMilliseconds: 5000
-    jitterDurationMilliseconds: 6000
+    durationMilliseconds: 2500
+    jitterDurationMilliseconds: 2500
   immediateNextStage: false
   next:
     statusTemplate: |

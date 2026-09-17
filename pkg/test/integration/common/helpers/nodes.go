@@ -7,9 +7,11 @@ package helpers
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -57,18 +59,22 @@ func (c *Cluster) GetNumberOfReadyNodes() int16 {
 // This annotation is used by a kwok stage when IT is running in a virtual cluster to perform
 // node recovery by setting the `Ready` condition to true after the node lease renewal blocking
 // VAP is removed. This is ineffectual for live clusters.
-func (c *Cluster) addNodeRecoverAnnotation(ctx context.Context, nodeName string) error {
-	patch := []byte(`{"metadata":{"annotations":{"kwok/fail-condition":"Recover"}}}`)
+func (c *Cluster) attemptNodeRecovery(ctx context.Context, nodeName string, attempt int) {
+	patch := fmt.Appendf(nil, `{"metadata":{"annotations":{"kwok/fail-condition":"Recover","kwok/recovery-attempts":"%d"}}}`, attempt)
 	_, err := c.Clientset.CoreV1().Nodes().Patch(ctx, nodeName, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
-	if err != nil {
-		return fmt.Errorf("patching node %q with recover annotation: %w", nodeName, err)
+	if err != nil && !apierrors.IsNotFound(err) {
+		log.Printf("attemptNodeRecovery: failed to patch node %q (attempt %d): %v\n", nodeName, attempt, err)
 	}
-	return nil
 }
 
-// GetNumberOfNodes tries to retrieve the list of node objects in the cluster.
-// Preserved nodes are excluded, so the count reflects nodes expected to be Ready.
+// GetNumberOfNodes returns the total number of node objects in the cluster
 func (c *Cluster) GetNumberOfNodes() int16 {
+	nodes, _ := c.getNodes()
+	return int16(len(nodes.Items)) //#nosec G115 (CWE-190) -- Test only
+}
+
+// GetNumberOfSchedulableNodes returns the number of nodes expected to become Ready (excluding preserved nodes).
+func (c *Cluster) GetNumberOfSchedulableNodes() int16 {
 	nodes, _ := c.getNodes()
 	count := 0
 	for _, n := range nodes.Items {

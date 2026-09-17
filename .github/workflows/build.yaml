@@ -78,6 +78,16 @@ jobs:
           mkdir -p /tmp/blobs.d
           .ci/test |& tee /tmp/blobs.d/test-log.txt
           tar czf /tmp/blobs.d/test-log.tar.gz -C /tmp/blobs.d test-log.txt
+      - name: upload-mc-mcm-logs-on-failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mc-mcm-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            pkg/simulatedprovider/test/integration/controller/logs/mc_process.log*
+            pkg/simulatedprovider/test/integration/controller/logs/mcm_process.log*
+          if-no-files-found: warn
+          retention-days: 14
       - name: add-test-results-to-component-descriptor
         uses: gardener/cc-utils/.github/actions/export-ocm-fragments@v1
         with:

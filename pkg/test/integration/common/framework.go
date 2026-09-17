@@ -144,7 +144,8 @@ type IntegrationTestFramework struct {
 // initializing resource tracker implementation.
 // Optially the timeout and polling interval are configurable as optional arguments
 // The default values used for Eventually to probe kubernetes cluster resources is
-// 300 seconds for timeout and  2 seconds for polling interval
+// 300 seconds for timeout and  500 milliseconds for polling interval for the simulated provider,
+// and 2 seconds with a real infrastructure provider.
 // for machine creation, deletion, machinedeployment update e.t.c.,
 // The first optional argument is the timeoutSeconds
 // The second optional argument is the pollingIntervalSeconds
@@ -159,6 +160,9 @@ func NewIntegrationTestFramework(
 	}
 
 	pollingInterval := 2 * time.Second
+	if isSimulatedProvider {
+		pollingInterval = 500 * time.Millisecond
+	}
 	if len(intervals) > 1 {
 		pollingInterval = time.Duration(intervals[1]) * time.Second
 	}
@@ -548,9 +552,15 @@ func (c *IntegrationTestFramework) runControllersLocally() {
 	gomega.Expect(mcsession.ExitCode()).Should(gomega.Equal(-1))
 
 	ginkgo.By("Starting Machine Controller Manager")
+	mcmQPSArgs := ""
+	if isSimulatedProvider {
+		// The simulated provider runs against a fast kwok cluster where the default
+		// client QPS/Burst throttles the MCM's reconcile loops.
+		mcmQPSArgs = " KUBE_API_QPS=100 KUBE_API_BURST=150"
+	}
 	args = strings.Fields(
 		fmt.Sprintf(
-			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms",
+			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms"+mcmQPSArgs,
 			mcmRepoPath,
 			c.ControlCluster.KubeConfigFilePath,
 			c.TargetCluster.KubeConfigFilePath,
@@ -657,7 +667,7 @@ func (c *IntegrationTestFramework) BeforeEachCheck() {
 			c.TargetCluster.GetNumberOfReadyNodes,
 			c.timeout,
 			c.pollingInterval).
-			Should(gomega.BeNumerically("==", c.TargetCluster.GetNumberOfNodes()))
+			Should(gomega.BeNumerically("==", c.TargetCluster.GetNumberOfSchedulableNodes()))
 	})
 }
 
@@ -1102,7 +1112,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", runningMachines[0].Name))
 				gomega.Eventually(
-					c.ControlCluster.AreMachinesRunning,
+					c.ControlCluster.ArePreservedMachinesRunning,
 					c.timeout,
 					c.pollingInterval).
 					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace).
@@ -1257,7 +1267,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", preservedMachine))
 				gomega.Eventually(
-					c.ControlCluster.AreMachinesRunning,
+					c.ControlCluster.ArePreservedMachinesRunning,
 					c.timeout,
 					c.pollingInterval).
 					WithArguments(ctx, []string{preservedMachine}, controlClusterNamespace).
@@ -1483,7 +1493,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", runningMachines[0].Name))
 				gomega.Eventually(
-					c.ControlCluster.AreMachinesRunning,
+					c.ControlCluster.ArePreservedMachinesRunning,
 					c.timeout,
 					c.pollingInterval).
 					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace).
@@ -1550,7 +1560,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", runningMachines[0].Name))
 				gomega.Eventually(
-					c.ControlCluster.AreMachinesRunning,
+					c.ControlCluster.ArePreservedMachinesRunning,
 					c.timeout,
 					c.pollingInterval).
 					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace).
@@ -1752,9 +1762,13 @@ func (c *IntegrationTestFramework) Cleanup() {
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 			_, err = outputFile.WriteString("\n------------RESTARTED MCM------------\n")
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			mcmQPSArgs := ""
+			if isSimulatedProvider {
+				mcmQPSArgs = " KUBE_API_QPS=100 KUBE_API_BURST=150"
+			}
 			args := strings.Fields(
 				fmt.Sprintf(
-					"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms",
+					"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms"+mcmQPSArgs,
 					mcmRepoPath,
 					c.ControlCluster.KubeConfigFilePath,
 					c.TargetCluster.KubeConfigFilePath,
