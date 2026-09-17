@@ -33,6 +33,8 @@ start:
 			--machine-safety-apiserver-statuscheck-timeout=30s \
 			--machine-safety-apiserver-statuscheck-period=1m \
 			--machine-safety-orphan-vms-period=30m \
+			--kube-api-qps=150 \
+			--kube-api-burst=200 \
 			--leader-elect=$(LEADER_ELECT) \
 			--v=3
 

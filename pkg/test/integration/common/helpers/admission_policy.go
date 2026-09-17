@@ -12,7 +12,6 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"time"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,7 +30,6 @@ const (
 // to block kubelet from updating node leases and node status.
 // This is used to cause nodes to go into the NotReady state to test the machine preservation feature of MCM.
 func (c *Cluster) CreateVAPToBlockKubeletUpdates(ctx context.Context, nodeNames []string) error {
-	log.Printf("Creating VAP to block updates for %+v\n", nodeNames)
 	if len(nodeNames) == 0 {
 		return fmt.Errorf("no node names provided to block kubelet updates")
 	}
@@ -173,10 +171,8 @@ func blockedLeaseRenewalExpression(nodes []string) string {
 }
 
 // DeleteVAPToRestartKubeletUpdates deletes the ValidatingAdmissionPolicy and ValidatingAdmissionPolicyBinding that were created to block kubelet from updating node leases and node status.
-// Furthermore, it triggers node recovery for virtual clusters by adding annotation "kwok/fail-condition=Recover"
-// for each node whose readiness was being blocked by the VAP.
 func (c *Cluster) DeleteVAPToRestartKubeletUpdates(ctx context.Context, nodeNames []string) error {
-	var vapErr, vapbErr, nodeUpdateErr error
+	var vapErr, vapbErr error
 
 	vapErr = c.Clientset.AdmissionregistrationV1().ValidatingAdmissionPolicies().Delete(ctx, VAPName, metav1.DeleteOptions{})
 	if vapErr != nil {
@@ -195,21 +191,6 @@ func (c *Cluster) DeleteVAPToRestartKubeletUpdates(ctx context.Context, nodeName
 			vapbErr = nil
 		} else {
 			log.Printf("error deleting validating admission policy binding %s: %v\n", VAPBName, vapbErr)
-		}
-	}
-
-	// This delay is intentionally added to ensure that node updates are issued a bit later than VAP removal
-	// so that the node recovery update event isn't blocked by the VAP.
-	time.Sleep(2 * time.Second)
-
-	for _, node := range nodeNames {
-		nodeUpdateErr = c.addNodeRecoverAnnotation(ctx, node)
-		if nodeUpdateErr != nil {
-			if apierrors.IsNotFound(nodeUpdateErr) {
-				log.Printf("node %s not found\n", node)
-			} else {
-				log.Printf("error updating node with recover annotation %s: %v\n", node, nodeUpdateErr)
-			}
 		}
 	}
 
