@@ -15,9 +15,8 @@ COVERPROFILE       := test/output/coverprofile.out
 
 LEADER_ELECT 	   ?= "true" # If LEADER_ELECT is not set in the environment, use the default value "true"
 MACHINE_SAFETY_OVERSHOOTING_PERIOD:=1m
-# KUBE_API_QPS/KUBE_API_BURST default to the production client-side rate limits.
-# The simulated-provider integration tests override them to cut
-# client-side throttling against the fast kwok cluster.
+# KUBE_API_QPS/KUBE_API_BURST default to the client-side rate limits.
+# The simulated-provider integration tests override them to cut client-side throttling against the fast kwok cluster.
 KUBE_API_QPS       ?= 20
 KUBE_API_BURST     ?= 30
 
