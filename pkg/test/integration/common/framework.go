@@ -663,11 +663,12 @@ func (c *IntegrationTestFramework) BeforeEachCheck() {
 		ginkgo.By("Checking machineControllerManager process is running")
 		gomega.Expect(mcmsession.ExitCode()).Should(gomega.Equal(-1))
 		ginkgo.By("Checking nodes in target cluster are healthy")
-		gomega.Eventually(
-			c.TargetCluster.GetNumberOfReadyNodes,
-			c.timeout,
-			c.pollingInterval).
-			Should(gomega.BeNumerically("==", c.TargetCluster.GetNumberOfSchedulableNodes()))
+		gomega.Eventually(func() bool {
+			return c.TargetCluster.GetNumberOfReadyNodes() == c.TargetCluster.GetNumberOfSchedulableNodes()
+		}, c.timeout, c.pollingInterval).Should(
+			gomega.BeTrue(),
+			"expected the number of ready nodes to equal the number of schedulable (non-preserved) nodes",
+		)
 	})
 }
 
@@ -1696,6 +1697,25 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 	// Testcase #04 | Orphaned Resources
 	ginkgo.Describe("orphaned resources", func() {
+		// Ensure the test machine deployment is deleted before querying the cloud provider for orphans.
+		ginkgo.BeforeEach(func() {
+			ginkgo.By("Ensuring the test machine deployment is deleted")
+			err := c.ControlCluster.McmClient.
+				MachineV1alpha1().
+				MachineDeployments(controlClusterNamespace).
+				Delete(ctx, helpers.McdName, metav1.DeleteOptions{})
+			if err != nil && !apierrors.IsNotFound(err) {
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			}
+
+			ginkgo.By("Waiting until the test machine deployment is deleted")
+			gomega.Eventually(
+				c.ControlCluster.IsMachineDeploymentDeleted,
+				c.timeout,
+				c.pollingInterval).
+				WithArguments(ctx, helpers.McdName, controlClusterNamespace).
+				Should(gomega.BeTrue())
+		})
 		ginkgo.Context("when the hyperscaler resources are queried", func() {
 			ginkgo.It("should have been deleted", func() {
 				// if available, should delete orphaned resources in the cloud provider

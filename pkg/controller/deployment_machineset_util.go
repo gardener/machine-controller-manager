@@ -31,6 +31,7 @@ import (
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	machineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -136,7 +137,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 		}
 		// Count number of failed machines annotated with PreserveAnnotationValueAutoPreserved
 		// Cannot combine with above if block in case auto-preservation is not complete yet
-		if isAutoPreserved(machine) {
+		if machineutils.IsMachineAutoPreserved(machine) {
 			autoPreserveFailedMachineCount++
 		}
 	}
