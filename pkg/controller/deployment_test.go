@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -1973,17 +1974,13 @@ var _ = Describe("machineDeployment", func() {
 					testMachineSet.Spec.Selector = labelsutil.CloneSelectorAndAddLabel(testMachineSet.Spec.Selector, machinev1.DefaultMachineDeploymentUniqueLabelKey, "testhash")
 				},
 				func(_ *machinev1.MachineDeployment, _ []machinev1.MachineSet, machines []machinev1.Machine, _ *corev1.Node) error {
-					var targetMachine *machinev1.Machine
-					for i := range machines {
-						if machines[i].Name == "Machine-test" {
-							targetMachine = &machines[i]
-							break
-						}
-					}
-					if targetMachine == nil {
+					idx := slices.IndexFunc(machines, func(m machinev1.Machine) bool {
+						return m.Name == "Machine-test"
+					})
+					if idx == -1 {
 						return errors.New("machine \"Machine-test\" not found")
 					}
-					if targetMachine.Annotations[machineutils.MachinePriority] != "1" {
+					if machines[idx].Annotations[machineutils.MachinePriority] != "1" {
 						return errors.New("expected MachinePriority=1 on machine \"Machine-test\"")
 					}
 					return nil
@@ -1996,16 +1993,13 @@ var _ = Describe("machineDeployment", func() {
 					testMachineSet.Spec.Selector = labelsutil.CloneSelectorAndAddLabel(testMachineSet.Spec.Selector, machinev1.DefaultMachineDeploymentUniqueLabelKey, "testhash")
 				},
 				func(_ *machinev1.MachineDeployment, mcs []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
-					var ms *machinev1.MachineSet
-					for i := range mcs {
-						if mcs[i].Name == "MachineSet-test" {
-							ms = &mcs[i]
-							break
-						}
-					}
-					if ms == nil {
+					idx := slices.IndexFunc(mcs, func(ms machinev1.MachineSet) bool {
+						return ms.Name == "MachineSet-test"
+					})
+					if idx == -1 {
 						return errors.New("machineSet \"MachineSet-test\" not found")
 					}
+					ms := &mcs[idx]
 					if ms.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] != ts {
 						return errors.New("expected LastDeploymentReplicaChangeByScalerTime annotation to be preserved on the machineSet")
 					}
