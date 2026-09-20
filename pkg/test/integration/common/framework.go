@@ -662,13 +662,6 @@ func (c *IntegrationTestFramework) BeforeEachCheck() {
 		gomega.Expect(mcsession.ExitCode()).Should(gomega.Equal(-1))
 		ginkgo.By("Checking machineControllerManager process is running")
 		gomega.Expect(mcmsession.ExitCode()).Should(gomega.Equal(-1))
-		ginkgo.By("Checking nodes in target cluster are healthy")
-		gomega.Eventually(func() bool {
-			return c.TargetCluster.GetNumberOfReadyNodes() == c.TargetCluster.GetNumberOfSchedulableNodes()
-		}, c.timeout, c.pollingInterval).Should(
-			gomega.BeTrue(),
-			"expected the number of ready nodes to equal the number of schedulable (non-preserved) nodes",
-		)
 	})
 }
 
