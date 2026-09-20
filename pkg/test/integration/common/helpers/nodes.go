@@ -72,16 +72,3 @@ func (c *Cluster) GetNumberOfNodes() int16 {
 	nodes, _ := c.getNodes()
 	return int16(len(nodes.Items)) //#nosec G115 (CWE-190) -- Test only
 }
-
-// GetNumberOfSchedulableNodes returns the number of nodes expected to become Ready (excluding preserved nodes).
-func (c *Cluster) GetNumberOfSchedulableNodes() int16 {
-	nodes, _ := c.getNodes()
-	count := 0
-	for _, n := range nodes.Items {
-		if isNodePreserved(&n) {
-			continue
-		}
-		count++
-	}
-	return int16(count) //#nosec G115 (CWE-190) -- Test only
-}
