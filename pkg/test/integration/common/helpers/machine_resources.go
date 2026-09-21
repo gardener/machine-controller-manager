@@ -26,6 +26,8 @@ const (
 	gnaSecretNameLabelKey = "worker.gardener.cloud/gardener-node-agent-secret-name"
 	// McdName is the name of the test machine deployment
 	McdName = "test-machine-deployment"
+	// McdReplicaCount is the number of replicas for the test machine deployment
+	McdReplicaCount = 3
 	// McName is the name of the test machine
 	McName = "test-machine"
 	// NodeDeleteMcName is the name of the test machine used for the node deletion test
