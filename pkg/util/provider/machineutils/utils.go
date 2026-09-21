@@ -146,38 +146,38 @@ const (
 // TODO: update this when taints for ALT updation and PostCreate operations is introduced.
 var EssentialTaints = []string{TaintNodeCriticalComponentsNotReady}
 
-// IsMachineFailedOrTerminating returns true if machine is Failed or already being Terminated.
-func IsMachineFailedOrTerminating(machine *v1alpha1.Machine) bool {
+// IsFailedOrTerminating returns true if machine is Failed or already being Terminated.
+func IsFailedOrTerminating(machine *v1alpha1.Machine) bool {
 	if !machine.GetDeletionTimestamp().IsZero() || machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed {
 		return true
 	}
 	return false
 }
 
-// IsMachineActive checks if machine was active
-func IsMachineActive(p *v1alpha1.Machine) bool {
+// IsActive checks if machine was active
+func IsActive(p *v1alpha1.Machine) bool {
 	return p.Status.CurrentStatus.Phase != v1alpha1.MachineFailed && p.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating
 }
 
-// IsMachineFailed checks if machine has failed
-func IsMachineFailed(p *v1alpha1.Machine) bool {
+// IsFailed checks if machine has failed
+func IsFailed(p *v1alpha1.Machine) bool {
 	return p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed
 }
 
-// IsMachineTriggeredForDeletion checks if machine was triggered for deletion
-func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
+// IsTriggeredForDeletion checks if machine was triggered for deletion
+func IsTriggeredForDeletion(m *v1alpha1.Machine) bool {
 	return m.Annotations[MachinePriority] == "1"
 }
 
-// IsMachinePreservationExpired checks if the preserve expiry time has passed for a machine
-func IsMachinePreservationExpired(m *v1alpha1.Machine) bool {
+// IsPreservationExpired checks if the preserve expiry time has passed for a machine
+func IsPreservationExpired(m *v1alpha1.Machine) bool {
 	t := m.Status.CurrentStatus.PreserveExpiryTime
 	return t != nil && !t.After(time.Now())
 }
 
-// IsMachinePreserved returns true if the machine is currently being preserved, i.e. it has a
+// IsPreserved returns true if the machine is currently being preserved, i.e. it has a
 // PreserveExpiryTime set on its status that lies in the future.
-func IsMachinePreserved(m *v1alpha1.Machine) bool {
+func IsPreserved(m *v1alpha1.Machine) bool {
 	t := m.Status.CurrentStatus.PreserveExpiryTime
 	return t != nil && t.After(time.Now())
 }
