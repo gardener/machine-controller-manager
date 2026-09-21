@@ -353,6 +353,9 @@ func (c *controller) reconcileClusterMachineTermination(key string) error {
 
 	if err != nil {
 		c.enqueueMachineTerminationAfter(machine, time.Duration(retryPeriod), err.Error())
+	} else {
+		// Currently few stages of machine deletion return `nil` but expect further processing in subsequent reconciliations.
+		c.enqueueMachineTerminationAfter(machine, time.Duration(retryPeriod), "termination flow reconcile (no error returned)")
 	}
 	return nil
 }
