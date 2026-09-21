@@ -219,7 +219,7 @@ func logMachinesToDelete(machines []*v1alpha1.Machine) {
 func filterAutoPreservedMachines(machines []*v1alpha1.Machine) []*v1alpha1.Machine {
 	var autoPreservedMachines []*v1alpha1.Machine
 	for _, m := range machines {
-		if machineutils.IsMachineAutoPreserved(m) {
+		if machineutils.IsAutoPreserved(m) {
 			autoPreservedMachines = append(autoPreservedMachines, m)
 		}
 	}
