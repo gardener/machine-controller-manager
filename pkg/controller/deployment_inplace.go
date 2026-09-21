@@ -384,7 +384,7 @@ func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context
 
 			klog.V(3).Infof("Attempting to transfer machine %s to new machine set %s", oldMachine.Name, newMachineSet.Name)
 
-			labelsUniqueToOldMachine := removeLabelsNotCommingFromMachineSet(oldMachine.Labels, oldMachineSet.Spec.Selector.MatchLabels)
+			labelsUniqueToOldMachine := removeLabelsNotComingFromMachineSet(oldMachine.Labels, oldMachineSet.Spec.Selector.MatchLabels)
 			maps.Copy(labelsUniqueToOldMachine, newMachineSet.Spec.Selector.MatchLabels)
 			machineNewLabels := MergeStringMaps(labelsUniqueToOldMachine, map[string]string{v1alpha1.LabelKeyNodeUpdateResult: v1alpha1.LabelValueNodeUpdateSuccessful})
 
@@ -392,12 +392,11 @@ func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context
 			if err != nil {
 				return addedNewReplicasCount, err
 			}
-			// update the owner reference of the machine to the new machine set and update the labels
+			// update the owner reference of the machine to the new machine set, update the labels and update the machineClassName
 			addControllerPatch := fmt.Sprintf(
-				`{"metadata":{"ownerReferences":[{"apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"labels":%s,"uid":"%s"}}`,
+				`{"metadata":{"ownerReferences":[{"apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"labels":%s,"uid":"%s"},"spec":{"class":{"name":"%s"}}}`,
 				v1alpha1.SchemeGroupVersion.WithKind("MachineSet").Kind,
-				newMachineSet.GetName(), newMachineSet.GetUID(), string(labelsJSONBytes), oldMachine.UID)
-
+				newMachineSet.GetName(), newMachineSet.GetUID(), string(labelsJSONBytes), oldMachine.UID, newMachineSet.Spec.Template.Spec.Class.Name)
 			err = dc.machineControl.PatchMachine(ctx, oldMachine.Namespace, oldMachine.Name, []byte(addControllerPatch))
 			if err != nil {
 				klog.Errorf("failed to transfer the ownership of machine %s to new machine set. Err: %v", oldMachine.Name, err)
@@ -639,7 +638,7 @@ func isUpdateNotSuccessful(condition *v1.NodeCondition, labels map[string]string
 	return condition == nil || condition.Reason != v1alpha1.UpdateSuccessful || labels[v1alpha1.LabelKeyNodeUpdateResult] != v1alpha1.LabelValueNodeUpdateSuccessful
 }
 
-func removeLabelsNotCommingFromMachineSet(map1, map2 map[string]string) map[string]string {
+func removeLabelsNotComingFromMachineSet(map1, map2 map[string]string) map[string]string {
 	out := make(map[string]string, len(map1))
 
 	maps.Copy(out, map1)
