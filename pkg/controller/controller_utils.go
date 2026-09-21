@@ -756,8 +756,8 @@ func (s ActiveMachines) Less(i, j int) bool {
 		return !isPreservedI // if s[i] preserved, it is "greater" and should not be deleted first, therefore, "less" is false, and vice versa
 	}
 	if isPreservedI { // both machines are preserved, in which case deprioritize explicitly preserved machines over auto-preserved
-		isAutoPreservedI := machineutils.IsMachineAutoPreserved(s[i])
-		isAutoPreservedJ := machineutils.IsMachineAutoPreserved(s[j])
+		isAutoPreservedI := machineutils.IsAutoPreserved(s[i])
+		isAutoPreservedJ := machineutils.IsAutoPreserved(s[j])
 		if isAutoPreservedI != isAutoPreservedJ {
 			return isAutoPreservedI // if s[i] is auto-preserved, it is "less", and should be deleted first
 		}
