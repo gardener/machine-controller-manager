@@ -89,7 +89,7 @@ func (c *controller) syncMachinesNodeTemplates(ctx context.Context, machineList 
 
 	for _, machine := range machineList {
 		// Ignore inactive Machines.
-		if !machineutils.IsMachineActive(machine) {
+		if !machineutils.IsActive(machine) {
 			continue
 		}
 
@@ -155,7 +155,7 @@ func (c *controller) syncMachinesConfig(ctx context.Context, machineList []*v1al
 
 	for _, machine := range machineList {
 		// Ignore inactive Machines.
-		if !machineutils.IsMachineActive(machine) {
+		if !machineutils.IsActive(machine) {
 			continue
 		}
 

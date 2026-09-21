@@ -443,7 +443,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	staleMachines = append(staleMachines, getMachinesMarkedForDeletion(machinesWithoutUpdateSuccessfulLabel, machineSet)...)
 	for _, machine := range machinesWithoutUpdateSuccessfulLabel {
 		// if a failed machine is preserved, it must not be terminated
-		if machineutils.IsMachineFailed(machine) && c.shouldFailedMachineBeTerminated(machine) {
+		if machineutils.IsFailed(machine) && c.shouldFailedMachineBeTerminated(machine) {
 			staleMachines = append(staleMachines, machine)
 		}
 	}
@@ -714,7 +714,7 @@ func (c *controller) prepareMachineForDeletion(ctx context.Context, targetMachin
 	} else {
 		// successful delete of a Failed phase machine due to unhealthiness for too long, increments staleMachinesRemoved counter
 		// note: call is blocking and thread safe as other worker threads might be updating the counter as well
-		if machineutils.IsMachineFailed(targetMachine) && targetMachine.Status.LastOperation.Type == v1alpha1.MachineOperationHealthCheck {
+		if machineutils.IsFailed(targetMachine) && targetMachine.Status.LastOperation.Type == v1alpha1.MachineOperationHealthCheck {
 			staleMachinesRemoved.increment()
 		}
 	}
@@ -949,7 +949,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 	var others []*v1alpha1.Machine
 	for _, m := range machines {
 		// check if machine is already annotated for preservation, if yes, skip. Machine controller will take care of the rest.
-		if machineutils.IsMachineFailed(m) && !machineutils.AllowedPreserveAnnotationValues.Has(m.Annotations[machineutils.PreserveMachineAnnotationKey]) {
+		if machineutils.IsFailed(m) && !machineutils.AllowedPreserveAnnotationValues.Has(m.Annotations[machineutils.PreserveMachineAnnotationKey]) {
 			autoPreservationCandidates = append(autoPreservationCandidates, m)
 		} else {
 			others = append(others, m)

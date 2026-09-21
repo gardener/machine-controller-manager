@@ -966,7 +966,7 @@ func WaitForMachinesHashPopulated(ctx context.Context, c v1alpha1listers.Machine
 func LabelMachinesWithHash(ctx context.Context, machineList *v1alpha1.MachineList, c v1alpha1client.MachineV1alpha1Interface, machineLister v1alpha1listers.MachineLister, namespace, name, hash string) error {
 	for _, machine := range machineList.Items {
 		// Ignore inactive Machines.
-		if !machineutils.IsMachineActive(&machine) {
+		if !machineutils.IsActive(&machine) {
 			continue
 		}
 		// Only label the machine that doesn't already have the new hash

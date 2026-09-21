@@ -864,16 +864,16 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		clone, err = c.stopPreservationIfActive(ctx, clone, removeAnnotations)
 	case machineutils.PreserveMachineAnnotationValueWhenFailed:
 		// on timing out, remove preserve annotation to prevent incorrect re-preservation
-		if machineutils.IsMachinePreservationExpired(clone) {
+		if machineutils.IsPreservationExpired(clone) {
 			removeAnnotations = true
 			clone, err = c.stopPreservationIfActive(ctx, clone, removeAnnotations)
-		} else if !machineutils.IsMachineFailed(clone) {
+		} else if !machineutils.IsFailed(clone) {
 			clone, err = c.stopPreservationIfActive(ctx, clone, removeAnnotations)
 		} else {
 			clone, err = c.preserveMachine(ctx, clone, effectivePreserveValue)
 		}
 	case machineutils.PreserveMachineAnnotationValueNow:
-		if machineutils.IsMachinePreservationExpired(clone) {
+		if machineutils.IsPreservationExpired(clone) {
 			// on timing out, remove preserve annotation to prevent incorrect re-preservation
 			removeAnnotations = true
 			clone, err = c.stopPreservationIfActive(ctx, clone, removeAnnotations)
@@ -881,7 +881,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			clone, err = c.preserveMachine(ctx, clone, effectivePreserveValue)
 		}
 	case machineutils.PreserveMachineAnnotationValueAutoPreserved:
-		if !machineutils.IsMachineFailed(clone) || machineutils.IsMachinePreservationExpired(clone) {
+		if !machineutils.IsFailed(clone) || machineutils.IsPreservationExpired(clone) {
 			// To prevent incorrect re-preservation of a recovered, previously auto-preserved machine on future failures
 			// (since the autoPreserveFailedMachineCount maintained by the machineSetController, may have changed),
 			// in addition to stopping preservation, we also remove the preservation annotation on the machine.

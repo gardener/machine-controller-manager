@@ -738,7 +738,7 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 			continue
 		}
 		// The machine is in the process of being deleted hence we can remove it from the annotation and expect it to be deleted in the next retry.
-		if machineutils.IsMachineFailedOrTerminating(machine) {
+		if machineutils.IsFailedOrTerminating(machine) {
 			klog.V(4).Infof("Machine %q of MachineDeployment %q is in Failed/Terminating state; skipping adding to newTriggerDeletionAnnotationList", machineName, mcd.Name)
 			continue
 		}
