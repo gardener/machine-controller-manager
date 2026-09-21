@@ -169,12 +169,12 @@ func IsTriggeredForDeletion(m *v1alpha1.Machine) bool {
 	return m.Annotations[MachinePriority] == "1"
 }
 
-// IsMachineAutoPreserved checks whether the machine currently carries the auto-preserved annotation.
+// IsAutoPreserved checks whether the machine currently carries the auto-preserved annotation.
 func IsAutoPreserved(m *v1alpha1.Machine) bool {
 	return m.Annotations[PreserveMachineAnnotationKey] == PreserveMachineAnnotationValueAutoPreserved
 }
 
-// IsMachinePreservationExpired checks if the preserve expiry time has passed for a machine
+// IsPreservationExpired checks if the preserve expiry time has passed for a machine
 func IsPreservationExpired(m *v1alpha1.Machine) bool {
 	t := m.Status.CurrentStatus.PreserveExpiryTime
 	return t != nil && !t.After(time.Now())
