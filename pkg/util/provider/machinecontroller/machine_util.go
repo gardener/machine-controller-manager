@@ -1856,8 +1856,8 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		deleteDuration time.Duration
 	)
 
-	if annotationsutils.IsInstanceDeletionSuspended(machine) {
-		suspensionMessage := annotationsutils.GetInstanceDeletionSuspensionMessage(machine)
+	suspensionMessage, suspended := annotationsutils.IsInstanceDeletionSuspended(machine)
+	if suspended {
 		retryPeriod, err := c.updateInstanceDeletionSuspensionCondition(ctx, machine, v1.ConditionTrue, suspensionMessage)
 		if err != nil {
 			return retryPeriod, err
@@ -1867,7 +1867,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		return machineutils.ShortRetry, fmt.Errorf("instance deletion suspended: %s", suspensionMessage)
 	}
 
-	if condition := getInstanceDeletionSuspensionCondition(machine.Status.Conditions); condition != nil && condition.Status == v1.ConditionTrue {
+	if condition := machineutils.GetMachineCondition(machine, v1alpha1.InstanceDeletionSuspended); condition != nil && condition.Status == v1.ConditionTrue {
 		// Persist the cleared condition before starting provider deletion.
 		retryPeriod, err := c.updateInstanceDeletionSuspensionCondition(ctx, machine, v1.ConditionFalse, "Instance Deletion is no longer suspended.")
 		if err != nil {
@@ -1947,30 +1947,9 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 func (c *controller) updateInstanceDeletionSuspensionCondition(ctx context.Context, machine *v1alpha1.Machine, conditionStatus v1.ConditionStatus, conditionMessage string) (machineutils.RetryPeriod, error) {
 	clone := machine.DeepCopy()
 
-	conditionFound := false
 	conditionUpdated := false
-	for index, condition := range clone.Status.Conditions {
-		if condition.Type != v1alpha1.InstanceDeletionSuspended {
-			continue
-		}
-		conditionFound = true
-		if condition.Status == conditionStatus && condition.Message == conditionMessage {
-			break
-		}
-
-		updatedCondition := condition
-		updatedCondition.Status = conditionStatus
-		updatedCondition.LastHeartbeatTime = metav1.Now()
-		if condition.Status != conditionStatus {
-			updatedCondition.LastTransitionTime = updatedCondition.LastHeartbeatTime
-		}
-		updatedCondition.Message = conditionMessage
-		clone.Status.Conditions[index] = updatedCondition
-		conditionUpdated = true
-		break
-	}
-
-	if !conditionFound && conditionStatus == v1.ConditionTrue {
+	condition := machineutils.GetMachineCondition(clone, v1alpha1.InstanceDeletionSuspended)
+	if condition == nil && conditionStatus == v1.ConditionTrue {
 		now := metav1.Now()
 		clone.Status.Conditions = append(clone.Status.Conditions, v1.NodeCondition{
 			Type:               v1alpha1.InstanceDeletionSuspended,
@@ -1979,6 +1958,15 @@ func (c *controller) updateInstanceDeletionSuspensionCondition(ctx context.Conte
 			LastTransitionTime: now,
 			Message:            conditionMessage,
 		})
+		conditionUpdated = true
+	} else if condition != nil && (condition.Status != conditionStatus || condition.Message != conditionMessage) {
+		conditionStatusChanged := condition.Status != conditionStatus
+		condition.Status = conditionStatus
+		condition.LastHeartbeatTime = metav1.Now()
+		if conditionStatusChanged {
+			condition.LastTransitionTime = condition.LastHeartbeatTime
+		}
+		condition.Message = conditionMessage
 		conditionUpdated = true
 	}
 
@@ -1994,15 +1982,6 @@ func (c *controller) updateInstanceDeletionSuspensionCondition(ctx context.Conte
 		return machineutils.ConflictRetry, err
 	}
 	return machineutils.ShortRetry, err
-}
-
-func getInstanceDeletionSuspensionCondition(conditions []v1.NodeCondition) *v1.NodeCondition {
-	for index := range conditions {
-		if conditions[index].Type == v1alpha1.InstanceDeletionSuspended {
-			return &conditions[index]
-		}
-	}
-	return nil
 }
 
 // deleteNodeObject attempts to remove finalizers from and delete the node object backed by the machine object

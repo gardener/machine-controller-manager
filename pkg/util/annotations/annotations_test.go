@@ -312,8 +312,8 @@ var _ = Describe("annotations", func() {
 		)
 	})
 
-	Describe("#GetInstanceDeletionSuspensionMessage", func() {
-		It("returns a deterministic message for all suspension annotations", func() {
+	Describe("#IsInstanceDeletionSuspended", func() {
+		It("returns a deterministic message and true for all suspension annotations", func() {
 			machine := &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/etcd-member-removal":      "my-controller",
@@ -321,16 +321,28 @@ var _ = Describe("annotations", func() {
 				},
 			}}
 
-			Expect(IsInstanceDeletionSuspended(machine)).To(BeTrue())
-			message := GetInstanceDeletionSuspensionMessage(machine)
+			message, suspended := IsInstanceDeletionSuspended(machine)
+			Expect(suspended).To(BeTrue())
 			Expect(message).To(Equal("Instance Deletion suspended by another-controller for custom-termination-logic, my-controller for etcd-member-removal."))
 		})
 
-		It("returns false when no suspension annotation exists", func() {
+		It("returns a message and true for the standalone suspension annotation", func() {
+			machine := &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					v1alpha1.AnnotationSuspendInstanceDeletionPrefix: "my-controller",
+				},
+			}}
+
+			message, suspended := IsInstanceDeletionSuspended(machine)
+			Expect(suspended).To(BeTrue())
+			Expect(message).To(Equal("Instance Deletion suspended by my-controller."))
+		})
+
+		It("returns an empty message and false when no suspension annotation exists", func() {
 			machine := &v1alpha1.Machine{}
-			Expect(IsInstanceDeletionSuspended(machine)).To(BeFalse())
-			message := GetInstanceDeletionSuspensionMessage(machine)
+			message, suspended := IsInstanceDeletionSuspended(machine)
 			Expect(message).To(BeEmpty())
+			Expect(suspended).To(BeFalse())
 		})
 	})
 

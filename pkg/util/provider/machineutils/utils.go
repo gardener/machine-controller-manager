@@ -124,6 +124,16 @@ const (
 	NodePreservedTaintKey = "node.machine.sapcloud.io/preserved"
 )
 
+// GetMachineCondition returns a condition matching the type from the machine's status.
+func GetMachineCondition(machine *v1alpha1.Machine, conditionType v1.NodeConditionType) *v1.NodeCondition {
+	for index := range machine.Status.Conditions {
+		if machine.Status.Conditions[index].Type == conditionType {
+			return &machine.Status.Conditions[index]
+		}
+	}
+	return nil
+}
+
 // AllowedPreserveAnnotationValues contains the allowed values for the preserve annotation
 var AllowedPreserveAnnotationValues = sets.New(PreserveMachineAnnotationValueNow, PreserveMachineAnnotationValueWhenFailed, PreserveMachineAnnotationValueAutoPreserved, PreserveMachineAnnotationValueFalse)
 
