@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -940,7 +941,7 @@ var _ = Describe("drain", func() {
 		})
 
 		Context("PodProvider", func() {
-			It("should returns only pods on the target node from PodProvider", func() {
+			It("should return only pods on the target node from PodProvider", func() {
 				pod := getPodWithoutPV(testNamespace, "pod-0", nodeName, terminationGracePeriodDefault, nil)
 				podOtherNode := getPodWithoutPV(testNamespace, "other-node", "different-node", terminationGracePeriodDefault, nil)
 				drain.podProvider = &fakePodProvider{pods: []corev1.Pod{*pod, *podOtherNode}}
@@ -989,7 +990,7 @@ var _ = Describe("drain", func() {
 				// Keep only pods whose name ends with "0" or "1"
 				drain.AdditionalPodFilters = []AdditionalPodFilter{
 					func(pod corev1.Pod) bool {
-						return pod.Name == "pod-0" || pod.Name == "pod-1"
+						return strings.HasSuffix(pod.Name, "0") || strings.HasSuffix(pod.Name, "1")
 					},
 				}
 
