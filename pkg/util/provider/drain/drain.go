@@ -538,7 +538,7 @@ func (o *Options) evictPods(ctx context.Context, attemptEvict bool, pods []corev
 
 		klog.V(3).Infof("Eviction of pods on the node without volume handling: %q", o.nodeName)
 
-		// Evict all pods without waiting for volume detachment.
+		// Evict all pods in parallel without waiting for volume detachment.
 		go o.evictPodsWithoutPv(ctx, attemptEvict, podsToDrain, policyGroupVersion, getPodFn, returnCh)
 	} else {
 		podsWithPv, podsWithoutPv := filterPodsWithPv(pods)
