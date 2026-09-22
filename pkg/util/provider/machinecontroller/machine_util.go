@@ -1946,7 +1946,6 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 func (c *controller) updateInstanceDeletionSuspensionCondition(ctx context.Context, machine *v1alpha1.Machine, status v1.ConditionStatus, message string) (machineutils.RetryPeriod, error) {
 	clone := machine.DeepCopy()
 
-	conditionUpdated := false
 	condition := machineutils.GetMachineCondition(clone, v1alpha1.InstanceDeletionSuspended)
 	if condition == nil && status == v1.ConditionTrue {
 		now := metav1.Now()
@@ -1957,7 +1956,6 @@ func (c *controller) updateInstanceDeletionSuspensionCondition(ctx context.Conte
 			LastTransitionTime: now,
 			Message:            message,
 		})
-		conditionUpdated = true
 	} else if condition != nil && (condition.Status != status || condition.Message != message) {
 		conditionStatusChanged := condition.Status != status
 		condition.Status = status
@@ -1966,10 +1964,7 @@ func (c *controller) updateInstanceDeletionSuspensionCondition(ctx context.Conte
 			condition.LastTransitionTime = condition.LastHeartbeatTime
 		}
 		condition.Message = message
-		conditionUpdated = true
-	}
-
-	if !conditionUpdated {
+	} else {
 		return 0, nil
 	}
 
