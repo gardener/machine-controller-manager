@@ -1971,6 +1971,10 @@ var _ = Describe("machineDeployment", func() {
 			Entry("should set MachinePriority=1 for the machines named in TriggerDeletionByMCM annotation in the MachineDeployment",
 				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
 					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))
+					// Without this label, addHashKeyToISAndMachines writes the whole MachineSet back from a
+					// possibly-stale informer-cache read; under cache lag that clobbers the annotation set on the
+					// live client just before this reconcile, causing a flaky postcheck. Labeling the selector makes
+					// addHashKeyToISAndMachines short-circuit (it gates on SelectorHasLabel).
 					testMachineSet.Spec.Selector = labelsutil.CloneSelectorAndAddLabel(testMachineSet.Spec.Selector, machinev1.DefaultMachineDeploymentUniqueLabelKey, "testhash")
 				},
 				func(_ *machinev1.MachineDeployment, _ []machinev1.MachineSet, machines []machinev1.Machine, _ *corev1.Node) error {
@@ -1990,6 +1994,7 @@ var _ = Describe("machineDeployment", func() {
 				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSet *machinev1.MachineSet) {
 					testMachineDeployment.Annotations[machineutils.LastDeploymentReplicaChangeByScalerTime] = ts
 					testMachineDeployment.Annotations[machineutils.TriggerDeletionByMCM] = fmt.Sprintf("%s~%s", testMachine.Name, time.Now().Format(time.RFC3339))
+					// Same reasoning as above for the machineSet.
 					testMachineSet.Spec.Selector = labelsutil.CloneSelectorAndAddLabel(testMachineSet.Spec.Selector, machinev1.DefaultMachineDeploymentUniqueLabelKey, "testhash")
 				},
 				func(_ *machinev1.MachineDeployment, mcs []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
