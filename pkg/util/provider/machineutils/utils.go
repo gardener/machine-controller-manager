@@ -245,31 +245,33 @@ func GetPreserveAnnotationValue(
 	machine *v1alpha1.Machine,
 ) (annotationValue string, shouldHandlePreservation bool) {
 	if node != nil {
-		if val, ok :=
-			node.Annotations[PreserveMachineAnnotationKey]; ok &&
-			AllowedPreserveAnnotationValues.Has(val) {
-			return val, true
+		if val, ok := node.Annotations[PreserveMachineAnnotationKey]; ok {
+			if AllowedPreserveAnnotationValues.Has(val) {
+				return val, true
+			}
+			klog.Warningf(
+				"Node %q doesn't have a valid annotation:%q=%q",
+				machine.Labels[v1alpha1.NodeLabelKey],
+				PreserveMachineAnnotationKey,
+				node.Annotations[PreserveMachineAnnotationKey],
+			)
 		}
-		klog.Warningf(
-			"Node %q doesn't have the annotation:%q or the annotation is not valid",
-			machine.Labels[v1alpha1.NodeLabelKey],
-			PreserveMachineAnnotationKey,
-		)
 		if _, ok :=
 			machine.Annotations[LastAppliedNodePreserveValueAnnotationKey]; ok {
 			return "", true
 		}
 	}
-	if val, ok :=
-		machine.Annotations[PreserveMachineAnnotationKey]; ok &&
-		AllowedPreserveAnnotationValues.Has(val) {
-		return val, true
+	if val, ok := machine.Annotations[PreserveMachineAnnotationKey]; ok {
+		if AllowedPreserveAnnotationValues.Has(val) {
+			return val, true
+		}
+		klog.Warningf(
+			"Machine %q doesn't have a valid annotation:%q=%q",
+			machine.Name,
+			PreserveMachineAnnotationKey,
+			machine.Annotations[PreserveMachineAnnotationKey],
+		)
 	}
-	klog.Warningf(
-		"Machine %q doesn't have the annotation:%q or the annotation is not valid",
-		machine.Name,
-		PreserveMachineAnnotationKey,
-	)
 	if machine.Status.CurrentStatus.PreserveExpiryTime != nil {
 		return "", true
 	}

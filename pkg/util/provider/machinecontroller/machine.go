@@ -919,7 +919,7 @@ func (c *controller) updatePreserveAnnotationOnMachine(ctx context.Context, node
 		)
 	}
 	klog.V(3).Infof(
-		"Removing machine %q 's annotation:%q=%q as node %q 's has annotation:%q=%q",
+		"Removing machine %q 's annotation:%q=%q as node %q has annotation:%q=%q",
 		machine.Name,
 		machineutils.PreserveMachineAnnotationKey,
 		machine.Annotations[machineutils.PreserveMachineAnnotationKey],
