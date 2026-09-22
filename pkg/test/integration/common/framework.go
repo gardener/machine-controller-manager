@@ -1109,7 +1109,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.ControlCluster.ArePreservedMachinesRunning,
 					c.timeout,
 					c.pollingInterval).
-					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace).
+					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace, isSimulatedProvider).
 					Should(gomega.BeTrue())
 			})
 		})
@@ -1260,7 +1260,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.ControlCluster.ArePreservedMachinesRunning,
 					c.timeout,
 					c.pollingInterval).
-					WithArguments(ctx, []string{preservedMachine}, controlClusterNamespace).
+					WithArguments(ctx, []string{preservedMachine}, controlClusterNamespace, isSimulatedProvider).
 					Should(gomega.BeTrue())
 			})
 		})
@@ -1486,7 +1486,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.ControlCluster.ArePreservedMachinesRunning,
 					c.timeout,
 					c.pollingInterval).
-					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace).
+					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace, isSimulatedProvider).
 					Should(gomega.BeTrue())
 			})
 			ginkgo.It("When it's corresponding node is manually annotated with `node.machine.sapcloud.io/preserve=when-failed`", func() {
@@ -1553,7 +1553,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.ControlCluster.ArePreservedMachinesRunning,
 					c.timeout,
 					c.pollingInterval).
-					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace).
+					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace, isSimulatedProvider).
 					Should(gomega.BeTrue())
 			})
 		})

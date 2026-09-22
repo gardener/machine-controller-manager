@@ -136,7 +136,7 @@ func (c *Cluster) IsMachineDeploymentDeleted(ctx context.Context, machineDeploym
 }
 
 // ArePreservedMachinesRunning returns true when all named machines are in the Running phase
-func (c *Cluster) ArePreservedMachinesRunning(ctx context.Context, machineNames []string, namespace string) bool {
+func (c *Cluster) ArePreservedMachinesRunning(ctx context.Context, machineNames []string, namespace string, isSimulatedProvider bool) bool {
 	allRunning := true
 	for _, mcName := range machineNames {
 		mc, err := c.McmClient.
@@ -150,11 +150,15 @@ func (c *Cluster) ArePreservedMachinesRunning(ctx context.Context, machineNames 
 		}
 
 		if mc.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
-			// Nudge kwok's node-recover stage to retry if it fired while the VAP was still active.
-			if nodeName := mc.Labels[v1alpha1.NodeLabelKey]; nodeName != "" {
-				c.attemptNodeRecovery(ctx, nodeName, int(time.Now().UnixMilli()))
+			if !isSimulatedProvider {
+				return false
+			} else {
+				// Nudge kwok's node-recover stage to retry if it fired while the VAP was still active.
+				if nodeName := mc.Labels[v1alpha1.NodeLabelKey]; nodeName != "" {
+					c.attemptNodeRecovery(ctx, nodeName, int(time.Now().UnixMilli()))
+				}
+				allRunning = false
 			}
-			allRunning = false
 		}
 	}
 
