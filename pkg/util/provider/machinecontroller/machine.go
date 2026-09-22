@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	annotationsutils "github.com/gardener/machine-controller-manager/pkg/util/annotations"
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
 	corev1 "k8s.io/api/core/v1"
@@ -59,6 +60,12 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 
 	if oldMachine == nil || newMachine == nil {
 		klog.Errorf("couldn't convert to machine resource from object")
+		return
+	}
+	oldSuspensionMessage, oldSuspended := annotationsutils.IsInstanceDeletionSuspended(oldMachine)
+	newSuspensionMessage, newSuspended := annotationsutils.IsInstanceDeletionSuspended(newMachine)
+	if (oldSuspended != newSuspended || oldSuspensionMessage != newSuspensionMessage) && c.shouldMachineBeMovedToTerminatingQueue(newMachine) {
+		c.enqueueMachineTermination(newMachine, "handling instance deletion suspension annotation UPDATE event")
 		return
 	}
 	// to reconcile on change in annotations related to preservation
