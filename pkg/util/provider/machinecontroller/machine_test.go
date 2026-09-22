@@ -3193,8 +3193,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("instance deletion suspended: Instance Deletion suspended by my-controller for etcd-member-removal."),
-					retry: machineutils.ShortRetry,
+					retry: machineutils.LongRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -3400,8 +3399,7 @@ var _ = Describe("machine", func() {
 					},
 				},
 				expect: expect{
-					err:   fmt.Errorf("instance deletion suspended: Instance Deletion suspended by my-controller for etcd-member-removal."),
-					retry: machineutils.ShortRetry,
+					retry: machineutils.LongRetry,
 					machine: newMachine(
 						&v1alpha1.MachineTemplateSpec{
 							ObjectMeta: *newObjectMeta(objMeta, 0),
@@ -5440,5 +5438,63 @@ var _ = Describe("machine", func() {
 				"machine must have the MCM finalizer — 409 conflict errors must not prevent finalizer addition",
 			)
 		})
+	})
+})
+
+var _ = Describe("#updateMachine", func() {
+	DescribeTable("instance deletion suspension annotation changes", func(oldAnnotations, newAnnotations map[string]string) {
+		stop := make(chan struct{})
+		defer close(stop)
+
+		deletionTimestamp := metav1.Now()
+		oldMachine := &v1alpha1.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "machine-0",
+				Namespace:         testNamespace,
+				DeletionTimestamp: &deletionTimestamp,
+				Annotations:       oldAnnotations,
+			},
+		}
+		newMachine := oldMachine.DeepCopy()
+		newMachine.Annotations = newAnnotations
+
+		c, trackers := createController(stop, testNamespace, nil, nil, nil, nil, true)
+		defer trackers.Stop()
+
+		c.updateMachine(oldMachine, newMachine)
+
+		Expect(c.machineTerminationQueue.Len()).To(Equal(1))
+		Expect(c.machineQueue.Len()).To(Equal(0))
+	},
+		Entry("annotation added", nil, map[string]string{
+			v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/my-reason": "my-controller",
+		}),
+		Entry("annotation removed", map[string]string{
+			v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/my-reason": "my-controller",
+		}, nil),
+	)
+
+	It("does not enqueue a non-terminating machine when the annotation changes", func() {
+		stop := make(chan struct{})
+		defer close(stop)
+
+		oldMachine := &v1alpha1.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "machine-0",
+				Namespace: testNamespace,
+			},
+		}
+		newMachine := oldMachine.DeepCopy()
+		newMachine.Annotations = map[string]string{
+			v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/my-reason": "my-controller",
+		}
+
+		c, trackers := createController(stop, testNamespace, nil, nil, nil, nil, true)
+		defer trackers.Stop()
+
+		c.updateMachine(oldMachine, newMachine)
+
+		Expect(c.machineTerminationQueue.Len()).To(Equal(0))
+		Expect(c.machineQueue.Len()).To(Equal(0))
 	})
 })

@@ -1863,8 +1863,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 			return retryPeriod, err
 		}
 
-		// Return an error to requeue while instance deletion is suspended.
-		return machineutils.ShortRetry, fmt.Errorf("instance deletion suspended: %s", suspensionMessage)
+		return machineutils.LongRetry, nil
 	}
 
 	if condition := machineutils.GetMachineCondition(machine, v1alpha1.InstanceDeletionSuspended); condition != nil && condition.Status == v1.ConditionTrue {
