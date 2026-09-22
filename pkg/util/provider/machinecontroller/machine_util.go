@@ -1944,29 +1944,29 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 	return retryRequired, err
 }
 
-func (c *controller) updateInstanceDeletionSuspensionCondition(ctx context.Context, machine *v1alpha1.Machine, conditionStatus v1.ConditionStatus, conditionMessage string) (machineutils.RetryPeriod, error) {
+func (c *controller) updateInstanceDeletionSuspensionCondition(ctx context.Context, machine *v1alpha1.Machine, status v1.ConditionStatus, message string) (machineutils.RetryPeriod, error) {
 	clone := machine.DeepCopy()
 
 	conditionUpdated := false
 	condition := machineutils.GetMachineCondition(clone, v1alpha1.InstanceDeletionSuspended)
-	if condition == nil && conditionStatus == v1.ConditionTrue {
+	if condition == nil && status == v1.ConditionTrue {
 		now := metav1.Now()
 		clone.Status.Conditions = append(clone.Status.Conditions, v1.NodeCondition{
 			Type:               v1alpha1.InstanceDeletionSuspended,
-			Status:             conditionStatus,
+			Status:             status,
 			LastHeartbeatTime:  now,
 			LastTransitionTime: now,
-			Message:            conditionMessage,
+			Message:            message,
 		})
 		conditionUpdated = true
-	} else if condition != nil && (condition.Status != conditionStatus || condition.Message != conditionMessage) {
-		conditionStatusChanged := condition.Status != conditionStatus
-		condition.Status = conditionStatus
+	} else if condition != nil && (condition.Status != status || condition.Message != message) {
+		conditionStatusChanged := condition.Status != status
+		condition.Status = status
 		condition.LastHeartbeatTime = metav1.Now()
 		if conditionStatusChanged {
 			condition.LastTransitionTime = condition.LastHeartbeatTime
 		}
-		condition.Message = conditionMessage
+		condition.Message = message
 		conditionUpdated = true
 	}
 
