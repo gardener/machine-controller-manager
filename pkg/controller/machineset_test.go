@@ -2428,6 +2428,14 @@ var _ = Describe("machineset", func() {
 					result: false,
 				},
 			}),
+			Entry("should return true if node is not annotated", testCase{
+				setup: setup{
+					nodeName: "test-node",
+				},
+				expect: expect{
+					result: true,
+				},
+			}),
 			Entry("should return true if preservation has timed out", testCase{
 				setup: setup{
 					preserveExpiryTime:  &metav1.Time{Time: metav1.Now().Add(-1 * time.Second)},
