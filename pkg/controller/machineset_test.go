@@ -2341,7 +2341,8 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			c.manageAutoPreservationOfFailedMachines(context.TODO(), []*machinev1.Machine{machineA, machineB}, testMachineSet)
+			_, err := c.manageAutoPreservationOfFailedMachines(context.TODO(), []*machinev1.Machine{machineA, machineB}, testMachineSet)
+			Expect(err).To(BeNil())
 			waitForCacheSync(stop, c)
 
 			updatedA, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machineA.Name, metav1.GetOptions{})
