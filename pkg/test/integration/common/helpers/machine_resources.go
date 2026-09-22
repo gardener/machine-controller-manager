@@ -36,63 +36,39 @@ var (
 
 // CreateMachines creates test-machines using machineclass "test-mc"
 func (c *Cluster) CreateMachines(namespace string, gnaSecretName string) error {
-	_, err := c.McmClient.
-		MachineV1alpha1().
-		Machines(namespace).
-		Create(
-			context.Background(),
-			&v1alpha1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      McName,
-					Namespace: namespace,
-				},
-				Spec: v1alpha1.MachineSpec{
-					Class: v1alpha1.ClassSpec{
-						Kind: "MachineClass",
-						Name: "test-mc-v1",
+	mcNames := []string{McName, NodeDeleteMcName}
+	for _, mcName := range mcNames {
+		_, err := c.McmClient.
+			MachineV1alpha1().
+			Machines(namespace).
+			Create(
+				context.Background(),
+				&v1alpha1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      mcName,
+						Namespace: namespace,
 					},
-					NodeTemplateSpec: v1alpha1.NodeTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								gnaSecretNameLabelKey: gnaSecretName,
+					Spec: v1alpha1.MachineSpec{
+						Class: v1alpha1.ClassSpec{
+							Kind: "MachineClass",
+							Name: "test-mc-v1",
+						},
+						NodeTemplateSpec: v1alpha1.NodeTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{
+									gnaSecretNameLabelKey: gnaSecretName,
+								},
 							},
 						},
 					},
 				},
-			},
-			metav1.CreateOptions{},
-		)
-	if err != nil {
-		return err
+				metav1.CreateOptions{},
+			)
+		if err != nil {
+			return err
+		}
 	}
-
-	_, err = c.McmClient.
-		MachineV1alpha1().
-		Machines(namespace).
-		Create(
-			context.Background(),
-			&v1alpha1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      NodeDeleteMcName,
-					Namespace: namespace,
-				},
-				Spec: v1alpha1.MachineSpec{
-					Class: v1alpha1.ClassSpec{
-						Kind: "MachineClass",
-						Name: "test-mc-v1",
-					},
-					NodeTemplateSpec: v1alpha1.NodeTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								gnaSecretNameLabelKey: gnaSecretName,
-							},
-						},
-					},
-				},
-			},
-			metav1.CreateOptions{},
-		)
-	return err
+	return nil
 }
 
 // CreateMachineDeployment creates a test-machine-deployment with a specified number of replicas and returns error if it occurs
