@@ -1576,16 +1576,16 @@ var _ = Describe("machine", func() {
 				Expect(machine.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
 				Expect(machine.Finalizers).To(Equal(data.expect.machine.Finalizers))
 
-				if expectedCondition := getInstanceDeletionSuspensionCondition(data.expect.machine.Status.Conditions); expectedCondition != nil {
-					actualCondition := getInstanceDeletionSuspensionCondition(machine.Status.Conditions)
+				if expectedCondition := machineutils.GetMachineCondition(data.expect.machine, v1alpha1.InstanceDeletionSuspended); expectedCondition != nil {
+					actualCondition := machineutils.GetMachineCondition(machine, v1alpha1.InstanceDeletionSuspended)
 					Expect(actualCondition).ToNot(BeNil())
 					Expect(actualCondition.Type).To(Equal(expectedCondition.Type))
 					Expect(actualCondition.Status).To(Equal(expectedCondition.Status))
 					Expect(actualCondition.Message).To(Equal(expectedCondition.Message))
 				}
 
-				if annotationsutils.IsInstanceDeletionSuspended(machine) {
-					actualCondition := getInstanceDeletionSuspensionCondition(machine.Status.Conditions)
+				if _, suspended := annotationsutils.IsInstanceDeletionSuspended(machine); suspended {
+					actualCondition := machineutils.GetMachineCondition(machine, v1alpha1.InstanceDeletionSuspended)
 					Expect(actualCondition).ToNot(BeNil())
 					Expect(actualCondition.Type).To(Equal(v1alpha1.InstanceDeletionSuspended))
 					Expect(actualCondition.Status).To(Equal(corev1.ConditionTrue))
@@ -3134,7 +3134,7 @@ var _ = Describe("machine", func() {
 					),
 				},
 			}),
-			Entry("Deletion suspension annotation creates InstanceDeletionSuspended=True after drain and blocks VM deletion", &data{
+			Entry("Deletion suspension annotation adds condition InstanceDeletionSuspended=True after drain and blocks VM deletion", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
 						{

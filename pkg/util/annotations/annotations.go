@@ -110,17 +110,12 @@ func GetEffectiveMachineCreationTimeout(object runtime.Object) (*metav1.Duration
 	return &metav1.Duration{Duration: effectiveMachineCreationTimeout}, nil
 }
 
-// IsInstanceDeletionSuspended reports whether any instance-deletion suspension annotation is set on the machine.
-func IsInstanceDeletionSuspended(machine *v1alpha1.Machine) bool {
-	return len(getInstanceDeletionSuspensions(machine)) > 0
-}
-
-// GetInstanceDeletionSuspensionMessage returns a deterministic human-readable message for all
-// instance-deletion suspension annotations on the machine, or an empty string if none are set.
-func GetInstanceDeletionSuspensionMessage(machine *v1alpha1.Machine) string {
+// IsInstanceDeletionSuspended returns a deterministic human-readable message for all
+// instance-deletion suspension annotations on the machine and whether any are set.
+func IsInstanceDeletionSuspended(machine *v1alpha1.Machine) (string, bool) {
 	suspensions := getInstanceDeletionSuspensions(machine)
 	if len(suspensions) == 0 {
-		return ""
+		return "", false
 	}
 
 	details := make([]string, 0, len(suspensions))
@@ -132,7 +127,7 @@ func GetInstanceDeletionSuspensionMessage(machine *v1alpha1.Machine) string {
 		details = append(details, detail)
 	}
 
-	return "Instance Deletion suspended by " + strings.Join(details, ", ") + "."
+	return "Instance Deletion suspended by " + strings.Join(details, ", ") + ".", true
 }
 
 type instanceDeletionSuspension struct {
