@@ -946,8 +946,14 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 	var others []*v1alpha1.Machine
 	for _, m := range machines {
 		// check if machine is already annotated for preservation, if yes, skip. Machine controller will take care of the rest.
-		if machineutils.IsFailed(m) && !machineutils.AllowedPreserveAnnotationValues.Has(m.Annotations[machineutils.PreserveMachineAnnotationKey]) {
-			autoPreservationCandidates = append(autoPreservationCandidates, m)
+		// machine is considered as preserved when it has `PreserveExpiryTime` set.
+		if machineutils.IsFailed(m) {
+			if !machineutils.AllowedPreserveAnnotationValues.Has(m.Annotations[machineutils.PreserveMachineAnnotationKey]) ||
+				(m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved && m.Status.CurrentStatus.PreserveExpiryTime == nil) {
+				autoPreservationCandidates = append(autoPreservationCandidates, m)
+			} else {
+				others = append(others, m)
+			}
 		} else {
 			others = append(others, m)
 		}
@@ -963,7 +969,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 			break
 		}
 
-		klog.V(2).Infof("Annotating failed machine %q for auto-preservation and setting PreserveExpiryTime as part of machine set %q", machine.Name, machineSet.Name)
+		klog.V(2).Infof("Annotating failed machine %q for auto-preservation as part of machine set %q", machine.Name, machineSet.Name)
 		annotatedMachine, err := machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(machine.Namespace), machine, func(m *v1alpha1.Machine) error {
 			if m.Annotations == nil {
 				m.Annotations = make(map[string]string)
@@ -977,6 +983,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 			continue
 		}
 
+		klog.V(2).Infof("Setting PreserveExpiryTime on machine %q for auto-preservation as part of machine set %q", machine.Name, machineSet.Name)
 		preservedMachine, err := machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(annotatedMachine.Namespace), annotatedMachine, func(m *v1alpha1.Machine) error {
 			if annotatedMachine.Spec.MachineConfiguration != nil && annotatedMachine.Spec.MachineConfiguration.MachinePreserveTimeout != nil {
 				m.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(annotatedMachine.Spec.MachineConfiguration.MachinePreserveTimeout.Duration)}
