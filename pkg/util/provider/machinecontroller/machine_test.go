@@ -3174,7 +3174,7 @@ var _ = Describe("machine", func() {
 						nil,
 						map[string]string{
 							machineutils.MachinePriority: "3",
-							v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/etcd-member-removal": "my-controller",
+							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/etcd-member-removal": "my-controller",
 						},
 						map[string]string{
 							v1alpha1.NodeLabelKey: "fakeID-0",
@@ -3220,7 +3220,7 @@ var _ = Describe("machine", func() {
 						nil,
 						map[string]string{
 							machineutils.MachinePriority: "3",
-							v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/etcd-member-removal": "my-controller",
+							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/etcd-member-removal": "my-controller",
 						},
 						map[string]string{
 							v1alpha1.NodeLabelKey: "fakeID-0",
@@ -3380,7 +3380,7 @@ var _ = Describe("machine", func() {
 						nil,
 						map[string]string{
 							machineutils.MachinePriority: "3",
-							v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/etcd-member-removal": "my-controller",
+							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/etcd-member-removal": "my-controller",
 						},
 						map[string]string{
 							v1alpha1.NodeLabelKey: "fakeID-0",
@@ -3426,7 +3426,7 @@ var _ = Describe("machine", func() {
 						nil,
 						map[string]string{
 							machineutils.MachinePriority: "3",
-							v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/etcd-member-removal": "my-controller",
+							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/etcd-member-removal": "my-controller",
 						},
 						map[string]string{
 							v1alpha1.NodeLabelKey: "fakeID-0",
@@ -5467,10 +5467,10 @@ var _ = Describe("#updateMachine", func() {
 		Expect(c.machineQueue.Len()).To(Equal(0))
 	},
 		Entry("annotation added", nil, map[string]string{
-			v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/my-reason": "my-controller",
+			v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/my-reason": "my-controller",
 		}),
 		Entry("annotation removed", map[string]string{
-			v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/my-reason": "my-controller",
+			v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/my-reason": "my-controller",
 		}, nil),
 	)
 
@@ -5486,7 +5486,7 @@ var _ = Describe("#updateMachine", func() {
 		}
 		newMachine := oldMachine.DeepCopy()
 		newMachine.Annotations = map[string]string{
-			v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/my-reason": "my-controller",
+			v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/my-reason": "my-controller",
 		}
 
 		c, trackers := createController(stop, testNamespace, nil, nil, nil, nil, true)
