@@ -142,20 +142,19 @@ func (c *Cluster) ArePreservedMachinesRunning(ctx context.Context, machineNames 
 			log.Println("error fetching machine: ", err)
 			return false
 		}
-
-		if mc.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
-			if !isSimulatedProvider {
-				return false
-			} else {
-				// Nudge kwok's node-recover stage to retry if it fired while the VAP was still active.
-				if nodeName := mc.Labels[v1alpha1.NodeLabelKey]; nodeName != "" {
-					c.attemptNodeRecovery(ctx, nodeName, int(time.Now().UnixMilli()))
-				}
-				allRunning = false
-			}
+		if mc.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+			continue
 		}
-	}
+		if !isSimulatedProvider {
+			return false
+		}
+		allRunning = false
+		// Nudge kwok's node-recover stage to retry if it fired while the VAP was still active.
+		if nodeName := mc.Labels[v1alpha1.NodeLabelKey]; nodeName != "" {
+			c.attemptNodeRecovery(ctx, nodeName, int(time.Now().UnixMilli()))
+		}
 
+	}
 	return allRunning
 }
 

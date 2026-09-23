@@ -144,7 +144,7 @@ type IntegrationTestFramework struct {
 // initializing resource tracker implementation.
 // Optially the timeout and polling interval are configurable as optional arguments
 // The default values used for Eventually to probe kubernetes cluster resources is
-// 300 seconds for timeout and  500 milliseconds for polling interval for the simulated provider,
+// 300 seconds for timeout and 500 milliseconds polling interval for the simulated provider,
 // and 2 seconds with a real infrastructure provider.
 // for machine creation, deletion, machinedeployment update e.t.c.,
 // The first optional argument is the timeoutSeconds
