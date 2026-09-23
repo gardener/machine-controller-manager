@@ -2224,8 +2224,8 @@ var _ = Describe("machineset", func() {
 				setup: setup{
 					autoPreserveFailedMachineCount: 2,
 					autoPreserveFailedMachineMax:   2,
-					// Two machines are already auto-preserved, so the machine set is at capacity.
-					// machine-1 and machine-2 must therefore NOT be newly preserved.
+					// Two machines below are already auto-preserved, so the machineset is at capacity.
+					// machine-1 and machine-2 must therefore NOT get preserved now.
 					additionalMachines: []*machinev1.Machine{
 						{
 							ObjectMeta: metav1.ObjectMeta{
