@@ -130,7 +130,7 @@ func IsInstanceDeletionSuspended(machine *v1alpha1.Machine) (string, bool) {
 		details = append(details, detail)
 		if len(strings.Join(details, ", ")) > maxInstanceDeletionSuspensionMessageLength {
 			if i == 0 {
-				details = append(details[:i], fmt.Sprintf("%d owner(s)", len(suspensions)-i))
+				details = []string{fmt.Sprintf("%d owner(s)", len(suspensions))}
 			} else {
 				details = append(details[:i], fmt.Sprintf("and %d other owner(s)", len(suspensions)-i))
 			}
