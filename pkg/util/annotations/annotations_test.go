@@ -5,6 +5,8 @@
 package annotations
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -316,8 +318,8 @@ var _ = Describe("annotations", func() {
 		It("returns a deterministic message and true for all suspension annotations", func() {
 			machine := &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
-					v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/etcd-member-removal":      "my-controller",
-					v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/custom-termination-logic": "another-controller",
+					v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/etcd-member-removal":      "my-controller",
+					v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/custom-termination-logic": "another-controller",
 				},
 			}}
 
@@ -326,10 +328,36 @@ var _ = Describe("annotations", func() {
 			Expect(message).To(Equal("Instance Deletion suspended by another-controller for custom-termination-logic, my-controller for etcd-member-removal."))
 		})
 
+		It("limits oversized messages and reports omitted owners", func() {
+			annotations := make(map[string]string)
+			for i := range 100 {
+				annotations[fmt.Sprintf("%s/purpose-%03d", v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix, i)] = "my-controller"
+			}
+			machine := &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{Annotations: annotations}}
+
+			message, suspended := IsInstanceDeletionSuspended(machine)
+			Expect(suspended).To(BeTrue())
+			Expect(message).To(HavePrefix("Instance Deletion suspended by my-controller for purpose-000"))
+			Expect(message).To(ContainSubstring("other owner(s)."))
+			Expect(message).NotTo(ContainSubstring("purpose-099"))
+		})
+
+		It("reports the owner count when the first detail exceeds the message limit", func() {
+			owner := strings.Repeat("owner", 100)
+			machine := &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/first":  owner,
+				v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/second": "another-controller",
+			}}}
+
+			message, suspended := IsInstanceDeletionSuspended(machine)
+			Expect(suspended).To(BeTrue())
+			Expect(message).To(Equal("Instance Deletion suspended by 2 owner(s)."))
+		})
+
 		It("returns a message and true for the standalone suspension annotation", func() {
 			machine := &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
-					v1alpha1.AnnotationSuspendInstanceDeletionPrefix: "my-controller",
+					v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix: "my-controller",
 				},
 			}}
 

@@ -739,23 +739,16 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				})
 
 				ginkgo.It("should suspend deletion until the suspension annotation is removed", func() {
-					suspensionAnnotationKey := v1alpha1.AnnotationSuspendInstanceDeletionPrefix + "/integration-test"
+					suspensionAnnotationKey := v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/integration-test"
 
 					ginkgo.By("Creating a machine for the suspension test")
 					gomega.Expect(c.ControlCluster.CreateMachine(controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.Succeed())
-					gomega.Eventually(func() error {
-						machine, err := c.ControlCluster.McmClient.
-							MachineV1alpha1().
-							Machines(controlClusterNamespace).
-							Get(ctx, helpers.McName, metav1.GetOptions{})
-						if err != nil {
-							return err
-						}
-						if machine.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
-							return fmt.Errorf("machine phase is %s", machine.Status.CurrentStatus.Phase)
-						}
-						return nil
-					}, c.timeout, c.pollingInterval).Should(gomega.Succeed())
+					gomega.Eventually(
+						c.ControlCluster.AreMachinesRunning,
+						c.timeout,
+						c.pollingInterval).
+						WithArguments(ctx, []string{helpers.McName}, controlClusterNamespace).
+						Should(gomega.BeTrue())
 
 					ginkgo.By("Adding the instance deletion suspension annotation")
 					retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
