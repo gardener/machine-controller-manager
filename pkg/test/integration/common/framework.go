@@ -681,7 +681,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				// Probe nodes currently available in target cluster
 				initialNodes = c.TargetCluster.GetNumberOfNodes()
 				ginkgo.By("Checking for errors")
-				gomega.Expect(c.ControlCluster.CreateMachines(controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.BeNil())
+				gomega.Expect(c.ControlCluster.CreateMachines([]string{helpers.McName, helpers.NodeDeleteMcName}, controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.BeNil())
 
 				ginkgo.By("Waiting until number of ready nodes is 2 more than initial nodes")
 				gomega.Eventually(

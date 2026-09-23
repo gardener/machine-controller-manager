@@ -35,8 +35,7 @@ var (
 )
 
 // CreateMachines creates test-machines using machineclass "test-mc"
-func (c *Cluster) CreateMachines(namespace string, gnaSecretName string) error {
-	mcNames := []string{McName, NodeDeleteMcName}
+func (c *Cluster) CreateMachines(mcNames []string, namespace string, gnaSecretName string) error {
 	for _, mcName := range mcNames {
 		_, err := c.McmClient.
 			MachineV1alpha1().
