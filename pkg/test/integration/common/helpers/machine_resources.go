@@ -26,10 +26,18 @@ const (
 	McdName = "test-machine-deployment"
 	// McName is the name of the test machine
 	McName = "test-machine"
+	// InPlaceMcdNameHappyPath is the name of the MCD used for the happy path inplace update test
+	InPlaceMcdNameHappyPath = "test-mcd-inplace-happy"
+	// InPlaceMcdNameFailure is the name of the MCD used for the inplace update failure test
+	InPlaceMcdNameFailure = "test-mcd-inplace-failure"
+	// InPlaceMcdNameTimeout is the name of the MCD used for the inplace update timeout test
+	InPlaceMcdNameTimeout = "test-mcd-inplace-timeout"
+	// InPlaceMcdNameManual is the name of the MCD used for the manual orchestration inplace update test
+	InPlaceMcdNameManual = "test-mcd-inplace-manual"
 )
 
 var (
-	testLabels = map[string]string{"test-label": "test-label"}
+	testLabels = map[string]string{"name": "test-label"}
 )
 
 // CreateMachine creates a test-machine using machineclass "test-mc"
@@ -160,6 +168,21 @@ func (c *Cluster) AreMachinesFailedAndPreserved(ctx context.Context, namespace s
 	return true
 }
 
+// PatchMachineAnnotations patches the annotations of a machine with the specified name and namespace with the provided annotation map
+func (c *Cluster) PatchMachineAnnotations(ctx context.Context, mcName string, namespace string, annMap map[string]any) error {
+	patch := map[string]any{
+		"metadata": map[string]any{
+			"annotations": annMap,
+		},
+	}
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		return err
+	}
+	_, err = c.McmClient.MachineV1alpha1().Machines(namespace).Patch(ctx, mcName, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	return err
+}
+
 // NewMachineDeployment returns a MachineDeployment object with the specified namespace, gnaSecretName, replicas and machineLabels
 func NewMachineDeployment(namespace string, gnaSecretName string, replicas int32) v1alpha1.MachineDeployment {
 	mcd := v1alpha1.MachineDeployment{
@@ -206,7 +229,43 @@ func NewMachineDeployment(namespace string, gnaSecretName string, replicas int32
 	return mcd
 }
 
-// CreateOrUpdateMcd creates or updates a MachineDeployment with the specified namespace, gnaSecretName, replicas and machineLabels
+// NewMachineDeploymentWithName returns a MachineDeployment with a custom name and a unique label derived from that name,
+// so that machines belonging to different MCDs can be listed independently.
+func NewMachineDeploymentWithName(name string, namespace string, gnaSecretName string, replicas int32) v1alpha1.MachineDeployment {
+	mcdLabels := map[string]string{"name": name}
+	mcd := NewMachineDeployment(namespace, gnaSecretName, replicas)
+	mcd.Name = name
+	mcd.Spec.Selector = &metav1.LabelSelector{MatchLabels: mcdLabels}
+	mcd.Spec.Template.Labels = mcdLabels
+	return mcd
+}
+
+// GetRunningMachineListByLabel lists all running machines with the given label selector
+func (c *Cluster) GetRunningMachineListByLabel(ctx context.Context, namespace string, machineLabels map[string]string) ([]v1alpha1.Machine, error) {
+	selector := labels.SelectorFromSet(machineLabels)
+	machineList, err := c.McmClient.MachineV1alpha1().Machines(namespace).List(
+		ctx,
+		metav1.ListOptions{LabelSelector: selector.String()},
+	)
+	if err != nil {
+		log.Printf("error listing machines: %v\n", err)
+		return nil, err
+	}
+	var runningMachines []v1alpha1.Machine
+	for _, mc := range machineList.Items {
+		if mc.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+			runningMachines = append(runningMachines, mc)
+		}
+	}
+	return runningMachines, nil
+}
+
+// InPlaceMcdLabels returns the unique label map used for a given inplace test MCD name
+func InPlaceMcdLabels(mcdName string) map[string]string {
+	return map[string]string{"name": mcdName}
+}
+
+// CreateOrUpdateMcd creates or updates the given MachineDeployment in the specified namespace
 func (c *Cluster) CreateOrUpdateMcd(ctx context.Context, mcd v1alpha1.MachineDeployment, namespace string) error {
 	_, err := c.McmClient.MachineV1alpha1().MachineDeployments(namespace).Create(ctx, &mcd, metav1.CreateOptions{})
 	if errors.IsAlreadyExists(err) {
@@ -224,17 +283,23 @@ func (c *Cluster) CreateOrUpdateMcd(ctx context.Context, mcd v1alpha1.MachineDep
 	return err
 }
 
-// PatchMachineAnnotations patches the annotations of a machine with the specified name and namespace with the provided annotation map
-func (c *Cluster) PatchMachineAnnotations(ctx context.Context, mcName string, namespace string, annMap map[string]any) error {
-	patch := map[string]any{
-		"metadata": map[string]any{
-			"annotations": annMap,
-		},
+// AreMachinesInPhase returns true if all specified machines are in the given phase
+func (c *Cluster) AreMachinesInPhase(ctx context.Context, machineNames []string, namespace string, phase v1alpha1.MachinePhase) bool {
+	for _, mcName := range machineNames {
+		mc, err := c.McmClient.
+			MachineV1alpha1().
+			Machines(namespace).
+			Get(ctx, mcName, metav1.GetOptions{})
+
+		if err != nil {
+			log.Println("error fetching machine: ", err)
+			return false
+		}
+
+		if mc.Status.CurrentStatus.Phase != phase {
+			return false
+		}
 	}
-	patchBytes, err := json.Marshal(patch)
-	if err != nil {
-		return err
-	}
-	_, err = c.McmClient.MachineV1alpha1().Machines(namespace).Patch(ctx, mcName, types.MergePatchType, patchBytes, metav1.PatchOptions{})
-	return err
+
+	return true
 }
