@@ -35,7 +35,7 @@ gardener-setup:
 	read SEED; \
 	echo "enter shoot name"; \
 	read SHOOT; \
-	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)"; \
+	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal)"; \
 	read PROVIDER; \
 	./hack/gardener_local_setup.sh --seed $$SEED --shoot $$SHOOT --project $$PROJECT --provider $$PROVIDER
 
@@ -49,7 +49,7 @@ gardener-restore:
 	read PROJECT; \
 	echo "enter shoot name"; \
 	read SHOOT; \
-	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)"; \
+	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal)"; \
 	read PROVIDER; \
 	./hack/gardener_local_restore.sh --shoot $$SHOOT --project $$PROJECT --provider $$PROVIDER
 
@@ -66,7 +66,7 @@ non-gardener-setup:
 	read CONTROL_KUBECONFIG_PATH; \
 	echo "enter target kubeconfig path"; \
 	read TARGET_KUBECONFIG_PATH; \
-	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)"; \
+	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal)"; \
 	read PROVIDER; \
 	./hack/non_gardener_local_setup.sh --namespace $$NAMESPACE --control-kubeconfig-path $$CONTROL_KUBECONFIG_PATH --target-kubeconfig-path $$TARGET_KUBECONFIG_PATH --provider $$PROVIDER
 
@@ -80,7 +80,7 @@ non-gardener-restore:
 	read NAMESPACE; \
 	echo "enter control kubeconfig path"; \
 	read CONTROL_KUBECONFIG_PATH; \
-	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)"; \
+	echo "enter cluster provider(gcp|aws|azure|vsphere|openstack|alicloud|metal)"; \
 	read PROVIDER; \
 	@echo "enter project name"; \
 	./hack/non_gardener_local_restore.sh --namespace $$NAMESPACE --control-kubeconfig-path $$CONTROL_KUBECONFIG_PATH --provider $$PROVIDER
