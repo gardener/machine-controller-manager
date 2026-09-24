@@ -5,6 +5,8 @@
 package annotations
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -13,6 +15,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+)
+
+const (
+	terminationHookOwner          = "my-controller"
+	anotherTerminationHookOwner   = "another-controller"
+	terminationHookPurpose        = "my-purpose"
+	anotherTerminationHookPurpose = "another-purpose"
 )
 
 var _ = Describe("annotations", func() {
@@ -310,6 +319,76 @@ var _ = Describe("annotations", func() {
 				},
 			}),
 		)
+	})
+
+	Describe("#IsInstanceDeletionSuspended", func() {
+		It("returns a deterministic message and true for all suspension annotations", func() {
+			machine := &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose:        terminationHookOwner,
+					v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + anotherTerminationHookPurpose: anotherTerminationHookOwner,
+				},
+			}}
+
+			message, suspended := IsInstanceDeletionSuspended(machine)
+			Expect(suspended).To(BeTrue())
+			Expect(message).To(Equal(fmt.Sprintf("Instance Deletion suspended by %s for %s, %s for %s.", anotherTerminationHookOwner, anotherTerminationHookPurpose, terminationHookOwner, terminationHookPurpose)))
+		})
+
+		It("uses unknown owner when a suspension annotation has no owner", func() {
+			machine := &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + anotherTerminationHookPurpose: "",
+			}}}
+
+			message, suspended := IsInstanceDeletionSuspended(machine)
+			Expect(suspended).To(BeTrue())
+			Expect(message).To(Equal(fmt.Sprintf("Instance Deletion suspended by unknown owner for %s.", anotherTerminationHookPurpose)))
+		})
+
+		It("limits oversized messages and reports omitted owners", func() {
+			annotations := make(map[string]string)
+			for i := range 100 {
+				annotations[fmt.Sprintf("%s/purpose-%03d", v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix, i)] = terminationHookOwner
+			}
+			machine := &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{Annotations: annotations}}
+
+			message, suspended := IsInstanceDeletionSuspended(machine)
+			Expect(suspended).To(BeTrue())
+			Expect(message).To(HavePrefix(fmt.Sprintf("Instance Deletion suspended by %s for purpose-000", terminationHookOwner)))
+			Expect(message).To(ContainSubstring("other owner(s)."))
+			Expect(message).NotTo(ContainSubstring("purpose-099"))
+		})
+
+		It("reports the owner count when the first detail exceeds the message limit", func() {
+			owner := strings.Repeat(terminationHookOwner, 100)
+			machine := &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/first":  owner,
+				v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/second": anotherTerminationHookOwner,
+			}}}
+
+			message, suspended := IsInstanceDeletionSuspended(machine)
+			Expect(suspended).To(BeTrue())
+			Expect(message).To(Equal("Instance Deletion suspended by 2 owner(s)."))
+		})
+
+		It("returns a message and true for the standalone suspension annotation", func() {
+			machine := &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix: terminationHookOwner,
+				},
+			}}
+
+			message, suspended := IsInstanceDeletionSuspended(machine)
+			Expect(suspended).To(BeTrue())
+			Expect(message).To(Equal(fmt.Sprintf("Instance Deletion suspended by %s.", terminationHookOwner)))
+		})
+
+		It("returns an empty message and false when no suspension annotation exists", func() {
+			machine := &v1alpha1.Machine{}
+			message, suspended := IsInstanceDeletionSuspended(machine)
+			Expect(message).To(BeEmpty())
+			Expect(suspended).To(BeFalse())
+		})
 	})
 
 })

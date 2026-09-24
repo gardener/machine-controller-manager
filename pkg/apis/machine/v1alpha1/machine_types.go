@@ -264,6 +264,9 @@ const (
 	PreservedNodeDrainUnsuccessful string = "Preserved node could not be drained."
 )
 
+// ConditionInstanceDeletionSuspended is a node condition type to allow end-users to know that the deletion of the VM instance is suspended
+const ConditionInstanceDeletionSuspended corev1.NodeConditionType = "InstanceDeletionSuspended"
+
 // CurrentStatus contains information about the current status of Machine.
 type CurrentStatus struct {
 	Phase MachinePhase `json:"phase,omitempty"`

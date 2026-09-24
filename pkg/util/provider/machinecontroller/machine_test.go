@@ -11,6 +11,7 @@ import (
 	"math"
 	"time"
 
+	annotationsutils "github.com/gardener/machine-controller-manager/pkg/util/annotations"
 	taintutils "github.com/gardener/machine-controller-manager/pkg/util/taints"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
@@ -36,7 +37,11 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/worker"
 )
 
-const testNamespace = "test"
+const (
+	testNamespace          = "test"
+	terminationHookOwner   = "my-controller"
+	terminationHookPurpose = "my-purpose"
+)
 
 var _ = Describe("machine", func() {
 	var (
@@ -1575,6 +1580,22 @@ var _ = Describe("machine", func() {
 				Expect(machine.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
 				Expect(machine.Finalizers).To(Equal(data.expect.machine.Finalizers))
 
+				if expectedCondition := machineutils.GetMachineCondition(data.expect.machine, v1alpha1.ConditionInstanceDeletionSuspended); expectedCondition != nil {
+					actualCondition := machineutils.GetMachineCondition(machine, v1alpha1.ConditionInstanceDeletionSuspended)
+					Expect(actualCondition).ToNot(BeNil())
+					Expect(actualCondition.Type).To(Equal(expectedCondition.Type))
+					Expect(actualCondition.Status).To(Equal(expectedCondition.Status))
+					Expect(actualCondition.Message).To(Equal(expectedCondition.Message))
+				}
+
+				if _, suspended := annotationsutils.IsInstanceDeletionSuspended(machine); suspended {
+					actualCondition := machineutils.GetMachineCondition(machine, v1alpha1.ConditionInstanceDeletionSuspended)
+					Expect(actualCondition).ToNot(BeNil())
+					Expect(actualCondition.Type).To(Equal(v1alpha1.ConditionInstanceDeletionSuspended))
+					Expect(actualCondition.Status).To(Equal(corev1.ConditionTrue))
+					Expect(actualCondition.Message).To(Equal(fmt.Sprintf("Instance Deletion suspended by %s for %s.", terminationHookOwner, terminationHookPurpose)))
+				}
+
 				if data.expect.nodeDeleted {
 					_, nodeErr := controller.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), machine.Labels[v1alpha1.NodeLabelKey], metav1.GetOptions{})
 					Expect(nodeErr).To(HaveOccurred())
@@ -3108,6 +3129,308 @@ var _ = Describe("machine", func() {
 						nil,
 						map[string]string{
 							machineutils.MachinePriority: "3",
+						},
+						map[string]string{
+							v1alpha1.NodeLabelKey: "fakeID-0",
+						},
+						true,
+						metav1.Now(),
+					),
+				},
+			}),
+			Entry("Deletion suspension annotation adds condition InstanceDeletionSuspended=True after drain and blocks VM deletion", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					machineClasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(
+						1,
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion),
+								State:          v1alpha1.MachineStateProcessing,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.Now(),
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose: terminationHookOwner,
+						},
+						map[string]string{
+							v1alpha1.NodeLabelKey: "fakeID-0",
+						},
+						true,
+						metav1.Now(),
+					),
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   true,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        nil,
+					},
+				},
+				expect: expect{
+					retry: machineutils.LongRetry,
+					machine: newMachine(
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion),
+								State:          v1alpha1.MachineStateProcessing,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.Now(),
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose: terminationHookOwner,
+						},
+						map[string]string{
+							v1alpha1.NodeLabelKey: "fakeID-0",
+						},
+						true,
+						metav1.Now(),
+					),
+				},
+			}),
+			Entry("Removing the deletion suspension annotation clears InstanceDeletionSuspended before VM deletion", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					machineClasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(
+						1,
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion),
+								State:          v1alpha1.MachineStateProcessing,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.Now(),
+							},
+							Conditions: []corev1.NodeCondition{{
+								Type:    v1alpha1.ConditionInstanceDeletionSuspended,
+								Status:  corev1.ConditionTrue,
+								Message: fmt.Sprintf("Instance Deletion suspended by %s for %s.", terminationHookOwner, terminationHookPurpose),
+							}},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{
+							v1alpha1.NodeLabelKey: "fakeID-0",
+						},
+						true,
+						metav1.Now(),
+					),
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   true,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        nil,
+					},
+				},
+				expect: expect{
+					err:   fmt.Errorf("instance deletion suspension cleared; retrying VM deletion"),
+					retry: machineutils.ShortRetry,
+					machine: newMachine(
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion),
+								State:          v1alpha1.MachineStateProcessing,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.Now(),
+							},
+							Conditions: []corev1.NodeCondition{{
+								Type:    v1alpha1.ConditionInstanceDeletionSuspended,
+								Status:  corev1.ConditionFalse,
+								Message: "Instance Deletion is no longer suspended.",
+							}},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{
+							v1alpha1.NodeLabelKey: "fakeID-0",
+						},
+						true,
+						metav1.Now(),
+					),
+				},
+			}),
+			Entry("Existing InstanceDeletionSuspended=True blocks VM deletion after volume attachments are detached", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					machineClasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(
+						1,
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    fmt.Sprintf("Node Volumes for node: fakeNode-0 are already detached. Moving to VM Deletion. %s", machineutils.InitiateVMDeletion),
+								State:          v1alpha1.MachineStateProcessing,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.Now(),
+							},
+							Conditions: []corev1.NodeCondition{{
+								Type:    v1alpha1.ConditionInstanceDeletionSuspended,
+								Status:  corev1.ConditionTrue,
+								Message: fmt.Sprintf("Instance Deletion suspended by %s for %s.", terminationHookOwner, terminationHookPurpose),
+							}},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose: terminationHookOwner,
+						},
+						map[string]string{
+							v1alpha1.NodeLabelKey: "fakeID-0",
+						},
+						true,
+						metav1.Now(),
+					),
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   true,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        nil,
+					},
+				},
+				expect: expect{
+					retry: machineutils.LongRetry,
+					machine: newMachine(
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    fmt.Sprintf("Node Volumes for node: fakeNode-0 are already detached. Moving to VM Deletion. %s", machineutils.InitiateVMDeletion),
+								State:          v1alpha1.MachineStateProcessing,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.Now(),
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose: terminationHookOwner,
 						},
 						map[string]string{
 							v1alpha1.NodeLabelKey: "fakeID-0",
@@ -5119,5 +5442,63 @@ var _ = Describe("machine", func() {
 				"machine must have the MCM finalizer — 409 conflict errors must not prevent finalizer addition",
 			)
 		})
+	})
+})
+
+var _ = Describe("#updateMachine", func() {
+	DescribeTable("instance deletion suspension annotation changes", func(oldAnnotations, newAnnotations map[string]string) {
+		stop := make(chan struct{})
+		defer close(stop)
+
+		deletionTimestamp := metav1.Now()
+		oldMachine := &v1alpha1.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "machine-0",
+				Namespace:         testNamespace,
+				DeletionTimestamp: &deletionTimestamp,
+				Annotations:       oldAnnotations,
+			},
+		}
+		newMachine := oldMachine.DeepCopy()
+		newMachine.Annotations = newAnnotations
+
+		c, trackers := createController(stop, testNamespace, nil, nil, nil, nil, true)
+		defer trackers.Stop()
+
+		c.updateMachine(oldMachine, newMachine)
+
+		Expect(c.machineTerminationQueue.Len()).To(Equal(1))
+		Expect(c.machineQueue.Len()).To(Equal(0))
+	},
+		Entry("annotation added", nil, map[string]string{
+			v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose: terminationHookOwner,
+		}),
+		Entry("annotation removed", map[string]string{
+			v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose: terminationHookOwner,
+		}, nil),
+	)
+
+	It("does not enqueue a non-terminating machine when the annotation changes", func() {
+		stop := make(chan struct{})
+		defer close(stop)
+
+		oldMachine := &v1alpha1.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "machine-0",
+				Namespace: testNamespace,
+			},
+		}
+		newMachine := oldMachine.DeepCopy()
+		newMachine.Annotations = map[string]string{
+			v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose: terminationHookOwner,
+		}
+
+		c, trackers := createController(stop, testNamespace, nil, nil, nil, nil, true)
+		defer trackers.Stop()
+
+		c.updateMachine(oldMachine, newMachine)
+
+		Expect(c.machineTerminationQueue.Len()).To(Equal(0))
+		Expect(c.machineQueue.Len()).To(Equal(0))
 	})
 })

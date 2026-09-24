@@ -26,6 +26,7 @@ import (
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -735,6 +736,87 @@ func (c *IntegrationTestFramework) ControllerTests() {
 							Should(gomega.BeNumerically("==", initialNodes+1))
 					}
 
+				})
+
+				ginkgo.It("should suspend deletion until the suspension annotation is removed", func() {
+					suspensionAnnotationKey := v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/integration-test"
+
+					ginkgo.By("Creating a machine for the suspension test")
+					gomega.Expect(c.ControlCluster.CreateMachine(controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.Succeed())
+					gomega.Eventually(
+						c.ControlCluster.AreMachinesRunning,
+						c.timeout,
+						c.pollingInterval).
+						WithArguments(ctx, []string{helpers.McName}, controlClusterNamespace).
+						Should(gomega.BeTrue())
+
+					ginkgo.By("Adding the instance deletion suspension annotation")
+					retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+						machine, err := c.ControlCluster.McmClient.
+							MachineV1alpha1().
+							Machines(controlClusterNamespace).
+							Get(ctx, helpers.McName, metav1.GetOptions{})
+						if err != nil {
+							return err
+						}
+						if machine.Annotations == nil {
+							machine.Annotations = make(map[string]string)
+						}
+						machine.Annotations[suspensionAnnotationKey] = "integration-test"
+						_, err = c.ControlCluster.McmClient.
+							MachineV1alpha1().
+							Machines(controlClusterNamespace).
+							Update(ctx, machine, metav1.UpdateOptions{})
+						return err
+					})
+					gomega.Expect(retryErr).NotTo(gomega.HaveOccurred())
+
+					ginkgo.By("Deleting the machine")
+					gomega.Expect(
+						c.ControlCluster.McmClient.
+							MachineV1alpha1().
+							Machines(controlClusterNamespace).
+							Delete(ctx, helpers.McName, metav1.DeleteOptions{})).
+						Should(gomega.BeNil(), "No Errors while deleting machine")
+
+					ginkgo.By("Waiting for InstanceDeletionSuspended=True")
+					gomega.Eventually(func() bool {
+						machine, err := c.ControlCluster.McmClient.
+							MachineV1alpha1().
+							Machines(controlClusterNamespace).
+							Get(ctx, helpers.McName, metav1.GetOptions{})
+						if err != nil {
+							return false
+						}
+						condition := mc_utils.GetMachineCondition(machine, v1alpha1.ConditionInstanceDeletionSuspended)
+						return condition != nil && condition.Status == corev1.ConditionTrue
+					}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+
+					ginkgo.By("Removing the instance deletion suspension annotation")
+					retryErr = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+						machine, err := c.ControlCluster.McmClient.
+							MachineV1alpha1().
+							Machines(controlClusterNamespace).
+							Get(ctx, helpers.McName, metav1.GetOptions{})
+						if err != nil {
+							return err
+						}
+						delete(machine.Annotations, suspensionAnnotationKey)
+						_, err = c.ControlCluster.McmClient.
+							MachineV1alpha1().
+							Machines(controlClusterNamespace).
+							Update(ctx, machine, metav1.UpdateOptions{})
+						return err
+					})
+					gomega.Expect(retryErr).NotTo(gomega.HaveOccurred())
+
+					ginkgo.By("Waiting until the machine object is deleted")
+					gomega.Eventually(
+						c.ControlCluster.IsMachineDeleted,
+						c.timeout,
+						c.pollingInterval).
+						WithArguments(ctx, helpers.McName, controlClusterNamespace).
+						Should(gomega.BeTrue())
 				})
 			})
 			ginkgo.Context("node deletion", func() {
