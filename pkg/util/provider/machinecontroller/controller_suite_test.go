@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gardener/machine-controller-manager/pkg/apis/constants"
 	machine_internal "github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
@@ -321,7 +322,7 @@ func createController(
 	Expect(v1alpha1.AddToScheme(internalExternalScheme)).To(Succeed())
 
 	safetyOptions := options.SafetyOptions{
-		MachineCreationTimeout:                   metav1.Duration{Duration: 20 * time.Minute},
+		MachineCreationTimeout:                   metav1.Duration{Duration: constants.DefaultMachineCreationTimeout},
 		MachineHealthTimeout:                     metav1.Duration{Duration: 10 * time.Minute},
 		MachineDrainTimeout:                      metav1.Duration{Duration: 5 * time.Minute},
 		MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 30 * time.Minute},

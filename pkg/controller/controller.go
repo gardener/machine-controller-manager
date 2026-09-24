@@ -215,24 +215,24 @@ type controller struct {
 	machineDeploymentSynced cache.InformerSynced
 }
 
-func (c *controller) Run(workers int, stopCh <-chan struct{}) {
+func (dc *controller) Run(workers int, stopCh <-chan struct{}) {
 
 	var (
 		waitGroup sync.WaitGroup
 	)
 
 	defer runtimeutil.HandleCrash()
-	defer c.nodeQueue.ShutDown()
-	defer c.machineQueue.ShutDown()
-	defer c.machineSetQueue.ShutDown()
-	defer c.machineDeploymentQueue.ShutDown()
-	defer c.machineSafetyOvershootingQueue.ShutDown()
+	defer dc.nodeQueue.ShutDown()
+	defer dc.machineQueue.ShutDown()
+	defer dc.machineSetQueue.ShutDown()
+	defer dc.machineDeploymentQueue.ShutDown()
+	defer dc.machineSafetyOvershootingQueue.ShutDown()
 
 	syncedFuncs := []cache.InformerSynced{
-		c.nodeSynced,
-		c.machineSynced,
-		c.machineSetSynced,
-		c.machineDeploymentSynced,
+		dc.nodeSynced,
+		dc.machineSynced,
+		dc.machineSetSynced,
+		dc.machineDeploymentSynced,
 	}
 	// filter out nil funcs (disabled target cluster)
 	syncedFuncs = slices.DeleteFunc(syncedFuncs, func(fn cache.InformerSynced) bool { return fn == nil })
@@ -248,12 +248,12 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) {
 	// be passed to the metrics registry. Collectors which added to the registry
 	// will collect metrics to expose them via the metrics endpoint of the mcm
 	// every time when the endpoint is called.
-	prometheus.MustRegister(c)
+	prometheus.MustRegister(dc)
 
 	for range workers {
-		worker.Run(c.machineSetQueue, "ClusterMachineSet", worker.DefaultMaxRetries, true, c.reconcileClusterMachineSet, stopCh, &waitGroup)
-		worker.Run(c.machineDeploymentQueue, "ClusterMachineDeployment", worker.DefaultMaxRetries, true, c.reconcileClusterMachineDeployment, stopCh, &waitGroup)
-		worker.Run(c.machineSafetyOvershootingQueue, "ClusterMachineSafetyOvershooting", worker.DefaultMaxRetries, true, c.reconcileClusterMachineSafetyOvershooting, stopCh, &waitGroup)
+		worker.Run(dc.machineSetQueue, "ClusterMachineSet", worker.DefaultMaxRetries, true, dc.reconcileClusterMachineSet, stopCh, &waitGroup)
+		worker.Run(dc.machineDeploymentQueue, "ClusterMachineDeployment", worker.DefaultMaxRetries, true, dc.reconcileClusterMachineDeployment, stopCh, &waitGroup)
+		worker.Run(dc.machineSafetyOvershootingQueue, "ClusterMachineSafetyOvershooting", worker.DefaultMaxRetries, true, dc.reconcileClusterMachineSafetyOvershooting, stopCh, &waitGroup)
 	}
 
 	<-stopCh

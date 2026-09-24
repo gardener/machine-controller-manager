@@ -105,3 +105,13 @@ func UpdateNodeConditions(ctx context.Context, c clientset.Interface, nodeName s
 	}
 	return updatedNode, nil
 }
+
+// FilterNodeConditionOfType filters conditions and returns the NodeCondition belonging to the given conditionType or nil if not present.
+func FilterNodeConditionOfType(conditions []v1.NodeCondition, conditionType v1.NodeConditionType) *v1.NodeCondition {
+	for _, c := range conditions {
+		if c.Type == conditionType {
+			return &c
+		}
+	}
+	return nil
+}

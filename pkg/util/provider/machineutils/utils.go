@@ -159,8 +159,8 @@ func IsActive(p *v1alpha1.Machine) bool {
 	return p.Status.CurrentStatus.Phase != v1alpha1.MachineFailed && p.Status.CurrentStatus.Phase != v1alpha1.MachineTerminating
 }
 
-// IsFailed checks if machine has failed
-func IsFailed(p *v1alpha1.Machine) bool {
+// IsMachineFailed checks if machine has failed
+func IsMachineFailed(p *v1alpha1.Machine) bool {
 	return p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed
 }
 

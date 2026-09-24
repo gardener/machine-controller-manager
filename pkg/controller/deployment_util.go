@@ -32,6 +32,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gardener/machine-controller-manager/pkg/apis/constants"
+	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 
 	v1 "k8s.io/api/core/v1"
@@ -67,13 +69,13 @@ type MachineDeploymentNamespaceListerExpansion any
 // match a MachineSet. Only the one specified in the MachineSet's ControllerRef
 // will actually manage it.
 // Returns an error only if no matching Deployments are found.
-func (c *controller) GetMachineDeploymentsForMachineSet(is *v1alpha1.MachineSet) ([]*v1alpha1.MachineDeployment, error) {
+func (dc *controller) GetMachineDeploymentsForMachineSet(is *v1alpha1.MachineSet) ([]*v1alpha1.MachineDeployment, error) {
 	if len(is.Labels) == 0 {
 		return nil, fmt.Errorf("no deployments found for MachineSet %v because it has no labels", is.Name)
 	}
 
 	// TODO: MODIFY THIS METHOD so that it checks for the machineTemplateSpecHash label
-	dList, err := c.machineDeploymentLister.List(labels.Everything())
+	dList, err := dc.machineDeploymentLister.List(labels.Everything())
 	if err != nil {
 		return nil, err
 	}
@@ -1417,4 +1419,26 @@ func MergeStringMaps[T any](oldMap map[string]T, newMaps ...map[string]T) map[st
 	}
 
 	return out
+}
+
+// GetEffectiveCreationTimeoutOnMachineDeployment gets the effective creation timeout as a [metav1.Duration] for this MachineDeployment object, first checking
+// the [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout], then falling back to machine deployment spec template and then falling back
+// to [v1alpha1.DefaultCreationTimeout]
+func GetEffectiveCreationTimeoutOnMachineDeployment(mcd *v1alpha1.MachineDeployment) (duration metav1.Duration, err error) {
+	duration, err = annotations.GetMachineEffectiveCreationTimeout(mcd)
+	if err != nil || duration.Duration != 0 {
+		return
+	}
+	return GetSpecCreationTimeoutOrDefaultOnMachineDeployment(mcd), nil
+}
+
+// GetSpecCreationTimeoutOrDefaultOnMachineDeployment gets the creation timeout from machine deployment spec template
+// and then fall back to [v1alpha1.DefaultCreationTimeout]
+func GetSpecCreationTimeoutOrDefaultOnMachineDeployment(mcd *v1alpha1.MachineDeployment) (duration metav1.Duration) {
+	if mcd.Spec.Template.Spec.MachineConfiguration != nil && mcd.Spec.Template.Spec.MachineCreationTimeout != nil {
+		duration.Duration = mcd.Spec.Template.Spec.MachineCreationTimeout.Duration
+		return
+	}
+	duration.Duration = constants.DefaultMachineCreationTimeout
+	return
 }
