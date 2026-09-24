@@ -1580,8 +1580,8 @@ var _ = Describe("machine", func() {
 				Expect(machine.Status.LastOperation.Description).To(Equal(data.expect.machine.Status.LastOperation.Description))
 				Expect(machine.Finalizers).To(Equal(data.expect.machine.Finalizers))
 
-				if expectedCondition := machineutils.GetMachineCondition(data.expect.machine, v1alpha1.InstanceDeletionSuspended); expectedCondition != nil {
-					actualCondition := machineutils.GetMachineCondition(machine, v1alpha1.InstanceDeletionSuspended)
+				if expectedCondition := machineutils.GetMachineCondition(data.expect.machine, v1alpha1.ConditionInstanceDeletionSuspended); expectedCondition != nil {
+					actualCondition := machineutils.GetMachineCondition(machine, v1alpha1.ConditionInstanceDeletionSuspended)
 					Expect(actualCondition).ToNot(BeNil())
 					Expect(actualCondition.Type).To(Equal(expectedCondition.Type))
 					Expect(actualCondition.Status).To(Equal(expectedCondition.Status))
@@ -1589,9 +1589,9 @@ var _ = Describe("machine", func() {
 				}
 
 				if _, suspended := annotationsutils.IsInstanceDeletionSuspended(machine); suspended {
-					actualCondition := machineutils.GetMachineCondition(machine, v1alpha1.InstanceDeletionSuspended)
+					actualCondition := machineutils.GetMachineCondition(machine, v1alpha1.ConditionInstanceDeletionSuspended)
 					Expect(actualCondition).ToNot(BeNil())
-					Expect(actualCondition.Type).To(Equal(v1alpha1.InstanceDeletionSuspended))
+					Expect(actualCondition.Type).To(Equal(v1alpha1.ConditionInstanceDeletionSuspended))
 					Expect(actualCondition.Status).To(Equal(corev1.ConditionTrue))
 					Expect(actualCondition.Message).To(Equal(fmt.Sprintf("Instance Deletion suspended by %s for %s.", terminationHookOwner, terminationHookPurpose)))
 				}
@@ -3271,7 +3271,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							Conditions: []corev1.NodeCondition{{
-								Type:    v1alpha1.InstanceDeletionSuspended,
+								Type:    v1alpha1.ConditionInstanceDeletionSuspended,
 								Status:  corev1.ConditionTrue,
 								Message: fmt.Sprintf("Instance Deletion suspended by %s for %s.", terminationHookOwner, terminationHookPurpose),
 							}},
@@ -3322,7 +3322,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							Conditions: []corev1.NodeCondition{{
-								Type:    v1alpha1.InstanceDeletionSuspended,
+								Type:    v1alpha1.ConditionInstanceDeletionSuspended,
 								Status:  corev1.ConditionFalse,
 								Message: "Instance Deletion is no longer suspended.",
 							}},
@@ -3376,7 +3376,7 @@ var _ = Describe("machine", func() {
 								LastUpdateTime: metav1.Now(),
 							},
 							Conditions: []corev1.NodeCondition{{
-								Type:    v1alpha1.InstanceDeletionSuspended,
+								Type:    v1alpha1.ConditionInstanceDeletionSuspended,
 								Status:  corev1.ConditionTrue,
 								Message: fmt.Sprintf("Instance Deletion suspended by %s for %s.", terminationHookOwner, terminationHookPurpose),
 							}},
