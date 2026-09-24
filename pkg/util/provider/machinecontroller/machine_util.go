@@ -1866,7 +1866,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		return machineutils.LongRetry, nil
 	}
 
-	if condition := machineutils.GetMachineCondition(machine, v1alpha1.InstanceDeletionSuspended); condition != nil && condition.Status == v1.ConditionTrue {
+	if condition := machineutils.GetMachineCondition(machine, v1alpha1.ConditionInstanceDeletionSuspended); condition != nil && condition.Status == v1.ConditionTrue {
 		// Persist the cleared condition before starting provider deletion.
 		retryPeriod, err := c.updateInstanceDeletionSuspensionCondition(ctx, machine, v1.ConditionFalse, "Instance Deletion is no longer suspended.")
 		if err != nil {
@@ -1946,11 +1946,11 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 func (c *controller) updateInstanceDeletionSuspensionCondition(ctx context.Context, machine *v1alpha1.Machine, status v1.ConditionStatus, message string) (machineutils.RetryPeriod, error) {
 	clone := machine.DeepCopy()
 
-	condition := machineutils.GetMachineCondition(clone, v1alpha1.InstanceDeletionSuspended)
+	condition := machineutils.GetMachineCondition(clone, v1alpha1.ConditionInstanceDeletionSuspended)
 	if condition == nil && status == v1.ConditionTrue {
 		now := metav1.Now()
 		clone.Status.Conditions = append(clone.Status.Conditions, v1.NodeCondition{
-			Type:               v1alpha1.InstanceDeletionSuspended,
+			Type:               v1alpha1.ConditionInstanceDeletionSuspended,
 			Status:             status,
 			LastHeartbeatTime:  now,
 			LastTransitionTime: now,

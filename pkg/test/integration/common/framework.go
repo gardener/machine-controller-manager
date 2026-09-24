@@ -788,7 +788,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						if err != nil {
 							return false
 						}
-						condition := mc_utils.GetMachineCondition(machine, v1alpha1.InstanceDeletionSuspended)
+						condition := mc_utils.GetMachineCondition(machine, v1alpha1.ConditionInstanceDeletionSuspended)
 						return condition != nil && condition.Status == corev1.ConditionTrue
 					}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
 
