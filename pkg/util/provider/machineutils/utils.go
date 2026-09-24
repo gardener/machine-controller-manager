@@ -164,8 +164,8 @@ func IsMachineFailed(p *v1alpha1.Machine) bool {
 	return p.Status.CurrentStatus.Phase == v1alpha1.MachineFailed
 }
 
-// IsMachineTriggeredForDeletion checks if machine was triggered for deletion
-func IsMachineTriggeredForDeletion(m *v1alpha1.Machine) bool {
+// IsTriggeredForDeletion checks if machine was triggered for deletion
+func IsTriggeredForDeletion(m *v1alpha1.Machine) bool {
 	return m.Annotations[MachinePriority] == "1"
 }
 
