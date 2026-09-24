@@ -934,12 +934,13 @@ func (c *controller) shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) 
 // MachineSet's AutoPreserveFailedMachineMax field. If the AutoPreserveFailedMachineMax limit is breached, it removes the preserve=auto-preserved annotation from the machines which are nearest to preserve expiry.
 func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context, machines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) []*v1alpha1.Machine {
 	// TODO@thiyyakat: if preservation is to be honoured across updates, capacity remaining should consider machines in all machinesets
-	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - int32(len(filterAutoPreservedMachines(machines))) // #nosec G115 (CWE-190) -- number of machines will not exceed MaxInt32
+	autoPreservedMachines := filterAutoPreservedMachines(machines)
+	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - int32(len(autoPreservedMachines)) // #nosec G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	if autoPreservationCapacityRemaining == 0 {
 		// no capacity remaining, nothing to do
 		return machines
 	} else if autoPreservationCapacityRemaining < 0 { // when autoPreserveFailedMachineMax is decreased, it can be negative.
-		numStillExceeding := c.stopAutoPreservationForMachines(ctx, machines, int(-autoPreservationCapacityRemaining))
+		numStillExceeding := c.stopAutoPreservationForMachines(ctx, autoPreservedMachines, int(-autoPreservationCapacityRemaining))
 		if numStillExceeding > 0 {
 			klog.V(2).Infof("Attempted to decrease count of auto-preserved machines, but there are still %d violations of AutoPreserveFailedMachineMax.", numStillExceeding)
 		}
@@ -975,8 +976,9 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 	return append(autoPreservationCandidates, others...)
 }
 
-func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machines []*v1alpha1.Machine, numToStop int) int {
-	autoPreservedMachines := filterAutoPreservedMachines(machines)
+// stopAutoPreservationForMachines removes the auto-preservation annotation from up to numToStop
+// of the given auto-preserved machines (nearest to expiry first) and returns how many still exceed the limit.
+func (c *controller) stopAutoPreservationForMachines(ctx context.Context, autoPreservedMachines []*v1alpha1.Machine, numToStop int) int {
 	numOfAutoPreservedMachines := len(autoPreservedMachines)
 	if numOfAutoPreservedMachines == 0 {
 		return numToStop
