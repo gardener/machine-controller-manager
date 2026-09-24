@@ -40,9 +40,9 @@ func (c *Cluster) GetNumberOfReadyNodes() int16 {
 	return int16(count) //#nosec G115 (CWE-190) -- Test only
 }
 
-// This annotation is used by a kwok stage when IT is running in a virtual cluster to perform
-// node recovery by setting the `Ready` condition to true after the node lease renewal blocking
-// VAP is removed. This is ineffectual for live clusters.
+// AttemptNodeRecovery sets an annotation on the node, which is used by a kwok stage when IT is
+// running in a virtual cluster. It performs node recovery by setting the `Ready` condition to true
+// after the node lease renewal blocking VAP is removed. This is ineffectual for live clusters.
 func (c *Cluster) AttemptNodeRecovery(ctx context.Context, nodeName string, attempt int) {
 	patch := fmt.Appendf(nil, `{"metadata":{"annotations":{"kwok/fail-condition":"Recover","kwok/recovery-attempts":"%d"}}}`, attempt)
 	_, err := c.Clientset.CoreV1().Nodes().Patch(ctx, nodeName, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
