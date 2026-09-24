@@ -124,6 +124,9 @@ func IsInstanceDeletionSuspended(machine *v1alpha1.Machine) (string, bool) {
 	details := make([]string, 0, len(suspensions))
 	for i, suspension := range suspensions {
 		detail := suspension.owner
+		if suspension.owner == "" {
+			detail = "unknown owner"
+		}
 		if suspension.purpose != "" {
 			detail += " for " + suspension.purpose
 		}
