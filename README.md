@@ -21,7 +21,6 @@ MCM supports the following providers. This provider code is maintained externall
 * [Alicloud](https://github.com/gardener/machine-controller-manager-provider-alicloud)
 * [AWS](https://github.com/gardener/machine-controller-manager-provider-aws)
 * [Azure](https://github.com/gardener/machine-controller-manager-provider-azure)
-* [Equinix Metal](https://github.com/gardener/machine-controller-manager-provider-equinix-metal)
 * [GCP](https://github.com/gardener/machine-controller-manager-provider-gcp)
 * [KubeVirt](https://github.com/gardener/machine-controller-manager-provider-kubevirt)
 * [Metal Stack](https://github.com/metal-stack/machine-controller-manager-provider-metal)

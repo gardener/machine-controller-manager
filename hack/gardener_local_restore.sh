@@ -28,7 +28,7 @@ function create_usage() {
       -t | --shoot                      <shoot-cluster-name>                (Required) Name of the Gardener Shoot Cluster
       -p | --project                    <project-name>                      (Required) Name of the Gardener Project
       -l | --landscape                  <landscape-name>                    (Optional) Name of the landscape. Defaults to dev
-      -i | --provider                   <provider-name>                     (Required) Infrastructure provider name. Supported providers (gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)
+      -i | --provider                   <provider-name>                     (Required) Infrastructure provider name. Supported providers (gcp|aws|azure|vsphere|openstack|alicloud|metal)
       -k | --kubeconfig-path            <relative-kubeconfig-path>          (Optional) Relative path to the <PROJECT-DIR> where kubeconfigs will be downloaded. Path should not start with '/'. Default: <PROJECT-DIR>/dev/kube-configs
       -m | --mcm-provider-project-path  <absolute-mcm-provider-project-dir> (Optional) MCM Provider project directory. If not provided then it assumes that both mcm and mcm-provider projects are under the same parent directory
     ")

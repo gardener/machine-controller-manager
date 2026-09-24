@@ -35,7 +35,7 @@ function create_usage() {
       -n | --namespace                  <namespace>                         (Required) This is the namespace where MCM pods are deployed.
       -c | --control-kubeconfig-path    <control-kubeconfig-path>           (Required) Kubeconfig file path which points to the control-plane of cluster where MCM is running.
       -t | --target-kubeconfig-path     <target-kubeconfig-path>            (Required) Kubeconfig file path which points to control plane of the cluster where nodes are created.
-      -i | --provider                   <provider-name>                     (Required) Infrastructure provider name. Supported providers (gcp|aws|azure|vsphere|openstack|alicloud|metal|equinix-metal)
+      -i | --provider                   <provider-name>                     (Required) Infrastructure provider name. Supported providers (gcp|aws|azure|vsphere|openstack|alicloud|metal)
       -m | --mcm-provider-project-path  <absolute-mcm-provider-project-dir> (Optional) MCM Provider project directory. If not provided then it assumes that both mcm and mcm-provider projects are under the same parent directory
     ")
   echo "${usage}"
