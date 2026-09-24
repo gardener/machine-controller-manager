@@ -139,6 +139,7 @@ func (c *Cluster) AreMachinesRunning(ctx context.Context, machineNames []string,
 			log.Println("error fetching machine: ", err)
 			return false
 		}
+
 		if mc.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 			return false
 		}
