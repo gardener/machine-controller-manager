@@ -804,6 +804,11 @@ func (dc *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.
 	return mcdDeepCopy, nil
 }
 
+// checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout tracks the number of consecutive
+// failure cycles in which machines failed to join the cluster (tracked via [v1alpha1.AnnotationKeyMachineReplaceCycleCount]),
+// and grows the MachineDeployment's effective creation timeout (tracked via [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout])
+// by [constants.DefaultCreationTimeoutGrowthFactor] each time that count reaches the configured threshold. When
+// machines do join successfully, it shrinks the timeout back to the observed max join duration.
 func (dc *controller) checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout(ctx context.Context, mcd *v1alpha1.MachineDeployment, machineMap map[types.UID]*v1alpha1.MachineList) (adjusted bool, err error) {
 	oldInfo, err := getCreationTimeoutAdjustInfo(mcd)
 	if err != nil {
