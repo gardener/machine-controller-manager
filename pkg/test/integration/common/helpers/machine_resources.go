@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 
@@ -129,33 +128,22 @@ func (c *Cluster) IsMachineDeploymentDeleted(ctx context.Context, machineDeploym
 	return errors.IsNotFound(err)
 }
 
-// ArePreservedMachinesRunning returns true when all named machines are in the Running phase
-func (c *Cluster) ArePreservedMachinesRunning(ctx context.Context, machineNames []string, namespace string, isSimulatedProvider bool) bool {
-	allRunning := true
+// AreMachinesRunning returns boolean value indicating whether all the machines names passed to it are in the running state or not
+func (c *Cluster) AreMachinesRunning(ctx context.Context, machineNames []string, namespace string) bool {
 	for _, mcName := range machineNames {
 		mc, err := c.McmClient.
 			MachineV1alpha1().
 			Machines(namespace).
 			Get(ctx, mcName, metav1.GetOptions{})
-
 		if err != nil {
 			log.Println("error fetching machine: ", err)
 			return false
 		}
-		if mc.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
-			continue
-		}
-		if !isSimulatedProvider {
+		if mc.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
 			return false
 		}
-		allRunning = false
-		// Nudge kwok's node-recover stage to retry if it fired while the VAP was still active.
-		if nodeName := mc.Labels[v1alpha1.NodeLabelKey]; nodeName != "" {
-			c.attemptNodeRecovery(ctx, nodeName, int(time.Now().UnixMilli()))
-		}
-
 	}
-	return allRunning
+	return true
 }
 
 // AreMachinesFailedAndPreserved checks if all the specified machines are in the Failed phase and are preserved

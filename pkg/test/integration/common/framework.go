@@ -160,9 +160,6 @@ func NewIntegrationTestFramework(
 	}
 
 	pollingInterval := 2 * time.Second
-	if isSimulatedProvider {
-		pollingInterval = 500 * time.Millisecond
-	}
 	if len(intervals) > 1 {
 		pollingInterval = time.Duration(intervals[1]) * time.Second
 	}
@@ -534,6 +531,23 @@ func rotateOrAppendLogFile(fileName string, shouldRotate bool) (*os.File, error)
 	return os.Create(fileName) // #nosec G304 -- Test only
 }
 
+// buildMCMStartArgs builds the `make start` command used to launch MCM. The simulated provider raises the
+// client QPS/Burst, since the defaults throttle reconcile loops against a fast kwok cluster.
+func (c *IntegrationTestFramework) buildMCMStartArgs() []string {
+	mcmQPSArgs := ""
+	if isSimulatedProvider {
+		mcmQPSArgs = " KUBE_API_QPS=100 KUBE_API_BURST=150"
+	}
+	return strings.Fields(
+		fmt.Sprintf(
+			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms"+mcmQPSArgs,
+			mcmRepoPath,
+			c.ControlCluster.KubeConfigFilePath,
+			c.TargetCluster.KubeConfigFilePath,
+			controlClusterNamespace),
+	)
+}
+
 // runControllersLocally run the machine controller and machine controller manager binary locally
 func (c *IntegrationTestFramework) runControllersLocally() {
 	ginkgo.By("Starting Machine Controller ")
@@ -552,20 +566,7 @@ func (c *IntegrationTestFramework) runControllersLocally() {
 	gomega.Expect(mcsession.ExitCode()).Should(gomega.Equal(-1))
 
 	ginkgo.By("Starting Machine Controller Manager")
-	mcmQPSArgs := ""
-	if isSimulatedProvider {
-		// The simulated provider runs against a fast kwok cluster where the default
-		// client QPS/Burst throttles the MCM's reconcile loops.
-		mcmQPSArgs = " KUBE_API_QPS=100 KUBE_API_BURST=150"
-	}
-	args = strings.Fields(
-		fmt.Sprintf(
-			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms"+mcmQPSArgs,
-			mcmRepoPath,
-			c.ControlCluster.KubeConfigFilePath,
-			c.TargetCluster.KubeConfigFilePath,
-			controlClusterNamespace),
-	)
+	args = c.buildMCMStartArgs()
 	outputFile, err = rotateOrAppendLogFile(mcmLogFile, true)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
@@ -586,6 +587,10 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 
 	ginkgo.By("Setting global values using the passed environment variables")
 	setGlobalsFromEnvVars()
+
+	if isSimulatedProvider {
+		c.pollingInterval = 500 * time.Millisecond
+	}
 
 	ginkgo.By("Checking for the clusters if provided are available")
 	gomega.Expect(c.initializeClusters()).To(gomega.BeNil())
@@ -699,6 +704,14 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.timeout,
 					c.pollingInterval).
 					Should(gomega.BeNumerically("==", initialNodes+2))
+
+				// Wait for machine to be running
+				gomega.Eventually(
+					c.ControlCluster.AreMachinesRunning,
+					c.timeout,
+					c.pollingInterval).
+					WithArguments(ctx, []string{helpers.McName}, controlClusterNamespace).
+					Should(gomega.BeTrue())
 			})
 		})
 
@@ -754,6 +767,14 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						_, exists := existingMachine.GetLabels()[v1alpha1.NodeLabelKey]
 						return exists
 					}).Should(gomega.BeTrue())
+
+					ginkgo.By("Ensuring machine is running before deleting its node")
+					gomega.Eventually(
+						c.ControlCluster.AreMachinesRunning,
+						c.timeout,
+						c.pollingInterval).
+						WithArguments(ctx, []string{helpers.NodeDeleteMcName}, controlClusterNamespace).
+						Should(gomega.BeTrue())
 
 					ginkgo.By("Deleting node associated with test-machine")
 					err = c.TargetCluster.Clientset.CoreV1().Nodes().Delete(ctx, existingMachine.Labels[v1alpha1.NodeLabelKey], metav1.DeleteOptions{})
@@ -889,6 +910,18 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				})
 				ginkgo.By("Checking for errors")
 				gomega.Expect(retryErr).NotTo(gomega.HaveOccurred())
+				ginkgo.By("AvailableReplicas to be 6")
+				gomega.Eventually(func() int {
+					machineDeployment, err := c.ControlCluster.McmClient.
+						MachineV1alpha1().
+						MachineDeployments(controlClusterNamespace).
+						Get(ctx, helpers.McdName, metav1.GetOptions{})
+					if err != nil {
+						log.Println("Failed to get machinedeployment object: ", err)
+						return -1
+					}
+					return int(machineDeployment.Status.AvailableReplicas)
+				}, c.timeout, c.pollingInterval).Should(gomega.BeNumerically("==", 6))
 				ginkgo.By("Checking number of ready nodes are 6 more than initial")
 				gomega.Eventually(
 					c.TargetCluster.GetNumberOfNodes,
@@ -1105,11 +1138,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 
 				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", runningMachines[0].Name))
-				gomega.Eventually(
-					c.ControlCluster.ArePreservedMachinesRunning,
-					c.timeout,
-					c.pollingInterval).
-					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace, isSimulatedProvider).
+				gomega.Eventually(func() bool {
+					if isSimulatedProvider {
+						c.TargetCluster.AttemptNodeRecovery(ctx, runningMachines[0].Labels[v1alpha1.NodeLabelKey], int(time.Now().UnixMilli()))
+					}
+					return c.ControlCluster.AreMachinesRunning(ctx, []string{runningMachines[0].Name}, controlClusterNamespace)
+				}, c.timeout, c.pollingInterval).
 					Should(gomega.BeTrue())
 			})
 		})
@@ -1250,17 +1284,18 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.By(fmt.Sprintf("remove VAP and VAPB to simulate kubelet restart: %s, %s", runningMachines[0].Name, runningMachines[1].Name))
 				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 
-				preservedMachine := runningMachines[0].Name
+				preservedMachine := runningMachines[0]
 				if isOnlyMachine0Deleted {
-					preservedMachine = runningMachines[1].Name
+					preservedMachine = runningMachines[1]
 				}
 
-				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", preservedMachine))
-				gomega.Eventually(
-					c.ControlCluster.ArePreservedMachinesRunning,
-					c.timeout,
-					c.pollingInterval).
-					WithArguments(ctx, []string{preservedMachine}, controlClusterNamespace, isSimulatedProvider).
+				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", preservedMachine.Name))
+				gomega.Eventually(func() bool {
+					if isSimulatedProvider {
+						c.TargetCluster.AttemptNodeRecovery(ctx, preservedMachine.Labels[v1alpha1.NodeLabelKey], int(time.Now().UnixMilli()))
+					}
+					return c.ControlCluster.AreMachinesRunning(ctx, []string{preservedMachine.Name}, controlClusterNamespace)
+				}, c.timeout, c.pollingInterval).
 					Should(gomega.BeTrue())
 			})
 		})
@@ -1482,11 +1517,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 
 				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", runningMachines[0].Name))
-				gomega.Eventually(
-					c.ControlCluster.ArePreservedMachinesRunning,
-					c.timeout,
-					c.pollingInterval).
-					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace, isSimulatedProvider).
+				gomega.Eventually(func() bool {
+					if isSimulatedProvider {
+						c.TargetCluster.AttemptNodeRecovery(ctx, runningMachines[0].Labels[v1alpha1.NodeLabelKey], int(time.Now().UnixMilli()))
+					}
+					return c.ControlCluster.AreMachinesRunning(ctx, []string{runningMachines[0].Name}, controlClusterNamespace)
+				}, c.timeout, c.pollingInterval).
 					Should(gomega.BeTrue())
 			})
 			ginkgo.It("When it's corresponding node is manually annotated with `node.machine.sapcloud.io/preserve=when-failed`", func() {
@@ -1549,11 +1585,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 
 				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", runningMachines[0].Name))
-				gomega.Eventually(
-					c.ControlCluster.ArePreservedMachinesRunning,
-					c.timeout,
-					c.pollingInterval).
-					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace, isSimulatedProvider).
+				gomega.Eventually(func() bool {
+					if isSimulatedProvider {
+						c.TargetCluster.AttemptNodeRecovery(ctx, runningMachines[0].Labels[v1alpha1.NodeLabelKey], int(time.Now().UnixMilli()))
+					}
+					return c.ControlCluster.AreMachinesRunning(ctx, []string{runningMachines[0].Name}, controlClusterNamespace)
+				}, c.timeout, c.pollingInterval).
 					Should(gomega.BeTrue())
 			})
 		})
@@ -1767,18 +1804,7 @@ func (c *IntegrationTestFramework) Cleanup() {
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 			_, err = outputFile.WriteString("\n------------RESTARTED MCM------------\n")
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
-			mcmQPSArgs := ""
-			if isSimulatedProvider {
-				mcmQPSArgs = " KUBE_API_QPS=100 KUBE_API_BURST=150"
-			}
-			args := strings.Fields(
-				fmt.Sprintf(
-					"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms"+mcmQPSArgs,
-					mcmRepoPath,
-					c.ControlCluster.KubeConfigFilePath,
-					c.TargetCluster.KubeConfigFilePath,
-					controlClusterNamespace),
-			)
+			args := c.buildMCMStartArgs()
 			mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 			break
