@@ -37,7 +37,11 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/worker"
 )
 
-const testNamespace = "test"
+const (
+	testNamespace          = "test"
+	terminationHookOwner   = "my-controller"
+	terminationHookPurpose = "my-purpose"
+)
 
 var _ = Describe("machine", func() {
 	var (
@@ -1589,7 +1593,7 @@ var _ = Describe("machine", func() {
 					Expect(actualCondition).ToNot(BeNil())
 					Expect(actualCondition.Type).To(Equal(v1alpha1.InstanceDeletionSuspended))
 					Expect(actualCondition.Status).To(Equal(corev1.ConditionTrue))
-					Expect(actualCondition.Message).To(Equal("Instance Deletion suspended by my-controller for etcd-member-removal."))
+					Expect(actualCondition.Message).To(Equal(fmt.Sprintf("Instance Deletion suspended by %s for %s.", terminationHookOwner, terminationHookPurpose)))
 				}
 
 				if data.expect.nodeDeleted {
@@ -3174,7 +3178,7 @@ var _ = Describe("machine", func() {
 						nil,
 						map[string]string{
 							machineutils.MachinePriority: "3",
-							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/etcd-member-removal": "my-controller",
+							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose: terminationHookOwner,
 						},
 						map[string]string{
 							v1alpha1.NodeLabelKey: "fakeID-0",
@@ -3220,7 +3224,7 @@ var _ = Describe("machine", func() {
 						nil,
 						map[string]string{
 							machineutils.MachinePriority: "3",
-							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/etcd-member-removal": "my-controller",
+							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose: terminationHookOwner,
 						},
 						map[string]string{
 							v1alpha1.NodeLabelKey: "fakeID-0",
@@ -3269,7 +3273,7 @@ var _ = Describe("machine", func() {
 							Conditions: []corev1.NodeCondition{{
 								Type:    v1alpha1.InstanceDeletionSuspended,
 								Status:  corev1.ConditionTrue,
-								Message: "Instance Deletion suspended by my-controller for etcd-member-removal.",
+								Message: fmt.Sprintf("Instance Deletion suspended by %s for %s.", terminationHookOwner, terminationHookPurpose),
 							}},
 						},
 						nil,
@@ -3374,13 +3378,13 @@ var _ = Describe("machine", func() {
 							Conditions: []corev1.NodeCondition{{
 								Type:    v1alpha1.InstanceDeletionSuspended,
 								Status:  corev1.ConditionTrue,
-								Message: "Instance Deletion suspended by my-controller for etcd-member-removal.",
+								Message: fmt.Sprintf("Instance Deletion suspended by %s for %s.", terminationHookOwner, terminationHookPurpose),
 							}},
 						},
 						nil,
 						map[string]string{
 							machineutils.MachinePriority: "3",
-							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/etcd-member-removal": "my-controller",
+							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose: terminationHookOwner,
 						},
 						map[string]string{
 							v1alpha1.NodeLabelKey: "fakeID-0",
@@ -3426,7 +3430,7 @@ var _ = Describe("machine", func() {
 						nil,
 						map[string]string{
 							machineutils.MachinePriority: "3",
-							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/etcd-member-removal": "my-controller",
+							v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose: terminationHookOwner,
 						},
 						map[string]string{
 							v1alpha1.NodeLabelKey: "fakeID-0",
@@ -5467,10 +5471,10 @@ var _ = Describe("#updateMachine", func() {
 		Expect(c.machineQueue.Len()).To(Equal(0))
 	},
 		Entry("annotation added", nil, map[string]string{
-			v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/my-reason": "my-controller",
+			v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose: terminationHookOwner,
 		}),
 		Entry("annotation removed", map[string]string{
-			v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/my-reason": "my-controller",
+			v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose: terminationHookOwner,
 		}, nil),
 	)
 
@@ -5486,7 +5490,7 @@ var _ = Describe("#updateMachine", func() {
 		}
 		newMachine := oldMachine.DeepCopy()
 		newMachine.Annotations = map[string]string{
-			v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/my-reason": "my-controller",
+			v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose: terminationHookOwner,
 		}
 
 		c, trackers := createController(stop, testNamespace, nil, nil, nil, nil, true)

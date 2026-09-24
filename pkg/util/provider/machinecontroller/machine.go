@@ -62,11 +62,13 @@ func (c *controller) updateMachine(oldObj, newObj any) {
 		klog.Errorf("couldn't convert to machine resource from object")
 		return
 	}
-	oldSuspensionMessage, oldSuspended := annotationsutils.IsInstanceDeletionSuspended(oldMachine)
-	newSuspensionMessage, newSuspended := annotationsutils.IsInstanceDeletionSuspended(newMachine)
-	if (oldSuspended != newSuspended || oldSuspensionMessage != newSuspensionMessage) && c.shouldMachineBeMovedToTerminatingQueue(newMachine) {
-		c.enqueueMachineTermination(newMachine, "handling instance deletion suspension annotation UPDATE event")
-		return
+	if c.shouldMachineBeMovedToTerminatingQueue(newMachine) {
+		oldSuspensionMessage, oldSuspended := annotationsutils.IsInstanceDeletionSuspended(oldMachine)
+		newSuspensionMessage, newSuspended := annotationsutils.IsInstanceDeletionSuspended(newMachine)
+		if oldSuspended != newSuspended || oldSuspensionMessage != newSuspensionMessage {
+			c.enqueueMachineTermination(newMachine, "handling instance deletion suspension annotation UPDATE event")
+			return
+		}
 	}
 	// to reconcile on change in annotations related to preservation
 	if oldMachine.Annotations[machineutils.PreserveMachineAnnotationKey] != newMachine.Annotations[machineutils.PreserveMachineAnnotationKey] {
