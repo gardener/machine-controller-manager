@@ -4,9 +4,9 @@ options:
   runtime: binary
   kubeVersion: v1.35.0
   # disableKubeControllerManager: true
-  nodeLeaseDurationSeconds: 20
-  kubeControllerManagerNodeMonitorPeriodMilliseconds: 15000
-  kubeControllerManagerNodeMonitorGracePeriodMilliseconds: 20000
+  nodeLeaseDurationSeconds: 10
+  kubeControllerManagerNodeMonitorPeriodMilliseconds: 7000
+  kubeControllerManagerNodeMonitorGracePeriodMilliseconds: 10000
   heartbeatFactor: 1
   manageAllNodes: true
 componentsPatches:
@@ -23,7 +23,9 @@ componentsPatches:
 ## They're reproduced here to ensure that pod/node lifecycles can be mimiced exactly.
 
 ## There is an additional stage added called `node-recover` that sets a node's Ready
-## condition back to True if its annotated with `kwok/fail-condition=Recover`.
+## condition back to True if it is annotated with `kwok/node-recovery` (any value). Patching
+## the annotation with a fresh value (e.g. a timestamp) triggers a new update event, which
+## re-runs the stage.
 
 ## TODO(@takoverflow): see if the `node-initialize` stage should be removed since
 ## simulatedprovider `CreateMachine` call also handles transitioning the node to `Ready`
@@ -306,17 +308,16 @@ metadata:
   name: node-recover
 spec:
   delay:
-    durationMilliseconds: 5000
-    jitterDurationMilliseconds: 6000
+    durationMilliseconds: 0
+    jitterDurationMilliseconds: 1000
+  immediateNextStage: true
   resourceRef:
     apiGroup: v1
     kind: Node
   selector:
     matchExpressions:
-      - key: '.metadata.annotations["kwok/fail-condition"]'
-        operator: 'In'
-        values:
-        - 'Recover'
+      - key: '.metadata.annotations["kwok/node-recovery"]'
+        operator: 'Exists'
   next:
    statusTemplate: |
      {{- $now := Now }}

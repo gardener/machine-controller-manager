@@ -28,11 +28,13 @@ start:
 			--namespace=$(CONTROL_NAMESPACE) \
 			--machine-creation-timeout=20m \
 			--machine-drain-timeout=5m \
-			--machine-health-timeout=10m \
+			--machine-health-timeout=5m \
 			--machine-pv-detach-timeout=2m \
 			--machine-safety-apiserver-statuscheck-timeout=30s \
 			--machine-safety-apiserver-statuscheck-period=1m \
 			--machine-safety-orphan-vms-period=30m \
+			--kube-api-qps=150 \
+			--kube-api-burst=200 \
 			--leader-elect=$(LEADER_ELECT) \
 			--v=3
 
@@ -43,6 +45,11 @@ start-simulated-cluster: $(KWOKCTL)
 .PHONY: stop-simulated-cluster
 stop-simulated-cluster: $(KWOKCTL)
 	$(KWOKCTL) delete cluster --name "test-cluster"
+
+.PHONY: set-kubeconfig
+set-kubeconfig: $(KWOKCTL)
+	$(KWOKCTL) get kubeconfig --name "test-cluster" > /tmp/test-cluster.kubeconfig
+	@echo "export KUBECONFIG=/tmp/test-cluster.kubeconfig"
 
 .PHONY: test-integration
 test-integration:

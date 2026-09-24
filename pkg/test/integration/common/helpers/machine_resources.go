@@ -24,6 +24,8 @@ const (
 	gnaSecretNameLabelKey = "worker.gardener.cloud/gardener-node-agent-secret-name"
 	// McdName is the name of the test machine deployment
 	McdName = "test-machine-deployment"
+	// McdReplicaCount is the number of replicas for the test machine deployment
+	McdReplicaCount = 3
 	// McName is the name of the test machine
 	McName = "test-machine"
 	// NodeDeleteMcName is the name of the test machine used for the node deletion test
@@ -133,7 +135,6 @@ func (c *Cluster) AreMachinesRunning(ctx context.Context, machineNames []string,
 			MachineV1alpha1().
 			Machines(namespace).
 			Get(ctx, mcName, metav1.GetOptions{})
-
 		if err != nil {
 			log.Println("error fetching machine: ", err)
 			return false
@@ -143,7 +144,6 @@ func (c *Cluster) AreMachinesRunning(ctx context.Context, machineNames []string,
 			return false
 		}
 	}
-
 	return true
 }
 
