@@ -490,7 +490,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 							LastUpdateTime: metav1.Now(),
 						}
 
-						if val, shouldHandlePreservation := machineutils.GetPreserveAnnotationValue(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+						if val, shouldHandlePreservation := machineutils.DeterminePreservationActionFromAnnotation(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
 							machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
 						}
 
@@ -677,6 +677,17 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 			return nil, 0, nil
 		}
 		klog.Errorf("Error occurred while initializing VM instance for machine %q: %s", machine.Name, err)
+		currentStatus := v1alpha1.CurrentStatus{
+			Phase:          c.getCreateFailurePhase(machine),
+			LastUpdateTime: metav1.Now(),
+		}
+		if currentStatus.Phase == v1alpha1.MachineFailed {
+			// check if preservation is needed for the failed machine
+			node, _ := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+			if val, shouldHandlePreservation := machineutils.DeterminePreservationActionFromAnnotation(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+				currentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+			}
+		}
 		updateRetryPeriod, updateErr := c.machineStatusUpdate(
 			ctx,
 			machine,
@@ -687,10 +698,7 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 				Type:           v1alpha1.MachineOperationCreate,
 				LastUpdateTime: metav1.Now(),
 			},
-			v1alpha1.CurrentStatus{
-				Phase:          c.getCreateFailurePhase(machine),
-				LastUpdateTime: metav1.Now(),
-			},
+			currentStatus,
 			machine.Status.LastKnownState,
 		)
 		if updateErr != nil {
@@ -842,7 +850,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		klog.V(3).Infof("node %q not found. Will check the machine %q for annotation:%q", nodeName, machine.Name, machineutils.PreserveMachineAnnotationKey)
 	}
 
-	preserveAnnotationValue, shouldHandlePreservation := machineutils.GetPreserveAnnotationValue(node, machine)
+	preserveAnnotationValue, shouldHandlePreservation := machineutils.DeterminePreservationActionFromAnnotation(node, machine)
 	if !shouldHandlePreservation {
 		return
 	}
@@ -869,6 +877,18 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		} else {
 			clone, err = c.preserveMachine(ctx, clone, preserveAnnotationValue)
 		}
+		// For the preserve=now path (preservation still active), untaint the node if the machine
+		// has recovered to Running. For all other cases, stopPreservationIfActive path handles untainting internally.
+		if node != nil && clone.Status.CurrentStatus.PreserveExpiryTime != nil && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+			err = nodeops.RemoveTaintOffNode(ctx, c.targetCoreClient, node.Name, node, &corev1.Taint{
+				Key:    machineutils.NodePreservedTaintKey,
+				Effect: corev1.TaintEffectNoSchedule,
+			})
+			if err != nil {
+				updatedMachine = clone
+				return
+			}
+		}
 	case machineutils.PreserveMachineAnnotationValueAutoPreserved:
 		if !machineutils.IsFailed(clone) || machineutils.IsPreserveExpiryTimeSetAndExpired(clone) {
 			// To prevent incorrect re-preservation of a recovered, previously auto-preserved machine on future failures
@@ -880,25 +900,9 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		}
 	}
 	if err != nil {
+		updatedMachine = clone
 		return
 	}
-	// For the preserve=now path (preservation still active), untaint the node if the machine
-	// has recovered to Running. For all other cases, stopPreservationIfActive path handles untainting internally.
-	if clone.Status.CurrentStatus.PreserveExpiryTime != nil && clone.Status.CurrentStatus.Phase == v1alpha1.MachineRunning && nodeName != "" {
-		var node *corev1.Node
-		node, err = c.nodeLister.Get(nodeName)
-		if err != nil {
-			return
-		}
-		err = nodeops.RemoveTaintOffNode(ctx, c.targetCoreClient, node.Name, node, &corev1.Taint{
-			Key:    machineutils.NodePreservedTaintKey,
-			Effect: corev1.TaintEffectNoSchedule,
-		})
-		if err != nil {
-			return
-		}
-	}
-
 	if node != nil {
 		updatedMachine, err = c.updatePreserveAnnotationOnMachine(ctx, node.Annotations[machineutils.PreserveMachineAnnotationKey], clone)
 		if err != nil {
@@ -918,11 +922,12 @@ func (c *controller) updatePreserveAnnotationOnMachine(ctx context.Context, node
 			return machine, nil
 		}
 		klog.V(3).Infof(
-			"Since node %q 's annotation:%q was removed, removing machine %q 's annotation:%q",
+			"Since node %q 's annotation:%q was removed, removing machine %q 's annotation:%q=%q",
 			machine.Labels[v1alpha1.NodeLabelKey],
 			machineutils.PreserveMachineAnnotationKey,
 			machine.Name,
 			machineutils.LastAppliedNodePreserveValueAnnotationKey,
+			machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey],
 		)
 	} else {
 		klog.V(3).Infof(
@@ -932,18 +937,9 @@ func (c *controller) updatePreserveAnnotationOnMachine(ctx context.Context, node
 			nodeValue,
 			machine.Name,
 			machineutils.LastAppliedNodePreserveValueAnnotationKey,
-			nodeValue,
+			machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey],
 		)
 	}
-	klog.V(3).Infof(
-		"Removing machine %q 's annotation:%q=%q as node %q 's has annotation:%q=%q",
-		machine.Name,
-		machineutils.PreserveMachineAnnotationKey,
-		machine.Annotations[machineutils.PreserveMachineAnnotationKey],
-		machine.Labels[v1alpha1.NodeLabelKey],
-		machineutils.PreserveMachineAnnotationKey,
-		nodeValue,
-	)
 	return machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(machine.Namespace), machine, func(m *v1alpha1.Machine) error {
 		if m.Annotations == nil {
 			m.Annotations = make(map[string]string)

@@ -62,8 +62,9 @@ var _ = Describe("machine", func() {
 			}
 			testMachine = v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "testmachine",
-					Namespace: testNamespace,
+					Name:            "testmachine",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 				},
 				Status: v1alpha1.MachineStatus{
 					Conditions: []corev1.NodeCondition{
@@ -4414,10 +4415,11 @@ var _ = Describe("machine", func() {
 				}
 				machine := &v1alpha1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Namespace:   testNamespace,
-						Name:        "m1",
-						Labels:      map[string]string{v1alpha1.NodeLabelKey: tc.setup.nodeName},
-						Annotations: machineAnnotations,
+						Namespace:       testNamespace,
+						Name:            "m1",
+						ResourceVersion: "1",
+						Labels:          map[string]string{v1alpha1.NodeLabelKey: tc.setup.nodeName},
+						Annotations:     machineAnnotations,
 					}, Status: v1alpha1.MachineStatus{
 						CurrentStatus: v1alpha1.CurrentStatus{
 							Phase:              tc.setup.machinePhase,
@@ -4459,14 +4461,13 @@ var _ = Describe("machine", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 				_, retry, err := c.manageMachinePreservation(context.TODO(), machine)
-
-				Expect(retry).To(Equal(tc.expect.retry))
 				if tc.expect.err != nil {
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
 					return
 				}
 				Expect(err).ToNot(HaveOccurred())
+				Expect(retry).To(Equal(tc.expect.retry))
 				waitForCacheSync(stop, c)
 				updatedMachine, err := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
@@ -4830,9 +4831,10 @@ var _ = Describe("machine", func() {
 
 				machine := &v1alpha1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Namespace: testNamespace,
-						Name:      "m1",
-						Labels:    map[string]string{v1alpha1.NodeLabelKey: "node-1"},
+						Namespace:       testNamespace,
+						Name:            "m1",
+						ResourceVersion: "1",
+						Labels:          map[string]string{v1alpha1.NodeLabelKey: "node-1"},
 					},
 					Status: v1alpha1.MachineStatus{
 						CurrentStatus: v1alpha1.CurrentStatus{Phase: v1alpha1.MachineRunning},
@@ -4897,9 +4899,10 @@ var _ = Describe("machine", func() {
 
 				machine := &v1alpha1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Namespace:   testNamespace,
-						Name:        "m1",
-						Annotations: tc.setup.machineAnnotations,
+						Namespace:       testNamespace,
+						Name:            "m1",
+						ResourceVersion: "1",
+						Annotations:     tc.setup.machineAnnotations,
 					},
 				}
 
@@ -4978,8 +4981,9 @@ var _ = Describe("machine", func() {
 			// Machine with no finalizer and empty phase — as created by MachineSet
 			machine := &v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-machine",
-					Namespace: testNamespace,
+					Name:            "test-machine",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 				},
 			}
 

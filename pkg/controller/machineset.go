@@ -909,9 +909,7 @@ func isMachineStatusEqual(s1, s2 v1alpha1.MachineStatus) bool {
 	return apiequality.Semantic.DeepEqual(s1Copy.LastOperation, s2Copy.LastOperation) && apiequality.Semantic.DeepEqual(s1Copy.CurrentStatus, s2Copy.CurrentStatus)
 }
 
-// shouldFailedMachineBeTerminated checks if the failed machine is already preserved, in the process of being preserved
-// or if it is a candidate for auto-preservation. If none of these conditions are met, it returns true indicating
-// that the failed machine should be terminated.
+// shouldFailedMachineBeTerminated checks if preservation has started for failed machine(PreserveExpiryTime is set).
 func (c *controller) shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) bool {
 	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
 		return true
@@ -945,16 +943,17 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 	var autoPreservationCandidates []*v1alpha1.Machine
 	var others []*v1alpha1.Machine
 	for _, m := range machines {
-		// check if machine is already annotated for preservation, if yes, skip. Machine controller will take care of the rest.
-		// machine is considered as preserved when it has `PreserveExpiryTime` set.
-		if machineutils.IsFailed(m) {
-			if !machineutils.AllowedPreserveAnnotationValues.Has(m.Annotations[machineutils.PreserveMachineAnnotationKey]) ||
-				(m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved && m.Status.CurrentStatus.PreserveExpiryTime == nil) {
-				autoPreservationCandidates = append(autoPreservationCandidates, m)
-			} else {
-				others = append(others, m)
-			}
+		// Skip machines which have not failed.
+		if !machineutils.IsFailed(m) {
+			others = append(others, m)
+			continue
+		}
+		// If the auto-preservation has not started or it is incomplete(annotation set but not the PreserveExpiryTime), we have work to do.
+		if !machineutils.AllowedPreserveAnnotationValues.Has(m.Annotations[machineutils.PreserveMachineAnnotationKey]) ||
+			m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved && m.Status.CurrentStatus.PreserveExpiryTime == nil {
+			autoPreservationCandidates = append(autoPreservationCandidates, m)
 		} else {
+			// Machine is already preserved or is candidate for different preservation action(when-failed/false).
 			others = append(others, m)
 		}
 	}
@@ -985,8 +984,8 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 
 		klog.V(2).Infof("Setting PreserveExpiryTime on machine %q for auto-preservation as part of machine set %q", machine.Name, machineSet.Name)
 		preservedMachine, err := machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(annotatedMachine.Namespace), annotatedMachine, func(m *v1alpha1.Machine) error {
-			if annotatedMachine.Spec.MachineConfiguration != nil && annotatedMachine.Spec.MachineConfiguration.MachinePreserveTimeout != nil {
-				m.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(annotatedMachine.Spec.MachineConfiguration.MachinePreserveTimeout.Duration)}
+			if m.Spec.MachineConfiguration != nil && m.Spec.MachineConfiguration.MachinePreserveTimeout != nil {
+				m.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(m.Spec.MachineConfiguration.MachinePreserveTimeout.Duration)}
 			} else {
 				m.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(v1alpha1.DefaultMachinePreserveTimeout)}
 			}

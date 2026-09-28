@@ -14,57 +14,60 @@ import (
 
 func TestGetPreserveAnnotationValue(t *testing.T) {
 	tests := []struct {
-		name           string
-		node           *corev1.Node
-		machine        *v1alpha1.Machine
-		expectedValue  string
-		expectedExists bool
+		name                     string
+		node                     *corev1.Node
+		machine                  *v1alpha1.Machine
+		expectedValue            string
+		shouldHandlePreservation bool
 	}{
 		{
 			name: "node nil, machine has valid preserve annotation",
 			node: nil,
 			machine: &v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
+					ResourceVersion: "1",
 					Annotations: map[string]string{
 						PreserveMachineAnnotationKey: PreserveMachineAnnotationValueWhenFailed,
 					},
 				},
 			},
-			expectedValue:  PreserveMachineAnnotationValueWhenFailed,
-			expectedExists: true,
+			expectedValue:            PreserveMachineAnnotationValueWhenFailed,
+			shouldHandlePreservation: true,
 		},
 		{
 			name: "node nil, machine has invalid preserve annotation",
 			node: nil,
 			machine: &v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
+					ResourceVersion: "1",
 					Annotations: map[string]string{
 						PreserveMachineAnnotationKey: "invalid-value",
 					},
 				},
 			},
-			expectedValue:  "",
-			expectedExists: false,
+			expectedValue:            "",
+			shouldHandlePreservation: false,
 		},
 		{
 			name: "node nil, machine has no preserve annotation",
 			node: nil,
 			machine: &v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
+					ResourceVersion: "1",
 					Annotations: map[string]string{},
 				},
 			},
-			expectedValue:  "",
-			expectedExists: false,
+			expectedValue:            "",
+			shouldHandlePreservation: false,
 		},
 		{
 			name: "node nil, machine annotations nil",
 			node: nil,
 			machine: &v1alpha1.Machine{
-				ObjectMeta: metav1.ObjectMeta{},
+				ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"},
 			},
-			expectedValue:  "",
-			expectedExists: false,
+			expectedValue:            "",
+			shouldHandlePreservation: false,
 		},
 		{
 			name: "node has valid preserve annotation",
@@ -76,10 +79,10 @@ func TestGetPreserveAnnotationValue(t *testing.T) {
 				},
 			},
 			machine: &v1alpha1.Machine{
-				ObjectMeta: metav1.ObjectMeta{},
+				ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"},
 			},
-			expectedValue:  PreserveMachineAnnotationValueNow,
-			expectedExists: true,
+			expectedValue:            PreserveMachineAnnotationValueNow,
+			shouldHandlePreservation: true,
 		},
 		{
 			name: "node has invalid preserve annotation, machine has valid preserve annotation",
@@ -92,13 +95,14 @@ func TestGetPreserveAnnotationValue(t *testing.T) {
 			},
 			machine: &v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
+					ResourceVersion: "1",
 					Annotations: map[string]string{
 						PreserveMachineAnnotationKey: PreserveMachineAnnotationValueWhenFailed,
 					},
 				},
 			},
-			expectedValue:  PreserveMachineAnnotationValueWhenFailed,
-			expectedExists: true,
+			expectedValue:            "",
+			shouldHandlePreservation: false,
 		},
 		{
 			name: "node has valid preserve annotation, machine also has valid preserve annotation - node takes priority",
@@ -111,13 +115,14 @@ func TestGetPreserveAnnotationValue(t *testing.T) {
 			},
 			machine: &v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
+					ResourceVersion: "1",
 					Annotations: map[string]string{
 						PreserveMachineAnnotationKey: PreserveMachineAnnotationValueWhenFailed,
 					},
 				},
 			},
-			expectedValue:  PreserveMachineAnnotationValueNow,
-			expectedExists: true,
+			expectedValue:            PreserveMachineAnnotationValueNow,
+			shouldHandlePreservation: true,
 		},
 		{
 			name: "node has no preserve annotation, machine has LastAppliedNodePreserveValue annotation",
@@ -128,13 +133,14 @@ func TestGetPreserveAnnotationValue(t *testing.T) {
 			},
 			machine: &v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
+					ResourceVersion: "1",
 					Annotations: map[string]string{
 						LastAppliedNodePreserveValueAnnotationKey: PreserveMachineAnnotationValueNow,
 					},
 				},
 			},
-			expectedValue:  "",
-			expectedExists: true,
+			expectedValue:            "",
+			shouldHandlePreservation: true,
 		},
 		{
 			name: "node has no preserve annotation, machine has no annotations",
@@ -144,10 +150,10 @@ func TestGetPreserveAnnotationValue(t *testing.T) {
 				},
 			},
 			machine: &v1alpha1.Machine{
-				ObjectMeta: metav1.ObjectMeta{},
+				ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"},
 			},
-			expectedValue:  "",
-			expectedExists: false,
+			expectedValue:            "",
+			shouldHandlePreservation: false,
 		},
 		{
 			name: "node annotations nil, machine has valid preserve annotation",
@@ -156,13 +162,14 @@ func TestGetPreserveAnnotationValue(t *testing.T) {
 			},
 			machine: &v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
+					ResourceVersion: "1",
 					Annotations: map[string]string{
 						PreserveMachineAnnotationKey: PreserveMachineAnnotationValueAutoPreserved,
 					},
 				},
 			},
-			expectedValue:  PreserveMachineAnnotationValueAutoPreserved,
-			expectedExists: true,
+			expectedValue:            PreserveMachineAnnotationValueAutoPreserved,
+			shouldHandlePreservation: true,
 		},
 		{
 			name: "node has false preserve annotation value",
@@ -174,10 +181,10 @@ func TestGetPreserveAnnotationValue(t *testing.T) {
 				},
 			},
 			machine: &v1alpha1.Machine{
-				ObjectMeta: metav1.ObjectMeta{},
+				ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"},
 			},
-			expectedValue:  PreserveMachineAnnotationValueFalse,
-			expectedExists: true,
+			expectedValue:            PreserveMachineAnnotationValueFalse,
+			shouldHandlePreservation: true,
 		},
 		{
 			name: "node has invalid preserve annotation, machine has LastAppliedNodePreserveValue annotation",
@@ -190,24 +197,25 @@ func TestGetPreserveAnnotationValue(t *testing.T) {
 			},
 			machine: &v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
+					ResourceVersion: "1",
 					Annotations: map[string]string{
 						LastAppliedNodePreserveValueAnnotationKey: PreserveMachineAnnotationValueNow,
 					},
 				},
 			},
-			expectedValue:  "",
-			expectedExists: true,
+			expectedValue:            "",
+			shouldHandlePreservation: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			val, shouldHandlePreservation := GetPreserveAnnotationValue(tt.node, tt.machine)
+			val, shouldHandlePreservation := DeterminePreservationActionFromAnnotation(tt.node, tt.machine)
 			if val != tt.expectedValue {
 				t.Errorf("expected value %q, got %q", tt.expectedValue, val)
 			}
-			if shouldHandlePreservation != tt.expectedExists {
-				t.Errorf("expected exists %v, got %v", tt.expectedExists, shouldHandlePreservation)
+			if shouldHandlePreservation != tt.shouldHandlePreservation {
+				t.Errorf("expected exists %v, got %v", tt.shouldHandlePreservation, shouldHandlePreservation)
 			}
 		})
 	}
