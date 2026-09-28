@@ -4037,8 +4037,9 @@ var _ = Describe("machine_util", func() {
 
 				machine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "machine-1",
-						Namespace: testNamespace,
+						Name:            "machine-1",
+						Namespace:       testNamespace,
+						ResourceVersion: "1",
 						Labels: map[string]string{
 							machinev1.NodeLabelKey: tc.setup.nodeName,
 						},
@@ -4457,9 +4458,10 @@ var _ = Describe("machine_util", func() {
 				}
 				machine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "machine-1",
-						Namespace: testNamespace,
-						Labels:    map[string]string{},
+						Name:            "machine-1",
+						Namespace:       testNamespace,
+						ResourceVersion: "1",
+						Labels:          map[string]string{},
 					},
 					Spec: machinev1.MachineSpec{},
 					Status: machinev1.MachineStatus{
@@ -4995,9 +4997,10 @@ var _ = Describe("machine_util", func() {
 
 				machine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:        "machine-1",
-						Namespace:   testNamespace,
-						Annotations: annotations,
+						Name:            "machine-1",
+						Namespace:       testNamespace,
+						ResourceVersion: "1",
+						Annotations:     annotations,
 					},
 					Status: machinev1.MachineStatus{
 						CurrentStatus: machinev1.CurrentStatus{

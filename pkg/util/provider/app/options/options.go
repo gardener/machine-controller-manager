@@ -39,6 +39,7 @@ import (
 
 	// add the machine feature gates
 	"github.com/gardener/machine-controller-manager/pkg/apis/constants"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	_ "github.com/gardener/machine-controller-manager/pkg/features"
 )
 
@@ -79,7 +80,7 @@ func NewMCServer() *MCServer {
 				MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 15 * time.Minute},
 				MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
 				MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
-				MachinePreserveTimeout:                   metav1.Duration{Duration: 96 * time.Hour},
+				MachinePreserveTimeout:                   metav1.Duration{Duration: v1alpha1.DefaultMachinePreserveTimeout},
 			},
 		},
 	}

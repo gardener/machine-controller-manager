@@ -807,6 +807,19 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		lastKnownState = createMachineResponse.LastKnownState
 	}
 
+	currentStatus := v1alpha1.CurrentStatus{
+		Phase:              c.getCreateFailurePhase(machine),
+		LastUpdateTime:     metav1.Now(),
+		PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
+	}
+	if currentStatus.Phase == v1alpha1.MachineFailed {
+		// check if preservation is needed for the failed machine
+		node, _ := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+		if val, shouldHandlePreservation := machineutils.DeterminePreservationActionFromAnnotation(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+			currentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+		}
+	}
+
 	updateRetryPeriod, updateErr := c.machineStatusUpdate(
 		ctx,
 		machine,
@@ -817,11 +830,7 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 			Type:           v1alpha1.MachineOperationCreate,
 			LastUpdateTime: metav1.Now(),
 		},
-		v1alpha1.CurrentStatus{
-			Phase:              c.getCreateFailurePhase(machine),
-			LastUpdateTime:     metav1.Now(),
-			PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
-		},
+		currentStatus,
 		lastKnownState,
 	)
 
@@ -1143,7 +1152,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 				}
 				// check if preservation is needed for the failed machine
-				if val, shouldHandlePreservation := machineutils.GetPreserveAnnotationValue(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+				if val, shouldHandlePreservation := machineutils.DeterminePreservationActionFromAnnotation(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
 					clone.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
 				}
 				cloneDirty = true
@@ -2168,7 +2177,7 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 	}
 
 	// check if preservation is needed for the failed machine
-	if val, shouldHandlePreservation := machineutils.GetPreserveAnnotationValue(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+	if val, shouldHandlePreservation := machineutils.DeterminePreservationActionFromAnnotation(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
 		// we set the PreserveExpiryTime if not already set.
 		if clone.Status.CurrentStatus.PreserveExpiryTime == nil {
 			clone.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}

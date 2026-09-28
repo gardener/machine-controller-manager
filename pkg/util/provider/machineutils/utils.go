@@ -8,6 +8,7 @@ package machineutils
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -199,12 +200,23 @@ func PatchMachine(
 	optimisticLock bool,
 	subresources ...string,
 ) (*v1alpha1.Machine, error) {
-	base, err := json.Marshal(machine)
-	if err != nil {
-		return nil, err
-	}
+	original := machine
 	modified := machine.DeepCopy()
 	if err := mutateFn(modified); err != nil {
+		return nil, err
+	}
+	if optimisticLock {
+		version := original.GetResourceVersion()
+		if len(version) == 0 {
+			return nil, fmt.Errorf("cannot use OptimisticLock, object %q does not have any resource version we can use", machine.Name)
+		}
+
+		original = original.DeepCopy()
+		original.SetResourceVersion("")
+		modified.SetResourceVersion(version)
+	}
+	base, err := json.Marshal(original)
+	if err != nil {
 		return nil, err
 	}
 	modifiedJSON, err := json.Marshal(modified)
@@ -218,62 +230,66 @@ func PatchMachine(
 	if string(patch) == "{}" {
 		return machine, nil
 	}
-	if optimisticLock {
-		var patchMap map[string]any
-		if err := json.Unmarshal(patch, &patchMap); err != nil {
-			return nil, err
-		}
-		meta, ok := patchMap["metadata"].(map[string]any)
-		if !ok {
-			meta = map[string]any{}
-		}
-		meta["resourceVersion"] = machine.ResourceVersion
-		patchMap["metadata"] = meta
-		patch, err = json.Marshal(patchMap)
-		if err != nil {
-			return nil, err
-		}
-	}
 	return machineClient.Patch(ctx, machine.Name, types.MergePatchType, patch, metav1.PatchOptions{}, subresources...)
 }
 
-// GetPreserveAnnotationValue returns the preserve annotation value for the given node and machine
+// DeterminePreservationActionFromAnnotation returns the preserve annotation value for the given node and machine
 // and a boolean informing whether we need to do any work or skip.
-// Invalid annotation values are treated as absent.
-func GetPreserveAnnotationValue(
+// Invalid annotation values won't change the preservation state.
+// If Node has invalid annotation but Machine has a valid annotation - node takes precedence. We won't change the preservation state.
+func DeterminePreservationActionFromAnnotation(
 	node *corev1.Node,
 	machine *v1alpha1.Machine,
 ) (annotationValue string, shouldHandlePreservation bool) {
 	if node != nil {
+		// node exists
 		if val, ok := node.Annotations[PreserveMachineAnnotationKey]; ok {
+			// node has PreserveMachineAnnotationKey annotation
 			if AllowedPreserveAnnotationValues.Has(val) {
+				// valid annotation value
 				return val, true
 			}
+			// invalid annotation value
 			klog.Warningf(
 				"Node %q doesn't have a valid annotation:%q=%q",
 				machine.Labels[v1alpha1.NodeLabelKey],
 				PreserveMachineAnnotationKey,
 				node.Annotations[PreserveMachineAnnotationKey],
 			)
+			// treat it as no-op
+			return "", false
 		}
-		if _, ok :=
-			machine.Annotations[LastAppliedNodePreserveValueAnnotationKey]; ok {
+		// PreserveMachineAnnotationKey annotation absent
+		if _, ok := machine.Annotations[LastAppliedNodePreserveValueAnnotationKey]; ok {
+			// LastAppliedNodePreserveValueAnnotationKey annotation present
+			// Treat as annotation was intentionally removed from node to stop preservation
 			return "", true
 		}
 	}
+	// node doesn't exist
 	if val, ok := machine.Annotations[PreserveMachineAnnotationKey]; ok {
+		// machine has PreserveMachineAnnotationKey present
 		if AllowedPreserveAnnotationValues.Has(val) {
+			// valid annotation value
 			return val, true
 		}
+		// invalid annotation value
 		klog.Warningf(
 			"Machine %q doesn't have a valid annotation:%q=%q",
 			machine.Name,
 			PreserveMachineAnnotationKey,
 			machine.Annotations[PreserveMachineAnnotationKey],
 		)
+		// treat it as no-op
+		return "", false
 	}
+	// PreserveMachineAnnotationKey annotation absent
 	if machine.Status.CurrentStatus.PreserveExpiryTime != nil {
+		// Machine was preserved
+		// Treat as annotation was intentionally remove from the machine to stop preservation
 		return "", true
 	}
+	// neither node nor the machine has the PreserveMachineAnnotationKey present
+	// No work to be done
 	return "", false
 }

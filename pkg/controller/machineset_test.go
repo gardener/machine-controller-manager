@@ -44,9 +44,10 @@ var _ = Describe("machineset", func() {
 
 			testMachine := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "Machine-test",
-					Namespace: testNamespace,
-					Labels:    nil,
+					Name:            "Machine-test",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
+					Labels:          nil,
 				},
 			}
 			MachineSet, err := c.getMachineMachineSets(testMachine)
@@ -79,8 +80,9 @@ var _ = Describe("machineset", func() {
 
 			testMachine := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "Machine-test",
-					Namespace: testNamespace,
+					Name:            "Machine-test",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -173,8 +175,9 @@ var _ = Describe("machineset", func() {
 		BeforeEach(func() {
 			testMachine = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "Machine-test",
-					Namespace: testNamespace,
+					Name:            "Machine-test",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -608,9 +611,10 @@ var _ = Describe("machineset", func() {
 
 			testActiveMachine1 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
-					UID:       "1234568",
+					Name:            "machine-1",
+					Namespace:       testNamespace,
+					UID:             "1234568",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -629,9 +633,10 @@ var _ = Describe("machineset", func() {
 
 			testActiveMachine2 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-2",
-					Namespace: testNamespace,
-					UID:       "1234569",
+					Name:            "machine-2",
+					Namespace:       testNamespace,
+					UID:             "1234569",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -649,9 +654,10 @@ var _ = Describe("machineset", func() {
 
 			testActiveMachine3 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-3",
-					Namespace: testNamespace,
-					UID:       "12345610",
+					Name:            "machine-3",
+					Namespace:       testNamespace,
+					UID:             "12345610",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -669,9 +675,10 @@ var _ = Describe("machineset", func() {
 
 			testActiveMachine4 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-4",
-					Namespace: testNamespace,
-					UID:       "12345611",
+					Name:            "machine-4",
+					Namespace:       testNamespace,
+					UID:             "12345611",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -788,9 +795,10 @@ var _ = Describe("machineset", func() {
 
 			testActiveMachine3 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-3",
-					Namespace: testNamespace,
-					UID:       "12345610",
+					Name:            "machine-3",
+					Namespace:       testNamespace,
+					UID:             "12345610",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -924,9 +932,10 @@ var _ = Describe("machineset", func() {
 
 				testActiveMachine3 = &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "machine-3",
-						Namespace: testNamespace,
-						UID:       "12345610",
+						Name:            "machine-3",
+						Namespace:       testNamespace,
+						UID:             "12345610",
+						ResourceVersion: "1",
 						Labels: map[string]string{
 							"test-label":                             "test-label",
 							"node.machine.sapcloud.io/update-result": "successful",
@@ -967,9 +976,10 @@ var _ = Describe("machineset", func() {
 
 				testActiveMachine3 = &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "machine-3",
-						Namespace: testNamespace,
-						UID:       "12345610",
+						Name:            "machine-3",
+						Namespace:       testNamespace,
+						UID:             "12345610",
+						ResourceVersion: "1",
 						Labels: map[string]string{
 							"test-label":                             "test-label",
 							"node.machine.sapcloud.io/update-result": "successful",
@@ -1010,9 +1020,10 @@ var _ = Describe("machineset", func() {
 
 				testActiveMachine3 = &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "machine-3",
-						Namespace: testNamespace,
-						UID:       "12345610",
+						Name:            "machine-3",
+						Namespace:       testNamespace,
+						UID:             "12345610",
+						ResourceVersion: "1",
 						Labels: map[string]string{
 							"test-label":                             "test-label",
 							"node.machine.sapcloud.io/update-result": "successful",
@@ -1031,9 +1042,10 @@ var _ = Describe("machineset", func() {
 
 				testActiveMachine4 = &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "machine-4",
-						Namespace: testNamespace,
-						UID:       "12345611",
+						Name:            "machine-4",
+						Namespace:       testNamespace,
+						UID:             "12345611",
+						ResourceVersion: "1",
 						Labels: map[string]string{
 							"test-label": "test-label",
 						},
@@ -1051,9 +1063,10 @@ var _ = Describe("machineset", func() {
 
 				testActiveMachine5 = &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "machine-5",
-						Namespace: testNamespace,
-						UID:       "12345612",
+						Name:            "machine-5",
+						Namespace:       testNamespace,
+						UID:             "12345612",
+						ResourceVersion: "1",
 						Labels: map[string]string{
 							"test-label": "test-label",
 						},
@@ -1229,9 +1242,10 @@ var _ = Describe("machineset", func() {
 			objects := []runtime.Object{}
 			testPreservedFailedMachine := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
-					UID:       "1234568",
+					Name:            "machine-1",
+					Namespace:       testNamespace,
+					UID:             "1234568",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1293,9 +1307,10 @@ var _ = Describe("machineset", func() {
 
 			testActiveMachine1 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
-					UID:       "1234568",
+					Name:            "machine-1",
+					Namespace:       testNamespace,
+					UID:             "1234568",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1422,9 +1437,10 @@ var _ = Describe("machineset", func() {
 		BeforeEach(func() {
 			testMachine1 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
-					UID:       "1234561",
+					Name:            "machine-1",
+					Namespace:       testNamespace,
+					UID:             "1234561",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1441,9 +1457,10 @@ var _ = Describe("machineset", func() {
 
 			testMachine2 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-2",
-					Namespace: testNamespace,
-					UID:       "1234562",
+					Name:            "machine-2",
+					Namespace:       testNamespace,
+					UID:             "1234562",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1461,9 +1478,10 @@ var _ = Describe("machineset", func() {
 
 			testMachine3 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-3",
-					Namespace: testNamespace,
-					UID:       "1234563",
+					Name:            "machine-3",
+					Namespace:       testNamespace,
+					UID:             "1234563",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1481,9 +1499,10 @@ var _ = Describe("machineset", func() {
 
 			testMachine4 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-4",
-					Namespace: testNamespace,
-					UID:       "1234564",
+					Name:            "machine-4",
+					Namespace:       testNamespace,
+					UID:             "1234564",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1501,9 +1520,10 @@ var _ = Describe("machineset", func() {
 
 			testMachine5 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-5",
-					Namespace: testNamespace,
-					UID:       "1234561",
+					Name:            "machine-5",
+					Namespace:       testNamespace,
+					UID:             "1234561",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1655,15 +1675,17 @@ var _ = Describe("machineset", func() {
 
 			testMachine1 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
+					Name:            "machine-1",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 				},
 			}
 
 			testMachine2 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-2",
-					Namespace: testNamespace,
+					Name:            "machine-2",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 				},
 			}
 		})
@@ -1715,9 +1737,10 @@ var _ = Describe("machineset", func() {
 
 			targetMachine = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
-					UID:       "1234568",
+					Name:            "machine-1",
+					Namespace:       testNamespace,
+					UID:             "1234568",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1789,9 +1812,10 @@ var _ = Describe("machineset", func() {
 
 			testFailedMachine1 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
-					UID:       "1234568",
+					Name:            "machine-1",
+					Namespace:       testNamespace,
+					UID:             "1234568",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1805,9 +1829,10 @@ var _ = Describe("machineset", func() {
 
 			testFailedMachine2 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-2",
-					Namespace: testNamespace,
-					UID:       "1234569",
+					Name:            "machine-2",
+					Namespace:       testNamespace,
+					UID:             "1234569",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1821,9 +1846,10 @@ var _ = Describe("machineset", func() {
 
 			testRunningMachine = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-t",
-					Namespace: testNamespace,
-					UID:       "1234560",
+					Name:            "machine-t",
+					Namespace:       testNamespace,
+					UID:             "1234560",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -2120,6 +2146,7 @@ var _ = Describe("machineset", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "machine-1",
 					Namespace:         testNamespace,
+					ResourceVersion:   "1",
 					CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
 				},
 				Status: machinev1.MachineStatus{
@@ -2132,6 +2159,7 @@ var _ = Describe("machineset", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "machine-2",
 					Namespace:         testNamespace,
+					ResourceVersion:   "1",
 					CreationTimestamp: metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
 				},
 				Status: machinev1.MachineStatus{
@@ -2144,6 +2172,7 @@ var _ = Describe("machineset", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "machine-3",
 					Namespace:         testNamespace,
+					ResourceVersion:   "1",
 					CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
 				},
 				Status: machinev1.MachineStatus{
@@ -2156,6 +2185,7 @@ var _ = Describe("machineset", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "machine-4",
 					Namespace:         testNamespace,
+					ResourceVersion:   "1",
 					CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
 					Annotations: map[string]string{
 						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueFalse,
@@ -2255,8 +2285,9 @@ var _ = Describe("machineset", func() {
 					additionalMachines: []*machinev1.Machine{
 						{
 							ObjectMeta: metav1.ObjectMeta{
-								Name:      "machine-5",
-								Namespace: testNamespace,
+								Name:            "machine-5",
+								Namespace:       testNamespace,
+								ResourceVersion: "1",
 								Annotations: map[string]string{
 									machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 								},
@@ -2283,8 +2314,9 @@ var _ = Describe("machineset", func() {
 			// machine-a: created recently, but expires sooner — should lose annotation first
 			machineA := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-a",
-					Namespace: testNamespace,
+					Name:            "machine-a",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Annotations: map[string]string{
 						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 					},
@@ -2300,8 +2332,9 @@ var _ = Describe("machineset", func() {
 			// machine-b: created earlier, but expires later — should keep annotation
 			machineB := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-b",
-					Namespace: testNamespace,
+					Name:            "machine-b",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Annotations: map[string]string{
 						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 					},
@@ -2361,8 +2394,9 @@ var _ = Describe("machineset", func() {
 			// machine has auto-preserved annotation but PreserveExpiryTime was never set (e.g. status update failed)
 			machine := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-no-expiry",
-					Namespace: testNamespace,
+					Name:            "machine-no-expiry",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Annotations: map[string]string{
 						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 					},
@@ -2437,8 +2471,9 @@ var _ = Describe("machineset", func() {
 
 			machine := machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-machine",
-					Namespace: "default",
+					Name:            "test-machine",
+					Namespace:       "default",
+					ResourceVersion: "1",
 					Annotations: map[string]string{
 						machineutils.PreserveMachineAnnotationKey:              tc.setup.machineAnnotationValue,
 						machineutils.LastAppliedNodePreserveValueAnnotationKey: tc.setup.laNodeAnnotationValue,

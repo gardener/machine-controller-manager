@@ -281,6 +281,7 @@ func newMachines(
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              fmt.Sprintf("%smachine-%d", namePrefix, i),
 				Namespace:         testNamespace,
+				ResourceVersion:   "1",
 				Labels:            labels,
 				Annotations:       annotations,
 				CreationTimestamp: metav1.Now(),
